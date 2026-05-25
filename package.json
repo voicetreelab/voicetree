@@ -36,6 +36,8 @@
     "test:e2e:tier2:browser": "npm --workspace webapp run test:e2e:tier2:browser",
     "test:e2e:tier2:electron": "node scripts/run-remote.mjs npm run test:e2e:tier2:electron:local",
     "test:e2e:tier2:electron:local": "npm --workspace webapp run test:e2e:tier2:electron",
+    "test:e2e:tier2:electron-critical": "node scripts/run-remote.mjs npm run test:e2e:tier2:electron-critical:local",
+    "test:e2e:tier2:electron-critical:local": "npm --workspace webapp run test:e2e:tier2:electron-critical",
     "test:perf:agents": "node scripts/run-remote.mjs npm run test:perf:agents:local --",
     "test:perf:agents:local": "node --import tsx packages/measures/perf/agent-storm.ts",
     "perf:main-storm": "node scripts/run-remote.mjs npm run perf:main-storm:local --",

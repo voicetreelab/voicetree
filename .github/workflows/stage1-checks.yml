@@ -108,10 +108,11 @@ jobs:
           node --no-warnings=ExperimentalWarning --experimental-strip-types
           packages/measures/src/_runners/capture-ci-checks.ts
           --tier-max=2
-          --only=e2e-browser-smoke,e2e-tier2-browser
+          --only=e2e-browser-smoke
 
   required-fuzz-tests:
     name: Fuzz Tests (${{ matrix.check_id }})
+    needs: [lint-typecheck-taxonomy, unit-integration, browser-tier-1-smoke, electron-tier-1-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -151,6 +152,7 @@ jobs:
 
   browser-tier-2-e2e:
     name: Browser Tier 2 E2E
+    needs: [lint-typecheck-taxonomy, unit-integration, browser-tier-1-smoke, electron-tier-1-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -185,6 +187,7 @@ jobs:
 
   electron-tier-2-e2e:
     name: Electron Tier 2 E2E
+    needs: [lint-typecheck-taxonomy, unit-integration, browser-tier-1-smoke, electron-tier-1-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -268,6 +271,7 @@ jobs:
     # Originally landed in 3b73f12b; dropped 2h later by the tier-cutover
     # refactor (3b77af1a). Restored here on top of the tier verbs.
     name: Mutation Gate
+    needs: [lint-typecheck-taxonomy, unit-integration, browser-tier-1-smoke, electron-tier-1-smoke]
     if: github.base_ref == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 5

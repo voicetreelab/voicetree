@@ -27,8 +27,7 @@ const REMOTE_ROOT = '/root/voicetree-public'
 const MUTAGEN_SESSION = 'vt-remote'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
 
-function loadEnvFile() {
-  const p = pathResolve(REPO_ROOT, '.env')
+function loadEnvFile(p) {
   if (!existsSync(p)) return {}
   const env = {}
   for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
@@ -41,6 +40,20 @@ function loadEnvFile() {
     env[m[1]] = v
   }
   return env
+}
+
+function remoteHostFromEnvironment() {
+  if (process.env.VT_REMOTE_HOST) return process.env.VT_REMOTE_HOST
+
+  const candidateEnvFiles = [
+    pathResolve(REPO_ROOT, '.env'),
+    pathResolve(localSyncRoot(), '.env'),
+  ]
+  for (const envFile of [...new Set(candidateEnvFiles)]) {
+    const host = loadEnvFile(envFile).VT_REMOTE_HOST
+    if (host) return host
+  }
+  return null
 }
 
 function shq(s) {
@@ -57,6 +70,23 @@ function localSyncRoot() {
   } catch {
     return REPO_ROOT
   }
+}
+
+function localWorktreeRoot(cwd, syncRoot = localSyncRoot()) {
+  const rel = pathRelative(syncRoot, cwd)
+  const parts = rel.split(/[\\/]/)
+  if (parts[0] !== '.worktrees' || !parts[1]) return null
+  return pathResolve(syncRoot, '.worktrees', parts[1])
+}
+
+function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd(), syncRoot = localSyncRoot()} = {}) {
+  const worktreeRoot = localWorktreeRoot(cwd, syncRoot)
+  if (worktreeRoot === null) return false
+  process.stderr.write(`[run-remote] repairing local worktree git metadata before sync: ${worktreeRoot}\n`)
+  execFileSync('git', ['-C', syncRoot, 'worktree', 'repair', '--relative-paths'], {
+    stdio: 'ignore',
+  })
+  return true
 }
 
 function runLocal(cmd, args) {
@@ -116,6 +146,40 @@ function refreshRemoteGitIndexScript() {
   ].join(' ')
 }
 
+function remoteWorktreeRoot(remoteCwd, remoteRoot = REMOTE_ROOT) {
+  const rel = ppath.relative(remoteRoot, remoteCwd)
+  const parts = rel.split('/')
+  if (parts[0] !== '.worktrees' || !parts[1]) return null
+  return ppath.join(remoteRoot, '.worktrees', parts[1])
+}
+
+function ensureRemoteWorktreeReadyScript(remoteCwd) {
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
+  if (worktreeRoot === null) return ':'
+  const readyScript = ppath.join(REMOTE_ROOT, 'scripts/git/worktree/ensure-ready.mjs')
+  return `node ${shq(readyScript)} ${shq(worktreeRoot)}`
+}
+
+function repairRemoteWorktreeMetadataScript(remoteCwd) {
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
+  if (worktreeRoot === null) return ':'
+
+  const worktreeName = ppath.basename(worktreeRoot)
+  const adminDir = ppath.join(REMOTE_ROOT, '.git', 'worktrees', worktreeName)
+  const worktreeGitFile = ppath.join(worktreeRoot, '.git')
+  const adminGitdirFile = ppath.join(adminDir, 'gitdir')
+  const adminCommondirFile = ppath.join(adminDir, 'commondir')
+
+  return [
+    `if [ -d ${shq(adminDir)} ] && [ -f ${shq(worktreeGitFile)} ]; then`,
+    `echo ${shq(`[run-remote] repairing remote worktree git metadata: ${worktreeRoot}`)} >&2;`,
+    `printf '%s\\n' ${shq(`gitdir: ../../.git/worktrees/${worktreeName}`)} > ${shq(worktreeGitFile)};`,
+    `printf '%s\\n' ${shq(`../../../.worktrees/${worktreeName}/.git`)} > ${shq(adminGitdirFile)};`,
+    `printf '%s\\n' '../..' > ${shq(adminCommondirFile)};`,
+    'fi',
+  ].join(' ')
+}
+
 function runRemote(host, cmd, args) {
   const syncRoot = localSyncRoot()
   const rel = pathRelative(syncRoot, process.cwd())
@@ -124,7 +188,14 @@ function runRemote(host, cmd, args) {
   }
   const remoteCwd = ppath.join(REMOTE_ROOT, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')
-  const remoteScript = `cd ${shq(remoteCwd)} && ${refreshRemoteGitIndexScript()} && export ${RECURSION_GUARD}=1 && exec ${quotedCmd}`
+  const remoteScript = [
+    repairRemoteWorktreeMetadataScript(remoteCwd),
+    `cd ${shq(remoteCwd)}`,
+    refreshRemoteGitIndexScript(),
+    ensureRemoteWorktreeReadyScript(remoteCwd),
+    `export ${RECURSION_GUARD}=1`,
+    `exec ${quotedCmd}`,
+  ].join(' && ')
 
   // -tt allocates a TTY (needed for interactive commands, colors, signals).
   // -T disables it (needed when local stdin is piped, else TTY echo doubles output).
@@ -149,14 +220,14 @@ async function main() {
     return
   }
 
-  const fileEnv = loadEnvFile()
-  const host = process.env.VT_REMOTE_HOST || fileEnv.VT_REMOTE_HOST
+  const host = remoteHostFromEnvironment()
   if (!host) {
     runLocal(cmd, args)
     return
   }
 
   process.stderr.write(`[run-remote] routing to ${host} (waiting for mutagen idle…)\n`)
+  repairLocalWorktreeMetadataIfNeeded()
   const mutagenListOutput = await waitMutagenIdle()
   assertOneWayReplica(mutagenListOutput)
   process.stderr.write(`[run-remote] mutagen idle + one-way replica; ssh ${host}\n`)
@@ -174,6 +245,12 @@ if (isDirectRun) {
 
 export {
   assertOneWayReplica,
+  ensureRemoteWorktreeReadyScript,
+  repairRemoteWorktreeMetadataScript,
+  repairLocalWorktreeMetadataIfNeeded,
   refreshRemoteGitIndexScript,
+  remoteHostFromEnvironment,
+  localWorktreeRoot,
+  remoteWorktreeRoot,
   synchronizationMode,
 }

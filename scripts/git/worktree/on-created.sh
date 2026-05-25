@@ -1,20 +1,17 @@
 #!/bin/sh
-# on-worktree-created.sh
+# on-created.sh
 # Per-worktree setup: configures Playwright debug port.
 #
 # Called by VoiceTree's onWorktreeCreated hook after git worktree add.
 # 1. Picks a free TCP port, patches .mcp.json for Playwright MCP, and writes
 #    .cdp-port for Electron to read.
 #
-# Dep setup (node_modules + @vt/*) is handled by on-worktree-created-async.sh
+# Dep setup is handled by on-created-async.sh
 # via symlinks + a tiny cp -a of @vt; see that script's header. Running
 # `npm install` here used to clobber that setup (it'd write into main's
-# shared tree because webapp/node_modules is a symlink), so it has been
-# removed. If you need a fully private node_modules tree for this worktree
-# (e.g. you're about to add an external dep or change Electron version),
-# read the escape-hatch instructions at the top of on-worktree-created-async.sh.
+# removed.
 #
-# Usage: on-worktree-created.sh <worktreePath> <worktreeName>
+# Usage: on-created.sh <worktreePath> <worktreeName>
 
 set -e
 
@@ -27,4 +24,5 @@ if [ -z "$WORKTREE_PATH" ] || [ -z "$WORKTREE_NAME" ]; then
     exit 1
 fi
 
-exec "$SCRIPT_DIR/configure-worktree-cdp.sh" "$WORKTREE_PATH" "$WORKTREE_NAME"
+echo "worktree hook: starting combined setup for $WORKTREE_NAME at $WORKTREE_PATH"
+exec "$SCRIPT_DIR/configure-cdp.sh" "$WORKTREE_PATH" "$WORKTREE_NAME"

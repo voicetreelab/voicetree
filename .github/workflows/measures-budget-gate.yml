@@ -299,7 +299,7 @@ jobs:
             packages/measures/src/_runners/capture-ci-checks.ts \
             --tier-max=2 \
             --sequential \
-            --only=e2e-tier2-browser,graph-db-client-e2e-system,graph-db-server-e2e-system,graph-tools-e2e-system
+            --only=e2e-tier2-browser,e2e-tier2-electron-critical,graph-db-client-e2e-system,graph-db-server-e2e-system,graph-tools-e2e-system
       - name: Upload check reports
         if: always()
         uses: actions/upload-artifact@v4
