@@ -14,6 +14,7 @@ import {
 import {createTerminalData, type TerminalData, type TerminalId} from '../../terminals/terminal-registry/types'
 import {clearTerminalRecords, getTerminalRecords} from '../../terminals/terminal-registry'
 import {hasSession, killSession} from '../../terminals/tmux/tmux-session-manager'
+import {TerminalManager} from '../../terminals/terminal-manager'
 
 type TmuxMetadata = {
     readonly status: 'running' | 'exited'
@@ -169,6 +170,55 @@ describe('headlessAgentManager tmux backend', () => {
         await killSession(terminalId)
         sessions.delete(terminalId)
         closeHeadlessAgent(terminalId)
+    }, 15000)
+
+    it('preserves tmux sessions when terminal runtime cleanup detaches host state', async () => {
+        const terminalId: TerminalId = makeName()
+        const projectRoot: string = await makeTempVault()
+        const metadataPath: string = join(projectRoot, '.voicetree', 'terminals', `${terminalId}.json`)
+        const terminalManager: TerminalManager = new TerminalManager()
+        sessions.add(terminalId)
+
+        await spawnTmuxBackedTerminal(
+            terminalId,
+            makeTerminalData(terminalId, projectRoot),
+            `bash -lc 'echo BF311_PRESERVE_READY; sleep 300'`,
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+        )
+        await waitFor(async () => hasSession(terminalId))
+        expect((await readMetadata(metadataPath))?.status).toBe('running')
+
+        terminalManager.cleanup({tmuxSessions: 'preserve'})
+
+        expect(getTerminalRecords()).toEqual([])
+        expect(await hasSession(terminalId)).toBe(true)
+        expect((await readMetadata(metadataPath))?.status).toBe('running')
+
+        await killSession(terminalId)
+        sessions.delete(terminalId)
+    }, 15000)
+
+    it('terminates tmux sessions when terminal runtime cleanup is destructive', async () => {
+        const terminalId: TerminalId = makeName()
+        const projectRoot: string = await makeTempVault()
+        const terminalManager: TerminalManager = new TerminalManager()
+        sessions.add(terminalId)
+
+        await spawnTmuxBackedTerminal(
+            terminalId,
+            makeTerminalData(terminalId, projectRoot),
+            `bash -lc 'echo BF311_TERMINATE_READY; sleep 300'`,
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+        )
+        await waitFor(async () => hasSession(terminalId))
+
+        terminalManager.cleanup({tmuxSessions: 'terminate'})
+
+        await waitFor(async () => !(await hasSession(terminalId)))
+        sessions.delete(terminalId)
+        expect(getTerminalRecords()).toEqual([])
     }, 15000)
 
     // M1-fix5: tmux sessions outlive Electron. When Electron is killed and

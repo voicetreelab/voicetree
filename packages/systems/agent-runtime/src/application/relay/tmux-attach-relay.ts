@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process'
 import type {IncomingMessage} from 'node:http'
-import pty, {type IPty} from 'node-pty'
+import type {IPty} from 'node-pty'
 import {WebSocket} from 'ws'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
 import {hasSession, resolveTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
@@ -25,6 +25,7 @@ const defaultLogger: TmuxRelayLogger = {
 export interface TmuxAttachRelayOptions {
     readonly cwd?: string
     readonly env?: NodeJS.ProcessEnv
+    readonly loadPty?: () => Promise<NodePtyModule>
     readonly logger?: TmuxRelayLogger
 }
 
@@ -33,6 +34,18 @@ type ParsedAttachRequest = {
     readonly cols: number
     readonly rows: number
 } | null
+
+type NodePtyModule = typeof import('node-pty')
+type NodePtyLoadResult = NodePtyModule & {readonly default?: NodePtyModule}
+
+async function loadNodePty(): Promise<NodePtyModule> {
+    const loaded: NodePtyLoadResult = await import('node-pty') as NodePtyLoadResult
+    return loaded.default ?? loaded
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error)
+}
 
 function positiveInteger(value: string | null, fallback: number): number {
     const parsed: number = Number(value)
@@ -75,6 +88,12 @@ function sendExit(ws: WebSocket, code: number | null): void {
     }
 }
 
+function closeWithRelayMessage(ws: WebSocket, payload: string, code: number): void {
+    sendData(ws, payload)
+    sendExit(ws, code)
+    ws.close()
+}
+
 function enqueuePacedInput(term: IPty, queue: string[], state: {flushing: boolean}, payload: string): void {
     if (payload.length <= INTERACTIVE_INPUT_BYTES && !state.flushing) {
         term.write(payload)
@@ -111,6 +130,86 @@ function parseWsMessage(raw: Buffer | ArrayBuffer | Buffer[]): unknown | null {
     }
 }
 
+async function prepareExistingTmuxSession(
+    ws: WebSocket,
+    logger: TmuxRelayLogger,
+    sessionName: string
+): Promise<boolean> {
+    try {
+        if (await hasSession(sessionName)) return true
+        logger.info(`[tmux-relay] ${sessionName}: session not found, closing client`)
+        closeWithRelayMessage(ws, '[session ended — agent exited]\r\n', 0)
+        return false
+    } catch (error) {
+        const message: string = errorMessage(error)
+        logger.warn(`[tmux-relay] ${sessionName}: hasSession check failed: ${message}`)
+        closeWithRelayMessage(ws, `tmux session check failed: ${message}\r\n`, 1)
+        return false
+    }
+}
+
+function configureSessionForRelay(ws: WebSocket, logger: TmuxRelayLogger, sessionName: string): boolean {
+    try {
+        configureTmuxSession(sessionName)
+        return true
+    } catch (error) {
+        const message: string = errorMessage(error)
+        logger.warn(`[tmux-relay] ${sessionName}: configureTmuxSession failed: ${message}`)
+        closeWithRelayMessage(ws, `tmux session configuration failed: ${message}\r\n`, 1)
+        return false
+    }
+}
+
+async function loadPtyForRelay(
+    ws: WebSocket,
+    logger: TmuxRelayLogger,
+    sessionName: string,
+    loadPty: () => Promise<NodePtyModule>
+): Promise<NodePtyModule | null> {
+    try {
+        return await loadPty()
+    } catch (error) {
+        const message: string = errorMessage(error)
+        logger.warn(`[tmux-relay] ${sessionName}: node-pty load failed: ${message}`)
+        closeWithRelayMessage(ws, `node-pty unavailable: ${message}\r\n`, 1)
+        return null
+    }
+}
+
+function attachEnvironment(options: TmuxAttachRelayOptions): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        ...options.env,
+        PATH: options.env?.PATH ?? process.env.PATH ?? '/usr/bin:/bin:/usr/sbin:/sbin',
+        HOME: options.env?.HOME ?? process.env.HOME ?? process.cwd(),
+        TERM: 'xterm-256color',
+        LANG: options.env?.LANG ?? process.env.LANG ?? 'en_US.UTF-8',
+    }
+    delete env.npm_config_prefix
+    return env
+}
+
+function spawnTmuxAttachPty(
+    pty: NodePtyModule,
+    ws: WebSocket,
+    parsed: Exclude<ParsedAttachRequest, null>,
+    sessionName: string,
+    options: TmuxAttachRelayOptions
+): IPty | null {
+    try {
+        return pty.spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['attach', '-t', sessionName]), {
+            name: 'xterm-256color',
+            cols: parsed.cols,
+            rows: parsed.rows,
+            cwd: options.cwd ?? process.cwd(),
+            env: attachEnvironment(options),
+        })
+    } catch (error) {
+        closeWithRelayMessage(ws, `node-pty spawn failed: ${errorMessage(error)}\r\n`, 1)
+        return null
+    }
+}
+
 export async function attachTmuxSessionToWebSocket(
     ws: WebSocket,
     request: IncomingMessage,
@@ -124,58 +223,15 @@ export async function attachTmuxSessionToWebSocket(
     }
     const sessionName: string = resolveTmuxSessionName(parsed.sessionName)
 
-    try {
-        if (!(await hasSession(sessionName))) {
-            logger.info(`[tmux-relay] ${sessionName}: session not found, closing client`)
-            sendData(ws, '[session ended — agent exited]\r\n')
-            sendExit(ws, 0)
-            ws.close()
-            return
-        }
-    } catch (error) {
-        logger.warn(`[tmux-relay] ${sessionName}: hasSession check failed: ${error instanceof Error ? error.message : String(error)}`)
-        sendData(ws, `tmux session check failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
-        sendExit(ws, 1)
-        ws.close()
-        return
-    }
-
-    try {
-        configureTmuxSession(sessionName)
-    } catch (error) {
-        logger.warn(`[tmux-relay] ${sessionName}: configureTmuxSession failed: ${error instanceof Error ? error.message : String(error)}`)
-        sendData(ws, `tmux session configuration failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
-        sendExit(ws, 1)
-        ws.close()
-        return
-    }
+    if (!(await prepareExistingTmuxSession(ws, logger, sessionName))) return
+    if (!configureSessionForRelay(ws, logger, sessionName)) return
     logger.info(`[tmux-relay] ${sessionName}: attached cols=${parsed.cols} rows=${parsed.rows}`)
 
-    const env: NodeJS.ProcessEnv = {
-        ...process.env,
-        ...options.env,
-        PATH: options.env?.PATH ?? process.env.PATH ?? '/usr/bin:/bin:/usr/sbin:/sbin',
-        HOME: options.env?.HOME ?? process.env.HOME ?? process.cwd(),
-        TERM: 'xterm-256color',
-        LANG: options.env?.LANG ?? process.env.LANG ?? 'en_US.UTF-8',
-    }
-    delete env.npm_config_prefix
+    const pty: NodePtyModule | null = await loadPtyForRelay(ws, logger, sessionName, options.loadPty ?? loadNodePty)
+    if (!pty) return
 
-    let term: IPty
-    try {
-        term = pty.spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['attach', '-t', sessionName]), {
-            name: 'xterm-256color',
-            cols: parsed.cols,
-            rows: parsed.rows,
-            cwd: options.cwd ?? process.cwd(),
-            env,
-        })
-    } catch (error) {
-        sendData(ws, `node-pty spawn failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
-        sendExit(ws, 1)
-        ws.close()
-        return
-    }
+    const term: IPty | null = spawnTmuxAttachPty(pty, ws, parsed, sessionName, options)
+    if (!term) return
 
     const pendingWrites: string[] = []
     const writeState: {flushing: boolean} = {flushing: false}

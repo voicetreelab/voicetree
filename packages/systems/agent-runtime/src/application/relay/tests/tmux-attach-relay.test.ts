@@ -5,18 +5,18 @@ import type {Duplex} from 'node:stream'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {WebSocket, WebSocketServer} from 'ws'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux/tmux-server.ts'
-import {killSession, createSession, hasSession} from '../../terminals/tmux/tmux-session-manager.ts'
-import {attachTmuxSessionToWebSocket} from '../tmux-attach-relay.ts'
+import {buildTmuxSessionName, killSession, createSession, hasSession} from '../../terminals/tmux/tmux-session-manager.ts'
+import {attachTmuxSessionToWebSocket, type TmuxAttachRelayOptions} from '../tmux-attach-relay.ts'
 
 // Bridge-level black-box test. The daemon-side wiring lives in
 // vt-daemon/transport/tmuxAttachWiring.ts; here we drive the primitive
 // directly via a tiny test-local mount helper so the bridge can be verified
 // in isolation from daemon auth.
-function mountForTest(server: Server): {readonly close: () => void} {
+function mountForTest(server: Server, options: TmuxAttachRelayOptions = {}): {readonly close: () => void} {
     const wss: WebSocketServer = new WebSocketServer({noServer: true})
     const listener = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
         wss.handleUpgrade(request, socket, head, (ws: WebSocket): void => {
-            void attachTmuxSessionToWebSocket(ws, request)
+            void attachTmuxSessionToWebSocket(ws, request, options)
         })
     }
     server.on('upgrade', listener)
@@ -241,6 +241,36 @@ describe('tmux attach relay', () => {
         }
     }, TEST_TIMEOUT_MS)
 
+    it('attaches a raw terminal route to its vault-namespaced tmux session', async () => {
+        const terminalId: string = makeSessionName('namespaced')
+        const env: Record<string, string> = {
+            VOICETREE_VAULT_PATH: `/tmp/${terminalId}-vault`,
+        }
+        const sessionName: string = buildTmuxSessionName(terminalId, env)
+        sessions.push(terminalId)
+        await createSession(terminalId, sessionCommand(), env)
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {ws, output} = await connect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(terminalId)}/attach?cols=120&rows=40`
+        )
+
+        try {
+            await waitForOutput(output, 'BF312_READY')
+
+            ws.send(JSON.stringify({type: 'input', payload: 'BF312_NAMESPACED\r'}))
+            await waitForOutput(output, 'ECHO:BF312_NAMESPACED')
+
+            const captured: string = tmuxOutput(['capture-pane', '-p', '-J', '-S', '-50', '-t', sessionName])
+            expect(captured).toContain('ECHO:BF312_NAMESPACED')
+            expect(await hasSession(terminalId)).toBe(true)
+        } finally {
+            ws.close()
+        }
+    }, TEST_TIMEOUT_MS)
+
     it('reports a missing session once instead of surfacing tmux set failures', async () => {
         const sessionName: string = makeSessionName('missing')
 
@@ -253,6 +283,35 @@ describe('tmux attach relay', () => {
         await closed
         expect(output()).toContain('[session ended — agent exited]')
         expect(output()).not.toContain('tmux session configuration failed')
+        ws.close()
+    }, TEST_TIMEOUT_MS)
+
+    it('reports node-pty load failure at attach time without killing the tmux session', async () => {
+        const sessionName: string = makeSessionName('missing-pty')
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        relay?.close()
+        relay = mountForTest(server!, {
+            loadPty: async () => {
+                throw new Error('native module missing')
+            },
+            logger: {
+                info: () => undefined,
+                warn: () => undefined,
+            },
+        })
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {closed, output, ws} = await connectAndCollect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach`
+        )
+
+        await closed
+        expect(output()).toContain('node-pty unavailable: native module missing')
+        expect(await hasSession(sessionName)).toBe(true)
         ws.close()
     }, TEST_TIMEOUT_MS)
 })

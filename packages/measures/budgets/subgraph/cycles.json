@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-24T09:29:36.857Z",
+  "refreshedAt": "2026-05-25T03:46:42.632Z",
   "byCommunity": {
     "agent-runtime/api": 0,
     "agent-runtime/application": 0,
@@ -38,8 +38,12 @@
     "measures/__root__": 0,
     "measures/_runners": 0,
     "measures/_shared": 0,
+    "measures/_subgraph_gate": 0,
     "measures/checks": 0,
+    "measures/correctness": 0,
     "measures/health": 0,
+    "observability/__root__": 0,
+    "perf-fixtures/__root__": 0,
     "share-worker/__root__": 0,
     "vt-daemon/agents": 0,
     "vt-daemon/config": 1,

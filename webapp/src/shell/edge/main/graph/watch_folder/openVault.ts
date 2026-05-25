@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import * as O from 'fp-ts/lib/Option.js'
+import log from 'electron-log'
 import { getCallbacks } from '@vt/graph-model'
 import { initializeProject } from '@vt/app-config/project'
 import {
@@ -25,12 +26,6 @@ export type StartupVaultHint =
     | { readonly kind: 'open-folder'; readonly path: string }
     | { readonly kind: 'last-directory'; readonly path: string }
     | { readonly kind: 'none' }
-
-let onFolderSwitchCleanup: (() => void) | null = null
-
-export function setOnFolderSwitchCleanup(cleanup: (() => void) | null): void {
-    onFolderSwitchCleanup = cleanup
-}
 
 function pushToRenderer(
     channel: 'vault:switching' | 'vault:ready' | 'vault:lost',
@@ -98,7 +93,7 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         // D6: stop SSE/watch-sync loops bound to the prior owner's base URL
         // before any new owner-mediated work begins, so reconnect pollers
         // can never see a stale daemon and fork-spawn replacements.
-        onFolderSwitchCleanup?.()
+        await getCallbacks().onVaultSwitching?.()
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
         await stopDaemonGraphSync()
@@ -111,7 +106,7 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         // first ensure to pick it up.
         const writeFolder: string = await resolveOrCreateWriteFolder(projectRoot)
         await getCallbacks().ensureProjectSetup?.(projectRoot).catch((error: unknown) => {
-            console.warn('[openVault] Failed to set up .voicetree/ defaults:', error)
+            log.warn('[openVault] Failed to set up .voicetree/ defaults:', error)
         })
 
         markLoadTiming('main:daemon-open-vault-start')
@@ -127,11 +122,13 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await saveLastDirectory(projectRoot)
         syncWatchedProjectRoot(projectRoot)
 
-        getCallbacks().onWatchingStarted?.({
+        const watchingStartedInfo = {
             directory: projectRoot,
             writeFolder: response.writeFolder,
             timestamp: new Date().toISOString(),
-        })
+        }
+        await getCallbacks().onVaultOpened?.(watchingStartedInfo)
+        getCallbacks().onWatchingStarted?.(watchingStartedInfo)
 
         await bindHttpDaemonForVault(projectRoot)
 

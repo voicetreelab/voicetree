@@ -5,6 +5,8 @@ export interface GraphModelConfig {
   appSupportPath: string  // replaces app.getPath('userData')
 }
 
+type WatchingStartedInfo = { directory: string; writeFolder: string; timestamp: string }
+
 export interface GraphModelCallbacks {
   // Core graph broadcasting
   onFloatingEditorUpdate?: (delta: GraphDelta, suppressForSubscribers?: readonly string[]) => void  // replaces uiAPI.updateFloatingEditorsFromExternal
@@ -14,7 +16,9 @@ export interface GraphModelCallbacks {
   onSettingsChanged?: () => void  // replaces uiAPI.onSettingsChanged
 
   // Watch folder events
-  onWatchingStarted?: (info: { directory: string; writeFolder: string; timestamp: string }) => void
+  onVaultSwitching?: () => void | Promise<void>
+  onVaultOpened?: (info: WatchingStartedInfo) => void | Promise<void>
+  onWatchingStarted?: (info: WatchingStartedInfo) => void
   onFolderCleared?: () => void
 
   // Dialogs (Electron-specific, no-op in headless mode)

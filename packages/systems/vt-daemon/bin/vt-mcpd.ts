@@ -238,6 +238,8 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
+        // Order: vault-state watcher → HTTP daemon → detach terminal runtime → graph-db lock.
+        // tmux sessions survive host shutdown and are reconciled by the next host.
         try {
             await vaultStateWatcher.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: vault-state watcher stop error: ${(err as Error).message}\n`)
@@ -245,7 +247,7 @@ async function main(): Promise<void> {
             await httpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: http daemon stop error: ${(err as Error).message}\n`)
             })
-            agentRuntime.getTerminalManager().cleanup()
+            agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'})
             await daemonHandle.stop()
             process.exit(0)
         } catch (err) {

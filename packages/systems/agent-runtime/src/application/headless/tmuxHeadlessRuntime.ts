@@ -239,6 +239,14 @@ export function removeTmuxHeadlessAgentState(terminalId: TerminalId): void {
     tmuxHeadlessState.logReadOffsets.delete(terminalId)
 }
 
+export function detachTmuxHeadlessAgents(): void {
+    for (const terminalId of [...tmuxHeadlessState.sessions.keys()]) {
+        clearTmuxPoll(terminalId)
+    }
+    tmuxHeadlessState.sessions.clear()
+    tmuxHeadlessState.logReadOffsets.clear()
+}
+
 export function isTmuxHeadlessAgent(terminalId: TerminalId | string): boolean {
     return tmuxHeadlessState.sessions.has(terminalId as TerminalId)
 }
@@ -301,6 +309,18 @@ export function cleanupTmuxHeadlessAgents(): void {
         clearTmuxPoll(terminalId)
         void killSession(session.sessionName).catch(() => undefined)
     }
+    tmuxHeadlessState.sessions.clear()
+    tmuxHeadlessState.logReadOffsets.clear()
+}
+
+export async function cleanupTmuxHeadlessAgentsAndWait(): Promise<void> {
+    const sessions: readonly [TerminalId, TmuxHeadlessSession][] = [...tmuxHeadlessState.sessions.entries()]
+    for (const [terminalId] of sessions) {
+        clearTmuxPoll(terminalId)
+    }
+    await Promise.all(sessions.map(([, session]: [TerminalId, TmuxHeadlessSession]) =>
+        killSession(session.sessionName).catch(() => undefined)
+    ))
     tmuxHeadlessState.sessions.clear()
     tmuxHeadlessState.logReadOffsets.clear()
 }

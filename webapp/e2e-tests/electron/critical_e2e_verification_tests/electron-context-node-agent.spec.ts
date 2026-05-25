@@ -89,10 +89,10 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`✓ Main process graph has ${mainProcessNodeCount} nodes`);
     expect(mainProcessNodeCount).toBeGreaterThan(0);
 
-    console.log('=== STEP 3: Verify watch directory (auto-loaded from config) ===');
+    console.log('=== STEP 3: Verify watch directory and write folder (auto-loaded from config) ===');
     const watchDir = FIXTURE_VAULT_PATH;
     console.log(`✓ Watch directory: ${watchDir}`);
-    const projectRoot = await appWindow.evaluate(async () => {
+    const writeFolder = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const result = await api.main.getWriteFolder();
@@ -103,8 +103,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
       }
       return null;
     });
-    expect(projectRoot).toBeTruthy();
-    console.log(`✓ Vault path: ${projectRoot}`);
+    if (!writeFolder) throw new Error('Expected Electron main process to expose a write folder');
+    console.log(`✓ Write folder: ${writeFolder}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';
@@ -168,7 +168,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`Context node absolute path: ${contextNodePath}`);
     console.log(`Initial spawn directory: ${initialSpawnDir}`);
 
-    const terminalId = 'context-node-agent-e2e-terminal';
+    const terminalId = `context-node-agent-e2e-${process.pid}-${Date.now()}`;
 
     const spawnResult = await appWindow.evaluate(async ({ ctxNodeId, ctxNodePath, spawnDir, command, tId }) => {
       const w = (window as ExtendedWindow);
@@ -215,9 +215,9 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 6: Poll tmux log file for Claude output ===');
     // tmux-backed terminals stream their pane output to
-    // <vault>/.voicetree/terminals/<terminalId>.log via `tmux pipe-pane`.
+    // <writeFolder>/.voicetree/terminals/<terminalId>.log via `tmux pipe-pane`.
     // Poll that file instead of subscribing to a renderer event stream.
-    const logPath = path.join(watchDir, '.voicetree', 'terminals', `${terminalId}.log`);
+    const logPath = path.join(writeFolder, '.voicetree', 'terminals', `${terminalId}.log`);
     console.log(`[Test] Polling log: ${logPath}`);
 
     const needle = 'VOICETREE_CTX_12345';

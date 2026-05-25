@@ -26,6 +26,7 @@ export const terminalRuntimeSurface = {
     removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
     resetAuditRetryCount: agentRuntime.resetAuditRetryCount,
     sendTextToTerminal: agentRuntime.sendTextToTerminal,
+    shutdownTmuxServer: agentRuntime.shutdownTmuxServer,
     spawnPlainTerminal: agentRuntime.spawnPlainTerminal,
     spawnPlainTerminalWithNode: agentRuntime.spawnPlainTerminalWithNode,
     spawnTerminalWithContextNode: agentRuntime.spawnTerminalWithContextNode,

@@ -3,8 +3,14 @@ import {clearTerminalRecords} from './terminal-registry';
 import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
-import {cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
-import {applyPromptFileToTmuxSpawn, injectAgentCommandHeadful} from '../headless/tmuxPromptFile';
+import {
+  cleanupHeadlessAgentsAndWait,
+  cleanupHeadlessAgents,
+  TERMINATE_TMUX_SESSIONS,
+  type HeadlessAgentCleanupPolicy,
+  spawnTmuxBackedTerminal,
+} from '../headless/headlessAgentManager';
+import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
 import {
   getWindowsShell,
   resolveTerminalCwd,
@@ -12,9 +18,13 @@ import {
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
 import {
+  buildTmuxEnv,
+  resolveHeadfulPromptInjection,
+  resolvePromptFileWrite,
   resolveTmuxVaultPath,
   withResolvedTmuxVaultPath,
-  withVoicetreeVaultPath,
+  type HeadfulPromptInjectionRequest,
+  type PromptFileWriteRequest,
 } from './tmux/tmuxSpawnPlanning';
 import {getRuntimeEnv} from '../runtime/runtime-config';
 
@@ -36,6 +46,13 @@ export interface TerminalSpawnOpts {
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
 }
 
+export type TerminalCleanupPolicy = HeadlessAgentCleanupPolicy;
+
+function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
+  if (!request) return null;
+  return writePromptFile(request.projectRoot, request.terminalId, request.prompt);
+}
+
 async function resolveRuntimeWriteFolder(): Promise<string | null> {
   try {
     return await (getRuntimeEnv().getWriteFolder?.() ?? Promise.resolve(null));
@@ -50,7 +67,7 @@ async function resolveRuntimeWriteFolder(): Promise<string | null> {
  * Public API:
  * - spawnTmuxBacked(opts): create a tmux session and inject the agent prompt
  * - cleanupForWindow(terminalIds): drop output buffers when a window closes
- * - cleanup(): teardown all sessions + buffers on app shutdown / folder switch
+ * - cleanup(policy): release runtime state and optionally terminate tmux sessions
  *
  * The legacy node-pty surface (spawn/write/resize/kill via an in-process PTY
  * map) has been deleted. Interactive terminals run inside tmux; the renderer
@@ -76,18 +93,13 @@ export class TerminalManager {
   //
   // Phase 6 prompt delivery: the agent prompt is written to a disk file
   // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
-  // time via `applyPromptFileToTmuxSpawn` and never crosses tmux's argv.
-  // AGENT_PROMPT is dropped from the tmux -e env vector (replaced by an
-  // AGENT_PROMPT_FILE pointer) — without this, multi-KB prompts piled into
-  // tmux's command-protocol buffer overflow on macOS (`command too long`).
-  // After the shell is ready, the initialCommand is injected via
-  // `tmux send-keys`. The primitive CLI-rewrites it (stdin redirect for
-  // claude/gemini, $(cat) for codex, stripped for unknown CLIs which must
-  // read AGENT_PROMPT_FILE from env) so the shell consumes the on-disk
-  // prompt instead of expanding `$AGENT_PROMPT`.
+  // time as an auxiliary delivery path. After the shell is ready, the agent
+  // command is injected via `tmux send-keys` exactly as configured. The
+  // original AGENT_PROMPT env var is kept so existing
+  // agent commands like `claude "$AGENT_PROMPT"` and custom agents continue to
+  // receive the prompt through their configured interface.
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
-  // context; panes inherit from the server. Apart from AGENT_PROMPT itself,
-  // all other initialEnvVars ride along on tmux -e.
+  // context; panes inherit from the server.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -97,22 +109,21 @@ export class TerminalManager {
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
       const projectRoot: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWriteFolder());
-      const plan = projectRoot
-        ? applyPromptFileToTmuxSpawn({
-            projectRoot,
-            terminalId,
-            command: terminalData.initialCommand ?? '',
-            env: initial,
-          })
-        : {command: terminalData.initialCommand ?? '', env: initial, promptFilePath: null};
-      const tmuxEnv: Record<string, string> = withVoicetreeVaultPath(plan.env, projectRoot);
+      const promptFile: string | null = writeResolvedPromptFile(
+        resolvePromptFileWrite(projectRoot, terminalId, initial.AGENT_PROMPT),
+      );
+      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, projectRoot, promptFile);
       const terminalDataWithVaultPath: TerminalData = {
         ...terminalData,
         initialEnvVars: withResolvedTmuxVaultPath(initial, projectRoot),
       };
-      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, plan.promptFilePath);
-      if (terminalData.initialCommand) {
-        await injectAgentCommandHeadful({terminalId, command: plan.command});
+      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
+      const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
+        terminalId,
+        terminalData.initialCommand,
+      );
+      if (promptInjection) {
+        await injectAgentCommandHeadful(promptInjection);
       }
       return {success: true, terminalId};
     } catch (error: unknown) {
@@ -133,14 +144,24 @@ export class TerminalManager {
   }
 
   /**
-   * Clean up all terminals on app shutdown / folder switch.
+   * Clean up all terminal runtime state.
+   *
+   * Use `preserve` when the host process is quitting and tmux sessions should
+   * survive for reconciliation on relaunch. Use `terminate` for explicit
+   * destructive cleanup such as vault switching.
    * Records are cleared first so subscriber notifications don't fire after
-   * the renderer is torn down; then tmux sessions are killed and ring
-   * buffers cleared.
+   * the renderer is torn down; then headless runtime state and ring buffers
+   * are cleared according to the policy.
    */
-  cleanup(): void {
+  cleanup(policy: TerminalCleanupPolicy = TERMINATE_TMUX_SESSIONS): void {
     clearTerminalRecords();
-    cleanupHeadlessAgents();
+    cleanupHeadlessAgents(policy);
+    clearAllBuffers();
+  }
+
+  async cleanupAndWait(policy: TerminalCleanupPolicy = TERMINATE_TMUX_SESSIONS): Promise<void> {
+    clearTerminalRecords();
+    await cleanupHeadlessAgentsAndWait(policy);
     clearAllBuffers();
   }
 }

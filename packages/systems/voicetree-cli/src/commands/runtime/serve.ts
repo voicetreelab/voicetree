@@ -258,7 +258,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
             await httpHandle.stop().catch((cause: unknown) => {
                 process.stderr.write(`vt serve: http daemon stop error: ${(cause as Error).message}\n`)
             })
-            getTerminalManager().cleanup()
+            getTerminalManager().cleanup({tmuxSessions: 'preserve'})
             // The vt-graphd owner is a separately-owned, cross-process resource
             // (BF-346). Other callers — Electron, sibling CLI processes — may
             // still be using it, so vt serve never kills the daemon on its own

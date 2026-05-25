@@ -17,7 +17,6 @@ import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderSta
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { clearKnownExistingDirectoriesCache } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 import {
   getReadPaths,
   getWriteFolder,
@@ -184,6 +183,10 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
       span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
 
       if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
+        await bindVault(
+          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+          targetProjectRoot,
+        )
         span.setAttribute('outcome', 'reuse-current')
         return await buildOpenVaultResponse(targetProjectRoot)
       }
@@ -191,7 +194,6 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
       if (currentProjectRoot) {
         span.setAttribute('switchedFromActive', true)
         await closeResources()
-        clearKnownExistingDirectoriesCache()
       }
 
       lifecycleState.activeSessionId = null
@@ -210,7 +212,6 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
         span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
         await closeResources()
         clearProjectRoot()
-        clearKnownExistingDirectoriesCache()
         throw error instanceof VaultOpenFailedError
           ? error
           : new VaultOpenFailedError(
@@ -234,7 +235,6 @@ export async function closeVaultWorkflow(): Promise<void> {
       await closeResources()
       lifecycleState.activeSessionId = null
       clearProjectRoot()
-      clearKnownExistingDirectoriesCache()
       setGraph(createEmptyGraph())
       span.setAttribute('outcome', 'closed')
     })

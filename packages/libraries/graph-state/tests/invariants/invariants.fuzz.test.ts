@@ -43,10 +43,7 @@ function collectFolderIds(tree: readonly FolderTreeNode[]): FolderId[] {
     return ids
 }
 
-// Module-level counter ensures each AddNode produces a unique path across all sequences.
-let _nodeSeq = 0
-
-function generateCommand(rng: () => number, state: State): Command | null {
+function generateCommand(rng: () => number, state: State, commandId: string): Command | null {
     const nodeIds = Object.keys(state.graph.nodes)
     const folderIds = collectFolderIds(state.roots.folderTree)
     const baseRoot = [...state.roots.loaded][0] ?? '/tmp/fuzz-root'
@@ -87,7 +84,7 @@ function generateCommand(rng: () => number, state: State): Command | null {
         }
 
         case 'AddNode': {
-            const id = `${baseRoot}/fuzz-node-${_nodeSeq++}.md`
+            const id = `${baseRoot}/fuzz-node-${commandId}.md`
             return {
                 type: 'AddNode',
                 node: {
@@ -183,7 +180,7 @@ describe('invariant fuzzer (10k sequences, 0 violations)', () => {
             let prevRevision = state.meta.revision - 1
 
             for (let step = 0; step < seqLen; step++) {
-                const cmd = generateCommand(seqRng, state)
+                const cmd = generateCommand(seqRng, state, `${seq}-${step}`)
                 if (cmd === null) break
 
                 const ctx = `seq=${seq} seed=0x${seqSeed.toString(16)} step=${step} cmd=${cmd.type}`
