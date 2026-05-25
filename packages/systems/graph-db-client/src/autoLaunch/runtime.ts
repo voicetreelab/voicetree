@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -155,19 +155,25 @@ export function resolveDefaultDaemonArgs(
   }
 
   const fallback = fallbackBinPath()
-  if (fallback !== undefined && deps.exists(fallback)) {
-    return [fallback, '--project-root', vault]
+  const source = sourceBinPath()
+  const fallbackExists = fallback !== undefined && deps.exists(fallback)
+  const sourceExists = source !== undefined && deps.exists(source)
+
+  // Workspace dev: if dist is stale relative to source (source mtime > dist mtime),
+  // running dist will execute an outdated build — exactly how the May-15 dist
+  // running `--vault` argv kept getting picked over a source that now parses
+  // `--project-root`. Prefer source whenever it's newer; otherwise prefer dist
+  // for the no-tsx-overhead path.
+  if (fallbackExists && sourceExists && sourceIsNewerThan(source!, fallback!)) {
+    return ['--import', deps.resolveTsx(), source!, '--project-root', vault]
   }
 
-  const source = sourceBinPath()
-  if (source !== undefined && deps.exists(source)) {
-    return [
-      '--import',
-      deps.resolveTsx(),
-      source,
-      '--project-root',
-      vault,
-    ]
+  if (fallbackExists) {
+    return [fallback!, '--project-root', vault]
+  }
+
+  if (sourceExists) {
+    return ['--import', deps.resolveTsx(), source!, '--project-root', vault]
   }
 
   throw new Error(
@@ -176,6 +182,14 @@ export function resolveDefaultDaemonArgs(
       `(${fallback ?? '<package not resolvable>'}), and its TS source ` +
       `(${source ?? '<package not resolvable>'}).`,
   )
+}
+
+function sourceIsNewerThan(sourcePath: string, distPath: string): boolean {
+  try {
+    return statSync(sourcePath).mtimeMs > statSync(distPath).mtimeMs
+  } catch {
+    return false
+  }
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {
