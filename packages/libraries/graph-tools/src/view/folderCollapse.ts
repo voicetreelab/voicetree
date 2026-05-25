@@ -1,4 +1,3 @@
-import { computeSyntheticEdgeSpecs, type SyntheticEdgeSpec } from '@vt/graph-model/pure/graph'
 import type {ContainmentTree} from '../lint/lintContainment'
 
 export interface CollapsedInfo {
@@ -9,6 +8,11 @@ export interface CollapsedInfo {
 
 export interface NodeWithOutgoingIds {
     readonly outgoingIds: readonly string[]
+}
+
+type DirectedEdge = {
+    readonly sourceId: string
+    readonly targetId: string
 }
 
 export const VIRTUAL_FOLDER_PREFIX = '__virtual_folder__/'
@@ -55,7 +59,7 @@ function computeCollapsedInfo(
     nodeById: ReadonlyMap<string, NodeWithOutgoingIds>,
 ): CollapsedInfo {
     const allInSubtree = new Set([entityId, ...descendants])
-    const connectedEdges: {sourceId: string; targetId: string}[] = []
+    const connectedEdges: DirectedEdge[] = []
 
     for (const id of allInSubtree) {
         if (isVirtualFolder(id)) continue
@@ -66,15 +70,30 @@ function computeCollapsedInfo(
         }
     }
 
-    const specs: readonly SyntheticEdgeSpec[] = computeSyntheticEdgeSpecs(entityId, descendants, connectedEdges)
-    const outgoingSpecs: readonly SyntheticEdgeSpec[] = specs.filter(spec => spec.direction === 'outgoing')
-    const externalTargets: string[] = outgoingSpecs.map(spec => spec.externalNodeId)
+    const externalTargets: string[] = collectExternalOutgoingTargets(entityId, descendants, connectedEdges)
 
     return {
         descendantCount: descendants.size,
         externalOutgoingCount: externalTargets.length,
         externalTargets,
     }
+}
+
+function collectExternalOutgoingTargets(
+    folderId: string,
+    descendants: ReadonlySet<string>,
+    edges: readonly DirectedEdge[],
+): string[] {
+    const inside = new Set([folderId, ...descendants])
+    const externalTargets = new Set<string>()
+
+    for (const edge of edges) {
+        if (!inside.has(edge.sourceId)) continue
+        if (inside.has(edge.targetId)) continue
+        externalTargets.add(edge.targetId)
+    }
+
+    return [...externalTargets].sort()
 }
 
 export function buildCollapsedMap(
