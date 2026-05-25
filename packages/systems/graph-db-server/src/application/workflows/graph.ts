@@ -26,7 +26,7 @@ import { executeCommand } from './dispatch.ts'
 import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
-import { reconcileGraphWithDisk } from './reconcileGraphWithDisk.ts'
+import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
 
 type WorkflowParsed = { readonly ok: true }
 

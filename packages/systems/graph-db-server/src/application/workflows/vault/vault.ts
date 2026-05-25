@@ -2,8 +2,11 @@ import {
   AddReadPathRequestSchema,
   SetWriteFolderRequestSchema,
 } from '@vt/graph-db-server/contract'
-import { validateAbsolutePath } from '../core/validatePath.ts'
-import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
+import { validateAbsolutePath } from '@vt/graph-db-server/application/core/validatePath'
+import {
+  VaultNotOpenError,
+  structuredVaultErrorResult,
+} from '@vt/graph-db-server/application/errors/vaultNotOpen'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
@@ -12,9 +15,9 @@ import {
   composeWriteFolderResponse,
   decodeVaultPath,
   resolveAppSupportPath,
-} from '../core/handleVault.ts'
-import { executeCommand } from './dispatch.ts'
-import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
+} from '@vt/graph-db-server/application/core/handleVault'
+import { executeCommand } from '../dispatch.ts'
+import { errorResult, jsonResult, type HttpResult } from '../httpResult.ts'
 
 export function ensureVaultWorkflowInitialized(): void {
   void executeCommand({

@@ -46,6 +46,7 @@ export type Command =
   | { type: 'PublishDelta'; delta: GraphDelta; source: string }
   | { type: 'ReadGraph' }
   | { type: 'ReadGraphNode'; nodeId: string }
+  | { type: 'ReconcileGraphWithDisk' }
   | { type: 'SetGraph'; graph: Graph }
   | { type: 'SetVaultWriteFolder'; path: string }
   | {
@@ -72,6 +73,7 @@ export type CommandOutput = {
   PublishDelta: void
   ReadGraph: Graph
   ReadGraphNode: GraphNode | undefined
+  ReconcileGraphWithDisk: GraphDelta
   ReadVaultState: VaultState
   RegistryTouch: void
   RemoveVaultReadPath: { readonly success: boolean; readonly error?: string }

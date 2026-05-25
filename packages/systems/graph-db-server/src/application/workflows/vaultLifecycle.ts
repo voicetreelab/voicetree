@@ -17,7 +17,7 @@ import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderSta
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { reconcileGraphWithDisk } from './reconcileGraphWithDisk.ts'
+import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
 import {
   getReadPaths,
   getWriteFolder,

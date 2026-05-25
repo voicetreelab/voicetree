@@ -9,6 +9,8 @@
     ".": "./src/daemon/index.ts",
     "./package.json": "./package.json",
     "./application/core/*": "./src/application/core/*.ts",
+    "./application/workflows/vault": "./src/application/workflows/vault/vault.ts",
+    "./application/workflows/vault/*": "./src/application/workflows/vault/*.ts",
     "./application/workflows/*": "./src/application/workflows/*.ts",
     "./application/workflows/watch-folder/*": "./src/application/workflows/watch-folder/*.ts",
     "./application/errors/*": "./src/application/errors/*.ts",
