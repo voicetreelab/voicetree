@@ -76,6 +76,12 @@ describe('daemon CLI route parity', () => {
                     '`/graph/apply-delta` is the option-aware mutation endpoint used by Electron/MCP bridges; the user-facing CLI remains covered by `/graph/delta`.',
             },
             {
+                method: 'POST',
+                path: '/graph/reconcile-disk',
+                reason:
+                    '`/graph/reconcile-disk` is a daemon maintenance endpoint used by Electron startup/tests to remove stale in-memory nodes for files already gone on disk; it is not a user-facing CLI command.',
+            },
+            {
                 method: 'GET',
                 path: '/graph/find-file',
                 reason:

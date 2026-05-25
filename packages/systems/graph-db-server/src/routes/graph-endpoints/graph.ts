@@ -10,6 +10,7 @@ import {
   getUnseenNodesAroundContextNodeWorkflow,
   previewContainedNodesWorkflow,
   readGraphWorkflow,
+  reconcileGraphWithDiskWorkflow,
   redoWorkflow,
   undoWorkflow,
   updateContextNodeContainedIdsWorkflow,
@@ -74,6 +75,13 @@ export function createGraphRoutes(_registry: WorkflowSessionRegistry): Hono {
         ),
       )
     },
+    { prefix: GRAPH_PREFIX },
+  )
+
+  mountDaemonRoute(
+    app,
+    daemonRouteSpecBySignature('POST', '/graph/reconcile-disk'),
+    async (c) => sendHttpResult(c, await reconcileGraphWithDiskWorkflow()),
     { prefix: GRAPH_PREFIX },
   )
 

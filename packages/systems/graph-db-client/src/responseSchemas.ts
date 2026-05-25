@@ -163,6 +163,15 @@ export const UndoRedoResponseSchema: Schema<boolean> = {
   },
 }
 
+export const GraphDiskReconciliationResponseSchema: Schema<{ delta: unknown[] }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || !Array.isArray(input.delta)) {
+      throw new Error('Invalid graph disk reconciliation response body')
+    }
+    return { delta: [...input.delta] }
+  },
+}
+
 export const PreviewContainedNodeIdsResponseSchema: Schema<readonly string[]> = {
   parse(input: unknown) {
     if (!isObject(input) || !Array.isArray(input.nodeIds)) {

@@ -304,6 +304,19 @@ export async function postDeltaThroughDaemonWithEditors(
   })
 }
 
+export async function reconcileGraphWithDiskThroughDaemon(): Promise<GraphDelta> {
+  return await tracing.span('electron.graph.reconcile-disk', async (span) => {
+    return await callDaemon(async (client) => {
+      span.setAttribute('daemon.base_url', client.baseUrl)
+      span.addEvent('electron.graph.reconcile-disk.request.start')
+      const delta = await client.reconcileGraphWithDisk() as GraphDelta
+      span.setAttribute('graph.delta.count', delta.length)
+      span.addEvent('electron.graph.reconcile-disk.request.complete')
+      return delta
+    })
+  })
+}
+
 export async function postWriteMarkdownFileThroughDaemon(
   absolutePath: string,
   body: string,

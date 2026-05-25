@@ -4,6 +4,7 @@ import {
 } from '../contract.ts'
 import {
   FindFileMatchesResponseSchema,
+  GraphDiskReconciliationResponseSchema,
   PreviewContainedNodeIdsResponseSchema,
   UndoRedoResponseSchema,
   UnknownResponseSchema,
@@ -89,6 +90,14 @@ export function createGraphClient(request: RequestClient) {
         method: 'POST',
         responseSchema: UnknownResponseSchema,
       })
+    },
+
+    async reconcileGraphWithDisk(): Promise<unknown[]> {
+      const response = await request('/graph/reconcile-disk', {
+        method: 'POST',
+        responseSchema: GraphDiskReconciliationResponseSchema,
+      })
+      return response.delta
     },
 
     async writePositions(

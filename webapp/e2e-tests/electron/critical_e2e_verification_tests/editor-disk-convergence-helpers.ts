@@ -331,31 +331,42 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
   }).toBe(0);
 }
 
-async function deleteNodeThroughDaemonIfPresent(page: Page, nodeId: string): Promise<boolean> {
-  return page.evaluate(async (filePath) => {
+async function deleteGraphExtraMarkdownNodes(page: Page, writeFolder: string): Promise<readonly string[]> {
+  return page.evaluate(async ({ parentNodeId, vaultPath }) => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
+    await api.main.reconcileGraphWithDisk();
     const graph = await api.main.getGraph();
     const graphWithNodes = graph as { nodes?: Record<string, unknown> };
-    if (!graphWithNodes.nodes?.[filePath]) return false;
-    await api.main.applyGraphDeltaToDBThroughMemAndUIExposed([{
-      type: 'DeleteNode',
-      nodeId: filePath,
-      deletedNode: { _tag: 'None' },
-    }] as never, false);
-    return true;
-  }, nodeId);
+    const nodeIds = Object.keys(graphWithNodes.nodes ?? {}).filter((nodeId) => {
+      return nodeId !== parentNodeId
+        && nodeId.endsWith('.md')
+        && (nodeId === vaultPath || nodeId.startsWith(`${vaultPath}/`));
+    });
+    if (nodeIds.length === 0) return [];
+
+    await api.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(
+      nodeIds.map((nodeId) => ({
+        type: 'DeleteNode',
+        nodeId,
+        deletedNode: { _tag: 'None' },
+      })) as never,
+      false,
+    );
+    return nodeIds;
+  }, {
+    parentNodeId: path.join(writeFolder, PARENT_FILENAME),
+    vaultPath: writeFolder,
+  });
 }
 
 export async function deleteExtraVaultFiles(page: Page, writeFolder: string): Promise<void> {
+  await deleteGraphExtraMarkdownNodes(page, writeFolder);
+
   const entries = await fs.readdir(writeFolder, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
     if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name === PARENT_FILENAME) return;
-    const filePath = path.join(writeFolder, entry.name);
-    const deletedThroughDaemon = await deleteNodeThroughDaemonIfPresent(page, filePath);
-    if (!deletedThroughDaemon) {
-      await fs.rm(filePath, { force: true });
-    }
+    await fs.rm(path.join(writeFolder, entry.name), { force: true });
   }));
 }
 

@@ -26,6 +26,7 @@ import { executeCommand } from './dispatch.ts'
 import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
+import { reconcileGraphWithDisk } from '@vt/graph-db-server/graph/graphDiskReconciliation'
 
 type WorkflowParsed = { readonly ok: true }
 
@@ -205,6 +206,16 @@ async function parseWriteMarkdownFileInOpenVault(
 
 export async function readGraphWorkflow(): Promise<HttpResult> {
   return jsonResult(composeGraphResponse(await executeCommand({ type: 'ReadGraph' })))
+}
+
+export async function reconcileGraphWithDiskWorkflow(): Promise<HttpResult> {
+  try {
+    const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
+    if (!projectRoot) return vaultNotOpenResult().result
+    return jsonResult({ delta: await reconcileGraphWithDisk() })
+  } catch (error) {
+    return vaultAwareWorkflowErrorResult(error, 'GRAPH_DISK_RECONCILE_FAILED')
+  }
 }
 
 async function tracedApplyDeltaAndCompose(

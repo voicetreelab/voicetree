@@ -59,6 +59,7 @@ import {
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
+  reconcileGraphWithDiskThroughDaemon,
   postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
@@ -115,6 +116,8 @@ export const mainAPI = {
   getProjectedGraph,
 
   getNode,
+
+  reconcileGraphWithDisk: reconcileGraphWithDiskThroughDaemon,
 
   // Collapse/expand through daemon RPC
   collapseFolderThroughDaemon,
