@@ -186,8 +186,14 @@ jobs:
           retention-days: 1
 
   tier-1-e2e:
-    name: tier-1-e2e
+    name: "tier-1-e2e (${{ matrix.check_id }})"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check_id:
+          - e2e-browser-smoke
+          - e2e-tier1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -202,17 +208,18 @@ jobs:
       - name: Install Playwright chromium
         working-directory: webapp
         run: npx playwright install --with-deps chromium
-      - name: "Run tier-1-e2e checks"
+      - name: "Run tier-1-e2e check"
         run: |
           node --no-warnings=ExperimentalWarning --experimental-strip-types \
             packages/measures/src/_runners/capture-ci-checks.ts \
             --tier-max=1 \
-            --only=e2e-browser-smoke,e2e-tier1
+            --sequential \
+            --only=${{ matrix.check_id }}
       - name: Upload check reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reports-tier-1-e2e
+          name: reports-tier-1-e2e-${{ matrix.check_id }}
           path: health-dashboard/reports/checks/
           retention-days: 1
 
