@@ -421,7 +421,7 @@ async function executeStep(
   instance: DebugInstance,
 ): Promise<Delta | null> {
   if ('dispatch' in step) {
-    const transport = createLiveTransport(instance.vaultPath)
+    const transport = createLiveTransport(instance.projectRoot)
     return transport.dispatchLiveCommand(hydrateCommand(step.dispatch))
   }
 
@@ -682,7 +682,7 @@ async function captureSerializedState(
   page: SessionPageLike,
   overlay?: StateCaptureOverlay | null,
 ): Promise<unknown> {
-  const transport = createLiveTransport(instance.vaultPath)
+  const transport = createLiveTransport(instance.projectRoot)
   const [state, domProbes, rendered] = await Promise.all([
     transport.getLiveState(),
     captureDomProbes(page),
@@ -696,7 +696,7 @@ async function captureSerializedState(
 }
 
 async function captureDrift(instance: DebugInstance, page: SessionPageLike): Promise<unknown> {
-  const transport = createLiveTransport(instance.vaultPath)
+  const transport = createLiveTransport(instance.projectRoot)
   const [state, rendered] = await Promise.all([
     transport.getLiveState(),
     fetchRendered(page),
@@ -728,7 +728,7 @@ async function runSteps(
 
   if (options.stateEach) {
     try {
-      const transport = createLiveTransport(instance.vaultPath)
+      const transport = createLiveTransport(instance.projectRoot)
       captureOverlay = createStateCaptureOverlay(await transport.getLiveState())
     } catch {
       captureOverlay = null

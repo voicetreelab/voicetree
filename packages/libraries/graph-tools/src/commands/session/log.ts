@@ -293,7 +293,7 @@ async function buildLogReport(
 ): Promise<LogReport> {
   const [pageTitle, liveState, renderer] = await Promise.all([
     page.title(),
-    createLiveTransport(instance.vaultPath).getLiveState(),
+    createLiveTransport(instance.projectRoot).getLiveState(),
     readRendererSnapshot(page),
   ])
   const activeElement = await getActiveElementSummary(page, renderer.activeElement)

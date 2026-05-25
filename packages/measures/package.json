@@ -8,7 +8,7 @@
     "./check-report-writer": "./src/_shared/writers/check-report-writer.ts"
   },
   "scripts": {
-    "test": "vitest run src/health/**/*.test.ts src/checks/**/*.test.ts src/_subgraph_gate/**/*.test.ts",
+    "test": "vitest run src/health/ src/checks/ src/_subgraph_gate/",
     "test:perf:agents": "node --import tsx perf/agent-storm.ts",
     "perf:main-storm": "node --import tsx perf/electron-main-storm.ts"
   },

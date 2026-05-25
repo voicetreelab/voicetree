@@ -409,7 +409,7 @@ async function runLiveStress(
   instance: DebugInstance,
 ): Promise<LiveSequenceResult[]> {
   const transportModule = await import('../src/live/liveTransport')
-  const transport = transportModule.createLiveTransport(instance.vaultPath)
+  const transport = transportModule.createLiveTransport(instance.projectRoot)
   const initialState = await transport.getLiveState()
   const runtimeContext = deriveStressRuntimeContext(initialState)
   const liveOutDir = path.join(options.outDir, 'live')
