@@ -58,7 +58,16 @@ const MAX_BOUNDARY_RATIO_BUDGET = 1
 // See `aggregateBCI` docstring for the rationale. The +3.17 charge that
 // extracting @vt/observability triggered against the old formula now
 // correctly contributes 0 (tw=1 narrow star). Tight ratchet: 50.61.
-const AGGREGATE_BCI_BUDGET = 50.61
+//
+// 2026-05-26: bumped 50.61 → 50.65 to absorb the disk-reconciliation feature
+// (commits 8314f286, 29d57290, 5870d32e). FP pattern 1 placed the reconciler
+// in `application/workflows/reconcileGraphWithDisk.ts` (shell layer, correct
+// per ~/brain/workflows/.../fp-rearchitecting). A new shell-layer src file
+// in graph-db-server adds one (src, tgt) edge to the bipartite graph-model
+// import graph at tw=3, mechanically bumping BCI by ~0.04. No FP
+// rearrangement removes that edge without folding the reconciler back into
+// data/ (which leaks fs effects to the core).
+const AGGREGATE_BCI_BUDGET = 50.65
 
 // ── Graph Construction ──
 
@@ -403,6 +412,10 @@ describe('hypergraph boundary complexity', () => {
             },
         })
 
-        expect(violations, violations.join('\n')).toEqual([])
+        const debuggingHint =
+            'Worst BCI contributors live in `details.pairMetrics` of health-dashboard/reports/hypergraph-bci.json. ' +
+            "Rank them with: jq '.details.pairMetrics | map(. + {bci: ((if .treeWidth > 1 then (.treeWidth - 1) else 0 end) * (((.edgeCount + 1) | log) / (2 | log)))}) | sort_by(-.bci) | .[0:10]' health-dashboard/reports/hypergraph-bci.json"
+
+        expect(violations, `${violations.join('\n')}\n${debuggingHint}`).toEqual([])
     })
 })
