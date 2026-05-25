@@ -8,14 +8,22 @@ const CI_CHECK_REPORTER = resolve(
 );
 
 /**
- * Tier 2 Playwright configuration for Electron subsystem verification tests.
+ * Tier 3 Playwright configuration for Electron subsystem verification tests.
  *
- * This configuration is specifically for testing the Electron application
- * with real file system operations and the complete IPC pipeline.
+ * Tests the Electron application with real file system operations and the
+ * complete IPC pipeline. Two critical specs are promoted to tier 2 and
+ * `testIgnore`'d here so they don't run twice — see
+ * `playwright-tier2-electron-critical.config.ts`.
  */
+const TIER2_PROMOTED_SPECS = [
+  '**/electron-editor-disk-convergence.spec.ts',
+  '**/electron-project-selection.spec.ts',
+];
+
 export default defineConfig({
   testDir: './e2e-tests/electron/critical_e2e_verification_tests',
   testMatch: '**/electron-*.spec.ts', // Only run electron-specific e2e-tests
+  testIgnore: TIER2_PROMOTED_SPECS,
   fullyParallel: false, // Run e2e-tests sequentially for Electron
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -44,6 +52,7 @@ export default defineConfig({
     {
       name: 'electron',
       testMatch: '**/electron-*.spec.ts',
+      testIgnore: TIER2_PROMOTED_SPECS,
     }
   ],
 
