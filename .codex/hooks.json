@@ -6,9 +6,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/webapp/.codex/hooks/file-size-check.cjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/run-per-edit.cjs\"",
             "timeout": 30,
-            "statusMessage": "Checking edited file sizes"
+            "statusMessage": "Running per-edit measures"
           }
         ]
       }

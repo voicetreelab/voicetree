@@ -17,7 +17,7 @@
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/file-size-check.cjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-per-edit.cjs\""
           }
         ]
       }

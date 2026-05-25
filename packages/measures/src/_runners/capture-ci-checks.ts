@@ -53,8 +53,16 @@ async function loadChecks(opts) {
     return checks
 }
 
+// A tier may be authored as bare `tier_N/` (legacy / no-suffix tiers) or as
+// `tier_N_pre_commit/` (explicit invocation context). Both are scheduled
+// measures; `tier_N_post_edit/` (and other non-scheduled siblings) live
+// outside this discovery pass — they are invoked by agent hooks, not
+// capture-ci.
+const SCHEDULED_TIER_SUFFIXES = ['', '_pre_commit']
+
 async function discoverScheduledMeasureFiles(tierMax) {
-    const tierDirs = Array.from({length: tierMax + 1}, (_, tier) => join(CHECKS_DIR, `tier_${tier}`))
+    const tierDirs = Array.from({length: tierMax + 1}, (_, tier) => tier)
+        .flatMap(tier => SCHEDULED_TIER_SUFFIXES.map(suffix => join(CHECKS_DIR, `tier_${tier}${suffix}`)))
     return (await Promise.all(tierDirs.map(discoverMeasureFilesIfPresent))).flat()
 }
 
@@ -104,7 +112,7 @@ function parseArgs(argv) {
     return opts
 }
 
-const CHECK_PATH = /\/checks\/tier_(\d+)\/([^/]+)\//
+const CHECK_PATH = /\/checks\/tier_(\d+)(?:_pre_commit)?\/([^/]+)\//
 
 function tierFromMeasurePath(measurePath) {
     const match = CHECK_PATH.exec(measurePath)
@@ -137,7 +145,8 @@ function printHelp(checks) {
         '',
         'Flags:',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
-        '  --tier<=N         run checks under checks/tier_0 through checks/tier_N.',
+        '  --tier<=N         run checks under checks/tier_0_pre_commit through checks/tier_N',
+        '                    (and any legacy bare `tier_K/` folders without a suffix).',
         '  --tier-max=N      shell-safe alias for --tier<=N.',
         '  --max-tier=N      shell-safe alias for --tier<=N.',
         '  --sequential      run checks sequentially; continue through failures.',
