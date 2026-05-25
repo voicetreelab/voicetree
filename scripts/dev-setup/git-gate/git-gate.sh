@@ -60,9 +60,12 @@ worktree_add_path_arg() {
   done
 }
 
-prewarm_added_worktree() {
+ensure_added_worktree_ready() {
   local wt_path="$1"
-  [ -n "$wt_path" ] || return 0
+  if [ -z "$wt_path" ]; then
+    echo "git-gate: worktree add path not detected; skipping dependency readiness" >&2
+    return 0
+  fi
 
   local wt_abs
   case "$wt_path" in
@@ -70,18 +73,30 @@ prewarm_added_worktree() {
     *)  wt_abs="$(pwd -P)/$wt_path" ;;
   esac
   wt_abs="$(cd "$wt_abs" 2>/dev/null && pwd -P || printf '%s' "$wt_abs")"
+  echo "git-gate: worktree path: $wt_abs" >&2
 
   local main_repo
   main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
-  [ -n "$main_repo" ] || return 0
+  if [ -z "$main_repo" ]; then
+    echo "git-gate: warning: could not detect main worktree; command-boundary readiness will retry" >&2
+    return 0
+  fi
 
   local ready_script="$main_repo/scripts/git/worktree/ensure-ready.mjs"
-  [ -x "$ready_script" ] || return 0
+  if [ ! -x "$ready_script" ]; then
+    echo "git-gate: warning: missing executable readiness script: $ready_script" >&2
+    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
+    return 0
+  fi
 
-  (
-    "$ready_script" "$wt_abs" >/dev/null 2>&1 || \
-      echo "git-gate: warning: worktree dependency prewarm failed for $wt_abs; command-boundary readiness will retry" >&2
-  ) &
+  echo "git-gate: ensuring local worktree dependencies" >&2
+  echo "git-gate: readiness will copy node_modules when dependency inputs match, otherwise it will run npm ci" >&2
+  if "$ready_script" "$wt_abs"; then
+    echo "git-gate: local worktree dependency readiness complete" >&2
+  else
+    echo "git-gate: warning: worktree dependency readiness failed for $wt_abs" >&2
+    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
+  fi
 }
 
 case "$sub" in
@@ -144,11 +159,20 @@ esac
 # the underlying add's exit code.
 if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
   wt_path="$(worktree_add_path_arg "$@")"
+  echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "$@"
   ec=$?
   if [ $ec -eq 0 ]; then
-    "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1 || true
-    prewarm_added_worktree "$wt_path"
+    echo "git-gate: normalizing worktree git metadata to relative paths" >&2
+    if "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata normalized" >&2
+    else
+      echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
+    fi
+    ensure_added_worktree_ready "$wt_path"
+    echo "git-gate: worktree add post-setup complete" >&2
+  else
+    echo "git-gate: git worktree add failed with exit code $ec" >&2
   fi
   exit $ec
 fi
@@ -172,6 +196,7 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "remove" ]; then
   ec=$?
 
   if [ $ec -eq 0 ] && [ -n "$wt_path" ]; then
+    echo "git-gate: git worktree remove succeeded for $wt_path" >&2
     wt_name="$(basename "$wt_path")"
     # Reject anything that isn't a plain worktree name. Defensive against
     # command injection via the path argument and against accidental clobbers.
@@ -183,13 +208,23 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "remove" ]; then
           remote_host="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$main_repo/.env")"
       fi
       if [ -n "$remote_host" ]; then
+        echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
         remote_root="/root/voicetree-public"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
           "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name'" \
           >/dev/null 2>&1 \
+          && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
           || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-remote' to check" >&2
+      else
+        echo "git-gate: no VT_REMOTE_HOST found; skipping remote residue cleanup" >&2
       fi
+    else
+      echo "git-gate: worktree name '$wt_name' is not a plain safe name; skipping remote cleanup" >&2
     fi
+  elif [ $ec -ne 0 ]; then
+    echo "git-gate: git worktree remove failed with exit code $ec" >&2
+  else
+    echo "git-gate: worktree remove path not detected; skipping remote cleanup" >&2
   fi
 
   exit $ec

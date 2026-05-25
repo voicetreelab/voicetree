@@ -24,4 +24,5 @@ if [ -z "$WORKTREE_PATH" ] || [ -z "$WORKTREE_NAME" ]; then
     exit 1
 fi
 
+echo "worktree hook: starting combined setup for $WORKTREE_NAME at $WORKTREE_PATH"
 exec "$SCRIPT_DIR/configure-cdp.sh" "$WORKTREE_PATH" "$WORKTREE_NAME"

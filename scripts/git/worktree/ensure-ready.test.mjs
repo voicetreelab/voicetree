@@ -17,6 +17,7 @@ import {
   ensureWorktreeReady,
   mainRepoFromPath,
   markerPath,
+  sourceSeedBlockReason,
 } from './ensure-ready.mjs'
 
 function writeDependencyFiles(root, lockText = 'same-lock') {
@@ -96,4 +97,22 @@ test('runs npm when main and worktree dependency fingerprints differ', () => {
   assert.equal(result.status, 'installed')
   assert.equal(installedAt, realWorktreeRoot)
   assert.ok(existsSync(markerPath(worktreeRoot)))
+})
+
+test('explains why source node_modules cannot seed a worktree', () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
+  const worktreeRoot = join(repoRoot, '.worktrees', 'wt-three')
+
+  writeDependencyFiles(repoRoot, 'main-lock')
+  writeDependencyFiles(worktreeRoot, 'worktree-lock')
+  seedSourceNodeModules(repoRoot)
+
+  assert.equal(
+    sourceSeedBlockReason({
+      sourceRoot: repoRoot,
+      targetRoot: worktreeRoot,
+      targetFingerprint: dependencyFingerprint(worktreeRoot),
+    }),
+    'dependency inputs differ between source and worktree',
+  )
 })

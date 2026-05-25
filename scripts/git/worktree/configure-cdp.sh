@@ -13,8 +13,11 @@ if [ -z "$WORKTREE_PATH" ] || [ -z "$WORKTREE_NAME" ]; then
     exit 1
 fi
 
+echo "configure-cdp: configuring $WORKTREE_NAME at $WORKTREE_PATH"
+
 # Find repo root (parent of .worktrees/)
 REPO_ROOT="$(cd "$WORKTREE_PATH/../.." && pwd)"
+echo "configure-cdp: repo root $REPO_ROOT"
 
 # --- Find a free TCP port in range 9222-9322 ---
 PORT=$(python3 -c "
@@ -37,33 +40,37 @@ if [ "$PORT" = "0" ]; then
     exit 1
 fi
 
-echo "Selected CDP port: $PORT for worktree $WORKTREE_NAME"
+echo "configure-cdp: selected CDP port $PORT for worktree $WORKTREE_NAME"
 
 # --- Write .cdp-port file ---
+echo "configure-cdp: writing $WORKTREE_PATH/webapp/.cdp-port"
 echo "$PORT" > "$WORKTREE_PATH/webapp/.cdp-port"
 
 # --- Copy and patch .mcp.json ---
 MCP_TEMPLATE="$REPO_ROOT/.mcp.json"
 
 if [ ! -f "$MCP_TEMPLATE" ]; then
-    echo "WARNING: No .mcp.json template found at $MCP_TEMPLATE" >&2
+    echo "configure-cdp: WARNING no .mcp.json template found at $MCP_TEMPLATE; skipping MCP patch" >&2
     exit 0
 fi
 
+echo "configure-cdp: copying $MCP_TEMPLATE to $WORKTREE_PATH/.mcp.json"
 cp "$MCP_TEMPLATE" "$WORKTREE_PATH/.mcp.json"
 
 # Patch playwright CDP endpoint port
 if command -v jq >/dev/null 2>&1; then
+    echo "configure-cdp: patching Playwright MCP endpoint with jq"
     jq --arg endpoint "http://localhost:$PORT" \
        '.mcpServers.playwright.args = ["@playwright/mcp@latest", "--cdp-endpoint", $endpoint]' \
        "$WORKTREE_PATH/.mcp.json" > "$WORKTREE_PATH/.mcp.json.tmp" && \
     mv "$WORKTREE_PATH/.mcp.json.tmp" "$WORKTREE_PATH/.mcp.json"
 else
+    echo "configure-cdp: jq not found; patching Playwright MCP endpoint with sed"
     sed "s|http://localhost:[0-9]*|http://localhost:$PORT|g" \
         "$WORKTREE_PATH/.mcp.json" > "$WORKTREE_PATH/.mcp.json.tmp" && \
     mv "$WORKTREE_PATH/.mcp.json.tmp" "$WORKTREE_PATH/.mcp.json"
 fi
 
-echo "Worktree $WORKTREE_NAME configured with CDP port $PORT"
+echo "configure-cdp: worktree $WORKTREE_NAME configured with CDP port $PORT"
 echo "  .cdp-port: $WORKTREE_PATH/webapp/.cdp-port"
 echo "  .mcp.json: $WORKTREE_PATH/.mcp.json"

@@ -202,11 +202,13 @@ function runNpmInstall(targetRoot) {
 }
 
 function ensureEnvSymlink({sourceRoot, targetRoot}) {
-  if (sourceRoot === targetRoot) return
+  if (sourceRoot === targetRoot) return 'same-root'
   const sourceEnv = join(sourceRoot, '.env')
   const targetEnv = join(targetRoot, '.env')
-  if (!pathExists(sourceEnv) || pathExists(targetEnv)) return
+  if (!pathExists(sourceEnv)) return 'source-missing'
+  if (pathExists(targetEnv)) return 'target-present'
   symlinkSync(relative(targetRoot, sourceEnv), targetEnv)
+  return 'linked'
 }
 
 function verifyWorkspaceLinksStayInsideTarget(targetRoot) {
@@ -225,11 +227,14 @@ function verifyWorkspaceLinksStayInsideTarget(targetRoot) {
 }
 
 function sourceCanSeedTarget({sourceRoot, targetRoot, targetFingerprint}) {
-  return (
-    sourceRoot !== targetRoot &&
-    dependencyDirectoriesPresent(sourceRoot) &&
-    dependencyFingerprint(sourceRoot) === targetFingerprint
-  )
+  return sourceSeedBlockReason({sourceRoot, targetRoot, targetFingerprint}) === null
+}
+
+function sourceSeedBlockReason({sourceRoot, targetRoot, targetFingerprint}) {
+  if (sourceRoot === targetRoot) return 'target is the main checkout'
+  if (!dependencyDirectoriesPresent(sourceRoot)) return `source dependency directories are missing in ${sourceRoot}`
+  if (dependencyFingerprint(sourceRoot) !== targetFingerprint) return 'dependency inputs differ between source and worktree'
+  return null
 }
 
 function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, log = console.error} = {}) {
@@ -237,7 +242,13 @@ function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, lo
   const sourceRoot = resolveMainRepoRoot(targetRoot)
   const fingerprint = dependencyFingerprint(targetRoot)
 
-  ensureEnvSymlink({sourceRoot, targetRoot})
+  log(`[worktree-ready] target: ${targetRoot}`)
+  log(`[worktree-ready] source: ${sourceRoot}`)
+
+  const envStatus = ensureEnvSymlink({sourceRoot, targetRoot})
+  if (envStatus === 'linked') log('[worktree-ready] linked .env from source checkout')
+  if (envStatus === 'source-missing') log('[worktree-ready] source .env missing; skipping .env link')
+  if (envStatus === 'target-present') log('[worktree-ready] worktree .env already present; leaving it unchanged')
 
   if (hasCurrentReadyMarker(targetRoot, fingerprint)) {
     log(`[worktree-ready] already ready: ${targetRoot}`)
@@ -245,7 +256,8 @@ function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, lo
     return {status: 'ready', sourceRoot, targetRoot}
   }
 
-  if (sourceCanSeedTarget({sourceRoot, targetRoot, targetFingerprint: fingerprint})) {
+  const seedBlockReason = sourceSeedBlockReason({sourceRoot, targetRoot, targetFingerprint: fingerprint})
+  if (seedBlockReason === null) {
     log(`[worktree-ready] copying node_modules from ${sourceRoot} to ${targetRoot}`)
     seedNodeModulesFromSource({sourceRoot, targetRoot})
     verifyWorkspaceLinksStayInsideTarget(targetRoot)
@@ -253,6 +265,7 @@ function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, lo
     return {status: 'seeded', sourceRoot, targetRoot}
   }
 
+  log(`[worktree-ready] not copying node_modules: ${seedBlockReason}`)
   log(`[worktree-ready] installing dependencies in ${targetRoot}`)
   removeDependencySymlinks(targetRoot)
   installDependencies(targetRoot)
@@ -286,4 +299,5 @@ export {
   resolveMainRepoRoot,
   resolveWorktreeRoot,
   sourceCanSeedTarget,
+  sourceSeedBlockReason,
 }
