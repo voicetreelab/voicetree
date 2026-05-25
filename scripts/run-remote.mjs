@@ -27,8 +27,7 @@ const REMOTE_ROOT = '/root/voicetree-public'
 const MUTAGEN_SESSION = 'vt-remote'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
 
-function loadEnvFile() {
-  const p = pathResolve(REPO_ROOT, '.env')
+function loadEnvFile(p) {
   if (!existsSync(p)) return {}
   const env = {}
   for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
@@ -41,6 +40,20 @@ function loadEnvFile() {
     env[m[1]] = v
   }
   return env
+}
+
+function remoteHostFromEnvironment() {
+  if (process.env.VT_REMOTE_HOST) return process.env.VT_REMOTE_HOST
+
+  const candidateEnvFiles = [
+    pathResolve(REPO_ROOT, '.env'),
+    pathResolve(localSyncRoot(), '.env'),
+  ]
+  for (const envFile of [...new Set(candidateEnvFiles)]) {
+    const host = loadEnvFile(envFile).VT_REMOTE_HOST
+    if (host) return host
+  }
+  return null
 }
 
 function shq(s) {
@@ -130,6 +143,11 @@ function ensureRemoteWorktreeReadyScript(remoteCwd) {
   return `node ${shq(readyScript)} ${shq(worktreeRoot)}`
 }
 
+function repairRemoteWorktreeMetadataScript(remoteCwd) {
+  if (remoteWorktreeRoot(remoteCwd) === null) return ':'
+  return `git -C ${shq(REMOTE_ROOT)} worktree repair --relative-paths >/dev/null 2>&1 || true`
+}
+
 function runRemote(host, cmd, args) {
   const syncRoot = localSyncRoot()
   const rel = pathRelative(syncRoot, process.cwd())
@@ -139,6 +157,7 @@ function runRemote(host, cmd, args) {
   const remoteCwd = ppath.join(REMOTE_ROOT, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')
   const remoteScript = [
+    repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
     refreshRemoteGitIndexScript(),
     ensureRemoteWorktreeReadyScript(remoteCwd),
@@ -169,8 +188,7 @@ async function main() {
     return
   }
 
-  const fileEnv = loadEnvFile()
-  const host = process.env.VT_REMOTE_HOST || fileEnv.VT_REMOTE_HOST
+  const host = remoteHostFromEnvironment()
   if (!host) {
     runLocal(cmd, args)
     return
@@ -195,7 +213,9 @@ if (isDirectRun) {
 export {
   assertOneWayReplica,
   ensureRemoteWorktreeReadyScript,
+  repairRemoteWorktreeMetadataScript,
   refreshRemoteGitIndexScript,
+  remoteHostFromEnvironment,
   remoteWorktreeRoot,
   synchronizationMode,
 }

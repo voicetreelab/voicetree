@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   assertOneWayReplica,
   ensureRemoteWorktreeReadyScript,
+  repairRemoteWorktreeMetadataScript,
   refreshRemoteGitIndexScript,
   remoteWorktreeRoot,
   synchronizationMode,
@@ -48,4 +49,12 @@ test('adds remote worktree readiness only for worktree commands', () => {
     /scripts\/git\/worktree\/ensure-ready\.mjs' '\/root\/voicetree-public\/\.worktrees\/wt-one'/,
   )
   assert.equal(ensureRemoteWorktreeReadyScript('/root/voicetree-public/webapp'), ':')
+})
+
+test('repairs remote worktree metadata only for worktree commands', () => {
+  assert.match(
+    repairRemoteWorktreeMetadataScript('/root/voicetree-public/.worktrees/wt-one/webapp'),
+    /git -C '\/root\/voicetree-public' worktree repair --relative-paths/,
+  )
+  assert.equal(repairRemoteWorktreeMetadataScript('/root/voicetree-public/webapp'), ':')
 })
