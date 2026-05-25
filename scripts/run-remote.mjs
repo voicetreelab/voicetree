@@ -144,8 +144,23 @@ function ensureRemoteWorktreeReadyScript(remoteCwd) {
 }
 
 function repairRemoteWorktreeMetadataScript(remoteCwd) {
-  if (remoteWorktreeRoot(remoteCwd) === null) return ':'
-  return `git -C ${shq(REMOTE_ROOT)} worktree repair --relative-paths >/dev/null 2>&1 || true`
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
+  if (worktreeRoot === null) return ':'
+
+  const worktreeName = ppath.basename(worktreeRoot)
+  const adminDir = ppath.join(REMOTE_ROOT, '.git', 'worktrees', worktreeName)
+  const worktreeGitFile = ppath.join(worktreeRoot, '.git')
+  const adminGitdirFile = ppath.join(adminDir, 'gitdir')
+  const adminCommondirFile = ppath.join(adminDir, 'commondir')
+
+  return [
+    `if [ -d ${shq(adminDir)} ] && [ -f ${shq(worktreeGitFile)} ]; then`,
+    `echo ${shq(`[run-remote] repairing remote worktree git metadata: ${worktreeRoot}`)} >&2;`,
+    `printf '%s\\n' ${shq(`gitdir: ../../.git/worktrees/${worktreeName}`)} > ${shq(worktreeGitFile)};`,
+    `printf '%s\\n' ${shq(`../../../.worktrees/${worktreeName}/.git`)} > ${shq(adminGitdirFile)};`,
+    `printf '%s\\n' '../..' > ${shq(adminCommondirFile)};`,
+    'fi',
+  ].join(' ')
 }
 
 function runRemote(host, cmd, args) {

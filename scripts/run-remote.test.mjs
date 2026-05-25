@@ -52,9 +52,9 @@ test('adds remote worktree readiness only for worktree commands', () => {
 })
 
 test('repairs remote worktree metadata only for worktree commands', () => {
-  assert.match(
-    repairRemoteWorktreeMetadataScript('/root/voicetree-public/.worktrees/wt-one/webapp'),
-    /git -C '\/root\/voicetree-public' worktree repair --relative-paths/,
-  )
+  const script = repairRemoteWorktreeMetadataScript('/root/voicetree-public/.worktrees/wt-one/webapp')
+  assert.match(script, /repairing remote worktree git metadata/)
+  assert.match(script, /gitdir: \.\.\/\.\.\/\.git\/worktrees\/wt-one/)
+  assert.match(script, /\.\.\/\.\.\/\.\.\/\.worktrees\/wt-one\/\.git/)
   assert.equal(repairRemoteWorktreeMetadataScript('/root/voicetree-public/webapp'), ':')
 })
