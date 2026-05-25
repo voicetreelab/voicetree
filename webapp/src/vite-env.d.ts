@@ -182,6 +182,12 @@ declare global {
       registerDebugButton: (entry: { nodeId: string; label: string; selector: string }) => void
       unregisterDebugButton: (nodeId: string, label: string) => void
       cy?: () => unknown
+      editorInstance?: (editorId: string) => {
+        getValue?: () => string
+        focus?: () => void
+        focusAtEnd?: () => void
+        dispose?: () => void
+      } | undefined
     }
   }
 }
