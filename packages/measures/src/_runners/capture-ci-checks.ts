@@ -193,6 +193,25 @@ function printRow(check, outcome) {
     console.log(`${statusGlyph(outcome.status)} ${id} ${cat} ${dur.padStart(7)}  ${counts}`)
 }
 
+function formatFailureBody(outcome) {
+    const failed = outcome.failureDetails?.failedTests ?? []
+    if (failed.length > 0) {
+        const lines = failed.flatMap(t => {
+            const where = t.fileName ? `  (${t.fileName})` : ''
+            const head = `      • ${t.fullName}${where}`
+            const msg = (t.message ?? '').split('\n').slice(0, 3)
+                .map(l => `        ${l}`).join('\n')
+            return msg ? [head, msg] : [head]
+        })
+        if (outcome.failureDetails?.failedTestsTruncated) lines.push('      … (more failures truncated)')
+        return lines.join('\n')
+    }
+    if (outcome.spawnError) return `      spawn error: ${outcome.spawnError}`
+    if (outcome.timedOut) return `      timed out after ${fmtMs(outcome.durationMs)}`
+    const tail = outcome.stderrTail ?? outcome.stdoutTail
+    return tail ? tail.split('\n').map(l => `      ${l}`).join('\n') : ''
+}
+
 // ── Top-level orchestration ──────────────────────────────────────────────────
 
 async function recordOutcome(check, outcome) {
@@ -339,57 +358,73 @@ async function runChecksSequentially(checks, opts) {
     return results
 }
 
+async function printJsonManifest() {
+    const allChecks = await loadChecks({tierMax: MAX_TIER})
+    process.stdout.write(JSON.stringify(allChecks.map(checkManifestEntry)))
+}
+
+function validateOnly(opts, checks) {
+    if (!opts.only) return null
+    const ids = new Set(checks.map(c => c.id))
+    const unknown = [...opts.only].find(id => !ids.has(id))
+    if (unknown === undefined) return null
+    console.error(`unknown --only id: ${unknown}`)
+    return 2
+}
+
+function formatRunHeader(opts, checks) {
+    const scope = describeScope(opts)
+    const head = `\n  capture-ci-checks · ${checks.length} checks total${scope}\n`
+    const empty = (opts.tierMax !== null && checks.length === 0) ? `\n  no checks at tier <=${opts.tierMax}\n` : ''
+    return `${head}${empty}`
+}
+
+async function runAllChecks(checks, opts) {
+    if (opts.failFast || opts.sequential) return runChecksSequentially(checks, opts)
+    return runChecksInParallel(checks, opts)
+}
+
+async function safeRecordOutcome(check, outcome) {
+    if (outcome.status === 'skip') return
+    try {
+        await recordOutcome(check, outcome)
+    } catch (err) {
+        console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
+    }
+}
+
+function formatFailuresSection(failures) {
+    if (failures.length === 0) return ''
+    const blocks = failures.map(({check, outcome}) => {
+        const body = formatFailureBody(outcome)
+        const bodyLine = body ? `${body}\n` : ''
+        return `  ✗ ${check.id}\n${bodyLine}      report: health-dashboard/reports/checks/${check.id}.json\n`
+    })
+    return `\n  failures:\n\n${blocks.join('\n')}`
+}
+
+async function persistAndReport(results) {
+    const failures = []
+    for (const {check, outcome} of results) {
+        await safeRecordOutcome(check, outcome)
+        printRow(check, outcome)
+        if (outcome.status === 'fail') failures.push({check, outcome})
+    }
+    console.log(`${formatFailuresSection(failures)}\n  done · ${failures.length} failing\n`)
+    return failures.length
+}
+
 async function main() {
     const opts = parseArgs(process.argv.slice(2))
-    if (opts.listJson) {
-        const allChecks = await loadChecks({tierMax: MAX_TIER})
-        process.stdout.write(JSON.stringify(allChecks.map(checkManifestEntry)))
-        return 0
-    }
+    if (opts.listJson) { await printJsonManifest(); return 0 }
     const checks = await loadChecks(opts)
-    if (opts.help) {
-        printHelp(checks)
-        return 0
-    }
-
-    if (opts.only) {
-        const ids = new Set(checks.map(c => c.id))
-        for (const id of opts.only) {
-            if (!ids.has(id)) {
-                console.error(`unknown --only id: ${id}`)
-                return 2
-            }
-        }
-    }
-
+    if (opts.help) { printHelp(checks); return 0 }
+    const validationError = validateOnly(opts, checks)
+    if (validationError !== null) return validationError
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
-
-    const scope = describeScope(opts)
-    console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
-    if (opts.tierMax !== null && checks.length === 0) {
-        console.log(`  no checks at tier <=${opts.tierMax}\n`)
-    }
-
-    const results = opts.failFast || opts.sequential
-        ? await runChecksSequentially(checks, opts)
-        : await runChecksInParallel(checks, opts)
-
-    let failed = 0
-    for (const {check, outcome} of results) {
-        if (outcome.status !== 'skip') {
-            try {
-                await recordOutcome(check, outcome)
-            } catch (err) {
-                console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
-            }
-        }
-        printRow(check, outcome)
-        if (outcome.status === 'fail') {
-            failed++
-        }
-    }
-
-    console.log(`\n  done · ${failed} failing\n`)
+    console.log(formatRunHeader(opts, checks))
+    const results = await runAllChecks(checks, opts)
+    const failed = await persistAndReport(results)
     return failed === 0 ? 0 : 1
 }
 
