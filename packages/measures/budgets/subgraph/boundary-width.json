@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T12:12:19.073Z",
+  "refreshedAt": "2026-05-25T15:11:13.809Z",
   "byCommunity": {
     "agent-runtime/api": 39,
     "agent-runtime/application": 427,
@@ -14,7 +14,7 @@
     "graph-db-client/client": 20,
     "graph-db-protocol/__root__": 87,
     "graph-db-server/__root__": 1,
-    "graph-db-server/application": 214,
+    "graph-db-server/application": 216,
     "graph-db-server/daemon": 56,
     "graph-db-server/data": 141,
     "graph-db-server/routes": 34,
@@ -37,7 +37,7 @@
     "graph-tools/view": 84,
     "measures/__root__": 10,
     "measures/_runners": 5,
-    "measures/_shared": 77,
+    "measures/_shared": 78,
     "measures/_subgraph_gate": 92,
     "measures/checks": 64,
     "measures/health": 1,
