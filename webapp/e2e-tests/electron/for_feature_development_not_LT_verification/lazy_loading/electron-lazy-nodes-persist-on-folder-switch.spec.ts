@@ -127,7 +127,7 @@ This is the only node in project 2.
   },
 
   tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-persist-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-lazypersist-userdata-'));
     await use(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },

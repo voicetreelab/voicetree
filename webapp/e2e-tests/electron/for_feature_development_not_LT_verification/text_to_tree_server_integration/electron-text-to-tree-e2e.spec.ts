@@ -66,7 +66,7 @@ const test = base.extend<{
 
   electronApp: async ({ tempVaultPath }, use) => {
     // Create a temporary userData directory for this test
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-text-to-tree-e2e-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-text2tree-userdata-'));
 
     // Write config to auto-load the test vault
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
