@@ -38,7 +38,7 @@
 - [x] 6.1 Validator passes against the authored `/architecture.md`.
 - [x] 6.2 Validator fails with a precise drift message when a click target is intentionally renamed in a test fixture (and passes when the diagram is updated to match).
 - [x] 6.3 `npm run test` includes the new check in tier-1 and the existing tier-1 gates still pass.
-- [ ] 6.4 Honest report: in the PR description, surface any approximation, fragile parser fallback, convention not enforced by assertions, or assertion that depends on a heuristic.
+- [x] 6.4 Honest report: in the PR description, surface any approximation, fragile parser fallback, convention not enforced by assertions, or assertion that depends on a heuristic.
 
 ## 7. Out of scope (do NOT do in this change)
 
