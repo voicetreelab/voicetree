@@ -1,7 +1,7 @@
 #!/bin/sh
 # Shared worktree setup: CDP port config + .mcp.json patching.
 #
-# Usage: configure-worktree-cdp.sh <worktreePath> <worktreeName>
+# Usage: configure-cdp.sh <worktreePath> <worktreeName>
 
 set -e
 

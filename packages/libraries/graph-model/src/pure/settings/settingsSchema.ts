@@ -198,8 +198,8 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     // ── Hooks ────────────────────────────────────────────────────────────
     hooks: {
         default: {
-            onWorktreeCreatedBlocking: './.voicetree/hooks/on-worktree-created-blocking.sh',
-            postWorktreeCreatedAsync: './.voicetree/hooks/on-worktree-created-async.sh',
+            onWorktreeCreatedBlocking: './scripts/git/worktree/on-created-blocking.sh',
+            postWorktreeCreatedAsync: './scripts/git/worktree/on-created-async.sh',
             onNewNode: '# node .voicetree/hooks/on-new-node.cjs',
         } as HookSettings,
         section: 'hooks',

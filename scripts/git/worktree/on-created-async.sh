@@ -1,5 +1,5 @@
 #!/bin/sh
-# on-worktree-created-async.sh
+# on-created-async.sh
 # Async worktree setup: share external node_modules from main, materialize
 # @vt/* package symlinks locally, and symlink .env.
 # Runs after git worktree add, fire-and-forget (does not block terminal spawn).
@@ -41,7 +41,7 @@
 #     (cd <worktree> && npm install --prefer-offline)
 #   That materializes a fully private tree at the cost of a real install.
 #
-# Usage: on-worktree-created-async.sh <worktreePath> <worktreeName>
+# Usage: on-created-async.sh <worktreePath> <worktreeName>
 
 set -e
 
