@@ -231,44 +231,7 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   await appWindow.waitForTimeout(75);
   await appWindow.keyboard.press('ControlOrMeta+n');
 
-    const childId = parentId.replace(/\.md$/, '') + '_0.md';
-    const delta = [
-      {
-        type: 'UpsertNode' as const,
-        nodeToUpsert: {
-          kind: 'leaf' as const,
-          absoluteFilePathIsID: childId,
-          outgoingEdges: [],
-          contentWithoutYamlOrLinks: '# ',
-          nodeUIMetadata: {
-            color: { _tag: 'None' },
-            position: { _tag: 'Some', value: { x: 300, y: 300 } },
-            additionalYAMLProps: {},
-            isContextNode: false,
-          },
-        },
-        previousNode: { _tag: 'None' },
-      },
-      {
-        type: 'UpsertNode' as const,
-        nodeToUpsert: {
-          ...parentNode,
-          contentWithoutYamlOrLinks: currentContent,
-          outgoingEdges: [...parentNode.outgoingEdges, { targetId: childId }],
-        },
-        previousNode: { _tag: 'Some', value: parentNode },
-      },
-    ];
-
-    await api.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta);
-    return childId;
-  }, { parentId: nodeId, currentContent: typedTitle });
-
-  // 5. Wait for the child node file to be written to disk by the daemon.
-  // applyGraphDeltaToDBThroughMemUIAndEditorExposed writes via the daemon HTTP API;
-  // the daemon writes the child file synchronously before returning. Polling the
-  // file is simpler and more reliable than polling getGraph(), which can return 0
-  // transiently while the daemon rebuilds its in-memory graph from the file watcher.
+  // 5. Wait for the child node to appear in the graph.
   await expect.poll(async () => {
     return appWindow.evaluate((previousCount) => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;

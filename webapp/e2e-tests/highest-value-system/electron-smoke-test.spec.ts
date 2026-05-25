@@ -15,9 +15,10 @@ import { randomUUID } from 'crypto';
 import type { ChildProcess } from 'child_process';
 import type { NodeSingular } from 'cytoscape';
 import {
-  WEBAPP_ROOT,
+  WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
   type ElectronDiagnostics, type ExtendedWindow,
-  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault,
+  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault, stopSmokeTmuxServer,
+  waitForMcpServer, mcpRequest, mcpCallTool,
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
 
@@ -152,10 +153,9 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   fixtureVaultPath: async ({}, use) => {
-    // macOS sun_path limit is 104 chars; the UDS socket binds at
-    // `<vault>/.voicetree/vt.sock`. Keep the fixture path short enough that
-    // /var/folders/<hash>/T/<mkdtemp>/.voicetree/vt.sock fits under the cap.
-    const tempVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-vault-'));
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-vault-'));
+    const tempVaultPath = path.join(tempRoot, 'example_small');
+    await fs.mkdir(tempVaultPath, { recursive: true });
     await fs.writeFile(path.join(tempVaultPath, 'root.md'), [
       '# Smoke Root',
       '',
@@ -177,7 +177,7 @@ const test = base.extend<{
 
     await use(tempVaultPath);
 
-    await fs.rm(tempVaultPath, { recursive: true, force: true });
+    await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
   tempUserDataPath: async ({}, use) => {
@@ -196,6 +196,43 @@ const test = base.extend<{
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       vaultConfig: {
         [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] }
+      }
+    }, null, 2), 'utf8');
+
+    const fakeAgentScript = {
+      actions: [
+        {
+          type: 'create_node',
+          title: 'Smoke Fake Agent Progress Node',
+          summary: 'Created by the Electron smoke test through vt-fake-agent.',
+          content: 'Fake-agent Electron smoke coverage marker.',
+          color: 'green'
+        },
+        {
+          type: 'create_node',
+          title: 'Smoke Node Two',
+          summary: 'Second node verifying SSE delta rendering.',
+          content: 'Second smoke node content.',
+          color: 'blue'
+        },
+        {
+          type: 'create_node',
+          title: 'Smoke Node Three',
+          summary: 'Third node verifying SSE delta rendering.',
+          content: 'Third smoke node content.',
+          color: 'blue'
+        },
+        { type: 'exit', code: 0 }
+      ]
+    };
+    await fs.writeFile(path.join(tempUserDataPath, 'settings.json'), JSON.stringify({
+      agents: [
+        { name: 'Fake Agent', command: `node ${JSON.stringify(FAKE_AGENT_ENTRYPOINT)} "$AGENT_PROMPT"` }
+      ],
+      defaultAgent: 'Fake Agent',
+      terminalSpawnPathRelativeToWatchedDirectory: '/',
+      INJECT_ENV_VARS: {
+        AGENT_PROMPT: `### FAKE_AGENT_SCRIPT ### ${JSON.stringify(fakeAgentScript)} ### END_FAKE_AGENT_SCRIPT ###`
       }
     }, null, 2), 'utf8');
 
@@ -342,6 +379,159 @@ test.describe('Smoke Test', () => {
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Smoke test passed!');
+  });
+
+  test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
+    console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
+
+    const mcpPort = await appWindow.evaluate(async () => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.getMcpPort();
+    });
+    const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
+    expect(await waitForMcpServer(mcpUrl)).toBe(true);
+
+    await mcpRequest(mcpUrl, 'initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'fake-agent-smoke-test', version: '1.0.0' }
+    });
+
+    await expect.poll(async () => {
+      return await appWindow.evaluate(async () => {
+        const api = (window as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        const graph = await api.main.getGraph();
+        return Object.keys(graph.nodes).length;
+      });
+    }, {
+      message: 'Waiting for graph nodes before spawning fake agent',
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
+    }).toBeGreaterThan(0);
+
+    const nodeIds = await appWindow.evaluate(async () => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const graph = await api.main.getGraph();
+      return Object.keys(graph.nodes);
+    });
+    const parentNodeId = nodeIds[0];
+
+    const cyNodeCountBeforeAgent: number = await appWindow.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return cy?.nodes().length ?? 0;
+    });
+    console.log(`[Smoke Test] Cytoscape nodes before fake agent: ${cyNodeCountBeforeAgent}`);
+
+    const callerTerminalId = `e2e-smoke-caller-${randomUUID().slice(0, 8)}`;
+    const spawnCallerResult = await appWindow.evaluate(async ({ callerId, parentId }) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+      return await api.terminal.spawn({
+        type: 'Terminal',
+        terminalId: callerId,
+        attachedToContextNodeId: parentId,
+        terminalCount: 0,
+        title: 'E2E Smoke Caller',
+        anchoredToNodeId: { _tag: 'None' },
+        shadowNodeDimensions: { width: 600, height: 400 },
+        resizable: true,
+        initialCommand: 'sleep 120',
+        executeCommand: true,
+        isPinned: true,
+        isDone: false,
+        lastOutputTime: Date.now(),
+        activityCount: 0,
+        parentTerminalId: null,
+        agentName: callerId,
+        worktreeName: undefined,
+        isHeadless: false
+      });
+    }, { callerId: callerTerminalId, parentId: parentNodeId });
+    expect(spawnCallerResult.success).toBe(true);
+
+    await expect.poll(async () => {
+      const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+      const agents = (listResult.parsed as {
+        agents: Array<{ terminalId: string }>
+      }).agents;
+      return agents.some(agent => agent.terminalId === callerTerminalId);
+    }, {
+      message: 'Waiting for caller terminal to register in list_agents',
+      timeout: 10000,
+      intervals: [250, 500, 1000]
+    }).toBe(true);
+
+    const fakeAgentSpawn = await mcpCallTool(mcpUrl, 'spawn_agent', {
+      nodeId: parentNodeId,
+      callerTerminalId,
+      agentName: 'Fake Agent',
+      spawnDirectory: REPO_ROOT,
+      depthBudget: 0,
+      headless: true
+    });
+    const spawnPayload = fakeAgentSpawn.parsed as { success: boolean; error?: string; terminalId?: string };
+    if (!spawnPayload.success) {
+      console.error('[smoke] spawn_agent failed:', JSON.stringify(spawnPayload, null, 2));
+    }
+    expect(spawnPayload, `spawn_agent error: ${spawnPayload.error ?? 'unknown'}`).toMatchObject({ success: true });
+    const fakeAgentTerminalId = spawnPayload.terminalId!;
+    expect(fakeAgentTerminalId).toBeTruthy();
+
+    await expect.poll(async () => {
+      const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+      const agents = (listResult.parsed as {
+        agents: Array<{
+          terminalId: string;
+          status: string;
+          exitCode: number | null;
+          newNodes?: Array<{ nodeId: string; title: string }>;
+        }>
+      }).agents;
+      const fakeAgent = agents.find(agent => agent.terminalId === fakeAgentTerminalId);
+      const exitCode = fakeAgent?.exitCode ?? null;
+      return {
+        status: fakeAgent?.status ?? 'missing',
+        exitCodeOk: exitCode === null || exitCode === 0,
+        hasProgressNode: fakeAgent?.newNodes?.some(node => node.title === 'Smoke Fake Agent Progress Node') ?? false
+      };
+    }, {
+      message: 'Waiting for fake agent to exit after creating a progress node',
+      timeout: 30000,
+      intervals: [1000, 1000, 2000, 5000]
+    }).toEqual({
+      status: 'exited',
+      exitCodeOk: true,
+      hasProgressNode: true
+    });
+
+    const progressNodeFiles = await fs.readdir(fixtureVaultPath);
+    const progressNodeFile = progressNodeFiles.find(file => file.startsWith('fake-agent-') && file.endsWith('.md'));
+    expect(progressNodeFile).toBeTruthy();
+    const progressNodeContent = await fs.readFile(path.join(fixtureVaultPath, progressNodeFile!), 'utf8');
+    expect(progressNodeContent).toContain('# Smoke Fake Agent Progress Node');
+    expect(progressNodeContent).toContain('Fake-agent Electron smoke coverage marker.');
+
+    // Verify SSE delta rendering: all 3 agent-created nodes must appear in Cytoscape
+    await expect.poll(async () => {
+      return await appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return cy?.nodes().length ?? 0;
+      });
+    }, {
+      message: `Waiting for 3 new nodes to render in Cytoscape (started with ${cyNodeCountBeforeAgent})`,
+      timeout: 15000,
+      intervals: [500, 1000, 2000, 3000]
+    }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
+    console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
+
+    // Caller terminal cleanup is handled by the fixture-owned tmux server
+    // teardown, which is scoped to this test's temporary app-support path.
+
+    expectNoCriticalElectronErrors(electronDiagnostics);
+    console.log('✅ Fake agent progress-node smoke test passed!');
   });
 });
 
