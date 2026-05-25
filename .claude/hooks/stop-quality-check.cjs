@@ -22,7 +22,7 @@ const QualityChecker = require('./lib/quality-checker.cjs');
 // every exit path (early returns, errors, blocking-fail) is captured. The
 // recording shell-out is best-effort — failures here never alter the exit code.
 const HOOK_STARTED_AT = Date.now();
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const _originalExit = process.exit.bind(process);
 process.exit = (code = 0) => {
   try {
@@ -33,7 +33,7 @@ process.exit = (code = 0) => {
       '--id=claude-stop-quality',
       '--name=Claude Code Stop (quality check)',
       '--category=Hook',
-      '--display=node webapp/.claude/hooks/stop-quality-check.cjs',
+      '--display=node .claude/hooks/stop-quality-check.cjs',
       `--status=${code === 0 ? 'pass' : 'fail'}`,
       `--duration-ms=${Date.now() - HOOK_STARTED_AT}`,
       ...(code !== 0 ? [`--error-summary=stop hook blocked with exit ${code} (quality issues found)`] : []),
