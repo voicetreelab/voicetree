@@ -1,71 +1,12 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-
-// Mock shell/edge dependencies
-vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWriteFolder: vi.fn(),
-    getVaultPaths: vi.fn()
-}))
-
-vi.mock('@vt/graph-db-server/state/graph-store', () => ({
-    getGraph: vi.fn()
-}))
-
-vi.mock('@vt/agent-runtime', () => {
-    const runtime = {
-        closeHeadlessAgent: vi.fn(),
-        enqueuePendingMessage: vi.fn(),
-        getHeadlessAgentOutput: vi.fn(),
-        getIdleSince: vi.fn(),
-        getOutput: vi.fn(),
-        getPendingTerminal: vi.fn(),
-        getRuntimeUI: vi.fn(),
-        getTerminalRecords: vi.fn(),
-        registerChild: vi.fn(),
-        resetAuditRetryCount: vi.fn(),
-        runStopHooks: vi.fn(),
-        sendTextToTerminal: vi.fn(),
-        spawnTerminalWithContextNode: vi.fn(),
-        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
-    }
-    return {
-        ...runtime,
-        agentRuntime: runtime,
-    }
-})
-
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
-}))
-
-// Mock settings
-vi.mock('@vt/app-config/settings', () => ({
-    loadSettings: vi.fn().mockResolvedValue({nodeLineLimit: 70})
-}))
-
-// Mock @mermaid-js/parser for mermaid validation tests
-vi.mock('@mermaid-js/parser', () => ({
-    parse: vi.fn()
-}))
-
-import {configureMcpServer, createGraphTool} from '@vt/voicetree-mcp'
-import {getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getTerminalRecords} from '@vt/agent-runtime'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {parse as mermaidParse} from '@mermaid-js/parser'
+import {createAddProgressNodeMcpTestHarness} from './addProgressNodeMcp.test/__tests__/testHarness'
+import {describeCreateGraphToolValidationTests} from './addProgressNodeMcp.test/__tests__/validationTests'
 
 type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>
     isError?: boolean
-}
-
-function parsePayload(response: McpToolResponse): unknown {
-    return JSON.parse(response.content[0].text)
 }
 
 type SuccessPayload = {
@@ -78,244 +19,31 @@ type ErrorPayload = {
     error: string
 }
 
-const WRITE_PATH: string = '/test/vault'
-const READ_PATH: string = '/test/reference-vault'
-const PARENT_NODE_ID: NodeIdAndFilePath = `${WRITE_PATH}/parent-task.md`
-const CALLER_TERMINAL_ID: string = 'ctx-nodes/caller.md-terminal-0'
-const CALLER_CONTEXT_NODE_ID: NodeIdAndFilePath = 'ctx-nodes/caller.md'
-
-function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, options?: {
-    position?: {x: number; y: number}
-    isContextNode?: boolean
-    containedNodeIds?: readonly string[]
-}): GraphNode {
-    return {
-        absoluteFilePathIsID: nodeId,
-        outgoingEdges: [],
-        contentWithoutYamlOrLinks: content,
-        nodeUIMetadata: {
-            color: O.none,
-            position: options?.position ? O.some(options.position) : O.none,
-            additionalYAMLProps: new Map(),
-            isContextNode: options?.isContextNode ?? false,
-            containedNodeIds: options?.containedNodeIds
-        }
-    }
-}
-
-function buildGraph(extraNodes?: Record<string, GraphNode>): Graph {
-    return {
-        nodes: {
-            [PARENT_NODE_ID]: buildGraphNode(PARENT_NODE_ID, '# Parent Task', {
-                position: {x: 100, y: 200}
-            }),
-            [CALLER_CONTEXT_NODE_ID]: buildGraphNode(CALLER_CONTEXT_NODE_ID, '# Context', {
-                isContextNode: true,
-                containedNodeIds: ['existing-node.md']
-            }),
-            ...extraNodes
-        },
-        incomingEdgesIndex: new Map(),
-        nodeByBaseName: new Map([
-            ['parent-task', [PARENT_NODE_ID]]
-        ]),
-        unresolvedLinksIndex: new Map()
-    }
-}
-
-function mockCallerTerminal(options?: {
-    agentName?: string
-    color?: string
-    attachedToNodeId?: string
-    anchoredToNodeId?: string
-}): void {
-    const terminalData: TerminalData = createTerminalData({
-        terminalId: CALLER_TERMINAL_ID as TerminalId,
-        attachedToNodeId: options?.attachedToNodeId ?? CALLER_CONTEXT_NODE_ID,
-        anchoredToNodeId: options?.anchoredToNodeId as NodeIdAndFilePath | undefined,
-        terminalCount: 0,
-        title: 'Test Agent',
-        executeCommand: true,
-        agentName: options?.agentName ?? 'test-agent',
-        initialEnvVars: options?.color ? {AGENT_COLOR: options.color} : undefined
-    })
-    vi.mocked(getTerminalRecords).mockReturnValue([
-        {terminalId: CALLER_TERMINAL_ID, terminalData, status: 'running', exitCode: null}
-    ])
-}
-
-function setupStandardMocks(graphOverride?: Graph): void {
-    mockCallerTerminal()
-    vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
-    vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
-    vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
-    vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
-}
+const {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors,
+    buildGraph,
+    buildGraphNode,
+    CALLER_TERMINAL_ID,
+    configureCreateGraphToolTestServer,
+    createGraphTool,
+    getGraph,
+    getVaultPaths,
+    getWriteFolder,
+    mermaidParse,
+    mockCallerTerminal,
+    parsePayload,
+    READ_PATH,
+    setupStandardMocks,
+    WRITE_PATH,
+} = createAddProgressNodeMcpTestHarness()
 
 describe('MCP create_graph tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        configureMcpServer({
-            graph: {
-                getGraph: async () => getGraph(),
-                getVaultPaths: async () => getVaultPaths(),
-                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
-                applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
-                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
-                },
-            }
-        })
+        configureCreateGraphToolTestServer()
     })
 
-    // =========================================================================
-    // Validation
-    // =========================================================================
-
-    describe('validation', () => {
-        it('returns error when caller terminal ID is unknown', async () => {
-            vi.mocked(getTerminalRecords).mockReturnValue([])
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: 'unknown-terminal',
-                nodes: [{filename:'a', title: 'Test', summary: 'Summary'}]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Unknown caller terminal')
-        })
-
-        it('returns error when no vault is loaded', async () => {
-            mockCallerTerminal()
-            vi.mocked(getWriteFolder).mockResolvedValue(O.none)
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{filename:'a', title: 'Test', summary: 'Summary'}]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('No vault loaded')
-        })
-
-        it('returns error when outputPath resolves outside loaded vault paths', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                outputPath: '../outside',
-                nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('outside the loaded vault paths')
-        })
-
-        it('returns error when parent node is not found', async () => {
-            mockCallerTerminal()
-            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
-            vi.mocked(getGraph).mockReturnValue({
-                nodes: {},
-                incomingEdgesIndex: new Map(),
-                nodeByBaseName: new Map(),
-                unresolvedLinksIndex: new Map()
-            })
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                parentNodeId: 'nonexistent-node.md',
-                nodes: [{filename:'a', title: 'Test', summary: 'Summary'}]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('not found')
-        })
-
-        it('returns error when nodes array is empty', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: []
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('at least 1')
-        })
-
-        it('returns error when node has duplicate local id', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [
-                    {filename:'a', title: 'First', summary: 'Summary'},
-                    {filename:'a', title: 'Second', summary: 'Summary'}
-                ]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Duplicate filename')
-        })
-
-        it('returns error when parent references undeclared local id', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [
-                    {filename:'a', title: 'Child', summary: 'Summary', parents: [{filename: 'nonexistent', edgeLabel: ''}]}
-                ]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('not a declared filename')
-        })
-
-        it('returns error when cycle detected in parent references', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [
-                    {filename:'a', title: 'A', summary: 'S', parents: [{filename: 'b', edgeLabel: ''}]},
-                    {filename:'b', title: 'B', summary: 'S', parents: [{filename: 'a', edgeLabel: ''}]}
-                ]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Cycle detected')
-        })
-
-        it('returns error when codeDiffs provided without complexity', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await createGraphTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{filename:'a', title: 'Test', summary: 'Summary', codeDiffs: ['- old\n+ new']}]
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('complexityScore')
-        })
-    })
+    describeCreateGraphToolValidationTests()
 
     // =========================================================================
     // Line length blocking
