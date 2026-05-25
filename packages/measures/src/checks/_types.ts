@@ -2,9 +2,9 @@
 // Files starting with `_` are NOT loaded as measures by capture-ci-checks.ts,
 // except the suite-level `health/_all.check.ts`.
 
-export type ParserKind = 'vitest' | 'playwright' | 'none'
+type ParserKind = 'vitest' | 'playwright' | 'none'
 
-export type MeasureCategory = 'Unit' | 'Integration' | 'E2E' | 'Lint' | 'TypeCheck' | 'Static' | 'Command' | 'Hook' | 'Other'
+type MeasureCategory = 'Unit' | 'Integration' | 'E2E' | 'Lint' | 'TypeCheck' | 'Static' | 'Command' | 'Hook' | 'Other'
 
 export type CheckDef = {
     readonly id: string
@@ -18,21 +18,31 @@ export type CheckDef = {
     readonly exclusive?: boolean
 }
 
-export const E2E_TIMEOUT_MS = 30 * 60 * 1000
+const e2eTimeoutMs = 30 * 60 * 1000
 
-export const npmRun = (name: string, extras: readonly string[] = []): string[] =>
+const npmRun = (name: string, extras: readonly string[] = []): string[] =>
     ['npm', 'run', name, ...(extras.length ? ['--', ...extras] : [])]
 
-export const npmExec = (...args: string[]): string[] =>
+const npmExec = (...args: string[]): string[] =>
     ['npm', 'exec', '--', ...args]
 
-export const npmWorkspaceRun = (ws: string, name: string, extras: readonly string[] = []): string[] =>
+const npmWorkspaceRun = (ws: string, name: string, extras: readonly string[] = []): string[] =>
     ['npm', '--workspace', ws, 'run', name, ...(extras.length ? ['--', ...extras] : [])]
 
-export const npmWorkspaceExec = (ws: string, ...args: string[]): string[] =>
+const npmWorkspaceExec = (ws: string, ...args: string[]): string[] =>
     ['npm', '--workspace', ws, 'exec', '--', ...args]
 
-export const vitestJsonArgs = (jsonOut: string | null): string[] =>
+const vitestJsonArgs = (jsonOut: string | null): string[] =>
     jsonOut === null ? ['--reporter=json'] : ['--reporter=json', `--outputFile=${jsonOut}`]
 
-export const playwrightJsonArgs = (): string[] => ['--reporter=json']
+const playwrightJsonArgs = (): string[] => ['--reporter=json']
+
+export const checkArgs = {
+    e2eTimeoutMs,
+    npmRun,
+    npmExec,
+    npmWorkspaceRun,
+    npmWorkspaceExec,
+    vitestJsonArgs,
+    playwrightJsonArgs,
+} as const

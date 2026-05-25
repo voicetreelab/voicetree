@@ -25,9 +25,9 @@
 //                 (--only=<comma list of check ids>).
 //   per-check   → one GHA job per check (matrix.check_id ∈ folder); used for
 //                 the fuzz suites which already run in a 5-way matrix today.
-export type ConcernParallelism = 'per-concern' | 'per-check'
+type ConcernParallelism = 'per-concern' | 'per-check'
 
-export type WorkflowSetup = {
+type WorkflowSetup = {
     // Run `npx playwright install --with-deps chromium` (working-directory: webapp).
     readonly playwright: boolean
     // Wrap the capture-ci step in `xvfb-run -a -s "-screen 0 1280x1024x24"` for
@@ -37,12 +37,12 @@ export type WorkflowSetup = {
     readonly node: string
 }
 
-export type WorkflowTrigger = {
+type WorkflowTrigger = {
     // null = always; 'main' = only PRs where github.base_ref == 'main'.
     readonly baseRef: string | null
 }
 
-export type WorkflowProtection = {
+type WorkflowProtection = {
     // Branches where this tier's generated jobs are directly required by
     // GitHub rulesets. Declared at tier level; concern overrides inherit it.
     readonly requiredOn: readonly string[]

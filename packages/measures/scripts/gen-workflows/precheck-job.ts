@@ -64,6 +64,7 @@ export function precheckJob(jobId: string, trigger: WorkflowSpec['trigger']): Jo
             {kind: 'checkout'},
             {
                 kind: 'run',
+                id: 'decide',
                 name: 'decide',
                 env: {
                     GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',

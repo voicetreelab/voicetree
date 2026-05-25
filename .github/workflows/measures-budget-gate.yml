@@ -19,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: decide
+        id: decide
         env:
           GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           LARGE_CEILING: 10000
@@ -554,4 +555,4 @@ jobs:
           MEASURES_WORKFLOW_NEEDS_JSON: "${{ toJson(needs) }}"
         run: |
           node --no-warnings=ExperimentalWarning --experimental-strip-types \
-            packages/measures/src/_runners/check-tier-budgets.ts
+            packages/measures/scripts/check-tier-budgets.ts

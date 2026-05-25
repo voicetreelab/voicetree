@@ -6,7 +6,7 @@
 // budgets, and writes a machine-readable result to `opts.resultFile`. Returns
 // the result + an exitCode (1 on budget breach, 0 otherwise).
 //
-// The CheckDef at checks/tier_4/perf/timing-budget-gate.ts spawns this file
+// The CheckDef at checks/tier_4/analyzers/timing-budget-gate.ts spawns this file
 // as a subprocess via the CLI shell at the bottom.
 
 import {mkdir, readdir, readFile, rename, unlink, writeFile} from 'node:fs/promises'
@@ -15,14 +15,14 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
 
 const SCRIPT_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SCRIPT_DIR, '..', '..', '..', '..')
+const REPO_ROOT: string = resolve(SCRIPT_DIR, '..', '..', '..')
 const DEFAULT_CHECKS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports', 'checks')
 const DEFAULT_TIER_ROOT: string = join(REPO_ROOT, 'packages', 'measures', 'src', 'checks')
 // Lives under reports/gates/ so the health-report writer (which scans
 // reports/*.json by kebab-case name) doesn't try to parse it as a metric.
 const DEFAULT_RESULT_FILE: string = join(REPO_ROOT, 'health-dashboard', 'reports', 'gates', 'tier-budget.json')
 
-const TIER_PATH_PATTERN = /\/checks\/tier_(\d+)\//
+const TIER_PATH_PATTERN = /\/checks\/tier_(\d+)(?:\/|_)/
 
 // The gate excludes its own report from aggregation — otherwise it gates
 // against its own sub-second duration, which is meaningless.

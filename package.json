@@ -48,7 +48,7 @@
     "measures:dashboard": "node health-dashboard/server.mjs",
     "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
     "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
-    "measures:capture-baselines": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-subgraph-baselines.ts",
+    "measures:capture-baselines": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/scripts/capture-subgraph-baselines.ts",
     "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs"
   },
   "devDependencies": {

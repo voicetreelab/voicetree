@@ -4,7 +4,7 @@ import {join} from 'node:path'
 
 import {describe, expect, it} from 'vitest'
 
-import {runTierBudgetGate, type EvaluationResult} from '../../../_runners/check-tier-budgets.ts'
+import {runTierBudgetGate, type EvaluationResult} from '../../../../scripts/check-tier-budgets.ts'
 
 type ReportInput = {
     checkId: string
@@ -80,10 +80,10 @@ describe('runTierBudgetGate — wall-clock aggregation', () => {
         })
     })
 
-    it('groups reports by tier and ignores ones without a checks/tier_N/ path', async () => {
+    it('groups reports by tier and accepts tier folders with suffixes', async () => {
         await withFixture([
             {checkId: 'a', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:01.000Z',
-                measurePath: 'packages/measures/src/checks/tier_0/x/a.ts'},
+                measurePath: 'packages/measures/src/checks/tier_0_pre_commit/lint/a.ts'},
             {checkId: 'b', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:02.000Z',
                 measurePath: 'packages/measures/src/checks/tier_2/x/b.ts'},
             {checkId: 'c', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:03.000Z',

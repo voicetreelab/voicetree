@@ -145,6 +145,31 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
             await rm(root, {recursive: true, force: true})
         }
     })
+
+    it('wires precheck job outputs to a concrete step id', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
+        try {
+            await writeTierFixture(root, 'tier_3', {needs: [], protection: {requiredOn: ['main'], conditionalOn: []}}, {
+                'e2e/heavy.ts': checkSrc('heavy-e2e'),
+            })
+            await writeTierFixture(root, 'tier_4', {
+                needs: ['tier_3'],
+                trigger: {baseRef: 'main'},
+                precheck: 'tier4-precheck',
+                protection: {requiredOn: [], conditionalOn: ['main']},
+            }, {
+                'analyzers/deep.ts': checkSrc('deep-analyzer'),
+            })
+
+            const text = workflowYamlToText(tierSpecsToWorkflow(await discoverTiers(root)))
+
+            expect(text).toContain('outputs:\n      reason: "${{ steps.decide.outputs.reason }}"\n      should_run: "${{ steps.decide.outputs.should_run }}"')
+            expect(text).toContain('- name: decide\n        id: decide')
+            expect(text).toContain("if: \"github.base_ref == 'main' && needs.tier4-precheck.outputs.should_run == 'true'\"")
+        } finally {
+            await rm(root, {recursive: true, force: true})
+        }
+    })
 })
 
 describe('workflow generator — checked-in YAML matches current folder tree', () => {

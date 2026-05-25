@@ -1,7 +1,7 @@
 // CI workflow generator. Reads the folder tree under packages/measures/src/checks/
 // and emits .github/workflows/measures-budget-gate.yml — one GHA job per
 // `tier_N/<concern>/` folder, plus a final `budget-gate` job that downloads
-// every tier's check-report artifacts and runs `check-tier-budgets.ts`.
+// every tier's check-report artifacts and runs the tier-4 budget gate.
 //
 // Architecture (per CLAUDE.md — functional core, imperative shell):
 //   discoverTiers()       → impure I/O, reads folder tree + check IDs
@@ -368,7 +368,7 @@ function budgetGateJob(upstreamJobs: readonly Job[], maxTier: number, input: Tie
                 name: `Run tier budget gate (max tier ${maxTier})`,
                 run: [
                     'node --no-warnings=ExperimentalWarning --experimental-strip-types \\',
-                    '  packages/measures/src/_runners/check-tier-budgets.ts',
+                    '  packages/measures/scripts/check-tier-budgets.ts',
                 ].join('\n'),
                 env: {
                     GITHUB_BASE_REF: '${{ github.base_ref }}',
@@ -462,7 +462,7 @@ function renderStep(step: Step): readonly string[] {
             '  working-directory: webapp',
             '  run: npx playwright install --with-deps chromium',
         ]
-        case 'run': return renderRun(step.name, step.run, null, step.env ?? null)
+        case 'run': return renderRun(step.name, step.run, step.id ?? null, step.env ?? null)
         case 'upload-artifact': return [
             '- name: Upload check reports',
             '  if: always()',

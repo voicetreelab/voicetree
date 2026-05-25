@@ -1,6 +1,6 @@
-import {type CheckDef} from '../../../_types.ts'
+import {type CheckDef} from '../../_types.ts'
 
-const SCRIPT_PATH = 'packages/measures/src/_runners/check-baseline-commit-isolation.ts'
+const SCRIPT_PATH = 'packages/measures/scripts/check-baseline-commit-isolation.ts'
 
 export const check: CheckDef = {
     id: 'baseline-commit-isolation',

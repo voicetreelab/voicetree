@@ -1,10 +1,16 @@
-import {type CheckDef, npmWorkspaceRun, vitestJsonArgs} from '../_types.ts'
-
-export const check: CheckDef = {
+export const check = {
     id: 'systems-health',
     name: 'Systems Health Suite',
     category: 'Unit',
     display: 'npm --workspace @vt/measures run test',
-    args: (jsonOut) => npmWorkspaceRun('@vt/measures', 'test', vitestJsonArgs(jsonOut)),
+    args: (jsonOut: string | null) => [
+        'npm',
+        '--workspace',
+        '@vt/measures',
+        'run',
+        'test',
+        '--',
+        ...(jsonOut === null ? ['--reporter=json'] : ['--reporter=json', `--outputFile=${jsonOut}`]),
+    ],
     parser: 'vitest',
-}
+} as const
