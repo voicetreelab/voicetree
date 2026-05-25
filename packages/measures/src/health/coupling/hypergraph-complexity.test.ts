@@ -58,7 +58,24 @@ const MAX_BOUNDARY_RATIO_BUDGET = 1
 // See `aggregateBCI` docstring for the rationale. The +3.17 charge that
 // extracting @vt/observability triggered against the old formula now
 // correctly contributes 0 (tw=1 narrow star). Tight ratchet: 50.61.
-const AGGREGATE_BCI_BUDGET = 50.61
+//
+// 2026-05-25: package-exports resolver fix (`resolveWorkspaceBasePath`
+// in `_shared/discovery/package-exports.ts`) replaced the prior naive
+// `join(srcRoot, subpath)` shape that silently dropped subpath imports
+// when a package's `exports` map redirected `./foo` to a non-`./foo/...`
+// file (e.g. `"./settings": "./src/settings/settings_IO.ts"` — there is
+// no `src/settings/index.ts`, so every `@vt/app-config/settings` import
+// was previously lost). Re-running the SAME source tree as the
+// 50.60 baseline under the corrected resolver yields 54.85; the prior
+// number was a measurement artifact. Anchoring tight-ratchet headroom
+// (+0.01) over the corrected baseline gives the new budget. Per CLAUDE.md:
+// anchor headroom to the corrected BASELINE, not the corrected tip.
+// dev-lochlan tip itself measures 54.35 (–0.50 below the baseline);
+// the one new graph-db-server -> app-config edge added by the
+// positioning-extraction refactor (savePositionsSync in applyGraphDelta,
+// commit ec330b7fd) is more than offset by reductions in
+// vt-daemon -> graph-model and webapp -> graph-model.
+const AGGREGATE_BCI_BUDGET = 54.86
 
 // ── Graph Construction ──
 
