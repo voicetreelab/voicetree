@@ -74,12 +74,6 @@ Every failure SHALL emit a message that names the offending node ID, edge endpoi
 - **THEN** the architecture-drift gate SHALL fail
 - **AND** the failure message SHALL name the importing source file, the imported source file, and the undeclared architecture edge
 
-#### Scenario: Runtime-only communication is outside the day-1 edge model
-
-- **WHEN** two architecture nodes communicate only through a runtime mechanism such as IPC, HTTP, sockets, subprocess spawning, or function calls reached without a static import/export edge crossing the click-target scopes
-- **THEN** the architecture-drift gate SHALL NOT be required to infer that runtime communication as a source edge
-- **AND** a future extension SHALL specify a separate channel graph, call graph, or semantic channel validator before enforcing those runtime edges
-
 ### Requirement: Reuse existing measures primitives; no new graph builder
 
 The validator SHALL be implemented as pure functions inside `packages/measures/src/health/coupling/architecture-drift.test.ts`, wrapped as a CheckDef at `packages/measures/src/checks/tier_1/structure/architecture-drift.ts` following the shape of the existing tier-1 structure checks (`relative-import-depth.ts`, `orange-gate.ts`).

@@ -49,4 +49,3 @@
 - [ ] 7.3 Broad forbidden-import enforcement generated from the edge graph for all repo packages. Tier-2.
 - [ ] 7.4 Authoring any descendant `architecture.md` files. Day 1 is root-only.
 - [ ] 7.5 Replacing dependency-cruiser, ESLint boundary rules, or any other existing enforcement.
-- [ ] 7.6 Runtime edge extraction beyond static imports: call graph, dynamic import graph, IPC send/handle graph, HTTP route graph, socket/subprocess communication graph. This is an explicit extension, not part of the day-1 edge definition.

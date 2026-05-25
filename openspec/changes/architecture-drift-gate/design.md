@@ -58,14 +58,12 @@ The landscape research (summarized in the parent voicetree node) found:
 
 **Choice:** Every Mermaid edge MUST have a non-empty label (e.g. `|IPC|`, `|HTTP /graph/*|`, `|spawn + socket|`). Day-1 assertions verify the label is present and non-empty. For code-backed click targets, the validator also reads static import/export edges between those clicked source scopes and requires each cross-node source edge to have a same-direction Mermaid edge. It does NOT verify the target file actually exposes the named channel in code.
 
-**Current limitation:** A source edge means only a static TypeScript module dependency parsed from `import ... from`, side-effect `import "..."`, or `export ... from`. The gate does not inspect call graphs, function-level reachability, dynamic imports, IPC send/handle pairs, HTTP route calls, socket messages, subprocess spawning behavior, or other runtime communication paths.
-
 **Rationale:**
 - Channel-semantic verification (read the target file, find route declarations matching the label) requires source-walking and per-channel parsers. That is an order of magnitude more code than structural drift detection.
 - Structural drift includes a source dependency being added between existing architecture nodes without updating the executable diagram. Static import graph comparison catches that cheaply without attempting channel-specific semantic analysis.
 - Tier 1 must stay fast. Static import extraction over the clicked scopes is cheap enough; channel-semantic verification remains out of scope.
 
-**Open for later:** A tier-2 follow-up can extend the edge model beyond static module dependencies. Candidate extensions are channel-semantic verification (grep or parse target files for declared channels), IPC/HTTP route graph extraction, and call-graph analysis. Those should be separate measures unless they can be expressed without broadening the tier-1 architecture drift gate into a slow or noisy semantic analyzer.
+**Open for later:** A tier-2 follow-up can grep target files for declared channels.
 
 ### D4. Reuse `_shared/graph/import-graph.ts`; no new graph builder
 
