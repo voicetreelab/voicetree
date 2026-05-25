@@ -75,6 +75,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-0-pre-commit-lint checks"
         run: |
@@ -101,6 +103,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-0-pre-commit-static checks"
         run: |
@@ -127,6 +131,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-1-coverage checks"
         run: |
@@ -153,6 +159,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: Install Playwright chromium
         working-directory: webapp
@@ -182,6 +190,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-1-health checks"
         run: |
@@ -208,6 +218,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-1-structure checks"
         run: |
@@ -234,6 +246,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-1-typecheck checks"
         run: |
@@ -261,6 +275,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-2-contract checks"
         run: |
@@ -289,6 +305,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: Install Playwright chromium
         working-directory: webapp
@@ -329,6 +347,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-2-fuzz check"
         run: |
@@ -357,6 +377,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-2-lint checks"
         run: |
@@ -384,6 +406,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-2-unit checks"
         run: |
@@ -411,6 +435,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: Install Playwright chromium
         working-directory: webapp
@@ -444,6 +470,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: "Run tier-4-analyzers checks"
         run: |
@@ -472,6 +500,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
       - name: Download all check reports
         uses: actions/download-artifact@v4

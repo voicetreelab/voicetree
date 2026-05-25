@@ -364,6 +364,8 @@ function renderStep(step: Step): readonly string[] {
         ]
         case 'npm-ci': return [
             '- name: Install dependencies',
+            '  env:',
+            '    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
             '  run: npm ci',
         ]
         case 'playwright-install': return [
