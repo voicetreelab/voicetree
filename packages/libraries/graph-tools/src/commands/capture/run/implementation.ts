@@ -17,7 +17,7 @@ import {
   parseBooleanFlag,
   readFlagValue,
   type DebugTargetArgs,
-} from '../../core/argv'
+} from '@vt/graph-tools/commands/core/argv'
 import { runObservations } from './observations'
 
 type ResolvedDebugTarget = Awaited<ReturnType<typeof resolveDebugInstance>>

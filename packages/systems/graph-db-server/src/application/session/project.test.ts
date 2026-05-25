@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest'
 import type { FolderTreeNode } from '@vt/graph-model'
 import { project, type State } from '@vt/graph-state'
 import { projectSessionState } from './project.ts'
-import { makeProjectSessionStateFixtures } from './project/fixtures.ts'
+import { makeProjectSessionStateFixtures } from './project/__tests__/fixtures.ts'
 
 const {
   makeDynamicFolderTree,
