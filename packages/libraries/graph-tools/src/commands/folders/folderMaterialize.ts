@@ -15,8 +15,6 @@ import { folderMaterializeImplementation } from './folderMaterialize/implementat
 
 const {
   DEFAULT_TIMEOUT_MS,
-  createScratchFixture,
-  folderMaterialize,
   waitForGraphReady,
   withTrailingSlash,
 } = folderMaterializeImplementation
@@ -77,7 +75,16 @@ export type FolderMaterializeResult = {
   writeFolder: string
 }
 
-export { createScratchFixture, folderMaterialize }
+export async function createScratchFixture(writeFolder: string): Promise<ScratchFixture> {
+  return folderMaterializeImplementation.createScratchFixture(writeFolder)
+}
+
+export async function folderMaterialize(
+  page: Parameters<typeof folderMaterializeImplementation.folderMaterialize>[0],
+  opts: Parameters<typeof folderMaterializeImplementation.folderMaterialize>[1],
+): Promise<Response<FolderMaterializeResult>> {
+  return folderMaterializeImplementation.folderMaterialize(page, opts)
+}
 
 function usage(message?: string): Response<never> {
   return err(
