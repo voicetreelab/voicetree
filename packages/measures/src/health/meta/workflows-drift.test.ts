@@ -17,9 +17,14 @@ import {describe, expect, it} from 'vitest'
 
 import {
     discoverTiers,
+    requiredStatusContextsByBaseRef,
     tierSpecsToWorkflow,
     workflowYamlToText,
 } from '../../../scripts/gen-workflows.ts'
+import {
+    planRulesets,
+    rulesetRulesWithRequiredStatusChecks,
+} from '../../../scripts/sync-workflow-rulesets.ts'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '..', '..', '..', '..', '..')
@@ -70,7 +75,7 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
         }
     })
 
-    it('emits a pull_request trigger scoped to packages/measures/** alongside workflow_dispatch', async () => {
+    it('emits an every-PR pull_request trigger alongside workflow_dispatch', async () => {
         const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
         try {
             await writeTierFixture(root, 'tier_0_pre_commit', {needs: []}, {
@@ -80,11 +85,47 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
             expect(text).toContain(
                 "on:\n" +
                 "  workflow_dispatch: {}\n" +
-                "  pull_request:\n" +
-                "    paths:\n" +
-                "      - 'packages/measures/**'\n" +
-                "      - '.github/workflows/measures-budget-gate.yml'",
+                "  pull_request:",
             )
+            expect(text).not.toContain('paths:')
+        } finally {
+            await rm(root, {recursive: true, force: true})
+        }
+    })
+
+    it('derives required ruleset contexts from tier-level protection metadata', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
+        try {
+            await writeTierFixture(root, 'tier_0_pre_commit', {needs: [], protection: {requiredOn: ['dev', 'main'], conditionalOn: []}}, {
+                'lint/foo.ts': checkSrc('foo-check'),
+            })
+            await writeTierFixture(root, 'tier_1', {needs: [], protection: {requiredOn: ['dev', 'main'], conditionalOn: []}}, {
+                'unit/bar.ts': checkSrc('bar-check'),
+            })
+            await writeTierFixture(root, 'tier_2', {needs: ['tier_1'], protection: {requiredOn: ['dev', 'main'], conditionalOn: []}}, {})
+            await writeConcernFixture(root, 'tier_2', 'fuzz', {parallelism: 'per-check'}, {
+                'a.ts': checkSrc('a-fuzz'),
+                'b.ts': checkSrc('b-fuzz'),
+            })
+            await writeTierFixture(root, 'tier_3', {needs: ['tier_2'], protection: {requiredOn: ['main'], conditionalOn: []}}, {
+                'e2e/heavy.ts': checkSrc('heavy-e2e'),
+            })
+            await writeTierFixture(root, 'tier_4', {needs: ['tier_3'], protection: {requiredOn: [], conditionalOn: ['main']}}, {
+                'analyzers/deep.ts': checkSrc('deep-analyzer'),
+            })
+
+            const contexts = requiredStatusContextsByBaseRef(await discoverTiers(root))
+
+            expect(contexts.dev).toEqual([
+                'budget-gate',
+                'tier-0-pre-commit-lint',
+                'tier-1-unit',
+                'tier-2-fuzz (a-fuzz)',
+                'tier-2-fuzz (b-fuzz)',
+            ])
+            expect(contexts.main).toContain('tier-3-e2e')
+            expect(contexts.main).toContain('budget-gate')
+            expect(contexts.main).not.toContain('tier-4-analyzers')
         } finally {
             await rm(root, {recursive: true, force: true})
         }
@@ -122,6 +163,46 @@ describe('workflow generator — checked-in YAML matches current folder tree', (
     })
 })
 
+describe('workflow ruleset sync — pure projection', () => {
+    it('projects generated required contexts into dev/main ruleset plans only', () => {
+        const plan = planRulesets({
+            dev: ['budget-gate', 'tier-1-unit'],
+            main: ['budget-gate', 'tier-1-unit', 'tier-3-e2e'],
+            scratch: ['tier-9-experiment'],
+        })
+
+        expect(plan).toEqual([
+            {baseRef: 'dev', name: 'Require fast CI on dev', requiredStatusChecks: ['budget-gate', 'tier-1-unit']},
+            {baseRef: 'main', name: 'Require CI green on main', requiredStatusChecks: ['budget-gate', 'tier-1-unit', 'tier-3-e2e']},
+        ])
+    })
+
+    it('replaces or appends the GitHub required-status-checks rule', () => {
+        const required = ['budget-gate', 'tier-1-unit']
+
+        expect(rulesetRulesWithRequiredStatusChecks([
+            {type: 'pull_request'},
+            {type: 'required_status_checks', parameters: {required_status_checks: [{context: 'stage1-checks'}]}},
+        ], required)).toEqual([
+            {type: 'pull_request'},
+            {type: 'required_status_checks', parameters: {
+                do_not_enforce_on_create: false,
+                strict_required_status_checks_policy: false,
+                required_status_checks: [{context: 'budget-gate'}, {context: 'tier-1-unit'}],
+            }},
+        ])
+
+        expect(rulesetRulesWithRequiredStatusChecks([{type: 'pull_request'}], required)).toEqual([
+            {type: 'pull_request'},
+            {type: 'required_status_checks', parameters: {
+                do_not_enforce_on_create: false,
+                strict_required_status_checks_policy: false,
+                required_status_checks: [{context: 'budget-gate'}, {context: 'tier-1-unit'}],
+            }},
+        ])
+    })
+})
+
 // ── fixture helpers ──────────────────────────────────────────────────────────
 
 type SpecLike = {
@@ -131,6 +212,7 @@ type SpecLike = {
     trigger?: {baseRef?: string | null}
     precheck?: string | null
     sequential?: boolean
+    protection?: {requiredOn: readonly string[]; conditionalOn: readonly string[]}
 }
 
 function specSource(spec: SpecLike): string {
@@ -143,6 +225,7 @@ function specSource(spec: SpecLike): string {
             node: spec.setup?.node ?? '22',
         },
         trigger: {baseRef: spec.trigger?.baseRef ?? null},
+        ...(spec.protection ? {protection: spec.protection} : {}),
         precheck: spec.precheck ?? null,
         parallelism: spec.parallelism ?? 'per-concern',
         sequential: spec.sequential ?? false,
