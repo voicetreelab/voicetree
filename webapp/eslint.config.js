@@ -14,7 +14,7 @@ const purePackageCytoscapeMessage =
   'Cytoscape must stay out of @vt/graph-model and @vt/graph-tools. Keep UI projection code in webapp.'
 
 const businessLayerCytoscapeMessage =
-  'Business-layer files must not reach into Cytoscape via cy.*. Keep this in a projection-layer adapter. Seed scope is src/**/business/** and will expand once BF-139 lands.'
+  'Business-layer files must not reach into Cytoscape via cy.*. Keep Cytoscape access in projection-layer adapters.'
 
 const daemonMutationAllowComment = 'vt-allow-direct-daemon-mutation-import'
 const daemonMutationFixturePattern =
