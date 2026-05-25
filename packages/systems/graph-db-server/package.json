@@ -23,7 +23,6 @@
     "./graph/findFileByName": "./src/data/graph/loading/findFileByName.ts",
     "./graph/folderScanner": "./src/data/graph/loading/folderScanner.ts",
     "./graph/graphActionsToDBEffects": "./src/data/graph/mutations/graphActionsToDBEffects.ts",
-    "./graph/graphDiskReconciliation": "./src/data/graph/watching/graphDiskReconciliation.ts",
     "./graph/handleFSEvent": "./src/data/graph/watching/handleFSEvent.ts",
     "./graph/loadAndMergeVaultPath": "./src/data/graph/loading/loadAndMergeVaultPath.ts",
     "./graph/loadGraphFromDisk": "./src/data/graph/loading/loadGraphFromDisk.ts",

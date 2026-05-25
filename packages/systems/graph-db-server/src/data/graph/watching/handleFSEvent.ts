@@ -1,5 +1,6 @@
+import { access } from 'node:fs/promises'
 import * as O from 'fp-ts/lib/Option.js'
-import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/graph';
+import type {DeleteNode, FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {toAbsolutePath} from '@vt/graph-model/folders';
@@ -12,6 +13,7 @@ import {
 import {isOurRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
 import {publish} from "@vt/graph-db-server/state/events/deltaEventBus";
 import {getFolderTreeReadModel} from "@vt/graph-db-server/state/folder-tree-read-model-store";
+import {isPendingWrite} from "@vt/graph-db-server/watch-folder/pending-writes";
 
 /**
  * Handle filesystem events by:
@@ -52,7 +54,10 @@ export function handleFSEventWithStateAndUISides(
 
     // 4. Apply delta to memory state and resolve any new wikilinks
     // Uses void since this is fire-and-forget from FS event handler
-    void applyAndBroadcast(delta, suppressBroadcastTo)
+    void (async () => {
+        const merged = await applyDeltaToMemAndBroadcast(delta, 'fs:external', suppressBroadcastTo)
+        notifyAgentNodesFromDelta(merged)
+    })()
 }
 
 function invalidateFolderTreeForFSEvent(fsEvent: FSEvent): void {
@@ -67,31 +72,22 @@ function invalidateFolderTreeForFSEvent(fsEvent: FSEvent): void {
 }
 
 /**
- * Apply delta to memory, broadcast to UI, and handle editor updates.
- * Extracted to allow async/await while keeping the main handler sync.
+ * Apply a delta to in-memory graph state, then broadcast the merged delta
+ * (including lazy wikilink resolutions) to SSE subscribers and floating editors.
  */
-async function applyAndBroadcast(
+async function applyDeltaToMemAndBroadcast(
     delta: GraphDelta,
-    suppressBroadcastTo: ReadonlySet<string>,
-): Promise<void> {
-    // Apply to memory and resolve any new wikilinks (returns merged delta)
+    source: 'fs:external' | 'reconcile:disk',
+    suppressBroadcastTo: ReadonlySet<string> = new Set(),
+): Promise<GraphDelta> {
     const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
-
     refreshGraphChangeSideEffects()
 
-    // Publish to SSE event bus for daemon clients
-    publish({
-        delta: mergedDelta,
-        source: 'fs:external',
-        suppressForSubscribers: [...suppressBroadcastTo],
-    })
+    const suppressList: string[] = [...suppressBroadcastTo]
+    publish({delta: mergedDelta, source, suppressForSubscribers: suppressList})
+    getCallbacks().onFloatingEditorUpdate?.(mergedDelta, suppressList)
 
-    // Broadcast to floating editor state via callback
-    getCallbacks().onFloatingEditorUpdate?.(mergedDelta, [...suppressBroadcastTo])
-
-    // Register filesystem-written nodes that have agent_name frontmatter,
-    // so wait_for_agents recognises them as agent progress.
-    notifyAgentNodesFromDelta(mergedDelta)
+    return mergedDelta
 }
 
 function notifyAgentNodesFromDelta(delta: GraphDelta): void {
@@ -105,4 +101,35 @@ function notifyAgentNodesFromDelta(delta: GraphDelta): void {
         const title: string = getNodeTitle(d.nodeToUpsert)
         callback(agentName, d.nodeToUpsert.absoluteFilePathIsID, title)
     }
+}
+
+async function pathExistsOnDisk(absolutePath: string): Promise<boolean> {
+    try {
+        await access(absolutePath)
+        return true
+    } catch {
+        return false
+    }
+}
+
+/**
+ * One-shot reconciliation: delete graph nodes whose backing files are gone
+ * from disk. Skips paths with pending daemon writes (so a delete racing a
+ * write does not undo the write). Applies the resulting delta to memory and
+ * broadcasts it via the same path that handleFSEventWithStateAndUISides uses.
+ *
+ * Used at vault-open and on the daemon `/graph/reconcile-disk` route so that
+ * an external file removal (git checkout, manual `rm`, agent batch) does not
+ * leave stale nodes in the in-memory graph or in any open floating editors.
+ */
+export async function reconcileGraphWithDisk(): Promise<GraphDelta> {
+    const currentGraph: Graph = getGraph()
+    const deletes: DeleteNode[] = []
+    for (const [nodeId, node] of Object.entries(currentGraph.nodes)) {
+        if (isPendingWrite(nodeId)) continue
+        if (await pathExistsOnDisk(nodeId)) continue
+        deletes.push({type: 'DeleteNode', nodeId, deletedNode: O.some(node)})
+    }
+    if (deletes.length === 0) return []
+    return applyDeltaToMemAndBroadcast(deletes, 'reconcile:disk')
 }
