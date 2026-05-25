@@ -34,6 +34,7 @@ The system SHALL fail the tier-1 architecture-drift check when any of the follow
 - A descendant file's `refines:` target does not match any node ID in the nearest ancestor `architecture.md`.
 - A descendant file's click target paths fall outside the parent node's click-target directory subtree.
 - An `architecture.md` contains zero Mermaid `flowchart` blocks or more than one.
+- A static source import/export edge crosses from one code-backed architecture node's click target to another code-backed architecture node's click target and the same-direction Mermaid edge is not declared.
 
 Every failure SHALL emit a message that names the offending node ID, edge endpoints, or file path AND tells the reader which side to reconcile (edit the diagram, or edit the code).
 
@@ -65,11 +66,19 @@ Every failure SHALL emit a message that names the offending node ID, edge endpoi
 - **THEN** the architecture-drift gate SHALL fail
 - **AND** the failure message SHALL name the descendant file, the offending click target, and the parent subtree it was expected to live inside
 
+#### Scenario: Source import creates an undeclared architecture edge
+
+- **WHEN** `/architecture.md` declares nodes `renderer` and `graphd` with click targets that point at source files or directories
+- **AND** the Mermaid block does not contain a same-direction `renderer --> graphd` edge
+- **AND** a source file inside the `renderer` click target statically imports or exports a source file inside the `graphd` click target
+- **THEN** the architecture-drift gate SHALL fail
+- **AND** the failure message SHALL name the importing source file, the imported source file, and the undeclared architecture edge
+
 ### Requirement: Reuse existing measures primitives; no new graph builder
 
 The validator SHALL be implemented as pure functions inside `packages/measures/src/health/coupling/architecture-drift.test.ts`, wrapped as a CheckDef at `packages/measures/src/checks/tier_1/structure/architecture-drift.ts` following the shape of the existing tier-1 structure checks (`relative-import-depth.ts`, `orange-gate.ts`).
 
-The implementation SHALL NOT introduce a new TypeScript AST walker. If and when codebase-graph data is required by future phases of this gate, it SHALL consume `buildImportGraph()` from `packages/measures/src/_shared/graph/import-graph.ts` and `discoverPackages()` from `packages/measures/src/_shared/discovery/discover-packages.ts`.
+The implementation SHALL NOT introduce a new TypeScript AST walker. Codebase-graph data SHALL be consumed from `packages/measures/src/_shared/graph/import-graph.ts`, including explicit source-root support for architecture click targets.
 
 #### Scenario: Validator integrates with existing measures conventions
 

@@ -27,6 +27,7 @@
 - [x] 4.5 Node IDs are unique within a single architecture.md.
 - [x] 4.6 Every `refines:` declaration in a descendant file matches exactly one node ID in the nearest ancestor `architecture.md`.
 - [x] 4.7 Every click target in a descendant file is inside the parent node's click-target directory subtree.
+- [x] 4.8 Every static source import/export edge between code-backed architecture nodes has a same-direction Mermaid edge.
 
 ## 5. Failure messages
 
@@ -37,13 +38,14 @@
 
 - [x] 6.1 Validator passes against the authored `/architecture.md`.
 - [x] 6.2 Validator fails with a precise drift message when a click target is intentionally renamed in a test fixture (and passes when the diagram is updated to match).
-- [x] 6.3 `npm run test` includes the new check in tier-1 and the existing tier-1 gates still pass.
-- [x] 6.4 Honest report: in the PR description, surface any approximation, fragile parser fallback, convention not enforced by assertions, or assertion that depends on a heuristic.
+- [x] 6.3 Validator fails when a Mermaid edge is intentionally unlabeled and when source code intentionally adds an undeclared static import edge.
+- [x] 6.4 `npm run test` includes the new check in tier-1 and the existing tier-1 gates still pass.
+- [x] 6.5 Honest report: in the PR description, surface any approximation, fragile parser fallback, convention not enforced by assertions, or assertion that depends on a heuristic.
 
 ## 7. Out of scope (do NOT do in this change)
 
 - [ ] 7.1 Migrating any hard-coded constants in existing `health/coupling/` tests to derive from architecture.md. That is a Phase 2 change.
 - [ ] 7.2 Channel-semantic verification (reading the click target to verify the labeled channel actually exists in code). That is a tier-2 future change.
-- [ ] 7.3 Forbidden-import enforcement derived from the edge graph. Tier-2.
+- [ ] 7.3 Broad forbidden-import enforcement generated from the edge graph for all repo packages. Tier-2.
 - [ ] 7.4 Authoring any descendant `architecture.md` files. Day 1 is root-only.
 - [ ] 7.5 Replacing dependency-cruiser, ESLint boundary rules, or any other existing enforcement.

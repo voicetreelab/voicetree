@@ -54,20 +54,20 @@ The landscape research (summarized in the parent voicetree node) found:
 - It allows nodes to bind to specific entry files (e.g. `webapp/src/shell/edge/main/runtime/electron/app/main.ts`) rather than just folders by naming convention. This is the meaningful upgrade over ts-arch's slice-level binding.
 - Click targets MAY be directories (for nodes like the renderer that don't have a single entry file). The validator accepts both file and directory paths.
 
-### D3. Edge labels carry the channel name; semantics are not enforced at tier 1
+### D3. Edge labels carry the channel name; static source edges must be declared
 
-**Choice:** Every Mermaid edge MUST have a non-empty label (e.g. `|IPC|`, `|HTTP /graph/*|`, `|spawn + socket|`). Day-1 assertions verify the label is present and non-empty. They do NOT verify the target file actually exposes that channel in code.
+**Choice:** Every Mermaid edge MUST have a non-empty label (e.g. `|IPC|`, `|HTTP /graph/*|`, `|spawn + socket|`). Day-1 assertions verify the label is present and non-empty. For code-backed click targets, the validator also reads static import/export edges between those clicked source scopes and requires each cross-node source edge to have a same-direction Mermaid edge. It does NOT verify the target file actually exposes the named channel in code.
 
 **Rationale:**
 - Channel-semantic verification (read the target file, find route declarations matching the label) requires source-walking and per-channel parsers. That is an order of magnitude more code than structural drift detection.
-- Structural drift (deleted/renamed processes, missing entry files) is the common case. Behavioral drift (channel renamed in code while diagram stays stale) is rarer.
-- Tier 1 must stay fast. Source-walking edge labels would push this out of tier 1.
+- Structural drift includes a source dependency being added between existing architecture nodes without updating the executable diagram. Static import graph comparison catches that cheaply without attempting channel-specific semantic analysis.
+- Tier 1 must stay fast. Static import extraction over the clicked scopes is cheap enough; channel-semantic verification remains out of scope.
 
 **Open for later:** A tier-2 follow-up can grep target files for declared channels.
 
 ### D4. Reuse `_shared/graph/import-graph.ts`; no new graph builder
 
-**Choice:** When the validator (later, in Phase 2) extends to forbidden-import enforcement across process boundaries, it consumes `buildImportGraph()` from `packages/measures/src/_shared/graph/import-graph.ts`. No new TS-compiler walk. No ts-morph.
+**Choice:** The validator consumes the existing `buildImportGraph()` primitive from `packages/measures/src/_shared/graph/import-graph.ts` to compare static source imports against diagram edges. The shared import graph primitive now accepts file roots and TSX files, so architecture click targets can be files or directories outside package `src/` while preserving the same narrow public graph API. No new TS-compiler walk. No ts-morph.
 
 **Rationale:**
 - The existing `{ files: SourceFile[], edges: Edge[] }` shape is exactly what we need.

@@ -4,6 +4,8 @@ import {isAbsolute, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {JSDOM} from 'jsdom'
 import {describe, expect, it} from 'vitest'
+import {type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {buildImportGraph} from '../../_shared/graph/import-graph'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 export type ArchitectureNode = {
@@ -41,6 +43,19 @@ export type RefinementTree = {
     readonly filesByPath: ReadonlyMap<string, ParsedArchitectureFile>
     readonly links: readonly RefinementLink[]
     readonly failures: readonly string[]
+}
+
+type NodeSourceScope = {
+    readonly nodeId: string
+    readonly absTarget: string
+    readonly isDirectory: boolean
+}
+
+type SourceImportEdge = {
+    readonly fromNodeId: string
+    readonly toNodeId: string
+    readonly importerAbsPath: string
+    readonly importedAbsPath: string
 }
 
 const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
@@ -274,6 +289,15 @@ async function isDirectory(absPath: string): Promise<boolean> {
     return (await stat(absPath)).isDirectory()
 }
 
+async function statOrNull(absPath: string) {
+    try {
+        return await stat(absPath)
+    } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return null
+        throw cause
+    }
+}
+
 function shouldSkipDirectory(entryName: string, childRel: string): boolean {
     return EXCLUDED_DIR_NAMES.has(entryName) || EXCLUDED_RELATIVE_PATHS.has(childRel.split(sep).join('/'))
 }
@@ -299,6 +323,70 @@ export async function discoverArchitectureFiles(repoRoot: string = REPO_ROOT): P
     await walk(repoRoot, '')
     const parsed = await Promise.all(found.sort((a, b) => a.localeCompare(b)).map(parseArchitectureMd))
     return parsed.map(file => ({...file, repoRoot}))
+}
+
+function isSamePathOrInside(parentAbsPath: string, childAbsPath: string): boolean {
+    const rel = relative(parentAbsPath, childAbsPath)
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+}
+
+function findScopeForPath(scopes: readonly NodeSourceScope[], absPath: string): NodeSourceScope | null {
+    const matching = scopes.filter(scope => scope.isDirectory
+        ? isSamePathOrInside(scope.absTarget, absPath)
+        : scope.absTarget === absPath)
+    return matching.sort((a, b) => b.absTarget.length - a.absTarget.length)[0] ?? null
+}
+
+async function sourceScopes(file: ParsedArchitectureFile): Promise<readonly NodeSourceScope[]> {
+    const entries = await Promise.all([...file.clickPaths.entries()].map(async ([nodeId, clickPath]) => {
+        if (isAbsolute(clickPath)) return null
+        const absTarget = resolve(file.repoRoot, clickPath)
+        if (absTarget === file.repoRoot) return null
+        const targetStat = await statOrNull(absTarget)
+        if (!targetStat) return null
+        return {
+            nodeId,
+            absTarget,
+            isDirectory: targetStat.isDirectory(),
+        }
+    }))
+    return entries.filter((entry): entry is NodeSourceScope => entry !== null)
+}
+
+async function collectSourceImportEdges(file: ParsedArchitectureFile): Promise<readonly SourceImportEdge[]> {
+    const scopes = await sourceScopes(file)
+    if (scopes.length === 0) return []
+
+    const packages: readonly PackageInfo[] = scopes.map(scope => ({
+        name: scope.nodeId,
+        dirName: scope.nodeId,
+        srcRoot: scope.absTarget,
+        absDir: scope.isDirectory ? scope.absTarget : resolve(scope.absTarget, '..'),
+    }))
+    const importGraph = await buildImportGraph(packages, file.repoRoot)
+
+    return importGraph.edges.flatMap(edge => {
+        const fromScope = findScopeForPath(scopes, edge.from.absolutePath)
+        const toScope = findScopeForPath(scopes, edge.to.absolutePath)
+        if (!fromScope || !toScope || toScope.nodeId === fromScope.nodeId) return []
+        return [{
+            fromNodeId: fromScope.nodeId,
+            toNodeId: toScope.nodeId,
+            importerAbsPath: edge.from.absolutePath,
+            importedAbsPath: edge.to.absolutePath,
+        }]
+    })
+}
+
+async function validateSourceEdges(file: ParsedArchitectureFile): Promise<readonly string[]> {
+    const relFile = relativePath(file.absPath, file.repoRoot)
+    const declaredEdges = new Set(file.edges.map(edge => `${edge.from}->${edge.to}`))
+    const sourceEdges = await collectSourceImportEdges(file)
+    const missingEdges = sourceEdges.filter(edge => !declaredEdges.has(`${edge.fromNodeId}->${edge.toNodeId}`))
+    const dedupedFailures = new Set(missingEdges.map(edge =>
+        `Source file '${relativePath(edge.importerAbsPath, file.repoRoot)}' imports '${relativePath(edge.importedAbsPath, file.repoRoot)}', creating source edge '${edge.fromNodeId} --> ${edge.toNodeId}' that is not declared in ${relFile}. Reconcile by removing the source dependency or adding a labeled architecture edge if the dependency is intentional.`,
+    ))
+    return [...dedupedFailures].sort()
 }
 
 function validatePerFile(file: ParsedArchitectureFile): readonly string[] {
@@ -417,10 +505,12 @@ export async function validateArchitectureDrift(repoRoot: string = REPO_ROOT): P
     }
     const refinementTree = buildRefinementTree(files)
     const clickTargetFailures = await Promise.all(files.map(validateClickTargets))
+    const sourceEdgeFailures = await Promise.all(files.map(validateSourceEdges))
     const subtreeFailures = await Promise.all(refinementTree.links.map(validateRefinementSubtree))
     return [
         ...files.flatMap(validatePerFile),
         ...clickTargetFailures.flat(),
+        ...sourceEdgeFailures.flat(),
         ...refinementTree.failures,
         ...subtreeFailures.flat(),
     ]
@@ -461,6 +551,14 @@ describe('architecture drift parser', () => {
         const failures = await validateArchitectureDrift(fixtureRoot)
         expect(failures).toContain(
             `Descendant file packages/systems/graph-db-server/architecture.md node 'outside' click target 'packages/systems/agent-runtime/src/outside.ts' escapes parent subtree 'packages/systems/graph-db-server'. Reconcile the child diagram or the parent node click target.`,
+        )
+    })
+
+    it('names source imports that create undeclared architecture edges', async () => {
+        const fixtureRoot = resolve(THIS_FILE, '..', '__tests__', 'architecture-drift', 'source-edge-drift')
+        const failures = await validateArchitectureDrift(fixtureRoot)
+        expect(failures).toContain(
+            `Source file 'webapp/src/shell/UI/App.tsx' imports 'packages/systems/graph-db-server/bin/vt-graphd.ts', creating source edge 'renderer --> graphd' that is not declared in architecture.md. Reconcile by removing the source dependency or adding a labeled architecture edge if the dependency is intentional.`,
         )
     })
 })
