@@ -18,8 +18,8 @@ import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { EdgeSingular } from 'cytoscape';
+import type { ExtendedWindow } from './helpers/electron-markdown-editor-fixtures';
 import {
-  ExtendedWindow,
   FIXTURE_VAULT_PATH,
   registerStopFileWatchingAfterEach,
   test,

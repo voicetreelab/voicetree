@@ -33,7 +33,7 @@ if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
       stack: (e.reason as { stack?: string } | undefined)?.stack,
       atIso: new Date().toISOString(),
     }))
-  ;(window as Record<string, unknown>)['__vtDebug__'] = {
+  ;(window as unknown as Record<string, unknown>)['__vtDebug__'] = {
     cy: () => tryDumpCy(),
     console: () => ringBuffer.tail(500),
     exceptions: () => ringBuffer.exceptions(),
