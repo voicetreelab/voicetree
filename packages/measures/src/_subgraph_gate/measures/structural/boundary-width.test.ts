@@ -11,7 +11,7 @@ import {
     boundaryWidthMeasure,
     BOUNDARY_WIDTH_ABSOLUTE_BUDGET,
 } from './boundary-width.ts'
-import {buildTempRepo, type Fixture} from './_tempdir-fixture.ts'
+import {buildTempRepo, type Fixture} from './test-support/tempdir-fixture.ts'
 
 const cleanups: Fixture[] = []
 afterAll(async () => {

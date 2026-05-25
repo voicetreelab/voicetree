@@ -13,9 +13,9 @@
  * the same community-assignment code paths run for fixtures and real code.
  */
 import type {Project} from 'ts-morph'
-import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import type {ParsedSubgraph} from '../../../_shared/graph/parse-subgraph.ts'
-import {communityAtDepth} from '../../../_shared/community/community-at-depth.ts'
+import type {Edge, SourceFile} from '../../../../_shared/graph/import-graph.ts'
+import type {ParsedSubgraph} from '../../../../_shared/graph/parse-subgraph.ts'
+import {communityAtDepth} from '../../../../_shared/community/community-at-depth.ts'
 
 export type FixtureFile = {
     readonly pkg: string

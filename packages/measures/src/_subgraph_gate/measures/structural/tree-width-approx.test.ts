@@ -17,7 +17,7 @@ import {
     treeWidthUpperBound,
     TREE_WIDTH_ABSOLUTE_BUDGET,
 } from './tree-width-approx.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 describe('treeWidthUpperBound (pure)', () => {
     it('returns 0 for ≤1 vertex', () => {

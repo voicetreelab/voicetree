@@ -56,7 +56,7 @@ type EditorDiskConvergenceWorkerFixtures = {
   writeFolder: string;
 };
 
-export const test = base.extend<object, EditorDiskConvergenceWorkerFixtures>({
+export const test = base.extend<Record<string, never>, EditorDiskConvergenceWorkerFixtures>({
   projectPath: [async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-disk-conv-'));
     await use(projectPath);
@@ -331,11 +331,31 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
   }).toBe(0);
 }
 
-export async function deleteExtraVaultFiles(writeFolder: string): Promise<void> {
+async function deleteNodeThroughDaemonIfPresent(page: Page, nodeId: string): Promise<boolean> {
+  return page.evaluate(async (filePath) => {
+    const api = (window as unknown as ExtendedWindow).electronAPI;
+    if (!api) throw new Error('electronAPI not available');
+    const graph = await api.main.getGraph();
+    const graphWithNodes = graph as { nodes?: Record<string, unknown> };
+    if (!graphWithNodes.nodes?.[filePath]) return false;
+    await api.main.applyGraphDeltaToDBThroughMemAndUIExposed([{
+      type: 'DeleteNode',
+      nodeId: filePath,
+      deletedNode: { _tag: 'None' },
+    }] as never, false);
+    return true;
+  }, nodeId);
+}
+
+export async function deleteExtraVaultFiles(page: Page, writeFolder: string): Promise<void> {
   const entries = await fs.readdir(writeFolder, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
     if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name === PARENT_FILENAME) return;
-    await fs.rm(path.join(writeFolder, entry.name), { force: true });
+    const filePath = path.join(writeFolder, entry.name);
+    const deletedThroughDaemon = await deleteNodeThroughDaemonIfPresent(page, filePath);
+    if (!deletedThroughDaemon) {
+      await fs.rm(filePath, { force: true });
+    }
   }));
 }
 

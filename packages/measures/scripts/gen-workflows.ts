@@ -436,7 +436,7 @@ function renderJob(job: Job): readonly string[] {
     }
     lines.push('    steps:')
     for (const step of job.steps) {
-        lines.push(...renderStep(step).map(l => `      ${l}`))
+        lines.push(...renderStep(step).map(l => l === '' ? '' : `      ${l}`))
     }
     return lines
 }
@@ -493,7 +493,10 @@ function renderRun(name: string, body: string, id: string | null, env: Record<st
         }
     }
     out.push('  run: |')
-    for (const line of body.split('\n')) out.push(`    ${line}`)
+    for (const line of body.split('\n')) {
+        const rendered = line.trimEnd()
+        out.push(rendered === '' ? '' : `    ${rendered}`)
+    }
     return out
 }
 

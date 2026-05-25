@@ -36,8 +36,26 @@ type ChecksReport = {
     readonly reports: readonly CheckReport[]
 }
 
+type CheckReportCandidate = Partial<CheckReport> & Record<string, unknown>
+
 function checkReportPath(checkId: string): string {
     return join(CHECKS_DIR, `${checkId}.json`)
+}
+
+function normalizeLegacyTimingFields(report: CheckReportCandidate): CheckReportCandidate {
+    const timestamp = typeof report.timestamp === 'string' ? report.timestamp : undefined
+    const durationMs = typeof report.durationMs === 'number' && Number.isFinite(report.durationMs)
+        ? Math.max(0, report.durationMs)
+        : 0
+    const endedAt = typeof report.endedAt === 'string' ? report.endedAt : timestamp
+    const endedAtMs = endedAt === undefined ? NaN : Date.parse(endedAt)
+    const startedAt = typeof report.startedAt === 'string'
+        ? report.startedAt
+        : Number.isNaN(endedAtMs)
+            ? undefined
+            : new Date(endedAtMs - durationMs).toISOString()
+
+    return {...report, startedAt, endedAt}
 }
 
 function assertCheckReport(report: CheckReport): void {
@@ -78,7 +96,7 @@ function isCheckReportFile(name: string): boolean {
 
 async function readCheckReport(path: string): Promise<CheckReport | null> {
     try {
-        const parsed = JSON.parse(await readFile(path, 'utf8')) as CheckReport
+        const parsed = normalizeLegacyTimingFields(JSON.parse(await readFile(path, 'utf8')) as CheckReportCandidate) as CheckReport
         assertCheckReport(parsed)
         return parsed
     } catch (err) {

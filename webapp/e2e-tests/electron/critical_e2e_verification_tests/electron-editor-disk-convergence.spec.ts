@@ -64,7 +64,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await closeAllEditorWindows(appWindow);
     await closeAllTerminalWindows(appWindow);
     await fs.writeFile(path.join(writeFolder, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
-    await deleteExtraVaultFiles(writeFolder);
+    await deleteExtraVaultFiles(appWindow, writeFolder);
     await deleteCtxNodesDir(writeFolder);
     await resetSettings(appWindow, settingsSnapshot);
     await waitForGraphReset(appWindow, PARENT_TITLE);

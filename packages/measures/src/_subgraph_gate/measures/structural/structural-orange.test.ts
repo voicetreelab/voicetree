@@ -13,7 +13,7 @@
  */
 import {describe, expect, it} from 'vitest'
 import {structuralOrangeMeasure, STRUCTURAL_ORANGE_ABSOLUTE_BUDGET} from './structural-orange.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 const pkg = 'pkg-x'
 const X = (name: string): FixtureFile => ({pkg, relToSrc: `x/${name}.ts`})

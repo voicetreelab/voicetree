@@ -13,7 +13,7 @@ import {
     modularityQMeasure,
     MODULARITY_Q_FAIL,
 } from './modularity-q.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from '../_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from '../test-support/test-fixtures.ts'
 
 const pkg = 'pkg-mod'
 
