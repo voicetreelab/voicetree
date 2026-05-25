@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWritePath: vi.fn(),
+    getWriteFolder: vi.fn(),
     getVaultPaths: vi.fn()
 }))
 
@@ -49,14 +49,14 @@ vi.mock('@mermaid-js/parser', () => ({
 }))
 
 import {createGraphTool} from '@vt/vt-daemon'
-import {getWritePath, getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWriteFolder, getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {parse as mermaidParse} from '@mermaid-js/parser'
 import {
     CALLER_TERMINAL_ID,
     READ_PATH,
-    WRITE_PATH,
+    WRITE_FOLDER,
     buildGraph,
     buildGraphNode,
     configureCreateGraphServer,
@@ -91,7 +91,7 @@ describe('MCP create_graph tool — node creation', () => {
 
         it('uses agent color and name from terminal record', async () => {
             mockCallerTerminal({agentName: 'my-agent', color: 'green'})
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_FOLDER))
             vi.mocked(getGraph).mockReturnValue(buildGraph())
             vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 
@@ -126,12 +126,12 @@ describe('MCP create_graph tool — node creation', () => {
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
-            expect(payload.nodes[0].path).toBe(`${WRITE_PATH}/deliverables/progress/my-progress.md`)
+            expect(payload.nodes[0].path).toBe(`${WRITE_FOLDER}/deliverables/progress/my-progress.md`)
         })
 
         it('creates a node in an absolute outputPath when it is within a loaded read path', async () => {
             setupStandardMocks()
-            vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH, READ_PATH])
+            vi.mocked(getVaultPaths).mockResolvedValue([WRITE_FOLDER, READ_PATH])
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
@@ -201,7 +201,7 @@ describe('MCP create_graph tool — node creation', () => {
                 vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
             const creationDelta: GraphDelta = calls[0][0]
             const childDelta: NodeDelta | undefined = creationDelta.find(
-                (entry) => entry.type === 'UpsertNode' && entry.nodeToUpsert.absoluteFilePathIsID === `${WRITE_PATH}/child.md`
+                (entry) => entry.type === 'UpsertNode' && entry.nodeToUpsert.absoluteFilePathIsID === `${WRITE_FOLDER}/child.md`
             )
 
             if (!childDelta || childDelta.type !== 'UpsertNode') {
@@ -209,7 +209,7 @@ describe('MCP create_graph tool — node creation', () => {
             }
 
             expect(childDelta.nodeToUpsert.outgoingEdges).toContainEqual({
-                targetId: `${WRITE_PATH}/parent.md`,
+                targetId: `${WRITE_FOLDER}/parent.md`,
                 label: 'implements',
             })
         })
@@ -308,16 +308,16 @@ describe('MCP create_graph tool — node creation', () => {
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
-            expect(payload.nodes[0].path).toBe(`${WRITE_PATH}/my-progress-node-title.md`)
+            expect(payload.nodes[0].path).toBe(`${WRITE_FOLDER}/my-progress-node-title.md`)
         })
 
         it('uses ensureUniqueNodeId when slug collides', async () => {
-            const collidingNodeId: NodeIdAndFilePath = `${WRITE_PATH}/colliding-title.md`
+            const collidingNodeId: NodeIdAndFilePath = `${WRITE_FOLDER}/colliding-title.md`
             const graph: Graph = buildGraph({
                 [collidingNodeId]: buildGraphNode(collidingNodeId, '# Existing')
             })
             mockCallerTerminal()
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_FOLDER))
             vi.mocked(getGraph).mockReturnValue(graph)
             vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 
@@ -328,7 +328,7 @@ describe('MCP create_graph tool — node creation', () => {
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
-            expect(payload.nodes[0].path).toBe(`${WRITE_PATH}/colliding-title_2.md`)
+            expect(payload.nodes[0].path).toBe(`${WRITE_FOLDER}/colliding-title_2.md`)
         })
     })
 })

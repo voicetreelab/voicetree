@@ -180,7 +180,7 @@ Task
     inputShape: {
         callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
         parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
-        outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write path. The resolved path must stay inside the loaded vault paths (writePath or readPaths).'),
+        outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write folder. The resolved path must stay inside the loaded vault paths (writeFolder or readPaths).'),
         nodes: z.array(z.object({
             filename: z.string().describe('Filename for this node (with or without .md extension). Other nodes can reference this one via `- parent [[filename|edge-label]]` lines inside their `content`.'),
             title: z.string().describe('Node title — one concept per node, concise and descriptive'),

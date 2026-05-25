@@ -28,7 +28,7 @@ export type HeadfulPromptInjectionRequest = {
 /**
  * Resolve the canonical vault root for tmux env exposure. The third-tier
  * fallback is the daemon's project root (the directory containing `.voicetree/`),
- * NOT the daemon's writePath — `$VOICETREE_VAULT_PATH/.voicetree/auth-token` is
+ * NOT the daemon's writeFolder — `$VOICETREE_VAULT_PATH/.voicetree/auth-token` is
  * read by the CLI, the agent hook script, and the prompt-file primitive, all of
  * which need the canonical root. See buildTerminalEnvVars for the same contract.
  */

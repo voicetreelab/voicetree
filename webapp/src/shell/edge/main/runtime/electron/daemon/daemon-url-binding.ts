@@ -9,7 +9,7 @@
  * out-of-process consumers (CLI, hook subprocesses, spawned agents) that
  * discover via vt-rpc's path discovery. Reading from disk in the same
  * process would re-introduce a writer/reader path-resolution mismatch when
- * `writePath !== projectRoot`, plus a race window between
+ * `writeFolder !== projectRoot`, plus a race window between
  * `startHttpDaemonServer` resolving and `writeRpcPortFile` settling.
  *
  * `$VOICETREE_DAEMON_URL` still wins so tests / dev overrides can redirect

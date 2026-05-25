@@ -4,7 +4,7 @@ import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-mo
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 
-import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getVaultPaths, getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
@@ -28,9 +28,9 @@ export type ErrorPayload = {
     error: string
 }
 
-export const WRITE_PATH: string = '/test/vault'
+export const WRITE_FOLDER: string = '/test/vault'
 export const READ_PATH: string = '/test/reference-vault'
-export const PARENT_NODE_ID: NodeIdAndFilePath = `${WRITE_PATH}/parent-task.md`
+export const PARENT_NODE_ID: NodeIdAndFilePath = `${WRITE_FOLDER}/parent-task.md`
 export const CALLER_TERMINAL_ID: string = 'ctx-nodes/caller.md-terminal-0'
 export const CALLER_CONTEXT_NODE_ID: NodeIdAndFilePath = 'ctx-nodes/caller.md'
 
@@ -97,8 +97,8 @@ export function mockCallerTerminal(options?: {
 
 export function setupStandardMocks(graphOverride?: Graph): void {
     mockCallerTerminal()
-    vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
-    vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
+    vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_FOLDER))
+    vi.mocked(getVaultPaths).mockResolvedValue([WRITE_FOLDER])
     vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
     vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 }
@@ -109,7 +109,7 @@ export function configureCreateGraphServer(): Promise<void> {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => getVaultPaths(),
-                getWriteFolder: async () => O.toNullable(await getWritePath()),
+                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },

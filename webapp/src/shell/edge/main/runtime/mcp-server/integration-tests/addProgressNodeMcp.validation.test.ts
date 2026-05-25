@@ -2,7 +2,7 @@ import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWritePath: vi.fn(),
+    getWriteFolder: vi.fn(),
     getVaultPaths: vi.fn()
 }))
 
@@ -48,13 +48,13 @@ vi.mock('@mermaid-js/parser', () => ({
 }))
 
 import {createGraphTool} from '@vt/vt-daemon'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {
     CALLER_TERMINAL_ID,
-    WRITE_PATH,
+    WRITE_FOLDER,
     type ErrorPayload,
     type McpToolResponse,
     type SuccessPayload,
@@ -87,7 +87,7 @@ describe('MCP create_graph tool — validation + line length', () => {
 
         it('returns error when no vault is loaded', async () => {
             mockCallerTerminal()
-            vi.mocked(getWritePath).mockResolvedValue(O.none)
+            vi.mocked(getWriteFolder).mockResolvedValue(O.none)
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
@@ -117,7 +117,7 @@ describe('MCP create_graph tool — validation + line length', () => {
 
         it('returns error when parent node is not found', async () => {
             mockCallerTerminal()
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_FOLDER))
             vi.mocked(getGraph).mockReturnValue({
                 nodes: {},
                 incomingEdgesIndex: new Map(),

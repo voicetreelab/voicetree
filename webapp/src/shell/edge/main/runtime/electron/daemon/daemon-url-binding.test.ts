@@ -6,7 +6,7 @@
 // Regression guard for the writer/reader divergence that ENOENT'd the
 // renderer when the bound vault had a `voicetree-{day}-{month}` write
 // subdir: the writer keys off `projectRoot`, the renderer-facing reader
-// used to key off `getVaultPaths()[0]` (which is `writePath`). Reading
+// used to key off `getVaultPaths()[0]` (which is `writeFolder`). Reading
 // the in-process state removes the path dependence entirely.
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
@@ -33,7 +33,7 @@ async function makeProjectWithDatedWriteSubdir(): Promise<VaultLayout> {
     // Mirror the on-disk shape that exposes the bug in production: a
     // `voicetree-{day}-{month}` subdir under projectRoot. `bindHttpDaemonForVault`
     // is invoked with projectRoot; spawned-agent / renderer infra (pre-fix)
-    // looked up `rpc.port` under the writePath, which is this subdir.
+    // looked up `rpc.port` under the writeFolder, which is this subdir.
     const writeSubdir: string = path.join(projectRoot, 'voicetree-22-5')
     await fs.mkdir(writeSubdir, {recursive: true})
     return {projectRoot, writeSubdir}

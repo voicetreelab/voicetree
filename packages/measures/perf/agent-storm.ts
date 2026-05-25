@@ -363,7 +363,7 @@ async function main(): Promise<void> {
     // webapp's `main.ts` wiring.
     const daemonBaseUrl = `http://127.0.0.1:${daemonHandle.port}`
     const daemonClient = new GraphDbClient({ baseUrl: daemonBaseUrl })
-    const openResult = await daemonClient.openVault(tempVault, { writePath: tempVault })
+    const openResult = await daemonClient.openVault(tempVault, { writeFolder: tempVault })
 
     // The daemon serializes Graph over JSON, which collapses Maps (e.g.
     // nodeByBaseName, additionalYAMLProps) into plain objects. createGraphTool
@@ -420,19 +420,19 @@ async function main(): Promise<void> {
                 return normalizeDaemonGraph({ nodes })
             },
             getVaultPaths: async () => {
-                // VaultState has {vaultPath, readPaths, writePath}. Match the
-                // webapp's getVaultPaths: writePath first, then any extra
+                // VaultState has {projectRoot, readPaths, writeFolder}. Match the
+                // webapp's getVaultPaths: writeFolder first, then any extra
                 // readPaths. createGraph compares against this list to gate
                 // outputPath placement.
                 const vs = await daemonClient.getVault()
                 const seen = new Set<string>()
                 const out: string[] = []
-                for (const p of [vs.writePath, ...vs.readPaths]) {
+                for (const p of [vs.writeFolder, ...vs.readPaths]) {
                     if (!seen.has(p)) { seen.add(p); out.push(p) }
                 }
                 return out
             },
-            getWriteFolder: async () => (await daemonClient.getVault()).writePath ?? null,
+            getWriteFolder: async () => (await daemonClient.getVault()).writeFolder ?? null,
             applyGraphDelta: async (delta, recordForUndo) => {
                 await daemonClient.applyGraphDelta(delta as unknown as unknown[], {
                     recordForUndo: recordForUndo ?? true,

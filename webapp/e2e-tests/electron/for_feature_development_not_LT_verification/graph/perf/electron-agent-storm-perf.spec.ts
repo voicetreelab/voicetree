@@ -415,7 +415,7 @@ const test = base.extend<StormFixtures>({
                 lastDirectory: path.dirname(vaultPath),
                 vaultConfig: {
                     [path.dirname(vaultPath)]: {
-                        writePath: vaultPath,
+                        writeFolder: vaultPath,
                         readPaths: [],
                     },
                 },
