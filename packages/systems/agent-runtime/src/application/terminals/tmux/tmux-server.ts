@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto'
+import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {createTmuxServerCore, type TmuxServerDeps} from './tmux-server-core.ts'
 
@@ -37,6 +39,12 @@ const ROOT_SESSION: string = '__voicetree_root__'
 const ROOT_SESSION_COMMAND: string = 'while :; do sleep 2147483647; done'
 const SOCKET_NAME: string = 'tmux.sock'
 const SOCKET_POLL_MS: number = 50
+
+// AF_UNIX sun_path byte caps incl. NUL: darwin 104→103, linux 108→107.
+const SOCKET_PATH_BYTE_LIMIT_DARWIN: number = 103
+const SOCKET_PATH_BYTE_LIMIT_LINUX: number = 107
+const SOCKET_FALLBACK_PREFIX: string = 'vt-'
+const SOCKET_FALLBACK_HASH_HEX_LEN: number = 8
 
 // An orphan tmux daemon is a server process that's alive (ppid=1) but whose
 // listening socket file no longer routes to it — typically because the path was
@@ -315,8 +323,24 @@ export function getTmuxBinaryPath(depsOverrides?: Partial<TmuxServerDeps>): stri
     return tmuxBinaryPathCache
 }
 
+function platformSocketPathByteLimit(platform: NodeJS.Platform): number {
+    if (platform === 'linux') return SOCKET_PATH_BYTE_LIMIT_LINUX
+    return SOCKET_PATH_BYTE_LIMIT_DARWIN
+}
+
+function fallbackSocketPath(appSupportPath: string): string {
+    const hash: string = createHash('sha256').update(appSupportPath).digest('hex').slice(0, SOCKET_FALLBACK_HASH_HEX_LEN)
+    return join(tmpdir(), `${SOCKET_FALLBACK_PREFIX}${hash}.sock`)
+}
+
+// Fallback to short hashed path when natural exceeds AF_UNIX sun_path byte cap.
 export function getTmuxSocketPath(appSupportPath?: string): string {
-    return join(appSupportPath ?? defaultAppSupportPath(defaultDeps), SOCKET_NAME)
+    const resolved: string = appSupportPath ?? defaultAppSupportPath(defaultDeps)
+    const natural: string = join(resolved, SOCKET_NAME)
+    if (Buffer.byteLength(natural, 'utf8') <= platformSocketPathByteLimit(defaultDeps.platform)) {
+        return natural
+    }
+    return fallbackSocketPath(resolved)
 }
 
 function getTmuxSocketArgs(socketPath: string = getTmuxSocketPath()): readonly [string, string] {
