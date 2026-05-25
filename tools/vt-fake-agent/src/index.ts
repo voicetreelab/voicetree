@@ -77,7 +77,7 @@ function createMessageInbox() {
 
 async function main() {
   const terminalId = process.env.VOICETREE_TERMINAL_ID
-  const mcpPort = process.env.VOICETREE_MCP_PORT ?? '3001'
+  const daemonUrl = process.env.VOICETREE_DAEMON_URL ?? 'http://127.0.0.1:3001'
   const taskNodePath = process.env.TASK_NODE_PATH ?? ''
   const outputDir = process.env.VOICETREE_OUTPUT_DIR
   const agentPrompt = resolveAgentPrompt(process.env)
@@ -85,9 +85,9 @@ async function main() {
   if (!terminalId) { console.error('Missing VOICETREE_TERMINAL_ID'); process.exit(1) }
 
   console.log(`[fake-agent] Starting: ${terminalId}`)
-  console.log(`[fake-agent] Connecting to MCP on port ${mcpPort}`)
+  console.log(`[fake-agent] Connecting to MCP at ${daemonUrl}`)
 
-  const mcpClient = await connectToMcp(mcpPort)
+  const mcpClient = await connectToMcp(daemonUrl)
 
   // Mutable abort ref so the stdin decoder can always interrupt the active delay
   let currentAbort = new AbortController()

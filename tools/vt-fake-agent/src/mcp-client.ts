@@ -23,9 +23,9 @@ function parseToolResult(result: unknown): unknown {
   return r.content
 }
 
-export async function connectToMcp(port: string): Promise<McpClient> {
+export async function connectToMcp(daemonUrl: string): Promise<McpClient> {
   const client = new Client({name: 'vt-fake-agent', version: '1.0.0'})
-  const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`))
+  const transport = new StreamableHTTPClientTransport(new URL('/mcp', daemonUrl))
   await client.connect(transport)
 
   return {
