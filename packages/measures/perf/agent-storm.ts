@@ -46,9 +46,15 @@ import {
     type DaemonHandle,
 } from '@vt/graph-db-server'
 import { tracing } from '@vt/observability'
+// NOTE: `@vt/voicetree-mcp` was renamed to `@vt/vt-daemon` (2026-05-24) and the
+// `startMcpServer`/`configureMcpServer`/`McpServerHandle` symbols are gone —
+// the unified HTTP daemon (startHttpDaemonServer + HttpDaemonServerHandle)
+// replaces them. This perf harness has not been rewritten to drive the new
+// boot path; the imports below are pre-existing dead code. This commit only
+// removes the `getMcpPort` reference + migrates the spawned-subprocess env-var
+// contract; the boot path rewrite is a separate scope.
 import {
     configureMcpServer,
-    getMcpPort,
     registerChildIfMonitored,
     startMcpServer,
     type McpServerHandle,
@@ -69,17 +75,19 @@ import {
     type NodeIdAndFilePath,
 } from '@vt/graph-model/graph'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
-
-interface Args {
-    readonly agents: number
-    readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
-    readonly perAgentTimeoutMs: number
-    readonly globalTimeoutMs: number
-    readonly outPath: string | null
-    readonly keepArtifacts: boolean
-    readonly isolateDirs: boolean
-}
+import {
+    type AgentStormArgs,
+    type SpanRecord,
+    buildAgentPrompt,
+    buildFakeAgentScript,
+    countMarkdownFiles,
+    ndjsonFileSize,
+    parseAgentStormArgs,
+    readNdjsonTail,
+    resolveFakeAgentEntrypoint,
+    resolveTsxImportPath,
+    summarizeSpans,
+} from './agent-storm-helpers'
 
 interface AgentResult {
     readonly terminalId: string
@@ -89,193 +97,6 @@ interface AgentResult {
     readonly exitCode: number | null
     readonly stdoutSnippet: string
     readonly errorMessage?: string
-}
-
-interface SpanRecord {
-    readonly traceId: string
-    readonly spanId: string
-    readonly name: string
-    readonly durationMs: number
-    readonly attributes: Record<string, unknown>
-}
-
-interface SpanSummary {
-    readonly totalNew: number
-    readonly byName: Record<string, number>
-    readonly byOutcome: Record<string, number>
-    readonly durationsMs: Record<string, { p50: number; p95: number; p99: number; max: number }>
-}
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const require = createRequire(import.meta.url)
-
-function parseArgs(argv: readonly string[]): Args {
-    const defaults: Args = {
-        agents: 5,
-        nodesPerAgent: 5,
-        vaultSeedNodeCount: 200,
-        perAgentTimeoutMs: 60_000,
-        globalTimeoutMs: 5 * 60_000,
-        outPath: null,
-        keepArtifacts: false,
-        isolateDirs: false,
-    }
-    let agents = defaults.agents
-    let nodesPerAgent = defaults.nodesPerAgent
-    let vaultSeedNodeCount = defaults.vaultSeedNodeCount
-    let perAgentTimeoutMs = defaults.perAgentTimeoutMs
-    let globalTimeoutMs = defaults.globalTimeoutMs
-    let outPath = defaults.outPath
-    let keepArtifacts = defaults.keepArtifacts
-    let isolateDirs = defaults.isolateDirs
-
-    const intArg = (raw: string | undefined, name: string): number => {
-        const n = Number.parseInt(raw ?? '', 10)
-        if (!Number.isInteger(n) || n < 0) throw new Error(`bad --${name}: ${raw}`)
-        return n
-    }
-
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i]
-        switch (a) {
-            case '--agents': agents = intArg(argv[++i], 'agents'); break
-            case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
-            case '--vault-seed-nodes': vaultSeedNodeCount = intArg(argv[++i], 'vault-seed-nodes'); break
-            case '--per-agent-timeout-ms': perAgentTimeoutMs = intArg(argv[++i], 'per-agent-timeout-ms'); break
-            case '--global-timeout-ms': globalTimeoutMs = intArg(argv[++i], 'global-timeout-ms'); break
-            case '--out': outPath = argv[++i] ?? null; break
-            case '--keep-artifacts': keepArtifacts = true; break
-            case '--isolate-dirs': isolateDirs = true; break
-            case '--help':
-            case '-h':
-                process.stdout.write(
-                    'agent-storm.ts: spawn N vt-fake-agents and measure daemon-side OTel signals.\n'
-                    + '  --agents N                    parallel fake-agents (default 5)\n'
-                    + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
-                    + '  --vault-seed-nodes N          existing nodes to seed the vault with (default 200)\n'
-                    + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
-                    + '  --global-timeout-ms MS        overall run deadline (default 300000)\n'
-                    + '  --out PATH                    JSON report path (default ~/.voicetree/reports/perf-agent-storm-<ts>.json)\n'
-                    + '  --keep-artifacts              keep temp vault + app-support dirs after the run\n'
-                    + '  --isolate-dirs                give each agent a unique outputDir under <vault>/isolated/agent-<i>/ (probe per-dir FS contention)\n',
-                )
-                process.exit(0)
-            default:
-                throw new Error(`unknown argument: ${a}`)
-        }
-    }
-    return { agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs, globalTimeoutMs, outPath, keepArtifacts, isolateDirs }
-}
-
-function buildFakeAgentScript(nodesPerAgent: number): object {
-    const actions: object[] = []
-    for (let i = 0; i < nodesPerAgent; i++) {
-        actions.push({
-            type: 'create_node',
-            title: `Perf Node ${i}`,
-            summary: `Synthetic node ${i} produced by perf-agent-storm.`,
-            content: `Node body for index ${i}. Generated by the perf harness.`,
-        })
-    }
-    actions.push({ type: 'exit', code: 0 })
-    return { actions }
-}
-
-function buildAgentPrompt(script: object): string {
-    return `### FAKE_AGENT_SCRIPT ###\n${JSON.stringify(script)}\n### END_FAKE_AGENT_SCRIPT ###`
-}
-
-function resolveFakeAgentEntrypoint(): { dir: string; entry: string } {
-    // measures/perf -> measures -> packages -> repo root
-    const repoRoot = resolve(__dirname, '..', '..', '..')
-    const dir = join(repoRoot, 'tools', 'vt-fake-agent')
-    const entry = join(dir, 'src', 'index.ts')
-    if (!existsSync(entry)) throw new Error(`vt-fake-agent entrypoint not found at ${entry}`)
-    return { dir, entry }
-}
-
-function resolveTsxImportPath(): string {
-    return require.resolve('tsx')
-}
-
-function ndjsonFileSize(path: string): number {
-    try { return statSync(path).size } catch { return 0 }
-}
-
-function readNdjsonTail(path: string, fromByteOffset: number): SpanRecord[] {
-    if (!existsSync(path)) return []
-    const buf = readFileSync(path)
-    if (buf.length <= fromByteOffset) return []
-    const tail = buf.subarray(fromByteOffset).toString('utf8')
-    const out: SpanRecord[] = []
-    for (const line of tail.split('\n')) {
-        const trimmed = line.trim()
-        if (trimmed.length === 0) continue
-        try {
-            const parsed = JSON.parse(trimmed) as SpanRecord
-            out.push(parsed)
-        } catch {
-            // skip malformed lines (file may have been written mid-line at snapshot time)
-        }
-    }
-    return out
-}
-
-function quantile(sorted: readonly number[], q: number): number {
-    if (sorted.length === 0) return 0
-    if (sorted.length === 1) return sorted[0]
-    const pos = (sorted.length - 1) * q
-    const lo = Math.floor(pos)
-    const hi = Math.ceil(pos)
-    if (lo === hi) return sorted[lo]
-    const frac = pos - lo
-    return sorted[lo] * (1 - frac) + sorted[hi] * frac
-}
-
-function summarizeSpans(spans: readonly SpanRecord[]): SpanSummary {
-    const byName: Record<string, number> = {}
-    const byOutcome: Record<string, number> = {}
-    const durationsByName: Record<string, number[]> = {}
-    for (const span of spans) {
-        byName[span.name] = (byName[span.name] ?? 0) + 1
-        const outcome = (span.attributes?.outcome as string | undefined) ?? null
-        if (outcome) {
-            const key = `${span.name}/${outcome}`
-            byOutcome[key] = (byOutcome[key] ?? 0) + 1
-        }
-        const list = durationsByName[span.name] ?? (durationsByName[span.name] = [])
-        list.push(span.durationMs)
-    }
-    const durationsMs: SpanSummary['durationsMs'] = {}
-    for (const [name, raw] of Object.entries(durationsByName)) {
-        const sorted = [...raw].sort((a, b) => a - b)
-        durationsMs[name] = {
-            p50: quantile(sorted, 0.5),
-            p95: quantile(sorted, 0.95),
-            p99: quantile(sorted, 0.99),
-            max: sorted[sorted.length - 1],
-        }
-    }
-    return { totalNew: spans.length, byName, byOutcome, durationsMs }
-}
-
-function countMarkdownFiles(dir: string): number {
-    let count = 0
-    const walk = (d: string): void => {
-        let entries: readonly string[]
-        try { entries = readdirSync(d) } catch { return }
-        for (const entry of entries) {
-            if (entry.startsWith('.')) continue
-            const full = join(d, entry)
-            let stat
-            try { stat = statSync(full) } catch { continue }
-            if (stat.isDirectory()) walk(full)
-            else if (stat.isFile() && entry.endsWith('.md')) count++
-        }
-    }
-    walk(dir)
-    return count
 }
 
 async function waitForExit(
@@ -302,7 +123,7 @@ async function waitForExit(
 }
 
 async function main(): Promise<void> {
-    const args = parseArgs(process.argv.slice(2))
+    const args: AgentStormArgs = parseAgentStormArgs(process.argv.slice(2))
 
     // Bootstrap tracing BEFORE any graph-db-server / agent-runtime imports
     // create spans we want recorded.
@@ -333,7 +154,6 @@ async function main(): Promise<void> {
     configureAgentRuntime({
         env: {
             getAppSupportPath: (): string => tempAppSupport,
-            getMcpPort,
         },
         ui: { registerChildIfMonitored },
     })
@@ -504,7 +324,7 @@ async function main(): Promise<void> {
         if (isolatedDir) mkdirSync(isolatedDir, { recursive: true })
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_MCP_PORT: String(mcpHandle.port),
+            VOICETREE_DAEMON_URL: `http://127.0.0.1:${mcpHandle.port}`,
             VOICETREE_VAULT_PATH: tempVault,
             TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
