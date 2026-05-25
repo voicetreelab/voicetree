@@ -3,7 +3,7 @@ import {
     DaemonUnreachableError,
     GraphDbClientError,
 } from '@vt/graph-db-client'
-import {isRecord} from '../commands/graph/core/util'
+import {isRecord} from '../graph/core/util'
 import {setErrorClass} from '../telemetry/recordCliInvocation'
 
 export const EXIT: {

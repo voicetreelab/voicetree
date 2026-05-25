@@ -1,5 +1,5 @@
 import {OVERRIDABLE_RULE_IDS, type OverridableRuleId} from '@vt/graph-validation'
-import {error} from './graphCliDependencies'
+import {error} from '../cliDeps'
 import type {OverrideSpec} from './types'
 import {isRecord} from './util'
 

@@ -3,7 +3,7 @@ import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {ensureDaemon, GraphDbClient, type GraphState} from '@vt/graph-db-client'
 import {fromNodeToMarkdownContent, type GraphNode} from '@vt/graph-model'
-import {resolveVault} from '../core/graphCliDependencies'
+import {resolveVault} from '../cliDeps'
 import {isRecord} from '../core/util'
 
 const NONE_OPTION: {readonly _tag: 'None'} = {_tag: 'None'}

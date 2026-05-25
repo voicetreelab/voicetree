@@ -14,7 +14,7 @@
 import {existsSync, readFileSync} from 'node:fs'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {error} from '../output.ts'
+import {error} from './output.ts'
 import {parseManual, type ManualTool} from '../manual/parseManual.ts'
 
 // The manual lives at <package>/prompts/cli-manual.md. Locate it by walking up

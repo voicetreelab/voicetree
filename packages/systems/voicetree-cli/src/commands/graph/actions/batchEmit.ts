@@ -1,11 +1,10 @@
-import {isJsonMode} from '../core/graphCliDependencies'
+import {isJsonMode, setErrorClass, setGateRejection} from '../cliDeps'
 import {
     formatBatchReportJson,
     formatBatchReportLine,
     formatBatchReportSummary,
     reportExitCode,
 } from '../core/schemaGate'
-import {setErrorClass, setGateRejection} from '../../../telemetry/recordCliInvocation'
 import type {BatchReport, NodeVerdict} from '../core/types'
 
 function recordRejectionTelemetry(verdicts: readonly NodeVerdict[]): void {

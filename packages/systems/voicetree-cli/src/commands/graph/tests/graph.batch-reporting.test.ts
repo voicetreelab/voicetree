@@ -8,7 +8,7 @@ import {
     setInvocationContext,
     type CliInvocationRecord,
     type SinkDeps,
-} from '../../../telemetry/recordCliInvocation'
+} from '../../telemetry/recordCliInvocation'
 import {
     captureGraphCreate,
     SCHEMAS_TWO_RULES,

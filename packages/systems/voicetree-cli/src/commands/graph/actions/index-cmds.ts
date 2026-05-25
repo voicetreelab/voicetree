@@ -1,7 +1,7 @@
 import path from 'node:path'
 import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
 import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
-import {error, output} from '../core/graphCliDependencies'
+import {error, output} from '../cliDeps'
 import {getErrorMessage, parseGraphIndexArgs, parseGraphSearchArgs} from '../core/args'
 import type {GraphIndexSuccess, GraphSearchSuccess} from '../core/types'
 

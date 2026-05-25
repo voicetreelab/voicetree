@@ -1,6 +1,6 @@
 import {requireTerminalId} from '../graph/core/args'
-import {callDaemon} from '../../daemon-client'
-import {error, output} from '../../output'
+import {callDaemon} from '../daemon-client'
+import {error, output} from '../output'
 
 type JsonRecord = Record<string, unknown>
 

@@ -5,7 +5,7 @@ import type {
     SelectionResponse,
     ViewRecord,
 } from '@vt/graph-db-client'
-import {isJsonMode} from '../../output'
+import {isJsonMode} from '../output'
 
 export type CliViewRecord = ViewRecord & {
     is_active: boolean

@@ -1,8 +1,8 @@
 import {resolve as resolvePath} from 'node:path'
 import {ensureDaemon, GraphDbClient, type VaultState} from '@vt/graph-db-client'
-import {isJsonMode} from '../../output'
-import {resolveVault} from '../../util/detectVault'
-import {ArgValidationError, handleCliError} from '../../util/exitCodes'
+import {isJsonMode} from '../output'
+import {resolveVault} from '../util/detectVault'
+import {ArgValidationError, handleCliError} from '../util/exitCodes'
 
 type VaultSubcommand = 'show' | 'set-write-path'
 

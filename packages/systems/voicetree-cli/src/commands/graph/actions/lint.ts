@@ -6,8 +6,7 @@ import {
     lintGraph,
     type LintConfig,
 } from '@vt/graph-tools/node'
-import {error, isJsonMode} from '../core/graphCliDependencies'
-import {handleCliError} from '../core/graphCliDependencies'
+import {error, isJsonMode, handleCliError} from '../cliDeps'
 import {getRequiredValue} from '../core/args'
 import {withDaemonGraphSnapshot} from './snapshot'
 

@@ -9,10 +9,10 @@ import {
     type ViewRecord,
 } from '@vt/graph-db-client'
 import {isRecord} from '../graph/core/util'
-import {isJsonMode} from '../../output'
-import {resolveVault} from '../../util/detectVault'
-import {ArgValidationError, handleCliError} from '../../util/exitCodes'
-import {parseSessionFlag, resolveSessionId} from '../../util/sessionFlag'
+import {isJsonMode} from '../output'
+import {resolveVault} from '../util/detectVault'
+import {ArgValidationError, handleCliError} from '../util/exitCodes'
+import {parseSessionFlag, resolveSessionId} from '../util/sessionFlag'
 import {
     emitResult,
     formatFolderStateRow,

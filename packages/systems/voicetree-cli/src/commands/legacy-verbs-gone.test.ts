@@ -1,5 +1,5 @@
 import {describe, expect, it, vi, type MockInstance} from 'vitest'
-import {EXIT} from '../util/exitCodes'
+import {EXIT} from './util/exitCodes'
 import {runViewCommand} from './node/view.ts'
 import {runVaultCommand} from './runtime/vault.ts'
 

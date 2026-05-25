@@ -1,5 +1,5 @@
 import type {StructureManifest} from '@vt/graph-tools/node'
-import {error} from './graphCliDependencies'
+import {error} from '../cliDeps'
 import {readGraphFileUtf8} from '../io/filesystem'
 import {parseOverrideSpec} from './overrideSpec'
 import type {GraphCreateNode, OverrideSpec, ParsedGraphCreateArgs} from './types'

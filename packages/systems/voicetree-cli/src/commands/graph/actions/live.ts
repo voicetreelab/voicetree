@@ -2,7 +2,7 @@ import {execFileSync} from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {setErrorClass} from '../../../telemetry/recordCliInvocation'
+import {setErrorClass} from '../cliDeps'
 
 function findRepoRoot(): string {
     const marker: string = path.join('packages', 'libraries', 'graph-tools', 'bin', 'vt-graph.ts')

@@ -1,5 +1,4 @@
-import {callDaemon} from '../core/graphCliDependencies'
-import {error, output} from '../core/graphCliDependencies'
+import {callDaemon, error, output} from '../cliDeps'
 import {getErrorMessage, getRequiredValue, requireTerminalId} from '../core/args'
 import type {GraphUnseenNode, GraphUnseenSuccess, ToolFailure} from '../core/types'
 

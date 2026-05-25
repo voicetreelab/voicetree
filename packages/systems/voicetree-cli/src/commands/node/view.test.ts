@@ -12,7 +12,7 @@ import {
     type GraphNode,
 } from '@vt/graph-model'
 import {main} from '../../voicetree-cli'
-import {EXIT} from '../../util/exitCodes'
+import {EXIT} from '../util/exitCodes'
 import {runViewCommand} from './view.ts'
 
 class ExitCalled extends Error {

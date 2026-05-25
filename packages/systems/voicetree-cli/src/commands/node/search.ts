@@ -1,6 +1,6 @@
-import {callDaemon} from '../../daemon-client'
+import {callDaemon} from '../daemon-client'
 import {getErrorMessage, getRequiredValue, parsePositiveInteger} from '../graph/core/args'
-import {error, output} from '../../output'
+import {error, output} from '../output'
 
 type SearchResult = {
     node_path: string

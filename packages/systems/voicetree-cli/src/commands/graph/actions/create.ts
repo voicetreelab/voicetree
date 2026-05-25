@@ -2,7 +2,7 @@ import {
     buildFilesystemAuthoringPlan,
     type FilesystemAuthoringInput,
 } from '@vt/graph-tools/node'
-import {callDaemon, error} from '../core/graphCliDependencies'
+import {callDaemon, error} from '../cliDeps'
 import {
     getErrorMessage,
     parseGraphCreateArgs,

@@ -1,7 +1,7 @@
 import {ensureDaemon, GraphDbClient, type SessionInfo} from '@vt/graph-db-client'
-import {isJsonMode} from '../../output'
-import {resolveVault} from '../../util/detectVault'
-import {ArgValidationError, handleCliError} from '../../util/exitCodes'
+import {isJsonMode} from '../output'
+import {resolveVault} from '../util/detectVault'
+import {ArgValidationError, handleCliError} from '../util/exitCodes'
 
 type SessionSubcommand = 'create' | 'delete' | 'show'
 

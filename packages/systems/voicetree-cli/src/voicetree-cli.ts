@@ -11,19 +11,19 @@ import {
 } from './commands/runtime/agent.ts'
 import {runDebugCommand} from './commands/runtime/debug.ts'
 import {runManualCommand} from './commands/manual.ts'
-import {findRepoRoot} from './util/findRepoRoot.ts'
+import {findRepoRoot} from './commands/util/findRepoRoot.ts'
 import {runSessionCommand} from './commands/runtime/session.ts'
 import {runVaultCommand} from './commands/runtime/vault.ts'
 import {runViewCommand} from './commands/node/view.ts'
 import {getErrorMessage} from './commands/graph/core/util.ts'
-import {error} from './output.ts'
-import {argsShape} from './telemetry/argsShape.ts'
+import {error} from './commands/output.ts'
+import {argsShape} from './commands/telemetry/argsShape.ts'
 import {
     installCliInvocationSink,
     setErrorClass,
     setInvocationContext,
-} from './telemetry/recordCliInvocation.ts'
-import {resolveAppSupportPath} from './util/appSupportPath.ts'
+} from './commands/telemetry/recordCliInvocation.ts'
+import {resolveAppSupportPath} from './commands/util/appSupportPath.ts'
 
 type GlobalOptions = {
     terminalId: string | undefined

@@ -4,7 +4,7 @@ import type {
     FilesystemAuthoringInput,
     FilesystemAuthoringPlanEntry,
 } from '@vt/graph-tools/node'
-import {error} from '../core/graphCliDependencies'
+import {error} from '../cliDeps'
 import type {
     GraphCreateNode,
     GraphFilesystemOps,

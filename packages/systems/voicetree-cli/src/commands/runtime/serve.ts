@@ -19,9 +19,9 @@ import {
     type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
-import {error} from '../../output'
-import {emitInvocationStart, setErrorClass} from '../../telemetry/recordCliInvocation'
-import {resolveAppSupportPath} from '../../util/appSupportPath'
+import {error} from '../output'
+import {emitInvocationStart, setErrorClass} from '../telemetry/recordCliInvocation'
+import {resolveAppSupportPath} from '../util/appSupportPath'
 
 type ServeArgs = {
     readonly port?: number

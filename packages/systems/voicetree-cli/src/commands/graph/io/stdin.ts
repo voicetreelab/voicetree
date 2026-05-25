@@ -1,4 +1,4 @@
-import {error} from '../core/graphCliDependencies'
+import {error} from '../cliDeps'
 import {parseOverrideEntry} from '../core/overrideSpec'
 import type {GraphCreateNode, GraphCreatePayload, OverrideSpec} from '../core/types'
 import {getErrorMessage, isRecord} from '../core/util'
