@@ -10,12 +10,28 @@
  * references for each run. Projects are loaded from a temporary fixture vault.
  */
 
-import {spawnSync} from 'node:child_process';
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import {
+  createProgressNode,
+  getDaemonPort,
+  registerCallerTerminal,
+  resolveNodeId,
+  runCliCommand as runCliCommandRaw,
+  waitForCliReady as waitForCliReadyRaw,
+} from './stop-gate-hooks-helpers';
+import type { CliPayload, CliResult } from './stop-gate-hooks-helpers';
+
+function runCliCommand<T = CliPayload>(daemonPort: number, args: string[], terminalId?: string): CliResult<T> {
+  return runCliCommandRaw<T>(VOICETREE_CLI_PATH, PROJECT_ROOT, daemonPort, args, terminalId);
+}
+
+async function waitForCliReady(daemonPort: number, terminalId?: string): Promise<void> {
+  return waitForCliReadyRaw(VOICETREE_CLI_PATH, PROJECT_ROOT, daemonPort, terminalId);
+}
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const REPO_ROOT = path.resolve(PROJECT_ROOT, '..');
@@ -68,7 +84,7 @@ interface ExtendedWindow {
   electronAPI?: {
     main: {
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-      getMcpPort: () => Promise<number>;
+      getDaemonUrl: () => Promise<string>;
       getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
     };
     terminal: {
@@ -253,158 +269,12 @@ const test = base.extend<{
   }
 });
 
-type CliPayload = Record<string, unknown>;
-
-type CliResult<T = CliPayload> = {
-  status: number;
-  payload?: T;
-  stdout: string;
-  stderr: string;
-};
-
-function runCliCommand<T = CliPayload>(mcpPort: number, args: string[], terminalId?: string): CliResult<T> {
-  const cliArgs = [
-    '--experimental-strip-types',
-    VOICETREE_CLI_PATH,
-    '--json',
-    '--port',
-    String(mcpPort),
-    ...(terminalId ? ['--terminal', terminalId] : []),
-    ...args
-  ];
-
-  const result = spawnSync(process.execPath, cliArgs, {
-    cwd: PROJECT_ROOT,
-    env: process.env,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: 15_000,
-  });
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  const stdout = (result.stdout ?? '').toString().trim();
-  const stderr = (result.stderr ?? '').toString().trim();
-
-  let payload: T | undefined;
-  if (stdout) {
-    payload = JSON.parse(stdout) as T;
-  }
-
-  return {
-    status: result.status ?? 0,
-    payload,
-    stdout,
-    stderr,
-  };
-}
-
-async function waitForCliReady(mcpPort: number, terminalId?: string): Promise<void> {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const result = runCliCommand(mcpPort, ['agent', 'list'], terminalId);
-    if (result.status === 0 && result.payload && (result.payload as { success?: boolean }).success) {
-      return;
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
-
-  throw new Error('voicetree CLI did not become available via HTTP transport');
-}
-
-async function getMcpPort(appWindow: Page): Promise<number> {
-  return appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) {
-      throw new Error('electronAPI not available');
-    }
-
-    return await api.main.getMcpPort();
-  });
-}
-
-async function resolveNodeId(appWindow: Page, nodeFileName: string): Promise<string> {
-  const nodeIds = await appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) {
-      throw new Error('electronAPI not available');
-    }
-
-    const graph = await api.main.getGraph();
-    return Object.keys(graph.nodes);
-  });
-
-  const nodeId = nodeIds.find((candidate: string) =>
-    candidate.endsWith(`/${nodeFileName}`) || candidate.includes(nodeFileName)
-  );
-
-  if (!nodeId) {
-    throw new Error(`Could not locate node in graph: ${nodeFileName}`);
-  }
-
-  return nodeId;
-}
-
-async function registerCallerTerminal(
-  appWindow: Page,
-  nodeId: string,
-  callerId: string,
-): Promise<void> {
-  const callerSpawnResult = await appWindow.evaluate(async ({ nodeId: attachedNodeId, callerId: terminalId }) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api?.terminal) {
-      throw new Error('electronAPI.terminal not available');
-    }
-
-    return await api.terminal.spawn({
-      type: 'Terminal',
-      terminalId,
-      attachedToContextNodeId: attachedNodeId,
-      terminalCount: 0,
-      title: 'E2E Hooks Test Caller',
-      anchoredToNodeId: { _tag: 'None' },
-      shadowNodeDimensions: { width: 600, height: 400 },
-      resizable: true,
-      initialCommand: 'sleep 300',
-      executeCommand: true,
-      isPinned: true,
-      isDone: false,
-      lastOutputTime: Date.now(),
-      activityCount: 0,
-      parentTerminalId: null,
-      agentName: callerId,
-      worktreeName: undefined,
-      isHeadless: false
-    });
-  }, { nodeId, callerId });
-
-  expect(callerSpawnResult.success).toBe(true);
-  await appWindow.waitForTimeout(500);
-}
-
-async function createProgressNode(projectRoot: string, nodeName: string, agentName: string, mentions: string[]): Promise<void> {
-  await fs.writeFile(
-    path.join(projectRoot, 'voicetree', nodeName),
-    [
-      '---',
-      `agent_name: ${agentName}`,
-      '---',
-      '',
-      '# Progress',
-      '',
-      ...mentions,
-      '',
-    ].join('\n')
-  );
-}
-
 test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
   test.describe.configure({ mode: 'serial', timeout: 120000 });
 
   test('CLI self-close blocks when no progress node exists', async ({ appWindow }) => {
-    const mcpPort = await getMcpPort(appWindow);
-    await waitForCliReady(mcpPort);
+    const daemonPort = await getDaemonPort(appWindow);
+    await waitForCliReady(daemonPort);
 
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
@@ -421,7 +291,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     await registerCallerTerminal(appWindow, taskNodeId, NO_PROGRESS_CALLER_ID);
 
     const spawnResult = runCliCommand<{ success: boolean; terminalId: string; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'spawn', '--task', 'CLI no-progress stop-gate audit test', '--parent', taskNodeId],
       NO_PROGRESS_CALLER_ID
     );
@@ -433,7 +303,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     expect(spawnedAgentId, 'spawn payload should include terminalId').toBeTruthy();
 
     const closeResult = runCliCommand<{ success: boolean; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'close', spawnedAgentId],
       spawnedAgentId
     );
@@ -445,8 +315,8 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
   });
 
   test('CLI self-close passes when stop-gate obligations are satisfied', async ({ appWindow, fixtureVaultPath }) => {
-    const mcpPort = await getMcpPort(appWindow);
-    await waitForCliReady(mcpPort);
+    const daemonPort = await getDaemonPort(appWindow);
+    await waitForCliReady(daemonPort);
 
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
@@ -463,7 +333,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     await registerCallerTerminal(appWindow, taskNodeId, PASS_CALLER_ID);
 
     const spawnResult = runCliCommand<{ success: boolean; terminalId: string; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'spawn', '--task', 'CLI pass stop-gate audit test', '--parent', taskNodeId],
       PASS_CALLER_ID
     );
@@ -484,7 +354,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     );
 
     const closeResult = runCliCommand<{ success: boolean; message?: string; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'close', spawnedAgentId],
       spawnedAgentId
     );
@@ -494,8 +364,8 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
   });
 
   test('list_agents exposes parentTerminalId and taskNodePath', async ({ appWindow }) => {
-    const mcpPort = await getMcpPort(appWindow);
-    await waitForCliReady(mcpPort);
+    const daemonPort = await getDaemonPort(appWindow);
+    await waitForCliReady(daemonPort);
 
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
@@ -512,7 +382,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     await registerCallerTerminal(appWindow, targetNodeId, CALLER_TERMINAL_ID);
 
     const spawnResult = runCliCommand<{ success: boolean; terminalId: string; error?: string; }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'spawn', '--node', targetNodeId],
       CALLER_TERMINAL_ID
     );
@@ -537,7 +407,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
           taskNodePath: string | null;
           status: string;
         }>;
-      }>(mcpPort, ['agent', 'list']);
+      }>(daemonPort, ['agent', 'list']);
       const agents = listResult.payload?.agents;
       if (!agents) {
         return undefined;

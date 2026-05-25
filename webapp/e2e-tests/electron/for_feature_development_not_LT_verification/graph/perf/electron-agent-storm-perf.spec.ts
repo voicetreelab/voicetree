@@ -86,26 +86,14 @@
  *   run-with-xvfb-if-needed.ts` handles DISPLAY-less environments.
  */
 
-import { test as base, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
+import { expect as _expect } from '@playwright/test'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
-import {
-    existsSync,
-    mkdirSync,
-    mkdtempSync,
-    readFileSync,
-    readdirSync,
-    statSync,
-    writeFileSync,
-} from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
-import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
-import { generateVaultOnDisk, type VaultLayout } from '@vt/perf-fixtures'
-import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
 import {
     createTerminalData,
@@ -119,412 +107,30 @@ import {
     analyzeMainProcessProfile,
     printMainProcessMetrics,
 } from './perf-helpers/mainProcessProfile'
+import {
+    buildAgentPrompt,
+    buildFakeAgentScript,
+    countMarkdownFiles,
+    ndjsonFileSize,
+    readNdjsonTail,
+    resolveFakeAgentEntrypoint,
+    summarizeSpans,
+    type SpanRecord,
+    type SpanSummary,
+} from './perf-helpers/stormHelpers'
+import { makeStormTest } from './perf-helpers/stormFixtures'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const require = createRequire(import.meta.url)
-
-// ─── Args ────────────────────────────────────────────────────────────────
-
-interface E2EArgs {
-    readonly agents: number
-    readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
-    readonly perAgentTimeoutMs: number
-    readonly globalTimeoutMs: number
-    readonly keepArtifacts: boolean
-}
-
-function intEnv(key: string, fallback: number): number {
-    const raw = process.env[key]
-    if (raw === undefined || raw === '') return fallback
-    const n = Number.parseInt(raw, 10)
-    if (!Number.isInteger(n) || n < 0) throw new Error(`bad env ${key}=${raw}`)
-    return n
-}
-
-function boolEnv(key: string): boolean {
-    const raw = process.env[key]
-    return raw === '1' || raw === 'true'
-}
-
-function parseArgs(): E2EArgs {
-    return {
-        agents: intEnv('PERF_E2E_AGENTS', 8),
-        nodesPerAgent: intEnv('PERF_E2E_NODES_PER_AGENT', 30),
-        vaultSeedNodeCount: intEnv('PERF_E2E_VAULT_SEED_NODES', 300),
-        perAgentTimeoutMs: intEnv('PERF_E2E_PER_AGENT_TIMEOUT_MS', 120_000),
-        globalTimeoutMs: intEnv('PERF_E2E_GLOBAL_TIMEOUT_MS', 10 * 60_000),
-        keepArtifacts: boolEnv('PERF_E2E_KEEP_ARTIFACTS'),
-    }
-}
-
-// ─── Span / report helpers (mirrored from agent-storm.ts so the e2e and
-// daemon-only reports stay shape-compatible) ──────────────────────────────
-
-interface SpanRecord {
-    readonly traceId: string
-    readonly spanId: string
-    readonly name: string
-    readonly durationMs: number
-    readonly attributes?: Record<string, unknown>
-}
-
-interface SpanSummary {
-    readonly totalNew: number
-    readonly byName: Record<string, number>
-    readonly byOutcome: Record<string, number>
-    readonly durationsMs: Record<string, { p50: number; p95: number; p99: number; max: number }>
-}
-
-function ndjsonFileSize(filePath: string): number {
-    try { return statSync(filePath).size } catch { return 0 }
-}
-
-function readNdjsonTail(filePath: string, fromByteOffset: number): SpanRecord[] {
-    if (!existsSync(filePath)) return []
-    const buf = readFileSync(filePath)
-    if (buf.length <= fromByteOffset) return []
-    const tail = buf.subarray(fromByteOffset).toString('utf8')
-    const out: SpanRecord[] = []
-    for (const line of tail.split('\n')) {
-        const trimmed = line.trim()
-        if (trimmed.length === 0) continue
-        try {
-            out.push(JSON.parse(trimmed) as SpanRecord)
-        } catch {
-            // skip mid-write torn lines
-        }
-    }
-    return out
-}
-
-function quantile(sorted: readonly number[], q: number): number {
-    if (sorted.length === 0) return 0
-    if (sorted.length === 1) return sorted[0]
-    const pos = (sorted.length - 1) * q
-    const lo = Math.floor(pos)
-    const hi = Math.ceil(pos)
-    if (lo === hi) return sorted[lo]
-    return sorted[lo] * (1 - (pos - lo)) + sorted[hi] * (pos - lo)
-}
-
-function summarizeSpans(spans: readonly SpanRecord[]): SpanSummary {
-    const byName: Record<string, number> = {}
-    const byOutcome: Record<string, number> = {}
-    const durationsByName: Record<string, number[]> = {}
-    for (const span of spans) {
-        byName[span.name] = (byName[span.name] ?? 0) + 1
-        const outcome = span.attributes?.outcome
-        if (typeof outcome === 'string') {
-            const key = `${span.name}/${outcome}`
-            byOutcome[key] = (byOutcome[key] ?? 0) + 1
-        }
-        const list = durationsByName[span.name] ?? (durationsByName[span.name] = [])
-        list.push(span.durationMs)
-    }
-    const durationsMs: SpanSummary['durationsMs'] = {}
-    for (const [name, raw] of Object.entries(durationsByName)) {
-        const sorted = [...raw].sort((a, b) => a - b)
-        durationsMs[name] = {
-            p50: quantile(sorted, 0.5),
-            p95: quantile(sorted, 0.95),
-            p99: quantile(sorted, 0.99),
-            max: sorted[sorted.length - 1],
-        }
-    }
-    return { totalNew: spans.length, byName, byOutcome, durationsMs }
-}
-
-function countMarkdownFiles(dir: string): number {
-    let count = 0
-    const walk = (d: string): void => {
-        let entries: readonly string[]
-        try { entries = readdirSync(d) } catch { return }
-        for (const entry of entries) {
-            if (entry.startsWith('.')) continue
-            const full = path.join(d, entry)
-            let stat
-            try { stat = statSync(full) } catch { continue }
-            if (stat.isDirectory()) walk(full)
-            else if (stat.isFile() && entry.endsWith('.md')) count++
-        }
-    }
-    walk(dir)
-    return count
-}
-
-// ─── Fake-agent spawn helpers (re-implementing the daemon-harness contract,
-// adjusted for the Playwright-process caller) ─────────────────────────────
-
-function buildFakeAgentScript(nodesPerAgent: number): object {
-    const actions: object[] = []
-    for (let i = 0; i < nodesPerAgent; i++) {
-        actions.push({
-            type: 'create_node',
-            title: `Perf E2E Node ${i}`,
-            summary: `Synthetic node ${i} produced by e2e perf-agent-storm.`,
-            content: `Node body for index ${i}. Generated by the e2e perf harness.`,
-        })
-    }
-    actions.push({ type: 'exit', code: 0 })
-    return { actions }
-}
-
-function buildAgentPrompt(script: object): string {
-    return `### FAKE_AGENT_SCRIPT ###\n${JSON.stringify(script)}\n### END_FAKE_AGENT_SCRIPT ###`
-}
-
-function resolveRepoRoot(): string {
-    // webapp/e2e-tests/.../perf/electron-agent-storm-perf.spec.ts
-    // → ../../../../.. is the worktree root
-    return path.resolve(__dirname, '..', '..', '..', '..', '..', '..')
-}
-
-function resolveFakeAgentEntrypoint(): { dir: string; entry: string } {
-    const repoRoot = resolveRepoRoot()
-    const dir = path.join(repoRoot, 'tools', 'vt-fake-agent')
-    const entry = path.join(dir, 'src', 'index.ts')
-    if (!existsSync(entry)) throw new Error(`vt-fake-agent entrypoint not found at ${entry}`)
-    return { dir, entry }
-}
+const PROJECT_ROOT = path.resolve(process.cwd())
 
 function resolveTsxImportPath(): string {
     return require.resolve('tsx')
 }
 
-// ─── MCP port discovery from .mcp.json (prod-shape contract) ─────────────
+const test = makeStormTest(PROJECT_ROOT)
 
-async function readMcpPort(mcpJsonPath: string, timeoutMs: number): Promise<number> {
-    const deadline = Date.now() + timeoutMs
-    while (Date.now() < deadline) {
-        if (existsSync(mcpJsonPath)) {
-            try {
-                const raw = readFileSync(mcpJsonPath, 'utf8')
-                const parsed = JSON.parse(raw) as { mcpServers?: Record<string, { url?: string }> }
-                const url = parsed.mcpServers?.voicetree?.url
-                if (typeof url === 'string') {
-                    const m = url.match(/:(\d+)\/mcp$/)
-                    if (m) return Number.parseInt(m[1], 10)
-                }
-            } catch {
-                // file mid-write; try again
-            }
-        }
-        await new Promise(r => setTimeout(r, 250))
-    }
-    throw new Error(`timed out waiting for ${mcpJsonPath} with mcpServers.voicetree.url`)
-}
-
-// ─── graph-db-server native binding check (mirrors realistic-perf spec) ───
-
-const PROJECT_ROOT = path.resolve(process.cwd())
-
-function canLoadNativeGraphDbModules(nodeBin: string): boolean {
-    try {
-        execFileSync(nodeBin, ['-e', "const { DatabaseSync } = require('node:sqlite'); new DatabaseSync(':memory:').close()"], {
-            cwd: path.resolve(PROJECT_ROOT, '..'),
-            stdio: 'ignore',
-        })
-        return true
-    } catch {
-        return false
-    }
-}
-
-function resolveGraphDaemonNodeBin(): string {
-    const nvmNodeBin = path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.20.0', 'bin', 'node')
-    const candidates = [
-        process.env.VT_GRAPHD_NODE_BIN,
-        process.env.npm_node_execpath,
-        process.execPath,
-        existsSync(nvmNodeBin) ? nvmNodeBin : undefined,
-        'node',
-    ].filter((c): c is string => Boolean(c))
-    return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath
-}
-
-// ─── Fixtures (one-shot, single test) ────────────────────────────────────
-
-interface StormFixtures {
-    electronApp: ElectronApplication
-    appWindow: Page
-    args: E2EArgs
-    vaultPath: string
-    appSupportPath: string
-    vaultLayout: VaultLayout
-    mcpPort: number
-    mainInspectPort: number
-}
-
-const test = base.extend<StormFixtures>({
-    args: async ({}, use) => {
-        await use(parseArgs())
-    },
-
-    vaultPath: async ({}, use) => {
-        // Vault sits inside a per-run temp project dir so the app's project
-        // picker has a reasonable name.
-        const projectRoot = mkdtempSync(path.join(os.tmpdir(), 'vt-e2e-storm-project-'))
-        const vault = path.join(projectRoot, 'perf-vault')
-        await use(vault)
-        // Cleanup happens in `electronApp` teardown so the order is
-        // electron-close → vault-rm → orphan-reap.
-    },
-
-    appSupportPath: async ({}, use) => {
-        const appSupport = mkdtempSync(path.join(os.tmpdir(), 'vt-e2e-storm-app-'))
-        await use(appSupport)
-    },
-
-    vaultLayout: async ({ vaultPath, args }, use) => {
-        if (args.vaultSeedNodeCount < args.agents) {
-            throw new Error(
-                `PERF_E2E_VAULT_SEED_NODES (${args.vaultSeedNodeCount}) < PERF_E2E_AGENTS (${args.agents}); `
-                + `each agent needs a distinct first-cluster anchor`,
-            )
-        }
-        const layout = generateVaultOnDisk(vaultPath, args.vaultSeedNodeCount)
-        console.log(`[E2E Storm] seeded vault with ${layout.nodes.length} nodes at ${vaultPath}`)
-        await use(layout)
-    },
-
-    electronApp: async ({ args, vaultPath, appSupportPath, vaultLayout: _vaultLayout }, use) => {
-        // Seed projects.json so the picker shows the vault project. We point
-        // `path` AND `voicetreeInitialized: true` at the vault so the app
-        // opens straight into graph view on click.
-        const projectsPath = path.join(appSupportPath, 'projects.json')
-        const projectName = path.basename(path.dirname(vaultPath))
-        await fs.writeFile(
-            projectsPath,
-            JSON.stringify([{
-                id: 'e2e-storm-perf-project',
-                path: path.dirname(vaultPath),
-                name: projectName,
-                type: 'folder',
-                lastOpened: Date.now(),
-                voicetreeInitialized: true,
-            }], null, 2),
-            'utf8',
-        )
-
-        const configPath = path.join(appSupportPath, 'voicetree-config.json')
-        await fs.writeFile(
-            configPath,
-            JSON.stringify({
-                lastDirectory: path.dirname(vaultPath),
-                vaultConfig: {
-                    [path.dirname(vaultPath)]: {
-                        writeFolder: vaultPath,
-                        readPaths: [],
-                    },
-                },
-            }, null, 2),
-            'utf8',
-        )
-
-        const INSPECT_PORT = 9234
-        const electronApp = await electron.launch({
-            args: [
-                `--inspect=${INSPECT_PORT}`,
-                path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-                `--user-data-dir=${appSupportPath}`,
-            ],
-            env: {
-                ...process.env,
-                NODE_ENV: 'test',
-                HEADLESS_TEST: process.env.HEADLESS_TEST ?? '1',
-                MINIMIZE_TEST: process.env.MINIMIZE_TEST ?? '1',
-                VOICETREE_PERSIST_STATE: '1',
-                VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
-                VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
-            },
-            timeout: 30_000,
-        })
-
-        // Surface [load-timing] from the bundled main.
-        const mainStdout = electronApp.process().stdout
-        if (mainStdout) {
-            mainStdout.on('data', (chunk: Buffer) => {
-                const text = chunk.toString()
-                for (const line of text.split('\n')) {
-                    if (line.startsWith('[load-timing]') || line.includes('[e2e-storm]')) {
-                        console.log(line)
-                    }
-                }
-            })
-        }
-
-        await use(electronApp)
-
-        // ─── teardown ─────────────────────────────────────────────────────
-        try {
-            const win = await electronApp.firstWindow()
-            await win.evaluate(async () => {
-                const api = (window as unknown as {
-                    electronAPI?: { main?: { stopFileWatching?: () => Promise<void> } }
-                }).electronAPI
-                if (api?.main?.stopFileWatching) await api.main.stopFileWatching()
-            })
-            await win.waitForTimeout(300)
-        } catch {
-            // ignore
-        }
-        await electronApp.close()
-
-        // tear down agent-runtime tmux sessions before removing vault dir
-        try { agentRuntime.getTerminalManager().cleanup() } catch { /* may be unconfigured if early failure */ }
-
-        if (!args.keepArtifacts) {
-            await fs.rm(path.dirname(vaultPath), { recursive: true, force: true })
-            await fs.rm(appSupportPath, { recursive: true, force: true })
-        } else {
-            console.log(`[E2E Storm] artifacts kept: vault=${vaultPath} appSupport=${appSupportPath}`)
-        }
-
-        const reaped = killOrphanVtGraphdDaemons()
-        if (reaped.killed.length > 0) {
-            console.log('[E2E Storm] Reaped orphan vt-graphd daemons', reaped.killed)
-        }
-    },
-
-    appWindow: async ({ electronApp }, use) => {
-        const win = await electronApp.firstWindow({ timeout: 30_000 })
-        win.on('console', (msg) => {
-            const t = msg.type()
-            if (t === 'error' || t === 'warning') console.log(`BROWSER [${t}]:`, msg.text())
-        })
-        win.on('pageerror', (err) => console.error('PAGE ERROR:', err.message))
-        await win.waitForLoadState('domcontentloaded')
-        await use(win)
-    },
-
-    mcpPort: async ({ vaultPath, appWindow }, use) => {
-        // Click into the seeded project so the app opens the vault and writes
-        // .mcp.json. We target by `data-testid` rather than visible text — the
-        // text-match approach is brittle when the temp project name happens
-        // to span the layout (a 'visible / enabled / stable' check fails while
-        // the picker is still settling on a cold-boot Onidel disk).
-        await appWindow.waitForSelector('text=Voicetree', { timeout: 30_000 })
-        const projectName = path.basename(path.dirname(vaultPath))
-        const projectBtn = appWindow.locator('button[data-testid="saved-project-button"]').first()
-        await projectBtn.waitFor({ state: 'visible', timeout: 30_000 })
-        await projectBtn.click({ timeout: 60_000 })
-        console.log(`[E2E Storm] Clicked project '${projectName}' to enter graph view`)
-
-        const mcpJsonPath = path.join(vaultPath, '.mcp.json')
-        const port = await readMcpPort(mcpJsonPath, 90_000)
-        console.log(`[E2E Storm] discovered MCP port=${port} from ${mcpJsonPath}`)
-        await use(port)
-    },
-
-    mainInspectPort: async ({}, use) => {
-        // Must match the value passed into --inspect= above. Hardcoded here
-        // mirrors the existing CDP perf spec; the only consumer of this value
-        // is the main-process CDP profiler, which polls /json/list on the port.
-        await use(9234)
-    },
-})
 
 // ─── The test ────────────────────────────────────────────────────────────
 
@@ -572,19 +178,18 @@ test.describe('E2E Electron + agent storm perf', () => {
         vaultPath,
         appSupportPath,
         vaultLayout,
-        mcpPort,
+        daemonUrl,
         mainInspectPort,
     }) => {
         // ~3 min for boot + storm + report write; bumped if global timeout is.
         test.setTimeout(args.globalTimeoutMs + 90_000)
 
         // ── Configure agent-runtime in THIS process for spawning only.
-        // No daemon, no MCP server, no graph bridge — those all live in the
-        // Electron app. We only need the tmux-backed terminal-manager.
+        // No daemon, no graph bridge — those live in the Electron app. We
+        // only need the tmux-backed terminal-manager here.
         configureAgentRuntime({
             env: {
                 getAppSupportPath: () => appSupportPath,
-                getMcpPort: () => mcpPort,
             },
         })
         await agentRuntime.ensureTmuxAvailable()
@@ -613,7 +218,7 @@ test.describe('E2E Electron + agent storm perf', () => {
             metrics: Array<{ name: string; value: number }>
         }
 
-        const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
+        const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint(__dirname)
         const tsxImportPath = resolveTsxImportPath()
 
         const outputs = new Map<string, string>()
@@ -646,7 +251,11 @@ test.describe('E2E Electron + agent storm perf', () => {
                 isHeadless: true,
                 initialEnvVars: {
                     VOICETREE_TERMINAL_ID: terminalId,
-                    VOICETREE_MCP_PORT: String(mcpPort),
+                    // Step 7g discovery chain for spawned subprocesses: full
+                    // daemon URL via $VOICETREE_DAEMON_URL, bearer token read
+                    // from `${VOICETREE_VAULT_PATH}/.voicetree/auth-token` at
+                    // fire time. The legacy $VOICETREE_MCP_PORT is gone.
+                    VOICETREE_DAEMON_URL: daemonUrl,
                     VOICETREE_VAULT_PATH: vaultPath,
                     TASK_NODE_PATH: `${vaultPath}/${terminalId}-task.md`,
                     AGENT_PROMPT: agentPrompt,
