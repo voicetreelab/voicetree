@@ -17,7 +17,10 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 const CHECKS_DIR = join(MEASURES_DIR, 'checks')
-const MAX_TIER = 3
+// MAX_TIER is duplicated in health/meta/ci-coverage.test.ts. If you bump
+// this, bump that too — the test will fail loudly otherwise (it rejects
+// any `--tier<=N` workflow invocation with N > its own MAX_TIER).
+const MAX_TIER = 4
 
 const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
 
@@ -101,7 +104,7 @@ function parseArgs(argv) {
     return opts
 }
 
-const CHECK_PATH = /\/checks\/tier_([0-3])\/([^/]+)\//
+const CHECK_PATH = /\/checks\/tier_(\d+)\/([^/]+)\//
 
 function tierFromMeasurePath(measurePath) {
     const match = CHECK_PATH.exec(measurePath)

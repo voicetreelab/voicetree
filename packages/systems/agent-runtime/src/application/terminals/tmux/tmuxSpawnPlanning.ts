@@ -16,7 +16,7 @@ export function resolveTmuxVaultPath(
     initialEnvVars: Record<string, string>,
     runtimeWriteFolder?: string | null,
 ): string | undefined {
-    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWriteFolder ?? undefined;
+    return initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWriteFolder ?? env.VOICETREE_VAULT_PATH ?? undefined;
 }
 
 export function withResolvedTmuxVaultPath(

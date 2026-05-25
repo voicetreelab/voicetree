@@ -9,8 +9,10 @@ export PATH="$(git rev-parse --show-toplevel)/bin:$PATH"
 
 npm run test:t0
 
-# Subgraph health gate. Skip cheaply if no TS/TSX is staged — those commits
-# have nothing for the AST-based measures to score.
+# Subgraph health gate. This must run locally because it reads the local staged
+# index; Onidel's replica index is refreshed from HEAD before remote execution.
+# Skip cheaply if no TS/TSX is staged — those commits have nothing for the
+# AST-based measures to score.
 if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.(ts|tsx)$'; then
-    npm run health:subgraph-gate
+    VT_REMOTE_EXEC=1 npm run health:subgraph-gate
 fi

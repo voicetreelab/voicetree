@@ -213,32 +213,36 @@ function isSupportedFile(filename: string): boolean {
   return filename.endsWith('.md') || isImageNode(filename)
 }
 
+const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
+  'node_modules',
+  '.next',
+  'dist',
+  '.cache',
+  '__pycache__',
+  '.tox',
+  '.venv',
+  'venv',
+  '.worktrees',
+  'build',
+])
+
 // Directories that must never be loaded into the graph even when nested inside
 // a vault. Hidden directories (names starting with '.') are also skipped — most
 // notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
 // markdown files in as graph nodes when a vault root is scanned.
+//
+// `build` was added so opening a project repo as a vault doesn't pull every
+// .md under build outputs into the graph and trip the file-limit guard on
+// large monorepos.
 function isIgnoredDirectoryName(name: string): boolean {
-  switch (name) {
-    case 'node_modules':
-    case '.next':
-    case 'dist':
-    case '.cache':
-    case '__pycache__':
-    case '.tox':
-    case '.venv':
-    case 'venv':
-    case '.worktrees':
-      return true
-    default:
-      return false
-  }
+  return IGNORED_DIRECTORY_NAMES.has(name)
 }
 
 /**
  * Scans vault directory recursively for markdown and image files.
  *
  * Skips hidden directories (names starting with '.') and common noise
- * directories (node_modules, dist, etc.), matching the behavior of the
+ * directories (node_modules, dist, build, etc.), matching the behavior of the
  * folder-selector scanner.
  *
  * @param projectRoot - Absolute absolutePath to vault directory

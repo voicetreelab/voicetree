@@ -11,21 +11,21 @@ import {
 const terminalId = 'Aki' as TerminalId;
 
 describe('tmux spawn planning', () => {
-    it('prefers the process vault path over the initial env fallback', () => {
+    it('prefers terminal env vault path over inherited process env', () => {
         expect(resolveTmuxVaultPath(
             {VOICETREE_VAULT_PATH: '/process-vault'},
             {VOICETREE_VAULT_PATH: '/initial-vault'},
-        )).toBe('/process-vault');
+        )).toBe('/initial-vault');
     });
 
-    it('falls back to the initial env vault path', () => {
-        expect(resolveTmuxVaultPath({}, {VOICETREE_VAULT_PATH: '/initial-vault'}))
-            .toBe('/initial-vault');
-    });
-
-    it('falls back to the runtime write path when no env vault path exists', () => {
-        expect(resolveTmuxVaultPath({}, {}, '/runtime-write-path'))
+    it('falls back to the runtime write path before inherited process env', () => {
+        expect(resolveTmuxVaultPath({VOICETREE_VAULT_PATH: '/process-vault'}, {}, '/runtime-write-path'))
             .toBe('/runtime-write-path');
+    });
+
+    it('falls back to inherited process env only when no runtime vault path exists', () => {
+        expect(resolveTmuxVaultPath({VOICETREE_VAULT_PATH: '/process-vault'}, {}))
+            .toBe('/process-vault');
     });
 
     it('records the resolved vault path on terminal data env vars only when missing', () => {

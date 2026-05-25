@@ -11,7 +11,10 @@ const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '..', '..', '..', '..', '..')
 const CHECKS_DIR = join(REPO_ROOT, 'packages', 'measures', 'src', 'checks')
 const WORKFLOWS_DIR = join(REPO_ROOT, '.github', 'workflows')
-const MAX_TIER = 3
+// MAX_TIER is duplicated in _runners/capture-ci-checks.ts. If you bump
+// this, bump that too. The test enforces alignment: any `--tier<=N`
+// invocation in .github/workflows/ with N > MAX_TIER throws here.
+const MAX_TIER = 4
 
 type ScheduledCheck = {
     id: string

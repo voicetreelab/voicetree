@@ -1,12 +1,12 @@
 import {join} from 'node:path'
-import {beforeEach, describe, expect, it} from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {
     ensureTmuxServer,
     getTmuxCommandArgs,
     getTmuxSocketPath,
-    resetTmuxServerForTests,
-    type TmuxServerDeps,
+    shutdownTmuxServer,
 } from '../tmux/tmux-server.ts'
+import type {TmuxServerDeps} from '../tmux/tmux-server-core.ts'
 
 type FakeCall = {
     readonly args: readonly string[]
@@ -111,10 +111,6 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(new Error('not loaded'), '', 'not loaded')
                 return
             }
-            if (file === 'taskpolicy') {
-                callback(null, '', '')
-                return
-            }
             if (file === 'pgrep') {
                 // Two forms: `pgrep -f <pattern>` for argv match, `pgrep -P <ppid>` for children.
                 if (args[0] === '-f' && typeof args[1] === 'string') {
@@ -197,11 +193,12 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(null, '', '')
                 return
             }
-            if (command === 'display-message') {
-                callback(null, '12345\n', '')
+            if (command === 'kill-server') {
+                mutable.serverRunning = false
+                mutable.socketExists = false
+                callback(null, '', '')
                 return
             }
-
             callback(new Error(`unexpected tmux args: ${args.join(' ')}`), '', '')
         },
         logger: {
@@ -222,10 +219,6 @@ function commandTuples(calls: readonly FakeCall[]): readonly string[][] {
 }
 
 describe('tmux-server', () => {
-    beforeEach(() => {
-        resetTmuxServerForTests()
-    })
-
     it('builds socket-scoped tmux args from the app support path', () => {
         const appSupportPath: string = '/tmp/vt support'
         expect(getTmuxSocketPath(appSupportPath)).toBe('/tmp/vt support/tmux.sock')
@@ -265,6 +258,34 @@ describe('tmux-server', () => {
         ])
     })
 
+    it('starts the root tmux server through the detached command path', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps()
+        const detachedCalls: FakeCall[] = []
+        const execFile = deps.execFile
+        ;(deps as {execFileDetached: NonNullable<TmuxServerDeps['execFileDetached']>}).execFileDetached = (file, args, callback): void => {
+            detachedCalls.push({file, args})
+            execFile(file, args, callback)
+        }
+
+        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+
+        expect(commandTuples(detachedCalls)).toEqual([[
+            '/opt/homebrew/bin/tmux',
+            '-S',
+            socketPath,
+            'new-session',
+            '-d',
+            '-s',
+            '__voicetree_root__',
+            '--',
+            'sh',
+            '-c',
+            'while :; do sleep 2147483647; done',
+        ]])
+    })
+
     it('removes a stale socket and retries root session startup once', async () => {
         const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
         const socketPath: string = join(appSupportPath, 'tmux.sock')
@@ -277,46 +298,15 @@ describe('tmux-server', () => {
         expect(deps.warnLogs.some((line: string) => line.includes('[tmux-server] removing stale tmux socket'))).toBe(true)
     })
 
-    it('raises tmux server jetsam priority on darwin after starting it', async () => {
+    it('does not run unsupported post-start priority commands on darwin', async () => {
         const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
         const deps = makeDeps({platform: 'darwin'})
 
         await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
 
         const tuples: readonly string[][] = commandTuples(deps.calls)
-        expect(tuples).toContainEqual([
-            '/opt/homebrew/bin/tmux',
-            '-S',
-            socketPath,
-            'display-message',
-            '-p',
-            '#{pid}',
-        ])
-        expect(tuples).toContainEqual(['taskpolicy', '-c', 'user-interactive', '-p', '12345'])
-        // priority raise must follow the start, not precede it
-        const startIdx: number = tuples.findIndex((call: readonly string[]) => call.includes('new-session'))
-        const policyIdx: number = tuples.findIndex((call: readonly string[]) => call[0] === 'taskpolicy')
-        expect(startIdx).toBeGreaterThanOrEqual(0)
-        expect(policyIdx).toBeGreaterThan(startIdx)
-    })
-
-    it('still completes server start when taskpolicy raise fails (best-effort)', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const deps = makeDeps({platform: 'darwin'})
-        const originalExecFile = deps.execFile
-        ;(deps as {execFile: typeof originalExecFile}).execFile = (file, args, callback): void => {
-            if (file === 'taskpolicy') {
-                callback(new Error('not permitted'), '', 'not permitted')
-                return
-            }
-            originalExecFile(file, args, callback)
-        }
-
-        await expect(
-            ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false}),
-        ).resolves.toBeUndefined()
-        expect(deps.warnLogs.some((line: string) => line.includes('taskpolicy raise failed'))).toBe(true)
+        expect(tuples.some((call: readonly string[]) => call[0] === 'taskpolicy')).toBe(false)
+        expect(tuples.some((call: readonly string[]) => call.includes('display-message'))).toBe(false)
     })
 
     it('kills an orphan tmux daemon with no user sessions before unlinking a stale socket', async () => {
@@ -407,5 +397,32 @@ describe('tmux-server', () => {
         ])
         expect(commandTuples(deps.calls).some((call: readonly string[]) => call.includes('bootstrap'))).toBe(false)
         expect(deps.removedPaths).toContain('/Users/test/Library/LaunchAgents/com.voicetree.tmux.plist')
+    })
+
+    it('shuts down the socket-scoped tmux server and removes its socket', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps({serverRunning: true, socketExists: true})
+
+        await shutdownTmuxServer({appSupportPath, deps})
+
+        expect(commandTuples(deps.calls)).toEqual([
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'kill-server'],
+        ])
+        expect(deps.removedPaths).toContain(socketPath)
+    })
+
+    it('treats a missing tmux server shutdown as a no-op', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps({serverRunning: false, socketExists: false})
+
+        await shutdownTmuxServer({appSupportPath, deps})
+
+        expect(commandTuples(deps.calls)).toEqual([
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
+        ])
+        expect(deps.removedPaths).toEqual([])
     })
 })

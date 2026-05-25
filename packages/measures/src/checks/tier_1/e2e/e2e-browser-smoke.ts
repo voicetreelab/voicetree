@@ -8,4 +8,7 @@ export const check: CheckDef = {
     args: () => npmWorkspaceExec('webapp', 'playwright', 'test', '--config=playwright-ci-smoke.config.ts', ...playwrightJsonArgs()),
     parser: 'playwright',
     timeoutMs: E2E_TIMEOUT_MS,
+    // Vite server + Chromium workers should not compete for file descriptors
+    // in the tier-1 pool.
+    phase: 'isolated',
 }

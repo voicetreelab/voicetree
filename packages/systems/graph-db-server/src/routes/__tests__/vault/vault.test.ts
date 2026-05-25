@@ -88,4 +88,27 @@ describe('vault routes', () => {
     })
   })
 
+  test('POST /vault/open applies writeFolder when re-opening the active vault', async () => {
+    const outPath = join(vault, 'out')
+    await mkdir(outPath, { recursive: true })
+    const handle = await start()
+
+    const response = await fetch(
+      `http://127.0.0.1:${handle.port}/vault/open`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: vault, writeFolder: outPath }),
+      },
+    )
+    const vaultState = await fetch(`http://127.0.0.1:${handle.port}/vault`)
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ writeFolder: outPath })
+    expect(await vaultState.json()).toMatchObject({
+      projectRoot: vault,
+      writeFolder: outPath,
+    })
+  })
+
 })

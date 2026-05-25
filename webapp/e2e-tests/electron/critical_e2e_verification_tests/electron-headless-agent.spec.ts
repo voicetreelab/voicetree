@@ -20,7 +20,15 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
+import {
+    mcpCallTool,
+    mcpRequest,
+    pollForCytoscape,
+    robustElectronTeardown,
+    resolveGraphDaemonNodeBin,
+    safeStopFileWatching,
+    waitForMcpServer,
+} from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_SOURCE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
@@ -150,84 +158,6 @@ const test = base.extend<{
         await use(window);
     }
 });
-
-// ─── MCP HTTP Helpers ────────────────────────────────────────────────────────
-
-async function waitForMcpServer(mcpUrl: string, maxRetries = 20, delayMs = 1000): Promise<boolean> {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(mcpUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/event-stream'
-                },
-                body: JSON.stringify({
-                    jsonrpc: '2.0', id: 0, method: 'initialize',
-                    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'healthcheck', version: '1.0.0' } }
-                })
-            });
-            if (response.ok) {
-                console.log(`[Headless Test] MCP server available after ${i + 1} attempts`);
-                return true;
-            }
-            if (i % 5 === 0) console.log(`[Headless Test] MCP server responded ${response.status}, attempt ${i + 1}/${maxRetries}`);
-        } catch (err) {
-            if (i % 5 === 0) console.log(`[Headless Test] MCP server not ready, attempt ${i + 1}/${maxRetries}: ${(err as Error).message}`);
-        }
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-    return false;
-}
-
-async function mcpRequest(mcpUrl: string, method: string, params: Record<string, unknown> = {}, id = 1): Promise<unknown> {
-    const response = await fetch(mcpUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({ jsonrpc: '2.0', id, method, params })
-    });
-    const text = await response.text();
-    return JSON.parse(text);
-}
-
-async function mcpCallTool(
-    mcpUrl: string,
-    toolName: string,
-    args: Record<string, unknown>
-): Promise<{
-    success: boolean;
-    content?: Array<{ type: string; text: string }>;
-    isError?: boolean;
-    parsed?: Record<string, unknown>;
-}> {
-    const response = await mcpRequest(mcpUrl, 'tools/call', {
-        name: toolName,
-        arguments: args
-    }) as {
-        result?: { content?: Array<{ type: string; text: string }>; isError?: boolean };
-        error?: { message: string };
-    };
-
-    if (response.error) {
-        throw new Error(`MCP error: ${response.error.message}`);
-    }
-
-    const content = response.result?.content;
-    if (content && content[0]?.text) {
-        const parsed = JSON.parse(content[0].text) as Record<string, unknown>;
-        return {
-            success: parsed.success as boolean,
-            content,
-            isError: response.result?.isError,
-            parsed
-        };
-    }
-
-    return { success: false };
-}
 
 async function waitForMcpToolSuccess(
     mcpUrl: string,

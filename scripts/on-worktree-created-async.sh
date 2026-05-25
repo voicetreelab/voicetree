@@ -157,6 +157,6 @@ fi
 
 echo "Async setup complete for worktree $WORKTREE_NAME"
 
-# Devbox-side mirroring is handled by mutagen (vt-remote bidirectional sync of
-# .git/ with narrow per-host excludes) plus git-gate's `worktree add` post-action
-# that normalizes admin gitdir to relative paths. No bespoke script needed.
+# Devbox-side mirroring is handled by vt-remote's one-way replica sync plus
+# git-gate's `worktree add` post-action that normalizes admin gitdir to relative
+# paths. Onidel is a remote executor, not a bidirectional source peer.
