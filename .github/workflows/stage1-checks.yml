@@ -370,4 +370,4 @@ jobs:
           packages/measures/src/_runners/capture-ci-checks.ts
           --tier-max=4
           --sequential
-          --only=mutation-graph-model,mutation-graph-state,dead-code,duplication
+          --only=mutation-graph-model,mutation-graph-state,dead-code,duplication,tier-time-budget-gate
