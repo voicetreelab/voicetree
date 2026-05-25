@@ -9,6 +9,7 @@
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {TerminalRecord} from '../terminals/terminal-registry'
 import {
+    cleanupTmuxHeadlessAgentsAndWait,
     cleanupTmuxHeadlessAgents,
     detachTmuxHeadlessAgents,
     getTmuxHeadlessAgentOutput,
@@ -143,4 +144,14 @@ export function cleanupHeadlessAgents(
         return
     }
     cleanupTmuxHeadlessAgents()
+}
+
+export async function cleanupHeadlessAgentsAndWait(
+    policy: HeadlessAgentCleanupPolicy = TERMINATE_TMUX_SESSIONS,
+): Promise<void> {
+    if (policy.tmuxSessions === 'preserve') {
+        detachTmuxHeadlessAgents()
+        return
+    }
+    await cleanupTmuxHeadlessAgentsAndWait()
 }

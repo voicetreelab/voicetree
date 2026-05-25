@@ -4,6 +4,7 @@ import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {
+  cleanupHeadlessAgentsAndWait,
   cleanupHeadlessAgents,
   TERMINATE_TMUX_SESSIONS,
   type HeadlessAgentCleanupPolicy,
@@ -155,6 +156,12 @@ export class TerminalManager {
   cleanup(policy: TerminalCleanupPolicy = TERMINATE_TMUX_SESSIONS): void {
     clearTerminalRecords();
     cleanupHeadlessAgents(policy);
+    clearAllBuffers();
+  }
+
+  async cleanupAndWait(policy: TerminalCleanupPolicy = TERMINATE_TMUX_SESSIONS): Promise<void> {
+    clearTerminalRecords();
+    await cleanupHeadlessAgentsAndWait(policy);
     clearAllBuffers();
   }
 }
