@@ -72,6 +72,23 @@ function localSyncRoot() {
   }
 }
 
+function localWorktreeRoot(cwd, syncRoot = localSyncRoot()) {
+  const rel = pathRelative(syncRoot, cwd)
+  const parts = rel.split(/[\\/]/)
+  if (parts[0] !== '.worktrees' || !parts[1]) return null
+  return pathResolve(syncRoot, '.worktrees', parts[1])
+}
+
+function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd(), syncRoot = localSyncRoot()} = {}) {
+  const worktreeRoot = localWorktreeRoot(cwd, syncRoot)
+  if (worktreeRoot === null) return false
+  process.stderr.write(`[run-remote] repairing local worktree git metadata before sync: ${worktreeRoot}\n`)
+  execFileSync('git', ['-C', syncRoot, 'worktree', 'repair', '--relative-paths'], {
+    stdio: 'ignore',
+  })
+  return true
+}
+
 function runLocal(cmd, args) {
   const child = spawn(cmd, args, {stdio: 'inherit'})
   child.on('exit', (code, signal) => {
@@ -210,6 +227,7 @@ async function main() {
   }
 
   process.stderr.write(`[run-remote] routing to ${host} (waiting for mutagen idle…)\n`)
+  repairLocalWorktreeMetadataIfNeeded()
   const mutagenListOutput = await waitMutagenIdle()
   assertOneWayReplica(mutagenListOutput)
   process.stderr.write(`[run-remote] mutagen idle + one-way replica; ssh ${host}\n`)
@@ -229,8 +247,10 @@ export {
   assertOneWayReplica,
   ensureRemoteWorktreeReadyScript,
   repairRemoteWorktreeMetadataScript,
+  repairLocalWorktreeMetadataIfNeeded,
   refreshRemoteGitIndexScript,
   remoteHostFromEnvironment,
+  localWorktreeRoot,
   remoteWorktreeRoot,
   synchronizationMode,
 }

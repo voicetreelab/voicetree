@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   assertOneWayReplica,
   ensureRemoteWorktreeReadyScript,
+  localWorktreeRoot,
   repairRemoteWorktreeMetadataScript,
   refreshRemoteGitIndexScript,
   remoteWorktreeRoot,
@@ -41,6 +42,14 @@ test('detects remote worktree roots from nested remote cwd', () => {
     '/root/voicetree-public/.worktrees/wt-one',
   )
   assert.equal(remoteWorktreeRoot('/root/voicetree-public/webapp'), null)
+})
+
+test('detects local worktree roots from nested cwd', () => {
+  assert.equal(
+    localWorktreeRoot('/repo/.worktrees/wt-one/webapp', '/repo'),
+    '/repo/.worktrees/wt-one',
+  )
+  assert.equal(localWorktreeRoot('/repo/webapp', '/repo'), null)
 })
 
 test('adds remote worktree readiness only for worktree commands', () => {
