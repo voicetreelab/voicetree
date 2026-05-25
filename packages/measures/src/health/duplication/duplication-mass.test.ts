@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest'
+import {describe, it} from 'vitest'
 import {clusterCallDags} from '../../_shared/duplication/cluster-call-dags.ts'
 import {clusterDuplicates} from '../../_shared/duplication/cluster-duplicates.ts'
 import {extractFunctions} from '../../_shared/duplication/extract-functions.ts'
@@ -17,31 +17,44 @@ import {
     shortestImportDistance,
 } from '../../_shared/graph/import-distance.ts'
 import {buildImportGraph} from '../../_shared/graph/import-graph.ts'
-import {recordHealthMetric} from '../../_shared/writers/report-writer.ts'
+import {assertHealthBudget, recordHealthMetric} from '../../_shared/writers/report-writer.ts'
 
-// Captured 2026-05-26 on first calibration run.
-//
-// Severity threshold rationale: we picked a value just below the median
-// severity of the per-function check's >= 0.7 pairs. That admits cross-tier
-// re-implementations (e.g. daemon vs shell pipelines), keeps same-file
-// siblings out (they get importDistance = 0 → log2(2) = 1 weight floor),
-// and biases the metric toward genuinely-recoverable mass. Adjust this
-// before tightening the budget — keep them in sync.
+// Severity threshold for the recoverable-LOC denominator. Set just below the
+// median severity of the per-function check's >= 0.7 pairs. Admits cross-
+// tier re-implementations (e.g. daemon vs shell pipelines), keeps same-file
+// siblings out (importDistance = 0 → log2(2) = 1 weight floor), biases the
+// metric toward genuinely-recoverable mass. Adjust this BEFORE tightening
+// the hard-gate budget — keep them in sync.
 const SEVERITY_THRESHOLD: number = 20
 
-// Captured 2026-05-26 first full-repo run:
+// Hard gate: any PR that increases this fails. Ratchet down as refactors
+// land; never up.
+//
+// Captured 2026-05-26 first full-repo calibration run:
 //   569 deduped rankable pairs (549 per-function + 40 workflow incl
 //     fuzzy band; ~20 pairs surfaced only by the workflow signal)
 //   import graph: 922 vertices, 1953 undirected edges
 //     sampled diameter: max-observed-hops=7 (cap=8 is generous)
-//     52.5% of random module pairs are reachable; 47.5% land at the cap
-//   distance buckets across the ranked pairs: 110 same-file,
-//     121 unreachable (cap=8)
-//   pairs at or above severity threshold (20): 111
-//   recoverable LOC: 2525
-// Budget = current + 50 headroom per spec. Ratchet DOWN as duplicates
-// merge, never up.
-const MAX_RECOVERABLE_LOC: number = 2575
+//     52.5% of random module pairs are reachable
+//   ranked-pair distance buckets: 110 same-file, 121 unreachable
+//   pairs at or above SEVERITY_THRESHOLD: 111
+//   recoverable LOC at SEVERITY_THRESHOLD: 2525  ← hard gate value
+const MAX_RECOVERABLE_LOC: number = 2525
+
+// High-severity warning tier. Picks the dominant tail of the severity
+// distribution (the cumulative curve at sev>=50 was 23 pairs / 884 LOC on
+// the first calibration run — the most obviously-recoverable mass).
+//
+// HIGH_SEVERITY_CUTOFF = 50 is the histogram knee — pairs of this severity
+// are dominated by large cross-package or unreachable-module dups. Below 50
+// is the dense [25, 50) bucket of medium-sized internal twins.
+//
+// MAX_HIGH_SEVERITY_LOC = 200 is intentionally well below the current 884:
+// the warning is meant to over-fire while the worst offenders (the 152-
+// line popup pair alone is ~152 LOC) are still around. Once those land, a
+// realistic ratchet target is ~100-150.
+const HIGH_SEVERITY_CUTOFF: number = 50
+const MAX_HIGH_SEVERITY_LOC: number = 200
 
 const PER_FUNCTION_MIN_SCORE: number = 0.7
 // The workflow check's fuzzy band caps at score 0.40 (max=0.6×0+0.4×1.0)
@@ -107,16 +120,59 @@ function formatHistogram(buckets: ReadonlyArray<{lower: number; upper: number; c
     }).join('\n')
 }
 
-describe('duplication-recoverable-loc health', () => {
-    it('keeps severity-weighted recoverable LOC within budget', async () => {
+/**
+ * Build the `formattedSummary` `assertHealthBudget` expects:
+ *   empty string → metric is within budget, do nothing
+ *   non-empty    → human-readable breach summary + top offenders
+ *
+ * Format kept short on purpose — `assertHealthBudget` puts this directly
+ * into the vitest failure message for `severity='gate'` and into the
+ * dashboard warning line for `severity='warning'`.
+ */
+function breachSummary(
+    metricId: string,
+    current: number,
+    budget: number,
+    unit: string,
+    topOffenders: readonly SeverityRankedPair[],
+): string {
+    if (current <= budget) return ''
+    return [
+        `${metricId}: ${current} ${unit} > budget ${budget} (over by ${current - budget})`,
+        `Top offenders:`,
+        formatTopRows(topOffenders),
+    ].join('\n')
+}
+
+function pairDetailFor(pair: SeverityRankedPair): Record<string, unknown> {
+    return {
+        packageA: pair.aEndpoint.packageName,
+        fileA: pair.aEndpoint.file,
+        lineA: pair.aEndpoint.line,
+        nameA: pair.aEndpoint.name,
+        locA: pair.aEndpoint.loc,
+        packageB: pair.bEndpoint.packageName,
+        fileB: pair.bEndpoint.file,
+        lineB: pair.bEndpoint.line,
+        nameB: pair.bEndpoint.name,
+        locB: pair.bEndpoint.loc,
+        similarity: Number(pair.similarity.toFixed(3)),
+        importDistance: pair.importDistance,
+        severity: Number(pair.severity.toFixed(2)),
+        source: pair.source,
+    }
+}
+
+describe('duplication mass health', () => {
+    it('reports recoverable-LOC hard gate + high-severity warning', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
         const records = await extractFunctions(files)
         const recordsById = new Map(records.map(record => [record.id, record]))
 
-        // Pull pairs from BOTH existing checks. Use the same thresholds the
-        // standalone health tests use for the per-function check; pull the
-        // workflow check's fuzzy band as well so high-distance/high-edgeJ
+        // Pull pairs from BOTH existing checks. Use the same threshold the
+        // per-function health test uses; admit the workflow check's fuzzy
+        // band per the workflow diagnostic so high-distance / high-edgeJ
         // pairs are eligible for severity weighting.
         const perFunctionPairs = clusterDuplicates(records, {
             topK: Number.MAX_SAFE_INTEGER,
@@ -133,36 +189,46 @@ describe('duplication-recoverable-loc health', () => {
         const importDistance = (from: string, to: string): number =>
             shortestImportDistance(importIndex, from, to)
 
+        // Single rank pass; both metrics filter from the same result.
         const rankable = makeRankablePairs(perFunctionPairs, workflowResult.pairs)
         const ranked = rankSeverity(rankable, recordsById, importDistance)
 
+        // Metric 1: hard gate over the recoverable-LOC denominator.
         const aboveThreshold = ranked.filter(pair => pair.severity >= SEVERITY_THRESHOLD)
         const recoverableLoc = aboveThreshold.reduce((sum, pair) => sum + pair.minLoc, 0)
-        const top20 = ranked.slice(0, 20)
-        const histogram = severityHistogram(ranked, 25)
+        const top20Mass = ranked.slice(0, 20)
 
-        // Diagnostic counts: how many unreachable / disconnected endpoints.
+        // Metric 2: warning over the high-severity LOC tail.
+        const highSeverity = ranked.filter(pair => pair.severity >= HIGH_SEVERITY_CUTOFF)
+        const highSeverityLoc = highSeverity.reduce((sum, pair) => sum + pair.minLoc, 0)
+        const top20HighSeverity = highSeverity.slice(0, 20)
+
+        // Distance-bucket diagnostics — useful when investigating a breach.
         const unreachable = ranked.filter(pair => pair.importDistance === MAX_IMPORT_DISTANCE).length
         const sameFile = ranked.filter(pair => pair.importDistance === 0).length
+        const histogram = severityHistogram(ranked, 25)
 
         console.info(`\nPair sources: function=${perFunctionPairs.length} workflow=${workflowResult.pairs.length} → deduped rankable=${rankable.length}`)
         console.info(`Import graph: ${importStats.vertices} vertices, ${importStats.edges} undirected edges`)
         console.info(`Distance buckets: sameFile=${sameFile}, atCap(${MAX_IMPORT_DISTANCE})=${unreachable}`)
-        console.info(`Severity threshold: ${SEVERITY_THRESHOLD}`)
-        console.info(`Pairs at or above threshold: ${aboveThreshold.length}`)
-        console.info(`Recoverable LOC at threshold: ${recoverableLoc}\n`)
-        console.info('Severity histogram (bucket width=25, first 8 buckets):')
+        console.info(`\n[gate]    SEVERITY_THRESHOLD=${SEVERITY_THRESHOLD}  → ${aboveThreshold.length} pairs, ${recoverableLoc} LOC  (budget ${MAX_RECOVERABLE_LOC})`)
+        console.info(`[warning] HIGH_SEVERITY_CUTOFF=${HIGH_SEVERITY_CUTOFF}  → ${highSeverity.length} pairs, ${highSeverityLoc} LOC  (budget ${MAX_HIGH_SEVERITY_LOC})`)
+        console.info('\nSeverity histogram (bucket width=25, first 8 buckets):')
         console.info(formatHistogram(histogram, 8))
-        console.info(`\nTop 20 by severity:\n${formatTopRows(top20)}`)
+        console.info(`\nTop 20 by severity:\n${formatTopRows(top20Mass)}`)
+        if (highSeverity.length > 0) {
+            console.info(`\nHigh-severity tail (sev>=${HIGH_SEVERITY_CUTOFF}, top 20):\n${formatTopRows(top20HighSeverity)}`)
+        }
 
         await recordHealthMetric({
             metricId: 'duplication-recoverable-loc',
             metricName: 'Recoverable LOC (severity-weighted duplication mass)',
-            description: 'Sum of min(loc_A, loc_B) across all per-function and call-DAG duplicate pairs whose severity (mass × similarity × log2(2 + import-distance)) meets the threshold. An estimate of LOC that could be deleted by merging duplicates.',
+            description: 'Sum of min(loc_A, loc_B) across per-function and call-DAG duplicate pairs whose severity (mass × similarity × log2(2 + import-distance)) meets the threshold. Hard gate: any PR that increases this fails. Ratchet down only.',
             category: 'Structure',
             current: recoverableLoc,
             budget: MAX_RECOVERABLE_LOC,
             comparison: 'lte',
+            severity: 'gate',
             unit: 'loc',
             details: {
                 severityThreshold: SEVERITY_THRESHOLD,
@@ -173,25 +239,49 @@ describe('duplication-recoverable-loc health', () => {
                 importGraph: importStats,
                 sameFilePairs: sameFile,
                 unreachablePairs: unreachable,
-                topPairs: top20.map(pair => ({
-                    packageA: pair.aEndpoint.packageName,
-                    fileA: pair.aEndpoint.file,
-                    lineA: pair.aEndpoint.line,
-                    nameA: pair.aEndpoint.name,
-                    locA: pair.aEndpoint.loc,
-                    packageB: pair.bEndpoint.packageName,
-                    fileB: pair.bEndpoint.file,
-                    lineB: pair.bEndpoint.line,
-                    nameB: pair.bEndpoint.name,
-                    locB: pair.bEndpoint.loc,
-                    similarity: Number(pair.similarity.toFixed(3)),
-                    importDistance: pair.importDistance,
-                    severity: Number(pair.severity.toFixed(2)),
-                    source: pair.source,
-                })),
+                topPairs: top20Mass.map(pairDetailFor),
             },
         })
 
-        expect.soft(recoverableLoc).toBeLessThanOrEqual(MAX_RECOVERABLE_LOC)
+        await recordHealthMetric({
+            metricId: 'duplication-high-severity-loc',
+            metricName: `High-severity duplication LOC (severity >= ${HIGH_SEVERITY_CUTOFF})`,
+            description: `Sum of min(loc_A, loc_B) across duplicate pairs whose severity is at or above the high-severity cutoff (${HIGH_SEVERITY_CUTOFF}). Warning-only: surfaces the dominant tail of mass × similarity × log-distance so operators can see the largest concrete refactor targets even when the overall recoverable-LOC gate is satisfied.`,
+            category: 'Structure',
+            current: highSeverityLoc,
+            budget: MAX_HIGH_SEVERITY_LOC,
+            comparison: 'lte',
+            severity: 'warning',
+            unit: 'loc',
+            details: {
+                highSeverityCutoff: HIGH_SEVERITY_CUTOFF,
+                pairsAtOrAboveCutoff: highSeverity.length,
+                topPairs: top20HighSeverity.map(pairDetailFor),
+            },
+        })
+
+        // Gate first (fails the test on breach), then warning (only logs).
+        assertHealthBudget({
+            metricId: 'duplication-recoverable-loc',
+            formattedSummary: breachSummary(
+                'duplication-recoverable-loc',
+                recoverableLoc,
+                MAX_RECOVERABLE_LOC,
+                'loc',
+                top20Mass.slice(0, 10),
+            ),
+            severity: 'gate',
+        })
+        assertHealthBudget({
+            metricId: 'duplication-high-severity-loc',
+            formattedSummary: breachSummary(
+                'duplication-high-severity-loc',
+                highSeverityLoc,
+                MAX_HIGH_SEVERITY_LOC,
+                'loc',
+                top20HighSeverity.slice(0, 10),
+            ),
+            severity: 'warning',
+        })
     }, 180000)
 })
