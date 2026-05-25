@@ -10,6 +10,7 @@ import type {TerminalData, TerminalId} from '../terminals/terminal-registry/type
 import type {TerminalRecord} from '../terminals/terminal-registry'
 import {
     cleanupTmuxHeadlessAgents,
+    detachTmuxHeadlessAgents,
     getTmuxHeadlessAgentOutput,
     isTmuxHeadlessAgent as hasTmuxHeadlessRuntime,
     killTmuxHeadlessAgent,
@@ -27,6 +28,18 @@ import {
 export type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentDeps'
 export {buildResumeCommand} from './headlessAgentLifecycle'
 export {reconcileTmuxHeadlessAgents, spawnTmuxBackedTerminal}
+
+export type HeadlessAgentCleanupPolicy = {
+    readonly tmuxSessions: 'preserve' | 'terminate'
+}
+
+export const TERMINATE_TMUX_SESSIONS: HeadlessAgentCleanupPolicy = {
+    tmuxSessions: 'terminate',
+}
+
+export const PRESERVE_TMUX_SESSIONS: HeadlessAgentCleanupPolicy = {
+    tmuxSessions: 'preserve',
+}
 
 /**
  * Spawn a headless agent as a tmux session.
@@ -116,10 +129,18 @@ export function hasHeadlessAgentOutput(terminalId: string): boolean {
 }
 
 /**
- * Kill all headless agents. Called on app shutdown / folder switch.
+ * Release all in-process headless-agent state.
+ *
+ * `preserve` is for host process shutdown where tmux sessions must outlive the
+ * host and be reconciled on relaunch. `terminate` is for explicit destructive
+ * cleanup such as closing an agent or switching vaults.
  */
 export function cleanupHeadlessAgents(
-    _deps: Pick<HeadlessAgentDeps, 'writeLog'> = defaultHeadlessAgentDeps,
+    policy: HeadlessAgentCleanupPolicy = TERMINATE_TMUX_SESSIONS,
 ): void {
+    if (policy.tmuxSessions === 'preserve') {
+        detachTmuxHeadlessAgents()
+        return
+    }
     cleanupTmuxHeadlessAgents()
 }

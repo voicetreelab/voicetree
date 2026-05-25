@@ -239,6 +239,14 @@ export function removeTmuxHeadlessAgentState(terminalId: TerminalId): void {
     tmuxHeadlessState.logReadOffsets.delete(terminalId)
 }
 
+export function detachTmuxHeadlessAgents(): void {
+    for (const terminalId of [...tmuxHeadlessState.sessions.keys()]) {
+        clearTmuxPoll(terminalId)
+    }
+    tmuxHeadlessState.sessions.clear()
+    tmuxHeadlessState.logReadOffsets.clear()
+}
+
 export function isTmuxHeadlessAgent(terminalId: TerminalId | string): boolean {
     return tmuxHeadlessState.sessions.has(terminalId as TerminalId)
 }

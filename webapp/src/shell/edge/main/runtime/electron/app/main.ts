@@ -373,11 +373,9 @@ app.on('before-quit', () => {
         });
     }
 
-    // Clean up all terminals
-    terminalManager.cleanup();
-    void terminalRuntimeSurface.shutdownTmuxServer().catch((error: unknown) => {
-        log.warn('[App] Failed to shut down tmux server before quit:', error);
-    });
+    // Detach local terminal state; tmux sessions intentionally survive app quit
+    // and are reconciled on relaunch.
+    terminalManager.cleanup({tmuxSessions: 'preserve'});
     stopUnclaimedTmuxSessionPolling();
     stopRecoverySessionPolling();
 
@@ -416,10 +414,7 @@ app.on('window-all-closed', () => {
     // Server cleanup moved to before-quit only to allow macOS to keep server running when window closes
     // This prevents the "worst of both worlds" where app stays in dock but server is dead
 
-    // TODO: terminalManager.cleanup() should maybe also be moved to before-quit only,
-    // but it's complicated because the graph renderer (which hosts terminal UI-edge) is destroyed
-    // when the window closes, so terminals lose their renderer connection anyway
-    terminalManager.cleanup();
+    terminalManager.cleanup({tmuxSessions: 'preserve'});
     stopUnclaimedTmuxSessionPolling();
     stopRecoverySessionPolling();
 

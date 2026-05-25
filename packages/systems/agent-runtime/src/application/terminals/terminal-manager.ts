@@ -3,7 +3,12 @@ import {clearTerminalRecords} from './terminal-registry';
 import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
-import {cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
+import {
+  cleanupHeadlessAgents,
+  TERMINATE_TMUX_SESSIONS,
+  type HeadlessAgentCleanupPolicy,
+  spawnTmuxBackedTerminal,
+} from '../headless/headlessAgentManager';
 import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
 import {
   getWindowsShell,
@@ -40,6 +45,8 @@ export interface TerminalSpawnOpts {
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
 }
 
+export type TerminalCleanupPolicy = HeadlessAgentCleanupPolicy;
+
 function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
   if (!request) return null;
   return writePromptFile(request.projectRoot, request.terminalId, request.prompt);
@@ -59,7 +66,7 @@ async function resolveRuntimeWriteFolder(): Promise<string | null> {
  * Public API:
  * - spawnTmuxBacked(opts): create a tmux session and inject the agent prompt
  * - cleanupForWindow(terminalIds): drop output buffers when a window closes
- * - cleanup(): teardown all sessions + buffers on app shutdown / folder switch
+ * - cleanup(policy): release runtime state and optionally terminate tmux sessions
  *
  * The legacy node-pty surface (spawn/write/resize/kill via an in-process PTY
  * map) has been deleted. Interactive terminals run inside tmux; the renderer
@@ -136,14 +143,18 @@ export class TerminalManager {
   }
 
   /**
-   * Clean up all terminals on app shutdown / folder switch.
+   * Clean up all terminal runtime state.
+   *
+   * Use `preserve` when the host process is quitting and tmux sessions should
+   * survive for reconciliation on relaunch. Use `terminate` for explicit
+   * destructive cleanup such as vault switching.
    * Records are cleared first so subscriber notifications don't fire after
-   * the renderer is torn down; then tmux sessions are killed and ring
-   * buffers cleared.
+   * the renderer is torn down; then headless runtime state and ring buffers
+   * are cleared according to the policy.
    */
-  cleanup(): void {
+  cleanup(policy: TerminalCleanupPolicy = TERMINATE_TMUX_SESSIONS): void {
     clearTerminalRecords();
-    cleanupHeadlessAgents();
+    cleanupHeadlessAgents(policy);
     clearAllBuffers();
   }
 }
