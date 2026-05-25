@@ -1,14 +1,14 @@
-// tier_2/e2e/ concern override: browser tier-2 + cross-process integration
-// suites need Playwright chromium installed and serialized daemon/port access.
+// tier_3/e2e/ concern override: Electron E2E uses shared app/runtime state,
+// ports, and display resources, so capture-ci must run it sequentially.
 
 import type {WorkflowSpec} from '../../_workflow-types.ts'
 
 export const workflow: WorkflowSpec = {
-    needs: ['tier_0_pre_commit', 'tier_1'],
+    needs: ['tier_2'],
     runner: 'ubuntu-latest',
     setup: {
         playwright: true,
-        xvfb: false,
+        xvfb: true,
         node: '22',
     },
     trigger: {
