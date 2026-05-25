@@ -386,24 +386,31 @@ test.describe('Smoke Test', () => {
   // `api.main.getAuthToken()` on the renderer, or `$VOICETREE_DAEMON_URL` +
   // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` for spawned subprocesses.
   //
-  // Re-enable after porting BOTH endpoints to the new transport:
-  //   1. This test's `mcpCallTool` / `waitForMcpServer` paths → fetch `${url}/rpc`
-  //      with `Authorization: Bearer ${token}` and the JSON-RPC 2.0 envelope.
-  //   2. `tools/vt-fake-agent/src/mcp-client.ts` → drop the
-  //      `@modelcontextprotocol/sdk` StreamableHTTPClientTransport in favour of
-  //      the same fetch-based `/rpc` client. Read the bearer from
-  //      `$VOICETREE_VAULT_PATH/.voicetree/auth-token` (see vt-rpc's
-  //      `readAuthTokenFile`). The spawn env already carries
-  //      `$VOICETREE_DAEMON_URL` (buildTerminalEnvVars.ts §5.3) so the legacy
-  //      `$VOICETREE_MCP_PORT` shim can be retired with it.
+  // STATUS (2026-05-26): fake-agent transport migration is COMPLETE.
+  // `tools/vt-fake-agent/src/mcp-client.ts` now sits on top of @vt/vt-rpc's
+  // `createRpcClient`, talks JSON-RPC over `POST /rpc`, and the
+  // `@modelcontextprotocol/sdk` dep was dropped from the package. Spawn-side
+  // env (`$VOICETREE_DAEMON_URL` + `$VOICETREE_VAULT_PATH`) is already wired
+  // through buildTerminalEnvVars.ts §5.3, so the fake-agent will connect to
+  // whichever daemon the Electron host is currently running.
+  //
+  // Two things remain before un-skipping:
+  //   1. This test's `mcpCallTool` / `waitForMcpServer` host-side paths still
+  //      need to be ported to `fetch(${url}/rpc)` with `Authorization: Bearer
+  //      ${token}` and the JSON-RPC 2.0 envelope (was step 1 of the original
+  //      TODO).
+  //   2. vt-mcpd's empty-vault boot hang (`overnight_final_status.md` Phase 5)
+  //      blocks any test that spins the headless daemon from scratch. Doesn't
+  //      affect this test if it reuses Electron's embedded daemon, but worth
+  //      confirming when re-enabling.
   //
   // The companion smoke test at :328 still covers Electron launch + daemon
   // wiring + initial graph load through the new HTTP transport, so the
-  // highest-value smoke signal remains green while this branch's MCP→HTTP
-  // migration finishes the fake-agent rewire.
+  // highest-value smoke signal remains green.
   test.skip('should spawn fake agent and record a progress node', () => {
     // Intentionally empty — see TODO above. Re-establishing the assertion set
-    // requires the vt-fake-agent HTTP port, not just edits to this file.
+    // requires porting the host-side mcpCallTool / waitForMcpServer to /rpc;
+    // the spawned fake-agent side is now migrated.
   });
 });
 
