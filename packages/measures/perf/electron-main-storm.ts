@@ -90,7 +90,7 @@ import {
 // ---------------------------------------------------------------------------
 
 async function runStorm(args: {
-    mcpPort: number
+    daemonUrl: string
     vault: string
     appSupport: string
     agents: number
@@ -128,7 +128,7 @@ async function runStorm(args: {
         const terminalId = `perf-agent-${i}` as TerminalId
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_DAEMON_URL: `http://127.0.0.1:${args.mcpPort}`,
+            VOICETREE_DAEMON_URL: args.daemonUrl,
             VOICETREE_VAULT_PATH: args.vault,
             TASK_NODE_PATH: `${args.vault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
@@ -211,8 +211,15 @@ async function main(): Promise<void> {
         const inspectPort = spawned.inspectPort
         process.stdout.write(`[main-storm] electron pid=${electronProc.pid} inspect=${inspectPort}\n`)
 
+        // NOTE: waitForMcpPort still polls `.mcp.json`, which the post-cutover
+        // Electron app no longer writes — discovery will time out against
+        // current main. Replacing the discovery primitive (poll
+        // `.voicetree/rpc.port` + `.voicetree/auth-token` via @vt/vt-rpc) is
+        // tracked as follow-up. This harness only carries the field rename;
+        // the boot-path handshake fix is a separate scope.
         const mcpPort = await waitForMcpPort(tempVault, args.bootTimeoutMs)
-        process.stdout.write(`[main-storm] discovered MCP port=${mcpPort}\n`)
+        const daemonUrl = `http://127.0.0.1:${mcpPort}`
+        process.stdout.write(`[main-storm] discovered daemon at ${daemonUrl}\n`)
 
         // Start the CPU profiler *before* the storm so all spawn-time cost is
         // captured. The first inspector connection can race with the daemon's
@@ -223,7 +230,7 @@ async function main(): Promise<void> {
 
         const stormStart = Date.now()
         const results = await runStorm({
-            mcpPort,
+            daemonUrl,
             vault: tempVault,
             appSupport: tempAppSupport,
             agents: args.agents,
