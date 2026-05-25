@@ -1,6 +1,6 @@
 sync:
   defaults:
-    mode: "two-way-resolved"
+    mode: "one-way-replica"
     symlink:
       mode: "posix-raw"
     ignore:
