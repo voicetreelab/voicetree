@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {clusterDuplicates} from './cluster-duplicates'
-import {extractFunctionsFromSource, type FunctionRecord} from './extract-functions'
+import {extractFunctionsFromSource, type FunctionRecord} from '../extract-functions'
 
 function makeFile(relativePath: string, packageName: string, source: string): FunctionRecord[] {
     return extractFunctionsFromSource(

@@ -13,14 +13,14 @@
  *   node scripts/run-remote.mjs npx --prefix packages/measures tsx \\
  *     packages/measures/scratch/diagnose-severity-ranking.ts
  */
-import {clusterCallDags} from '../src/_shared/duplication/cluster-call-dags.ts'
-import {clusterDuplicates} from '../src/_shared/duplication/cluster-duplicates.ts'
+import {clusterCallDags} from '../src/_shared/duplication/workflow/cluster-call-dags.ts'
+import {clusterDuplicates} from '../src/_shared/duplication/per-function/cluster-duplicates.ts'
 import {extractFunctions} from '../src/_shared/duplication/extract-functions.ts'
 import {
     rankSeverity,
     type RankablePair,
     type SeverityRankedPair,
-} from '../src/_shared/duplication/severity-ranking.ts'
+} from '../src/_shared/duplication/ranking/severity-ranking.ts'
 import {discoverPackages} from '../src/_shared/discovery/discover-packages.ts'
 import {discoverSourceFiles} from '../src/_shared/discovery/function-discovery.ts'
 import {

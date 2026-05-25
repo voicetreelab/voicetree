@@ -12,7 +12,7 @@
  * candidates the same way the structural and lexical signals do.
  */
 import * as ts from 'typescript'
-import {minhash} from './minhash'
+import {minhash} from '../lsh/minhash'
 
 export const BEH_PERMUTATION_COUNT: number = 64
 export const BEH_BAND_COUNT: number = 16

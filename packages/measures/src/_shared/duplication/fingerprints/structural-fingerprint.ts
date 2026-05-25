@@ -14,7 +14,7 @@
  * is what the lexical signal is for).
  */
 import * as ts from 'typescript'
-import {stableHash} from './minhash'
+import {stableHash} from '../lsh/minhash'
 
 export type StructuralFingerprint = {
     /** FNV-1a-32 of the canonical body shape — used as a single LSH bucket. */

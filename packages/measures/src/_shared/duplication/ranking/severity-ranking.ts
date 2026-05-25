@@ -21,7 +21,7 @@
  * trivia-aware (no string counting).
  */
 import * as ts from 'typescript'
-import type {FunctionRecord} from './extract-functions.ts'
+import type {FunctionRecord} from '../extract-functions.ts'
 
 export type PairSource = 'function' | 'workflow'
 

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {buildCallDagIndex, callDagFingerprint} from './call-dag-fingerprint'
-import {extractFunctionsFromSource, type FunctionRecord} from './extract-functions'
+import {extractFunctionsFromSource, type FunctionRecord} from '../extract-functions'
 
 function recordsFrom(relativePath: string, packageName: string, source: string): FunctionRecord[] {
     return extractFunctionsFromSource(

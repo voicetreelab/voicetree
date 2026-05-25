@@ -28,8 +28,8 @@ import {
     buildCallDagIndex,
     callDagFingerprint,
     type CallDagFingerprint,
-} from '../src/_shared/duplication/call-dag-fingerprint.ts'
-import {clusterCallDags, type WorkflowPair} from '../src/_shared/duplication/cluster-call-dags.ts'
+} from '../src/_shared/duplication/workflow/call-dag-fingerprint.ts'
+import {clusterCallDags, type WorkflowPair} from '../src/_shared/duplication/workflow/cluster-call-dags.ts'
 import {discoverPackages} from '../src/_shared/discovery/discover-packages.ts'
 import {discoverSourceFiles} from '../src/_shared/discovery/function-discovery.ts'
 import {extractFunctions, type FunctionRecord} from '../src/_shared/duplication/extract-functions.ts'

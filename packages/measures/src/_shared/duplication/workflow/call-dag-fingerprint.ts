@@ -19,9 +19,9 @@
  * the fingerprint.
  */
 import * as ts from 'typescript'
-import {behavioralFingerprint} from './behavioral-fingerprint'
-import type {FunctionRecord} from './extract-functions'
-import {stableHash} from './minhash'
+import {behavioralFingerprint} from '../fingerprints/behavioral-fingerprint'
+import type {FunctionRecord} from '../extract-functions'
+import {stableHash} from '../lsh/minhash'
 
 const DEFAULT_DEPTH: number = 3
 const EXTERNAL_PREFIX: string = 'ext:'

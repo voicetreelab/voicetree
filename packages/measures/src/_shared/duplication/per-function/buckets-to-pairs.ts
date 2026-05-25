@@ -6,7 +6,7 @@
  * clustering) and the workflow exact-DAG clustering — they have identical
  * "hash, bucket, emit pairs from any bucket with ≥2 ids" shape.
  */
-import {pairKey} from './lsh'
+import {pairKey} from '../lsh/lsh'
 
 export type BucketsResult = {
     readonly pairs: Set<string>
