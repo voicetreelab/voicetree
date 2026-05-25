@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "mutate": [
+    "src/pure/graph/graph-operations/indexes/linkResolutionIndexes.ts",
+    "src/pure/graph/nodes/folderCollapse.ts",
+    "src/pure/graph/positioning/placement/coordinate-conversions.ts"
+  ],
+  "testRunner": "vitest",
+  "checkers": [],
+  "vitest": {
+    "configFile": "vitest.config.stryker.smoke.ts"
+  },
+  "concurrency": 3,
+  "timeoutMS": 30000,
+  "thresholds": {
+    "break": 70
+  },
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "../../stryker-graph-model-smoke.json"
+  },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": "always",
+  "warnings": {
+    "unknownOptions": false
+  }
+}

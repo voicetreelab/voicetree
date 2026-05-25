@@ -1,22 +1,5 @@
-/**
- * Pure collapse/edge-aggregation primitives shared between graph-tools and graph-model.
- * Lives here (graph-tools) because graph-model depends on graph-tools, not vice versa.
- */
-
+import { computeSyntheticEdgeSpecs, type SyntheticEdgeSpec } from '@vt/graph-model/pure/graph'
 import type {ContainmentTree} from '../lint/lintContainment'
-
-export interface OriginalEdgeRef {
-    readonly sourceId: string
-    readonly targetId: string
-    readonly label?: string
-}
-
-export interface SyntheticEdgeSpec {
-    readonly syntheticEdgeId: string
-    readonly direction: 'incoming' | 'outgoing'
-    readonly externalNodeId: string
-    readonly originalEdges: readonly OriginalEdgeRef[]
-}
 
 export interface CollapsedInfo {
     readonly descendantCount: number
@@ -32,46 +15,6 @@ export const VIRTUAL_FOLDER_PREFIX = '__virtual_folder__/'
 
 export function isVirtualFolder(id: string): boolean {
     return id.startsWith(VIRTUAL_FOLDER_PREFIX)
-}
-
-/**
- * Compute synthetic edge specs from pre-extracted cy data. PURE.
- * Groups cross-boundary edges by direction + external node, generates stable IDs.
- * Deduplicates by (direction, external endpoint) per F6 design law decision 3.
- */
-export function computeSyntheticEdgeSpecs(
-    folderId: string,
-    descendantIds: ReadonlySet<string>,
-    connectedEdges: readonly { readonly sourceId: string; readonly targetId: string; readonly label?: string }[]
-): readonly SyntheticEdgeSpec[] {
-    const crossEdges = connectedEdges.filter(e =>
-        !descendantIds.has(e.sourceId) || !descendantIds.has(e.targetId)
-    )
-
-    type EdgeGroup = { readonly direction: 'incoming' | 'outgoing'; readonly edges: OriginalEdgeRef[] }
-    const groups = new Map<string, EdgeGroup>()
-
-    for (const e of crossEdges) {
-        const srcInside: boolean = descendantIds.has(e.sourceId)
-        if (srcInside) {
-            const key: string = `out:${e.targetId}`
-            const g: EdgeGroup = groups.get(key) ?? { direction: 'outgoing' as const, edges: [] }
-            g.edges.push({ sourceId: e.sourceId, targetId: e.targetId, label: e.label })
-            groups.set(key, g)
-        } else {
-            const key: string = `in:${e.sourceId}`
-            const g: EdgeGroup = groups.get(key) ?? { direction: 'incoming' as const, edges: [] }
-            g.edges.push({ sourceId: e.sourceId, targetId: e.targetId, label: e.label })
-            groups.set(key, g)
-        }
-    }
-
-    return [...groups.entries()].map(([key, { direction, edges }]) => ({
-        syntheticEdgeId: `synthetic:${folderId}:${key}`,
-        direction,
-        externalNodeId: key.slice(key.indexOf(':') + 1),
-        originalEdges: edges
-    }))
 }
 
 function folderPathToEntityId(folderPath: string, folderIndexMap: ReadonlyMap<string, string>): string {

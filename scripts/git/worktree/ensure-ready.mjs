@@ -314,8 +314,6 @@ export {
   markerPath,
   resolveMainRepoRoot,
   resolveWorktreeRoot,
-  sourceCanCopyDependencies,
-  sourceCanSeedTarget,
   sourceDependencyCopyBlockReason,
   sourceSeedBlockReason,
 }

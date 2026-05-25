@@ -78,6 +78,8 @@ type RunOptions = {
   vault?: string
 }
 
+type FocusTarget = (page: PageLike, selector: string) => Promise<void>
+
 type LoadedSteps = {
   steps: StepSpec[]
   source: string
@@ -379,46 +381,11 @@ async function resolveTarget(options: RunOptions) {
   return { ok: true as const, instance: pick.instance }
 }
 
-async function focusTarget(page: SessionPageLike, selector: string): Promise<void> {
-  const result = await page.evaluate<{ ok: boolean; error: string }>(String.raw`(() => {
-    const rootSelector = ${JSON.stringify(selector)}
-    const root = document.querySelector(rootSelector)
-    if (!(root instanceof HTMLElement)) {
-      return { ok: false, error: 'selector not found: ' + rootSelector }
-    }
-
-    const focusableSelector =
-      '.cm-content, textarea, input, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])'
-    const target =
-      root.matches(focusableSelector)
-        ? root
-        : root.querySelector(focusableSelector)
-
-    if (!(target instanceof HTMLElement)) {
-      return { ok: false, error: 'selector "' + rootSelector + '" did not resolve to a focusable element' }
-    }
-
-    target.focus()
-    const active = document.activeElement
-    if (!(active instanceof HTMLElement)) {
-      return { ok: false, error: 'selector "' + rootSelector + '" did not take focus' }
-    }
-
-    return {
-      ok: target === active || target.contains(active),
-      error: 'selector "' + rootSelector + '" did not take focus',
-    }
-  })()`)
-
-  if (!result.ok) {
-    throw new Error(result.error)
-  }
-}
-
 async function executeStep(
   page: PageLike,
   step: StepSpec,
   instance: DebugInstance,
+  focusTarget: FocusTarget,
 ): Promise<Delta | null> {
   if ('dispatch' in step) {
     const transport = createLiveTransport(instance.mcpPort)
@@ -722,6 +689,7 @@ async function runSteps(
   page: PageLike,
   steps: StepSpec[],
   options: RunOptions,
+  focusTarget: FocusTarget,
 ): Promise<RunStepOutput[]> {
   const outputs: RunStepOutput[] = []
   let captureOverlay: StateCaptureOverlay | null = null
@@ -742,7 +710,7 @@ async function runSteps(
     let stepDelta: Delta | null = null
 
     try {
-      stepDelta = await executeStep(page, step, instance)
+      stepDelta = await executeStep(page, step, instance, focusTarget)
       if (captureOverlay) {
         captureOverlay = applyDeltaToStateCaptureOverlay(captureOverlay, stepDelta)
       }
@@ -839,7 +807,7 @@ async function runHandler(argv: string[]): Promise<Response<RunResult>> {
       return err('run', 'CDP connected but no pages found', 'verify app is fully started', 3)
     }
 
-    const outputs = await runSteps(target.instance, page, loaded.steps, options)
+    const outputs = await runSteps(target.instance, page, loaded.steps, options, session.focusTarget)
     return ok('run', {
       source: loaded.source,
       bundle: {

@@ -96,8 +96,6 @@ const NON_MAC_HOTKEYS: HotkeySettings = {
     voiceRecording: { key: 'r', modifiers: ['Alt'] },
 };
 
-export const DEFAULT_HOTKEYS: HotkeySettings = defaultHotkeysForPlatform(undefined);
-
 // ============================================================================
 // Schema — single source of truth for all settings metadata + defaults
 // ============================================================================
@@ -227,8 +225,6 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     };
 }
 
-export const SETTINGS_SCHEMA: SettingsSchema = createSettingsSchema();
-
 // ============================================================================
 // Derived exports
 // ============================================================================
@@ -241,9 +237,3 @@ export function createDefaultSettings(runtime: SettingsRuntime = {}): VTSettings
             .map(([k, v]) => [k, v.default])
     ) as unknown as VTSettings;
 }
-
-export const DEFAULT_SETTINGS: VTSettings = Object.fromEntries(
-    Object.entries(createSettingsSchema())
-        .filter(([, v]) => 'default' in v)
-        .map(([k, v]) => [k, v.default])
-) as unknown as VTSettings;
