@@ -1,5 +1,5 @@
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
-EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PREFER. PUSH IMPURITY TO EDGE / SHELL.
+EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
 
 We favor "deep functions", a single function to provide a minimal public API hiding internal complexity.
 Deep and narrow. These can themselves be composition of functions.
@@ -13,7 +13,7 @@ functional programming philosophy)
 
 Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work, do not wait to be asked, the human wants you to always do this no matter what. 
 
-Do not ask the human user too many questions if you can answer them yourself, or have a work around that is not reward hacking. If there is a way you can avoid asking the question, whilst introducing no additional complexity or tech debt, you must do so. Save the human's limited & valuable attention for high level architectural concerns only. If you ask the user architectural questions, include a simple ascii diagram that demonstrates the code flow or architecture. 
+Do not ask the human user too many questions if you can answer them yourself, or when you have have a work-around that is not reward hacking. If there is a way you can avoid asking the question, whilst introducing no additional complexity or tech debt, you must do so. Save the human's limited & valuable attention for high level architectural concerns only. If you ask the user architectural questions, include a simple ascii diagram that demonstrates the main code/function flow or architecture. 
 
 The user is EXTREMELY concerned about code quality, much more so than immediate results.
 
