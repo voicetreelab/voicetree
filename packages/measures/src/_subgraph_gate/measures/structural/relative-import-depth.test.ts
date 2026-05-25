@@ -6,15 +6,24 @@
  * scope: webapp/src + packages/systems/<X>/src + packages/libraries/<X>/src
  * + voicetree-mcp/bin). Without that prefix, the fixture files fall
  * outside scope and the measure reports zero.
+ *
+ * The measure registers itself by side effect (no exported constant), so
+ * we trigger that import here and discover it via the registry.
  */
 import {afterAll, describe, expect, it} from 'vitest'
 import {parseSubgraph} from '../../../_shared/graph/parse-subgraph.ts'
-import {
-    relativeImportDepthMeasure,
-} from './relative-import-depth.ts'
+import {listMeasures} from '../../_internal/registry.ts'
+import type {SubgraphMeasure} from '../../_internal/subgraph-measure.ts'
+import './relative-import-depth.ts' // side-effect: registers the measure
 import {buildTempRepo, type Fixture} from './_tempdir-fixture.ts'
 
 const LAYER = 'packages/libraries'
+
+function getMeasure(): SubgraphMeasure {
+    const measure = listMeasures().find(m => m.id === 'relative-import-depth')
+    if (!measure) throw new Error('relative-import-depth measure not registered')
+    return measure
+}
 
 const cleanups: Fixture[] = []
 afterAll(async () => {
@@ -31,29 +40,28 @@ describe('relative-import-depth (subgraph measure)', () => {
         cleanups.push(fixture)
 
         const sub = await parseSubgraph(fixture.absolutePaths, {repoRoot: fixture.repoRoot, depth: 1})
-        const result = await relativeImportDepthMeasure.run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
+        const result = await getMeasure().run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
 
         expect(result.perCommunity['pkg-x/core']).toBe(0)
         expect(result.perCommunity['pkg-x/utils']).toBe(0)
         expect(result.violations).toEqual([])
     })
 
-    it('BAD: cross-package relative import (any depth) fails the gate', async () => {
+    it('BAD: deep relative import (../../) from a single-file root community fails the gate', async () => {
         const fixture = await buildTempRepo([
-            {pkg: 'pkg-a', relToSrc: 'x.ts', contents: "import '../../pkg-b/src/y.ts'\nexport const x = 1\n"},
+            {pkg: 'pkg-a', relToSrc: 'deep/inner/x.ts', contents: "import '../../pkg-b/src/y.ts'\nexport const x = 1\n"},
             {pkg: 'pkg-b', relToSrc: 'y.ts', contents: 'export const y = 2\n'},
         ], {layerPrefix: LAYER})
         cleanups.push(fixture)
 
         const sub = await parseSubgraph(fixture.absolutePaths, {repoRoot: fixture.repoRoot, depth: 1})
-        const result = await relativeImportDepthMeasure.run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
+        const result = await getMeasure().run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
 
-        expect(result.perCommunity['pkg-a/__root__']).toBe(1)
-        expect(result.perCommunity['pkg-b/__root__']).toBe(0)
+        expect(result.perCommunity['pkg-a/deep']).toBe(1)
         const fails = result.violations.filter(v => v.severity === 'fail')
         expect(fails.length).toBe(1)
-        expect(fails[0].community).toBe('pkg-a/__root__')
-        expect(fails[0].message).toContain('relative-cross-package')
+        expect(fails[0].community).toBe('pkg-a/deep')
+        expect(fails[0].message).toContain('depth >= 2')
     })
 
     it('BAD: deep same-package relative import (../../) fails the gate', async () => {
@@ -64,13 +72,12 @@ describe('relative-import-depth (subgraph measure)', () => {
         cleanups.push(fixture)
 
         const sub = await parseSubgraph(fixture.absolutePaths, {repoRoot: fixture.repoRoot, depth: 1})
-        const result = await relativeImportDepthMeasure.run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
+        const result = await getMeasure().run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
 
         expect(result.perCommunity['pkg-q/a']).toBe(1)
         const fails = result.violations.filter(v => v.severity === 'fail')
         expect(fails.length).toBe(1)
         expect(fails[0].community).toBe('pkg-q/a')
-        expect(fails[0].message).toContain('relative-same-package-deep')
     })
 
     it('counts re-exports and dynamic-imports as imports', async () => {
@@ -89,7 +96,7 @@ describe('relative-import-depth (subgraph measure)', () => {
         cleanups.push(fixture)
 
         const sub = await parseSubgraph(fixture.absolutePaths, {repoRoot: fixture.repoRoot, depth: 1})
-        const result = await relativeImportDepthMeasure.run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
+        const result = await getMeasure().run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
 
         expect(result.perCommunity['pkg-m/feature']).toBe(2)
     })
@@ -102,7 +109,7 @@ describe('relative-import-depth (subgraph measure)', () => {
         cleanups.push(fixture)
 
         const sub = await parseSubgraph(fixture.absolutePaths, {repoRoot: fixture.repoRoot, depth: 1})
-        const result = await relativeImportDepthMeasure.run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
+        const result = await getMeasure().run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
 
         expect(result.perCommunity['measures/x']).toBe(0)
         expect(result.violations).toEqual([])

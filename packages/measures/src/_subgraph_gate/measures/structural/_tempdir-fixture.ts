@@ -52,11 +52,8 @@ export async function buildTempRepo(
     const layerPrefix = options.layerPrefix ?? ''
     const packages = new Set(files.map(f => f.pkg))
 
-    const packageDir = (pkg: string): string =>
-        layerPrefix === '' ? join(repoRoot, pkg) : join(repoRoot, layerPrefix, pkg)
-
     for (const pkg of packages) {
-        const pkgDir = packageDir(pkg)
+        const pkgDir = join(repoRoot, layerPrefix, pkg)
         await mkdir(join(pkgDir, 'src'), {recursive: true})
         await writeFile(
             join(pkgDir, 'package.json'),
@@ -67,7 +64,7 @@ export async function buildTempRepo(
 
     const absolutePaths: string[] = []
     for (const f of files) {
-        const abs = join(packageDir(f.pkg), 'src', f.relToSrc)
+        const abs = join(repoRoot, layerPrefix, f.pkg, 'src', f.relToSrc)
         await mkdir(dirname(abs), {recursive: true})
         await writeFile(abs, f.contents, 'utf8')
         absolutePaths.push(abs)
