@@ -11,10 +11,10 @@ import {
   type GraphDelta,
   type GraphNode,
 } from '@vt/graph-model'
-import { getGraph, setGraph } from '../../../state/graph-store.ts'
-import { subscribe, type SequencedDeltaEvent } from '../../../state/events/deltaEventBus.ts'
-import { clearPendingWrite, markPendingWrite } from '../../watch-folder/pending-writes.ts'
-import { reconcileGraphWithDisk } from './handleFSEvent.ts'
+import { getGraph, setGraph } from '../../state/graph-store.ts'
+import { subscribe, type SequencedDeltaEvent } from '../../state/events/deltaEventBus.ts'
+import { clearPendingWrite, markPendingWrite } from '../../data/watch-folder/pending-writes.ts'
+import { reconcileGraphWithDisk } from './reconcileGraphWithDisk.ts'
 
 function makeLeaf(absolutePath: string): GraphNode {
   return {
