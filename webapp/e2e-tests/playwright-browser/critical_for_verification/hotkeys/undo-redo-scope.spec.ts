@@ -62,17 +62,6 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
   }
 });
 
-// Helper type for CodeMirror access
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: {
-    view: {
-      state: { doc: { length: number; toString: () => string } };
-      dispatch: (spec: unknown) => void;
-      focus: () => void;
-    }
-  };
-}
-
 // Extended window type with undo tracking
 interface ExtendedWindowWithUndoTracking extends ExtendedWindow {
   _undoRedoTracker?: {
