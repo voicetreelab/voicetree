@@ -75,7 +75,7 @@ jobs:
           packages/measures/src/_runners/capture-ci-checks.ts
           --tier-max=2
           --sequential
-          --only=ci-coverage,systems-health,orange-gate,relative-import-depth,relative-path-depth,agent-runtime-unit,graph-model-unit,graph-state-unit,graph-tools-unit,voicetree-mcp-unit,vt-fake-agent-unit,webapp-unit,graph-model-public-api-contract,graph-state-public-api-contract,graph-db-client-e2e-system,graph-db-server-e2e-system,graph-tools-e2e-system,fuzz-editor-sync,fuzz-graph-delta,fuzz-graph-state-invariants,fuzz-session-state,fuzz-system-lifecycle,graph-db-server-unit
+          --only=ci-coverage,systems-health,orange-gate,architecture-drift,relative-import-depth,relative-path-depth,agent-runtime-unit,graph-model-unit,graph-state-unit,graph-tools-unit,voicetree-mcp-unit,vt-fake-agent-unit,webapp-unit,graph-model-public-api-contract,graph-state-public-api-contract,graph-db-client-e2e-system,graph-db-server-e2e-system,graph-tools-e2e-system,fuzz-editor-sync,fuzz-graph-delta,fuzz-graph-state-invariants,fuzz-session-state,fuzz-system-lifecycle,graph-db-server-unit
 
   browser-tier-1-smoke:
     name: PR CI / Browser Tier 1 Smoke
