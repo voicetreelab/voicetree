@@ -18,7 +18,7 @@ import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/sta
 import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
-import { bindHttpDaemonForVault, unbindHttpDaemon } from '@/shell/edge/main/runtime/electron/daemon/http-server-binding'
+import { bindHttpDaemonForVault } from '@/shell/edge/main/runtime/electron/daemon/http-server-binding'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
@@ -97,7 +97,17 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
         await stopDaemonGraphSync()
-        await unbindHttpDaemon()
+
+        // Rebind the in-process HTTP daemon to the new vault BEFORE any
+        // further renderer-visible side effect. Renderer subscriptions can
+        // fire `api.main.getDaemonUrl()` reactively on `vault:switching`
+        // (pushed above) or on startup events — if the bind sits behind the
+        // full vault-open sequence, those calls throw `daemon_unreachable`
+        // for ~1s. The bind is self-contained (writes its own .voicetree/
+        // files via mkdir -p, starts an HTTP listener, sets module state)
+        // and has no dependency on the graph daemon spawn or writeFolder
+        // resolution that follows.
+        await bindHttpDaemonForVault(projectRoot)
 
         // Persist writeFolder BEFORE the daemon claims the vault: vt-graphd's
         // startup vault-open reads saved config, and the daemon's
@@ -129,8 +139,6 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         }
         await getCallbacks().onVaultOpened?.(watchingStartedInfo)
         getCallbacks().onWatchingStarted?.(watchingStartedInfo)
-
-        await bindHttpDaemonForVault(projectRoot)
 
         pushToRenderer('vault:ready', { path: projectRoot })
         void getCallbacks().stripStaleMcpEntries?.(projectRoot).catch((err: unknown) => {
