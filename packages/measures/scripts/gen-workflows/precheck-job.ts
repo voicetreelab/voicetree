@@ -1,7 +1,5 @@
-// Tier-4 precheck job — self-contained decision job equivalent to the
-// hand-written `mutation-gate` in stage1-checks.yml. PR size + freshness of
-// the last successful nightly Tier-4 carrier together gate Tier 4 on PRs
-// into main.
+// Tier-4 precheck job. PR size + freshness of the last successful nightly
+// Tier-4 carrier together gate Tier 4 on PRs into main.
 
 import type {WorkflowSpec} from '../../src/checks/_workflow-types.ts'
 

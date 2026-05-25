@@ -50,12 +50,23 @@ export type EvaluationResult = {
         readonly durationMs: number
         readonly ratio: number
     }[]
+    readonly ciFailures: readonly {
+        readonly kind: 'required-job' | 'conditional-job' | 'missing-required-tier'
+        readonly jobId?: string
+        readonly tier?: number
+        readonly message: string
+    }[]
 }
 
 export type RunTierBudgetGateOptions = {
     readonly reportsDir?: string
     readonly tierRoot?: string
     readonly resultFile?: string
+    readonly baseRef?: string
+    readonly needsJson?: string
+    readonly requiredJobsByBaseRefJson?: string
+    readonly conditionalJobsByBaseRefJson?: string
+    readonly conditionalPrecheckByJobIdJson?: string
 }
 
 export async function runTierBudgetGate(opts: RunTierBudgetGateOptions = {}): Promise<{
@@ -69,10 +80,20 @@ export async function runTierBudgetGate(opts: RunTierBudgetGateOptions = {}): Pr
     const reports = await loadReportsFromDir(reportsDir)
     const budgets = await loadBudgetsFromDir(tierRoot)
     const timings = aggregateTierTimings(reports)
-    const result = evaluateBudgets(timings, budgets)
+    const budgetResult = evaluateBudgets(timings, budgets)
+    const result: EvaluationResult = {
+        ...budgetResult,
+        ciFailures: evaluateCiIntegrity(timings, {
+            baseRef: opts.baseRef ?? process.env.GITHUB_BASE_REF ?? '',
+            needsJson: opts.needsJson ?? process.env.MEASURES_WORKFLOW_NEEDS_JSON ?? '',
+            requiredJobsByBaseRefJson: opts.requiredJobsByBaseRefJson ?? process.env.MEASURES_REQUIRED_JOBS_BY_BASE_REF ?? '',
+            conditionalJobsByBaseRefJson: opts.conditionalJobsByBaseRefJson ?? process.env.MEASURES_CONDITIONAL_JOBS_BY_BASE_REF ?? '',
+            conditionalPrecheckByJobIdJson: opts.conditionalPrecheckByJobIdJson ?? process.env.MEASURES_CONDITIONAL_PRECHECK_BY_JOB_ID ?? '',
+        }),
+    }
     const report = formatResult(result)
     await writeJsonAtomic(resultFile, result)
-    return {result, exitCode: result.breaches.length > 0 ? 1 : 0, report}
+    return {result, exitCode: result.breaches.length > 0 || result.ciFailures.length > 0 ? 1 : 0, report}
 }
 
 // ── internals (intentionally NOT exported) ──────────────────────────────────
@@ -93,6 +114,18 @@ type ReportLike = {
 }
 
 type TierTiming = EvaluationResult['tierTimings'][number]
+type WorkflowNeed = {
+    readonly result?: string
+    readonly outputs?: Record<string, string>
+}
+
+type CiIntegrityOptions = {
+    readonly baseRef: string
+    readonly needsJson: string
+    readonly requiredJobsByBaseRefJson: string
+    readonly conditionalJobsByBaseRefJson: string
+    readonly conditionalPrecheckByJobIdJson: string
+}
 
 function tierOf(measurePath: string | undefined): number | null {
     if (!measurePath) return null
@@ -172,7 +205,123 @@ function evaluateBudgets(
         tierTimings: [...timings.values()].sort((a, b) => a.tier - b.tier),
         breaches: breaches.sort((a, b) => a.tier - b.tier || a.kind.localeCompare(b.kind)),
         perCheckWarnings,
+        ciFailures: [],
     }
+}
+
+function evaluateCiIntegrity(
+    timings: ReadonlyMap<number, TierTiming>,
+    opts: CiIntegrityOptions,
+): EvaluationResult['ciFailures'] {
+    if (!opts.baseRef) return []
+    const requiredJobsByBase = parseJsonRecord(opts.requiredJobsByBaseRefJson)
+    const conditionalJobsByBase = parseJsonRecord(opts.conditionalJobsByBaseRefJson)
+    const conditionalPrecheckByJob = parseJsonStringRecord(opts.conditionalPrecheckByJobIdJson)
+    const needs = parseNeeds(opts.needsJson)
+    const requiredJobs = requiredJobsByBase[opts.baseRef] ?? []
+    const conditionalJobs = conditionalJobsByBase[opts.baseRef] ?? []
+    const failures: EvaluationResult['ciFailures'][number][] = []
+
+    for (const jobId of requiredJobs.filter(id => id !== 'budget-gate')) {
+        const result = needs[jobId]?.result ?? 'missing'
+        if (result !== 'success') {
+            failures.push({
+                kind: 'required-job',
+                jobId,
+                message: `required job ${jobId} for ${opts.baseRef} finished with ${result}`,
+            })
+        }
+    }
+
+    for (const tier of requiredTierNumbers(requiredJobs)) {
+        if (!timings.has(tier)) {
+            failures.push({
+                kind: 'missing-required-tier',
+                tier,
+                message: `required tier_${tier} for ${opts.baseRef} produced no check reports`,
+            })
+        }
+    }
+
+    for (const jobId of conditionalJobs) {
+        const result = needs[jobId]?.result ?? 'missing'
+        if (result === 'success') {
+            const tier = tierNumberFromJobId(jobId)
+            if (tier !== null && !timings.has(tier)) {
+                failures.push({
+                    kind: 'missing-required-tier',
+                    jobId,
+                    tier,
+                    message: `conditional job ${jobId} succeeded but tier_${tier} produced no check reports`,
+                })
+            }
+            continue
+        }
+        const precheckId = conditionalPrecheckByJob[jobId]
+        const shouldRun = precheckId ? needs[precheckId]?.outputs?.should_run : undefined
+        if (result === 'skipped' && shouldRun !== 'true') continue
+        failures.push({
+            kind: 'conditional-job',
+            jobId,
+            message: `conditional job ${jobId} for ${opts.baseRef} finished with ${result} while precheck ${precheckId ?? '(none)'} should_run=${shouldRun ?? '(missing)'}`,
+        })
+    }
+
+    return failures.sort((a, b) =>
+        a.kind.localeCompare(b.kind)
+        || String(a.tier ?? '').localeCompare(String(b.tier ?? ''))
+        || String(a.jobId ?? '').localeCompare(String(b.jobId ?? '')),
+    )
+}
+
+function parseNeeds(json: string): Record<string, WorkflowNeed> {
+    if (!json.trim()) return {}
+    try {
+        const parsed = JSON.parse(json) as unknown
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+        return parsed as Record<string, WorkflowNeed>
+    } catch {
+        return {}
+    }
+}
+
+function parseJsonRecord(json: string): Record<string, readonly string[]> {
+    if (!json.trim()) return {}
+    try {
+        const parsed = JSON.parse(json) as unknown
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+        const out: Record<string, readonly string[]> = {}
+        for (const [key, value] of Object.entries(parsed)) {
+            if (Array.isArray(value)) out[key] = value.filter((v): v is string => typeof v === 'string')
+        }
+        return out
+    } catch {
+        return {}
+    }
+}
+
+function parseJsonStringRecord(json: string): Record<string, string> {
+    if (!json.trim()) return {}
+    try {
+        const parsed = JSON.parse(json) as unknown
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+        const out: Record<string, string> = {}
+        for (const [key, value] of Object.entries(parsed)) {
+            if (typeof value === 'string') out[key] = value
+        }
+        return out
+    } catch {
+        return {}
+    }
+}
+
+function requiredTierNumbers(jobIds: readonly string[]): readonly number[] {
+    return [...new Set(jobIds.map(tierNumberFromJobId).filter((n): n is number => n !== null))].sort((a, b) => a - b)
+}
+
+function tierNumberFromJobId(jobId: string): number | null {
+    const m = /^tier-(\d+)-/.exec(jobId)
+    return m ? Number(m[1]) : null
 }
 
 function formatResult(result: EvaluationResult): string {
@@ -194,6 +343,12 @@ function formatResult(result: EvaluationResult): string {
         lines.push('Per-check warnings (slowest check exceeds tier perCheckMaxRatio):')
         for (const w of result.perCheckWarnings) {
             lines.push(`  · tier_${w.tier} ${w.checkId}: ${fmtMs(w.durationMs)} = ${(w.ratio * 100).toFixed(0)}% of tier wall-clock budget`)
+        }
+    }
+    if (result.ciFailures.length > 0) {
+        lines.push('CI integrity failures:')
+        for (const failure of result.ciFailures) {
+            lines.push(`  ✗ ${failure.message}`)
         }
     }
     return lines.join('\n')
@@ -281,6 +436,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         if (arg.startsWith('--reports-dir=')) opts.reportsDir = resolve(arg.slice('--reports-dir='.length))
         else if (arg.startsWith('--tier-root=')) opts.tierRoot = resolve(arg.slice('--tier-root='.length))
         else if (arg.startsWith('--result-file=')) opts.resultFile = resolve(arg.slice('--result-file='.length))
+        else if (arg.startsWith('--base-ref=')) opts.baseRef = arg.slice('--base-ref='.length)
+        else if (arg.startsWith('--needs-json=')) opts.needsJson = arg.slice('--needs-json='.length)
+        else if (arg.startsWith('--required-jobs-by-base-ref=')) opts.requiredJobsByBaseRefJson = arg.slice('--required-jobs-by-base-ref='.length)
+        else if (arg.startsWith('--conditional-jobs-by-base-ref=')) opts.conditionalJobsByBaseRefJson = arg.slice('--conditional-jobs-by-base-ref='.length)
+        else if (arg.startsWith('--conditional-precheck-by-job-id=')) opts.conditionalPrecheckByJobIdJson = arg.slice('--conditional-precheck-by-job-id='.length)
         else { console.error(`check-tier-budgets: unknown flag ${arg}`); process.exit(64) }
     }
     runTierBudgetGate(opts)
