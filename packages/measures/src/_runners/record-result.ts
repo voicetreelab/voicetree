@@ -7,7 +7,7 @@
 //   node --experimental-strip-types packages/measures/src/_runners/record-result.ts \
 //     --id=claude-stop-quality --name="Claude Stop hook" --category=Hook \
 //     --status=pass|fail|skip --duration-ms=1234 \
-//     [--display="..."] [--error-summary="..."] [--slow]
+//     [--display="..."] [--error-summary="..."] [--started-at=<iso>] [--ended-at=<iso>]
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 
@@ -15,12 +15,12 @@ function parseArgs(argv) {
     const opts = {
         id: null, name: null, category: null,
         status: null, durationMs: null,
-        display: null, errorSummary: null, slow: false,
+        display: null, errorSummary: null,
+        startedAt: null, endedAt: null,
     }
     let i = 0
     while (i < argv.length) {
         const arg = argv[i]
-        if (arg === '--slow') { opts.slow = true; i++; continue }
         const eq = arg.indexOf('=')
         const key = eq >= 0 ? arg.slice(2, eq) : arg.slice(2)
         const value = eq >= 0 ? arg.slice(eq + 1) : argv[++i]
@@ -31,6 +31,8 @@ function parseArgs(argv) {
         else if (key === 'duration-ms') opts.durationMs = Number(value)
         else if (key === 'display') opts.display = value
         else if (key === 'error-summary') opts.errorSummary = value
+        else if (key === 'started-at') opts.startedAt = value
+        else if (key === 'ended-at') opts.endedAt = value
         else { console.error(`record-result: unknown flag --${key}`); process.exit(64) }
         i++
     }
@@ -44,6 +46,11 @@ function parseArgs(argv) {
 
 const opts = parseArgs(process.argv.slice(2))
 
+// Default the timestamps to a span ending now of length durationMs, so callers
+// that only know the duration still produce schema-valid reports.
+const endedAt = opts.endedAt ?? new Date().toISOString()
+const startedAt = opts.startedAt ?? new Date(Date.parse(endedAt) - opts.durationMs).toISOString()
+
 try {
     await recordCheckReport({
         checkId: opts.id,
@@ -52,7 +59,8 @@ try {
         command: opts.display ?? opts.name,
         status: opts.status,
         durationMs: opts.durationMs,
-        slow: opts.slow || undefined,
+        startedAt,
+        endedAt,
         errorSummary: opts.errorSummary || undefined,
         timestamp: new Date().toISOString(),
     })

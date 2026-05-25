@@ -20,11 +20,12 @@ export type CheckReport = {
     readonly command: string
     readonly status: typeof STATUSES[number]
     readonly durationMs: number
+    readonly startedAt: string
+    readonly endedAt: string
     readonly testsTotal?: number
     readonly testsPassed?: number
     readonly testsFailed?: number
     readonly testsSkipped?: number
-    readonly slow?: boolean
     readonly errorSummary?: string
     readonly timestamp: string
     readonly details?: Record<string, unknown>
@@ -47,6 +48,9 @@ function assertCheckReport(report: CheckReport): void {
     if (!STATUSES.includes(report.status)) throw new Error(`unsupported status for ${report.checkId}: ${report.status}`)
     if (!Number.isFinite(report.durationMs) || report.durationMs < 0) throw new Error(`durationMs must be a non-negative finite number for ${report.checkId}`)
     if (Number.isNaN(Date.parse(report.timestamp))) throw new Error(`timestamp must be ISO-like for ${report.checkId}: ${report.timestamp}`)
+    if (Number.isNaN(Date.parse(report.startedAt))) throw new Error(`startedAt must be ISO-like for ${report.checkId}: ${report.startedAt}`)
+    if (Number.isNaN(Date.parse(report.endedAt))) throw new Error(`endedAt must be ISO-like for ${report.checkId}: ${report.endedAt}`)
+    if (Date.parse(report.endedAt) < Date.parse(report.startedAt)) throw new Error(`endedAt must be >= startedAt for ${report.checkId}`)
     for (const [field, value] of [
         ['testsTotal', report.testsTotal],
         ['testsPassed', report.testsPassed],

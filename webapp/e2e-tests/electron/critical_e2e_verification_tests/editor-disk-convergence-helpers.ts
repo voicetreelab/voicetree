@@ -56,7 +56,7 @@ type EditorDiskConvergenceWorkerFixtures = {
   writeFolder: string;
 };
 
-export const test = base.extend<{}, EditorDiskConvergenceWorkerFixtures>({
+export const test = base.extend<object, EditorDiskConvergenceWorkerFixtures>({
   projectPath: [async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-disk-conv-'));
     await use(projectPath);
