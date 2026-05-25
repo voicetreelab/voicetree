@@ -25,12 +25,16 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
+  INITIAL_PARENT_CONTENT,
   PARENT_TITLE,
   PARENT_FILENAME,
   clickEditorCloseButton,
+  closeAllEditorWindows,
   closeAllTerminalWindows,
   closeEditorWindow,
   configureNoopAgent,
+  deleteCtxNodesDir,
+  deleteExtraVaultFiles,
   expectContextNodeContains,
   expectDaemonNodeContains,
   expectDiskContainsAll,
@@ -44,16 +48,27 @@ import {
   openEditorForLabel,
   readEditorText,
   replaceEditorContentWithKeyboard,
+  resetSettings,
   selectAllInEditor,
   syncRendererSessionStateWithDaemon,
   test,
   typeCharByCharVerifyingPrefix,
+  waitForGraphReset,
   waitForNode,
 } from './editor-disk-convergence-helpers';
 
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('editor ↔ graph ↔ disk convergence', () => {
+  test.beforeEach(async ({ appWindow, settingsSnapshot, writeFolder }) => {
+    await closeAllEditorWindows(appWindow);
+    await closeAllTerminalWindows(appWindow);
+    await fs.writeFile(path.join(writeFolder, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
+    await deleteExtraVaultFiles(writeFolder);
+    await deleteCtxNodesDir(writeFolder);
+    await resetSettings(appWindow, settingsSnapshot);
+    await waitForGraphReset(appWindow, PARENT_TITLE);
+  });
 
   test('keyboard edit lands on disk + graph label + survives close and reopen', async ({ appWindow, writeFolder }) => {
     const { editorWindowId, nodeId } = await openEditorForLabel(appWindow, PARENT_TITLE);

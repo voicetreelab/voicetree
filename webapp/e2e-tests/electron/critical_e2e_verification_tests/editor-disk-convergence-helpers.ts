@@ -48,24 +48,27 @@ async function seedProject(projectPath: string): Promise<string> {
   return writeFolder;
 }
 
-export const test = base.extend<{
+type EditorDiskConvergenceWorkerFixtures = {
   electronApp: ElectronApplication;
   appWindow: Page;
   projectPath: string;
+  settingsSnapshot: unknown;
   writeFolder: string;
-}>({
-  projectPath: async ({}, use) => {
+};
+
+export const test = base.extend<{}, EditorDiskConvergenceWorkerFixtures>({
+  projectPath: [async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-disk-conv-'));
     await use(projectPath);
     await fs.rm(projectPath, { recursive: true, force: true });
-  },
+  }, { scope: 'worker' }],
 
-  writeFolder: async ({ projectPath }, use) => {
+  writeFolder: [async ({ projectPath }, use) => {
     const writeFolder = await seedProject(projectPath);
     await use(writeFolder);
-  },
+  }, { scope: 'worker' }],
 
-  electronApp: async ({ projectPath, writeFolder }, use) => {
+  electronApp: [async ({ projectPath, writeFolder }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-disk-conv-app-'));
     await fs.writeFile(
       path.join(userDataPath, 'projects.json'),
@@ -112,9 +115,9 @@ export const test = base.extend<{
     await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
-  },
+  }, { scope: 'worker' }],
 
-  appWindow: async ({ electronApp, projectPath }, use) => {
+  appWindow: [async ({ electronApp, projectPath }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
@@ -147,7 +150,16 @@ export const test = base.extend<{
     }, 'Waiting for graph view to settle', 10_000);
     await window.waitForTimeout(1_000);
     await use(window);
-  },
+  }, { scope: 'worker' }],
+
+  settingsSnapshot: [async ({ appWindow }, use) => {
+    const settings = await appWindow.evaluate(async () => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.loadSettings();
+    });
+    await use(settings);
+  }, { scope: 'worker' }],
 });
 
 export async function waitForNode(page: Page, label: string, timeout = 10_000): Promise<void> {
@@ -262,6 +274,25 @@ export async function closeEditorWindow(page: Page, editorWindowId: string): Pro
   }, editorWindowId);
 }
 
+export async function closeAllEditorWindows(page: Page): Promise<void> {
+  const openEditorCount = await page.locator('.cy-floating-window-editor').count();
+  if (openEditorCount === 0) return;
+
+  await page.evaluate(() => {
+    document.querySelectorAll<HTMLElement>('.cy-floating-window-editor').forEach((editorWindow) => {
+      editorWindow.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+    });
+  });
+
+  await expect.poll(async () => {
+    return page.evaluate(() => document.querySelectorAll('.cy-floating-window-editor').length);
+  }, {
+    message: 'Waiting for all editor windows to close',
+    timeout: 10_000,
+    intervals: [100, 250, 500, 1000],
+  }).toBe(0);
+}
+
 // Real DOM click on the traffic-light close button — exercises the
 // button → onClick handler → close-logic wiring. Use this in tests that need
 // to verify the button itself works (the dispatchEvent path bypasses the
@@ -275,6 +306,9 @@ export async function clickEditorCloseButton(page: Page, editorWindowId: string)
 }
 
 export async function closeAllTerminalWindows(page: Page): Promise<void> {
+  const openTerminalCount = await page.locator('.cy-floating-window-terminal').count();
+  if (openTerminalCount === 0) return;
+
   await page.locator('.cy-floating-window-terminal').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
   await page.locator('.cy-floating-window-terminal .terminal-relay-status').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
   await page.evaluate(async () => {
@@ -297,6 +331,29 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
   }).toBe(0);
 }
 
+export async function deleteExtraVaultFiles(writeFolder: string): Promise<void> {
+  const entries = await fs.readdir(writeFolder, { withFileTypes: true });
+  await Promise.all(entries.map(async (entry) => {
+    if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name === PARENT_FILENAME) return;
+    await fs.rm(path.join(writeFolder, entry.name), { force: true });
+  }));
+}
+
+export async function deleteCtxNodesDir(writeFolder: string): Promise<void> {
+  await fs.rm(path.join(writeFolder, 'ctx-nodes'), { recursive: true, force: true });
+}
+
+export async function resetSettings(page: Page, snapshot: unknown): Promise<void> {
+  if (snapshot === undefined) {
+    throw new Error('resetSettings requires an explicit settings snapshot');
+  }
+  await page.evaluate(async (settings) => {
+    const api = (window as unknown as ExtendedWindow).electronAPI;
+    if (!api) throw new Error('electronAPI not available');
+    await api.main.saveSettings(settings);
+  }, snapshot);
+}
+
 export async function configureNoopAgent(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
@@ -315,6 +372,33 @@ export async function syncRendererSessionStateWithDaemon(page: Page): Promise<vo
   await page.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     await api?.main.syncRendererSessionStateWithDaemon();
+  });
+}
+
+export async function waitForGraphReset(page: Page, label: string): Promise<void> {
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return { hasCytoscape: false, labels: [], labeledNodeCount: 0 };
+      const nodes = cy.nodes();
+      const labels = nodes
+        .map((node) => node.data('label'))
+        .filter((nodeLabel): nodeLabel is string => typeof nodeLabel === 'string')
+        .sort();
+      return {
+        hasCytoscape: true,
+        labels,
+        labeledNodeCount: labels.length,
+      };
+    });
+  }, {
+    message: `Waiting for graph to reset to only "${label}"`,
+    timeout: 15_000,
+    intervals: [200, 500, 1000, 2000],
+  }).toEqual({
+    hasCytoscape: true,
+    labels: [label],
+    labeledNodeCount: 1,
   });
 }
 
