@@ -192,9 +192,11 @@ webapp/workers/share-worker/.wrangler/**
 !docker/**/*.md
 !packages/measures/README.md
 !packages/measures/perf/*.md
+!packages/measures/src/health/coupling/__tests__/**/*.md
 !scripts/agent-debugging/README.md
 !scripts/agent-debugging/REFERENCE.md
 !openspec/**/*.md
+!/architecture.md
 
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json

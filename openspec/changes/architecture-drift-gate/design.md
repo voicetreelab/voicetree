@@ -74,13 +74,14 @@ The landscape research (summarized in the parent voicetree node) found:
 - Eleven existing coupling tests already consume this primitive — following the established pattern keeps measures architecturally consistent.
 - Avoids adding ts-morph (or any new TS-compilation surface) for the same job the repo already has a clean primitive for.
 
-### D5. Parser: prefer hand-rolled extractor over a new dep
+### D5. Parser: Mermaid syntax gate plus hand-rolled contract extractor
 
-**Choice:** Start with a hand-rolled extractor that uses Mermaid's official `mermaid.parse()` + `flowDb` to pull nodes, edges (with labels), and click directives. Adopt `@emily/mermaid-ast` (JSR) only if the hand-rolled extractor proves brittle in practice.
+**Choice:** Use Mermaid's official `mermaid.parse()` as the syntax gate, then use a small hand-rolled extractor for the contract fields VoiceTree enforces: nodes, edges, edge labels, and `click` directives. The measures workspace pins `mermaid@11.15.0`; the Node parser path also initializes a minimal `jsdom@27.4.0` window before loading Mermaid because Mermaid's sanitizer expects browser DOM globals. Adopt `@emily/mermaid-ast` (JSR) only if the hand-rolled extractor proves brittle in practice.
 
 **Rationale:**
-- Adding a third-party dep with one maintainer to a tier-1 critical gate is a supply-chain consideration we can defer.
-- The extractor is small (~30-50 LOC) and pinned to the Mermaid version already used by the webapp.
+- Mermaid's public `parse()` API is appropriate for accepting/rejecting the diagram syntax.
+- Mermaid's `flowDb` is not a stable public API and is awkward in Node because the sanitizer assumes a DOM. Treating `parse()` as the syntax gate keeps the official parser in the loop without coupling the health check to internal DB shapes.
+- The contract extractor is deliberately narrow and only supports the checked dialect this OpenSpec authorizes: one `flowchart` block, ordinary node declarations, `-->` edges, `|label|` edge labels, and `click <NodeId> "<path>"` directives.
 - If the hand-rolled approach breaks across a Mermaid upgrade, swapping to `mermaid-ast` is a one-file change.
 
 **Risk:** Mermaid's flowchart grammar is still JISON, not Langium. Langium migration is in progress for other diagram types. Pin the Mermaid version used by the validator and re-evaluate at each upgrade.
