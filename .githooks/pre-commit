@@ -7,6 +7,16 @@
 set -e
 export PATH="$(git rev-parse --show-toplevel)/bin:$PATH"
 
+staged_files="$(git diff --cached --name-only --diff-filter=ACM)"
+if printf '%s\n' "$staged_files" | grep -qE '^(packages/measures/src/checks/.*\.ts|packages/measures/scripts/gen-workflows\.ts|packages/measures/src/checks/_workflow-types\.ts)$'; then
+    npm run gen:workflows
+    if ! git diff --quiet -- .github/workflows/measures-budget-gate.yml; then
+        echo "measures-budget-gate.yml regenerated — stage it and retry:"
+        echo "  git add .github/workflows/measures-budget-gate.yml"
+        exit 1
+    fi
+fi
+
 npm run test:t0
 
 # Subgraph health gate. This must run locally because it reads the local staged
