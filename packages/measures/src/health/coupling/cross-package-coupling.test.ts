@@ -34,6 +34,26 @@ type ImportEdge = {
 // getAppendedSuffix + isAppendOnly + fromNodeToContentWithWikilinks from
 // graph-model to compute pending external-append preservation server-side:
 //   graph-db-server -> graph-model:       38 -> 41 (+3)
+// 2026-05-24: Extract @vt/observability (Pattern P2 deep-function package) so
+// tracing.init / tracing.span / tracing.syncSpan are one cohesive capability
+// owned by a single library, not three loose symbols re-exported from
+// graph-db-client (which also had a copy-pasted twin in graph-db-server).
+// Webapp now goes to observability for tracing, not graph-db-client:
+//   webapp -> graph-db-client:           11 -> 9 (-2 tracing symbols removed;
+//     `subscribeOwnerDiagnostics` remains — see BF-347 note below)
+//   webapp -> observability:              0 -> 1 (+tracing facade)
+// (graph-db-server -> observability has no row because the only consumer is
+// bin/vt-graphd.ts, which lives outside the test's src-only scan scope.)
+//
+// 2026-05-24 BF-347 owner-diagnostic→span bridge: observability owns the
+// data-shape transformation (`bridgeOwnerDiagnostics(subscribe, tracerName)`)
+// but does NOT import `subscribeOwnerDiagnostics` from graph-db-client —
+// that would close a `graph-db-client → graph-db-server → observability →
+// graph-db-client` package cycle. The webapp shell injects the subscribe
+// function, keeping observability a dependency-leaf for runtime tracing.
+// Even a type-only import would make observability a 2-of-2 boundary
+// package under pressure-axes, so the event shape is duplicated structurally
+// inside the bridge.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
@@ -63,6 +83,7 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
+    'webapp -> observability': 1,
     'webapp -> vt-daemon': 13,
 }
 

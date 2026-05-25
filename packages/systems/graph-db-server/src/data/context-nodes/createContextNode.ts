@@ -11,7 +11,7 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/mutations/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
-import { resolveContextWritePath } from './contextWritePath'
+import { resolveContextWriteFolder } from './contextWriteFolder'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeClock = {
@@ -78,11 +78,11 @@ export async function createContextNode(
 ): Promise<NodeIdAndFilePath> {
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
-    const writePath: string = await resolveContextWritePath(parentNodeId)
+    const writeFolder: string = await resolveContextWriteFolder(parentNodeId)
     const resolvedParentNodeId: NodeIdAndFilePath = resolveParentNodeId(
         currentGraph,
         parentNodeId,
-        writePath || undefined
+        writeFolder || undefined
     )
 
     // 2. PURE: Extract subgraph within distance
@@ -114,15 +114,15 @@ export async function createContextNode(
     const timestamp: number = dependencies.clock.now()
     const parentIdWithoutExtension: string = resolvedParentNodeId.replace(/\.md$/, '')
     // Don't prepend ctx-nodes/ if the parent path already contains it (prevents infinite nesting)
-    // Note: nodeIds are now relative to projectRootWatchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
+    // Note: nodeIds are now relative to projectRoot (e.g., "monday/ctx-nodes/...")
     const alreadyInContextFolder: boolean = parentIdWithoutExtension.includes(`/${CONTEXT_NODES_FOLDER}/`)
         || parentIdWithoutExtension.startsWith(`${CONTEXT_NODES_FOLDER}/`)
 
     // Get write path (absolute) to properly construct context node path
-    // Context nodes go in {writePath}/ctx-nodes/
+    // Context nodes go in {writeFolder}/ctx-nodes/
     const candidateContextNodeId: string = alreadyInContextFolder
         ? `${parentIdWithoutExtension}_context_${timestamp}.md`
-        : `${writePath}/${CONTEXT_NODES_FOLDER}/${path.basename(parentIdWithoutExtension)}_context_${timestamp}.md`
+        : `${writeFolder}/${CONTEXT_NODES_FOLDER}/${path.basename(parentIdWithoutExtension)}_context_${timestamp}.md`
     // Ensure unique ID by appending _2, _3, etc. if collision exists
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
     const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)

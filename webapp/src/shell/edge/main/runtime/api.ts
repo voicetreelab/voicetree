@@ -7,7 +7,7 @@
 
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWriteFolder, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
@@ -21,6 +21,7 @@ import {
   refreshUnclaimedTmuxSessions,
 } from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync'
 import {
+  forkRecoverySession,
   refreshRecoverySessions,
   resumeRecoverySession,
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync'
@@ -61,7 +62,7 @@ import {
   postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
-  setWritePathThroughDaemon as setWritePath,
+  setWriteFolderThroughDaemon as setWriteFolder,
   syncRendererSessionStateWithDaemon,
   listViewsThroughDaemon,
   activateViewThroughDaemon,
@@ -142,8 +143,8 @@ export const mainAPI = {
   // Multi-vault path operations
   getVaultPaths,
   getReadPaths,
-  getWritePath,
-  setWritePath,
+  getWriteFolder,
+  setWriteFolder,
   addReadPath,
   removeReadPath,
   getAvailableFoldersForSelector,
@@ -193,6 +194,7 @@ export const mainAPI = {
   // Unified recovery feed: live-tmux attach rows + dead-pane resumable rows
   refreshRecoverySessions,
   resumeRecoverySession,
+  forkRecoverySession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,

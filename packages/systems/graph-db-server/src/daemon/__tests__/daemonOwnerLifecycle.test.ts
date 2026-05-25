@@ -32,7 +32,7 @@ import {
   DaemonOwnerConflictError,
   HEARTBEAT_INTERVAL_MS,
 } from '../lifecycle/daemonOwnerLifecycle.ts'
-import { HealthResponseSchema } from '../contract.ts'
+import { HealthResponseSchema } from '@vt/graph-db-server/contract'
 
 const TEST_TIMEOUT_MS = 30_000
 
@@ -58,7 +58,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
 
       const onDisk = await readOwnerRecord(ownerRecordPathFor(vault))
       expect(onDisk).not.toBeNull()
-      expect(onDisk?.canonicalVaultPath).toBe(vault)
+      expect(onDisk?.canonicalProjectRoot).toBe(vault)
       expect(onDisk?.pid).toBe(process.pid)
       expect(onDisk?.port).toBe(handle.port)
       expect(onDisk?.ownerNonce).toEqual(expect.any(String))
@@ -67,7 +67,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const res = await fetch(`http://127.0.0.1:${handle.port}/health`)
       const health = HealthResponseSchema.parse(await res.json())
       expect(health.owner).not.toBeNull()
-      expect(health.owner?.canonicalVaultPath).toBe(onDisk?.canonicalVaultPath)
+      expect(health.owner?.canonicalProjectRoot).toBe(onDisk?.canonicalProjectRoot)
       expect(health.owner?.ownerNonce).toBe(onDisk?.ownerNonce)
       expect(health.owner?.pid).toBe(onDisk?.pid)
       expect(health.owner?.ppid).toBe(onDisk?.ppid)
@@ -100,7 +100,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const reason = losers[0].reason
       expect(reason).toBeInstanceOf(DaemonOwnerConflictError)
       const conflict = reason as DaemonOwnerConflictError
-      expect(conflict.canonicalVaultPath).toBe(vault)
+      expect(conflict.canonicalProjectRoot).toBe(vault)
       expect(conflict.existingOwner.pid).toBe(process.pid)
 
       // Winner remains healthy and is the sole listener.

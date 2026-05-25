@@ -196,7 +196,7 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
 describe('applyPromptFileToHeadlessSpawn', () => {
     it('composes the mode-agnostic primitive with the headless bash-unset wrap', () => {
         const plan = applyPromptFileToHeadlessSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
@@ -211,7 +211,7 @@ describe('applyPromptFileToHeadlessSpawn', () => {
 
     it('is a no-op when env has no AGENT_PROMPT', () => {
         const plan = applyPromptFileToHeadlessSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'bash',
             env: {VOICETREE_TERMINAL_ID: 'Aki'},

@@ -1,13 +1,12 @@
-/**
- * Test utilities for working with GraphDelta and mocked Electron API in browser e2e-tests
- */
-import type { Page } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { GraphDelta } from '@/pure/graph';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
 
 export interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
+  _undoRedoTracker?: {
+    undoCalls: number;
+    redoCalls: number;
+  };
   electronAPI?: {
     graph?: {
       _projectedGraphCallback?: (graph: ProjectedGraph) => void;

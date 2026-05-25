@@ -137,18 +137,18 @@ const test = base.extend<{
         await window.waitForLoadState('domcontentloaded');
 
         // Set up vault: save project + start file watching on the temp git repo
-        await window.evaluate(async (vaultPath: string) => {
+        await window.evaluate(async (projectRoot: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
             await api.main.saveProject({
                 id: 'test-worktree-e2e',
-                path: vaultPath,
+                path: projectRoot,
                 name: 'test-worktree-e2e',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
                 voicetreeInitialized: true,
             });
-            await api.main.startFileWatching(vaultPath);
+            await api.main.startFileWatching(projectRoot);
         }, tempGitRepoPath);
 
         // Wait for cytoscape graph to initialize

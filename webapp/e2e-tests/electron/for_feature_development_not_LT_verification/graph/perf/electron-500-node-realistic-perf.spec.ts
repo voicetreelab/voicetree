@@ -25,7 +25,7 @@ import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
-import { generateVaultOnDisk } from './perf-helpers/generateRealisticVault';
+import { generateVaultOnDisk } from '@vt/perf-fixtures';
 import {
   startCDPTrace,
   stopCDPTraceAndSave,
@@ -93,7 +93,7 @@ function resolveGraphDaemonNodeBin(): string {
 }
 
 async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknown>> {
-  return page.evaluate(async (vaultPath) => {
+  return page.evaluate(async (projectRoot) => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     const api = (
       window as unknown as {
@@ -128,7 +128,7 @@ async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknow
     return {
       url: location.href,
       title: document.title,
-      vaultPath,
+      projectRoot,
       bodyText,
       hasCytoscape: Boolean(cy),
       cyNodes: cy?.nodes().length ?? null,
@@ -151,7 +151,9 @@ const test = base.extend<{
     );
 
     generatedProjectPath = path.join(tempUserDataPath, 'perf-test-project');
-    generatedVaultPath = await generateVaultOnDisk(generatedProjectPath, REALISTIC_PERF_NODE_COUNT);
+    generatedVaultPath = path.join(generatedProjectPath, 'perf-test-vault');
+    generateVaultOnDisk(generatedVaultPath, REALISTIC_PERF_NODE_COUNT);
+    console.log(`[Vault Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedVaultPath}`);
 
     // Seed projects.json pointing at the generated vault
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
@@ -177,7 +179,7 @@ const test = base.extend<{
         lastDirectory: generatedProjectPath,
         vaultConfig: {
           [generatedProjectPath]: {
-            writePath: generatedVaultPath,
+            writeFolder: generatedVaultPath,
             readPaths: [],
           }
         }
@@ -274,7 +276,7 @@ const test = base.extend<{
     await window.waitForSelector('text=Voicetree', { timeout: 15000 });
     const projectButton = window.locator('button:has-text("perf-test-vault")').first();
     await projectButton.click();
-    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writePath=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolder=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
     const watchResult = await window.evaluate(async (projectPath) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;

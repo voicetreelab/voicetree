@@ -119,8 +119,8 @@ export async function prepareTerminalDataInMain(
     // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` at fire time.
     const env = getRuntimeEnv()
     const appSupportPath: string = env.getAppSupportPath()
-    const projectRoot: string | null = env.getProjectRootWatchedDirectory
-        ? await env.getProjectRootWatchedDirectory()
+    const projectRoot: string | null = env.getProjectRoot
+        ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
     const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)

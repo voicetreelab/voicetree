@@ -67,7 +67,7 @@ describe('vt-graphd binary shutdown', () => {
 
       const child: ChildProcess = spawn(
         process.execPath,
-        ['--import', TSX_IMPORT_PATH, ENTRY, '--vault', vault],
+        ['--import', TSX_IMPORT_PATH, ENTRY, '--project-root', vault],
         { detached: true, stdio: ['ignore', 'pipe', 'pipe'] },
       )
 

@@ -5,10 +5,9 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
-import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {recordHealthMetric, removeHealthReports} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = DEFAULT_REPO_ROOT
-const REPORTS_DIR = join(REPO_ROOT, 'health-dashboard', 'reports')
 
 // Tiered budgets (Option A from task_ndq4d4):
 //
@@ -189,17 +188,6 @@ type PressureAxis = {
     readonly passed: boolean
     readonly debtRatio: number
     readonly worstOffender: string
-}
-
-type LegacyPressureReport = {
-    readonly metricId: string
-    readonly current: number
-    readonly budget: number
-    readonly comparison: 'lte' | 'gte'
-    readonly details?: {
-        readonly debtRatio?: number
-        readonly worstOffender?: string
-    }
 }
 
 function subdirectoryOf(absolutePath: string, srcRoot: string): string {
@@ -815,49 +803,16 @@ async function computePressureAxes(): Promise<PressureAxis[]> {
     ]
 }
 
-async function readLegacyPressureReport(metricId: string): Promise<LegacyPressureReport | null> {
-    try {
-        return JSON.parse(await readFile(join(REPORTS_DIR, `${metricId}.json`), 'utf8')) as LegacyPressureReport
-    } catch (error) {
-        if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') return null
-        throw error
-    }
-}
-
-async function compareWithLegacyReports(axes: readonly PressureAxis[]): Promise<string[]> {
-    const mismatches: string[] = []
-    for (const axis of axes) {
-        const config = PRESSURE_AXIS_CONFIGS.find(c => c.name === axis.name)
-        if (!config) continue
-        const legacy = await readLegacyPressureReport(config.metricId)
-        if (!legacy) continue
-        const checks: readonly (readonly [string, unknown, unknown])[] = [
-            ['current', axis.current, legacy.current],
-            ['budget', axis.budget, legacy.budget],
-            ['comparison', axis.comparison, legacy.comparison],
-            ['debtRatio', axis.debtRatio, legacy.details?.debtRatio],
-            ['worstOffender', axis.worstOffender, legacy.details?.worstOffender],
-        ]
-        for (const [field, current, expected] of checks) {
-            if (!Object.is(current, expected)) {
-                mismatches.push(`${axis.name}.${field}: computed=${String(current)} legacy=${String(expected)}`)
-            }
-        }
-    }
-    return mismatches
-}
-
 function computeRscd(axes: readonly PressureAxis[]): {rscd: number; topFiveRatiosForRscd: number[]} {
     const topFiveRatiosForRscd = axes.map(axis => axis.debtRatio).sort((a, b) => b - a).slice(0, 5)
     const meanTopFive = topFiveRatiosForRscd.reduce((sum, value) => sum + value, 0) / Math.max(1, topFiveRatiosForRscd.length)
     return {rscd: (topFiveRatiosForRscd[0] ?? 0) + 0.25 * meanTopFive, topFiveRatiosForRscd}
 }
 
-function failureMessage(axes: readonly PressureAxis[], rscd: number, sanityMismatches: readonly string[]): string {
+function failureMessage(axes: readonly PressureAxis[], rscd: number): string {
     return [
         `RSCD ${rscd} exceeds target 1.0.`,
         ...axes.filter(axis => !axis.passed).map(axis => `${axis.name}: current=${axis.current}, budget=${axis.budget}, debtRatio=${axis.debtRatio}, offender=${axis.worstOffender}`),
-        ...sanityMismatches.map(mismatch => `legacy mismatch: ${mismatch}`),
     ].join('\n')
 }
 
@@ -890,14 +845,18 @@ async function recordSidecarTargets(axes: readonly PressureAxis[]): Promise<void
     }
 }
 
+async function removeRetiredLegacyPressureReports(): Promise<void> {
+    await removeHealthReports(PRESSURE_AXIS_CONFIGS.map(config => config.metricId))
+}
+
 describe('complexity pressure axes', () => {
-    it('preserves the legacy script pressure rollup semantics', async () => {
+    it('records the calibrated pressure rollup using whole-repo axis semantics', async () => {
         const axes = await computePressureAxes()
-        const sanityMismatches = await compareWithLegacyReports(axes)
         const failingAxes = axes.filter(axis => !axis.passed).map(axis => axis.name)
         const {rscd, topFiveRatiosForRscd} = computeRscd(axes)
-        const message = failureMessage(axes, rscd, sanityMismatches)
+        const message = failureMessage(axes, rscd)
 
+        await removeRetiredLegacyPressureReports()
         await recordHealthMetric({
             metricId: 'pressure-axes',
             metricName: 'Complexity Pressure Axes',
@@ -911,7 +870,6 @@ describe('complexity pressure axes', () => {
         })
         await recordSidecarTargets(axes)
 
-        expect(sanityMismatches, sanityMismatches.join('\n')).toEqual([])
         for (const pressureAxis of axes) {
             if (pressureAxis.comparison === 'gte') {
                 expect.soft(pressureAxis.current, message).toBeGreaterThanOrEqual(pressureAxis.budget)

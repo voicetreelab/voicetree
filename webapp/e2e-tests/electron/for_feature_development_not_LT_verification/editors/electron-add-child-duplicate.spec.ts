@@ -40,21 +40,21 @@ const test = base.extend<{
 
     // Create the actual vault path with default suffix 'voicetree'
     // The app looks for .md files in {watchedFolder}/voicetree/
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Create a simple parent node
     const parentContent = '# Parent GraphNode\n\nThis is the parent.';
-    await fs.writeFile(path.join(vaultPath, 'parent.md'), parentContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'parent.md'), parentContent, 'utf-8');
 
     // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', vaultPath);
+    console.log('[Test] Vault path (with suffix):', projectRoot);
 
-    // Store vaultPath for test access via testInfo (the actual path where .md files live)
-    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
+    // Store projectRoot for test access via testInfo (the actual path where .md files live)
+    (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
     const electronApp = await electron.launch({
       args: [
@@ -96,8 +96,8 @@ const test = base.extend<{
 
   // Get vault path from testInfo (set by electronApp fixture)
   testVaultPath: async ({}, use, testInfo) => {
-    // Wait for electronApp fixture to set vaultPath
-    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+    // Wait for electronApp fixture to set projectRoot
+    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
   appWindow: async ({ electronApp }, use) => {

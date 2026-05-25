@@ -27,7 +27,7 @@ import {
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
 import {registerAgentNodes} from '@vt/agent-runtime'
-import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWritePath} from '../config/mcp-graph-bridge'
+import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolder} from '../config/mcp-graph-bridge'
 import {
     hasCycle,
     topologicalSort,
@@ -61,19 +61,19 @@ function isPathWithinDirectory(targetPath: string, directoryPath: string): boole
 }
 
 function resolveOutputDirectory(
-    writePath: string,
+    writeFolder: string,
     outputPath: string | undefined,
     allowedVaultPaths: readonly string[]
 ): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } {
     if (!outputPath || outputPath.trim() === '') {
-        return {ok: true, path: normalizePath(writePath)}
+        return {ok: true, path: normalizePath(writeFolder)}
     }
 
     const requestedPath: string = outputPath.trim()
     const resolvedPath: string = normalizePath(
         path.isAbsolute(requestedPath)
             ? requestedPath
-            : path.resolve(writePath, requestedPath)
+            : path.resolve(writeFolder, requestedPath)
     )
 
     if (allowedVaultPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
@@ -95,16 +95,16 @@ function findCallerRecord(callerTerminalId: string): Result<TerminalRecord> {
 }
 
 async function resolveConfiguredOutputDirectory(outputPath: string | undefined): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await getMcpWritePath()
+    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder()
     if (O.isNone(vaultPathOpt)) {
         return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
     }
 
-    const writePath: string = vaultPathOpt.value
+    const writeFolder: string = vaultPathOpt.value
     const loadedVaultPaths: readonly string[] = await getMcpVaultPaths()
-    const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writePath])
-        .map((vaultPath: string) => normalizePath(vaultPath))
-    const outputDirectoryResolution = resolveOutputDirectory(writePath, outputPath, allowedVaultPaths)
+    const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writeFolder])
+        .map((projectRoot: string) => normalizePath(projectRoot))
+    const outputDirectoryResolution = resolveOutputDirectory(writeFolder, outputPath, allowedVaultPaths)
     if (!outputDirectoryResolution.ok) return outputDirectoryResolution
     return {ok: true, value: outputDirectoryResolution.path}
 }

@@ -38,11 +38,11 @@ function idSelector(id: string): string {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writePath = path.join(projectPath, 'voicetree');
-  await fs.mkdir(writePath, { recursive: true });
+  const writeFolder = path.join(projectPath, 'voicetree');
+  await fs.mkdir(writeFolder, { recursive: true });
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true });
   await fs.writeFile(
-    path.join(writePath, PARENT_FILENAME),
+    path.join(writeFolder, PARENT_FILENAME),
     `# ${PARENT_TITLE}\n\nOriginal body.\n`,
     'utf8',
   );
@@ -51,7 +51,7 @@ async function seedProject(projectPath: string): Promise<string> {
     JSON.stringify({ [PARENT_FILENAME]: { x: 120, y: 120 } }, null, 2),
     'utf8',
   );
-  return writePath;
+  return writeFolder;
 }
 
 async function focusEditor(page: Page, editorWindowId: string): Promise<void> {
@@ -109,8 +109,8 @@ async function closeAllTerminalWindows(page: Page): Promise<void> {
   }).toBe(0);
 }
 
-async function readContextNodeFiles(writePath: string): Promise<string> {
-  const contextDir = path.join(writePath, 'ctx-nodes');
+async function readContextNodeFiles(writeFolder: string): Promise<string> {
+  const contextDir = path.join(writeFolder, 'ctx-nodes');
   let entries: string[] = [];
   try {
     entries = await fs.readdir(contextDir);
@@ -173,7 +173,7 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   projectPath: string;
-  writePath: string;
+  writeFolder: string;
 }>({
   projectPath: async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-child-'));
@@ -181,12 +181,12 @@ const test = base.extend<{
     await fs.rm(projectPath, { recursive: true, force: true });
   },
 
-  writePath: async ({ projectPath }, use) => {
-    const writePath = await seedProject(projectPath);
-    await use(writePath);
+  writeFolder: async ({ projectPath }, use) => {
+    const writeFolder = await seedProject(projectPath);
+    await use(writeFolder);
   },
 
-  electronApp: async ({ projectPath, writePath }, use) => {
+  electronApp: async ({ projectPath, writeFolder }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-child-app-'));
     await fs.writeFile(
       path.join(userDataPath, 'projects.json'),
@@ -208,7 +208,7 @@ const test = base.extend<{
         lastDirectory: projectPath,
         vaultConfig: {
           [projectPath]: {
-            writePath,
+            writeFolder,
             readPaths: [],
           },
         },
@@ -283,7 +283,7 @@ const test = base.extend<{
 
 test.describe.configure({ timeout: 90_000 });
 
-test('typing in a parent editor survives immediate create-child shortcut', async ({ appWindow, writePath }) => {
+test('typing in a parent editor survives immediate create-child shortcut', async ({ appWindow, writeFolder }) => {
   const { nodeId, nodeCountBefore, editorWindowId: parentEditorWindowId } = await openParentEditor(appWindow);
   await replaceEditorContentWithKeyboard(appWindow, parentEditorWindowId, EXPECTED_PARENT_CONTENT);
 
@@ -301,7 +301,7 @@ test('typing in a parent editor survives immediate create-child shortcut', async
     intervals: [100, 250, 500, 1000],
   }).toBeGreaterThan(nodeCountBefore);
 
-  const parentFilePath = path.join(writePath, PARENT_FILENAME);
+  const parentFilePath = path.join(writeFolder, PARENT_FILENAME);
   await expect.poll(async () => {
     return await fs.readFile(parentFilePath, 'utf8');
   }, {
@@ -342,7 +342,7 @@ test('typing in a parent editor survives immediate create-child shortcut', async
   }).toContain(TYPED_MARKER);
 });
 
-test('typing in a parent editor is included in an immediate agent context snapshot', async ({ appWindow, writePath }) => {
+test('typing in a parent editor is included in an immediate agent context snapshot', async ({ appWindow, writeFolder }) => {
   await appWindow.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
@@ -366,7 +366,7 @@ test('typing in a parent editor is included in an immediate agent context snapsh
   await appWindow.waitForTimeout(75);
   await appWindow.keyboard.press('ControlOrMeta+Enter');
 
-  await expect.poll(async () => readContextNodeFiles(writePath), {
+  await expect.poll(async () => readContextNodeFiles(writeFolder), {
     message: 'Waiting for agent context node to include the in-flight typed edit',
     timeout: 15_000,
     intervals: [100, 250, 500, 1000],

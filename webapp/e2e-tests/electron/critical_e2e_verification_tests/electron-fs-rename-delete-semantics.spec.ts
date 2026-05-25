@@ -87,7 +87,7 @@ const test = base.extend<{
       lastDirectory: tempProjectPath,
       vaultConfig: {
         [tempProjectPath]: {
-          writePath: tempVaultPath,
+          writeFolder: tempVaultPath,
           readPaths: []
         }
       }
@@ -156,7 +156,7 @@ const test = base.extend<{
     }
     await pollForCytoscape(page, 15000);
     await expect.poll(async () => {
-      return page.evaluate(({ sourceFilePath, targetFilePath, vaultPath }) => {
+      return page.evaluate(({ sourceFilePath, targetFilePath, projectRoot }) => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
         if (!cy) {
           return {
@@ -166,7 +166,7 @@ const test = base.extend<{
         }
 
         const normalize = (value: string): string => value.replaceAll('\\', '/');
-        const normalizedVaultPath = normalize(vaultPath);
+        const normalizedVaultPath = normalize(projectRoot);
         const normalizedSourcePath = normalize(sourceFilePath);
         const normalizedTargetPath = normalize(targetFilePath);
 
@@ -187,7 +187,7 @@ const test = base.extend<{
       }, {
         sourceFilePath: path.join(tempVaultPath, SOURCE_FILE_NAME),
         targetFilePath: path.join(tempVaultPath, TARGET_FILE_NAME),
-        vaultPath: tempVaultPath
+        projectRoot: tempVaultPath
       });
     }, {
       message: 'Waiting for source and target fixture nodes to load',
@@ -217,11 +217,11 @@ const test = base.extend<{
     // The projected edge (source→target wikilink) may still be in flight via SSE to
     // cytoscape. Poll until cytoscape also shows the edge before handing off to tests.
     await expect.poll(async () => {
-      return page.evaluate(({ sourceFilePath, targetFilePath, vaultPath }) => {
+      return page.evaluate(({ sourceFilePath, targetFilePath, projectRoot }) => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
         if (!cy) return false;
         const normalize = (v: string): string => v.replaceAll('\\', '/');
-        const normalizedVaultPath = normalize(vaultPath);
+        const normalizedVaultPath = normalize(projectRoot);
         const findId = (filePath: string): string | undefined => {
           const normalized = normalize(filePath);
           return cy.nodes().find((n) => {
@@ -239,7 +239,7 @@ const test = base.extend<{
       }, {
         sourceFilePath: path.join(tempVaultPath, SOURCE_FILE_NAME),
         targetFilePath: path.join(tempVaultPath, TARGET_FILE_NAME),
-        vaultPath: tempVaultPath
+        projectRoot: tempVaultPath
       });
     }, {
       message: 'Waiting for source→target wikilink edge to appear in cytoscape',
@@ -290,12 +290,12 @@ function getMainProcessNodeContent(window: Page, filePath: string): Promise<stri
   }, filePath);
 }
 
-function getNodeIdForFilePath(snapshot: GraphSnapshot, vaultPath: string, filePath: string): string | undefined {
+function getNodeIdForFilePath(snapshot: GraphSnapshot, projectRoot: string, filePath: string): string | undefined {
   const normalizedExpected = path.normalize(filePath);
   return snapshot.nodes.find((node) => {
     const resolvedNodeId = path.isAbsolute(node.id)
       ? path.normalize(node.id)
-      : path.normalize(path.join(vaultPath, node.id));
+      : path.normalize(path.join(projectRoot, node.id));
     return resolvedNodeId === normalizedExpected;
   })?.id;
 }

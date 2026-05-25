@@ -53,7 +53,7 @@ import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemo
 import {
     getWatchStatus,
     getVaultPaths,
-    getWritePath,
+    getWriteFolder,
     setOnFolderSwitchCleanup,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/runtime/backend-api';
@@ -64,7 +64,8 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
+import {tracing} from '@vt/observability';
 import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
@@ -90,6 +91,8 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
+tracing.init('vt-electron-main');
+tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
@@ -101,13 +104,13 @@ configureMcpServer({
     graph: {
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
-        getWritePath: async () => {
-            const writePath: O.Option<string> = await getWritePath();
-            return O.isSome(writePath) ? writePath.value : null;
+        getWriteFolder: async () => {
+            const writeFolder: O.Option<string> = await getWriteFolder();
+            return O.isSome(writeFolder) ? writeFolder.value : null;
         },
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRootWatchedDirectory,
+        getProjectRoot,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,
@@ -129,11 +132,11 @@ terminalRuntimeSurface.configureAgentRuntime({
     env: {
         getAppSupportPath,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory,
+        getProjectRoot,
         getVaultPaths,
-        getWritePath: async () => {
-            const writePath: O.Option<string> = await getWritePath();
-            return O.isSome(writePath) ? writePath.value : null;
+        getWriteFolder: async () => {
+            const writeFolder: O.Option<string> = await getWriteFolder();
+            return O.isSome(writeFolder) ? writeFolder.value : null;
         },
         getCliManualPath: (): string => getBuildConfig().cliManualPath,
         getVtBinDir: (): string | null => resolveVtBinDir(getBuildConfig().voicetreeCliPackageDir, existsSync),
@@ -141,8 +144,8 @@ terminalRuntimeSurface.configureAgentRuntime({
     graph: {
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths: () => getVaultPaths(),
-        getWritePath: () => getWritePath(),
-        getProjectRootWatchedDirectory,
+        getWriteFolder: () => getWriteFolder(),
+        getProjectRoot,
         getWatchStatus,
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
@@ -191,7 +194,7 @@ function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
 }
 
-async function getProjectRootWatchedDirectory(): Promise<string | null> {
+async function getProjectRoot(): Promise<string | null> {
     const status: {readonly isWatching: boolean; readonly directory: string | undefined} =
         await getWatchStatus();
     return status.directory ?? null;

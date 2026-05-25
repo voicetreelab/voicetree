@@ -1,26 +1,10 @@
-/**
- * BEHAVIORAL SPEC:
- * E2E tests for the Surviving agents sidebar section.
- *
- * Block 1 — Attachable (live tmux) rows
- *   Phase 1: baseline — app launched, no surviving tmux sessions
- *   Phase 2: surviving session detected — a real same-vault vt-* tmux session
- *            is seeded externally and shows up in the Surviving agents row
- *   Phase 3: post-attach — clicking Attach claims the session, the row is
- *            removed from Surviving agents and the terminal appears in the
- *            main tree
- *
- * Block 2 — Resumable (dead-pane CLI) rows (OpenSpec resume-surviving-agent-sessions)
- *   - Fixturing `.voicetree/terminals/<id>.json` with `recovery.native` surfaces
- *     a `resumable-cli` row with Resume action and the native sessionId visible
- *   - Dedup invariant: live tmux + recovery metadata for the same terminalId
- *     produces only the Attach row, never both Attach and Resume
- *
- * IMPORTANT: Block 1 creates a real tmux session via `tmux new-session`.
- * Block 2 only fixtures JSON metadata; the Resume *click* would spawn a real
- * `claude --resume <id>` process, so we assert button presence without clicking.
- * Teardown unconditionally cleans up tmux + metadata.
- */
+// E2E tests for the Surviving Agents sidebar section.
+// Block 1: live tmux → Attach. Block 2: dead-pane metadata + resolvable
+// Claude transcript → Resume. Block 3: same terminalId live AND resolvable
+// → single row with BOTH Attach and Resume (fork-while-running). The
+// "actually click Resume" path lives in
+// electron-surviving-agents-resume-click.spec.ts; this file asserts button
+// presence only so we don't spawn a real claude --resume.
 
 import {_electron as electron, expect} from '@playwright/test';
 import {spawnSync} from 'child_process';
@@ -36,6 +20,7 @@ import {
     createSurvivingAgentsVault,
     ensureScreenshotDir,
     ensureVaultLoadedIntoGraph,
+    fixtureClaudeTranscript,
     fixtureRecoveryMetadata,
     installFakeClaudeOnPath,
     killSeededTmuxSession,
@@ -65,8 +50,8 @@ test.describe('Surviving Agents Sidebar', () => {
         spawnSeededTmuxSession(seededSessionName, {
             VOICETREE_TERMINAL_ID: SEEDED_TERMINAL_ID,
             AGENT_NAME: SEEDED_TERMINAL_ID,
-            VOICETREE_VAULT_PATH: vault.vaultPath,
-            VOICETREE_PROJECT_DIR: path.join(vault.vaultPath, '.voicetree'),
+            VOICETREE_VAULT_PATH: vault.projectRoot,
+            VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
             CONTEXT_NODE_PATH: vault.contextNodePath,
         });
 
@@ -80,15 +65,15 @@ test.describe('Surviving Agents Sidebar', () => {
             return await api.main.refreshRecoverySessions();
         });
 
-        const seededRow = refreshed.find(
-            (s: RecoverableAgentSessionShape) => s.kind === 'attachable-tmux' && s.session.sessionName === seededSessionName,
+        const seededRow: RecoverableAgentSessionShape | undefined = refreshed.find(
+            (s: RecoverableAgentSessionShape) => s.attach?.session.sessionName === seededSessionName,
         );
         expect(seededRow, `seeded session ${seededSessionName} should be detected`).toBeDefined();
-        if (!seededRow || seededRow.kind !== 'attachable-tmux') {
-            throw new Error('expected attachable-tmux kind after defined check');
+        if (!seededRow?.attach) {
+            throw new Error('expected attach capability after defined check');
         }
-        expect(seededRow.session.classification).toBe('this-vault');
-        expect(seededRow.session.attachable).toBe(true);
+        expect(seededRow.attach.session.classification).toBe('this-vault');
+        expect(seededRow.attach.session.attachable).toBe(true);
 
         const section = appWindow.locator('[data-testid="surviving-agents-section"]');
         await expect(section).toBeVisible({timeout: 10000});
@@ -133,20 +118,29 @@ test.describe('Surviving Agents Sidebar', () => {
 test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
     test.describe.configure({mode: 'serial', timeout: 180000});
 
-    test('renders a resumable-cli row + Resume action for dead-pane metadata with native session id', async ({appWindow, vault}) => {
+    test('renders a Resume-capable row when discovery resolves the Claude transcript for dead-pane metadata', async ({appWindow, vault}) => {
         await ensureScreenshotDir();
         await ensureVaultLoadedIntoGraph(appWindow);
 
         const fixturedTerminalId = 'ResumerAlpha';
         const fixturedNativeSessionId = 'sess-e2e-alpha-1234';
+        const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
         const metadataPath: string = await fixtureRecoveryMetadata({
-            vaultPath: vault.vaultPath,
+            projectRoot: vault.projectRoot,
             terminalId: fixturedTerminalId,
             agentName: fixturedTerminalId,
             cliBinary: 'claude',
-            nativeSessionId: fixturedNativeSessionId,
+            taskNodePath,
+        });
+        const transcriptPath: string = await fixtureClaudeTranscript({
+            claudeProjectsRoot: vault.claudeProjectsRoot,
+            terminalId: fixturedTerminalId,
+            projectRoot: vault.projectRoot,
+            taskNodePath,
+            sessionId: fixturedNativeSessionId,
         });
         console.log(`Fixtured recovery metadata at: ${metadataPath}`);
+        console.log(`Fixtured Claude transcript at: ${transcriptPath}`);
 
         const refreshed = await appWindow.evaluate(async () => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
@@ -155,18 +149,19 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         });
 
         const resumableRow: RecoverableAgentSessionShape | undefined = refreshed.find(
-            (s) => s.kind === 'resumable-cli' && s.terminalId === fixturedTerminalId,
+            (s) => s.terminalId === fixturedTerminalId,
         );
-        expect(resumableRow, `discovery should return a resumable-cli row for ${fixturedTerminalId}`).toBeDefined();
-        if (!resumableRow || resumableRow.kind !== 'resumable-cli') {
-            throw new Error('expected resumable-cli kind after defined check');
+        expect(resumableRow, `discovery should return a row for ${fixturedTerminalId}`).toBeDefined();
+        if (!resumableRow?.resume) {
+            throw new Error('expected resume capability after defined check');
         }
-        expect(resumableRow.cliType).toBe('claude');
-        expect(resumableRow.nativeSessionId).toBe(fixturedNativeSessionId);
-        expect(resumableRow.reason).toBe('missing-tmux-session');
+        expect(resumableRow.resume.cliType).toBe('claude');
+        expect(resumableRow.resume.nativeSessionId).toBe(fixturedNativeSessionId);
+        expect(resumableRow.attach).toBeUndefined();
+        expect(resumableRow.isClaimed).toBe(false);
 
         const rowEl = appWindow.locator(
-            `[data-row-kind="resumable-cli"][data-terminal-id="${fixturedTerminalId}"]`,
+            `[data-has-resume="true"][data-terminal-id="${fixturedTerminalId}"]`,
         );
         await expect(rowEl).toBeVisible({timeout: 10000});
         await expect(rowEl).toContainText(/Resumable \(claude\)/);
@@ -179,32 +174,43 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         console.log(`Resumable-cli screenshot: ${screenshotPath}`);
 
         await fs.rm(metadataPath, {force: true});
+        await fs.rm(transcriptPath, {force: true});
     });
 
-    test('dedup: live tmux session for same terminalId wins over the resumable-cli row (Attach only, no Resume)', async ({appWindow, vault}) => {
+    test('single row exposes BOTH Attach AND Resume when the same terminalId is live in tmux AND has a resolvable transcript (fork-while-running)', async ({appWindow, vault}) => {
         await ensureVaultLoadedIntoGraph(appWindow);
 
         const twinTerminalId = 'TwinAgent';
-        const twinSessionName: string = buildSessionName(vault.vaultPath, twinTerminalId);
+        const twinSessionName: string = buildSessionName(vault.projectRoot, twinTerminalId);
+        const twinNativeSessionId = 'sess-e2e-twin-9999';
+        const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
         let createdSession = false;
         let metadataPath: string | null = null;
+        let transcriptPath: string | null = null;
         try {
             spawnSeededTmuxSession(twinSessionName, {
                 VOICETREE_TERMINAL_ID: twinTerminalId,
                 AGENT_NAME: twinTerminalId,
-                VOICETREE_VAULT_PATH: vault.vaultPath,
-                VOICETREE_PROJECT_DIR: path.join(vault.vaultPath, '.voicetree'),
+                VOICETREE_VAULT_PATH: vault.projectRoot,
+                VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
                 CONTEXT_NODE_PATH: vault.contextNodePath,
             });
             createdSession = true;
 
             metadataPath = await fixtureRecoveryMetadata({
-                vaultPath: vault.vaultPath,
+                projectRoot: vault.projectRoot,
                 terminalId: twinTerminalId,
                 agentName: twinTerminalId,
                 cliBinary: 'claude',
-                nativeSessionId: 'sess-e2e-twin-9999',
                 sessionNameOverride: twinSessionName,
+                taskNodePath,
+            });
+            transcriptPath = await fixtureClaudeTranscript({
+                claudeProjectsRoot: vault.claudeProjectsRoot,
+                terminalId: twinTerminalId,
+                projectRoot: vault.projectRoot,
+                taskNodePath,
+                sessionId: twinNativeSessionId,
             });
 
             const refreshed = await appWindow.evaluate(async () => {
@@ -213,25 +219,24 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
                 return await api.main.refreshRecoverySessions();
             });
 
-            const matching = refreshed.filter(
-                (s) => (s.kind === 'attachable-tmux' && s.session.terminalId === twinTerminalId)
-                    || (s.kind === 'resumable-cli' && s.terminalId === twinTerminalId),
+            const matching: readonly RecoverableAgentSessionShape[] = refreshed.filter(
+                (s) => s.terminalId === twinTerminalId,
             );
-            expect(matching.length, 'should produce exactly one row for the deduped terminalId').toBe(1);
-            expect(matching[0]!.kind).toBe('attachable-tmux');
+            expect(matching.length, 'should produce exactly one row for the terminalId').toBe(1);
+            const row: RecoverableAgentSessionShape = matching[0]!;
+            expect(row.attach?.session.sessionName).toBe(twinSessionName);
+            expect(row.resume?.cliType).toBe('claude');
+            expect(row.resume?.nativeSessionId).toBe(twinNativeSessionId);
 
-            const attachableEl = appWindow.locator(
-                `[data-row-kind="attachable-tmux"][data-session-name="${twinSessionName}"]`,
+            const rowEl = appWindow.locator(
+                `[data-has-attach="true"][data-has-resume="true"][data-terminal-id="${twinTerminalId}"]`,
             );
-            await expect(attachableEl).toBeVisible({timeout: 10000});
-            await expect(attachableEl.getByRole('button', {name: /attach/i})).toBeVisible();
-
-            const resumableEl = appWindow.locator(
-                `[data-row-kind="resumable-cli"][data-terminal-id="${twinTerminalId}"]`,
-            );
-            await expect(resumableEl).toHaveCount(0);
+            await expect(rowEl).toBeVisible({timeout: 10000});
+            await expect(rowEl.getByRole('button', {name: /attach/i})).toBeVisible();
+            await expect(rowEl.getByRole('button', {name: /resume claude session/i})).toBeVisible();
         } finally {
             if (metadataPath) await fs.rm(metadataPath, {force: true});
+            if (transcriptPath) await fs.rm(transcriptPath, {force: true});
             if (createdSession) killSeededTmuxSession(twinSessionName);
         }
     });
@@ -276,15 +281,15 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
         // and a UUID, not "ResumerClickable" + "sess-e2e-clickable-1234".
         const resumeTerminalId = 'Mira';
         const resumeNativeSessionId = '0f4e2c3a-7b1d-4d9e-9a2f-8c7b6e5d4321';
-        const resumeSessionName: string = buildSessionName(vault.vaultPath, resumeTerminalId);
+        const resumeSessionName: string = buildSessionName(vault.projectRoot, resumeTerminalId);
 
         // Preload vault config + project so the app autoloads our vault.
         await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vault.vaultPath,
-            vaultConfig: {[vault.vaultPath]: {writePath: vault.vaultPath, readPaths: []}},
+            lastDirectory: vault.projectRoot,
+            vaultConfig: {[vault.projectRoot]: {writeFolder: vault.projectRoot, readPaths: []}},
         }, null, 2), 'utf8');
         await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
-            id: PROJECT_ID, path: vault.vaultPath, name: PROJECT_ID, type: 'folder',
+            id: PROJECT_ID, path: vault.projectRoot, name: PROJECT_ID, type: 'folder',
             lastOpened: Date.now(), voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
@@ -302,6 +307,9 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
+                // Point the Claude resolver at our temp transcript dir so the
+                // resume capability resolves without touching ~/.claude/projects.
+                VOICETREE_CLAUDE_PROJECTS_DIR: vault.claudeProjectsRoot,
             },
             timeout: 15000,
         });
@@ -323,15 +331,24 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             await ensureVaultLoadedIntoGraph(appWindow);
             await appWindow.waitForTimeout(500);
 
-            // Fixture the resumable metadata.
+            // Fixture the metadata + a stub Claude transcript the resolver can match.
+            const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
             const metadataPath: string = await fixtureRecoveryMetadata({
-                vaultPath: vault.vaultPath,
+                projectRoot: vault.projectRoot,
                 terminalId: resumeTerminalId,
                 agentName: resumeTerminalId,
                 cliBinary: 'claude',
-                nativeSessionId: resumeNativeSessionId,
+                taskNodePath,
+            });
+            const transcriptPath: string = await fixtureClaudeTranscript({
+                claudeProjectsRoot: vault.claudeProjectsRoot,
+                terminalId: resumeTerminalId,
+                projectRoot: vault.projectRoot,
+                taskNodePath,
+                sessionId: resumeNativeSessionId,
             });
             console.log(`Fixtured resumable metadata at: ${metadataPath}`);
+            console.log(`Fixtured Claude transcript at: ${transcriptPath}`);
 
             // Force a refresh so the sidebar row appears immediately.
             await appWindow.evaluate(async () => {
@@ -341,7 +358,7 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             });
 
             const rowEl = appWindow.locator(
-                `[data-row-kind="resumable-cli"][data-terminal-id="${resumeTerminalId}"]`,
+                `[data-has-resume="true"][data-terminal-id="${resumeTerminalId}"]`,
             );
             await expect(rowEl).toBeVisible({timeout: 10000});
 
@@ -358,7 +375,7 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             //   - The tmux pane the runtime created actually exists server-side.
             await expect.poll(async () => {
                 return await appWindow.locator(
-                    `[data-row-kind="resumable-cli"][data-terminal-id="${resumeTerminalId}"]`,
+                    `[data-has-resume="true"][data-terminal-id="${resumeTerminalId}"]`,
                 ).count();
             }, {
                 message: 'Resumable row should be removed after successful resume',
@@ -436,7 +453,7 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             expect(
                 persistedMetadata.terminalData?.attachedToContextNodeId,
                 'attachedToContextNodeId must be preserved — this is what wires the terminal back to its graph node',
-            ).toBe(path.join(vault.vaultPath, 'readme.md'));
+            ).toBe(path.join(vault.projectRoot, 'readme.md'));
             expect(persistedMetadata.terminalData?.initialCommand).toBe('claude');
 
             await appWindow.waitForTimeout(500);
@@ -444,9 +461,10 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             await appWindow.screenshot({path: afterClickPath, fullPage: false});
             console.log(`After-click screenshot: ${afterClickPath}`);
 
-            // Cleanup the metadata + the resumed tmux session (the test owns
-            // the session id, so kill is safe and bounded).
+            // Cleanup the metadata + transcript + the resumed tmux session.
+            // The test owns the session id, so kill is safe and bounded.
             await fs.rm(metadataPath, {force: true});
+            await fs.rm(transcriptPath, {force: true});
             killSeededTmuxSession(resumeSessionName);
         } finally {
             // Attached tmux runtimes hold references in main that can stall

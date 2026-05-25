@@ -6,7 +6,7 @@ import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import {
   LiveStateSnapshotSchema,
   SessionCreateResponseSchema,
-} from '../../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 
 // Files placed at the vault root are always visible in the projection;
 // files inside subdirectories require explicit folder expansion via
@@ -48,7 +48,7 @@ describe('GET /sessions/:sessionId/state', () => {
     const body = LiveStateSnapshotSchema.parse(await res.json())
 
     expect(body.meta.schemaVersion).toBe(1)
-    // setWritePath seeds the writePath as 'expanded' so the sidebar can show
+    // setWriteFolder seeds the writeFolder as 'expanded' so the sidebar can show
     // its contents on mount. Children remain collapsed by default.
     expect(body.folderState).toEqual([[vault, 'expanded']])
     expect(body.activeView.name).toBe('main')

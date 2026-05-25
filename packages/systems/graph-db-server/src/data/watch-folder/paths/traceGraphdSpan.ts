@@ -10,6 +10,7 @@ export async function traceGraphdSpan<T>(
         try {
             return await operation(span);
         } catch (err) {
+            span.recordException(err instanceof Error ? err : String(err));
             span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
             throw err;
         } finally {

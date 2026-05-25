@@ -137,18 +137,18 @@ export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{readonly n
  *              Omit on agent-spawn sites; the daemon's
  *              resolveInitialPositionsForDelta fills in a free-slot position
  *              at apply-time, keeping authoring impurity-free.
- * @param writePath - Absolute path to the write directory.
+ * @param writeFolder - Absolute path to the write directory.
  * @param graph - Current graph state (for unique-ID generation).
  */
-export function createNewNodeNoParent(pos: Position | undefined, writePath: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
+export function createNewNodeNoParent(pos: Position | undefined, writeFolder: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const suffix: string = stableIdSuffix([
-        writePath,
+        writeFolder,
         pos ? String(pos.x) : 'no-pos',
         pos ? String(pos.y) : 'no-pos',
         ...Object.keys(graph.nodes).sort(),
     ])
     const candidateFileName: string = `node_${suffix}.md`
-    const candidateId: string = writePath ? `${writePath}/${candidateFileName}` : candidateFileName
+    const candidateId: string = writeFolder ? `${writeFolder}/${candidateFileName}` : candidateFileName
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
     const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)
     const newNode: GraphNode = {

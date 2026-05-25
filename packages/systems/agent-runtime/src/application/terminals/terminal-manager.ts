@@ -36,9 +36,9 @@ export interface TerminalSpawnOpts {
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
 }
 
-async function resolveRuntimeProjectRoot(): Promise<string | null> {
+async function resolveRuntimeWriteFolder(): Promise<string | null> {
   try {
-    return await (getRuntimeEnv().getProjectRootWatchedDirectory?.() ?? Promise.resolve(null));
+    return await (getRuntimeEnv().getWriteFolder?.() ?? Promise.resolve(null));
   } catch {
     return null;
   }
@@ -96,19 +96,19 @@ export class TerminalManager {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
-      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeProjectRoot());
-      const plan = vaultPath
+      const projectRoot: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWriteFolder());
+      const plan = projectRoot
         ? applyPromptFileToTmuxSpawn({
-            vaultPath,
+            projectRoot,
             terminalId,
             command: terminalData.initialCommand ?? '',
             env: initial,
           })
         : {command: terminalData.initialCommand ?? '', env: initial, promptFilePath: null};
-      const tmuxEnv: Record<string, string> = withVoicetreeVaultPath(plan.env, vaultPath);
+      const tmuxEnv: Record<string, string> = withVoicetreeVaultPath(plan.env, projectRoot);
       const terminalDataWithVaultPath: TerminalData = {
         ...terminalData,
-        initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
+        initialEnvVars: withResolvedTmuxVaultPath(initial, projectRoot),
       };
       await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, plan.promptFilePath);
       if (terminalData.initialCommand) {

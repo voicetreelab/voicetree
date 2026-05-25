@@ -129,7 +129,7 @@ export function resolveCommand(
   if (trimmed) {
     const parts = trimmed.split(/\s+/)
     const [cmd, ...rest] = parts
-    return { cmd, args: [...rest, '--vault', vault] }
+    return { cmd, args: [...rest, '--project-root', vault] }
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
@@ -151,12 +151,12 @@ export function resolveDefaultDaemonArgs(
   // so the workspace-package paths would all return undefined.
   const sibling = deps.siblingDaemonPath()
   if (sibling !== undefined && deps.exists(sibling)) {
-    return [sibling, '--vault', vault]
+    return [sibling, '--project-root', vault]
   }
 
   const fallback = fallbackBinPath()
   if (fallback !== undefined && deps.exists(fallback)) {
-    return [fallback, '--vault', vault]
+    return [fallback, '--project-root', vault]
   }
 
   const source = sourceBinPath()
@@ -165,7 +165,7 @@ export function resolveDefaultDaemonArgs(
       '--import',
       deps.resolveTsx(),
       source,
-      '--vault',
+      '--project-root',
       vault,
     ]
   }

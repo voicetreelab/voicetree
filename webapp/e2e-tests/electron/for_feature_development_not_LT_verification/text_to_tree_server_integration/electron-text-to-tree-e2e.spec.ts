@@ -48,17 +48,17 @@ const test = base.extend<{
   tempVaultPath: async ({}, use) => {
     // Create a temporary vault directory for this test
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-text-to-tree-e2e-'));
-    const vaultPath = path.join(tempDir, 'test-vault');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(tempDir, 'test-vault');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Create minimal root.md to initialize the vault
     await fs.writeFile(
-      path.join(vaultPath, 'root.md'),
+      path.join(projectRoot, 'root.md'),
       '# Root\n\nTest vault for text-to-tree E2E test.\n',
       'utf8'
     );
 
-    await use(vaultPath);
+    await use(projectRoot);
 
     // Cleanup
     await fs.rm(tempDir, { recursive: true, force: true });
@@ -215,11 +215,11 @@ test.describe('Text-to-Tree End-to-End Integration', () => {
     console.log('\n=== STEP 3: Load test vault directory ===');
 
     const loadResult = await appWindow.evaluate(async (args) => {
-      const [port, vaultPath] = args;
+      const [port, projectRoot] = args;
       const response = await fetch(`http://localhost:${port}/load-directory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory_path: vaultPath })
+        body: JSON.stringify({ directory_path: projectRoot })
       });
       return {
         ok: response.ok,

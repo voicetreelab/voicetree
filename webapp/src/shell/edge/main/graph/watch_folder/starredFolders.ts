@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { getNodeThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries'
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO'
-import { getVaultPaths, getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getVaultPaths, getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown'
 import type { GraphNode } from '@vt/graph-model/graph'
@@ -20,10 +20,10 @@ function slugify(text: string): string {
 
 async function syncVaultStateToRenderer(): Promise<void> {
     const settings: VTSettings = await loadSettings()
-    const writePathOption: O.Option<string> = await getWritePath()
+    const writeFolderOption: O.Option<string> = await getWriteFolder()
     uiAPI.syncVaultState({
         readPaths: [...await getVaultPaths()],
-        writePath: O.isSome(writePathOption) ? writePathOption.value : null,
+        writeFolder: O.isSome(writeFolderOption) ? writeFolderOption.value : null,
         starredFolders: settings.starredFolders ?? [],
     })
 }

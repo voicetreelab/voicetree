@@ -30,16 +30,16 @@ interface DebugWindow {
 const test = base.extend<{
     electronApp: ElectronApplication
     appWindow: Page
-    vaultPath: string
+    projectRoot: string
 }>({
-    vaultPath: async ({}, use): Promise<void> => {
+    projectRoot: async ({}, use): Promise<void> => {
         const tempDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-l5-205-vault-'))
-        const vaultPath: string = await createFolderTestVault(tempDir)
-        await use(vaultPath)
+        const projectRoot: string = await createFolderTestVault(tempDir)
+        await use(projectRoot)
         await fs.rm(tempDir, { recursive: true, force: true })
     },
 
-    electronApp: [async ({ vaultPath }, use): Promise<void> => {
+    electronApp: [async ({ projectRoot }, use): Promise<void> => {
         const tempUserDataPath: string = await fs.mkdtemp(
             path.join(os.tmpdir(), 'voicetree-l5-205-test-'),
         )
@@ -48,10 +48,10 @@ const test = base.extend<{
             path.join(tempUserDataPath, 'voicetree-config.json'),
             JSON.stringify(
                 {
-                    lastDirectory: vaultPath,
+                    lastDirectory: projectRoot,
                     vaultConfig: {
-                        [vaultPath]: {
-                            writePath: vaultPath,
+                        [projectRoot]: {
+                            writeFolder: projectRoot,
                             readPaths: [],
                         },
                     },
@@ -68,7 +68,7 @@ const test = base.extend<{
                 [
                     {
                         id: 'l5-205-store-consolidation',
-                        path: vaultPath,
+                        path: projectRoot,
                         name: 'l5-205-store-consolidation',
                         type: 'folder',
                         lastOpened: Date.now(),

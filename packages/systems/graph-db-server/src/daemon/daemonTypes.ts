@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { HealthOwner, HealthResponse } from './contract.ts'
+import type { HealthOwner, HealthResponse } from '../contract.ts'
 import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 
 export type DaemonHandle = {
@@ -93,7 +93,7 @@ export function resolveDaemonLogger(opts: StartDaemonOptions): DaemonLogger {
 
 export function buildHealthResponse(
   version: string,
-  vault: string,
+  vault: string | null,
   startMs: number,
   nowMs: number,
   sessionCount: number,

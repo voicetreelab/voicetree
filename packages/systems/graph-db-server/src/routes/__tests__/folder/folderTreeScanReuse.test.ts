@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import type { AbsolutePath, DirectoryEntry } from '@vt/graph-model/folders'
 import { toAbsolutePath } from '@vt/graph-model/folders'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
-import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
+import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import { handleFSEventWithStateAndUISides } from '../../../data/graph/watching/handleFSEvent.ts'
 
 type CountingScanner = {

@@ -51,11 +51,11 @@ const test = base.extend<{
   electronApp: [async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-table-rendering-userdata-'));
     const watchedFolder = path.join(tempUserDataPath, 'table-rendering-project');
-    const vaultPath = path.join(watchedFolder, 'voicetree');
+    const projectRoot = path.join(watchedFolder, 'voicetree');
 
     await fs.mkdir(watchedFolder, { recursive: true });
-    await fs.cp(FIXTURE_VAULT_PATH, vaultPath, { recursive: true });
-    await fs.writeFile(path.join(vaultPath, TEST_FILE_NAME), TEST_CONTENT, 'utf8');
+    await fs.cp(FIXTURE_VAULT_PATH, projectRoot, { recursive: true });
+    await fs.writeFile(path.join(projectRoot, TEST_FILE_NAME), TEST_CONTENT, 'utf8');
 
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     const savedProject = {

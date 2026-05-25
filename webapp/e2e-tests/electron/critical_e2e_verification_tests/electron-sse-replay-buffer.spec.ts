@@ -39,10 +39,10 @@ test.describe("SSE replay buffer", () => {
         clientInfo: { name: "replay-buffer-e2e", version: "1.0.0" },
       });
 
-      const watchResult = await appWindow.evaluate(async (vaultPath) => {
+      const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
-        return await api.main.startFileWatching(vaultPath);
+        return await api.main.startFileWatching(projectRoot);
       }, fixtureVaultPath);
       expect(watchResult.success).toBe(true);
 

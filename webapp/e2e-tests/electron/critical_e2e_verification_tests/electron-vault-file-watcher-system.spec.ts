@@ -18,11 +18,11 @@ interface ExtendedWindow {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writePath = path.join(projectPath, 'voicetree');
-  await fs.mkdir(writePath, { recursive: true });
+  const writeFolder = path.join(projectPath, 'voicetree');
+  await fs.mkdir(writeFolder, { recursive: true });
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true });
   await fs.writeFile(
-    path.join(writePath, 'Root.md'),
+    path.join(writeFolder, 'Root.md'),
     '# Root\n\nThis is the initial watched vault node.\n',
     'utf8',
   );
@@ -33,7 +33,7 @@ async function seedProject(projectPath: string): Promise<string> {
     }),
     'utf8',
   );
-  return writePath;
+  return writeFolder;
 }
 
 function resolveGraphdNodeBin(): string | undefined {
@@ -58,7 +58,7 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   projectPath: string;
-  writePath: string;
+  writeFolder: string;
 }>({
   projectPath: async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-project-system-'));
@@ -66,12 +66,12 @@ const test = base.extend<{
     await fs.rm(projectPath, { recursive: true, force: true });
   },
 
-  writePath: async ({ projectPath }, use) => {
-    const writePath = await seedProject(projectPath);
-    await use(writePath);
+  writeFolder: async ({ projectPath }, use) => {
+    const writeFolder = await seedProject(projectPath);
+    await use(writeFolder);
   },
 
-  electronApp: async ({ projectPath, writePath }, use) => {
+  electronApp: async ({ projectPath, writeFolder }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-app-system-'));
     const savedProject = {
       id: 'vault-file-watcher-system',
@@ -88,7 +88,7 @@ const test = base.extend<{
         lastDirectory: projectPath,
         vaultConfig: {
           [projectPath]: {
-            writePath,
+            writeFolder,
             readPaths: [],
           },
         },
@@ -140,7 +140,7 @@ const test = base.extend<{
   },
 });
 
-test('keeps Electron UI, graph state, and vault files converged after a disk change', async ({ appWindow, writePath }) => {
+test('keeps Electron UI, graph state, and vault files converged after a disk change', async ({ appWindow, writeFolder }) => {
   test.setTimeout(60_000);
 
   const initial = await appWindow.evaluate(async () => {
@@ -158,7 +158,7 @@ test('keeps Electron UI, graph state, and vault files converged after a disk cha
   expect(initial.uiLabels).toContain('Root');
 
   await fs.writeFile(
-    path.join(writePath, 'Created From Disk.md'),
+    path.join(writeFolder, 'Created From Disk.md'),
     '# Created From Disk\n\nThis node arrived through the watched vault boundary.\n',
     'utf8',
   );

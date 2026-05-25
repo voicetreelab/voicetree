@@ -2,7 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { SpanStatusCode, trace, type Span } from '@opentelemetry/api'
 import { SessionRegistry } from '../application/session/registry.ts'
-import { CONTRACT_VERSION } from './contract.ts'
+import { CONTRACT_VERSION } from '../contract.ts'
 import { createDaemonApp } from '../routes/daemonApp.ts'
 import type { BoundDaemonHttpServer } from './daemonHttpServer.ts'
 import type { DaemonWatcherController } from './lifecycle/daemonWatcherLifecycle.ts'
@@ -38,7 +38,7 @@ import {
   closeFolderVisibilityForVault,
   openFolderVisibilityForVault,
 } from '../data/views/folderVisibilityResource.ts'
-import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
+import { getProjectRoot } from '../state/watch-folder-store.ts'
 import {
   installFolderTreeReadModel,
   getFolderTreeReadModel,
@@ -123,7 +123,7 @@ async function startOwnedDaemon(
       registry,
       opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
     )
-    configureVaultLifecycle({ activeVaultPath: null, registry })
+    configureVaultLifecycle({ registry })
     registerVaultResource({
       openForVault: openFolderVisibilityForVault,
       closeForVault: closeFolderVisibilityForVault,
@@ -139,9 +139,9 @@ async function startOwnedDaemon(
       },
     })
     registerVaultResource({
-      async openForVault(vaultPath: string): Promise<void> {
+      async openForVault(projectRoot: string): Promise<void> {
         await watcher?.stop()
-        watcher = await startDaemonWatcher(vaultPath, logger)
+        watcher = await startDaemonWatcher(projectRoot, logger)
       },
       async closeForVault(): Promise<void> {
         await watcher?.stop()
@@ -155,12 +155,12 @@ async function startOwnedDaemon(
       },
     })
     registerVaultResource({
-      async openForVault(vaultPath: string): Promise<void> {
-        if (portFileVault && portFileVault !== vaultPath) {
+      async openForVault(projectRoot: string): Promise<void> {
+        if (portFileVault && portFileVault !== projectRoot) {
           await deleteDaemonPortFile(portFileVault).catch(() => {})
         }
-        await writeDaemonPortFile(vaultPath, assignedPort)
-        portFileVault = vaultPath
+        await writeDaemonPortFile(projectRoot, assignedPort)
+        portFileVault = projectRoot
       },
       async closeForVault(): Promise<void> {
         if (!portFileVault) {
@@ -176,7 +176,7 @@ async function startOwnedDaemon(
       readHealth: () =>
         buildHealthResponse(
           CONTRACT_VERSION,
-          getProjectRootWatchedDirectory() ?? startupVault ?? '',
+          getProjectRoot(),
           startMs,
           clock(),
           registry.size(),
@@ -278,7 +278,7 @@ export async function startDaemon(
 
       const ownerHandle = startupVault
         ? await claimDaemonOwner({
-            canonicalVaultPath: startupVault,
+            canonicalProjectRoot: startupVault,
             callerKind: 'cli',
             contractVersion: CONTRACT_VERSION,
             commandFingerprint: commandFingerprintForProcess(),

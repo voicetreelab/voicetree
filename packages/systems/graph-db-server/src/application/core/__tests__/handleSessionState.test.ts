@@ -43,7 +43,7 @@ describe('handleSessionState', () => {
       contentMode: undefined,
       graph: createGraph({ [NODE_ID]: graphNodeFixture() }),
       projectRoot: '/tmp/vault',
-      writePath: null,
+      writeFolder: null,
       readPaths: [],
       folderTree: null,
       folderVisibility: {
@@ -68,7 +68,7 @@ describe('handleSessionState', () => {
       contentMode: 'omit',
       graph: createGraph({ [NODE_ID]: graphNodeFixture() }),
       projectRoot: '/tmp/vault',
-      writePath: null,
+      writeFolder: null,
       readPaths: [],
       folderTree: null,
       folderVisibility: {

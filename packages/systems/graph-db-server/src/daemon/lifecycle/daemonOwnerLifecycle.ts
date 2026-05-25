@@ -32,7 +32,7 @@ import type {
   CommandFingerprint,
   HealthOwner,
   OwnerRecord,
-} from '../contract.ts'
+} from '@vt/graph-db-server/contract'
 import {
   atomicReplaceOwnerRecord,
   createInitialRecord,
@@ -63,18 +63,18 @@ export const HEARTBEAT_INTERVAL_MS = 2_000
 export class DaemonOwnerConflictError extends Error {
   readonly code = 'DAEMON_OWNER_CONFLICT'
   constructor(
-    readonly canonicalVaultPath: string,
+    readonly canonicalProjectRoot: string,
     readonly existingOwner: OwnerRecord,
   ) {
     super(
-      `vt-graphd: vault ${canonicalVaultPath} already owned by pid ${existingOwner.pid} (nonce ${existingOwner.ownerNonce})`,
+      `vt-graphd: vault ${canonicalProjectRoot} already owned by pid ${existingOwner.pid} (nonce ${existingOwner.ownerNonce})`,
     )
     this.name = 'DaemonOwnerConflictError'
   }
 }
 
 export type ClaimDaemonOwnerOptions = {
-  readonly canonicalVaultPath: string
+  readonly canonicalProjectRoot: string
   readonly callerKind: CallerKind
   readonly contractVersion: string
   readonly commandFingerprint: CommandFingerprint
@@ -106,11 +106,11 @@ export async function claimDaemonOwner(
   options: ClaimDaemonOwnerOptions,
 ): Promise<DaemonOwnerHandle> {
   return tracer.startActiveSpan('daemon.claim-owner', async (span) => {
-    span.setAttribute('vault', options.canonicalVaultPath)
+    span.setAttribute('vault', options.canonicalProjectRoot)
     try {
-      const path = ownerRecordPathFor(options.canonicalVaultPath)
+      const path = ownerRecordPathFor(options.canonicalProjectRoot)
       let record = createInitialRecord({
-        canonicalVaultPath: options.canonicalVaultPath,
+        canonicalProjectRoot: options.canonicalProjectRoot,
         pid: process.pid,
         ppid: process.ppid ?? 0,
         callerKind: options.callerKind,
@@ -119,11 +119,11 @@ export async function claimDaemonOwner(
         nowMs: options.clock(),
       })
 
-      record = await acquireOwnerRecord(path, record, options.canonicalVaultPath)
-      await writeLegacyLockSidecar(options.canonicalVaultPath, record.pid)
+      record = await acquireOwnerRecord(path, record, options.canonicalProjectRoot)
+      await writeLegacyLockSidecar(options.canonicalProjectRoot, record.pid)
       span.setAttribute('owner.nonce', record.ownerNonce)
       span.setAttribute('owner.pid', record.pid)
-      return makeHandle(path, record, options.clock, options.canonicalVaultPath)
+      return makeHandle(path, record, options.clock, options.canonicalProjectRoot)
     } catch (err) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
       throw err
@@ -136,14 +136,14 @@ export async function claimDaemonOwner(
 async function acquireOwnerRecord(
   path: string,
   desired: OwnerRecord,
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
 ): Promise<OwnerRecord> {
   const firstAttempt = await tryAtomicCreate(path, desired)
   if (firstAttempt.kind === 'created') return desired
 
   const existing = decodeOwnerRecord(firstAttempt.existingRaw)
   if (existing !== null && isOwnerPidAlive(existing.pid)) {
-    throw new DaemonOwnerConflictError(canonicalVaultPath, existing)
+    throw new DaemonOwnerConflictError(canonicalProjectRoot, existing)
   }
 
   // The existing record is either undecodable (corrupt) or held by a dead
@@ -156,10 +156,10 @@ async function acquireOwnerRecord(
 
   const racer = decodeOwnerRecord(secondAttempt.existingRaw)
   if (racer !== null && isOwnerPidAlive(racer.pid)) {
-    throw new DaemonOwnerConflictError(canonicalVaultPath, racer)
+    throw new DaemonOwnerConflictError(canonicalProjectRoot, racer)
   }
   throw new Error(
-    `vt-graphd: failed to claim owner for ${canonicalVaultPath} (record contention)`,
+    `vt-graphd: failed to claim owner for ${canonicalProjectRoot} (record contention)`,
   )
 }
 
@@ -167,7 +167,7 @@ function makeHandle(
   path: string,
   initial: OwnerRecord,
   clock: () => number,
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
 ): DaemonOwnerHandle {
   let current = initial
   let writeInFlight: Promise<void> = Promise.resolve()
@@ -216,7 +216,7 @@ function makeHandle(
         /* swallow */
       }
       await deleteOwnerRecord(path)
-      await deleteLegacyLockSidecar(canonicalVaultPath)
+      await deleteLegacyLockSidecar(canonicalProjectRoot)
     },
   }
 
@@ -251,7 +251,7 @@ function healthFromRecord(record: OwnerRecord): HealthOwner | null {
   if (record.port === null) return null
   return {
     schemaVersion: record.schemaVersion,
-    canonicalVaultPath: record.canonicalVaultPath,
+    canonicalProjectRoot: record.canonicalProjectRoot,
     pid: record.pid,
     ppid: record.ppid,
     port: record.port,

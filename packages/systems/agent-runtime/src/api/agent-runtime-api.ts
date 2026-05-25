@@ -5,7 +5,7 @@ import {
     reconcileTmuxHeadlessAgents,
     sendHeadlessAgentInput,
 } from '../application/headless/headlessAgentManager'
-import { dispatchOnNewNodeHooks } from '../application/hooks/onNewNodeHook'
+import { createOnNewNodeHookDispatcher } from '../application/hooks/onNewNodeHook'
 import { runStopHooks } from '../application/hooks/stopGateHookRunner'
 import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-nodes-for-terminal'
 import { injectNodesIntoTerminal } from '../application/inject/inject-nodes-into-terminal'
@@ -27,7 +27,7 @@ import {
 } from '../application/terminals/tmux/unclaimed-tmux'
 import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
 import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
-import { captureMissingNativeSessions } from '../application/recovery/captureNativeSessions'
+import { forkAgentSession } from '../application/recovery/forkAgentSession'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -48,6 +48,8 @@ import {
     registerChild,
     tryConsumeAndSplitBudget,
 } from '../application/terminals/global-budget-registry'
+
+const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
 
 export const agentRuntime = {
     attachUnclaimedTmuxSession,
@@ -76,7 +78,7 @@ export const agentRuntime = {
     listUnclaimedTmuxSessions,
     discoverRecoverableAgentSessions,
     resumePersistedAgentSession,
-    captureMissingNativeSessions,
+    forkAgentSession,
     registerChild,
     reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,

@@ -56,7 +56,7 @@ vi.mock('electron', () => ({
 }))
 
 let tempFixtureRoot: string | null = null
-let vaultPath: string
+let projectRoot: string
 
 async function copyFixture(): Promise<string> {
     if (!tempFixtureRoot) throw new Error('tempFixtureRoot not initialized')
@@ -81,7 +81,7 @@ function countVtGraphdProcessesForVault(vault: string): number {
         timeout: 5000,
     })
     if (result.status !== 0 || !result.stdout) return 0
-    const re: RegExp = new RegExp(`vt-graphd\\.ts.*--vault\\s+${vault}(\\s|$)`)
+    const re: RegExp = new RegExp(`vt-graphd\\.ts.*--project-root\\s+${vault}(\\s|$)`)
     return result.stdout.split('\n').filter(line => re.test(line)).length
 }
 
@@ -114,9 +114,9 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
                 onWatchingStarted: (): void => undefined,
             },
         )
-        vaultPath = await copyFixture()
-        await saveVaultConfigForDirectory(vaultPath, {
-            writePath: path.join(vaultPath, 'voicetree'),
+        projectRoot = await copyFixture()
+        await saveVaultConfigForDirectory(projectRoot, {
+            writeFolder: path.join(projectRoot, 'voicetree'),
         })
     }, TIMEOUT_MS)
 
@@ -149,7 +149,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
     })
 
     afterAll(async () => {
-        await shutdownDaemonForVault(vaultPath)
+        await shutdownDaemonForVault(projectRoot)
         clearDaemonClientCache()
         if (tempFixtureRoot) {
             await fs.rm(tempFixtureRoot, { recursive: true, force: true })
@@ -159,7 +159,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
 
     it('5 concurrent openVault callers spawn ≤1 vt-graphd and leave graph populated', async () => {
         // GIVEN: clean slate — no stale daemon for this vault.
-        await shutdownDaemonForVault(vaultPath)
+        await shutdownDaemonForVault(projectRoot)
         clearDaemonClientCache()
 
         // WHEN: 5 callers race to load the same folder.
@@ -179,7 +179,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
 
         // AND: at most 1 vt-graphd process for this vault.
         if (process.platform === 'darwin' || process.platform === 'linux') {
-            const daemonCount: number = countVtGraphdProcessesForVault(vaultPath)
+            const daemonCount: number = countVtGraphdProcessesForVault(projectRoot)
             expect(daemonCount, `expected ≤1 vt-graphd for vault, found ${daemonCount}`)
                 .toBeLessThanOrEqual(1)
         }

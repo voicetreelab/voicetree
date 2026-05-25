@@ -23,9 +23,9 @@ async function getVaultState(): Promise<VaultState> {
     return await callDaemon((client) => client.getVault())
 }
 
-async function getProjectRootWatchedDirectory(): Promise<string | null> {
+async function getActiveProjectRoot(): Promise<string | null> {
     try {
-        return (await getVaultState()).vaultPath
+        return (await getVaultState()).projectRoot
     } catch {
         return null
     }
@@ -34,7 +34,7 @@ async function getProjectRootWatchedDirectory(): Promise<string | null> {
 export async function getAvailableFoldersForSelector(
     searchQuery: string,
 ): Promise<readonly AvailableFolderItem[]> {
-    const projectRoot: string | null = await getProjectRootWatchedDirectory()
+    const projectRoot: string | null = await getActiveProjectRoot()
     if (!projectRoot) {
         return []
     }
@@ -107,7 +107,7 @@ export async function getWatchStatus(): Promise<{ readonly isWatching: boolean; 
         const vaultState: VaultState = await getVaultState()
         return {
             isWatching: true,
-            directory: vaultState.vaultPath,
+            directory: vaultState.projectRoot,
         }
     } catch {
         return { isWatching: false, directory: undefined }
@@ -121,8 +121,8 @@ export async function isWatching(): Promise<boolean> {
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
     const daemonVaultState: VaultState = await getVaultState()
     return [
-        daemonVaultState.writePath,
-        ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writePath),
+        daemonVaultState.writeFolder,
+        ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writeFolder),
     ]
 }
 
@@ -130,9 +130,9 @@ export async function getReadPaths(): Promise<readonly FilePath[]> {
     return (await getVaultState()).readPaths
 }
 
-export async function getWritePath(): Promise<O.Option<FilePath>> {
+export async function getWriteFolder(): Promise<O.Option<FilePath>> {
     try {
-        return O.some((await getVaultState()).writePath)
+        return O.some((await getVaultState()).writeFolder)
     } catch {
         return O.none
     }
@@ -145,22 +145,22 @@ export async function createDatedVoiceTreeFolder(): Promise<{
 }> {
     try {
         const previousVaultState: VaultState = await getVaultState()
-        const watchedDir: string = previousVaultState.vaultPath
+        const watchedDir: string = previousVaultState.projectRoot
         const newPath: string = await createDatedSubfolder(watchedDir)
         const nextVaultState: VaultState = await callDaemon(async (client) => {
             await client.addReadPath(newPath)
-            return await client.setWritePath(newPath)
+            return await client.setWriteFolder(newPath)
         })
 
         if (
-            previousVaultState.writePath
-            && previousVaultState.writePath !== newPath
-            && previousVaultState.writePath !== watchedDir
+            previousVaultState.writeFolder
+            && previousVaultState.writeFolder !== newPath
+            && previousVaultState.writeFolder !== watchedDir
         ) {
-            await callDaemon((client) => client.removeReadPath(previousVaultState.writePath)).catch(() => undefined)
+            await callDaemon((client) => client.removeReadPath(previousVaultState.writeFolder)).catch(() => undefined)
         }
 
-        syncWatchedProjectRoot(nextVaultState.vaultPath)
+        syncWatchedProjectRoot(nextVaultState.projectRoot)
         return { success: true, path: newPath }
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)

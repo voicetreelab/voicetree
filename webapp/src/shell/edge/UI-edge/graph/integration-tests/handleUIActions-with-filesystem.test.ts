@@ -34,7 +34,7 @@ import {
     resetTestProjectionState,
 } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
-import { setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
+import { setProjectRoot as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
 import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
 import { getGraph as getGraphReal, setGraph as setGraphReal } from '@vt/graph-db-server/state/graph-store'
 import { mapNewGraphToDelta } from '@vt/graph-model/graph'
@@ -106,13 +106,13 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
     const actual: typeof import('@/shell/edge/main/graph/watch_folder/watchFolder') = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
     return {
         ...actual,
-        getVaultPath: () => {
+        getProjectRoot: () => {
             return tempVault ? O.of(tempVault) : O.none
         },
-        setVaultPath: (path: string) => {
+        setProjectRoot: (path: string) => {
             tempVault = path
         },
-        clearVaultPath: () => {
+        clearProjectRoot: () => {
             tempVault = ''
         },
         startFileWatching: vi.fn().mockResolvedValue({ success: true }),

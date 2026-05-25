@@ -273,8 +273,8 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 )
                 expect(showResult.code, `vault show stderr: ${showResult.stderr}`).toBe(0)
 
-                const showPayload: {readPaths: string[]; vaultPath: string} = parseJsonStdout(showResult)
-                expect(showPayload.vaultPath).toBe(vault)
+                const showPayload: {readPaths: string[]; projectRoot: string} = parseJsonStdout(showResult)
+                expect(showPayload.projectRoot).toBe(vault)
 
                 const portAfterShow: number = await waitForPortFile(vault, 1_000)
                 expect(portAfterShow).toBe(portAfterAdd)

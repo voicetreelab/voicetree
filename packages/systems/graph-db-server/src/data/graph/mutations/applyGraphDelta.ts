@@ -9,10 +9,11 @@ import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state
 import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
 import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
-import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
+import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
 import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultNotOpen'
+import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
 /**
  * Applies a delta to the in-memory graph state and resolves any new wikilinks.
@@ -29,16 +30,26 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     delta = rebaseStaleEdgeAdditionDeltas(currentGraph, delta);
     const {delta: resolvedDelta, anyResolved} = resolveInitialPositionsForDelta(currentGraph, delta);
     delta = resolvedDelta;
-    let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
+    let newGraph: Graph = await traceGraphdSpan('daemon.apply-delta.mem.apply-to-graph', async span => {
+        span.setAttribute('vt.graph.nodes.before', Object.keys(currentGraph.nodes).length)
+        const next = applyGraphDeltaToGraph(currentGraph, delta);
+        span.setAttribute('vt.graph.nodes.after', Object.keys(next.nodes).length)
+        return next
+    });
 
     // Only resolve wikilinks when delta contains UpsertNode (which might introduce new links)
     // Skip for delete-only deltas - we don't want to re-add deleted nodes via link resolution
     const hasAddOrUpdate: boolean = delta.some(d => d.type === 'UpsertNode');
 
     if (hasAddOrUpdate) {
-        const watchedDir: string | null = getProjectRootWatchedDirectory();
+        const watchedDir: string | null = getProjectRoot();
         if (watchedDir && newGraph.unresolvedLinksIndex.size > 0) {
-            const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
+            const resolutionDelta: GraphDelta = await traceGraphdSpan('daemon.apply-delta.mem.resolve-links', async span => {
+                span.setAttribute('vt.unresolved.size', newGraph.unresolvedLinksIndex.size)
+                const r = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
+                span.setAttribute('vt.resolved.delta.size', r.length)
+                return r
+            });
             if (resolutionDelta.length > 0) {
                 newGraph = applyGraphDeltaToGraph(newGraph, resolutionDelta);
                 // Merge resolution delta into original for caller
@@ -54,7 +65,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     // app-exit). Only fires when the resolver actually filled in at least one
     // position; user drags and unrelated updates take the no-op path.
     if (anyResolved) {
-        const projectRoot: string | null = getProjectRootWatchedDirectory();
+        const projectRoot: string | null = getProjectRoot();
         if (projectRoot) savePositionsSync(newGraph, projectRoot);
     }
 
@@ -89,11 +100,14 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     delta: GraphDelta,
     recordForUndo: boolean = true
 ): Promise<void> {
-    const deltaToApply: GraphDelta = rebaseStaleEdgeAdditionDeltas(getGraph(), delta)
+    const deltaToApply: GraphDelta = await traceGraphdSpan(
+        'daemon.apply-delta.rebase',
+        async () => rebaseStaleEdgeAdditionDeltas(getGraph(), delta),
+    )
 
     // Extract watched directory (fail fast at edge)
     const watchedDirectory: string = pipe(
-        O.fromNullable(getProjectRootWatchedDirectory()),
+        O.fromNullable(getProjectRoot()),
         O.getOrElseW(() => {
             throw new VaultNotOpenError()
         })
@@ -101,18 +115,29 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
 
     // Record for undo BEFORE applying (so we can reverse from current state)
     if (recordForUndo) {
-        recordUserActionAndSetDeltaHistoryState(deltaToApply)
+        await traceGraphdSpan('daemon.apply-delta.record-undo', async () => {
+            recordUserActionAndSetDeltaHistoryState(deltaToApply)
+        })
     }
 
-    const appliedDelta: GraphDelta = await applyGraphDeltaToMemState(deltaToApply)
+    const appliedDelta: GraphDelta = await traceGraphdSpan(
+        'daemon.apply-delta.mem-state',
+        async () => await applyGraphDeltaToMemState(deltaToApply),
+    )
     const dbDelta: GraphDelta = appliedDelta.slice(0, deltaToApply.length)
 
     refreshGraphChangeSideEffects()
 
     // Construct env and execute effect (only caller delta goes to DB; linked-node
     // resolution deltas are memory-only projections).
-    const env: Env = {projectRootWatchedDirectory: watchedDirectory}
-    const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(dbDelta)(env)()
+    const env: Env = {projectRoot: watchedDirectory}
+    const result: Either<Error, GraphDelta> = await traceGraphdSpan(
+        'daemon.apply-delta.db-write',
+        async span => {
+            span.setAttribute('vt.dbDelta.size', dbDelta.length)
+            return await apply_graph_deltas_to_db(dbDelta)(env)()
+        },
+    )
 
     // Handle errors (fail fast)
     if (E.isLeft(result)) {

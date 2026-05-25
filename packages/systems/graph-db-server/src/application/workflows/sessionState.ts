@@ -7,32 +7,32 @@ import {
 } from '@vt/graph-model'
 import type { LiveStateSnapshot } from '@vt/graph-db-server/contract'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist'
+import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
+import { getReadPaths, getVaultPaths, getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
-import { getFolderTreeReadModel } from '../../state/folder-tree-read-model-store.ts'
+import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store'
 import { handleReadSessionState } from '../core/handleSessionState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
-function resolveWritePath(
-  writePathOption: Awaited<ReturnType<typeof getWritePath>>,
+function resolveWriteFolder(
+  writeFolderOption: Awaited<ReturnType<typeof getWriteFolder>>,
 ): AbsolutePath | null {
-  const maybeValue = (writePathOption as { value?: unknown }).value
+  const maybeValue = (writeFolderOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? toAbsolutePath(maybeValue) : null
 }
 
 function readFolderVisibilitySnapshot(
-  vaultPath: string,
+  projectRoot: string,
 ): Pick<LiveStateSnapshot, 'folderState' | 'activeView'> {
-  if (!vaultPath) {
+  if (!projectRoot) {
     return {
       folderState: [],
       activeView: { viewId: 'main', name: 'main' },
     }
   }
 
-  return getFolderStateForActiveView(vaultPath) as Pick<
+  return getFolderStateForActiveView(projectRoot) as Pick<
     LiveStateSnapshot,
     'folderState' | 'activeView'
   >
@@ -42,7 +42,7 @@ async function readFolderTreeForSnapshot(
   projectRoot: string | null,
   readPaths: readonly string[],
   vaultPaths: readonly string[],
-  writePath: AbsolutePath | null,
+  writeFolder: AbsolutePath | null,
   graphNodePaths: ReadonlySet<string>,
 ): Promise<FolderTreeNode | null> {
   if (!projectRoot) return null
@@ -58,7 +58,7 @@ async function readFolderTreeForSnapshot(
   return buildFolderTree(
     directoryEntry,
     new Set<string>([...readPaths, ...vaultPaths]),
-    writePath,
+    writeFolder,
     new Set<string>(graphNodePaths),
   )
 }
@@ -74,8 +74,8 @@ export async function readSessionStateWorkflow(
   }
 
   const graph = getGraph()
-  const projectRoot = getProjectRootWatchedDirectory()
-  const writePath = resolveWritePath(await getWritePath())
+  const projectRoot = getProjectRoot()
+  const writeFolder = resolveWriteFolder(await getWriteFolder())
   const readPaths = [...(await getReadPaths())]
   const vaultPaths = await getVaultPaths()
 
@@ -83,7 +83,7 @@ export async function readSessionStateWorkflow(
     projectRoot,
     readPaths,
     vaultPaths,
-    writePath,
+    writeFolder,
     new Set(Object.keys(graph.nodes)),
   )
 
@@ -92,7 +92,7 @@ export async function readSessionStateWorkflow(
     contentMode,
     graph,
     projectRoot,
-    writePath,
+    writeFolder,
     readPaths,
     folderTree,
     folderVisibility: readFolderVisibilitySnapshot(projectRoot ?? ''),

@@ -1,6 +1,7 @@
 import {execFileSync} from 'node:child_process'
+import {existsSync} from 'node:fs'
 import {readFile} from 'node:fs/promises'
-import {dirname, resolve} from 'node:path'
+import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
@@ -64,7 +65,11 @@ function gitTrackedAndUnignoredFiles(): string[] {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
     })
-    return output.split('\n').filter(Boolean).sort()
+    return output
+        .split('\n')
+        .filter(Boolean)
+        .filter(path => existsSync(join(REPO_ROOT, path)))
+        .sort()
 }
 
 function isScannableSource(relativePath: string): boolean {

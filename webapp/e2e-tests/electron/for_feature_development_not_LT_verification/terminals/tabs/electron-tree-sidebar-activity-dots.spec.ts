@@ -122,10 +122,10 @@ const test = base.extend<{
  * Helper to load the fixture vault and wait for graph to be ready
  */
 async function loadVaultAndWaitForGraph(appWindow: Page): Promise<void> {
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return await api.main.startFileWatching(vaultPath);
+        return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);

@@ -54,14 +54,14 @@ const test = base.extend<{
 }>({
   fixtureVaultPath: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-real-agent-vault-'));
-    const vaultPath = path.join(tempRoot, 'test-vault');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(tempRoot, 'test-vault');
+    await fs.mkdir(projectRoot, { recursive: true });
     await fs.writeFile(
-      path.join(vaultPath, 'task.md'),
+      path.join(projectRoot, 'task.md'),
       TASK_NODE_CONTENT,
       'utf8',
     );
-    await use(vaultPath);
+    await use(projectRoot);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
@@ -74,7 +74,7 @@ const test = base.extend<{
   electronApp: async ({ fixtureVaultPath, tempUserDataPath }, use) => {
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       vaultConfig: {
-        [fixtureVaultPath]: { writePath: fixtureVaultPath, readPaths: [] },
+        [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] },
       },
     }, null, 2), 'utf8');
 
@@ -194,10 +194,10 @@ test.describe('Real agent spawn E2E', () => {
     });
 
     // --- Start file watching explicitly ---
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(projectRoot);
     }, fixtureVaultPath);
     expect(watchResult.success).toBe(true);
 

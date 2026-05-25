@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
-import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
+import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 
 async function withTempVault(): Promise<string> {
@@ -14,7 +14,7 @@ async function createAppSupport(vault: string): Promise<string> {
     const appSupport = await mkdtemp(join(tmpdir(), 'sse-client-appsupport-'))
     const config = {
         vaultConfig: {
-            [vault]: { writePath: vault },
+            [vault]: { writeFolder: vault },
         },
     }
     await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))

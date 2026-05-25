@@ -6,7 +6,7 @@ import type {TerminalRecord} from '@vt/agent-runtime'
 import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@vt/agent-runtime'
 
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWritePath: vi.fn()
+    getWriteFolder: vi.fn()
 }))
 
 vi.mock('@vt/graph-db-server/state/graph-store', () => ({
@@ -53,7 +53,7 @@ vi.mock('@vt/vt-daemon', async (importOriginal) => {
 
 import {spawnAgentTool} from '@vt/vt-daemon'
 import {configureMcpServer} from '@vt/vt-daemon'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
@@ -94,7 +94,7 @@ describe('MCP spawn_agent fair rebalancing budget enforcement', () => {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => [],
-                getWritePath: async () => O.toNullable(await getWritePath()),
+                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
@@ -127,7 +127,7 @@ describe('MCP spawn_agent fair rebalancing budget enforcement', () => {
     }
 
     function setupGraphAndSpawn(): void {
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWriteFolder).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {'node-1.md': buildGraphNode('node-1.md', '# Node One')},
             incomingEdgesIndex: new Map(),

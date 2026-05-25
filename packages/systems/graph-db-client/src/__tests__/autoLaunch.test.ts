@@ -126,7 +126,7 @@ describe('resolveDefaultDaemonArgs', () => {
       siblingDaemonPath: () => sibling,
     })
 
-    expect(args).toEqual([sibling, '--vault', '/tmp/vault'])
+    expect(args).toEqual([sibling, '--project-root', '/tmp/vault'])
   })
 
   test('falls back to the @vt/graph-db-server dist build when no sibling daemon ships alongside', () => {
@@ -138,7 +138,7 @@ describe('resolveDefaultDaemonArgs', () => {
 
     expect(args).toEqual([
       expect.stringMatching(/dist\/vt-graphd\.mjs$/),
-      '--vault',
+      '--project-root',
       '/tmp/vault',
     ])
   })
@@ -154,7 +154,7 @@ describe('resolveDefaultDaemonArgs', () => {
       '--import',
       '/tmp/tsx',
       expect.stringMatching(/bin\/vt-graphd\.ts$/),
-      '--vault',
+      '--project-root',
       '/tmp/vault',
     ])
   })

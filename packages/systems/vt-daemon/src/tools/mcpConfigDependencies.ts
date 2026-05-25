@@ -4,5 +4,5 @@ export {
     applyMcpGraphDelta,
     getMcpGraph,
     getMcpUnseenNodesAroundContextNode,
-    getMcpWritePath,
+    getMcpWriteFolder,
 } from '../config/mcp-graph-bridge'

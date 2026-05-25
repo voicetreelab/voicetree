@@ -182,7 +182,7 @@ export function reduceFolderConfig(
             // Set writeFolder to projectRoot
             return {
                 ...config,
-                writePath: projectRoot,
+                writeFolder: projectRoot,
             };
         }
 
@@ -191,17 +191,17 @@ export function reduceFolderConfig(
         }
 
         case 'SET_AS_WRITE': {
-            const newWritePath: string = action.path;
-            const oldWritePath: string = config.writePath;
+            const newWriteFolder: string = action.path;
+            const oldWriteFolder: string = config.writeFolder;
 
             // If same path, no change needed
-            if (newWritePath === oldWritePath) {
+            if (newWriteFolder === oldWriteFolder) {
                 return config;
             }
 
             return {
                 ...config,
-                writePath: newWritePath,
+                writeFolder: newWriteFolder,
             };
         }
 
@@ -288,13 +288,13 @@ export interface DirectoryEntry {
 export function buildFolderTree(
     entry: DirectoryEntry,
     loadedPaths: ReadonlySet<string>,
-    writePath: AbsolutePath | null,
+    writeFolder: AbsolutePath | null,
     graphFilePaths: ReadonlySet<string>,
 ): FolderTreeNode {
     const children: readonly (FolderTreeNode | FileTreeNode)[] = (entry.children ?? []).map(
         (child: DirectoryEntry): FolderTreeNode | FileTreeNode => {
             if (child.isDirectory) {
-                return buildFolderTree(child, loadedPaths, writePath, graphFilePaths);
+                return buildFolderTree(child, loadedPaths, writeFolder, graphFilePaths);
             }
             return {
                 name: child.name,
@@ -325,6 +325,6 @@ export function buildFolderTree(
         absolutePath: entry.absolutePath,
         children: sorted,
         loadState: loadedPaths.has(entry.absolutePath) ? 'loaded' : 'not-loaded',
-        isWriteTarget: writePath === entry.absolutePath,
+        isWriteTarget: writeFolder === entry.absolutePath,
     };
 }

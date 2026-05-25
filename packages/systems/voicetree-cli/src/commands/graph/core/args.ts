@@ -67,13 +67,13 @@ function parsePositiveInteger(value: string, flag: string): number {
 
 function parseGraphIndexArgs(args: string[]): string {
     if (args.length !== 1) {
-        error('Usage: vt graph index <vault-path>')
+        error('Usage: vt graph index <project-root>')
     }
 
     return args[0]
 }
 
-function parseGraphSearchArgs(args: string[]): {vaultPath: string; query: string; topK: number} {
+function parseGraphSearchArgs(args: string[]): {projectRoot: string; query: string; topK: number} {
     let topK: number = 10
     const positionalArgs: string[] = []
 
@@ -93,11 +93,11 @@ function parseGraphSearchArgs(args: string[]): {vaultPath: string; query: string
     }
 
     if (positionalArgs.length < 2) {
-        error('Usage: vt graph search <vault-path> <query...> [--top-k N]')
+        error('Usage: vt graph search <project-root> <query...> [--top-k N]')
     }
 
     return {
-        vaultPath: positionalArgs[0],
+        projectRoot: positionalArgs[0],
         query: positionalArgs.slice(1).join(' ').trim(),
         topK,
     }

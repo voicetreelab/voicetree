@@ -8,34 +8,34 @@ import type {GraphIndexSuccess, GraphSearchSuccess} from '../core/types'
 export async function graphIndex(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
-    const vaultPath: string = parseGraphIndexArgs(args)
+    const projectRoot: string = parseGraphIndexArgs(args)
 
     try {
-        await buildIndex(vaultPath)
+        await buildIndex(projectRoot)
     } catch (buildError: unknown) {
         error(`graph index failed: ${getErrorMessage(buildError)}`)
     }
 
     const result: GraphIndexSuccess = {
         success: true,
-        vaultPath,
-        indexPath: path.join(vaultPath, '.vt-search', 'kg.db'),
+        projectRoot,
+        indexPath: path.join(projectRoot, '.vt-search', 'kg.db'),
     }
 
     output(result, (data: unknown): string => {
         const successData: GraphIndexSuccess = data as GraphIndexSuccess
-        return `Indexed ${successData.vaultPath}\n${successData.indexPath}`
+        return `Indexed ${successData.projectRoot}\n${successData.indexPath}`
     })
 }
 
 export async function graphSearch(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
-    const {vaultPath, query, topK} = parseGraphSearchArgs(args)
+    const {projectRoot, query, topK} = parseGraphSearchArgs(args)
 
     let hits: readonly NodeSearchHit[]
     try {
-        hits = await search(vaultPath, query, topK)
+        hits = await search(projectRoot, query, topK)
     } catch (searchError: unknown) {
         if (searchError instanceof SearchIndexNotFoundError) {
             error(searchError.message)
@@ -46,7 +46,7 @@ export async function graphSearch(terminalId: string | undefined, args: string[]
 
     const result: GraphSearchSuccess = {
         success: true,
-        vaultPath,
+        projectRoot,
         query,
         topK,
         hits,

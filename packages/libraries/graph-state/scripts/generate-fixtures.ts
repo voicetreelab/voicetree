@@ -48,7 +48,7 @@ interface SyntheticRootSpec {
 interface SyntheticStateSpec {
     readonly roots: readonly SyntheticRootSpec[]
     readonly loadedRoots?: readonly string[]
-    readonly writePath?: string | null
+    readonly writeFolder?: string | null
     readonly collapseSet?: readonly string[]
     readonly selection?: readonly string[]
     readonly layout?: {
@@ -314,9 +314,9 @@ function createState(spec: SyntheticStateSpec): State {
         .map((rootPath) => normalizePath(rootPath))
         .sort((left, right) => left.localeCompare(right))
     const loadedRootSet = new Set(loadedRoots)
-    const writePath = spec.writePath === null
+    const writeFolder = spec.writeFolder === null
         ? null
-        : toAbsolutePath(normalizePath(spec.writePath ?? loadedRoots[0] ?? spec.roots[0]?.rootPath ?? ROOT_A))
+        : toAbsolutePath(normalizePath(spec.writeFolder ?? loadedRoots[0] ?? spec.roots[0]?.rootPath ?? ROOT_A))
     const filesForGraph = spec.roots
         .filter((root) => loadedRootSet.has(root.rootPath))
         .flatMap((root) => root.files.map((file) => ({
@@ -332,7 +332,7 @@ function createState(spec: SyntheticStateSpec): State {
         .map((root) => buildFolderTree(
             buildDirectoryEntry(root.rootPath, root.files, root.extraDirs),
             loadedRootSet,
-            writePath,
+            writeFolder,
             graphFilePaths,
         ))
 

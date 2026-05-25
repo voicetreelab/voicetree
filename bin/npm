@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# vt-monorepo npm shim.
+#
+# Intercepts `npm run <script>` and routes it to the devbox via
+# scripts/run-remote.mjs. Two opt-outs:
+#   - script name ends in `:local`   — runs locally, with VT_REMOTE_EXEC=1
+#                                      exported so nested `npm run` stays local
+#   - VT_REMOTE_EXEC=1 already set   — recursion guard (set by run-remote.mjs
+#                                      after it ssh's to the devbox); the
+#                                      command runs locally without further
+#                                      routing
+#
+# When neither opt-out applies, the shim delegates to scripts/run-remote.mjs,
+# which decides whether to ssh to the devbox (if VT_REMOTE_HOST is set in env
+# or .env) or fall back to local execution.
+#
+# Every other npm invocation (install, ci, exec, --version, `npm run` with no
+# script, `npm test` shortcut, etc.) passes through to the real npm unchanged.
+
+set -u
+
+SELF="$(realpath "$0" 2>/dev/null || echo "$0")"
+
+# Locate the real npm by scanning PATH and skipping ourselves. With bin/
+# prepended, `npm` resolves to the shim; we must walk past it.
+REAL_NPM=""
+SAVED_IFS="$IFS"
+IFS=:
+for dir in $PATH; do
+  cand="$dir/npm"
+  if [ -x "$cand" ]; then
+    resolved="$(realpath "$cand" 2>/dev/null || echo "$cand")"
+    if [ "$resolved" != "$SELF" ]; then
+      REAL_NPM="$cand"
+      break
+    fi
+  fi
+done
+IFS="$SAVED_IFS"
+
+if [ -z "$REAL_NPM" ]; then
+  echo "vt-npm-shim: could not locate real npm in PATH" >&2
+  exit 1
+fi
+
+# Only intercept `npm run <script>`.
+if [ "${1:-}" = "run" ] && [ -n "${2:-}" ]; then
+  script="$2"
+  shift 2
+
+  case "$script" in
+    *:local)
+      # Explicit local pin. Propagate VT_REMOTE_EXEC=1 so any nested
+      # `npm run` from inside this script also stays local.
+      exec env VT_REMOTE_EXEC=1 "$REAL_NPM" run "$script" "$@"
+      ;;
+  esac
+
+  if [ "${VT_REMOTE_EXEC:-}" = "1" ]; then
+    exec "$REAL_NPM" run "$script" "$@"
+  fi
+
+  REPO_ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
+  exec node "$REPO_ROOT/scripts/run-remote.mjs" npm run "$script" "$@"
+fi
+
+exec "$REAL_NPM" "$@"

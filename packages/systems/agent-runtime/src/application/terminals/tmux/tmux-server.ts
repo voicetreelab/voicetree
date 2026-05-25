@@ -36,6 +36,17 @@ export interface TmuxServerLogger {
     readonly warn: (message: string) => void
 }
 
+// An orphan tmux daemon is a server process that's alive (ppid=1) but whose
+// listening socket file no longer routes to it — typically because the path was
+// unlinked or replaced. New `connect()` calls cannot reach it; only its existing
+// open client fds can. Sessions inside it are unreachable for new commands and
+// will be leaked across app restarts unless we surface them explicitly.
+export interface OrphanTmuxDaemon {
+    readonly pid: number
+    readonly shellChildrenPids: readonly number[]
+    readonly userSessionCount: number
+}
+
 export interface TmuxServerDeps {
     readonly env: NodeJS.ProcessEnv
     readonly platform: NodeJS.Platform
@@ -178,6 +189,128 @@ function isMissingOrStaleServerError(error: unknown): boolean {
         || text.includes('No such file or directory')
 }
 
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function parsePidList(stdout: string): readonly number[] {
+    return stdout
+        .split('\n')
+        .map((line: string): string => line.trim())
+        .filter((line: string): boolean => line.length > 0)
+        .map((line: string): number => Number(line))
+        .filter((value: number): boolean => Number.isInteger(value) && value > 0)
+}
+
+async function pgrepByPattern(pattern: string, deps: TmuxServerDeps): Promise<readonly number[]> {
+    try {
+        const result: TmuxCommandResult = await execFilePromise(deps, 'pgrep', ['-f', pattern])
+        return parsePidList(result.stdout)
+    } catch {
+        // pgrep returns non-zero when no matches; that's not an error for us.
+        return []
+    }
+}
+
+async function readPpidAndComm(pid: number, deps: TmuxServerDeps): Promise<{readonly ppid: number, readonly comm: string} | null> {
+    try {
+        const result: TmuxCommandResult = await execFilePromise(deps, 'ps', ['-p', String(pid), '-o', 'ppid=,comm='])
+        const line: string = result.stdout.trim()
+        if (!line) return null
+        const firstSpace: number = line.search(/\s/)
+        if (firstSpace < 0) return null
+        const ppid: number = Number(line.slice(0, firstSpace).trim())
+        const comm: string = line.slice(firstSpace).trim()
+        if (!Number.isFinite(ppid)) return null
+        return {ppid, comm}
+    } catch {
+        return null
+    }
+}
+
+async function listChildPids(pid: number, deps: TmuxServerDeps): Promise<readonly number[]> {
+    try {
+        const result: TmuxCommandResult = await execFilePromise(deps, 'pgrep', ['-P', String(pid)])
+        return parsePidList(result.stdout)
+    } catch {
+        return []
+    }
+}
+
+// Look for tmux daemon processes that mention this socket path in their argv and
+// have been reparented to init (ppid==1, i.e. daemonized). At call time this
+// function assumes the socket path is unresponsive — any match is therefore an
+// orphan, not the currently-live listener.
+async function findOrphanTmuxDaemons(socketPath: string, deps: TmuxServerDeps): Promise<readonly OrphanTmuxDaemon[]> {
+    const pattern: string = `^.*tmux.*${escapeRegex(socketPath)}`
+    const candidates: readonly number[] = await pgrepByPattern(pattern, deps)
+    const orphans: OrphanTmuxDaemon[] = []
+    for (const pid of candidates) {
+        const meta: {readonly ppid: number, readonly comm: string} | null = await readPpidAndComm(pid, deps)
+        if (!meta) continue
+        if (meta.ppid !== 1) continue
+        if (!meta.comm.includes('tmux')) continue
+        const shellChildrenPids: readonly number[] = await listChildPids(pid, deps)
+        // The __voicetree_root__ keep-alive is one shell child. Anything beyond
+        // it is a user session (each tmux session has at least one shell child
+        // running directly under the server).
+        const userSessionCount: number = Math.max(0, shellChildrenPids.length - 1)
+        orphans.push({pid, shellChildrenPids, userSessionCount})
+    }
+    return orphans
+}
+
+function describeOrphans(orphans: readonly OrphanTmuxDaemon[]): string {
+    return orphans
+        .map((orphan: OrphanTmuxDaemon): string => `pid=${orphan.pid} shellChildren=${orphan.shellChildrenPids.length} userSessions=${orphan.userSessionCount}`)
+        .join('; ')
+}
+
+async function killOrphan(pid: number, deps: TmuxServerDeps): Promise<void> {
+    try {
+        await execFilePromise(deps, 'kill', [String(pid)])
+    } catch (error) {
+        deps.logger.warn(`[tmux-server] kill ${pid} (SIGTERM) failed: ${tmuxErrorText(error).trim()}; trying SIGKILL`)
+        try {
+            await execFilePromise(deps, 'kill', ['-9', String(pid)])
+        } catch (killError) {
+            throw new Error(`failed to kill orphan tmux daemon pid=${pid}: ${tmuxErrorText(killError).trim()}`)
+        }
+    }
+}
+
+// Decide what to do with each orphan we find. Returns void on success (caller may
+// proceed to unlink + bind a new server); throws with a diagnosable error if any
+// orphan still holds user sessions.
+async function reconcileOrphans(socketPath: string, deps: TmuxServerDeps): Promise<void> {
+    deps.logger.warn(`[tmux-server] scanning ${socketPath} for orphan tmux daemons before reset`)
+    const orphans: readonly OrphanTmuxDaemon[] = await findOrphanTmuxDaemons(socketPath, deps)
+    if (orphans.length === 0) {
+        deps.logger.warn(`[tmux-server] no orphan tmux daemons found on ${socketPath}; proceeding`)
+        return
+    }
+    deps.logger.warn(`[tmux-server] found ${orphans.length} orphan tmux daemon(s) on ${socketPath}: ${describeOrphans(orphans)}`)
+
+    const orphansWithUserSessions: readonly OrphanTmuxDaemon[] = orphans.filter((orphan: OrphanTmuxDaemon): boolean => orphan.userSessionCount > 0)
+    if (orphansWithUserSessions.length > 0) {
+        const killCmd: string = orphansWithUserSessions.map((orphan: OrphanTmuxDaemon): number => orphan.pid).join(' ')
+        throw new Error(
+            `Refusing to bind a new tmux server on ${socketPath}: `
+            + `${orphansWithUserSessions.length} orphan tmux daemon(s) still hold user agent sessions `
+            + `[${describeOrphans(orphansWithUserSessions)}]. `
+            + `These sessions are unreachable for new commands but their processes are still alive; `
+            + `restarting the app would silently leak them. `
+            + `Inspect with: ps -p ${orphansWithUserSessions.map((orphan: OrphanTmuxDaemon): number => orphan.pid).join(',')} -o pid,lstart,command; `
+            + `recover by killing manually (loses agent work): kill ${killCmd}`
+        )
+    }
+
+    for (const orphan of orphans) {
+        deps.logger.warn(`[tmux-server] killing orphan tmux daemon pid=${orphan.pid} (no user sessions)`)
+        await killOrphan(orphan.pid, deps)
+    }
+}
+
 function lockPath(appSupportPath: string): string {
     return join(appSupportPath, 'tmux.ensure.lock')
 }
@@ -241,15 +374,54 @@ async function startRootSessionWithStaleSocketRetry(tmuxBin: string, socketPath:
     try {
         await startRootSession(tmuxBin, socketPath, deps)
         await verifyServer(tmuxBin, socketPath, deps)
+        await raiseServerPriority(tmuxBin, socketPath, deps)
         return
     } catch (error) {
         if (!deps.existsSync(socketPath) || !isMissingOrStaleServerError(error)) throw error
+        // Before unlinking the socket and binding a new server, verify there is
+        // no orphan daemon still alive on this path — otherwise we silently
+        // create a split-brain where the orphan's sessions become unreachable.
+        await reconcileOrphans(socketPath, deps)
         deps.logger.warn(`[tmux-server] removing stale tmux socket ${socketPath}: ${tmuxErrorText(error).trim()}`)
         deps.rmSync(socketPath, {force: true})
     }
 
     await startRootSession(tmuxBin, socketPath, deps)
     await verifyServer(tmuxBin, socketPath, deps)
+    await raiseServerPriority(tmuxBin, socketPath, deps)
+}
+
+// macOS jetsam reaps high-RSS background daemons under memory pressure. Because tmux
+// daemonizes (severs our parent chain to the foreground Electron app), every agent
+// pane below the server inherits a background priority band and becomes a target.
+// `taskpolicy -c user-interactive` lifts the server's QoS class so the kernel treats
+// it (and its descendants) as interactive work, surviving pressure-driven kills.
+async function raiseServerPriority(tmuxBin: string, socketPath: string, deps: TmuxServerDeps): Promise<void> {
+    if (deps.platform !== 'darwin') return
+
+    let serverPid: string
+    try {
+        const result: TmuxCommandResult = await execFilePromise(
+            deps,
+            tmuxBin,
+            getTmuxCommandArgs(['display-message', '-p', '#{pid}'], socketPath),
+        )
+        serverPid = result.stdout.trim()
+    } catch (error) {
+        deps.logger.warn(`[tmux-server] could not resolve server pid for priority raise: ${tmuxErrorText(error).trim()}`)
+        return
+    }
+
+    if (!/^\d+$/.test(serverPid)) {
+        deps.logger.warn(`[tmux-server] unexpected server pid output: "${serverPid}"`)
+        return
+    }
+
+    try {
+        await execFilePromise(deps, 'taskpolicy', ['-c', 'user-interactive', '-p', serverPid])
+    } catch (error) {
+        deps.logger.warn(`[tmux-server] taskpolicy raise failed for pid ${serverPid} (best-effort): ${tmuxErrorText(error).trim()}`)
+    }
 }
 
 async function removeLegacyLaunchAgentOnce(deps: TmuxServerDeps): Promise<void> {

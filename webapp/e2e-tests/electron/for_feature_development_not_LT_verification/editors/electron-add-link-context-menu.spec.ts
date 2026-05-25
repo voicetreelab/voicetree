@@ -44,8 +44,8 @@ const test = base.extend<{
     await fs.mkdir(watchedFolder, { recursive: true });
 
     // Create the actual vault path with default suffix 'voicetree'
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Create the main test node (source node for the link)
     const sourceContent = `---
@@ -59,7 +59,7 @@ This is the source node where we will add a link.
 
 Some content here.
 `;
-    await fs.writeFile(path.join(vaultPath, 'source-node.md'), sourceContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'source-node.md'), sourceContent, 'utf-8');
 
     // Create a target node that we will link to
     const targetContent = `---
@@ -71,7 +71,7 @@ position:
 
 This is the target node we will link to.
 `;
-    await fs.writeFile(path.join(vaultPath, 'target-node.md'), targetContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'target-node.md'), targetContent, 'utf-8');
 
     // Create another node to verify autocomplete filtering
     const anotherContent = `---
@@ -83,16 +83,16 @@ position:
 
 This is another node in the graph.
 `;
-    await fs.writeFile(path.join(vaultPath, 'another-node.md'), anotherContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'another-node.md'), anotherContent, 'utf-8');
 
     // Write config to auto-load the vault
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', vaultPath);
+    console.log('[Test] Vault path (with suffix):', projectRoot);
 
-    // Store vaultPath for test access
-    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
+    // Store projectRoot for test access
+    (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
     const electronApp = await electron.launch({
       args: [
@@ -134,7 +134,7 @@ This is another node in the graph.
   },
 
   testVaultPath: async ({}, use, testInfo) => {
-    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
   appWindow: async ({ electronApp }, use) => {

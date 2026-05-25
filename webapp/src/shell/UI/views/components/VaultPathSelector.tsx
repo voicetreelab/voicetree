@@ -12,21 +12,21 @@ import type {} from '@/shell/electron';
  */
 export function VaultPathSelector(): JSX.Element | null {
     const vaultState: VaultPathState = useSyncExternalStore(subscribeToVaultPaths, getVaultState);
-    const { readPaths, writePath } = vaultState;
+    const { readPaths, writeFolder } = vaultState;
 
-    if (!writePath && readPaths.length === 0) {
+    if (!writeFolder && readPaths.length === 0) {
         return null;
     }
 
-    const currentFolderName: string = writePath
-        ? (writePath.split(/[/\\]/).pop() ?? writePath)
+    const currentFolderName: string = writeFolder
+        ? (writeFolder.split(/[/\\]/).pop() ?? writeFolder)
         : 'Select vault';
 
     return (
         <button
             onClick={() => toggleFolderTreeSidebar()}
             className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors flex items-center gap-1"
-            title={`Write Path: ${writePath ?? 'None'} – Click to toggle file tree`}
+            title={`Write Path: ${writeFolder ?? 'None'} – Click to toggle file tree`}
         >
             <span>{currentFolderName}</span>
         </button>

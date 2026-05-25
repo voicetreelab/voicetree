@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import { project } from '@vt/graph-state'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 import {
   OpenVaultRequestSchema,
   OpenVaultResponseSchema,
@@ -16,15 +17,18 @@ import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderSta
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
+import { clearKnownExistingDirectoriesCache } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 import {
-  clearVaultPath,
   getReadPaths,
-  getWritePath,
-  resolveWritePath,
-  setVaultPath,
-  setWritePath,
+  getWriteFolder,
+  resolveWriteFolder,
+  setWriteFolder,
 } from '@vt/graph-db-server/state/vaultAllowlist'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import {
+  clearProjectRoot,
+  getProjectRoot,
+  setProjectRoot,
+} from '@vt/graph-db-server/state/watch-folder-store'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import {
@@ -33,7 +37,7 @@ import {
 } from '../errors/vaultNotOpen.ts'
 
 export type VaultResource = {
-  openForVault(vaultPath: string): Promise<void>
+  openForVault(projectRoot: string): Promise<void>
   closeForVault(): Promise<void>
 }
 
@@ -43,26 +47,20 @@ type OpenVaultWorkflowInput = OpenVaultRequest & {
 
 type LifecycleState = {
   activeSessionId: string | null
-  activeVaultPath: string | null
   registry: SessionRegistry | null
 }
 
 const resources: VaultResource[] = []
 const lifecycleState: LifecycleState = {
   activeSessionId: null,
-  activeVaultPath: null,
   registry: null,
 }
 
 let mutexTail: Promise<unknown> = Promise.resolve()
 
 export function configureVaultLifecycle(options: {
-  activeVaultPath?: string | null
   registry: SessionRegistry
 }): void {
-  lifecycleState.activeVaultPath = options.activeVaultPath
-    ? resolve(options.activeVaultPath)
-    : null
   lifecycleState.activeSessionId = null
   lifecycleState.registry = options.registry
 }
@@ -70,7 +68,6 @@ export function configureVaultLifecycle(options: {
 export function resetVaultLifecycle(): void {
   resources.length = 0
   lifecycleState.activeSessionId = null
-  lifecycleState.activeVaultPath = null
   lifecycleState.registry = null
   mutexTail = Promise.resolve()
 }
@@ -92,22 +89,22 @@ function getRegistry(): SessionRegistry {
   return lifecycleState.registry
 }
 
-function parseWritePath(writePathOption: Awaited<ReturnType<typeof getWritePath>>): string | null {
-  const maybeValue = (writePathOption as { value?: unknown }).value
+function parseWriteFolder(writeFolderOption: Awaited<ReturnType<typeof getWriteFolder>>): string | null {
+  const maybeValue = (writeFolderOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? maybeValue : null
 }
 
-async function readVaultState(vaultPath: string): Promise<VaultState> {
+async function readVaultState(projectRoot: string): Promise<VaultState> {
   const readPaths = [...(await getReadPaths())]
-  const writePath = parseWritePath(await getWritePath()) ?? vaultPath
-  return VaultStateSchema.parse({ vaultPath, readPaths, writePath })
+  const writeFolder = parseWriteFolder(await getWriteFolder()) ?? projectRoot
+  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolder })
 }
 
 function readFolderVisibilitySnapshot(
-  vaultPath: string,
+  projectRoot: string,
 ): { folderState: FolderStateEntry[]; activeView: ActiveView } {
   try {
-    return getFolderStateForActiveView(vaultPath) as {
+    return getFolderStateForActiveView(projectRoot) as {
       folderState: FolderStateEntry[]
       activeView: ActiveView
     }
@@ -119,7 +116,7 @@ function readFolderVisibilitySnapshot(
   }
 }
 
-async function buildOpenVaultResponse(vaultPath: string): Promise<OpenVaultResponse> {
+async function buildOpenVaultResponse(projectRoot: string): Promise<OpenVaultResponse> {
   const registry = getRegistry()
   const session = lifecycleState.activeSessionId
     ? registry.get(lifecycleState.activeSessionId) ?? registry.create()
@@ -127,13 +124,13 @@ async function buildOpenVaultResponse(vaultPath: string): Promise<OpenVaultRespo
   lifecycleState.activeSessionId = session.id
 
   const state = await buildDaemonState(session)
-  const vaultState = await readVaultState(vaultPath)
+  const vaultState = await readVaultState(projectRoot)
   return OpenVaultResponseSchema.parse({
     sessionId: session.id,
-    writePath: vaultState.writePath,
+    writeFolder: vaultState.writeFolder,
     vaultState,
     initialProjectedGraph: project(state),
-    ...readFolderVisibilitySnapshot(vaultPath),
+    ...readFolderVisibilitySnapshot(projectRoot),
   })
 }
 
@@ -147,10 +144,10 @@ async function closeResources(): Promise<void> {
   }
 }
 
-async function openResources(vaultPath: string): Promise<void> {
+async function openResources(projectRoot: string): Promise<void> {
   try {
     for (const resource of resources) {
-      await resource.openForVault(vaultPath)
+      await resource.openForVault(projectRoot)
     }
   } catch (error) {
     throw new VaultOpenFailedError(
@@ -159,75 +156,93 @@ async function openResources(vaultPath: string): Promise<void> {
   }
 }
 
-async function bindVault(input: OpenVaultWorkflowInput, targetVaultPath: string): Promise<void> {
-  await mkdir(join(targetVaultPath, '.voicetree'), { recursive: true })
-  setVaultPath(targetVaultPath)
+async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: string): Promise<void> {
+  await mkdir(join(targetProjectRoot, '.voicetree'), { recursive: true })
+  setProjectRoot(targetProjectRoot)
 
-  const savedConfig = await getVaultConfigForDirectory(targetVaultPath)
-  const configuredWritePath = input.writePath ?? savedConfig?.writePath
-  const targetWritePath = configuredWritePath
-    ? resolveWritePath(targetVaultPath, configuredWritePath)
-    : targetVaultPath
+  const savedConfig = await getVaultConfigForDirectory(targetProjectRoot)
+  const configuredWriteFolder = input.writeFolder ?? savedConfig?.writeFolder
+  const targetWriteFolder = configuredWriteFolder
+    ? resolveWriteFolder(targetProjectRoot, configuredWriteFolder)
+    : targetProjectRoot
 
-  const result = await setWritePath(targetWritePath, {
+  const result = await setWriteFolder(targetWriteFolder, {
     createStarterIfEmpty: input.createStarterIfEmpty,
   })
   if (!result.success) {
-    throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetVaultPath}`)
+    throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetProjectRoot}`)
   }
 }
 
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
-  return await withVaultMutex(async () => {
-    const body = OpenVaultRequestSchema.parse(input)
-    const targetVaultPath = resolve(body.path)
+  return await traceGraphdSpan('daemon.open-vault', async (span) => {
+    return await withVaultMutex(async () => {
+      const body = OpenVaultRequestSchema.parse(input)
+      const targetProjectRoot = resolve(body.path)
+      const currentProjectRoot = getProjectRoot()
+      span.setAttribute('targetVaultPath', targetProjectRoot)
+      span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
 
-    if (lifecycleState.activeVaultPath === targetVaultPath) {
-      return await buildOpenVaultResponse(targetVaultPath)
-    }
+      if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
+        span.setAttribute('outcome', 'reuse-current')
+        return await buildOpenVaultResponse(targetProjectRoot)
+      }
 
-    if (lifecycleState.activeVaultPath) {
-      await closeResources()
-    }
+      if (currentProjectRoot) {
+        span.setAttribute('switchedFromActive', true)
+        await closeResources()
+        clearKnownExistingDirectoriesCache()
+      }
 
-    lifecycleState.activeVaultPath = null
-    lifecycleState.activeSessionId = null
-    setGraph(createEmptyGraph())
+      lifecycleState.activeSessionId = null
+      setGraph(createEmptyGraph())
 
-    try {
-      await bindVault(
-        { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-        targetVaultPath,
-      )
-      await openResources(targetVaultPath)
-      lifecycleState.activeVaultPath = targetVaultPath
-      return await buildOpenVaultResponse(targetVaultPath)
-    } catch (error) {
-      throw error instanceof VaultOpenFailedError
-        ? error
-        : new VaultOpenFailedError(
-            error instanceof Error ? error.message : 'Failed to open vault',
-          )
-    }
+      try {
+        await bindVault(
+          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+          targetProjectRoot,
+        )
+        await openResources(targetProjectRoot)
+        span.setAttribute('outcome', 'opened')
+        return await buildOpenVaultResponse(targetProjectRoot)
+      } catch (error) {
+        span.setAttribute('outcome', 'open-failed')
+        span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
+        await closeResources()
+        clearProjectRoot()
+        clearKnownExistingDirectoriesCache()
+        throw error instanceof VaultOpenFailedError
+          ? error
+          : new VaultOpenFailedError(
+              error instanceof Error ? error.message : 'Failed to open vault',
+            )
+      }
+    })
   })
 }
 
 export async function closeVaultWorkflow(): Promise<void> {
-  await withVaultMutex(async () => {
-    if (!lifecycleState.activeVaultPath && !getProjectRootWatchedDirectory()) {
-      return
-    }
+  await traceGraphdSpan('daemon.close-vault', async (span) => {
+    await withVaultMutex(async () => {
+      const currentProjectRoot = getProjectRoot()
+      span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
+      if (!currentProjectRoot) {
+        span.setAttribute('outcome', 'no-op')
+        return
+      }
 
-    await closeResources()
-    lifecycleState.activeVaultPath = null
-    lifecycleState.activeSessionId = null
-    clearVaultPath()
-    setGraph(createEmptyGraph())
+      await closeResources()
+      lifecycleState.activeSessionId = null
+      clearProjectRoot()
+      clearKnownExistingDirectoriesCache()
+      setGraph(createEmptyGraph())
+      span.setAttribute('outcome', 'closed')
+    })
   })
 }
 
 export function ensureVaultIsOpen(): void {
-  if (!getProjectRootWatchedDirectory()) {
+  if (!getProjectRoot()) {
     throw new VaultNotOpenError()
   }
 }

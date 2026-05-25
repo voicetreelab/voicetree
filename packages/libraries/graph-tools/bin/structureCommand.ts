@@ -7,8 +7,7 @@ import {
 import {buildAutoViewGraph, renderTreeCover} from '../src/view/autoView'
 
 function fail(message: string): never {
-  console.error(message)
-  process.exit(1)
+  throw new Error(message)
 }
 
 function getRequiredValue(parsedArgs: string[], index: number, flag: string): string {

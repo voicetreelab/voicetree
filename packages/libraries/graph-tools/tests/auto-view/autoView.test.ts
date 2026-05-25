@@ -36,12 +36,12 @@ function runViewCli(args: readonly string[]): string {
     )
 }
 
-function legacyTreeCover(vaultPath: string): string {
-    const mdFiles = scanMarkdownFiles(vaultPath)
+function legacyTreeCover(projectRoot: string): string {
+    const mdFiles = scanMarkdownFiles(projectRoot)
     const structureNodes = new Map<string, {id: string; title: string; outgoingIds: readonly string[]}>()
     const contentMap = new Map<string, string>()
     for (const absPath of mdFiles) {
-        const id = getNodeId(vaultPath, absPath)
+        const id = getNodeId(projectRoot, absPath)
         const content = fs.readFileSync(absPath, 'utf8')
         structureNodes.set(id, {id, title: id, outgoingIds: []})
         contentMap.set(id, content)
@@ -50,12 +50,12 @@ function legacyTreeCover(vaultPath: string): string {
     const uniqueBasenames = buildUniqueBasenameMap(structureNodes)
     const state = {graph: {nodes: {} as Record<string, {absoluteFilePathIsID: string; contentWithoutYamlOrLinks: string; outgoingEdges: {targetId: string}[]}>}}
     for (const [id, content] of contentMap) {
-        const absPath = path.join(vaultPath, id + '.md')
+        const absPath = path.join(projectRoot, id + '.md')
         const outgoingEdges: {targetId: string}[] = []
         for (const link of extractLinks(content)) {
             const target = resolveLinkTarget(link, id, structureNodes, uniqueBasenames)
             if (target && target !== id) {
-                outgoingEdges.push({targetId: path.join(vaultPath, target + '.md')})
+                outgoingEdges.push({targetId: path.join(projectRoot, target + '.md')})
             }
         }
         state.graph.nodes[absPath] = {
@@ -79,9 +79,9 @@ function legacyTreeCover(vaultPath: string): string {
     const cover = computeArboricity(Object.keys(state.graph.nodes).length, edges)
     return [
         '═══ SPINE (folder hierarchy, no content edges) ═══',
-        renderSpine(buildFolderSpine(state, vaultPath), vaultPath),
+        renderSpine(buildFolderSpine(state, projectRoot), projectRoot),
         '',
-        ...cover.forests.flatMap((forest, index) => [renderCoverForest(index + 1, forest, titleOf, vaultPath), '']),
+        ...cover.forests.flatMap((forest, index) => [renderCoverForest(index + 1, forest, titleOf, projectRoot), '']),
     ].join('\n')
 }
 

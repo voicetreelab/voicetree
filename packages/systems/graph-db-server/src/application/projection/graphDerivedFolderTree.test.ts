@@ -34,7 +34,7 @@ function makeNode(id: string): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }
@@ -80,7 +80,7 @@ function collectFilePaths(tree: FolderTreeNode | null): Set<string> {
 
 describe('projectGraphDerivedFolderTree', () => {
   const projectRoot: AbsolutePath = toAbsolutePath('/vault')
-  const writePath: AbsolutePath = toAbsolutePath('/vault/notes')
+  const writeFolder: AbsolutePath = toAbsolutePath('/vault/notes')
 
   it('contains exactly the folders that hold graph nodes (plus root)', () => {
     const graph = makeGraph([
@@ -93,7 +93,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: [],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     expect(tree).not.toBeNull()
     const folders = collectFolderPaths(tree)
@@ -114,7 +114,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: [],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     const files = collectFilePaths(tree)
     expect(files).toEqual(new Set(['/vault/notes/a.md', '/vault/journal/c.md']))
@@ -127,21 +127,21 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: [],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     const notes = (tree!.children.find((c) => c.name === 'notes') as FolderTreeNode)
     const file = notes.children.find((c) => c.name === 'a.md')! as FileTreeNode
     expect(file.isInGraph).toBe(true)
   })
 
-  it('marks the writePath folder as isWriteTarget', () => {
+  it('marks the writeFolder folder as isWriteTarget', () => {
     const graph = makeGraph(['/vault/notes/a.md'])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
       readPaths: [],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     const notes = tree!.children.find((c) => c.name === 'notes') as FolderTreeNode
     expect(notes.isWriteTarget).toBe(true)
@@ -154,7 +154,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: ['/vault/notes'],
       vaultPaths: ['/vault/refs'],
-      writePath,
+      writeFolder,
     })
     const notes = tree!.children.find((c) => c.name === 'notes') as FolderTreeNode
     const refs = tree!.children.find((c) => c.name === 'refs') as FolderTreeNode
@@ -170,7 +170,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: ['/vault/refs'],
       vaultPaths: ['/vault/external/lib'],
-      writePath,
+      writeFolder,
     })
     const folders = collectFolderPaths(tree)
     expect(folders).toEqual(
@@ -194,7 +194,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: ['/elsewhere'],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     const folders = collectFolderPaths(tree)
     expect(folders.has('/elsewhere')).toBe(false)
@@ -211,7 +211,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot: null,
       readPaths: [],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     expect(tree).toBeNull()
   })
@@ -223,7 +223,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: [],
       vaultPaths: [],
-      writePath: null,
+      writeFolder: null,
     })
     expect(tree).not.toBeNull()
     expect(tree!.absolutePath).toBe('/vault')
@@ -237,7 +237,7 @@ describe('projectGraphDerivedFolderTree', () => {
       projectRoot,
       readPaths: ['/vault/refs'],
       vaultPaths: [],
-      writePath,
+      writeFolder,
     })
     // If the function were doing I/O it would have to be async; assert the
     // returned value is the FolderTreeNode itself, not a thenable.

@@ -4,7 +4,7 @@ import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { buildIncomingEdgesIndex } from '@vt/graph-model/graph'
 
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
-  getWritePath: vi.fn()
+  getWriteFolder: vi.fn()
 }))
 
 const mocks = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => 
 }))
 
 import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
-import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
 function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
@@ -66,7 +66,7 @@ describe('runAgentOnSelectedNodes', () => {
     })
 
     vi.mocked(getGraphFromDaemon).mockResolvedValue(graph)
-    vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+    vi.mocked(getWriteFolder).mockResolvedValue(O.some('/vault'))
     vi.mocked(mocks.spawnTerminalWithContextNode).mockResolvedValue({
       terminalId: 'agent-1',
       contextNodeId: '/vault/ctx-nodes/task_context.md' as NodeIdAndFilePath

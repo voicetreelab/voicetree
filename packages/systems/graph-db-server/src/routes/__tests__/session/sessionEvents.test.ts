@@ -12,7 +12,7 @@ import {
 } from '@vt/graph-model/graph'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import { SessionRegistry } from '../../../application/session/registry.ts'
-import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
+import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import { getGraph, setGraph } from '../../../state/graph-store.ts'
 import { publish } from '../../../state/events/deltaEventBus.ts'
@@ -26,7 +26,7 @@ async function createAppSupport(vault: string): Promise<string> {
   const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-appsupport-'))
   const config = {
     vaultConfig: {
-      [vault]: { writePath: vault },
+      [vault]: { writeFolder: vault },
     },
   }
   await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))

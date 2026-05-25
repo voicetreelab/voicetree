@@ -1,5 +1,5 @@
 import {expect} from 'vitest'
-import {recordHealthReport, type HealthReport} from './health-report-writer.ts'
+import {recordHealthReport, removeHealthReports, type HealthReport} from './health-report-writer.ts'
 
 type HealthReportInput = Omit<HealthReport, 'passed' | 'timestamp'> & {
     readonly passed?: boolean
@@ -18,6 +18,8 @@ export async function recordHealthMetric(input: HealthReportInput): Promise<void
         timestamp: new Date().toISOString(),
     })
 }
+
+export {removeHealthReports}
 
 // Gate the test on a metric's budget. severity='gate' (default) fails the test
 // via vitest expect; severity='warning' only logs to stderr so the dashboard

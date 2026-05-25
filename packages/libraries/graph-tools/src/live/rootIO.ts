@@ -73,10 +73,12 @@ export function configureGraphToolsRootIO(): void {
 
     configureRootIO({
         getDirectoryTree,
-        loadGraphFromDisk: async (vaultPaths) => {
+        loadGraphFromDisk: async (projectRoots) => {
             try {
-                const filesByVault = await Promise.all(vaultPaths.map((vaultPath) => readMarkdownFiles(path.resolve(vaultPath))))
-                return E.right(buildGraphFromFiles(filesByVault.flat()))
+                const filesByProjectRoot = await Promise.all(
+                    projectRoots.map((projectRoot) => readMarkdownFiles(path.resolve(projectRoot))),
+                )
+                return E.right(buildGraphFromFiles(filesByProjectRoot.flat()))
             } catch (error) {
                 return E.left(error)
             }

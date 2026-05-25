@@ -34,8 +34,8 @@ const test = base.extend<{
     // Create watched folder with vault suffix
     const watchedFolder = path.join(tempUserDataPath, 'test-vault');
     await fs.mkdir(watchedFolder, { recursive: true });
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Write config to auto-load the watched folder
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');

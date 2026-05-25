@@ -19,9 +19,9 @@ export type RuntimeUIBridge = {
 export type RuntimeEnvProvider = {
     readonly getAppSupportPath: () => string;
     readonly getOTLPReceiverPort?: () => number | null;
-    readonly getProjectRootWatchedDirectory?: () => Promise<string | null>;
+    readonly getProjectRoot?: () => Promise<string | null>;
     readonly getVaultPaths?: () => Promise<readonly string[]>;
-    readonly getWritePath?: () => Promise<string | null>;
+    readonly getWriteFolder?: () => Promise<string | null>;
     /**
      * Absolute path to the canonical CLI manual file
      * (`packages/systems/voicetree-cli/prompts/cli-manual.md`). The spawn pipeline reads this file
@@ -50,8 +50,8 @@ export type WatchStatus = {
 export type GraphStateBridge = {
     readonly getGraph: () => Promise<Graph>;
     readonly getVaultPaths: () => Promise<readonly FilePath[]>;
-    readonly getWritePath: () => Promise<O.Option<FilePath>>;
-    readonly getProjectRootWatchedDirectory: () => Promise<FilePath | null>;
+    readonly getWriteFolder: () => Promise<O.Option<FilePath>>;
+    readonly getProjectRoot: () => Promise<FilePath | null>;
     readonly getWatchStatus: () => Promise<WatchStatus>;
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>;
     readonly createContextNode: (

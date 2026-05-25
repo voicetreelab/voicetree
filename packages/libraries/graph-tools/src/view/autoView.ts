@@ -89,6 +89,7 @@ export interface AutoViewOptions {
 
 export interface RenderNode extends CollapseBoundaryNode {
     readonly basename: string
+    readonly collapsedChildCount?: number
 }
 
 export interface RenderGraph {
@@ -131,6 +132,7 @@ export function deriveRenderGraph(graph: ProjectedGraph): RenderGraph {
         basename: n.basename,
         outgoingIds: outgoingMap.get(n.id) ?? [],
         kind: n.kind === 'folder-collapsed' ? 'folder' as const : n.kind,
+        ...(n.kind === 'folder-collapsed' ? {collapsedChildCount: n.childCount ?? 0} : {}),
     }))
 
     const nodeById = new Map(nodes.map(n => [n.id, n]))
@@ -339,10 +341,10 @@ function buildUserCollapsedClusterIds(
 }
 
 export function renderAutoView(
-    vaultPath: string,
+    projectRoot: string,
     options: AutoViewOptions = {},
 ): {output: string; format: string} {
-    const root: string = path.resolve(vaultPath)
+    const root: string = path.resolve(projectRoot)
     const graph: ProjectedGraph = buildProjectedGraphFromVault(root)
 
     const output: string = renderTreeCover(graph, {

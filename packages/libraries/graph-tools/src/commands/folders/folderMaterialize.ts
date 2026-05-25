@@ -76,8 +76,8 @@ export type FolderMaterializeResult = {
   savedContentLength: number
   savedContentPreview: string
   seedFilePath?: string
-  vaultPath: string
-  writePath: string
+  projectRoot: string
+  writeFolder: string
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000
@@ -207,9 +207,9 @@ async function waitFor<T>(
   throw new Error(`timed out waiting for ${description}`)
 }
 
-async function readWritePath(page: SessionPageLike): Promise<string> {
-  const writePath = await page.evaluate(async () => {
-    const raw = window.electronAPI?.main ? await window.electronAPI.main.getWritePath() : null
+async function readWriteFolder(page: SessionPageLike): Promise<string> {
+  const writeFolder = await page.evaluate(async () => {
+    const raw = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolder() : null
     if (typeof raw === 'string') return raw
     if (raw && typeof raw === 'object' && '_tag' in raw && (raw as { _tag?: unknown })._tag === 'Some') {
       const value = (raw as { value?: unknown }).value
@@ -218,15 +218,15 @@ async function readWritePath(page: SessionPageLike): Promise<string> {
     return null
   })
 
-  if (typeof writePath !== 'string' || writePath.trim() === '') {
-    throw new Error('window.electronAPI.main.getWritePath() unavailable')
+  if (typeof writeFolder !== 'string' || writeFolder.trim() === '') {
+    throw new Error('window.electronAPI.main.getWriteFolder() unavailable')
   }
 
-  return path.resolve(writePath)
+  return path.resolve(writeFolder)
 }
 
-export async function createScratchFixture(writePath: string): Promise<ScratchFixture> {
-  const folderPath = await fs.mkdtemp(path.join(writePath, 'vt-debug-folder-materialize-'))
+export async function createScratchFixture(writeFolder: string): Promise<ScratchFixture> {
+  const folderPath = await fs.mkdtemp(path.join(writeFolder, 'vt-debug-folder-materialize-'))
   const seedFilePath = path.join(folderPath, 'seed.md')
   await fs.writeFile(seedFilePath, '# Scratch Seed\n', 'utf8')
   return {
@@ -240,26 +240,26 @@ async function waitForGraphReady(page: SessionPageLike, timeoutMs: number): Prom
   const state = await waitFor(
     () => page.evaluate(async () => {
       const cy = window.cytoscapeInstance
-      const rawWritePath = window.electronAPI?.main ? await window.electronAPI.main.getWritePath() : null
-      const writePath =
-        typeof rawWritePath === 'string'
-          ? rawWritePath
-          : rawWritePath && typeof rawWritePath === 'object' && '_tag' in rawWritePath && (rawWritePath as { _tag?: unknown })._tag === 'Some'
-            ? typeof (rawWritePath as { value?: unknown }).value === 'string'
-              ? (rawWritePath as { value: string }).value
+      const rawWriteFolder = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolder() : null
+      const writeFolder =
+        typeof rawWriteFolder === 'string'
+          ? rawWriteFolder
+          : rawWriteFolder && typeof rawWriteFolder === 'object' && '_tag' in rawWriteFolder && (rawWriteFolder as { _tag?: unknown })._tag === 'Some'
+            ? typeof (rawWriteFolder as { value?: unknown }).value === 'string'
+              ? (rawWriteFolder as { value: string }).value
               : null
             : null
       return {
         cyNodeCount: typeof cy?.nodes === 'function' ? cy.nodes().length : 0,
-        writePath,
+        writeFolder,
       }
     }),
-    value => value.cyNodeCount > 0 && typeof value.writePath === 'string' && value.writePath.length > 0,
+    value => value.cyNodeCount > 0 && typeof value.writeFolder === 'string' && value.writeFolder.length > 0,
     timeoutMs,
     'graph + write path readiness',
   )
 
-  return path.resolve(state.writePath)
+  return path.resolve(state.writeFolder)
 }
 
 async function captureDomProbes(page: SessionPageLike): Promise<DomProbes> {
@@ -456,8 +456,8 @@ export async function folderMaterialize(
     keepFixture?: boolean
     marker?: string
     timeoutMs?: number
-    vaultPath: string
-    writePath?: string
+    projectRoot: string
+    writeFolder?: string
   },
 ): Promise<Response<FolderMaterializeResult>> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
@@ -468,9 +468,9 @@ export async function folderMaterialize(
   let cleanupError: string | undefined
 
   try {
-    const writePath = path.resolve(opts.writePath ?? await readWritePath(page))
+    const writeFolder = path.resolve(opts.writeFolder ?? await readWriteFolder(page))
     const fixtureCreated = opts.folder === undefined
-    fixture = fixtureCreated ? await createScratchFixture(writePath) : null
+    fixture = fixtureCreated ? await createScratchFixture(writeFolder) : null
     const folderId = opts.folder ?? fixture?.folderId
 
     if (!folderId) {
@@ -519,8 +519,8 @@ export async function folderMaterialize(
       savedContentLength: savedContent.length,
       savedContentPreview: truncatePreview(savedContent),
       ...(fixture?.seedFilePath ? { seedFilePath: fixture.seedFilePath } : {}),
-      vaultPath: path.resolve(opts.vaultPath),
-      writePath,
+      projectRoot: path.resolve(opts.projectRoot),
+      writeFolder,
       cdpPort: 0,
       mcpPort: 0,
       pid: 0,
@@ -567,15 +567,15 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
     }
 
     const interactivePage = page as PageLike
-    const writePath = await waitForGraphReady(interactivePage, parsed.timeoutMs)
-    const selectedVaultPath = parsed.vault ?? (pick.instance.vaultPath || writePath)
+    const writeFolder = await waitForGraphReady(interactivePage, parsed.timeoutMs)
+    const selectedVaultPath = parsed.vault ?? (pick.instance.projectRoot || writeFolder)
     const response = await folderMaterialize(interactivePage, {
       ...(parsed.folder ? { folder: parsed.folder } : {}),
       keepFixture: parsed.keepFixture,
       ...(parsed.marker ? { marker: parsed.marker } : {}),
       timeoutMs: parsed.timeoutMs,
-      vaultPath: selectedVaultPath,
-      writePath,
+      projectRoot: selectedVaultPath,
+      writeFolder,
     })
 
     if (!response.ok) {
@@ -590,7 +590,7 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
       cdpPort: pick.instance.cdpPort,
       mcpPort: pick.instance.mcpPort,
       pid: pick.instance.pid,
-      vaultPath: path.resolve(selectedVaultPath || response.result.vaultPath),
+      projectRoot: path.resolve(selectedVaultPath || response.result.projectRoot),
     })
   } catch (e) {
     return err(

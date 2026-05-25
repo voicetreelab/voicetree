@@ -14,7 +14,7 @@ export interface GraphModelCallbacks {
   onSettingsChanged?: () => void  // replaces uiAPI.onSettingsChanged
 
   // Watch folder events
-  onWatchingStarted?: (info: { directory: string; writePath: string; timestamp: string }) => void
+  onWatchingStarted?: (info: { directory: string; writeFolder: string; timestamp: string }) => void
   onFolderCleared?: () => void
 
   // Dialogs (Electron-specific, no-op in headless mode)
@@ -23,7 +23,7 @@ export interface GraphModelCallbacks {
 
   // UI state syncing
   fitViewport?: () => void  // replaces uiAPI.fitViewport
-  syncVaultState?: (state: { vaultPaths: readonly string[]; writePath: string | null; starredFolders: readonly string[] }) => void
+  syncVaultState?: (state: { vaultPaths: readonly string[]; writeFolder: string | null; starredFolders: readonly string[] }) => void
   syncFolderTree?: (tree: FolderTreeNode) => void
   syncStarredFolderTrees?: (trees: Record<string, FolderTreeNode>) => void
   syncExternalFolderTrees?: (trees: Record<string, FolderTreeNode>) => void
@@ -37,7 +37,7 @@ export interface GraphModelCallbacks {
   notifyWriteDirectory?: (dirPath: string) => void  // replaces backend-api.tellSTTServerToLoadDirectory
 
   // Active vault paths
-  getWritePath?: () => Promise<string | null>
+  getWriteFolder?: () => Promise<string | null>
 
   // Semantic search (for context nodes)
   semanticSearch?: (query: string, topK: number) => Promise<readonly string[]>
@@ -46,7 +46,7 @@ export interface GraphModelCallbacks {
   stripStaleMcpEntries?: (vaultDir: string) => Promise<void>
   writeVaultAgentDiscoveryFile?: (vaultDir: string) => Promise<void>
   ensureProjectSetup?: (projectPath: string) => Promise<void>  // replaces electron/tools-setup
-  ensureDaemonForVault?: (vaultPath: string) => Promise<void>
+  ensureDaemonForVault?: (projectRoot: string) => Promise<void>
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 

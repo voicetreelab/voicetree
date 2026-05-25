@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
+import { context, propagation } from '@opentelemetry/api'
 import {
   HealthResponseSchema,
   ShutdownResponseSchema,
   type HealthResponse,
-} from '../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { createGraphRoutes } from './graph-endpoints/graph.ts'
 import { mountLayoutRoutes } from './graph-endpoints/layout.ts'
 import { mountFolderStateRoutes } from './session-endpoints/folderState.ts'
@@ -24,10 +25,28 @@ export type CreateDaemonAppOptions = {
   registry: SessionRegistry
 }
 
+/**
+ * Extracts the incoming W3C `traceparent` (+ baggage) header into an OTel
+ * context that wraps the rest of the request lifecycle. Any spans started
+ * inside the handler — `daemon.open-vault`, `daemon.set-write-path.*`, etc —
+ * will then attach to the caller's trace instead of starting a new root.
+ */
+function attachIncomingTraceContext(app: Hono): void {
+  app.use('*', async (c, next) => {
+    const headers: Record<string, string> = {}
+    for (const [key, value] of Object.entries(c.req.header())) {
+      if (typeof value === 'string') headers[key] = value
+    }
+    const ctx = propagation.extract(context.active(), headers)
+    await context.with(ctx, next)
+  })
+}
+
 export function mountDaemonRoutes(
   app: Hono,
   opts: CreateDaemonAppOptions,
 ): void {
+  attachIncomingTraceContext(app)
   mountSessionRoutes(app, opts.registry)
   mountSessionEventsRoute(app, opts.registry)
   mountSessionStateRoutes(app, opts.registry)

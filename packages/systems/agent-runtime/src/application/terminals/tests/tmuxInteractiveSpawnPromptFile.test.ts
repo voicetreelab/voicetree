@@ -121,7 +121,7 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
         // Mirror what `TerminalManager.spawnTmuxBacked` does in
         // packages/systems/agent-runtime/src/application/terminals/terminal-manager.ts:
         const plan = applyPromptFileToTmuxSpawn({
-            vaultPath,
+            projectRoot: vaultPath,
             terminalId,
             command: initialCommand,
             env: initial,

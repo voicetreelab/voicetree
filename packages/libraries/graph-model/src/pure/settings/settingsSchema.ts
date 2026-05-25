@@ -21,7 +21,7 @@ export interface NumberFieldConfig {
  * - `label`: human-readable label. Auto-generated from key if omitted.
  * - `number`: constraints for number fields (min/max/step/slider).
  */
-type SettingsSchema = {
+export type SettingsSchema = {
     readonly [K in keyof Required<VTSettings>]: {
         readonly default?: Required<VTSettings>[K];
         readonly section?: Section;
@@ -31,41 +31,28 @@ type SettingsSchema = {
     };
 };
 
+export interface SettingsRuntime {
+    readonly platform?: string;
+    readonly homeDir?: string;
+}
+
 // ============================================================================
 // Platform logic
 // ============================================================================
 
-function getRuntimePlatform(): string {
-    if (typeof process !== 'undefined' && process.platform) {
-        return process.platform;
-    }
-
-    const globalNavigator: {
-        userAgentData?: { platform?: string };
-        platform?: string;
-        userAgent?: string;
-    } | undefined = (globalThis as { navigator?: {
-        userAgentData?: { platform?: string };
-        platform?: string;
-        userAgent?: string;
-    } }).navigator;
-
-    const browserPlatform: string = [
-        globalNavigator?.userAgentData?.platform,
-        globalNavigator?.platform,
-        globalNavigator?.userAgent,
-    ].filter(Boolean).join(' ');
-
+export function platformFromBrowserText(browserPlatform: string): string {
     if (/mac|iphone|ipad|ipod/i.test(browserPlatform)) return 'darwin';
     if (/win/i.test(browserPlatform)) return 'win32';
     return '';
 }
 
-const runtimePlatform: string = getRuntimePlatform();
-const isMac: boolean = runtimePlatform === 'darwin';
-const isWindows: boolean = runtimePlatform === 'win32';
-const homeDir: string = typeof process !== 'undefined' && process.env.HOME ? process.env.HOME : '';
-const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
+export function agentPromptVariableForPlatform(platform: string | undefined): string {
+    return platform === 'win32' ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
+}
+
+export function defaultHotkeysForPlatform(platform: string | undefined): HotkeySettings {
+    return platform === 'darwin' ? MAC_HOTKEYS : NON_MAC_HOTKEYS;
+}
 
 // ============================================================================
 // Hotkey defaults
@@ -109,13 +96,18 @@ const NON_MAC_HOTKEYS: HotkeySettings = {
     voiceRecording: { key: 'r', modifiers: ['Alt'] },
 };
 
-export const DEFAULT_HOTKEYS: HotkeySettings = isMac ? MAC_HOTKEYS : NON_MAC_HOTKEYS;
+export const DEFAULT_HOTKEYS: HotkeySettings = defaultHotkeysForPlatform(undefined);
 
 // ============================================================================
 // Schema — single source of truth for all settings metadata + defaults
 // ============================================================================
 
-export const SETTINGS_SCHEMA: SettingsSchema = {
+export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSchema {
+    const agentPromptVar: string = agentPromptVariableForPlatform(runtime.platform);
+    const defaultHotkeys: HotkeySettings = defaultHotkeysForPlatform(runtime.platform);
+    const starredFolders: readonly string[] = runtime.homeDir ? [`${runtime.homeDir}/brain/workflows`] : [];
+
+    return {
     // ── General ──────────────────────────────────────────────────────────
     darkMode:                  { default: false, section: 'general', label: 'Dark Mode' },
     vimMode:                   { default: false, section: 'general', label: 'Vim Mode' },
@@ -128,18 +120,18 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
     emptyFolderTemplate:       { default: `# {{DATE}}\n\nHighest priority task: `, section: 'general', label: 'Empty Folder Template' },
 
     // ── Shortcuts ────────────────────────────────────────────────────────
-    hotkeys: { default: DEFAULT_HOTKEYS, section: 'shortcuts' },
+    hotkeys: { default: defaultHotkeys, section: 'shortcuts' },
 
     // ── Agents ───────────────────────────────────────────────────────────
     agents: {
         default: [
-            { name: 'Claude',        command: `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "${AGENT_PROMPT_VAR}"` },
-            { name: 'Claude Sonnet', command: `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions --model sonnet "${AGENT_PROMPT_VAR}"` },
-            { name: 'Gemini',        command: `gemini -i "${AGENT_PROMPT_VAR}"` },
-            { name: 'Codex',         command: `codex "${AGENT_PROMPT_VAR}"` },
-            { name: 'Rovodev',       command: `acli rovodev run "${AGENT_PROMPT_VAR}"` },
-            { name: 'Opencode',      command: `opencode --prompt "${AGENT_PROMPT_VAR}"` },
-            { name: 'Fake Agent',   command: `node tools/vt-fake-agent/dist/index.js "${AGENT_PROMPT_VAR}"` },
+            { name: 'Claude',        command: `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "${agentPromptVar}"` },
+            { name: 'Claude Sonnet', command: `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions --model sonnet "${agentPromptVar}"` },
+            { name: 'Gemini',        command: `gemini -i "${agentPromptVar}"` },
+            { name: 'Codex',         command: `codex "${agentPromptVar}"` },
+            { name: 'Rovodev',       command: `acli rovodev run "${agentPromptVar}"` },
+            { name: 'Opencode',      command: `opencode --prompt "${agentPromptVar}"` },
+            { name: 'Fake Agent',   command: `node tools/vt-fake-agent/dist/index.js "${agentPromptVar}"` },
         ] as readonly AgentConfig[],
         section: 'agents',
     },
@@ -220,7 +212,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     contextMaxChars:       { default: 8000, label: 'Context Budget (chars)', number: { min: 2000, max: 100000, step: 2000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },
     defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },
-    starredFolders:         { default: (homeDir ? [`${homeDir}/brain/workflows`] : []) as readonly string[], label: 'Starred Folders' },
+    starredFolders:         { default: starredFolders, label: 'Starred Folders' },
     showFps:                { default: false, label: 'Show FPS (WebGL)' },
     layoutConfig:           { default: JSON.stringify({ engine: 'cola', nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true, tile: true, tilingPaddingVertical: 10, tilingPaddingHorizontal: 10, edgeElasticity: 0.45, edgeLength: 350 }, null, 2), label: 'Layout Config' },
     nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },
@@ -233,15 +225,26 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     agentPermissionModeChosen: { hidden: true },
     feedbackDialogShown:       { hidden: true },
     userEmail:                 { hidden: true },
-};
+    };
+}
+
+export const SETTINGS_SCHEMA: SettingsSchema = createSettingsSchema();
 
 // ============================================================================
 // Derived exports
 // ============================================================================
 
 /** Default settings derived from schema — only entries with a `default` value */
+export function createDefaultSettings(runtime: SettingsRuntime = {}): VTSettings {
+    return Object.fromEntries(
+        Object.entries(createSettingsSchema(runtime))
+            .filter(([, v]) => 'default' in v)
+            .map(([k, v]) => [k, v.default])
+    ) as unknown as VTSettings;
+}
+
 export const DEFAULT_SETTINGS: VTSettings = Object.fromEntries(
-    Object.entries(SETTINGS_SCHEMA)
+    Object.entries(createSettingsSchema())
         .filter(([, v]) => 'default' in v)
         .map(([k, v]) => [k, v.default])
 ) as unknown as VTSettings;

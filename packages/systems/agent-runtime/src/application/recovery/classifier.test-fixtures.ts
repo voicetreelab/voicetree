@@ -1,6 +1,8 @@
 import type {ClassifierInput, MetadataRecord} from './classifier'
 import type {TerminalData} from '../terminals/terminal-registry/types'
 import {buildTmuxNamespaceHash} from '../terminals/tmux/tmux-session-manager'
+import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
+import type {ResumeCapability} from './types'
 import * as O from 'fp-ts/lib/Option.js'
 
 // VAULT_PATH is used consistently so that computed session names (via
@@ -49,15 +51,6 @@ export function makeRunningClaudeMetadata(overrides: Record<string, unknown> = {
         status: 'running',
         session: SESSION_A,
         terminalData: makeTerminalData({initialCommand: 'claude'}),
-        recovery: {
-            native: {
-                cli: 'claude',
-                mode: 'interactive',
-                sessionId: 'sess-uuid-123',
-                capturedAt: '2026-05-22T10:00:00.000Z',
-                source: 'claude-project-transcript',
-            },
-        },
         ...overrides,
     }
 }
@@ -76,15 +69,22 @@ export function makeRunningCodexMetadata(overrides: Record<string, unknown> = {}
                 VOICETREE_VAULT_PATH: VAULT_PATH,
             },
         }),
-        recovery: {
-            native: {
-                cli: 'codex',
-                mode: 'interactive',
-                sessionId: 'thread-uuid-456',
-                capturedAt: '2026-05-22T10:00:00.000Z',
-                source: 'codex-state-index',
-            },
-        },
+        ...overrides,
+    }
+}
+
+export function makeLiveSession(sessionName: string, overrides: Partial<UnclaimedTmuxSession> = {}): UnclaimedTmuxSession {
+    return {
+        sessionName,
+        terminalId: TERMINAL_A,
+        hash: VAULT_HASH,
+        agentName: 'Ari',
+        panePid: 12345,
+        createdAt: 0,
+        classification: 'this-vault',
+        attachable: true,
+        projectRoot: VAULT_PATH,
+        contextNodePath: '/vault/node.md',
         ...overrides,
     }
 }
@@ -92,9 +92,10 @@ export function makeRunningCodexMetadata(overrides: Record<string, unknown> = {}
 export function baseInput(overrides: Partial<ClassifierInput> = {}): ClassifierInput {
     return {
         metadataRecords: [],
-        liveTmuxSessionNames: new Set(),
+        liveTmuxSessionsByName: new Map<string, UnclaimedTmuxSession>(),
         registryTerminalIds: new Set(),
         currentNamespaceHash: VAULT_HASH,
+        resumeHandleByTerminalId: new Map<string, ResumeCapability>(),
         ...overrides,
     }
 }

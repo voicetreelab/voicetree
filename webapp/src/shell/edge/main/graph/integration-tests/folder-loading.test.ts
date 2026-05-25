@@ -87,9 +87,9 @@ async function copyFixtureToTemp(sourcePath: string, destinationName: string): P
   return destinationPath
 }
 
-async function shutdownDaemonForVault(vaultPath: string | undefined): Promise<void> {
-  if (!vaultPath) return
-  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: vaultPath }).catch(() => null)
+async function shutdownDaemonForVault(projectRoot: string | undefined): Promise<void> {
+  if (!projectRoot) return
+  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: projectRoot }).catch(() => null)
   await client?.shutdown().catch(() => undefined)
 }
 
@@ -148,10 +148,10 @@ describe.skip('Folder Loading - Integration Tests', () => {
     setGraph(createGraph({}))
 
     await saveVaultConfigForDirectory(exampleSmallPath, {
-      writePath: path.join(exampleSmallPath, 'voicetree')
+      writeFolder: path.join(exampleSmallPath, 'voicetree')
     })
     await saveVaultConfigForDirectory(exampleLargePath, {
-      writePath: path.join(exampleLargePath, 'voicetree')
+      writeFolder: path.join(exampleLargePath, 'voicetree')
     })
 
     for (const testFilePath of [
@@ -709,8 +709,8 @@ describe.skip('Folder Loading - Integration Tests', () => {
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 
-  describe('BEHAVIOR: projectRootWatchedDirectory updated before file limit check (suffix bug fix)', () => {
-    it('should update projectRootWatchedDirectory immediately when loadFolder is called', async () => {
+  describe('BEHAVIOR: projectRoot updated before file limit check (suffix bug fix)', () => {
+    it('should update projectRoot immediately when loadFolder is called', async () => {
       // GIVEN: Load the first folder
       await loadFixtureFolder(exampleSmallPath)
       await expectWatchedDirectory(exampleSmallPath)
@@ -722,7 +722,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       await expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
-    it('should maintain projectRootWatchedDirectory even after switching folders multiple times', async () => {
+    it('should maintain projectRoot even after switching folders multiple times', async () => {
       // Load folder A
       await loadFixtureFolder(exampleSmallPath)
       await expectWatchedDirectory(exampleSmallPath)

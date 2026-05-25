@@ -901,13 +901,13 @@
         </div>
 
         <!-- L1 loaded leaf -->
-        <div class="node doc" style="left: 22px; top: 44px;">
+        <div class="node doc" id="edge-anchor-design" style="left: 22px; top: 44px;">
           <span class="nm">design.md</span>
           <span class="meta">openspec · 1.4k</span>
         </div>
 
         <!-- L2-A openspec EXPANDED (case C at L2) -->
-        <div class="folder lvl-2" style="left: 22px; top: 120px; width: 700px; height: 600px;">
+        <div class="folder lvl-2" id="edge-anchor-openspec" style="left: 22px; top: 120px; width: 700px; height: 600px;">
           <div class="controls">
             <div class="tab"><span class="lvl">L2</span> openspec · ▣ expanded</div>
             <div class="info">loaded ×2 · unloaded ×2</div>
@@ -924,7 +924,7 @@
           </div>
 
           <!-- L2 loaded leaf -->
-          <div class="node doc" style="left: 18px; top: 44px;">
+          <div class="node doc" id="edge-anchor-proposal" style="left: 18px; top: 44px;">
             <span class="nm">proposal.md</span>
             <span class="meta">openspec · 928 B</span>
           </div>
@@ -957,7 +957,7 @@
           </div>
 
           <!-- L3-B legacy/ COLLAPSED (case B at L3) -->
-          <div class="folder lvl-3 collapsed" style="left: 440px; top: 120px; width: 240px; height: 40px;">
+          <div class="folder lvl-3 collapsed" id="edge-anchor-legacy" style="left: 440px; top: 120px; width: 240px; height: 40px;">
             <div class="controls">
               <div class="tab"><span class="lvl">L3</span> legacy</div>
               <div class="count">×6 sealed</div>
@@ -984,7 +984,7 @@
         </div>
 
         <!-- L2-B specs/ COLLAPSED (case B at L2) -->
-        <div class="folder lvl-2 collapsed" style="left: 760px; top: 120px; width: 290px; height: 40px;">
+        <div class="folder lvl-2 collapsed" id="edge-anchor-specs" style="left: 760px; top: 120px; width: 290px; height: 40px;">
           <div class="controls">
             <div class="tab"><span class="lvl">L2</span> specs</div>
             <div class="count">×6 sealed</div>
@@ -1010,25 +1010,148 @@
         </div>
       </div>
 
-      <!-- EDGE LAYER · the key demonstration: edges to sealed compounds stay visible -->
-      <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;" viewBox="0 0 1180 920" preserveAspectRatio="none">
-        <!-- design.md (L1 leaf) → specs/ (L2-B sealed compound) -->
-        <path d="M 200 105 C 380 105, 580 120, 790 145" fill="none" stroke="#1f5d7a" stroke-width="1.5" stroke-dasharray="5 4"/>
-        <circle cx="790" cy="145" r="3.5" fill="#1f5d7a"/>
-        <!-- L2-A openspec right border → L2-B specs sealed left -->
-        <path d="M 722 200 C 745 200, 760 180, 785 165" fill="none" stroke="#1f5d7a" stroke-width="1.5" stroke-dasharray="5 4"/>
-        <circle cx="785" cy="165" r="3.5" fill="#1f5d7a"/>
-        <!-- inside L2-A: proposal.md → L3-B legacy sealed -->
-        <path d="M 142 215 C 280 230, 380 245, 472 260" fill="none" stroke="#1f5d7a" stroke-width="1.5" stroke-dasharray="5 4"/>
-        <circle cx="472" cy="260" r="3.5" fill="#1f5d7a"/>
-        <!-- inside L3-A: the phase-1-legacy sealed compound has an edge to a sibling drawer mirror — show with a tiny dotted line -->
-        <path d="M 240 195 C 268 195, 282 190, 296 192" fill="none" stroke="#1f5d7a" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.7"/>
-
-        <!-- edge labels -->
-        <text x="380" y="98" font-family="IBM Plex Mono" font-size="10" fill="#a07628" letter-spacing="1.5">EDGE TO SEALED L2 — visible because specs/ is collapsed not unloaded</text>
-        <text x="195" y="280" font-family="IBM Plex Mono" font-size="10" fill="#a07628" letter-spacing="1.5">EDGE TO SEALED L3 — same trick, one level deeper</text>
+      <!-- EDGE LAYER · cross-folder edges, endpoints measured from real DOM rects -->
+      <svg id="edge-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 5;" aria-hidden="true">
+        <defs>
+          <marker id="edge-arrow-bp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--bp)"/>
+          </marker>
+          <marker id="edge-tail-bp" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto">
+            <circle cx="3" cy="3" r="1.8" fill="var(--paper)" stroke="var(--bp)" stroke-width="1.2"/>
+          </marker>
+        </defs>
+        <!-- paths and labels injected at runtime by edge-layer-script below -->
       </svg>
     </div>
+    <script>
+      // EDGE LAYER · renders cross-folder edges between known anchor nodes by
+      // measuring their bounding rects relative to the SVG and emitting Bezier
+      // paths with proper arrowheads + paper-tile labels at the path midpoint.
+      // Re-runs on load, fonts-ready, and resize so coordinates never drift.
+      (function () {
+        const svg = document.getElementById('edge-layer');
+        if (!svg) return;
+        const NS = 'http://www.w3.org/2000/svg';
+
+        const edges = [
+          {
+            id: 'design-specs',
+            from: '#edge-anchor-design',   fromSide: 'right',
+            to:   '#edge-anchor-specs',    toSide:   'left',
+            label: 'L1 LEAF → SEALED L2 · EDGE SURVIVES COLLAPSE',
+            offset: 0.42,
+          },
+          {
+            id: 'proposal-legacy',
+            from: '#edge-anchor-proposal', fromSide: 'right',
+            to:   '#edge-anchor-legacy',   toSide:   'left',
+            label: 'L2 LEAF → SEALED L3 · SAME TRICK, ONE LEVEL DEEPER',
+            offset: 0.38,
+          },
+        ];
+
+        function anchor(rect, key, origin) {
+          const x = rect.left - origin.left;
+          const y = rect.top - origin.top;
+          const w = rect.width, h = rect.height;
+          switch (key) {
+            case 'left':   return { x,            y: y + h / 2 };
+            case 'right':  return { x: x + w,     y: y + h / 2 };
+            case 'top':    return { x: x + w / 2, y };
+            case 'bottom': return { x: x + w / 2, y: y + h };
+          }
+        }
+
+        function el(name, attrs, text) {
+          const e = document.createElementNS(NS, name);
+          for (const k in attrs) e.setAttribute(k, attrs[k]);
+          if (text != null) e.textContent = text;
+          return e;
+        }
+
+        function render() {
+          // Wipe previously-generated content; keep <defs>
+          Array.from(svg.querySelectorAll('[data-dyn]')).forEach((n) => n.remove());
+
+          const origin = svg.getBoundingClientRect();
+
+          edges.forEach((e) => {
+            const fromEl = document.querySelector(e.from);
+            const toEl = document.querySelector(e.to);
+            if (!fromEl || !toEl) return;
+
+            const a = anchor(fromEl.getBoundingClientRect(), e.fromSide, origin);
+            const b = anchor(toEl.getBoundingClientRect(),   e.toSide,   origin);
+
+            const dx = b.x - a.x;
+            const pull = Math.max(36, Math.abs(dx) * 0.42);
+            const sign = dx >= 0 ? 1 : -1;
+            const d =
+              `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} ` +
+              `C ${(a.x + pull * sign).toFixed(1)} ${a.y.toFixed(1)}, ` +
+              `${(b.x - pull * sign).toFixed(1)} ${b.y.toFixed(1)}, ` +
+              `${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+
+            const path = el('path', {
+              id: 'edge-path-' + e.id,
+              'data-dyn': '1',
+              d,
+              fill: 'none',
+              stroke: 'var(--bp)',
+              'stroke-width': '1.5',
+              'stroke-dasharray': '5 4',
+              'stroke-linecap': 'round',
+              'marker-start': 'url(#edge-tail-bp)',
+              'marker-end': 'url(#edge-arrow-bp)',
+            });
+            svg.appendChild(path);
+
+            if (e.label) {
+              const len = path.getTotalLength();
+              const m = path.getPointAtLength(len * e.offset);
+
+              // monospace char width ≈ 5.4px @ 9px font + 1.6px letter-spacing
+              const tileW = e.label.length * 6.4 + 18;
+              const tileH = 14;
+              svg.appendChild(el('rect', {
+                'data-dyn': '1',
+                x: (m.x - tileW / 2).toFixed(1),
+                y: (m.y - tileH / 2).toFixed(1),
+                width: tileW.toFixed(1),
+                height: tileH.toFixed(1),
+                fill: 'var(--paper)',
+                stroke: 'var(--gold)',
+                'stroke-width': '1',
+              }));
+              svg.appendChild(el('text', {
+                'data-dyn': '1',
+                x: m.x.toFixed(1),
+                y: (m.y + 3.2).toFixed(1),
+                'text-anchor': 'middle',
+                'font-family': '"IBM Plex Mono", monospace',
+                'font-size': '9',
+                'font-weight': '500',
+                'letter-spacing': '1.6',
+                fill: 'var(--gold)',
+              }, e.label));
+            }
+          });
+        }
+
+        let scheduled = false;
+        function schedule() {
+          if (scheduled) return;
+          scheduled = true;
+          // Use a micro-delay so layout/font metrics settle, but stay off rAF
+          // (rAF is paused in background tabs, leaving the canvas empty until refocus).
+          setTimeout(() => { scheduled = false; render(); }, 16);
+        }
+        if (document.readyState === 'complete') schedule();
+        else window.addEventListener('load', schedule);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+        window.addEventListener('resize', schedule);
+      })();
+    </script>
 
     <!-- case cards below the anatomy canvas -->
     <div class="cases">

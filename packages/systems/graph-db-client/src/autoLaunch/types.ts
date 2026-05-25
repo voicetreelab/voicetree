@@ -10,6 +10,7 @@
 export type {
   CallerKind,
   CommandFingerprint,
+  OwnerDiagnosticEvent,
   OwnerHealthIdentity,
   OwnerRecord,
 } from '@vt/graph-db-protocol'

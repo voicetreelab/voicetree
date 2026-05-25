@@ -194,6 +194,9 @@ webapp/workers/share-worker/.wrangler/**
 !docs/**/*.md
 !packages/measures/README.md
 !packages/systems/voicetree-cli/README.md
+!packages/measures/perf/*.md
+!scripts/agent-debugging/README.md
+!scripts/agent-debugging/REFERENCE.md
 
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json

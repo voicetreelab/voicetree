@@ -12,7 +12,7 @@ import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getWritePath, openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getWriteFolder, openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
@@ -96,7 +96,7 @@ export function initializeGraphModel(): void {
         syncVaultState(state): void {
             uiAPI.syncVaultState({
                 readPaths: [...state.vaultPaths],
-                writePath: state.writePath,
+                writeFolder: state.writeFolder,
                 starredFolders: [...state.starredFolders],
             })
         },
@@ -137,22 +137,22 @@ export function initializeGraphModel(): void {
             void tellSTTServerToLoadDirectory(dirPath)
         },
         async semanticSearch(query: string, topK: number): Promise<readonly string[]> {
-            const writePath: O.Option<string> = await getWritePath()
-            if (O.isNone(writePath)) {
+            const writeFolder: O.Option<string> = await getWriteFolder()
+            if (O.isNone(writeFolder)) {
                 return []
             }
 
             try {
                 const { search }: typeof import('@vt/graph-model') = await import('@vt/graph-model')
-                const hits: readonly { nodePath: string }[] = await search(writePath.value, query, topK)
+                const hits: readonly { nodePath: string }[] = await search(writeFolder.value, query, topK)
                 return hits.map((hit: { nodePath: string }) => hit.nodePath)
             } catch {
                 return []
             }
         },
-        async getWritePath(): Promise<string | null> {
-            const writePath: O.Option<string> = await getWritePath()
-            return O.isSome(writePath) ? writePath.value : null
+        async getWriteFolder(): Promise<string | null> {
+            const writeFolder: O.Option<string> = await getWriteFolder()
+            return O.isSome(writeFolder) ? writeFolder.value : null
         },
 
         // App-specific setup
@@ -165,8 +165,8 @@ export function initializeGraphModel(): void {
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)
         },
-        ensureDaemonForVault(vaultPath: string): Promise<void> {
-            return openVault(vaultPath).then(() => undefined)
+        ensureDaemonForVault(projectRoot: string): Promise<void> {
+            return openVault(projectRoot).then(() => undefined)
         },
         getOnboardingDirectory(): string {
             return getOnboardingDirectory()

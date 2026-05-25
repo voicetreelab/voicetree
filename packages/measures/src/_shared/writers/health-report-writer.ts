@@ -37,6 +37,10 @@ function metricReportPath(metricId: string): string {
     return join(REPORTS_DIR, `${metricId}.json`)
 }
 
+function assertMetricId(metricId: string): void {
+    if (!METRIC_ID_PATTERN.test(metricId)) throw new Error(`metricId must be kebab-case: ${metricId}`)
+}
+
 function passStatus(report: HealthReport): boolean {
     return report.comparison === 'lte'
         ? report.current <= report.budget
@@ -44,7 +48,7 @@ function passStatus(report: HealthReport): boolean {
 }
 
 function assertHealthReport(report: HealthReport): void {
-    if (!METRIC_ID_PATTERN.test(report.metricId)) throw new Error(`metricId must be kebab-case: ${report.metricId}`)
+    assertMetricId(report.metricId)
     if (!report.metricName.trim()) throw new Error(`metricName is required for ${report.metricId}`)
     if (!report.description.trim()) throw new Error(`description is required for ${report.metricId}`)
     if (!CATEGORIES.includes(report.category)) throw new Error(`unsupported category for ${report.metricId}: ${report.category}`)
@@ -108,5 +112,16 @@ export async function recordHealthReport(report: HealthReport): Promise<void> {
     assertHealthReport(report)
     await mkdir(REPORTS_DIR, {recursive: true})
     await writeJsonAtomic(metricReportPath(report.metricId), report)
+    await writeLatestReport()
+}
+
+export async function removeHealthReports(metricIds: readonly string[]): Promise<void> {
+    await mkdir(REPORTS_DIR, {recursive: true})
+    await Promise.all(metricIds.map(async metricId => {
+        assertMetricId(metricId)
+        await unlink(metricReportPath(metricId)).catch(err => {
+            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+        })
+    }))
     await writeLatestReport()
 }

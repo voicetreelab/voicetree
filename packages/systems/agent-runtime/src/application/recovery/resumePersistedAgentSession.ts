@@ -4,13 +4,18 @@ import {
     type DiscoverRecoveryDeps,
 } from './discovery'
 import {buildResumeCommand, type ResumeMode} from '../spawn/resumeCli'
-import {detectCliType, type SupportedHeadlessCli} from '../spawn/headlessCli'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
+import {
+    defaultResolveNativeSession,
+    type NativeSessionResult,
+    type ResolveNativeSession,
+} from './resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from './types'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 
 export type ResumePersistedDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>
+    readonly resolveNativeSession: ResolveNativeSession
     readonly spawn: (
         terminalId: TerminalId,
         terminalData: TerminalData,
@@ -22,64 +27,61 @@ export type ResumePersistedDeps = {
 
 export type ResumePersistedResult =
     | {readonly kind: 'spawned'; readonly pid: number; readonly command: string}
-    | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'no-longer-resumable'}
-    | {readonly kind: 'unsupported'; readonly reason: 'no-cli-detected' | 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command'}
+    | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'already-claimed' | 'no-resume-handle'}
+    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
+    | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
     | {readonly kind: 'spawn-failed'; readonly error: string}
-
-function findResumable(
-    sessions: readonly RecoverableAgentSession[],
-    terminalId: TerminalId,
-): {readonly kind: 'found'; readonly session: Extract<RecoverableAgentSession, {kind: 'resumable-cli'}>}
-    | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'no-longer-resumable'} {
-    const matching: RecoverableAgentSession | undefined = sessions.find(
-        (s) => (s.kind === 'resumable-cli' && s.terminalId === terminalId)
-            || (s.kind === 'attachable-tmux' && s.session.terminalId === terminalId),
-    )
-    if (!matching) return {kind: 'stale', reason: 'not-in-discovery'}
-    if (matching.kind !== 'resumable-cli') return {kind: 'stale', reason: 'no-longer-resumable'}
-    return {kind: 'found', session: matching}
-}
 
 function modeFor(terminalData: TerminalData): ResumeMode {
     return terminalData.isHeadless ? 'headless' : 'interactive'
 }
 
 /**
- * Resume a persisted Claude/Codex agent session under its original terminal id.
+ * Recover an orphaned Claude/Codex agent session under its original terminal id.
  *
- * Flow:
- *  1. Re-runs discovery at action time and locates the resumable-cli row for
- *     `terminalId`. Stale rows (already registered, exited, deleted, now-live in
- *     tmux, no-native-handle) short-circuit without any spawn attempt.
- *  2. Builds the exact resume command via the Phase 2b pure builder using the
- *     persisted `terminalData.initialCommand` so injected hook/env flags survive.
- *  3. Spawns through `spawnTmuxBackedTerminal` with the original terminalId,
- *     persisted env vars, and original spawn directory. The spawn helper writes
- *     fresh running metadata with the new tmux session reference, so subsequent
- *     discovery no longer surfaces the row.
- *  4. If the spawn throws, the metadata file is left untouched (we never call
- *     markTerminalExited), so the row remains resumable on retry — the row also
- *     remains absent from the in-memory registry because `recordTerminalSpawn`
- *     only runs after spawn succeeds.
+ * Looks up `terminalId` in current discovery output and acts only if the row is
+ * unclaimed (no live in-memory registry entry) and carries a `resume`
+ * capability. Resolves the native session id LAZILY here (the expensive scan
+ * of `~/.claude/projects` happens once per click — never on the 10s discovery
+ * poll). Spawns a new tmux-backed terminal with the resume command under the
+ * original terminalId — registry slot is reclaimed.
+ *
+ * For forking a live agent into a new tab, use `forkAgentSession` instead.
+ *
+ * Stale rows (already claimed, no resume capability, deleted, foreign vault)
+ * short-circuit without any spawn or resolver work. When the resolver returns
+ * not-found the result is `{kind: 'no-native-session'}` so the UI can surface
+ * a clean message instead of a generic spawn failure.
  */
 export async function resumePersistedAgentSession(
     terminalId: TerminalId,
     deps: ResumePersistedDeps = defaultResumePersistedDeps(),
 ): Promise<ResumePersistedResult> {
     const sessions: readonly RecoverableAgentSession[] = await deps.discover()
-    const lookup = findResumable(sessions, terminalId)
-    if (lookup.kind === 'stale') return {kind: 'stale', reason: lookup.reason}
+    const session: RecoverableAgentSession | undefined = sessions.find((s) => s.terminalId === terminalId)
+    if (!session) return {kind: 'stale', reason: 'not-in-discovery'}
+    if (session.isClaimed) return {kind: 'stale', reason: 'already-claimed'}
+    if (!session.resume) return {kind: 'stale', reason: 'no-resume-handle'}
 
-    const {session} = lookup
     const initialCommand: string | undefined = session.terminalData.initialCommand
     if (!initialCommand) return {kind: 'unsupported', reason: 'missing-initial-command'}
 
-    const cliType: SupportedHeadlessCli | null = detectCliType(initialCommand)
-    const mode: ResumeMode = modeFor(session.terminalData)
+    const projectRoot: string | undefined = session.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH
+    if (!projectRoot) return {kind: 'unsupported', reason: 'missing-project-root'}
+    const taskNodePath: string = session.terminalData.initialEnvVars?.TASK_NODE_PATH ?? ''
+
+    const native: NativeSessionResult = await deps.resolveNativeSession({
+        cliType: session.resume.cliType,
+        terminalId,
+        projectRoot,
+        taskNodePath,
+    })
+    if (native.kind !== 'found') return {kind: 'no-native-session', cliType: session.resume.cliType}
+
     const built = buildResumeCommand({
-        cliType,
-        nativeSessionId: session.nativeSessionId,
-        mode,
+        cliType: session.resume.cliType,
+        nativeSessionId: native.sessionId,
+        mode: modeFor(session.terminalData),
         originalCommand: initialCommand,
     })
     if (built.kind === 'unsupported') return {kind: 'unsupported', reason: built.reason}
@@ -105,6 +107,7 @@ export function defaultResumePersistedDeps(
 ): ResumePersistedDeps {
     return {
         discover: () => discoverRecoverableAgentSessions(discoveryDeps),
+        resolveNativeSession: defaultResolveNativeSession,
         spawn: (terminalId, terminalData, command, cwd, env) =>
             spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env),
     }

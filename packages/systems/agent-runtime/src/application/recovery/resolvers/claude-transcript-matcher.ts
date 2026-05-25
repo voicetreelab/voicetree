@@ -15,7 +15,7 @@ export type ClaudeTranscriptRecord = {
 export type ClaudeMatchInput = {
     readonly records: readonly ClaudeTranscriptRecord[]
     readonly terminalId: string
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly taskNodePath: string
 }
 
@@ -37,13 +37,13 @@ function extractMessageText(record: ClaudeTranscriptRecord): string {
 function recordMatchesMarkers(
     record: ClaudeTranscriptRecord,
     terminalId: string,
-    vaultPath: string,
+    projectRoot: string,
     taskNodePath: string,
 ): boolean {
     const text: string = extractMessageText(record)
     if (!text) return false
     return text.includes(`VOICETREE_TERMINAL_ID = ${terminalId}`)
-        && text.includes(`VOICETREE_VAULT_PATH = ${vaultPath}`)
+        && text.includes(`VOICETREE_VAULT_PATH = ${projectRoot}`)
         && text.includes(`TASK_NODE_PATH = ${taskNodePath}`)
 }
 
@@ -61,7 +61,7 @@ function recordMatchesMarkers(
 export function matchClaudeSessionId(input: ClaudeMatchInput): string | null {
     for (const record of input.records) {
         if (!record || typeof record !== 'object') continue
-        if (!recordMatchesMarkers(record, input.terminalId, input.vaultPath, input.taskNodePath)) continue
+        if (!recordMatchesMarkers(record, input.terminalId, input.projectRoot, input.taskNodePath)) continue
         const sessionId: string | undefined = record.sessionId
         if (typeof sessionId === 'string' && sessionId.length > 0) return sessionId
     }

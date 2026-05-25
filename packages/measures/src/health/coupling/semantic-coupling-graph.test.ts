@@ -2,6 +2,7 @@ import {dirname, relative, resolve} from 'node:path'
 import {Node, SyntaxKind, type SourceFile} from 'ts-morph'
 import {describe, expect, it} from 'vitest'
 import {buildCallGraph, type CallGraph} from '../../_shared/graph/call-graph'
+import {communityAtDepth} from '../../_shared/community/community-at-depth.ts'
 import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
@@ -94,15 +95,6 @@ describe('ts-morph semantic coupling canary', () => {
         expect(maxOutDiff).toBeLessThanOrEqual(CANARY_TOLERANCE)
     }, 120000)
 })
-
-function communityAtDepth(pkg: string, relToSrc: string, depth: number): string {
-    if (depth === 0) return pkg
-    const dir = dirname(relToSrc)
-    const parts = dir === '.' ? [] : dir.split('/')
-    const segments = parts.slice(0, depth)
-    if (segments.length < depth) return [pkg, ...segments, '__root__'].join('/')
-    return [pkg, ...segments].join('/')
-}
 
 function buildPackageContext(packages: readonly PackageInfo[]): PackageContext {
     return {

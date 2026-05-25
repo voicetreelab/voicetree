@@ -2,7 +2,7 @@
 import { resolve } from 'node:path'
 import { startDaemon } from '../src/daemon/server.ts'
 import { startParentPidWatchdog } from '../src/daemon/parentPidWatchdog.ts'
-import { initTracing } from '../src/daemon/tracing.ts'
+import { tracing } from '@vt/observability'
 
 // The daemon is spawned detached by ensureDaemon with stderr piped to its
 // parent. When the parent exits, writes to that pipe error with EPIPE. Without
@@ -18,7 +18,7 @@ swallowEpipe(process.stdout)
 swallowEpipe(process.stderr)
 
 type Args = {
-  vault: string
+  projectRoot: string
   logLevel: 'info' | 'debug'
   idleTimeoutMs?: number
 }
@@ -36,13 +36,13 @@ function parseIdleTimeoutMs(value: string | undefined): number {
 }
 
 function parseArgs(argv: string[]): Args {
-  let vault: string | null = null
+  let projectRoot: string | null = null
   let logLevel: 'info' | 'debug' = 'info'
   let idleTimeoutMs: number | undefined
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
-    if (a === '--vault') {
-      vault = argv[++i] ?? null
+    if (a === '--project-root') {
+      projectRoot = argv[++i] ?? null
     } else if (a === '--log-level') {
       const v = argv[++i]
       if (v === 'info' || v === 'debug') logLevel = v
@@ -51,15 +51,15 @@ function parseArgs(argv: string[]): Args {
       idleTimeoutMs = parseIdleTimeoutMs(argv[++i])
     } else if (a === '--help' || a === '-h') {
       process.stdout.write(
-        'Usage: vt-graphd --vault <path> [--log-level info|debug] [--idle-timeout-ms milliseconds]\n',
+        'Usage: vt-graphd --project-root <path> [--log-level info|debug] [--idle-timeout-ms milliseconds]\n',
       )
       process.exit(0)
     } else {
       die(`unknown argument: ${a}`)
     }
   }
-  if (!vault) die('missing required --vault <path>')
-  return { vault: resolve(vault!), logLevel, idleTimeoutMs }
+  if (!projectRoot) die('missing required --project-root <path>')
+  return { projectRoot: resolve(projectRoot), logLevel, idleTimeoutMs }
 }
 
 function die(msg: string): never {
@@ -68,7 +68,7 @@ function die(msg: string): never {
 }
 
 async function main() {
-  initTracing('vt-graphd')
+  tracing.init('vt-graphd')
   const args = parseArgs(process.argv.slice(2))
 
   // A competing owner for the same vault now causes startDaemon to throw
@@ -78,7 +78,7 @@ async function main() {
   let handle
   try {
     handle = await startDaemon({
-      vault: args.vault,
+      vault: args.projectRoot,
       logLevel: args.logLevel,
       idleTimeoutMs: args.idleTimeoutMs,
       onShutdownComplete: () => process.exit(0),
@@ -89,7 +89,7 @@ async function main() {
   }
 
   process.stdout.write(
-    `vt-graphd: listening on http://127.0.0.1:${handle.port} for vault ${args.vault}\n`,
+    `vt-graphd: listening on http://127.0.0.1:${handle.port} for project root ${args.projectRoot}\n`,
   )
 
   let shuttingDown = false

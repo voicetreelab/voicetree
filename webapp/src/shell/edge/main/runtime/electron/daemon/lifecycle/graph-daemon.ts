@@ -1,3 +1,5 @@
+import { SpanStatusCode } from '@opentelemetry/api'
+
 import {
   ensureGraphDaemonForVault,
   GraphDbClient,
@@ -5,8 +7,17 @@ import {
 } from '@vt/graph-db-client'
 
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
+import { attemptOwnerMediatedRecovery } from './graph-daemon-recovery'
+import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
+import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
+import { daemonTracer } from '@/shell/edge/main/observability/tracing/daemon-tracing'
 
 export type DaemonHandle = EnsureGraphDaemonResult
+
+async function stopOwnerRecoveryLoops(): Promise<void> {
+  unsubscribeFromDaemonSSE()
+  await stopDaemonGraphSync()
+}
 
 let activeVault: string | null = null
 let activeOwner: DaemonHandle | null = null
@@ -45,23 +56,64 @@ function markDaemonLost(error: unknown): void {
  * the owner via {@link ensureGraphDaemonForVault} when no healthy cached
  * client exists. Throws when no vault has been activated yet — `openVault`
  * must run first.
+ *
+ * BF-347: when the cached client is lost (connection failure), recovery
+ * goes through {@link attemptOwnerMediatedRecovery}: SSE + watch-sync loops
+ * are stopped BEFORE the ensure call, and fork-storm protection remains in
+ * the shared owner ensure path. The first-time ensure path (no cached client
+ * yet) calls `ensureGraphDaemonForVault` directly — it is the user-driven
+ * open, not a recovery.
  */
 export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
-  if (activeVault === null) {
-    throw new Error('Cannot ensure graph daemon: no vault is currently open')
-  }
-  if (activeOwner !== null) {
+  return await daemonTracer().startActiveSpan('daemon.ensure-for-active-vault', async (span) => {
     try {
-      await activeOwner.client.health()
-      return activeOwner
+      if (activeVault === null) {
+        span.setAttribute('outcome', 'no-active-vault')
+        throw new Error('Cannot ensure graph daemon: no vault is currently open')
+      }
+      span.setAttribute('vault', activeVault)
+      if (activeOwner !== null) {
+        // Capture locally: the module-scope `activeOwner` can be cleared during
+        // any `await` below by a concurrent `shutdownActiveDaemonConnection()`
+        // (fires from `will-quit` while cleanup tasks scheduled in `before-quit`
+        // are still running). Without the capture, `return activeOwner` could
+        // resolve to `null` and callers would dereference `null.client`.
+        const current: DaemonHandle = activeOwner
+        span.setAttribute('cachedOwnerPid', current.pid)
+        try {
+          await current.client.health()
+          span.setAttribute('outcome', 'cached-healthy')
+          return current
+        } catch (error) {
+          if (!isConnectionFailure(error)) {
+            span.setAttribute('outcome', 'health-non-connection-error')
+            throw error
+          }
+          span.setAttribute('outcome', 'cached-lost-recovering')
+          markDaemonLost(error)
+          const recovered = await attemptOwnerMediatedRecovery(
+            activeVault,
+            'electron-main',
+            { stopLoops: stopOwnerRecoveryLoops },
+          )
+          activeOwner = recovered
+          span.setAttribute('recoveredOwnerPid', recovered.pid)
+          return recovered
+        }
+      }
+      span.setAttribute('outcome', 'first-time-ensure')
+      const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
+      activeOwner = owner
+      span.setAttribute('ownerPid', owner.pid)
+      span.setAttribute('launched', owner.launched)
+      return owner
     } catch (error) {
-      if (!isConnectionFailure(error)) throw error
-      markDaemonLost(error)
+      span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) })
+      throw error
+    } finally {
+      span.end()
     }
-  }
-  const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
-  activeOwner = owner
-  return owner
+  })
 }
 
 /**
@@ -92,15 +144,25 @@ export function getActiveDaemonClient(): GraphDbClient | null {
 export async function callDaemon<T>(
   fn: (client: GraphDbClient) => Promise<T>,
 ): Promise<T> {
-  const owner = await ensureDaemonForActiveVault()
-  try {
-    return await fn(owner.client)
-  } catch (error) {
-    if (isConnectionFailure(error)) {
-      markDaemonLost(error)
+  return await daemonTracer().startActiveSpan('daemon.call', async (span) => {
+    try {
+      const owner = await ensureDaemonForActiveVault()
+      try {
+        return await fn(owner.client)
+      } catch (error) {
+        if (isConnectionFailure(error)) {
+          span.setAttribute('connectionFailure', true)
+          markDaemonLost(error)
+        }
+        throw error
+      }
+    } catch (error) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) })
+      throw error
+    } finally {
+      span.end()
     }
-    throw error
-  }
+  })
 }
 
 /**

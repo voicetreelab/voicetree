@@ -12,130 +12,170 @@ import {
 } from './classifier.test-fixtures'
 
 // ---------------------------------------------------------------------------
-// Scenario: Parse-invalid record → invalid (do not crash)
+// Invalid metadata is dropped (the classifier no longer crashes on garbage)
 // ---------------------------------------------------------------------------
 
 describe('invalid metadata', () => {
-    it('returns invalid for null', () => {
+    it('drops null', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(null)],
         }))
-        expect(result.kind).toBe('invalid')
-        expect(result.metadataPath).toBe(METADATA_PATH_A)
+        expect(result.kind).toBe('dropped')
+        if (result.kind === 'dropped') {
+            expect(result.reason).toBe('invalid')
+            expect(result.metadataPath).toBe(METADATA_PATH_A)
+        }
     })
 
-    it('returns invalid for a non-object', () => {
+    it('drops a non-object', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record('not-an-object')],
         }))
-        expect(result.kind).toBe('invalid')
+        expect(result.kind).toBe('dropped')
     })
 
-    it('returns invalid when name is missing', () => {
+    it('drops records missing a name', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({status: 'running'})],
         }))
-        expect(result.kind).toBe('invalid')
+        expect(result.kind).toBe('dropped')
     })
 
-    it('returns invalid when status is missing', () => {
+    it('drops records missing a status', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({name: TERMINAL_A})],
         }))
-        expect(result.kind).toBe('invalid')
+        expect(result.kind).toBe('dropped')
     })
 
-    it('returns invalid when status is an unknown string', () => {
+    it('drops records with an unknown status string', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({name: TERMINAL_A, status: 'pending'})],
         }))
-        expect(result.kind).toBe('invalid')
+        expect(result.kind).toBe('dropped')
+    })
+
+    it('drops records with no terminalData (UI cannot render anything useful)', () => {
+        const [result] = classifyRecoveryCandidates(baseInput({
+            metadataRecords: [record({name: TERMINAL_A, status: 'running', session: SESSION_A})],
+        }))
+        expect(result.kind).toBe('dropped')
+        if (result.kind === 'dropped') {
+            expect(result.reason).toBe('invalid')
+        }
     })
 })
 
 // ---------------------------------------------------------------------------
-// Scenario: status:"exited" → exited (non-actionable)
+// Status = 'exited' is no longer a filter — the record surfaces as recoverable
+// (a Resume capability is still possible if a handle was supplied; absent
+// both capabilities the row carries enough metadata for "this is a terminal
+// I once knew" without an action).
 // ---------------------------------------------------------------------------
 
 describe('exited metadata', () => {
-    it('returns exited for status:exited regardless of tmux state', () => {
+    it('surfaces an exited record as recoverable (no filter on status)', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({name: TERMINAL_A, status: 'exited'})],
-            liveTmuxSessionNames: new Set([SESSION_A]),
+            metadataRecords: [record({
+                name: TERMINAL_A,
+                status: 'exited',
+                session: SESSION_A,
+                terminalData: makeTerminalData({initialCommand: 'claude'}),
+            })],
         }))
-        expect(result.kind).toBe('exited')
-        if (result.kind === 'exited') {
-            expect(result.terminalId).toBe(TERMINAL_A)
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.terminalId).toBe(TERMINAL_A)
+            expect(result.record.attach).toBeUndefined()
+            expect(result.record.resume).toBeUndefined()
         }
     })
 })
 
 // ---------------------------------------------------------------------------
-// Scenario: Already in registry → not duplicated (claimed)
+// `claimed` (terminal id is in the in-memory registry) is no longer a filter.
+// The record surfaces with `isClaimed: true` so the UI can route it to the
+// regular tab strip (fork-on-hover) rather than the Surviving Agents section.
 // ---------------------------------------------------------------------------
 
 describe('claimed terminal', () => {
-    it('returns claimed when terminal id is in the registry', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({name: TERMINAL_A, status: 'running', session: SESSION_A})],
-            registryTerminalIds: new Set([TERMINAL_A]),
-        }))
-        expect(result.kind).toBe('claimed')
-        if (result.kind === 'claimed') {
-            expect(result.terminalId).toBe(TERMINAL_A)
-        }
-    })
-
-    it('does not classify as claimed when a different terminal is registered', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({name: TERMINAL_A, status: 'running', session: SESSION_A})],
-            registryTerminalIds: new Set(['OtherTerminal']),
-        }))
-        expect(result.kind).not.toBe('claimed')
-    })
-})
-
-// ---------------------------------------------------------------------------
-// Scenario: Foreign-vault namespace hash → foreign-vault
-// ---------------------------------------------------------------------------
-
-describe('foreign-vault', () => {
-    it('returns foreign-vault when session hash differs from current namespace hash', () => {
+    it('exposes isClaimed=true when terminal id is in the registry', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
                 status: 'running',
-                session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
+                session: SESSION_A,
+                terminalData: makeTerminalData({initialCommand: 'claude'}),
             })],
-            currentNamespaceHash: VAULT_HASH,
+            registryTerminalIds: new Set([TERMINAL_A]),
         }))
-        expect(result.kind).toBe('foreign-vault')
-        if (result.kind === 'foreign-vault') {
-            expect(result.terminalId).toBe(TERMINAL_A)
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.isClaimed).toBe(true)
         }
     })
 
-    it('does not classify as foreign-vault when currentNamespaceHash is null', () => {
+    it('exposes isClaimed=false when a different terminal is registered', () => {
+        const [result] = classifyRecoveryCandidates(baseInput({
+            metadataRecords: [record({
+                name: TERMINAL_A,
+                status: 'running',
+                session: SESSION_A,
+                terminalData: makeTerminalData({initialCommand: 'claude'}),
+            })],
+            registryTerminalIds: new Set(['OtherTerminal']),
+        }))
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.isClaimed).toBe(false)
+        }
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Foreign-vault namespace hash → dropped (we don't surface records that don't
+// belong to the current vault).
+// ---------------------------------------------------------------------------
+
+describe('foreign-vault', () => {
+    it('drops records when session hash differs from current namespace hash', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
                 status: 'running',
                 session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
                 terminalData: makeTerminalData({initialCommand: 'claude'}),
-                recovery: {native: {cli: 'claude', mode: 'interactive', sessionId: 'x', capturedAt: '', source: 'claude-project-transcript'}},
+            })],
+            currentNamespaceHash: VAULT_HASH,
+        }))
+        expect(result.kind).toBe('dropped')
+        if (result.kind === 'dropped') {
+            expect(result.reason).toBe('foreign-vault')
+        }
+    })
+
+    it('does not drop as foreign-vault when currentNamespaceHash is null', () => {
+        const [result] = classifyRecoveryCandidates(baseInput({
+            metadataRecords: [record({
+                name: TERMINAL_A,
+                status: 'running',
+                session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
+                terminalData: makeTerminalData({initialCommand: 'claude'}),
             })],
             currentNamespaceHash: null,
         }))
-        expect(result.kind).not.toBe('foreign-vault')
+        expect(result.kind).toBe('recoverable')
     })
 })
 
 // ---------------------------------------------------------------------------
-// Scenario: Unsupported CLI → unsupported-cli (non-actionable)
+// Unsupported CLIs (gemini, custom scripts) and missing handles no longer get
+// their own classification — they just lack a `resume` capability. The
+// classifier still surfaces the row (it may be attachable via tmux).
 // ---------------------------------------------------------------------------
 
-describe('unsupported-cli', () => {
-    it('returns unsupported-cli for gemini command', () => {
+describe('records without a resume capability', () => {
+    it('surfaces a gemini record without resume capability', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
@@ -144,29 +184,13 @@ describe('unsupported-cli', () => {
                 terminalData: makeTerminalData({initialCommand: 'gemini'}),
             })],
         }))
-        expect(result.kind).toBe('unsupported-cli')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.resume).toBeUndefined()
+        }
     })
 
-    it('returns unsupported-cli when terminalData is absent', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({name: TERMINAL_A, status: 'running', session: SESSION_A})],
-        }))
-        expect(result.kind).toBe('unsupported-cli')
-    })
-
-    it('returns unsupported-cli when initialCommand is absent', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({
-                name: TERMINAL_A,
-                status: 'running',
-                session: SESSION_A,
-                terminalData: makeTerminalData({initialCommand: undefined}),
-            })],
-        }))
-        expect(result.kind).toBe('unsupported-cli')
-    })
-
-    it('returns unsupported-cli for a custom script command', () => {
+    it('surfaces a custom-script record without resume capability', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
@@ -175,53 +199,24 @@ describe('unsupported-cli', () => {
                 terminalData: makeTerminalData({initialCommand: './my-script.sh --some-flag'}),
             })],
         }))
-        expect(result.kind).toBe('unsupported-cli')
-    })
-})
-
-// ---------------------------------------------------------------------------
-// Scenario: Missing recovery.native → missing-native-handle (non-actionable)
-// ---------------------------------------------------------------------------
-
-describe('missing-native-handle', () => {
-    it('returns missing-native-handle when recovery block is absent', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({
-                name: TERMINAL_A,
-                status: 'running',
-                session: SESSION_A,
-                terminalData: makeTerminalData({initialCommand: 'claude'}),
-            })],
-        }))
-        expect(result.kind).toBe('missing-native-handle')
-        if (result.kind === 'missing-native-handle') {
-            expect(result.terminalId).toBe(TERMINAL_A)
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.resume).toBeUndefined()
         }
     })
 
-    it('returns missing-native-handle when recovery.native is absent', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({
-                name: TERMINAL_A,
-                status: 'running',
-                session: SESSION_A,
-                terminalData: makeTerminalData({initialCommand: 'codex'}),
-                recovery: {},
-            })],
-        }))
-        expect(result.kind).toBe('missing-native-handle')
-    })
-
-    it('returns missing-native-handle when sessionId is absent from recovery.native', () => {
+    it('surfaces a claude record without resume capability when no handle is supplied', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
                 status: 'running',
                 session: SESSION_A,
                 terminalData: makeTerminalData({initialCommand: 'claude'}),
-                recovery: {native: {cli: 'claude', mode: 'interactive', capturedAt: '', source: 'claude-project-transcript'}},
             })],
         }))
-        expect(result.kind).toBe('missing-native-handle')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.resume).toBeUndefined()
+        }
     })
 })

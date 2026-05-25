@@ -108,7 +108,7 @@ describe('@vt/graph-db-server system contract', () => {
       })
       expect(res.status).toBe(200)
       const vaultState = VaultStateSchema.parse(await (await fetch(`${baseUrl}/vault`)).json())
-      expect(vaultState).toMatchObject({ vaultPath: vault, writePath: docs })
+      expect(vaultState).toMatchObject({ projectRoot: vault, writeFolder: docs })
     })
   })
 

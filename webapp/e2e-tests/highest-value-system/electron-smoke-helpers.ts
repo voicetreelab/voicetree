@@ -7,7 +7,9 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 export const WEBAPP_ROOT = path.resolve(process.cwd());
-const REPO_ROOT = path.resolve(WEBAPP_ROOT, '..');
+export const REPO_ROOT = path.resolve(WEBAPP_ROOT, '..');
+export const FAKE_AGENT_ENTRYPOINT = path.join(REPO_ROOT, 'tools', 'vt-fake-agent', 'dist', 'index.js');
+const TMUX_SOCKET_NAME = 'tmux.sock';
 
 export type ElectronDiagnostics = {
   mainOutput: string[];
@@ -51,18 +53,61 @@ export function resolveGraphDaemonNodeBin(): string {
   return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
 }
 
-function escapeProcessPattern(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+type ProcessRow = {
+  readonly pid: number;
+  readonly command: string;
+};
+
+function readProcessRows(): readonly ProcessRow[] {
+  try {
+    const output = execFileSync('ps', ['-ww', '-eo', 'pid=,command='], {
+      encoding: 'utf8'
+    });
+    return output
+      .split('\n')
+      .map(line => line.trim().match(/^(\d+)\s+(.*)$/))
+      .filter((match): match is RegExpMatchArray => match !== null)
+      .map(match => ({ pid: Number(match[1]), command: match[2] }))
+      .filter(row => Number.isInteger(row.pid) && row.pid > 0 && row.pid !== process.pid);
+  } catch {
+    return [];
+  }
+}
+
+function killProcessesMatching(predicate: (command: string) => boolean): void {
+  const pids = readProcessRows()
+    .filter(row => predicate(row.command))
+    .map(row => row.pid);
+
+  for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
+    for (const pid of pids) {
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // The process may already be gone.
+      }
+    }
+  }
 }
 
 export function stopSmokeGraphDaemonForVault(vaultPath: string): void {
+  killProcessesMatching(command =>
+    command.includes(vaultPath) &&
+    (command.includes('vt-graphd.ts') || command.includes('vt-graphd.mjs'))
+  );
+}
+
+export function stopSmokeTmuxServer(appSupportPath: string): void {
+  const socketPath = path.join(appSupportPath, TMUX_SOCKET_NAME);
   try {
-    execFileSync('pkill', ['-f', `vt-graphd\\.ts --vault ${escapeProcessPattern(vaultPath)}`], {
+    execFileSync('tmux', ['-S', socketPath, 'kill-server'], {
       stdio: 'ignore'
     });
   } catch {
-    // No matching smoke daemon is fine.
+    // The smoke test only starts tmux when it spawns a terminal.
   }
+
+  killProcessesMatching(command => command.includes(socketPath));
 }
 
 export function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics): void {

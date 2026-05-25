@@ -11,7 +11,7 @@ import {
 import { ownerRecordPathFor, readOwnerRecord } from '../ownerRecord.ts'
 import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
-import { CONTRACT_VERSION, HealthResponseSchema } from '../contract.ts'
+import { CONTRACT_VERSION, HealthResponseSchema } from '@vt/graph-db-server/contract'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-test-'))
@@ -56,7 +56,7 @@ describe('startDaemon', () => {
     expect(body.sessionCount).toBe(0)
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
     expect(body.owner).not.toBeNull()
-    expect(body.owner?.canonicalVaultPath).toBe(vault)
+    expect(body.owner?.canonicalProjectRoot).toBe(vault)
     expect(body.owner?.pid).toBe(process.pid)
     expect(body.owner?.port).toBe(h.port)
     expect(body.owner?.contractVersion).toBe(CONTRACT_VERSION)
@@ -72,9 +72,26 @@ describe('startDaemon', () => {
     expect(res.status).toBe(200)
     const body = HealthResponseSchema.parse(await res.json())
     expect(body.version).toBe(CONTRACT_VERSION)
-    expect(body.vault).toBe('')
+    expect(body.vault).toBeNull()
     expect(body.sessionCount).toBe(0)
     expect(body.owner).toBeNull()
+  })
+
+  test('closing the startup vault makes health report no open vault', async () => {
+    const h = await start()
+
+    const close = await fetch(`http://127.0.0.1:${h.port}/vault/close`, {
+      method: 'POST',
+    })
+    const health = await fetch(`http://127.0.0.1:${h.port}/health`)
+    const vaultRead = await fetch(`http://127.0.0.1:${h.port}/vault`)
+
+    expect(close.status).toBe(204)
+    expect(HealthResponseSchema.parse(await health.json()).vault).toBeNull()
+    expect(vaultRead.status).toBe(409)
+    expect(await vaultRead.json()).toMatchObject({
+      error: { code: 'vault_not_open' },
+    })
   })
 
   test('port file reflects the assigned port', async () => {
@@ -96,7 +113,7 @@ describe('startDaemon', () => {
     const body = HealthResponseSchema.parse(await res.json())
     const onDisk = await readOwnerRecord(ownerRecordPathFor(vault))
     expect(onDisk).not.toBeNull()
-    expect(body.owner?.canonicalVaultPath).toBe(onDisk?.canonicalVaultPath)
+    expect(body.owner?.canonicalProjectRoot).toBe(onDisk?.canonicalProjectRoot)
     expect(body.owner?.ownerNonce).toBe(onDisk?.ownerNonce)
     expect(body.owner?.pid).toBe(onDisk?.pid)
     expect(body.owner?.port).toBe(onDisk?.port)

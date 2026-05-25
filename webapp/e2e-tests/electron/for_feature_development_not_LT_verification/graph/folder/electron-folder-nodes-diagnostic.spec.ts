@@ -29,25 +29,25 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-test-'));
-        const vaultPath = await createFolderTestVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createFolderTestVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-ud-'));
 
         // Create voicetree-config.json with lastDirectory + vaultConfig so loadFolder
-        // knows to use the vault root as the writePath (loads all files directly)
+        // knows to use the vault root as the writeFolder (loads all files directly)
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: []
                 }
             }
@@ -57,7 +57,7 @@ const test = base.extend<{
         // can find the project and switch from project-selection → graph-view
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'folder-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -94,7 +94,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot }, use) => {
         const w = await electronApp.firstWindow({ timeout: 20000 });
         w.on('console', msg => {
             const t = msg.text();
@@ -112,7 +112,7 @@ const test = base.extend<{
         await w.evaluate(async (vp: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (api) await api.main.startFileWatching(vp);
-        }, vaultPath);
+        }, projectRoot);
 
         // Wait for cytoscape instance to appear (graph view mounted + initialized)
         await w.waitForFunction(

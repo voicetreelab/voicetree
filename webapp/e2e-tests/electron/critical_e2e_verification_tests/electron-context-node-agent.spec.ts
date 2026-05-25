@@ -92,10 +92,10 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 3: Verify watch directory (auto-loaded from config) ===');
     const watchDir = FIXTURE_VAULT_PATH;
     console.log(`✓ Watch directory: ${watchDir}`);
-    const vaultPath = await appWindow.evaluate(async () => {
+    const projectRoot = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWritePath();
+      const result = await api.main.getWriteFolder();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -103,8 +103,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
       }
       return null;
     });
-    expect(vaultPath).toBeTruthy();
-    console.log(`✓ Vault path: ${vaultPath}`);
+    expect(projectRoot).toBeTruthy();
+    console.log(`✓ Vault path: ${projectRoot}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';
