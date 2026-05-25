@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T03:46:43.223Z",
+  "refreshedAt": "2026-05-25T05:41:42.817Z",
   "byCommunity": {
     "agent-runtime/api": 0,
     "agent-runtime/application": 23,
@@ -39,8 +39,7 @@
     "measures/_runners": 22,
     "measures/_shared": 50,
     "measures/_subgraph_gate": 34,
-    "measures/checks": 0,
-    "measures/correctness": 0,
+    "measures/checks": 2,
     "measures/health": 0,
     "observability/__root__": 9,
     "perf-fixtures/__root__": 33,

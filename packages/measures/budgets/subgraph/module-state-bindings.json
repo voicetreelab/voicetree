@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T03:46:40.890Z",
+  "refreshedAt": "2026-05-25T05:41:40.528Z",
   "byCommunity": {
     "agent-runtime/api": 0,
-    "agent-runtime/application": 10,
+    "agent-runtime/application": 9,
     "app-config/__root__": 0,
     "app-config/positions": 0,
     "app-config/project": 0,
     "app-config/settings": 2,
     "app-config/vault-config": 1,
-    "graph-db-client/__root__": 1,
+    "graph-db-client/__root__": 0,
     "graph-db-client/autoLaunch": 0,
     "graph-db-client/client": 0,
     "graph-db-protocol/__root__": 0,
     "graph-db-server/__root__": 0,
     "graph-db-server/application": 2,
-    "graph-db-server/daemon": 1,
+    "graph-db-server/daemon": 0,
     "graph-db-server/data": 1,
     "graph-db-server/routes": 0,
     "graph-db-server/search": 0,
@@ -40,7 +40,6 @@
     "measures/_shared": 1,
     "measures/_subgraph_gate": 0,
     "measures/checks": 0,
-    "measures/correctness": 0,
     "measures/health": 0,
     "observability/__root__": 2,
     "perf-fixtures/__root__": 0,
@@ -50,7 +49,7 @@
     "voicetree-mcp/create-graph": 0,
     "voicetree-mcp/tools": 0,
     "vt-fake-agent/__root__": 1,
-    "webapp/shell": 78,
+    "webapp/shell": 70,
     "webapp/utils": 2
   }
 }
