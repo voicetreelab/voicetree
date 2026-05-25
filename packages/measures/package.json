@@ -20,6 +20,7 @@
     "@vt/observability": "*",
     "@vt/perf-fixtures": "*",
     "@vt/vt-daemon": "*",
+    "@vt/vt-rpc": "*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

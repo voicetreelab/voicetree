@@ -1,11 +1,13 @@
 /**
  * Perf harness: agent-storm.
  *
- * Boots an in-process headless VoiceTree (graph-db-server + voicetree-mcp +
- * agent-runtime, no Electron) against a fresh temp vault, then spawns N
- * tmux-backed `vt-fake-agent` terminals in parallel. Each fake-agent runs a
- * deterministic script of `create_node` actions, which exercise the real MCP
- * `create_graph` tool and the daemon-routed vault write path end-to-end.
+ * Boots an in-process headless VoiceTree (graph-db-server + the unified
+ * @vt/vt-daemon HTTP server + agent-runtime, no Electron) against a fresh
+ * temp vault, then spawns N tmux-backed `vt-fake-agent` terminals in
+ * parallel. Each fake-agent runs a deterministic script of `create_node`
+ * actions, which exercise the real `create_graph` tool over the daemon's
+ * `/rpc` JSON-RPC endpoint and the daemon-routed vault write path
+ * end-to-end.
  *
  * Why this exists: the existing perf tests measure Cytoscape layout, SSE
  * round-trip, and daemon-spawn serialization — none of them drive realistic
@@ -16,10 +18,10 @@
  * latency histograms rather than guesswork.
  *
  * Honest scope:
- * - This exercises the *daemon side* of the stack (vt-graphd + MCP +
- *   agent-runtime + fake-agent → real `.md` files in the vault). The new
- *   webapp electron-main observability (`vt-electron-daemon.ndjson`) is
- *   NOT exercised because there is no Electron process in this harness.
+ * - This exercises the *daemon side* of the stack (vt-graphd + unified HTTP
+ *   daemon + agent-runtime + fake-agent → real `.md` files in the vault).
+ *   The new webapp electron-main observability (`vt-electron-daemon.ndjson`)
+ *   is NOT exercised because there is no Electron process in this harness.
  *   If a regression survives this harness, it is electron-main-specific and
  *   needs a Playwright-driven Electron variant.
  * - Real `.md` files are written. Real tmux sessions are spawned. Cleanup
@@ -46,19 +48,20 @@ import {
     type DaemonHandle,
 } from '@vt/graph-db-server'
 import { tracing } from '@vt/observability'
-// NOTE: `@vt/voicetree-mcp` was renamed to `@vt/vt-daemon` (2026-05-24) and the
-// `startMcpServer`/`configureMcpServer`/`McpServerHandle` symbols are gone —
-// the unified HTTP daemon (startHttpDaemonServer + HttpDaemonServerHandle)
-// replaces them. This perf harness has not been rewritten to drive the new
-// boot path; the imports below are pre-existing dead code. This commit only
-// removes the `getMcpPort` reference + migrates the spawned-subprocess env-var
-// contract; the boot path rewrite is a separate scope.
 import {
+    buildDefaultToolCatalog,
     configureMcpServer,
+    handleHookEventRequest,
     registerChildIfMonitored,
-    startMcpServer,
-    type McpServerHandle,
-} from '@vt/voicetree-mcp'
+    startHttpDaemonServer,
+    type HookHandler,
+    type HttpDaemonServerHandle,
+} from '@vt/vt-daemon'
+import {
+    generateAuthToken,
+    writeAuthTokenFile,
+    writeRpcPortFile,
+} from '@vt/vt-rpc'
 import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
 import {
     createTerminalData,
@@ -270,16 +273,36 @@ async function main(): Promise<void> {
         },
     })
 
-    let mcpHandle: McpServerHandle
+    // Bearer auth token: ephemeral per-run. The fake-agent subprocess
+    // discovers it from the temp vault's .voicetree/auth-token file via
+    // @vt/vt-rpc discovery; we also publish the rpc.port file so the same
+    // discovery chain finds the port without an env override.
+    const token: string = generateAuthToken()
+    await writeAuthTokenFile(tempVault, token)
+
+    const hookHandler: HookHandler = (input): unknown =>
+        handleHookEventRequest(
+            { source: input.source, terminalId: input.terminalId, hookEventName: input.eventName },
+            { updateAgentEvent: agentRuntime.updateTerminalAgentEvent },
+        )
+
+    let httpHandle: HttpDaemonServerHandle
     try {
-        mcpHandle = await startMcpServer({ startPort: undefined })
+        httpHandle = await startHttpDaemonServer({
+            catalog: buildDefaultToolCatalog(),
+            hookHandler,
+            token,
+            bindHost: '127.0.0.1',
+            port: undefined,
+        })
+        await writeRpcPortFile(tempVault, httpHandle.port)
     } catch (err) {
         await daemonHandle.stop().catch(() => undefined)
-        throw new Error(`startMcpServer failed: ${(err as Error).message}`)
+        throw new Error(`startHttpDaemonServer failed: ${(err as Error).message}`)
     }
 
     process.stdout.write(
-        `[perf] mcp port=${mcpHandle.port} graphd port=${daemonHandle.port} `
+        `[perf] daemon=${httpHandle.url} graphd port=${daemonHandle.port} `
         + `vault=${tempVault} app-support=${tempAppSupport}\n`,
     )
 
@@ -324,7 +347,7 @@ async function main(): Promise<void> {
         if (isolatedDir) mkdirSync(isolatedDir, { recursive: true })
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_DAEMON_URL: `http://127.0.0.1:${mcpHandle.port}`,
+            VOICETREE_DAEMON_URL: httpHandle.url,
             VOICETREE_VAULT_PATH: tempVault,
             TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
@@ -402,8 +425,9 @@ async function main(): Promise<void> {
 
     const filesCreated = countMarkdownFiles(tempVault)
 
-    // Tear down in the same order vt-mcpd uses on SIGTERM.
-    await mcpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] mcp stop: ${(e as Error).message}\n`))
+    // Tear down in the same order vt-mcpd uses on SIGTERM:
+    // HTTP daemon → terminals → graph-db.
+    await httpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] http daemon stop: ${(e as Error).message}\n`))
     agentRuntime.getTerminalManager().cleanup()
     await daemonHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] daemon stop: ${(e as Error).message}\n`))
 
