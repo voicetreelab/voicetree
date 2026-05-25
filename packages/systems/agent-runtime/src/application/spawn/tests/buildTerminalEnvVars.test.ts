@@ -14,7 +14,12 @@ describe('buildTerminalEnvVars', () => {
         configureAgentRuntime({})
     })
 
-    it('uses the daemon write folder as VOICETREE_VAULT_PATH while keeping project metadata under the watched root', async () => {
+    it('expands INJECT_ENV_VARS templates against the canonical project root and aggregates vault paths', async () => {
+        // VOICETREE_VAULT_PATH points at the canonical project root (the directory
+        // containing `.voicetree/`), NOT the daemon's writeFolder. See
+        // buildTerminalEnvVarsVaultPath.test.ts for the dedicated regression test
+        // covering that contract and the rationale (CLI auth-token up-walk, hook
+        // script template, tmuxPromptFile, tmux namespace builder).
         configureAgentRuntime({
             env: {
                 getAppSupportPath: () => '/app-support',
@@ -36,9 +41,10 @@ describe('buildTerminalEnvVars', () => {
         })
 
         expect(env.VOICETREE_PROJECT_DIR).toBe('/watched-project/.voicetree')
-        expect(env.VOICETREE_VAULT_PATH).toBe('/watched-project/voicetree-25-5')
+        expect(env.VOICETREE_VAULT_PATH).toBe('/watched-project')
         expect(env.ALL_MARKDOWN_READ_PATHS).toBe('/watched-project/voicetree-25-5\n/watched-project/reference')
-        expect(env.AGENT_PROMPT).toContain('vault=/watched-project/voicetree-25-5')
+        expect(env.AGENT_PROMPT).toContain('vault=/watched-project')
         expect(env.AGENT_PROMPT).toContain('project=/watched-project/.voicetree')
+        expect(env.AGENT_PROMPT).toContain('all=/watched-project/voicetree-25-5\n/watched-project/reference')
     })
 })
