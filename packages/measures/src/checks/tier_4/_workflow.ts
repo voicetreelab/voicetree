@@ -17,4 +17,5 @@ export const workflow: WorkflowSpec = {
     },
     precheck: 'tier4-precheck',
     parallelism: 'per-concern',
+    sequential: false,
 }

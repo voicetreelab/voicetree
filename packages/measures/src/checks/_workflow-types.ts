@@ -6,7 +6,7 @@
 // discovers these declarations and emits `.github/workflows/measures-budget-gate.yml`.
 //
 // Why this lives in `checks/` and not `_runners/`:
-//   The 9 `_workflow.ts` files all import from this module. Keeping the type
+//   The `_workflow.ts` files all import from this module. Keeping the type
 //   inside `measures/checks/` makes those imports intra-community — no
 //   cross-community fan-out into `measures/_runners`. The generator script
 //   (outside `src/`) and the drift test (in `measures/health/`) are the
@@ -57,4 +57,7 @@ export type WorkflowSpec = {
     readonly precheck: string | null
     // How to split this tier/concern across GHA jobs.
     readonly parallelism: ConcernParallelism
+    // Run checks one at a time within the capture-ci process. Set true for
+    // concerns that share resources such as daemons, ports, or databases.
+    readonly sequential: boolean
 }
