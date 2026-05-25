@@ -83,6 +83,12 @@ interface ExtendedWindowWithUndoTracking extends ExtendedWindow {
 
 /**
  * Sets up mock Electron API with undo/redo call tracking
+ *
+ * The shared mock in graph-delta-test-utils.ts does not include the
+ * performUndo / performRedo main-process IPC handlers that the renderer's
+ * graph hotkey bindings invoke. This helper layers those handlers (plus a
+ * window-level call counter) on top of the shared mock so this spec can
+ * assert whether graph undo/redo fires for a given keyboard event.
  */
 async function setupMockElectronAPIWithUndoTracking(page: import('@playwright/test').Page): Promise<void> {
   await page.addInitScript(() => {
@@ -93,6 +99,36 @@ async function setupMockElectronAPIWithUndoTracking(page: import('@playwright/te
   });
 
   await setupMockElectronAPI(page);
+
+  // Patch performUndo / performRedo onto the mock electronAPI installed by
+  // setupMockElectronAPI. The shared mock omits these, so graphHotkeyBindings
+  // would throw "performUndo is not a function" when fired. Tracking the call
+  // count is the observable side-effect this spec asserts on.
+  //
+  // Playwright runs init scripts in the order they were registered, so by the
+  // time this script executes the mock electronAPI is already on window.
+  await page.addInitScript(() => {
+    interface MainWithUndoRedo {
+      performUndo?: () => Promise<boolean>;
+      performRedo?: () => Promise<boolean>;
+    }
+    const win = window as unknown as ExtendedWindowWithUndoTracking & {
+      electronAPI?: { main: MainWithUndoRedo };
+    };
+    const api = win.electronAPI;
+    if (!api) throw new Error('Expected mock electronAPI to be installed before undo-tracking patch');
+
+    api.main.performUndo = async (): Promise<boolean> => {
+      const tracker = win._undoRedoTracker;
+      if (tracker) tracker.undoCalls += 1;
+      return true;
+    };
+    api.main.performRedo = async (): Promise<boolean> => {
+      const tracker = win._undoRedoTracker;
+      if (tracker) tracker.redoCalls += 1;
+      return true;
+    };
+  });
 }
 
 test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
@@ -152,17 +188,20 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
     console.log('✓ Editor window and CodeMirror rendered');
 
     console.log('=== Step 7: Focus the editor and type some text ===');
-    // Focus the editor
-    await page.evaluate((selector) => {
-      const editorElement = document.querySelector(`${selector} .cm-content`) as CodeMirrorElement | null;
-      if (!editorElement) throw new Error('Editor content element not found');
-
-      const cmView = editorElement.cmView?.view;
-      if (!cmView) throw new Error('CodeMirror view not found');
-
-      cmView.focus();
-    }, editorSelector);
+    // Click into the editor's content area to focus it via real DOM events.
+    // Using a Playwright click (rather than poking CodeMirror's view directly)
+    // ensures the focus/click handlers CodeMirror registers actually fire and
+    // mirrors how a real user would put their cursor in the editor.
+    await page.locator(`${editorSelector} .cm-content`).click();
     await page.waitForTimeout(50);
+
+    // Sanity-check that the editor really took focus before we type.
+    await expect.poll(async () => {
+      return page.evaluate((selector) => {
+        const cmEditor = document.querySelector(`${selector} .cm-editor`);
+        return cmEditor?.classList.contains('cm-focused') ?? false;
+      }, editorSelector);
+    }, { timeout: 2000 }).toBe(true);
 
     // Type some text into the editor
     await page.keyboard.type(' Added text.');
