@@ -139,7 +139,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
                 getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
+                getProjectRoot: async (): Promise<string | null> => tempDir,
                 getVtBinDir: (): string => vtBinDir,
             },
         })
@@ -167,7 +167,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
                 getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
+                getProjectRoot: async (): Promise<string | null> => tempDir,
             },
         })
 
@@ -196,7 +196,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
                 getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
+                getProjectRoot: async (): Promise<string | null> => tempDir,
                 getVtBinDir: (): string => vtBinDir,
             },
         })

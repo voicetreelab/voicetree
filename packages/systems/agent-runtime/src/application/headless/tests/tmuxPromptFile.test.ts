@@ -149,7 +149,7 @@ describe('wrapForHeadlessTmux', () => {
 describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
     it('writes the prompt, CLI-rewrites the command (no bash wrap), and clears AGENT_PROMPT in favor of AGENT_PROMPT_FILE', () => {
         const plan = applyPromptFileToTmuxSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
@@ -165,7 +165,7 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
 
     it('is a no-op when env has no AGENT_PROMPT', () => {
         const plan = applyPromptFileToTmuxSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'bash',
             env: {VOICETREE_TERMINAL_ID: 'Aki'},
@@ -178,7 +178,7 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
     it('handles a 200 KiB AGENT_PROMPT — spilling to file keeps the returned env tiny', () => {
         const giant: string = 'X'.repeat(200 * 1024)
         const plan = applyPromptFileToTmuxSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: giant, VOICETREE_TERMINAL_ID: 'Aki'},

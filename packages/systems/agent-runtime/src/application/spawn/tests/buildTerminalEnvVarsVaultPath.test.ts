@@ -32,7 +32,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_PATH],
                 getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => CANONICAL_ROOT,
+                getProjectRoot: async (): Promise<string | null> => CANONICAL_ROOT,
             },
         })
 
@@ -54,7 +54,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_PATH],
                 getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => CANONICAL_ROOT,
+                getProjectRoot: async (): Promise<string | null> => CANONICAL_ROOT,
             },
         })
 
@@ -76,7 +76,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_PATH],
                 getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => CANONICAL_ROOT,
+                getProjectRoot: async (): Promise<string | null> => CANONICAL_ROOT,
             },
         })
 
@@ -97,7 +97,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
             env: {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [],
-                getProjectRootWatchedDirectory: async (): Promise<string | null> => null,
+                getProjectRoot: async (): Promise<string | null> => null,
             },
         })
 

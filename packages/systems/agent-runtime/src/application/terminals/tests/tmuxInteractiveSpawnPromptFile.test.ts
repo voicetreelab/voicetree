@@ -26,8 +26,8 @@ import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {applyPromptFileToTmuxSpawn} from '../../headless/tmuxPromptFile'
 import {spawnTmuxBackedTerminal} from '../../headless/headlessAgentManager'
 import {clearTerminalRecords} from '../terminal-registry'
-import {hasSession, killSession, resolveTmuxSessionName} from '../tmux-session-manager'
-import {withVoicetreeVaultPath} from '../tmuxSpawnPlanning'
+import {hasSession, killSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
+import {withVoicetreeVaultPath} from '../tmux/tmuxSpawnPlanning'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminal-registry/types'
 
 const sessions: Set<string> = new Set<string>()
