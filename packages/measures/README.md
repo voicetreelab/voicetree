@@ -43,9 +43,9 @@ affect scheduling.
 |---|---|---|---|
 | `tier_0_pre_commit` | pre-commit hook | `npm run test:t0` | <30s |
 | `tier_1` | pre-push hook (`test:local`) | `npm run test:t1` | <3min |
-| `tier_2` | PR CI on every PR (`stage1-checks.yml`) | `npm run test:t2` | <15min |
-| `tier_3` | merge-to-main / nightly (`main.yml`) | `npm run test:t3` | <60min |
-| `tier_4` | PR CI conditional pre-merge + nightly drift | `npm run test:t4` | informational |
+| `tier_2` | generated PR CI on every PR | `npm run test:t2` | <15min |
+| `tier_3` | generated PR CI into `main` + nightly (`main.yml`) | `npm run test:t3` | <60min |
+| `tier_4` | generated PR CI conditional into `main` + nightly drift | `npm run test:t4` | informational |
 | all | release / nightly | `npm run test:full` | union of every tier |
 
 `test:tN` walks `tier_0_pre_commit/` through `tier_N/` (via `--tier<=N` /

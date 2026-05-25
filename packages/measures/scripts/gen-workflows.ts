@@ -9,8 +9,9 @@
 //   workflowYamlToText()  → pure formatter, WorkflowYaml → string
 //   generate()            → shell, composes the three + writes the file
 //
-// Triggers: `workflow_dispatch` + `pull_request` on `packages/measures/**`.
-// Runs side-by-side with `stage1-checks.yml` until BF-365 cuts the latter over.
+// Triggers: `workflow_dispatch` + every `pull_request`. Branch protection is
+// derived from tier-level WorkflowSpec.protection declarations, not from path
+// filters in the generated workflow.
 
 import {readdir, readFile, writeFile, mkdir} from 'node:fs/promises'
 import {dirname, join, resolve, relative} from 'node:path'
@@ -49,6 +50,8 @@ export type TierSpecs = {
     readonly tierFolderNames: readonly string[]
 }
 
+export type RequiredContextsByBaseRef = Record<string, readonly string[]>
+
 // ── Pure: discovery helpers used by both shell and tests ─────────────────────
 
 const TIER_FOLDER_RE = /^tier_\d+(?:_pre_commit)?$/
@@ -77,7 +80,7 @@ export async function discoverTiers(checksDir: string = CHECKS_DIR): Promise<Tie
             .sort()
         for (const concern of concernEntries) {
             const concernSpec = await loadWorkflowSpec(join(checksDir, tier, concern, '_workflow.ts'))
-            const effective: WorkflowSpec = concernSpec ?? tierSpec
+            const effective: WorkflowSpec = mergeWorkflowSpec(tierSpec, concernSpec)
             const checkIds = await loadCheckIds(join(checksDir, tier, concern))
             if (checkIds.length === 0) continue
             concerns.push({
@@ -90,6 +93,17 @@ export async function discoverTiers(checksDir: string = CHECKS_DIR): Promise<Tie
         }
     }
     return {concerns, tierFolderNames: tierEntries}
+}
+
+function mergeWorkflowSpec(tierSpec: WorkflowSpec, concernSpec: WorkflowSpec | null): WorkflowSpec {
+    if (!concernSpec) return tierSpec
+    return {
+        ...tierSpec,
+        ...concernSpec,
+        setup: {...tierSpec.setup, ...concernSpec.setup},
+        trigger: {...tierSpec.trigger, ...concernSpec.trigger},
+        protection: concernSpec.protection ?? tierSpec.protection,
+    }
 }
 
 function compareTierFolders(a: string, b: string): number {
@@ -158,9 +172,80 @@ export function tierSpecsToWorkflow(input: TierSpecs): WorkflowYaml {
     }
 
     // Final budget-gate job: depends on every tier job, runs always.
-    jobs.push(budgetGateJob(jobs, maxTier))
+    jobs.push(budgetGateJob(jobs, maxTier, input))
 
     return {name: 'Measures (generated)', jobs}
+}
+
+export function requiredStatusContextsByBaseRef(input: TierSpecs): RequiredContextsByBaseRef {
+    return mapValuesSorted(requiredJobContextsByBaseRef(input, 'status-context'))
+}
+
+export function requiredJobIdsByBaseRef(input: TierSpecs): RequiredContextsByBaseRef {
+    return mapValuesSorted(requiredJobContextsByBaseRef(input, 'job-id'))
+}
+
+export function conditionalJobIdsByBaseRef(input: TierSpecs): RequiredContextsByBaseRef {
+    const out = new Map<string, Set<string>>()
+    for (const conc of input.concerns) {
+        for (const baseRef of conc.spec.protection?.conditionalOn ?? []) {
+            addToMapSet(out, baseRef, jobIdFor(conc.tier, conc.concern))
+        }
+    }
+    return mapSetsSorted(out)
+}
+
+export function conditionalPrecheckByJobId(input: TierSpecs): Record<string, string> {
+    const out: Record<string, string> = {}
+    for (const conc of input.concerns) {
+        if (!conc.spec.precheck) continue
+        if ((conc.spec.protection?.conditionalOn ?? []).length === 0) continue
+        out[jobIdFor(conc.tier, conc.concern)] = conc.spec.precheck
+    }
+    return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)))
+}
+
+function requiredJobContextsByBaseRef(
+    input: TierSpecs,
+    mode: 'job-id' | 'status-context',
+): Map<string, Set<string>> {
+    const out = new Map<string, Set<string>>()
+    const protectedBranches = new Set<string>()
+    for (const conc of input.concerns) {
+        for (const baseRef of conc.spec.protection?.requiredOn ?? []) {
+            protectedBranches.add(baseRef)
+            const contexts = mode === 'job-id'
+                ? [jobIdFor(conc.tier, conc.concern)]
+                : statusContextsForConcern(conc)
+            for (const context of contexts) addToMapSet(out, baseRef, context)
+        }
+    }
+    for (const baseRef of protectedBranches) addToMapSet(out, baseRef, 'budget-gate')
+    return out
+}
+
+function statusContextsForConcern(conc: ConcernSpec): readonly string[] {
+    const id = jobIdFor(conc.tier, conc.concern)
+    if (conc.spec.parallelism !== 'per-check') return [id]
+    return conc.checkIds.map(checkId => `${id} (${checkId})`)
+}
+
+function addToMapSet(map: Map<string, Set<string>>, key: string, value: string): void {
+    const existing = map.get(key)
+    if (existing) existing.add(value)
+    else map.set(key, new Set([value]))
+}
+
+function mapValuesSorted(map: Map<string, Set<string>>): RequiredContextsByBaseRef {
+    return Object.fromEntries(
+        [...map.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, values]) => [key, [...values].sort()]),
+    )
+}
+
+function mapSetsSorted(map: Map<string, Set<string>>): RequiredContextsByBaseRef {
+    return mapValuesSorted(map)
 }
 
 function jobIdFor(tier: string, concern: string): string {
@@ -260,16 +345,16 @@ function perCheckMatrixJob(conc: ConcernSpec, input: TierSpecs): Job {
     }
 }
 
-function budgetGateJob(tierJobs: readonly Job[], maxTier: number): Job {
-    const tierJobIds = tierJobs
-        .filter(j => /^tier-\d/.test(j.id))
+function budgetGateJob(upstreamJobs: readonly Job[], maxTier: number, input: TierSpecs): Job {
+    const upstreamJobIds = upstreamJobs
+        .filter(j => j.id !== 'budget-gate')
         .map(j => j.id)
         .sort()
     return {
         id: 'budget-gate',
         name: 'budget-gate',
         runsOn: 'ubuntu-latest',
-        needs: tierJobIds,
+        needs: upstreamJobIds,
         ifExpr: 'always()',
         strategy: null,
         outputs: null,
@@ -285,6 +370,13 @@ function budgetGateJob(tierJobs: readonly Job[], maxTier: number): Job {
                     'node --no-warnings=ExperimentalWarning --experimental-strip-types \\',
                     '  packages/measures/src/_runners/check-tier-budgets.ts',
                 ].join('\n'),
+                env: {
+                    GITHUB_BASE_REF: '${{ github.base_ref }}',
+                    MEASURES_WORKFLOW_NEEDS_JSON: '${{ toJson(needs) }}',
+                    MEASURES_REQUIRED_JOBS_BY_BASE_REF: JSON.stringify(requiredJobIdsByBaseRef(input)),
+                    MEASURES_CONDITIONAL_JOBS_BY_BASE_REF: JSON.stringify(conditionalJobIdsByBaseRef(input)),
+                    MEASURES_CONDITIONAL_PRECHECK_BY_JOB_ID: JSON.stringify(conditionalPrecheckByJobId(input)),
+                },
             },
         ],
     }
@@ -296,7 +388,7 @@ const HEADER = [
     '# AUTO-GENERATED by packages/measures/scripts/gen-workflows.ts',
     '# from tier_N/_workflow.ts. Do not edit by hand.',
     '# Run `npm run gen:workflows` to regenerate.',
-    '# Runs alongside stage1-checks.yml until the BF-365 cutover.',
+    '# Required GitHub contexts are derived from tier WorkflowSpec.protection.',
 ].join('\n')
 
 export function workflowYamlToText(yaml: WorkflowYaml): string {
@@ -307,9 +399,6 @@ export function workflowYamlToText(yaml: WorkflowYaml): string {
     lines.push('on:')
     lines.push('  workflow_dispatch: {}')
     lines.push('  pull_request:')
-    lines.push('    paths:')
-    lines.push("      - 'packages/measures/**'")
-    lines.push("      - '.github/workflows/measures-budget-gate.yml'")
     lines.push('')
     lines.push('jobs:')
     for (const job of yaml.jobs) {
@@ -373,7 +462,7 @@ function renderStep(step: Step): readonly string[] {
             '  working-directory: webapp',
             '  run: npx playwright install --with-deps chromium',
         ]
-        case 'run': return renderRun(step.name, step.run, null)
+        case 'run': return renderRun(step.name, step.run, null, step.env ?? null)
         case 'upload-artifact': return [
             '- name: Upload check reports',
             '  if: always()',
@@ -394,9 +483,15 @@ function renderStep(step: Step): readonly string[] {
     }
 }
 
-function renderRun(name: string, body: string, id: string | null): readonly string[] {
+function renderRun(name: string, body: string, id: string | null, env: Record<string, string> | null): readonly string[] {
     const out: string[] = [`- name: ${yamlString(name)}`]
     if (id) out.push(`  id: ${id}`)
+    if (env && Object.keys(env).length > 0) {
+        out.push('  env:')
+        for (const [key, value] of Object.entries(env).sort(([a], [b]) => a.localeCompare(b))) {
+            out.push(`    ${key}: ${yamlString(value)}`)
+        }
+    }
     out.push('  run: |')
     for (const line of body.split('\n')) {
         const rendered = line.trimEnd()

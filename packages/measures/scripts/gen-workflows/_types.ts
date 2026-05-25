@@ -6,7 +6,7 @@ export type Step =
     | {kind: 'setup-node'; node: string}
     | {kind: 'npm-ci'}
     | {kind: 'playwright-install'}
-    | {kind: 'run'; name: string; run: string}
+    | {kind: 'run'; name: string; run: string; env?: Record<string, string>}
     | {kind: 'upload-artifact'; name: string; path: string}
     | {kind: 'download-artifact'; pattern: string; path: string}
 
