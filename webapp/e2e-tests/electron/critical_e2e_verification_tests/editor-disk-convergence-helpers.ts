@@ -262,6 +262,18 @@ export async function closeEditorWindow(page: Page, editorWindowId: string): Pro
   }, editorWindowId);
 }
 
+// Real DOM click on the traffic-light close button — exercises the
+// button → onClick handler → close-logic wiring. Use this in tests that need
+// to verify the button itself works (the dispatchEvent path bypasses the
+// button entirely). Throws if the button isn't rendered, by design.
+export async function clickEditorCloseButton(page: Page, editorWindowId: string): Promise<void> {
+  await page.evaluate((winId) => {
+    const button = document.querySelector(`#${CSS.escape(winId)} .traffic-light-close`) as HTMLButtonElement | null;
+    if (!button) throw new Error(`traffic-light-close button not found on #${winId}`);
+    button.click();
+  }, editorWindowId);
+}
+
 export async function closeAllTerminalWindows(page: Page): Promise<void> {
   await page.locator('.cy-floating-window-terminal').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
   await page.locator('.cy-floating-window-terminal .terminal-relay-status').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);

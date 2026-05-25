@@ -11,7 +11,8 @@
  *   5. external SSE append merges while the editor is focused and typing
  *   6. external non-append replacement applies while the editor is focused
  *   7. parent unsaved edit survives cmd-n create-child shortcut
- *   8. in-flight typed edit is visible in an immediate agent context snapshot
+ *   8. frontmatter shape on disk is preserved through editing and close
+ *   9. in-flight typed edit is visible in an immediate agent context snapshot
  *
  * Each test follows: seed → action → assert (editor + disk + graph).
  *
@@ -26,6 +27,7 @@ import * as path from 'node:path';
 import {
   PARENT_TITLE,
   PARENT_FILENAME,
+  clickEditorCloseButton,
   closeAllTerminalWindows,
   closeEditorWindow,
   configureNoopAgent,
@@ -62,8 +64,8 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await expectEditorMatches(appWindow, editorWindowId, typed);
     await expectDiskMatches(writeFolder, PARENT_FILENAME, typed);
 
-    // Close the editor; disk content must survive.
-    await closeEditorWindow(appWindow, editorWindowId);
+    // Real button click — exercises the .traffic-light-close → close-logic wiring.
+    await clickEditorCloseButton(appWindow, editorWindowId);
     await appWindow.locator(`[id="${editorWindowId}"]`).waitFor({ state: 'detached', timeout: 5_000 });
     const afterClose = await fs.readFile(path.join(writeFolder, PARENT_FILENAME), 'utf8');
     expect(afterClose).toBe(typed);
@@ -97,6 +99,12 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
 
   test('external file write reaches the open editor (bidirectional sync)', async ({ appWindow, writeFolder }) => {
     const { editorWindowId } = await openEditorForLabel(appWindow, PARENT_TITLE);
+
+    // Initial editor state: shows the seeded body verbatim, with no frontmatter
+    // prefix even if one existed on disk (frontmatter is stripped on display).
+    const initialEditor = await readEditorText(appWindow, editorWindowId);
+    expect(initialEditor).toContain(`# ${PARENT_TITLE}`);
+    expect(initialEditor).not.toMatch(/^---\n/);
 
     const externallyChanged = `# ${PARENT_TITLE}\n\nEXTERNAL CHANGE — written by another process.\n`;
     await fs.writeFile(
@@ -180,6 +188,50 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
       message: 'Waiting for reopened parent editor to show the typed edit',
       timeout: 5_000,
     }).toContain(TYPED_MARKER);
+  });
+
+  test('frontmatter shape on disk is preserved through editing and close', async ({ appWindow, writeFolder }) => {
+    const parentPath = path.join(writeFolder, PARENT_FILENAME);
+
+    // Re-seed externally with frontmatter so the watcher picks it up before
+    // the editor opens. The editor strips frontmatter on display; autosave
+    // must re-prepend it.
+    const withFrontmatter = `---\nstatus: active\n---\n# ${PARENT_TITLE}\n\nOriginal body before edit.\n`;
+    await fs.writeFile(parentPath, withFrontmatter, 'utf8');
+    await appWindow.waitForTimeout(500);
+
+    const { editorWindowId } = await openEditorForLabel(appWindow, PARENT_TITLE);
+
+    // Editor strips frontmatter on display.
+    await expect.poll(async () => readEditorText(appWindow, editorWindowId), {
+      message: 'Waiting for editor to load frontmatter-stripped content',
+      timeout: 5_000,
+    }).not.toMatch(/^---\n/);
+    const initialEditor = await readEditorText(appWindow, editorWindowId);
+    expect(initialEditor).toContain(`# ${PARENT_TITLE}`);
+
+    const editedBody = `# ${PARENT_TITLE}\n\nEdited body — frontmatter should survive.\n`;
+    await replaceEditorContentWithKeyboard(appWindow, editorWindowId, editedBody);
+
+    // After autosave: disk must have BOTH the frontmatter prefix AND the new
+    // edit. Poll on the conjunction — polling on just the prefix would match
+    // the pre-edit disk state and exit immediately.
+    await expect.poll(async () => {
+      const content = await fs.readFile(parentPath, 'utf8');
+      return /^---\nstatus: active\n---\n/.test(content)
+        && content.includes('Edited body — frontmatter should survive.');
+    }, {
+      message: 'Waiting for autosave to land while preserving frontmatter',
+      timeout: 15_000,
+      intervals: [200, 500, 1000, 2000],
+    }).toBe(true);
+
+    // Real button click; frontmatter must STILL be preserved on disk after close.
+    await clickEditorCloseButton(appWindow, editorWindowId);
+    await appWindow.locator(`[id="${editorWindowId}"]`).waitFor({ state: 'detached', timeout: 5_000 });
+    const afterClose = await fs.readFile(parentPath, 'utf8');
+    expect(afterClose).toMatch(/^---\nstatus: active\n---\n/);
+    expect(afterClose).toContain('Edited body — frontmatter should survive.');
   });
 
   test('in-flight typed edit is visible in an immediate agent context snapshot', async ({ appWindow, writeFolder }) => {
