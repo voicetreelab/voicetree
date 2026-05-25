@@ -1,14 +1,17 @@
 export type {
+    CellResult,
     CommandAttempt,
     CommandPattern,
-    RunResult,
+    Coverage,
+    Effort,
+    FitnessBreakdown,
+    HarnessDriver,
+    RunTelemetry,
     ScenarioSpec,
     ScoreOutcome,
     ShimLogEntry,
     SuccessResult,
 } from './types.ts'
 export {OUTCOME_SCORES} from './types.ts'
-export {runScenario} from './runner.ts'
-export {scoreCommand, scoreScenario, aggregateScore, scoreFor} from './scoring.ts'
-export {parseShimLog, matchesVerb} from './shim-log.ts'
-export {s9AtomicCreate} from './scenarios/s9-atomic-create.ts'
+export {aggregateScore, scoreCommand, scoreFor, scoreScenario} from './scoring.ts'
+export {matchesVerb, parseShimLog} from './shim-log.ts'
