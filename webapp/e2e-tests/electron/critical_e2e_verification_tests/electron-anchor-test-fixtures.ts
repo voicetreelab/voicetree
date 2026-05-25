@@ -237,7 +237,7 @@ function killTmuxSessionsForTest(terminalId: string): void {
     // tmux may not be running.
   }
 
-  for (const session of sessions) {
+  for (const session of Array.from(sessions)) {
     try {
       execFileSync("tmux", ["kill-session", "-t", session], {
         stdio: "ignore",
@@ -259,9 +259,9 @@ export async function cleanupAnchorTestTerminals(
   terminalIds: ReadonlyArray<string | null | undefined>,
   callerTerminalId: string,
 ): Promise<void> {
-  const ids = [
-    ...new Set(terminalIds.filter((id): id is string => Boolean(id))),
-  ];
+  const ids = Array.from(
+    new Set(terminalIds.filter((id): id is string => Boolean(id))),
+  );
 
   if (rpc) {
     for (const terminalId of ids.filter((id) => id !== callerTerminalId)) {

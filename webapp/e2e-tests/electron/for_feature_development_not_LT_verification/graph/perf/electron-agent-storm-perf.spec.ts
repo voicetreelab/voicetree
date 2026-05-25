@@ -115,8 +115,6 @@ import {
     readNdjsonTail,
     resolveFakeAgentEntrypoint,
     summarizeSpans,
-    type SpanRecord,
-    type SpanSummary,
 } from './perf-helpers/stormHelpers'
 import { makeStormTest } from './perf-helpers/stormFixtures'
 
