@@ -31,7 +31,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
             env: {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_PATH],
-                getWritePath: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
+                getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => CANONICAL_ROOT,
             },
         })
@@ -53,7 +53,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
             env: {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_PATH],
-                getWritePath: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
+                getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => CANONICAL_ROOT,
             },
         })
@@ -75,7 +75,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
             env: {
                 getAppSupportPath: (): string => '/tmp/app-support',
                 getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_PATH],
-                getWritePath: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
+                getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_PATH,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => CANONICAL_ROOT,
             },
         })

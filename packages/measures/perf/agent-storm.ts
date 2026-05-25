@@ -432,7 +432,7 @@ async function main(): Promise<void> {
                 }
                 return out
             },
-            getWritePath: async () => (await daemonClient.getVault()).writePath ?? null,
+            getWriteFolder: async () => (await daemonClient.getVault()).writePath ?? null,
             applyGraphDelta: async (delta, recordForUndo) => {
                 await daemonClient.applyGraphDelta(delta as unknown as unknown[], {
                     recordForUndo: recordForUndo ?? true,

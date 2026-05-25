@@ -166,15 +166,15 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
         // (Models renderer-bootstrap + UI click + IPC handler + 2 stragglers.)
         // openVault throws on failure — Promise.all rejecting is the failure mode.
         await Promise.all([
-            openVault(vaultPath),
-            openVault(vaultPath),
-            openVault(vaultPath),
-            openVault(vaultPath),
-            openVault(vaultPath),
+            openVault(projectRoot),
+            openVault(projectRoot),
+            openVault(projectRoot),
+            openVault(projectRoot),
+            openVault(projectRoot),
         ])
 
         // THEN: daemon graph populated — not cleared by a late re-spawn.
-        const nodeCount: number = await waitForDaemonNodeCount(vaultPath)
+        const nodeCount: number = await waitForDaemonNodeCount(projectRoot)
         expect(nodeCount).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
 
         // AND: at most 1 vt-graphd process for this vault.
@@ -186,8 +186,8 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
 
         // AND: a follow-up openVault is a no-op that preserves the graph
         // (the original race symptom: late call-site re-spawns and clears).
-        await openVault(vaultPath)
-        const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(vaultPath)
+        await openVault(projectRoot)
+        const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(projectRoot)
         expect(nodeCountAfterFollowup).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
     }, TIMEOUT_MS)
 })

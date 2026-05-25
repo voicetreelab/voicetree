@@ -222,7 +222,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setProjectRootWatchedDirectory(tempVault)
+        setProjectRoot(tempVault)
     })
 
     afterEach(async () => {
@@ -399,7 +399,7 @@ describe('Merge Operation - Filesystem Integration', () => {
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setProjectRootWatchedDirectory(tempVault)
+        setProjectRoot(tempVault)
     })
 
     afterEach(async () => {
@@ -521,7 +521,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setProjectRootWatchedDirectory(tempVault)
+        setProjectRoot(tempVault)
     })
 
     afterEach(async () => {

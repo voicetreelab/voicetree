@@ -135,7 +135,7 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
             env: {
                 getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWritePath: async (): Promise<string | null> => tempDir,
+                getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
                 getCliManualPath: (): string => manualPath,
             },
@@ -162,7 +162,7 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
             env: {
                 getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWritePath: async (): Promise<string | null> => tempDir,
+                getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
                 getCliManualPath: (): string => path.join(tempDir, 'missing-manual.md'),
             },
@@ -187,7 +187,7 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
             env: {
                 getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWritePath: async (): Promise<string | null> => tempDir,
+                getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
             },
         })

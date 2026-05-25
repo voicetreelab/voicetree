@@ -133,13 +133,13 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
             timestamp: new Date().toISOString(),
         })
 
-        await bindHttpDaemonForVault(vaultPath)
+        await bindHttpDaemonForVault(projectRoot)
 
-        pushToRenderer('vault:ready', { path: vaultPath })
-        void getCallbacks().stripStaleMcpEntries?.(vaultPath).catch((err: unknown) => {
+        pushToRenderer('vault:ready', { path: projectRoot })
+        void getCallbacks().stripStaleMcpEntries?.(projectRoot).catch((err: unknown) => {
             console.error('[openVault] Failed to strip stale MCP entries:', err)
         })
-        void getCallbacks().writeVaultAgentDiscoveryFile?.(vaultPath).catch((err: unknown) => {
+        void getCallbacks().writeVaultAgentDiscoveryFile?.(projectRoot).catch((err: unknown) => {
             console.error('[openVault] Failed to write vault agent discovery file:', err)
         })
         return response

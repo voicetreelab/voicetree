@@ -109,7 +109,7 @@ export function configureCreateGraphServer(): Promise<void> {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => getVaultPaths(),
-                getWritePath: async () => O.toNullable(await getWritePath()),
+                getWriteFolder: async () => O.toNullable(await getWritePath()),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
