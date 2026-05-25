@@ -449,7 +449,16 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
         hub,
         stop: (): Promise<void> => new Promise<void>((resolveStop, rejectStop): void => {
             void tmuxAttach.close().then((): void => {
+                // Force-terminate active WebSocket clients and HTTP keep-alive
+                // sockets before awaiting server.close(). wss.close() halts
+                // new upgrades but leaves existing clients connected; without
+                // this, server.close() blocks until each client's ping/idle
+                // timer fires (~10s with the default ws keepalive). On
+                // shutdown — including vault rebind — we are intentionally
+                // dropping in-flight work, so a graceful drain has no value.
+                for (const client of wss.clients) client.terminate()
                 wss.close((): void => {
+                    server.closeAllConnections()
                     server.close((cause?: Error): void => {
                         if (cause) rejectStop(cause)
                         else resolveStop()
