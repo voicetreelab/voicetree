@@ -391,7 +391,7 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     return err(
       'node',
       `live state fetch failed: ${String(e)}`,
-      `verify MCP server is reachable on port ${pick.instance.mcpPort}`,
+      `verify the daemon is running for vault ${pick.instance.projectRoot}`,
       2,
     )
   }
