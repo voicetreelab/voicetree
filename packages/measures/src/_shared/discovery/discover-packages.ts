@@ -1,5 +1,5 @@
 import {readFile, readdir, stat} from 'node:fs/promises'
-import {basename, dirname, join, resolve} from 'node:path'
+import {basename, dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 export type PackageInfo = {
@@ -7,6 +7,13 @@ export type PackageInfo = {
     readonly dirName: string
     readonly srcRoot: string
     readonly absDir: string
+    /**
+     * Repo-relative paths of files declared as the package's public facade
+     * via `package.json` exports. Used by the BCI facade-discount: edges
+     * crossing into these files are not charged. Empty when the package
+     * has no exports field or none resolve to a .ts/.tsx file.
+     */
+    readonly facadeRelativePaths: readonly string[]
 }
 
 const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
@@ -50,7 +57,7 @@ async function readdirOrEmpty(absDir: string): Promise<Awaited<ReturnType<typeof
     }
 }
 
-async function readPackageJson(absDir: string): Promise<{name?: unknown} | null> {
+async function readPackageJson(absDir: string): Promise<{name?: unknown, exports?: unknown} | null> {
     const pkgJsonPath = join(absDir, 'package.json')
     if (!(await pathExists(pkgJsonPath))) return null
     try {
@@ -58,6 +65,39 @@ async function readPackageJson(absDir: string): Promise<{name?: unknown} | null>
     } catch {
         return null
     }
+}
+
+/**
+ * Walk the `exports` field — accepts string, subpath map, conditional
+ * map, or nested combinations — and collect every leaf string value that
+ * looks like a TypeScript source file. These are the package's declared
+ * facade entry points.
+ */
+function collectFacadeStrings(exportsField: unknown): string[] {
+    const out: string[] = []
+    function walk(v: unknown): void {
+        if (typeof v === 'string') {
+            if (v.endsWith('.ts') || v.endsWith('.tsx')) out.push(v)
+            return
+        }
+        if (v === null || typeof v !== 'object') return
+        for (const value of Object.values(v as Record<string, unknown>)) walk(value)
+    }
+    walk(exportsField)
+    return out
+}
+
+function resolveFacadeRelativePaths(
+    absDir: string,
+    repoRoot: string,
+    exportsField: unknown,
+): readonly string[] {
+    const seen = new Set<string>()
+    for (const raw of collectFacadeStrings(exportsField)) {
+        const abs = resolve(absDir, raw)
+        seen.add(relative(repoRoot, abs))
+    }
+    return [...seen].sort()
 }
 
 async function isNestedGitRoot(absDir: string, repoRoot: string): Promise<boolean> {
@@ -80,6 +120,7 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
                         dirName: basename(absDir),
                         srcRoot: srcDir,
                         absDir,
+                        facadeRelativePaths: resolveFacadeRelativePaths(absDir, repoRoot, pkgJson.exports),
                     })
                 }
             }
