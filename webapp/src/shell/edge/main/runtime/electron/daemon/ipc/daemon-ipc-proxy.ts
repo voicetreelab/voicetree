@@ -291,6 +291,57 @@ export async function postDeltaThroughDaemon(
   })
 }
 
+function mergeFloatingEditorDeltas(deltas: readonly GraphDelta[]): GraphDelta {
+  return deltas.flatMap((delta) => delta)
+}
+
+function createFloatingEditorDeltaQueue(
+  onFlush: (delta: GraphDelta) => void,
+): {
+  readonly enqueue: (delta: GraphDelta) => void
+  readonly reset: () => void
+} {
+  const state: {
+    pendingDeltas: GraphDelta[]
+    flushScheduled: boolean
+  } = {
+    pendingDeltas: [],
+    flushScheduled: false,
+  }
+
+  function flush(): void {
+    state.flushScheduled = false
+    const deltas: readonly GraphDelta[] = state.pendingDeltas
+    state.pendingDeltas = []
+    if (deltas.length === 0) return
+
+    onFlush(mergeFloatingEditorDeltas(deltas))
+  }
+
+  return {
+    enqueue(delta: GraphDelta): void {
+      state.pendingDeltas = [...state.pendingDeltas, delta]
+      if (state.flushScheduled) return
+
+      state.flushScheduled = true
+      queueMicrotask(flush)
+    },
+    reset(): void {
+      state.pendingDeltas = []
+      state.flushScheduled = false
+    },
+  }
+}
+
+const floatingEditorDeltaQueue = createFloatingEditorDeltaQueue((delta) => {
+  getCallbacks().onFloatingEditorUpdate?.(delta)
+})
+
+/** Test-only: clear the microtask coalescer state between test cases. */
+export function __resetFloatingEditorDeltaQueueForTests(): void {
+  floatingEditorDeltaQueue.reset()
+}
+
 export async function postDeltaThroughDaemonWithEditors(
   delta: GraphDelta,
   recordForUndo: boolean = true,
@@ -298,9 +349,8 @@ export async function postDeltaThroughDaemonWithEditors(
   await tracing.span('electron.graph.post-delta-with-editors', async (span) => {
     span.setAttribute('graph.delta.count', delta.length)
     await postDeltaThroughDaemon(delta, recordForUndo)
-    span.addEvent('electron.graph.floating-editor-update.start')
-    getCallbacks().onFloatingEditorUpdate?.(delta)
-    span.addEvent('electron.graph.floating-editor-update.complete')
+    span.addEvent('electron.graph.floating-editor-update.queued')
+    floatingEditorDeltaQueue.enqueue(delta)
   })
 }
 
