@@ -206,17 +206,39 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'voicetree-cli -> graph-tools': 11,
     'voicetree-cli -> voicetree-graph-validation': 1,
     'voicetree-cli -> vt-daemon': 7,
+    // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
+    // for non-daemon peers (BF-377); the CLI is a peer just like webapp and
+    // calls `ensureVtDaemonForVault` to spawn-or-adopt the per-vault VTD.
+    'voicetree-cli -> vt-daemon-client': 1,
     'voicetree-cli -> vt-rpc': 9,
     'vt-daemon -> agent-runtime': 10,
     'vt-daemon -> app-config': 1,
     'vt-daemon -> daemon-lifecycle': 9,
+    // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
+    // client (BF-375 standalone-vtd boundary). Single value symbol
+    // (`GraphDbClient`) — the class is constructed once during daemon
+    // bootstrap; further reach into graphd is via that handle.
+    'vt-daemon -> graph-db-client': 1,
     'vt-daemon -> graph-db-protocol': 2,
-    'vt-daemon -> graph-model': 9,
-    'vt-daemon -> graph-state': 1,
+    // 2026-05-27 [Phase 3]: graph-model is a leaf data package; widening
+    // 9 -> 10 as the daemon takes over Main's normalization paths under
+    // BF-379. New value: `createTaskNode` for daemon-side graph mutation
+    // helpers; all other 9 symbols are unchanged.
+    'vt-daemon -> graph-model': 10,
+    // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
+    // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
+    // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
+    // in webapp's process).
+    'vt-daemon -> graph-state': 3,
     'vt-daemon -> graph-tools': 7,
     'vt-daemon -> voicetree-graph-validation': 1,
     'vt-daemon -> vt-daemon-protocol': 1,
-    'vt-daemon -> vt-rpc': 2,
+    // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
+    // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
+    // (proposed `@vt/vault-paths` or `@vt/app-config/paths`). See #123 for
+    // the follow-up consolidation issue. After that lands, ratchet back
+    // to 2 (just `ERROR_CODES`, `redactAuthorizationHeader`).
+    'vt-daemon -> vt-rpc': 3,
     'vt-daemon-client -> daemon-lifecycle': 10,
     'vt-daemon-client -> graph-db-client': 3,
     'vt-daemon-client -> graph-db-protocol': 1,
