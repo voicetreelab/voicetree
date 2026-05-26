@@ -57,7 +57,9 @@ import {
     analyzeMainProcessProfile,
     printMainProcessMetrics,
     startMainProcessProfile,
+    startRendererProcessProfile,
     stopMainProcessProfileAndSave,
+    stopRendererProcessProfileAndSave,
     type MainProcessCdpHandle,
 } from './_shared/main-process-cdp.ts'
 
@@ -193,6 +195,38 @@ function resolveTsxImportPath(): string {
     return require.resolve('tsx')
 }
 
+function rendererProfileFilename(mainProfileFilename: string): string {
+    return mainProfileFilename.endsWith('.cpuprofile')
+        ? mainProfileFilename.replace(/\.cpuprofile$/, '.renderer.cpuprofile')
+        : `${mainProfileFilename}.renderer.cpuprofile`
+}
+
+async function uploadRendererProfileToPyroscope(args: {
+    cpuprofilePath: string
+    runUuid: string
+}): Promise<string> {
+    const uploader = join(REPO_ROOT, 'scripts', 'renderer-profile-to-pyroscope.mjs')
+    return await new Promise((resolveUpload, reject) => {
+        const child = spawn(process.execPath, [uploader, args.cpuprofilePath, args.runUuid], {
+            cwd: REPO_ROOT,
+            env: process.env,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        let stdout = ''
+        let stderr = ''
+        child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        child.on('error', reject)
+        child.on('exit', (code, signal) => {
+            if (code === 0) resolveUpload(stdout.trim())
+            else reject(new Error(
+                `renderer Pyroscope upload failed code=${code ?? 'null'} signal=${signal ?? 'none'}`
+                + (stderr.trim() ? ` stderr=${stderr.trim()}` : ''),
+            ))
+        })
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Electron lifecycle
 // ---------------------------------------------------------------------------
@@ -207,7 +241,7 @@ async function spawnElectron(args: {
     userDataDir: string
     openFolder: string
     bootTimeoutMs: number
-}): Promise<{ proc: ChildProcessWithoutNullStreams; inspectPort: number }> {
+}): Promise<{ proc: ChildProcessWithoutNullStreams; inspectPort: number; rendererRemoteDebugPort: number }> {
     // Linux dev boxes (Onidel) run as root and have no X server; mirror the
     // flag set used by webapp's e2e specs (no-sandbox + swiftshader + dev-shm).
     // On macOS none of these are needed.
@@ -218,6 +252,7 @@ async function spawnElectron(args: {
         args.electronBinary,
         [
             '--inspect=0',
+            '--remote-debugging-port=0',
             ...linuxFlags,
             args.mainEntry,
             `--user-data-dir=${args.userDataDir}`,
@@ -235,22 +270,29 @@ async function spawnElectron(args: {
         },
     ) as ChildProcessWithoutNullStreams
 
-    const inspectPort = await new Promise<number>((resolveP, rejectP) => {
+    const ports = await new Promise<{ inspectPort: number; rendererRemoteDebugPort: number }>((resolveP, rejectP) => {
         const timeout = setTimeout(
-            () => rejectP(new Error(`timed out waiting for --inspect port after ${args.bootTimeoutMs}ms`)),
+            () => rejectP(new Error(`timed out waiting for inspector ports after ${args.bootTimeoutMs}ms`)),
             args.bootTimeoutMs,
         )
         let stderrBuf = ''
+        let inspectPort: number | undefined
+        let rendererRemoteDebugPort: number | undefined
+        const maybeResolve = () => {
+            if (inspectPort === undefined || rendererRemoteDebugPort === undefined) return
+            clearTimeout(timeout)
+            resolveP({ inspectPort, rendererRemoteDebugPort })
+        }
         proc.stderr.on('data', (chunk: Buffer) => {
             const text = chunk.toString()
             stderrBuf += text
             // Echo electron stderr to our stderr so boot errors are visible.
             process.stderr.write(`[electron] ${text}`)
-            const match = stderrBuf.match(/Debugger listening on ws:\/\/127\.0\.0\.1:(\d+)\//)
-            if (match) {
-                clearTimeout(timeout)
-                resolveP(Number.parseInt(match[1], 10))
-            }
+            const inspectMatch = stderrBuf.match(/Debugger listening on ws:\/\/127\.0\.0\.1:(\d+)\//)
+            const rendererMatch = stderrBuf.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\/devtools\/browser\//)
+            if (inspectMatch) inspectPort = Number.parseInt(inspectMatch[1], 10)
+            if (rendererMatch) rendererRemoteDebugPort = Number.parseInt(rendererMatch[1], 10)
+            maybeResolve()
         })
         proc.on('error', (err) => { clearTimeout(timeout); rejectP(err) })
         proc.on('exit', (code, signal) => {
@@ -263,7 +305,7 @@ async function spawnElectron(args: {
     proc.stdout.on('data', (chunk: Buffer) => {
         process.stderr.write(`[electron] ${chunk.toString()}`)
     })
-    return { proc, inspectPort }
+    return { proc, ...ports }
 }
 
 /**
@@ -455,6 +497,7 @@ async function main(): Promise<void> {
 
     let electronProc: ChildProcessWithoutNullStreams | null = null
     let cdpHandle: MainProcessCdpHandle | null = null
+    let rendererCdpHandle: MainProcessCdpHandle | null = null
 
     try {
         const spawned = await spawnElectron({
@@ -466,7 +509,9 @@ async function main(): Promise<void> {
         })
         electronProc = spawned.proc
         const inspectPort = spawned.inspectPort
+        const rendererRemoteDebugPort = spawned.rendererRemoteDebugPort
         process.stdout.write(`[main-storm] electron pid=${electronProc.pid} inspect=${inspectPort}\n`)
+        process.stdout.write(`[main-storm] renderer remote debugging=${rendererRemoteDebugPort}\n`)
 
         const mcpPort = await waitForMcpPort(tempVault, args.bootTimeoutMs)
         process.stdout.write(`[main-storm] discovered MCP port=${mcpPort}\n`)
@@ -475,8 +520,9 @@ async function main(): Promise<void> {
         // captured. The first inspector connection can race with the daemon's
         // own setup spans, but we accept that — they're outside our hot path.
         cdpHandle = await startMainProcessProfile(inspectPort)
+        rendererCdpHandle = await startRendererProcessProfile(rendererRemoteDebugPort, args.bootTimeoutMs)
         const profileStartedAt = Date.now()
-        process.stdout.write(`[main-storm] CPU profile started\n`)
+        process.stdout.write(`[main-storm] CPU profiles started\n`)
 
         const stormStart = Date.now()
         const results = await runStorm({
@@ -498,9 +544,10 @@ async function main(): Promise<void> {
             await new Promise((r) => setTimeout(r, args.settleAfterStormMs))
         }
 
+        const timestamp = Date.now()
         const outPath = args.outPath ?? join(
             homedir(), '.voicetree', 'reports',
-            `electron-main-storm-${Date.now()}.cpuprofile`,
+            `electron-main-storm-${timestamp}.cpuprofile`,
         )
         const outDir = dirname(outPath)
         const outName = outPath.slice(outDir.length + 1)
@@ -508,8 +555,26 @@ async function main(): Promise<void> {
 
         const cpuprofilePath = await stopMainProcessProfileAndSave(cdpHandle, outDir, outName)
         cdpHandle = null
+        const rendererCpuprofilePath = await stopRendererProcessProfileAndSave(
+            rendererCdpHandle,
+            outDir,
+            rendererProfileFilename(outName),
+        )
+        rendererCdpHandle = null
         const profileWallMs = Date.now() - profileStartedAt
         process.stdout.write(`[main-storm] CPU profile saved (${profileWallMs}ms window): ${cpuprofilePath}\n`)
+        process.stdout.write(`[main-storm] renderer CPU profile saved: ${rendererCpuprofilePath}\n`)
+
+        const runUuid = process.env.VOICETREE_RUN_INSTANCE_ID
+        if (runUuid && runUuid.length > 0) {
+            const uploadResult = await uploadRendererProfileToPyroscope({
+                cpuprofilePath: rendererCpuprofilePath,
+                runUuid,
+            })
+            process.stdout.write(`[main-storm] renderer Pyroscope upload:\n${uploadResult}\n`)
+        } else {
+            process.stderr.write('[main-storm] VOICETREE_RUN_INSTANCE_ID unset; renderer Pyroscope upload skipped\n')
+        }
 
         const profileJson = readFileSync(cpuprofilePath, 'utf8')
         const metrics = analyzeMainProcessProfile(profileJson)
@@ -521,6 +586,7 @@ async function main(): Promise<void> {
         process.stdout.write(`storm wall:    ${stormWallMs}ms\n`)
         process.stdout.write(`profile wall:  ${profileWallMs}ms\n`)
         process.stdout.write(`cpuprofile:    ${cpuprofilePath}\n`)
+        process.stdout.write(`renderer:      ${rendererCpuprofilePath}\n`)
         process.stdout.write(`view:          drag into Chrome DevTools Performance tab, or speedscope.app\n`)
 
         const exitCode = failed > 0 || timedOut > 0 ? 1 : 0
@@ -531,6 +597,9 @@ async function main(): Promise<void> {
         // don't leak the websocket.
         if (cdpHandle) {
             try { cdpHandle.close() } catch { /* */ }
+        }
+        if (rendererCdpHandle) {
+            try { rendererCdpHandle.close() } catch { /* */ }
         }
         try { agentRuntime.getTerminalManager().cleanup() } catch { /* */ }
         if (electronProc) await stopElectron(electronProc)
