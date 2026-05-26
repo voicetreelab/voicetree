@@ -1,22 +1,29 @@
 /**
- * Public entry for the owner-aware client launcher.
+ * Public entry for the owner-aware client launcher for the standalone
+ * vt-daemon (VTD) controller.
  *
- * `ensureGraphDaemonForVault` is the only sanctioned way for the client to
- * obtain a {@link GraphDbClient} bound to the authoritative vt-graphd owner
- * for a vault. It coordinates discovery, waiting, claiming, spawning,
- * reclamation, and cooldown suppression by wrapping pure {@link
- * decideOwnerAction} with the impure IO adapters in `@vt/daemon-lifecycle`.
+ * `ensureVtDaemonForVault` is the only sanctioned way for a client to
+ * obtain a {@link VtDaemonClient} bound to the authoritative VTD owner
+ * for a vault. Per-vault, NOT per-process: one VTD per vault per machine,
+ * mirroring `ensureGraphDaemonForVault`. Multiple callers for the same
+ * vault converge on one daemon via the BF-348 in-process single-flight
+ * + cross-process spawn lock; multiple callers for DIFFERENT vaults each
+ * get their own VTD process.
  *
- * Functional shape: one deep, narrow public function backed by a pure
- * decision rule (`decideOwnerAction`) and the impure spawn/wait/reclaim
- * helpers in `spawnCoordinator.ts`. The orchestrator only sequences them
- * and emits structured ownership diagnostics (BF-347) at each transition.
+ * This file is a 1:1 mirror of
+ * `packages/systems/graph-db-client/src/autoLaunch/ensureGraphDaemon.ts`,
+ * differing only in:
+ *   1. `clientFor` constructs `VtDaemonClient` (instead of `GraphDbClient`).
+ *   2. `EnsureVtDaemonResult` carries `authToken` (graphd has no auth).
+ *   3. `resolveCommand` is vtd's (`--vault`, not `--project-root`).
+ *   4. The cooldown breadcrumb and spawn lock files are vtd-scoped
+ *      (`vtd.cooldown.json`, `vtd.spawn.lock`).
  *
- * The function is safe to call concurrently from the same Node process for
- * the same vault — an in-process single-flight cache coalesces concurrent
- * callers into one work-loop. Cross-process concurrency is serialised via
- * the spawn lock so 100 callers across 100 processes still produce exactly
- * one vt-graphd spawn.
+ * The orchestrator `attemptSpawnAndWait<VtDaemonClient>` is the SAME
+ * orchestrator graphd uses — imported from `@vt/graph-db-client` per
+ * BF-369's deep function plan. Duplicating it here would risk the two
+ * protocols drifting and silently breaking BF-374's storm-regression
+ * coverage.
  */
 
 import { randomUUID } from 'node:crypto'
@@ -24,40 +31,39 @@ import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import {
   boundedDelay,
+  DaemonLaunchTimeout,
   decideOwnerAction,
   emitOwnerDiagnostic,
   nextBackoff,
+  OwnerSpawnCooldownError,
+  OwnerWaitTimeoutError,
   readOwnerRecord,
   sleep,
+  UnsafeOwnerError,
   type CallerKind,
   type OwnerDecision,
 } from '@vt/daemon-lifecycle'
 import {
-  DaemonLaunchTimeout,
-  OwnerSpawnCooldownError,
-  OwnerWaitTimeoutError,
-  UnsafeOwnerError,
-} from '../errors.ts'
-import { GraphDbClient } from '../GraphDbClient.ts'
-import {
   attemptSpawnAndWait,
   gatherEvidence,
   reclaimStaleOwner,
-  type SpawnAttemptResult,
-} from './spawn/spawnCoordinator.ts'
+} from '@vt/graph-db-client/autoLaunch/spawn/spawnCoordinator'
+import { VtDaemonClient } from '../VtDaemonClient.ts'
+import { vtClientFor } from './spawn/clientFor.ts'
 import { resolveCommand } from './spawn/runtime.ts'
 
-export type EnsureGraphDaemonOptions = {
+export type EnsureVtDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */
   readonly timeoutMs?: number
   /**
-   * Optional override of the daemon command (`<bin> [args] --project-root <path>`).
-   * Primarily for tests that point at a fake vt-graphd entrypoint.
+   * Optional override of the daemon command (`<bin> [args] --vault <path>`).
+   * Primarily for tests that point at a fake VTD entrypoint. Also honored
+   * via `VT_DAEMON_BIN` env var inside the runtime resolver.
    */
   readonly bin?: string
   /**
    * Maximum heartbeat age tolerated before stale-reclaim becomes possible.
-   * Default 15s (BF-343 heartbeats every 2s).
+   * Default 15s (matches graphd's heartbeats-every-2s cadence).
    */
   readonly staleHeartbeatMs?: number
   /** Initial poll backoff. Default 50ms. */
@@ -65,7 +71,7 @@ export type EnsureGraphDaemonOptions = {
   /** Maximum poll backoff. Default 400ms. */
   readonly maxBackoffMs?: number
   /**
-   * Cooldown window persisted to `<vault>/.voicetree/graphd.cooldown.json`
+   * Cooldown window persisted to `<vault>/.voicetree/vtd.cooldown.json`
    * after a spawn fails. Subsequent ensure calls within this window
    * short-circuit with {@link OwnerSpawnCooldownError} before re-spawning.
    * Default 5000ms.
@@ -73,15 +79,23 @@ export type EnsureGraphDaemonOptions = {
   readonly spawnCooldownMs?: number
 }
 
-export type EnsureGraphDaemonResult = {
-  readonly client: GraphDbClient
+export type EnsureVtDaemonResult = {
+  readonly client: VtDaemonClient
   readonly port: number
   readonly pid: number
   readonly ownerNonce: string
   /**
-   * True when this call spawned the daemon child that won ownership. False
-   * when an existing healthy owner was reused or a waited-on in-flight
-   * owner finalised before our spawn attempt.
+   * Bearer auth token the daemon published to
+   * `<vault>/.voicetree/auth-token` on startup. The same value is closed
+   * over inside `client` for `rpc()` calls; surfaced here so Phase 2
+   * consumers (Electron Main → renderer IPC, voicetree-cli serve) can
+   * pass it across a process boundary without re-reading the file.
+   */
+  readonly authToken: string
+  /**
+   * True when this call spawned the daemon child that won ownership.
+   * False when an existing healthy owner was reused or a waited-on
+   * in-flight owner finalised before our spawn attempt.
    */
   readonly launched: boolean
 }
@@ -92,17 +106,19 @@ const DEFAULT_INITIAL_BACKOFF_MS = 50
 const DEFAULT_MAX_BACKOFF_MS = 400
 const DEFAULT_SPAWN_COOLDOWN_MS = 5_000
 
-const inflightByVault = new Map<string, Promise<EnsureGraphDaemonResult>>()
+// Per-process single-flight. Distinct from graphd's `inflightByVault` map
+// — VTD-keyed, so a concurrent graphd ensure + vtd ensure for the same
+// vault do not block each other. This layer plus the cross-process
+// `vtd.spawn.lock` (acquired inside `attemptSpawnAndWait`) are BOTH
+// required for BF-348 fork-storm prevention; removing either breaks
+// BF-374's storm tests.
+const inflightByVault = new Map<string, Promise<EnsureVtDaemonResult>>()
 
-export function clientFor(port: number): GraphDbClient {
-  return new GraphDbClient({ baseUrl: `http://127.0.0.1:${port}` })
-}
-
-export async function ensureGraphDaemonForVault(
+export async function ensureVtDaemonForVault(
   vault: string,
   caller: CallerKind,
-  options: EnsureGraphDaemonOptions = {},
-): Promise<EnsureGraphDaemonResult> {
+  options: EnsureVtDaemonOptions = {},
+): Promise<EnsureVtDaemonResult> {
   const canonicalVault = resolve(vault)
   const existing = inflightByVault.get(canonicalVault)
   if (existing) return existing
@@ -119,10 +135,11 @@ type EnsureContext = {
   readonly caller: CallerKind
   /**
    * Per-call UUID carried into every {@link emitOwnerDiagnostic} so
-   * listeners can correlate a chain without inferring causality from timing.
+   * listeners can correlate a chain without inferring causality from
+   * timing.
    */
   readonly attemptId: string
-  readonly options: EnsureGraphDaemonOptions
+  readonly options: EnsureVtDaemonOptions
   readonly deadlineMs: number
   readonly staleHeartbeatMs: number
   readonly initialBackoffMs: number
@@ -131,20 +148,20 @@ type EnsureContext = {
 }
 
 type LoopOutcome =
-  | { readonly kind: 'done'; readonly result: EnsureGraphDaemonResult }
+  | { readonly kind: 'done'; readonly result: EnsureVtDaemonResult }
   | { readonly kind: 'continue'; readonly nextBackoff: number }
 
 async function runEnsure(
   canonicalVault: string,
   caller: CallerKind,
-  options: EnsureGraphDaemonOptions,
-): Promise<EnsureGraphDaemonResult> {
+  options: EnsureVtDaemonOptions,
+): Promise<EnsureVtDaemonResult> {
   await mkdir(`${canonicalVault}/.voicetree`, { recursive: true })
   const ctx = makeEnsureContext(canonicalVault, caller, options)
   let backoff = ctx.initialBackoffMs
 
   while (Date.now() < ctx.deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVault, 'graphd')
+    const evidence = await gatherEvidence(canonicalVault, 'vtd')
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs: ctx.staleHeartbeatMs,
@@ -160,7 +177,7 @@ async function runEnsure(
 function makeEnsureContext(
   canonicalVault: string,
   caller: CallerKind,
-  options: EnsureGraphDaemonOptions,
+  options: EnsureVtDaemonOptions,
 ): EnsureContext {
   return {
     canonicalVault,
@@ -181,12 +198,9 @@ function makeEnsureContext(
 /**
  * Map one {@link OwnerDecision} to its loop effect. Each branch is either
  * a terminal outcome (return / throw) or a continuation with the next
- * backoff value. Pulling the dispatch out of {@link runEnsure} keeps the
- * orchestrator a flat while-loop and the per-branch effects each readable
- * on their own.
- *
- * Every transition emits an `OwnerDiagnosticEvent` so subscribers (BF-347
- * `subscribeOwnerDiagnostics`) can observe the full lifecycle.
+ * backoff value. Mirrors graphd's `handleDecision` 1:1 — pulling the
+ * dispatch out of {@link runEnsure} keeps the orchestrator a flat
+ * while-loop and the per-branch effects each readable on their own.
  */
 async function handleDecision(
   decision: OwnerDecision,
@@ -207,7 +221,12 @@ async function handleDecision(
       })
       return {
         kind: 'done',
-        result: finaliseReuse(decision.port, decision.pid, decision.ownerNonce),
+        result: finaliseReuse(
+          ctx.canonicalVault,
+          decision.port,
+          decision.pid,
+          decision.ownerNonce,
+        ),
       }
     }
     case 'wait': {
@@ -232,14 +251,14 @@ async function handleDecision(
         nowMs: Date.now(),
         reason: 'no-owner',
       })
-      const result = await attemptSpawnAndWait<GraphDbClient>(
+      const spawnResult = await attemptSpawnAndWait<VtDaemonClient>(
         ctx.canonicalVault,
         ctx.caller,
         ctx.attemptId,
         {
           bin: ctx.options.bin,
-          daemonKind: 'graphd',
-          clientFor,
+          daemonKind: 'vtd',
+          clientFor: (port) => vtClientFor(port, ctx.canonicalVault),
           resolveCommand,
           initialBackoffMs: ctx.initialBackoffMs,
           maxBackoffMs: ctx.maxBackoffMs,
@@ -248,18 +267,28 @@ async function handleDecision(
         ctx.staleHeartbeatMs,
         ctx.spawnCooldownMs,
       )
-      if (result !== null) {
+      if (spawnResult !== null) {
         emitOwnerDiagnostic({
           kind: 'acquired',
           attemptId: ctx.attemptId,
           callerKind: ctx.caller,
           canonicalVault: ctx.canonicalVault,
           nowMs: Date.now(),
-          pid: result.pid,
-          port: result.port,
-          ownerNonce: result.ownerNonce,
+          pid: spawnResult.pid,
+          port: spawnResult.port,
+          ownerNonce: spawnResult.ownerNonce,
         })
-        return { kind: 'done', result }
+        return {
+          kind: 'done',
+          result: {
+            client: spawnResult.client,
+            port: spawnResult.port,
+            pid: spawnResult.pid,
+            ownerNonce: spawnResult.ownerNonce,
+            authToken: spawnResult.client.authToken,
+            launched: spawnResult.launched,
+          },
+        }
       }
       // Lost the spawn lock or another caller's claim raced ahead; loop
       // back to discovery and reuse/wait on their owner.
@@ -274,7 +303,7 @@ async function handleDecision(
         nowMs: Date.now(),
         reason: 'stale-reclaim',
       })
-      await reclaimStaleOwner(ctx.canonicalVault, 'graphd', decision.staleRecord)
+      await reclaimStaleOwner(ctx.canonicalVault, 'vtd', decision.staleRecord)
       emitOwnerDiagnostic({
         kind: 'stale-reclaimed',
         attemptId: ctx.attemptId,
@@ -328,29 +357,28 @@ async function waitAndContinue(
  * from "we never even got a record" (no owner ever materialised).
  */
 async function timeoutError(canonicalVault: string): Promise<Error> {
-  const finalRecord = await readOwnerRecord(canonicalVault, 'graphd')
+  const finalRecord = await readOwnerRecord(canonicalVault, 'vtd')
   if (finalRecord !== null) {
     return new OwnerWaitTimeoutError(canonicalVault, finalRecord.pid)
   }
   return new DaemonLaunchTimeout(
-    `vt-graphd ensure for vault ${canonicalVault} did not produce an owner before deadline`,
+    `vt-daemon ensure for vault ${canonicalVault} did not produce an owner before deadline`,
   )
 }
 
 function finaliseReuse(
+  canonicalVault: string,
   port: number,
   pid: number,
   ownerNonce: string,
-): EnsureGraphDaemonResult {
+): EnsureVtDaemonResult {
+  const client = vtClientFor(port, canonicalVault)
   return {
-    client: clientFor(port),
+    client,
     port,
     pid,
     ownerNonce,
+    authToken: client.authToken,
     launched: false,
   }
 }
-
-// Help downstream consumers of the spawn coordinator stay aligned with the
-// public result shape without leaking the internal type.
-export type { SpawnAttemptResult }

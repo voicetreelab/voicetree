@@ -46,12 +46,25 @@ import {
   type OwnerEvidence,
   type OwnerRecord,
 } from '@vt/daemon-lifecycle'
-import { resolveCommand } from './runtime.ts'
+import type { CommandSpec } from './runtime.ts'
+
+/**
+ * Resolves the daemon spawn command for `(vault, override?)`. Lives in
+ * the per-daemon client package because each daemon takes its own argv
+ * shape (graphd wants `--project-root <vault>`; vtd wants `--vault
+ * <vault>`) and locates its entrypoint differently (graphd hunts for
+ * sibling bundles inside `@voicetree/cli`; vtd resolves the `@vt/vt-daemon`
+ * package directly). Passing the resolver in keeps spawnCoordinator
+ * daemon-kind-agnostic without forcing a shared resolver to know about
+ * both bin layouts.
+ */
+export type CommandResolver = (vault: string, override?: string) => CommandSpec
 
 export type SpawnCoordinationOptions<TClient> = {
   readonly bin?: string
   readonly daemonKind: DaemonKind
   readonly clientFor: (port: number) => TClient
+  readonly resolveCommand: CommandResolver
   readonly initialBackoffMs: number
   readonly maxBackoffMs: number
 }
@@ -90,10 +103,14 @@ export async function gatherEvidence(
     recordedPidLiveness === 'alive'
       ? readCommandFingerprintMatch(record.pid, record.commandFingerprint)
       : 'unknown'
+  // `daemonKind` is load-bearing: probeOwnerHealth validates the response
+  // body against the daemon-kind's wire schema. Omitting it would default
+  // to graphd's HealthResponseSchema and reject every vtd `/health` body
+  // as a parse failure → spurious `unreachable` evidence for VTD.
   const health =
     record.port === null
       ? { kind: 'unprobed' as const }
-      : await probeOwnerHealth(record.port)
+      : await probeOwnerHealth(record.port, { daemonKind })
   return {
     record,
     recordedPidLiveness,
@@ -134,11 +151,15 @@ export async function attemptSpawnAndWait<TClient>(
   try {
     const preSpawnRecord = await readOwnerRecord(canonicalVault, options.daemonKind)
     if (preSpawnRecord !== null && preSpawnRecord.port !== null) {
-      const reuseResult = await tryReuseExistingOwner(preSpawnRecord, options.clientFor)
+      const reuseResult = await tryReuseExistingOwner(
+        preSpawnRecord,
+        options.daemonKind,
+        options.clientFor,
+      )
       if (reuseResult !== null) return reuseResult
     }
 
-    const command = resolveCommand(canonicalVault, options.bin)
+    const command = options.resolveCommand(canonicalVault, options.bin)
     const spawned = spawnDaemon({
       daemonKind: options.daemonKind,
       cmd: command.cmd,
@@ -234,10 +255,14 @@ async function onSpawnFailure(
 
 async function tryReuseExistingOwner<TClient>(
   record: OwnerRecord,
+  daemonKind: DaemonKind,
   clientFor: (port: number) => TClient,
 ): Promise<SpawnAttemptResult<TClient> | null> {
   if (record.port === null) return null
-  const probe = await probeOwnerHealth(record.port)
+  // Threading `daemonKind` is load-bearing for vtd — see the comment on
+  // gatherEvidence above. A graphd-shaped probe would reject every vtd
+  // body as a parse failure and surface as `unreachable`, never `verified`.
+  const probe = await probeOwnerHealth(record.port, { daemonKind })
   if (probe.kind !== 'verified') return null
   if (probe.canonicalVault !== record.canonicalVault) return null
   if (probe.ownerNonce !== record.ownerNonce) return null
