@@ -19,7 +19,10 @@ const OTLP_GRPC_URL = 'http://127.0.0.1:2994'
 const SERVICE_NAME = 'vt-test'
 const SIGNAL = 'traces'
 const POLL_INTERVAL_MS = 500
-const POLL_TIMEOUT_MS = 10_000
+// Tempo's index becomes searchable after a flush cycle; under contention
+// with the other three signal verifiers the round-trip slides past 10s.
+// Sized in line with the profiles verifier's 15s budget.
+const POLL_TIMEOUT_MS = 20_000
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 

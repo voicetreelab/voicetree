@@ -16,7 +16,12 @@ const OTLP_GRPC_URL = 'http://127.0.0.1:2994'
 const SERVICE_NAME = 'vt-test'
 const METRIC_NAME = 'vt_test_counter'
 const POLL_INTERVAL_MS = 500
-const POLL_TIMEOUT_MS = 10_000
+// Metrics travel: SDK PeriodicExportingMetricReader -> OTLP gRPC ->
+// otelcol prometheusremotewrite -> VictoriaMetrics ingestion -> query index.
+// Empirically standalone round-trip is ~8s; under contention with the other
+// three signal verifiers running in parallel it slides to 12-15s. Sized
+// above that ceiling, in line with the profiles verifier's 15s budget.
+const POLL_TIMEOUT_MS = 20_000
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
