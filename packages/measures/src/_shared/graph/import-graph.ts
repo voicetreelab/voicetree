@@ -15,7 +15,7 @@ export type Edge = {
     readonly to: SourceFile
 }
 
-export type ImportGraph = {
+type ImportGraph = {
     readonly files: readonly SourceFile[]
     readonly edges: readonly Edge[]
 }
