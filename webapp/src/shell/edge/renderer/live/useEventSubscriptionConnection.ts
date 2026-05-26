@@ -31,7 +31,7 @@ export function useEventSubscriptionConnection(
     const [state, setState] = useState<ConnectionState>({kind: 'closed'})
 
     useEffect((): (() => void) | undefined => {
-        if (typeof window === 'undefined' || !window.electronAPI) return undefined
+        if (typeof window === 'undefined' || !window.electronAPI || !window.electronAPI.events) return undefined
         const api = window.electronAPI
         const topic: TopicName = options.topic ?? DEFAULT_TOPIC
         const onEvent: (frame: EventFrame) => void = options.onEvent ?? ((): void => {})

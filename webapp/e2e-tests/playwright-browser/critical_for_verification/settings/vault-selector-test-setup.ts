@@ -272,12 +272,17 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       onViewSwitched: () => () => {},
       removeAllListeners: () => {},
       terminal: {
-        spawn: async () => ({ success: false }),
-        write: async () => {},
-        resize: async () => {},
-        kill: async () => {},
-        onData: () => {},
-        onExit: () => {}
+        attach: async () => 'mock-handle',
+        onData: () => () => {},
+        onStatus: () => () => {},
+        write: async () => true,
+        resize: async () => true,
+        detach: async () => true,
+      },
+      events: {
+        on: () => () => {},
+        onConnectionState: () => () => {},
+        resnapshot: async () => {},
       },
       positions: {
         save: async () => ({ success: true }),
