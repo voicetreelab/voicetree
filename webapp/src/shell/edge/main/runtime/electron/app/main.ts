@@ -14,7 +14,7 @@ import {
     registerChildIfMonitored,
 } from '@vt/vt-daemon';
 import {agentRuntime} from '@vt/agent-runtime';
-import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts';
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts';
 import {existsSync} from 'node:fs';
 import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {

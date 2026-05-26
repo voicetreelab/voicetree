@@ -1,7 +1,7 @@
 import type {TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
-import {detectCliType} from '../spawn/headlessCli'
+import {detectCliType} from '../spawn/cli/headlessCli'
 import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
 import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'

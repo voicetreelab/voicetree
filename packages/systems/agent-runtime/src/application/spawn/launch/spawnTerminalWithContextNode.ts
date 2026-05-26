@@ -16,25 +16,25 @@
  */
 
 import { loadSettings } from '@vt/app-config/settings';
-import {type TerminalId } from '../terminals/terminal-registry/types';
+import {type TerminalId } from '../../terminals/terminal-registry/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';
 import { getNextAgentName, getUniqueAgentName } from '@vt/graph-model/settings';
-import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '../terminals/terminal-registry';
+import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '../../terminals/terminal-registry';
 import {
     getRuntimeGraph,
     runtimeCreateContextNode,
     runtimeCreateContextNodeFromSelectedNodes,
-} from '../runtime/graph-bridge';
+} from '../../runtime/graph-bridge';
 import {launchTerminalSpawn} from './launchTerminalSpawn';
-import {resolveAgentCommand} from './agentCommand';
+import {resolveAgentCommand} from '../env/agentCommand';
 import {
     defaultSpawnTerminalDeps,
     type SpawnTerminalDeps,
 } from './reloadNodeFromDisk';
 
-export {buildHeadlessCommand, detectCliType} from './headlessCli';
+export {buildHeadlessCommand, detectCliType} from '../cli/headlessCli';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process

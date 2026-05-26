@@ -5,10 +5,10 @@
 
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
-import {appendCliManualToAgentPrompt, readCliManualOrNull} from './cliManualInjection'
-import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
+import {getRuntimeEnv} from '../../runtime/runtime-config'
+import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../../runtime/graph-bridge'
+import {appendCliManualToAgentPrompt, readCliManualOrNull} from '../injection/cliManualInjection'
+import {prependVtBinToPath, readVtBinDirOrNull} from '../injection/vtPathInjection'
 import {readDaemonPortFromVault} from './daemonUrlFile'
 import path from 'path'
 

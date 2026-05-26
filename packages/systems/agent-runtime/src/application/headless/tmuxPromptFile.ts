@@ -24,7 +24,7 @@ import {chmodSync, mkdirSync, rmSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import {join} from 'node:path'
 import type {TerminalId} from '../terminals/terminal-registry/types'
-import {detectCliType, type SupportedHeadlessCli} from '../spawn/headlessCli'
+import {detectCliType, type SupportedHeadlessCli} from '../spawn/cli/headlessCli'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
 import {resolveTmuxSessionName, sendKeys} from '../terminals/tmux/tmux-session-manager'
 

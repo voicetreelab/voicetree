@@ -3,7 +3,7 @@ import {
     defaultDiscoverRecoveryDeps,
     type DiscoverRecoveryDeps,
 } from './discovery'
-import {buildResumeCommand, type ResumeMode} from '../spawn/resumeCli'
+import {buildResumeCommand, type ResumeMode} from '../spawn/cli/resumeCli'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
 import {getExistingAgentNames} from '../terminals/terminal-registry'
 import {getUniqueAgentName} from '@vt/graph-model/settings'
