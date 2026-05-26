@@ -32,7 +32,7 @@ export interface ReportInput {
     readonly projectDir: string
     readonly appSupportPath: string
     readonly electronLogPath: string
-    /** Per-run dir where perfProbeFromEnv writes ndjson + cpuprofile. */
+    /** Per-run dir for OTEL-scraped logs, heap snapshots, and local profile artifacts. */
     readonly perfRunDir: string
     readonly hostVmMetrics: HostVmMetricsSummary | null
     readonly outPath: string

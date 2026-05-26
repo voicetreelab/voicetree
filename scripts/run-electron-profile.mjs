@@ -61,9 +61,9 @@ function profileEnv({ baseEnv = process.env, runUuid, otlpEnabled }) {
 
 function printHelp() {
   process.stdout.write([
-    'Usage: npm run electron:profile -- [electron-main-storm args]',
+    'Usage: npm run electron:profile -- [e2e-storm-mvp args]',
     '',
-    'Profiles the Electron main-storm harness with VOICETREE_PERF_PROFILE=1.',
+    'Profiles the Electron e2e-storm MVP harness with VOICETREE_PERF_PROFILE=1.',
     'By default it verifies the local perf stack, stamps VOICETREE_RUN_INSTANCE_ID,',
     `and exports VOICETREE_OTLP_ENDPOINT=${DEFAULT_OTLP_ENDPOINT}.`,
     '',
@@ -122,7 +122,7 @@ function printRunHeader({ runUuid, otlpEnabled, env }) {
 }
 
 async function runElectronProfile({ passthrough, env }) {
-  return await runCommand('npm', ['run', 'perf:main-storm:local', '--', ...passthrough], {
+  return await runCommand('npm', ['run', 'test:perf:e2e-mvp:local', '--', ...passthrough], {
     env,
     stdio: 'inherit',
   })
