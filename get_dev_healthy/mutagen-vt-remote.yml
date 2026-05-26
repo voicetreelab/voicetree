@@ -8,6 +8,7 @@ sync:
       paths:
         - "**/node_modules"
         - "**/.node_modules-*"
+        - "**/.stryker-tmp"
         - "**/dist"
         - "**/dist-electron"
         - "**/dist-web"
