@@ -29,8 +29,10 @@
  * clear it explicitly.
  *
  * NOTE (closure invariant): the cache stores `TerminalRecord` values
- * straight from the wire — no `@vt/agent-runtime` import. The patch
- * application is structural and exhaustive on `patch.kind`.
+ * straight from the wire — every type comes from
+ * `@vt/vt-daemon-client` (which re-exports the canonical shapes from
+ * `@vt/vt-daemon-protocol`). The patch application is structural and
+ * exhaustive on `patch.kind`.
  */
 
 import type {
