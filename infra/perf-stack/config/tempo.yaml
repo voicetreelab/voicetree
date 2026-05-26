@@ -36,6 +36,14 @@ querier:
 storage:
   trace:
     backend: local
+    block:
+      parquet_dedicated_columns:
+        - name: service.name
+          type: string
+          scope: resource
+        - name: service.instance.id
+          type: string
+          scope: resource
     wal:
       path: infra/perf-stack/storage/tempo/wal
     local:

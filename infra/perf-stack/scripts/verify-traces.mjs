@@ -121,6 +121,70 @@ async function pollTempo(traceId) {
   }
 }
 
+function makeSearchChecks(runUuid) {
+  return [
+    {
+      name: 'resource.service.name',
+      query: `{resource.service.name="${SERVICE_NAME}"}`,
+    },
+    {
+      name: '."service.name"',
+      query: `{."service.name"="${SERVICE_NAME}"}`,
+    },
+    {
+      name: 'resource.service.instance.id',
+      query: `{resource.service.instance.id="${runUuid}"}`,
+    },
+  ]
+}
+
+async function queryTempoSearch({ query, traceId }) {
+  const url = new URL(`${BACKEND_URL}/api/search`)
+  url.searchParams.set('q', query)
+  url.searchParams.set('limit', '20')
+
+  const response = await fetch(url, { signal: AbortSignal.timeout(1_000) })
+  const body = await response.text()
+  return {
+    ok: response.ok && body.includes(traceId),
+    status: response.status,
+    body,
+  }
+}
+
+async function pollTempoSearch(check) {
+  const startedAt = Date.now()
+  let lastStatus
+  let lastError
+  let lastBody
+
+  while (Date.now() - startedAt <= POLL_TIMEOUT_MS) {
+    try {
+      const payload = await queryTempoSearch(check)
+      lastStatus = payload.status
+      lastBody = payload.body
+      if (payload.ok) return { ...check, ok: true, lastStatus }
+    } catch (err) {
+      lastError = err
+    }
+    await delay(POLL_INTERVAL_MS)
+  }
+
+  return {
+    ...check,
+    ok: false,
+    lastStatus,
+    lastBody,
+    lastError: lastError instanceof Error ? lastError.message : undefined,
+  }
+}
+
+async function pollTempoSearches({ runUuid, traceId }) {
+  return Promise.all(makeSearchChecks(runUuid).map((check) => (
+    pollTempoSearch({ ...check, traceId })
+  )))
+}
+
 async function pollTraceMirror({ traceMirrorPath, traceId }) {
   const startedAt = Date.now()
   let lastError
@@ -154,6 +218,7 @@ async function verifyTraces() {
   const query = `GET /api/traces/${traceId}`
 
   let backend = { ok: false }
+  let search = []
   let mirror = { ok: false }
   let pushError
 
@@ -161,15 +226,18 @@ async function verifyTraces() {
     await pushTrace({ runUuid: runContext.runUuid, traceId })
     const checks = await Promise.all([
       pollTempo(traceId),
+      pollTempoSearches({ runUuid: runContext.runUuid, traceId }),
       pollTraceMirror({ traceMirrorPath: paths.traceMirrorPath, traceId }),
     ])
     backend = checks[0]
-    mirror = checks[1]
+    search = checks[1]
+    mirror = checks[2]
   } catch (err) {
     pushError = err instanceof Error ? err.message : String(err)
   }
 
-  const ok = backend.ok && mirror.ok
+  const searchable = search.every((check) => check.ok)
+  const ok = backend.ok && searchable && mirror.ok
   const result = {
     signal: SIGNAL,
     ok,
@@ -179,6 +247,15 @@ async function verifyTraces() {
     query,
     details: {
       backend_returned_trace: backend.ok,
+      tempo_resource_searchable: searchable,
+      tempo_search_checks: search.map((check) => ({
+        name: check.name,
+        query: check.query,
+        ok: check.ok,
+        backend_last_status: check.lastStatus,
+        backend_last_error: check.lastError,
+        backend_last_body: check.lastBody,
+      })),
       file_mirror_present: mirror.ok,
       trace_mirror_path: paths.traceMirrorPath,
       service_instance_id: runContext.runUuid,
