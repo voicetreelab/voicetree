@@ -61,10 +61,11 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics, type VaultState} from '@vt/graph-db-client';
 import {tracing} from '@vt/observability';
 import {
     getDaemonClient,
+    callDaemon,
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
@@ -100,6 +101,20 @@ initializeGraphModel();
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
     graph: {
+        getSnapshot: async () => {
+            return await callDaemon(async (client) => {
+                const [graph, vaultState] = await Promise.all([
+                    getGraphFromDaemon(),
+                    client.getVault(),
+                ]);
+                return {
+                    graph,
+                    projectRoot: vaultState.projectRoot,
+                    vaultPaths: vaultPathsFromState(vaultState),
+                    writeFolder: vaultState.writeFolder,
+                };
+            });
+        },
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
         getWriteFolder: async () => {
@@ -132,6 +147,14 @@ terminalRuntimeSurface.configureAgentRuntime({
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
         getProjectRoot,
+        getVaultSnapshot: async () => {
+            const vaultState: VaultState = await callDaemon((client) => client.getVault());
+            return {
+                projectRoot: vaultState.projectRoot,
+                readPaths: vaultState.readPaths,
+                writeFolder: vaultState.writeFolder,
+            };
+        },
         getVaultPaths,
         getWriteFolder: async () => {
             const writeFolder: O.Option<string> = await getWriteFolder();
@@ -189,6 +212,13 @@ const {autoUpdater} = electronUpdater;
 
 function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
+}
+
+function vaultPathsFromState(vaultState: VaultState): readonly string[] {
+    return [
+        vaultState.writeFolder,
+        ...vaultState.readPaths.filter(path => path !== vaultState.writeFolder),
+    ];
 }
 
 function pinProcessAppSupportPath(): void {
