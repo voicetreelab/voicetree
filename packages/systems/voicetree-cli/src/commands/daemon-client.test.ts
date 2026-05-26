@@ -383,14 +383,3 @@ describe('callDaemon — black-box HTTP wire', () => {
         })
     })
 })
-
-function readBody(req: IncomingMessage): Promise<string> {
-    return new Promise<string>((resolveBody, rejectBody): void => {
-        const chunks: Buffer[] = []
-        req.on('data', (c: Buffer): void => {
-            chunks.push(c)
-        })
-        req.on('end', (): void => resolveBody(Buffer.concat(chunks).toString('utf8')))
-        req.on('error', rejectBody)
-    })
-}

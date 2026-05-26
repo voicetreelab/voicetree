@@ -157,8 +157,21 @@ export async function runServeCommand(argv: string[]): Promise<void> {
 
     // Idle the foreground process. Both daemons live cross-process per
     // BF-346 and their respective Phase 1 ensure invariants, so `vt serve`
-    // has nothing of its own to tear down. SIGINT/SIGTERM uses the default
-    // Node handler (process exit); each daemon's own watchdog handles
-    // eventual shutdown when its last peer disconnects.
+    // owns nothing of its own to tear down on signal.
+    //
+    // Implementation note: `await new Promise(() => {})` alone does NOT
+    // keep Node's event loop alive — a pending top-level await with no
+    // active handles triggers Node's "unsettled top-level await" exit
+    // (code 13). A long idle timer keeps the loop alive; the signal
+    // handlers below clear it and exit cleanly without touching either
+    // daemon. Operators stop the daemons explicitly via their /shutdown
+    // endpoint or by terminating the recorded owner pid.
+    const idleHandle: NodeJS.Timeout = setInterval((): void => {}, 1_000_000)
+    const onSignal = (): void => {
+        clearInterval(idleHandle)
+        process.exit(0)
+    }
+    process.once('SIGINT', onSignal)
+    process.once('SIGTERM', onSignal)
     await new Promise<void>(() => {})
 }
