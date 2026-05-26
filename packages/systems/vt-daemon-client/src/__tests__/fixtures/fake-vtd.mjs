@@ -17,9 +17,19 @@
 //      (the BF-372 schema lives in @vt/graph-db-protocol).
 //   7. On SIGTERM/SIGINT delete rpc.port + owner record and exit 0.
 //
-// BF-374 will EXTEND this fixture with adversarial env vars; this BF only
-// implements the happy-path. Recognised env vars at this BF: none. Leaf F
-// adds them.
+// BF-374 extends this fixture with adversarial env vars used by the
+// storm / stale / unsafe-owner / cooldown regression suites. The happy-
+// path (Leaf E's six BF-373 tests) is preserved: every adversarial knob
+// is opt-in via env var with the same default as the unmodified fixture.
+//
+// Recognised env vars (mirror fake-vt-graphd.mjs's surface):
+//   FAKE_VTD_STARTUP_DELAY_MS         — sleep between owner-claim and HTTP bind.
+//   FAKE_VTD_HEALTH_OWNER_NONCE       — override /health body's owner.ownerNonce.
+//   FAKE_VTD_HEALTH_CANONICAL_VAULT   — override /health body's owner.canonicalVault.
+//   FAKE_VTD_HEALTH_OWNER_NULL=1      — serve /health with owner: null.
+//   FAKE_VTD_EXIT_CODE                — exit immediately with the given code,
+//                                       BEFORE claiming the record (drives the
+//                                       BF-347 cooldown-on-spawn-failure path).
 //
 // The `.mjs` extension matches the graphd fake-vt-graphd.mjs sibling and
 // keeps vitest from picking up this file as a test.
@@ -44,6 +54,16 @@ const vault = resolve(args[vaultIndex + 1])
 const ownerPath = join(vault, '.voicetree', 'vtd.owner.json')
 const portPath = join(vault, '.voicetree', 'rpc.port')
 const authTokenPath = join(vault, '.voicetree', 'auth-token')
+
+// BF-374: failed-spawn knob. Tested via the cooldown suite. Fires BEFORE
+// the owner record is created so the ensure caller sees a child that
+// exits without ever publishing identity — i.e. the exact precondition
+// the BF-347 cooldown breadcrumb writer is supposed to handle.
+const fakeExitCodeRaw = process.env.FAKE_VTD_EXIT_CODE
+if (fakeExitCodeRaw !== undefined && fakeExitCodeRaw !== '') {
+  const code = Number(fakeExitCodeRaw)
+  process.exit(Number.isFinite(code) ? code : 1)
+}
 
 const startedAtMs = Date.now()
 const ownerNonce = randomUUID()
@@ -112,25 +132,42 @@ if (!created) {
   process.exit(0)
 }
 
+// BF-374: simulate slow startup between the owner-record claim (port=null)
+// and the HTTP bind. Concurrent ensure callers observing the port-null
+// record must route to `wait`, not stampede a second spawn.
+const startupDelayMs = Number(process.env.FAKE_VTD_STARTUP_DELAY_MS) || 0
+if (startupDelayMs > 0) {
+  await new Promise((res) => setTimeout(res, startupDelayMs))
+}
+
 const server = createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     const bound = server.address()
     const port = bound && typeof bound === 'object' ? bound.port : null
+    // BF-374: identity overrides drive the unsafe-owner refusal +
+    // nonce-mismatch reclaim suites. Defaults preserve Leaf E's six
+    // happy-path tests untouched.
+    const ownerOverrideNull =
+      process.env.FAKE_VTD_HEALTH_OWNER_NULL === '1'
+    const reportedNonce =
+      process.env.FAKE_VTD_HEALTH_OWNER_NONCE ?? ownerNonce
+    const reportedVault =
+      process.env.FAKE_VTD_HEALTH_CANONICAL_VAULT ?? vault
     const body = {
       version: VTD_CONTRACT_VERSION,
       vault,
       uptimeSeconds: Math.floor((Date.now() - startedAtMs) / 1000),
       daemonKind: 'vtd',
       owner:
-        port === null
+        port === null || ownerOverrideNull
           ? null
           : {
               schemaVersion: 1,
-              canonicalVault: vault,
+              canonicalVault: reportedVault,
               pid: process.pid,
               ppid: process.ppid ?? 0,
               port,
-              ownerNonce,
+              ownerNonce: reportedNonce,
               contractVersion: VTD_CONTRACT_VERSION,
             },
     }
