@@ -21,128 +21,12 @@
  * - Config is updated
  */
 
-import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
-
-const PROJECT_ROOT = path.resolve(process.cwd());
-
-interface ExtendedWindow {
-  cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
-}
-
-// Extend test with Electron app
-const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-  testVaultPath: string;
-  tempUserDataPath: string;
-}>({
-  // Create test vault with multiple folders
-  testVaultPath: async ({}, use) => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-edit-path-test-'));
-
-    // Create write-vault with a node
-    const writeVault = path.join(tempDir, 'write-vault');
-    await fs.mkdir(writeVault, { recursive: true });
-    await fs.writeFile(
-      path.join(writeVault, 'node-a.md'),
-      '# Node A\n\nThis is node A in write-vault.'
-    );
-
-    // Create read-vault with a node
-    const readVault = path.join(tempDir, 'read-vault');
-    await fs.mkdir(readVault, { recursive: true });
-    await fs.writeFile(
-      path.join(readVault, 'node-b.md'),
-      '# Node B\n\nThis is node B in read-vault.'
-    );
-
-    // Create renamed-vault (empty, for renaming target)
-    const renamedVault = path.join(tempDir, 'renamed-vault');
-    await fs.mkdir(renamedVault, { recursive: true });
-
-    // Create new-write-vault (empty, for write path rename test)
-    const newWriteVault = path.join(tempDir, 'new-write-vault');
-    await fs.mkdir(newWriteVault, { recursive: true });
-
-    await use(tempDir);
-
-    // Cleanup
-    await fs.rm(tempDir, { recursive: true, force: true });
-  },
-
-  tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-edit-path-userdata-'));
-    await use(tempUserDataPath);
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
-  },
-
-  electronApp: async ({ testVaultPath, tempUserDataPath }, use) => {
-    // Configure to auto-load test vault
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testVaultPath }, null, 2), 'utf8');
-    console.log('[Edit Path Test] Created config to auto-load:', testVaultPath);
-
-    const electronApp = await electron.launch({
-      args: [
-        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`
-      ],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
-      },
-      timeout: 10000
-    });
-
-    await use(electronApp);
-
-    // Graceful shutdown
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup');
-    }
-
-    await electronApp.close();
-  },
-
-  appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 10000 });
-
-    window.on('console', msg => {
-      console.log(`[BROWSER ${msg.type()}]:`, msg.text());
-    });
-
-    window.on('pageerror', error => {
-      console.error('PAGE ERROR:', error.message);
-    });
-
-    await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-
-    // Wait for initial load
-    await window.waitForTimeout(1000);
-
-    await use(window);
-  }
-});
+import { test, type ExtendedWindow } from './electron-edit-vault-path/fixtures';
+import { assertOpenedForEditing, openFirstVaultPathForEditing } from './electron-edit-vault-path/path-editing';
 
 test.describe('Edit Path (Inline Rename) E2E', () => {
   test('Test Scenario 1: Edit Root Path to Subfolder', async ({ appWindow }) => {
@@ -162,54 +46,7 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Open dropdown AND click edit in one evaluate to avoid race condition
     console.log('=== STEP 1: Open dropdown and click edit ===');
-    const openAndClickResult = await appWindow.evaluate((): Promise<{ success: boolean; editedPath?: string | null; error?: string }> => {
-      // First, click the VaultPathSelector button to open dropdown
-      const selectorButton = document.querySelector('button[title^="Write Path"]');
-      if (!selectorButton) {
-        return Promise.resolve({ success: false, error: 'No selector button found' });
-      }
-
-      (selectorButton as HTMLButtonElement).click();
-
-      // Wait a bit for React to render the dropdown (using requestAnimationFrame)
-      return new Promise<{ success: boolean; editedPath?: string | null; error?: string }>((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const dropdown = document.querySelector('.absolute.bottom-full');
-            if (!dropdown) {
-              resolve({ success: false, error: 'No dropdown found after click' });
-              return;
-            }
-
-            // Find the first path row with a title
-            const rows = Array.from(dropdown.querySelectorAll('div[title]'));
-            if (rows.length === 0) {
-              resolve({ success: false, error: 'No rows found' });
-              return;
-            }
-
-            const firstRow = rows[0];
-            const rowTitle = firstRow.getAttribute('title');
-
-            // Find the edit button (button with pencil)
-            const buttons = Array.from(firstRow.querySelectorAll('button'));
-            const editButton = buttons.find(b => b.textContent?.includes('\u270E'));
-
-            if (editButton) {
-              (editButton as HTMLButtonElement).click();
-              resolve({ success: true, editedPath: rowTitle });
-            } else {
-              resolve({ success: false, error: 'No edit button found' });
-            }
-          });
-        });
-      });
-    });
-
-    console.log('Open and click result:', openAndClickResult);
-    if (!openAndClickResult.success) {
-      throw new Error(openAndClickResult.error ?? 'Unknown error');
-    }
+    assertOpenedForEditing(await openFirstVaultPathForEditing(appWindow));
 
     // Wait for edit mode
     await appWindow.waitForTimeout(300);
@@ -267,52 +104,7 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Open dropdown AND click edit on the write path (first row has checkmark)
     console.log('=== STEP 1: Open dropdown and click edit on write path ===');
-    const openAndClickResult = await appWindow.evaluate((): Promise<{ success: boolean; editedPath?: string | null; error?: string }> => {
-      const selectorButton = document.querySelector('button[title^="Write Path"]');
-      if (!selectorButton) {
-        return Promise.resolve({ success: false, error: 'No selector button found' });
-      }
-
-      (selectorButton as HTMLButtonElement).click();
-
-      return new Promise<{ success: boolean; editedPath?: string | null; error?: string }>((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const dropdown = document.querySelector('.absolute.bottom-full');
-            if (!dropdown) {
-              resolve({ success: false, error: 'No dropdown found after click' });
-              return;
-            }
-
-            // Find the first path row (write path has checkmark)
-            const rows = Array.from(dropdown.querySelectorAll('div[title]'));
-            if (rows.length === 0) {
-              resolve({ success: false, error: 'No rows found' });
-              return;
-            }
-
-            const firstRow = rows[0];
-            const rowTitle = firstRow.getAttribute('title');
-
-            // Find the edit button (button with pencil)
-            const buttons = Array.from(firstRow.querySelectorAll('button'));
-            const editButton = buttons.find(b => b.textContent?.includes('\u270E'));
-
-            if (editButton) {
-              (editButton as HTMLButtonElement).click();
-              resolve({ success: true, editedPath: rowTitle });
-            } else {
-              resolve({ success: false, error: 'No edit button found' });
-            }
-          });
-        });
-      });
-    });
-
-    console.log('Open and click result:', openAndClickResult);
-    if (!openAndClickResult.success) {
-      throw new Error(openAndClickResult.error ?? 'Unknown error');
-    }
+    assertOpenedForEditing(await openFirstVaultPathForEditing(appWindow));
 
     await appWindow.waitForTimeout(300);
     console.log('Edit mode activated');
@@ -373,50 +165,7 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Open dropdown AND click edit on the first row
     console.log('=== STEP 1: Open dropdown and click edit ===');
-    const openAndClickResult = await appWindow.evaluate((): Promise<{ success: boolean; editedPath?: string | null; error?: string }> => {
-      const selectorButton = document.querySelector('button[title^="Write Path"]');
-      if (!selectorButton) {
-        return Promise.resolve({ success: false, error: 'No selector button found' });
-      }
-
-      (selectorButton as HTMLButtonElement).click();
-
-      return new Promise<{ success: boolean; editedPath?: string | null; error?: string }>((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const dropdown = document.querySelector('.absolute.bottom-full');
-            if (!dropdown) {
-              resolve({ success: false, error: 'No dropdown found after click' });
-              return;
-            }
-
-            const rows = Array.from(dropdown.querySelectorAll('div[title]'));
-            if (rows.length === 0) {
-              resolve({ success: false, error: 'No rows found' });
-              return;
-            }
-
-            const firstRow = rows[0];
-            const rowTitle = firstRow.getAttribute('title');
-
-            const buttons = Array.from(firstRow.querySelectorAll('button'));
-            const editButton = buttons.find(b => b.textContent?.includes('\u270E'));
-
-            if (editButton) {
-              (editButton as HTMLButtonElement).click();
-              resolve({ success: true, editedPath: rowTitle });
-            } else {
-              resolve({ success: false, error: 'No edit button found' });
-            }
-          });
-        });
-      });
-    });
-
-    console.log('Open and click result:', openAndClickResult);
-    if (!openAndClickResult.success) {
-      throw new Error(openAndClickResult.error ?? 'Unknown error');
-    }
+    assertOpenedForEditing(await openFirstVaultPathForEditing(appWindow));
 
     await appWindow.waitForTimeout(300);
     console.log('Edit mode activated');
@@ -467,50 +216,7 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Open dropdown AND click edit on the first row
     console.log('=== STEP 1: Open dropdown and click edit ===');
-    const openAndClickResult = await appWindow.evaluate((): Promise<{ success: boolean; editedPath?: string | null; error?: string }> => {
-      const selectorButton = document.querySelector('button[title^="Write Path"]');
-      if (!selectorButton) {
-        return Promise.resolve({ success: false, error: 'No selector button found' });
-      }
-
-      (selectorButton as HTMLButtonElement).click();
-
-      return new Promise<{ success: boolean; editedPath?: string | null; error?: string }>((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const dropdown = document.querySelector('.absolute.bottom-full');
-            if (!dropdown) {
-              resolve({ success: false, error: 'No dropdown found after click' });
-              return;
-            }
-
-            const rows = Array.from(dropdown.querySelectorAll('div[title]'));
-            if (rows.length === 0) {
-              resolve({ success: false, error: 'No rows found' });
-              return;
-            }
-
-            const firstRow = rows[0];
-            const rowTitle = firstRow.getAttribute('title');
-
-            const buttons = Array.from(firstRow.querySelectorAll('button'));
-            const editButton = buttons.find(b => b.textContent?.includes('\u270E'));
-
-            if (editButton) {
-              (editButton as HTMLButtonElement).click();
-              resolve({ success: true, editedPath: rowTitle });
-            } else {
-              resolve({ success: false, error: 'No edit button found' });
-            }
-          });
-        });
-      });
-    });
-
-    console.log('Open and click result:', openAndClickResult);
-    if (!openAndClickResult.success) {
-      throw new Error(openAndClickResult.error ?? 'Unknown error');
-    }
+    assertOpenedForEditing(await openFirstVaultPathForEditing(appWindow));
 
     await appWindow.waitForTimeout(300);
 

@@ -87,17 +87,6 @@ export async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
   return decoded
 }
 
-export async function readPersistedOwnerOrNull(
-  vault: string,
-): Promise<OwnerRecord | null> {
-  try {
-    return await readPersistedOwner(vault)
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
-    throw err
-  }
-}
-
 /**
  * Atomically write a synthetic owner record. Used by tests to set up
  * adversarial preconditions (stale dead pid, alive non-vt-graphd pid, etc.)

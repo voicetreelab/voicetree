@@ -1,10 +1,10 @@
-import {type CheckDef, npmRun} from '../../../_types.ts'
+import {checkArgs, type CheckDef} from '../../_types.ts'
 
 export const check: CheckDef = {
     id: 'root-lint',
     name: 'Root ESLint',
     category: 'Lint',
     display: 'npm run lint',
-    args: () => npmRun('lint'),
+    args: () => checkArgs.npmRun('lint'),
     parser: 'none',
 }

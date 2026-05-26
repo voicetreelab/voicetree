@@ -24,7 +24,6 @@ const MIN_RATIONALE_CHARS = 20
 
 type StagedDiffClassification = 'no-baselines' | 'pure-bump' | 'mixed'
 type CommitMessageClassification = 'ok' | 'missing-rationale' | 'rationale-too-short'
-
 function isBaselinePath(path: string): boolean {
     return path.startsWith(BASELINE_PREFIX)
 }
@@ -104,9 +103,9 @@ function formatRationaleViolation(kind: 'missing-rationale' | 'rationale-too-sho
 }
 
 export const baselinePolicy = {
-    BASELINE_PREFIX,
-    RATIONALE_TRAILER,
-    MIN_RATIONALE_CHARS,
+    baselinePrefix: BASELINE_PREFIX,
+    rationaleTrailer: RATIONALE_TRAILER,
+    minRationaleChars: MIN_RATIONALE_CHARS,
     isBaselinePath,
     classifyStagedDiff,
     classifyCommitMessage,

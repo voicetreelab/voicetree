@@ -34,6 +34,7 @@ interface ChromiumLike {
 export interface DebugSession {
   browser: BrowserLike
   pages: PageLike[]
+  focusTarget(page: PageLike, selector: string): Promise<void>
   close(): Promise<void>
 }
 
@@ -103,8 +104,45 @@ export async function openDebugSession(
   return {
     browser,
     pages,
+    focusTarget,
     close: async () => {
       await browser.close().catch(() => undefined)
     },
+  }
+}
+
+async function focusTarget(page: PageLike, selector: string): Promise<void> {
+  const result = await page.evaluate<{ ok: boolean; error: string }>(String.raw`(() => {
+    const rootSelector = ${JSON.stringify(selector)}
+    const root = document.querySelector(rootSelector)
+    if (!(root instanceof HTMLElement)) {
+      return { ok: false, error: 'selector not found: ' + rootSelector }
+    }
+
+    const focusableSelector =
+      '.cm-content, textarea, input, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])'
+    const target =
+      root.matches(focusableSelector)
+        ? root
+        : root.querySelector(focusableSelector)
+
+    if (!(target instanceof HTMLElement)) {
+      return { ok: false, error: 'selector "' + rootSelector + '" did not resolve to a focusable element' }
+    }
+
+    target.focus()
+    const active = document.activeElement
+    if (!(active instanceof HTMLElement)) {
+      return { ok: false, error: 'selector "' + rootSelector + '" did not take focus' }
+    }
+
+    return {
+      ok: target === active || target.contains(active),
+      error: 'selector "' + rootSelector + '" did not take focus',
+    }
+  })()`)
+
+  if (!result.ok) {
+    throw new Error(result.error)
   }
 }

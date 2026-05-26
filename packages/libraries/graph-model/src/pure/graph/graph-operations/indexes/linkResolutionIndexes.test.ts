@@ -44,6 +44,17 @@ describe('getBaseName', () => {
     expect(getBaseName('foo')).toBe('foo')
   })
 
+  it('should ignore empty, current-directory, and parent-directory segments', () => {
+    expect(getBaseName('')).toBe('')
+    expect(getBaseName('./')).toBe('')
+    expect(getBaseName('../')).toBe('')
+    expect(getBaseName('./.././Note.md')).toBe('note')
+  })
+
+  it('should only strip a terminal markdown extension', () => {
+    expect(getBaseName('/vault/archive.md.backup')).toBe('archive.md.backup')
+  })
+
   it('should return lowercase basename', () => {
     expect(getBaseName('/vault/FooBar.md')).toBe('foobar')
     expect(getBaseName('README.md')).toBe('readme')
@@ -83,6 +94,17 @@ describe('nodeByBaseNameIndex', () => {
     it('should return empty map for empty nodes', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {}
       const index: NodeByBaseNameIndex = buildNodeByBaseNameIndex(nodes)
+      expect(index.size).toBe(0)
+    })
+
+    it('should not index nodes whose path has no basename', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '': createTestNode(''),
+        '../': createTestNode('../')
+      }
+
+      const index: NodeByBaseNameIndex = buildNodeByBaseNameIndex(nodes)
+
       expect(index.size).toBe(0)
     })
 

@@ -1,0 +1,109 @@
+/* ============================================================================
+ * Footer Section
+ * ============================================================================ */
+
+.folder-tree-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+}
+
+.folder-tree-footer-search {
+    padding: 4px 6px;
+}
+
+.folder-tree-add-results {
+    max-height: 140px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.folder-tree-add-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+}
+
+.folder-tree-add-result-item:hover {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+.folder-tree-add-result-item.loaded {
+    opacity: 0.4;
+}
+
+.folder-tree-add-result-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.folder-tree-add-result-btn {
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+    border-radius: 3px;
+}
+
+.folder-tree-add-result-btn:hover {
+    background: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.folder-tree-footer-actions {
+    display: flex;
+    gap: 2px;
+    padding: 3px 6px 4px;
+}
+
+.folder-tree-footer-btn {
+    flex: 1;
+    padding: 3px 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 10px;
+    border-radius: 3px;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.folder-tree-footer-btn:hover {
+    background: var(--accent);
+    opacity: 1;
+}
+
+/* ============================================================================
+ * Resize Handle
+ * ============================================================================ */
+
+.folder-tree-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+    background: transparent;
+}
+
+.folder-tree-resize-handle:hover,
+.folder-tree-resize-handle.dragging {
+    background: var(--ring);
+}

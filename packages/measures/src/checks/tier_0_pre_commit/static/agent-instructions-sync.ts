@@ -1,4 +1,4 @@
-import {type CheckDef} from '../../../_types.ts'
+import {type CheckDef} from '../../_types.ts'
 
 const SCRIPT_PATH = 'packages/measures/src/checks/tier_0_pre_commit/static/agent-instructions-sync.mjs'
 

@@ -1,4 +1,4 @@
-import {type CheckDef} from '../../../_types.ts'
+import {type CheckDef} from '../../_types.ts'
 
 // Tier wall-clock budget gate.
 //
@@ -17,7 +17,7 @@ export const check: CheckDef = {
         'node',
         '--no-warnings=ExperimentalWarning',
         '--experimental-strip-types',
-        'packages/measures/src/_runners/check-tier-budgets.ts',
+        'packages/measures/scripts/check-tier-budgets.ts',
     ],
     parser: 'none',
     phase: 'isolated',
