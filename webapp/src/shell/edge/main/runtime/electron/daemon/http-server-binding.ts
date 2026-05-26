@@ -107,3 +107,27 @@ export function getActiveDaemonUrl(): string | null {
 export function getActiveAuthToken(): string | null {
     return currentBound?.token ?? null
 }
+
+export function getActiveVaultPath(): string | null {
+    return currentBound?.vaultPath ?? null
+}
+
+/**
+ * Test-only: stamp a synthetic bound-vault entry without starting a real
+ * HTTP daemon. Lets unit tests exercise consumers of `getActiveVaultPath`
+ * (e.g. the Main-side RPC client) without running vt-graphd. The hub field
+ * is left as a no-op stub because tests using this path do not rely on the
+ * watcher / RPC server lifecycle.
+ */
+export function __setBoundVaultForTests(vaultPath: string | null): void {
+    if (vaultPath === null) {
+        currentBound = null
+        return
+    }
+    currentBound = {
+        vaultPath,
+        handle: {} as HttpDaemonServerHandle,
+        watcher: {} as VaultStateWatcherHandle,
+        token: '',
+    }
+}

@@ -5,7 +5,7 @@ import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState, ViewRec
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { SerializedState, State } from '@vt/graph-state'
 
-import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/runtime/state/live-state-store'
+import { getLiveStateFromDaemon } from '@/shell/edge/main/runtime/state/daemon-live-state-rpc'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
@@ -339,14 +339,14 @@ export async function getLiveStateSnapshotFromDaemon(): Promise<LiveStateSnapsho
       return await callDaemon(async (client) => {
         span.setAttribute('daemon.base_url', client.baseUrl)
         span.addEvent('electron.live-state.local-state.read.start')
-        const localState: State = await getCurrentLiveState()
+        const localState: State = await getLiveStateFromDaemon()
         span.setAttribute('state.selection.count', localState.selection.size)
         const sessionId: string = await syncRendererSessionState(client, localState)
         span.setAttribute('renderer_session.id', sessionId)
         const snapshot: LiveStateSnapshot = await client.getSessionState(sessionId)
         const vaultState: VaultState = await client.getVault()
 
-        if (rootsWereExplicitlySet() || localState.roots.loaded.size > 0) {
+        if (localState.roots.loaded.size > 0) {
           span.addEvent('electron.live-state.roots-build.start')
           snapshot.roots = await buildSerializedRoots(
             await getNormalizedDaemonGraph(client),
@@ -374,7 +374,7 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   return await tracing.span('electron.renderer-session.sync-state-with-daemon', async (span) => {
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      const localState: State = await getCurrentLiveState()
+      const localState: State = await getLiveStateFromDaemon()
       span.setAttribute('state.selection.count', localState.selection.size)
       return await syncRendererSessionState(client, localState)
     })
@@ -417,7 +417,7 @@ export async function setFolderStateThroughDaemon(
     span.setAttribute('folder.state', state)
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      const sessionId: string = await syncRendererSessionState(client, await getCurrentLiveState())
+      const sessionId: string = await syncRendererSessionState(client, await getLiveStateFromDaemon())
       span.setAttribute('renderer_session.id', sessionId)
       const folderPath: string = folderId.length > 1 && folderId.endsWith('/')
         ? folderId.slice(0, -1)

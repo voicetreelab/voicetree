@@ -56,7 +56,20 @@ export async function applyCommandToSessionState(
     const before: State = await loadOrBootstrap(vault)
     const result: { state: State; delta: Delta } = applyCommandWithDelta(before, command)
     stateByVault.set(vault, result.state)
+    await persistMovedPositionsIfAny(vault, result.delta)
     return { state: result.state, delta: result.delta }
+}
+
+async function persistMovedPositionsIfAny(
+    vault: AbsolutePath,
+    delta: Delta,
+): Promise<void> {
+    if (!delta.positionsMoved || delta.positionsMoved.size === 0) return
+    const positions: PositionMap = {}
+    for (const [nodeId, position] of delta.positionsMoved.entries()) {
+        positions[nodeId] = position
+    }
+    await persistPositionsToGraphd(vault, positions)
 }
 
 export function __resetSessionStateForTests(vault?: AbsolutePath): void {

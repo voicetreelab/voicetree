@@ -20,7 +20,6 @@ import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/run
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import { bindHttpDaemonForVault } from '@/shell/edge/main/runtime/electron/daemon/http-server-binding'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
-import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
 export type StartupVaultHint =
     | { readonly kind: 'open-folder'; readonly path: string }
@@ -130,7 +129,6 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await startDaemonGraphSync(projectRoot)
         markLoadTiming('main:daemon-graph-sync-started')
         await saveLastDirectory(projectRoot)
-        syncWatchedProjectRoot(projectRoot)
 
         const watchingStartedInfo = {
             directory: projectRoot,

@@ -55,7 +55,6 @@ import {
   expandFolderThroughDaemon,
   getGraphFromDaemon as getGraph,
   getProjectedGraphFromDaemon as getProjectedGraph,
-  getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
@@ -255,7 +254,6 @@ export const mainAPI = {
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,
-  getLiveStateSnapshot,
   syncRendererSessionStateWithDaemon,
   __debugLockSSE,
   __debugUnlockSSE,
