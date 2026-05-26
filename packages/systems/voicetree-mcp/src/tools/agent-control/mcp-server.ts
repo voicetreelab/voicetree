@@ -436,7 +436,12 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     const httpServer: Server = app.listen(mcpPort, '127.0.0.1', () => {
         log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
-    const tmuxAttachRelay = mountTmuxAttachRelay(httpServer)
+    const tmuxAttachRelay = mountTmuxAttachRelay(httpServer, {
+        getTmuxMouseMode: async (): Promise<boolean> => {
+            const latestSettings: VTSettings = await loadSettings()
+            return latestSettings.terminalTmuxMouseMode ?? false
+        },
+    })
 
     // Auto-write MCP client configs so external agents can discover this server.
     // Silently skips if no project folder is open yet (loadFolder will write it later).

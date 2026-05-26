@@ -119,6 +119,16 @@ async function waitForTmuxWindowSizeOption(sessionName: string, expected: string
     throw new Error(`timed out waiting for tmux window-size=${expected}`)
 }
 
+async function waitForTmuxMouseOption(sessionName: string, expected: string, timeoutMs: number = 2000): Promise<void> {
+    const start: number = Date.now()
+    while (Date.now() - start < timeoutMs) {
+        const value: string = tmuxOutput(['show-options', '-v', '-t', sessionName, 'mouse']).trim()
+        if (value === expected) return
+        await delay(10)
+    }
+    throw new Error(`timed out waiting for tmux mouse=${expected}`)
+}
+
 describe('tmux attach relay', () => {
     let server: Server | undefined
     let relay: TmuxAttachRelayHandle | undefined
@@ -184,6 +194,7 @@ describe('tmux attach relay', () => {
             expect(captured).toContain('COUNT:66 TOTAL:983')
 
             await waitForTmuxWindowSizeOption(sessionName, 'latest')
+            await waitForTmuxMouseOption(sessionName, 'off')
 
             ws.send(JSON.stringify({type: 'resize', cols: 160, rows: 40}))
             await waitForTmuxPaneSize(sessionName, 160)
@@ -191,6 +202,31 @@ describe('tmux attach relay', () => {
             ws.close()
             await delay(100)
             expect(await hasSession(sessionName)).toBe(true)
+        } finally {
+            ws.close()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('enables tmux mouse mode when the relay option opts in', async () => {
+        const sessionName: string = makeSessionName('mouse-on')
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        relay?.close()
+        relay = mountTmuxAttachRelay(server!, {
+            getTmuxMouseMode: () => true,
+        })
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {ws, output} = await connect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach?cols=120&rows=40`
+        )
+
+        try {
+            await waitForOutput(output, 'BF312_READY')
+            await waitForTmuxMouseOption(sessionName, 'on')
         } finally {
             ws.close()
         }
