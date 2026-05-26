@@ -21,6 +21,7 @@ top-level `run-lgtm.sh`.
 | VictoriaMetrics replacement | `v1.144.0` | latest stable release on 2026-05-26; Prometheus remote-write/query compatible |
 | Pyroscope | `v2.0.2` | `docker/Dockerfile` `PYROSCOPE_VERSION` |
 | otelcol-contrib | `v0.152.0` | `docker/Dockerfile` `OPENTELEMETRY_COLLECTOR_VERSION` |
+| pprof CLI | `v0.0.0-20260507013755-92041b743c96` | `google/pprof` commit `92041b743c966065641d7221da5403ad9a019bce` |
 
 ## Vendored dashboards
 
@@ -74,3 +75,10 @@ vendored.
   entry.
 - The stack uses VictoriaMetrics instead of upstream Prometheus/Mimir. This is
   an intentional OpenSpec decision for a smaller single-node dev stack.
+
+- `google/pprof` does not publish release binaries. On `darwin-arm64`,
+  `install-binaries.mjs` downloads commit archive
+  `92041b743c966065641d7221da5403ad9a019bce`, verifies SHA-256
+  `0bf075c8839ab0f660c0a7119a4bf6ca394a4830018a3c21f5fe31650736087a`,
+  and builds the standalone `pprof` CLI from source. Go is required only at
+  install time; profile analysis uses `infra/perf-stack/bin/pprof`.

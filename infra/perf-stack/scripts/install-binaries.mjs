@@ -69,7 +69,21 @@ const BINARIES = [
       'darwin-arm64': 'd8d1c1c7949343263621fa5d6b98030486841d1fb64622bbbbcb7ac21b593540',
     },
     buildDirName: 'tempo-991ce39eb956e9ed771fcffe05eff42d33de27ba',
+    buildTarget: './cmd/tempo',
     note: 'No darwin-arm64 release archive exists for Tempo v2.10.5; built from the pinned tag commit source archive.',
+  },
+  {
+    name: 'tempo-cli',
+    version: 'v2.10.5',
+    kind: 'source-build',
+    urlPattern: () =>
+      'https://github.com/grafana/tempo/archive/991ce39eb956e9ed771fcffe05eff42d33de27ba.tar.gz',
+    sha256: {
+      'darwin-arm64': 'd8d1c1c7949343263621fa5d6b98030486841d1fb64622bbbbcb7ac21b593540',
+    },
+    buildDirName: 'tempo-991ce39eb956e9ed771fcffe05eff42d33de27ba',
+    buildTarget: './cmd/tempo-cli',
+    note: 'Tempo CLI is source-only for this platform; built from the same checksum-pinned Tempo v2.10.5 source archive.',
   },
   {
     name: 'victoriametrics',
@@ -235,7 +249,7 @@ const installSourceBuild = async (binary, manifest) => {
   }
 
   const goVersion = spawnSync('go', ['version'], { encoding: 'utf8' })
-  if (goVersion.status !== 0) throw new Error(`${binary.name} requires go for the darwin-arm64 source build fallback`)
+  if (goVersion.status !== 0) throw new Error(`${binary.name} requires go for the darwin-arm64 source build`)
 
   const tempDir = await mkdtemp(join(tmpdir(), `vt-perf-${binary.name}-`))
   try {
@@ -248,7 +262,7 @@ const installSourceBuild = async (binary, manifest) => {
     }
 
     await extractArchive(archivePath, tempDir)
-    const result = spawnSync('go', ['build', '-o', targetPath, './cmd/tempo'], {
+    const result = spawnSync('go', ['build', '-o', targetPath, binary.buildTarget], {
       cwd: join(tempDir, binary.buildDirName),
       env: { ...process.env, GOTOOLCHAIN: process.env.GOTOOLCHAIN ?? 'auto' },
       encoding: 'utf8',
