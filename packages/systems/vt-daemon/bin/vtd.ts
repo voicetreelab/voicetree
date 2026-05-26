@@ -66,7 +66,8 @@ import {
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts'
 import {generateAuthToken, rpcPortFilePath, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
-import {VTD_CONTRACT_VERSION} from '../src/contract.ts'
+import {VTD_CONTRACT_VERSION, type VtDaemonHealthResponse} from '../src/contract.ts'
+import {buildVtDaemonHealthResponse} from '../src/lifecycle/buildHealthResponse.ts'
 import {
     claimVtDaemonOwner,
     VtDaemonOwnerConflictError,
@@ -287,6 +288,7 @@ async function main(): Promise<void> {
             {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
         )
 
+    const startMs: number = Date.now()
     let httpHandle: HttpDaemonServerHandle
     try {
         httpHandle = await startHttpDaemonServer({
@@ -299,6 +301,19 @@ async function main(): Promise<void> {
             // dev on another machine dials this daemon directly.
             bindHost: process.env.VOICETREE_DAEMON_BIND ?? '127.0.0.1',
             port: args.port,
+            // Live owner-projection — must call ownerHandle.health() on EACH
+            // request, never cache. Returns null in the window between
+            // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats
+            // owner-null as "mismatch / retry", which is exactly what we want
+            // during cold-start. Caching a pre-bindPort snapshot would freeze
+            // owner=null forever and break BF-374's storm-reuse decision.
+            readHealth: (): VtDaemonHealthResponse => buildVtDaemonHealthResponse({
+                contractVersion: VTD_CONTRACT_VERSION,
+                startMs,
+                nowMs: Date.now(),
+                owner: ownerHandle.health(),
+                canonicalVault: args.vault,
+            }),
         })
         await writeRpcPortFile(args.vault, httpHandle.port)
         await ownerHandle.bindPort(httpHandle.port)
