@@ -172,6 +172,31 @@ describe('analyzeFile (implicit-globals)', () => {
         expect(report.byCategory['dynamic-import']).toBe(2)
     })
 
+    it('detects leaky-shell: strict-tier usage outside any env-taking function', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import {readFileSync} from 'node:fs'
+            // Top-level usage AND a function with no env parameter — both leaky.
+            const eagerData = readFileSync('/etc/hostname', 'utf8')
+            export const dump = (path: string) => readFileSync(path, 'utf8')
+        `)
+        const report = analyzeFile(sf)
+        // 2 usage sites (eager top-level read + dump call), both leaky.
+        expect(report.leakyStrict).toBe(2)
+    })
+
+    it('does NOT flag leaky when strict use lives inside an env-taking function', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import {readFileSync} from 'node:fs'
+            export const dump = (env: {root: string}, path: string) =>
+                readFileSync(env.root + path, 'utf8')
+        `)
+        const report = analyzeFile(sf)
+        // Usage is inside a function that takes 'env' — Pattern 3 applied.
+        expect(report.leakyStrict).toBe(0)
+    })
+
     it('does NOT count parameter shadows (param named `fs`)', () => {
         const project = new Project({useInMemoryFileSystem: true})
         const sf = project.createSourceFile('/virtual/a.ts', `

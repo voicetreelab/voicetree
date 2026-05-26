@@ -63,6 +63,8 @@
 import {Node, SyntaxKind, type SourceFile as MorphSourceFile} from 'ts-morph'
 import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
+
+const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-implicit-globals.md'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
@@ -115,6 +117,15 @@ export type FileImplicitGlobalsReport = {
     readonly filePath: string
     readonly byCategory: CategoryCounts
     readonly total: number
+    /**
+     * Count of strict-tier usage sites that occur OUTSIDE any function with
+     * an `env` parameter (or at module top-level). High leaky count = Pattern 3
+     * not applied; effects are reaching past the env-injection boundary.
+     * Currently reported but not gated; the gate scores on strict-tier total
+     * regardless of leaky/honest. TODO(leaky-weight): once communities have
+     * had a pass at Pattern 3, weight leaky usages 2× in the gated score.
+     */
+    readonly leakyStrict: number
 }
 
 // --- Module specifier → category map ---
@@ -248,11 +259,19 @@ function bump(counts: CategoryCounts, category: GlobalCategory, by: number): voi
  * `time` but `Date.UTC` is not. We inspect the immediate parent
  * PropertyAccessExpression to decide.
  */
+type LeakyAccumulator = {count: number}
+
+function bumpLeakyIfStrict(category: GlobalCategory, node: Node, leaky: LeakyAccumulator): void {
+    if (CATEGORY_TIER.get(category) !== 'strict') return
+    if (isLeakyUsage(node)) leaky.count += 1
+}
+
 function countFreeUsages(
     sourceFile: MorphSourceFile,
     importBindings: ReadonlyMap<string, GlobalCategory>,
     params: ReadonlySet<string>,
     out: CategoryCounts,
+    leaky: LeakyAccumulator,
 ): void {
     sourceFile.forEachDescendant(node => {
         if (!Node.isIdentifier(node)) return
@@ -288,6 +307,7 @@ function countFreeUsages(
         const importCategory = importBindings.get(name)
         if (importCategory) {
             bump(out, importCategory, 1)
+            bumpLeakyIfStrict(importCategory, node, leaky)
             return
         }
 
@@ -295,6 +315,7 @@ function countFreeUsages(
         const globalCategory = GLOBAL_IDENT_TO_CATEGORY.get(name)
         if (globalCategory) {
             bump(out, globalCategory, 1)
+            bumpLeakyIfStrict(globalCategory, node, leaky)
             return
         }
 
@@ -302,6 +323,7 @@ function countFreeUsages(
         const chainCategory = matchChainRule(node)
         if (chainCategory) {
             bump(out, chainCategory, 1)
+            bumpLeakyIfStrict(chainCategory, node, leaky)
             return
         }
     })
@@ -317,6 +339,35 @@ function matchChainRule(rootId: Node): GlobalCategory | null {
         if (rule.root === name && rule.method === member) return rule.category
     }
     return null
+}
+
+/**
+ * Walk up from a usage site to find the nearest enclosing function. If that
+ * function has a parameter named `env` it's an env-using shell — the usage
+ * is "honest" (Pattern 3 applied). Otherwise the usage is "leaky": the
+ * effect leaked out of any env-injection boundary.
+ *
+ * No-enclosing-function (module top-level) is treated as leaky too — a
+ * top-level `fs.writeFile(...)` runs at import time and there is no env
+ * to thread through.
+ */
+function isLeakyUsage(node: Node): boolean {
+    let cur: Node | undefined = node.getParent()
+    while (cur) {
+        if (
+            Node.isFunctionDeclaration(cur)
+            || Node.isFunctionExpression(cur)
+            || Node.isArrowFunction(cur)
+            || Node.isMethodDeclaration(cur)
+        ) {
+            for (const p of cur.getParameters()) {
+                if (p.getNameNode().getText() === 'env') return false
+            }
+            return true
+        }
+        cur = cur.getParent()
+    }
+    return true
 }
 
 /**
@@ -378,13 +429,14 @@ export function analyzeFile(sourceFile: MorphSourceFile): FileImplicitGlobalsRep
     const filePath = sourceFile.getFilePath()
     const params = collectParamNames(sourceFile)
     const {nameToCategory, counts, hasFsImport} = collectImportBindings(sourceFile)
-    countFreeUsages(sourceFile, nameToCategory, params, counts)
+    const leaky: LeakyAccumulator = {count: 0}
+    countFreeUsages(sourceFile, nameToCategory, params, counts, leaky)
     countNonDeterministicConstructions(sourceFile, counts)
     countDynamicImports(sourceFile, counts)
     const withoutPureIo = maybeStripPathIo(counts, hasFsImport)
     const final = stripReportTier(withoutPureIo)
     const total = Object.values(final).reduce((sum, n) => sum + (n ?? 0), 0)
-    return {filePath, byCategory: final, total}
+    return {filePath, byCategory: final, total, leakyStrict: leaky.count}
 }
 
 /**
@@ -436,17 +488,22 @@ function formatTierBreakdown(byCategory: CategoryCounts): string {
 function buildMessage(
     strict: number,
     advisory: number,
+    leakyStrict: number,
     baselineStrict: number | null,
     breakdown: CategoryCounts,
 ): string {
     const baselineFragment = baselineStrict === null
         ? '(no baseline)'
         : `strict baseline=${baselineStrict}`
+    const leakyFragment = leakyStrict > 0
+        ? ` leaky-shell=${leakyStrict} (strict-tier uses outside any env-taking function — Pattern 3 not applied here)`
+        : ''
     return (
-        `strict=${strict} advisory=${advisory} ${baselineFragment}: ${formatTierBreakdown(breakdown)}. `
+        `strict=${strict} advisory=${advisory}${leakyFragment} ${baselineFragment}: ${formatTierBreakdown(breakdown)}. `
         + 'Strict tier is the gated score — thread an `env` argument '
         + '(FP pattern 3: Reader-env) so callers see fs/network/process dependencies. '
         + 'Advisory tier (time/random/crypto) is informational and does not affect the gate.'
+        + `\nSee: ${SKILL_DOC}`
     )
 }
 
@@ -459,9 +516,11 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
     // is kept separately so messages can show the advisory tier too.
     const perCommunity: Record<string, number> = {}
     const breakdownByCommunity: Record<string, CategoryCounts> = {}
+    const leakyByCommunity: Record<string, number> = {}
     for (const community of touched) {
         perCommunity[community] = 0
         breakdownByCommunity[community] = {}
+        leakyByCommunity[community] = 0
     }
 
     for (const file of parsedSubgraph.files) {
@@ -472,6 +531,7 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         const report = analyzeFile(morphFile)
         const {strict} = tierSums(report.byCategory)
         perCommunity[community] = (perCommunity[community] ?? 0) + strict
+        leakyByCommunity[community] = (leakyByCommunity[community] ?? 0) + report.leakyStrict
         const bucket = breakdownByCommunity[community]
         for (const [cat, n] of Object.entries(report.byCategory)) {
             bucket[cat as GlobalCategory] = (bucket[cat as GlobalCategory] ?? 0) + (n ?? 0)
@@ -483,6 +543,7 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
     for (const community of touched) {
         const breakdown = breakdownByCommunity[community]
         const {strict, advisory} = tierSums(breakdown)
+        const leakyStrict = leakyByCommunity[community] ?? 0
         if (strict === 0 && advisory === 0) continue
         const baselineStrict = community in baseline ? baseline[community] : null
         violations.push({
@@ -490,7 +551,7 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
             score: strict,
             baseline: baselineStrict,
             severity: classifySeverity(strict, advisory, baselineStrict),
-            message: buildMessage(strict, advisory, baselineStrict, breakdown),
+            message: buildMessage(strict, advisory, leakyStrict, baselineStrict, breakdown),
         })
     }
 
