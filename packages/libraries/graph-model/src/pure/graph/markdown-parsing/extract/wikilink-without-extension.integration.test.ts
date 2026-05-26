@@ -18,11 +18,11 @@ import {
 import {
   getBaseName,
   buildNodeByBaseNameIndex
-} from '../graph-operations/indexes/linkResolutionIndexes'
-import type { NodeByBaseNameIndex } from '../graph-operations/indexes/linkResolutionIndexes'
-import { fromNodeToContentWithWikilinks } from '../markdown-writing/node_to_markdown'
-import { replaceWikilinkPlaceholders } from '../rename/replaceWikilinkPlaceholders'
-import type { GraphNode, Edge } from '..'
+} from '../../graph-operations/indexes/linkResolutionIndexes'
+import type { NodeByBaseNameIndex } from '../../graph-operations/indexes/linkResolutionIndexes'
+import { fromNodeToContentWithWikilinks } from '../../markdown-writing/node_to_markdown'
+import { replaceWikilinkPlaceholders } from '../../rename/replaceWikilinkPlaceholders'
+import type { GraphNode, Edge } from '../..'
 
 const createNode: (id: string, content?: string, edges?: readonly { readonly targetId: string; readonly label: string }[]) => GraphNode =
   (id: string, content: string = '', edges: readonly { readonly targetId: string; readonly label: string }[] = []): GraphNode => ({

@@ -1,7 +1,7 @@
 import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeDelta} from '..'
 import * as O from 'fp-ts/lib/Option.js'
 import {parseMarkdownToGraphNode} from '../markdown-parsing/parse-markdown-to-node'
-import {findBestMatchingNode} from '../markdown-parsing/extract-edges'
+import {findBestMatchingNode} from '../markdown-parsing/extract/extract-edges'
 import {setOutgoingEdges} from '../graph-operations/transforms/graph-edge-operations'
 import {filenameToNodeId} from '../markdown-parsing/filename-utils'
 import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '../graph-operations/indexes/linkResolutionIndexes'

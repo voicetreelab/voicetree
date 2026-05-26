@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { extractEdges } from './extract-edges'
-import type { GraphNode, Edge } from '..'
+import type { GraphNode, Edge } from '../..'
 
 /**
  * Integration tests for relationship labels feature.

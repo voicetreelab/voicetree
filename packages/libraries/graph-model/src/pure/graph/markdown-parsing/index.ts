@@ -1,5 +1,5 @@
 import { parseMarkdownToGraphNode } from './parse-markdown-to-node'
-import { extractEdges } from './extract-edges'
+import { extractEdges } from './extract/extract-edges'
 import { nodeIdToFilePathWithExtension, filenameToNodeId } from './filename-utils'
 import { markdownToTitle, contentAfterTitle, stripMarkdownFormatting } from './markdown-to-title'
 import type { GraphNode, NodeIdAndFilePath, Edge, Graph, FilePath } from '..'
@@ -40,7 +40,7 @@ export function getNodeTitle(node: GraphNode): string {
 export { parseMarkdownToGraphNode } from './parse-markdown-to-node'
 void (parseMarkdownToGraphNode satisfies ParseMarkdownToGraphNode)
 
-export { extractEdges as extractLinkedNodeIds } from './extract-edges'
+export { extractEdges as extractLinkedNodeIds } from './extract/extract-edges'
 void (extractEdges satisfies ExtractLinkedNodeIds)
 
 export { nodeIdToFilePathWithExtension } from './filename-utils'
@@ -56,4 +56,4 @@ void (stripMarkdownFormatting satisfies StripMarkdownFormatting)
 
 void (getNodeTitle satisfies GetNodeTitle)
 
-export { extractParentRefs, normalizeBatchFilenameKey, type ParentLineRef } from './extract-parent-refs'
+export { extractParentRefs, normalizeBatchFilenameKey, type ParentLineRef } from './extract/extract-parent-refs'

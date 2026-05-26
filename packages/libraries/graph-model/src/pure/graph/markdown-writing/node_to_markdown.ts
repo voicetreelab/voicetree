@@ -1,7 +1,7 @@
 import type {GraphNode, NodeUIMetadata} from '..';
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { linkMatchScore } from '../markdown-parsing/extract-edges'
+import { linkMatchScore } from '../markdown-parsing/extract/extract-edges'
 
 /**
  * Converts node content (without YAML) back to markdown with wikilinks restored.

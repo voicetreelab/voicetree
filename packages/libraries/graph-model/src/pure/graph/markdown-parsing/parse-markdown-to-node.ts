@@ -4,7 +4,7 @@ import matter from 'gray-matter'
 import type {Graph, GraphNode, Edge} from '..'
 import {NODE_UI_METADATA_YAML_KEYS} from '..'
 import {filenameToNodeId} from './filename-utils'
-import {extractEdges} from './extract-edges';
+import {extractEdges} from './extract/extract-edges';
 
 /**
  * Parses markdown content into a GraphNode.
