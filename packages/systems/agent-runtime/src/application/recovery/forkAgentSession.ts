@@ -29,7 +29,7 @@ export type ForkAgentSessionDeps = {
 }
 
 export type ForkAgentSessionResult =
-    | {readonly kind: 'spawned'; readonly forkedTerminalId: TerminalId; readonly pid: number; readonly command: string}
+    | {readonly kind: 'spawned'; readonly forkedTerminalId: TerminalId; readonly pid: number; readonly command: string; readonly terminalData: TerminalData}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'no-resume-handle'}
     | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
     | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
@@ -112,7 +112,7 @@ export async function forkAgentSession(
             cwd,
             env,
         )
-        return {kind: 'spawned', forkedTerminalId, pid: result.pid, command: built.command}
+        return {kind: 'spawned', forkedTerminalId, pid: result.pid, command: built.command, terminalData: forkedTerminalData}
     } catch (error) {
         return {kind: 'spawn-failed', error: error instanceof Error ? error.message : String(error)}
     }
