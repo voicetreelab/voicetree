@@ -164,9 +164,24 @@ type ImportEdge = {
 // longer depends on `@vt/agent-runtime` after BF-376 outbound; the
 // in-process runtime moved entirely behind vt-daemon. `rg
 // "@vt/agent-runtime" webapp/src` returns zero from this commit.
+//
+// 2026-05-27: remove 4 dead-edge budget entries (BF-375/BF-376 fallout).
+// Each had actual=0 production imports — the budgets were fossils. Default
+// budget is 0, so re-adding any of these edges in src/ now hard-errors:
+//   removed: agent-runtime -> graph-db-server (was 12)
+//   removed: graph-db-client -> graph-db-server (was 17 — sole reference
+//     was a template-literal child-process source in vaultlessSpawn.ts)
+//   removed: vt-daemon -> graph-db-server (was 8 — vtd reaches graphd via
+//     `@vt/graph-db-client` HTTP only; protocol leak retired by BF-375)
+//   removed: webapp -> graph-db-server (was 11 — webapp reaches graphd
+//     via `@vt/graph-db-client` HTTP only)
+//
+// 2026-05-27: ratchet `vt-daemon -> agent-runtime` 14 -> 10. All 10 are the
+// migration-in-flight RPC/MCP-tool surface absorbing agent-runtime into
+// vt-daemon. Phase 3 retires this edge mechanically when absorption is
+// complete.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
-    'agent-runtime -> graph-db-server': 12,
     'agent-runtime -> graph-model': 13,
     'app-config -> graph-model': 4,
     // BF-369: +1 vs base — daemonKind generalisation widened the protocol
@@ -174,7 +189,6 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'daemon-lifecycle -> graph-db-protocol': 3,
     'graph-db-client -> daemon-lifecycle': 23,
     'graph-db-client -> graph-db-protocol': 24,
-    'graph-db-client -> graph-db-server': 17,
     'graph-db-server -> app-config': 13,
     'graph-db-server -> daemon-lifecycle': 10,
     'graph-db-server -> graph-db-protocol': 1,
@@ -193,11 +207,10 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'voicetree-cli -> voicetree-graph-validation': 1,
     'voicetree-cli -> vt-daemon': 7,
     'voicetree-cli -> vt-rpc': 9,
-    'vt-daemon -> agent-runtime': 14,
+    'vt-daemon -> agent-runtime': 10,
     'vt-daemon -> app-config': 1,
     'vt-daemon -> daemon-lifecycle': 9,
     'vt-daemon -> graph-db-protocol': 2,
-    'vt-daemon -> graph-db-server': 8,
     'vt-daemon -> graph-model': 9,
     'vt-daemon -> graph-state': 1,
     'vt-daemon -> graph-tools': 7,
@@ -212,7 +225,6 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'vt-fake-agent -> vt-rpc': 1,
     'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
-    'webapp -> graph-db-server': 11,
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
