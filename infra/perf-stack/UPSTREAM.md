@@ -21,10 +21,24 @@ top-level `run-lgtm.sh`.
 | Pyroscope | `v2.0.2` | `docker/Dockerfile` `PYROSCOPE_VERSION` |
 | otelcol-contrib | `v0.152.0` | `docker/Dockerfile` `OPENTELEMETRY_COLLECTOR_VERSION` |
 
-## Vendored files
+## Vendored dashboards
 
-None yet in Phase 0+1. Skeleton configs are VT-owned. Phase 2 and Phase 3 agents
-will vendor or adapt the upstream pipeline and Grafana provisioning files.
+The Phase 3b task named five historical dashboards:
+`node-runtime.json`, `otel-collector.json`, `service-overview.json`,
+`traces-to-logs.json`, and `traces-to-profiles.json`. Those files are not
+present at upstream commit `8ebeccf63198fa8168c8071b067caec8651c6e99`, and a
+history scan of `grafana/docker-otel-lgtm` found no files with those names.
+
+The current upstream dashboard set at the pinned commit is:
+
+| Local file | Upstream file | Upstream commit | Local edits |
+|---|---|---|---|
+| `infra/perf-stack/config/grafana/dashboards/grafana-dashboard-red-metrics-classic.json` | `docker/grafana-dashboard-red-metrics-classic.json` | `8ebeccf63198fa8168c8071b067caec8651c6e99` | Added visible `run_id` variable and `service_instance_id="$run_id"` PromQL filters |
+| `infra/perf-stack/config/grafana/dashboards/grafana-dashboard-red-metrics-native.json` | `docker/grafana-dashboard-red-metrics-native.json` | `8ebeccf63198fa8168c8071b067caec8651c6e99` | Added visible `run_id` variable and `service_instance_id="$run_id"` PromQL filters |
+| `infra/perf-stack/config/grafana/dashboards/grafana-dashboard-jvm-metrics.json` | `docker/grafana-dashboard-jvm-metrics.json` | `8ebeccf63198fa8168c8071b067caec8651c6e99` | Added visible `run_id` variable and `service_instance_id="$run_id"` PromQL filters |
+
+`infra/perf-stack/config/grafana/dashboards/vt-runs.json` is VT-owned, not
+vendored.
 
 ## Upstream files inspected
 
