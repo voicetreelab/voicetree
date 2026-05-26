@@ -26,15 +26,24 @@ const MANIFEST_PATH = join(BIN_DIR, '.install-manifest.json')
 
 const PLATFORM = `${process.platform}-${process.arch}`
 
+const platformUrl = (urls) => () => {
+  const url = urls[PLATFORM]
+  if (!url) throw new Error(`no download URL for ${PLATFORM}`)
+  return url
+}
+
 const BINARIES = [
   {
     name: 'grafana',
     version: 'v13.0.1',
     kind: 'archive',
-    urlPattern: () =>
-      'https://dl.grafana.com/grafana/release/13.0.1/grafana_13.0.1_24542347077_darwin_arm64.tar.gz',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://dl.grafana.com/grafana/release/13.0.1/grafana_13.0.1_24542347077_darwin_arm64.tar.gz',
+      'linux-x64': 'https://dl.grafana.com/grafana/release/13.0.1/grafana_13.0.1_24542347077_linux_amd64.tar.gz',
+    }),
     sha256: {
       'darwin-arm64': '5bf866290341d8f7fd14da5f11fc2a22f9d6d09da10519823ccab6835a448b3b',
+      'linux-x64': '187ddc4badb69aecb7cd3fae2884add7ed21adde7124a6f8093b7b4033d722f2',
     },
     binaryCandidates: ['grafana'],
     homeDir: 'grafana-home',
@@ -43,31 +52,46 @@ const BINARIES = [
     name: 'loki',
     version: 'v3.7.2',
     kind: 'archive',
-    urlPattern: () => 'https://github.com/grafana/loki/releases/download/v3.7.2/loki-darwin-arm64.zip',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/grafana/loki/releases/download/v3.7.2/loki-darwin-arm64.zip',
+      'linux-x64': 'https://github.com/grafana/loki/releases/download/v3.7.2/loki-linux-amd64.zip',
+    }),
     sha256: {
       'darwin-arm64': 'daf689642ba0a96c627d1de092a48fc4b5ac4d583a08a04dbb85fd50133c28dd',
+      'linux-x64': '1c409620f1ca185b4e85148eecc4a08a00034767708887eeb461588334358137',
     },
-    binaryCandidates: ['loki-darwin-arm64', 'loki'],
+    binaryCandidates: ['loki-darwin-arm64', 'loki-linux-amd64', 'loki'],
   },
   {
     name: 'logcli',
     version: 'v3.7.2',
     kind: 'archive',
-    urlPattern: () => 'https://github.com/grafana/loki/releases/download/v3.7.2/logcli-darwin-arm64.zip',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/grafana/loki/releases/download/v3.7.2/logcli-darwin-arm64.zip',
+      'linux-x64': 'https://github.com/grafana/loki/releases/download/v3.7.2/logcli-linux-amd64.zip',
+    }),
     sha256: {
       'darwin-arm64': '21f1ce5b20f6399ee636a7102823cf4b40c7f0231d7de614b8f50ef811a73075',
+      'linux-x64': '7850d566d2af10d7adf255ed9452de632ab20c0f269dc61fac7f70bed4d99e48',
     },
-    binaryCandidates: ['logcli-darwin-arm64', 'logcli'],
+    binaryCandidates: ['logcli-darwin-arm64', 'logcli-linux-amd64', 'logcli'],
   },
   {
     name: 'tempo',
     version: 'v2.10.5',
     kind: 'source-build',
-    urlPattern: () =>
-      'https://github.com/grafana/tempo/archive/991ce39eb956e9ed771fcffe05eff42d33de27ba.tar.gz',
+    kindByPlatform: {
+      'linux-x64': 'archive',
+    },
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/grafana/tempo/archive/991ce39eb956e9ed771fcffe05eff42d33de27ba.tar.gz',
+      'linux-x64': 'https://github.com/grafana/tempo/releases/download/v2.10.5/tempo_2.10.5_linux_amd64.tar.gz',
+    }),
     sha256: {
       'darwin-arm64': 'd8d1c1c7949343263621fa5d6b98030486841d1fb64622bbbbcb7ac21b593540',
+      'linux-x64': '78bb32a022382835f445736920db06072f24e88bf3dddc803dfdfdd21fe197db',
     },
+    binaryCandidates: ['tempo'],
     buildDirName: 'tempo-991ce39eb956e9ed771fcffe05eff42d33de27ba',
     buildTarget: './cmd/tempo',
     note: 'No darwin-arm64 release archive exists for Tempo v2.10.5; built from the pinned tag commit source archive.',
@@ -80,6 +104,7 @@ const BINARIES = [
       'https://github.com/grafana/tempo/archive/991ce39eb956e9ed771fcffe05eff42d33de27ba.tar.gz',
     sha256: {
       'darwin-arm64': 'd8d1c1c7949343263621fa5d6b98030486841d1fb64622bbbbcb7ac21b593540',
+      'linux-x64': 'd8d1c1c7949343263621fa5d6b98030486841d1fb64622bbbbcb7ac21b593540',
     },
     buildDirName: 'tempo-991ce39eb956e9ed771fcffe05eff42d33de27ba',
     buildTarget: './cmd/tempo-cli',
@@ -93,6 +118,7 @@ const BINARIES = [
       'https://github.com/google/pprof/archive/92041b743c966065641d7221da5403ad9a019bce.tar.gz',
     sha256: {
       'darwin-arm64': '0bf075c8839ab0f660c0a7119a4bf6ca394a4830018a3c21f5fe31650736087a',
+      'linux-x64': '0bf075c8839ab0f660c0a7119a4bf6ca394a4830018a3c21f5fe31650736087a',
     },
     buildDirName: 'pprof-92041b743c966065641d7221da5403ad9a019bce',
     buildTarget: '.',
@@ -102,10 +128,13 @@ const BINARIES = [
     name: 'victoriametrics',
     version: 'v1.144.0',
     kind: 'archive',
-    urlPattern: () =>
-      'https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.144.0/victoria-metrics-darwin-arm64-v1.144.0.tar.gz',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.144.0/victoria-metrics-darwin-arm64-v1.144.0.tar.gz',
+      'linux-x64': 'https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.144.0/victoria-metrics-linux-amd64-v1.144.0.tar.gz',
+    }),
     sha256: {
       'darwin-arm64': '56e9b6ff18e599b59e948399e9e759e593abebdde670a39c0e6731227c322fc9',
+      'linux-x64': 'e27295e9ac8cd6f3abcf7a5f39fbdb033e9674e956adf2118501f032b9a532e0',
     },
     binaryCandidates: ['victoria-metrics-prod', 'victoria-metrics'],
   },
@@ -113,10 +142,13 @@ const BINARIES = [
     name: 'promtool',
     version: 'v3.11.3',
     kind: 'archive',
-    urlPattern: () =>
-      'https://github.com/prometheus/prometheus/releases/download/v3.11.3/prometheus-3.11.3.darwin-arm64.tar.gz',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/prometheus/prometheus/releases/download/v3.11.3/prometheus-3.11.3.darwin-arm64.tar.gz',
+      'linux-x64': 'https://github.com/prometheus/prometheus/releases/download/v3.11.3/prometheus-3.11.3.linux-amd64.tar.gz',
+    }),
     sha256: {
       'darwin-arm64': '742773c5b3958eec5e6b58802f25cf77b47a319219ce0d508ed2f657c61d8859',
+      'linux-x64': '9479af67673316278958cda1f39b88a09f8921084e039c65acca060d0447bb38',
     },
     binaryCandidates: ['promtool'],
   },
@@ -124,10 +156,13 @@ const BINARIES = [
     name: 'pyroscope',
     version: 'v2.0.2',
     kind: 'archive',
-    urlPattern: () =>
-      'https://github.com/grafana/pyroscope/releases/download/v2.0.2/pyroscope_2.0.2_darwin_arm64.tar.gz',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/grafana/pyroscope/releases/download/v2.0.2/pyroscope_2.0.2_darwin_arm64.tar.gz',
+      'linux-x64': 'https://github.com/grafana/pyroscope/releases/download/v2.0.2/pyroscope_2.0.2_linux_amd64.tar.gz',
+    }),
     sha256: {
       'darwin-arm64': 'a8ebd0c3b9a5abe2d21c2bc2ad2076b5ea2b8adec09b69c09b450330816f8def',
+      'linux-x64': 'd4ed2d1f24532222436a1512ba033386154377e19bf371f49070755e7e4fe250',
     },
     binaryCandidates: ['pyroscope'],
   },
@@ -135,10 +170,13 @@ const BINARIES = [
     name: 'otelcol-contrib',
     version: 'v0.152.0',
     kind: 'archive',
-    urlPattern: () =>
-      'https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.152.0/otelcol-contrib_0.152.0_darwin_arm64.tar.gz',
+    urlPattern: platformUrl({
+      'darwin-arm64': 'https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.152.0/otelcol-contrib_0.152.0_darwin_arm64.tar.gz',
+      'linux-x64': 'https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.152.0/otelcol-contrib_0.152.0_linux_amd64.tar.gz',
+    }),
     sha256: {
       'darwin-arm64': '0a5a4f595e7f1e6d885102fa89abdd41eb4fd1ef432ee7553818fef2ccb93339',
+      'linux-x64': 'f8d96a0c72454bf993ccb74776d24d3a9b8e74c9d5e167b0109f9b510bd7605e',
     },
     binaryCandidates: ['otelcol-contrib'],
   },
@@ -173,6 +211,17 @@ const download = async (url, targetPath) => {
 
 const extractArchive = async (archivePath, extractDir) => {
   await mkdir(extractDir, { recursive: true })
+  if (archivePath.endsWith('.zip')) {
+    const unzip = spawnSync('unzip', ['-q', archivePath, '-d', extractDir], { encoding: 'utf8' })
+    if (unzip.status === 0) return
+
+    const pythonZip = spawnSync('python3', ['-m', 'zipfile', '-e', archivePath, extractDir], { encoding: 'utf8' })
+    if (pythonZip.status !== 0) {
+      throw new Error(`zip extraction failed for ${archivePath}\n${pythonZip.stderr || pythonZip.stdout || unzip.stderr || unzip.stdout}`)
+    }
+    return
+  }
+
   const result = spawnSync('tar', ['-xf', archivePath, '-C', extractDir], { encoding: 'utf8' })
   if (result.status !== 0) {
     throw new Error(`tar failed for ${archivePath}\n${result.stderr || result.stdout}`)
@@ -250,11 +299,10 @@ const copyTree = async (from, to) => {
 }
 
 const installSourceBuild = async (binary, manifest) => {
-  if (PLATFORM !== 'darwin-arm64') {
-    throw new Error(`${binary.name} has no binary archive manifest for ${PLATFORM}; ${binary.note}`)
-  }
-
   const pinnedSha = binary.sha256[PLATFORM]
+  if (!pinnedSha) {
+    throw new Error(`${binary.name} has no pinned source sha256 for ${PLATFORM}; ${binary.note}`)
+  }
   const targetPath = join(BIN_DIR, binary.name)
   const record = manifest[binary.name]
   if (record?.platform === PLATFORM && record?.sourceSha256 === pinnedSha && await exists(targetPath)) {
@@ -262,7 +310,7 @@ const installSourceBuild = async (binary, manifest) => {
   }
 
   const goVersion = spawnSync('go', ['version'], { encoding: 'utf8' })
-  if (goVersion.status !== 0) throw new Error(`${binary.name} requires go for the darwin-arm64 source build`)
+  if (goVersion.status !== 0) throw new Error(`${binary.name} requires go for the ${PLATFORM} source build`)
 
   const tempDir = await mkdtemp(join(tmpdir(), `vt-perf-${binary.name}-`))
   try {
@@ -301,9 +349,10 @@ const installSourceBuild = async (binary, manifest) => {
 
 const installBinary = async (binary, manifest) => {
   await mkdir(BIN_DIR, { recursive: true })
-  if (binary.kind === 'archive') return installArchive(binary, manifest)
-  if (binary.kind === 'source-build') return installSourceBuild(binary, manifest)
-  throw new Error(`unknown binary kind ${binary.kind}`)
+  const kind = binary.kindByPlatform?.[PLATFORM] ?? binary.kind
+  if (kind === 'archive') return installArchive(binary, manifest)
+  if (kind === 'source-build') return installSourceBuild(binary, manifest)
+  throw new Error(`unknown binary kind ${kind}`)
 }
 
 const main = async () => {
