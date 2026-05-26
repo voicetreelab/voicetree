@@ -26,10 +26,6 @@ const WARN_MODE_UNTIL = '2026-06-02'
 
 const SOURCE_EXT_PATTERN = /\.(ts|tsx|js|jsx|mjs|cjs)$/
 
-type CachedContext = Awaited<ReturnType<typeof buildNameUniquenessContext>>
-let cachedHead: string | null = null
-let cachedContextPromise: Promise<CachedContext> | null = null
-
 function currentHeadSha(): string | null {
     try {
         return execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim()
@@ -50,15 +46,6 @@ function previousContentAtHead(filePath: string): string | null {
     } catch {
         return null
     }
-}
-
-async function loadContextMemoised(): Promise<CachedContext> {
-    const head = currentHeadSha()
-    if (head !== cachedHead || cachedContextPromise === null) {
-        cachedHead = head
-        cachedContextPromise = buildNameUniquenessContext({cacheKey: head})
-    }
-    return cachedContextPromise
 }
 
 function formatViolation(violation: ReturnType<typeof findNameUniquenessViolations>[number]): string {
@@ -104,7 +91,7 @@ export async function checkFile(args: {
     })
     if (scope.length === 0) return null
 
-    const context = await loadContextMemoised()
+    const context = await buildNameUniquenessContext({cacheKey: currentHeadSha()})
     const violations = findNameUniquenessViolations({
         scope,
         index: context.index,
