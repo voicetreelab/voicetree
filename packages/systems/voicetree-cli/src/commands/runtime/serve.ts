@@ -9,9 +9,9 @@ import {
 } from '@vt/graph-db-client'
 import {
     buildDefaultToolCatalog,
-    configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
+    setCurrentVault,
     startHttpDaemonServer,
     startVaultStateWatcher,
     type HookHandler,
@@ -117,19 +117,6 @@ function findVoicetreeCliPackageDir(startUrl: string): string | null {
 }
 
 function configureHeadlessBridges(appSupportPath: string): void {
-    configureMcpServer({
-        liveState: {
-            applyLiveCommand: (): Promise<never> =>
-                Promise.reject(new Error(
-                    'vt_dispatch_live_command requires an Electron renderer. Not available in headless vt serve.',
-                )),
-            getLiveStateSnapshot: (): Promise<never> =>
-                Promise.reject(new Error(
-                    'vt_get_live_state requires an Electron renderer. Not available in headless vt serve.',
-                )),
-        },
-    })
-
     // `vt serve` is itself shipped inside @voicetree/cli, so the `vt` binary
     // lives in this very package's bin/ directory. Walk up from this module
     // until we find the directory containing `bin/vt`. This handles both the
@@ -162,6 +149,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
     process.env.VOICETREE_APP_SUPPORT = appSupportPath
 
     configureHeadlessBridges(appSupportPath)
+    setCurrentVault(args.vault)
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 

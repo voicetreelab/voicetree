@@ -36,7 +36,6 @@ import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {tracing} from '@vt/observability'
 import {
     buildDefaultToolCatalog,
-    configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
     setCurrentVault,
@@ -102,22 +101,6 @@ function defaultAppSupportPath(): string {
 }
 
 function configureHeadlessBridges(appSupportPath: string): void {
-    // Live-state tools require an Electron renderer; fail with a clear MCP error
-    // rather than crashing the daemon.
-    configureMcpServer({
-        liveState: {
-            applyLiveCommand: (): Promise<never> =>
-                Promise.reject(new Error(
-                    'vt_dispatch_live_command requires an Electron renderer. Not available in headless vt-mcpd.',
-                )),
-            getLiveStateSnapshot: (): Promise<never> =>
-                Promise.reject(new Error(
-                    'vt_get_live_state requires an Electron renderer. Not available in headless vt-mcpd.',
-                )),
-        },
-        // search bridge omitted: search_nodes returns "Search backend is not configured."
-    })
-
     // The CLI manual and `vt` binary are both shipped inside @voicetree/cli.
     // vt-mcpd lives next to it on disk (packages/systems/vt-daemon →
     // packages/systems/voicetree-cli), so resolve relative to this file

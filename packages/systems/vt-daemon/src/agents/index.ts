@@ -3,10 +3,9 @@
 // this barrel or via the stable internal subpaths declared in
 // package.json#exports.
 
-export {configureMcpServer, getLiveStateBridge, getSearchBridge} from '../config/mcp-config'
+export {configureMcpServer, getSearchBridge} from '../config/mcp-config'
 export type {
     McpServerConfig,
-    LiveStateBridge,
     SearchBridge,
     AskQueryResponse,
     SearchSimilarResult,
