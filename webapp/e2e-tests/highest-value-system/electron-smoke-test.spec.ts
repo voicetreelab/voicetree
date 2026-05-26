@@ -382,9 +382,11 @@ test.describe('Smoke Test', () => {
   // TODO(merge): test depends on the legacy MCP server surface
   // (`api.main.getMcpPort()` + JSON-RPC over `/mcp`). dev-lochlan replaced MCP
   // with the @vt/vt-daemon unified HTTP transport: tool calls flow as
-  // JSON-RPC over `POST /rpc`, discovered via `api.main.getDaemonUrl()` +
-  // `api.main.getAuthToken()` on the renderer, or `$VOICETREE_DAEMON_URL` +
-  // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` for spawned subprocesses.
+  // JSON-RPC over `POST /rpc`, discovered via `api.main.getDaemonUrl()` on the
+  // renderer plus `<vault>/.voicetree/auth-token` for the bearer token (BF-368
+  // moved token-holding entirely out of the renderer process), or
+  // `$VOICETREE_DAEMON_URL` + `$VOICETREE_VAULT_PATH/.voicetree/auth-token`
+  // for spawned subprocesses.
   //
   // STATUS (2026-05-26): fake-agent transport migration is COMPLETE.
   // `tools/vt-fake-agent/src/mcp-client.ts` now sits on top of @vt/vt-rpc's
