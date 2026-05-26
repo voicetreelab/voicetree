@@ -13,8 +13,6 @@ import {
     configureMcpServer,
     registerChildIfMonitored,
 } from '@vt/vt-daemon';
-import {agentRuntime} from '@vt/agent-runtime';
-import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts';
 import {existsSync} from 'node:fs';
 import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {
@@ -139,7 +137,7 @@ terminalRuntimeSurface.configureAgentRuntime({
             return O.isSome(writeFolder) ? writeFolder.value : null;
         },
         getCliManualPath: (): string => getBuildConfig().cliManualPath,
-        getVtBinDir: (): string | null => resolveVtBinDir(getBuildConfig().voicetreeCliPackageDir, existsSync),
+        getVtBinDir: (): string | null => terminalRuntimeSurface.resolveVtBinDir(getBuildConfig().voicetreeCliPackageDir, existsSync),
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),
@@ -267,7 +265,7 @@ void app.whenReady().then(async () => {
     try {
         const appSupportPath: string = getAppSupportPath();
         if (appSupportPath) {
-            agentRuntime.installJsonlTelemetrySink(path.join(appSupportPath, 'lifecycle-telemetry.jsonl'));
+            terminalRuntimeSurface.installJsonlTelemetrySink(path.join(appSupportPath, 'lifecycle-telemetry.jsonl'));
         }
     } catch (err) {
         log.warn(`[Startup] telemetry sink install skipped: ${err instanceof Error ? err.message : String(err)}`);
