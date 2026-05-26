@@ -54,6 +54,57 @@ type ImportEdge = {
 // Even a type-only import would make observability a 2-of-2 boundary
 // package under pressure-axes, so the event shape is duplicated structurally
 // inside the bridge.
+//
+// 2026-05-26: parallel-branch merge gap. `ec330b7fd` (extract positioning
+// from authoring paths to the daemon watcher) introduced one new value
+// import in graph-db-server — `resolveInitialPositionsForDelta` from
+// `@vt/graph-model/spatial`, used in `applyGraphDeltaToMemState` to resolve
+// initial positions for any delta whose nodes arrived with `position=O.none`
+// (authoring code now uses that for agent-spawn batches). That refactor
+// net-removed 42 production .ts lines by consolidating positioning into one
+// pure call; the budget bump records the new symbol the consolidation
+// requires rather than rolling back the refactor:
+//   graph-db-server -> graph-model:       41 -> 42 (+1 resolveInitialPositionsForDelta)
+//
+// 2026-05-26: record budgets for newly-extracted sibling packages whose
+// edges did not exist when the manifest was last updated. None of these
+// is a regression in pre-existing coupling — each is the measured value
+// for an edge that began at 0 on the package-extraction commit.
+//
+// `@vt/vt-rpc` (`packages/libraries/vt-rpc/`, scaffolded 2026-05-24):
+// shared HTTP/JSON-RPC transport primitives (port-file discovery, auth
+// token read/write, rpc client). Pure-infrastructure leaf consumed by
+// both daemon and clients (mirrors `@vt/observability` line above):
+//   graph-tools -> vt-rpc:                 0 -> 8  (live transport client +
+//     headless server use rpc client + auth/port-file helpers)
+//   vt-daemon -> vt-rpc:                   0 -> 2  (ERROR_CODES,
+//     redactAuthorizationHeader for HTTP server middleware)
+//   vt-fake-agent -> vt-rpc:               0 -> 1  (createRpcClient)
+//   webapp -> vt-rpc:                      0 -> 3  (generateAuthToken,
+//     writeAuthTokenFile, writeRpcPortFile in electron daemon binding)
+//
+// `voicetree-cli` (`packages/systems/voicetree-cli/`, extracted from webapp
+// 2026-05-23 `21622d06e`): the headless `vt` CLI. The package took over
+// the headless subset of webapp's responsibilities, so its sibling-package
+// imports look structurally similar to webapp's (graph-db-client + vt-daemon
+// + graph-tools + agent-runtime are exactly the same orchestration surface,
+// just driven from the CLI instead of the Electron shell). Each count here
+// is the measured value at extraction; voicetree-cli should ratchet down
+// over time, not up:
+//   voicetree-cli -> agent-runtime:        0 -> 4  (vt serve spawns runtime)
+//   voicetree-cli -> graph-db-client:      0 -> 7  (vt graph/vault/session)
+//   voicetree-cli -> graph-db-server:      0 -> 3  (search backend + types
+//     for vt graph index/search)
+//   voicetree-cli -> graph-model:          0 -> 1  (fromNodeToMarkdownContent
+//     for vt graph snapshot)
+//   voicetree-cli -> graph-tools:          0 -> 11 (graphGroup/Move/Rename
+//     re-exports + view renderers + filesystem authoring helpers)
+//   voicetree-cli -> voicetree-graph-validation: 0 -> 1 (OVERRIDABLE_RULE_IDS
+//     for --override parser)
+//   voicetree-cli -> vt-daemon:            0 -> 7  (vt serve boots the
+//     in-process daemon with the same tool catalog the Electron shell uses)
+//   voicetree-cli -> vt-rpc:               0 -> 9  (rpc client + auth/port
+//     discovery for talking to the daemon)
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
@@ -63,12 +114,21 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'graph-db-client -> graph-db-server': 17,
     'graph-db-server -> app-config': 13,
     'graph-db-server -> graph-db-protocol': 4,
-    'graph-db-server -> graph-model': 41,
+    'graph-db-server -> graph-model': 42,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
     'graph-state -> graph-model': 8,
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
+    'graph-tools -> vt-rpc': 8,
+    'voicetree-cli -> agent-runtime': 4,
+    'voicetree-cli -> graph-db-client': 7,
+    'voicetree-cli -> graph-db-server': 3,
+    'voicetree-cli -> graph-model': 1,
+    'voicetree-cli -> graph-tools': 11,
+    'voicetree-cli -> voicetree-graph-validation': 1,
+    'voicetree-cli -> vt-daemon': 7,
+    'voicetree-cli -> vt-rpc': 9,
     'vt-daemon -> agent-runtime': 14,
     'vt-daemon -> app-config': 1,
     'vt-daemon -> graph-db-server': 8,
@@ -76,6 +136,8 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'vt-daemon -> graph-state': 1,
     'vt-daemon -> graph-tools': 7,
     'vt-daemon -> voicetree-graph-validation': 1,
+    'vt-daemon -> vt-rpc': 2,
+    'vt-fake-agent -> vt-rpc': 1,
     'webapp -> agent-runtime': 15,
     'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
@@ -85,6 +147,7 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
     'webapp -> vt-daemon': 13,
+    'webapp -> vt-rpc': 3,
 }
 
 async function pathExists(p: string): Promise<boolean> {
