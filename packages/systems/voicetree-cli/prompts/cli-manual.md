@@ -198,3 +198,20 @@ Apply a SerializedCommand to the running app. Returns {delta, revision}.
   - RemoveEdge: {type, source, targetId}
   - RemoveNode: {type, id}
   - AddNode: {type, node} (full SerializedGraphNode)
+
+### `vt agent metrics sessions`
+
+Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <vault>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.
+
+### `vt agent metrics append`
+
+Append (or upsert by sessionId) a single session's token/cost telemetry into <vault>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.
+
+**Parameters:**
+
+- `sessionId`: Session identifier (Claude Code session.id or Voicetree terminal id)
+- `tokens`: Token usage for this session
+  - `input`: Input tokens
+  - `output`: Output tokens
+  - `cacheRead`: Cache-read tokens (optional)
+- `costUsd`: Cost in USD

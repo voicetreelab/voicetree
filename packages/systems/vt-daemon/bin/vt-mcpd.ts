@@ -41,7 +41,9 @@ import {
     registerChildIfMonitored,
     setCurrentVault,
     startHttpDaemonServer,
+    startOtlpReceiver,
     startVaultStateWatcher,
+    stopOtlpReceiver,
     type HookHandler,
     type HttpDaemonServerHandle,
     type VaultStateWatcherHandle,
@@ -213,6 +215,18 @@ async function main(): Promise<void> {
         die(`failed to start vault-state watcher: ${(err as Error).message}`)
     }
 
+    // OTLP receiver — receives metrics from Claude-Code-style agents on
+    // localhost:4318+. Publishes <vault>/.voicetree/otlp.port so the agent
+    // spawn pipeline can inject OTEL_EXPORTER_OTLP_ENDPOINT against the
+    // actual bound port (which retries on EADDRINUSE up to +9).
+    try {
+        await startOtlpReceiver(args.vault)
+    } catch (err) {
+        process.stderr.write(
+            `vt-mcpd: OTLP receiver start failed (continuing): ${(err as Error).message}\n`,
+        )
+    }
+
     // Lifecycle JSONL telemetry sink.
     try {
         agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
@@ -245,6 +259,9 @@ async function main(): Promise<void> {
         try {
             await vaultStateWatcher.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: vault-state watcher stop error: ${(err as Error).message}\n`)
+            })
+            await stopOtlpReceiver().catch((err: unknown) => {
+                process.stderr.write(`vt-mcpd: OTLP receiver stop error: ${(err as Error).message}\n`)
             })
             await httpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: http daemon stop error: ${(err as Error).message}\n`)
