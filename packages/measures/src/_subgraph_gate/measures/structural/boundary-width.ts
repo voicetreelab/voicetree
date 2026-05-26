@@ -53,6 +53,15 @@ export const MEASURE_ID = 'boundary-width'
  */
 export const BOUNDARY_WIDTH_ABSOLUTE_BUDGET = 30
 
+function boundaryExportNames(filePath: string, text: string): readonly string[] {
+    const names = exportedSymbolNames(filePath, text)
+    if (!filePath.includes('/packages/measures/src/checks/')) return names
+
+    // Check modules are auto-discovered plugin adapters. Their uniform port
+    // exports are framework hooks, not a hand-authored public API surface.
+    return names.filter(name => name !== 'check' && name !== 'checkFile')
+}
+
 async function countExportsInFile(file: SourceFile, parsedSubgraph: SubgraphMeasureInput['parsedSubgraph']): Promise<number> {
     // Prefer parsedSubgraph's cached content — it routes through the
     // runner's staged-blob loader so unstaged peer-WIP doesn't pollute
@@ -60,10 +69,10 @@ async function countExportsInFile(file: SourceFile, parsedSubgraph: SubgraphMeas
     // built by an out-of-band path (test helpers) that didn't populate
     // the cache.
     const cached = parsedSubgraph.getContent(file.absolutePath)
-    if (cached !== null) return exportedSymbolNames(file.absolutePath, cached).length
+    if (cached !== null) return boundaryExportNames(file.absolutePath, cached).length
     try {
         const text = await readFile(file.absolutePath, 'utf8')
-        return exportedSymbolNames(file.absolutePath, text).length
+        return boundaryExportNames(file.absolutePath, text).length
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return 0
         throw err

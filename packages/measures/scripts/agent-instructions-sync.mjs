@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises'
 import {dirname, resolve as resolvePath} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-const REPO_ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..')
+const REPO_ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const FILE_A = 'CLAUDE.md'
 const FILE_B = 'AGENTS.md'
 
