@@ -17,6 +17,14 @@
  *      resolver and run it under `--import tsx` so a workspace dev (no
  *      built dist) can still spawn the daemon.
  *
+ * The Node runtime is selected via graphd's `resolveDaemonRuntimeCommand`
+ * helper — which explicitly REJECTS the Electron binary as a host. When
+ * Electron Main spawns the VTD child, `process.execPath` is the Electron
+ * binary; invoking it with `--import tsx vtd.ts --vault X` silently fails
+ * (Electron treats vtd.ts as a renderer entrypoint instead of executing it
+ * as a Node script), the VTD never opens its HTTP port, and the renderer's
+ * vault-open chain hangs waiting for a daemon that will never appear.
+ *
  * The argv shape (`--vault <vault>`) is BF-371's contract — never
  * `--project-root` (that's graphd). The two arguments are intentionally
  * distinct so a misconfigured launcher fails loudly at `parseArgs` rather
@@ -24,7 +32,10 @@
  */
 
 import { createRequire } from 'node:module'
-import type { CommandSpec } from '@vt/graph-db-client/autoLaunch/spawn/runtime'
+import {
+  resolveDaemonRuntimeCommand,
+  type CommandSpec,
+} from '@vt/graph-db-client/autoLaunch/spawn/runtime'
 
 const requireFromHere = createRequire(import.meta.url)
 
@@ -58,7 +69,7 @@ export function resolveCommand(
   if (fromEnv) return parseOverride(fromEnv, vault)
 
   return {
-    cmd: process.execPath,
+    cmd: resolveDaemonRuntimeCommand(),
     args: ['--import', resolveTsxLoader(), resolveVtdBinPath(), '--vault', vault],
     env: { ...process.env },
   }
