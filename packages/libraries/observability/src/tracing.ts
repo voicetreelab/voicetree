@@ -1,5 +1,5 @@
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
+import { BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   context,
   propagation,
@@ -17,7 +17,10 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core'
-import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
+import type { ReadableSpan, SpanExporter, SpanProcessor } from '@opentelemetry/sdk-trace-base'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
+import { resourceFromAttributes } from '@opentelemetry/resources'
+import { ATTR_SERVICE_INSTANCE_ID, ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
 // Structural shape of the owner-diagnostic event published by graph-db-client.
 // Deliberately NOT imported from `@vt/graph-db-protocol`:
@@ -87,9 +90,21 @@ function createNdjsonFileExporter(filePath: string): SpanExporter {
 
 let tracingInitialized = false
 
+// Reader-env: callers pass their env-derived values explicitly rather than
+// `init` reading process.env. Keeps the library's strict-tier implicit-globals
+// score honest and lets tests inject without monkeypatching env.
+type TracingEnv = {
+  readonly otlpEndpoint?: string
+  readonly instanceId?: string
+}
+
 // Initialize tracing — call once at process startup.
-// Writes NDJSON spans to ~/.voicetree/traces/<serviceName>.ndjson
-function initTracingImpl(serviceName: string): void {
+// Always writes NDJSON spans to ~/.voicetree/traces/<serviceName>.ndjson.
+// Additionally exports to an OTLP gRPC endpoint when `env.otlpEndpoint` is a
+// non-empty string. Resource attributes carry service.name and
+// service.instance.id (from `env.instanceId`) so a single Grafana view can
+// filter by run.
+function initTracingImpl(serviceName: string, env: TracingEnv = {}): void {
   if (tracingInitialized) {
     return
   }
@@ -99,11 +114,23 @@ function initTracingImpl(serviceName: string): void {
   mkdirSync(traceDir, { recursive: true })
   const traceFile = join(traceDir, `${serviceName}.ndjson`)
 
-  const provider = new NodeTracerProvider({
-    spanProcessors: [
-      new SimpleSpanProcessor(createNdjsonFileExporter(traceFile)),
-    ],
+  const spanProcessors: SpanProcessor[] = [
+    new SimpleSpanProcessor(createNdjsonFileExporter(traceFile)),
+  ]
+
+  if (env.otlpEndpoint && env.otlpEndpoint.length > 0) {
+    spanProcessors.push(
+      new BatchSpanProcessor(new OTLPTraceExporter({ url: env.otlpEndpoint })),
+    )
+  }
+
+  const resource = resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: serviceName,
+    [ATTR_SERVICE_INSTANCE_ID]:
+      env.instanceId && env.instanceId.length > 0 ? env.instanceId : serviceName,
   })
+
+  const provider = new NodeTracerProvider({ resource, spanProcessors })
   provider.register()
   // Register the W3C trace-context + baggage propagator so cross-process
   // HTTP calls (client → daemon) inject `traceparent` and remote handlers
