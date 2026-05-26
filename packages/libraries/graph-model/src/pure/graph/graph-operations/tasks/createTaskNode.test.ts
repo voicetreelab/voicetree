@@ -222,6 +222,33 @@ describe('createTaskNode', () => {
       expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).not.toContain('parent-node.md')
     })
 
+    it('should mark the parent line with a system-managed HTML comment so spawned children do not mimic it', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/vault/a.md': createTestNode('/vault/a.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const params: TaskNodeCreationParams = {
+        taskDescription: 'A task',
+        selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolder: '/vault',
+        position: { x: 0, y: 0 }
+      }
+
+      const result: GraphDelta = createTaskNode(params)
+      const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
+
+      // Spawned children read this content embedded in their context node.
+      // The comment differentiates the daemon-written parent line from a
+      // pattern children should imitate when authoring their own progress
+      // nodes. Without it, children mimic `- parent [[X]]` and attach to
+      // the grandparent.
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).toContain(
+        '<!-- system-managed parent edge — do not mimic this pattern in your own progress nodes -->'
+      )
+    })
+
     it('should still resolve the parent edge to the full node id', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/vault/subdir/parent-node.md': createTestNode('/vault/subdir/parent-node.md', [])

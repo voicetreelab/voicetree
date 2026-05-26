@@ -46,8 +46,16 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   // Build markdown content with task description and parent link only.
   // Selected node references are stored in the context node, not here,
   // to avoid duplicate edges cluttering the graph.
+  //
+  // The HTML comment marks this edge as system-maintained. Spawned agents
+  // read this task node's body via their context node (it gets embedded
+  // verbatim in the <TASK> block), and without the comment they mimic the
+  // `- parent [[X]]` pattern in their own progress nodes — attaching their
+  // work to the GRANDPARENT instead of defaulting to their task node. The
+  // comment makes the daemon-vs-author distinction visible to the LLM.
   const markdownContent: string = `# ${taskDescription}
 
+<!-- system-managed parent edge — do not mimic this pattern in your own progress nodes -->
 - parent [[${parentBasename}]]
 `
 
