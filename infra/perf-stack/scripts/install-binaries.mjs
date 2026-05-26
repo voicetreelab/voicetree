@@ -50,6 +50,16 @@ const BINARIES = [
     binaryCandidates: ['loki-darwin-arm64', 'loki'],
   },
   {
+    name: 'logcli',
+    version: 'v3.7.2',
+    kind: 'archive',
+    urlPattern: () => 'https://github.com/grafana/loki/releases/download/v3.7.2/logcli-darwin-arm64.zip',
+    sha256: {
+      'darwin-arm64': '21f1ce5b20f6399ee636a7102823cf4b40c7f0231d7de614b8f50ef811a73075',
+    },
+    binaryCandidates: ['logcli-darwin-arm64', 'logcli'],
+  },
+  {
     name: 'tempo',
     version: 'v2.10.5',
     kind: 'source-build',
