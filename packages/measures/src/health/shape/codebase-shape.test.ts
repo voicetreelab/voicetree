@@ -2,14 +2,15 @@ import {readdir, readFile} from 'node:fs/promises'
 import {extname, join, relative} from 'node:path'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
-import {
-    MAX_DIRECTORY_CHILDREN,
-    IGNORED_DIRECTORY_NAMES,
-    findFanoutViolations,
-    formatFanoutReport,
-    type DirectoryFanout,
-} from '../../_shared/shape/directory-fanout'
+import {checkDirectoryFanouts} from '../../_shared/shape/directory-fanout'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+
+const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
+    'build',
+    'coverage',
+    'dist',
+    'node_modules',
+])
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
@@ -35,26 +36,6 @@ function countLines(text: string): number {
     return text.endsWith('\n')
         ? text.slice(0, -1).split(/\r\n|\n|\r/).length
         : text.split(/\r\n|\n|\r/).length
-}
-
-async function scanDirectoryFanout(root: string): Promise<DirectoryFanout[]> {
-    const entries = await readdir(root, {withFileTypes: true})
-    const visibleEntries = entries
-        .filter(entry => !(entry.isDirectory() && IGNORED_DIRECTORY_NAMES.has(entry.name)))
-        .sort((a, b) => a.name.localeCompare(b.name))
-
-    const current: DirectoryFanout = {
-        directory: relative(REPO_ROOT, root),
-        childCount: visibleEntries.length,
-        children: visibleEntries.map(entry => entry.name),
-    }
-
-    const nested = await Promise.all(visibleEntries.map(entry => {
-        if (!entry.isDirectory()) return Promise.resolve<DirectoryFanout[]>([])
-        return scanDirectoryFanout(join(root, entry.name))
-    }))
-
-    return [current, ...nested.flat()]
 }
 
 async function scanFileLineCounts(root: string): Promise<FileLineCount[]> {
@@ -84,25 +65,21 @@ function formatFileLineViolation(violation: FileLineCount): string {
 
 describe('systems codebase shape', () => {
     it('keeps every source directory at or below the immediate-child limit', async () => {
-        const sourceRoots = await discoverSourceRoots()
-        const fanouts = (await Promise.all(sourceRoots.map(scanDirectoryFanout))).flat()
-        const violations = findFanoutViolations(fanouts)
-        const maxChildCount = fanouts.reduce((max, f) => Math.max(max, f.childCount), 0)
-        const topDirectories = fanouts.slice().sort((a, b) => b.childCount - a.childCount).slice(0, 20)
+        const report = await checkDirectoryFanouts()
 
         await recordHealthMetric({
             metricId: 'codebase-directory-fanout',
             metricName: 'Directory Fanout',
             description: 'Largest immediate child count in systems source directories.',
             category: 'Structure',
-            current: maxChildCount,
-            budget: MAX_DIRECTORY_CHILDREN,
+            current: report.maxChildCount,
+            budget: report.maxAllowedChildCount,
             comparison: 'lte',
             unit: 'children',
-            details: {violations, topDirectories},
+            details: {violations: report.violations, topDirectories: report.topDirectories},
         })
 
-        expect(formatFanoutReport(violations)).toBe('')
+        expect(report.report).toBe('')
     })
 
     it('keeps every source file at or below the line limit', async () => {
