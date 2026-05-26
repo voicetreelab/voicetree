@@ -1,6 +1,8 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {TerminalId} from '@vt/vt-daemon-protocol'
 import {clearBudget} from '../global-budget-registry'
+import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
 import {
     idleSinceByTerminal,
     notificationStateByTerminal,
@@ -26,6 +28,7 @@ export function removeTerminalFromRegistry(terminalId: string): void {
     cancelPendingNotification(terminalId)
     clearBudget(terminalId)
     notifyRegistrySubscribers()
+    publishTerminalRegistryEvent({type: 'terminal-removed', terminalId: terminalId as TerminalId})
 }
 
 /**

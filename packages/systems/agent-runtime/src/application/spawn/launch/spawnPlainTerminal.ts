@@ -16,7 +16,7 @@ import {loadSettings} from '@vt/app-config/settings';
 import type {TerminalData} from '../../terminals/terminal-registry/types';
 import {buildTerminalEnvVars} from '../env/buildTerminalEnvVars';
 import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../../runtime/graph-bridge';
-import {getRuntimeUI} from '../../runtime/runtime-config';
+import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();
@@ -62,7 +62,12 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     agentName: agentName,
   });
 
-  getRuntimeUI().launchTerminalOntoUI?.(nodeId, terminalData);
+  publishTerminalRegistryEvent({
+    type: 'terminal-ui-launch',
+    nodeId,
+    terminalData,
+    skipFitAnimation: false,
+  });
 }
 
 /**

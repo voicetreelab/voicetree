@@ -1,81 +1,80 @@
-import {describe, it, expect, beforeEach, vi} from 'vitest'
-import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
+/**
+ * FS node → agent-name → agentNodeIndex bridge integration.
+ *
+ * The webapp version of this test reproduced a 6-line production callback
+ * from `graph-model-init.ts` (Electron-only) — that callback finds the
+ * terminal with a matching `agent_name` and registers an FS-written
+ * progress node against it. Move stays mechanical: drive the same
+ * agent-runtime helpers directly. No vt-daemon MCP server involved
+ * (the bridge lives in Electron Main), so this file lives in
+ * vt-daemon/integration-tests because that is where the
+ * agent-runtime-backed tests now collect.
+ */
 
-vi.mock('@/shell/edge/main/agent/terminals/send-text-to-terminal', () => ({
-    sendTextToTerminal: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
-    loadSettings: vi.fn().mockResolvedValue({})
-}))
-
-vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn().mockResolvedValue([])
-}))
-
-vi.mock('@/shell/edge/main/agent/terminals/stopGateHookRunner', () => ({
-    runStopHooks: vi.fn().mockResolvedValue({passed: true})
-}))
-
-vi.mock('@/shell/edge/main/agent/terminals/global-budget-registry', () => ({
-    clearBudget: vi.fn()
-}))
-
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import type {Graph} from '@vt/graph-model/graph'
 import {
-    recordTerminalSpawn,
-    getTerminalRecords,
-    clearTerminalRecords,
-    updateTerminalIsDone,
-    getIdleSince,
-    resetAuditRetryCount,
-    type TerminalRecord
-} from '@vt/agent-runtime'
-import {
-    registerAgentNodes,
-    getAgentNodes,
     clearAgentNodes,
+    clearTerminalRecords,
+    createTerminalData,
+    getAgentNodes,
+    getIdleSince,
+    getTerminalRecords,
     isAgentComplete,
+    recordTerminalSpawn,
+    registerAgentNodes,
+    resetAuditRetryCount,
+    updateTerminalIsDone,
+    type TerminalData,
+    type TerminalId,
+    type TerminalRecord,
 } from '@vt/agent-runtime'
 
 /**
- * Production callback from graph-model-init.ts (Electron-only).
- * Reproduced here because graph-model-init.ts requires Electron runtime.
- * This is the exact logic that bridges FS-written nodes to agentNodeIndex.
+ * Production callback reproduced from `graph-model-init.ts` (Electron-only).
+ * Kept inline here because that file requires the Electron runtime.
+ * This is the exact logic that bridges FS-written nodes into the agent
+ * node index.
  */
 function onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
     const record: TerminalRecord | undefined = getTerminalRecords().find(
-        (r: TerminalRecord) => r.terminalData.agentName === agentName
+        (r: TerminalRecord) => r.terminalData.agentName === agentName,
     )
     if (!record) return
     registerAgentNodes(record.terminalId, [{nodeId, title}])
     resetAuditRetryCount(record.terminalId)
 }
 
-const TERMINAL_ID = 'test-fs-terminal'
-const AGENT_NAME = 'TestFS'
-const NODE_ID = '/vault/voicetree-1/progress-node.md'
-const NODE_TITLE = 'Progress Node'
+const TERMINAL_ID: string = 'test-fs-terminal'
+const AGENT_NAME: string = 'TestFS'
+const NODE_ID: string = '/vault/voicetree-1/progress-node.md'
+const NODE_TITLE: string = 'Progress Node'
 
 const emptyGraph: Graph = {
     nodes: {},
     incomingEdgesIndex: new Map(),
     nodeByBaseName: new Map(),
-    unresolvedLinksIndex: new Map()
+    unresolvedLinksIndex: new Map(),
 }
 
 function registerTestTerminal(agentName: string = AGENT_NAME, terminalId: string = TERMINAL_ID): void {
-    const terminalData = createTerminalData({
+    const data: TerminalData = createTerminalData({
         terminalId: terminalId as TerminalId,
         attachedToNodeId: 'ctx-nodes/test.md',
         terminalCount: 0,
         title: 'Test Terminal',
-        agentName
+        agentName,
     })
-    recordTerminalSpawn(terminalId, terminalData)
+    recordTerminalSpawn(terminalId, data)
 }
 
 describe('FS node agent_name → agentNodeIndex → blue edge', () => {
     beforeEach(() => {
+        clearTerminalRecords()
+        clearAgentNodes()
+    })
+
+    afterEach(() => {
         clearTerminalRecords()
         clearAgentNodes()
     })
@@ -128,15 +127,18 @@ describe('FS-registered node satisfies isAgentComplete progress-node gate', () =
         clearAgentNodes()
     })
 
+    afterEach(() => {
+        clearTerminalRecords()
+        clearAgentNodes()
+    })
+
     it('idle agent with FS-registered node is considered complete', () => {
         registerTestTerminal()
         onFSNodeWithAgentName(AGENT_NAME, NODE_ID, NODE_TITLE)
 
         updateTerminalIsDone(TERMINAL_ID, true)
 
-        const record: TerminalRecord = getTerminalRecords().find(
-            r => r.terminalId === TERMINAL_ID
-        )!
+        const record: TerminalRecord = getTerminalRecords().find(r => r.terminalId === TERMINAL_ID)!
         const idleSince: number = getIdleSince(TERMINAL_ID)!
         const now: number = idleSince + 10_000
 
@@ -148,9 +150,7 @@ describe('FS-registered node satisfies isAgentComplete progress-node gate', () =
 
         updateTerminalIsDone(TERMINAL_ID, true)
 
-        const record: TerminalRecord = getTerminalRecords().find(
-            r => r.terminalId === TERMINAL_ID
-        )!
+        const record: TerminalRecord = getTerminalRecords().find(r => r.terminalId === TERMINAL_ID)!
         const idleSince: number = getIdleSince(TERMINAL_ID)!
         const now: number = idleSince + 10_000
 

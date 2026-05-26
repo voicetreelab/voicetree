@@ -31,6 +31,7 @@
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
+    "@vt/vt-daemon-protocol": "*",
     "fp-ts": "^2.16.9",
     "node-pty": "^1.1.0",
     "ws": "^8.20.0"

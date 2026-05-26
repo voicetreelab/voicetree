@@ -238,9 +238,12 @@ export class TerminalVanilla {
   }
 
   private async initTerminal(): Promise<void> {
-    if (!window.electronAPI?.terminal || !this.term) {
-      this.term?.writeln('Terminal is only available in Electron mode.');
-      this.term?.writeln('Run the app with: npm run electron:dev');
+    if (!this.term) {
+      return;
+    }
+    if (!window.electronAPI?.main) {
+      this.term.writeln('Terminal is only available in Electron mode.');
+      this.term.writeln('Run the app with: npm run electron:dev');
       return;
     }
 
@@ -250,16 +253,14 @@ export class TerminalVanilla {
   private async initRelayTerminal(): Promise<void> {
     if (!this.term) return;
 
-    // The relay endpoint runs `tmux attach -t {name}`, which fails if the
-    // session doesn't exist. The IPC handler calls spawnTmuxBacked() to create
-    // the session — trigger IPC spawn BEFORE the WebSocket attach, otherwise
-    // the panel hangs in "tmux reconnecting" forever.
-    const spawnResult: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
-    if (!spawnResult.success) {
-      this.term.writeln('Failed to spawn tmux-backed terminal: ' + (spawnResult.error ?? 'Unknown error'));
-      return;
-    }
-    this.terminalId = spawnResult.terminalId ?? this.terminalData.terminalId;
+    // Post-BF-376: the per-vault VTD owns the tmux server and creates the
+    // session as part of the spawn family RPCs
+    // (`spawnPlainTerminal` / `spawnPlainTerminalWithNode` /
+    // `spawnTerminalWithContextNode`). The renderer panel is mounted only
+    // after `terminal-registered` has propagated, so the session is
+    // already attached on the daemon's tmux server when this WebSocket
+    // connects. No lazy spawn from the renderer.
+    this.terminalId = this.terminalData.terminalId;
     this.createRelayStatusIndicator();
 
     const [daemonUrl, token]: [string, string] = await Promise.all([

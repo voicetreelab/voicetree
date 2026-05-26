@@ -13,7 +13,6 @@ import {getAgentNodes, getAgentStatus, getNewNodesForAgentIdentities} from '../a
 import {getMcpGraph} from '../mcpConfigDependencies'
 import {
     closeHeadlessTerminal,
-    closeInteractiveTerminal,
     findTerminalRecord,
     listTerminalRecords,
     runTerminalStopHooks,
@@ -193,6 +192,14 @@ function buildInteractiveCloseResponse(terminalId: string): McpToolResponse {
 }
 
 function closeHeadlessOrFallback(terminalId: string): McpToolResponse {
+    // Post-BF-376: every tmux-backed terminal (interactive or headless) is
+    // closed through `closeHeadlessAgent` — the function name is historical;
+    // it kills the tmux session and removes the registry row regardless of
+    // `isHeadless`. The `closed: false` branch means there was nothing to
+    // close (no tmux runtime, no registry row), which we surface as a
+    // successful no-op response. There is no separate UI-close call site
+    // anymore: receivers subscribe to the `terminal-registry` SSE topic and
+    // drop their panel when `terminal-removed` arrives (design.md §4).
     const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessTerminal(terminalId as TerminalId)
     if (headlessResult.closed) {
         return buildJsonResponse({
@@ -203,15 +210,20 @@ function closeHeadlessOrFallback(terminalId: string): McpToolResponse {
                 : `Successfully cleaned up exited headless agent: ${terminalId}`
         })
     }
-
-    closeInteractiveTerminal(terminalId)
     return buildInteractiveCloseResponse(terminalId)
 }
 
 function performCloseEffect(action: CloseEffectAction): McpToolResponse {
     switch (action.kind) {
         case 'close-interactive':
-            closeInteractiveTerminal(action.terminalId)
+            // Interactive tmux-backed terminals share the same teardown path
+            // as headless: `closeHeadlessAgent` finds the tmux runtime entry
+            // (`hasTmuxHeadlessRuntime` is misnamed — it indexes every
+            // tmux-backed terminal), kills the session, and removes the
+            // registry row. The row-removal publishes `terminal-removed` on
+            // the new `terminal-registry` topic; the renderer's SSE
+            // subscription drops the panel from that event alone (design.md
+            // §4 — `closeTerminalById is derivable from terminal-removed`).
             closeHeadlessTerminal(action.terminalId as TerminalId)
             return buildInteractiveCloseResponse(action.terminalId)
         case 'close-headless':

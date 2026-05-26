@@ -1,22 +1,12 @@
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import type {TerminalData} from './terminal-registry/types'
-import type {TerminalKillReason} from '../lifecycle/types'
+import type {TerminalRecord, TerminalStatus} from '@vt/vt-daemon-protocol'
 
-export type TerminalStatus = 'running' | 'exited'
-
-export type TerminalRecord = {
-    terminalId: string
-    terminalData: TerminalData
-    status: TerminalStatus
-    exitCode: number | null
-    exitSignal: string | null
-    // Set by VoiceTree before issuing a kill signal so the subsequent exit event
-    // classifies as `completed` rather than `errored`.
-    killReason: TerminalKillReason | null
-    // Stop gate (BF-024): genuinely stateful — tracks resume attempts across agent restarts
-    auditRetryCount: number
-    spawnedAt: number
-}
+// `TerminalRecord` / `TerminalStatus` are canonically owned by
+// `@vt/vt-daemon-protocol` (BF-376 outbound). Re-export so existing
+// in-package consumers (queries, reconciliation, the registry barrel)
+// keep their import path. The runtime state (the Maps, listeners,
+// timers, helper accessors below) stays here.
+export type {TerminalRecord, TerminalStatus}
 
 export type PendingTerminal = {
     isHeadless: boolean

@@ -10,7 +10,7 @@
 const BASE_DELAY_MS = 1000 as const
 const MAX_DELAY_MS = 30000 as const
 
-export type Topic = 'vault-state' | 'agent-lifecycle'
+export type Topic = 'vault-state' | 'agent-events'
 
 export interface VaultStateData {
     readonly path: string
@@ -18,7 +18,7 @@ export interface VaultStateData {
     readonly newHash?: string
 }
 
-export interface AgentLifecycleData {
+export interface AgentEventData {
     readonly terminalId: string
     readonly source: 'claude' | 'codex' | 'opencode'
     readonly at: number
@@ -30,7 +30,7 @@ export interface EventFrame {
     readonly topic: Topic
     readonly seq: number
     readonly event: string
-    readonly data: VaultStateData | AgentLifecycleData
+    readonly data: VaultStateData | AgentEventData
 }
 
 export interface GapFrame {
@@ -102,7 +102,7 @@ function parseFrame(raw: string): EventFrame | GapFrame | null {
     try { parsed = JSON.parse(raw) } catch { return null }
     if (typeof parsed !== 'object' || parsed === null) return null
     const f = parsed as { readonly type?: unknown; readonly topic?: unknown; readonly seq?: unknown; readonly fromSeq?: unknown; readonly currentSeq?: unknown }
-    const topicOk: boolean = f.topic === 'vault-state' || f.topic === 'agent-lifecycle'
+    const topicOk: boolean = f.topic === 'vault-state' || f.topic === 'agent-events'
     if (!topicOk) return null
     if (f.type === 'event' && typeof f.seq === 'number') return parsed as EventFrame
     if (f.type === 'gap' && typeof f.fromSeq === 'number' && typeof f.currentSeq === 'number') return parsed as GapFrame

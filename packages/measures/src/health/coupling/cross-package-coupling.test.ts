@@ -125,12 +125,72 @@ type ImportEdge = {
 //     in-process daemon with the same tool catalog the Electron shell uses)
 //   voicetree-cli -> vt-rpc:               0 -> 9  (rpc client + auth/port
 //     discovery for talking to the daemon)
+//
+// 2026-05-27 [Phase 2 / BF-373 + BF-376]: record budgets for the two new
+// daemon packages and the webapp migration that retires `@vt/agent-runtime`.
+//
+// `@vt/vt-daemon-protocol` (`packages/libraries/vt-daemon-protocol/`,
+// scaffolded BF-376 S1): contract package for the 19 Main→VTD RPC routes
+// + the `terminal-registry` SSE topic. Sibling to `@vt/graph-db-protocol`.
+// Almost every cross-package edge into it is type-only (the request/
+// response shapes); only one value symbol crosses each border:
+//   vt-daemon -> vt-daemon-protocol:        0 -> 1  (TERMINAL_REGISTRY_TOPIC
+//     — the topic-name constant; the 19 contract namespaces are type-only)
+//   vt-daemon-client -> vt-daemon-protocol: 0 -> 1  (`*` namespace re-export
+//     of the contracts so client wrappers and renderers reach them through
+//     one entry point; the 26 type-only symbols are free)
+//
+// `@vt/vt-daemon-client` (`packages/systems/vt-daemon-client/`, grown
+// across BF-373 + BF-376 S2-C): the typed Main→VTD client + ensure-path
+// for the per-vault VTD spawn. Edges record at extraction baseline:
+//   vt-daemon-client -> daemon-lifecycle:   0 -> 10 (full lifecycle error
+//     types + decideOwnerAction + emitOwnerDiagnostic + readOwnerRecord
+//     + poll-timing primitives — the spawn-coordinator parameterisation
+//     planned by BF-369 rule 7 lands here)
+//   vt-daemon-client -> graph-db-client:    0 -> 3  (attemptSpawnAndWait
+//     + gatherEvidence + reclaimStaleOwner — the templated spawn
+//     coordinator BF-369 left in graph-db-client to keep daemon-lifecycle
+//     dependency-leaf; vt-daemon-client instantiates it with its own
+//     clientFor for the vtd kind)
+//   vt-daemon-client -> graph-db-protocol:  0 -> 1  (VtDaemonHealthResponseSchema
+//     — the health-probe response shape, shared with vt-daemon's HTTP
+//     surface so client + server speak the same zod schema)
+//   vt-daemon-client -> vt-rpc:             0 -> 1  (authTokenFilePath for
+//     vault-local auth-token discovery; client + server share the same
+//     on-disk shape)
+//
+// `@vt/vt-daemon` (`packages/systems/vt-daemon/`, BF-375 standalone
+// controller): the daemon owns its own HTTP server + tool catalog + RPC
+// dispatch; the lifecycle/protocol primitives mirror the graphd side:
+//   vt-daemon -> daemon-lifecycle:          0 -> 9  (owner-record I/O
+//     primitives — atomic create/replace/decode/delete, isOwnerPidAlive,
+//     ownerRecordFile, withBoundPort, withHeartbeat, createInitialRecord
+//     — same surface graphd uses, daemonKind-keyed per BF-369)
+//   vt-daemon -> graph-db-protocol:         0 -> 2  (VtDaemonHealthOwnerSchema
+//     + VtDaemonHealthResponseSchema; vt-daemon implements the shared
+//     health-probe response shape so daemon-lifecycle's probeOwnerHealth
+//     can read it without owning the schema)
+//
+// `daemon-lifecycle -> graph-db-protocol`: bumped 2 -> 3 to record the
+// VtDaemonHealthResponseSchema value import added during BF-373 (probe
+// reads daemon's own zod schema, not just the graphd shape).
+//
+// `webapp -> vt-daemon-client`: 0 -> 13 — Phase 2 BF-376 outbound. Webapp
+// is now a pure client of the per-vault VTD via vt-daemon-client. The 13
+// value symbols are the 11 spawn / recovery / registry-management /
+// agent-events wrappers plus `ensureVtDaemonForVault` + `bindVtDaemonClient`
+// for vault-bind and `TERMINAL_REGISTRY_EVENT_TYPES` for the SSE topic.
+//
+// `webapp -> agent-runtime`: removed (was 15). webapp/package.json no
+// longer depends on `@vt/agent-runtime` after BF-376 outbound; the
+// in-process runtime moved entirely behind vt-daemon. `rg
+// "@vt/agent-runtime" webapp/src` returns zero from this commit.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
     'agent-runtime -> graph-model': 13,
     'app-config -> graph-model': 4,
-    'daemon-lifecycle -> graph-db-protocol': 2,
+    'daemon-lifecycle -> graph-db-protocol': 3,
     'graph-db-client -> daemon-lifecycle': 23,
     'graph-db-client -> graph-db-protocol': 24,
     'graph-db-client -> graph-db-server': 17,
@@ -154,14 +214,21 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'voicetree-cli -> vt-rpc': 9,
     'vt-daemon -> agent-runtime': 14,
     'vt-daemon -> app-config': 1,
+    'vt-daemon -> daemon-lifecycle': 9,
+    'vt-daemon -> graph-db-protocol': 2,
     'vt-daemon -> graph-db-server': 8,
     'vt-daemon -> graph-model': 9,
     'vt-daemon -> graph-state': 1,
     'vt-daemon -> graph-tools': 7,
     'vt-daemon -> voicetree-graph-validation': 1,
+    'vt-daemon -> vt-daemon-protocol': 1,
     'vt-daemon -> vt-rpc': 2,
+    'vt-daemon-client -> daemon-lifecycle': 10,
+    'vt-daemon-client -> graph-db-client': 3,
+    'vt-daemon-client -> graph-db-protocol': 1,
+    'vt-daemon-client -> vt-daemon-protocol': 1,
+    'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
-    'webapp -> agent-runtime': 15,
     'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
     'webapp -> graph-db-server': 11,
@@ -170,6 +237,7 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
     'webapp -> vt-daemon': 13,
+    'webapp -> vt-daemon-client': 13,
     'webapp -> vt-rpc': 3,
 }
 

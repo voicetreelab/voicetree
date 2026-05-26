@@ -1,7 +1,7 @@
 import {useCallback, useState} from 'react';
 import type {JSX} from 'react';
 import {Link2, Play, RefreshCw, X} from 'lucide-react';
-import type {RecoverableAgentSession} from '@vt/agent-runtime';
+import type {RecoverableAgentSession} from '@vt/vt-daemon-client';
 
 type SurvivingAgentActionResult = {
     readonly success: boolean;

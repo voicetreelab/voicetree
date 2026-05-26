@@ -1,5 +1,6 @@
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
+import type {TerminalId} from '@vt/vt-daemon-protocol'
 import {getRuntimeGraph} from '@vt/agent-runtime/runtime/graph-bridge'
 import {
     STOP_HOOK_DELAY_MS,
@@ -7,6 +8,7 @@ import {
     type TerminalRecord,
     type TerminalRegistryRuntime,
 } from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
+import {publishTerminalRegistryEvent} from '../events/terminal-registry-publisher.ts'
 import {handleTerminalIsDone} from '../core/handleTerminalIsDone.ts'
 import {notifyAgentOfUnseenNodes} from '../effects/notifyAgentOfUnseenNodes.ts'
 import {runIdleStopGateAudit} from '../effects/runIdleStopGateAudit.ts'
@@ -27,6 +29,7 @@ export function updateTerminalIsDoneWorkflow(
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return
 
+    const wasDone: boolean = record.terminalData.isDone
     const result = handleTerminalIsDone(record, {
         isDone,
         records: Array.from(terminalRecords.values()),
@@ -37,6 +40,14 @@ export function updateTerminalIsDoneWorkflow(
         runCommand(command, {
             timers: runtime,
             onStillDone: runIdleHooks(runtime),
+        })
+    }
+
+    if (wasDone !== isDone) {
+        publishTerminalRegistryEvent({
+            type: 'terminal-record-changed',
+            terminalId: terminalId as TerminalId,
+            patch: {kind: 'done', value: isDone},
         })
     }
 }

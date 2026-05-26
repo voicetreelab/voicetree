@@ -30,7 +30,13 @@
  * rebind must not race a teardown of the prior `active` snapshot.
  */
 
-import {ensureVtDaemonForVault, type EnsureVtDaemonResult} from '@vt/vt-daemon-client'
+import {
+    bindVtDaemonClient,
+    ensureVtDaemonForVault,
+    type EnsureVtDaemonResult,
+    type VtDaemonClient,
+    type VtDaemonClientFacade,
+} from '@vt/vt-daemon-client'
 
 interface ActiveVtDaemon {
     readonly vaultPath: string
@@ -38,6 +44,8 @@ interface ActiveVtDaemon {
     readonly token: string
     readonly pid: number
     readonly ownerNonce: string
+    readonly client: VtDaemonClient
+    readonly facade: VtDaemonClientFacade
 }
 
 let active: ActiveVtDaemon | null = null
@@ -56,6 +64,8 @@ function snapshotFromEnsure(vaultPath: string, result: EnsureVtDaemonResult): Ac
         token: result.authToken,
         pid: result.pid,
         ownerNonce: result.ownerNonce,
+        client: result.client,
+        facade: bindVtDaemonClient(result.client),
     }
 }
 
@@ -101,6 +111,46 @@ export async function getDaemonUrl(): Promise<string> {
 export async function getAuthToken(): Promise<string> {
     const snapshot: ActiveVtDaemon = await refreshActive()
     return snapshot.token
+}
+
+/**
+ * Synchronous read of the currently-bound vault path, or `null` if no vault
+ * is bound yet (or after `unbindVtDaemon`). Used by the agent-events SSE
+ * subscriber's vault-switch fence — it must be authoritative the instant
+ * `bindVtDaemonForVault` resolves, so we expose it as a direct accessor on
+ * the cached `active` snapshot rather than re-calling the ensure path.
+ *
+ * Per main-host-purity §"Vault-switch fence drops stale events": this
+ * accessor returns the value `bindVtDaemonForVault` last set, before any
+ * subsequent vault-switch begins. Combined with the `chain<T>` promise
+ * serialisation in this file, the SSE subscriber sees a consistent view
+ * of "the vault Main currently considers active".
+ */
+export function getActiveVault(): string | null {
+    return active?.vaultPath ?? null
+}
+
+/**
+ * Bound RPC facade closed over the active vt-daemon connection. Throws
+ * `daemon_unreachable` when no vault is bound — callers that fan out the
+ * 19 BF-376 RPC routes (mainAPI handlers, polling syncs, lazy-attach IPC)
+ * reach this on every invocation, so a respawned VTD surfaces the fresh
+ * client without the call site holding a stale reference.
+ *
+ * Sync accessor (not async). The active snapshot is already on the
+ * promise-chained `bindVtDaemonForVault`; the renderer-visible auth-token
+ * refresh path (`getAuthToken`) is the only spot that needs the ensure
+ * round-trip, and it does so by calling `refreshActive` directly.
+ */
+export function getVtDaemonFacade(): VtDaemonClientFacade {
+    if (!active) throw new Error('daemon_unreachable: no active vt-daemon binding')
+    return active.facade
+}
+
+/** Raw `VtDaemonClient` for callers that need `.rpc()` / `.health()` directly. */
+export function getVtDaemonClient(): VtDaemonClient {
+    if (!active) throw new Error('daemon_unreachable: no active vt-daemon binding')
+    return active.client
 }
 
 /**

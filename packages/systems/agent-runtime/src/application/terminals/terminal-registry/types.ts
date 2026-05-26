@@ -1,63 +1,24 @@
-import type { Option } from 'fp-ts/lib/Option.js';
+/**
+ * Runtime helpers around the canonical terminal types.
+ *
+ * The type definitions for `TerminalId`, `TerminalData`, and
+ * `CreateTerminalDataParams` are now owned by `@vt/vt-daemon-protocol`
+ * (BF-376 outbound) so both the VTD daemon and its clients can share
+ * one shape without laundering a runtime dependency on agent-runtime.
+ * This file re-exports them so the existing deep import path
+ * (`agent-runtime/.../terminal-registry/types`) stays stable, and
+ * keeps the side-effect-free helpers that operate on those shapes
+ * (constructor, ID derivation).
+ */
+
 import * as O from 'fp-ts/lib/Option.js';
-import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
-import type { TerminalLifecycle } from '@vt/agent-runtime/lifecycle';
+import type {
+    TerminalId,
+    TerminalData,
+    CreateTerminalDataParams,
+} from '@vt/vt-daemon-protocol';
 
-export type TerminalId = string & { readonly __brand: 'TerminalId' };
-
-export type TerminalData = {
-    readonly type: 'Terminal';
-    readonly terminalId: TerminalId;
-    readonly attachedToContextNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number;
-
-    readonly anchoredToNodeId: Option<NodeIdAndFilePath>;
-    readonly title: string;
-    readonly resizable: boolean;
-    readonly shadowNodeDimensions: { readonly width: number; readonly height: number };
-
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean;
-
-    readonly isPinned: boolean;
-    readonly isDone: boolean;
-    readonly lifecycle: TerminalLifecycle;
-    readonly lastOutputTime: number;
-    readonly activityCount: number;
-
-    readonly parentTerminalId: TerminalId | null;
-
-    readonly agentName: string;
-    readonly worktreeName: string | undefined;
-    readonly isHeadless: boolean;
-    readonly isMinimized: boolean;
-    readonly contextContent: string;
-    readonly agentTypeName: string;
-};
-
-export type CreateTerminalDataParams = {
-    readonly terminalId: TerminalId;
-    readonly attachedToNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number;
-    readonly title: string;
-    readonly anchoredToNodeId?: NodeIdAndFilePath;
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean;
-    readonly resizable?: boolean;
-    readonly shadowNodeDimensions?: { width: number; height: number };
-    readonly isPinned?: boolean;
-    readonly parentTerminalId?: TerminalId | null;
-    readonly agentName: string;
-    readonly worktreeName?: string;
-    readonly isHeadless?: boolean;
-    readonly isMinimized?: boolean;
-    readonly contextContent?: string;
-    readonly agentTypeName?: string;
-};
+export type {TerminalId, TerminalData, CreateTerminalDataParams};
 
 export function computeTerminalId(attachedToNodeId: string, terminalCount: number): TerminalId {
     return `${attachedToNodeId}-terminal-${terminalCount}` as TerminalId;

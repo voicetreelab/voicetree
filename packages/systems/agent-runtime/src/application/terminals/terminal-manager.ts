@@ -27,17 +27,16 @@ import {
   type PromptFileWriteRequest,
 } from './tmux/tmuxSpawnPlanning';
 import {getRuntimeEnv} from '../runtime/runtime-config';
+import type {TerminalSpawnResult} from '@vt/vt-daemon-protocol'
 
-export interface TerminalSpawnResult {
-  success: boolean;
-  terminalId: string;
-  error?: string;
-}
-
-export interface TerminalOperationResult {
-  success: boolean;
-  error?: string;
-}
+// `TerminalSpawnResult` / `TerminalOperationResult` are canonically owned by
+// `@vt/vt-daemon-protocol` (BF-376 outbound). Re-export so the existing
+// `@vt/agent-runtime` deep paths and per-name re-exports in the public
+// barrel keep working without each consumer rewriting its imports today.
+export type {
+    TerminalSpawnResult,
+    TerminalOperationResult,
+} from '@vt/vt-daemon-protocol'
 
 export interface TerminalSpawnOpts {
   terminalData: TerminalData;

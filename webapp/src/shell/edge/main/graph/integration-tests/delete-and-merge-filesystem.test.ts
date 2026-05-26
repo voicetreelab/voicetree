@@ -144,18 +144,6 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
     }
 })
 
-// Import IPC handlers once at module level
-let handlersImported: boolean = false
-async function ensureHandlersImported(): Promise<void> {
-    if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
-        registerTerminalIpcHandlers(
-            {} as any, // terminalManager
-            () => '' // getToolsDirectory
-        )
-        handlersImported = true
-    }
-}
 
 // Helper to create a minimal GraphNode
 function createTestNode(
@@ -219,7 +207,6 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
     beforeEach(async () => {
         resetTestProjectionState()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
-        await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setProjectRoot(tempVault)
@@ -396,7 +383,6 @@ describe('Merge Operation - Filesystem Integration', () => {
 
     beforeEach(async () => {
         initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
-        await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setProjectRoot(tempVault)
@@ -518,7 +504,6 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
 
     beforeEach(async () => {
         initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
-        await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setProjectRoot(tempVault)

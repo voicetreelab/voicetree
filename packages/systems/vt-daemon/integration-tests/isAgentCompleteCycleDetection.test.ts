@@ -1,12 +1,24 @@
-import {describe, it, expect, beforeEach} from 'vitest'
+/**
+ * Pure-function integration test for `isAgentComplete` cycle detection and
+ * progress-node gate. The function is exported from `@vt/agent-runtime`;
+ * tests inject deterministic deps so this needs neither a vt-daemon nor a
+ * live registry. Moved out of webapp's MCP integration folder because it
+ * doesn't actually exercise the MCP server — it's a leaf test of an
+ * agent-runtime function that webapp Main only imports for types.
+ */
+
+import {beforeEach, describe, expect, it} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode} from '@vt/graph-model/graph'
 
-import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {isAgentComplete, type IsAgentCompleteDeps, type TerminalRecord} from '@vt/agent-runtime'
-
-// --- Helpers ---
+import {
+    createTerminalData,
+    isAgentComplete,
+    type IsAgentCompleteDeps,
+    type TerminalData,
+    type TerminalId,
+    type TerminalRecord,
+} from '@vt/agent-runtime'
 
 function buildGraphNode(nodeId: string, title: string, agentName: string, isContextNode: boolean = false): GraphNode {
     return {
@@ -16,9 +28,9 @@ function buildGraphNode(nodeId: string, title: string, agentName: string, isCont
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: { agent_name: agentName },
-            isContextNode
-        }
+            additionalYAMLProps: {agent_name: agentName},
+            isContextNode,
+        },
     }
 }
 
@@ -31,7 +43,7 @@ function buildGraph(nodes: GraphNode[] = []): Graph {
         nodes: nodesRecord,
         incomingEdgesIndex: new Map(),
         nodeByBaseName: new Map(),
-        unresolvedLinksIndex: new Map()
+        unresolvedLinksIndex: new Map(),
     }
 }
 
@@ -42,7 +54,7 @@ function makeTerminalData(id: string, agentName: string, parentTerminalId?: stri
         terminalCount: 0,
         title: agentName,
         agentName,
-        parentTerminalId: (parentTerminalId ?? undefined) as TerminalId | undefined
+        parentTerminalId: (parentTerminalId ?? undefined) as TerminalId | undefined,
     })
 }
 
@@ -51,10 +63,15 @@ function makeIdleTerminalData(id: string, agentName: string, parentTerminalId?: 
 }
 
 function makeRecord(id: string, data: TerminalData, status: 'running' | 'exited' = 'running'): TerminalRecord {
-    return {terminalId: id, terminalData: data, status, exitCode: status === 'exited' ? 0 : null, auditRetryCount: 0, spawnedAt: 0}
+    return {
+        terminalId: id,
+        terminalData: data,
+        status,
+        exitCode: status === 'exited' ? 0 : null,
+        auditRetryCount: 0,
+        spawnedAt: 0,
+    }
 }
-
-// --- Tests ---
 
 type DepsBuilder = (overrides?: Partial<IsAgentCompleteDeps>) => IsAgentCompleteDeps
 
@@ -77,7 +94,6 @@ describe('isAgentComplete cycle detection', () => {
     })
 
     it('handles self-referential cycle (terminalId === parentTerminalId) without stack overflow', () => {
-        // This is the exact bug: replaceSelf sets parentTerminalId = terminalId
         const selfCycleData: TerminalData = makeIdleTerminalData('agent-x', 'alpha', 'agent-x')
         const selfCycleRecord: TerminalRecord = makeRecord('agent-x', selfCycleData)
         const allRecords: TerminalRecord[] = [selfCycleRecord]
@@ -85,15 +101,11 @@ describe('isAgentComplete cycle detection', () => {
         const progressNode: GraphNode = buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha')
         const graph: Graph = buildGraph([progressNode])
 
-        // Without cycle detection, this would throw RangeError: Maximum call stack size exceeded.
-        // With the fix, it should return true (self-cycle treated as already visited).
         const result: boolean = isAgentComplete(selfCycleRecord, graph, NOW, allRecords, undefined, deps)
-
         expect(result).toBe(true)
     })
 
     it('handles indirect cycle (A→B→A) without stack overflow', () => {
-        // A is parent of B, B is parent of A — mutual cycle
         const dataA: TerminalData = makeIdleTerminalData('agent-a', 'alpha', 'agent-b')
         const dataB: TerminalData = makeIdleTerminalData('agent-b', 'beta', 'agent-a')
         const recordA: TerminalRecord = makeRecord('agent-a', dataA)
@@ -102,13 +114,10 @@ describe('isAgentComplete cycle detection', () => {
 
         const graph: Graph = buildGraph([
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
-            buildGraphNode('beta-node.md', 'Beta progress', 'beta')
+            buildGraphNode('beta-node.md', 'Beta progress', 'beta'),
         ])
 
-        // Without cycle detection, A checks B which checks A which checks B... stack overflow.
-        // With the fix, when B tries to recurse into A, A is already in the visited set.
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
-
         expect(result).toBe(true)
     })
 
@@ -124,17 +133,14 @@ describe('isAgentComplete cycle detection', () => {
         const graph: Graph = buildGraph([
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
             buildGraphNode('beta-node.md', 'Beta progress', 'beta'),
-            buildGraphNode('gamma-node.md', 'Gamma progress', 'gamma')
+            buildGraphNode('gamma-node.md', 'Gamma progress', 'gamma'),
         ])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
-
         expect(result).toBe(true)
     })
 
     it('correctly evaluates a deep non-cyclic chain (A→B→C→D)', () => {
-        // Linear chain: A is root, B child of A, C child of B, D child of C
-        // All are idle+complete — verifies the visited set propagates without false positives
         const dataA: TerminalData = makeIdleTerminalData('agent-a', 'alpha')
         const dataB: TerminalData = makeIdleTerminalData('agent-b', 'beta', 'agent-a')
         const dataC: TerminalData = makeIdleTerminalData('agent-c', 'gamma', 'agent-b')
@@ -149,16 +155,14 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
             buildGraphNode('beta-node.md', 'Beta progress', 'beta'),
             buildGraphNode('gamma-node.md', 'Gamma progress', 'gamma'),
-            buildGraphNode('delta-node.md', 'Delta progress', 'delta')
+            buildGraphNode('delta-node.md', 'Delta progress', 'delta'),
         ])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
-
         expect(result).toBe(true)
     })
 
     it('returns false when a deep chain has an incomplete leaf', () => {
-        // A→B→C where C is still running — A should not be complete
         const dataA: TerminalData = makeIdleTerminalData('agent-a', 'alpha')
         const dataB: TerminalData = makeIdleTerminalData('agent-b', 'beta', 'agent-a')
         const dataC: TerminalData = makeTerminalData('agent-c', 'gamma', 'agent-b') // NOT idle
@@ -169,22 +173,16 @@ describe('isAgentComplete cycle detection', () => {
 
         const graph: Graph = buildGraph([
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
-            buildGraphNode('beta-node.md', 'Beta progress', 'beta')
+            buildGraphNode('beta-node.md', 'Beta progress', 'beta'),
         ])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
-
         expect(result).toBe(false)
     })
 
     it('treats cycle node as complete so running siblings can still block completion', () => {
-        // A has two children: B (creates a cycle back to A) and C (still running)
-        // The cycle on B should be treated as complete, but C still blocks A
         const dataA: TerminalData = makeIdleTerminalData('agent-a', 'alpha')
         const dataB: TerminalData = makeIdleTerminalData('agent-b', 'beta', 'agent-a')
-        // B's parentTerminalId points to A, but B also has A as a child via parentTerminalId cycle
-        // Actually, the cycle check matters when getChildRecords finds a child whose terminalId is already visited.
-        // Let's create: A is parent of B, and A is also parent of a self-referencing C
         const dataC: TerminalData = makeTerminalData('agent-c', 'gamma', 'agent-a') // running child of A
         const recordA: TerminalRecord = makeRecord('agent-a', dataA)
         const recordB: TerminalRecord = makeRecord('agent-b', dataB, 'exited')
@@ -192,19 +190,17 @@ describe('isAgentComplete cycle detection', () => {
         const allRecords: TerminalRecord[] = [recordA, recordB, recordC]
 
         const graph: Graph = buildGraph([
-            buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha')
+            buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
         ])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
-
-        // C is still running, so A is not complete
         expect(result).toBe(false)
     })
 })
 
 describe('isAgentComplete progress-node gate', () => {
     const NOW: number = 100_000
-    const IDLE_SINCE: number = NOW - 10_000 // 10s idle
+    const IDLE_SINCE: number = NOW - 10_000
 
     function depsWith(overrides: Partial<IsAgentCompleteDeps>): IsAgentCompleteDeps {
         return {
@@ -217,7 +213,6 @@ describe('isAgentComplete progress-node gate', () => {
 
     it('blocks completion when agent has no progress nodes and is within 30-min timeout', () => {
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
-        // Spawned recently — within the 30-min timeout
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - 60_000 // 1 minute ago
         const graph: Graph = buildGraph()
@@ -239,9 +234,9 @@ describe('isAgentComplete progress-node gate', () => {
     it('allows completion when agent has progress nodes regardless of spawn time', () => {
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
-        record.spawnedAt = NOW - 10_000 // 10 seconds ago — very recent
+        record.spawnedAt = NOW - 10_000
         const graph: Graph = buildGraph([
-            buildGraphNode('node.md', 'My Progress', 'alpha')
+            buildGraphNode('node.md', 'My Progress', 'alpha'),
         ])
 
         const deps: IsAgentCompleteDeps = depsWith({
@@ -254,10 +249,10 @@ describe('isAgentComplete progress-node gate', () => {
     it('does not apply progress-node gate to exited agents', () => {
         const data: TerminalData = makeTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data, 'exited')
-        record.spawnedAt = NOW - 10_000 // recent spawn, no progress nodes
+        record.spawnedAt = NOW - 10_000
         const graph: Graph = buildGraph()
 
         const result: boolean = isAgentComplete(record, graph, NOW, [record], undefined, depsWith({}))
-        expect(result).toBe(true) // exited agents are always complete
+        expect(result).toBe(true)
     })
 })
