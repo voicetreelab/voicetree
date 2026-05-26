@@ -61,24 +61,6 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(pos.y).toBe(888)
         })
 
-        it('marks newly projected nodes that already have graph positions for auto-layout', () => {
-            const node: GraphNode = {
-                absoluteFilePathIsID: 'positioned-node',
-                contentWithoutYamlOrLinks: '# Positioned Node',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    color: O.none,
-                    position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            applyDeltaToUI(cy, [upsert(node)])
-
-            expect(cy.getElementById('positioned-node').hasClass('vt-has-graph-position')).toBe(true)
-        })
-
         it('re-projection preserves positions even when node content changes', () => {
             const node: GraphNode = {
                 absoluteFilePathIsID: 'content-change-node',

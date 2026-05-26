@@ -270,10 +270,6 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                     ? { x: specNode.position.x, y: specNode.position.y }
                     : { x: 0, y: 0 }
                 const hasPosition: boolean = specNode.position !== undefined
-                const classes: string[] = [
-                    ...(specNode.classes ? [...specNode.classes] : []),
-                    ...(hasPosition ? ['vt-has-graph-position'] : []),
-                ]
 
                 cy.add({
                     group: 'nodes' as const,
@@ -286,7 +282,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                         isContextNode: false,
                     },
                     position,
-                    ...(classes.length > 0 ? { classes: classes.join(' ') } : {}),
+                    ...(specNode.classes ? { classes: [...specNode.classes].join(' ') } : {}),
                 })
 
                 if (!hasPosition) nodesWithoutPositions.push(specNode.id)
@@ -307,7 +303,6 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
             existing.data('label', nodeDisplayLabel(specNode))
             existing.data('content', nextContent)
             existing.data('summary', '')
-            existing.toggleClass('vt-has-graph-position', specNode.position !== undefined)
             const nextColor: string | undefined = colorForNode(specNode)
             if (nextColor === undefined) {
                 existing.removeData('color')

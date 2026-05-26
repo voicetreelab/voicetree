@@ -14,7 +14,7 @@ import {TERMINAL_ACTIVE_CLASS} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {handleWorktreeDeleteEvent} from '@/shell/edge/UI-edge/graph/actions/handleWorktreeDelete';
 import {subscribeToVaultPaths, getVaultState} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
 import type {VaultPathState} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
-import {triggerFullLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTriggers';
+import {triggerFullLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 
 export interface ViewSubscriptionDeps {
     cy: Core;
