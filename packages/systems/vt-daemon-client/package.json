@@ -17,6 +17,7 @@
     "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",
+    "@vt/vt-daemon-protocol": "*",
     "@vt/vt-rpc": "*"
   },
   "devDependencies": {
