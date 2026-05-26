@@ -1,6 +1,19 @@
 import {requireTerminalId} from '../graph/core/args'
 import {callDaemon} from '../daemon-client'
 import {error, output} from '../output'
+import {
+    AGENT_CLOSE_SPEC,
+    AGENT_LIST_SPEC,
+    AGENT_OUTPUT_SPEC,
+    AGENT_SEND_SPEC,
+    AGENT_SPAWN_SPEC,
+    AGENT_WAIT_SPEC,
+    booleanFlagNames,
+    formatHelp,
+    isHelpRequest,
+    type SubcommandSpec,
+    valueFlagNames,
+} from './agentSpecs'
 
 type JsonRecord = Record<string, unknown>
 
@@ -16,12 +29,9 @@ function asRecord(value: unknown): JsonRecord | undefined {
         : undefined
 }
 
-function parseArgs(
-    args: string[],
-    options: {valueFlags?: readonly string[]; booleanFlags?: readonly string[]}
-): ParsedArgs {
-    const valueFlags: Set<string> = new Set(options.valueFlags ?? [])
-    const booleanFlags: Set<string> = new Set(options.booleanFlags ?? [])
+function parseArgs(args: string[], spec: SubcommandSpec): ParsedArgs {
+    const valueFlags: Set<string> = new Set(valueFlagNames(spec))
+    const booleanFlags: Set<string> = new Set(booleanFlagNames(spec))
     const positionals: string[] = []
     const values: Map<string, string> = new Map()
     const booleans: Set<string> = new Set()
@@ -63,7 +73,7 @@ function parseArgs(
             continue
         }
 
-        error(`Unknown flag: ${flag}`)
+        error(`Unknown flag: ${flag}. Run \`${spec.verb} --help\` for available flags.`)
     }
 
     return {positionals, values, booleans}
@@ -234,15 +244,21 @@ function formatStandardResponse(payload: JsonRecord): string {
     return formatKeyValueLines(entries)
 }
 
+function printHelp(spec: SubcommandSpec): void {
+    console.log(formatHelp(spec))
+}
+
 export async function agentSpawn(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_SPAWN_SPEC)
+        return
+    }
+
     const callerTerminalId: string = requireTerminalId(terminalId)
-    const parsedArgs: ParsedArgs = parseArgs(args, {
-        valueFlags: ['--node', '--task', '--parent', '--name', '--depth', '--spawn-dir', '--prompt-template'],
-        booleanFlags: ['--headless', '--replace-self'],
-    })
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_SPAWN_SPEC)
 
     const nodeId: string | undefined = parsedArgs.values.get('--node')
     const task: string | undefined = parsedArgs.values.get('--task')
@@ -292,6 +308,11 @@ export async function agentList(
     _terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_LIST_SPEC)
+        return
+    }
+
     if (args.length > 0) {
         error(`Unexpected arguments for \`agent list\`: ${args.join(' ')}`)
     }
@@ -304,10 +325,13 @@ export async function agentWait(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_WAIT_SPEC)
+        return
+    }
+
     const callerTerminalId: string = requireTerminalId(terminalId)
-    const parsedArgs: ParsedArgs = parseArgs(args, {
-        valueFlags: ['--poll-interval'],
-    })
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_WAIT_SPEC)
 
     if (parsedArgs.positionals.length === 0) {
         error('`agent wait` requires at least one terminal ID')
@@ -330,10 +354,13 @@ export async function agentClose(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_CLOSE_SPEC)
+        return
+    }
+
     const callerTerminalId: string = requireTerminalId(terminalId)
-    const parsedArgs: ParsedArgs = parseArgs(args, {
-        valueFlags: ['--force'],
-    })
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_CLOSE_SPEC)
 
     if (parsedArgs.positionals.length !== 1) {
         error('`agent close` requires exactly one target terminal ID')
@@ -356,6 +383,11 @@ export async function agentSend(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_SEND_SPEC)
+        return
+    }
+
     const callerTerminalId: string = requireTerminalId(terminalId)
 
     if (args.length < 2) {
@@ -383,10 +415,13 @@ export async function agentOutput(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_OUTPUT_SPEC)
+        return
+    }
+
     const callerTerminalId: string = requireTerminalId(terminalId)
-    const parsedArgs: ParsedArgs = parseArgs(args, {
-        valueFlags: ['--chars'],
-    })
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_OUTPUT_SPEC)
 
     if (parsedArgs.positionals.length !== 1) {
         error('`agent output` requires exactly one target terminal ID')
