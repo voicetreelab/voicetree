@@ -40,7 +40,13 @@ exporters:
     verbosity: basic
   otlphttp/loki:
     endpoint: http://localhost:3100/otlp
-  # PHASE_2B_METRICS_EXPORTERS: prometheusremotewrite + file
+  prometheusremotewrite:
+    endpoint: http://localhost:8428/api/v1/write
+    add_metric_suffixes: false
+    resource_to_telemetry_conversion:
+      enabled: true
+  file/metrics:
+    path: "${env:HOME}/.voicetree/perf/${env:VOICETREE_RUN_INSTANCE_ID:-__collector_unscoped__}/metrics/vt-test.metrics.ndjson"
   # PHASE_2C_TRACES_EXPORTERS: otlp/tempo + file
 
 service:
@@ -52,5 +58,7 @@ service:
     logs:
       receivers: [filelog]
       exporters: [otlphttp/loki]
-    # PHASE_2B_METRICS_PIPELINE
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheusremotewrite, file/metrics]
     # PHASE_2C_TRACES_PIPELINE
