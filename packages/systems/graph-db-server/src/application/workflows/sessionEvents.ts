@@ -1,6 +1,6 @@
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import {
-  coalesceProjectDeltaEvents,
+  batchProjectDeltaEvents,
   decideReplayStrategy,
   formatSSE,
   handleProjectDeltaEvent,
@@ -88,8 +88,9 @@ export async function runSessionEventsWorkflow(input: {
     liveFlushScheduled = false
     const events = pendingLiveEvents
     pendingLiveEvents = []
-    const coalesced = coalesceProjectDeltaEvents(events)
-    if (coalesced) await sendDeltaProjection(coalesced)
+    for (const batched of batchProjectDeltaEvents(events)) {
+      await sendDeltaProjection(batched)
+    }
     if (pendingLiveEvents.length > 0 && !liveFlushScheduled) {
       liveFlushScheduled = true
       queueMicrotask(() => void flushLiveDeltaProjection())
