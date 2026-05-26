@@ -24,11 +24,26 @@ const MIN_RATIONALE_CHARS = 20
 
 type StagedDiffClassification = 'no-baselines' | 'pure-bump' | 'mixed'
 type CommitMessageClassification = 'ok' | 'missing-rationale' | 'rationale-too-short'
+
+// Context the impure caller injects so the pure classifier can short-circuit
+// for cases where the discipline doesn't apply.
+type StagedDiffContext = {
+    // Merge commits exempt: their baseline bumps were already reviewed on
+    // the source branch (with their own rationale and isolation gates).
+    // Re-asserting isolation on the merge would refuse every cross-branch
+    // integration that touches both code and baselines.
+    readonly isMergeCommit: boolean
+}
+
 function isBaselinePath(path: string): boolean {
     return path.startsWith(BASELINE_PREFIX)
 }
 
-function classifyStagedDiff(paths: readonly string[]): StagedDiffClassification {
+function classifyStagedDiff(
+    paths: readonly string[],
+    ctx: StagedDiffContext,
+): StagedDiffClassification {
+    if (ctx.isMergeCommit) return 'no-baselines'
     if (paths.length === 0) return 'no-baselines'
     const baselines = paths.filter(isBaselinePath)
     if (baselines.length === 0) return 'no-baselines'
