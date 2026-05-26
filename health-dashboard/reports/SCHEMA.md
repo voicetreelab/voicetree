@@ -165,16 +165,18 @@ Exit code is `0` when every non-skipped check passed, `1` otherwise.
 
 Every `recordHealthReport` and `recordCheckReport` also appends a single row to a scores-history CSV so a regression can be blamed to the commit that introduced it.
 
+Each machine writes to its own UUID-named files under `scores-history/`. The UUID is read from `~/.voicetree-machine-id`, which is created once per machine outside the repo. This keeps history append-only without making different machines write to the same tracked file.
+
 ### Files
 
 | File | Tracked? | Written when |
 |------|----------|--------------|
-| `scores-history.csv` | yes (`.gitattributes merge=union`) | working tree is clean at process start |
-| `scores-history.local.csv` | no (`.gitignore`) | working tree is dirty at process start |
+| `scores-history/<UUID>.csv` | yes | working tree is clean at process start |
+| `scores-history/<UUID>.local.csv` | no (`.gitignore`) | working tree is dirty at process start |
 
 The clean-tree gate is what makes the tracked CSV trustworthy: a row's `commit` field reflects the exact source tree that produced the score. Dirty-tree rows route to the local sibling so they never contaminate the shared history with mislabelled scores. The cleanliness check (`git status --porcelain`) and the SHA (`git rev-parse --short HEAD`) are resolved once per process.
 
-`merge=union` keeps both branches' rows on rebase/cherry-pick. Rows are row-independent so this stays safe.
+Each tracked file has a single machine writer, so no custom merge driver is required for score history.
 
 ### Schema
 

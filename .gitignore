@@ -246,12 +246,11 @@ test_output/*
 /health-dashboard/reports/*.json
 /health-dashboard/reports/*.json.tmp.*
 /health-dashboard/reports/checks/*.json
-/health-dashboard/reports/scores-history.local.csv
-/health-dashboard/reports/scores-history.csv.tmp.*
-/health-dashboard/reports/scores-history.local.csv.tmp.*
+/health-dashboard/reports/scores-history/*.local.csv
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
-!/health-dashboard/reports/scores-history.csv
+!/health-dashboard/reports/scores-history/
+!/health-dashboard/reports/scores-history/.gitkeep
 **/.claude/scheduled_tasks.lock
 /test-results/
 /VoiceTree/

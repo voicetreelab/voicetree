@@ -4,17 +4,19 @@
  * Every recordHealthReport / recordCheckReport appends one row to the
  * scores-history CSV so a regression can be blamed to a specific commit.
  *
- * Two sibling files, selected by working-tree cleanliness at process start:
+ * Two sibling files per machine, selected by working-tree cleanliness at
+ * process start:
  *
- *   scores-history.csv         tracked  | clean tree (CI, or local after commit)
- *   scores-history.local.csv   gitignored | dirty tree (mid-edit, peer-agent WIP)
+ *   scores-history/<UUID>.csv         tracked    | clean tree
+ *   scores-history/<UUID>.local.csv   gitignored | dirty tree
  *
  * Clean-tree rows are safe to share: the row's `commit` matches the source
  * tree that was actually scored. Dirty-tree rows route to the local sibling
  * so they never contaminate the shared history with mislabelled scores.
  *
- * The tracked CSV uses `merge=union` (.gitattributes) so two branches
- * appending rows never conflict on rebase or cherry-pick.
+ * UUID comes from ~/.voicetree-machine-id, created once per machine outside
+ * the repo. That gives each machine one writer-owned tracked file instead of
+ * forcing cross-machine appends into one global CSV.
  *
  * Schema:
  *
@@ -70,15 +72,28 @@ function resolveCleanTree(): boolean {
     }
 }
 
+function resolveMachineId(): string {
+    return execFileSync('sh', [
+        '-c',
+        '[ -s ~/.voicetree-machine-id ] || (uuidgen > ~/.voicetree-machine-id); cat ~/.voicetree-machine-id',
+    ], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+}
+
 // Resolved once per process. Both values are stable for a typical
-// measures run (one process, one repo). Caching avoids forking git
-// per metric. Clean tree → tracked CSV; dirty tree → gitignored sibling.
+// measures run (one process, one repo). Caching avoids forking git and sh per
+// metric. Clean tree → tracked CSV; dirty tree → gitignored sibling.
 const COMMIT_SHA: string = resolveCommitSha()
+const MACHINE_ID: string = resolveMachineId()
+const TARGET_FILENAME: string = `${MACHINE_ID}${resolveCleanTree() ? '.csv' : '.local.csv'}`
 const TARGET_PATH: string = join(
     REPO_ROOT,
     'health-dashboard',
     'reports',
-    resolveCleanTree() ? 'scores-history.csv' : 'scores-history.local.csv',
+    'scores-history',
+    TARGET_FILENAME,
 )
 
 function escapeCsvField(value: string): string {

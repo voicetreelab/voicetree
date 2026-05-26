@@ -26,7 +26,6 @@ sync:
         - "old"
         - "webapp/e2e-tests/perf-traces"
         - "webapp/e2e-tests/screenshots"
-        - "health-dashboard/reports"
         - ".venv"
         - ".venv-server"
         - ".codeql"
