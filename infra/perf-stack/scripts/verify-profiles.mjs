@@ -11,7 +11,7 @@ const CHILD_WORK_MS = 5_000
 const FLUSH_WAIT_MS = 10_000
 const POLL_INTERVAL_MS = 500
 const POLL_TIMEOUT_MS = 15_000
-const PROFILE_TYPE = 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
+const PROFILE_TYPE = 'wall:cpu:nanoseconds:wall:nanoseconds'
 const RENDER_PATH = '/pyroscope/render'
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
