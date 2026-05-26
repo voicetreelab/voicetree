@@ -196,6 +196,56 @@ describe('createTaskNode', () => {
     })
   })
 
+  describe('parent wikilink uses basename form, not absolute path', () => {
+    it('should write parent wikilink as basename without .md extension', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/vault/subdir/parent-node.md': createTestNode('/vault/subdir/parent-node.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const params: TaskNodeCreationParams = {
+        taskDescription: 'A task',
+        selectedNodeIds: ['/vault/subdir/parent-node.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolder: '/vault',
+        position: { x: 0, y: 0 }
+      }
+
+      const result: GraphDelta = createTaskNode(params)
+      const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
+
+      // Parent reference should be the basename, not the absolute path.
+      // contentWithoutYamlOrLinks has wikilinks rewritten as [name]*, so we
+      // assert on that stripped form to match the public observable contract.
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).toContain('[parent-node]*')
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).not.toContain('/vault/subdir/parent-node.md')
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).not.toContain('parent-node.md')
+    })
+
+    it('should still resolve the parent edge to the full node id', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/vault/subdir/parent-node.md': createTestNode('/vault/subdir/parent-node.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const params: TaskNodeCreationParams = {
+        taskDescription: 'A task',
+        selectedNodeIds: ['/vault/subdir/parent-node.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolder: '/vault',
+        position: { x: 0, y: 0 }
+      }
+
+      const result: GraphDelta = createTaskNode(params)
+      const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
+      const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
+      // Edge resolution still finds the absolute-path-keyed node via basename
+      // suffix match, so the graph wiring is unchanged.
+      expect(targetIds).toEqual(['/vault/subdir/parent-node.md'])
+    })
+
+  })
+
   describe('node ID generation', () => {
     it('should generate unique node ID in writeFolder directory', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {

@@ -1,3 +1,4 @@
+import path from 'path'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '../..'
 import { ensureUniqueNodeId, parseMarkdownToGraphNode, stableIdSuffix } from '../graphOperationPrimitives'
 import { findMostConnectedNode } from '../indexes/findMostConnectedNode'
@@ -36,13 +37,18 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
 
   const mostConnectedNodeId: NodeIdAndFilePath = findMostConnectedNode(selectedNodeIds, graph)
+  // Use basename-form wikilinks, matching human-authored convention.
+  // NodeIdAndFilePath is an absolute path; the link resolver tolerates absolute
+  // paths via suffix matching, but emitting basenames keeps daemon-written files
+  // visually identical to user-authored files and avoids leaking machine paths.
+  const parentBasename: string = path.basename(mostConnectedNodeId, '.md')
 
   // Build markdown content with task description and parent link only.
   // Selected node references are stored in the context node, not here,
   // to avoid duplicate edges cluttering the graph.
   const markdownContent: string = `# ${taskDescription}
 
-- parent [[${mostConnectedNodeId}]]
+- parent [[${parentBasename}]]
 `
 
   const parsedNode: GraphNode = parseMarkdownToGraphNode(markdownContent, nodeId, graph)
