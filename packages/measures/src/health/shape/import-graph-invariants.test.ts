@@ -23,7 +23,9 @@ const DAEMON_OWNED_MUTATIONS_LAUNCHER_ALLOWLIST: ReadonlySet<string> = new Set([
     'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
     'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
-    'packages/systems/vt-daemon/bin/vt-mcpd.ts',
+    // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer embeds
+    // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
+    // SIBLING process. No allowlist entry required.
 ])
 
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET = 0

@@ -1,7 +1,7 @@
 // Public API surface for @vt/vt-daemon.
-// Both Electron (webapp) and vt-mcpd consume runtime functionality through
-// this barrel or via the stable internal subpaths declared in
-// package.json#exports.
+// Both Electron (webapp) and the standalone vtd binary consume runtime
+// functionality through this barrel or via the stable internal subpaths
+// declared in package.json#exports.
 
 export {configureMcpServer, getLiveStateBridge, getSearchBridge} from '../config/mcp-config'
 export type {
