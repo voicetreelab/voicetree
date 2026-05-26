@@ -1,9 +1,9 @@
 import type {TerminalData, TerminalId} from '../../terminals/terminal-registry/types'
 import {getTerminalId} from '../../terminals/terminal-registry/types'
-import {clearPendingTerminal} from '../../terminals/terminal-registry'
+import {clearPendingTerminal, recordTerminalPending, removeTerminalFromRegistry} from '../../terminals/terminal-registry'
 import {setTerminalBudget} from '../../terminals/global-budget-registry'
 import {spawnHeadlessAgent, killHeadlessAgent} from '../../headless/headlessAgentManager'
-import {getRuntimeUI} from '../../runtime/runtime-config'
+import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
 import {buildHeadlessCommand} from '../cli/headlessCli'
 import {prepareTerminalDataInMain} from '../terminalData'
 import type {SpawnTerminalLogger} from './reloadNodeFromDisk'
@@ -62,9 +62,19 @@ function launchPreparedTerminal(
     }
 
     if (params.inheritTerminalId) {
-        getRuntimeUI().closeTerminalById?.(params.inheritTerminalId)
+        // Inherit replaces the row at the same terminalId. Fire `terminal-removed`
+        // (via removeTerminalFromRegistry) so receivers drop the old floating
+        // window before the `terminal-ui-launch` below creates the new one;
+        // re-pend the same id so MCP probes mid-spawn still resolve.
+        removeTerminalFromRegistry(params.inheritTerminalId)
+        recordTerminalPending(params.inheritTerminalId, !!params.headless)
     }
-    getRuntimeUI().launchTerminalOntoUI?.(params.contextNodeId, terminalData, params.skipFitAnimation)
+    publishTerminalRegistryEvent({
+        type: 'terminal-ui-launch',
+        nodeId: params.contextNodeId,
+        terminalData,
+        skipFitAnimation: !!params.skipFitAnimation,
+    })
 }
 
 export async function launchTerminalSpawn(params: LaunchTerminalSpawnParams): Promise<void> {
@@ -88,7 +98,11 @@ export async function launchTerminalSpawn(params: LaunchTerminalSpawnParams): Pr
         launchPreparedTerminal(params, terminalData)
 
         if (params.parentTerminalId) {
-            getRuntimeUI().registerChildIfMonitored?.(params.parentTerminalId, getTerminalId(terminalData))
+            publishTerminalRegistryEvent({
+                type: 'terminal-ui-child-registered',
+                parentTerminalId: params.parentTerminalId as TerminalId,
+                childTerminalId: getTerminalId(terminalData),
+            })
         }
         maybeSetTerminalBudget(params.terminalId, terminalData)
     } catch (err) {

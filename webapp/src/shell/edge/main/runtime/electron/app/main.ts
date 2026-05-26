@@ -1,29 +1,20 @@
 /// <reference types="node" />
-import {app, BrowserWindow, dialog, nativeImage} from 'electron';
+import {app, BrowserWindow, nativeImage} from 'electron';
 import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
+import {isAbsolute, join} from 'node:path';
 import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/application-menu';
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
-import {trace} from '@/shell/edge/main/observability/tracing/trace';
-import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
-import {
-    configureMcpServer,
-    registerChildIfMonitored,
-} from '@vt/vt-daemon';
+import {configureMcpServer} from '@vt/vt-daemon';
 import {existsSync} from 'node:fs';
-import {getActiveAuthToken, unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
-import {getDaemonUrl} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
+import {getAuthToken, getDaemonUrl, unbindVtDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {installVtDaemonEventsBridge} from '@/shell/edge/main/runtime/electron/daemon/events/vtDaemonEventsBridge';
 import {installVtTerminalAttachBridge} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachBridge';
 import {getMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
-import {
-    terminalRuntimeSurface,
-    type TerminalRecord,
-} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
-import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
+import type {TerminalRecord} from '@vt/vt-daemon-client';
 import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
@@ -32,7 +23,6 @@ import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
-import {registerTerminalIpcHandlers} from '@/shell/edge/main/agent/terminals/ipc-terminal-handlers';
 import {
     refreshUnclaimedTmuxSessions,
     startUnclaimedTmuxSessionPolling,
@@ -53,13 +43,14 @@ import {
 } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
 import {
-    getWatchStatus,
     getVaultPaths,
+    getWatchStatus,
     getWriteFolder,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/runtime/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/workspace/saveNodePositions';
 import {validateStartupCwd} from '@/shell/edge/main/runtime/electron/startup/startup-diagnostics';
+import {subscribeToTerminalRegistryCache} from '@/shell/edge/main/agent/terminals/terminal-registry-bridge';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
@@ -73,6 +64,7 @@ import {
 } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
+import {unsubscribeFromTerminalRegistrySse} from '@/shell/edge/main/runtime/electron/daemon/sync/terminal-registry-sse-subscription';
 import {installQuitLifecycleHandlers} from './quit-lifecycle';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
@@ -129,67 +121,6 @@ configureMcpServer({
     },
 });
 
-// Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
-terminalRuntimeSurface.configureAgentRuntime({
-    env: {
-        getAppSupportPath,
-        getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRoot,
-        getVaultPaths,
-        getWriteFolder: async () => {
-            const writeFolder: O.Option<string> = await getWriteFolder();
-            return O.isSome(writeFolder) ? writeFolder.value : null;
-        },
-        getCliManualPath: (): string => getBuildConfig().cliManualPath,
-        getVtBinDir: (): string | null => terminalRuntimeSurface.resolveVtBinDir(getBuildConfig().voicetreeCliPackageDir, existsSync),
-    },
-    graph: {
-        getGraph: async () => getGraphFromDaemon(),
-        getVaultPaths: () => getVaultPaths(),
-        getWriteFolder: () => getWriteFolder(),
-        getProjectRoot,
-        getWatchStatus,
-        applyGraphDelta: (delta, recordForUndo) =>
-            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        createContextNode: async (parentNodeId, semanticNodeIds) => {
-            const result = await getActiveGraphDbClient().createContextNode(
-                parentNodeId,
-                [...(semanticNodeIds ?? [])],
-            );
-            return result.nodeId;
-        },
-        createContextNodeFromSelectedNodes: async (taskNodeId, selectedNodeIds) => {
-            const result = await getActiveGraphDbClient().createContextNodeFromSelectedNodes(
-                taskNodeId,
-                selectedNodeIds,
-            );
-            return result.nodeId;
-        },
-        getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
-            return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
-                contextNodeId,
-                searchFromNode,
-            );
-        },
-        updateContextNodeContainedIds: async (contextNodeId, newNodeIds) => {
-            await getActiveGraphDbClient().updateContextNodeContainedIds(contextNodeId, newNodeIds);
-        },
-    },
-    trace,
-    ui: {
-        launchTerminalOntoUI: (nodeId, terminalData, skipFitAnimation) => {
-            void uiAPI.launchTerminalOntoUI(nodeId, terminalData, skipFitAnimation);
-        },
-        closeTerminalById: (terminalId) => {
-            uiAPI.closeTerminalById(terminalId);
-        },
-        logHookResult: (message: string) => {
-            uiAPI.logHookResult(message);
-        },
-        registerChildIfMonitored,
-    },
-});
-
 const {autoUpdater} = electronUpdater;
 
 function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
@@ -206,6 +137,28 @@ async function getProjectRoot(): Promise<string | null> {
     return status.directory ?? null;
 }
 
+/**
+ * Verifies the build-config-supplied `voicetree-cli` package directory
+ * ships a `bin/vt` script; returns the absolute `bin/` directory or null
+ * when missing. The packaged Electron build can omit the CLI — null is
+ * the no-op signal (PATH is left untouched).
+ */
+function resolveLocalVtBinDir(): string | null {
+    const cliPkg: string | null = getBuildConfig().voicetreeCliPackageDir;
+    if (cliPkg === null || cliPkg.length === 0 || !isAbsolute(cliPkg)) return null;
+    const binDir: string = join(cliPkg, 'bin');
+    return existsSync(join(binDir, 'vt')) ? binDir : null;
+}
+
+// Surface the resolved bin dir on the environment so daemon-spawned shells can
+// inherit it through their child env (the daemon also resolves its own, but
+// Electron's PATH still wants the CLI on it for menu actions like "open
+// terminal here").
+const electronVtBinDir: string | null = resolveLocalVtBinDir();
+if (electronVtBinDir !== null) {
+    process.env.PATH = `${electronVtBinDir}${path.delimiter}${process.env.PATH ?? ''}`;
+}
+
 configureEnvironment();
 pinProcessAppSupportPath();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
@@ -219,16 +172,9 @@ const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServe
     ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
         ? new StubTextToTreeServerManager()
         : new RealTextToTreeServerManager();
-const terminalManager: ReturnType<typeof terminalRuntimeSurface.getTerminalManager> = terminalRuntimeSurface.getTerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
-
-// Inject dependencies into mainAPI (must be done before IPC handler registration)
-registerTerminalIpcHandlers(
-    terminalManager,
-    getToolsDirectory
-);
 
 // Main-owned IPC bridges for the VTD /events stream (BF-367) and
 // /terminals/:id/attach PTY relay (BF-368). The bearer token never enters
@@ -236,26 +182,26 @@ registerTerminalIpcHandlers(
 // renderer drives them by opaque IPC handles. Bridges install ipcMain
 // handlers eagerly; they tolerate the daemon being unbound at install time
 // (the events client reschedules and the terminal-attach bridge only opens
-// upstream WS on demand).
-const tokenForBridges = (): Promise<string> => {
-    const token: string | null = getActiveAuthToken();
-    if (!token) return Promise.reject(new Error('daemon_unreachable: no active auth token'));
-    return Promise.resolve(token);
-};
+// upstream WS on demand). Post-Phase-2 (BF-375): the bridges resolve the
+// daemon URL + auth token via daemon-url-binding, which re-ensures the
+// per-vault VTD on every access.
 const teardownVtDaemonEventsBridge: () => void = installVtDaemonEventsBridge({
     getMainWindow,
     getDaemonUrl,
-    getAuthToken: tokenForBridges,
+    getAuthToken,
 });
 const teardownVtTerminalAttachBridge: () => void = installVtTerminalAttachBridge({
     getMainWindow,
     getDaemonUrl,
-    getAuthToken: tokenForBridges,
+    getAuthToken,
 });
 
-// Bridge registry mutations to the renderer. Headless contexts skip this wiring.
+// Bridge terminal-registry cache mutations (driven by SSE deltas + the
+// vault-open cold-start prime) to the renderer / completion notifier /
+// recovery pollers. The local cache mirror is the canonical change
+// source — agent-runtime is daemon-side post-BF-376.
 const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
-terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
+subscribeToTerminalRegistryCache((records: readonly TerminalRecord[]): void => {
     uiAPI.syncTerminals(records);
     notifyOnCompletion(records);
     void refreshUnclaimedTmuxSessions().catch(() => undefined);
@@ -270,40 +216,12 @@ void app.whenReady().then(async () => {
     registerGraphIpcHandlers();
     setupApplicationMenu();
 
-    // Tmux preflight — fail fast with a user-visible dialog if tmux is missing
-    // or the launchd-owned server can't start. Without this the app starts but
-    // every terminal spawn silently fails later.
-    try {
-        await terminalRuntimeSurface.ensureTmuxAvailable();
-        await terminalRuntimeSurface.ensureTmuxServer();
-    } catch (error: unknown) {
-        const message: string = error instanceof Error ? error.message : String(error);
-        dialog.showErrorBox('Voicetree cannot start', message);
-        app.exit(1);
-        return;
-    }
-
-    // The unified HTTP daemon (Step 9b) is started per-opened-vault by
-    // openVault → bindHttpDaemonForVault; nothing app-wide to start here.
-    // The tmux WS relay (Step 9f) is folded into that daemon — no separate
-    // electron-side relay server.
-
-    // Install the lifecycle JSONL telemetry sink.
-    try {
-        const appSupportPath: string = getAppSupportPath();
-        if (appSupportPath) {
-            terminalRuntimeSurface.installJsonlTelemetrySink(path.join(appSupportPath, 'lifecycle-telemetry.jsonl'));
-        }
-    } catch (err) {
-        log.warn(`[Startup] telemetry sink install skipped: ${err instanceof Error ? err.message : String(err)}`);
-    }
-
-    if (process.env.VOICETREE_VAULT_PATH) {
-        const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
-        if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
-            log.info('[Startup] Reconciled tmux terminals', reconciliation);
-        }
-    }
+    // The per-vault VTD child is spawned (or adopted) on-demand by
+    // openVault → bindVtDaemonForVault; tmux preflight / server ensure /
+    // headless reconciliation all run inside the daemon at boot. The
+    // lifecycle JSONL telemetry sink is installed by `vtd.ts:333` — Main
+    // is a client and observes the events via the `terminal-registry`
+    // SSE topic.
 
     // Register this instance for vt-debug discovery
     await registerInstance();
@@ -328,11 +246,6 @@ void app.whenReady().then(async () => {
         app.dock.hide();
     }
 
-    // Set up agent tools directory on first launch (skipped in test mode)
-    console.time('[Startup] setupToolsDirectory');
-    await setupToolsDirectory();
-    console.timeEnd('[Startup] setupToolsDirectory');
-
     // Set up onboarding directory on first launch (skipped in test mode)
     console.time('[Startup] setupOnboardingDirectory');
     await setupOnboardingDirectory();
@@ -351,7 +264,7 @@ void app.whenReady().then(async () => {
     setBackendPort(textToTreeServerPort);
 
     console.time('[Startup] createWindow');
-    createWindow({terminalManager, isQuitting: () => isQuitting});
+    createWindow({isQuitting: () => isQuitting});
     startUnclaimedTmuxSessionPolling();
     startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
@@ -377,7 +290,6 @@ void app.whenReady().then(async () => {
     autoUpdater.checkForUpdatesAndNotify()
         .then((result: UpdateCheckResult | null) => {
             if (result) {
-                //console.log(`[AutoUpdate] CL Check result: ${result.updateInfo.version} (current: ${app.getVersion()})`);
                 log.info(`[AutoUpdate] Check result: ${result.updateInfo.version} (current: ${app.getVersion()})`);
             } else {
                 log.info('[AutoUpdate] Check returned null (likely dev mode or no-op)');
@@ -393,15 +305,8 @@ let isQuitting: boolean = false;
 
 // Handle hot reload and app quit scenarios
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
-// MCP integration moved into @vt/vt-daemon (out-of-process), so the in-process
-// MCP-handle/JSON-integration deps that dev's quit-lifecycle expects are no-ops
-// on this branch — the daemon manages its own lifecycle.
 installQuitLifecycleHandlers({
     cleanupOrphanedContextNodes,
-    clearMcpHandle: (): void => {},
-    disableMcpJsonIntegration: async (): Promise<void> => {},
-    getMcpHandle: () => null,
-    getTerminalRecords: terminalRuntimeSurface.getTerminalRecords,
     setIsQuitting: (value: boolean): void => { isQuitting = value; },
     stopNotificationScheduler,
     stopOTLPReceiver,
@@ -409,7 +314,6 @@ installQuitLifecycleHandlers({
     stopTextToTreeServer: (): void => { textToTreeServerManager.stop(); },
     stopTrackpadMonitoring,
     stopUnclaimedTmuxSessionPolling,
-    terminalManager,
     unregisterInstance,
 });
 
@@ -417,11 +321,12 @@ app.on('will-quit', () => {
     // Stop daemon clients after windows have closed so position persistence can
     // finish while the daemon is still available.
     unsubscribeFromDaemonSSE();
+    unsubscribeFromTerminalRegistrySse();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
     teardownVtDaemonEventsBridge();
     teardownVtTerminalAttachBridge();
-    void unbindHttpDaemon();
+    void unbindVtDaemon();
 });
 
 app.on('activate', () => {
@@ -430,15 +335,13 @@ app.on('activate', () => {
         if (windows.length === 0) {
             // Restart server if it's not running (macOS dock click after window close)
             if (!textToTreeServerManager.isRunning()) {
-                //console.log('[App] Reactivating - restarting server...');
                 textToTreeServerPort = await textToTreeServerManager.start();
-                //console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
                 // Inject backend port into mainAPI
                 setBackendPort(textToTreeServerPort);
             }
-            createWindow({terminalManager, isQuitting: () => isQuitting});
+            createWindow({isQuitting: () => isQuitting});
             startUnclaimedTmuxSessionPolling();
-    startRecoverySessionPolling();
+            startRecoverySessionPolling();
         } else {
             // Show the hidden window (macOS hide-on-close behavior)
             windows[0].show();

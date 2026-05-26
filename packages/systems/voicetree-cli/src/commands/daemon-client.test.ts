@@ -1,12 +1,18 @@
 // Black-box tests for `callDaemon` against a real HTTP wire — design doc
-// §4.1 / §4.2 contract. No mocks; tests boot either the production daemon
-// (`startHttpDaemonServer`) for behavior on the happy paths or a minimal
-// `http.createServer` instance when we need wire-level control (401 retry
-// flips, hang-for-timeout, ECONNREFUSED).
+// §4.1 / §4.2 contract. No mocks; tests run hand-rolled `node:http` servers
+// that respond with the wire envelopes the CLI client must handle.
 //
-// Discovery uses real env vars and `process.chdir`, matching the harness
-// pattern in `graphCreateHarness.ts`. Per CLAUDE.md: real `http.createServer`,
-// real `fetch`, no `toHaveBeenCalledWith`, observable side effects only.
+// `callDaemon`'s contract surface is purely the wire shape: POST /rpc with
+// `Authorization: Bearer <token>` + a JSON-RPC 2.0 envelope, response either
+// `{result}` for success or `{error: {code, message, data}}` for failure.
+// Stubbing the server in-test (rather than booting the real vt-daemon)
+// keeps the CLI package decoupled from the daemon's internals — any drift in
+// the wire contract surfaces as a `callDaemon` failure exactly as it would
+// against the real daemon.
+//
+// Discovery uses real env vars and `process.chdir`. Per CLAUDE.md: real
+// `http.createServer`, real `fetch`, no `toHaveBeenCalledWith`, observable
+// side effects only.
 
 import {createServer, type IncomingMessage, type Server, type ServerResponse} from 'node:http'
 import {mkdir, mkdtemp, realpath, rm, writeFile} from 'node:fs/promises'
@@ -15,24 +21,31 @@ import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
 import {
-    buildJsonResponse,
-    CatalogValidationError,
-    startHttpDaemonServer,
-    type HookHandler,
-    type HttpDaemonServerHandle,
-    type ToolCatalog,
-} from '@vt/vt-daemon'
-import {authTokenFilePath, generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
+    ERROR_CODES,
+    authTokenFilePath,
+    generateAuthToken,
+    writeAuthTokenFile,
+    writeRpcPortFile,
+} from '@vt/vt-rpc'
 
 import {callDaemon, DaemonTimeout, DaemonUnreachable} from './daemon-client.ts'
 
-const noopHookHandler: HookHandler = (): unknown => ({ok: true})
+interface JsonRpcRequestEnvelope {
+    readonly jsonrpc: '2.0'
+    readonly method: string
+    readonly params: Record<string, unknown>
+    readonly id: number | string | null
+}
 
-interface ProductionDaemonHandle {
+type ResponderOutcome =
+    | {readonly type: 'ok'; readonly payload: unknown}
+    | {readonly type: 'error'; readonly code: number; readonly message: string; readonly data: unknown}
+
+interface StubDaemonHandle {
     readonly vaultPath: string
     readonly url: string
     readonly token: string
-    readonly handle: HttpDaemonServerHandle
+    readonly stop: () => Promise<void>
 }
 
 async function makeVault(prefix: string): Promise<string> {
@@ -41,29 +54,60 @@ async function makeVault(prefix: string): Promise<string> {
     return dir
 }
 
-async function startProductionDaemon(
+function readBody(req: IncomingMessage): Promise<string> {
+    return new Promise<string>((resolveBody, rejectBody): void => {
+        const chunks: Buffer[] = []
+        req.on('data', (chunk: Buffer): void => {
+            chunks.push(chunk)
+        })
+        req.on('end', (): void => resolveBody(Buffer.concat(chunks).toString('utf8')))
+        req.on('error', rejectBody)
+    })
+}
+
+async function startStubDaemon(
     toolName: string,
-    handler: (args: Record<string, unknown>) => Promise<{type: 'ok'; payload: unknown} | {type: 'error'; payload: unknown} | {type: 'throw'; err: unknown}>,
-): Promise<ProductionDaemonHandle> {
+    handler: (args: Record<string, unknown>) => Promise<ResponderOutcome>,
+): Promise<StubDaemonHandle> {
     const vaultPath: string = await makeVault('vt-daemon-client-')
     const token: string = generateAuthToken()
     await writeAuthTokenFile(vaultPath, token)
-    const catalog: ToolCatalog = new Map([
-        [toolName, async (args: Record<string, unknown>) => {
-            const outcome = await handler(args)
-            if (outcome.type === 'throw') throw outcome.err
-            return buildJsonResponse(outcome.payload, outcome.type === 'error')
-        }],
-    ])
-    const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
-        catalog,
-        hookHandler: noopHookHandler,
-        token,
-        bindHost: '127.0.0.1',
-        logger: {logRequest: (): void => {}, logError: (): void => {}},
+    const raw: RawHttpServer = await startRawServer((req, res) => {
+        void readBody(req).then(async (rawBody: string): Promise<void> => {
+            const auth: string | undefined = req.headers.authorization
+            if (auth !== `Bearer ${token}`) {
+                res.statusCode = 401
+                res.end()
+                return
+            }
+            let envelope: JsonRpcRequestEnvelope
+            try {
+                envelope = JSON.parse(rawBody) as JsonRpcRequestEnvelope
+            } catch {
+                res.statusCode = 400
+                res.end()
+                return
+            }
+            if (envelope.method !== toolName) {
+                res.statusCode = 404
+                res.end()
+                return
+            }
+            const outcome: ResponderOutcome = await handler(envelope.params ?? {})
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            const body: unknown = outcome.type === 'ok'
+                ? {jsonrpc: '2.0', id: envelope.id, result: outcome.payload}
+                : {jsonrpc: '2.0', id: envelope.id, error: {
+                    code: outcome.code,
+                    message: outcome.message,
+                    data: outcome.data,
+                }}
+            res.end(JSON.stringify(body))
+        })
     })
-    await writeRpcPortFile(vaultPath, handle.port)
-    return {vaultPath, url: handle.url, token, handle}
+    await writeRpcPortFile(vaultPath, raw.port)
+    return {vaultPath, url: raw.url, token, stop: raw.close}
 }
 
 interface RawHttpServer {
@@ -140,8 +184,8 @@ describe('callDaemon — black-box HTTP wire', () => {
 
     it('happy path: returns parsed tool payload', async () => {
         const expectedPayload = {nodes: [{path: 'a.md'}], cursor: 'abc'}
-        const daemon = await startProductionDaemon('search_nodes', async () => ({type: 'ok', payload: expectedPayload}))
-        cleanups.push(daemon.handle.stop)
+        const daemon = await startStubDaemon('search_nodes', async () => ({type: 'ok', payload: expectedPayload}))
+        cleanups.push(daemon.stop)
         tempDirs.push(daemon.vaultPath)
         process.chdir(daemon.vaultPath)
 
@@ -151,8 +195,13 @@ describe('callDaemon — black-box HTTP wire', () => {
 
     it('-32003 tool_handler_failed envelope: throws Error whose message is JSON.stringify(error.data)', async () => {
         const failurePayload = {kind: 'tool_failure_envelope', detail: 'cannot apply'}
-        const daemon = await startProductionDaemon('create_graph', async () => ({type: 'error', payload: failurePayload}))
-        cleanups.push(daemon.handle.stop)
+        const daemon = await startStubDaemon('create_graph', async () => ({
+            type: 'error',
+            code: ERROR_CODES.tool_handler_failed,
+            message: 'tool handler failed',
+            data: failurePayload,
+        }))
+        cleanups.push(daemon.stop)
         tempDirs.push(daemon.vaultPath)
         process.chdir(daemon.vaultPath)
 
@@ -163,15 +212,20 @@ describe('callDaemon — black-box HTTP wire', () => {
 
     it('-32602 validation_failed envelope: throws Error with kind: validation_failed and the data wrapped', async () => {
         const issues: ReadonlyArray<unknown> = [{path: ['query'], message: 'Required'}]
-        const daemon = await startProductionDaemon('search_nodes', async () => ({
-            type: 'throw',
-            err: new CatalogValidationError('search_nodes', issues),
+        // The real daemon emits this envelope when a tool's argument zod
+        // schema fails — `data` is `{kind: 'validation_failed', tool, issues}`
+        // (see rpcDispatch.ts in the vt-daemon package).
+        const expectedData = {kind: 'validation_failed', tool: 'search_nodes', issues}
+        const daemon = await startStubDaemon('search_nodes', async () => ({
+            type: 'error',
+            code: ERROR_CODES.validation_failed,
+            message: 'validation_failed: search_nodes',
+            data: expectedData,
         }))
-        cleanups.push(daemon.handle.stop)
+        cleanups.push(daemon.stop)
         tempDirs.push(daemon.vaultPath)
         process.chdir(daemon.vaultPath)
 
-        const expectedData = {kind: 'validation_failed', tool: 'search_nodes', issues}
         await expect(callDaemon('search_nodes', {})).rejects.toMatchObject({
             message: JSON.stringify({kind: 'validation_failed', data: expectedData}),
         })
@@ -281,18 +335,18 @@ describe('callDaemon — black-box HTTP wire', () => {
 
     describe('discovery chain ordering (3 tiers + fail-fast)', () => {
         it('env URL wins when both env URL and cwd up-walk are valid', async () => {
-            const winning = await startProductionDaemon('search_nodes', async () => ({
+            const winning = await startStubDaemon('search_nodes', async () => ({
                 type: 'ok',
                 payload: {via: 'env_url'},
             }))
-            cleanups.push(winning.handle.stop)
+            cleanups.push(winning.stop)
             tempDirs.push(winning.vaultPath)
 
-            const losing = await startProductionDaemon('search_nodes', async () => ({
+            const losing = await startStubDaemon('search_nodes', async () => ({
                 type: 'ok',
                 payload: {via: 'cwd_up_walk'},
             }))
-            cleanups.push(losing.handle.stop)
+            cleanups.push(losing.stop)
             tempDirs.push(losing.vaultPath)
 
             process.chdir(losing.vaultPath)
@@ -304,11 +358,11 @@ describe('callDaemon — black-box HTTP wire', () => {
         })
 
         it('cwd up-walk wins when env URL is unset (only port file present)', async () => {
-            const daemon = await startProductionDaemon('search_nodes', async () => ({
+            const daemon = await startStubDaemon('search_nodes', async () => ({
                 type: 'ok',
                 payload: {via: 'cwd_up_walk'},
             }))
-            cleanups.push(daemon.handle.stop)
+            cleanups.push(daemon.stop)
             tempDirs.push(daemon.vaultPath)
             process.chdir(daemon.vaultPath)
 
@@ -329,14 +383,3 @@ describe('callDaemon — black-box HTTP wire', () => {
         })
     })
 })
-
-function readBody(req: IncomingMessage): Promise<string> {
-    return new Promise<string>((resolveBody, rejectBody): void => {
-        const chunks: Buffer[] = []
-        req.on('data', (c: Buffer): void => {
-            chunks.push(c)
-        })
-        req.on('end', (): void => resolveBody(Buffer.concat(chunks).toString('utf8')))
-        req.on('error', rejectBody)
-    })
-}

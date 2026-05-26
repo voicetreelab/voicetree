@@ -4,34 +4,20 @@
  * See plan: terminalstatusimplementationplan.md
  *
  * Pure types only. No I/O, no runtime logic.
- */
-
-/**
- * Six mutually-exclusive lifecycle states. Drives the icon shown in the sidebar.
  *
- * Transitions live in `derive.ts`.
+ * `TerminalLifecycle`, `TerminalKillReason`, and `AgentEventKind` are now
+ * canonically owned by `@vt/vt-daemon-protocol` (BF-376 outbound) so the
+ * VTD wire contract can describe them without back-importing agent-runtime.
+ * Re-exported here to keep the in-package `lifecycle` deep path stable.
  */
-export type TerminalLifecycle =
-    | 'spawning'         // created, no output yet
-    | 'active'           // output observed within INACTIVITY_THRESHOLD_MS
-    | 'idle'             // alive, quiet, no completion signal (the old `isDone === true`)
-    | 'awaiting_input'   // agent hook says it is waiting on user
-    | 'completed'        // exit code 0, agent self-reported done, or VoiceTree-initiated kill
-    | 'errored';         // crash, non-zero exit, or external kill
 
-/**
- * Why a terminal was killed. Set by VoiceTree when it issues the kill signal;
- * consumed by `classifyExit` to distinguish user-initiated termination
- * (COMPLETED) from external termination (ERRORED).
- */
-export type TerminalKillReason = 'user' | 'external';
+import type {
+    TerminalLifecycle,
+    TerminalKillReason,
+    AgentEventKind,
+} from '@vt/vt-daemon-protocol'
 
-/**
- * Agent lifecycle events emitted by hooks (Claude Code Notification/Stop/
- * UserPromptSubmit, Codex Stop/PermissionRequest/UserPromptSubmit) or the
- * SDK (`markAwaiting`/`markDone`). The sole source of awaiting_input.
- */
-export type AgentEventKind = 'awaiting' | 'done' | 'working';
+export type {TerminalLifecycle, TerminalKillReason, AgentEventKind}
 
 /**
  * Discriminated union of every signal the lifecycle reducer can consume.

@@ -108,13 +108,16 @@ async function exposeElectronAPI(): Promise<void> {
             ipcRenderer.removeAllListeners(channel);
         },
 
-        // Terminal API
-        // Tmux-backed terminals: `spawn` creates the tmux session (one-shot);
-        // `attach` opens a Main-owned `/terminals/:id/attach` WebSocket and
-        // returns an opaque handle id the renderer uses for I/O. The renderer
-        // never holds the bearer token or talks WebSocket directly.
+        // Terminal API (Phase 0 / BF-367+368). Tmux-backed terminals: `attach`
+        // opens a Main-owned `/terminals/:id/attach` WebSocket and returns an
+        // opaque handle id the renderer uses for I/O. The renderer never
+        // holds the bearer token or talks WebSocket directly.
+        //
+        // Spawn went through this IPC pre-BF-376; Phase 2 BF-376 moved the
+        // spawn surface entirely behind `vt-daemon-client` RPCs and the
+        // `terminal-registry` SSE topic — the renderer no longer initiates
+        // spawn from preload.
         terminal: {
-            spawn: (terminalData) => ipcRenderer.invoke('terminal:spawn', terminalData),
             attach: (terminalId: string): Promise<string> =>
                 ipcRenderer.invoke('terminal:attach', terminalId) as Promise<string>,
             onData: (handle: string, listener: (data: string) => void): (() => void) => {
@@ -194,7 +197,6 @@ async function exposeElectronAPI(): Promise<void> {
                 'rpc:call',
                 'rpc:getApiKeys',
                 'graph:getCurrentProjectedGraph',
-                'terminal:spawn',
                 'terminal:attach',
                 'terminal:write',
                 'terminal:resize',

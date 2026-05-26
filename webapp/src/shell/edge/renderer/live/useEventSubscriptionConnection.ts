@@ -12,7 +12,7 @@
 import {useEffect, useState} from 'react'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
 
-const DEFAULT_TOPIC: TopicName = 'agent-lifecycle'
+const DEFAULT_TOPIC: TopicName = 'agent-events'
 
 export interface EventSubscriptionConnectionState {
     readonly state: ConnectionState

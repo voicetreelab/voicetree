@@ -144,6 +144,26 @@ type ImportEdge = {
 //
 // Same commit also raises the existing `daemon-lifecycle -> graph-db-protocol`
 // budget from 2 to 3 (+1) — see the inline comment above that entry below.
+//
+// 2026-05-27 [Phase 2 / BF-376]: BF-376 outbound caller-cutover adds the
+// `vt-daemon-protocol` package and the webapp→vt-daemon-client edge that
+// replaces the webapp→agent-runtime edge:
+//   vt-daemon -> vt-daemon-protocol:        0 -> 1  (TERMINAL_REGISTRY_TOPIC
+//     — the topic-name constant; the 19 contract namespaces are type-only)
+//   vt-daemon-client -> vt-daemon-protocol: 0 -> 1  (`*` namespace re-export
+//     of the contracts so client wrappers and renderers reach them through
+//     one entry point; the 26 type-only symbols are free)
+//
+// `webapp -> vt-daemon-client`: 0 -> 13 — Phase 2 BF-376 outbound. Webapp
+// is now a pure client of the per-vault VTD via vt-daemon-client. The 13
+// value symbols are the 11 spawn / recovery / registry-management /
+// agent-events wrappers plus `ensureVtDaemonForVault` + `bindVtDaemonClient`
+// for vault-bind and `TERMINAL_REGISTRY_EVENT_TYPES` for the SSE topic.
+//
+// `webapp -> agent-runtime`: removed (was 15). webapp/package.json no
+// longer depends on `@vt/agent-runtime` after BF-376 outbound; the
+// in-process runtime moved entirely behind vt-daemon. `rg
+// "@vt/agent-runtime" webapp/src` returns zero from this commit.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
@@ -182,13 +202,14 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'vt-daemon -> graph-state': 1,
     'vt-daemon -> graph-tools': 7,
     'vt-daemon -> voicetree-graph-validation': 1,
+    'vt-daemon -> vt-daemon-protocol': 1,
     'vt-daemon -> vt-rpc': 2,
     'vt-daemon-client -> daemon-lifecycle': 10,
     'vt-daemon-client -> graph-db-client': 3,
     'vt-daemon-client -> graph-db-protocol': 1,
+    'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
-    'webapp -> agent-runtime': 15,
     'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
     'webapp -> graph-db-server': 11,
@@ -197,6 +218,7 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
     'webapp -> vt-daemon': 13,
+    'webapp -> vt-daemon-client': 13,
     'webapp -> vt-rpc': 3,
 }
 

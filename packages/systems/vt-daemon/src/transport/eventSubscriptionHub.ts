@@ -1,7 +1,12 @@
 // Per-topic monotonic-seq pubsub with a bounded resume buffer and a
-// per-subscriber bounded outbound queue. Topics are pinned to
-// `agent-lifecycle` (hook ingestion) per design doc §4.3 / §8.2.
-// Single watcher invariant lives in vt-graphd; this hub fans out hook events only.
+// per-subscriber bounded outbound queue. Post-Phase-0 + Phase-2 topics:
+// `agent-events` (hook ingestion — renamed from agent-lifecycle in
+// BF-376) and `terminal-registry` (BF-376 outbound — registry mutations
+// + imperative UI-launch instructions). The pre-Phase-0 `vault-state`
+// topic was deleted by BF-366; the single FS-watcher invariant lives in
+// vt-graphd. Per BF-376 design decision 2 (outbound design.md §6),
+// terminal-registry is its own narrow homogeneous topic, NOT a widening
+// of the agent-events envelope.
 //
 // Wire envelopes (text frames on the WS):
 //   server→client: { type: 'event', topic, seq, event, data }
@@ -13,9 +18,11 @@
 // httpServer layer wraps each subscriber's send fn around the WS connection
 // and uses overflow() to close with WS code 1011.
 
-export type TopicName = 'agent-lifecycle'
+import {TERMINAL_REGISTRY_TOPIC} from '@vt/vt-daemon-protocol'
 
-export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-lifecycle']
+export type TopicName = 'agent-events' | typeof TERMINAL_REGISTRY_TOPIC
+
+export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-events', TERMINAL_REGISTRY_TOPIC]
 
 const RESUME_BUFFER_SIZE: number = 100
 const PER_SUBSCRIBER_QUEUE_LIMIT: number = 1000

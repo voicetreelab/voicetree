@@ -1,20 +1,17 @@
-// Late-bound runtime dependencies. Both Electron and vt-mcpd register their
-// own implementations at boot. Headless callers can register only `env`
-// (required for buildTerminalEnvVars); the UI bridge stays empty.
+// Late-bound runtime dependencies. The per-vault VTD (and headless
+// vt-mcpd) register their own implementations at boot. Webapp/Electron
+// is a client of VTD post-BF-376 and never configures agent-runtime
+// directly.
 
 import * as O from 'fp-ts/lib/Option.js';
 import type { FilePath, Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { UnseenNode } from '@vt/graph-db-protocol';
-import type { TerminalData } from '../terminals/terminal-registry/types';
+import {
+    setPublishTerminalRegistryEvent,
+    type PublishTerminalRegistryEvent,
+} from '../events/terminal-registry-publisher';
 
 export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
-
-export type RuntimeUIBridge = {
-    readonly launchTerminalOntoUI?: (nodeId: string, terminalData: TerminalData, skipFitAnimation?: boolean) => void;
-    readonly closeTerminalById?: (terminalId: string) => void;
-    readonly logHookResult?: (message: string) => void;
-    readonly registerChildIfMonitored?: (parentTerminalId: string, childTerminalId: string) => void;
-};
 
 export type RuntimeEnvProvider = {
     readonly getAppSupportPath: () => string;
@@ -74,19 +71,21 @@ export type GraphStateBridge = {
 
 export type AgentRuntimeConfig = {
     readonly graph?: GraphStateBridge;
-    readonly ui?: RuntimeUIBridge;
     readonly env?: RuntimeEnvProvider;
     readonly trace?: TraceFn;
+    /**
+     * Sink for the `terminal-registry` SSE topic. VTD injects the real publisher
+     * at boot; unit tests inject a capturing array; everything else gets the
+     * no-op default registered by `terminal-registry-publisher.ts`.
+     */
+    readonly publishTerminalRegistryEvent?: PublishTerminalRegistryEvent;
 };
 
 let config: AgentRuntimeConfig = {};
 
 export function configureAgentRuntime(c: AgentRuntimeConfig): void {
     config = c;
-}
-
-export function getRuntimeUI(): RuntimeUIBridge {
-    return config.ui ?? {};
+    setPublishTerminalRegistryEvent(c.publishTerminalRegistryEvent);
 }
 
 export function getRuntimeEnv(): RuntimeEnvProvider {

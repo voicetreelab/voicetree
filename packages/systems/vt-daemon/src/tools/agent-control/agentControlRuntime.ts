@@ -66,10 +66,6 @@ export function closeHeadlessTerminal(terminalId: TerminalId): {closed: true; wa
     return agentRuntime.closeHeadlessAgent(terminalId)
 }
 
-export function closeInteractiveTerminal(terminalId: string): void {
-    agentRuntime.getRuntimeUI().closeTerminalById?.(terminalId)
-}
-
 export function runTerminalStopHooks(
     terminalId: string,
     graph: Parameters<typeof agentRuntime.runStopHooks>[1],

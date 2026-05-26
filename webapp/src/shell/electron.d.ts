@@ -38,13 +38,14 @@ export interface ElectronAPI {
   onViewSwitched: (callback: (data: { activeViewId: string }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
-  // Terminal operations. Tmux-backed terminals: `spawn` creates the tmux
-  // session; `attach` opens a Main-owned `/terminals/:id/attach` WebSocket
-  // and returns an opaque handle id. Renderer-side I/O flows over IPC; the
+  // Terminal operations (Phase 0 / BF-367+368). Tmux-backed terminals:
+  // `attach` opens a Main-owned `/terminals/:id/attach` WebSocket and
+  // returns an opaque handle id. Renderer-side I/O flows over IPC; the
   // bearer token never enters the renderer. Text injection from
   // non-TerminalVanilla callers goes through `main.sendTextToTerminal`.
+  // Spawn moved to vt-daemon-client RPC + terminal-registry SSE in
+  // Phase 2 BF-376; the renderer no longer initiates spawn here.
   terminal: {
-    spawn: (nodeMetadata?: TerminalData) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
     attach: (terminalId: string) => Promise<string>;
     onData: (handle: string, listener: (data: string) => void) => () => void;
     onStatus: (handle: string, listener: (status: RelayConnectionStatus) => void) => () => void;

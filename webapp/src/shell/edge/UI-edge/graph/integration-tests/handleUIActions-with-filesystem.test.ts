@@ -127,18 +127,6 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
     }
 })
 
-// Import IPC handlers once at module level
-let handlersImported: boolean = false
-async function ensureHandlersImported(): Promise<void> {
-    if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
-        registerTerminalIpcHandlers(
-            {} as any, // terminalManager
-            () => '' // getToolsDirectory
-        )
-        handlersImported = true
-    }
-}
 
 function installWindowElectronApi(cy: Core): void {
     if (!global.window) {
@@ -175,7 +163,6 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
         resetTestProjectionState()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
-        await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-ui-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
@@ -350,7 +337,6 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
     beforeEach(async () => {
         initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
-        await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-delete-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })

@@ -15,7 +15,7 @@ import {sendTextToTerminal} from '../../inject/send-text-to-terminal'
 import {loadSettings} from '@vt/app-config/settings'
 import {buildTerminalEnvVars} from '../env/buildTerminalEnvVars'
 import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../../runtime/graph-bridge'
-import {getRuntimeUI} from '../../runtime/runtime-config'
+import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
 const TERMINAL_READY_POLL_MS: number = 100
@@ -130,7 +130,12 @@ async function spawnHookTerminal(
     })
 
     // Launch terminal UI — async IPC roundtrip: main → renderer → main (PTY spawn)
-    getRuntimeUI().launchTerminalOntoUI?.(hookNodeId, terminalData, true)
+    publishTerminalRegistryEvent({
+        type: 'terminal-ui-launch',
+        nodeId: hookNodeId,
+        terminalData,
+        skipFitAnimation: true,
+    })
 
     const ready: boolean = await waitForTerminalReady()
     if (!ready) {

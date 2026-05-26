@@ -65,6 +65,10 @@ import {
 } from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts'
+import {
+    TERMINAL_REGISTRY_TOPIC,
+    type TerminalRegistryEvent,
+} from '@vt/vt-daemon-protocol'
 import {generateAuthToken, rpcPortFilePath, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {VTD_CONTRACT_VERSION, type VtDaemonHealthResponse} from '../src/contract.ts'
 import {buildVtDaemonHealthResponse} from '../src/lifecycle/buildHealthResponse.ts'
@@ -172,7 +176,7 @@ function callerKindFromEnv(): CallerKind {
     return 'vtd'
 }
 
-function configureHeadlessBridges(appSupportPath: string): void {
+function configureHeadlessMcpBridges(): void {
     // Live-state tools require an Electron renderer back-channel. The
     // standalone VTD binary does not have one yet — Phase 4 (BF-378) will
     // design a back-channel so the spawning Electron Main can subscribe.
@@ -192,7 +196,12 @@ function configureHeadlessBridges(appSupportPath: string): void {
         },
         // search bridge omitted: search_nodes returns "Search backend is not configured."
     })
+}
 
+function configureAgentRuntimeForVtd(
+    appSupportPath: string,
+    publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
+): void {
     // The CLI manual and `vt` binary are both shipped inside @voicetree/cli.
     // vtd lives next to it on disk (packages/systems/vt-daemon →
     // packages/systems/voicetree-cli), so resolve relative to this file
@@ -215,12 +224,37 @@ function configureHeadlessBridges(appSupportPath: string): void {
             getCliManualPath: (): string => vtCliManualPath,
             getVtBinDir: (): string | null => vtBinDir,
         },
-        // No interactive terminals in headless mode; only registerChildIfMonitored
-        // is reachable (used by the spawn path even for headless agents).
-        ui: {
-            registerChildIfMonitored,
-        },
+        publishTerminalRegistryEvent,
     })
+}
+
+/**
+ * Build the publish sink injected into agent-runtime. Two concerns fan out
+ * from a single event:
+ *
+ *   1. Wire publish onto the new `terminal-registry` SSE topic so renderer
+ *      clients learn about registry mutations and the imperative UI-launch
+ *      instructions that used to fire as in-process UI callbacks.
+ *   2. In-process side effect for `terminal-ui-child-registered`: VTD owns
+ *      the agent-completion monitor (`@vt/vt-daemon`'s
+ *      `registerChildIfMonitored`); when a spawn announces a new child of a
+ *      monitored parent, the monitor's terminal-id table must learn about
+ *      it before the child's first poll. Pre-S2-R this happened through an
+ *      in-process callback; that callback is gone, so we route the same
+ *      data through the publish sink instead.
+ *
+ * The sink is the canonical place to do both because it sits at the boundary
+ * where every event passes through exactly once.
+ */
+function buildPublishTerminalRegistryEvent(
+    publishOnTopic: (event: string, data: unknown) => void,
+): (event: TerminalRegistryEvent) => void {
+    return (event: TerminalRegistryEvent): void => {
+        publishOnTopic(event.type, event)
+        if (event.type === 'terminal-ui-child-registered') {
+            registerChildIfMonitored(event.parentTerminalId, event.childTerminalId)
+        }
+    }
 }
 
 async function main(): Promise<void> {
@@ -268,11 +302,11 @@ async function main(): Promise<void> {
         die(`failed to ensure vt-graphd sibling: ${(err as Error).message}`)
     }
 
-    // Step 3: bridges + tmux. configureMcpServer wires the headless live-state
-    // rejectors; configureAgentRuntime wires manual-path + vt-bin-dir for the
-    // spawn pipeline. tmux must be available because every interactive agent
-    // session lives in a tmux session.
-    configureHeadlessBridges(appSupportPath)
+    // Step 3: MCP rejectors + tmux preflight. configureMcpServer wires the
+    // headless live-state rejectors. agent-runtime is configured later
+    // (step 4.5) once we have the SSE hub the publish sink targets — neither
+    // ensureTmuxAvailable nor ensureTmuxServer depends on runtime config.
+    configureHeadlessMcpBridges()
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 
@@ -301,6 +335,10 @@ async function main(): Promise<void> {
             // dev on another machine dials this daemon directly.
             bindHost: process.env.VOICETREE_DAEMON_BIND ?? '127.0.0.1',
             port: args.port,
+            // Stamped into every `agent-events` SSE envelope so consumers
+            // can apply the vault-switch fence (BF-376 / main-host-purity
+            // spec §"Vault-switch fence drops stale events").
+            canonicalVault: args.vault,
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats
@@ -323,6 +361,17 @@ async function main(): Promise<void> {
     }
 
     const stopHeartbeat: () => void = ownerHandle.startHeartbeat()
+
+    // Step 4.5: now that the SSE hub is ready, configure agent-runtime with
+    // the publish sink that routes terminal-registry events onto the new
+    // topic + the in-process completion-monitor side channel.
+    configureAgentRuntimeForVtd(
+        appSupportPath,
+        buildPublishTerminalRegistryEvent(
+            (event: string, data: unknown): void =>
+                httpHandle.hub.publish(TERMINAL_REGISTRY_TOPIC, event, data),
+        ),
+    )
 
     // Lifecycle JSONL telemetry sink — predecessor (vt-mcpd) had this; vtd keeps it.
     try {

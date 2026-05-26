@@ -5,7 +5,7 @@ import type {Mock} from 'vitest';
 import {cleanup, fireEvent, render, screen, within} from '@testing-library/react';
 import type {RenderResult} from '@testing-library/react';
 import * as O from 'fp-ts/lib/Option.js';
-import type {RecoverableAgentSession, TerminalData, UnclaimedTmuxSession} from '@vt/agent-runtime';
+import type {RecoverableAgentSession, TerminalData, UnclaimedTmuxSession} from '@vt/vt-daemon-client';
 import {SurvivingAgentsSection} from './SurvivingAgentsSection';
 
 function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {

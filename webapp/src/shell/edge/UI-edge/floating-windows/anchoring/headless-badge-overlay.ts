@@ -14,7 +14,7 @@
 import type {Core, CollectionReturnValue} from 'cytoscape';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type {TerminalStatus} from '@vt/agent-runtime';
+import type {TerminalStatus} from '@vt/vt-daemon-client';
 import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';

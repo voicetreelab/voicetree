@@ -10,11 +10,11 @@ import {
     createTerminalData,
     getTerminalRecords,
     spawnTmuxBackedTerminal,
-    subscribeToRegistry,
     type TerminalData,
     type TerminalId,
 } from '@vt/agent-runtime'
 import {hasSession, killSession} from '@vt/agent-runtime/terminals/tmux/tmux-session-manager'
+import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import {configureMcpServer} from '../../config/mcp-config'
 import {closeAgentTool} from './closeAgentTool'
 
@@ -81,19 +81,22 @@ async function cleanup(): Promise<void> {
 describe('closeAgentTool', () => {
     afterEach(cleanup)
 
-    it('closes the renderer window before cleaning up a tmux-backed interactive agent', async () => {
+    it('publishes terminal-removed and drops the registry row when closing a tmux-backed interactive agent', async () => {
         const terminalId: TerminalId = makeTerminalId()
         terminalIds.add(terminalId)
         const projectRoot: string = await makeTempVault()
         const contextNodeId: NodeIdAndFilePath = join(projectRoot, 'context.md') as NodeIdAndFilePath
         const progressNodeId: NodeIdAndFilePath = join(projectRoot, 'progress.md') as NodeIdAndFilePath
-        const events: string[] = []
+        const events: TerminalRegistryEvent[] = []
 
+        // Capture the publish sink as agent-runtime fires it — this is the
+        // single observable boundary the daemon publishes terminal-registry
+        // events onto. With BF-376's design, the renderer's UI close is
+        // derived from `terminal-removed` on this topic (no separate
+        // closeTerminalById callback exists post-cutover).
         configureAgentRuntime({
-            ui: {
-                closeTerminalById: (id: string): void => {
-                    events.push(`ui-close:${id}`)
-                },
+            publishTerminalRegistryEvent: (event: TerminalRegistryEvent): void => {
+                events.push(event)
             },
         })
         configureMcpServer({
@@ -128,19 +131,23 @@ describe('closeAgentTool', () => {
         )
         expect(await hasSession(terminalId)).toBe(true)
 
-        const unsubscribe: () => void = subscribeToRegistry((records) => {
-            events.push(`registry:${records.map((record) => record.terminalId).join(',')}`)
-        })
         const response = await closeAgentTool({
             callerTerminalId: 'reviewer',
             terminalId,
             forceWithReason: 'test closes a running interactive agent',
         })
-        unsubscribe()
 
         expect(parsePayload(response)).toMatchObject({success: true, terminalId})
-        expect(events[0]).toBe(`ui-close:${terminalId}`)
-        expect(events).toContain('registry:')
+
+        // The close must publish exactly one `terminal-removed` event for
+        // this terminal; receivers (renderer, monitors) drop their state on
+        // that event alone.
+        const removedEvents: readonly TerminalRegistryEvent[] = events.filter(
+            (e: TerminalRegistryEvent) => e.type === 'terminal-removed' && e.terminalId === terminalId,
+        )
+        expect(removedEvents).toHaveLength(1)
+
         expect(getTerminalRecords().some((record) => record.terminalId === terminalId)).toBe(false)
+        expect(await hasSession(terminalId)).toBe(false)
     }, 15000)
 })

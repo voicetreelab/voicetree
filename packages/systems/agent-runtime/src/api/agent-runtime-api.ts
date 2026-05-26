@@ -13,7 +13,7 @@ import { sendTextToTerminal } from '../application/inject/send-text-to-terminal'
 import { shouldFlipToActiveOnOutput } from '../application/lifecycle/output-transition'
 import { getTierTelemetrySnapshot } from '../application/lifecycle/tierTelemetry'
 import { installJsonlTelemetrySink } from '../application/lifecycle/tierTelemetryJsonlSink'
-import { configureAgentRuntime, getRuntimeEnv, getRuntimeUI } from '../application/runtime/runtime-config'
+import { configureAgentRuntime, getRuntimeEnv } from '../application/runtime/runtime-config'
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/launch/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../application/spawn/launch/spawnTerminalWithContextNode'
 import { getOutput } from '../application/terminals/terminal-output-buffer'
@@ -67,7 +67,6 @@ export const agentRuntime = {
     getPendingTerminal,
     getPendingTerminals,
     getRuntimeEnv,
-    getRuntimeUI,
     getTerminalManager,
     getTerminalRecords,
     getTierTelemetrySnapshot,
