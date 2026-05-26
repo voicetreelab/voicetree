@@ -109,13 +109,42 @@ function buildInitialState(graph: Graph, vaultState: VaultState): State {
 // ─── Impure shell (vt-graphd boundary) ───────────────────────────────────────
 
 async function loadOrBootstrap(vault: AbsolutePath): Promise<State> {
-    const cached: State | undefined = stateByVault.get(vault)
-    if (cached) return cached
-    const graph: Graph = await readGraphFromGraphd(vault)
+    // Re-read writeFolder from vt-graphd on every call: setWriteFolder() can
+    // change it after first bootstrap, and there's no longer a
+    // syncWatchedProjectRoot hook to invalidate downstream caches. Costs one
+    // extra RPC per read but keeps roots.loaded honest without coupling to
+    // vault-state events.
     const vaultState: VaultState = await readVaultStateFromGraphd(vault)
+    const cached: State | undefined = stateByVault.get(vault)
+    if (cached) {
+        const refreshed: State = refreshLoadedRoots(cached, vaultState)
+        if (refreshed !== cached) stateByVault.set(vault, refreshed)
+        return refreshed
+    }
+    const graph: Graph = await readGraphFromGraphd(vault)
     const initial: State = buildInitialState(graph, vaultState)
     stateByVault.set(vault, initial)
     return initial
+}
+
+function refreshLoadedRoots(state: State, vaultState: VaultState): State {
+    const loaded: ReadonlySet<string> = vaultState.writeFolder
+        ? new Set([vaultState.writeFolder])
+        : new Set()
+    if (sameLoadedRoots(state.roots.loaded, loaded)) return state
+    return {
+        ...state,
+        roots: {
+            ...state.roots,
+            loaded,
+        },
+    }
+}
+
+function sameLoadedRoots(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+    if (a.size !== b.size) return false
+    for (const entry of a) if (!b.has(entry)) return false
+    return true
 }
 
 async function getOrCreateClient(vault: AbsolutePath): Promise<GraphDbClient> {
