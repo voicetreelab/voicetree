@@ -104,6 +104,23 @@ export async function getAuthToken(): Promise<string> {
 }
 
 /**
+ * Synchronous read of the currently-bound vault path, or `null` if no vault
+ * is bound yet (or after `unbindVtDaemon`). Used by the agent-events SSE
+ * subscriber's vault-switch fence — it must be authoritative the instant
+ * `bindVtDaemonForVault` resolves, so we expose it as a direct accessor on
+ * the cached `active` snapshot rather than re-calling the ensure path.
+ *
+ * Per main-host-purity §"Vault-switch fence drops stale events": this
+ * accessor returns the value `bindVtDaemonForVault` last set, before any
+ * subsequent vault-switch begins. Combined with the `chain<T>` promise
+ * serialisation in this file, the SSE subscriber sees a consistent view
+ * of "the vault Main currently considers active".
+ */
+export function getActiveVault(): string | null {
+    return active?.vaultPath ?? null
+}
+
+/**
  * Re-call the ensure path for the currently-bound vault so a respawned
  * VTD (crash → new pid → new auth token) surfaces fresh credentials.
  * Cheap when the ensure path's in-process single-flight cache is warm.

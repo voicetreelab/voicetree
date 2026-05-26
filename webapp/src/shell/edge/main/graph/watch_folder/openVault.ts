@@ -18,6 +18,11 @@ import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/sta
 import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
+import {
+    subscribeToAgentEventsSse,
+    unsubscribeFromAgentEventsSse,
+} from '@/shell/edge/main/runtime/electron/daemon/sync/agent-events-sse-subscription'
+import { forwardAgentEventToRegistry } from '@/shell/edge/main/agent/terminals/agent-events-registry-bridge'
 import { bindVtDaemonForVault } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
@@ -96,6 +101,11 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await getCallbacks().onVaultSwitching?.()
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
+        // Tear down the prior agent-events SSE before rebinding so the
+        // vault-switch fence has no chance to be evaluated against a
+        // half-flipped activeVault — `bindVtDaemonForVault` below will
+        // resubscribe under the new vault.
+        unsubscribeFromAgentEventsSse()
         await stopDaemonGraphSync()
 
         // Rebind to the per-vault VTD child BEFORE any further
@@ -115,6 +125,17 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         // dominated by a single /health round-trip — comparable to the
         // pre-Phase-2 numbers.
         await bindVtDaemonForVault(projectRoot)
+
+        // Re-open the agent-events SSE against the freshly-bound VTD. The
+        // subscriber owns its own reconnect loop; vault-switch tears it
+        // down (above) and we open a fresh one here. The handler forwards
+        // every envelope that passes the vault-switch fence into Main's
+        // in-process terminal registry — restoring the hook → renderer
+        // pipeline that BF-375 broke when it deleted the in-process
+        // http-server-binding callback. Outbound RPC fan-out of the
+        // terminalRuntimeSurface methods is the follow-on BF (BF-376b);
+        // see voicetree-26-5/phase-2-leaf-b-COORDINATION.md.
+        subscribeToAgentEventsSse('electron-main', forwardAgentEventToRegistry)
 
         // Persist writeFolder BEFORE the daemon claims the vault: vt-graphd's
         // startup vault-open reads saved config, and the daemon's

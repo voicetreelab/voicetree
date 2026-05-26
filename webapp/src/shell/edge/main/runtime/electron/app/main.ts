@@ -69,6 +69,7 @@ import {
 } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
+import {unsubscribeFromAgentEventsSse} from '@/shell/edge/main/runtime/electron/daemon/sync/agent-events-sse-subscription';
 import {installQuitLifecycleHandlers} from './quit-lifecycle';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
@@ -390,6 +391,7 @@ app.on('will-quit', () => {
     // Stop daemon clients after windows have closed so position persistence can
     // finish while the daemon is still available.
     unsubscribeFromDaemonSSE();
+    unsubscribeFromAgentEventsSse();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
     void unbindVtDaemon();
