@@ -171,7 +171,7 @@ async function ensureBaseRefFetched(baseRef: string, cwd: string): Promise<void>
     const remote = baseRef.slice(0, slash)
     const branch = baseRef.slice(slash + 1)
     try {
-        await execFileAsync('git', ['fetch', '--no-tags', '--depth=100', remote, branch], {
+        await execFileAsync('git', ['fetch', '--no-tags', '--depth=1', remote, branch], {
             cwd, maxBuffer: 32 * 1024 * 1024,
         })
     } catch {
@@ -186,16 +186,17 @@ export function defaultDeps(): IncrementalMutationDeps {
         getChangedFiles: async (baseRef, cwd) => {
             // GHA's default `actions/checkout@v4` is shallow (depth 1); the
             // base ref isn't available locally. Best-effort fetch so the
-            // `<baseRef>...HEAD` diff can resolve. No-op for already-fetched
+            // `<baseRef>..HEAD` diff can resolve. No-op for already-fetched
             // refs / local-only refs / bare SHAs.
             await ensureBaseRefFetched(baseRef, cwd)
             // Union of:
-            //   1. committed branch diffs vs the merge-base with baseRef
+            //   1. committed branch diffs vs baseRef
             //   2. working-tree diffs vs HEAD (staged + unstaged)
-            // The triple-dot form is the canonical PR diff; (2) lets local
-            // dev iteration without a fresh commit also mutate the right files.
+            // Use two-dot because shallow CI clones may not have the merge-base
+            // needed for triple-dot. (2) lets local dev iteration without a
+            // fresh commit also mutate the right files.
             const [committed, working] = await Promise.all([
-                execFileAsync('git', ['diff', '--name-only', `${baseRef}...HEAD`], {
+                execFileAsync('git', ['diff', '--name-only', `${baseRef}..HEAD`], {
                     cwd, maxBuffer: 32 * 1024 * 1024,
                 }),
                 execFileAsync('git', ['diff', '--name-only', 'HEAD'], {
