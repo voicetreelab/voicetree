@@ -41,6 +41,7 @@ import * as os from 'node:os'
 import { generateVaultOnDisk, type VaultLayout } from '@vt/perf-fixtures'
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
+import { initGraphModel } from '@vt/graph-model'
 import {
     createTerminalData,
     type TerminalData,
@@ -221,7 +222,10 @@ const test = base.extend<StormFixtures>({
 // ─── The test ────────────────────────────────────────────────────────────
 
 test.describe('E2E Electron + agent storm perf', () => {
-    test.describe.configure({ timeout: 15 * 60_000 })
+    // 5 min default. `test.setTimeout(...)` in the body bumps this to
+    // `globalTimeoutMs + 90s` once the storm starts. Keeping the default short
+    // means fixture failures fail fast instead of burning the full window.
+    test.describe.configure({ timeout: 5 * 60_000 })
 
     test('storm a real Electron-launched daemon with N fake-agents and report three-tracer + CDP timeline', async ({
         electronApp: _electronApp,
@@ -234,6 +238,11 @@ test.describe('E2E Electron + agent storm perf', () => {
         mainInspectPort,
     }) => {
         test.setTimeout(args.globalTimeoutMs + 90_000)
+
+        // graph-model is initialised by `startDaemon` in the daemon-only harness;
+        // here Electron owns the daemon, so init it locally for the in-process
+        // agentRuntime (`loadSettings` → `getSettingsPath` → `getConfig`).
+        initGraphModel({ appSupportPath })
 
         configureAgentRuntime({
             env: {
