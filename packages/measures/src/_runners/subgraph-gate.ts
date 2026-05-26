@@ -150,6 +150,7 @@ function readStagedDiffPaths(): readonly string[] {
     return readRawStagedDiffPaths().filter(path => !isInheritedMergePath(path, mergeHeads))
 }
 
+
 async function loadChangedFiles(args: Args): Promise<readonly string[]> {
     if (args.changedFilesFrom !== null) {
         const text = await readFile(args.changedFilesFrom, 'utf8')

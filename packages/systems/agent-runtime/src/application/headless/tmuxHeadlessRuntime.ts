@@ -27,12 +27,14 @@ import {
 } from './headlessAgentDeps'
 
 const TMUX_EXIT_POLL_MS: number = 1000
+const TMUX_EXIT_CODE_FALLBACK_POLL_MS: number = 10_000
 
 type TmuxHeadlessSession = {
     readonly sessionName: string
     readonly logPath: string
     readonly metadataPath: string
     readonly exitCodePath: string
+    readonly exitCodeDriven: boolean
     readonly promptFilePath: string | null
     readonly pollTimer: ReturnType<typeof setInterval> | null
 }
@@ -70,7 +72,7 @@ function buildTmuxCommand(command: string, cwd: string | undefined): string {
 }
 
 function captureExitCode(command: string, exitCodePath: string): string {
-    const script: string = `${command}; code=$?; printf '%s' "$code" > ${shellQuote(exitCodePath)}; exit "$code"`
+    const script: string = `rm -f ${shellQuote(exitCodePath)}; ${command}; code=$?; printf '%s' "$code" > ${shellQuote(exitCodePath)}; exit "$code"`
     return `bash -lc ${shellQuote(script)}`
 }
 
@@ -104,14 +106,27 @@ function markTmuxMetadataExited(terminalId: TerminalId, exitCode: number | null 
     })
 }
 
-function startTmuxExitPoll(terminalId: TerminalId, sessionName: string, deps: HeadlessAgentDeps): ReturnType<typeof setInterval> {
+function startTmuxExitPoll(
+    terminalId: TerminalId,
+    sessionName: string,
+    exitCodeDriven: boolean,
+    deps: HeadlessAgentDeps,
+): ReturnType<typeof setInterval> {
+    let lastFallbackTmuxPollAt: number = Date.now()
     return setInterval(() => {
         void (async (): Promise<void> => {
             try {
-                if (await hasSession(sessionName)) return
-                clearTmuxPoll(terminalId)
                 const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
                 const exitCode: number | null = session ? readExitCode(session.exitCodePath) : null
+                if (exitCode === null) {
+                    const shouldPollTmux: boolean = !exitCodeDriven
+                        || Date.now() - lastFallbackTmuxPollAt >= TMUX_EXIT_CODE_FALLBACK_POLL_MS
+                    if (!shouldPollTmux) return
+                    lastFallbackTmuxPollAt = Date.now()
+                    if (await hasSession(sessionName)) return
+                }
+
+                clearTmuxPoll(terminalId)
                 markTmuxMetadataExited(terminalId, exitCode)
                 deps.markTerminalExited(terminalId, exitCode)
             } catch (error) {
@@ -133,16 +148,15 @@ export async function spawnTmuxBackedTerminal(
     const paths = resolveTmuxPaths(terminalId, env)
     const sessionName: string = buildTmuxSessionName(terminalId, env)
     registerTmuxSessionAlias(terminalId, sessionName)
-    const sessionExists: boolean = await hasSession(sessionName)
     const startedAt: string = new Date().toISOString()
     const tmuxCommand: string = buildTmuxCommand(command, resolveSpawnCwd(cwd, deps.getHomeDir(), deps.getCurrentDirectory()))
-    const created: {readonly pid: number} = sessionExists
-        ? {pid: await getPanePid(sessionName)}
-        : await createSession(
-            terminalId,
-            terminalData.isHeadless ? captureExitCode(tmuxCommand, paths.exitCodePath) : tmuxCommand,
-            env,
-        )
+    const created: {readonly pid: number; readonly created: boolean} = await createSession(
+        terminalId,
+        terminalData.isHeadless ? captureExitCode(tmuxCommand, paths.exitCodePath) : tmuxCommand,
+        env,
+        {reuseExisting: true},
+    )
+    const sessionExists: boolean = !created.created
 
     await pipePaneToFile(sessionName, paths.logPath)
     const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readMetadata(paths.metadataPath) : null
@@ -158,8 +172,8 @@ export async function spawnTmuxBackedTerminal(
     })
 
     clearTmuxPoll(terminalId)
-    const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, deps)
-    tmuxHeadlessState.sessions.set(terminalId, {...paths, sessionName, promptFilePath, pollTimer})
+    const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, terminalData.isHeadless, deps)
+    tmuxHeadlessState.sessions.set(terminalId, {...paths, sessionName, exitCodeDriven: terminalData.isHeadless, promptFilePath, pollTimer})
     deps.recordTerminalSpawn(terminalId, terminalData)
     deps.writeLog({level: 'info', message: `[headlessAgentManager] ${sessionExists ? 'Rebound to existing' : 'Spawned'} tmux-backed terminal ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'} headless=${terminalData.isHeadless}`})
     return created
@@ -193,8 +207,8 @@ export async function attachExistingTmuxBackedTerminal(
     })
 
     clearTmuxPoll(terminalId)
-    const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, deps)
-    tmuxHeadlessState.sessions.set(terminalId, {...paths, sessionName, promptFilePath: null, pollTimer})
+    const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, terminalData.isHeadless, deps)
+    tmuxHeadlessState.sessions.set(terminalId, {...paths, sessionName, exitCodeDriven: terminalData.isHeadless, promptFilePath: null, pollTimer})
     deps.recordTerminalSpawn(terminalId, terminalData)
     deps.writeLog({level: 'info', message: `[headlessAgentManager] Attached existing tmux-backed terminal ${terminalId} (pid=${pid}) session=${sessionName}`})
     return {pid}
@@ -297,8 +311,9 @@ export async function reconcileTmuxHeadlessAgents(
                 logPath: metadata.logFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.log`),
                 metadataPath,
                 exitCodePath: metadata.exitCodeFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.exitcode`),
+                exitCodeDriven: metadata.terminalData.isHeadless,
                 promptFilePath: join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
-                pollTimer: startTmuxExitPoll(terminalId, sessionName, deps),
+                pollTimer: startTmuxExitPoll(terminalId, sessionName, metadata.terminalData.isHeadless, deps),
             })
         },
     })

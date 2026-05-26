@@ -1,0 +1,29 @@
+{
+  "name": "@vt/perf-analysis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared stable-performance profile reducers and env-gated Node perf probe.",
+  "main": "src/profile-reducer.mjs",
+  "exports": {
+    ".": {
+      "types": "./src/profile-reducer.d.mts",
+      "default": "./src/profile-reducer.mjs"
+    },
+    "./perf-probe": {
+      "types": "./src/perf-probe.d.mts",
+      "default": "./src/perf-probe.mjs"
+    },
+    "./profile-reducer.mjs": {
+      "types": "./src/profile-reducer.d.mts",
+      "default": "./src/profile-reducer.mjs"
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^3.2.4"
+  }
+}

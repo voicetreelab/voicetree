@@ -23,6 +23,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.1",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.13",
     "jsdom": "27.4.0",

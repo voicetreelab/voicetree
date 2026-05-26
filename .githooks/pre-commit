@@ -6,7 +6,19 @@
 # index, and Onidel's replica index is refreshed from HEAD before remote
 # execution so a remote run would see nothing staged.
 set -e
-export PATH="$(git rev-parse --show-toplevel)/bin:$PATH"
+repo_root="$(git rev-parse --show-toplevel)"
+export PATH="$repo_root/bin:$PATH"
+
+# Linked worktrees are created without local node_modules (see
+# scripts/git/worktree/on-created-async.sh). Since the checks below are forced
+# local (VT_REMOTE_EXEC=1), they need local deps. Reconcile them here. The
+# fast path (marker matches package*.json fingerprint) is ~100ms; the slow
+# path (first commit in a fresh worktree, or after package*.json changes)
+# seeds from main and runs `npm install --prefer-offline`. Skipped in the
+# main checkout, which is managed manually.
+if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
+    node "$repo_root/scripts/git/worktree/ensure-ready.mjs" "$repo_root"
+fi
 
 merge_conflict_files() {
     merge_msg="$(git rev-parse --git-path MERGE_MSG)"

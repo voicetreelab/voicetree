@@ -16,6 +16,15 @@ type TmuxResult = {
     stderr: string
 }
 
+type TmuxSessionCreateResult = {
+    readonly pid: number
+    readonly created: boolean
+}
+
+type CreateSessionOptions = {
+    readonly reuseExisting?: boolean
+}
+
 export type TmuxListedSession = {
     readonly sessionName: string
     readonly createdAtSeconds: number
@@ -81,14 +90,49 @@ export function resolveTmuxSessionName(name: string): string {
     return tmuxSessionAliases.get(name) ?? name
 }
 
-export async function createSession(name: string, command: string, env: Record<string, string> = {}): Promise<{pid: number}> {
+function isDuplicateSessionError(error: unknown): boolean {
+    const message: string = error instanceof Error ? error.message : String(error)
+    return message.includes('duplicate session')
+}
+
+export async function createSession(
+    name: string,
+    command: string,
+    env: Record<string, string> = {},
+    options: CreateSessionOptions = {},
+): Promise<TmuxSessionCreateResult> {
+    try {
+        const result: {readonly pid: number} = await createSessionOnly(name, command, env)
+        return {...result, created: true}
+    } catch (error) {
+        if (!options.reuseExisting || !isDuplicateSessionError(error)) throw error
+        const sessionName: string = buildTmuxSessionName(name, env)
+        registerTmuxSessionAlias(name, sessionName)
+        return {pid: await getPanePid(sessionName), created: false}
+    }
+}
+
+async function createSessionOnly(
+    name: string,
+    command: string,
+    env: Record<string, string>,
+): Promise<{readonly pid: number}> {
     await ensureTmuxAvailable()
     const sessionName: string = buildTmuxSessionName(name, env)
     registerTmuxSessionAlias(name, sessionName)
     const envArgs: string[] = Object.entries(env).flatMap(([key, value]: [string, string]) => ['-e', `${key}=${value}`])
-    await runTmux(['new-session', '-d', '-s', sessionName, ...envArgs, command])
-    const pid: number = await getPanePid(name)
-    return {pid}
+    const result: TmuxResult = await runTmux([
+        'new-session',
+        '-d',
+        '-P',
+        '-F',
+        '#{pane_pid}',
+        '-s',
+        sessionName,
+        ...envArgs,
+        command,
+    ])
+    return {pid: parsePid(result.stdout, sessionName)}
 }
 
 export async function killSession(name: string): Promise<void> {

@@ -62,6 +62,7 @@ function boundaryExportNames(filePath: string, text: string): readonly string[] 
     return names.filter(name => name !== 'check' && name !== 'checkFile')
 }
 
+
 async function countExportsInFile(file: SourceFile, parsedSubgraph: SubgraphMeasureInput['parsedSubgraph']): Promise<number> {
     // Prefer parsedSubgraph's cached content — it routes through the
     // runner's staged-blob loader so unstaged peer-WIP doesn't pollute
