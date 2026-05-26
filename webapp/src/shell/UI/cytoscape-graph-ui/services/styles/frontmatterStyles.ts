@@ -40,25 +40,5 @@ export function getFrontmatterStyles(): StyleRule[] {
         'background-fit': 'contain',
       }
     },
-    // Hide label when hover editor is open (editor shows the title)
-    // Placed at end to override all label-setting rules above
-    {
-      selector: 'node.hover-editor-open[label]',
-      style: {
-        'label': '',
-      }
-    },
-    {
-      selector: 'node.hover-editor-open[name]',
-      style: {
-        'label': '',
-      }
-    },
-    {
-      selector: 'node.hover-editor-open[title]',
-      style: {
-        'label': '',
-      }
-    },
   ];
 }
