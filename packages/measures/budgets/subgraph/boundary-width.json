@@ -41,7 +41,7 @@
     "measures/_subgraph_gate": 93,
     "measures/checks": 64,
     "measures/health": 1,
-    "observability/__root__": 3,
+    "observability/__root__": 4,
     "perf-fixtures/__root__": 8,
     "share-worker/__root__": 1,
     "voicetree-mcp/agents": 97,
