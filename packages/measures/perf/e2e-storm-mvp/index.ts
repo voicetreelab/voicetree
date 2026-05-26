@@ -539,23 +539,9 @@ async function main(): Promise<void> {
             // captured every metric the report cares about by this point —
             // SIGKILL the electron process tree as the canonical exit path.
             const electronPid = app.process().pid
-            const closeWithTimeout = Promise.race([
-                app.close().then(() => 'closed' as const),
-                new Promise<'timeout'>(r => setTimeout(() => r('timeout'), 5_000)),
-            ])
-            try {
-                const outcome = await closeWithTimeout
-                if (outcome === 'timeout') {
-                    process.stdout.write(`[mvp] electron close timed out after 5s — SIGKILL pid=${electronPid}\n`)
-                    if (electronPid !== undefined) {
-                        try { process.kill(electronPid, 'SIGKILL') } catch { /* already gone */ }
-                    }
-                }
-            } catch (e) {
-                process.stderr.write(`[mvp] electron close failed: ${(e as Error).message}\n`)
-                if (electronPid !== undefined) {
-                    try { process.kill(electronPid, 'SIGKILL') } catch { /* already gone */ }
-                }
+            process.stdout.write(`[mvp] terminating electron (teardown phase, post-flush) pid=${electronPid}\n`)
+            if (electronPid !== undefined) {
+                try { process.kill(electronPid, 'SIGKILL') } catch { /* already gone */ }
             }
         }
 
