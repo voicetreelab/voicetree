@@ -53,6 +53,7 @@
     "perf:check": "node infra/perf-stack/scripts/lifecycle.mjs check",
     "perf:view": "node infra/perf-stack/scripts/lifecycle.mjs view",
     "perf:scenario": "node scripts/run-perf-scenario.mjs",
+    "perf:traceql": "node infra/perf-stack/scripts/traceql.mjs",
     "perf:verify": "node infra/perf-stack/scripts/verify-all.mjs",
     "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
     "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",

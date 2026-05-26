@@ -16,6 +16,7 @@ top-level `run-lgtm.sh`.
 | Grafana | `v13.0.1` | `docker/Dockerfile` `GRAFANA_VERSION` |
 | Loki | `v3.7.2` | `docker/Dockerfile` `LOKI_VERSION` |
 | Tempo | `v2.10.5` | `docker/Dockerfile` `TEMPO_VERSION` |
+| Tempo CLI | `v2.10.5` | `grafana/tempo` `cmd/tempo-cli` at commit `991ce39eb956e9ed771fcffe05eff42d33de27ba` |
 | Prometheus in upstream LGTM | `v3.11.3` | `docker/Dockerfile` `PROMETHEUS_VERSION` |
 | Prometheus `promtool` CLI | `v3.11.3` | Same pin as upstream LGTM Prometheus; installed for PromQL inspection against VictoriaMetrics |
 | VictoriaMetrics replacement | `v1.144.0` | latest stable release on 2026-05-26; Prometheus remote-write/query compatible |
@@ -73,9 +74,12 @@ vendored.
   checksum-pinned source build plus Go module checksum verification. If upstream
   starts publishing Darwin archives, replace this with a normal archive manifest
   entry.
+- Tempo CLI is built from the same pinned Tempo source archive. Upstream
+  documents it as source-available rather than a required runtime binary; the
+  local install builds `./cmd/tempo-cli` so agents can query TraceQL without
+  relying on Grafana's browser UI.
 - The stack uses VictoriaMetrics instead of upstream Prometheus/Mimir. This is
   an intentional OpenSpec decision for a smaller single-node dev stack.
-
 - `google/pprof` does not publish release binaries. On `darwin-arm64`,
   `install-binaries.mjs` downloads commit archive
   `92041b743c966065641d7221da5403ad9a019bce`, verifies SHA-256
