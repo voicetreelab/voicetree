@@ -13,3 +13,4 @@
 
 export * from './terminal-types.ts'
 export * from './rpc-contracts.ts'
+export * from './terminal-registry-events.ts'
