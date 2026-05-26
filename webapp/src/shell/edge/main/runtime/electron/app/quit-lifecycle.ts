@@ -26,7 +26,6 @@ export type QuitLifecycleDeps = {
     readonly getTerminalRecords: () => readonly TerminalRecord[]
     readonly setIsQuitting: (value: boolean) => void
     readonly stopNotificationScheduler: () => void
-    readonly stopOTLPReceiver: () => unknown
     readonly stopRecoverySessionPolling: () => void
     readonly stopTextToTreeServer: () => void
     readonly stopTrackpadMonitoring: () => void
@@ -58,7 +57,8 @@ function runNonTerminalQuitCleanup(deps: QuitLifecycleDeps): void {
     void deps.disableMcpJsonIntegration().catch((error: unknown) => {
         console.warn('[App] Failed to disable .mcp.json integration before quit:', error)
     })
-    void deps.stopOTLPReceiver()
+    // OTLP receiver lifecycle is owned by `http-server-binding.unbindHttpDaemon()`;
+    // it's torn down with the daemon when the vault unbinds at quit.
     deps.stopNotificationScheduler()
     deps.stopTrackpadMonitoring()
 }

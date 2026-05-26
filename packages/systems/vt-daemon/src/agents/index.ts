@@ -88,3 +88,25 @@ export {
     __resetSessionStateForTests,
 } from '../state/sessionStateStore'
 export {serializeState} from '../state/serializeState'
+
+export {
+    startOtlpReceiver,
+    stopOtlpReceiver,
+    OTLP_BASE_PORT,
+    OTLP_MAX_PORT_ATTEMPTS,
+} from '../observability/otlpReceiver'
+export {
+    appendTokenMetrics,
+    getSessions,
+    AGENT_METRICS_FILENAME,
+    type SessionMetric,
+    type TokenMetrics,
+    type AgentMetricsData,
+} from '../observability/agentMetricsStore'
+export {
+    readOtlpPortFile,
+    writeOtlpPortFile,
+    removeOtlpPortFile,
+    otlpPortFilePath,
+    OTLP_PORT_FILENAME,
+} from '../lifecycle/otlpPortFile'

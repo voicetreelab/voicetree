@@ -32,6 +32,8 @@ import {graphStructureTool} from './graph/graphStructureTool'
 import {searchNodesTool} from './graph/searchNodesTool'
 import {dispatchLiveCommandTool} from './live/dispatchLiveCommandTool'
 import {getLiveStateTool} from './live/getLiveStateTool'
+import {getSessionsTool} from './metrics/getSessionsTool'
+import {appendSessionTool, type AppendSessionParams} from './metrics/appendSessionTool'
 
 export type CatalogHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 
@@ -243,6 +245,29 @@ const VT_DISPATCH_LIVE_COMMAND: CatalogEntry = {
         dispatchLiveCommandTool({command: args.command as never}),
 }
 
+const METRICS_GET_SESSIONS: CatalogEntry = {
+    name: 'metrics.getSessions',
+    description: 'Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <vault>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.',
+    inputShape: {},
+    handler: async (): Promise<McpToolResponse> => getSessionsTool(),
+}
+
+const METRICS_APPEND_SESSION: CatalogEntry = {
+    name: 'metrics.appendSession',
+    description: 'Append (or upsert by sessionId) a single session\'s token/cost telemetry into <vault>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.',
+    inputShape: {
+        sessionId: z.string().describe('Session identifier (Claude Code session.id or Voicetree terminal id)'),
+        tokens: z.object({
+            input: z.number().describe('Input tokens'),
+            output: z.number().describe('Output tokens'),
+            cacheRead: z.number().optional().describe('Cache-read tokens'),
+        }).describe('Token usage for this session'),
+        costUsd: z.number().describe('Cost in USD'),
+    },
+    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+        appendSessionTool(args as unknown as AppendSessionParams),
+}
+
 export const TOOL_CATALOG: readonly CatalogEntry[] = [
     SPAWN_AGENT,
     LIST_AGENTS,
@@ -256,6 +281,8 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = [
     SEARCH_NODES,
     VT_GET_LIVE_STATE,
     VT_DISPATCH_LIVE_COMMAND,
+    METRICS_GET_SESSIONS,
+    METRICS_APPEND_SESSION,
 ] as const
 
 /**
