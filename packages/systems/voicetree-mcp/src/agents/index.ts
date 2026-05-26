@@ -27,11 +27,11 @@ export {
     enableMcpJsonIntegration,
     enableMcpClientIntegrations,
     disableMcpJsonIntegration,
-    isMcpIntegrationEnabled,
     enableOpencodeMcpIntegration,
     disableOpencodeMcpIntegration,
     isOpencodeAgent,
     setMcpIntegration,
+    writeMcpClientConfigsToDir,
 } from '../config/mcp-client-config'
 
 export type {McpToolResponse} from '../tools/toolResponse'
