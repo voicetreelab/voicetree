@@ -39,14 +39,17 @@ const BINARIES = [
     kind: 'archive',
     urlPattern: platformUrl({
       'darwin-arm64': 'https://dl.grafana.com/grafana/release/13.0.1/grafana_13.0.1_24542347077_darwin_arm64.tar.gz',
-      'linux-x64': 'https://dl.grafana.com/grafana/release/13.0.1/grafana_13.0.1_24542347077_linux_amd64.tar.gz',
+      'linux-x64': 'https://dl.grafana.com/oss/release/grafana_13.0.1_amd64.deb',
     }),
     sha256: {
       'darwin-arm64': '5bf866290341d8f7fd14da5f11fc2a22f9d6d09da10519823ccab6835a448b3b',
-      'linux-x64': '187ddc4badb69aecb7cd3fae2884add7ed21adde7124a6f8093b7b4033d722f2',
+      'linux-x64': '6b33b3baac09ac4ba135e83bbb5d97d1545e6fa4f51929f2fe12a7f6f0e653fa',
     },
     binaryCandidates: ['grafana'],
     homeDir: 'grafana-home',
+    homeDirSourcePath: {
+      'linux-x64': 'usr/share/grafana',
+    },
     homeDirRequiredPath: 'conf/defaults.ini',
   },
   {
@@ -212,6 +215,20 @@ const download = async (url, targetPath) => {
 
 const extractArchive = async (archivePath, extractDir) => {
   await mkdir(extractDir, { recursive: true })
+  if (archivePath.endsWith('.deb')) {
+    const ar = spawnSync('ar', ['x', archivePath], { cwd: extractDir, encoding: 'utf8' })
+    if (ar.status !== 0) {
+      throw new Error(`ar failed for ${archivePath}\n${ar.stderr || ar.stdout}`)
+    }
+    const dataArchive = (await readdir(extractDir)).find((entry) => entry.startsWith('data.tar.'))
+    if (!dataArchive) throw new Error(`${archivePath} did not contain a data.tar archive`)
+    const result = spawnSync('tar', ['-xf', join(extractDir, dataArchive), '-C', extractDir], { encoding: 'utf8' })
+    if (result.status !== 0) {
+      throw new Error(`tar failed for ${dataArchive}\n${result.stderr || result.stdout}`)
+    }
+    return
+  }
+
   if (archivePath.endsWith('.zip')) {
     const unzip = spawnSync('unzip', ['-q', archivePath, '-d', extractDir], { encoding: 'utf8' })
     if (unzip.status === 0) return
@@ -281,10 +298,14 @@ const installArchive = async (binary, manifest) => {
     await extractArchive(archivePath, extractDir)
 
     if (binary.homeDir) {
-      const topEntries = await import('node:fs/promises').then((fs) => fs.readdir(extractDir))
-      if (topEntries.length !== 1) throw new Error(`${binary.name} archive did not contain exactly one top directory`)
+      const sourcePath = binary.homeDirSourcePath?.[PLATFORM]
+      const topEntries = sourcePath ? [] : await import('node:fs/promises').then((fs) => fs.readdir(extractDir))
+      if (!sourcePath && topEntries.length !== 1) {
+        throw new Error(`${binary.name} archive did not contain exactly one top directory`)
+      }
+      const homeSourcePath = sourcePath ? join(extractDir, sourcePath) : join(extractDir, topEntries[0])
       await rm(join(BIN_DIR, binary.homeDir), { recursive: true, force: true })
-      await copyTree(join(extractDir, topEntries[0]), join(BIN_DIR, binary.homeDir))
+      await copyTree(homeSourcePath, join(BIN_DIR, binary.homeDir))
       if (
         binary.homeDirRequiredPath &&
         !(await exists(join(BIN_DIR, binary.homeDir, binary.homeDirRequiredPath)))
