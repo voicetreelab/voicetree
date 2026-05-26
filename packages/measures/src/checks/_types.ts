@@ -20,6 +20,10 @@ export type CheckDef = {
 
 const e2eTimeoutMs = 30 * 60 * 1000
 
+// Stryker on a full package routinely needs 30–90 minutes. Mutation testing
+// gets its own budget so the e2e ceiling doesn't silently terminate it.
+const mutationTimeoutMs = 2 * 60 * 60 * 1000
+
 const npmRun = (name: string, extras: readonly string[] = []): string[] =>
     ['npm', 'run', name, ...(extras.length ? ['--', ...extras] : [])]
 
@@ -39,6 +43,7 @@ const playwrightJsonArgs = (): string[] => ['--reporter=json']
 
 export const checkArgs = {
     e2eTimeoutMs,
+    mutationTimeoutMs,
     npmRun,
     npmExec,
     npmWorkspaceRun,
