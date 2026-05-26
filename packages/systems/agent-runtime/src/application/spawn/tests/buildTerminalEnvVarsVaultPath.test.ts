@@ -14,7 +14,7 @@
 
 import {afterEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '../../runtime/runtime-config'
-import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
+import {buildTerminalEnvVars} from '../env/buildTerminalEnvVars'
 
 const CANONICAL_ROOT = '/Users/x/voicetree/brain/workflows/forecasting'
 const SUBFOLDER_WRITE_FOLDER = '/Users/x/voicetree/brain/workflows/forecasting/voicetree-23-5'

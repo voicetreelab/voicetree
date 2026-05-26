@@ -3,7 +3,7 @@
  *
  * Legacy callers continue to use these named getters/setters; each
  * delegates to `getProject` / `updateProject` in
- * `application/workflows/projectState.ts`. The five separate `let`s and
+ * `application/workflows/state/projectState.ts`. The five separate `let`s and
  * one `Set` that used to live here are now properties of one cohesive
  * value (per design § D8 of `watch-folder-verb-consolidation`).
  */
@@ -18,7 +18,7 @@ import {
     updateProject,
     type ProjectState,
     type ReadPathsListener,
-} from '../application/workflows/projectState';
+} from '../application/workflows/state/projectState';
 
 export const getWatcher: () => FSWatcher | null = (): FSWatcher | null => {
     return getProject()?.watcher ?? null;

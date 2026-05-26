@@ -20,7 +20,7 @@ import { OwnerSpawnCooldownError } from '../errors.ts'
 import {
   cooldownBreadcrumbPathFor,
   readCooldownBreadcrumb,
-} from '../autoLaunch/cooldownBreadcrumb.ts'
+} from '../autoLaunch/ownership/cooldownBreadcrumb.ts'
 import {
   ensureGraphDaemonForVault,
   subscribeOwnerDiagnostics,

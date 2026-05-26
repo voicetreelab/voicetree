@@ -2,7 +2,7 @@ import {existsSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
-import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts'
 import {
     ensureGraphDaemonForVault,
     type EnsureGraphDaemonResult,

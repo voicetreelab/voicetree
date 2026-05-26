@@ -8,7 +8,7 @@ import {
 } from '../terminals/terminal-registry'
 import {runStopHooks} from '../hooks/stopGateHookRunner'
 import {getRuntimeGraph} from '../runtime/graph-bridge'
-import {detectCliType} from '../spawn/headlessCli'
+import {detectCliType} from '../spawn/cli/headlessCli'
 
 export type HeadlessLogEntry = {
     readonly level: 'info' | 'warn' | 'error'

@@ -11,7 +11,7 @@ import {
   readCooldownBreadcrumb,
   writeCooldownBreadcrumb,
   type CooldownBreadcrumb,
-} from '../autoLaunch/cooldownBreadcrumb.ts'
+} from '../autoLaunch/ownership/cooldownBreadcrumb.ts'
 
 let vault: string
 

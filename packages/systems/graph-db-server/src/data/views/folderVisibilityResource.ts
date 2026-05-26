@@ -19,7 +19,7 @@ import {
   mutateProject,
   updateProject,
   type ProjectState,
-} from '@vt/graph-db-server/application/workflows/projectState'
+} from '@vt/graph-db-server/application/workflows/state/projectState'
 
 export type ActiveViewInfo = {
   readonly viewId: string

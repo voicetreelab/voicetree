@@ -1,6 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphDelta} from '@vt/graph-model/graph'
-import {ensureHookTerminal, writeToHookTerminal} from '../spawn/spawnHookTerminal'
+import {ensureHookTerminal, writeToHookTerminal} from '../spawn/launch/spawnHookTerminal'
 import {shellQuote} from '../util/shellQuote'
 
 export type HookResultLogger = (message: string) => void

@@ -46,7 +46,7 @@ import {
     type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
-import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 interface Args {

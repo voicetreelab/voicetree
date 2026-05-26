@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { buildResumeCommand, type ResumeCommandRequest } from '../resumeCli'
+import { buildResumeCommand, type ResumeCommandRequest } from '../cli/resumeCli'
 
 const CLAUDE_SESSION_ID = '605904d4-8881-4261-adc8-212891622ed2'
 const CODEX_THREAD_ID = '019e4ded-d566-7d52-b443-4610669da39e'

@@ -3,13 +3,13 @@ import {
   ensureVaultWorkflowInitialized,
   readVaultWorkflow,
   setWriteFolderWorkflow,
-} from '@vt/graph-db-server/application/workflows/vault'
+} from '@vt/graph-db-server/application/workflows/vault/vault'
 import {
   closeVaultWorkflow,
   isRequestValidationError,
   openVaultWorkflow,
   parseOpenVaultBody,
-} from '@vt/graph-db-server/application/workflows/vaultLifecycle'
+} from '@vt/graph-db-server/application/workflows/vault/vaultLifecycle'
 import {
   StructuredVaultError,
   structuredVaultErrorResult,

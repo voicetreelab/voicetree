@@ -31,8 +31,8 @@ import {
 } from '../errors.ts'
 import { GraphDbClient } from '../GraphDbClient.ts'
 import { emitOwnerDiagnostic } from './diagnostics.ts'
-import { decideOwnerAction, type OwnerDecision } from './ownerDecision.ts'
-import { readOwnerRecord } from './ownerRecordIo.ts'
+import { decideOwnerAction, type OwnerDecision } from './ownership/ownerDecision.ts'
+import { readOwnerRecord } from './ownership/ownerRecordIo.ts'
 import {
   attemptSpawnAndWait,
   boundedDelay,
@@ -42,7 +42,7 @@ import {
   reclaimStaleOwner,
   sleep,
   type SpawnAttemptResult,
-} from './spawnCoordinator.ts'
+} from './spawn/spawnCoordinator.ts'
 
 export type EnsureGraphDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */

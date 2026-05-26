@@ -4,8 +4,8 @@ import {
   runSessionEventsWorkflow,
   sessionExistsWorkflow,
   type SessionEventTimers,
-} from '@vt/graph-db-server/application/workflows/sessionEvents'
-import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
+} from '@vt/graph-db-server/application/workflows/session/sessionEvents'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/session/sessionRoutes'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
 
