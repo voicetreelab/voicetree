@@ -47,6 +47,7 @@ const BINARIES = [
     },
     binaryCandidates: ['grafana'],
     homeDir: 'grafana-home',
+    homeDirRequiredPath: 'conf/defaults.ini',
   },
   {
     name: 'loki',
@@ -249,8 +250,19 @@ const installArchive = async (binary, manifest) => {
   }
 
   const targetPath = join(BIN_DIR, binary.name)
+  const homeDirReady = async () => {
+    if (!binary.homeDir) return true
+    const homePath = join(BIN_DIR, binary.homeDir)
+    if (!binary.homeDirRequiredPath) return exists(homePath)
+    return exists(join(homePath, binary.homeDirRequiredPath))
+  }
   const record = manifest[binary.name]
-  if (record?.platform === PLATFORM && record?.archiveSha256 === pinnedSha && await exists(targetPath)) {
+  if (
+    record?.platform === PLATFORM &&
+    record?.archiveSha256 === pinnedSha &&
+    await exists(targetPath) &&
+    await homeDirReady()
+  ) {
     return { binary, status: 'skipped', targetPath, sha256: pinnedSha }
   }
 
@@ -273,6 +285,12 @@ const installArchive = async (binary, manifest) => {
       if (topEntries.length !== 1) throw new Error(`${binary.name} archive did not contain exactly one top directory`)
       await rm(join(BIN_DIR, binary.homeDir), { recursive: true, force: true })
       await copyTree(join(extractDir, topEntries[0]), join(BIN_DIR, binary.homeDir))
+      if (
+        binary.homeDirRequiredPath &&
+        !(await exists(join(BIN_DIR, binary.homeDir, binary.homeDirRequiredPath)))
+      ) {
+        throw new Error(`${binary.name} home dir did not contain ${binary.homeDirRequiredPath}`)
+      }
     }
 
     const extractedBinary = await findFirstExecutable(extractDir, binary.binaryCandidates)
