@@ -6,7 +6,9 @@
 // is laundering a `@vt/agent-runtime` runtime dependency through the
 // client (see `bf376-vt-daemon-protocol-package.md` closure invariant).
 //
-// Per-domain modules populate this barrel in subsequent commits:
+// Per-domain modules populate this barrel as BF-376 / S1 lands:
 //   - `terminal-types.ts`            — TerminalRecord, TerminalSpawnResult, TerminalData, TerminalId, TerminalRecordPatch
 //   - `rpc-contracts.ts`             — request/response shapes for the 19 RPC routes
 //   - `terminal-registry-events.ts`  — payload shapes for the `terminal-registry` SSE topic
+
+export * from './terminal-types.ts'
