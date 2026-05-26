@@ -34,6 +34,10 @@ import {
     matchAgentEventsPath,
     parseSinceQuery,
 } from './agentEventsSse.ts'
+import {
+    handleTerminalRegistrySse,
+    matchTerminalRegistryPath,
+} from './terminalRegistrySse.ts'
 import {createEventSubscriptionHub, type EventSubscriptionHub} from './eventSubscriptionHub.ts'
 import {
     authorizeWsUpgrade,
@@ -279,8 +283,8 @@ function buildRequestHandler(
         }
         if (method === 'GET') {
             const pathname: string = new URL(url, 'http://127.0.0.1').pathname
-            const sessionId: string | null = matchAgentEventsPath(pathname)
-            if (sessionId !== null) {
+            const agentEventsSessionId: string | null = matchAgentEventsPath(pathname)
+            if (agentEventsSessionId !== null) {
                 if (canonicalVault === undefined) {
                     res.statusCode = 503
                     res.setHeader('Content-Type', 'application/json')
@@ -296,6 +300,23 @@ function buildRequestHandler(
                 // SSE is long-lived; log the open here so we still see the
                 // request in the access log. Close is observed at the
                 // socket layer (logged by node's keep-alive close handler).
+                logger.logRequest(buildAccessLogLine(req, 200))
+                return
+            }
+            const terminalRegistrySessionId: string | null = matchTerminalRegistryPath(pathname)
+            if (terminalRegistrySessionId !== null) {
+                if (canonicalVault === undefined) {
+                    res.statusCode = 503
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({error: 'terminal-registry sse not wired (canonicalVault unset)'}))
+                    logger.logRequest(buildAccessLogLine(req, 503))
+                    return
+                }
+                handleTerminalRegistrySse(req, res, {
+                    hub,
+                    canonicalVault,
+                    resumeSeq: parseSinceQuery(url),
+                })
                 logger.logRequest(buildAccessLogLine(req, 200))
                 return
             }
