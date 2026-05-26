@@ -1,5 +1,5 @@
 // CI workflow generator. Reads the folder tree under packages/measures/src/checks/
-// and emits .github/workflows/measures-budget-gate.yml — one GHA job per
+// and emits .github/workflows/measures-budget-gate.generated.yml — one GHA job per
 // `tier_N/<concern>/` folder, plus a final `budget-gate` job that downloads
 // every tier's check-report artifacts and runs the tier-4 budget gate.
 //
@@ -28,7 +28,7 @@ const SCRIPT_DIR: string = dirname(fileURLToPath(import.meta.url))
 const PKG_ROOT: string = resolve(SCRIPT_DIR, '..')
 const REPO_ROOT: string = resolve(PKG_ROOT, '..', '..')
 const CHECKS_DIR: string = join(PKG_ROOT, 'src', 'checks')
-const OUTPUT_PATH: string = join(REPO_ROOT, '.github', 'workflows', 'measures-budget-gate.yml')
+const OUTPUT_PATH: string = join(REPO_ROOT, '.github', 'workflows', 'measures-budget-gate.generated.yml')
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
