@@ -56,7 +56,7 @@ import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/stores/RecentNode
 import type {RecentNodeHistory} from '@vt/graph-model/graph';
 import {cyFitIntoVisibleViewport, getResponsivePadding} from '@/utils/responsivePadding';
 import {updateSpeedDialDarkMode} from '@/shell/UI/views/ui-controls/SpeedDialMenu';
-import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
+import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTriggers';
 import type {Graph} from '@vt/graph-model/graph';
 import {createEmptyGraph} from '@vt/graph-model/graph';
 import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from '@/shell/UI/views/VoiceTreeGraphViewHelpers';

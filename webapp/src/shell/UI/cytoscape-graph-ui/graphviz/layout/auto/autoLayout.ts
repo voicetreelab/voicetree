@@ -41,10 +41,6 @@ import { DEFAULT_OPTIONS } from './autoLayoutTypes';
 import { parseLayoutConfig } from './autoLayoutConfig';
 import { registerAutoLayoutTriggers, unregisterAutoLayoutTriggers } from './autoLayoutTriggers';
 
-// Re-export public API from sibling modules
-export type { AutoLayoutOptions } from './autoLayoutTypes';
-export { triggerColaLayout, markNodeDirty, triggerFullLayout } from './autoLayoutTriggers';
-
 /**
  * Enable automatic layout on graph changes
  *
@@ -314,6 +310,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   const onNodeAdd: (evt: EventObject) => void = (evt) => {
     const target: NodeSingular = evt.target as NodeSingular;
     if (target.data('isFolderNode')) return;
+    if (target.hasClass('vt-has-graph-position')) return;
     if (isLayoutParticipantNode(target)) {
       pendingNewNodeIds.add(target.id());
     }

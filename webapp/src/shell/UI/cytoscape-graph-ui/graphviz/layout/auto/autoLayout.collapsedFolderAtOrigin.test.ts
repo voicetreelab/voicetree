@@ -193,6 +193,20 @@ describe('collapsed folder proxy at (0,0) — origin-pull bug mechanism', () => 
     expect(passedNodeIds.has('new-file.md')).toBe(true);
   });
 
+  it('guard: a file node with an authoritative graph position does NOT trigger runLocalCola', () => {
+    cy.add({
+      group: 'nodes',
+      data: { id: 'positioned-file.md' },
+      position: { x: 800, y: 800 },
+      classes: 'vt-has-graph-position',
+    });
+
+    vi.advanceTimersByTime(400);
+
+    expect(runLocalColaSpy).not.toHaveBeenCalled();
+    expect(cy.getElementById('positioned-file.md').position()).toEqual({ x: 800, y: 800 });
+  });
+
   it('combined: without the isFolderNode guard, collapsed folder WOULD be tracked as new node', () => {
     // This test directly proves the mechanism: isLayoutParticipantNode says YES
     // for collapsed folders, but the onNodeAdd guard says NO.
