@@ -154,6 +154,31 @@ export function getVtDaemonClient(): VtDaemonClient {
 }
 
 /**
+ * Test-only: stamp a synthetic active-binding entry without spawning a real
+ * VTD child. Lets unit tests exercise consumers of `getActiveVault()` (e.g.
+ * the Main-side live-state RPC client) without going through
+ * `ensureVtDaemonForVault`. The client/facade fields are left as no-op stubs
+ * because tests using this path point `createRpcClientForVault` at a local
+ * HTTP listener via the on-disk discovery files (`rpc.port` + `auth-token`)
+ * rather than reusing the cached snapshot.
+ */
+export function __setBoundVaultForTests(vaultPath: string | null): void {
+    if (vaultPath === null) {
+        active = null
+        return
+    }
+    active = {
+        vaultPath,
+        url: '',
+        token: '',
+        pid: 0,
+        ownerNonce: '',
+        client: {} as VtDaemonClient,
+        facade: {} as VtDaemonClientFacade,
+    }
+}
+
+/**
  * Re-call the ensure path for the currently-bound vault so a respawned
  * VTD (crash → new pid → new auth token) surfaces fresh credentials.
  * Cheap when the ensure path's in-process single-flight cache is warm.

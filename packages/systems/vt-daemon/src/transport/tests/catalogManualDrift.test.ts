@@ -43,6 +43,8 @@ const CLI_VERBS: Readonly<Record<string, string>> = {
     search_nodes: 'vt search',
     vt_get_live_state: 'vt graph live state',
     vt_dispatch_live_command: 'vt graph live dispatch',
+    'metrics.getSessions': 'vt agent metrics sessions',
+    'metrics.appendSession': 'vt agent metrics append',
 }
 
 function loadManual(): string {

@@ -53,6 +53,7 @@ import {
     configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
+    setCurrentVault,
     startHttpDaemonServer,
     type HookHandler,
     type HttpDaemonServerHandle,
@@ -188,6 +189,7 @@ async function main(): Promise<void> {
     const daemonBaseUrl = `http://127.0.0.1:${daemonHandle.port}`
     const daemonClient = new GraphDbClient({ baseUrl: daemonBaseUrl })
     const openResult = await daemonClient.openVault(tempVault, { writeFolder: tempVault })
+    setCurrentVault(tempVault)
 
     // The daemon serializes Graph over JSON, which collapses Maps (e.g.
     // nodeByBaseName, additionalYAMLProps) into plain objects. createGraphTool
@@ -263,14 +265,6 @@ async function main(): Promise<void> {
                     sessionId: openResult.sessionId,
                 })
             },
-        },
-        liveState: {
-            applyLiveCommand: (): Promise<never> => Promise.reject(
-                new Error('vt_dispatch_live_command not available in perf harness'),
-            ),
-            getLiveStateSnapshot: (): Promise<never> => Promise.reject(
-                new Error('vt_get_live_state not available in perf harness'),
-            ),
         },
     })
 

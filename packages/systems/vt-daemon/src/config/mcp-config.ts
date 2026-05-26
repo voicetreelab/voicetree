@@ -4,14 +4,8 @@
 // this config object, keeping this package free of Electron and renderer-side
 // imports.
 
-import type { Command, Delta, SerializedState } from '@vt/graph-state'
 import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import type { UnseenNode } from '@vt/graph-db-protocol'
-
-export type LiveStateBridge = {
-    readonly applyLiveCommand: (cmd: Command) => Promise<Delta>
-    readonly getLiveStateSnapshot: () => Promise<SerializedState | null>
-}
 
 export type SearchSimilarResult = {
     readonly node_path: string
@@ -41,7 +35,6 @@ export type GraphBridge = {
 
 export type McpServerConfig = {
     readonly graph?: GraphBridge
-    readonly liveState?: LiveStateBridge
     readonly search?: SearchBridge
 }
 
@@ -64,16 +57,6 @@ const configCell: McpServerConfigCell = createMcpServerConfigCell({})
 
 export function configureMcpServer(c: McpServerConfig): void {
     configCell.configure(c)
-}
-
-export function getLiveStateBridge(): LiveStateBridge {
-    const config: McpServerConfig = configCell.get()
-    if (!config.liveState) {
-        throw new Error(
-            'MCP live-state bridge not configured. Call configureMcpServer({ liveState: ... }) at boot.'
-        )
-    }
-    return config.liveState
 }
 
 export function getSearchBridge(): SearchBridge | undefined {

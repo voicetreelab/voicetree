@@ -43,7 +43,7 @@ import {
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCreateAndSpawn';
-import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
+import {getMetrics} from '@/shell/edge/main/observability/metrics/getMetricsViaVtd';
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
 import {getDaemonUrl} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
@@ -71,7 +71,6 @@ import {
   expandFolderThroughDaemon,
   getGraphFromDaemon as getGraph,
   getProjectedGraphFromDaemon as getProjectedGraph,
-  getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
@@ -354,7 +353,6 @@ export const mainAPI = {
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,
-  getLiveStateSnapshot,
   syncRendererSessionStateWithDaemon,
   __debugLockSSE,
   __debugUnlockSSE,

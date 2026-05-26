@@ -1,32 +1,27 @@
 /**
- * BF-161 · L1-LIVE1 — MCP tool `vt_get_live_state`.
+ * BF-379 · Phase 3 — JSON-RPC method `vt_get_live_state`.
  *
- * Returns the running Electron app's live `@vt/graph-state` State as
- * `SerializedState` JSON, including daemon-owned `folderState` and
- * `activeView`, so out-of-process consumers can hydrate the same data layer
- * the shell renders from.
- *
- * State composition is delegated through the graph daemon boundary. Electron
- * main owns renderer session state, then asks vt-graphd for the canonical graph
- * snapshot so daemon-backed storage stays in the Node daemon process.
- *
- * Gates V-L1-13/14/15/16. Also acts as the `LiveTransport.getLiveState`
- * implementation used by BF-163's CLI live-view adapter.
+ * Returns the daemon-owned session State as a `SerializedState` envelope.
+ * Both Electron Main (as a client) and any CLI (as a client) reach the same
+ * wire shape — the daemon is the single authority, no bridge to renderer
+ * state is involved.
  */
 import type { SerializedState } from '@vt/graph-state'
-import { getLiveStateBridge } from '../mcpConfigDependencies'
+
+import { getCurrentSessionState } from '../../state/sessionStateStore'
+import { serializeState } from '../../state/serializeState'
+import { getCurrentVault } from '../../state/currentVault'
 
 import { buildJsonResponse } from '../toolResponse'
 import type { McpToolResponse } from '../toolResponse'
 
-export async function getLiveState(): Promise<SerializedState | null> {
-    return await getLiveStateBridge().getLiveStateSnapshot()
+export async function getLiveState(): Promise<SerializedState> {
+    return serializeState(await getCurrentSessionState(getCurrentVault()))
 }
 
 export async function getLiveStateTool(): Promise<McpToolResponse> {
     try {
-        const state: SerializedState | null = await getLiveState()
-        if (!state) return buildJsonResponse({ error: 'No vault loaded yet' }, true)
+        const state: SerializedState = await getLiveState()
         return buildJsonResponse(state)
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)

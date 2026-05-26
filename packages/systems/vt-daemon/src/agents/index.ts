@@ -3,10 +3,9 @@
 // functionality through this barrel or via the stable internal subpaths
 // declared in package.json#exports.
 
-export {configureMcpServer, getLiveStateBridge, getSearchBridge} from '../config/mcp-config'
+export {configureMcpServer, getSearchBridge} from '../config/mcp-config'
 export type {
     McpServerConfig,
-    LiveStateBridge,
     SearchBridge,
     AskQueryResponse,
     SearchSimilarResult,
@@ -88,3 +87,34 @@ export {
     type DispatchLiveCommandResult,
 } from '../tools/live/dispatchLiveCommandTool'
 export {getLiveStateTool, getLiveState} from '../tools/live/getLiveStateTool'
+
+export {setCurrentVault, getCurrentVault, peekCurrentVault} from '../state/currentVault'
+export {
+    getCurrentSessionState,
+    applyCommandToSessionState,
+    persistPositionsToGraphd,
+    __resetSessionStateForTests,
+} from '../state/sessionStateStore'
+export {serializeState} from '../state/serializeState'
+
+export {
+    startOtlpReceiver,
+    stopOtlpReceiver,
+    OTLP_BASE_PORT,
+    OTLP_MAX_PORT_ATTEMPTS,
+} from '../observability/otlpReceiver'
+export {
+    appendTokenMetrics,
+    getSessions,
+    AGENT_METRICS_FILENAME,
+    type SessionMetric,
+    type TokenMetrics,
+    type AgentMetricsData,
+} from '../observability/agentMetricsStore'
+export {
+    readOtlpPortFile,
+    writeOtlpPortFile,
+    removeOtlpPortFile,
+    otlpPortFilePath,
+    OTLP_PORT_FILENAME,
+} from '../lifecycle/otlpPortFile'

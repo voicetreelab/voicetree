@@ -11,7 +11,6 @@ export type QuitLifecycleDeps = {
     readonly cleanupOrphanedContextNodes: () => Promise<unknown>
     readonly setIsQuitting: (value: boolean) => void
     readonly stopNotificationScheduler: () => void
-    readonly stopOTLPReceiver: () => unknown
     readonly stopRecoverySessionPolling: () => void
     readonly stopTextToTreeServer: () => void
     readonly stopTrackpadMonitoring: () => void
@@ -32,7 +31,9 @@ function runQuitCleanup(deps: QuitLifecycleDeps): void {
     void deps.cleanupOrphanedContextNodes().catch((error: unknown) => {
         console.warn('[App] Failed to clean up orphaned context nodes before quit:', error)
     })
-    void deps.stopOTLPReceiver()
+    // OTLP receiver lifecycle is daemon-owned post-Phase-3 (BF-382): vtd.ts
+    // starts the listener on bind and stops it on its own SIGINT/SIGTERM.
+    // Webapp's quit no longer calls into OTLP.
     deps.stopNotificationScheduler()
     deps.stopTrackpadMonitoring()
 }

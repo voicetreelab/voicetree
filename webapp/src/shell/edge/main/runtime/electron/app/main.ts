@@ -22,7 +22,6 @@ import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edg
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
-import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {
     refreshUnclaimedTmuxSessions,
     startUnclaimedTmuxSessionPolling,
@@ -35,10 +34,8 @@ import {
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
-import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
 import {
     getGraphFromDaemon,
-    getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
@@ -111,10 +108,6 @@ configureMcpServer({
                 searchFromNode,
             );
         },
-    },
-    liveState: {
-        applyLiveCommand,
-        getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
     },
     search: {
         askQuery,
@@ -278,9 +271,6 @@ void app.whenReady().then(async () => {
     // Silently migrate starredFolders entries from ~/voicetree/workflows to ~/brain/workflows
     await migrateStarredFoldersBrainRename();
 
-    // Start OTLP receiver for Claude Code metrics (port 4318)
-    await startOTLPReceiver();
-
     // Start re-engagement notification scheduler
     startNotificationScheduler();
 
@@ -309,7 +299,6 @@ installQuitLifecycleHandlers({
     cleanupOrphanedContextNodes,
     setIsQuitting: (value: boolean): void => { isQuitting = value; },
     stopNotificationScheduler,
-    stopOTLPReceiver,
     stopRecoverySessionPolling,
     stopTextToTreeServer: (): void => { textToTreeServerManager.stop(); },
     stopTrackpadMonitoring,

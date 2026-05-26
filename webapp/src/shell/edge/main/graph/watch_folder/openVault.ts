@@ -34,7 +34,6 @@ import { bindVtDaemonForVault, getVtDaemonFacade } from '@/shell/edge/main/runti
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { registerChildIfMonitored } from '@vt/vt-daemon'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
-import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
 export type StartupVaultHint =
     | { readonly kind: 'open-folder'; readonly path: string }
@@ -197,7 +196,6 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await startDaemonGraphSync(projectRoot)
         markLoadTiming('main:daemon-graph-sync-started')
         await saveLastDirectory(projectRoot)
-        syncWatchedProjectRoot(projectRoot)
 
         const watchingStartedInfo = {
             directory: projectRoot,

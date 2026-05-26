@@ -33,6 +33,8 @@ import {graphStructureTool} from './graph/graphStructureTool'
 import {searchNodesTool} from './graph/searchNodesTool'
 import {dispatchLiveCommandTool} from './live/dispatchLiveCommandTool'
 import {getLiveStateTool} from './live/getLiveStateTool'
+import {getSessionsTool} from './metrics/getSessionsTool'
+import {appendSessionTool, type AppendSessionParams} from './metrics/appendSessionTool'
 
 export type CatalogHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 
@@ -229,7 +231,7 @@ const SEARCH_NODES: CatalogEntry = {
 
 const VT_GET_LIVE_STATE: CatalogEntry = {
     name: 'vt_get_live_state',
-    description: 'Return a SerializedState snapshot of the running app with graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
+    description: 'Return a SerializedState snapshot of the daemon-owned session: graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
     inputShape: {},
     handler: async (): Promise<McpToolResponse> => getLiveStateTool(),
 }
@@ -242,6 +244,29 @@ const VT_DISPATCH_LIVE_COMMAND: CatalogEntry = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
         dispatchLiveCommandTool({command: args.command as never}),
+}
+
+const METRICS_GET_SESSIONS: CatalogEntry = {
+    name: 'metrics.getSessions',
+    description: 'Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <vault>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.',
+    inputShape: {},
+    handler: async (): Promise<McpToolResponse> => getSessionsTool(),
+}
+
+const METRICS_APPEND_SESSION: CatalogEntry = {
+    name: 'metrics.appendSession',
+    description: 'Append (or upsert by sessionId) a single session\'s token/cost telemetry into <vault>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.',
+    inputShape: {
+        sessionId: z.string().describe('Session identifier (Claude Code session.id or Voicetree terminal id)'),
+        tokens: z.object({
+            input: z.number().describe('Input tokens'),
+            output: z.number().describe('Output tokens'),
+            cacheRead: z.number().optional().describe('Cache-read tokens'),
+        }).describe('Token usage for this session'),
+        costUsd: z.number().describe('Cost in USD'),
+    },
+    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+        appendSessionTool(args as unknown as AppendSessionParams),
 }
 
 export const TOOL_CATALOG: readonly CatalogEntry[] = [
@@ -257,6 +282,8 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = [
     SEARCH_NODES,
     VT_GET_LIVE_STATE,
     VT_DISPATCH_LIVE_COMMAND,
+    METRICS_GET_SESSIONS,
+    METRICS_APPEND_SESSION,
 ] as const
 
 /**

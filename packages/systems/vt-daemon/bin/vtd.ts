@@ -56,10 +56,12 @@ import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/dae
 import {tracing} from '@vt/observability'
 import {
     buildDefaultToolCatalog,
-    configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
+    setCurrentVault,
     startHttpDaemonServer,
+    startOtlpReceiver,
+    stopOtlpReceiver,
     type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon'
@@ -176,28 +178,6 @@ function callerKindFromEnv(): CallerKind {
     return 'vtd'
 }
 
-function configureHeadlessMcpBridges(): void {
-    // Live-state tools require an Electron renderer back-channel. The
-    // standalone VTD binary does not have one yet — Phase 4 (BF-378) will
-    // design a back-channel so the spawning Electron Main can subscribe.
-    // Until then, fail with a specific MCP error rather than crashing the
-    // daemon, and be explicit that the rejection is provisional, not a
-    // permanent architectural truth.
-    configureMcpServer({
-        liveState: {
-            applyLiveCommand: (): Promise<never> =>
-                Promise.reject(new Error(
-                    'vt_dispatch_live_command requires a live-state back-channel. Not yet implemented for standalone vtd (see openspec vtd-live-state-bridge).',
-                )),
-            getLiveStateSnapshot: (): Promise<never> =>
-                Promise.reject(new Error(
-                    'vt_get_live_state requires a live-state back-channel. Not yet implemented for standalone vtd (see openspec vtd-live-state-bridge).',
-                )),
-        },
-        // search bridge omitted: search_nodes returns "Search backend is not configured."
-    })
-}
-
 function configureAgentRuntimeForVtd(
     appSupportPath: string,
     publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
@@ -302,11 +282,12 @@ async function main(): Promise<void> {
         die(`failed to ensure vt-graphd sibling: ${(err as Error).message}`)
     }
 
-    // Step 3: MCP rejectors + tmux preflight. configureMcpServer wires the
-    // headless live-state rejectors. agent-runtime is configured later
-    // (step 4.5) once we have the SSE hub the publish sink targets — neither
-    // ensureTmuxAvailable nor ensureTmuxServer depends on runtime config.
-    configureHeadlessMcpBridges()
+    // Step 3: bind in-process state to this vault, then tmux preflight.
+    // setCurrentVault is the single source-of-truth for daemon-internal
+    // state singletons (sessionStateStore reads <vault>/.voicetree/ via
+    // getVault()). agent-runtime is configured later (step 4.5) once we
+    // have the SSE hub the publish sink targets.
+    setCurrentVault(args.vault)
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 
@@ -373,6 +354,19 @@ async function main(): Promise<void> {
         ),
     )
 
+    // OTLP receiver — receives metrics from Claude-Code-style agents on
+    // localhost:4318+. Publishes <vault>/.voicetree/otlp.port so the agent
+    // spawn pipeline can inject OTEL_EXPORTER_OTLP_ENDPOINT against the
+    // actual bound port (which retries on EADDRINUSE up to +9). Failure is
+    // non-fatal: the daemon stays up; agent metrics simply aren't collected.
+    try {
+        await startOtlpReceiver(args.vault)
+    } catch (err) {
+        process.stderr.write(
+            `vtd: OTLP receiver start failed (continuing): ${(err as Error).message}\n`,
+        )
+    }
+
     // Lifecycle JSONL telemetry sink — predecessor (vt-mcpd) had this; vtd keeps it.
     try {
         agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
@@ -413,6 +407,9 @@ async function main(): Promise<void> {
         // the port file is the signal that the daemon is gone.
         try {
             stopHeartbeat()
+            await stopOtlpReceiver().catch((err: unknown): void => {
+                process.stderr.write(`vtd: OTLP receiver stop error: ${(err as Error).message}\n`)
+            })
             await httpHandle.stop().catch((err: unknown): void => {
                 process.stderr.write(`vtd: http daemon stop error: ${(err as Error).message}\n`)
             })
