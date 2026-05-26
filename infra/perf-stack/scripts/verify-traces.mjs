@@ -34,7 +34,6 @@ function makeSpanId() {
 function makeRunContext() {
   return {
     runUuid: process.env.VOICETREE_RUN_INSTANCE_ID ?? randomUUID(),
-    collectorRunIdWasExplicit: Boolean(process.env.VOICETREE_RUN_INSTANCE_ID),
   }
 }
 
@@ -259,7 +258,6 @@ async function verifyTraces() {
       file_mirror_present: mirror.ok,
       trace_mirror_path: paths.traceMirrorPath,
       service_instance_id: runContext.runUuid,
-      collector_run_id_env_present: runContext.collectorRunIdWasExplicit,
       backend_last_status: backend.lastStatus,
       backend_last_error: backend.lastError,
       file_mirror_last_error: mirror.lastError,
@@ -269,9 +267,6 @@ async function verifyTraces() {
 
   await writeResult({ verifyPath: paths.verifyPath, result })
   console.log(`${ok ? 'ok' : 'fail'} traces round-trip ${result.round_trip_ms}ms result=${paths.verifyPath}`)
-  if (!runContext.collectorRunIdWasExplicit) {
-    console.log('note: traces file exporter is scoped by VOICETREE_RUN_INSTANCE_ID at collector startup; start the stack and this verifier with the same value for file-mirror verification.')
-  }
   return ok
 }
 

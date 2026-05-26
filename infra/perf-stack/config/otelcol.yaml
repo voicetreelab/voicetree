@@ -35,6 +35,20 @@ receivers:
         from: attributes.message
         to: body
 
+connectors:
+  routing/metrics_file_mirror:
+    default_pipelines: []
+    table:
+      - context: resource
+        condition: attributes["service.instance.id"] != nil and attributes["service.instance.id"] != ""
+        pipelines: [metrics/file_mirror]
+  routing/traces_file_mirror:
+    default_pipelines: []
+    table:
+      - context: resource
+        condition: attributes["service.instance.id"] != nil and attributes["service.instance.id"] != ""
+        pipelines: [traces/file_mirror]
+
 exporters:
   debug:
     verbosity: basic
@@ -46,13 +60,23 @@ exporters:
     resource_to_telemetry_conversion:
       enabled: true
   file/metrics:
-    path: "${env:HOME}/.voicetree/perf/${env:VOICETREE_RUN_INSTANCE_ID:-__collector_unscoped__}/metrics/vt-test.metrics.ndjson"
+    path: "${env:HOME}/.voicetree/perf/*/metrics/vt-test.metrics.ndjson"
+    append: true
+    create_directory: true
+    group_by:
+      enabled: true
+      resource_attribute: service.instance.id
   otlp/tempo:
     endpoint: 127.0.0.1:4327
     tls:
       insecure: true
   file/traces:
-    path: "${env:HOME}/.voicetree/perf/${env:VOICETREE_RUN_INSTANCE_ID:-__collector_unscoped__}/traces/vt-test.spans.ndjson"
+    path: "${env:HOME}/.voicetree/perf/*/traces/vt-test.spans.ndjson"
+    append: true
+    create_directory: true
+    group_by:
+      enabled: true
+      resource_attribute: service.instance.id
 
 service:
   extensions: [health_check]
@@ -65,7 +89,13 @@ service:
       exporters: [otlphttp/loki]
     metrics:
       receivers: [otlp]
-      exporters: [prometheusremotewrite, file/metrics]
+      exporters: [prometheusremotewrite, routing/metrics_file_mirror]
+    metrics/file_mirror:
+      receivers: [routing/metrics_file_mirror]
+      exporters: [file/metrics]
     traces:
       receivers: [otlp]
-      exporters: [otlp/tempo, file/traces]
+      exporters: [otlp/tempo, routing/traces_file_mirror]
+    traces/file_mirror:
+      receivers: [routing/traces_file_mirror]
+      exporters: [file/traces]
