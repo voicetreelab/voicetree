@@ -12,3 +12,4 @@
 //   - `terminal-registry-events.ts`  — payload shapes for the `terminal-registry` SSE topic
 
 export * from './terminal-types.ts'
+export * from './rpc-contracts.ts'
