@@ -300,6 +300,70 @@ function formatSubdirTable(subdirs: readonly SubdirCoupling[]): string {
     return lines.join('\n')
 }
 
+// Per-pair BCI contribution = max(tw - 1, 0) × log₂(edges + 1).
+// Same formula as `aggregateBCI`, but per-pair so we can rank offenders.
+function pairBciContribution(p: PairMetrics): number {
+    return Math.max(p.treeWidth - 1, 0) * Math.log2(p.edgeCount + 1)
+}
+
+// Top N entries from a map<string, number> sorted descending by value.
+function topN<K>(counts: ReadonlyMap<K, number>, n: number): Array<[K, number]> {
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n)
+}
+
+function countBy<T>(items: readonly T[], key: (item: T) => string): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const item of items) {
+        const k = key(item)
+        counts.set(k, (counts.get(k) ?? 0) + 1)
+    }
+    return counts
+}
+
+// Detailed breakdown of the worst-offending pairs: which importer files
+// (and which target files) compose the tangle. Lets a failing budget run
+// point at concrete files to refactor instead of just naming the pair.
+function formatTopOffenders(
+    pairs: readonly PairMetrics[],
+    edgesByPair: ReadonlyMap<string, readonly DirectedFileEdge[]>,
+    pairLimit: number,
+    fileLimit: number,
+): string {
+    const ranked = [...pairs]
+        .map(p => ({pair: p, contribution: pairBciContribution(p)}))
+        .filter(x => x.contribution > 0)
+        .sort((a, b) => b.contribution - a.contribution)
+        .slice(0, pairLimit)
+
+    const lines: string[] = ['', '=== Top BCI Contributors (offending files) ===', '']
+    if (ranked.length === 0) {
+        lines.push('  (no pair contributes to BCI — every boundary has tw ≤ 1)')
+        return lines.join('\n')
+    }
+
+    for (let i = 0; i < ranked.length; i++) {
+        const {pair, contribution} = ranked[i]
+        const pairEdges = edgesByPair.get(pair.pair) ?? []
+        const importerCounts = countBy(pairEdges, e => e.from)
+        const targetCounts = countBy(pairEdges, e => e.to)
+
+        lines.push(`  ${i + 1}. ${pair.pair}`)
+        lines.push(`     contribution=${contribution.toFixed(2)}  tw=${pair.treeWidth}  edges=${pair.edgeCount}  srcFan=${pair.srcFan}  tgtFan=${pair.tgtFan}`)
+        lines.push(`     top importer files (this pair's cross-edges originating here):`)
+        for (const [file, count] of topN(importerCounts, fileLimit)) {
+            lines.push(`       ${String(count).padStart(4)}  ${file}`)
+        }
+        lines.push(`     top target files (this pair's cross-edges landing here):`)
+        for (const [file, count] of topN(targetCounts, fileLimit)) {
+            lines.push(`       ${String(count).padStart(4)}  ${file}`)
+        }
+        lines.push('')
+    }
+    lines.push('  Reducing edges on a tw≥2 pair lowers its log₂(edges+1) contribution.')
+    lines.push('  Eliminating a single edge from any of the above pairs is the cheapest way to shrink aggregate BCI.')
+    return lines.join('\n')
+}
+
 function formatAggregate(pairs: readonly PairMetrics[], maxTw: number, maxBoundaryRatio: number, bci: number): string {
     return [
         '',
@@ -363,6 +427,7 @@ describe('hypergraph boundary complexity', () => {
         console.info(formatPairTable(pairMetrics))
         console.info(formatBoundaryTable(boundaries))
         console.info(formatSubdirTable(subdirCouplings))
+        console.info(formatTopOffenders(pairMetrics, edgesByPair, 5, 8))
         console.info(formatAggregate(pairMetrics, maxTw, maxBoundaryRatio, bci))
 
         const violations: string[] = []
