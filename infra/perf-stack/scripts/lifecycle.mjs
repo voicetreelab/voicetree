@@ -55,6 +55,8 @@ const SERVICES = [
     command: join(BIN_DIR, 'pyroscope'),
     args: [
       '--config.file=infra/perf-stack/config/pyroscope.yaml',
+      '--distributor.ingestion-rate-limit-mb=64',
+      '--distributor.ingestion-burst-size-mb=64',
       '--memberlist.advertise-addr=127.0.0.1',
       '--memberlist.bind-addr=127.0.0.1',
       '--metastore.raft.advertise-address=127.0.0.1:9099',
@@ -67,6 +69,7 @@ const SERVICES = [
       '--segment-writer.lifecycler.port=2991',
       '--segment-writer.store=inmemory',
       '--store-gateway.sharding-ring.instance-addr=127.0.0.1',
+      '--validation.max-profile-stacktrace-samples=0',
     ],
     ready: 'http://127.0.0.1:2995/ready',
   },
