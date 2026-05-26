@@ -7,15 +7,20 @@
 // case is owned by the tier-0 `baseline-commit-isolation` check, which
 // fires inside the pre-commit hook *before* commit-msg runs.
 
-import {execFileSync} from 'node:child_process'
+import {execFileSync, spawnSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
-import {baselinePolicy} from '../src/checks/_shared/baseline-policy.ts'
+import {baselinePolicy} from '../src/_shared/policy/baseline-policy.ts'
 
 function loadStagedPaths(): string[] {
     const raw = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
         encoding: 'utf8',
     })
     return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+}
+
+function isMergeCommitInProgress(): boolean {
+    const result = spawnSync('git', ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], {stdio: 'ignore'})
+    return result.status === 0
 }
 
 function main(): void {
@@ -25,7 +30,10 @@ function main(): void {
         process.exit(2)
     }
 
-    const stagedClassification = baselinePolicy.classifyStagedDiff(loadStagedPaths())
+    const stagedClassification = baselinePolicy.classifyStagedDiff(
+        loadStagedPaths(),
+        {isMergeCommit: isMergeCommitInProgress()},
+    )
     if (stagedClassification !== 'pure-bump') {
         // Not a pure baseline bump — this hook has no opinion.
         process.exit(0)

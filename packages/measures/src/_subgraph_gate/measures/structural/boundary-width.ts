@@ -36,6 +36,8 @@ import {exportedSymbolNames} from '../../../_shared/complexity/exported-symbols.
 import type {SourceFile} from '../../../_shared/graph/import-graph.ts'
 import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
+
+const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
@@ -51,7 +53,14 @@ export const MEASURE_ID = 'boundary-width'
  */
 export const BOUNDARY_WIDTH_ABSOLUTE_BUDGET = 30
 
-async function countExportsInFile(file: SourceFile): Promise<number> {
+async function countExportsInFile(file: SourceFile, parsedSubgraph: SubgraphMeasureInput['parsedSubgraph']): Promise<number> {
+    // Prefer parsedSubgraph's cached content — it routes through the
+    // runner's staged-blob loader so unstaged peer-WIP doesn't pollute
+    // this commit's score. Fall back to disk only when the subgraph was
+    // built by an out-of-band path (test helpers) that didn't populate
+    // the cache.
+    const cached = parsedSubgraph.getContent(file.absolutePath)
+    if (cached !== null) return exportedSymbolNames(file.absolutePath, cached).length
     try {
         const text = await readFile(file.absolutePath, 'utf8')
         return exportedSymbolNames(file.absolutePath, text).length
@@ -76,7 +85,7 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
     const perCommunity: Record<string, number> = {}
     for (const community of parsedSubgraph.touchedCommunities) {
         const files = filesByCommunity.get(community) ?? []
-        const counts = await Promise.all(files.map(countExportsInFile))
+        const counts = await Promise.all(files.map(f => countExportsInFile(f, parsedSubgraph)))
         perCommunity[community] = counts.reduce((s, n) => s + n, 0)
     }
 
@@ -91,7 +100,8 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
                 score: current,
                 baseline: baselineScore,
                 severity: 'fail',
-                message: `boundary-width ${current} exports > absolute budget ${BOUNDARY_WIDTH_ABSOLUTE_BUDGET} — community has a wide public channel; collapse to a deep-function shape`,
+                message: `boundary-width ${current} exports > absolute budget ${BOUNDARY_WIDTH_ABSOLUTE_BUDGET} — community has a wide public channel; collapse to a deep-function shape`
+                    + `\nSee: ${SKILL_DOC}`,
             })
             continue
         }
@@ -101,7 +111,8 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
                 score: current,
                 baseline: baselineScore,
                 severity: 'fail',
-                message: `boundary-width regressed: ${baselineScore} -> ${current} exports`,
+                message: `boundary-width regressed: ${baselineScore} -> ${current} exports`
+                    + `\nSee: ${SKILL_DOC}`,
             })
         }
     }

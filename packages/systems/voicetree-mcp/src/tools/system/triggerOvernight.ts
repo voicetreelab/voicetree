@@ -1,6 +1,9 @@
 // Overnight trigger: spawns a meta-observer agent for an overnight batch run.
 // Bypasses MCP protocol — invoked over plain HTTP at /trigger-overnight.
 
+import {readFile} from 'node:fs/promises'
+import {homedir} from 'node:os'
+import {join} from 'node:path'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
 import {createTaskNode} from '@vt/graph-model/graph'
@@ -36,6 +39,48 @@ function getCurrentIsoDate(): string {
 
 const defaultTriggerOvernightDeps: TriggerOvernightDeps = {
     getIsoDate: getCurrentIsoDate,
+}
+
+const OVERNIGHT_PROMPT_PATH: string = join(
+    homedir(),
+    'brain/workflows/meta-cognitive-protocols-tools-patterns/coaching/meta-observer/overnight-trigger.md',
+)
+
+// Fallback template, used if OVERNIGHT_PROMPT_PATH is missing. Kept in sync
+// with that file so the system stays functional even if the user's brain
+// vault is unavailable or the file has been moved.
+const FALLBACK_PROMPT_TEMPLATE: string = [
+    'Read and follow [~/brain/workflows/meta-cognitive-protocols-tools-patterns/coaching/meta-observer/SKILL.md]',
+    '',
+    'Parameters:',
+    'MAX_TASKS={{MAX_TASKS}}',
+    'COMPLEXITY_THRESHOLD={{COMPLEXITY_THRESHOLD}}',
+    'COST_CAP_USD={{COST_CAP_USD}}',
+    'DRY_RUN={{DRY_RUN}}',
+    '',
+    'After completing the BF task batch (or if no tasks qualify), run self-repair:',
+    '1. Spawn a gardening agent: read and follow [~/brain/workflows/system/system-health/gardening/SKILL.md] with TARGET_PATH=~/brain/knowledge/ MODE=assess DEPTH_BUDGET=10',
+    '2. Read [~/brain/mem/schedule.md] for tree-sleep vault entries. Spawn tree-sleep agents (MODE=assess) only for vaults listed there. Skip any vault with fewer than 30 nodes.',
+    'Include self-repair results in your meta-report.',
+].join('\n')
+
+async function loadOvernightPromptTemplate(): Promise<string> {
+    try {
+        return await readFile(OVERNIGHT_PROMPT_PATH, 'utf8')
+    } catch {
+        return FALLBACK_PROMPT_TEMPLATE
+    }
+}
+
+function renderOvernightPrompt(
+    template: string,
+    params: {maxTasks: number; complexityThreshold: number; costCapUsd: number; dryRun: boolean},
+): string {
+    return template
+        .replace(/\{\{MAX_TASKS\}\}/g, String(params.maxTasks))
+        .replace(/\{\{COMPLEXITY_THRESHOLD\}\}/g, String(params.complexityThreshold))
+        .replace(/\{\{COST_CAP_USD\}\}/g, String(params.costCapUsd))
+        .replace(/\{\{DRY_RUN\}\}/g, String(params.dryRun))
 }
 
 /**
@@ -95,26 +140,12 @@ export async function triggerOvernight(
         agents.find((a: {readonly name: string; readonly command: string}) => a.name === 'Claude')
     const agentCommand: string | undefined = claudeAgent?.command
 
-    // Build meta-observer prompt with parameters
-    const maxTasks: number = params.maxTasks ?? 3
-    const complexityThreshold: number = params.complexityThreshold ?? 4
-    const costCapUsd: number = params.costCapUsd ?? 5
-    const dryRun: boolean = params.dryRun ?? false
-
-    const agentPrompt: string = [
-        'Read and follow ~/brain/workflows/meta-cognitive-protocols-tools-patterns/coaching/meta-observer/SKILL.md',
-        '',
-        'Parameters:',
-        `MAX_TASKS=${maxTasks}`,
-        `COMPLEXITY_THRESHOLD=${complexityThreshold}`,
-        `COST_CAP_USD=${costCapUsd}`,
-        `DRY_RUN=${dryRun}`,
-        '',
-        'After completing the BF task batch (or if no tasks qualify), run self-repair:',
-        '1. Spawn a gardening agent: read and follow ~/brain/workflows/system/system-health/gardening/SKILL.md with TARGET_PATH=~/brain/knowledge/ MODE=assess DEPTH_BUDGET=10',
-        '2. Read ~/brain/working-memory/schedule.md for tree-sleep vault entries. Spawn tree-sleep agents (MODE=assess) only for vaults listed there. Skip any vault with fewer than 30 nodes.',
-        'Include self-repair results in your meta-report.',
-    ].join('\n')
+    const agentPrompt: string = renderOvernightPrompt(await loadOvernightPromptTemplate(), {
+        maxTasks: params.maxTasks ?? 3,
+        complexityThreshold: params.complexityThreshold ?? 4,
+        costCapUsd: params.costCapUsd ?? 5,
+        dryRun: params.dryRun ?? false,
+    })
 
     // Spawn agent — not headless (meta-observer needs wait_for_agents)
     const {terminalId}: {terminalId: string} = await spawnContextTerminal(

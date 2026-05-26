@@ -1,4 +1,0 @@
-# Append-only CSV: every branch adds rows from its own commits. Union merge
-# keeps all lines from both sides so two branches can never conflict on
-# history rows. Readers must dedup on (commit, measure) if they care.
-health-dashboard/reports/scores-history.csv merge=union

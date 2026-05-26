@@ -114,7 +114,7 @@ export async function recordHealthReport(report: HealthReport): Promise<void> {
     assertHealthReport(report)
     await mkdir(REPORTS_DIR, {recursive: true})
     await writeJsonAtomic(metricReportPath(report.metricId), report)
-    await appendScore({measure: report.metricId, score: report.current})
+    await appendScore({measure: report.metricId, score: report.current, status: report.passed ? 'pass' : 'fail'})
     await writeLatestReport()
 }
 

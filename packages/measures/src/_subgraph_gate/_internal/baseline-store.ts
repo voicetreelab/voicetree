@@ -32,13 +32,13 @@ import {mkdir, readFile, writeFile} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-export const BASELINE_SCHEMA_VERSION = 1
+const BASELINE_SCHEMA_VERSION = 1
 
 const THIS_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 /** Resolved at module load: `packages/measures/budgets/subgraph/`. */
-export const BASELINE_DIR: string = resolve(THIS_FILE_DIR, '..', '..', '..', 'budgets', 'subgraph')
+const BASELINE_DIR: string = resolve(THIS_FILE_DIR, '..', '..', '..', 'budgets', 'subgraph')
 
-export type BaselineFile = {
+type BaselineFile = {
     readonly schemaVersion: typeof BASELINE_SCHEMA_VERSION
     readonly refreshedAt: string
     readonly byCommunity: Readonly<Record<string, number>>

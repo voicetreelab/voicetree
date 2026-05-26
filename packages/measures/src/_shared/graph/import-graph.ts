@@ -3,6 +3,8 @@ import {dirname, join, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {DEFAULT_REPO_ROOT, type PackageInfo} from '../discovery/discover-packages.ts'
 
+const SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx']
+
 export type SourceFile = {
     readonly absolutePath: string
     readonly relativePath: string
@@ -15,36 +17,59 @@ export type Edge = {
     readonly to: SourceFile
 }
 
-export type ImportGraph = {
+type ImportGraph = {
     readonly files: readonly SourceFile[]
     readonly edges: readonly Edge[]
 }
 
-async function pathExists(p: string): Promise<boolean> {
-    try { await stat(p); return true } catch { return false }
+async function sourceRootStatOrNull(p: string) {
+    try {
+        return await stat(p)
+    } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return null
+        throw cause
+    }
+}
+
+function isSourceFile(path: string, extensions: readonly string[] = SOURCE_EXTENSIONS): boolean {
+    return extensions.some(ext => path.endsWith(ext))
+        && !path.endsWith('.test.ts')
+        && !path.endsWith('.test.tsx')
+        && !path.endsWith('.spec.ts')
+        && !path.endsWith('.spec.tsx')
+        && !path.endsWith('.d.ts')
+        && !path.endsWith('.config.ts')
+        && !path.endsWith('.config.tsx')
+        && !path.endsWith('/__audit_seed__.ts')
+}
+
+function isProductionSource(path: string): boolean {
+    return isSourceFile(path, ['.ts'])
+        && !path.includes('/__tests__/')
+        && !path.includes('/__generated__/')
 }
 
 export async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (
-            entry.isFile()
-            && path.endsWith('.ts')
-            && !path.endsWith('.test.ts')
-            && !path.endsWith('.spec.ts')
-            && !path.endsWith('.d.ts')
-            && !path.endsWith('.config.ts')
-            && !path.endsWith('/__audit_seed__.ts')
-            && !path.includes('/__tests__/')
-            && !path.includes('/__generated__/')
-        )
-            return [path]
-        return []
-    }))
-    return nested.flat().sort()
+    const rootStat = await sourceRootStatOrNull(root)
+    if (!rootStat) return []
+
+    if (rootStat.isFile()) {
+        return isSourceFile(root) ? [root] : []
+    }
+    if (!rootStat.isDirectory()) return []
+
+    async function walk(absDir: string): Promise<string[]> {
+        const entries = await readdir(absDir, {withFileTypes: true})
+        const nested = await Promise.all(entries.map(async entry => {
+            const path = join(absDir, entry.name)
+            if (entry.isDirectory()) return walk(path)
+            if (entry.isFile() && isProductionSource(path)) return [path]
+            return []
+        }))
+        return nested.flat()
+    }
+
+    return (await walk(root)).sort()
 }
 
 export async function scanSourceFiles(packages: readonly PackageInfo[], repoRoot: string = DEFAULT_REPO_ROOT): Promise<SourceFile[]> {
@@ -60,8 +85,13 @@ export async function scanSourceFiles(packages: readonly PackageInfo[], repoRoot
     return nested.flat().sort((a, b) => a.relativePath.localeCompare(b.relativePath))
 }
 
+function scriptKindForPath(filePath: string): ts.ScriptKind {
+    if (filePath.endsWith('.tsx')) return ts.ScriptKind.TSX
+    return ts.ScriptKind.TS
+}
+
 export function extractImportSpecifiers(filePath: string, text: string): string[] {
-    const sf = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
+    const sf = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, scriptKindForPath(filePath))
     const specs: string[] = []
     for (const stmt of sf.statements) {
         if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier))
@@ -72,14 +102,41 @@ export function extractImportSpecifiers(filePath: string, text: string): string[
     return specs
 }
 
-export function resolveFileCandidate(basePath: string, knownPaths: ReadonlySet<string>): string | null {
+export function resolveFileCandidate(
+    basePath: string,
+    knownPaths: ReadonlySet<string>,
+    extensions: readonly string[] = SOURCE_EXTENSIONS,
+): string | null {
     const resolved = resolve(basePath)
-    const candidates = resolved.endsWith('.ts') ? [resolved] : [resolved, `${resolved}.ts`, join(resolved, 'index.ts')]
+    const candidates = [
+        resolved,
+        ...extensions.map(ext => `${resolved}${ext}`),
+        ...extensions.map(ext => join(resolved, `index${ext}`)),
+    ]
     return candidates.find(c => knownPaths.has(c)) ?? null
 }
 
-export async function buildImportGraph(packages: readonly PackageInfo[], repoRoot: string = DEFAULT_REPO_ROOT): Promise<ImportGraph> {
-    const files = await scanSourceFiles(packages, repoRoot)
+function resolveImportTarget(
+    file: SourceFile,
+    specifier: string,
+    knownPaths: ReadonlySet<string>,
+    packagesByNpmName: ReadonlyMap<string, PackageInfo>,
+): string | null {
+    if (specifier.startsWith('.')) {
+        return resolveFileCandidate(join(dirname(file.absolutePath), specifier), knownPaths)
+    }
+    for (const [npmName, pkg] of packagesByNpmName) {
+        if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
+        const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
+        return resolveFileCandidate(join(pkg.srcRoot, subPath), knownPaths)
+    }
+    return null
+}
+
+async function buildImportGraphFromFiles(
+    files: readonly SourceFile[],
+    packages: readonly PackageInfo[],
+): Promise<ImportGraph> {
     const filesByPath = new Map(files.map(f => [f.absolutePath, f]))
     const knownPaths = new Set(filesByPath.keys())
     const packagesByNpmName = new Map(packages.map(pkg => [pkg.name, pkg]))
@@ -88,17 +145,7 @@ export async function buildImportGraph(packages: readonly PackageInfo[], repoRoo
     for (const file of files) {
         const text = await readFile(file.absolutePath, 'utf8')
         for (const specifier of extractImportSpecifiers(file.absolutePath, text)) {
-            let toPath: string | null = null
-            if (specifier.startsWith('.')) {
-                toPath = resolveFileCandidate(join(dirname(file.absolutePath), specifier), knownPaths)
-            } else {
-                for (const [npmName, pkg] of packagesByNpmName) {
-                    if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
-                    const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
-                    toPath = resolveFileCandidate(join(pkg.srcRoot, subPath), knownPaths)
-                    break
-                }
-            }
+            const toPath = resolveImportTarget(file, specifier, knownPaths, packagesByNpmName)
             if (!toPath || toPath === file.absolutePath) continue
             dedupedEdges.add(`${file.absolutePath}\0${toPath}`)
         }
@@ -110,4 +157,9 @@ export async function buildImportGraph(packages: readonly PackageInfo[], repoRoo
     })
 
     return {files, edges}
+}
+
+export async function buildImportGraph(packages: readonly PackageInfo[], repoRoot: string = DEFAULT_REPO_ROOT): Promise<ImportGraph> {
+    const files = await scanSourceFiles(packages, repoRoot)
+    return buildImportGraphFromFiles(files, packages)
 }

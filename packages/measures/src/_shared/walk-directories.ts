@@ -1,20 +1,20 @@
 import {readdir} from 'node:fs/promises'
 import {join} from 'node:path'
 
-export type WalkDirectoryEntryKind = 'directory' | 'file' | 'other'
+type WalkDirectoryEntryKind = 'directory' | 'file' | 'other'
 
-export type WalkDirectoryEntry = {
+type WalkDirectoryEntry = {
     readonly name: string
     readonly absolutePath: string
     readonly kind: WalkDirectoryEntryKind
 }
 
-export type WalkedDirectory = {
+type WalkedDirectory = {
     readonly absolutePath: string
     readonly entries: readonly WalkDirectoryEntry[]
 }
 
-export type WalkDirectoriesOptions = {
+type WalkDirectoriesOptions = {
     readonly includeEntry?: (entry: WalkDirectoryEntry) => boolean
 }
 
