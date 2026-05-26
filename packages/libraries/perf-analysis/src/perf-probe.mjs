@@ -202,12 +202,7 @@ function scheduleHeapSnapshots({ heapSnapshotsDir, svc, log }) {
   }
 }
 
-const SIGNAL_EXIT_CODES = {
-  SIGINT: 130,
-  SIGTERM: 143,
-}
-
-function installShutdownHooks(stop) {
+function createStopOnce(stop) {
   let stopPromise
   const stopOnce = async () => {
     if (!stopPromise) {
@@ -218,14 +213,6 @@ function installShutdownHooks(stop) {
     await stopPromise
   }
 
-  const stopForSignal = (signal) => {
-    void stopOnce().finally(() => {
-      process.exit(SIGNAL_EXIT_CODES[signal])
-    })
-  }
-
-  process.once('SIGINT', () => stopForSignal('SIGINT'))
-  process.once('SIGTERM', () => stopForSignal('SIGTERM'))
   process.once('beforeExit', () => {
     void stopOnce()
   })
@@ -264,5 +251,5 @@ export async function perfProbeFromEnv(svc) {
     await log.stop()
   }
 
-  return installShutdownHooks(stop)
+  return createStopOnce(stop)
 }
