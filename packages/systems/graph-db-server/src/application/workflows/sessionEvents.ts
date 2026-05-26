@@ -67,7 +67,7 @@ export async function runSessionEventsWorkflow(input: {
   }
 
   const projectDeltaForSession = async (
-    event: SequencedDeltaEvent,
+    event: ProjectDeltaEventInput,
   ): Promise<ProjectedGraph | null> => {
     const freshSession: Session | null = registry.get(sessionId)
     if (!freshSession) return null
