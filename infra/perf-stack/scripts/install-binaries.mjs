@@ -50,6 +50,9 @@ const BINARIES = [
     binarySourcePath: {
       'linux-x64': 'usr/share/grafana/bin/grafana',
     },
+    binaryMinBytes: {
+      'linux-x64': 1_000_000,
+    },
     homeDir: 'grafana-home',
     homeDirSourcePath: {
       'linux-x64': 'usr/share/grafana',
@@ -277,11 +280,17 @@ const installArchive = async (binary, manifest) => {
     if (!binary.homeDirRequiredPath) return exists(homePath)
     return exists(join(homePath, binary.homeDirRequiredPath))
   }
+  const targetReady = async () => {
+    if (!(await exists(targetPath))) return false
+    const minBytes = binary.binaryMinBytes?.[PLATFORM]
+    if (!minBytes) return true
+    return (await stat(targetPath)).size >= minBytes
+  }
   const record = manifest[binary.name]
   if (
     record?.platform === PLATFORM &&
     record?.archiveSha256 === pinnedSha &&
-    await exists(targetPath) &&
+    await targetReady() &&
     await homeDirReady()
   ) {
     return { binary, status: 'skipped', targetPath, sha256: pinnedSha }
