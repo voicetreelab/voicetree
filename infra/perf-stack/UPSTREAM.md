@@ -17,6 +17,7 @@ top-level `run-lgtm.sh`.
 | Loki | `v3.7.2` | `docker/Dockerfile` `LOKI_VERSION` |
 | Tempo | `v2.10.5` | `docker/Dockerfile` `TEMPO_VERSION` |
 | Prometheus in upstream LGTM | `v3.11.3` | `docker/Dockerfile` `PROMETHEUS_VERSION` |
+| Prometheus `promtool` CLI | `v3.11.3` | Same pin as upstream LGTM Prometheus; installed for PromQL inspection against VictoriaMetrics |
 | VictoriaMetrics replacement | `v1.144.0` | latest stable release on 2026-05-26; Prometheus remote-write/query compatible |
 | Pyroscope | `v2.0.2` | `docker/Dockerfile` `PYROSCOPE_VERSION` |
 | otelcol-contrib | `v0.152.0` | `docker/Dockerfile` `OPENTELEMETRY_COLLECTOR_VERSION` |
