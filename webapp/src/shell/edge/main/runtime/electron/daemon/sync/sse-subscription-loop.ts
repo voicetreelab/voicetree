@@ -1,7 +1,7 @@
 /**
  * Topic-agnostic SSE subscription loop shared by every per-vault VTD
- * subscriber in this directory (Leaf B's `agent-events`, BF-376's
- * `terminal-registry`, and any future topic that rides the same wire).
+ * subscriber in this directory (BF-376's `terminal-registry`, and any
+ * future topic that rides the same wire).
  *
  * Owns the impure parts — fetch lifecycle, abort signal plumbing, silence
  * timeout, '\n\n' block framing, reconnect backoff. The topic-specific
@@ -11,13 +11,11 @@
  *   - frame metadata (`vault`, advance-`seq`, deliver?),
  *   - an `onEnvelope` handler invoked for delivered frames.
  *
- * Why a helper instead of two near-duplicate subscriber files: the loop
- * mechanics are non-trivial (silence Promise race, AbortController
- * cancellation propagation, reconnect token versioning to suppress
- * stale-loop callbacks) and have already shipped once in
- * `agent-events-sse-subscription.ts`. A second copy of the same logic
- * would drift; one home keeps the silence-timeout / reconnect protocol
- * uniform across topics.
+ * Why a helper instead of duplicating mechanics per topic: the loop
+ * is non-trivial (silence Promise race, AbortController cancellation
+ * propagation, reconnect token versioning to suppress stale-loop
+ * callbacks). One home keeps the silence-timeout / reconnect protocol
+ * uniform across topics so a second subscriber cannot drift.
  *
  * What still lives per-topic: module-level "current subscription" state
  * (the controller / handler / lastSeenSeq triple) — each topic owns its

@@ -1,16 +1,14 @@
 /**
  * Main-side SSE subscriber for the per-vault VTD's
- * `/sessions/<id>/terminal-registry` route (BF-376 outbound). Sibling to
- * Leaf B's `agent-events-sse-subscription.ts` — same wire protocol
- * (JSON-encoded `data:` blocks split on `\n\n`, silence-timeout
- * reconnect, `?since=<seq>` resume), distinct topic and frame shape.
+ * `/sessions/<id>/terminal-registry` route (BF-376 outbound). Wire
+ * protocol (JSON-encoded `data:` blocks split on `\n\n`, silence-timeout
+ * reconnect, `?since=<seq>` resume) is shared with any future per-topic
+ * subscriber via `sse-subscription-loop.ts`.
  *
- * Why a separate file rather than a second pair of functions in the
- * agent-events file: each topic owns its own module-level subscription
- * state (controller, last-seen-seq, handler) so vault-switch teardown
- * and parallel subscribe/unsubscribe lifecycles stay independent. The
- * connection-loop mechanics are factored into
- * `sse-subscription-loop.ts` so both files share the same protocol.
+ * Why module-level subscription state rather than a generic registry:
+ * each topic owns its own controller / last-seen-seq / handler triple so
+ * vault-switch teardown and parallel subscribe/unsubscribe lifecycles
+ * stay independent.
  *
  * Envelope shape (`TerminalRegistryEvent`) is owned by
  * `@vt/vt-daemon-protocol`. Gap envelopes are dropped from the handler

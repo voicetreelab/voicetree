@@ -208,6 +208,6 @@ Stage 1 is contracts-only. The following are intentionally NOT done in this leaf
 
 - **Stage 2-R** rewires the publishing points: registry mutations call into a publish helper that emits onto the new topic; `getRuntimeUI` callbacks are deleted and replaced with publishes; the `RuntimeUIBridge` type retires.
 - **Stage 2-S** adds the 19 handlers to VTD's catalog, wires `transport/eventSubscriptionHub.ts` to accept `'terminal-registry'`, and publishes the events when agent-runtime mutates state.
-- **Stage 2-C** adds `@vt/vt-daemon-client` typed wrappers (one per route) and extends Leaf B's `agent-events-sse-subscription` to subscribe to `terminal-registry`.
+- **Stage 2-C** adds `@vt/vt-daemon-client` typed wrappers (one per route) and lands a Main-side `terminal-registry-sse-subscription` (factored over the shared `sse-subscription-loop` helper) that consumes the new topic.
 - **Stage 3** rewrites the 13 Main caller files, deletes `terminalRuntimeSurface`, deletes the 11 surface methods named in §2, and drops `@vt/agent-runtime` from `webapp/package.json`.
 - **Stage 4** runs the closure verifier (grep, boundary lint, e2e suite via `flock`).
