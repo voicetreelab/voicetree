@@ -17,6 +17,7 @@ function makeState(
     return {
         root: '/vault' as FilePath,
         writeFolder: WRITE_FOLDER,
+        version: 0,
         folders: new Map(folders),
         watcher: null,
         cleanups: [],

@@ -41,7 +41,9 @@ export const setProjectRoot: (dir: FilePath | null) => void = (dir: FilePath | n
         return;
     }
     updateProject((prev: ProjectState | null): ProjectState => (
-        prev === null ? freshProject(dir) : { ...prev, root: dir }
+        prev === null
+            ? { ...freshProject(dir), version: 1 }
+            : { ...prev, root: dir, version: prev.version + 1 }
     ));
 };
 
@@ -68,6 +70,10 @@ export const onReadPathsChanged: (listener: ReadPathsListener) => (() => void) =
 export const emitReadPathsChanged: (watchPaths: readonly FilePath[]) => void = (
     watchPaths: readonly FilePath[],
 ): void => {
+    mutateProject((prev: ProjectState): ProjectState => ({
+        ...prev,
+        version: prev.version + 1,
+    }));
     getProject()?.readPathsListener?.(watchPaths);
 };
 
