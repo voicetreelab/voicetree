@@ -30,7 +30,7 @@ import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCre
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
-import {getDaemonUrl, getAuthToken} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
+import {getDaemonUrl} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
@@ -217,13 +217,13 @@ export const mainAPI = {
   openClaudeUsage,
   openCodexStatus,
 
-  // Daemon HTTP URL + bearer token (Step 9 §2.7 discovery chain).
-  // Renderer reads these to open the /events WebSocket, the
-  // /terminals/:id/attach WebSocket (Step 9f), and to authorise its /rpc
-  // calls. Both throw `daemon_unreachable` when the daemon hasn't published
-  // port/token files yet — caller treats as transient.
+  // Daemon HTTP URL (Step 9 §2.7 discovery chain). Renderer reads this to
+  // authorise its /rpc calls. Throws `daemon_unreachable` when the daemon
+  // hasn't bound yet — caller treats as transient. The bearer token is no
+  // longer exposed to the renderer; Main owns the /events and
+  // /terminals/:id/attach WebSockets and bridges them over Electron IPC
+  // (BF-367 + BF-368).
   getDaemonUrl,
-  getAuthToken,
 
   // Clipboard operations
   saveClipboardImage,

@@ -14,7 +14,11 @@ import {
     registerChildIfMonitored,
 } from '@vt/vt-daemon';
 import {existsSync} from 'node:fs';
-import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
+import {getActiveAuthToken, unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
+import {getDaemonUrl} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
+import {installVtDaemonEventsBridge} from '@/shell/edge/main/runtime/electron/daemon/events/vtDaemonEventsBridge';
+import {installVtTerminalAttachBridge} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachBridge';
+import {getMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
@@ -226,6 +230,29 @@ registerTerminalIpcHandlers(
     getToolsDirectory
 );
 
+// Main-owned IPC bridges for the VTD /events stream (BF-367) and
+// /terminals/:id/attach PTY relay (BF-368). The bearer token never enters
+// the renderer process for either path — Main holds the WebSockets, the
+// renderer drives them by opaque IPC handles. Bridges install ipcMain
+// handlers eagerly; they tolerate the daemon being unbound at install time
+// (the events client reschedules and the terminal-attach bridge only opens
+// upstream WS on demand).
+const tokenForBridges = (): Promise<string> => {
+    const token: string | null = getActiveAuthToken();
+    if (!token) return Promise.reject(new Error('daemon_unreachable: no active auth token'));
+    return Promise.resolve(token);
+};
+const teardownVtDaemonEventsBridge: () => void = installVtDaemonEventsBridge({
+    getMainWindow,
+    getDaemonUrl,
+    getAuthToken: tokenForBridges,
+});
+const teardownVtTerminalAttachBridge: () => void = installVtTerminalAttachBridge({
+    getMainWindow,
+    getDaemonUrl,
+    getAuthToken: tokenForBridges,
+});
+
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
 const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
 terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
@@ -392,6 +419,8 @@ app.on('will-quit', () => {
     unsubscribeFromDaemonSSE();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
+    teardownVtDaemonEventsBridge();
+    teardownVtTerminalAttachBridge();
     void unbindHttpDaemon();
 });
 

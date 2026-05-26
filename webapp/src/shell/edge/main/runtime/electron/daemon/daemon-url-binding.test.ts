@@ -1,13 +1,17 @@
 // Black-box: brings up the in-process HTTP daemon for a real tmp vault via
-// `bindHttpDaemonForVault`, then asserts `getDaemonUrl` / `getAuthToken`
-// resolve through the in-process bound state — independent of where (or
-// whether) `rpc.port` / `auth-token` files landed on disk.
+// `bindHttpDaemonForVault`, then asserts `getDaemonUrl` resolves through the
+// in-process bound state — independent of where (or whether) `rpc.port`
+// landed on disk.
 //
 // Regression guard for the writer/reader divergence that ENOENT'd the
 // renderer when the bound vault had a `voicetree-{day}-{month}` write
 // subdir: the writer keys off `projectRoot`, the renderer-facing reader
 // used to key off `getVaultPaths()[0]` (which is `writeFolder`). Reading
 // the in-process state removes the path dependence entirely.
+//
+// `getAuthToken` was removed from this module in BF-368; Main-side bridges
+// (events, terminal-attach) now consume `getActiveAuthToken` from
+// http-server-binding directly, and the renderer no longer reads the token.
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {promises as fs} from 'node:fs'
@@ -20,8 +24,8 @@ vi.mock('electron', () => ({
     },
 }))
 
-import {bindHttpDaemonForVault, unbindHttpDaemon} from './http-server-binding'
-import {getAuthToken, getDaemonUrl} from './daemon-url-binding'
+import {bindHttpDaemonForVault, getActiveAuthToken, unbindHttpDaemon} from './http-server-binding'
+import {getDaemonUrl} from './daemon-url-binding'
 
 interface VaultLayout {
     readonly projectRoot: string
@@ -99,13 +103,13 @@ describe('getDaemonUrl', (): void => {
     })
 })
 
-describe('getAuthToken', (): void => {
-    it('returns the active token after bind', async (): Promise<void> => {
+describe('getActiveAuthToken (Main-side consumers)', (): void => {
+    it('returns the active token after bind, matches the on-disk file', async (): Promise<void> => {
         const {projectRoot} = await makeProjectWithDatedWriteSubdir()
         createdRoots.push(projectRoot)
 
         await bindHttpDaemonForVault(projectRoot)
-        const token: string = await getAuthToken()
+        const token: string | null = getActiveAuthToken()
 
         expect(token).toMatch(/^[0-9a-f]{64}$/)
         // The file at projectRoot should match in-process token (out-of-process
@@ -117,17 +121,17 @@ describe('getAuthToken', (): void => {
         expect(onDisk.trim()).toBe(token)
     })
 
-    it('throws daemon_unreachable before any bind', async (): Promise<void> => {
-        await expect(getAuthToken()).rejects.toThrow(/daemon_unreachable/)
+    it('returns null before any bind', (): void => {
+        expect(getActiveAuthToken()).toBeNull()
     })
 
-    it('throws daemon_unreachable after unbind', async (): Promise<void> => {
+    it('returns null after unbind', async (): Promise<void> => {
         const {projectRoot} = await makeProjectWithDatedWriteSubdir()
         createdRoots.push(projectRoot)
 
         await bindHttpDaemonForVault(projectRoot)
         await unbindHttpDaemon()
 
-        await expect(getAuthToken()).rejects.toThrow(/daemon_unreachable/)
+        expect(getActiveAuthToken()).toBeNull()
     })
 })
