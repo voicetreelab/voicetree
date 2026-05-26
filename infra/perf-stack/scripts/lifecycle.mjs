@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { closeSync, openSync } from 'node:fs'
 import {
   access,
@@ -139,6 +139,28 @@ const isAlive = (pid) => {
   }
 }
 
+const discoverServicePids = (service) => {
+  const result = spawnSync('ps', ['-Ao', 'pid=,command='], { encoding: 'utf8' })
+  if (result.status !== 0) return []
+  const pids = []
+  for (const line of result.stdout.split('\n')) {
+    const match = line.match(/^\s*(\d+)\s+(.+)$/)
+    if (!match) continue
+    const pid = Number(match[1])
+    if (!Number.isInteger(pid) || pid === process.pid) continue
+    if (match[2].includes(service.command) && isAlive(pid)) pids.push(pid)
+  }
+  return pids
+}
+
+const servicePids = async (service) => {
+  const pid = await readPid(service.name)
+  return [...new Set([
+    ...(pid && isAlive(pid) ? [pid] : []),
+    ...discoverServicePids(service),
+  ])]
+}
+
 const ensureInstalled = async (service) => {
   if (!(await exists(service.command))) {
     throw new Error(`${service.name} binary missing at ${service.command}; run npm run perf:install`)
@@ -164,6 +186,11 @@ const spawnService = async (service) => {
 
   const existingPid = await readPid(service.name)
   if (existingPid && isAlive(existingPid)) return existingPid
+  const discoveredPid = discoverServicePids(service)[0]
+  if (discoveredPid) {
+    await writeFile(pidPath(service.name), `${discoveredPid}\n`)
+    return discoveredPid
+  }
 
   const logFd = openSync(join(LOG_DIR, `${service.name}.log`), 'a')
   const child = spawn(service.command, service.args, {
@@ -250,15 +277,16 @@ const wipeStorage = async () => {
 
 const stopStack = async ({ persist }) => {
   for (const service of [...SERVICES].reverse()) {
-    const pid = await readPid(service.name)
-    await stopPid(service, pid)
+    for (const pid of await servicePids(service)) {
+      await stopPid(service, pid)
+    }
     await unlink(pidPath(service.name)).catch(() => {})
   }
   if (!persist) await wipeStorage()
 }
 
 const serviceStatus = async (service) => {
-  const pid = await readPid(service.name)
+  const pid = (await servicePids(service))[0]
   const alive = pid ? isAlive(pid) : false
   const readiness = alive ? await ping(service.ready) : { ok: false, status: 'NO_PID', body: '' }
   return { service, pid, alive, readiness }
