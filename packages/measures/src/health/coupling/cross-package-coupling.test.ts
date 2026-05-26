@@ -240,7 +240,13 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     // to 2 (just `ERROR_CODES`, `redactAuthorizationHeader`).
     'vt-daemon -> vt-rpc': 3,
     'vt-daemon-client -> daemon-lifecycle': 10,
-    'vt-daemon-client -> graph-db-client': 3,
+    // 2026-05-27 [03c387be2]: +1 — `resolveDaemonRuntimeCommand` added so
+    // VTD spawn finds a `node:sqlite`-validated Node runtime instead of
+    // the Electron binary (Electron treats the entrypoint as a renderer
+    // and silently fails to open VTD's HTTP port). Symbol lives in graphd's
+    // runtime helper; vt-daemon-client reuses it across the sibling-daemon
+    // boundary rather than duplicating the resolver.
+    'vt-daemon-client -> graph-db-client': 4,
     'vt-daemon-client -> graph-db-protocol': 1,
     'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
