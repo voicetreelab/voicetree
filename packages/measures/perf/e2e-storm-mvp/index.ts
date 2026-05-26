@@ -138,29 +138,45 @@ async function main(): Promise<void> {
             + `(discovered in ${mcpDiscoveryMs}ms)\n`,
         )
 
+        // Pick the first cluster node as the agent's parent — anchors the new
+        // node under a real existing node, the way real agents work.
+        const seedNodeAbsolutePath = path.join(
+            vaultDir,
+            vaultLayout.firstClusterNodePaths[0] ?? vaultLayout.nodes[0].relativePath,
+        )
+
+        const appWindow = await app.firstWindow({ timeout: 30_000 })
+        appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
+        await appWindow.waitForLoadState('domcontentloaded')
+
         const script = buildSingleCreateNodeScript('MVP First Node')
         const agentResult = await runFakeAgent({
+            appWindow,
             repoRoot: REPO_ROOT,
             vaultDir,
             mcpPort,
+            seedNodeAbsolutePath,
             terminalId: 'e2e-mvp-agent-0',
             script,
             timeoutMs: args.agentTimeoutMs,
         })
         agentWallMs = agentResult.wallMs
-        agentExitCode = agentResult.exitCode
-        agentSignal = agentResult.signal
+        agentExitCode = agentResult.exitedCleanly ? 0 : -1
+        agentSignal = null
         agentTimedOut = agentResult.timedOut
 
-        if (agentResult.stdout) process.stdout.write(`[mvp] agent stdout:\n${agentResult.stdout}`)
-        if (agentResult.stderr) process.stderr.write(`[mvp] agent stderr:\n${agentResult.stderr}`)
+        if (agentResult.headlessOutput) {
+            process.stdout.write(`[mvp] agent headless output:\n${agentResult.headlessOutput}\n`)
+        }
 
         filesAfter = countMarkdownFiles(vaultDir)
 
-        if (agentResult.timedOut) {
-            failureReason = `agent timed out after ${args.agentTimeoutMs}ms`
-        } else if (agentResult.exitCode !== 0) {
-            failureReason = `agent exited with code=${agentResult.exitCode} signal=${agentResult.signal ?? 'none'}`
+        if (!agentResult.spawnSuccess) {
+            failureReason = `agent spawn failed: ${agentResult.spawnError}`
+        } else if (agentResult.timedOut) {
+            failureReason = `agent timed out after ${args.agentTimeoutMs}ms (no [fake-agent] Script complete in output)`
+        } else if (!agentResult.exitedCleanly) {
+            failureReason = `agent reported failure in output`
         } else if (filesAfter <= filesBefore) {
             failureReason = `no new markdown files written (before=${filesBefore}, after=${filesAfter})`
         } else {

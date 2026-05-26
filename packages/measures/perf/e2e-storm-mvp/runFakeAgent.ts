@@ -1,44 +1,58 @@
 /**
- * Single vt-fake-agent spawn for the e2e-storm MVP.
+ * Spawn ONE vt-fake-agent through electron's `terminal:spawn` IPC.
  *
- * The full e2e-storm spec uses agent-runtime's `spawnTmuxBacked` to deliver
- * the prompt over a PTY through the Alt+Enter ceremony decoder. That path
- * pulls in graph-model singletons which aren't initialized in our shell
- * process (the parent agent observed this failure mode). The MVP instead
- * spawns vt-fake-agent as a plain child process via tsx; the agent reads its
- * script from the `AGENT_PROMPT` env var (see tools/vt-fake-agent/src/index.ts
- * `resolveAgentPrompt`), so no PTY ceremony is needed.
+ * Why not plain child_process: vt-mcpd's `create_graph` tool requires the
+ * caller's terminal to be registered in electron's `agent-runtime`
+ * `TerminalRecord` registry. A test-process child_process call is invisible
+ * to electron's runtime singleton; the agent will get
+ * `Unknown caller terminal: <id>` and exit non-zero.
  *
- * This is closer to how packages/measures/perf/agent-storm.ts works — except
- * we skip agent-runtime entirely. Real MCP HTTP, real daemon, real SQLite,
- * real .md writes; only the spawn-shell is shorter.
+ * Why not the existing agent-storm-perf-spec pattern (call
+ * `agentRuntime.getTerminalManager().spawnTmuxBacked` from the test
+ * process): same problem — the test-process agent-runtime is a separate
+ * module instance from electron's. The parent agent observed this as the
+ * "GraphModel not initialized" failure.
+ *
+ * Right answer: route the spawn through electron via Playwright's
+ * `appWindow.evaluate(...)` → `window.electronAPI.terminal.spawn(td)`. That
+ * triggers `ipcMain.handle('terminal:spawn')` in main, which calls
+ * `terminalManager.spawnTmuxBacked()` on electron's runtime, registering
+ * the TerminalRecord MCP needs.
+ *
+ * We then poll the agent registry for the terminal becoming `exited`. The
+ * fake-agent's `exit` action calls process.exit, but the tmux session lives
+ * on; lifecycle tracking is the canonical "is it done" signal.
  */
-import { spawn, type ChildProcess } from 'node:child_process'
+import type { Page } from '@playwright/test'
 import { createRequire } from 'node:module'
 import * as path from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+
+import { createTerminalData, type TerminalData, type TerminalId } from '@vt/agent-runtime/types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const require = createRequire(import.meta.url)
 
 export interface FakeAgentInputs {
+    readonly appWindow: Page
     readonly repoRoot: string
     readonly vaultDir: string
     readonly mcpPort: number
+    readonly seedNodeAbsolutePath: string
     readonly terminalId: string
     readonly script: object
     readonly timeoutMs: number
 }
 
 export interface FakeAgentResult {
-    readonly exitCode: number | null
-    readonly signal: NodeJS.Signals | null
+    readonly spawnSuccess: boolean
+    readonly spawnError: string | null
+    readonly exitedCleanly: boolean
     readonly wallMs: number
     readonly timedOut: boolean
-    readonly stdout: string
-    readonly stderr: string
+    readonly headlessOutput: string
 }
 
 function buildAgentPrompt(script: object): string {
@@ -72,59 +86,102 @@ export function buildSingleCreateNodeScript(title: string): object {
 /** Mark `__dirname` as referenced so noUnusedLocals stays happy under tsx. */
 export const __sourceDir = __dirname
 
-export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentResult> {
-    const entry = resolveFakeAgentEntrypoint(inputs.repoRoot)
+function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
+    const fakeAgentEntry = resolveFakeAgentEntrypoint(inputs.repoRoot)
+    const fakeAgentDir = path.dirname(fakeAgentEntry)
     const tsxImportPath = resolveTsxImportPath()
 
-    const wallStart = Date.now()
-    const child: ChildProcess = spawn(
-        process.execPath,
-        ['--import', tsxImportPath, entry],
-        {
-            cwd: path.dirname(entry),
-            env: {
-                ...process.env,
-                VOICETREE_TERMINAL_ID: inputs.terminalId,
-                VOICETREE_MCP_PORT: String(inputs.mcpPort),
-                VOICETREE_VAULT_PATH: inputs.vaultDir,
-                TASK_NODE_PATH: path.join(inputs.vaultDir, `${inputs.terminalId}-task.md`),
-                AGENT_PROMPT: buildAgentPrompt(inputs.script),
-            },
-            stdio: ['pipe', 'pipe', 'pipe'],
+    return createTerminalData({
+        terminalId: inputs.terminalId as TerminalId,
+        attachedToNodeId: inputs.seedNodeAbsolutePath,
+        terminalCount: 0,
+        title: inputs.terminalId,
+        agentName: inputs.terminalId,
+        isHeadless: true,
+        initialEnvVars: {
+            VOICETREE_TERMINAL_ID: inputs.terminalId,
+            VOICETREE_MCP_PORT: String(inputs.mcpPort),
+            VOICETREE_VAULT_PATH: inputs.vaultDir,
+            TASK_NODE_PATH: path.join(inputs.vaultDir, `${inputs.terminalId}-task.md`),
+            AGENT_PROMPT: buildAgentPrompt(inputs.script),
         },
-    )
-
-    let stdout = ''
-    let stderr = ''
-    child.stdout?.on('data', (b: Buffer) => { stdout += b.toString('utf8') })
-    child.stderr?.on('data', (b: Buffer) => { stderr += b.toString('utf8') })
-
-    // vt-fake-agent does not exit on its own after `exit` action; it stays in
-    // REPL mode until stdin EOF. Close stdin immediately so the `process.stdin
-    // .on('end', ...)` handler fires once the script's `exit` action runs.
-    child.stdin?.end()
-
-    let timedOut = false
-    const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
-        const timer = setTimeout(() => {
-            timedOut = true
-            child.kill('SIGTERM')
-            // Hard kill after grace period if SIGTERM is ignored.
-            setTimeout(() => { if (!child.killed) child.kill('SIGKILL') }, 2000)
-        }, inputs.timeoutMs)
-
-        child.on('exit', (code, signal) => {
-            clearTimeout(timer)
-            resolve({ code, signal })
-        })
+        initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(tsxImportPath)} ${JSON.stringify(fakeAgentEntry)}; exit`,
+        executeCommand: true,
+        initialSpawnDirectory: fakeAgentDir,
     })
+}
 
+/**
+ * Wait for the fake-agent to report script completion via its ring-buffered
+ * headless output. The agent prints `[fake-agent] Script complete.` after
+ * executing the final action (which for our single-create-node script is
+ * an `exit` action — after the agent has invoked create_graph end-to-end).
+ *
+ * We could also poll `getTerminalStatus` for `exited`, but headless terminal
+ * status is not exposed through preload yet, and exposing it just for this
+ * test would be a scope creep.
+ */
+async function pollForScriptComplete(
+    appWindow: Page,
+    terminalId: string,
+    timeoutMs: number,
+    intervalMs: number,
+): Promise<{ scriptCompleted: boolean; output: string }> {
+    const deadline = Date.now() + timeoutMs
+    let lastOutput = ''
+    while (Date.now() < deadline) {
+        lastOutput = await appWindow.evaluate(async (id) => {
+            const api = (window as unknown as {
+                electronAPI?: { main?: { getHeadlessAgentOutput?: (id: string) => Promise<string> } }
+            }).electronAPI?.main
+            return (await api?.getHeadlessAgentOutput?.(id)) ?? ''
+        }, terminalId)
+
+        if (lastOutput.includes('[fake-agent] Script complete')) {
+            return { scriptCompleted: true, output: lastOutput }
+        }
+        if (lastOutput.includes('[fake-agent] Fatal')) {
+            return { scriptCompleted: false, output: lastOutput }
+        }
+        await new Promise(r => setTimeout(r, intervalMs))
+    }
+    return { scriptCompleted: false, output: lastOutput }
+}
+
+export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentResult> {
+    const td = buildTerminalData(inputs)
+
+    const wallStart = Date.now()
+    const spawnResult = await inputs.appWindow.evaluate(async (terminalData) => {
+        const api = (window as unknown as {
+            electronAPI?: {
+                terminal?: {
+                    spawn?: (td: unknown) => Promise<{ success: boolean; terminalId?: string; error?: string }>
+                }
+            }
+        }).electronAPI?.terminal
+        if (!api?.spawn) return { success: false, error: 'window.electronAPI.terminal.spawn unavailable' }
+        return api.spawn(terminalData)
+    }, td as unknown as Parameters<Page['evaluate']>[1])
+
+    if (!spawnResult.success) {
+        return {
+            spawnSuccess: false,
+            spawnError: spawnResult.error ?? 'unknown spawn error',
+            exitedCleanly: false,
+            wallMs: Date.now() - wallStart,
+            timedOut: false,
+            headlessOutput: '',
+        }
+    }
+
+    const exit = await pollForScriptComplete(inputs.appWindow, inputs.terminalId, inputs.timeoutMs, 250)
     return {
-        exitCode: result.code,
-        signal: result.signal,
+        spawnSuccess: true,
+        spawnError: null,
+        exitedCleanly: exit.scriptCompleted,
         wallMs: Date.now() - wallStart,
-        timedOut,
-        stdout,
-        stderr,
+        timedOut: !exit.scriptCompleted,
+        headlessOutput: exit.output,
     }
 }
