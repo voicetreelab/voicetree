@@ -30,6 +30,7 @@ import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
 import { runFakeAgent, buildMultiCreateNodeScript, type FakeAgentResult } from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
 import { computePerfRunDir, flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
+import { startHostVmMetricsSampler, type HostVmMetricsSummary, type HostVmMetricsSampler } from './hostVmMetrics.ts'
 import {
     startMainProcessProfile,
     stopMainProcessProfileAndSave,
@@ -320,8 +321,15 @@ async function main(): Promise<void> {
     let electronMainProfile: MainProcessCdpHandle | null = null
     let stopElectronMainMetrics: (() => Promise<void>) | null = null
     let rendererProfile: RendererProfileCapture | null = null
+    let hostVmMetrics: HostVmMetricsSampler | null = null
+    let hostVmMetricsSummary: HostVmMetricsSummary | null = null
 
     try {
+        hostVmMetrics = await startHostVmMetricsSampler(
+            path.join(perfProfile.runDir, 'metrics', 'devbox-vm.metrics.ndjson'),
+        )
+        process.stdout.write(`[mvp] started devbox-vm metrics sampler: ${hostVmMetrics.metricsPath}\n`)
+
         const launched = await launchElectronAndDiscoverMcp({
             repoRoot: REPO_ROOT,
             projectDir,
@@ -503,6 +511,15 @@ async function main(): Promise<void> {
         } else {
             process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} appSupport=${appSupportPath}\n`)
         }
+
+        if (hostVmMetrics !== null) {
+            try {
+                hostVmMetricsSummary = await hostVmMetrics.stop()
+                process.stdout.write('[mvp] saved devbox-vm metrics\n')
+            } catch (e) {
+                process.stderr.write(`[mvp] devbox-vm metrics save failed: ${(e as Error).message}\n`)
+            }
+        }
     }
 
     writeReportAndSummary({
@@ -529,6 +546,7 @@ async function main(): Promise<void> {
         appSupportPath,
         electronLogPath,
         perfRunDir: perfProfile.runDir,
+        hostVmMetrics: hostVmMetricsSummary,
         outPath,
         totalWallMs: Date.now() - overallStart,
     })
