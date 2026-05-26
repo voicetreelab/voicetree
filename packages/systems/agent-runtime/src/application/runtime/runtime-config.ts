@@ -18,7 +18,6 @@ export type RuntimeUIBridge = {
 
 export type RuntimeEnvProvider = {
     readonly getAppSupportPath: () => string;
-    readonly getOTLPReceiverPort?: () => number | null;
     readonly getProjectRoot?: () => Promise<string | null>;
     readonly getVaultPaths?: () => Promise<readonly string[]>;
     readonly getWriteFolder?: () => Promise<string | null>;

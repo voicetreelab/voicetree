@@ -15,7 +15,9 @@ import {
     handleHookEventRequest,
     setCurrentVault,
     startHttpDaemonServer,
+    startOtlpReceiver,
     startVaultStateWatcher,
+    stopOtlpReceiver,
     type HttpDaemonServerHandle,
     type HookHandler,
     type ToolCatalog,
@@ -57,6 +59,9 @@ export function bindHttpDaemonForVault(vaultPath: string): Promise<HttpDaemonSer
             await prev.watcher.stop().catch((cause: unknown): void => {
                 console.error('[http-daemon] watcher stop during rebind:', cause)
             })
+            await stopOtlpReceiver().catch((cause: unknown): void => {
+                console.error('[http-daemon] OTLP receiver stop during rebind:', cause)
+            })
             await prev.handle.stop().catch((cause: unknown): void => {
                 console.error('[http-daemon] server stop during rebind:', cause)
             })
@@ -80,6 +85,16 @@ export function bindHttpDaemonForVault(vaultPath: string): Promise<HttpDaemonSer
             hub: handle.hub,
         })
 
+        // OTLP receiver — per-vault listener (4318+) for Claude-Code-style
+        // agent metrics. Failure is non-fatal: the daemon stays up, agent
+        // metrics simply won't be collected. (Pre-Phase-3, this lived in
+        // Electron Main's `startOTLPReceiver()` at app-ready.)
+        try {
+            await startOtlpReceiver(vaultPath)
+        } catch (cause) {
+            console.error('[http-daemon] OTLP receiver start failed (continuing):', cause)
+        }
+
         currentBound = {vaultPath, handle, watcher, token}
         return handle
     })
@@ -93,6 +108,9 @@ export function unbindHttpDaemon(): Promise<void> {
         setCurrentVault(null)
         await bound.watcher.stop().catch((cause: unknown): void => {
             console.error('[http-daemon] watcher stop:', cause)
+        })
+        await stopOtlpReceiver().catch((cause: unknown): void => {
+            console.error('[http-daemon] OTLP receiver stop:', cause)
         })
         await bound.handle.stop().catch((cause: unknown): void => {
             console.error('[http-daemon] server stop:', cause)

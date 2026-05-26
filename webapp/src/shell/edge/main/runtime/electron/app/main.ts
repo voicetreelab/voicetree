@@ -7,7 +7,6 @@ import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/appli
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
 import {trace} from '@/shell/edge/main/observability/tracing/trace';
-import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
     configureMcpServer,
@@ -27,7 +26,6 @@ import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edg
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
-import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/agent/terminals/ipc-terminal-handlers';
 import {
     refreshUnclaimedTmuxSessions,
@@ -129,7 +127,6 @@ configureMcpServer({
 terminalRuntimeSurface.configureAgentRuntime({
     env: {
         getAppSupportPath,
-        getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
         getProjectRoot,
         getVaultPaths,
         getWriteFolder: async () => {
@@ -338,9 +335,6 @@ void app.whenReady().then(async () => {
     // Silently migrate starredFolders entries from ~/voicetree/workflows to ~/brain/workflows
     await migrateStarredFoldersBrainRename();
 
-    // Start OTLP receiver for Claude Code metrics (port 4318)
-    await startOTLPReceiver();
-
     // Start re-engagement notification scheduler
     startNotificationScheduler();
 
@@ -377,7 +371,6 @@ installQuitLifecycleHandlers({
     getTerminalRecords: terminalRuntimeSurface.getTerminalRecords,
     setIsQuitting: (value: boolean): void => { isQuitting = value; },
     stopNotificationScheduler,
-    stopOTLPReceiver,
     stopRecoverySessionPolling,
     stopTextToTreeServer: (): void => { textToTreeServerManager.stop(); },
     stopTrackpadMonitoring,
