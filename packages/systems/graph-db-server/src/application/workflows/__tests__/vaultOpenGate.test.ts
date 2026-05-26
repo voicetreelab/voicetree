@@ -4,7 +4,7 @@ import {
     beginVaultOpen,
     completeVaultOpen,
     resetVaultOpenGate,
-} from '../vaultOpenGate.ts'
+} from '../vault/vaultOpenGate.ts'
 
 afterEach((): void => {
     resetVaultOpenGate()

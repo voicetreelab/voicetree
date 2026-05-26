@@ -2,10 +2,10 @@ import {
   LayoutPartialSchema,
   LayoutResponseSchema,
 } from '@vt/graph-db-server/contract'
-import { handleLayout } from '../core/handleLayout.ts'
-import { dispatch } from './dispatch.ts'
-import { errorResult, type HttpResult } from './httpResult.ts'
-import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
+import { handleLayout } from '../../core/handleLayout.ts'
+import { dispatch } from '../dispatch.ts'
+import { errorResult, type HttpResult } from '../httpResult.ts'
+import type { WorkflowSessionRegistry } from '../session/sessionRoutes.ts'
 
 export async function updateLayoutWorkflow(
   registry: WorkflowSessionRegistry,

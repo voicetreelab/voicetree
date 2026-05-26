@@ -2,8 +2,8 @@ import {
   AddReadPathRequestSchema,
   SetWriteFolderRequestSchema,
 } from '@vt/graph-db-server/contract'
-import { validateAbsolutePath } from '../core/validatePath.ts'
-import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
+import { validateAbsolutePath } from '../../core/validatePath.ts'
+import { VaultNotOpenError, structuredVaultErrorResult } from '../../errors/vaultNotOpen.ts'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
@@ -12,9 +12,9 @@ import {
   composeWriteFolderResponse,
   decodeVaultPath,
   resolveAppSupportPath,
-} from '../core/handleVault.ts'
-import { executeCommand } from './dispatch.ts'
-import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
+} from '../../core/handleVault.ts'
+import { executeCommand } from '../dispatch.ts'
+import { errorResult, jsonResult, type HttpResult } from '../httpResult.ts'
 import { awaitVaultOpenReady } from './vaultOpenGate.ts'
 
 // Upper bound for how long a vault-scoped read may wait on an in-flight

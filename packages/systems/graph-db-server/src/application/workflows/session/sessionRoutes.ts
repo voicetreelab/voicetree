@@ -2,10 +2,10 @@ import {
   SessionCreateResponseSchema,
   SessionInfoSchema,
 } from '@vt/graph-db-server/contract'
-import { type SessionRegistry } from '../session/registry.ts'
+import { type SessionRegistry } from '../../session/registry.ts'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
-import { emptyResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import { emptyResult, jsonResult, notFoundResult, type HttpResult } from '../httpResult.ts'
 
 export type WorkflowSessionRegistry = SessionRegistry
 

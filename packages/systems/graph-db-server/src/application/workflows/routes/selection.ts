@@ -2,10 +2,10 @@ import {
   SelectionRequestSchema,
   SelectionResponseSchema,
 } from '@vt/graph-db-server/contract'
-import { handleSelection } from '../core/handleSelection.ts'
-import { dispatch } from './dispatch.ts'
-import { errorResult, type HttpResult } from './httpResult.ts'
-import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
+import { handleSelection } from '../../core/handleSelection.ts'
+import { dispatch } from '../dispatch.ts'
+import { errorResult, type HttpResult } from '../httpResult.ts'
+import type { WorkflowSessionRegistry } from '../session/sessionRoutes.ts'
 
 export async function updateSelectionWorkflow(
   registry: WorkflowSessionRegistry,

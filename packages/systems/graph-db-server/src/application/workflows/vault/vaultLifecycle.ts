@@ -28,12 +28,12 @@ import {
   getProjectRoot,
   setProjectRoot,
 } from '@vt/graph-db-server/state/watch-folder-store'
-import { buildDaemonState } from '../session/buildDaemonState.ts'
-import type { SessionRegistry } from '../session/registry.ts'
+import { buildDaemonState } from '../../session/buildDaemonState.ts'
+import type { SessionRegistry } from '../../session/registry.ts'
 import {
   VaultNotOpenError,
   VaultOpenFailedError,
-} from '../errors/vaultNotOpen.ts'
+} from '../../errors/vaultNotOpen.ts'
 import {
   beginVaultOpen,
   completeVaultOpen,

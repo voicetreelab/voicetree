@@ -33,7 +33,7 @@ import {
   openVaultWorkflow,
   registerVaultResource,
   resetVaultLifecycle,
-} from '../application/workflows/vaultLifecycle.ts'
+} from '../application/workflows/vault/vaultLifecycle.ts'
 import {
   closeFolderVisibilityForVault,
   openFolderVisibilityForVault,
