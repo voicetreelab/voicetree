@@ -104,7 +104,7 @@ const renderGrafanaProvisioning = async () => {
   await mkdir(GRAFANA_PROVISIONING_RUNTIME_DIR, { recursive: true })
   await cp(GRAFANA_PROVISIONING_SOURCE_DIR, GRAFANA_PROVISIONING_RUNTIME_DIR, { recursive: true })
 
-  const dashboardsYamlPath = join(GRAFANA_PROVISIONING_RUNTIME_DIR, 'dashboards.yaml')
+  const dashboardsYamlPath = join(GRAFANA_PROVISIONING_RUNTIME_DIR, 'dashboards/dashboards.yaml')
   const template = await readFile(dashboardsYamlPath, 'utf8')
   await writeFile(dashboardsYamlPath, template.replaceAll('__DASHBOARD_PATH__', GRAFANA_DASHBOARDS_DIR))
 }
