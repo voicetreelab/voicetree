@@ -72,10 +72,9 @@ function resolveTsxImportPath(): string {
 }
 
 export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number): FakeAgentScript {
-    const actions: FakeAgentScript['actions'] = Array.from({ length: nodeCount }, (_, nodeIndex) => {
+    const nodes = Array.from({ length: nodeCount }, (_, nodeIndex) => {
         const title = `mvp-agent-${agentIndex}-node-${nodeIndex}`
         return {
-            type: 'create_node',
             title,
             summary: `MVP storm node ${title}`,
             content: `Body of ${title} written by the e2e-storm-mvp harness.`,
@@ -84,7 +83,7 @@ export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number
 
     return {
         actions: [
-            ...actions,
+            { type: 'create_nodes', nodes },
             { type: 'exit', code: 0 },
         ],
     }
@@ -124,7 +123,7 @@ function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
  * every action BEFORE running it (vt-fake-agent/src/executor.ts:39); the
  * `exit` action then calls `process.exit(0)` so no further line is ever
  * printed. So `Executing: exit` is the last-line-emitted completion marker
- * for our single-create-node script.
+ * for our create-node script.
  *
  * Using `Script complete.` would never match — the agent exits before that
  * log line is reached.

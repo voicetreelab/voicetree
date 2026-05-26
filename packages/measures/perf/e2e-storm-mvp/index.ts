@@ -317,7 +317,7 @@ function parseArgs(argv: readonly string[]): Args {
                 process.stdout.write(
                     'e2e-storm-mvp: prove headful-Electron + daemon + MCP + fake-agent end-to-end.\n'
                     + '  --agents N                    parallel fake-agents (default 30)\n'
-                    + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
+                    + '  --nodes-per-agent N           nodes created per fake agent (default 5)\n'
                     + '  --mcp-discovery-timeout-ms MS   default 120000\n'
                     + '  --agent-timeout-ms MS           default 60000\n'
                     + '  --inspect-port N                default 9244\n'
