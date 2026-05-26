@@ -207,6 +207,9 @@ webapp/workers/share-worker/.wrangler/**
 # Codex config (machine-local)
 **/.codex/config.toml
 
+# Agent-created nested worktree mirrors
+.claude/worktrees/
+
 # Gemini settings (machine-local)
 **/.gemini/settings.json
 
@@ -215,6 +218,9 @@ webapp/workers/share-worker/.wrangler/**
 
 # Node modules
 **/node_modules/**
+
+# TypeScript build state
+*.tsbuildinfo
 
 # Web dist
 **/dist-web/**

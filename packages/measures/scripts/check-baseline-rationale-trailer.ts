@@ -9,7 +9,7 @@
 
 import {execFileSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
-import {baselinePolicy} from '../src/checks/_shared/baseline-policy.ts'
+import {baselinePolicy} from '../src/_shared/policy/baseline-policy.ts'
 
 function loadStagedPaths(): string[] {
     const raw = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {

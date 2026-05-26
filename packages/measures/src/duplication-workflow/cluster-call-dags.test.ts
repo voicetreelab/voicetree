@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {clusterCallDags} from './cluster-call-dags'
-import {extractFunctionsFromSource, type FunctionRecord} from '../extract-functions'
+import {extractFunctionsFromSource, type FunctionRecord} from '../duplication-extract/extract-functions'
 
 function recordsFrom(relativePath: string, packageName: string, source: string): FunctionRecord[] {
     return extractFunctionsFromSource(

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {extractFunctionsFromSource, type FunctionRecord} from '../extract-functions.ts'
+import {extractFunctionsFromSource, type FunctionRecord} from '../duplication-extract/extract-functions.ts'
 import {
     functionLoc,
     rankSeverity,

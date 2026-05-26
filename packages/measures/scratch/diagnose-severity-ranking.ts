@@ -13,14 +13,15 @@
  *   node scripts/run-remote.mjs npx --prefix packages/measures tsx \\
  *     packages/measures/scratch/diagnose-severity-ranking.ts
  */
-import {clusterCallDags} from '../src/_shared/duplication/workflow/cluster-call-dags.ts'
-import {clusterDuplicates} from '../src/_shared/duplication/per-function/cluster-duplicates.ts'
-import {extractFunctions} from '../src/_shared/duplication/extract-functions.ts'
+import {readFile} from 'node:fs/promises'
+import {clusterCallDags} from '../src/duplication-workflow/cluster-call-dags.ts'
+import {clusterDuplicates} from '../src/duplication-per-function/cluster-duplicates.ts'
+import {extractFunctions} from '../src/duplication-extract/extract-functions.ts'
 import {
     rankSeverity,
     type RankablePair,
     type SeverityRankedPair,
-} from '../src/_shared/duplication/ranking/severity-ranking.ts'
+} from '../src/duplication-ranking/severity-ranking.ts'
 import {discoverPackages} from '../src/_shared/discovery/discover-packages.ts'
 import {discoverSourceFiles} from '../src/_shared/discovery/function-discovery.ts'
 import {
@@ -98,7 +99,7 @@ async function main(): Promise<void> {
     const packages = await discoverPackages()
     const files = await discoverSourceFiles(packages)
     process.stdout.write(`Extracting functions from ${files.length} files…\n`)
-    const records = await extractFunctions(files)
+    const records = await extractFunctions(files, path => readFile(path, 'utf8'))
     const recordsById = new Map(records.map(record => [record.id, record]))
 
     process.stdout.write('Running per-function clustering (minScore=0.7)…\n')

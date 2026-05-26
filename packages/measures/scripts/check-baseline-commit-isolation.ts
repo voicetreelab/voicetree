@@ -2,10 +2,10 @@
 // Impure edge: refuses any commit that mixes packages/measures/budgets/
 // files with non-baseline files. Invoked by capture-ci-checks (tier-0)
 // during the pre-commit hook. Pure classification lives in
-// checks/_shared/baseline-policy.ts.
+// _shared/policy/baseline-policy.ts.
 
 import {execFileSync} from 'node:child_process'
-import {baselinePolicy} from '../src/checks/_shared/baseline-policy.ts'
+import {baselinePolicy} from '../src/_shared/policy/baseline-policy.ts'
 
 function loadStagedPaths(): string[] {
     const raw = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {

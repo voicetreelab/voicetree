@@ -19,11 +19,11 @@ import {
     type CallDagFingerprint,
     type CallDagIndex,
 } from './call-dag-fingerprint'
-import {bucketsToPairs} from '../per-function/buckets-to-pairs'
-import type {FunctionRecord} from '../extract-functions'
-import {jaccard} from '../lsh/jaccard'
-import {decodePairKey, lshBuckets, type SignedItem} from '../lsh/lsh'
-import {minhash} from '../lsh/minhash'
+import {bucketsToPairs} from '../duplication-per-function/buckets-to-pairs'
+import type {FunctionRecord} from '../duplication-extract/extract-functions'
+import {jaccard} from '../duplication-lsh/jaccard'
+import {decodePairKey, lshBuckets, type SignedItem} from '../duplication-lsh/lsh'
+import {minhash} from '../duplication-lsh/minhash'
 
 export const EXACT_MATCH_WEIGHT: number = 0.6
 export const EDGE_SET_WEIGHT: number = 0.4

@@ -6,7 +6,7 @@
  * shingle set goes into LSH (32 bands x 4 rows). The full shingle set is
  * kept for the exact Jaccard score the dashboard reports.
  */
-import {minhash} from '../lsh/minhash'
+import {minhash} from '../duplication-lsh/minhash'
 
 export const LEX_SHINGLE_SIZE: number = 5
 export const LEX_PERMUTATION_COUNT: number = 128

@@ -24,13 +24,11 @@ import {execFileSync} from 'node:child_process'
 import {appendFile} from 'node:fs/promises'
 import {join} from 'node:path'
 
-import {baselinePolicy} from '../src/checks/_shared/baseline-policy.ts'
+import {baselinePolicy} from '../src/_shared/policy/baseline-policy.ts'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../src/_shared/discovery/discover-packages.ts'
 import {scanSourceFiles} from '../src/_shared/graph/import-graph.ts'
 import {parseSubgraph} from '../src/_shared/graph/parse-subgraph.ts'
-import {listMeasures} from '../src/_subgraph_gate/_internal/registry.ts'
-import {writeBaseline} from '../src/_subgraph_gate/_internal/baseline-store.ts'
-import '../src/_subgraph_gate/_internal/load-all.ts'
+import {listMeasures, writeBaseline} from '../src/_subgraph_gate/index.ts'
 
 const BUMP_LOG_PATH = join(DEFAULT_REPO_ROOT, 'packages', 'measures', 'budgets', 'BASELINE_BUMP_LOG.md')
 

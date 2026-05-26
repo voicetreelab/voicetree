@@ -7,6 +7,13 @@
 //      `Baseline-bump-rationale:` trailer?
 //
 // No I/O — callers (git hooks, runners) supply the inputs.
+//
+// Public surface (M1: deep-narrow module): a single `baselinePolicy` value
+// holds every classifier, formatter, and config constant. Callers reach for
+// `baselinePolicy.classifyStagedDiff(...)` etc. Bundling the surface this
+// way keeps the importing community's boundary-width score honest — the
+// alternative (eight top-level exports) inflates the channel without
+// adding anything callers couldn't already reach via one.
 
 // Only files under .../budgets/subgraph/ are themselves baselines. The
 // budgets/ root holds documentation (README, BASELINE_BUMP_LOG) that is
@@ -16,9 +23,7 @@ const RATIONALE_TRAILER = 'Baseline-bump-rationale:'
 const MIN_RATIONALE_CHARS = 20
 
 type StagedDiffClassification = 'no-baselines' | 'pure-bump' | 'mixed'
-
 type CommitMessageClassification = 'ok' | 'missing-rationale' | 'rationale-too-short'
-
 function isBaselinePath(path: string): boolean {
     return path.startsWith(BASELINE_PREFIX)
 }

@@ -11,13 +11,13 @@
  * `for-of` over an array is a structural match; every async-1-returns-value
  * is a behavioral match).
  */
-import type {FunctionRecord} from '../extract-functions'
-import {behavioralFingerprint, BEH_BAND_COUNT, BEH_ROWS_PER_BAND, type BehavioralFingerprint} from '../fingerprints/behavioral-fingerprint'
+import type {FunctionRecord} from '../duplication-extract/extract-functions'
+import {behavioralFingerprint, BEH_BAND_COUNT, BEH_ROWS_PER_BAND, type BehavioralFingerprint} from '../duplication-fingerprints/behavioral-fingerprint'
 import {bucketsToPairs} from './buckets-to-pairs'
-import {jaccard} from '../lsh/jaccard'
-import {lexicalFingerprint, LEX_BAND_COUNT, LEX_ROWS_PER_BAND, type LexicalFingerprint} from '../fingerprints/lexical-fingerprint'
-import {decodePairKey, lshBuckets, type SignedItem} from '../lsh/lsh'
-import {structuralFingerprint, type StructuralFingerprint} from '../fingerprints/structural-fingerprint'
+import {jaccard} from '../duplication-lsh/jaccard'
+import {lexicalFingerprint, LEX_BAND_COUNT, LEX_ROWS_PER_BAND, type LexicalFingerprint} from '../duplication-fingerprints/lexical-fingerprint'
+import {decodePairKey, lshBuckets, type SignedItem} from '../duplication-lsh/lsh'
+import {structuralFingerprint, type StructuralFingerprint} from '../duplication-fingerprints/structural-fingerprint'
 
 export const STRUCTURAL_WEIGHT: number = 0.3
 export const LEXICAL_WEIGHT: number = 0.3

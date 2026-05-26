@@ -1,7 +1,8 @@
+import {readFile} from 'node:fs/promises'
 import {describe, expect, it} from 'vitest'
-import {clusterDuplicates} from '../../_shared/duplication/per-function/cluster-duplicates'
-import {extractFunctions} from '../../_shared/duplication/extract-functions'
-import {formatDuplicateRows} from '../../_shared/duplication/per-function/format-duplicate-rows'
+import {clusterDuplicates} from '../../duplication-per-function/cluster-duplicates'
+import {extractFunctions} from '../../duplication-extract/extract-functions'
+import {formatDuplicateRows} from '../../duplication-per-function/format-duplicate-rows'
 import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
@@ -24,7 +25,7 @@ describe('semantic function-duplication health', () => {
     it('keeps the count of >=0.7-score duplicate pairs within budget', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
-        const records = await extractFunctions(files)
+        const records = await extractFunctions(files, path => readFile(path, 'utf8'))
         // topK large enough to see the full distribution; details still
         // store only the top 20. The check report (current count) needs the
         // true number of pairs at-or-above the threshold, not a truncated one.

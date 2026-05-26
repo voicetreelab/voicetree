@@ -10,9 +10,8 @@
  * Matches the function-boundary rules used by cyclomatic.ts so the two
  * measures stay aligned.
  */
-import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
-import type {SourceFileInfo} from '../discovery/function-discovery'
+import type {SourceFileInfo} from '../_shared/discovery/function-discovery'
 
 export type FunctionRecord = {
     readonly id: string
@@ -25,6 +24,8 @@ export type FunctionRecord = {
     readonly tokenStream: readonly string[]
     readonly bodyNodeCount: number
 }
+
+export type ReadFileText = (absolutePath: string) => Promise<string>
 
 const MIN_AST_NODES: number = 5
 const MIN_TOKEN_COUNT: number = 20
@@ -144,8 +145,8 @@ function makeRecord(
     }
 }
 
-async function extractFromFile(file: SourceFileInfo): Promise<FunctionRecord[]> {
-    const text = await readFile(file.absolutePath, 'utf8')
+async function extractFromFile(file: SourceFileInfo, readFileText: ReadFileText): Promise<FunctionRecord[]> {
+    const text = await readFileText(file.absolutePath)
     const sourceFile = ts.createSourceFile(file.absolutePath, text, ts.ScriptTarget.Latest, true)
     const records: FunctionRecord[] = []
     function visit(node: ts.Node): void {
@@ -159,8 +160,11 @@ async function extractFromFile(file: SourceFileInfo): Promise<FunctionRecord[]> 
     return records
 }
 
-export async function extractFunctions(files: readonly SourceFileInfo[]): Promise<FunctionRecord[]> {
-    const nested = await Promise.all(files.map(extractFromFile))
+export async function extractFunctions(
+    files: readonly SourceFileInfo[],
+    readFileText: ReadFileText,
+): Promise<FunctionRecord[]> {
+    const nested = await Promise.all(files.map(file => extractFromFile(file, readFileText)))
     return nested.flat()
 }
 

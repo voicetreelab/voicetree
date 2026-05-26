@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {bucketsToPairs} from './buckets-to-pairs'
-import {decodePairKey} from '../lsh/lsh'
+import {decodePairKey} from '../duplication-lsh/lsh'
 
 describe('bucketsToPairs', () => {
     it('produces unordered pairs for buckets with >=2 ids', () => {

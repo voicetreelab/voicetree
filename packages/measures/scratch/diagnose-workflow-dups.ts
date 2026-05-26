@@ -24,15 +24,16 @@
  *     --experimental-strip-types \
  *     packages/measures/scratch/diagnose-workflow-dups.ts
  */
+import {readFile} from 'node:fs/promises'
 import {
     buildCallDagIndex,
     callDagFingerprint,
     type CallDagFingerprint,
-} from '../src/_shared/duplication/workflow/call-dag-fingerprint.ts'
-import {clusterCallDags, type WorkflowPair} from '../src/_shared/duplication/workflow/cluster-call-dags.ts'
+} from '../src/duplication-workflow/call-dag-fingerprint.ts'
+import {clusterCallDags, type WorkflowPair} from '../src/duplication-workflow/cluster-call-dags.ts'
 import {discoverPackages} from '../src/_shared/discovery/discover-packages.ts'
 import {discoverSourceFiles} from '../src/_shared/discovery/function-discovery.ts'
-import {extractFunctions, type FunctionRecord} from '../src/_shared/duplication/extract-functions.ts'
+import {extractFunctions, type FunctionRecord} from '../src/duplication-extract/extract-functions.ts'
 
 const HISTOGRAM_BUCKETS: number = 10
 const TOP_N_FUZZY: number = 30
@@ -106,7 +107,7 @@ async function main(): Promise<void> {
     const packages = await discoverPackages()
     const files = await discoverSourceFiles(packages)
     process.stdout.write(`Extracting functions from ${files.length} files…\n`)
-    const records = await extractFunctions(files)
+    const records = await extractFunctions(files, path => readFile(path, 'utf8'))
     process.stdout.write(`Extracted ${records.length} functions; clustering call-DAGs…\n`)
 
     // topK=Infinity so we see the full distribution; minScore=0 to keep all

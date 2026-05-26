@@ -9,7 +9,7 @@ type ImportDeclarationInfo = {
     readonly text: string
 }
 
-export type RuntimeFanInRow = {
+type RuntimeFanInRow = {
     readonly packageName: string
     readonly runtimeSymbols: number
     readonly top: readonly string[]

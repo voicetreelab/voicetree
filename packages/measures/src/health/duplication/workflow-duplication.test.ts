@@ -1,7 +1,8 @@
+import {readFile} from 'node:fs/promises'
 import {describe, expect, it} from 'vitest'
-import {clusterCallDags} from '../../_shared/duplication/workflow/cluster-call-dags'
-import {extractFunctions} from '../../_shared/duplication/extract-functions'
-import {formatCallDagRows} from '../../_shared/duplication/workflow/format-call-dag-rows'
+import {clusterCallDags} from '../../duplication-workflow/cluster-call-dags'
+import {extractFunctions} from '../../duplication-extract/extract-functions'
+import {formatCallDagRows} from '../../duplication-workflow/format-call-dag-rows'
 import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
@@ -18,7 +19,7 @@ describe('workflow (call-DAG) duplication health', () => {
     it('keeps the count of >=0.7-score call-DAG duplicate pairs within budget', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
-        const records = await extractFunctions(files)
+        const records = await extractFunctions(files, path => readFile(path, 'utf8'))
         // topK large enough to see the full distribution; details still
         // store only the top 20.
         const result = clusterCallDags(records, {topK: 100000})

@@ -199,7 +199,7 @@ function formatFailureBody(outcome) {
         const lines = failed.flatMap(t => {
             const where = t.fileName ? `  (${t.fileName})` : ''
             const head = `      • ${t.fullName}${where}`
-            const msg = (t.message ?? '').split('\n').slice(0, 3)
+            const msg = (t.message ?? '').split('\n').slice(0, 15)
                 .map(l => `        ${l}`).join('\n')
             return msg ? [head, msg] : [head]
         })

@@ -1,13 +1,19 @@
-// Public facade for the subgraph-gate package. The runner edge
-// (`packages/measures/src/_runners/subgraph-gate.ts`) imports its
-// orchestration symbols from here; the side-effect import below loads
-// every concrete measure into the registry. Keep the surface minimal —
-// `capture-subgraph-baselines.ts` reaches into `_internal/` directly
-// because it needs additional symbols, and that intra-subdir edge is
-// intentional.
-
+/**
+ * Public API for the subgraph-gate engine. Importing this file:
+ *
+ *   1. Triggers `load-all.ts`'s side-effect imports so the registry is
+ *      populated before any caller calls `listMeasures()`.
+ *   2. Re-exports the five symbols runners need to drive the gate end-to-end:
+ *      `listMeasures`, `loadBaseline`, `writeBaseline` plus the two public
+ *      result types runners format and exit on.
+ *
+ * Runners must consume from here, not from `./_internal/*`. The `_internal`
+ * marker is honest only if leaf modules below it stay private to the
+ * package — otherwise the cross-package import graph shows callers reaching
+ * into internals that should be free to refactor.
+ */
 import './_internal/load-all.ts'
 
 export {listMeasures} from './_internal/registry.ts'
-export {loadBaseline} from './_internal/baseline-store.ts'
+export {loadBaseline, writeBaseline} from './_internal/baseline-store.ts'
 export type {SubgraphMeasureResult, Violation} from './_internal/subgraph-measure.ts'

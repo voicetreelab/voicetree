@@ -1,13 +1,14 @@
+import {readFile} from 'node:fs/promises'
 import {describe, it} from 'vitest'
-import {clusterCallDags} from '../../_shared/duplication/workflow/cluster-call-dags.ts'
-import {clusterDuplicates} from '../../_shared/duplication/per-function/cluster-duplicates.ts'
-import {extractFunctions} from '../../_shared/duplication/extract-functions.ts'
+import {clusterCallDags} from '../../duplication-workflow/cluster-call-dags.ts'
+import {clusterDuplicates} from '../../duplication-per-function/cluster-duplicates.ts'
+import {extractFunctions} from '../../duplication-extract/extract-functions.ts'
 import {
     rankSeverity,
     severityHistogram,
     type RankablePair,
     type SeverityRankedPair,
-} from '../../_shared/duplication/ranking/severity-ranking.ts'
+} from '../../duplication-ranking/severity-ranking.ts'
 import {discoverPackages} from '../../_shared/discovery/discover-packages.ts'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery.ts'
 import {
@@ -171,7 +172,7 @@ describe('duplication mass health', () => {
     it('reports recoverable-LOC hard gate + high-severity warning', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
-        const records = await extractFunctions(files)
+        const records = await extractFunctions(files, path => readFile(path, 'utf8'))
         const recordsById = new Map(records.map(record => [record.id, record]))
 
         // Pull pairs from BOTH existing checks. Use the same threshold the
