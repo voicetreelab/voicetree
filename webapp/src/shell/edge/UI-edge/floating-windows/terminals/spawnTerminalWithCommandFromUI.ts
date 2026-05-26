@@ -104,11 +104,11 @@ export async function spawnTerminalWithCommandEditor(
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Spawn terminal with the (possibly modified) command
-    await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId,
-        result.command,
-        terminalCount
-    );
+    await window.electronAPI?.main.spawnTerminalWithContextNode({
+        taskNodeId: parentNodeId,
+        agentCommand: result.command,
+        terminalCount,
+    });
 }
 
 /**
@@ -177,9 +177,12 @@ export async function spawnTerminalWithNewContextNode(
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
-    await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId, command, terminalCount, undefined, undefined, undefined, spawnDirectory
-    );
+    await window.electronAPI?.main.spawnTerminalWithContextNode({
+        taskNodeId: parentNodeId,
+        agentCommand: command,
+        terminalCount,
+        spawnDirectory,
+    });
 }
 
 /**
