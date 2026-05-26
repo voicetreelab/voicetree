@@ -14,7 +14,7 @@ import {
     registerChildIfMonitored,
 } from '@vt/vt-daemon';
 import {existsSync} from 'node:fs';
-import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
+import {unbindVtDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
@@ -256,8 +256,8 @@ void app.whenReady().then(async () => {
         return;
     }
 
-    // The unified HTTP daemon (Step 9b) is started per-opened-vault by
-    // openVault → bindHttpDaemonForVault; nothing app-wide to start here.
+    // The per-vault VTD child is spawned (or adopted) on-demand by
+    // openVault → bindVtDaemonForVault; nothing app-wide to start here.
     // The tmux WS relay (Step 9f) is folded into that daemon — no separate
     // electron-side relay server.
 
@@ -392,7 +392,7 @@ app.on('will-quit', () => {
     unsubscribeFromDaemonSSE();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
-    void unbindHttpDaemon();
+    void unbindVtDaemon();
 });
 
 app.on('activate', () => {
