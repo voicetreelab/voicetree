@@ -24,6 +24,11 @@ const e2eTimeoutMs = 30 * 60 * 1000
 // gets its own budget so the e2e ceiling doesn't silently terminate it.
 const mutationTimeoutMs = 2 * 60 * 60 * 1000
 
+// Incremental mutation only mutates files changed vs the PR base ref, so it
+// scales with PR size, not package size. 15 min absorbs PRs touching ~30
+// mutation-eligible files at the observed ~22 s/file (graph-state, 26 mutants).
+const mutationIncrementalTimeoutMs = 15 * 60 * 1000
+
 const npmRun = (name: string, extras: readonly string[] = []): string[] =>
     ['npm', 'run', name, ...(extras.length ? ['--', ...extras] : [])]
 
@@ -44,6 +49,7 @@ const playwrightJsonArgs = (): string[] => ['--reporter=json']
 export const checkArgs = {
     e2eTimeoutMs,
     mutationTimeoutMs,
+    mutationIncrementalTimeoutMs,
     npmRun,
     npmExec,
     npmWorkspaceRun,

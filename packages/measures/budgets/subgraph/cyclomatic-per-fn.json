@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T05:41:42.628Z",
+  "refreshedAt": "2026-05-26T03:46:45.511Z",
   "byCommunity": {
     "agent-runtime/api": 0,
     "agent-runtime/application": 16,
@@ -35,12 +35,11 @@
     "graph-tools/lint": 17,
     "graph-tools/live": 19,
     "graph-tools/view": 31,
-    "measures/__root__": 2,
-    "measures/_runners": 16,
+    "measures/_runners": 14,
     "measures/_shared": 25,
     "measures/_subgraph_gate": 25,
-    "measures/checks": 3,
-    "measures/health": 1,
+    "measures/checks": 4,
+    "measures/health": 2,
     "observability/__root__": 11,
     "perf-fixtures/__root__": 16,
     "share-worker/__root__": 12,

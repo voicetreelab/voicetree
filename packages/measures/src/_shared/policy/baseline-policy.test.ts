@@ -3,35 +3,48 @@ import {baselinePolicy} from './baseline-policy.ts'
 
 describe('classifyStagedDiff', () => {
     it('empty diff is no-baselines', () => {
-        expect(baselinePolicy.classifyStagedDiff([])).toBe('no-baselines')
+        expect(baselinePolicy.classifyStagedDiff([], {isMergeCommit: false})).toBe('no-baselines')
     })
 
     it('only non-baseline files is no-baselines', () => {
         expect(baselinePolicy.classifyStagedDiff([
             'packages/measures/src/foo.ts',
             'README.md',
-        ])).toBe('no-baselines')
+        ], {isMergeCommit: false})).toBe('no-baselines')
     })
 
     it('only baseline files is pure-bump', () => {
         expect(baselinePolicy.classifyStagedDiff([
             `${baselinePolicy.baselinePrefix}subgraph/boundary-width.json`,
             `${baselinePolicy.baselinePrefix}subgraph/cycles.json`,
-        ])).toBe('pure-bump')
+        ], {isMergeCommit: false})).toBe('pure-bump')
     })
 
     it('baselines plus other files is mixed', () => {
         expect(baselinePolicy.classifyStagedDiff([
             `${baselinePolicy.baselinePrefix}subgraph/boundary-width.json`,
             'packages/measures/src/foo.ts',
-        ])).toBe('mixed')
+        ], {isMergeCommit: false})).toBe('mixed')
     })
 
     it('does not classify the budgets/ README or audit log as baselines', () => {
         expect(baselinePolicy.classifyStagedDiff([
             'packages/measures/budgets/README.md',
             'packages/measures/budgets/BASELINE_BUMP_LOG.md',
-        ])).toBe('no-baselines')
+        ], {isMergeCommit: false})).toBe('no-baselines')
+    })
+
+    it('merge commits are exempt — baselines from the source branch were already reviewed', () => {
+        expect(baselinePolicy.classifyStagedDiff([
+            `${baselinePolicy.baselinePrefix}subgraph/boundary-width.json`,
+            'packages/measures/src/foo.ts',
+        ], {isMergeCommit: true})).toBe('no-baselines')
+    })
+
+    it('merge-commit exemption applies even for what would otherwise be a pure-bump', () => {
+        expect(baselinePolicy.classifyStagedDiff([
+            `${baselinePolicy.baselinePrefix}subgraph/boundary-width.json`,
+        ], {isMergeCommit: true})).toBe('no-baselines')
     })
 
     it('isBaselinePath only matches files under the configured subgraph prefix', () => {
