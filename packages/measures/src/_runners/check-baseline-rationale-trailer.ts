@@ -9,11 +9,7 @@
 
 import {execFileSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
-import {
-    classifyCommitMessage,
-    classifyStagedDiff,
-    formatRationaleViolation,
-} from '../checks/_shared/baseline-policy.ts'
+import {baselinePolicy} from '../_shared/policy/baseline-policy.ts'
 
 function loadStagedPaths(): string[] {
     const raw = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
@@ -29,19 +25,19 @@ function main(): void {
         process.exit(2)
     }
 
-    const stagedClassification = classifyStagedDiff(loadStagedPaths())
+    const stagedClassification = baselinePolicy.classifyStagedDiff(loadStagedPaths())
     if (stagedClassification !== 'pure-bump') {
         // Not a pure baseline bump — this hook has no opinion.
         process.exit(0)
     }
 
     const message = readFileSync(messagePath, 'utf8')
-    const messageClassification = classifyCommitMessage(message)
+    const messageClassification = baselinePolicy.classifyCommitMessage(message)
     if (messageClassification === 'ok') {
         process.exit(0)
     }
 
-    process.stderr.write(formatRationaleViolation(messageClassification))
+    process.stderr.write(baselinePolicy.formatRationaleViolation(messageClassification))
     process.exit(1)
 }
 

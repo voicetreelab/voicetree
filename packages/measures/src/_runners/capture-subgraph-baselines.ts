@@ -24,13 +24,11 @@ import {execFileSync} from 'node:child_process'
 import {appendFile} from 'node:fs/promises'
 import {join} from 'node:path'
 
-import {MIN_RATIONALE_CHARS} from '../checks/_shared/baseline-policy.ts'
+import {baselinePolicy} from '../_shared/policy/baseline-policy.ts'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../_shared/discovery/discover-packages.ts'
 import {scanSourceFiles} from '../_shared/graph/import-graph.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
-import {listMeasures} from '../_subgraph_gate/_internal/registry.ts'
-import {writeBaseline} from '../_subgraph_gate/_internal/baseline-store.ts'
-import '../_subgraph_gate/_internal/load-all.ts'
+import {listMeasures, writeBaseline} from '../_subgraph_gate/index.ts'
 
 const BUMP_LOG_PATH = join(DEFAULT_REPO_ROOT, 'packages', 'measures', 'budgets', 'BASELINE_BUMP_LOG.md')
 
@@ -60,7 +58,7 @@ function refusalBanner(): string {
         'If — after applying the FP rearchitecting pattern — you have concluded',
         'a refresh is genuinely justified, rerun with explicit consent:',
         '',
-        `  npm run measures:capture-baselines -- --i-am-sure --reason="<>=${MIN_RATIONALE_CHARS} chars>"`,
+        `  npm run measures:capture-baselines -- --i-am-sure --reason="<>=${baselinePolicy.MIN_RATIONALE_CHARS} chars>"`,
         '',
         'The reason will be appended to packages/measures/budgets/BASELINE_BUMP_LOG.md',
         'so git history records why the refresh was authorized.',
@@ -86,7 +84,7 @@ async function appendBumpLogEntry(reason: string): Promise<void> {
 
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2))
-    if (!args.iAmSure || args.reason === null || args.reason.length < MIN_RATIONALE_CHARS) {
+    if (!args.iAmSure || args.reason === null || args.reason.length < baselinePolicy.MIN_RATIONALE_CHARS) {
         process.stderr.write(refusalBanner())
         process.exit(1)
     }

@@ -1,14 +1,16 @@
 import {describe, expect, it} from 'vitest'
-import {
+import {baselinePolicy} from './baseline-policy.ts'
+
+const {
     BASELINE_PREFIX,
-    MIN_RATIONALE_CHARS,
     RATIONALE_TRAILER,
+    MIN_RATIONALE_CHARS,
     classifyCommitMessage,
     classifyStagedDiff,
     formatMixedViolation,
     formatRationaleViolation,
     isBaselinePath,
-} from './baseline-policy.ts'
+} = baselinePolicy
 
 describe('classifyStagedDiff', () => {
     it('empty diff is no-baselines', () => {
