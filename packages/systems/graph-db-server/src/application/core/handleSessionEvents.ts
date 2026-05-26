@@ -22,7 +22,12 @@ export function formatSSE(event: string, data: string): string {
 }
 
 export function stringifyGraphForSSE(graph: ProjectedGraph): string {
-  return JSON.stringify(graph)
+  return JSON.stringify(graph, (_key: string, value: unknown) => {
+    if (value instanceof Map) {
+      return Object.fromEntries(value.entries())
+    }
+    return value
+  })
 }
 
 export function parseSince(rawSince: string | undefined, currentSeq: number): number {
