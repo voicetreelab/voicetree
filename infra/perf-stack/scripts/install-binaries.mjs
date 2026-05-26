@@ -86,6 +86,19 @@ const BINARIES = [
     note: 'Tempo CLI is source-only for this platform; built from the same checksum-pinned Tempo v2.10.5 source archive.',
   },
   {
+    name: 'pprof',
+    version: 'v0.0.0-20260507013755-92041b743c96',
+    kind: 'source-build',
+    urlPattern: () =>
+      'https://github.com/google/pprof/archive/92041b743c966065641d7221da5403ad9a019bce.tar.gz',
+    sha256: {
+      'darwin-arm64': '0bf075c8839ab0f660c0a7119a4bf6ca394a4830018a3c21f5fe31650736087a',
+    },
+    buildDirName: 'pprof-92041b743c966065641d7221da5403ad9a019bce',
+    buildTarget: '.',
+    note: 'google/pprof publishes source, not release binaries; built from a checksum-pinned commit archive.',
+  },
+  {
     name: 'victoriametrics',
     version: 'v1.144.0',
     kind: 'archive',
