@@ -40,10 +40,8 @@ import {
     handleHookEventRequest,
     registerChildIfMonitored,
     startHttpDaemonServer,
-    startVaultStateWatcher,
     type HookHandler,
     type HttpDaemonServerHandle,
-    type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts'
@@ -202,15 +200,6 @@ async function main(): Promise<void> {
         die(`failed to start HTTP daemon server: ${(err as Error).message}`)
     }
 
-    let vaultStateWatcher: VaultStateWatcherHandle
-    try {
-        vaultStateWatcher = startVaultStateWatcher({vaultPath: args.vault, hub: httpHandle.hub})
-    } catch (err) {
-        await httpHandle.stop().catch(() => undefined)
-        await daemonHandle.stop().catch(() => undefined)
-        die(`failed to start vault-state watcher: ${(err as Error).message}`)
-    }
-
     // Lifecycle JSONL telemetry sink.
     try {
         agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
@@ -238,12 +227,9 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
-        // Order: vault-state watcher → HTTP daemon → detach terminal runtime → graph-db lock.
+        // Order: HTTP daemon → detach terminal runtime → graph-db lock.
         // tmux sessions survive host shutdown and are reconciled by the next host.
         try {
-            await vaultStateWatcher.stop().catch((err: unknown) => {
-                process.stderr.write(`vt-mcpd: vault-state watcher stop error: ${(err as Error).message}\n`)
-            })
             await httpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: http daemon stop error: ${(err as Error).message}\n`)
             })

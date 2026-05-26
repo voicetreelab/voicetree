@@ -13,10 +13,8 @@ import {
     handleHookEventRequest,
     registerChildIfMonitored,
     startHttpDaemonServer,
-    startVaultStateWatcher,
     type HookHandler,
     type HttpDaemonServerHandle,
-    type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {error} from '../output'
@@ -210,14 +208,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         error(`failed to start HTTP daemon server: ${(cause as Error).message}`)
     }
 
-    let vaultStateWatcher: VaultStateWatcherHandle
-    try {
-        vaultStateWatcher = startVaultStateWatcher({vaultPath: args.vault, hub: httpHandle.hub})
-    } catch (cause) {
-        await httpHandle.stop().catch(() => undefined)
-        error(`failed to start vault-state watcher: ${(cause as Error).message}`)
-    }
-
     // Lifecycle JSONL telemetry sink.
     try {
         agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
@@ -252,9 +242,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         process.stderr.write(`vt serve: ${signal} received, shutting down\n`)
 
         try {
-            await vaultStateWatcher.stop().catch((cause: unknown) => {
-                process.stderr.write(`vt serve: vault-state watcher stop error: ${(cause as Error).message}\n`)
-            })
             await httpHandle.stop().catch((cause: unknown) => {
                 process.stderr.write(`vt serve: http daemon stop error: ${(cause as Error).message}\n`)
             })

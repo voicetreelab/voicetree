@@ -35,7 +35,6 @@ export {
     type PublishedEvent,
 } from '../transport/eventSubscriptionHub'
 export {handleHookEventRequest, resolveHookEventName, type HookHandlerResponse, type HookHandlerInput} from '../hooks/hookEventHandler'
-export {startVaultStateWatcher, type VaultStateWatcherHandle, type StartVaultStateWatcherOptions} from '../transport/vaultStateWatcher'
 export {terminalRuntimeSurface} from '../tools/agent-control/terminalRuntimeSurface'
 export type {
     AgentRuntimeConfig,

@@ -14,7 +14,8 @@
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",
     "./mcp-config": "./src/config/mcp-config-public.ts",
-    "./mcp-client-config": "./src/config/mcp-client-config-public.ts"
+    "./mcp-client-config": "./src/config/mcp-client-config-public.ts",
+    "./transport/eventTypes": "./src/transport/eventTypes.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

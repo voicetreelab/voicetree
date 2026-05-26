@@ -102,15 +102,15 @@ describe('GET /events — vt-bearer subprotocol auth (Step 9b.1)', (): void => {
         expect(ws.protocol).toBe('vt-bearer')
 
         ws.on('message', (raw: Buffer): void => { received.push(raw.toString('utf8')) })
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'vault-state'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-lifecycle'}]}))
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('vault-state', 'file-added', {path: '/v/x.md'})
+        handle.hub.publish('agent-lifecycle', 'agent-spawned', {terminalId: 'T1'})
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
         ws.close()
 
         expect(received).toHaveLength(1)
         const event = JSON.parse(received[0]) as {topic: string; event: string}
-        expect(event).toMatchObject({topic: 'vault-state', event: 'file-added'})
+        expect(event).toMatchObject({topic: 'agent-lifecycle', event: 'agent-spawned'})
     })
 
     it('2. valid literal + wrong token → 401 before handshake', async (): Promise<void> => {
@@ -226,18 +226,18 @@ describe('cross-wire renderer smoke — browser-shape WebSocket against real dae
             received.push(ev.data)
         })
 
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'vault-state'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-lifecycle'}]}))
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('vault-state', 'file-added', {path: '/v/renderer-smoke.md'})
+        handle.hub.publish('agent-lifecycle', 'agent-spawned', {terminalId: 'T-renderer-smoke'})
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
         ws.close()
 
         expect(received).toHaveLength(1)
-        const event = JSON.parse(received[0]) as {topic: string; event: string; data: {path: string}}
+        const event = JSON.parse(received[0]) as {topic: string; event: string; data: {terminalId: string}}
         expect(event).toMatchObject({
-            topic: 'vault-state',
-            event: 'file-added',
-            data: {path: '/v/renderer-smoke.md'},
+            topic: 'agent-lifecycle',
+            event: 'agent-spawned',
+            data: {terminalId: 'T-renderer-smoke'},
         })
     })
 })

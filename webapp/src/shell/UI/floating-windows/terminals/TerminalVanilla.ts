@@ -12,7 +12,7 @@ import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {TerminalRelayClient, type RelayConnectionStatus} from './terminalRelayClient';
+import type {RelayConnectionStatus} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
 import {notifyTerminalOutput} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
@@ -47,7 +47,8 @@ export class TerminalVanilla {
   private webglAddon: WebglAddon | null = null;
   private webglIdleTimer: ReturnType<typeof setTimeout> | null = null;
   private onVisibilityChange: (() => void) | null = null;
-  private relayClient: TerminalRelayClient | null = null;
+  private relayHandle: string | null = null;
+  private relayUnsubscribers: Array<() => void> = [];
   private relayStatusEl: HTMLDivElement | null = null;
   private readonly settingsPromise: Promise<VTSettings | null>;
 
@@ -252,8 +253,8 @@ export class TerminalVanilla {
 
     // The relay endpoint runs `tmux attach -t {name}`, which fails if the
     // session doesn't exist. The IPC handler calls spawnTmuxBacked() to create
-    // the session — trigger IPC spawn BEFORE the WebSocket attach, otherwise
-    // the panel hangs in "tmux reconnecting" forever.
+    // the session — trigger IPC spawn BEFORE the attach handle, otherwise the
+    // panel hangs in "tmux reconnecting" forever.
     const spawnResult: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
     if (!spawnResult.success) {
       this.term.writeln('Failed to spawn tmux-backed terminal: ' + (spawnResult.error ?? 'Unknown error'));
@@ -262,39 +263,33 @@ export class TerminalVanilla {
     this.terminalId = spawnResult.terminalId ?? this.terminalData.terminalId;
     this.createRelayStatusIndicator();
 
-    const [daemonUrl, token]: [string, string] = await Promise.all([
-      window.electronAPI!.main.getDaemonUrl(),
-      window.electronAPI!.main.getAuthToken(),
-    ]);
-    const encodedTerminalId: string = encodeURIComponent(this.terminalId);
-    const url: string = `${daemonUrl.replace(/^http/, 'ws')}/terminals/${encodedTerminalId}/attach`;
-
+    // Main owns the /terminals/:id/attach WebSocket; we receive PTY bytes
+    // and status frames over IPC keyed by an opaque handle id (BF-368).
     const activityTerminalId: TerminalId = this.terminalId as TerminalId;
-    this.relayClient = new TerminalRelayClient({
-      url,
-      subprotocols: ['vt-bearer', token],
-      onData: (data: string): void => {
-        this.term?.write(data);
-        notifyTerminalOutput(activityTerminalId);
-      },
-      onStatus: (status: RelayConnectionStatus): void => {
-        this.setRelayStatus(status);
-        if (status === 'connected' && this.term) {
-          this.relayClient?.sendResize(this.term.cols, this.term.rows);
-        }
-      },
+    const handle: string = await window.electronAPI.terminal.attach(this.terminalId);
+    this.relayHandle = handle;
+
+    const offData: () => void = window.electronAPI.terminal.onData(handle, (data: string): void => {
+      this.term?.write(data);
+      notifyTerminalOutput(activityTerminalId);
     });
-    this.relayClient.connect();
+    const offStatus: () => void = window.electronAPI.terminal.onStatus(handle, (status: RelayConnectionStatus): void => {
+      this.setRelayStatus(status);
+      if (status === 'connected' && this.term) {
+        void window.electronAPI?.terminal.resize(handle, this.term.cols, this.term.rows);
+      }
+    });
+    this.relayUnsubscribers.push(offData, offStatus);
   }
 
   private writeToBackend(data: string): void {
-    if (!this.terminalId) return;
-    this.relayClient?.sendData(data);
+    if (!this.terminalId || !this.relayHandle) return;
+    void window.electronAPI?.terminal.write(this.relayHandle, data);
   }
 
   private resizeBackend(cols: number, rows: number): void {
-    if (!this.terminalId) return;
-    this.relayClient?.sendResize(cols, rows);
+    if (!this.terminalId || !this.relayHandle) return;
+    void window.electronAPI?.terminal.resize(this.relayHandle, cols, rows);
   }
 
   private createRelayStatusIndicator(): void {
@@ -387,8 +382,16 @@ export class TerminalVanilla {
       this.resizeObserver.disconnect();
     }
 
-    this.relayClient?.dispose();
-    this.relayClient = null;
+    for (const off of this.relayUnsubscribers) {
+      try { off(); } catch { /* best-effort */ }
+    }
+    this.relayUnsubscribers = [];
+    if (this.relayHandle) {
+      // Fire-and-forget — the IPC handler is idempotent (BF-368 gotcha:
+      // xterm.js can trigger dispose() twice on rapid unmount).
+      void window.electronAPI?.terminal.detach(this.relayHandle);
+      this.relayHandle = null;
+    }
     this.relayStatusEl?.remove();
     this.relayStatusEl = null;
 
