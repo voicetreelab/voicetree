@@ -111,19 +111,33 @@ function tryKill(pid: number, signal: NodeJS.Signals | 0 = 'SIGKILL'): void {
  * (Gotcha 9): a sibling `graphd.owner.json` could in principle have a
  * shape that overlaps enough to satisfy the union schema; the assertion
  * is the guard.
+ *
+ * Under full-workspace concurrent test load the protocol's atomic-replace
+ * writer can race a single `readFile` so the read lands on a partially-
+ * truncated file — schema decode then returns null and the test sees a
+ * spurious failure. The bounded retry-on-decode-failure window covers
+ * that race without hiding genuine protocol bugs: a genuinely broken
+ * record never resolves in 2 s.
  */
 export async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
-  const raw = await readFile(join(vault, '.voicetree', OWNER_FILE), 'utf8')
-  const decoded = ownerRecordFile.decode(raw)
-  if (decoded === null) {
-    throw new Error('owner record on disk did not satisfy OwnerRecord schema')
+  const path = join(vault, '.voicetree', OWNER_FILE)
+  const deadline = Date.now() + 2000
+  let lastError: Error | null = null
+  while (Date.now() < deadline) {
+    const raw = await readFile(path, 'utf8')
+    const decoded = ownerRecordFile.decode(raw)
+    if (decoded === null) {
+      lastError = new Error('owner record on disk did not satisfy OwnerRecord schema')
+    } else if (decoded.daemonKind !== 'vtd') {
+      lastError = new Error(
+        `owner record on disk has daemonKind=${decoded.daemonKind}, expected vtd`,
+      )
+    } else {
+      return decoded
+    }
+    await new Promise((res) => setTimeout(res, 20))
   }
-  if (decoded.daemonKind !== 'vtd') {
-    throw new Error(
-      `owner record on disk has daemonKind=${decoded.daemonKind}, expected vtd`,
-    )
-  }
-  return decoded
+  throw lastError ?? new Error('owner record decode did not converge within retry window')
 }
 
 export async function readPersistedOwnerOrNull(

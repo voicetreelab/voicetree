@@ -162,8 +162,14 @@ export async function deleteOwnerRecord(
 
 /**
  * Liveness check for an owner pid. Mirrors the same `kill(pid, 0)` probe
- * the legacy lock used, with EPERM treated as `alive` so we never
- * authorise removing an owner record we cannot inspect.
+ * the legacy lock used. Only `ESRCH` (no such process) means "dead";
+ * every other error code is conservatively treated as "alive" so we
+ * never authorise removing an owner record we cannot positively prove
+ * has gone away. EPERM is the realistic case (process exists but signal
+ * not allowed); other codes are exotic kernel returns where assuming
+ * alive is the strictly safer default for both the owner-record-delete
+ * path and the parent-pid watchdog (which uses this same predicate via
+ * {@link ../parentPidWatchdog.ts}).
  */
 export function isOwnerPidAlive(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) return false
@@ -172,9 +178,7 @@ export function isOwnerPidAlive(pid: number): boolean {
     return true
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ESRCH') return false
-    // EPERM => process exists but signal not allowed; treat as alive.
-    return code === 'EPERM'
+    return code !== 'ESRCH'
   }
 }
 
