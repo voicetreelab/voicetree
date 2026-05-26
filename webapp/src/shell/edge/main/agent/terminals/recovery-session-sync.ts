@@ -1,5 +1,13 @@
-import type {RecoverableAgentSession, TerminalId} from '@vt/agent-runtime'
-import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import {
+    discoverRecoverableAgentSessions,
+    ensureVtDaemonForVault,
+    forkAgentSession,
+    resumePersistedAgentSession,
+    type RecoverableAgentSession,
+    type TerminalId,
+    type VtDaemonClient,
+} from '@vt/vt-daemon-client'
+import {getActiveVault} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy'
 
 const RECOVERY_POLL_INTERVAL_MS: number = 10_000
@@ -12,13 +20,21 @@ type RendererRecoveryActionResult = {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
+async function getVtDaemonClient(): Promise<VtDaemonClient> {
+    const vaultPath: string | null = getActiveVault()
+    if (!vaultPath) throw new Error('recovery-session-sync: no active vt-daemon binding')
+    const {client} = await ensureVtDaemonForVault(vaultPath, 'electron')
+    return client
+}
+
 function publishRecoverySessions(sessions: readonly RecoverableAgentSession[]): void {
     uiAPI.syncRecoverySessions(sessions)
 }
 
 export async function refreshRecoverySessions(): Promise<readonly RecoverableAgentSession[]> {
     try {
-        const sessions: readonly RecoverableAgentSession[] = await terminalRuntimeSurface.discoverRecoverableAgentSessions()
+        const client: VtDaemonClient = await getVtDaemonClient()
+        const sessions: readonly RecoverableAgentSession[] = await discoverRecoverableAgentSessions(client)
         publishRecoverySessions(sessions)
         return sessions
     } catch (error) {
@@ -42,7 +58,8 @@ export function stopRecoverySessionPolling(): void {
 }
 
 export async function resumeRecoverySession(terminalId: string): Promise<RendererRecoveryActionResult> {
-    const result = await terminalRuntimeSurface.resumePersistedAgentSession(terminalId as TerminalId)
+    const client: VtDaemonClient = await getVtDaemonClient()
+    const result = await resumePersistedAgentSession(client, {terminalId: terminalId as TerminalId})
     void refreshRecoverySessions().catch(() => undefined)
     if (result.kind === 'spawned') {
         return {success: true, terminalId}
@@ -57,7 +74,8 @@ export async function resumeRecoverySession(terminalId: string): Promise<Rendere
 }
 
 export async function forkRecoverySession(sourceTerminalId: string): Promise<RendererRecoveryActionResult> {
-    const result = await terminalRuntimeSurface.forkAgentSession(sourceTerminalId as TerminalId)
+    const client: VtDaemonClient = await getVtDaemonClient()
+    const result = await forkAgentSession(client, {sourceTerminalId: sourceTerminalId as TerminalId})
     void refreshRecoverySessions().catch(() => undefined)
     if (result.kind === 'spawned') {
         return {success: true, terminalId: result.forkedTerminalId}
