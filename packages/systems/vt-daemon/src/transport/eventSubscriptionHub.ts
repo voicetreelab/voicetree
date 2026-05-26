@@ -18,9 +18,14 @@
 // httpServer layer wraps each subscriber's send fn around the WS connection
 // and uses overflow() to close with WS code 1011.
 
-import {TERMINAL_REGISTRY_TOPIC} from '@vt/vt-daemon-protocol'
+import type {TerminalRegistryTopic} from '@vt/vt-daemon-protocol'
 
-export type TopicName = 'agent-events' | typeof TERMINAL_REGISTRY_TOPIC
+// The protocol package owns the topic-name TYPE; the daemon spells the
+// runtime literal here. The type annotation makes TypeScript reject any
+// drift from the canonical 'terminal-registry' string in the protocol.
+export const TERMINAL_REGISTRY_TOPIC: TerminalRegistryTopic = 'terminal-registry'
+
+export type TopicName = 'agent-events' | TerminalRegistryTopic
 
 export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-events', TERMINAL_REGISTRY_TOPIC]
 

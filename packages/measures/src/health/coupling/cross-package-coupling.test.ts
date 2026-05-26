@@ -148,8 +148,8 @@ type ImportEdge = {
 // 2026-05-27 [Phase 2 / BF-376]: BF-376 outbound caller-cutover adds the
 // `vt-daemon-protocol` package and the webapp→vt-daemon-client edge that
 // replaces the webapp→agent-runtime edge:
-//   vt-daemon -> vt-daemon-protocol:        0 -> 1  (TERMINAL_REGISTRY_TOPIC
-//     — the topic-name constant; the 19 contract namespaces are type-only)
+//   vt-daemon -> vt-daemon-protocol:        0 -> 1  (TERMINAL_REGISTRY_EVENT_TYPES
+//     for terminalRegistrySse.ts; topic-name const is type-only here)
 //   vt-daemon-client -> vt-daemon-protocol: 0 -> 1  (`*` namespace re-export
 //     of the contracts so client wrappers and renderers reach them through
 //     one entry point; the 26 type-only symbols are free)
