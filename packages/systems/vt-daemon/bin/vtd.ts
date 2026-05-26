@@ -301,6 +301,10 @@ async function main(): Promise<void> {
             // dev on another machine dials this daemon directly.
             bindHost: process.env.VOICETREE_DAEMON_BIND ?? '127.0.0.1',
             port: args.port,
+            // Stamped into every `agent-events` SSE envelope so consumers
+            // can apply the vault-switch fence (BF-376 / main-host-purity
+            // spec §"Vault-switch fence drops stale events").
+            canonicalVault: args.vault,
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats

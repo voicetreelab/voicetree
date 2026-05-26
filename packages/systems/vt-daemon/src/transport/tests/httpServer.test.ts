@@ -150,7 +150,7 @@ describe('POST /hook/:source — agent lifecycle ingestion', (): void => {
         expect(res.status).toBe(401)
     })
 
-    it('publishes an agent-lifecycle event to subscribers', async (): Promise<void> => {
+    it('publishes an agent-events event to subscribers', async (): Promise<void> => {
         const hookHandler: HookHandler = (): unknown => ({ok: true})
         const {handle, token} = await bring(new Map(), hookHandler)
         const events: Array<{topic: string; event: string; data: unknown}> = []
@@ -161,7 +161,7 @@ describe('POST /hook/:source — agent lifecycle ingestion', (): void => {
             },
             overflow: (): void => {},
         })
-        sub.subscribe([{topic: 'agent-lifecycle'}])
+        sub.subscribe([{topic: 'agent-events'}])
 
         await fetch(`${handle.url}/hook/claude-code?terminal=T2&event=Stop`, {
             method: 'POST',
@@ -169,7 +169,7 @@ describe('POST /hook/:source — agent lifecycle ingestion', (): void => {
             body: '{}',
         })
         expect(events).toHaveLength(1)
-        expect(events[0]).toMatchObject({topic: 'agent-lifecycle', event: 'Stop'})
+        expect(events[0]).toMatchObject({topic: 'agent-events', event: 'Stop'})
         const data = events[0].data as {terminalId: string; source: string}
         expect(data.terminalId).toBe('T2')
         expect(data.source).toBe('claude-code')

@@ -55,29 +55,29 @@ describe('eventSubscriptionHub', (): void => {
         const hub: EventSubscriptionHub = createEventSubscriptionHub()
         const sub: CapturingSubscriber = makeSubscriber()
         const handle: SubscriberHandle = hub.addSubscriber(sub.subscriber)
-        handle.subscribe([{topic: 'agent-lifecycle'}])
+        handle.subscribe([{topic: 'agent-events'}])
 
         hub.publish('vault-state', 'file-added', {path: '/v/a.md'})
         expect(sub.frames).toHaveLength(0)
 
-        hub.publish('agent-lifecycle', 'agent-spawned', {terminalId: 'T1'})
+        hub.publish('agent-events', 'agent-spawned', {terminalId: 'T1'})
         expect(sub.frames).toHaveLength(1)
-        expect(JSON.parse(sub.frames[0]).topic).toBe('agent-lifecycle')
+        expect(JSON.parse(sub.frames[0]).topic).toBe('agent-events')
     })
 
     it('seq increments monotonically per topic', (): void => {
         const hub: EventSubscriptionHub = createEventSubscriptionHub()
         const sub: CapturingSubscriber = makeSubscriber()
         const handle: SubscriberHandle = hub.addSubscriber(sub.subscriber)
-        handle.subscribe([{topic: 'vault-state'}, {topic: 'agent-lifecycle'}])
+        handle.subscribe([{topic: 'vault-state'}, {topic: 'agent-events'}])
 
         hub.publish('vault-state', 'a', {})
-        hub.publish('agent-lifecycle', 'b', {})
+        hub.publish('agent-events', 'b', {})
         hub.publish('vault-state', 'c', {})
 
         const parsed = sub.frames.map((f: string): {topic: string; seq: number} => JSON.parse(f))
         expect(parsed.filter(p => p.topic === 'vault-state').map(p => p.seq)).toEqual([1, 2])
-        expect(parsed.filter(p => p.topic === 'agent-lifecycle').map(p => p.seq)).toEqual([1])
+        expect(parsed.filter(p => p.topic === 'agent-events').map(p => p.seq)).toEqual([1])
     })
 
     it('resume buffer replays from a seen seq', (): void => {
@@ -129,14 +129,14 @@ describe('eventSubscriptionHub', (): void => {
         const hub: EventSubscriptionHub = createEventSubscriptionHub()
         const sub: CapturingSubscriber = makeSubscriber()
         const handle: SubscriberHandle = hub.addSubscriber(sub.subscriber)
-        handle.subscribe([{topic: 'vault-state'}, {topic: 'agent-lifecycle'}])
+        handle.subscribe([{topic: 'vault-state'}, {topic: 'agent-events'}])
         handle.unsubscribe(['vault-state'])
 
         hub.publish('vault-state', 'should-skip', {})
-        hub.publish('agent-lifecycle', 'should-deliver', {})
+        hub.publish('agent-events', 'should-deliver', {})
 
         expect(sub.frames).toHaveLength(1)
-        expect(JSON.parse(sub.frames[0]).topic).toBe('agent-lifecycle')
+        expect(JSON.parse(sub.frames[0]).topic).toBe('agent-events')
     })
 
     it('overflow: closes the subscriber and stops sending on queue ceiling', (): void => {
@@ -200,7 +200,7 @@ describe('eventSubscriptionHub', (): void => {
         hub.publish('vault-state', 'a', {})
         hub.publish('vault-state', 'b', {})
         expect(hub.currentSeq('vault-state')).toBe(2)
-        expect(hub.currentSeq('agent-lifecycle')).toBe(0)
+        expect(hub.currentSeq('agent-events')).toBe(0)
     })
 
     it('close() removes a subscriber so subsequent publishes do not reach it', (): void => {

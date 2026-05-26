@@ -29,6 +29,11 @@ import type {Duplex} from 'node:stream'
 import {WebSocket, WebSocketServer} from 'ws'
 
 import type {VtDaemonHealthResponse} from '../contract.ts'
+import {
+    handleAgentEventsSse,
+    matchAgentEventsPath,
+    parseSinceQuery,
+} from './agentEventsSse.ts'
 import {createEventSubscriptionHub, type EventSubscriptionHub} from './eventSubscriptionHub.ts'
 import {
     authorizeWsUpgrade,
@@ -80,6 +85,16 @@ export interface StartHttpDaemonOptions {
      * unlocks the discovery probe used by BF-373's ensure path.
      */
     readonly readHealth?: () => VtDaemonHealthResponse
+    /**
+     * Canonical vault path. Stamped into every `agent-events` SSE envelope
+     * so consumers can apply the vault-switch fence
+     * (`specs/main-host-purity/spec.md` §"Vault-switch fence drops stale
+     * events"). Optional during decomposition: when absent, the agent-events
+     * SSE route returns 503 with an explanatory body so the unwired state
+     * is observable rather than silently emitting envelopes with an empty
+     * vault.
+     */
+    readonly canonicalVault?: string
 }
 
 const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
@@ -164,11 +179,11 @@ async function handleHook(
     // handler contract takes the resolved event name.
     void parsedBody
 
-    // Publish agent-lifecycle event regardless of whether the hook handler
+    // Publish agent-events event regardless of whether the hook handler
     // ignored or mapped it — subscribers learn about every hook ingestion.
     // Source typing kept loose intentionally; subscriber decides what to do.
     if (terminalId && eventName) {
-        hub.publish('agent-lifecycle', eventName, {
+        hub.publish('agent-events', eventName, {
             terminalId,
             source,
             at: Date.now(),
@@ -220,6 +235,7 @@ function buildRequestHandler(
     token: string,
     logger: AccessLogger,
     readHealth: (() => VtDaemonHealthResponse) | undefined,
+    canonicalVault: string | undefined,
 ): (req: IncomingMessage, res: ServerResponse) => void {
     return (req: IncomingMessage, res: ServerResponse): void => {
         const method: string = req.method ?? 'GET'
@@ -260,6 +276,29 @@ function buildRequestHandler(
                 if (!res.headersSent) { res.statusCode = 500; res.end() }
             })
             return
+        }
+        if (method === 'GET') {
+            const pathname: string = new URL(url, 'http://127.0.0.1').pathname
+            const sessionId: string | null = matchAgentEventsPath(pathname)
+            if (sessionId !== null) {
+                if (canonicalVault === undefined) {
+                    res.statusCode = 503
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({error: 'agent-events sse not wired (canonicalVault unset)'}))
+                    logger.logRequest(buildAccessLogLine(req, 503))
+                    return
+                }
+                handleAgentEventsSse(req, res, {
+                    hub,
+                    canonicalVault,
+                    resumeSeq: parseSinceQuery(url),
+                })
+                // SSE is long-lived; log the open here so we still see the
+                // request in the access log. Close is observed at the
+                // socket layer (logged by node's keep-alive close handler).
+                logger.logRequest(buildAccessLogLine(req, 200))
+                return
+            }
         }
         if (
             method !== 'POST'
@@ -341,7 +380,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
     const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring()
 
     const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth,
+        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth, options.canonicalVault,
     ))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 

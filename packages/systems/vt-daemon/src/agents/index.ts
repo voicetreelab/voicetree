@@ -34,6 +34,15 @@ export {
     type SubscribeRequest,
     type PublishedEvent,
 } from '../transport/eventSubscriptionHub'
+export {
+    encodeSseBlock as encodeAgentEventsSseBlock,
+    matchAgentEventsPath,
+    parseSinceQuery,
+    projectHubEventToEnvelope,
+    type AgentEventEnvelope,
+    type AgentEventsGapEnvelope,
+    type AgentEventsFrame,
+} from '../transport/agentEventsSse'
 export {handleHookEventRequest, resolveHookEventName, type HookHandlerResponse, type HookHandlerInput} from '../hooks/hookEventHandler'
 export {startVaultStateWatcher, type VaultStateWatcherHandle, type StartVaultStateWatcherOptions} from '../transport/vaultStateWatcher'
 export {terminalRuntimeSurface} from '../tools/agent-control/terminalRuntimeSurface'
