@@ -47,7 +47,12 @@ exporters:
       enabled: true
   file/metrics:
     path: "${env:HOME}/.voicetree/perf/${env:VOICETREE_RUN_INSTANCE_ID:-__collector_unscoped__}/metrics/vt-test.metrics.ndjson"
-  # PHASE_2C_TRACES_EXPORTERS: otlp/tempo + file
+  otlp/tempo:
+    endpoint: 127.0.0.1:4327
+    tls:
+      insecure: true
+  file/traces:
+    path: "${env:HOME}/.voicetree/perf/${env:VOICETREE_RUN_INSTANCE_ID:-__collector_unscoped__}/traces/vt-test.spans.ndjson"
 
 service:
   extensions: [health_check]
@@ -61,4 +66,6 @@ service:
     metrics:
       receivers: [otlp]
       exporters: [prometheusremotewrite, file/metrics]
-    # PHASE_2C_TRACES_PIPELINE
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/tempo, file/traces]
