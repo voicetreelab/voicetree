@@ -89,9 +89,6 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
-tracing.init('vt-electron-main');
-tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
-validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
@@ -191,8 +188,14 @@ function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
 }
 
-function pinProcessAppSupportPath(): void {
-    process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+function pinProcessAppSupportPath(
+    env: NodeJS.ProcessEnv = process.env,
+): { readonly otlpEndpoint?: string; readonly instanceId?: string } {
+    env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+    return {
+        otlpEndpoint: env.VOICETREE_OTLP_ENDPOINT,
+        instanceId: env.VOICETREE_RUN_INSTANCE_ID,
+    };
 }
 
 async function getProjectRoot(): Promise<string | null> {
@@ -202,7 +205,9 @@ async function getProjectRoot(): Promise<string | null> {
 }
 
 configureEnvironment();
-pinProcessAppSupportPath();
+tracing.init('vt-electron-main', pinProcessAppSupportPath());
+tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
+validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
 // Global manager instances

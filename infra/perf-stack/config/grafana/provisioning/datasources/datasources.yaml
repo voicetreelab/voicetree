@@ -1,0 +1,67 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://localhost:8428
+    editable: true
+    jsonData:
+      timeInterval: 60s
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+          urlDisplayLabel: "Trace: $${__value.raw}"
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: http://localhost:3200
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        customQuery: true
+        datasourceUid: "loki"
+        query: '{$${__tags}} | logfmt | trace_id = "$${__trace.traceId}"'
+        tags:
+          - key: "service.name"
+            value: "service_name"
+
+      tracesToProfiles:
+        customQuery: true
+        datasourceUid: "pyroscope"
+        profileTypeId: "wall:cpu:nanoseconds:wall:nanoseconds"
+        query: '{$${__tags}}'
+        tags:
+          - key: "service.name"
+            value: "service_name"
+          - key: "service.instance.id"
+            value: "service_instance_id"
+
+      serviceMap:
+        datasourceUid: "prometheus"
+      search:
+        hide: false
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: "loki"
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://localhost:3100
+    editable: true
+    jsonData:
+      derivedFields:
+        - name: "trace_id"
+          matcherType: "label"
+          matcherRegex: "trace_id"
+          url: "$${__value.raw}"
+          datasourceUid: "tempo"
+          urlDisplayLabel: "Trace: $${__value.raw}"
+
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    uid: pyroscope
+    url: http://localhost:4040
