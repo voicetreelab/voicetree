@@ -14,7 +14,7 @@
     "graph-db-client/client": 20,
     "graph-db-protocol/__root__": 87,
     "graph-db-server/__root__": 1,
-    "graph-db-server/application": 216,
+    "graph-db-server/application": 218,
     "graph-db-server/daemon": 56,
     "graph-db-server/data": 141,
     "graph-db-server/routes": 34,
