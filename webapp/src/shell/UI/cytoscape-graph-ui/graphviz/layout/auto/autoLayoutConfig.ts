@@ -1,7 +1,7 @@
 import type { LayoutEngine, LayoutConfig, AutoLayoutOptions } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS } from './autoLayoutTypes';
 
-const VALID_ENGINES: readonly LayoutEngine[] = ['forceatlas2', 'webcola'] as const;
+const VALID_ENGINES: readonly LayoutEngine[] = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
 
 /**
  * Parse layoutConfig JSON string into typed layout options.

@@ -18,7 +18,7 @@ export interface AutoLayoutOptions {
   edgeJaccardLength?: number | ((edge: EdgeSingular) => number);
 }
 
-export type LayoutEngine = 'forceatlas2' | 'webcola';
+export type LayoutEngine = 'forceatlas2' | 'combocombined' | 'mindmap' | 'webcola';
 
 export interface LayoutConfig {
   engine: LayoutEngine;
