@@ -31,7 +31,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@vt/agent-runtime": "*",
     "@vt/app-config": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",
@@ -39,7 +38,7 @@
     "@vt/graph-model": "*",
     "@vt/graph-tools": "*",
     "@vt/graph-validation": "*",
-    "@vt/vt-daemon": "*",
+    "@vt/vt-daemon-client": "*",
     "@vt/vt-rpc": "*",
     "esbuild": "^0.25.0",
     "fp-ts": "^2.16.9",
