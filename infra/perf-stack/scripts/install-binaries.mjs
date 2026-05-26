@@ -83,6 +83,17 @@ const BINARIES = [
     binaryCandidates: ['victoria-metrics-prod', 'victoria-metrics'],
   },
   {
+    name: 'promtool',
+    version: 'v3.11.3',
+    kind: 'archive',
+    urlPattern: () =>
+      'https://github.com/prometheus/prometheus/releases/download/v3.11.3/prometheus-3.11.3.darwin-arm64.tar.gz',
+    sha256: {
+      'darwin-arm64': '742773c5b3958eec5e6b58802f25cf77b47a319219ce0d508ed2f657c61d8859',
+    },
+    binaryCandidates: ['promtool'],
+  },
+  {
     name: 'pyroscope',
     version: 'v2.0.2',
     kind: 'archive',
