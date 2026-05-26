@@ -18,7 +18,7 @@ import {
   safeStopFileWatching,
   tmuxCommandArgsForTest,
   type ExtendedWindow,
-} from "../electron-smoke-helpers";
+} from "@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers";
 
 // AGENT_NAMES (in graph-model/settings/types.ts) is the round-robin list the
 // spawn flow picks from; stale sessions of these names from prior runs cause

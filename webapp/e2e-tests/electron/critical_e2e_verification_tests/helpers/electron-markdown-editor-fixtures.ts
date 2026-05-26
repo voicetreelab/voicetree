@@ -15,7 +15,7 @@ import {
   resolveGraphDaemonNodeBin,
   robustElectronTeardown,
   safeStopFileWatching,
-} from '../electron-smoke-helpers';
+} from '@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
 

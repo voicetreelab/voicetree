@@ -8,7 +8,7 @@
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
-    "lint": "eslint 'src/shell/UI' 'src/shell/web' 'src/utils' 'e2e-tests' '*.config.ts' 'src/shell/edge/UI-edge' 'src/shell/edge/renderer' 'src/shell/edge/main/agent' 'src/shell/edge/main/graph' 'src/shell/edge/main/runtime/*.ts' 'src/shell/edge/main/runtime/edge-auto-rpc' 'src/shell/edge/main/runtime/state' 'src/shell/edge/main/runtime/electron/*.ts' 'src/shell/edge/main/runtime/electron/app' 'src/shell/edge/main/runtime/electron/daemon' 'src/shell/edge/main/runtime/electron/server' 'src/shell/edge/main/runtime/electron/startup' 'src/shell/edge/main/runtime/mcp-server' 'src/shell/edge/main/observability' 'src/shell/edge/main/settings' 'src/shell/edge/main/workflows' 'src/shell/edge/main/workspace'",
+    "lint": "eslint 'src/shell/UI' 'src/shell/web' 'src/utils' 'e2e-tests' '*.config.ts' 'src/shell/edge/UI-edge' 'src/shell/edge/renderer' 'src/shell/edge/main/agent' 'src/shell/edge/main/graph' 'src/shell/edge/main/runtime/*.ts' 'src/shell/edge/main/runtime/edge-auto-rpc' 'src/shell/edge/main/runtime/state' 'src/shell/edge/main/runtime/electron/*.ts' 'src/shell/edge/main/runtime/electron/app' 'src/shell/edge/main/runtime/electron/daemon' 'src/shell/edge/main/runtime/electron/server' 'src/shell/edge/main/runtime/electron/startup' 'src/shell/edge/main/observability' 'src/shell/edge/main/settings' 'src/shell/edge/main/workflows' 'src/shell/edge/main/workspace'",
     "check": "tsc --noEmit && npm run check:e2e-taxonomy",
     "check:e2e-taxonomy": "node scripts/check-e2e-taxonomy.mjs",
     "postinstall": "../scripts/rebuild-native.sh",
