@@ -23,6 +23,8 @@ storage:
     dir: infra/perf-stack/storage/pyroscope/shared
 
 distributor:
+  ingestion_rate_limit_mb: 64
+  ingestion_burst_size_mb: 64
   ring:
     kvstore:
       store: inmemory
@@ -33,3 +35,6 @@ segment_writer:
 
 query_backend:
   address: 127.0.0.1:2991
+
+validation:
+  max_profile_stacktrace_samples: 0
