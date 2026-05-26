@@ -26,7 +26,7 @@ export type ResumePersistedDeps = {
 }
 
 export type ResumePersistedResult =
-    | {readonly kind: 'spawned'; readonly pid: number; readonly command: string}
+    | {readonly kind: 'spawned'; readonly pid: number; readonly command: string; readonly terminalData: TerminalData}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'already-claimed' | 'no-resume-handle'}
     | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
     | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
@@ -96,7 +96,7 @@ export async function resumePersistedAgentSession(
             cwd,
             env,
         )
-        return {kind: 'spawned', pid: result.pid, command: built.command}
+        return {kind: 'spawned', pid: result.pid, command: built.command, terminalData: session.terminalData}
     } catch (error) {
         return {kind: 'spawn-failed', error: error instanceof Error ? error.message : String(error)}
     }

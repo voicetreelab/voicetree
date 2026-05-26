@@ -196,6 +196,7 @@ webapp/workers/share-worker/.wrangler/**
 !packages/measures/budgets/HOW_TO_BUMP_BASELINES.md
 !packages/measures/src/health/coupling/__tests__/**/*.md
 !packages/systems/agent-runtime/src/application/terminals/tmux/README.md
+!webapp/e2e-tests/electron/README.md
 !scripts/agent-debugging/README.md
 !scripts/agent-debugging/REFERENCE.md
 !openspec/**/*.md
