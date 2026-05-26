@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const DEFAULT_TEMPO_ADDR = 'http://localhost:3200'
+const DEFAULT_TEMPO_ADDR = 'http://localhost:2997'
 const DEFAULT_LIMIT = 20
 const DEFAULT_FROM = '24h'
 

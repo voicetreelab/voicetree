@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const BACKEND_URL = 'http://localhost:4040'
+const BACKEND_URL = 'http://localhost:2995'
 const SIGNAL = 'profiles'
 const APP_NAME = 'vt-test'
 const CHILD_WORK_MS = 5_000

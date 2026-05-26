@@ -2,7 +2,7 @@
 import { writeFile } from 'node:fs/promises'
 import { Profile, StringTable, emptyTableToken } from 'pprof-format'
 
-const DEFAULT_PYROSCOPE_URL = 'http://127.0.0.1:4040'
+const DEFAULT_PYROSCOPE_URL = 'http://127.0.0.1:2995'
 const SELECT_MERGE_PROFILE_PATH = '/querier.v1.QuerierService/SelectMergeProfile'
 const INTEGER = /^-?\d+$/
 const RELATIVE_TIME = /^now-(\d+)([smhdw])$/

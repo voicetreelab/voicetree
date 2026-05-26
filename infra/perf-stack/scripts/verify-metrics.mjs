@@ -11,8 +11,8 @@ import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const BACKEND_URL = 'http://localhost:8428'
-const OTLP_GRPC_URL = 'http://127.0.0.1:4317'
+const BACKEND_URL = 'http://localhost:2996'
+const OTLP_GRPC_URL = 'http://127.0.0.1:2994'
 const SERVICE_NAME = 'vt-test'
 const METRIC_NAME = 'vt_test_counter'
 const POLL_INTERVAL_MS = 500

@@ -6,8 +6,8 @@ extensions:
 receivers:
   otlp:
     protocols:
-      grpc: { endpoint: 127.0.0.1:4317 }
-      http: { endpoint: 127.0.0.1:4318 }
+      grpc: { endpoint: 127.0.0.1:2994 }
+      http: { endpoint: 127.0.0.1:2993 }
   filelog:
     include: [ "${env:HOME}/.voicetree/perf/*/logs/*.log" ]
     include_file_path: true
@@ -53,9 +53,9 @@ exporters:
   debug:
     verbosity: basic
   otlphttp/loki:
-    endpoint: http://localhost:3100/otlp
+    endpoint: http://localhost:2998/otlp
   prometheusremotewrite:
-    endpoint: http://localhost:8428/api/v1/write
+    endpoint: http://localhost:2996/api/v1/write
     add_metric_suffixes: false
     resource_to_telemetry_conversion:
       enabled: true

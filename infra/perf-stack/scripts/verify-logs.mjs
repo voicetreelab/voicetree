@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-const BACKEND_URL = 'http://localhost:3100'
+const BACKEND_URL = 'http://localhost:2998'
 const SIGNAL = 'logs'
 const POLL_INTERVAL_MS = 500
 const TIMEOUT_MS = 10_000

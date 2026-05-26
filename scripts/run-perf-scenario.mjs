@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path'
 const DEFAULT_DURATION_MS = 30_000
 const READY_TIMEOUT_MS = 15_000
 const SHUTDOWN_TIMEOUT_MS = 10_000
-const OTLP_ENDPOINT = 'http://localhost:4317'
+const OTLP_ENDPOINT = 'http://localhost:2994'
 
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms))
 
@@ -169,7 +169,7 @@ async function main() {
   const projectRoot = process.argv[2] ? resolve(process.argv[2]) : await makeScenarioVault(runUuid)
 
   process.stdout.write(`Run UUID: ${runUuid}\n`)
-  process.stdout.write(`Grafana: http://localhost:3000/?var-run_id=${runUuid}\n`)
+  process.stdout.write(`Grafana: http://localhost:2999/?var-run_id=${runUuid}\n`)
   process.stdout.write(`Artifacts: ${join(homedir(), '.voicetree', 'perf', runUuid)}\n`)
 
   await assertPerfStackUp()

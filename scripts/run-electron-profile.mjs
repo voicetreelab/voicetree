@@ -5,8 +5,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4317'
-const GRAFANA_RUNS_DASHBOARD = 'http://localhost:3000/d/vt-runs/vt-runs'
+const DEFAULT_OTLP_ENDPOINT = 'http://localhost:2994'
+const GRAFANA_RUNS_DASHBOARD = 'http://localhost:2999/d/vt-runs/vt-runs'
 
 function resolveRunUuid(env = process.env) {
   return env.VOICETREE_RUN_INSTANCE_ID && env.VOICETREE_RUN_INSTANCE_ID.length > 0

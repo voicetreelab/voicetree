@@ -14,8 +14,8 @@ import {
   ATTR_SERVICE_NAME,
 } from '@opentelemetry/semantic-conventions'
 
-const BACKEND_URL = 'http://localhost:3200'
-const OTLP_GRPC_URL = 'http://127.0.0.1:4317'
+const BACKEND_URL = 'http://localhost:2997'
+const OTLP_GRPC_URL = 'http://127.0.0.1:2994'
 const SERVICE_NAME = 'vt-test'
 const SIGNAL = 'traces'
 const POLL_INTERVAL_MS = 500

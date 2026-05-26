@@ -1,11 +1,11 @@
 server:
   http_listen_address: 127.0.0.1
-  http_listen_port: 4040
+  http_listen_port: 2995
   grpc_listen_address: 127.0.0.1
-  grpc_listen_port: 9097
+  grpc_listen_port: 2991
 
 metastore:
-  address: 127.0.0.1:9097
+  address: 127.0.0.1:2991
   min_ready_duration: 1s
   data_dir: infra/perf-stack/storage/pyroscope/metastore/data
   raft:
@@ -32,4 +32,4 @@ segment_writer:
     min_ready_duration: 1s
 
 query_backend:
-  address: 127.0.0.1:9097
+  address: 127.0.0.1:2991

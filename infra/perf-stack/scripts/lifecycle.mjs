@@ -30,24 +30,24 @@ const SERVICES = [
     name: 'loki',
     command: join(BIN_DIR, 'loki'),
     args: ['--config.file=infra/perf-stack/config/loki.yaml'],
-    ready: 'http://127.0.0.1:3100/ready',
+    ready: 'http://127.0.0.1:2998/ready',
   },
   {
     name: 'tempo',
     command: join(BIN_DIR, 'tempo'),
     args: ['--config.file=infra/perf-stack/config/tempo.yaml'],
-    ready: 'http://127.0.0.1:3200/ready',
+    ready: 'http://127.0.0.1:2997/ready',
   },
   {
     name: 'victoriametrics',
     command: join(BIN_DIR, 'victoriametrics'),
     args: [
       `-storageDataPath=${join(STORAGE_DIR, 'victoriametrics')}`,
-      '-httpListenAddr=127.0.0.1:8428',
+      '-httpListenAddr=127.0.0.1:2996',
       '-retentionPeriod=1d',
       '-search.latencyOffset=0s',
     ],
-    ready: 'http://127.0.0.1:8428/health',
+    ready: 'http://127.0.0.1:2996/health',
   },
   {
     name: 'pyroscope',
@@ -55,10 +55,10 @@ const SERVICES = [
     args: [
       '--config.file=infra/perf-stack/config/pyroscope.yaml',
       '--segment-writer.lifecycler.addr=127.0.0.1',
-      '--segment-writer.lifecycler.port=9097',
+      '--segment-writer.lifecycler.port=2991',
       '--segment-writer.store=inmemory',
     ],
-    ready: 'http://127.0.0.1:4040/ready',
+    ready: 'http://127.0.0.1:2995/ready',
   },
   {
     name: 'grafana',
@@ -74,7 +74,7 @@ const SERVICES = [
       GF_PATHS_PLUGINS: join(STORAGE_DIR, 'grafana/plugins'),
       GF_PATHS_PROVISIONING: GRAFANA_PROVISIONING_RUNTIME_DIR,
     },
-    ready: 'http://127.0.0.1:3000/api/health',
+    ready: 'http://127.0.0.1:2999/api/health',
   },
   {
     name: 'otelcol-contrib',
@@ -204,7 +204,7 @@ const startStack = async () => {
   await ensurePerfArtifactRoot()
   await spawnService(OTELCOL)
   await waitReady(OTELCOL)
-  console.log('Grafana ready at http://localhost:3000')
+  console.log('Grafana ready at http://localhost:2999')
 }
 
 const stopPid = async (service, pid) => {
@@ -258,7 +258,7 @@ const checkStack = async () => {
 const openGrafana = async (runUuid) => {
   if (!(await checkStack())) await startStack()
   const suffix = runUuid ? `?var-run_id=${encodeURIComponent(runUuid)}` : ''
-  const url = `http://localhost:3000${suffix}`
+  const url = `http://localhost:2999${suffix}`
   if (process.platform === 'darwin') {
     spawn('open', [url], { detached: true, stdio: 'ignore' }).unref()
   } else {

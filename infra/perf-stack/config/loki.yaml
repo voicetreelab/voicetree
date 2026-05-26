@@ -2,9 +2,9 @@ auth_enabled: false
 
 server:
   http_listen_address: 127.0.0.1
-  http_listen_port: 3100
+  http_listen_port: 2998
   grpc_listen_address: 127.0.0.1
-  grpc_listen_port: 9095
+  grpc_listen_port: 2992
 
 common:
   instance_addr: 127.0.0.1

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '../../..')
 const LOGCLI = join(REPO_ROOT, 'infra/perf-stack/bin/logcli')
-const OTLP_ENDPOINT = 'http://localhost:4317'
+const OTLP_ENDPOINT = 'http://localhost:2994'
 const READY_TIMEOUT_MS = 15_000
 const LOKI_TIMEOUT_MS = 20_000
 const POLL_INTERVAL_MS = 500
@@ -169,7 +169,7 @@ async function waitForKilled(child) {
 async function queryLokiBodies({ runUuid, expectedCount }) {
   const query = `{service_name="vt-graphd",service_instance_id="${runUuid}"}`
   const result = await runCommand(LOGCLI, [
-    '--addr=http://localhost:3100',
+    '--addr=http://localhost:2998',
     'query',
     query,
     '--since=10m',

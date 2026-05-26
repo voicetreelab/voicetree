@@ -13,6 +13,6 @@ test('electron profile wrapper documents the stamped OTLP default and standalone
 
   assert.match(stdout, /Usage: npm run electron:profile/)
   assert.match(stdout, /VOICETREE_RUN_INSTANCE_ID/)
-  assert.match(stdout, /VOICETREE_OTLP_ENDPOINT=http:\/\/localhost:4317/)
+  assert.match(stdout, /VOICETREE_OTLP_ENDPOINT=http:\/\/localhost:2994/)
   assert.match(stdout, /--no-otlp/)
 })

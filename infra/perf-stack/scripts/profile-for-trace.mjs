@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { pathToFileURL } from 'node:url'
 
-const DEFAULT_TEMPO_URL = 'http://localhost:3200'
-const DEFAULT_PYROSCOPE_URL = 'http://localhost:4040'
+const DEFAULT_TEMPO_URL = 'http://localhost:2997'
+const DEFAULT_PYROSCOPE_URL = 'http://localhost:2995'
 const DEFAULT_PROFILE_TYPE = 'wall:cpu:nanoseconds:wall:nanoseconds'
 const DEFAULT_PADDING_MS = 60_000
 

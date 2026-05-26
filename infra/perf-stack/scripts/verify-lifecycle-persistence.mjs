@@ -8,10 +8,10 @@ import { dirname, join } from 'node:path'
 const SCENARIO_MS = 12_000
 const POLL_INTERVAL_MS = 1_000
 const POLL_TIMEOUT_MS = 45_000
-const VM_URL = 'http://localhost:8428'
-const LOKI_URL = 'http://localhost:3100'
-const TEMPO_URL = 'http://localhost:3200'
-const PYROSCOPE_URL = 'http://localhost:4040'
+const VM_URL = 'http://localhost:2996'
+const LOKI_URL = 'http://localhost:2998'
+const TEMPO_URL = 'http://localhost:2997'
+const PYROSCOPE_URL = 'http://localhost:2995'
 const PROFILE_TYPE = 'wall:cpu:nanoseconds:wall:nanoseconds'
 
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms))

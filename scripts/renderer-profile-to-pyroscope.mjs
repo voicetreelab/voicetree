@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { convertV8CpuProfileToPprof } from '@vt/perf-analysis/v8-cpuprofile-to-pprof'
 
-const PYROSCOPE_URL = process.env.PYROSCOPE_URL ?? 'http://localhost:4040'
+const PYROSCOPE_URL = process.env.PYROSCOPE_URL ?? 'http://localhost:2995'
 const RENDERER_SERVICE = 'vt-renderer'
 
 function usage() {

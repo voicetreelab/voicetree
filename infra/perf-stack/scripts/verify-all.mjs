@@ -8,10 +8,10 @@ import { fileURLToPath } from 'node:url'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const SIGNALS = [
-  { name: 'logs', backend: 'loki:3100' },
-  { name: 'metrics', backend: 'victoriametrics:8428' },
-  { name: 'traces', backend: 'tempo:3200' },
-  { name: 'profiles', backend: 'pyroscope:4040' },
+  { name: 'logs', backend: 'loki:2998' },
+  { name: 'metrics', backend: 'victoriametrics:2996' },
+  { name: 'traces', backend: 'tempo:2997' },
+  { name: 'profiles', backend: 'pyroscope:2995' },
 ]
 
 const exists = async (path) => access(path).then(() => true, () => false)

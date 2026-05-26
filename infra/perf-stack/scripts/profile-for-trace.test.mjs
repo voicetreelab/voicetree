@@ -98,7 +98,7 @@ test('selectSpan defaults to the longest span and supports explicit selectors', 
 test('profile query derivation remaps OTel resource attributes to Pyroscope labels', () => {
   const result = deriveProfileQuery(tracePayload, {
     traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    pyroscopeUrl: 'http://localhost:4040',
+    pyroscopeUrl: 'http://localhost:2995',
     profileType: 'wall:cpu:nanoseconds:wall:nanoseconds',
     paddingMs: 60_000,
   })
@@ -133,13 +133,13 @@ test('profileWindowForSpan applies non-negative padding window', () => {
 test('buildPyroscopeRenderUrl creates render API URL', () => {
   assert.equal(
     buildPyroscopeRenderUrl({
-      pyroscopeUrl: 'http://localhost:4040',
+      pyroscopeUrl: 'http://localhost:2995',
       profileType: 'wall:cpu:nanoseconds:wall:nanoseconds',
       labelSelector: '{service_name="vt-graphd"}',
       fromMs: 1_000,
       untilMs: 2_001,
     }).toString(),
-    'http://localhost:4040/pyroscope/render?query=wall%3Acpu%3Ananoseconds%3Awall%3Ananoseconds%7Bservice_name%3D%22vt-graphd%22%7D&from=1&until=3&format=json',
+    'http://localhost:2995/pyroscope/render?query=wall%3Acpu%3Ananoseconds%3Awall%3Ananoseconds%7Bservice_name%3D%22vt-graphd%22%7D&from=1&until=3&format=json',
   )
 })
 
