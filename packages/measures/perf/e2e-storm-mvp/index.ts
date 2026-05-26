@@ -26,7 +26,7 @@ import { generateVaultOnDisk } from '@vt/perf-fixtures'
 import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
 import { runFakeAgent, buildMultiCreateNodeScript, type FakeAgentResult } from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
-import { computePerfRunDir, flushAndStopVtGraphd } from './perfProfile.ts'
+import { computePerfRunDir, flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -238,6 +238,7 @@ async function main(): Promise<void> {
             process.stdout.write(
                 `[mvp] flushed vt-graphd: signaled=${JSON.stringify(flushed.signaled)} `
                 + `exitedCleanly=${JSON.stringify(flushed.exitedCleanly)} `
+                + `forceKilled=${JSON.stringify(flushed.forceKilled)} `
                 + `stillAlive=${JSON.stringify(flushed.stillAlive)}\n`,
             )
         }
@@ -270,6 +271,17 @@ async function main(): Promise<void> {
                 }
             }
         }
+
+        const postElectronFlush = await forceStopVtGraphd(projectDir, 2_000)
+        if (postElectronFlush.signaled.length > 0) {
+            process.stdout.write(
+                `[mvp] stopped post-electron vt-graphd: signaled=${JSON.stringify(postElectronFlush.signaled)} `
+                + `exitedCleanly=${JSON.stringify(postElectronFlush.exitedCleanly)} `
+                + `forceKilled=${JSON.stringify(postElectronFlush.forceKilled)} `
+                + `stillAlive=${JSON.stringify(postElectronFlush.stillAlive)}\n`,
+            )
+        }
+
         const reaped = killOrphanVtGraphdDaemons()
         if (reaped.killed.length > 0) {
             process.stdout.write(`[mvp] reaped orphan vt-graphd daemons: ${JSON.stringify(reaped.killed)}\n`)

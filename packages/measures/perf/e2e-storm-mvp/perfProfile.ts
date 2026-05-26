@@ -25,6 +25,7 @@
  */
 import * as path from 'node:path'
 import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 
 export interface PerfProfileEnv {
     readonly VOICETREE_PERF_PROFILE: '1'
@@ -47,24 +48,46 @@ export function computePerfRunDir(reportsDir: string, tsSuffix: string): PerfPro
     }
 }
 
+function ownerRecordPid(projectRoot: string): number | null {
+    try {
+        const raw = readFileSync(path.join(projectRoot, '.voicetree', 'graphd.owner.json'), 'utf8')
+        const value = JSON.parse(raw) as { readonly pid?: unknown }
+        return typeof value.pid === 'number' && Number.isInteger(value.pid) && value.pid > 0
+            ? value.pid
+            : null
+    } catch {
+        return null
+    }
+}
+
+function projectRootArg(args: string): string | null {
+    const match = /--project-root(?:=|\s+)(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(args)
+    return match?.[1] ?? match?.[2] ?? match?.[3] ?? null
+}
+
 function listVtGraphdPidsForProjectRoot(projectRoot: string): readonly number[] {
     if (process.platform === 'win32') return []
+    const pids = new Set<number>()
+    const ownerPid = ownerRecordPid(projectRoot)
+    if (ownerPid !== null) pids.add(ownerPid)
+
     try {
         const raw = execSync('ps -A -o pid=,args=', { encoding: 'utf8' })
-        const target = `--project-root ${projectRoot}`
-        const pids: number[] = []
         for (const line of raw.split('\n')) {
             const trimmed = line.trim()
             if (!trimmed) continue
             if (!trimmed.includes('vt-graphd')) continue
-            if (!trimmed.includes(target)) continue
             const m = trimmed.match(/^(\d+)\s/)
-            if (m) pids.push(Number.parseInt(m[1], 10))
+            if (!m) continue
+            const rootArg = projectRootArg(trimmed.slice(m[0].length))
+            if (rootArg !== null && path.resolve(rootArg) === path.resolve(projectRoot)) {
+                pids.add(Number.parseInt(m[1], 10))
+            }
         }
-        return pids
     } catch {
-        return []
+        // Keep any owner-record pid we already found.
     }
+    return [...pids].sort((left, right) => left - right)
 }
 
 function isPidAlive(pid: number): boolean {
@@ -79,6 +102,7 @@ function isPidAlive(pid: number): boolean {
 export interface FlushResult {
     readonly signaled: readonly number[]
     readonly exitedCleanly: readonly number[]
+    readonly forceKilled: readonly number[]
     readonly stillAlive: readonly number[]
     readonly waitMsActual: number
 }
@@ -94,11 +118,28 @@ export async function flushAndStopVtGraphd(
     waitMs: number,
     pollMs = 100,
 ): Promise<FlushResult> {
+    return stopVtGraphd(projectRoot, waitMs, 'SIGTERM', pollMs)
+}
+
+export async function forceStopVtGraphd(
+    projectRoot: string,
+    waitMs: number,
+    pollMs = 100,
+): Promise<FlushResult> {
+    return stopVtGraphd(projectRoot, waitMs, 'SIGKILL', pollMs)
+}
+
+async function stopVtGraphd(
+    projectRoot: string,
+    waitMs: number,
+    signal: 'SIGTERM' | 'SIGKILL',
+    pollMs: number,
+): Promise<FlushResult> {
     const pids = listVtGraphdPidsForProjectRoot(projectRoot)
     const signaled: number[] = []
     for (const pid of pids) {
         try {
-            process.kill(pid, 'SIGTERM')
+            process.kill(pid, signal)
             signaled.push(pid)
         } catch { /* already gone */ }
     }
@@ -110,6 +151,17 @@ export async function flushAndStopVtGraphd(
     }
 
     const exitedCleanly = signaled.filter(p => !isPidAlive(p))
+    const aliveAfterGrace = signal === 'SIGTERM' ? signaled.filter(p => isPidAlive(p)) : []
+    const forceKilled: number[] = []
+    for (const pid of aliveAfterGrace) {
+        try {
+            process.kill(pid, 'SIGKILL')
+            forceKilled.push(pid)
+        } catch { /* already gone */ }
+    }
+    if (forceKilled.length > 0) {
+        await new Promise(r => setTimeout(r, pollMs))
+    }
     const stillAlive = signaled.filter(p => isPidAlive(p))
-    return { signaled, exitedCleanly, stillAlive, waitMsActual: Date.now() - (deadline - waitMs) }
+    return { signaled, exitedCleanly, forceKilled, stillAlive, waitMsActual: Date.now() - (deadline - waitMs) }
 }
