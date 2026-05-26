@@ -76,6 +76,85 @@ describe('mcp-client-config: OpenCode integration', () => {
         });
     });
 
+    describe('writeMcpClientConfigsToDir', () => {
+        const worktreeDir: string = path.join(testDir, '.worktrees', 'wt-example');
+        const worktreeMcpJsonPath: string = path.join(worktreeDir, '.mcp.json');
+        const worktreeCodexConfigPath: string = path.join(worktreeDir, '.codex', 'config.toml');
+
+        it('writes both .mcp.json and .codex/config.toml into an arbitrary worktree dir', async () => {
+            await fs.mkdir(worktreeDir, { recursive: true });
+
+            await mcpClientConfig.writeMcpClientConfigsToDir(worktreeDir, 4242);
+
+            const mcpJson = JSON.parse(await fs.readFile(worktreeMcpJsonPath, 'utf-8'));
+            expect(mcpJson.mcpServers.voicetree.url).toBe('http://127.0.0.1:4242/mcp');
+
+            const codex: string = await fs.readFile(worktreeCodexConfigPath, 'utf-8');
+            expect(codex).toBe('[mcp_servers.voicetree]\nurl = "http://localhost:4242/mcp"\n');
+        });
+
+        it('preserves other MCP servers in .mcp.json and other TOML sections in .codex/config.toml', async () => {
+            await fs.mkdir(path.join(worktreeDir, '.codex'), { recursive: true });
+
+            await fs.writeFile(
+                worktreeMcpJsonPath,
+                JSON.stringify({
+                    mcpServers: {
+                        playwright: { type: 'stdio', command: 'npx', args: ['@playwright/mcp@latest'] },
+                        voicetree: { type: 'http', url: 'http://127.0.0.1:9999/mcp' },
+                    },
+                }, null, 2),
+                'utf-8',
+            );
+
+            await fs.writeFile(
+                worktreeCodexConfigPath,
+                '[other_section]\nkey = "value"\n\n[mcp_servers.voicetree]\nurl = "http://localhost:9999/mcp"\n',
+                'utf-8',
+            );
+
+            await mcpClientConfig.writeMcpClientConfigsToDir(worktreeDir, 4242);
+
+            const mcpJson = JSON.parse(await fs.readFile(worktreeMcpJsonPath, 'utf-8'));
+            expect(mcpJson.mcpServers.playwright).toEqual({
+                type: 'stdio',
+                command: 'npx',
+                args: ['@playwright/mcp@latest'],
+            });
+            expect(mcpJson.mcpServers.voicetree.url).toBe('http://127.0.0.1:4242/mcp');
+
+            const codex: string = await fs.readFile(worktreeCodexConfigPath, 'utf-8');
+            expect(codex).toContain('[other_section]\nkey = "value"');
+            expect(codex).toContain('[mcp_servers.voicetree]\nurl = "http://localhost:4242/mcp"');
+            expect(codex).not.toContain('9999');
+        });
+
+        it('appends [mcp_servers.voicetree] when .codex/config.toml exists without it', async () => {
+            await fs.mkdir(path.join(worktreeDir, '.codex'), { recursive: true });
+            await fs.writeFile(
+                worktreeCodexConfigPath,
+                '[model]\nname = "gpt-5"\n',
+                'utf-8',
+            );
+
+            await mcpClientConfig.writeMcpClientConfigsToDir(worktreeDir, 4242);
+
+            const codex: string = await fs.readFile(worktreeCodexConfigPath, 'utf-8');
+            expect(codex).toContain('[model]\nname = "gpt-5"');
+            expect(codex).toContain('[mcp_servers.voicetree]\nurl = "http://localhost:4242/mcp"');
+        });
+
+        it('creates .codex/ directory when missing', async () => {
+            await fs.mkdir(worktreeDir, { recursive: true });
+            // No .codex/ subdirectory exists yet
+
+            await mcpClientConfig.writeMcpClientConfigsToDir(worktreeDir, 4242);
+
+            const codex: string = await fs.readFile(worktreeCodexConfigPath, 'utf-8');
+            expect(codex).toBe('[mcp_servers.voicetree]\nurl = "http://localhost:4242/mcp"\n');
+        });
+    });
+
     describe('enableOpencodeMcpIntegration', () => {
         it('should create opencode.jsonc with voicetree config when file does not exist', async () => {
             await expect((mcpClientConfig as any).enableOpencodeMcpIntegration()).resolves.not.toThrow();
