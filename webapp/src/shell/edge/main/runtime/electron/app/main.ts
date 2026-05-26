@@ -41,10 +41,8 @@ import {
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
-import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
 import {
     getGraphFromDaemon,
-    getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
@@ -115,10 +113,6 @@ configureMcpServer({
                 searchFromNode,
             );
         },
-    },
-    liveState: {
-        applyLiveCommand,
-        getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
     },
     search: {
         askQuery,

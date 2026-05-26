@@ -10,7 +10,6 @@ import type { VaultState } from '@vt/graph-db-client'
 import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
-import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import {
     getStartupVaultHint,
     openVault,
@@ -92,7 +91,6 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
     try {
         await stopDaemonGraphSync()
         await callDaemon((client) => client.closeVault())
-        syncWatchedProjectRoot(null)
         getCallbacks().onFolderCleared?.()
         return { success: true }
     } catch (error) {
@@ -146,7 +144,7 @@ export async function createDatedVoiceTreeFolder(): Promise<{
         const previousVaultState: VaultState = await getVaultState()
         const watchedDir: string = previousVaultState.projectRoot
         const newPath: string = await createDatedSubfolder(watchedDir)
-        const nextVaultState: VaultState = await callDaemon(async (client) => {
+        await callDaemon(async (client) => {
             await client.addReadPath(newPath)
             return await client.setWriteFolder(newPath)
         })
@@ -159,7 +157,6 @@ export async function createDatedVoiceTreeFolder(): Promise<{
             await callDaemon((client) => client.removeReadPath(previousVaultState.writeFolder)).catch(() => undefined)
         }
 
-        syncWatchedProjectRoot(nextVaultState.projectRoot)
         return { success: true, path: newPath }
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)
