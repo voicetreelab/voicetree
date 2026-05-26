@@ -2,10 +2,10 @@ import {checkArgs, type CheckDef} from '../../_types.ts'
 
 export const check: CheckDef = {
     id: 'mutation-graph-model',
-    name: 'Mutation Testing — graph-model smoke (Stryker, break=70%)',
+    name: 'Mutation Testing — graph-model (Stryker, break=70%)',
     category: 'Other',
-    display: 'npm --workspace @vt/graph-model run test:mutation:smoke',
-    args: () => checkArgs.npmWorkspaceRun('@vt/graph-model', 'test:mutation:smoke'),
+    display: 'npm --workspace @vt/graph-model run test:mutation',
+    args: () => checkArgs.npmWorkspaceRun('@vt/graph-model', 'test:mutation'),
     parser: 'none',
-    timeoutMs: checkArgs.e2eTimeoutMs,
+    timeoutMs: checkArgs.mutationTimeoutMs,
 }
