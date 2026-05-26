@@ -1,7 +1,11 @@
 // Per-topic monotonic-seq pubsub with a bounded resume buffer and a
 // per-subscriber bounded outbound queue. Topics are pinned to
-// `vault-state` (chokidar) and `agent-events` (hook ingestion) per design
-// doc §4.3 / §8.2.
+// `vault-state` (chokidar), `agent-events` (hook ingestion), and
+// `terminal-registry` (BF-376 outbound — registry mutations + the
+// imperative UI-launch instructions that `getRuntimeUI()` used to fire
+// in-process). Per design decision 2 (BF-376 outbound design.md §6),
+// terminal-registry is its own narrow homogeneous topic, NOT a widening
+// of the agent-events envelope.
 //
 // Wire envelopes (text frames on the WS):
 //   server→client: { type: 'event', topic, seq, event, data }
@@ -13,9 +17,11 @@
 // httpServer layer wraps each subscriber's send fn around the WS connection
 // and uses overflow() to close with WS code 1011.
 
-export type TopicName = 'vault-state' | 'agent-events'
+import {TERMINAL_REGISTRY_TOPIC} from '@vt/vt-daemon-protocol'
 
-export const ALLOWED_TOPICS: readonly TopicName[] = ['vault-state', 'agent-events']
+export type TopicName = 'vault-state' | 'agent-events' | typeof TERMINAL_REGISTRY_TOPIC
+
+export const ALLOWED_TOPICS: readonly TopicName[] = ['vault-state', 'agent-events', TERMINAL_REGISTRY_TOPIC]
 
 const RESUME_BUFFER_SIZE: number = 100
 const PER_SUBSCRIBER_QUEUE_LIMIT: number = 1000
