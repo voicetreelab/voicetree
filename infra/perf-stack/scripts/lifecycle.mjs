@@ -81,6 +81,13 @@ const OTELCOL = SERVICES[5]
 const exists = async (path) => access(path).then(() => true, () => false)
 const pidPath = (name) => join(PID_DIR, `${name}.pid`)
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms))
+const collectorRunId = () => process.env.VOICETREE_RUN_INSTANCE_ID ?? '__collector_unscoped__'
+
+const ensureCollectorRunDirs = async () => {
+  if (!process.env.HOME) throw new Error('HOME is required to create perf stack artifact directories')
+  const runDir = join(process.env.HOME, '.voicetree', 'perf', collectorRunId())
+  await Promise.all(['logs', 'metrics', 'traces', 'verify'].map((name) => mkdir(join(runDir, name), { recursive: true })))
+}
 
 const readPid = async (name) => {
   try {
@@ -175,6 +182,7 @@ const startStack = async () => {
   await Promise.all(BACKENDS.map((service) => waitReady(service)))
   await spawnService(GRAFANA)
   await waitReady(GRAFANA)
+  await ensureCollectorRunDirs()
   await spawnService(OTELCOL)
   await waitReady(OTELCOL)
   console.log('Grafana ready at http://localhost:3000')
