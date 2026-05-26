@@ -19,6 +19,18 @@ Wire dialect: JSON-RPC 2.0 over POST `/rpc` on the daemon's existing HTTP pipeli
 
 ---
 
+## 0. Bundling assumption — Phase 2 ships with Phase 3
+
+**Phase 2 ships bundled with Phase 3.** Phase 2 retires the in-process `@vt/agent-runtime` from webapp; as part of that retirement the `onFSNodeWithAgentName` callback in `webapp/src/shell/edge/main/graph/graph-model-init.ts` is deleted with no in-webapp replacement (M1, commit `44282b93f`). Today that callback is the only path that feeds agent-name FS edges (those that arrive *outside* the MCP `create_graph` flow) into the completion gate.
+
+Phase 3 lands the FS watcher in VTD, which republishes those edges through the daemon-side hook pipeline (`dispatchOnNewNodeHooks` consumer side). That closes the gap.
+
+**Both phases MUST land in the same release.** Merging Phase 2 alone to main would introduce a coverage regression on FS-only agent-name edges: the in-process producer is gone, the VTD-side producer has not yet landed, and the completion gate would silently miss these edges between releases.
+
+This bundling assumption is the reason Stage 4 ships Phase 2 to its own branch (`phase-2/bf-376-outbound`) rather than to `main`; the release manager merges Phase 2 + Phase 3 together once both are green.
+
+---
+
 ## 1. The 19 RPC routes
 
 Request / response shapes live in `packages/libraries/vt-daemon-protocol/src/rpc-contracts.ts` under one `namespace` per route. Method names are pinned by `TERMINAL_RPC_METHODS` in that file.
