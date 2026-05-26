@@ -39,7 +39,7 @@
     "measures/_runners": 5,
     "measures/_shared": 78,
     "measures/_subgraph_gate": 92,
-    "measures/checks": 66,
+    "measures/checks": 64,
     "measures/health": 1,
     "observability/__root__": 2,
     "perf-fixtures/__root__": 8,
