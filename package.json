@@ -42,8 +42,6 @@
     "test:perf:agents:local": "node --import tsx packages/measures/perf/agent-storm.ts",
     "perf:main-storm": "node scripts/run-remote.mjs npm run perf:main-storm:local --",
     "perf:main-storm:local": "npm --workspace webapp exec -- electron-vite build && node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/run-with-xvfb-if-needed.ts node --import tsx packages/measures/perf/electron-main-storm.ts",
-    "test:perf:e2e-storm": "node scripts/run-remote.mjs npm run test:perf:e2e-storm:local --",
-    "test:perf:e2e-storm:local": "npm --workspace webapp exec -- electron-vite build && cd webapp && node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/run-with-xvfb-if-needed.ts npx playwright test --config=playwright-electron-dev.config.ts e2e-tests/electron/for_feature_development_not_LT_verification/graph/perf/electron-agent-storm-perf.spec.ts --reporter=list",
     "test:perf:e2e-mvp": "node scripts/run-remote.mjs npm run test:perf:e2e-mvp:local --",
     "test:perf:e2e-mvp:local": "npm --workspace webapp exec -- electron-vite build && node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/run-with-xvfb-if-needed.ts node --import tsx packages/measures/perf/e2e-storm-mvp/index.ts",
     "perf:diagnose:writes": "node scripts/run-remote.mjs npm run perf:diagnose:writes:local --",
