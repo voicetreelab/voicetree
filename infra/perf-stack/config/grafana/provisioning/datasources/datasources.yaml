@@ -27,6 +27,17 @@ datasources:
           - key: "service.name"
             value: "service_name"
 
+      tracesToProfiles:
+        customQuery: true
+        datasourceUid: "pyroscope"
+        profileTypeId: "wall:cpu:nanoseconds:wall:nanoseconds"
+        query: '{$${__tags}}'
+        tags:
+          - key: "service.name"
+            value: "service_name"
+          - key: "service.instance.id"
+            value: "service_instance_id"
+
       serviceMap:
         datasourceUid: "prometheus"
       search:
