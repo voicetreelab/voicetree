@@ -45,6 +45,7 @@
     "perf:diagnose:writes": "node scripts/run-remote.mjs npm run perf:diagnose:writes:local --",
     "perf:diagnose:writes:local": "node packages/measures/perf/diagnose-concurrent-writes.mjs",
     "measures:dashboard": "node health-dashboard/server.mjs",
+    "perf:view": "node perf-dashboard/server.mjs",
     "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
     "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
     "measures:capture-baselines": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-subgraph-baselines.ts",
