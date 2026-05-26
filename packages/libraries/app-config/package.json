@@ -8,7 +8,8 @@
     "./settings": "./src/settings/settings_IO.ts",
     "./vault-config": "./src/vault-config/voicetree-config-io.ts",
     "./project": "./src/project/index.ts",
-    "./positions": "./src/positions/positions-store.ts"
+    "./positions": "./src/positions/positions-store.ts",
+    "./vault-bootstrap": "./src/vault-bootstrap/index.ts"
   },
   "dependencies": {
     "@vt/graph-model": "*",

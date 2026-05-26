@@ -1,4 +1,3 @@
-export {stripStaleVoicetreeMcpEntries} from '../config/mcp-client-config'
 export {
     applyMcpGraphDelta,
     getMcpGraph,

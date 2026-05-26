@@ -223,7 +223,11 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
-    'webapp -> app-config': 22,
+    // 2026-05-27: +2 — `stripStaleVoicetreeMcpEntries` and
+    // `writeVaultAgentDiscoveryFile` moved here from `@vt/vt-daemon` (both
+    // are pure FS helpers with no daemon-runtime state; their location in
+    // vt-daemon was historical from the universal-vault-boot era).
+    'webapp -> app-config': 24,
     'webapp -> graph-db-client': 9,
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
