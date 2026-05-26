@@ -19,6 +19,7 @@ import {z} from 'zod'
 import type {ZodTypeAny, ZodRawShape} from 'zod'
 
 import type {McpToolResponse} from './toolResponse'
+import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
 import {spawnAgentTool} from './agent-control/spawnAgentTool'
 import {listAgentsTool} from './agent-control/listAgentsTool'
 import {waitForAgentsTool} from './agent-control/waitForAgentsTool'
@@ -267,21 +268,48 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = [
  *      (-32602) error with `data` populated (design doc §4.4).
  *   3. On success, delegates to the entry's handler with the parsed params.
  *
- * Pure: depends only on `TOOL_CATALOG` data, no I/O.
+ * The 19 BF-376 outbound RPC routes (`RPC_ROUTES`) are merged in the same
+ * way — they share the dispatch infrastructure but live outside
+ * `TOOL_CATALOG` because they are not user-facing MCP tools (no manual
+ * coverage check, no description leader).
+ *
+ * Pure: depends only on `TOOL_CATALOG` + `RPC_ROUTES` data, no I/O.
  */
 export function buildCatalogDispatchMap(): ReadonlyMap<string, CatalogHandler> {
-    const entries: Array<[string, CatalogHandler]> = TOOL_CATALOG.map((entry: CatalogEntry): [string, CatalogHandler] => {
-        const schema: ZodTypeAny = z.object(entry.inputShape)
-        const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<McpToolResponse> => {
-            const parsed: ReturnType<typeof schema.safeParse> = schema.safeParse(args)
-            if (!parsed.success) {
-                throw new CatalogValidationError(entry.name, parsed.error.issues)
+    const toolEntries: Array<[string, CatalogHandler]> = TOOL_CATALOG.map(
+        (entry: CatalogEntry): [string, CatalogHandler] => {
+            const schema: ZodTypeAny = z.object(entry.inputShape)
+            const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+                const parsed: ReturnType<typeof schema.safeParse> = schema.safeParse(args)
+                if (!parsed.success) {
+                    throw new CatalogValidationError(entry.name, parsed.error.issues)
+                }
+                return entry.handler(parsed.data as Record<string, unknown>)
             }
-            return entry.handler(parsed.data as Record<string, unknown>)
-        }
-        return [entry.name, validating]
-    })
-    return new Map(entries)
+            return [entry.name, validating]
+        },
+    )
+    const rpcEntries: Array<[string, CatalogHandler]> = RPC_ROUTES.map(
+        (route: RpcRoute): [string, CatalogHandler] => {
+            // Routes whose request shape is `Record<string, never>` (the
+            // arg-less reads) skip schema validation — `z.object({})` would
+            // strip every field, hiding accidental extras silently. For routes
+            // with declared `inputShape`, validate exactly like tool entries.
+            if (!route.inputShape) {
+                return [route.name, async (args: Record<string, unknown>): Promise<McpToolResponse> => route.handler(args)]
+            }
+            const schema: ZodTypeAny = z.object(route.inputShape)
+            const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+                const parsed: ReturnType<typeof schema.safeParse> = schema.safeParse(args)
+                if (!parsed.success) {
+                    throw new CatalogValidationError(route.name, parsed.error.issues)
+                }
+                return route.handler(parsed.data as Record<string, unknown>)
+            }
+            return [route.name, validating]
+        },
+    )
+    return new Map<string, CatalogHandler>([...toolEntries, ...rpcEntries])
 }
 
 export class CatalogValidationError extends Error {
