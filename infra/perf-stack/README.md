@@ -8,6 +8,7 @@ npm run perf:install
 npm run perf:up
 npm run perf:check
 npm run perf:view -- <run-uuid>
+npm run perf:profile-for-trace -- --trace-id=<trace-id>
 npm run perf:down
 ```
 
@@ -15,6 +16,14 @@ All services bind to `127.0.0.1`. Backend storage lives under
 `infra/perf-stack/storage/` and is wiped by `npm run perf:down` unless
 `-- --persist` is passed. Plain run artifacts under `~/.voicetree/perf/<uuid>/`
 are never touched by lifecycle commands.
+
+## Trace to profile correlation
+
+`npm run perf:profile-for-trace -- --trace-id=<trace-id>` loads a Tempo trace,
+selects the longest span by default, maps its OTel resource attributes to
+Pyroscope labels, and verifies that Pyroscope has samples in the span time
+window. Use `--span-id=<span-id>` or `--span-name=<span-name>` to inspect a
+specific span.
 
 ## Phase 2 edit protocol
 

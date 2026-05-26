@@ -54,6 +54,7 @@
     "perf:view": "node infra/perf-stack/scripts/lifecycle.mjs view",
     "perf:scenario": "node scripts/run-perf-scenario.mjs",
     "perf:traceql": "node infra/perf-stack/scripts/traceql.mjs",
+    "perf:profile-for-trace": "node infra/perf-stack/scripts/profile-for-trace.mjs",
     "perf:verify:lifecycle": "node infra/perf-stack/scripts/verify-lifecycle-persistence.mjs",
     "perf:verify:sigkill": "node infra/perf-stack/scripts/verify-sigkill-crash-resilience.mjs",
     "perf:verify": "node infra/perf-stack/scripts/verify-all.mjs",
