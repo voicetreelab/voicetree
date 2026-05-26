@@ -126,6 +126,8 @@ export interface VTSettings {
     readonly hooks?: HookSettings;
     /** Override the shell used for terminals. Leave unset for auto-detect ($SHELL on macOS/Linux, pwsh/powershell on Windows). */
     readonly shell?: string;
+    /** Enable tmux mouse handling in Voicetree terminals. Off by default so browser text selection works normally. */
+    readonly terminalTmuxMouseMode?: boolean;
     /** Name of the default agent (matched against agents[].name). Falls back to first agent if unset or not found. */
     readonly defaultAgent?: string;
     /** Notify via OS notification when an agent completes or errors (only when app is unfocused) */

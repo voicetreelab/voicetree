@@ -28,6 +28,7 @@ export interface TmuxAttachRelayOptions {
     readonly env?: NodeJS.ProcessEnv
     readonly loadPty?: () => Promise<NodePtyModule>
     readonly logger?: TmuxRelayLogger
+    readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
 }
 
 export interface TmuxAttachRelayHandle {
@@ -70,14 +71,14 @@ function parseAttachRequest(request: IncomingMessage): ParsedAttachRequest {
     }
 }
 
-function configureTmuxSession(sessionName: string): void {
+function configureTmuxSession(sessionName: string, tmuxMouseMode: boolean): void {
     // window-size=latest lets the most recently active client drive the window/pane size.
     // The relay's pty (via node-pty's TIOCSWINSZ → SIGWINCH → tmux client → server) is then
     // sufficient to resize panes: no explicit `tmux resize-pane` exec is needed at runtime.
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'window-size', 'latest']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'escape-time', '0']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'status', 'off']), {stdio: 'ignore'})
-    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', 'on']), {stdio: 'ignore'})
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', tmuxMouseMode ? 'on' : 'off']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'history-limit', '9999']), {stdio: 'ignore'})
 }
 
@@ -153,9 +154,15 @@ async function prepareExistingTmuxSession(
     }
 }
 
-function configureSessionForRelay(ws: WebSocket, logger: TmuxRelayLogger, sessionName: string): boolean {
+async function configureSessionForRelay(
+    ws: WebSocket,
+    logger: TmuxRelayLogger,
+    sessionName: string,
+    options: TmuxAttachRelayOptions
+): Promise<boolean> {
     try {
-        configureTmuxSession(sessionName)
+        const tmuxMouseMode: boolean = options.getTmuxMouseMode ? await options.getTmuxMouseMode() : false
+        configureTmuxSession(sessionName, tmuxMouseMode)
         return true
     } catch (error) {
         const message: string = errorMessage(error)
@@ -229,7 +236,7 @@ export async function attachTmuxSessionToWebSocket(
     const sessionName: string = resolveTmuxSessionName(parsed.sessionName)
 
     if (!(await prepareExistingTmuxSession(ws, logger, sessionName))) return
-    if (!configureSessionForRelay(ws, logger, sessionName)) return
+    if (!(await configureSessionForRelay(ws, logger, sessionName, options))) return
     logger.info(`[tmux-relay] ${sessionName}: attached cols=${parsed.cols} rows=${parsed.rows}`)
 
     const pty: NodePtyModule | null = await loadPtyForRelay(ws, logger, sessionName, options.loadPty ?? loadNodePty)
