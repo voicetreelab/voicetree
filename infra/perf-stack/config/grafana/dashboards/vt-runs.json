@@ -53,14 +53,14 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Distinct run IDs seen in VictoriaMetrics over the selected time range. Open links set var-run_id on the RED Metrics overview dashboard.",
+      "description": "Distinct run IDs seen in VictoriaMetrics over the selected time range. Open links set var-run_id on the Node Runtime overview dashboard.",
       "fieldConfig": {
         "defaults": {
           "links": [
             {
               "targetBlank": false,
               "title": "Open run overview",
-              "url": "/d/f543a537-cb96-470d-a349-660ad1513136?var-run_id=${__field.labels.service_instance_id}&${__url_time_range}"
+              "url": "/d/node-runtime-vt/node-runtime?var-run_id=${__data.fields[\"run_id\"]}&${__url_time_range}"
             }
           ]
         },
