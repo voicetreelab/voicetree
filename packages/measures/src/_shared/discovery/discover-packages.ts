@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url'
 export type PackageInfo = {
     readonly name: string
     readonly dirName: string
+    readonly packageJsonRelativePath: string
     readonly srcRoot: string
     readonly absDir: string
     /**
@@ -48,7 +49,7 @@ async function pathExists(path: string): Promise<boolean> {
     }
 }
 
-async function readdirOrEmpty(absDir: string): Promise<Awaited<ReturnType<typeof readdir>>> {
+async function readdirOrEmpty(absDir: string) {
     try {
         return await readdir(absDir, {withFileTypes: true})
     } catch (err) {
@@ -118,6 +119,7 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
                     found.push({
                         name: pkgJson.name,
                         dirName: basename(absDir),
+                        packageJsonRelativePath: relative(repoRoot, join(absDir, 'package.json')).replaceAll('\\', '/'),
                         srcRoot: srcDir,
                         absDir,
                         facadeRelativePaths: resolveFacadeRelativePaths(absDir, repoRoot, pkgJson.exports),

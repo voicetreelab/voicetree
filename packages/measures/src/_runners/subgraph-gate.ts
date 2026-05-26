@@ -107,6 +107,20 @@ function readRawStagedDiffPaths(): readonly string[] {
     return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0)
 }
 
+function getStagedTreeFiles(repoRoot: string): ReadonlySet<string> {
+    const stdout = execFileSync('git', ['ls-files', '--cached', '-z'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    return new Set(stdout.split('\0').filter(path => path.length > 0))
+}
+
+function getStagedTreePackages(stagedTreeFiles: ReadonlySet<string>): ReadonlySet<string> {
+    return new Set([...stagedTreeFiles].filter(path => path.endsWith('/package.json') || path === 'package.json'))
+}
+
 function mergeHeadShas(): readonly string[] {
     try {
         const mergeHeadPath = execFileSync('git', ['rev-parse', '--git-path', 'MERGE_HEAD'], {
@@ -249,6 +263,18 @@ async function runGate(args: Args): Promise<GateOutcome> {
     // it pre-loads) sees the post-commit state instead of the worktree.
     // Only active in the default flow (no --changed-files-from): an explicit
     // file list is a tooling/test invocation that wants worktree semantics.
+    // One-direction staged-tree enumeration guard. `scanSourceFiles` and
+    // `discoverPackages` still start from the worktree, then parseSubgraph
+    // drops paths/packages absent from the index. This intentionally does not
+    // close the inverse case where a HEAD-tracked file has been removed from
+    // the worktree but not staged; closing that requires `git ls-tree`
+    // enumeration and is out of scope for this small guard.
+    const stagedTreeFiles = args.changedFilesFrom === null
+        ? getStagedTreeFiles(DEFAULT_REPO_ROOT)
+        : undefined
+    const stagedTreePackages = stagedTreeFiles
+        ? getStagedTreePackages(stagedTreeFiles)
+        : undefined
     const stagedPaths: ReadonlySet<string> = args.changedFilesFrom === null
         ? new Set(readRawStagedDiffPaths())
         : new Set<string>()
@@ -262,6 +288,8 @@ async function runGate(args: Args): Promise<GateOutcome> {
         includeInbound: needsInbound,
         depth: args.depth,
         loadContent,
+        stagedTreeFiles,
+        stagedTreePackages,
     })
 
     if (parsedSubgraph.touchedCommunities.length === 0) return {kind: 'no-touched-communities'}
@@ -347,7 +375,7 @@ function renderReport(outcome: GateOutcome): {output: string; exitCode: number} 
 
 async function main(): Promise<{output: string; exitCode: number}> {
     const parsed = parseArgs(process.argv.slice(2))
-    if (!parsed.ok) return {output: parsed.error, exitCode: 2}
+    if (parsed.ok === false) return {output: parsed.error, exitCode: 2}
     const outcome = await runGate(parsed.args)
     return renderReport(outcome)
 }
