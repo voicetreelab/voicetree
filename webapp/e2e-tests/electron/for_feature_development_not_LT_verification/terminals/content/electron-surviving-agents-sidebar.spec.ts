@@ -388,6 +388,11 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             );
             await expect(resumedNode).toBeVisible({timeout: 15000});
 
+            const resumedFloatingWindow = appWindow.locator(
+                `[data-floating-window-id="${resumeTerminalId}"]`,
+            );
+            await expect(resumedFloatingWindow).toBeVisible({timeout: 15000});
+
             // Confirm server-side: tmux session for this terminalId exists.
             await expect.poll(() => {
                 const result = spawnSync(
@@ -429,12 +434,10 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             expect(matching!.env_agent).toBe(resumeTerminalId);
 
             // Graph-attachment contract: the resumed terminal must be wired back
-            // into the graph via its original context node. The runtime persists
-            // this in `.voicetree/terminals/<id>.json` via writeMetadata after
-            // recordTerminalSpawn, so the metadata file is the source of truth
-            // for "is this terminal attached to a graph node?". Visual rendering
-            // of the floating window is suppressed in HEADLESS_TEST mode, so
-            // we assert on the persistent state instead.
+            // into the graph via its original context node. The floating-window
+            // assertion above proves the renderer graph UI was launched; the
+            // persisted metadata below proves the recovered terminal kept its
+            // original context-node attachment.
             const persistedMetadataRaw: string = await fs.readFile(metadataPath, 'utf8');
             const persistedMetadata = JSON.parse(persistedMetadataRaw) as {
                 readonly name: string;
