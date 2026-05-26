@@ -13,9 +13,10 @@
  * pre-compute the path here so this test process and every spawned child
  * (electron-main → vt-graphd) all land artifacts in the same directory.
  *
- * vt-graphd is the only service that calls `perfProbeFromEnv` today; if
- * electron-main / renderer / mcpd ever add the call site, they'll share
- * this run dir without further wiring.
+ * vt-graphd calls `perfProbeFromEnv`. Electron main is sampled externally
+ * through its Node inspector port and writes compatible artifacts into the
+ * same run dir. If renderer / mcpd ever add perf-probe call sites, they'll
+ * share this run dir without further wiring.
  *
  * Flush-on-shutdown: `perfProbeFromEnv` writes the `.cpuprofile` and
  * flushes the metrics stream only inside its SIGINT/SIGTERM/beforeExit

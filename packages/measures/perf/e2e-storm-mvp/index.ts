@@ -7,18 +7,20 @@
  * vt-fake-agents that each create 5 nodes via real MCP, then asserts the
  * expected markdown files landed on disk.
  *
- * Profilers, NDJSON span aggregation, and CDP wiring are deliberately out
- * of scope — those layer on top once this baseline stays green.
+ * The harness captures one process at a time. vt-graphd uses the in-process
+ * perf probe; Electron main is captured externally through its Node inspector
+ * port so production Electron source stays out of the measurement contract.
  *
  * Run:
  *   node --import tsx packages/measures/perf/e2e-storm-mvp/index.ts
  *
  * Exit code: 0 on pass, 1 on fail.
  */
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { createWriteStream, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { finished } from 'node:stream/promises'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
@@ -27,6 +29,11 @@ import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
 import { runFakeAgent, buildMultiCreateNodeScript, type FakeAgentResult } from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
 import { computePerfRunDir, flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
+import {
+    startMainProcessProfile,
+    stopMainProcessProfileAndSave,
+    type MainProcessCdpHandle,
+} from '../_shared/main-process-cdp.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -57,6 +64,76 @@ function wallTimeStats(results: readonly FakeAgentResult[]) {
         p50: percentile(sorted, 50),
         p99: percentile(sorted, 99),
         max: sorted[sorted.length - 1] ?? 0,
+    }
+}
+
+interface MainProcessSnapshot {
+    readonly cpu: {
+        readonly user: number
+        readonly system: number
+    }
+    readonly memory: {
+        readonly rss: number
+        readonly heapUsed: number
+        readonly heapTotal: number
+        readonly external: number
+        readonly arrayBuffers: number
+    }
+}
+
+async function readMainProcessSnapshot(handle: MainProcessCdpHandle): Promise<MainProcessSnapshot> {
+    const response = await handle.send('Runtime.evaluate', {
+        expression: 'JSON.stringify({ cpu: process.cpuUsage(), memory: process.memoryUsage() })',
+        returnByValue: true,
+    })
+    const value = response.result?.result
+    if (!value || typeof value !== 'object' || !('value' in value) || typeof value.value !== 'string') {
+        throw new Error(`Runtime.evaluate returned no process snapshot (${response.error?.message ?? 'unknown'})`)
+    }
+    return JSON.parse(value.value) as MainProcessSnapshot
+}
+
+async function startMainProcessMetricsSampler(
+    handle: MainProcessCdpHandle,
+    metricsPath: string,
+): Promise<() => Promise<void>> {
+    mkdirSync(path.dirname(metricsPath), { recursive: true })
+    const stream = createWriteStream(metricsPath, { flags: 'a' })
+    let previousCpu = (await readMainProcessSnapshot(handle)).cpu
+    let stopped = false
+
+    const writeRow = async (): Promise<void> => {
+        if (stopped) return
+        const snapshot = await readMainProcessSnapshot(handle)
+        const row = {
+            t: Date.now(),
+            svc: 'electron-main',
+            cpu_user_ms: (snapshot.cpu.user - previousCpu.user) / 1000,
+            cpu_sys_ms: (snapshot.cpu.system - previousCpu.system) / 1000,
+            rss: snapshot.memory.rss,
+            heap_used: snapshot.memory.heapUsed,
+            heap_total: snapshot.memory.heapTotal,
+            external: snapshot.memory.external,
+            array_buffers: snapshot.memory.arrayBuffers,
+        }
+        previousCpu = snapshot.cpu
+        stream.write(`${JSON.stringify(row)}\n`)
+    }
+
+    const interval = setInterval(() => {
+        void writeRow().catch((error: unknown) => {
+            process.stderr.write(`[mvp] electron-main metrics sample failed: ${(error as Error).message}\n`)
+        })
+    }, 1000)
+    interval.unref()
+
+    return async () => {
+        if (stopped) return
+        clearInterval(interval)
+        await writeRow()
+        stopped = true
+        stream.end()
+        await finished(stream)
     }
 }
 
@@ -148,6 +225,8 @@ async function main(): Promise<void> {
     let nodesCreated = 0
     let filesAfter = filesBefore
     let app: Awaited<ReturnType<typeof launchElectronAndDiscoverMcp>>['app'] | null = null
+    let electronMainProfile: MainProcessCdpHandle | null = null
+    let stopElectronMainMetrics: (() => Promise<void>) | null = null
 
     try {
         const launched = await launchElectronAndDiscoverMcp({
@@ -168,6 +247,12 @@ async function main(): Promise<void> {
             `[mvp] electron booted (${electronBootMs}ms), mcp port=${mcpPort} `
             + `(discovered in ${mcpDiscoveryMs}ms)\n`,
         )
+        electronMainProfile = await startMainProcessProfile(args.inspectPort)
+        stopElectronMainMetrics = await startMainProcessMetricsSampler(
+            electronMainProfile,
+            path.join(perfProfile.runDir, 'metrics', 'electron-main.metrics.ndjson'),
+        )
+        process.stdout.write('[mvp] started electron-main CDP profile + metrics sampler\n')
 
         // Pick the first cluster node as the agent's parent — anchors the new
         // node under a real existing node, the way real agents work.
@@ -244,6 +329,22 @@ async function main(): Promise<void> {
         }
 
         if (app) {
+            if (electronMainProfile !== null) {
+                try {
+                    await stopElectronMainMetrics?.()
+                    stopElectronMainMetrics = null
+                    await stopMainProcessProfileAndSave(
+                        electronMainProfile,
+                        path.join(perfProfile.runDir, 'profiles'),
+                        'electron-main.cpuprofile',
+                    )
+                    electronMainProfile = null
+                    process.stdout.write('[mvp] saved electron-main CDP profile + metrics\n')
+                } catch (e) {
+                    process.stderr.write(`[mvp] electron-main profile save failed: ${(e as Error).message}\n`)
+                }
+            }
+
             // Electron's `terminal:spawn` IPC creates a TerminalRecord
             // referencing a long-lived tmux session that doesn't get torn
             // down on the agent's process.exit. There's no `terminal:dispose`
