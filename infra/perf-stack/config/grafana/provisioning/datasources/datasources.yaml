@@ -37,6 +37,8 @@ datasources:
             value: "service_name"
           - key: "service.instance.id"
             value: "service_instance_id"
+          - key: "name"
+            value: "span_name"
 
       serviceMap:
         datasourceUid: "prometheus"

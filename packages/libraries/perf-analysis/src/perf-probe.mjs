@@ -54,8 +54,21 @@ function createPlainLogWriter(svc, logPath) {
   }
 
   const writeInSpan = (spanName, level, message) => {
-    tracing.syncSpan(spanName, () => {
-      write(level, message)
+    tracing.syncSpan(spanName, (span) => {
+      // Grafana 13's tracesToProfiles button keys off the presence of this
+      // attribute on the span; the value is opaque to Grafana. We mirror the
+      // span ID for manual trace→profile correlation.
+      span.setAttribute('pyroscope.profile.id', tracing.activeTraceContext()?.spanId ?? '')
+      const body = () => write(level, message)
+      // wrapWithLabels tags concurrent wall-CPU samples with span_name so the
+      // Grafana "Profiles for this span" pivot lands on operation-aggregated
+      // CPU. Tolerate calls before Pyroscope.init() / after stopWallProfiling()
+      // so we don't crash during startup/shutdown windows.
+      try {
+        Pyroscope.wrapWithLabels({ span_name: spanName }, body)
+      } catch {
+        body()
+      }
     }, {
       'service.name': svc,
     })
@@ -237,15 +250,18 @@ export async function perfProbeFromEnv(svc) {
   const runUuid = resolveRunUuid()
   const runDir = resolveRunDir(runUuid)
   const paths = await ensureRunDirs(runDir)
-  const log = createPlainLogWriter(svc, join(paths.logsDir, `${svc}.log`))
 
   observabilityMetrics.init(svc, {
     otlpEndpoint: process.env[OTLP_ENDPOINT_ENV],
     instanceId: runUuid,
   })
 
-  const metrics = createOtelRuntimeMetrics()
+  // Pyroscope must be initialised before any code that calls
+  // Pyroscope.wrapWithLabels — createPlainLogWriter emits a startup span
+  // synchronously which routes through wrapWithLabels for span_id labels.
   const pyroscope = startPyroscopeWallProfiler({ svc, runUuid })
+  const log = createPlainLogWriter(svc, join(paths.logsDir, `${svc}.log`))
+  const metrics = createOtelRuntimeMetrics()
   const heapSnapshots = scheduleHeapSnapshots({
     heapSnapshotsDir: paths.heapSnapshotsDir,
     svc,
