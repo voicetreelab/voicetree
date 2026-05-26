@@ -48,6 +48,7 @@ import {
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
+import {getNormalizedDaemonGraph} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization';
 import {
     getWatchStatus,
     getVaultPaths,
@@ -104,7 +105,7 @@ configureMcpServer({
         getSnapshot: async () => {
             return await callDaemon(async (client) => {
                 const [graph, vaultState] = await Promise.all([
-                    getGraphFromDaemon(),
+                    getNormalizedDaemonGraph(client),
                     client.getVault(),
                 ]);
                 return {
