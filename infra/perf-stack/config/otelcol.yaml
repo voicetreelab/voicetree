@@ -8,12 +8,38 @@ receivers:
     protocols:
       grpc: { endpoint: 127.0.0.1:4317 }
       http: { endpoint: 127.0.0.1:4318 }
-  # PHASE_2A_LOGS_RECEIVERS: filelog goes here
+  filelog:
+    include: [ "${env:HOME}/.voicetree/perf/*/logs/*.log" ]
+    include_file_path: true
+    start_at: end
+    operators:
+      - type: regex_parser
+        regex: '^.*/\.voicetree/perf/(?P<service_instance_id>[^/]+)/logs/(?P<service_name>[^/]+)\.log$'
+        parse_from: attributes["log.file.path"]
+        parse_to: resource
+      - type: move
+        from: resource.service_name
+        to: resource["service.name"]
+      - type: move
+        from: resource.service_instance_id
+        to: resource["service.instance.id"]
+      - type: regex_parser
+        regex: '^(?P<time>\S+)\s+(?P<level>\S+)\s+(?P<message>.*)$'
+        timestamp:
+          parse_from: attributes.time
+          layout_type: strptime
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+        severity:
+          parse_from: attributes.level
+      - type: move
+        from: attributes.message
+        to: body
 
 exporters:
   debug:
     verbosity: basic
-  # PHASE_2A_LOGS_EXPORTERS: loki exporter
+  otlphttp/loki:
+    endpoint: http://localhost:3100/otlp
   # PHASE_2B_METRICS_EXPORTERS: prometheusremotewrite + file
   # PHASE_2C_TRACES_EXPORTERS: otlp/tempo + file
 
@@ -23,6 +49,8 @@ service:
     traces/smoke:
       receivers: [otlp]
       exporters: [debug]
-    # PHASE_2A_LOGS_PIPELINE
+    logs:
+      receivers: [filelog]
+      exporters: [otlphttp/loki]
     # PHASE_2B_METRICS_PIPELINE
     # PHASE_2C_TRACES_PIPELINE
