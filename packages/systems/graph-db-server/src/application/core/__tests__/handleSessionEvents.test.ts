@@ -170,6 +170,45 @@ describe('handleSessionEvents', () => {
     })
   })
 
+  // Scenario:
+  //   Event A: editor-X just typed at NODE — publish carries
+  //            suppressForSubscribers=['editor-X'] so the daemon's projection
+  //            does NOT echo the user's own keystrokes back to that editor.
+  //   Event B: an external writer (FS watcher, reconcile, another agent)
+  //            writes to the SAME node — suppress is empty, so editor-X
+  //            should receive this update.
+  //
+  // Coalescing currently unions the suppress sets, producing ['editor-X'].
+  // The SSE renderer in EditorSync.ts applies suppress per-event (the same
+  // suppress set is checked for every nodeDelta in the batch), so editor-X
+  // is skipped for B's content too — the editor stays stale until the next
+  // event that does not include editor-X in its suppress set.
+  //
+  // The contract that fixes this without a wider refactor: suppress that
+  // applies only to event A should be dropped on coalesce when a later
+  // event in the batch touches the same node without that suppression. The
+  // simplest faithful encoding is: take the suppress set of the LAST event
+  // that touched each affected node. For a single-node batch this collapses
+  // to "use the latest event's suppress set", which is what this test
+  // asserts.
+  test('coalesce drops stale per-event suppression when a later event re-touches the same node', () => {
+    const sharedNode = graphNodeFixture('/vault/docs/shared.md')
+    const result = coalesceProjectDeltaEvents([
+      {
+        delta: [{ type: 'UpsertNode', nodeToUpsert: sharedNode, previousNode: O.none }],
+        seq: 20,
+        suppressForSubscribers: ['editor-X'],
+      },
+      {
+        delta: [{ type: 'UpsertNode', nodeToUpsert: sharedNode, previousNode: O.none }],
+        seq: 21,
+        suppressForSubscribers: [],
+      },
+    ])
+
+    expect(result?.suppressForSubscribers ?? []).toEqual([])
+  })
+
   test('projects a replay reset snapshot with metadata', () => {
     const result = handleReplayResetSnapshot(stateFixture(), 3, 9, 18)
 
