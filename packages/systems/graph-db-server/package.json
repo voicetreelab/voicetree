@@ -60,6 +60,7 @@
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",
     "@vt/observability": "*",
+    "@vt/perf-analysis": "*",
     "chokidar": "^3.6.0",
     "fp-ts": "^2.16.9",
     "hono": "^4.12.12",
