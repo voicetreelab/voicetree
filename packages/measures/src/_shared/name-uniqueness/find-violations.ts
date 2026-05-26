@@ -84,7 +84,18 @@ export function findNameUniquenessViolations(input: NameUniquenessInput): readon
     const scopeKeys = new Set(input.scope.map(declarationKey))
     if (scopeKeys.size === 0) return []
 
-    const clusters = buildClusters(input.index.declarations)
+    // Scope decls that aren't in the prebuilt index (newly-introduced
+    // file not yet indexed, scratch-area trip-test, etc) must still be
+    // clustered against the index — otherwise a brand-new file's exports
+    // could never produce a violation. Union, deduplicated by identity.
+    const indexKeys = new Set(input.index.declarations.map(declarationKey))
+    const augmented = input.scope.reduce<DeclaredName[]>((acc, decl) => {
+        if (indexKeys.has(declarationKey(decl))) return acc
+        acc.push(decl)
+        return acc
+    }, [...input.index.declarations])
+
+    const clusters = buildClusters(augmented)
     const violations: Violation[] = []
 
     for (const cluster of clusters) {

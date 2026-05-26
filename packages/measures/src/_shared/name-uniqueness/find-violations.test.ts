@@ -222,6 +222,23 @@ describe('findNameUniquenessViolations', () => {
         expect(violations).toHaveLength(0)
     })
 
+    it('scope decl absent from the index still gets clustered (brand-new file joins existing cluster)', () => {
+        const indexed = [
+            decl('vault', '/repo/a/vault.ts'),
+            decl('vault', '/repo/b/vault.ts'),
+        ]
+        const newDecl = decl('vault', '/repo/scratch/_trial-vault.ts')
+        const violations = findNameUniquenessViolations({
+            scope: [newDecl],
+            index: buildIndex(indexed),
+            allowlist: ALLOWLIST,
+            importGraph: EMPTY_GRAPH,
+        })
+        expect(violations).toHaveLength(1)
+        expect(violations[0].declaration.filePath).toBe('/repo/scratch/_trial-vault.ts')
+        expect(violations[0].collidingMembers).toHaveLength(2)
+    })
+
     it('strips test-file suffix tokens before tokenisation so foo.test.ts does not register a "test" token', () => {
         const declarations = [
             decl('vault.test', '/repo/a/vault.test.ts'),

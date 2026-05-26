@@ -23,7 +23,10 @@ type ToolEnvelope = {
     }
 }
 
-type PerEditMeasure = (args: {readonly filePath: string; readonly content: string}) => {readonly message: string} | null
+type PerEditMeasure = (args: {readonly filePath: string; readonly content: string}) =>
+    | {readonly message: string}
+    | null
+    | Promise<{readonly message: string} | null>
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const MEASURE_DIR = resolve(SCRIPT_DIR, '..', 'checks', 'tier_0_post_edit')
@@ -73,9 +76,8 @@ async function main(): Promise<number> {
         return 0
     }
     const measures = await discoverMeasures()
-    const violations = measures
-        .map(measure => measure({filePath, content}))
-        .filter((v): v is {readonly message: string} => v !== null)
+    const settled = await Promise.all(measures.map(measure => measure({filePath, content})))
+    const violations = settled.filter((v): v is {readonly message: string} => v !== null)
     if (violations.length === 0) return 0
     process.stderr.write(violations.map(v => v.message).join('\n') + '\n')
     return 2
