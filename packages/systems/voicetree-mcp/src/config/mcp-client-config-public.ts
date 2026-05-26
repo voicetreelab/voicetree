@@ -1,6 +1,10 @@
 export {
     disableMcpJsonIntegration,
+    disableOpencodeMcpIntegration,
     enableMcpClientIntegrations,
+    enableMcpJsonIntegration,
+    enableOpencodeMcpIntegration,
+    isMcpIntegrationEnabled,
+    isOpencodeAgent,
     setMcpIntegration,
-    writeMcpClientConfigsToDir,
 } from './mcp-client-config'

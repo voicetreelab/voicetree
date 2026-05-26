@@ -27,10 +27,6 @@ interface McpJsonConfig {
 
 // ─── .mcp.json (Claude Code) ────────────────────────────────────────────────
 
-function mcpJsonPathFor(dir: string): string {
-    return path.join(dir, '.mcp.json');
-}
-
 /**
  * Get the path to .mcp.json in the watched directory
  */
@@ -39,7 +35,7 @@ async function getMcpJsonPath(): Promise<string | null> {
     if (!watchedDir) {
         return null;
     }
-    return mcpJsonPathFor(watchedDir);
+    return path.join(watchedDir, '.mcp.json');
 }
 
 // All public helpers resolve the .mcp.json path EXACTLY once and pass it
@@ -64,23 +60,6 @@ async function writeMcpJsonAt(mcpJsonPath: string, config: McpJsonConfig): Promi
 }
 
 /**
- * Merge the Voicetree server entry into the given .mcp.json file at `dir`,
- * preserving any other MCP servers already present.
- */
-async function writeMcpJsonForDir(dir: string, port: number): Promise<void> {
-    const mcpJsonPath: string = mcpJsonPathFor(dir);
-    const config: McpJsonConfig = await readMcpJsonAt(mcpJsonPath);
-    config.mcpServers = {
-        ...config.mcpServers,
-        [VOICETREE_MCP_SERVER_NAME]: {
-            type: 'http',
-            url: `http://127.0.0.1:${port}/mcp`
-        }
-    };
-    await writeMcpJsonAt(mcpJsonPath, config);
-}
-
-/**
  * Check if Voicetree MCP integration is enabled in .mcp.json
  */
 export async function isMcpIntegrationEnabled(): Promise<boolean> {
@@ -95,11 +74,24 @@ export async function isMcpIntegrationEnabled(): Promise<boolean> {
  * Merges with existing config to preserve other MCP servers
  */
 export async function enableMcpJsonIntegration(): Promise<void> {
-    const watchedDir: string | null = await getMcpProjectRoot();
-    if (!watchedDir) {
+    const mcpJsonPath: string | null = await getMcpJsonPath();
+    if (!mcpJsonPath) {
         throw new Error('No watched directory - cannot write .mcp.json');
     }
-    await writeMcpJsonForDir(watchedDir, getMcpPort());
+
+    const config: McpJsonConfig = await readMcpJsonAt(mcpJsonPath);
+    const port: number = getMcpPort();
+
+    // Merge Voicetree server into existing config
+    config.mcpServers = {
+        ...config.mcpServers,
+        [VOICETREE_MCP_SERVER_NAME]: {
+            type: 'http',
+            url: `http://127.0.0.1:${port}/mcp`
+        }
+    };
+
+    await writeMcpJsonAt(mcpJsonPath, config);
 }
 
 /**
@@ -133,17 +125,15 @@ export async function disableMcpJsonIntegration(): Promise<void> {
 /** Matches the [mcp_servers.voicetree] section and all its key-value lines */
 const CODEX_VOICETREE_SECTION_RE: RegExp = /\[mcp_servers\.voicetree\]\s*\n(?:(?!\[)[^\n]*\n?)*/;
 
-function codexConfigPathFor(dir: string): string {
-    return path.join(dir, '.codex', 'config.toml');
-}
-
 async function getCodexConfigPath(): Promise<string | null> {
     const watchedDir: string | null = await getMcpProjectRoot();
     if (!watchedDir) return null;
-    return codexConfigPathFor(watchedDir);
+    return path.join(watchedDir, '.codex', 'config.toml');
 }
 
-async function readCodexConfigAt(configPath: string): Promise<string> {
+async function readCodexConfig(): Promise<string> {
+    const configPath: string | null = await getCodexConfigPath();
+    if (!configPath) return '';
     try {
         return await fs.readFile(configPath, 'utf-8');
     } catch (_error) {
@@ -151,18 +141,16 @@ async function readCodexConfigAt(configPath: string): Promise<string> {
     }
 }
 
-async function writeCodexConfigAt(configPath: string, content: string): Promise<void> {
+async function writeCodexConfig(content: string): Promise<void> {
+    const configPath: string | null = await getCodexConfigPath();
+    if (!configPath) throw new Error('No watched directory - cannot write .codex/config.toml');
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     await fs.writeFile(configPath, content, 'utf-8');
 }
 
-/**
- * Merge the Voicetree section into .codex/config.toml at `dir`, preserving
- * every other section. Creates the file (and `.codex/` directory) if missing.
- */
-async function writeCodexConfigForDir(dir: string, port: number): Promise<void> {
-    const configPath: string = codexConfigPathFor(dir);
-    let content: string = await readCodexConfigAt(configPath);
+async function enableCodexMcpIntegration(): Promise<void> {
+    let content: string = await readCodexConfig();
+    const port: number = getMcpPort();
     const section: string = `[mcp_servers.voicetree]\nurl = "http://localhost:${port}/mcp"\n`;
 
     if (content.includes('[mcp_servers.voicetree]')) {
@@ -171,31 +159,26 @@ async function writeCodexConfigForDir(dir: string, port: number): Promise<void> 
         content = content.trimEnd() + (content.length > 0 ? '\n\n' : '') + section;
     }
 
-    await writeCodexConfigAt(configPath, content);
-}
-
-async function enableCodexMcpIntegration(): Promise<void> {
-    const watchedDir: string | null = await getMcpProjectRoot();
-    if (!watchedDir) throw new Error('No watched directory - cannot write .codex/config.toml');
-    await writeCodexConfigForDir(watchedDir, getMcpPort());
+    await writeCodexConfig(content);
 }
 
 async function disableCodexMcpIntegration(): Promise<void> {
-    const configPath: string | null = await getCodexConfigPath();
-    if (!configPath) return;
-
-    let content: string = await readCodexConfigAt(configPath);
+    let content: string = await readCodexConfig();
     if (!content.includes('[mcp_servers.voicetree]')) return;
 
     content = content.replace(CODEX_VOICETREE_SECTION_RE, '');
     content = content.replace(/\n{3,}/g, '\n\n').trim();
 
     if (content.length === 0) {
-        try { await fs.unlink(configPath); } catch (_e) { /* ignore */ }
+        // Delete the file if nothing left
+        const configPath: string | null = await getCodexConfigPath();
+        if (configPath) {
+            try { await fs.unlink(configPath); } catch (_e) { /* ignore */ }
+        }
         return;
     }
 
-    await writeCodexConfigAt(configPath, content + '\n');
+    await writeCodexConfig(content + '\n');
 }
 
 /**
@@ -205,20 +188,6 @@ async function disableCodexMcpIntegration(): Promise<void> {
 export async function enableMcpClientIntegrations(): Promise<void> {
     await enableMcpJsonIntegration();
     await enableCodexMcpIntegration();
-}
-
-/**
- * Write Voicetree's MCP client configs (.mcp.json + .codex/config.toml) into
- * an arbitrary directory — e.g. a freshly created worktree — so externally
- * launched coding agents (Claude Code, Codex) reach the running MCP server.
- *
- * Merges with existing configs: preserves other MCP servers (Playwright,
- * user additions) in .mcp.json, and preserves every other TOML section in
- * .codex/config.toml.
- */
-export async function writeMcpClientConfigsToDir(dir: string, port: number): Promise<void> {
-    await writeMcpJsonForDir(dir, port);
-    await writeCodexConfigForDir(dir, port);
 }
 
 // ─── opencode.jsonc (OpenCode) ────────────────────────────────────────────────

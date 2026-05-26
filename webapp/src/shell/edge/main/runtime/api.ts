@@ -31,7 +31,6 @@ import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
 import {getMcpPort, setMcpIntegration} from '@vt/voicetree-mcp';
-import {writeMcpClientConfigsToDir} from '@vt/voicetree-mcp/mcp-client-config';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
@@ -94,12 +93,6 @@ async function initializeProject(projectPath: string): Promise<string | null> {
 /**
  * Wrapper for createWorktree that reads hooks.onWorktreeCreated from settings
  * and passes it to the core function. Hook failure is non-blocking.
- *
- * After the worktree exists, writes Voicetree's MCP client configs
- * (.mcp.json voicetree entry + .codex/config.toml [mcp_servers.voicetree])
- * into the worktree using the live MCP port. This ensures externally
- * launched coding agents (Claude Code, Codex) reach the running server
- * without the user having to manually patch each new worktree.
  */
 async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
     const settings: VTSettings = await loadSettings();
@@ -107,16 +100,7 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
     const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
     const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
     const effectiveAsync: string | undefined = asyncHook?.startsWith('#') ? undefined : asyncHook ?? undefined;
-    const worktreePath: string = await createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
-
-    try {
-        await writeMcpClientConfigsToDir(worktreePath, getMcpPort());
-    } catch (error) {
-        const message: string = error instanceof Error ? error.message : String(error);
-        console.warn(`[createWorktree] Failed to sync MCP client configs into ${worktreePath}: ${message}`);
-    }
-
-    return worktreePath;
+    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
 export const mainAPI = {
