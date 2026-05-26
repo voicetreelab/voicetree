@@ -183,7 +183,7 @@ async function stopServe(handle: ServeHandle): Promise<{code: number | null; sig
 
 async function readOwnerRecord(vault: string): Promise<OwnerRecord | null> {
     try {
-        const raw: string = await readFile(ownerRecordFile.pathFor(vault), 'utf8')
+        const raw: string = await readFile(ownerRecordFile.pathFor(vault, 'graphd'), 'utf8')
         return ownerRecordFile.decode(raw)
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
