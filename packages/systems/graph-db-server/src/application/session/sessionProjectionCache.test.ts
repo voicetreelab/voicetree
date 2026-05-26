@@ -165,6 +165,10 @@ function expectCachedStateToMatchRebuild(model: FuzzModel): void {
   expect(cachedState.collapseSet).toEqual(rebuiltState.collapseSet)
 }
 
+function observedProjectedGraph(cache: ReturnType<typeof sessionProjectionCache.create>, event: ProjectDeltaEventInput): string {
+  return JSON.stringify(handleProjectDeltaEvent(sessionProjectionCache.project(cache), event).graph)
+}
+
 function makeFuzzDelta(model: FuzzModel, rng: Rng, step: number): GraphDelta {
   const nodeIds = Object.keys(model.graph.nodes)
   const choice = nextInt(rng, 3)
@@ -386,5 +390,55 @@ describe('session projection cache', () => {
       model = mutateSelectionAndLayout(model, rng, step)
       expectCachedStateToMatchRebuild(model)
     }
+  })
+
+  test('shares one session cache across multiple observers without changing projected graph sequence', () => {
+    const fixtures = makeProjectSessionStateFixtures()
+    const session = fixtures.makeSession({
+      folderState: new Map([
+        ['/vault/public', 'expanded'],
+        ['/vault/secret', 'expanded'],
+      ]),
+    })
+    const vault = fixtures.makeVault()
+    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const observerCount = 4
+    let graph = fixtures.makeVisibilityGraph()
+    const isolatedCaches = Array.from(
+      { length: observerCount },
+      () => sessionProjectionCache.create(snapshotFor({ graph, session, vault, vaultPaths })),
+    )
+    const registry = sessionProjectionCache.createRegistry()
+    const sharedLeases = Array.from(
+      { length: observerCount },
+      () => registry.acquire(session.id),
+    )
+    sharedLeases[0]!.replace(sessionProjectionCache.create(snapshotFor({ graph, session, vault, vaultPaths })))
+
+    for (const [index, delta] of makeDeltaSequence(graph).entries()) {
+      const event: ProjectDeltaEventInput = { delta, seq: index + 1 }
+      graph = applyGraphDeltaToGraph(graph, delta)
+
+      const isolatedSequence = isolatedCaches.map((cache, observerIndex) => {
+        const nextCache = sessionProjectionCache.advance(cache, event)
+        isolatedCaches[observerIndex] = nextCache
+        return observedProjectedGraph(nextCache, event)
+      })
+
+      const sharedSequence = sharedLeases.map((lease) => {
+        const current = lease.current()
+        if (current === null) throw new Error('shared cache missing')
+        const nextCache = sessionProjectionCache.advance(current, event)
+        lease.replace(nextCache)
+        return observedProjectedGraph(nextCache, event)
+      })
+
+      expect(sharedSequence).toEqual(isolatedSequence)
+    }
+
+    for (const lease of sharedLeases) {
+      lease.release()
+    }
+    expect(registry.size()).toBe(0)
   })
 })

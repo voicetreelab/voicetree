@@ -11,7 +11,25 @@ type DaemonStateSnapshot = Awaited<ReturnType<typeof readDaemonStateSnapshot>>
 
 type SessionProjectionCache = {
   readonly folderStateSignature: string
+  readonly lastSeq: number
   readonly snapshot: DaemonStateSnapshot
+}
+
+type SessionProjectionCacheLease = {
+  readonly current: () => SessionProjectionCache | null
+  readonly replace: (cache: SessionProjectionCache) => void
+  readonly clear: () => void
+  readonly release: () => void
+}
+
+type SessionProjectionCacheRegistry = {
+  readonly acquire: (sessionId: string) => SessionProjectionCacheLease
+  readonly size: () => number
+}
+
+type RegistryEntry = {
+  cache: SessionProjectionCache | null
+  refCount: number
 }
 
 function folderStateSignature(session: Session): string {
@@ -23,9 +41,11 @@ function folderStateSignature(session: Session): string {
 
 function createSessionProjectionCache(
   snapshot: DaemonStateSnapshot,
+  lastSeq: number = 0,
 ): SessionProjectionCache {
   return {
     folderStateSignature: folderStateSignature(snapshot.session),
+    lastSeq,
     snapshot,
   }
 }
@@ -56,6 +76,8 @@ function advanceSessionProjectionCache(
   cache: SessionProjectionCache,
   event: ProjectDeltaEventInput,
 ): SessionProjectionCache {
+  if (event.seq <= cache.lastSeq) return cache
+
   const graph = applyGraphDeltaToGraph(cache.snapshot.graph, event.delta)
   const folderTree = projectGraphDerivedFolderTree({
     graph,
@@ -71,6 +93,7 @@ function advanceSessionProjectionCache(
 
   return {
     ...cache,
+    lastSeq: event.seq,
     snapshot: {
       ...cache.snapshot,
       folderTree,
@@ -79,9 +102,41 @@ function advanceSessionProjectionCache(
   }
 }
 
+function createSessionProjectionCacheRegistry(): SessionProjectionCacheRegistry {
+  const entries = new Map<string, RegistryEntry>()
+
+  return {
+    acquire(sessionId: string): SessionProjectionCacheLease {
+      const existing = entries.get(sessionId)
+      const entry = existing ?? { cache: null, refCount: 0 }
+      entry.refCount += 1
+      if (!existing) entries.set(sessionId, entry)
+
+      let released = false
+      return {
+        current: () => entry.cache,
+        replace(cache: SessionProjectionCache): void {
+          entry.cache = cache
+        },
+        clear(): void {
+          entry.cache = null
+        },
+        release(): void {
+          if (released) return
+          released = true
+          entry.refCount -= 1
+          if (entry.refCount === 0) entries.delete(sessionId)
+        },
+      }
+    },
+    size: () => entries.size,
+  }
+}
+
 export const sessionProjectionCache = {
   advance: advanceSessionProjectionCache,
   create: createSessionProjectionCache,
+  createRegistry: createSessionProjectionCacheRegistry,
   project: projectSessionProjectionCache,
   shouldRebuild: shouldRebuildSessionProjectionCache,
 }

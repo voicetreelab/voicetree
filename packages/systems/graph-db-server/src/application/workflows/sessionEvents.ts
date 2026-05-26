@@ -43,6 +43,9 @@ export type SessionEventStream = {
 }
 
 type ProjectionCache = ReturnType<typeof sessionProjectionCache.create>
+type ProjectionCacheLease = ReturnType<ReturnType<typeof sessionProjectionCache.createRegistry>['acquire']>
+
+const projectionCacheRegistry = sessionProjectionCache.createRegistry()
 
 export function sessionExistsWorkflow(
   registry: WorkflowSessionRegistry,
@@ -86,7 +89,7 @@ export async function runSessionEventsWorkflow(input: {
     })
   }
 
-  let projectionCache: ProjectionCache | null = null
+  const projectionCache: ProjectionCacheLease = projectionCacheRegistry.acquire(sessionId)
 
   const buildFreshState = async (
     freshSession: Session,
@@ -97,7 +100,7 @@ export async function runSessionEventsWorkflow(input: {
       span.setAttribute('graph.delta.seq', event.seq)
       span.setAttribute('graph.delta.actions', event.delta.length)
       const snapshot = await readDaemonStateSnapshot(freshSession)
-      const cache = sessionProjectionCache.create(snapshot)
+      const cache = sessionProjectionCache.create(snapshot, event.seq)
       return {
         cache,
         state: sessionProjectionCache.project(cache),
@@ -129,10 +132,12 @@ export async function runSessionEventsWorkflow(input: {
   const projectDeltaCached = async (
     event: ProjectDeltaEventInput,
   ): Promise<ProjectedGraph | null> => {
-    if (projectionCache === null) return null
+    const currentCache: ProjectionCache | null = projectionCache.current()
+    if (currentCache === null) return null
 
-    projectionCache = sessionProjectionCache.advance(projectionCache, event)
-    const state = sessionProjectionCache.project(projectionCache)
+    const nextCache = sessionProjectionCache.advance(currentCache, event)
+    projectionCache.replace(nextCache)
+    const state = sessionProjectionCache.project(nextCache)
 
     return await traceGraphdSpan('session.events.project-delta', async (span) => {
       span.setAttribute('session.id', sessionId)
@@ -151,7 +156,7 @@ export async function runSessionEventsWorkflow(input: {
     const freshSession: Session | null = registry.get(sessionId)
     if (!freshSession) return false
     return !sessionProjectionCache.shouldRebuild({
-      cache: projectionCache,
+      cache: projectionCache.current(),
       projectVersion: getProject()?.version ?? 0,
       session: freshSession,
     })
@@ -163,14 +168,16 @@ export async function runSessionEventsWorkflow(input: {
   ): Promise<ProjectionCache | null> => {
     const result = mode === 'cached'
       ? {
-          cache: projectionCache,
+          cache: projectionCache.current(),
           graph: await projectDeltaCached(event),
         }
       : await projectDeltaFresh(event)
-    if (result === null || result.graph === null) return null
+    const cache = mode === 'cached' ? projectionCache.current() : result?.cache ?? null
+    if (result === null || result.graph === null || cache === null) return null
     const graph = result.graph
     await sendGraph(graph)
-    return result.cache
+    projectionCache.replace(cache)
+    return cache
   }
 
   let pendingLiveEvents: SequencedDeltaEvent[] = []
@@ -185,7 +192,7 @@ export async function runSessionEventsWorkflow(input: {
       const cache = await sendDeltaProjection(batched, useCache ? 'cached' : 'fresh')
       if (!useCache && cache) freshCache = cache
     }
-    if (!useCache && freshCache) projectionCache = freshCache
+    if (!useCache && freshCache) projectionCache.replace(freshCache)
     if (pendingLiveEvents.length > 0 && !liveFlushScheduled) {
       liveFlushScheduled = true
       queueMicrotask(() => void flushLiveDeltaProjection())
@@ -208,7 +215,7 @@ export async function runSessionEventsWorkflow(input: {
     if (!freshSession) return snapshotSeq
 
     const state = await buildDaemonState(freshSession)
-    projectionCache = null
+    projectionCache.clear()
     await sendGraph(handleReplayResetSnapshot(
       state,
       requestedSince,
@@ -268,6 +275,7 @@ export async function runSessionEventsWorkflow(input: {
     unsubscribeDelta?.()
     unsubscribeProjected = null
     unsubscribeDelta = null
+    projectionCache.release()
   })
 
   await new Promise<void>((resolve) => {
