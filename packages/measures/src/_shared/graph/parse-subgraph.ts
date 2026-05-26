@@ -45,7 +45,7 @@ import {
  * Configuration for {@link parseSubgraph}. All fields are optional —
  * defaults are tuned for the structural-orange gate.
  */
-export type ParseSubgraphOptions = {
+type ParseSubgraphOptions = {
     /**
      * How many import-graph hops to expand beyond the touched community.
      * `hops=1` includes direct importees of touched-community files
@@ -85,6 +85,21 @@ export type ParseSubgraphOptions = {
      * from this file's location). Overridable for tests.
      */
     readonly repoRoot?: string
+    /**
+     * Custom file-content loader. Default reads from disk via `fs.readFile`.
+     *
+     * The runner overrides this so the gate scores **the state that the
+     * pending commit would produce**, not whatever happens to be in the
+     * worktree. For staged paths it returns the staged blob (`git show :path`);
+     * for unstaged paths it falls back to disk content. This prevents
+     * peer-agent WIP from contaminating the score of the current commit.
+     *
+     * Whatever this function returns is what every downstream consumer
+     * (import-edge extraction AND the ts-morph `Project` built by
+     * `getProject()`) sees — they share a single content cache so the AST
+     * and the edge graph cannot disagree about file contents.
+     */
+    readonly loadContent?: (absolutePath: string) => Promise<string>
 }
 
 /**
@@ -117,6 +132,16 @@ export type ParsedSubgraph = {
      * full AST analysis (semantic coupling, transitive purity, etc.).
      */
     getProject(): Project
+    /**
+     * The text content the parser used for `absPath`, or `null` if the
+     * file isn't in this subgraph. Measures that need to read file text
+     * directly (e.g. boundary-width's lightweight export scan) MUST go
+     * through this so they share the same view of "what does this file
+     * contain" as the runner's staged-blob loader — otherwise they'd
+     * silently regress to working-tree content and the worktree-vs-index
+     * isolation breaks.
+     */
+    getContent(absPath: string): string | null
 }
 
 /**
@@ -129,6 +154,13 @@ type MutableSubgraph = {
     edges: Edge[]
     touchedCommunities: string[]
     depth: number
+    /**
+     * Cached file contents (absPath → text) keyed for every file in
+     * `files`. `freezeSubgraph` consumes this so the ts-morph Project is
+     * built from the SAME content that produced the edge graph — staged
+     * blob if the runner overrode `loadContent`, disk content otherwise.
+     */
+    contentCache: ReadonlyMap<string, string>
 }
 
 /**
@@ -148,12 +180,25 @@ export async function parseSubgraph(
     const includeInbound = opts.includeInbound ?? false
     const depth = opts.depth ?? 1
     const repoRoot = opts.repoRoot ?? DEFAULT_REPO_ROOT
+    const loadContent = opts.loadContent ?? defaultDiskLoader
 
     const packages = await discoverPackages(repoRoot)
     const allFiles = await scanSourceFiles(packages, repoRoot)
     const filesByPath = new Map<string, SourceFile>(allFiles.map(f => [f.absolutePath, f]))
     const knownPaths: ReadonlySet<string> = new Set(filesByPath.keys())
     const packagesByNpmName = new Map<string, PackageInfo>(packages.map(pkg => [pkg.name, pkg]))
+
+    // Single content cache shared by every read in this parseSubgraph call.
+    // Edge extraction and ts-morph both consume from it, so the AST cannot
+    // disagree with the edge graph about a file's contents.
+    const contentCache = new Map<string, string>()
+    const readCached = async (absPath: string): Promise<string> => {
+        const hit = contentCache.get(absPath)
+        if (hit !== undefined) return hit
+        const text = await loadContent(absPath)
+        contentCache.set(absPath, text)
+        return text
+    }
 
     const changedAbs: string[] = changedFiles.map(p => resolve(repoRoot, p))
 
@@ -174,9 +219,9 @@ export async function parseSubgraph(
         if (touched.has(fileCommunities.get(f.absolutePath)!)) filesToRead.add(f.absolutePath)
     }
 
-    const outboundEdges = await readOutboundEdges(filesToRead, filesByPath, knownPaths, packagesByNpmName)
+    const outboundEdges = await readOutboundEdges(filesToRead, filesByPath, knownPaths, packagesByNpmName, readCached)
     const inboundEdges = includeInbound
-        ? await readInboundEdges(filesToRead, allFiles, filesByPath, knownPaths, packagesByNpmName)
+        ? await readInboundEdges(filesToRead, allFiles, filesByPath, knownPaths, packagesByNpmName, readCached)
         : []
 
     const allEdgeKeys = new Set<string>()
@@ -198,7 +243,7 @@ export async function parseSubgraph(
             const file = filesByPath.get(fromPath)
             if (!file) continue
             if (filesToRead.has(fromPath)) continue // already processed
-            const text = await readFile(file.absolutePath, 'utf8')
+            const text = await readCached(file.absolutePath)
             for (const specifier of extractImportSpecifiers(file.absolutePath, text)) {
                 const toPath = resolveSpecifier(file, specifier, knownPaths, packagesByNpmName)
                 if (!toPath || toPath === file.absolutePath) continue
@@ -225,14 +270,27 @@ export async function parseSubgraph(
     const subgraphCommunityMap = new Map<string, string>()
     for (const f of subgraphFiles) subgraphCommunityMap.set(f.absolutePath, fileCommunities.get(f.absolutePath)!)
 
+    // Pre-load any subgraph file we haven't read yet. ts-morph's getProject()
+    // will be built from this cache; without the pre-load it would otherwise
+    // call addSourceFileAtPath and silently read from disk, defeating the
+    // staged-blob override.
+    for (const f of subgraphFiles) {
+        if (!contentCache.has(f.absolutePath)) await readCached(f.absolutePath)
+    }
+
     const mutable: MutableSubgraph = {
         files: subgraphFiles,
         communityMap: subgraphCommunityMap,
         edges: subgraphEdges,
         touchedCommunities: [...touched].sort(),
         depth,
+        contentCache,
     }
     return freezeSubgraph(mutable)
+}
+
+function defaultDiskLoader(absolutePath: string): Promise<string> {
+    return readFile(absolutePath, 'utf8')
 }
 
 function emptySubgraph(depth: number): ParsedSubgraph {
@@ -242,22 +300,36 @@ function emptySubgraph(depth: number): ParsedSubgraph {
         edges: [],
         touchedCommunities: [],
         depth,
+        contentCache: new Map(),
     })
 }
 
 /**
  * Build (and cache, per ParsedSubgraph instance) a ts-morph Project
  * loaded with exactly the files in this subgraph.
+ *
+ * Files are added via `createSourceFile(absPath, text)` from `contentCache`
+ * so the AST matches whatever the parser was told to use — in particular,
+ * the runner's staged-blob override flows through to AST analysis.
+ *
+ * Fallback to disk for any file missing from the cache (e.g. a custom test
+ * helper that bypassed parseSubgraph's pre-load) so getProject never
+ * silently drops a file from the AST.
  */
 function freezeSubgraph(mutable: MutableSubgraph): ParsedSubgraph {
     let cachedProject: Project | null = null
     const getProject = (): Project => {
         if (cachedProject) return cachedProject
         const project = new Project({useInMemoryFileSystem: false, skipAddingFilesFromTsConfig: true})
-        for (const f of mutable.files) project.addSourceFileAtPath(f.absolutePath)
+        for (const f of mutable.files) {
+            const text = mutable.contentCache.get(f.absolutePath)
+            if (text !== undefined) project.createSourceFile(f.absolutePath, text, {overwrite: true})
+            else project.addSourceFileAtPath(f.absolutePath)
+        }
         cachedProject = project
         return project
     }
+    const getContent = (absPath: string): string | null => mutable.contentCache.get(absPath) ?? null
     return {
         files: mutable.files,
         communityMap: mutable.communityMap,
@@ -265,6 +337,7 @@ function freezeSubgraph(mutable: MutableSubgraph): ParsedSubgraph {
         touchedCommunities: mutable.touchedCommunities,
         depth: mutable.depth,
         getProject,
+        getContent,
     }
 }
 
@@ -275,12 +348,13 @@ async function readOutboundEdges(
     filesByPath: ReadonlyMap<string, SourceFile>,
     knownPaths: ReadonlySet<string>,
     packagesByNpmName: ReadonlyMap<string, PackageInfo>,
+    readCached: (absPath: string) => Promise<string>,
 ): Promise<RawEdge[]> {
     const edges: RawEdge[] = []
     for (const fromPath of filesToRead) {
         const file = filesByPath.get(fromPath)
         if (!file) continue
-        const text = await readFile(file.absolutePath, 'utf8')
+        const text = await readCached(file.absolutePath)
         for (const specifier of extractImportSpecifiers(file.absolutePath, text)) {
             const toPath = resolveSpecifier(file, specifier, knownPaths, packagesByNpmName)
             if (!toPath || toPath === file.absolutePath) continue
@@ -296,6 +370,7 @@ async function readInboundEdges(
     filesByPath: ReadonlyMap<string, SourceFile>,
     knownPaths: ReadonlySet<string>,
     packagesByNpmName: ReadonlyMap<string, PackageInfo>,
+    readCached: (absPath: string) => Promise<string>,
 ): Promise<RawEdge[]> {
     // Inbound discovery requires reading every potentially-importing file.
     // This is the path that erodes the lean-path speedup; only enabled when
@@ -303,7 +378,7 @@ async function readInboundEdges(
     const edges: RawEdge[] = []
     for (const file of allFiles) {
         if (touchedSet.has(file.absolutePath)) continue
-        const text = await readFile(file.absolutePath, 'utf8')
+        const text = await readCached(file.absolutePath)
         for (const specifier of extractImportSpecifiers(file.absolutePath, text)) {
             const toPath = resolveSpecifier(file, specifier, knownPaths, packagesByNpmName)
             if (!toPath || toPath === file.absolutePath) continue

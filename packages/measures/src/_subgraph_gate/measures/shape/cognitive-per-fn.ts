@@ -61,7 +61,6 @@ import type {
 import {isFunctionLikeBoundary, walkFunctions, type FunctionDetail} from './_ast-helpers.ts'
 
 export const COGNITIVE_WARN_SOFT = 8
-export const COGNITIVE_WARN_HARD = 15
 export const COGNITIVE_FAIL = 30
 
 function isLogicalOperator(kind: ts.SyntaxKind): boolean {

@@ -19,6 +19,9 @@ REMOTE_USER="${REMOTE_USER:-root}"
 REMOTE_DIR="${REMOTE_DIR:-/root/voicetree-public}"
 REMOTE="${REMOTE_USER}@${DROPLET_IP}"
 MUTAGEN_CONFIG="$REPO_ROOT/get_dev_healthy/mutagen-vt-remote.yml"
+CSV_HISTORY_CONFIG="$REPO_ROOT/get_dev_healthy/mutagen-vt-csv-history.yml"
+CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
+CSV_HISTORY_REMOTE="${REMOTE_DIR}/health-dashboard/reports/scores-history"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/root/.voicetree/artifacts}"
 
 create_sync() {
@@ -27,6 +30,16 @@ create_sync() {
     --configuration-file "$MUTAGEN_CONFIG" \
     "$REPO_ROOT" \
     "${REMOTE}:${REMOTE_DIR}"
+}
+
+create_csv_history_sync() {
+  ssh -o StrictHostKeyChecking=no "$REMOTE" "mkdir -p '$CSV_HISTORY_REMOTE'"
+  mkdir -p "$CSV_HISTORY_LOCAL"
+  exec mutagen sync create \
+    --name vt-csv-history \
+    --configuration-file "$CSV_HISTORY_CONFIG" \
+    "$CSV_HISTORY_LOCAL" \
+    "${REMOTE}:${CSV_HISTORY_REMOTE}"
 }
 
 case "${1:-}" in
@@ -59,6 +72,22 @@ case "${1:-}" in
     ;;
   sync-monitor)
     exec mutagen sync monitor vt-remote
+    ;;
+  csv-history-create)
+    create_csv_history_sync
+    ;;
+  csv-history-recreate)
+    mutagen sync terminate vt-csv-history >/dev/null 2>&1 || true
+    create_csv_history_sync
+    ;;
+  csv-history-status)
+    exec mutagen sync list vt-csv-history
+    ;;
+  csv-history-flush)
+    exec mutagen sync flush vt-csv-history
+    ;;
+  csv-history-terminate)
+    exec mutagen sync terminate vt-csv-history
     ;;
   artifacts-list)
     exec ssh -o StrictHostKeyChecking=no "$REMOTE" \
@@ -95,6 +124,11 @@ vt-remote.sh — DigitalOcean syd1 dev box ($DROPLET_IP)
   sync-pause         pause syncing
   sync-resume        resume syncing
   sync-monitor       live sync activity view
+  csv-history-create     create vt-csv-history two-way sync for scores-history/
+  csv-history-recreate   terminate any existing vt-csv-history and recreate
+  csv-history-status     mutagen sync list vt-csv-history
+  csv-history-flush      force a sync now
+  csv-history-terminate  stop the two-way sync session
   artifacts-list     list explicit artifact directories on Onidel
   artifacts-pull ID  copy /root/.voicetree/artifacts/ID back to ./artifacts/ID
   htop               remote htop (use 'q' to quit)

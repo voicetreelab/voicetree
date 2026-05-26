@@ -40,7 +40,6 @@ import type {
 } from '../../_internal/subgraph-measure.ts'
 
 export const EXPORTS_WARN_SOFT = 5
-export const EXPORTS_WARN_HARD = 10
 export const EXPORTS_FAIL = 30
 
 function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
