@@ -1,33 +1,35 @@
 /**
  * Cross-process single-flight for the client-side spawn step.
  *
- * The owner record (graphd.owner.json) is the daemon's arbiter; this lock
- * (graphd.spawn.lock) is the client's. When `decideOwnerAction` returns
- * `claim`, multiple callers in separate processes could otherwise each
- * spawn a daemon and rely on the daemon-side atomic claim to eject 99
- * losers. That works correctness-wise but burns 99 spawns per cold start.
+ * The owner record (`${daemonKind}.owner.json`) is the daemon's arbiter;
+ * this lock (`${daemonKind}.spawn.lock`) is the client's. When
+ * `decideOwnerAction` returns `claim`, multiple callers in separate
+ * processes could otherwise each spawn a daemon and rely on the daemon-
+ * side atomic claim to eject 99 losers. That works correctness-wise but
+ * burns 99 spawns per cold start.
  *
- * `acquireSpawnLock` atomic-creates the file with `wx` so only one caller
- * per machine wins the spawn step. Losers wait for the lock to release
- * (or its holder to die) and loop back to discovery — by then the winner
- * has produced a healthy owner record and they reuse it.
+ * `acquireSpawnLock` atomic-creates the file with `wx` so only one
+ * caller per machine wins the spawn step for this `(vault, daemonKind)`.
+ * Losers wait for the lock to release (or its holder to die) and loop
+ * back to discovery — by then the winner has produced a healthy owner
+ * record and they reuse it.
  *
- * The lock is independent of the daemon's legacy `graphd.lock` sidecar:
- * different filename, different writer, different lifecycle.
+ * Each daemon kind has its own lock file under `<vault>/.voicetree/`, so
+ * a graphd spawn and a vtd spawn for the same vault do not block each
+ * other.
  */
 
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { readProcessLiveness } from '../probes/processLiveness.ts'
-
-export const SPAWN_LOCK_FILENAME = 'graphd.spawn.lock'
+import type { DaemonKind } from '@vt/graph-db-protocol'
+import { readProcessLiveness } from './processLiveness.ts'
 
 export type SpawnLockAcquisition =
   | { readonly kind: 'acquired'; readonly release: () => Promise<void> }
   | { readonly kind: 'held'; readonly holderPid: number | null }
 
-export function spawnLockPathFor(vaultDir: string): string {
-  return join(vaultDir, '.voicetree', SPAWN_LOCK_FILENAME)
+export function spawnLockPathFor(vaultDir: string, daemonKind: DaemonKind): string {
+  return join(vaultDir, '.voicetree', `${daemonKind}.spawn.lock`)
 }
 
 /**
@@ -39,9 +41,10 @@ export function spawnLockPathFor(vaultDir: string): string {
  */
 export async function acquireSpawnLock(
   vaultDir: string,
+  daemonKind: DaemonKind,
   ownPid: number,
 ): Promise<SpawnLockAcquisition> {
-  const path = spawnLockPathFor(vaultDir)
+  const path = spawnLockPathFor(vaultDir, daemonKind)
   if (await tryCreate(path, ownPid)) {
     return { kind: 'acquired', release: async () => releaseSpawnLock(path) }
   }

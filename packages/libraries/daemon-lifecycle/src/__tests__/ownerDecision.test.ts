@@ -9,7 +9,7 @@ import {
   type OwnerDecisionPolicy,
   type OwnerEvidence,
   type ProcessLiveness,
-} from '../autoLaunch/ownership/ownerDecision.ts'
+} from '../ownerDecision.ts'
 
 const VAULT = '/vault'
 
@@ -200,7 +200,7 @@ describe('decideOwnerAction — unsafe-owner', () => {
     const e = evidence({
       health: {
         kind: 'mismatch',
-        observedCanonicalProjectRoot: '/other-vault',
+        observedCanonicalVault: '/other-vault',
         observedOwnerNonce: 'nonce-zzz',
       },
     })

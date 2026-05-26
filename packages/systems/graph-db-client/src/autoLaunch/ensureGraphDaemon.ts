@@ -5,7 +5,7 @@
  * obtain a {@link GraphDbClient} bound to the authoritative vt-graphd owner
  * for a vault. It coordinates discovery, waiting, claiming, spawning,
  * reclamation, and cooldown suppression by wrapping pure {@link
- * decideOwnerAction} with the impure IO adapters in this directory.
+ * decideOwnerAction} with the impure IO adapters in `@vt/daemon-lifecycle`.
  *
  * Functional shape: one deep, narrow public function backed by a pure
  * decision rule (`decideOwnerAction`) and the impure spawn/wait/reclaim
@@ -22,7 +22,16 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import type { CallerKind } from './types.ts'
+import {
+  boundedDelay,
+  decideOwnerAction,
+  emitOwnerDiagnostic,
+  nextBackoff,
+  readOwnerRecord,
+  sleep,
+  type CallerKind,
+  type OwnerDecision,
+} from '@vt/daemon-lifecycle'
 import {
   DaemonLaunchTimeout,
   OwnerSpawnCooldownError,
@@ -30,17 +39,10 @@ import {
   UnsafeOwnerError,
 } from '../errors.ts'
 import { GraphDbClient } from '../GraphDbClient.ts'
-import { emitOwnerDiagnostic } from './diagnostics.ts'
-import { decideOwnerAction, type OwnerDecision } from './ownership/ownerDecision.ts'
-import { readOwnerRecord } from './ownership/ownerRecordIo.ts'
 import {
   attemptSpawnAndWait,
-  boundedDelay,
-  clientFor,
   gatherEvidence,
-  nextBackoff,
   reclaimStaleOwner,
-  sleep,
   type SpawnAttemptResult,
 } from './spawn/spawnCoordinator.ts'
 
@@ -91,6 +93,10 @@ const DEFAULT_SPAWN_COOLDOWN_MS = 5_000
 
 const inflightByVault = new Map<string, Promise<EnsureGraphDaemonResult>>()
 
+export function clientFor(port: number): GraphDbClient {
+  return new GraphDbClient({ baseUrl: `http://127.0.0.1:${port}` })
+}
+
 export async function ensureGraphDaemonForVault(
   vault: string,
   caller: CallerKind,
@@ -137,7 +143,7 @@ async function runEnsure(
   let backoff = ctx.initialBackoffMs
 
   while (Date.now() < ctx.deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVault)
+    const evidence = await gatherEvidence(canonicalVault, 'graphd')
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs: ctx.staleHeartbeatMs,
@@ -225,12 +231,14 @@ async function handleDecision(
         nowMs: Date.now(),
         reason: 'no-owner',
       })
-      const result = await attemptSpawnAndWait(
+      const result = await attemptSpawnAndWait<GraphDbClient>(
         ctx.canonicalVault,
         ctx.caller,
         ctx.attemptId,
         {
           bin: ctx.options.bin,
+          daemonKind: 'graphd',
+          clientFor,
           initialBackoffMs: ctx.initialBackoffMs,
           maxBackoffMs: ctx.maxBackoffMs,
         },
@@ -264,7 +272,7 @@ async function handleDecision(
         nowMs: Date.now(),
         reason: 'stale-reclaim',
       })
-      await reclaimStaleOwner(ctx.canonicalVault, decision.staleRecord)
+      await reclaimStaleOwner(ctx.canonicalVault, 'graphd', decision.staleRecord)
       emitOwnerDiagnostic({
         kind: 'stale-reclaimed',
         attemptId: ctx.attemptId,
@@ -318,7 +326,7 @@ async function waitAndContinue(
  * from "we never even got a record" (no owner ever materialised).
  */
 async function timeoutError(canonicalVault: string): Promise<Error> {
-  const finalRecord = await readOwnerRecord(canonicalVault)
+  const finalRecord = await readOwnerRecord(canonicalVault, 'graphd')
   if (finalRecord !== null) {
     return new OwnerWaitTimeoutError(canonicalVault, finalRecord.pid)
   }

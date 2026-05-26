@@ -1,9 +1,9 @@
 /**
- * Pure decision function for vt-graphd vault ownership.
+ * Pure decision function for vault ownership.
  *
- * Callers gather observations about the on-disk owner record, recorded pid
- * liveness, health probe identity, command fingerprint match, and any
- * active cooldown breadcrumb. {@link decideOwnerAction} maps those
+ * Callers gather observations about the on-disk owner record, recorded
+ * pid liveness, health probe identity, command fingerprint match, and
+ * any active cooldown breadcrumb. {@link decideOwnerAction} maps those
  * observations to one of the discriminated decisions below. The function
  * is deterministic, free of I/O, and only depends on its inputs — it is
  * the core invariant of the single-owner protocol and is tested as a
@@ -11,9 +11,15 @@
  *
  * BF-342: foundation only. Production launcher wiring (Electron, CLI,
  * graph-db-client, server lifecycle) lives in BF-343..BF-348.
+ *
+ * BF-369: lifted into `@vt/daemon-lifecycle` so the decision rule can be
+ * reused by the upcoming vt-daemon launcher with no per-kind branching.
+ * `record.daemonKind` is now part of the evidence but the rule's outputs
+ * are kind-agnostic; the consumer is responsible for selecting the
+ * health probe / command resolver for its daemon kind.
  */
 
-import type { OwnerRecord } from '../types.ts'
+import type { OwnerRecord } from '@vt/graph-db-protocol'
 
 /**
  * Liveness observation for the recorded owner pid.
@@ -46,7 +52,7 @@ export type HealthProbeResult =
   | { readonly kind: 'unreachable' }
   | {
       readonly kind: 'mismatch'
-      readonly observedCanonicalProjectRoot: string | null
+      readonly observedCanonicalVault: string | null
       readonly observedOwnerNonce: string | null
     }
   | {
@@ -146,7 +152,7 @@ export type OwnerDecision =
  * Priority order:
  *  1. Reuse — a verified healthy owner is always usable, even during a
  *     cooldown window. A reuse is not a spawn.
- *  2. Unsafe-owner — health identity mismatch (some other vt-graphd
+ *  2. Unsafe-owner — health identity mismatch (some other daemon
  *     instance, or another tool, is on the recorded port). Refuses to
  *     reclaim because reclaim could kill an unrelated process.
  *  3. Claim — no record on disk. Suppressed by an active cooldown.

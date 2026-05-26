@@ -8,44 +8,56 @@
  * lifecycle diagnostics around this boundary.
  *
  * Functional shape: a single deep, narrow public entrypoint
- * (`attemptSpawnAndWait`) composes the small adapters in this directory —
- * spawn lock, owner-record IO, health probe, command resolution, cooldown
- * breadcrumb IO, diagnostics emit. The decision rule remains the pure
+ * (`attemptSpawnAndWait`) composes the daemon-lifecycle primitives —
+ * spawn lock, owner-record IO, health probe, cooldown breadcrumb IO,
+ * diagnostics emit — plus a per-daemon-kind `clientFor(port): TClient`
+ * supplied by the caller. The decision rule remains the pure
  * `decideOwnerAction`; this file only sequences side effects.
+ *
+ * BF-369: templated over `TClient` and parameterised by `daemonKind` so
+ * the same orchestrator drives both vt-graphd (`clientFor` returns a
+ * `GraphDbClient`) and vt-daemon (BF-373, `clientFor` returns a
+ * `VtDaemonClient`) without forcing daemon-lifecycle to depend on either
+ * HTTP-client constructor.
  */
 
-import { spawn, type ChildProcess } from 'node:child_process'
-import type { CallerKind, OwnerRecord } from '../types.ts'
-import { GraphDbClient } from '../../GraphDbClient.ts'
-import { DaemonLaunchTimeout, UnsafeOwnerError } from '../../errors.ts'
 import {
+  acquireSpawnLock,
+  boundedDelay,
   clearCooldownBreadcrumb,
+  DaemonLaunchTimeout,
   decideActiveCooldown,
-  readCooldownBreadcrumb,
-  writeCooldownBreadcrumb,
-} from '../ownership/cooldownBreadcrumb.ts'
-import { emitOwnerDiagnostic } from '../diagnostics.ts'
-import { probeOwnerHealth } from '../probes/healthIdentityProbe.ts'
-import {
   decideOwnerAction,
-  type OwnerEvidence,
-} from '../ownership/ownerDecision.ts'
-import { deleteOwnerRecord, readOwnerRecord } from '../ownership/ownerRecordIo.ts'
-import {
+  deleteOwnerRecord,
+  emitOwnerDiagnostic,
+  nextBackoff,
+  ownerRecordFile,
+  probeOwnerHealth,
   readCommandFingerprintMatch,
+  readCooldownBreadcrumb,
+  readOwnerRecord,
   readProcessLiveness,
-} from '../probes/processLiveness.ts'
-import { resolveCommand, type CommandSpec } from './runtime.ts'
-import { acquireSpawnLock } from './spawnLock.ts'
+  sleep,
+  spawnDaemon,
+  UnsafeOwnerError,
+  writeCooldownBreadcrumb,
+  type CallerKind,
+  type DaemonKind,
+  type OwnerEvidence,
+  type OwnerRecord,
+} from '@vt/daemon-lifecycle'
+import { resolveCommand } from './runtime.ts'
 
-export type SpawnCoordinationOptions = {
+export type SpawnCoordinationOptions<TClient> = {
   readonly bin?: string
+  readonly daemonKind: DaemonKind
+  readonly clientFor: (port: number) => TClient
   readonly initialBackoffMs: number
   readonly maxBackoffMs: number
 }
 
-export type SpawnAttemptResult = {
-  readonly client: GraphDbClient
+export type SpawnAttemptResult<TClient> = {
+  readonly client: TClient
   readonly port: number
   readonly pid: number
   readonly ownerNonce: string
@@ -59,10 +71,11 @@ export type SpawnAttemptResult = {
  */
 export async function gatherEvidence(
   canonicalVault: string,
+  daemonKind: DaemonKind,
 ): Promise<OwnerEvidence> {
-  const breadcrumb = await readCooldownBreadcrumb(canonicalVault)
+  const breadcrumb = await readCooldownBreadcrumb(canonicalVault, daemonKind)
   const cooldown = decideActiveCooldown(Date.now(), breadcrumb)
-  const record = await readOwnerRecord(canonicalVault)
+  const record = await readOwnerRecord(canonicalVault, daemonKind)
   if (record === null) {
     return {
       record: null,
@@ -100,42 +113,52 @@ export async function gatherEvidence(
  * emitted) but the daemon never produced a healthy owner record before the
  * deadline. The breadcrumb is cleared on the spawn-ready path.
  */
-export async function attemptSpawnAndWait(
+export async function attemptSpawnAndWait<TClient>(
   canonicalVault: string,
   caller: CallerKind,
   attemptId: string,
-  options: SpawnCoordinationOptions,
+  options: SpawnCoordinationOptions<TClient>,
   deadlineMs: number,
   staleHeartbeatMs: number,
   spawnCooldownMs: number,
-): Promise<SpawnAttemptResult | null> {
-  const acquisition = await acquireSpawnLock(canonicalVault, process.pid)
+): Promise<SpawnAttemptResult<TClient> | null> {
+  const acquisition = await acquireSpawnLock(
+    canonicalVault,
+    options.daemonKind,
+    process.pid,
+  )
   if (acquisition.kind === 'held') {
     return null
   }
 
   try {
-    const preSpawnRecord = await readOwnerRecord(canonicalVault)
+    const preSpawnRecord = await readOwnerRecord(canonicalVault, options.daemonKind)
     if (preSpawnRecord !== null && preSpawnRecord.port !== null) {
-      const reuseResult = await tryReuseExistingOwner(preSpawnRecord)
+      const reuseResult = await tryReuseExistingOwner(preSpawnRecord, options.clientFor)
       if (reuseResult !== null) return reuseResult
     }
 
     const command = resolveCommand(canonicalVault, options.bin)
-    const spawnedPid = spawnDaemon(command, caller)
+    const spawned = spawnDaemon({
+      daemonKind: options.daemonKind,
+      cmd: command.cmd,
+      args: command.args,
+      env: command.env,
+      caller,
+    })
     emitOwnerDiagnostic({
       kind: 'spawn-started',
       attemptId,
       callerKind: caller,
       canonicalVault,
       nowMs: Date.now(),
-      childPid: spawnedPid,
+      childPid: spawned.pid,
     })
 
     try {
       const ready = await waitForDaemonHealth(
         canonicalVault,
-        spawnedPid,
+        spawned.pid,
         deadlineMs,
         staleHeartbeatMs,
         options,
@@ -150,15 +173,16 @@ export async function attemptSpawnAndWait(
         port: ready.port,
         ownerNonce: ready.ownerNonce,
       })
-      await clearCooldownBreadcrumb(canonicalVault)
+      await clearCooldownBreadcrumb(canonicalVault, options.daemonKind)
       return ready
     } catch (cause) {
       await onSpawnFailure(
         cause,
         canonicalVault,
+        options.daemonKind,
         caller,
         attemptId,
-        spawnedPid,
+        spawned.pid,
         spawnCooldownMs,
       )
       throw cause
@@ -171,6 +195,7 @@ export async function attemptSpawnAndWait(
 async function onSpawnFailure(
   cause: unknown,
   canonicalVault: string,
+  daemonKind: DaemonKind,
   caller: CallerKind,
   attemptId: string,
   spawnedPid: number | null,
@@ -193,7 +218,7 @@ async function onSpawnFailure(
   // write a cooldown for it.
   if (cause instanceof DaemonLaunchTimeout) {
     const now = Date.now()
-    await writeCooldownBreadcrumb(canonicalVault, {
+    await writeCooldownBreadcrumb(canonicalVault, daemonKind, {
       schemaVersion: 1,
       canonicalVault,
       writtenAtMs: now,
@@ -207,9 +232,10 @@ async function onSpawnFailure(
   }
 }
 
-async function tryReuseExistingOwner(
+async function tryReuseExistingOwner<TClient>(
   record: OwnerRecord,
-): Promise<SpawnAttemptResult | null> {
+  clientFor: (port: number) => TClient,
+): Promise<SpawnAttemptResult<TClient> | null> {
   if (record.port === null) return null
   const probe = await probeOwnerHealth(record.port)
   if (probe.kind !== 'verified') return null
@@ -224,41 +250,24 @@ async function tryReuseExistingOwner(
   }
 }
 
-function spawnDaemon(command: CommandSpec, caller: CallerKind): number | null {
-  const child: ChildProcess = spawn(command.cmd, command.args, {
-    detached: true,
-    env: {
-      ...(command.env ?? process.env),
-      VT_GRAPHD_CALLER_KIND: caller,
-    },
-    stdio: ['ignore', 'ignore', 'ignore'],
-  })
-  child.unref()
-  child.on('error', () => {
-    // Errors here surface as the wait-for-health loop timing out, which is
-    // the right boundary: we want one launch-failure shape, not two.
-  })
-  return child.pid ?? null
-}
-
-async function waitForDaemonHealth(
+async function waitForDaemonHealth<TClient>(
   canonicalVault: string,
   spawnedPid: number | null,
   deadlineMs: number,
   staleHeartbeatMs: number,
-  options: SpawnCoordinationOptions,
-): Promise<SpawnAttemptResult> {
+  options: SpawnCoordinationOptions<TClient>,
+): Promise<SpawnAttemptResult<TClient>> {
   let backoff = options.initialBackoffMs
 
   while (Date.now() < deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVault)
+    const evidence = await gatherEvidence(canonicalVault, options.daemonKind)
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs,
     })
     if (decision.kind === 'reuse') {
       return {
-        client: clientFor(decision.port),
+        client: options.clientFor(decision.port),
         port: decision.port,
         pid: decision.pid,
         ownerNonce: decision.ownerNonce,
@@ -279,7 +288,7 @@ async function waitForDaemonHealth(
   }
 
   throw new DaemonLaunchTimeout(
-    `vt-graphd spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalVault} before deadline`,
+    `daemon spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalVault} before deadline`,
   )
 }
 
@@ -287,11 +296,12 @@ async function waitForDaemonHealth(
  * Reclaim a stale owner: only invoked after `decideOwnerAction` has already
  * authorised reclamation through safe-kill predicates (dead pid, OR alive
  * pid with matching command fingerprint). The dead case has nothing to
- * terminate; the alive case is a hung vt-graphd we are authorised to
+ * terminate; the alive case is a hung daemon we are authorised to
  * terminate so its owner record can be replaced.
  */
 export async function reclaimStaleOwner(
   canonicalVault: string,
+  daemonKind: DaemonKind,
   staleRecord: OwnerRecord,
 ): Promise<void> {
   if (readProcessLiveness(staleRecord.pid) === 'alive') {
@@ -308,23 +318,5 @@ export async function reclaimStaleOwner(
       await sleep(25)
     }
   }
-  await deleteOwnerRecord(canonicalVault)
-}
-
-export function clientFor(port: number): GraphDbClient {
-  return new GraphDbClient({ baseUrl: `http://127.0.0.1:${port}` })
-}
-
-export function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms))
-}
-
-export function nextBackoff(current: number, ceiling: number): number {
-  return Math.min(current * 2, ceiling)
-}
-
-export function boundedDelay(backoff: number, deadlineMs: number): number {
-  const remaining = deadlineMs - Date.now()
-  if (remaining <= 0) return 0
-  return Math.min(backoff, remaining)
+  await deleteOwnerRecord(ownerRecordFile.pathFor(canonicalVault, daemonKind))
 }

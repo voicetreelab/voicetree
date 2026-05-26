@@ -3,7 +3,7 @@ import {
   startParentPidWatchdog,
   type ParentPidWatchdogScheduler,
   type ParentPidWatchdogTimer,
-} from './parentPidWatchdog.ts'
+} from '../parentPidWatchdog.ts'
 
 type FakeTimer = ParentPidWatchdogTimer & {
   fn: () => void

@@ -1,9 +1,18 @@
-// Detects when this daemon's original parent has died and the kernel
-// reparented us to PID 1 (launchd on macOS, init on Linux). Used by the
-// vaultless Electron-spawned daemon to self-exit when Electron crashes
-// without going through will-quit — the only path the existing graceful
-// shutdown covers. Works even under SIGKILL/jetsam of the parent because
-// the daemon does the detecting, not the parent.
+/**
+ * Reparent-to-init detector.
+ *
+ * Detects when this daemon's original parent has died and the kernel
+ * reparented it to PID 1 (launchd on macOS, init on Linux). Used by
+ * daemons whose parent may exit uncleanly (jetsam, SIGKILL) without
+ * giving the daemon a chance to be notified — the existing graceful
+ * shutdown path covers only the will-quit case.
+ *
+ * Works even under SIGKILL of the parent because the daemon does the
+ * detecting (polling its own ppid), not the parent. Compare with
+ * {@link startParentPidWatchdog} which requires the caller to pass the
+ * parent pid explicitly; this primitive needs no env var and is the
+ * right primitive when no explicit launcher relationship is known.
+ */
 
 export type ParentWatchDeps = {
   getPpid: () => number

@@ -66,6 +66,26 @@ type ImportEdge = {
 // requires rather than rolling back the refactor:
 //   graph-db-server -> graph-model:       41 -> 42 (+1 resolveInitialPositionsForDelta)
 //
+// 2026-05-26 [BF-369]: factor @vt/daemon-lifecycle from graph-db-server +
+// graph-db-client (parent-pid watchdog, owner-record I/O, decideOwnerAction
+// + evidence types, spawn lock, cooldown breadcrumb, process liveness,
+// health-identity probe, generic spawnDaemon, errors, diagnostics bus,
+// generalised over DaemonKind). Both graph-db-server and graph-db-client
+// now import the lifecycle primitives instead of carrying parallel copies:
+//   daemon-lifecycle -> graph-db-protocol: 0 -> 2 (ownerRecordFile +
+//     HealthResponseSchema; the only values daemon-lifecycle needs from
+//     the on-disk shape; the type-only re-exports are free)
+//   graph-db-client -> daemon-lifecycle: 0 -> 23 (full lifecycle surface:
+//     owner record I/O, decision rule, spawn lock, cooldown breadcrumb,
+//     probes, errors, diagnostics, poll-timing primitives, spawnDaemon)
+//   graph-db-server -> daemon-lifecycle: 0 -> 10 (owner record atomic
+//     primitives + ownerRecordFile + decode + isOwnerPidAlive +
+//     startParentWatch + withBoundPort + withHeartbeat + createInitialRecord)
+//   graph-db-client -> graph-db-protocol: 25 -> 24 (one fewer value: types
+//     and the diagnostics event union now reach client via daemon-lifecycle)
+//   graph-db-server -> graph-db-protocol: 4 -> 1 (CONTRACT_VERSION only;
+//     owner record helpers route through daemon-lifecycle)
+//
 // 2026-05-26: record budgets for newly-extracted sibling packages whose
 // edges did not exist when the manifest was last updated. None of these
 // is a regression in pre-existing coupling — each is the measured value
@@ -110,10 +130,13 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> graph-db-server': 12,
     'agent-runtime -> graph-model': 13,
     'app-config -> graph-model': 4,
-    'graph-db-client -> graph-db-protocol': 25,
+    'daemon-lifecycle -> graph-db-protocol': 2,
+    'graph-db-client -> daemon-lifecycle': 23,
+    'graph-db-client -> graph-db-protocol': 24,
     'graph-db-client -> graph-db-server': 17,
     'graph-db-server -> app-config': 13,
-    'graph-db-server -> graph-db-protocol': 4,
+    'graph-db-server -> daemon-lifecycle': 10,
+    'graph-db-server -> graph-db-protocol': 1,
     'graph-db-server -> graph-model': 42,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,

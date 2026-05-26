@@ -7,7 +7,8 @@ const requireFromHere = createRequire(import.meta.url)
 const DEFAULT_READY_TIMEOUT_MS = 15_000
 
 const VAULTLESS_DAEMON_SCRIPT = `
-import { startDaemon, startParentPidWatchdog } from '@vt/graph-db-server/server'
+import { startDaemon } from '@vt/graph-db-server/server'
+import { startParentPidWatchdog } from '@vt/daemon-lifecycle'
 
 const swallowEpipe = (stream) => {
   stream.on('error', (err) => {

@@ -39,11 +39,11 @@ import {
   decodeOwnerRecord,
   deleteOwnerRecord,
   isOwnerPidAlive,
-  ownerRecordPathFor,
+  ownerRecordFile,
   tryAtomicCreate,
   withBoundPort,
   withHeartbeat,
-} from '../ownerRecord.ts'
+} from '@vt/daemon-lifecycle'
 
 /**
  * BF-343 → BF-344 transition: graph-db-client's portDiscovery checks the
@@ -108,7 +108,7 @@ export async function claimDaemonOwner(
   return tracer.startActiveSpan('daemon.claim-owner', async (span) => {
     span.setAttribute('vault', options.canonicalVault)
     try {
-      const path = ownerRecordPathFor(options.canonicalVault, 'graphd')
+      const path = ownerRecordFile.pathFor(options.canonicalVault, 'graphd')
       let record = createInitialRecord({
         daemonKind: 'graphd',
         canonicalVault: options.canonicalVault,

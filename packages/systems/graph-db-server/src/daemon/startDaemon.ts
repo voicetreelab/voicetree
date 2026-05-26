@@ -22,7 +22,7 @@ import {
   initDaemonGraphModel,
   resetDaemonGraphState,
 } from './lifecycle/daemonGraphLifecycle.ts'
-import { startParentWatch, type ParentWatchHandle } from './lifecycle/daemonParentWatch.ts'
+import { startParentWatch, type ParentWatchHandle } from '@vt/daemon-lifecycle'
 import { startDaemonWatcher } from './lifecycle/daemonWatcherLifecycle.ts'
 import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'

@@ -1,5 +1,5 @@
 /**
- * HTTP probe of `vt-graphd`'s `/health` endpoint, projected into the
+ * HTTP probe of a daemon's `/health` endpoint, projected into the
  * {@link HealthProbeResult} shape consumed by {@link decideOwnerAction}.
  *
  * The daemon's `/health` response (HealthResponseSchema in
@@ -7,18 +7,20 @@
  * The probe surfaces it as one of three observable states:
  * - `unreachable`: the socket refused, timed out, or the response failed
  *   to parse as a HealthResponse.
- * - `mismatch`: the daemon answered with `owner === null` (no owner claim
- *   yet — happens during the vaultless startup window or on legacy paths).
- *   The pure decision treats this as "not this vault's owner".
+ * - `mismatch`: the daemon answered with `owner === null` (no owner
+ *   claim yet — happens during the vaultless startup window or on
+ *   legacy paths). The pure decision treats this as "not this vault's
+ *   owner".
  * - `verified`: the daemon answered with a complete `HealthOwner` block.
  *
- * The probe never compares against the on-disk record itself — the policy
- * comparison stays inside {@link decideOwnerAction} so this adapter has a
- * single concern.
+ * The probe never compares against the on-disk record itself — the
+ * policy comparison stays inside {@link decideOwnerAction} so this
+ * adapter has a single concern. The same probe shape works for vt-graphd
+ * and vt-daemon because both speak the same HealthResponse contract.
  */
 
 import { HealthResponseSchema } from '@vt/graph-db-protocol'
-import type { HealthProbeResult } from '../ownership/ownerDecision.ts'
+import type { HealthProbeResult } from './ownerDecision.ts'
 
 export type ProbeHealthOptions = {
   readonly timeoutMs?: number
@@ -47,7 +49,7 @@ export async function probeOwnerHealth(
     if (owner === null) {
       return {
         kind: 'mismatch',
-        observedCanonicalProjectRoot: null,
+        observedCanonicalVault: null,
         observedOwnerNonce: null,
       }
     }

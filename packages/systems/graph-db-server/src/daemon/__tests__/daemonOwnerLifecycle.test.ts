@@ -24,10 +24,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { startDaemon, type DaemonHandle } from '../server.ts'
-import {
-  ownerRecordPathFor,
-  readOwnerRecord,
-} from '../ownerRecord.ts'
+import { ownerRecordFile, readOwnerRecord } from '@vt/daemon-lifecycle'
+
+function ownerRecordPathFor(vault: string, daemonKind: 'graphd' | 'vtd'): string {
+  return ownerRecordFile.pathFor(vault, daemonKind)
+}
 import {
   DaemonOwnerConflictError,
   HEARTBEAT_INTERVAL_MS,

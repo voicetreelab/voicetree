@@ -1,40 +1,40 @@
 /**
- * Per-vault cooldown breadcrumb at `<vault>/.voicetree/graphd.cooldown.json`.
+ * Per-vault cooldown breadcrumb at
+ * `<vault>/.voicetree/${daemonKind}.cooldown.json`.
  *
- * BF-347: when a spawn attempt for a vault fails (the child was launched but
- * never produced a healthy owner before the deadline), we persist a short-
- * lived breadcrumb. Subsequent ensure calls within the cooldown window are
- * short-circuited via `OwnerSpawnCooldownError` before they re-attempt a
- * spawn or stale-reclaim. After `untilMs`, the breadcrumb is treated as
- * absent and a fresh spawn is permitted.
+ * BF-347: when a spawn attempt for a vault fails (the child was launched
+ * but never produced a healthy owner before the deadline), we persist a
+ * short-lived breadcrumb. Subsequent ensure calls within the cooldown
+ * window are short-circuited via `OwnerSpawnCooldownError` before they
+ * re-attempt a spawn or stale-reclaim. After `untilMs`, the breadcrumb
+ * is treated as absent and a fresh spawn is permitted.
  *
  * Shape:
  * - Pure: `decideActiveCooldown(now, breadcrumb)` projects an on-disk
  *   breadcrumb into the `Cooldown` shape consumed by `decideOwnerAction`.
  *   Returns `null` once the breadcrumb has expired.
- * - IO: atomic write via tmp + rename, idempotent read/clear. Corrupt or
- *   missing files are treated as "no active cooldown" so a stale or hand-
- *   edited cooldown file cannot wedge ensure.
+ * - IO: atomic write via tmp + rename, idempotent read/clear. Corrupt
+ *   or missing files are treated as "no active cooldown" so a stale or
+ *   hand-edited cooldown file cannot wedge ensure.
  *
- * Path is sibling to `graphd.owner.json` and `graphd.spawn.lock`, all under
- * `<vault>/.voicetree/`.
+ * Each daemon kind has its own breadcrumb file under
+ * `<vault>/.voicetree/` so a graphd cooldown does not block a vtd spawn
+ * for the same vault and vice versa.
  */
 
 import { randomUUID } from 'node:crypto'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { CallerKind } from '../types.ts'
+import type { CallerKind, DaemonKind } from '@vt/graph-db-protocol'
 import type { Cooldown } from './ownerDecision.ts'
-
-export const COOLDOWN_BREADCRUMB_FILENAME = 'graphd.cooldown.json'
 
 const COOLDOWN_BREADCRUMB_SCHEMA_VERSION = 1
 
 /**
- * Persisted shape of a cooldown record. The `untilMs` field is the wall-clock
- * instant the cooldown stops applying — readers do `nowMs >= untilMs` to
- * decide whether the breadcrumb is still active without needing to know
- * `writtenAtMs` or `ttlMs`.
+ * Persisted shape of a cooldown record. The `untilMs` field is the
+ * wall-clock instant the cooldown stops applying — readers do
+ * `nowMs >= untilMs` to decide whether the breadcrumb is still active
+ * without needing to know `writtenAtMs` or `ttlMs`.
  */
 export type CooldownBreadcrumb = {
   readonly schemaVersion: 1
@@ -49,8 +49,11 @@ export type CooldownBreadcrumb = {
   readonly lastErrorMessage: string
 }
 
-export function cooldownBreadcrumbPathFor(vaultDir: string): string {
-  return join(vaultDir, '.voicetree', COOLDOWN_BREADCRUMB_FILENAME)
+export function cooldownBreadcrumbPathFor(
+  vaultDir: string,
+  daemonKind: DaemonKind,
+): string {
+  return join(vaultDir, '.voicetree', `${daemonKind}.cooldown.json`)
 }
 
 /**
@@ -69,16 +72,17 @@ export function decideActiveCooldown(
 }
 
 /**
- * Read and decode the cooldown breadcrumb. Returns `null` when the file is
- * absent or corrupt — a corrupt breadcrumb cannot describe a cooldown
+ * Read and decode the cooldown breadcrumb. Returns `null` when the file
+ * is absent or corrupt — a corrupt breadcrumb cannot describe a cooldown
  * window, so callers must fall back to "no active cooldown".
  */
 export async function readCooldownBreadcrumb(
   vaultDir: string,
+  daemonKind: DaemonKind,
 ): Promise<CooldownBreadcrumb | null> {
   let raw: string
   try {
-    raw = await readFile(cooldownBreadcrumbPathFor(vaultDir), 'utf8')
+    raw = await readFile(cooldownBreadcrumbPathFor(vaultDir, daemonKind), 'utf8')
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
@@ -87,14 +91,16 @@ export async function readCooldownBreadcrumb(
 }
 
 /**
- * Atomic-write a cooldown breadcrumb. Uses tmp + rename so a partial write
- * cannot leave a half-formed JSON file other readers would treat as corrupt.
+ * Atomic-write a cooldown breadcrumb. Uses tmp + rename so a partial
+ * write cannot leave a half-formed JSON file other readers would treat
+ * as corrupt.
  */
 export async function writeCooldownBreadcrumb(
   vaultDir: string,
+  daemonKind: DaemonKind,
   breadcrumb: CooldownBreadcrumb,
 ): Promise<void> {
-  const target = cooldownBreadcrumbPathFor(vaultDir)
+  const target = cooldownBreadcrumbPathFor(vaultDir, daemonKind)
   const tmp = `${target}.tmp.${process.pid}.${randomUUID().slice(0, 8)}`
   await writeFile(tmp, `${JSON.stringify(breadcrumb, null, 2)}\n`, 'utf8')
   try {
@@ -107,12 +113,15 @@ export async function writeCooldownBreadcrumb(
 
 /**
  * Remove the cooldown breadcrumb. Idempotent — a missing file is not an
- * error. Called after a successful spawn so a healed vault is not held in
- * cooldown for the remainder of the window.
+ * error. Called after a successful spawn so a healed vault is not held
+ * in cooldown for the remainder of the window.
  */
-export async function clearCooldownBreadcrumb(vaultDir: string): Promise<void> {
+export async function clearCooldownBreadcrumb(
+  vaultDir: string,
+  daemonKind: DaemonKind,
+): Promise<void> {
   try {
-    await unlink(cooldownBreadcrumbPathFor(vaultDir))
+    await unlink(cooldownBreadcrumbPathFor(vaultDir, daemonKind))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
   }

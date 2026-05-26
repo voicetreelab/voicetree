@@ -8,7 +8,11 @@ import {
   type DaemonHandle,
   type StartDaemonOptions,
 } from '../server.ts'
-import { ownerRecordPathFor, readOwnerRecord } from '../ownerRecord.ts'
+import { ownerRecordFile, readOwnerRecord } from '@vt/daemon-lifecycle'
+
+function ownerRecordPathFor(vault: string, daemonKind: 'graphd' | 'vtd'): string {
+  return ownerRecordFile.pathFor(vault, daemonKind)
+}
 import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
 import { CONTRACT_VERSION, HealthResponseSchema } from '@vt/graph-db-server/contract'

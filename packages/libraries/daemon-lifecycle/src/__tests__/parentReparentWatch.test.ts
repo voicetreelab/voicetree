@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { startParentWatch, type ParentWatchDeps } from '../lifecycle/daemonParentWatch.ts'
+import { startParentWatch, type ParentWatchDeps } from '../parentReparentWatch.ts'
 
 type FakeTimer = { fire: () => void; cleared: boolean }
 type Harness = {

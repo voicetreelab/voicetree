@@ -1,19 +1,20 @@
 /**
  * Process liveness and command-fingerprint inspection for the recorded
- * owner pid. Both observations feed {@link decideOwnerAction} as evidence
- * about whether the recorded owner is still the live vt-graphd it claims
- * to be.
+ * owner pid. Both observations feed {@link decideOwnerAction} as
+ * evidence about whether the recorded owner is still the live daemon it
+ * claims to be.
  *
  * POSIX (macOS/Linux) inspect commands via `ps`; other platforms return
  * `'unknown'`, which the decision policy treats conservatively (no kill).
  */
 
 import { spawnSync } from 'node:child_process'
-import type { CommandFingerprint } from '../types.ts'
+import type { CommandFingerprint } from '@vt/graph-db-protocol'
 import type {
   CommandFingerprintMatch,
   ProcessLiveness,
-} from '../ownership/ownerDecision.ts'
+} from './ownerDecision.ts'
+import { commandFingerprintsEqual } from './ownerRecordIo.ts'
 
 export function readProcessLiveness(pid: number): ProcessLiveness {
   if (!Number.isInteger(pid) || pid <= 0) return 'unknown'
@@ -43,19 +44,7 @@ export function readCommandFingerprintMatch(
 ): CommandFingerprintMatch {
   const live = readPidCommand(pid)
   if (live === null) return 'unknown'
-  return fingerprintsEqual(live, recorded) ? 'match' : 'mismatch'
-}
-
-function fingerprintsEqual(
-  a: CommandFingerprint,
-  b: CommandFingerprint,
-): boolean {
-  if (a.executable !== b.executable) return false
-  if (a.args.length !== b.args.length) return false
-  for (let i = 0; i < a.args.length; i++) {
-    if (a.args[i] !== b.args[i]) return false
-  }
-  return true
+  return commandFingerprintsEqual(live, recorded) ? 'match' : 'mismatch'
 }
 
 function readPidCommand(pid: number): CommandFingerprint | null {

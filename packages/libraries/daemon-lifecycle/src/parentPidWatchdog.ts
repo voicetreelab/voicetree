@@ -1,3 +1,16 @@
+/**
+ * Caller-driven parent-pid watchdog.
+ *
+ * Polls `kill(parentPid, 0)` at a configurable interval and invokes
+ * `onParentGone` exactly once when the parent disappears. The caller
+ * supplies the parent pid explicitly — typically via the
+ * `VOICETREE_PARENT_PID` env var injected by the spawner — so this
+ * primitive is appropriate when the daemon's launcher is a long-lived
+ * process whose exit should take the daemon with it (Electron Main,
+ * vt CLI). Compare with {@link startParentWatch} which detects the
+ * ppid==1 reparent that follows unclean parent death.
+ */
+
 export type ParentPidWatchdogOptions = {
   parentPid: number
   pollIntervalMs?: number
