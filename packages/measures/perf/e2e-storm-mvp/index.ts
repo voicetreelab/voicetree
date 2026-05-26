@@ -27,6 +27,7 @@ import { generateVaultOnDisk } from '@vt/perf-fixtures'
 import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
 import { runFakeAgent, buildSingleCreateNodeScript } from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
+import { computePerfRunDir, flushAndStopVtGraphd } from './perfProfile.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -99,6 +100,16 @@ async function main(): Promise<void> {
     const outPath = args.outPath ?? path.join(reportsDir, `perf-e2e-mvp-${ts}.json`)
     const electronLogPath = path.join(reportsDir, `perf-e2e-mvp-electron-${ts}.log`)
 
+    // Bob's perf-dashboard producer lands artifacts in a per-run subdir of
+    // ~/.voicetree/reports/. The dashboard's listRuns filter requires the
+    // directory name to start with `stable-perf-`. Pre-creating the dir +
+    // env-pinning it means every spawned process (electron-main, vt-graphd,
+    // any future probed service) writes to the same run dir under a single
+    // dashboard entry.
+    const perfProfile = computePerfRunDir(reportsDir, ts)
+    mkdirSync(perfProfile.runDir, { recursive: true })
+    process.stdout.write(`[mvp] perf run dir: ${perfProfile.runDir}\n`)
+
     // Seed a small realistic vault so the daemon has nodes to attach to. The
     // single-agent MVP doesn't dogpile, but we still want the seed vault to
     // exercise the daemon's full vault-scan + index-build path.
@@ -128,6 +139,7 @@ async function main(): Promise<void> {
             logFilePath: electronLogPath,
             inspectPort: args.inspectPort,
             mcpDiscoveryTimeoutMs: args.mcpDiscoveryTimeoutMs,
+            extraEnv: perfProfile.env,
         })
         app = launched.app
         mcpPort = launched.mcpPort
@@ -186,6 +198,22 @@ async function main(): Promise<void> {
         failureReason = (err as Error).message
         if ((err as Error).stack) process.stderr.write(`[mvp] ${(err as Error).stack}\n`)
     } finally {
+        // Give vt-graphd a chance to flush its cpuprofile + metrics stream
+        // BEFORE we tear down electron. perfProbeFromEnv writes those
+        // artifacts only inside its SIGTERM/SIGINT/beforeExit handler — a
+        // SIGKILL skips them, and electron's app.close() may not propagate
+        // a clean signal to the daemon if it's stuck on the tmux-shutdown
+        // path described below. Findng + signalling vt-graphd directly is
+        // the only way to guarantee the dashboard sees its artifacts.
+        const flushed = await flushAndStopVtGraphd(projectDir, 4_000)
+        if (flushed.signaled.length > 0) {
+            process.stdout.write(
+                `[mvp] flushed vt-graphd: signaled=${JSON.stringify(flushed.signaled)} `
+                + `exitedCleanly=${JSON.stringify(flushed.exitedCleanly)} `
+                + `stillAlive=${JSON.stringify(flushed.stillAlive)}\n`,
+            )
+        }
+
         if (app) {
             // Electron's `terminal:spawn` IPC creates a TerminalRecord
             // referencing a long-lived tmux session that doesn't get torn
@@ -243,6 +271,7 @@ async function main(): Promise<void> {
         projectDir,
         appSupportPath,
         electronLogPath,
+        perfRunDir: perfProfile.runDir,
         outPath,
         totalWallMs: Date.now() - overallStart,
     })

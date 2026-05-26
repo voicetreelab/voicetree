@@ -24,6 +24,8 @@ export interface ReportInput {
     readonly projectDir: string
     readonly appSupportPath: string
     readonly electronLogPath: string
+    /** Per-run dir where perfProbeFromEnv writes ndjson + cpuprofile. */
+    readonly perfRunDir: string
     readonly outPath: string
     readonly totalWallMs: number
 }
@@ -72,6 +74,7 @@ export function writeReportAndSummary(input: ReportInput): void {
             projectDir: input.projectDir,
             appSupportPath: input.appSupportPath,
             electronLogPath: input.electronLogPath,
+            perfRunDir: input.perfRunDir,
         },
     }
 
@@ -87,6 +90,7 @@ export function writeReportAndSummary(input: ReportInput): void {
         + `  agent wall:    ${input.agentWallMs}ms (exit=${input.agentExitCode}${input.agentTimedOut ? ',timeout' : ''})\n`
         + `  files:         ${input.filesBefore} → ${input.filesAfter} (Δ=${input.filesAfter - input.filesBefore})\n`
         + `  total:         ${input.totalWallMs}ms   report: ${input.outPath}\n`
+        + `  perf run dir:  ${input.perfRunDir}\n`
         + `${sep}\n`,
     )
 }

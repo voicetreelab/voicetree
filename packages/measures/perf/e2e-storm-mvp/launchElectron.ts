@@ -24,6 +24,14 @@ export interface ElectronLaunchInputs {
     readonly logFilePath: string
     readonly inspectPort: number
     readonly mcpDiscoveryTimeoutMs: number
+    /**
+     * Extra env vars merged into electron's launch env. The daemon-client's
+     * `resolveCommand` returns `env: { ...process.env }` for the default
+     * vt-graphd command spec, so anything we put here propagates from
+     * electron-main into the spawned vt-graphd. Used to enable Bob's
+     * `perfProbeFromEnv` for the dashboard integration.
+     */
+    readonly extraEnv?: Readonly<Record<string, string>>
 }
 
 export interface ElectronLaunchResult {
@@ -149,6 +157,7 @@ export async function launchElectronAndDiscoverMcp(
             VOICETREE_PERSIST_STATE: '1',
             VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
             VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(inputs.repoRoot),
+            ...(inputs.extraEnv ?? {}),
         },
         timeout: 60_000,
     })
