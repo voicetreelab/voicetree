@@ -112,14 +112,15 @@ function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
 }
 
 /**
- * Wait for the fake-agent to report script completion via its ring-buffered
- * headless output. The agent prints `[fake-agent] Script complete.` after
- * executing the final action (which for our single-create-node script is
- * an `exit` action — after the agent has invoked create_graph end-to-end).
+ * Wait for the fake-agent to reach its `exit` action via the ring-buffered
+ * headless output. The executor emits `[fake-agent] Executing: <type>` for
+ * every action BEFORE running it (vt-fake-agent/src/executor.ts:39); the
+ * `exit` action then calls `process.exit(0)` so no further line is ever
+ * printed. So `Executing: exit` is the last-line-emitted completion marker
+ * for our single-create-node script.
  *
- * We could also poll `getTerminalStatus` for `exited`, but headless terminal
- * status is not exposed through preload yet, and exposing it just for this
- * test would be a scope creep.
+ * Using `Script complete.` would never match — the agent exits before that
+ * log line is reached.
  */
 async function pollForScriptComplete(
     appWindow: Page,
@@ -137,7 +138,7 @@ async function pollForScriptComplete(
             return (await api?.getHeadlessAgentOutput?.(id)) ?? ''
         }, terminalId)
 
-        if (lastOutput.includes('[fake-agent] Script complete')) {
+        if (lastOutput.includes('[fake-agent] Executing: exit')) {
             return { scriptCompleted: true, output: lastOutput }
         }
         if (lastOutput.includes('[fake-agent] Fatal')) {

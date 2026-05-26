@@ -174,7 +174,7 @@ async function main(): Promise<void> {
         if (!agentResult.spawnSuccess) {
             failureReason = `agent spawn failed: ${agentResult.spawnError}`
         } else if (agentResult.timedOut) {
-            failureReason = `agent timed out after ${args.agentTimeoutMs}ms (no [fake-agent] Script complete in output)`
+            failureReason = `agent timed out after ${args.agentTimeoutMs}ms (no [fake-agent] Executing: exit in output)`
         } else if (!agentResult.exitedCleanly) {
             failureReason = `agent reported failure in output`
         } else if (filesAfter <= filesBefore) {
