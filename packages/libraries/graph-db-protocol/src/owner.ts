@@ -43,6 +43,12 @@ export type CallerKind =
   | 'mcp'
   | 'graph-db-client'
   | 'test'
+  // The standalone vt-daemon (VTD) binary self-identifies as 'vtd' when it
+  // claims its own owner record AND when it acts as a client to vt-graphd
+  // via ensureGraphDaemonForVault('vtd'). Distinct from 'cli' (which is the
+  // voicetree-cli binary acting as a client to either daemon) so post-mortem
+  // analysis of an owner record can attribute the caller correctly.
+  | 'vtd'
 
 const CALLER_KINDS: readonly CallerKind[] = [
   'electron',
@@ -51,6 +57,7 @@ const CALLER_KINDS: readonly CallerKind[] = [
   'mcp',
   'graph-db-client',
   'test',
+  'vtd',
 ] as const
 
 /**

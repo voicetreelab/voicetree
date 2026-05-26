@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Embedded in Electron and consumed by the vt-mcpd headless binary.",
+  "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Also ships the standalone vtd binary — a per-vault per-machine daemon that talks to vt-graphd over RPC as a sibling process.",
   "main": "src/agents/index.ts",
   "bin": {
-    "vt-mcpd": "bin/vt-mcpd.ts"
+    "vtd": "bin/vtd.ts"
   },
   "exports": {
     ".": "./src/agents/index.ts",
@@ -25,8 +25,8 @@
     "@vt/agent-runtime": "*",
     "@vt/app-config": "*",
     "@vt/daemon-lifecycle": "*",
+    "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",
-    "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",

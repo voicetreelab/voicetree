@@ -42,8 +42,9 @@ const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES: ReadonlySet<string> = new Se
     'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
-    // vt-mcpd is the MCP-side daemon launcher entrypoint.
-    'packages/systems/vt-daemon/bin/vt-mcpd.ts',
+    // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer imports
+    // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
+    // SIBLING process. No allowlist entry required.
 ])
 
 const ALLOWED_AGENT_RUNTIME_WEBAPP_LAUNCHERS: ReadonlySet<string> = new Set([

@@ -8,7 +8,7 @@ export type AgentRuntimeConfig = Parameters<typeof agentRuntime.configureAgentRu
 // MCP-owned shim around @vt/agent-runtime. The webapp (Electron main) and any
 // other non-launcher shell must reach the agent runtime via this surface so
 // terminal/agent operations all funnel through the daemon-owned package.
-// Only daemon launchers (vt-mcpd, vt serve, and the FS-watcher bridge) may
+// Only daemon launchers (the vtd binary, vt serve, and the FS-watcher bridge) may
 // import @vt/agent-runtime directly — see the boundary test in
 // packages/measures/src/health/coupling/system-package-coupling.test.ts.
 export const terminalRuntimeSurface = {

@@ -179,8 +179,9 @@ async function main(): Promise<void> {
 
     // Wire MCP graph bridge to talk to the in-process daemon via HTTP. In
     // production (Electron) this bridge points at the GraphDbClient bound to
-    // the active vault; vt-mcpd headless leaves it unconfigured by design
-    // (CLI agents write via raw FS instead of create_graph). The perf harness
+    // the active vault; the standalone vtd binary headless leaves it
+    // unconfigured by design (CLI agents write via raw FS instead of
+    // create_graph). The perf harness
     // EXPLICITLY exercises create_graph because that is the path we suspect
     // creates load — so we configure the bridge here, identical in shape to
     // webapp's `main.ts` wiring.
@@ -425,8 +426,9 @@ async function main(): Promise<void> {
 
     const filesCreated = countMarkdownFiles(tempVault)
 
-    // Tear down in the same order vt-mcpd uses on SIGTERM:
-    // HTTP daemon → terminals → graph-db.
+    // Tear down: HTTP daemon → terminals → graph-db. (Note: the standalone
+    // vtd binary no longer embeds graph-db, but this perf harness still does
+    // — graphd shutdown happens here only because we own the spawn locally.)
     await httpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] http daemon stop: ${(e as Error).message}\n`))
     agentRuntime.getTerminalManager().cleanup()
     await daemonHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] daemon stop: ${(e as Error).message}\n`))

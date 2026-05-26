@@ -1,7 +1,8 @@
 // Late-bound bridges into Electron-only state that the MCP tool surface still
-// reaches through. Both Electron and vt-mcpd register their own implementations
-// at boot — those concrete dependencies arrive through this config object,
-// keeping this package free of Electron and renderer-side imports.
+// reaches through. Both Electron and the standalone vtd binary register their
+// own implementations at boot — those concrete dependencies arrive through
+// this config object, keeping this package free of Electron and renderer-side
+// imports.
 
 import type { Command, Delta, SerializedState } from '@vt/graph-state'
 import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
