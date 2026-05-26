@@ -1,95 +1,205 @@
 import { createWriteStream } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { Session } from 'node:inspector/promises'
 import { monitorEventLoopDelay, PerformanceObserver } from 'node:perf_hooks'
 import { finished } from 'node:stream/promises'
+import { randomUUID } from 'node:crypto'
+import { writeHeapSnapshot } from 'node:v8'
+
+import Pyroscope from '@pyroscope/nodejs'
+import { observabilityMetrics } from '@vt/observability'
 
 const PROFILE_ENABLED = '1'
-const RUN_DIR_ENV = 'VOICETREE_PERF_RUN_DIR'
-const compactIsoTimestamp = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, '').replace(/:/g, '-')
+const RUN_ID_ENV = 'VOICETREE_RUN_INSTANCE_ID'
+const OTLP_ENDPOINT_ENV = 'VOICETREE_OTLP_ENDPOINT'
+const PERF_PROFILE_ENV = 'VOICETREE_PERF_PROFILE'
+const PYROSCOPE_URL = 'http://localhost:4040'
+const SAMPLE_INTERVAL_MS = 1_000
+const HEAP_SNAPSHOT_OFFSETS_MS = [0, 5_000, 10_000]
+
 const nsToMs = (value) => value / 1_000_000
 
-function resolveRunDir() {
-  if (process.env[RUN_DIR_ENV]) return process.env[RUN_DIR_ENV]
+function resolveRunUuid(env = process.env) {
+  const existing = env[RUN_ID_ENV]
+  if (existing && existing.length > 0) return existing
 
-  const runDir = join(homedir(), '.voicetree', 'reports', `stable-perf-${compactIsoTimestamp()}`)
-  process.env[RUN_DIR_ENV] = runDir
-  return runDir
+  const generated = randomUUID()
+  env[RUN_ID_ENV] = generated
+  return generated
 }
 
-function observeGc() {
-  let gcPauseMs = 0
-  let gcCount = 0
-  const observer = new PerformanceObserver((list) => {
-    for (const entry of list.getEntries()) {
-      gcPauseMs += entry.duration
-      gcCount += 1
-    }
-  })
-  observer.observe({ entryTypes: ['gc'] })
-
-  return {
-    readAndReset() {
-      const result = { gc_pause_ms: gcPauseMs, gc_count: gcCount }
-      gcPauseMs = 0
-      gcCount = 0
-      return result
-    },
-    stop() {
-      observer.disconnect()
-    },
-  }
+function resolveRunDir(runUuid) {
+  return join(homedir(), '.voicetree', 'perf', runUuid)
 }
 
-function createMetricSampler(svc, metricsPath) {
-  const stream = createWriteStream(metricsPath, { flags: 'a' })
-  const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 })
-  const gc = observeGc()
-  let previousCpu = process.cpuUsage()
+async function ensureRunDirs(runDir) {
+  const paths = {
+    heapSnapshotsDir: join(runDir, 'heap-snapshots'),
+    logsDir: join(runDir, 'logs'),
+  }
+  await Promise.all(Object.values(paths).map((path) => mkdir(path, { recursive: true })))
+  return paths
+}
 
-  eventLoopDelay.enable()
+function createPlainLogWriter(svc, logPath) {
+  const stream = createWriteStream(logPath, { flags: 'a' })
 
-  const writeRow = () => {
-    const cpuDelta = process.cpuUsage(previousCpu)
-    previousCpu = process.cpuUsage()
-    const memory = process.memoryUsage()
-    const row = {
-      t: Date.now(),
-      svc,
-      cpu_user_ms: cpuDelta.user / 1000,
-      cpu_sys_ms: cpuDelta.system / 1000,
-      rss: memory.rss,
-      heap_used: memory.heapUsed,
-      heap_total: memory.heapTotal,
-      external: memory.external,
-      array_buffers: memory.arrayBuffers,
-      eld_p50_ms: nsToMs(eventLoopDelay.percentile(50)),
-      eld_p99_ms: nsToMs(eventLoopDelay.percentile(99)),
-      ...gc.readAndReset(),
-    }
-    stream.write(`${JSON.stringify(row)}\n`)
-    eventLoopDelay.reset()
+  const write = (level, message) => {
+    stream.write(`${new Date().toISOString()} ${level} ${message}\n`)
   }
 
-  const interval = setInterval(writeRow, 1000)
-  interval.unref()
+  write('INFO', `perf-probe startup service=${svc}`)
+  const heartbeat = setInterval(() => {
+    write('INFO', `perf-probe heartbeat service=${svc}`)
+  }, SAMPLE_INTERVAL_MS)
+  heartbeat.unref()
 
   return {
+    write,
     async stop() {
-      clearInterval(interval)
-      writeRow()
-      gc.stop()
-      eventLoopDelay.disable()
+      clearInterval(heartbeat)
+      write('INFO', `perf-probe shutdown service=${svc}`)
       stream.end()
       await finished(stream)
     },
   }
 }
 
-async function writeJsonFile(path, value) {
-  await writeFile(path, JSON.stringify(value), 'utf8')
+function observeGcMetrics({ pauseHistogram, countCounter }) {
+  const observer = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      pauseHistogram.record(entry.duration)
+      countCounter.add(1)
+    }
+  })
+  observer.observe({ entryTypes: ['gc'] })
+
+  return {
+    stop() {
+      observer.disconnect()
+    },
+  }
+}
+
+function createOtelRuntimeMetrics() {
+  const meter = observabilityMetrics.getMeter('vt-perf-probe')
+  const cpuCounter = meter.createCounter('process.cpu.time', {
+    description: 'Process CPU time consumed between perf-probe samples.',
+    unit: 's',
+  })
+  const gcPauseHistogram = meter.createHistogram('runtime.gc.pause', {
+    description: 'Observed V8 garbage-collection pause duration.',
+    unit: 'ms',
+  })
+  const gcCountCounter = meter.createCounter('runtime.gc.count', {
+    description: 'Observed V8 garbage-collection event count.',
+  })
+  const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 })
+  let previousCpu = process.cpuUsage()
+
+  meter.createObservableGauge('process.memory.usage', {
+    description: 'Process memory usage by memory type.',
+    unit: 'By',
+  }).addCallback((result) => {
+    const memory = process.memoryUsage()
+    result.observe(memory.rss, { type: 'rss' })
+    result.observe(memory.heapUsed, { type: 'heap_used' })
+    result.observe(memory.heapTotal, { type: 'heap_total' })
+    result.observe(memory.external, { type: 'external' })
+    result.observe(memory.arrayBuffers, { type: 'array_buffers' })
+  })
+
+  meter.createObservableGauge('nodejs.eventloop.delay', {
+    description: 'Node.js event-loop delay percentile over the last collection window.',
+    unit: 'ms',
+  }).addCallback((result) => {
+    result.observe(nsToMs(eventLoopDelay.percentile(50)), { quantile: '0.5' })
+    result.observe(nsToMs(eventLoopDelay.percentile(99)), { quantile: '0.99' })
+    eventLoopDelay.reset()
+  })
+
+  const recordCpuDelta = () => {
+    const cpuDelta = process.cpuUsage(previousCpu)
+    previousCpu = process.cpuUsage()
+    cpuCounter.add(cpuDelta.user / 1_000_000, { type: 'user' })
+    cpuCounter.add(cpuDelta.system / 1_000_000, { type: 'system' })
+  }
+
+  eventLoopDelay.enable()
+  const gc = observeGcMetrics({
+    pauseHistogram: gcPauseHistogram,
+    countCounter: gcCountCounter,
+  })
+  const cpuInterval = setInterval(recordCpuDelta, SAMPLE_INTERVAL_MS)
+  cpuInterval.unref()
+
+  return {
+    stop() {
+      clearInterval(cpuInterval)
+      recordCpuDelta()
+      gc.stop()
+      eventLoopDelay.disable()
+    },
+  }
+}
+
+function startPyroscopeWallProfiler({ svc, runUuid }) {
+  Pyroscope.init({
+    serverAddress: PYROSCOPE_URL,
+    appName: svc,
+    tags: {
+      service_instance_id: runUuid,
+    },
+    flushIntervalMs: SAMPLE_INTERVAL_MS,
+    wall: {
+      collectCpuTime: true,
+      samplingDurationMs: SAMPLE_INTERVAL_MS,
+      samplingIntervalMicros: 1_000,
+    },
+    heap: {
+      samplingIntervalBytes: 64 * 1024 * 1024,
+      stackDepth: 16,
+    },
+  })
+  Pyroscope.startWallProfiling()
+
+  return {
+    async stop() {
+      await Pyroscope.stopWallProfiling()
+    },
+  }
+}
+
+function writeNamedHeapSnapshot({ heapSnapshotsDir, svc, label }) {
+  writeHeapSnapshot(join(heapSnapshotsDir, `${svc}.${label}.heapsnapshot`))
+}
+
+function scheduleHeapSnapshots({ heapSnapshotsDir, svc, log }) {
+  const timers = []
+
+  for (const offsetMs of HEAP_SNAPSHOT_OFFSETS_MS) {
+    const label = `t${Math.round(offsetMs / 1000)}`
+    if (offsetMs === 0) {
+      writeNamedHeapSnapshot({ heapSnapshotsDir, svc, label })
+    } else {
+      const timer = setTimeout(() => {
+        try {
+          writeNamedHeapSnapshot({ heapSnapshotsDir, svc, label })
+        } catch (err) {
+          log.write('ERROR', `perf-probe heap-snapshot failed label=${label} error=${err instanceof Error ? err.message : String(err)}`)
+        }
+      }, offsetMs)
+      timer.unref()
+      timers.push(timer)
+    }
+  }
+
+  return {
+    stop() {
+      for (const timer of timers) clearTimeout(timer)
+    },
+  }
 }
 
 const SIGNAL_EXIT_CODES = {
@@ -102,7 +212,7 @@ function installShutdownHooks(stop) {
   const stopOnce = async () => {
     if (!stopPromise) {
       stopPromise = stop().catch((err) => {
-        process.stderr.write(`perfProbeFromEnv: failed to stop profiler: ${(err).message}\n`)
+        process.stderr.write(`perfProbeFromEnv: failed to stop profiler: ${err.message}\n`)
       })
     }
     await stopPromise
@@ -110,9 +220,7 @@ function installShutdownHooks(stop) {
 
   const stopForSignal = (signal) => {
     void stopOnce().finally(() => {
-      if (process.listenerCount(signal) === 0) {
-        process.exit(SIGNAL_EXIT_CODES[signal])
-      }
+      process.exit(SIGNAL_EXIT_CODES[signal])
     })
   }
 
@@ -126,30 +234,34 @@ function installShutdownHooks(stop) {
 }
 
 export async function perfProbeFromEnv(svc) {
-  if (process.env.VOICETREE_PERF_PROFILE !== PROFILE_ENABLED) return undefined
+  if (process.env[PERF_PROFILE_ENV] !== PROFILE_ENABLED) return undefined
 
-  const runDir = resolveRunDir()
-  const metricsDir = join(runDir, 'metrics')
-  const profilesDir = join(runDir, 'profiles')
-  await mkdir(metricsDir, { recursive: true })
-  await mkdir(profilesDir, { recursive: true })
+  const runUuid = resolveRunUuid()
+  const runDir = resolveRunDir(runUuid)
+  const paths = await ensureRunDirs(runDir)
+  const log = createPlainLogWriter(svc, join(paths.logsDir, `${svc}.log`))
 
-  const session = new Session()
-  session.connect()
-  await session.post('Profiler.enable')
-  await session.post('Profiler.start')
+  observabilityMetrics.init(svc, {
+    otlpEndpoint: process.env[OTLP_ENDPOINT_ENV],
+    instanceId: runUuid,
+  })
 
-  const metrics = createMetricSampler(svc, join(metricsDir, `${svc}.metrics.ndjson`))
+  const metrics = createOtelRuntimeMetrics()
+  const pyroscope = startPyroscopeWallProfiler({ svc, runUuid })
+  const heapSnapshots = scheduleHeapSnapshots({
+    heapSnapshotsDir: paths.heapSnapshotsDir,
+    svc,
+    log,
+  })
+
   let stopped = false
   const stop = async () => {
     if (stopped) return
     stopped = true
-    const [{ profile }] = await Promise.all([
-      session.post('Profiler.stop'),
-      metrics.stop(),
-    ])
-    session.disconnect()
-    await writeJsonFile(join(profilesDir, `${svc}.cpuprofile`), profile)
+    heapSnapshots.stop()
+    metrics.stop()
+    await pyroscope.stop()
+    await log.stop()
   }
 
   return installShutdownHooks(stop)

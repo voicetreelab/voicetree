@@ -22,6 +22,10 @@
   "scripts": {
     "test": "vitest run"
   },
+  "dependencies": {
+    "@pyroscope/nodejs": "^0.4.11",
+    "@vt/observability": "*"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "vitest": "^3.2.4"
