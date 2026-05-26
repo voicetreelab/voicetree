@@ -17,7 +17,6 @@ import {
     registerChildIfMonitored,
     startMcpServer,
 } from '@vt/voicetree-mcp';
-import type {Graph} from '@vt/graph-model/graph';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
@@ -62,12 +61,14 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics, type VaultState} from '@vt/graph-db-client';
 import {tracing} from '@vt/observability';
 import {
     getDaemonClient,
+    callDaemon,
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
+import {buildElectronGraphSnapshot} from './graph-snapshot';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 import {installQuitLifecycleHandlers} from './quit-lifecycle';
@@ -99,23 +100,7 @@ initializeGraphModel();
 configureMcpServer({
     graph: {
         getSnapshot: async () => {
-            const [graph, vaultPaths, writeFolderOption, projectRoot]: [
-                Graph,
-                readonly string[],
-                O.Option<string>,
-                string | null,
-            ] = await Promise.all([
-                getGraphFromDaemon(),
-                getVaultPaths(),
-                getWriteFolder(),
-                getProjectRoot(),
-            ]);
-            return {
-                graph,
-                projectRoot,
-                vaultPaths,
-                writeFolder: O.isSome(writeFolderOption) ? writeFolderOption.value : null,
-            };
+            return await callDaemon((client) => buildElectronGraphSnapshot(client));
         },
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
@@ -149,6 +134,14 @@ terminalRuntimeSurface.configureAgentRuntime({
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
         getProjectRoot,
+        getVaultSnapshot: async () => {
+            const vaultState: VaultState = await callDaemon((client) => client.getVault());
+            return {
+                projectRoot: vaultState.projectRoot,
+                readPaths: vaultState.readPaths,
+                writeFolder: vaultState.writeFolder,
+            };
+        },
         getVaultPaths,
         getWriteFolder: async () => {
             const writeFolder: O.Option<string> = await getWriteFolder();

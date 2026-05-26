@@ -21,6 +21,11 @@ export type RuntimeEnvProvider = {
     readonly getMcpPort: () => number;
     readonly getOTLPReceiverPort?: () => number | null;
     readonly getProjectRoot?: () => Promise<string | null>;
+    readonly getVaultSnapshot?: () => Promise<{
+        readonly projectRoot: string | null;
+        readonly readPaths: readonly string[];
+        readonly writeFolder: string | null;
+    }>;
     readonly getVaultPaths?: () => Promise<readonly string[]>;
     readonly getWriteFolder?: () => Promise<string | null>;
 };
