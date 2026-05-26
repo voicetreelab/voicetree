@@ -106,16 +106,6 @@ async function exposeElectronAPI(): Promise<void> {
             ipcRenderer.removeAllListeners(channel);
         },
 
-        // Terminal API
-        // Tmux-backed terminals: only spawn (session creation) needs an IPC
-        // bridge. Input/output flow through the renderer-side WebSocket relay.
-        // Text injection from non-TerminalVanilla callers (e.g. speech-to-
-        // focused) goes through `main.sendTextToTerminal` in mainAPI.
-        terminal: {
-            spawn: (terminalData) => ipcRenderer.invoke('terminal:spawn', terminalData),
-        },
-
-
         // Backend log streaming
         onBackendLog: (callback) => {
             ipcRenderer.on('backend-log', (_event, log) => callback(log));
@@ -148,7 +138,6 @@ async function exposeElectronAPI(): Promise<void> {
                 'rpc:call',
                 'rpc:getApiKeys',
                 'graph:getCurrentProjectedGraph',
-                'terminal:spawn',
             ]);
             if (!ALLOWED_INVOKE_CHANNELS.has(channel)) {
                 console.error(`[Preload] SECURITY: Blocked invoke to unauthorized channel: ${channel}`);

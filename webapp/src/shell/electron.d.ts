@@ -36,14 +36,6 @@ export interface ElectronAPI {
   onViewSwitched: (callback: (data: { activeViewId: string }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
-  // Terminal operations. Tmux-backed terminals talk to the relay over a
-  // renderer-side WebSocket for input/output; the only IPC needed at spawn
-  // time is session creation. Text injection from non-TerminalVanilla
-  // callers goes through `main.sendTextToTerminal` in mainAPI.
-  terminal: {
-    spawn: (nodeMetadata?: TerminalData) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
-  };
-
   // Backend log streaming
   onBackendLog: (callback: (log: string) => void) => void;
 
