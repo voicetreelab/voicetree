@@ -9,7 +9,7 @@ import type {AddressInfo} from 'node:net'
 import type {Duplex} from 'node:stream'
 import {WebSocket, WebSocketServer} from 'ws'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
-import {computeBackoffDelayMs, createVtDaemonEventsClient, eventsUrlFromDaemonUrl, type VtDaemonEventsClient} from './vtDaemonEventsClient'
+import {computeBackoffDelayMs, createVtDaemonEventsClient, type VtDaemonEventsClient} from './vtDaemonEventsClient'
 
 const TEST_TOKEN: string = 'cafef00d-cafef00d-cafef00d-cafef00d'
 
