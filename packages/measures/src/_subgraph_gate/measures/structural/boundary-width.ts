@@ -36,6 +36,8 @@ import {exportedSymbolNames} from '../../../_shared/complexity/exported-symbols.
 import type {SourceFile} from '../../../_shared/graph/import-graph.ts'
 import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
+
+const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
@@ -91,7 +93,8 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
                 score: current,
                 baseline: baselineScore,
                 severity: 'fail',
-                message: `boundary-width ${current} exports > absolute budget ${BOUNDARY_WIDTH_ABSOLUTE_BUDGET} — community has a wide public channel; collapse to a deep-function shape`,
+                message: `boundary-width ${current} exports > absolute budget ${BOUNDARY_WIDTH_ABSOLUTE_BUDGET} — community has a wide public channel; collapse to a deep-function shape`
+                    + `\nSee: ${SKILL_DOC}`,
             })
             continue
         }
@@ -101,7 +104,8 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
                 score: current,
                 baseline: baselineScore,
                 severity: 'fail',
-                message: `boundary-width regressed: ${baselineScore} -> ${current} exports`,
+                message: `boundary-width regressed: ${baselineScore} -> ${current} exports`
+                    + `\nSee: ${SKILL_DOC}`,
             })
         }
     }

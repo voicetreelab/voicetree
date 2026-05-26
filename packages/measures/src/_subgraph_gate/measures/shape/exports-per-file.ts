@@ -29,6 +29,8 @@
 import {ts} from 'ts-morph'
 import {communityForFile} from '../../../_shared/community/community-at-depth.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
+
+const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
 import type {
     Severity,
     SubgraphMeasure,
@@ -160,7 +162,8 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
             score: worst.count,
             baseline: null,
             severity: sev,
-            message: `exports-per-file ${worst.count} in ${worst.file} exceeds ${sev === 'fail' ? EXPORTS_FAIL : EXPORTS_WARN_SOFT}`,
+            message: `exports-per-file ${worst.count} in ${worst.file} exceeds ${sev === 'fail' ? EXPORTS_FAIL : EXPORTS_WARN_SOFT}`
+                + `\nSee: ${SKILL_DOC}`,
         })
     }
 
