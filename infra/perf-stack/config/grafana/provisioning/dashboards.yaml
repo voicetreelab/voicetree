@@ -1,11 +1,13 @@
 apiVersion: 1
 
 providers:
-  - name: "Voicetree perf dashboards"
+  - name: "perf-stack"
+    orgId: 1
+    folder: ""
     type: file
     disableDeletion: false
-    updateIntervalSeconds: 10
-    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
     options:
-      path: infra/perf-stack/config/grafana/dashboards
-      foldersFromFilesStructure: true
+      path: __DASHBOARD_PATH__
+      foldersFromFilesStructure: false

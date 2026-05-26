@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { closeSync, openSync } from 'node:fs'
 import {
   access,
+  cp,
   mkdir,
   readFile,
   readdir,
@@ -20,6 +21,9 @@ const PID_DIR = join(STORAGE_DIR, 'pids')
 const LOG_DIR = join(STORAGE_DIR, 'logs')
 const BIN_DIR = join(STACK_DIR, 'bin')
 const CONFIG_DIR = join(STACK_DIR, 'config')
+const GRAFANA_PROVISIONING_SOURCE_DIR = join(CONFIG_DIR, 'grafana/provisioning')
+const GRAFANA_PROVISIONING_RUNTIME_DIR = join(STORAGE_DIR, 'grafana/provisioning')
+const GRAFANA_DASHBOARDS_DIR = join(CONFIG_DIR, 'grafana/dashboards')
 
 const SERVICES = [
   {
@@ -68,7 +72,7 @@ const SERVICES = [
       GF_PATHS_DATA: join(STORAGE_DIR, 'grafana/data'),
       GF_PATHS_LOGS: join(STORAGE_DIR, 'grafana/logs'),
       GF_PATHS_PLUGINS: join(STORAGE_DIR, 'grafana/plugins'),
-      GF_PATHS_PROVISIONING: join(CONFIG_DIR, 'grafana/provisioning'),
+      GF_PATHS_PROVISIONING: GRAFANA_PROVISIONING_RUNTIME_DIR,
     },
     ready: 'http://127.0.0.1:3000/api/health',
   },
@@ -93,6 +97,16 @@ const ensureCollectorRunDirs = async () => {
   if (!process.env.HOME) throw new Error('HOME is required to create perf stack artifact directories')
   const runDir = join(process.env.HOME, '.voicetree', 'perf', collectorRunId())
   await Promise.all(['logs', 'metrics', 'traces', 'verify'].map((name) => mkdir(join(runDir, name), { recursive: true })))
+}
+
+const renderGrafanaProvisioning = async () => {
+  await rm(GRAFANA_PROVISIONING_RUNTIME_DIR, { recursive: true, force: true })
+  await mkdir(GRAFANA_PROVISIONING_RUNTIME_DIR, { recursive: true })
+  await cp(GRAFANA_PROVISIONING_SOURCE_DIR, GRAFANA_PROVISIONING_RUNTIME_DIR, { recursive: true })
+
+  const dashboardsYamlPath = join(GRAFANA_PROVISIONING_RUNTIME_DIR, 'dashboards.yaml')
+  const template = await readFile(dashboardsYamlPath, 'utf8')
+  await writeFile(dashboardsYamlPath, template.replaceAll('__DASHBOARD_PATH__', GRAFANA_DASHBOARDS_DIR))
 }
 
 const readPid = async (name) => {
@@ -186,6 +200,7 @@ const startStack = async () => {
   await mkdir(STORAGE_DIR, { recursive: true })
   await Promise.all(BACKENDS.map(spawnService))
   await Promise.all(BACKENDS.map((service) => waitReady(service)))
+  await renderGrafanaProvisioning()
   await spawnService(GRAFANA)
   await waitReady(GRAFANA)
   await ensureCollectorRunDirs()
