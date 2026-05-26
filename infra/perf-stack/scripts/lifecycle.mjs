@@ -11,7 +11,7 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -24,6 +24,7 @@ const CONFIG_DIR = join(STACK_DIR, 'config')
 const GRAFANA_PROVISIONING_SOURCE_DIR = join(CONFIG_DIR, 'grafana/provisioning')
 const GRAFANA_PROVISIONING_RUNTIME_DIR = join(STORAGE_DIR, 'grafana/provisioning')
 const GRAFANA_DASHBOARDS_DIR = join(CONFIG_DIR, 'grafana/dashboards')
+const OTELCOL_STATE_DIR = join(STORAGE_DIR, 'otelcol-file-storage')
 
 const SERVICES = [
   {
@@ -80,6 +81,9 @@ const SERVICES = [
     name: 'otelcol-contrib',
     command: join(BIN_DIR, 'otelcol-contrib'),
     args: ['--config=file:infra/perf-stack/config/otelcol.yaml'],
+    env: {
+      VOICETREE_PERF_OTELCOL_STATE_DIR: OTELCOL_STATE_DIR,
+    },
     ready: 'http://127.0.0.1:13133/healthz',
   },
 ]
@@ -218,9 +222,19 @@ const stopPid = async (service, pid) => {
   if (isAlive(pid)) process.kill(pid, 'SIGKILL')
 }
 
+// Per-run artifacts under ~/.voicetree/perf/<uuid>/ survive `perf:down` so
+// past runs remain inspectable on disk. The otelcol filelog checkpoints in
+// OTELCOL_STATE_DIR must stay in sync with those surviving files: wiping
+// checkpoints while leaving the files behind would cause `start_at: beginning`
+// to replay every old per-run log into a fresh Loki on the next `perf:up`.
+// Backend state (Loki, VictoriaMetrics, Tempo, Pyroscope, Grafana) is what
+// `perf:down` actually clears; `--persist` keeps that backend state too.
+const OTELCOL_STATE_DIR_NAME = basename(OTELCOL_STATE_DIR)
+
 const wipeStorage = async () => {
   await mkdir(STORAGE_DIR, { recursive: true })
   for (const entry of await readdir(STORAGE_DIR)) {
+    if (entry === OTELCOL_STATE_DIR_NAME) continue
     await rm(join(STORAGE_DIR, entry), { recursive: true, force: true })
   }
 }

@@ -2,6 +2,9 @@ extensions:
   health_check:
     endpoint: 127.0.0.1:13133
     path: /healthz
+  file_storage/filelog:
+    directory: "${env:VOICETREE_PERF_OTELCOL_STATE_DIR}"
+    create_directory: true
 
 receivers:
   otlp:
@@ -11,7 +14,8 @@ receivers:
   filelog:
     include: [ "${env:HOME}/.voicetree/perf/*/logs/*.log" ]
     include_file_path: true
-    start_at: end
+    start_at: beginning
+    storage: file_storage/filelog
     operators:
       - type: regex_parser
         regex: '^.*/\.voicetree/perf/(?P<service_instance_id>[^/]+)/logs/(?P<service_name>[^/]+)\.log$'
@@ -79,7 +83,7 @@ exporters:
       resource_attribute: service.instance.id
 
 service:
-  extensions: [health_check]
+  extensions: [health_check, file_storage/filelog]
   pipelines:
     traces/smoke:
       receivers: [otlp]
