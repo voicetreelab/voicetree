@@ -51,7 +51,7 @@ export type HealthProbeResult =
     }
   | {
       readonly kind: 'verified'
-      readonly canonicalProjectRoot: string
+      readonly canonicalVault: string
       readonly ownerNonce: string
       readonly pid: number
       readonly port: number
@@ -236,7 +236,7 @@ function healthMatchesRecord(
   health: Extract<HealthProbeResult, { kind: 'verified' }>,
   record: OwnerRecord,
 ): boolean {
-  if (health.canonicalProjectRoot !== record.canonicalProjectRoot) return false
+  if (health.canonicalVault !== record.canonicalVault) return false
   if (health.ownerNonce !== record.ownerNonce) return false
   if (record.port !== null && health.port !== record.port) return false
   return true

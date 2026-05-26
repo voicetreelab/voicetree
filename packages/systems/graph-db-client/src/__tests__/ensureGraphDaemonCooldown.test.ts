@@ -107,7 +107,7 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       const breadcrumb = await readCooldownBreadcrumb(vault)
       expect(breadcrumb).not.toBeNull()
       expect(breadcrumb!.reason).toBe('spawn-failed')
-      expect(breadcrumb!.canonicalProjectRoot).toBe(vault)
+      expect(breadcrumb!.canonicalVault).toBe(vault)
       expect(breadcrumb!.untilMs).toBeGreaterThan(Date.now())
 
       // Second call: still inside the cooldown window; throws

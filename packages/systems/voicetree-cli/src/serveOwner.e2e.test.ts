@@ -275,13 +275,13 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
                 const record: OwnerRecord | null = await readOwnerRecord(vault)
                 expect(record, 'graphd.owner.json must exist after launch').not.toBeNull()
-                expect(record!.canonicalProjectRoot).toBe(resolve(vault))
+                expect(record!.canonicalVault).toBe(resolve(vault))
                 expect(record!.pid).toBe(ready.daemonPid)
                 expect(record!.port).toBe(ready.daemonPort)
 
                 const health: HealthResponse = await fetchHealth(ready.daemonPort)
                 expect(health.owner, 'owner block must be present').not.toBeNull()
-                expect(health.owner!.canonicalProjectRoot).toBe(resolve(vault))
+                expect(health.owner!.canonicalVault).toBe(resolve(vault))
                 expect(health.owner!.ownerNonce).toBe(record!.ownerNonce)
                 expect(health.owner!.port).toBe(ready.daemonPort)
                 expect(health.owner!.pid).toBe(ready.daemonPid)

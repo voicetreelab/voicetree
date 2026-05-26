@@ -58,11 +58,11 @@ export type SpawnAttemptResult = {
  * wait loop so both see exactly the same projection of vault state.
  */
 export async function gatherEvidence(
-  canonicalProjectRoot: string,
+  canonicalVault: string,
 ): Promise<OwnerEvidence> {
-  const breadcrumb = await readCooldownBreadcrumb(canonicalProjectRoot)
+  const breadcrumb = await readCooldownBreadcrumb(canonicalVault)
   const cooldown = decideActiveCooldown(Date.now(), breadcrumb)
-  const record = await readOwnerRecord(canonicalProjectRoot)
+  const record = await readOwnerRecord(canonicalVault)
   if (record === null) {
     return {
       record: null,
@@ -101,7 +101,7 @@ export async function gatherEvidence(
  * deadline. The breadcrumb is cleared on the spawn-ready path.
  */
 export async function attemptSpawnAndWait(
-  canonicalProjectRoot: string,
+  canonicalVault: string,
   caller: CallerKind,
   attemptId: string,
   options: SpawnCoordinationOptions,
@@ -109,32 +109,32 @@ export async function attemptSpawnAndWait(
   staleHeartbeatMs: number,
   spawnCooldownMs: number,
 ): Promise<SpawnAttemptResult | null> {
-  const acquisition = await acquireSpawnLock(canonicalProjectRoot, process.pid)
+  const acquisition = await acquireSpawnLock(canonicalVault, process.pid)
   if (acquisition.kind === 'held') {
     return null
   }
 
   try {
-    const preSpawnRecord = await readOwnerRecord(canonicalProjectRoot)
+    const preSpawnRecord = await readOwnerRecord(canonicalVault)
     if (preSpawnRecord !== null && preSpawnRecord.port !== null) {
       const reuseResult = await tryReuseExistingOwner(preSpawnRecord)
       if (reuseResult !== null) return reuseResult
     }
 
-    const command = resolveCommand(canonicalProjectRoot, options.bin)
+    const command = resolveCommand(canonicalVault, options.bin)
     const spawnedPid = spawnDaemon(command, caller)
     emitOwnerDiagnostic({
       kind: 'spawn-started',
       attemptId,
       callerKind: caller,
-      canonicalProjectRoot,
+      canonicalVault,
       nowMs: Date.now(),
       childPid: spawnedPid,
     })
 
     try {
       const ready = await waitForDaemonHealth(
-        canonicalProjectRoot,
+        canonicalVault,
         spawnedPid,
         deadlineMs,
         staleHeartbeatMs,
@@ -144,18 +144,18 @@ export async function attemptSpawnAndWait(
         kind: 'spawn-ready',
         attemptId,
         callerKind: caller,
-        canonicalProjectRoot,
+        canonicalVault,
         nowMs: Date.now(),
         pid: ready.pid,
         port: ready.port,
         ownerNonce: ready.ownerNonce,
       })
-      await clearCooldownBreadcrumb(canonicalProjectRoot)
+      await clearCooldownBreadcrumb(canonicalVault)
       return ready
     } catch (cause) {
       await onSpawnFailure(
         cause,
-        canonicalProjectRoot,
+        canonicalVault,
         caller,
         attemptId,
         spawnedPid,
@@ -170,7 +170,7 @@ export async function attemptSpawnAndWait(
 
 async function onSpawnFailure(
   cause: unknown,
-  canonicalProjectRoot: string,
+  canonicalVault: string,
   caller: CallerKind,
   attemptId: string,
   spawnedPid: number | null,
@@ -181,7 +181,7 @@ async function onSpawnFailure(
     kind: 'spawn-failed',
     attemptId,
     callerKind: caller,
-    canonicalProjectRoot,
+    canonicalVault,
     nowMs: Date.now(),
     childPid: spawnedPid,
     errorName: err.name,
@@ -193,9 +193,9 @@ async function onSpawnFailure(
   // write a cooldown for it.
   if (cause instanceof DaemonLaunchTimeout) {
     const now = Date.now()
-    await writeCooldownBreadcrumb(canonicalProjectRoot, {
+    await writeCooldownBreadcrumb(canonicalVault, {
       schemaVersion: 1,
-      canonicalProjectRoot,
+      canonicalVault,
       writtenAtMs: now,
       untilMs: now + spawnCooldownMs,
       reason: 'spawn-failed',
@@ -213,7 +213,7 @@ async function tryReuseExistingOwner(
   if (record.port === null) return null
   const probe = await probeOwnerHealth(record.port)
   if (probe.kind !== 'verified') return null
-  if (probe.canonicalProjectRoot !== record.canonicalProjectRoot) return null
+  if (probe.canonicalVault !== record.canonicalVault) return null
   if (probe.ownerNonce !== record.ownerNonce) return null
   return {
     client: clientFor(probe.port),
@@ -242,7 +242,7 @@ function spawnDaemon(command: CommandSpec, caller: CallerKind): number | null {
 }
 
 async function waitForDaemonHealth(
-  canonicalProjectRoot: string,
+  canonicalVault: string,
   spawnedPid: number | null,
   deadlineMs: number,
   staleHeartbeatMs: number,
@@ -251,7 +251,7 @@ async function waitForDaemonHealth(
   let backoff = options.initialBackoffMs
 
   while (Date.now() < deadlineMs) {
-    const evidence = await gatherEvidence(canonicalProjectRoot)
+    const evidence = await gatherEvidence(canonicalVault)
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs,
@@ -267,7 +267,7 @@ async function waitForDaemonHealth(
     }
     if (decision.kind === 'unsafe-owner') {
       throw new UnsafeOwnerError(
-        canonicalProjectRoot,
+        canonicalVault,
         decision.recordedPid,
         decision.reason,
       )
@@ -279,7 +279,7 @@ async function waitForDaemonHealth(
   }
 
   throw new DaemonLaunchTimeout(
-    `vt-graphd spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalProjectRoot} before deadline`,
+    `vt-graphd spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalVault} before deadline`,
   )
 }
 
@@ -291,7 +291,7 @@ async function waitForDaemonHealth(
  * terminate so its owner record can be replaced.
  */
 export async function reclaimStaleOwner(
-  canonicalProjectRoot: string,
+  canonicalVault: string,
   staleRecord: OwnerRecord,
 ): Promise<void> {
   if (readProcessLiveness(staleRecord.pid) === 'alive') {
@@ -308,7 +308,7 @@ export async function reclaimStaleOwner(
       await sleep(25)
     }
   }
-  await deleteOwnerRecord(canonicalProjectRoot)
+  await deleteOwnerRecord(canonicalVault)
 }
 
 export function clientFor(port: number): GraphDbClient {

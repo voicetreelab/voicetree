@@ -38,7 +38,7 @@ const COOLDOWN_BREADCRUMB_SCHEMA_VERSION = 1
  */
 export type CooldownBreadcrumb = {
   readonly schemaVersion: 1
-  readonly canonicalProjectRoot: string
+  readonly canonicalVault: string
   readonly writtenAtMs: number
   readonly untilMs: number
   readonly reason: string
@@ -127,7 +127,7 @@ function parseCooldownBreadcrumb(raw: string): CooldownBreadcrumb | null {
   }
   if (!isObject(value)) return null
   if (value.schemaVersion !== COOLDOWN_BREADCRUMB_SCHEMA_VERSION) return null
-  if (typeof value.canonicalProjectRoot !== 'string') return null
+  if (typeof value.canonicalVault !== 'string') return null
   if (!isFiniteNonNegative(value.writtenAtMs)) return null
   if (!isFiniteNonNegative(value.untilMs)) return null
   if (typeof value.reason !== 'string') return null
@@ -137,7 +137,7 @@ function parseCooldownBreadcrumb(raw: string): CooldownBreadcrumb | null {
   if (typeof value.lastErrorMessage !== 'string') return null
   return {
     schemaVersion: COOLDOWN_BREADCRUMB_SCHEMA_VERSION,
-    canonicalProjectRoot: value.canonicalProjectRoot,
+    canonicalVault: value.canonicalVault,
     writtenAtMs: value.writtenAtMs,
     untilMs: value.untilMs,
     reason: value.reason,

@@ -17,7 +17,7 @@ export const CONTRACT_VERSION = '0.2.0'
  */
 export const HealthOwnerSchema = z.object({
   schemaVersion: z.literal(1),
-  canonicalProjectRoot: z.string().min(1),
+  canonicalVault: z.string().min(1),
   pid: z.number().int().positive(),
   ppid: z.number().int().nonnegative(),
   port: z.number().int().min(0).max(65535),

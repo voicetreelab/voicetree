@@ -14,17 +14,17 @@ import { ownerRecordFile } from '@vt/graph-db-protocol'
 import type { OwnerRecord } from '../types.ts'
 
 /**
- * Read and decode the owner record. Returns `null` when the file is absent
- * or when the contents do not satisfy the on-disk schema. A corrupt record
- * is treated as absent: it cannot identify the owner, so discovery must fall
- * back to the no-owner branch.
+ * Read and decode the vt-graphd owner record. Returns `null` when the file
+ * is absent or when the contents do not satisfy the on-disk schema. A
+ * corrupt record is treated as absent: it cannot identify the owner, so
+ * discovery must fall back to the no-owner branch.
  */
 export async function readOwnerRecord(
   vaultDir: string,
 ): Promise<OwnerRecord | null> {
   let raw: string
   try {
-    raw = await readFile(ownerRecordFile.pathFor(vaultDir), 'utf8')
+    raw = await readFile(ownerRecordFile.pathFor(vaultDir, 'graphd'), 'utf8')
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
@@ -33,13 +33,13 @@ export async function readOwnerRecord(
 }
 
 /**
- * Remove the owner record. Idempotent — a missing file is not an error,
- * since stale reclamation may race with another caller that already cleared
- * the same record.
+ * Remove the vt-graphd owner record. Idempotent — a missing file is not an
+ * error, since stale reclamation may race with another caller that already
+ * cleared the same record.
  */
 export async function deleteOwnerRecord(vaultDir: string): Promise<void> {
   try {
-    await unlink(ownerRecordFile.pathFor(vaultDir))
+    await unlink(ownerRecordFile.pathFor(vaultDir, 'graphd'))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
   }

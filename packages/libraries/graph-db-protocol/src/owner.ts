@@ -1,26 +1,32 @@
 /**
- * Vault-scoped vt-graphd ownership contract.
+ * Vault-scoped daemon ownership contract.
  *
- * The on-disk owner record at `<vault>/.voicetree/graphd.owner.json` is the
- * cross-process arbiter for "which vt-graphd process owns this vault".
+ * The on-disk owner record at `<vault>/.voicetree/${daemonKind}.owner.json`
+ * is the cross-process arbiter for "which `${daemonKind}` process owns this
+ * vault". Two daemon kinds participate today — `graphd` (vt-graphd) and
+ * `vtd` (the VTD standalone controller, BF-370+). Each kind owns its own
+ * record at a sibling path so the two daemons can coexist for the same
+ * vault without interfering.
+ *
  * Both the graph-db-server daemon (BF-343) and the graph-db-client launcher
  * (BF-344) read and write the same shape, so the *format* is the shared
- * contract — not a parallel pile of validators and constants.
+ * contract — not a parallel pile of validators and constants. BF-369 lifted
+ * the runtime helpers into `@vt/daemon-lifecycle`; this module remains the
+ * single owner of the on-disk shape.
  *
  * The package exposes:
  *
- *   - Four types: `OwnerRecord`, `OwnerHealthIdentity`, `CallerKind`,
- *     `CommandFingerprint`. Free at the coupling gate (type-only imports).
+ *   - Five types: `OwnerRecord`, `OwnerHealthIdentity`, `CallerKind`,
+ *     `CommandFingerprint`, `DaemonKind`. Free at the coupling gate
+ *     (type-only imports).
  *   - One value: `ownerRecordFile`, a small facade with `pathFor`, `decode`,
  *     `encode`, and `create`. Everything callers need to read/write the
  *     record on disk goes through that one symbol.
  *
  * Validators (`isOwnerRecord`, `isCallerKind`), constants
- * (`OWNER_RECORD_SCHEMA_VERSION`, `CALLER_KINDS`), and small helpers
- * (`commandFingerprintsEqual` — only ever needed by the stale-reclaim path
- * inside the client) are intentionally NOT exported. They are
- * implementation details of `decode` / `create` / `isOwnerRecord` and have
- * no caller use case outside this module.
+ * (`OWNER_RECORD_SCHEMA_VERSION`, `CALLER_KINDS`) are intentionally NOT
+ * exported. They are implementation details of `decode` / `create` /
+ * `isOwnerRecord` and have no caller use case outside this module.
  */
 
 import { join } from 'node:path'
@@ -47,6 +53,16 @@ const CALLER_KINDS: readonly CallerKind[] = [
   'test',
 ] as const
 
+/**
+ * Which long-running daemon this record describes. The discriminant
+ * parameterises every on-disk filename and the lifecycle policy, so a
+ * single vault can host (at most) one graphd owner and one vtd owner
+ * simultaneously without their state ever colliding.
+ */
+export type DaemonKind = 'graphd' | 'vtd'
+
+const DAEMON_KINDS: readonly DaemonKind[] = ['graphd', 'vtd'] as const
+
 export type CommandFingerprint = {
   readonly executable: string
   readonly args: readonly string[]
@@ -54,7 +70,8 @@ export type CommandFingerprint = {
 
 export type OwnerRecord = {
   readonly schemaVersion: OwnerRecordSchemaVersion
-  readonly canonicalProjectRoot: string
+  readonly daemonKind: DaemonKind
+  readonly canonicalVault: string
   readonly pid: number
   readonly ppid: number
   /**
@@ -83,19 +100,28 @@ export type OwnerRecord = {
  * tests, future protocol additions).
  */
 export type OwnerHealthIdentity = {
-  readonly canonicalProjectRoot: string
+  readonly canonicalVault: string
   readonly ownerNonce: string
   readonly pid: number
   readonly port: number
   readonly contractVersion: string
 }
 
-const OWNER_RECORD_FILENAME = 'graphd.owner.json'
+function ownerRecordFilenameFor(daemonKind: DaemonKind): string {
+  return `${daemonKind}.owner.json`
+}
 
 function isCallerKind(value: unknown): value is CallerKind {
   return (
     typeof value === 'string' &&
     (CALLER_KINDS as readonly string[]).includes(value)
+  )
+}
+
+function isDaemonKind(value: unknown): value is DaemonKind {
+  return (
+    typeof value === 'string' &&
+    (DAEMON_KINDS as readonly string[]).includes(value)
   )
 }
 
@@ -138,7 +164,8 @@ function isCommandFingerprint(value: unknown): value is CommandFingerprint {
 function isOwnerRecord(value: unknown): value is OwnerRecord {
   if (!isObject(value)) return false
   if (value.schemaVersion !== OWNER_RECORD_SCHEMA_VERSION) return false
-  if (typeof value.canonicalProjectRoot !== 'string') return false
+  if (!isDaemonKind(value.daemonKind)) return false
+  if (typeof value.canonicalVault !== 'string') return false
   if (!isPositiveInteger(value.pid)) return false
   if (!isNonNegativeInteger(value.ppid)) return false
   if (value.port !== null && !isPort(value.port)) return false
@@ -151,8 +178,8 @@ function isOwnerRecord(value: unknown): value is OwnerRecord {
   return true
 }
 
-function pathFor(vaultDir: string): string {
-  return join(vaultDir, '.voicetree', OWNER_RECORD_FILENAME)
+function pathFor(vaultDir: string, daemonKind: DaemonKind): string {
+  return join(vaultDir, '.voicetree', ownerRecordFilenameFor(daemonKind))
 }
 
 function decode(raw: string): OwnerRecord | null {
@@ -170,7 +197,8 @@ function encode(record: OwnerRecord): string {
 }
 
 export type CreateOwnerRecordInput = {
-  readonly canonicalProjectRoot: string
+  readonly daemonKind: DaemonKind
+  readonly canonicalVault: string
   readonly pid: number
   readonly ppid: number
   readonly callerKind: CallerKind
@@ -188,7 +216,8 @@ export type CreateOwnerRecordInput = {
 function create(input: CreateOwnerRecordInput): OwnerRecord {
   return {
     schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
-    canonicalProjectRoot: input.canonicalProjectRoot,
+    daemonKind: input.daemonKind,
+    canonicalVault: input.canonicalVault,
     pid: input.pid,
     ppid: input.ppid,
     port: null,

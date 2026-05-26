@@ -18,7 +18,8 @@ function fingerprint(
 
 function validOwnerRecord(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
   return ownerRecordFile.create({
-    canonicalProjectRoot: '/vault',
+    daemonKind: 'graphd',
+    canonicalVault: '/vault',
     pid: 4242,
     ppid: 1,
     callerKind: 'electron',
@@ -49,7 +50,8 @@ describe('ownerRecordFile.create', () => {
 
   test('starts records with a null port until the daemon binds', () => {
     const record = ownerRecordFile.create({
-      canonicalProjectRoot: '/vault',
+      daemonKind: 'graphd',
+      canonicalVault: '/vault',
       pid: 4242,
       ppid: 1,
       callerKind: 'electron',
@@ -67,7 +69,8 @@ describe('ownerRecordFile.create', () => {
 
   test('produces a fresh nonce when none is supplied', () => {
     const a = ownerRecordFile.create({
-      canonicalProjectRoot: '/vault',
+      daemonKind: 'graphd',
+      canonicalVault: '/vault',
       pid: 4242,
       ppid: 1,
       callerKind: 'electron',
@@ -76,7 +79,8 @@ describe('ownerRecordFile.create', () => {
       nowMs: 1_000_000,
     })
     const b = ownerRecordFile.create({
-      canonicalProjectRoot: '/vault',
+      daemonKind: 'graphd',
+      canonicalVault: '/vault',
       pid: 4242,
       ppid: 1,
       callerKind: 'electron',
@@ -123,9 +127,23 @@ describe('ownerRecordFile.decode rejection', () => {
       ownerRecordFile.decode(
         JSON.stringify({
           ...validOwnerRecord(),
-          canonicalProjectRoot: undefined,
+          canonicalVault: undefined,
         }),
       ),
+    ).toBeNull()
+  })
+
+  test('returns null when daemonKind is missing or unknown', () => {
+    expect(
+      ownerRecordFile.decode(
+        JSON.stringify({
+          ...validOwnerRecord(),
+          daemonKind: undefined,
+        }),
+      ),
+    ).toBeNull()
+    expect(
+      ownerRecordFile.decode(encodeWithOverrides({ daemonKind: 'unknown' })),
     ).toBeNull()
   })
 

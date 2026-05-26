@@ -26,7 +26,8 @@ function fingerprint(
 function record(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
   return {
     schemaVersion: 1,
-    canonicalProjectRoot: VAULT,
+    daemonKind: 'graphd',
+    canonicalVault: VAULT,
     pid: 4242,
     ppid: 1,
     port: 65123,
@@ -45,7 +46,7 @@ function verifiedHealth(
 ): HealthProbeResult {
   return {
     kind: 'verified',
-    canonicalProjectRoot: VAULT,
+    canonicalVault: VAULT,
     ownerNonce: 'nonce-abc',
     pid: 4242,
     port: 65123,

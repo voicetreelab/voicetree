@@ -278,7 +278,7 @@ export async function startDaemon(
 
       const ownerHandle = startupVault
         ? await claimDaemonOwner({
-            canonicalProjectRoot: startupVault,
+            canonicalVault: startupVault,
             callerKind: 'cli',
             contractVersion: CONTRACT_VERSION,
             commandFingerprint: commandFingerprintForProcess(),

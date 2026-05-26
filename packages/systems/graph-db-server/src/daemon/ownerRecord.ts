@@ -1,13 +1,13 @@
 /**
  * Server-side I/O for the vault-scoped owner record.
  *
- * The owner record under `<vault>/.voicetree/graphd.owner.json` is the
- * cross-process arbiter for "which vt-graphd process owns this vault".
- * Atomic create (POSIX O_CREAT | O_EXCL via Node's `wx` flag) is the only
- * primitive needed to serialise concurrent claims: the winner writes the
- * record, every loser sees EEXIST and reads the existing record to decide
- * whether to wait (live owner), reclaim (dead pid), or fail (live owner
- * with a different identity).
+ * The owner record under `<vault>/.voicetree/${daemonKind}.owner.json` is
+ * the cross-process arbiter for "which daemon of this kind owns this
+ * vault". Atomic create (POSIX O_CREAT | O_EXCL via Node's `wx` flag) is
+ * the only primitive needed to serialise concurrent claims: the winner
+ * writes the record, every loser sees EEXIST and reads the existing
+ * record to decide whether to wait (live owner), reclaim (dead pid), or
+ * fail (live owner with a different identity).
  *
  * The on-disk format (path, decode, encode, claim builder) is shared with
  * the client through `ownerRecordFile` in `@vt/graph-db-protocol`. The
@@ -20,6 +20,7 @@ import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import {
   ownerRecordFile,
   type CreateOwnerRecordInput,
+  type DaemonKind,
   type OwnerRecord,
 } from '@vt/graph-db-protocol'
 
@@ -40,7 +41,9 @@ export function withHeartbeat(record: OwnerRecord, nowMs: number): OwnerRecord {
   return { ...record, heartbeatAtMs: nowMs }
 }
 
-export const ownerRecordPathFor = ownerRecordFile.pathFor
+export function ownerRecordPathFor(vaultDir: string, daemonKind: DaemonKind): string {
+  return ownerRecordFile.pathFor(vaultDir, daemonKind)
+}
 
 export type AtomicCreateOutcome =
   | { readonly kind: 'created' }

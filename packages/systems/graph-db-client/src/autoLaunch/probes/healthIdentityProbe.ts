@@ -53,7 +53,7 @@ export async function probeOwnerHealth(
     }
     return {
       kind: 'verified',
-      canonicalProjectRoot: owner.canonicalProjectRoot,
+      canonicalVault: owner.canonicalVault,
       ownerNonce: owner.ownerNonce,
       pid: owner.pid,
       port: owner.port,

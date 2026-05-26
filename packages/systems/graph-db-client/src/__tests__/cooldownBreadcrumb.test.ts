@@ -30,7 +30,7 @@ function makeBreadcrumb(
   const now = 1_700_000_000_000
   return {
     schemaVersion: 1,
-    canonicalProjectRoot: vault,
+    canonicalVault: vault,
     writtenAtMs: now,
     untilMs: now + 5_000,
     reason: 'spawn-failed',
@@ -97,7 +97,7 @@ describe('cooldown breadcrumb IO — black-box', () => {
   test('read returns null for schema mismatch', async () => {
     await writeFile(
       cooldownBreadcrumbPathFor(vault),
-      JSON.stringify({ schemaVersion: 99, canonicalProjectRoot: vault }),
+      JSON.stringify({ schemaVersion: 99, canonicalVault: vault }),
       'utf8',
     )
     expect(await readCooldownBreadcrumb(vault)).toBeNull()

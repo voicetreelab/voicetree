@@ -56,9 +56,9 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const handle = await startDaemon({ vault })
       handles.push(handle)
 
-      const onDisk = await readOwnerRecord(ownerRecordPathFor(vault))
+      const onDisk = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
       expect(onDisk).not.toBeNull()
-      expect(onDisk?.canonicalProjectRoot).toBe(vault)
+      expect(onDisk?.canonicalVault).toBe(vault)
       expect(onDisk?.pid).toBe(process.pid)
       expect(onDisk?.port).toBe(handle.port)
       expect(onDisk?.ownerNonce).toEqual(expect.any(String))
@@ -67,7 +67,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const res = await fetch(`http://127.0.0.1:${handle.port}/health`)
       const health = HealthResponseSchema.parse(await res.json())
       expect(health.owner).not.toBeNull()
-      expect(health.owner?.canonicalProjectRoot).toBe(onDisk?.canonicalProjectRoot)
+      expect(health.owner?.canonicalVault).toBe(onDisk?.canonicalVault)
       expect(health.owner?.ownerNonce).toBe(onDisk?.ownerNonce)
       expect(health.owner?.pid).toBe(onDisk?.pid)
       expect(health.owner?.ppid).toBe(onDisk?.ppid)
@@ -100,7 +100,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const reason = losers[0].reason
       expect(reason).toBeInstanceOf(DaemonOwnerConflictError)
       const conflict = reason as DaemonOwnerConflictError
-      expect(conflict.canonicalProjectRoot).toBe(vault)
+      expect(conflict.canonicalVault).toBe(vault)
       expect(conflict.existingOwner.pid).toBe(process.pid)
 
       // Winner remains healthy and is the sole listener.
@@ -108,7 +108,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       expect(probe.status).toBe(200)
 
       // Owner record on disk reflects the winner's identity.
-      const onDisk = await readOwnerRecord(ownerRecordPathFor(vault))
+      const onDisk = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
       expect(onDisk?.port).toBe(winners[0].value.port)
     },
     TEST_TIMEOUT_MS,
@@ -120,14 +120,14 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const first = await startDaemon({ vault })
       handles.push(first)
 
-      const portBefore = (await readOwnerRecord(ownerRecordPathFor(vault)))?.port
+      const portBefore = (await readOwnerRecord(ownerRecordPathFor(vault, 'graphd')))?.port
 
       await expect(startDaemon({ vault })).rejects.toBeInstanceOf(
         DaemonOwnerConflictError,
       )
 
       // Owner record is unchanged: the loser did NOT overwrite the winner.
-      const onDiskAfter = await readOwnerRecord(ownerRecordPathFor(vault))
+      const onDiskAfter = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
       expect(onDiskAfter?.port).toBe(portBefore)
       // First daemon still serves traffic.
       const probe = await fetch(`http://127.0.0.1:${first.port}/health`)
@@ -143,15 +143,15 @@ describe('daemonOwnerLifecycle (black box)', () => {
       handles.push(handle)
 
       // Sanity: present after start.
-      await stat(ownerRecordPathFor(vault))
+      await stat(ownerRecordPathFor(vault, 'graphd'))
 
       await handle.stop()
       handles = handles.filter((h) => h !== handle)
 
-      await expect(stat(ownerRecordPathFor(vault))).rejects.toMatchObject({
+      await expect(stat(ownerRecordPathFor(vault, 'graphd'))).rejects.toMatchObject({
         code: 'ENOENT',
       })
-      expect(await readOwnerRecord(ownerRecordPathFor(vault))).toBeNull()
+      expect(await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))).toBeNull()
     },
     TEST_TIMEOUT_MS,
   )
@@ -162,7 +162,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const handle = await startDaemon({ vault })
       handles.push(handle)
 
-      const initial = await readOwnerRecord(ownerRecordPathFor(vault))
+      const initial = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
       expect(initial).not.toBeNull()
       const initialHeartbeat = initial!.heartbeatAtMs
 
@@ -171,7 +171,7 @@ describe('daemonOwnerLifecycle (black box)', () => {
       const deadline = Date.now() + HEARTBEAT_INTERVAL_MS * 4
       let observed: number = initialHeartbeat
       while (Date.now() < deadline) {
-        const probe = await readOwnerRecord(ownerRecordPathFor(vault))
+        const probe = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
         if (probe && probe.heartbeatAtMs > initialHeartbeat) {
           observed = probe.heartbeatAtMs
           break
@@ -187,12 +187,12 @@ describe('daemonOwnerLifecycle (black box)', () => {
     'after stop, a fresh startDaemon for the same vault succeeds and claims a new nonce',
     async () => {
       const first = await startDaemon({ vault })
-      const firstNonce = (await readOwnerRecord(ownerRecordPathFor(vault)))?.ownerNonce
+      const firstNonce = (await readOwnerRecord(ownerRecordPathFor(vault, 'graphd')))?.ownerNonce
       await first.stop()
 
       const second = await startDaemon({ vault })
       handles.push(second)
-      const secondRecord = await readOwnerRecord(ownerRecordPathFor(vault))
+      const secondRecord = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
       expect(secondRecord).not.toBeNull()
       expect(secondRecord?.pid).toBe(process.pid)
       expect(secondRecord?.port).toBe(second.port)

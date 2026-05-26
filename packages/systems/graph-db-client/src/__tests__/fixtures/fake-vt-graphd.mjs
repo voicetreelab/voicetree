@@ -9,7 +9,7 @@
 // Recognised env vars (set by tests):
 //   FAKE_VT_GRAPHD_STARTUP_DELAY_MS - delay between claim and bind
 //   FAKE_VT_GRAPHD_HEALTH_OWNER_NONCE - override the /health owner.nonce
-//   FAKE_VT_GRAPHD_HEALTH_CANONICAL_VAULT - override owner.canonicalProjectRoot
+//   FAKE_VT_GRAPHD_HEALTH_CANONICAL_VAULT - override owner.canonicalVault
 //   FAKE_VT_GRAPHD_HEALTH_OWNER_NULL=1 - serve /health with owner=null
 
 import { createServer } from 'node:http'
@@ -33,7 +33,8 @@ const startedAtMs = Date.now()
 const ownerNonce = randomUUID()
 const baseRecord = {
   schemaVersion: 1,
-  canonicalProjectRoot: vault,
+  daemonKind: 'graphd',
+  canonicalVault: vault,
   pid: process.pid,
   ppid: process.ppid ?? 0,
   port: null,
@@ -106,7 +107,7 @@ const server = createServer((req, res) => {
         ? null
         : {
             schemaVersion: 1,
-            canonicalProjectRoot: reportedVault,
+            canonicalVault: reportedVault,
             pid: process.pid,
             ppid: process.ppid ?? 0,
             port: server.address().port,
