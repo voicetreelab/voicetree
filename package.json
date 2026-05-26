@@ -58,6 +58,11 @@
     "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs"
   },
   "devDependencies": {
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.218.0",
+    "@opentelemetry/resources": "^2.7.1",
+    "@opentelemetry/sdk-metrics": "^2.7.1",
+    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "@pyroscope/nodejs": "^0.4.11",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
