@@ -105,7 +105,11 @@ export async function createWorktree(
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
     try {
-        await execFileAsync('git', ['worktree', 'add', '-b', worktreeName, worktreePath], { cwd: repoRoot });
+        await execFileAsync(
+            'env',
+            ['VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1', 'git', 'worktree', 'add', '-b', worktreeName, worktreePath],
+            { cwd: repoRoot },
+        );
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to create git worktree: ${errorMessage}`);

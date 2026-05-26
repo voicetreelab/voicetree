@@ -30,6 +30,74 @@ rest="${*:2}"
 reason=""
 merge_assertion=""   # non-empty → use this password instead of GIT_GATE_PASS
 
+worktree_add_path_arg() {
+  local expect_option_value=0
+  local after_separator=0
+  local arg
+  for arg in "${@:3}"; do
+    if [ "$after_separator" -eq 1 ]; then
+      printf '%s\n' "$arg"
+      return 0
+    fi
+    if [ "$expect_option_value" -eq 1 ]; then
+      expect_option_value=0
+      continue
+    fi
+    case "$arg" in
+      --)
+        after_separator=1
+        ;;
+      -b|-B|--orphan|--reason)
+        expect_option_value=1
+        ;;
+      -*)
+        ;;
+      *)
+        printf '%s\n' "$arg"
+        return 0
+        ;;
+    esac
+  done
+}
+
+prewarm_remote_added_worktree_ready_async() {
+  local wt_path="$1"
+  if [ -z "$wt_path" ]; then
+    echo "git-gate: worktree add path not detected; skipping async dependency prewarm" >&2
+    return 0
+  fi
+
+  local wt_abs
+  case "$wt_path" in
+    /*) wt_abs="$wt_path" ;;
+    *)  wt_abs="$(pwd -P)/$wt_path" ;;
+  esac
+  wt_abs="$(cd "$wt_abs" 2>/dev/null && pwd -P || printf '%s' "$wt_abs")"
+  echo "git-gate: worktree path: $wt_abs" >&2
+
+  local main_repo
+  main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  if [ -z "$main_repo" ]; then
+    echo "git-gate: warning: could not detect main worktree; command-boundary readiness will retry" >&2
+    return 0
+  fi
+
+  local remote_runner="$main_repo/scripts/run-remote.mjs"
+  if [ ! -f "$remote_runner" ]; then
+    echo "git-gate: warning: missing remote runner: $remote_runner" >&2
+    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
+    return 0
+  fi
+
+  local log_name
+  log_name="$(basename "$wt_abs" | tr -c 'A-Za-z0-9_.-' '_')"
+  local log_file="${TMPDIR:-/tmp}/voicetree-worktree-prewarm-${log_name}.log"
+
+  echo "git-gate: prewarming remote worktree dependencies asynchronously" >&2
+  echo "git-gate: dependency prewarm log: $log_file" >&2
+  nohup sh -c 'cd "$1" && exec node "$2" true' sh "$wt_abs" "$remote_runner" >"$log_file" 2>&1 &
+}
+
 case "$sub" in
   merge)
     # --continue / --abort are conflict-resolution steps, not new merges — let through
@@ -89,10 +157,11 @@ esac
 # the pointer pair and is idempotent. Best-effort: failure does not affect
 # the underlying add's exit code.
 #
-# Dependency readiness is intentionally not run here. It can wait up to
-# run-remote.mjs' 60s Mutagen-idle timeout and must stay on the async hook or
-# command boundary, where it does not block worktree creation.
+# Dependency readiness is prewarmed asynchronously below. The command boundary
+# still enforces readiness before remote commands, so a failed prewarm cannot
+# make later execution unsafe.
 if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
+  wt_path="$(worktree_add_path_arg "$@")"
   echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "$@"
   ec=$?
@@ -102,6 +171,11 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
       echo "git-gate: worktree git metadata normalized" >&2
     else
       echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
+    fi
+    if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
+      echo "git-gate: skipping async dependency prewarm; caller owns worktree hooks" >&2
+    else
+      prewarm_remote_added_worktree_ready_async "$wt_path"
     fi
     echo "git-gate: worktree add post-setup complete" >&2
   else
