@@ -276,7 +276,7 @@ jobs:
           node --no-warnings=ExperimentalWarning --experimental-strip-types \
             packages/measures/src/_runners/capture-ci-checks.ts \
             --tier-max=1 \
-            --only=orange-gate,relative-import-depth,relative-path-depth
+            --only=architecture-drift,orange-gate,relative-import-depth,relative-path-depth
       - name: Upload check reports
         if: always()
         uses: actions/upload-artifact@v4
