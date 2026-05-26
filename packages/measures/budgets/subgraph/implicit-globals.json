@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T15:11:12.878Z",
+  "refreshedAt": "2026-05-26T03:46:44.298Z",
   "byCommunity": {
     "agent-runtime/api": 0,
     "agent-runtime/application": 198,
@@ -10,7 +10,7 @@
     "app-config/settings": 13,
     "app-config/vault-config": 13,
     "graph-db-client/__root__": 29,
-    "graph-db-client/autoLaunch": 87,
+    "graph-db-client/autoLaunch": 69,
     "graph-db-client/client": 1,
     "graph-db-protocol/__root__": 2,
     "graph-db-server/__root__": 0,
@@ -35,8 +35,7 @@
     "graph-tools/lint": 24,
     "graph-tools/live": 24,
     "graph-tools/view": 33,
-    "measures/__root__": 0,
-    "measures/_runners": 177,
+    "measures/_runners": 145,
     "measures/_shared": 128,
     "measures/_subgraph_gate": 37,
     "measures/checks": 0,

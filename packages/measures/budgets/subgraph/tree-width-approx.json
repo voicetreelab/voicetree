@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T05:41:42.218Z",
+  "refreshedAt": "2026-05-26T03:46:45.021Z",
   "byCommunity": {
     "agent-runtime/api": 1,
     "agent-runtime/application": 8,
@@ -35,7 +35,6 @@
     "graph-tools/lint": 2,
     "graph-tools/live": 1,
     "graph-tools/view": 5,
-    "measures/__root__": 0,
     "measures/_runners": 1,
     "measures/_shared": 2,
     "measures/_subgraph_gate": 4,
