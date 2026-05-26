@@ -1,14 +1,13 @@
-import { createWriteStream } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { monitorEventLoopDelay, PerformanceObserver } from 'node:perf_hooks'
-import { finished } from 'node:stream/promises'
 import { randomUUID } from 'node:crypto'
 import { writeHeapSnapshot } from 'node:v8'
 
 import Pyroscope from '@pyroscope/nodejs'
 import { observabilityMetrics, tracing } from '@vt/observability'
+import { createDurableLineLog } from './durable-line-log.mjs'
 
 const PROFILE_ENABLED = '1'
 const RUN_ID_ENV = 'VOICETREE_RUN_INSTANCE_ID'
@@ -48,10 +47,10 @@ async function ensureRunDirs(runDir) {
 }
 
 function createPlainLogWriter(svc, logPath) {
-  const stream = createWriteStream(logPath, { flags: 'a' })
+  const log = createDurableLineLog(logPath)
 
   const write = (level, message) => {
-    stream.write(`${new Date().toISOString()} ${level} ${appendTraceContext(message, tracing.activeTraceContext())}\n`)
+    log.writeLine(`${new Date().toISOString()} ${level} ${appendTraceContext(message, tracing.activeTraceContext())}`)
   }
 
   const writeInSpan = (spanName, level, message) => {
@@ -73,8 +72,7 @@ function createPlainLogWriter(svc, logPath) {
     async stop() {
       clearInterval(heartbeat)
       writeInSpan('perf-probe.shutdown', 'INFO', `perf-probe shutdown service=${svc}`)
-      stream.end()
-      await finished(stream)
+      log.close()
     },
   }
 }

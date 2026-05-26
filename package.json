@@ -55,6 +55,7 @@
     "perf:scenario": "node scripts/run-perf-scenario.mjs",
     "perf:traceql": "node infra/perf-stack/scripts/traceql.mjs",
     "perf:verify:lifecycle": "node infra/perf-stack/scripts/verify-lifecycle-persistence.mjs",
+    "perf:verify:sigkill": "node infra/perf-stack/scripts/verify-sigkill-crash-resilience.mjs",
     "perf:verify": "node infra/perf-stack/scripts/verify-all.mjs",
     "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
     "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
