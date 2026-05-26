@@ -228,7 +228,7 @@ const SEARCH_NODES: CatalogEntry = {
 
 const VT_GET_LIVE_STATE: CatalogEntry = {
     name: 'vt_get_live_state',
-    description: 'Return a SerializedState snapshot of the running app with graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
+    description: 'Return a SerializedState snapshot of the daemon-owned session: graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
     inputShape: {},
     handler: async (): Promise<McpToolResponse> => getLiveStateTool(),
 }

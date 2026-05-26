@@ -1,11 +1,10 @@
 /**
- * BF-162 · L1-LIVE2 — MCP tool `vt_dispatch_live_command`.
+ * BF-379 · Phase 3 — JSON-RPC method `vt_dispatch_live_command`.
  *
- * Accepts a `SerializedCommand` from an MCP client, hydrates it, and applies
- * it to the main-side live State store. Returns `{ delta, revision }`.
- *
- * L3-BF-186: live command variants pass through `applyCommandWithDelta` with
- * no `not-yet-wired` sentinel.
+ * Accepts a `SerializedCommand` from any RPC client (Electron Main or CLI),
+ * hydrates it, and applies it to the daemon-owned session State store.
+ * Returns `{ delta, revision }` where `revision` is the post-commit value
+ * minted by the daemon — there is no second authority.
  */
 import {
     hydrateCommand,
@@ -15,7 +14,8 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
-import { getLiveStateBridge } from '../mcpConfigDependencies'
+import { applyCommandToSessionState } from '../../state/sessionStateStore'
+import { getCurrentVault } from '../../state/currentVault'
 
 import { buildJsonResponse } from '../toolResponse'
 import type { McpToolResponse } from '../toolResponse'
@@ -86,7 +86,10 @@ export async function dispatchLiveCommand(
 ): Promise<DispatchLiveCommandResult> {
     const serializedCommand: SerializedCommand = params.command
     const command: Command = hydrateCommand(serializedCommand)
-    const delta: Delta = await getLiveStateBridge().applyLiveCommand(command)
+    const { delta }: { delta: Delta } = await applyCommandToSessionState(
+        getCurrentVault(),
+        command,
+    )
 
     return {
         delta: toSerializableDelta(delta, serializedCommand),

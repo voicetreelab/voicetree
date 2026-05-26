@@ -39,6 +39,7 @@ import {
     configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
+    setCurrentVault,
     startHttpDaemonServer,
     startVaultStateWatcher,
     type HookHandler,
@@ -158,6 +159,7 @@ async function main(): Promise<void> {
     tracing.init('vt-graphd')
 
     configureHeadlessBridges(appSupportPath)
+    setCurrentVault(args.vault)
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 

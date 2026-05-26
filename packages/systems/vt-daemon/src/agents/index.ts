@@ -80,3 +80,12 @@ export {
     type DispatchLiveCommandResult,
 } from '../tools/live/dispatchLiveCommandTool'
 export {getLiveStateTool, getLiveState} from '../tools/live/getLiveStateTool'
+
+export {setCurrentVault, getCurrentVault, peekCurrentVault} from '../state/currentVault'
+export {
+    getCurrentSessionState,
+    applyCommandToSessionState,
+    persistPositionsToGraphd,
+    __resetSessionStateForTests,
+} from '../state/sessionStateStore'
+export {serializeState} from '../state/serializeState'

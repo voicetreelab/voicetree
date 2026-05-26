@@ -13,6 +13,7 @@
 import {
     buildDefaultToolCatalog,
     handleHookEventRequest,
+    setCurrentVault,
     startHttpDaemonServer,
     startVaultStateWatcher,
     type HttpDaemonServerHandle,
@@ -60,6 +61,7 @@ export function bindHttpDaemonForVault(vaultPath: string): Promise<HttpDaemonSer
                 console.error('[http-daemon] server stop during rebind:', cause)
             })
         }
+        setCurrentVault(vaultPath)
 
         const token: string = generateAuthToken()
         await writeAuthTokenFile(vaultPath, token)
@@ -88,6 +90,7 @@ export function unbindHttpDaemon(): Promise<void> {
         const bound: BoundState | null = currentBound
         if (!bound) return
         currentBound = null
+        setCurrentVault(null)
         await bound.watcher.stop().catch((cause: unknown): void => {
             console.error('[http-daemon] watcher stop:', cause)
         })

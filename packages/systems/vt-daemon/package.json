@@ -24,6 +24,7 @@
     "@mermaid-js/parser": "^0.6.2",
     "@vt/agent-runtime": "*",
     "@vt/app-config": "*",
+    "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",

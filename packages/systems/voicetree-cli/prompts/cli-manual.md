@@ -181,7 +181,7 @@ Semantic search across the active vault. Returns matching node paths ranked by r
 
 ### `vt graph live state`
 
-Return a SerializedState snapshot of the running app with graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.
+Return a SerializedState snapshot of the daemon-owned session: graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.
 
 ### `vt graph live dispatch`
 
