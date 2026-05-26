@@ -47,6 +47,9 @@ const BINARIES = [
       'linux-x64': '6b33b3baac09ac4ba135e83bbb5d97d1545e6fa4f51929f2fe12a7f6f0e653fa',
     },
     binaryCandidates: ['grafana'],
+    binarySourcePath: {
+      'linux-x64': 'usr/share/grafana/bin/grafana',
+    },
     homeDir: 'grafana-home',
     homeDirSourcePath: {
       'linux-x64': 'usr/share/grafana',
@@ -315,8 +318,12 @@ const installArchive = async (binary, manifest) => {
       }
     }
 
-    const extractedBinary = await findFirstExecutable(extractDir, binary.binaryCandidates)
+    const binarySourcePath = binary.binarySourcePath?.[PLATFORM]
+    const extractedBinary = binarySourcePath
+      ? join(extractDir, binarySourcePath)
+      : await findFirstExecutable(extractDir, binary.binaryCandidates)
     if (!extractedBinary) throw new Error(`${binary.name} archive did not contain ${binary.binaryCandidates.join(' or ')}`)
+    if (!(await exists(extractedBinary))) throw new Error(`${binary.name} archive did not contain ${binarySourcePath}`)
 
     await copyFile(extractedBinary, targetPath)
     await chmod(targetPath, 0o755)
