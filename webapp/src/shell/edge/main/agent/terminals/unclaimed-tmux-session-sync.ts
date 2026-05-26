@@ -1,6 +1,5 @@
 import {
     attachUnclaimedTmuxSession as attachUnclaimedTmuxSessionRpc,
-    ensureVtDaemonForVault,
     killUnclaimedTmuxSession as killUnclaimedTmuxSessionRpc,
     listUnclaimedTmuxSessions,
     type AttachUnclaimedTmuxResult,
@@ -8,7 +7,7 @@ import {
     type UnclaimedTmuxSession,
     type VtDaemonClient,
 } from '@vt/vt-daemon-client'
-import {getActiveVault} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy'
 
 const UNCLAIMED_TMUX_POLL_INTERVAL_MS: number = 10_000
@@ -21,20 +20,13 @@ type RendererAttachUnclaimedTmuxResult = {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
-async function getVtDaemonClient(): Promise<VtDaemonClient> {
-    const vaultPath: string | null = getActiveVault()
-    if (!vaultPath) throw new Error('unclaimed-tmux-session-sync: no active vt-daemon binding')
-    const {client} = await ensureVtDaemonForVault(vaultPath, 'electron')
-    return client
-}
-
 function publishUnclaimedTmuxSessions(sessions: readonly UnclaimedTmuxSession[]): void {
     uiAPI.syncUnclaimedTmuxSessions(sessions)
 }
 
 export async function refreshUnclaimedTmuxSessions(): Promise<readonly UnclaimedTmuxSession[]> {
     try {
-        const client: VtDaemonClient = await getVtDaemonClient()
+        const client: VtDaemonClient = getVtDaemonClient()
         const sessions: readonly UnclaimedTmuxSession[] = await listUnclaimedTmuxSessions(client)
         publishUnclaimedTmuxSessions(sessions)
         return sessions
@@ -62,7 +54,7 @@ export function stopUnclaimedTmuxSessionPolling(): void {
 export async function attachUnclaimedTmuxSession(
     sessionName: string,
 ): Promise<RendererAttachUnclaimedTmuxResult> {
-    const client: VtDaemonClient = await getVtDaemonClient()
+    const client: VtDaemonClient = getVtDaemonClient()
     const result: AttachUnclaimedTmuxResult =
         await attachUnclaimedTmuxSessionRpc(client, {sessionName})
 
@@ -80,7 +72,7 @@ export async function attachUnclaimedTmuxSession(
 }
 
 export async function killUnclaimedTmuxSession(sessionName: string): Promise<KillUnclaimedTmuxResult> {
-    const client: VtDaemonClient = await getVtDaemonClient()
+    const client: VtDaemonClient = getVtDaemonClient()
     const result: KillUnclaimedTmuxResult =
         await killUnclaimedTmuxSessionRpc(client, {sessionName})
 
