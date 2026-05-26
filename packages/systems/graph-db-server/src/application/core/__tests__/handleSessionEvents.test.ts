@@ -8,6 +8,7 @@ import {
 import type { State } from '@vt/graph-state'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import {
+  coalesceProjectDeltaEvents,
   decideReplayStrategy,
   formatSSE,
   handleProjectDeltaEvent,
@@ -141,6 +142,32 @@ describe('handleSessionEvents', () => {
     })
 
     expect(result.graph.suppressForSubscribers).toEqual(['editor-1'])
+  })
+
+  test('coalesces delta events with latest sequence and combined subscriber suppression', () => {
+    const firstNode = graphNodeFixture('/vault/docs/first.md')
+    const secondNode = graphNodeFixture('/vault/docs/second.md')
+    const result = coalesceProjectDeltaEvents([
+      {
+        delta: [{ type: 'UpsertNode', nodeToUpsert: firstNode, previousNode: O.none }],
+        seq: 10,
+        suppressForSubscribers: ['editor-1'],
+      },
+      {
+        delta: [{ type: 'UpsertNode', nodeToUpsert: secondNode, previousNode: O.none }],
+        seq: 11,
+        suppressForSubscribers: ['editor-1', 'editor-2'],
+      },
+    ])
+
+    expect(result).toEqual({
+      delta: [
+        { type: 'UpsertNode', nodeToUpsert: firstNode, previousNode: O.none },
+        { type: 'UpsertNode', nodeToUpsert: secondNode, previousNode: O.none },
+      ],
+      seq: 11,
+      suppressForSubscribers: ['editor-1', 'editor-2'],
+    })
   })
 
   test('projects a replay reset snapshot with metadata', () => {

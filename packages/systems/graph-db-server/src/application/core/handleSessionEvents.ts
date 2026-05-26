@@ -30,6 +30,22 @@ export function stringifyGraphForSSE(graph: ProjectedGraph): string {
   })
 }
 
+export function coalesceProjectDeltaEvents(
+  events: readonly ProjectDeltaEventInput[],
+): ProjectDeltaEventInput | null {
+  if (events.length === 0) return null
+
+  const suppressForSubscribers = [
+    ...new Set(events.flatMap(event => event.suppressForSubscribers ?? [])),
+  ]
+
+  return {
+    delta: events.flatMap(event => event.delta),
+    seq: events[events.length - 1]!.seq,
+    ...(suppressForSubscribers.length > 0 ? { suppressForSubscribers } : {}),
+  }
+}
+
 export function parseSince(rawSince: string | undefined, currentSeq: number): number {
   if (rawSince === undefined) return currentSeq
 

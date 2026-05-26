@@ -1,11 +1,13 @@
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import {
+  coalesceProjectDeltaEvents,
   decideReplayStrategy,
   formatSSE,
   handleProjectDeltaEvent,
   handleReplayResetSnapshot,
   parseSince,
   stringifyGraphForSSE,
+  type ProjectDeltaEventInput,
 } from '../core/handleSessionEvents.ts'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { Session } from '../session/types.ts'
@@ -74,10 +76,31 @@ export async function runSessionEventsWorkflow(input: {
     return handleProjectDeltaEvent(state, event).graph
   }
 
-  const sendDeltaProjection = async (event: SequencedDeltaEvent): Promise<void> => {
+  const sendDeltaProjection = async (event: ProjectDeltaEventInput): Promise<void> => {
     const graph = await projectDeltaForSession(event)
     if (!graph) return
     sendGraph(graph)
+  }
+
+  let pendingLiveEvents: SequencedDeltaEvent[] = []
+  let liveFlushScheduled = false
+  const flushLiveDeltaProjection = async (): Promise<void> => {
+    liveFlushScheduled = false
+    const events = pendingLiveEvents
+    pendingLiveEvents = []
+    const coalesced = coalesceProjectDeltaEvents(events)
+    if (coalesced) await sendDeltaProjection(coalesced)
+    if (pendingLiveEvents.length > 0 && !liveFlushScheduled) {
+      liveFlushScheduled = true
+      queueMicrotask(() => void flushLiveDeltaProjection())
+    }
+  }
+
+  const enqueueLiveDeltaProjection = (event: SequencedDeltaEvent): void => {
+    pendingLiveEvents.push(event)
+    if (liveFlushScheduled) return
+    liveFlushScheduled = true
+    queueMicrotask(() => void flushLiveDeltaProjection())
   }
 
   const sendReplayResetSnapshot = async (
@@ -115,7 +138,7 @@ export async function runSessionEventsWorkflow(input: {
       queuedLiveEvents.push(event)
       return
     }
-    void sendDeltaProjection(event)
+    enqueueLiveDeltaProjection(event)
   })
 
   const oldestSeq = getOldestBufferedSeq()
@@ -138,7 +161,7 @@ export async function runSessionEventsWorkflow(input: {
   replayComplete = true
   for (const event of queuedLiveEvents) {
     if (event.seq > highWaterSeq) {
-      void sendDeltaProjection(event)
+      enqueueLiveDeltaProjection(event)
     }
   }
 
