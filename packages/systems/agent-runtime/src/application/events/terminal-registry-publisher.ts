@@ -3,10 +3,10 @@
  *
  * Agent-runtime mutations (`recordTerminalSpawn`, `removeTerminalFromRegistry`,
  * `updateTerminalPinned`/`Minimized`/`ActivityState`/`IsDone`) and the launch
- * call sites that used to fire `getRuntimeUI().launchTerminalOntoUI` /
- * `registerChildIfMonitored` all emit through this single sink. VTD wires the
- * real SSE publisher at boot via `configureAgentRuntime`; tests inject a
- * capturing array; unit tests that do not care receive the no-op default.
+ * call sites that emit `terminal-ui-launch` / `terminal-ui-child-registered`
+ * all push through this single sink. VTD wires the real SSE publisher at
+ * boot via `configureAgentRuntime`; tests inject a capturing array; unit
+ * tests that do not care receive the no-op default.
  *
  * Deep narrow function — a single `(event) => void`, not a class, not an
  * EventEmitter, not an observer object. Receivers exhaustively switch on
