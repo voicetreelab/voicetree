@@ -3,7 +3,7 @@ import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph
 import type { UnseenNode } from '@vt/graph-db-protocol'
 import { getGraphBridge, type GraphBridge } from './mcp-config'
 
-export type {UnseenNode}
+type McpGraphSnapshot = Awaited<ReturnType<NonNullable<GraphBridge['getSnapshot']>>>
 
 function requireGraphBridge(operation: string): GraphBridge {
     const bridge: GraphBridge | undefined = getGraphBridge()
@@ -17,6 +17,20 @@ function requireGraphBridge(operation: string): GraphBridge {
 
 export async function getMcpGraph(): Promise<Graph> {
     return await requireGraphBridge('getMcpGraph').getGraph()
+}
+
+export async function getMcpGraphSnapshot(): Promise<McpGraphSnapshot> {
+    const bridge: GraphBridge = requireGraphBridge('getMcpGraphSnapshot')
+    if (bridge.getSnapshot) {
+        return await bridge.getSnapshot()
+    }
+    const [graph, writeFolder, vaultPaths, projectRoot] = await Promise.all([
+        bridge.getGraph(),
+        bridge.getWriteFolder(),
+        bridge.getVaultPaths(),
+        bridge.getProjectRoot ? bridge.getProjectRoot() : Promise.resolve(null),
+    ])
+    return {graph, projectRoot, vaultPaths, writeFolder}
 }
 
 export async function getMcpWriteFolder(): Promise<O.Option<string>> {

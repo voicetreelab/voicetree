@@ -17,6 +17,7 @@ import {
     registerChildIfMonitored,
     startMcpServer,
 } from '@vt/voicetree-mcp';
+import type {Graph} from '@vt/graph-model/graph';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
@@ -97,6 +98,25 @@ initializeGraphModel();
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
     graph: {
+        getSnapshot: async () => {
+            const [graph, vaultPaths, writeFolderOption, projectRoot]: [
+                Graph,
+                readonly string[],
+                O.Option<string>,
+                string | null,
+            ] = await Promise.all([
+                getGraphFromDaemon(),
+                getVaultPaths(),
+                getWriteFolder(),
+                getProjectRoot(),
+            ]);
+            return {
+                graph,
+                projectRoot,
+                vaultPaths,
+                writeFolder: O.isSome(writeFolderOption) ? writeFolderOption.value : null,
+            };
+        },
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
         getWriteFolder: async () => {

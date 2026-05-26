@@ -21,7 +21,7 @@ import {
     formatViolationError,
 } from './createGraphValidation'
 import {registerAgentNodes} from '../agents/agentNodeIndex'
-import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolder} from '../config/mcp-graph-bridge'
+import {applyMcpGraphDelta, getMcpGraphSnapshot} from '../config/mcp-graph-bridge'
 import {
     parentRefFilename,
     hasCycle,
@@ -47,6 +47,13 @@ export interface CreateGraphParams {
     readonly outputPath?: string
     readonly nodes: readonly CreateGraphNodeInput[]
     readonly override_with_rationale?: readonly OverrideEntry[]
+}
+
+type CreateGraphSnapshot = {
+    readonly graph: Graph
+    readonly projectRoot: string | null
+    readonly vaultPaths: readonly string[]
+    readonly writeFolder: string | null
 }
 
 function errorResponse(error: string): McpToolResponse {
@@ -91,15 +98,16 @@ function findCallerRecord(callerTerminalId: string): Result<TerminalRecord> {
     return {ok: true, value: callerRecord}
 }
 
-async function resolveConfiguredOutputDirectory(outputPath: string | undefined): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder()
-    if (O.isNone(vaultPathOpt)) {
+function resolveConfiguredOutputDirectory(
+    snapshot: CreateGraphSnapshot,
+    outputPath: string | undefined
+): Result<string> {
+    if (snapshot.writeFolder === null) {
         return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
     }
 
-    const writeFolder: string = vaultPathOpt.value
-    const loadedVaultPaths: readonly string[] = await getMcpVaultPaths()
-    const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writeFolder])
+    const writeFolder: string = snapshot.writeFolder
+    const allowedVaultPaths: readonly string[] = (snapshot.vaultPaths.length > 0 ? snapshot.vaultPaths : [writeFolder])
         .map((projectRoot: string) => normalizePath(projectRoot))
     const outputDirectoryResolution = resolveOutputDirectory(writeFolder, outputPath, allowedVaultPaths)
     if (!outputDirectoryResolution.ok) return outputDirectoryResolution
@@ -215,35 +223,32 @@ function createdAgentNodeRecords(
     })
 }
 
-async function appendNodesToCallerContext(
+function buildCallerContextDelta(
+    graph: Graph,
     callerRecord: TerminalRecord,
     allNewNodeIds: readonly NodeIdAndFilePath[]
-): Promise<void> {
-    try {
-        const updatedGraph: Graph = await getMcpGraph()
-        const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
-        const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
-        if (!callerContextNode?.nodeUIMetadata.containedNodeIds) return
-
-        const updatedContextNode: GraphNode = {
-            ...callerContextNode,
-            nodeUIMetadata: {
-                ...callerContextNode.nodeUIMetadata,
-                containedNodeIds: [
-                    ...callerContextNode.nodeUIMetadata.containedNodeIds,
-                    ...allNewNodeIds,
-                ],
-            }
-        }
-        const contextDelta: GraphDelta = [{
-            type: 'UpsertNode',
-            nodeToUpsert: updatedContextNode,
-            previousNode: O.some(callerContextNode),
-        }]
-        await applyMcpGraphDelta(contextDelta)
-    } catch (_contextError: unknown) {
-        // Non-fatal: context node update failed, nodes were still created
+): GraphDelta {
+    const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
+    const callerContextNode: GraphNode | undefined = graph.nodes[callerContextNodeId]
+    if (!callerContextNode?.nodeUIMetadata.containedNodeIds) {
+        return []
     }
+
+    const updatedContextNode: GraphNode = {
+        ...callerContextNode,
+        nodeUIMetadata: {
+            ...callerContextNode.nodeUIMetadata,
+            containedNodeIds: [
+                ...callerContextNode.nodeUIMetadata.containedNodeIds,
+                ...allNewNodeIds,
+            ],
+        }
+    }
+    return [{
+        type: 'UpsertNode',
+        nodeToUpsert: updatedContextNode,
+        previousNode: O.some(callerContextNode),
+    }]
 }
 
 export async function createGraphTool({
@@ -257,14 +262,15 @@ export async function createGraphTool({
     if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
     const callerRecord: TerminalRecord = callerRecordResult.value
 
-    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(outputPath)
+    const snapshot: CreateGraphSnapshot = await getMcpGraphSnapshot()
+    const outputDirectoryResult: Result<string> = resolveConfiguredOutputDirectory(snapshot, outputPath)
     if (!outputDirectoryResult.ok) return errorResponse(outputDirectoryResult.error)
     const outputDirectory: string = outputDirectoryResult.value
 
     const inputValidation: Result<Set<string>> = validateNodeInputs(nodes)
     if (!inputValidation.ok) return errorResponse(inputValidation.error)
 
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = snapshot.graph
 
     const graphParentResult: Result<GraphParentContext> = resolveGraphParent(graph, callerRecord, graphParentId)
     if (!graphParentResult.ok) return errorResponse(graphParentResult.error)
@@ -288,7 +294,14 @@ export async function createGraphTool({
     }
 
     registerAgentNodes(callerTerminalId, createdAgentNodeRecords(sortedNodes, batchResult.createdNodes))
-    await appendNodesToCallerContext(callerRecord, batchResult.allNewNodeIds)
+    const contextDelta: GraphDelta = buildCallerContextDelta(graph, callerRecord, batchResult.allNewNodeIds)
+    if (contextDelta.length > 0) {
+        try {
+            await applyMcpGraphDelta(contextDelta)
+        } catch (_contextError: unknown) {
+            // Non-fatal: context node update failed, nodes were still created.
+        }
+    }
 
     resetTerminalAuditRetryCount(callerTerminalId)
 

@@ -145,6 +145,12 @@ function setupStandardMocks(graphOverride?: Graph): void {
 function configureCreateGraphToolTestServer(): void {
     configureMcpServer({
         graph: {
+            getSnapshot: async () => ({
+                graph: getGraph(),
+                projectRoot: WRITE_PATH,
+                vaultPaths: await getVaultPaths(),
+                writeFolder: O.toNullable(await getWriteFolder()),
+            }),
             getGraph: async () => getGraph(),
             getVaultPaths: async () => getVaultPaths(),
             getWriteFolder: async () => O.toNullable(await getWriteFolder()),
