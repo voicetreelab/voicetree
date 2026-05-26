@@ -51,6 +51,7 @@ export interface FakeAgentResult {
     readonly spawnSuccess: boolean
     readonly spawnError: string | null
     readonly exitedCleanly: boolean
+    readonly spawnWallMs: number
     readonly wallMs: number
     readonly timedOut: boolean
     readonly headlessOutput: string
@@ -159,6 +160,7 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
     const td = buildTerminalData(inputs)
 
     const wallStart = Date.now()
+    const spawnStart = Date.now()
     const spawnResult = await inputs.appWindow.evaluate(async (terminalData) => {
         const api = (window as unknown as {
             electronAPI?: {
@@ -170,12 +172,14 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
         if (!api?.spawn) return { success: false, error: 'window.electronAPI.terminal.spawn unavailable' }
         return api.spawn(terminalData)
     }, td as unknown as Parameters<Page['evaluate']>[1])
+    const spawnWallMs = Date.now() - spawnStart
 
     if (!spawnResult.success) {
         return {
             spawnSuccess: false,
             spawnError: spawnResult.error ?? 'unknown spawn error',
             exitedCleanly: false,
+            spawnWallMs,
             wallMs: Date.now() - wallStart,
             timedOut: false,
             headlessOutput: '',
@@ -187,6 +191,7 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
         spawnSuccess: true,
         spawnError: null,
         exitedCleanly: exit.scriptCompleted,
+        spawnWallMs,
         wallMs: Date.now() - wallStart,
         timedOut: !exit.scriptCompleted,
         headlessOutput: exit.output,

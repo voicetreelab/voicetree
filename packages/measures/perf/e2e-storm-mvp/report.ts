@@ -20,6 +20,9 @@ export interface ReportInput {
     readonly agentWallMsP50: number
     readonly agentWallMsP99: number
     readonly agentWallMsMax: number
+    readonly agentSpawnMsP50: number
+    readonly agentSpawnMsP99: number
+    readonly agentSpawnMsMax: number
     readonly nodesCreated: number
     readonly filesBefore: number
     readonly filesAfter: number
@@ -63,6 +66,9 @@ export function writeReportAndSummary(input: ReportInput): void {
             agentWallMsP50: input.agentWallMsP50,
             agentWallMsP99: input.agentWallMsP99,
             agentWallMsMax: input.agentWallMsMax,
+            agentSpawnMsP50: input.agentSpawnMsP50,
+            agentSpawnMsP99: input.agentSpawnMsP99,
+            agentSpawnMsMax: input.agentSpawnMsMax,
         },
         storm: {
             agentCount: input.agentCount,
@@ -97,6 +103,7 @@ export function writeReportAndSummary(input: ReportInput): void {
         + `  e2e-storm-mvp: ${status}${input.failureReason ? ` — ${input.failureReason}` : ''}\n`
         + `  electron boot: ${input.electronBootMs}ms   mcp discovery: ${input.mcpDiscoveryMs}ms\n`
         + `  storm:         agents=${input.agentsSucceeded}/${input.agentCount} nodes=${input.nodesCreated}/${input.agentCount * input.nodesPerAgent} timedOut=${input.agentsTimedOut}\n`
+        + `  spawn wall:    p50=${input.agentSpawnMsP50}ms p99=${input.agentSpawnMsP99}ms max=${input.agentSpawnMsMax}ms\n`
         + `  agent wall:    p50=${input.agentWallMsP50}ms p99=${input.agentWallMsP99}ms max=${input.agentWallMsMax}ms\n`
         + `  files:         ${input.filesBefore} → ${input.filesAfter} (Δ=${input.filesAfter - input.filesBefore})\n`
         + `  total:         ${input.totalWallMs}ms   report: ${input.outPath}\n`

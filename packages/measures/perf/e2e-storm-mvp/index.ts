@@ -16,11 +16,12 @@
  *
  * Exit code: 0 on pass, 1 on fail.
  */
-import { createWriteStream, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { createWriteStream, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { finished } from 'node:stream/promises'
+import type { Page } from '@playwright/test'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
@@ -58,13 +59,21 @@ function percentile(sorted: readonly number[], p: number): number {
     return sorted[Math.max(0, Math.min(index, sorted.length - 1))]
 }
 
-function wallTimeStats(results: readonly FakeAgentResult[]) {
-    const sorted = results.map(r => r.wallMs).sort((a, b) => a - b)
+function durationStats(values: readonly number[]) {
+    const sorted = [...values].sort((a, b) => a - b)
     return {
         p50: percentile(sorted, 50),
         p99: percentile(sorted, 99),
         max: sorted[sorted.length - 1] ?? 0,
     }
+}
+
+function wallTimeStats(results: readonly FakeAgentResult[]) {
+    return durationStats(results.map(r => r.wallMs))
+}
+
+function spawnTimeStats(results: readonly FakeAgentResult[]) {
+    return durationStats(results.map(r => r.spawnWallMs))
 }
 
 interface MainProcessSnapshot {
@@ -134,6 +143,86 @@ async function startMainProcessMetricsSampler(
         stopped = true
         stream.end()
         await finished(stream)
+    }
+}
+
+interface RendererCdpHandle {
+    send(method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>>
+    detach(): Promise<void>
+}
+
+type RendererMetric = {
+    readonly name: string
+    readonly value: number
+}
+
+type RendererProfileCapture = {
+    readonly stop: () => Promise<void>
+}
+
+function rendererMetricValue(metrics: readonly RendererMetric[], name: string): number | undefined {
+    return metrics.find(metric => metric.name === name)?.value
+}
+
+async function startRendererProfileCapture(
+    appWindow: Page,
+    runDir: string,
+): Promise<RendererProfileCapture> {
+    const cdp = await appWindow.context().newCDPSession(appWindow) as RendererCdpHandle
+    const metricsPath = path.join(runDir, 'metrics', 'renderer.metrics.ndjson')
+    const profilesDir = path.join(runDir, 'profiles')
+    mkdirSync(path.dirname(metricsPath), { recursive: true })
+    mkdirSync(profilesDir, { recursive: true })
+    const stream = createWriteStream(metricsPath, { flags: 'a' })
+    let stopped = false
+
+    await cdp.send('Performance.enable')
+    await cdp.send('Profiler.setSamplingInterval', { interval: 100 })
+    await cdp.send('Profiler.enable')
+    await cdp.send('Profiler.start')
+
+    const writeRow = async (): Promise<void> => {
+        if (stopped) return
+        const response = await cdp.send('Performance.getMetrics') as { readonly metrics?: readonly RendererMetric[] }
+        const metrics = response.metrics ?? []
+        const row = {
+            t: Date.now(),
+            svc: 'renderer',
+            js_heap_used: rendererMetricValue(metrics, 'JSHeapUsedSize') ?? 0,
+            js_heap_total: rendererMetricValue(metrics, 'JSHeapTotalSize') ?? 0,
+            nodes: rendererMetricValue(metrics, 'Nodes') ?? 0,
+            documents: rendererMetricValue(metrics, 'Documents') ?? 0,
+            layout_count: rendererMetricValue(metrics, 'LayoutCount') ?? 0,
+            recalc_style_count: rendererMetricValue(metrics, 'RecalcStyleCount') ?? 0,
+            layout_duration_ms: (rendererMetricValue(metrics, 'LayoutDuration') ?? 0) * 1000,
+            recalc_style_duration_ms: (rendererMetricValue(metrics, 'RecalcStyleDuration') ?? 0) * 1000,
+            script_duration_ms: (rendererMetricValue(metrics, 'ScriptDuration') ?? 0) * 1000,
+            task_duration_ms: (rendererMetricValue(metrics, 'TaskDuration') ?? 0) * 1000,
+        }
+        stream.write(`${JSON.stringify(row)}\n`)
+    }
+
+    const interval = setInterval(() => {
+        void writeRow().catch((error: unknown) => {
+            process.stderr.write(`[mvp] renderer metrics sample failed: ${(error as Error).message}\n`)
+        })
+    }, 1000)
+    interval.unref()
+
+    return {
+        stop: async () => {
+            if (stopped) return
+            clearInterval(interval)
+            await writeRow()
+            stopped = true
+            const response = await cdp.send('Profiler.stop') as { readonly profile?: unknown }
+            await cdp.send('Performance.disable').catch(() => undefined)
+            await cdp.detach().catch(() => undefined)
+            stream.end()
+            await finished(stream)
+            if (!response.profile) throw new Error('Renderer Profiler.stop returned no profile')
+            writeFileSync(path.join(profilesDir, 'renderer.cpuprofile'), JSON.stringify(response.profile), 'utf8')
+        },
     }
 }
 
@@ -222,11 +311,15 @@ async function main(): Promise<void> {
     let agentWallMsP50 = 0
     let agentWallMsP99 = 0
     let agentWallMsMax = 0
+    let agentSpawnMsP50 = 0
+    let agentSpawnMsP99 = 0
+    let agentSpawnMsMax = 0
     let nodesCreated = 0
     let filesAfter = filesBefore
     let app: Awaited<ReturnType<typeof launchElectronAndDiscoverMcp>>['app'] | null = null
     let electronMainProfile: MainProcessCdpHandle | null = null
     let stopElectronMainMetrics: (() => Promise<void>) | null = null
+    let rendererProfile: RendererProfileCapture | null = null
 
     try {
         const launched = await launchElectronAndDiscoverMcp({
@@ -264,6 +357,8 @@ async function main(): Promise<void> {
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
+        rendererProfile = await startRendererProfileCapture(appWindow, perfProfile.runDir)
+        process.stdout.write('[mvp] started renderer CDP profile + metrics sampler\n')
 
         const agentResults = await Promise.all(Array.from({ length: AGENT_COUNT }, (_, agentIndex) => (
             runFakeAgent({
@@ -281,6 +376,10 @@ async function main(): Promise<void> {
         agentWallMsP50 = wallStats.p50
         agentWallMsP99 = wallStats.p99
         agentWallMsMax = wallStats.max
+        const spawnStats = spawnTimeStats(agentResults)
+        agentSpawnMsP50 = spawnStats.p50
+        agentSpawnMsP99 = spawnStats.p99
+        agentSpawnMsMax = spawnStats.max
         agentsSucceeded = agentResults.filter(result => result.spawnSuccess && result.exitedCleanly && !result.timedOut).length
         agentsTimedOut = agentResults.filter(result => result.timedOut).length
 
@@ -329,6 +428,16 @@ async function main(): Promise<void> {
         }
 
         if (app) {
+            if (rendererProfile !== null) {
+                try {
+                    await rendererProfile.stop()
+                    rendererProfile = null
+                    process.stdout.write('[mvp] saved renderer CDP profile + metrics\n')
+                } catch (e) {
+                    process.stderr.write(`[mvp] renderer profile save failed: ${(e as Error).message}\n`)
+                }
+            }
+
             if (electronMainProfile !== null) {
                 try {
                     await stopElectronMainMetrics?.()
@@ -408,6 +517,9 @@ async function main(): Promise<void> {
         agentWallMsP50,
         agentWallMsP99,
         agentWallMsMax,
+        agentSpawnMsP50,
+        agentSpawnMsP99,
+        agentSpawnMsMax,
         nodesCreated,
         filesBefore,
         filesAfter,
