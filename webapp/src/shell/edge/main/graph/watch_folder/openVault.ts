@@ -15,15 +15,24 @@ import type { OpenVaultResponse } from '@vt/graph-db-client'
 
 import { markLoadTiming, startLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
+import type { TerminalRecord } from '@vt/vt-daemon-client'
+
 import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import {
-    subscribeToAgentEventsSse,
-    unsubscribeFromAgentEventsSse,
-} from '@/shell/edge/main/runtime/electron/daemon/sync/agent-events-sse-subscription'
-import { forwardAgentEventToRegistry } from '@/shell/edge/main/agent/terminals/agent-events-registry-bridge'
-import { bindVtDaemonForVault } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+    subscribeToTerminalRegistrySse,
+    unsubscribeFromTerminalRegistrySse,
+    type TerminalRegistryEnvelope,
+} from '@/shell/edge/main/runtime/electron/daemon/sync/terminal-registry-sse-subscription'
+import {
+    applyTerminalRegistryEnvelope,
+    primeTerminalRegistryCache,
+    resetTerminalRegistryCache,
+} from '@/shell/edge/main/agent/terminals/terminal-registry-bridge'
+import { bindVtDaemonForVault, getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
+import { registerChildIfMonitored } from '@vt/vt-daemon'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
@@ -39,6 +48,26 @@ function pushToRenderer(
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed()) return
     mainWindow.webContents.send(channel, payload)
+}
+
+/**
+ * Fold one `terminal-registry` SSE envelope into Main's local cache
+ * mirror and fan-out the imperative UI events to the renderer.
+ *
+ * `applyTerminalRegistryEnvelope` updates the cache and fires the
+ * mutation listeners (renderer sync, completion notifier, recovery
+ * polling) registered at boot. UI-instruction events bypass the cache —
+ * they tell the renderer to imperatively open / register a panel.
+ */
+function handleTerminalRegistryEnvelope(envelope: TerminalRegistryEnvelope): void {
+    const outcome = applyTerminalRegistryEnvelope(envelope)
+    if (outcome.kind !== 'ui-instruction') return
+    const event = outcome.event
+    if (event.type === 'terminal-ui-launch') {
+        void uiAPI.launchTerminalOntoUI(event.nodeId, event.terminalData, event.skipFitAnimation)
+    } else if (event.type === 'terminal-ui-child-registered') {
+        registerChildIfMonitored(event.parentTerminalId, event.childTerminalId)
+    }
 }
 
 async function pathIsDirectory(directoryPath: string): Promise<boolean> {
@@ -101,11 +130,12 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await getCallbacks().onVaultSwitching?.()
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
-        // Tear down the prior agent-events SSE before rebinding so the
-        // vault-switch fence has no chance to be evaluated against a
+        // Tear down the prior terminal-registry SSE before rebinding so
+        // the vault-switch fence has no chance to be evaluated against a
         // half-flipped activeVault — `bindVtDaemonForVault` below will
         // resubscribe under the new vault.
-        unsubscribeFromAgentEventsSse()
+        unsubscribeFromTerminalRegistrySse()
+        resetTerminalRegistryCache()
         await stopDaemonGraphSync()
 
         // Rebind to the per-vault VTD child BEFORE any further
@@ -126,16 +156,25 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         // pre-Phase-2 numbers.
         await bindVtDaemonForVault(projectRoot)
 
-        // Re-open the agent-events SSE against the freshly-bound VTD. The
-        // subscriber owns its own reconnect loop; vault-switch tears it
-        // down (above) and we open a fresh one here. The handler forwards
-        // every envelope that passes the vault-switch fence into Main's
-        // in-process terminal registry — restoring the hook → renderer
-        // pipeline that BF-375 broke when it deleted the in-process
-        // http-server-binding callback. Outbound RPC fan-out of the
-        // terminalRuntimeSurface methods is the follow-on BF (BF-376b);
-        // see voicetree-26-5/phase-2-leaf-b-COORDINATION.md.
-        subscribeToAgentEventsSse('electron-main', forwardAgentEventToRegistry)
+        // Cold-start: prime the terminal-registry cache from the daemon's
+        // authoritative snapshot before opening the SSE feed. Without
+        // this, the first listeners would see an empty cache until the
+        // hub catches the renderer up via deltas — which only happens
+        // when something changes. Cold-start primes the mirror and fires
+        // every listener once so the renderer / completion notifier /
+        // recovery pollers start from a coherent state.
+        const initialRecords: readonly TerminalRecord[] =
+            await getVtDaemonFacade().terminals.getTerminalRecords({})
+        primeTerminalRegistryCache(initialRecords)
+
+        // Re-open the terminal-registry SSE against the freshly-bound
+        // VTD. The subscriber owns its own reconnect loop; vault-switch
+        // tears it down (above) and we open a fresh one here. The
+        // handler folds cache-mutation events into the local mirror via
+        // `applyTerminalRegistryEnvelope`, and forwards the imperative
+        // UI events (`terminal-ui-launch`, `terminal-ui-child-registered`)
+        // to the renderer.
+        subscribeToTerminalRegistrySse('electron-main', handleTerminalRegistryEnvelope)
 
         // Persist writeFolder BEFORE the daemon claims the vault: vt-graphd's
         // startup vault-open reads saved config, and the daemon's

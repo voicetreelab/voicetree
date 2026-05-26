@@ -48,6 +48,9 @@ import type {TerminalRegistryEnvelope} from '@/shell/edge/main/runtime/electron/
 
 const records: Map<string, TerminalRecord> = new Map()
 
+type CacheMutationListener = (snapshot: readonly TerminalRecord[]) => void
+const listeners: Set<CacheMutationListener> = new Set()
+
 /** Snapshot accessor. The returned array is freshly constructed; the
  *  caller may mutate it freely. Order is insertion order. */
 export function getCachedTerminalRecords(): readonly TerminalRecord[] {
@@ -66,6 +69,53 @@ export function getCachedTerminalRecord(terminalId: TerminalId): TerminalRecord 
  */
 export function resetTerminalRegistryCache(): void {
     records.clear()
+}
+
+/**
+ * Replace the cache contents with a fresh snapshot. Used by vault-open
+ * cold-start: after `bindVtDaemonForVault` resolves and before the
+ * `terminal-registry` SSE subscription opens, the caller fetches the
+ * authoritative record list via `vtdClient.terminals.getTerminalRecords()`
+ * and primes the mirror. Fires listeners exactly once with the new
+ * snapshot so downstream consumers (renderer sync, completion notifier,
+ * recovery polling) refresh too.
+ */
+export function primeTerminalRegistryCache(initial: readonly TerminalRecord[]): void {
+    records.clear()
+    for (const record of initial) {
+        records.set(record.terminalId, record)
+    }
+    fireListeners()
+}
+
+/**
+ * Register a listener fired after every cache mutation (envelope-driven
+ * or cold-start prime). Replaces the old in-process
+ * `terminalRuntimeSurface.subscribeToRegistry` fan-out — the runtime
+ * isn't in webapp/Main anymore, so the cache mirror is the canonical
+ * change source. Returns an unsubscribe handle.
+ *
+ * Listeners receive the same `readonly TerminalRecord[]` snapshot as
+ * `getCachedTerminalRecords()` — call sites that need a stable reference
+ * within their handler should treat it as read-only and re-snapshot if
+ * they hand it to async work.
+ */
+export function subscribeToTerminalRegistryCache(
+    listener: CacheMutationListener,
+): () => void {
+    listeners.add(listener)
+    return (): void => { listeners.delete(listener) }
+}
+
+function fireListeners(): void {
+    const snapshot: readonly TerminalRecord[] = getCachedTerminalRecords()
+    for (const listener of listeners) {
+        try {
+            listener(snapshot)
+        } catch (err: unknown) {
+            console.error('[terminal-registry-bridge] cache listener threw:', err)
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -102,6 +152,7 @@ export function applyTerminalRegistryEnvelope(
     switch (event.type) {
         case 'terminal-registered': {
             records.set(event.record.terminalId, event.record)
+            fireListeners()
             return {kind: 'cache-mutated', event}
         }
         case 'terminal-removed': {
@@ -109,6 +160,7 @@ export function applyTerminalRegistryEnvelope(
             if (!had) {
                 return {kind: 'dropped', reason: `terminal-removed for unknown id ${event.terminalId}`}
             }
+            fireListeners()
             return {kind: 'cache-mutated', event}
         }
         case 'terminal-record-changed': {
@@ -120,6 +172,7 @@ export function applyTerminalRegistryEnvelope(
                 }
             }
             records.set(event.terminalId, applyPatch(existing, event.patch))
+            fireListeners()
             return {kind: 'cache-mutated', event}
         }
         case 'terminal-ui-launch':
