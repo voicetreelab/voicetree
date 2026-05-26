@@ -136,11 +136,8 @@ export async function recordCheckReport(report: CheckReport): Promise<void> {
     assertCheckReport(report)
     await mkdir(CHECKS_DIR, {recursive: true})
     await writeJsonAtomic(checkReportPath(report.checkId), report)
-    // Capture duration as the check's "score" for regression-blame. Status
-    // (pass/fail) is best left in the per-check JSON; duration is the
-    // numeric axis that matters for the CSV history.
     if (report.status !== 'skip') {
-        await appendScore({measure: `check/${report.checkId}`, score: report.durationMs})
+        await appendScore({measure: `check/${report.checkId}`, score: report.durationMs, status: report.status})
     }
     await writeChecksAggregate()
 }

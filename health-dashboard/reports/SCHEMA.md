@@ -160,3 +160,39 @@ Flags:
 - `--fail-fast` — still records every check that ran, but stops scheduling new ones after the first failure.
 
 Exit code is `0` when every non-skipped check passed, `1` otherwise.
+
+## Scores History
+
+Every `recordHealthReport` and `recordCheckReport` also appends a single row to a scores-history CSV so a regression can be blamed to the commit that introduced it.
+
+### Files
+
+| File | Tracked? | Written when |
+|------|----------|--------------|
+| `scores-history.csv` | yes (`.gitattributes merge=union`) | working tree is clean at process start |
+| `scores-history.local.csv` | no (`.gitignore`) | working tree is dirty at process start |
+
+The clean-tree gate is what makes the tracked CSV trustworthy: a row's `commit` field reflects the exact source tree that produced the score. Dirty-tree rows route to the local sibling so they never contaminate the shared history with mislabelled scores. The cleanliness check (`git status --porcelain`) and the SHA (`git rev-parse --short HEAD`) are resolved once per process.
+
+`merge=union` keeps both branches' rows on rebase/cherry-pick. Rows are row-independent so this stays safe.
+
+### Schema
+
+```
+commit,measure,score,status
+29d57290,hypergraph-bci,50.60,pass
+29d57290,check/root-lint,2642,pass
+c4192b93,check/blackbox-tests-lint,1332,fail
+```
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `commit` | string | `git rev-parse --short HEAD`, or `working-tree` if git is unavailable. |
+| `measure` | string | Metric id, or `check/<checkId>` for CheckReport rows. |
+| `score` | number | `current` for health metrics; `durationMs` for checks. Floats keep full precision. |
+| `status` | `pass` \| `fail` \| `''` | Health: `passed ? 'pass' : 'fail'`. Checks: `report.status` (skips emit no row). Empty when status is not meaningful. |
+
+### Limitations
+
+- Subgraph-gate per-community baselines (`packages/measures/budgets/subgraph/*.json`) are not captured here; they live on a different write path and already have native git-blame.
+- Skip rows emit no entry. Status is captured at write time; per-check `details` and `errorSummary` stay in the per-check JSON.
