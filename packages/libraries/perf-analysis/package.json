@@ -17,6 +17,10 @@
     "./profile-reducer.mjs": {
       "types": "./src/profile-reducer.d.mts",
       "default": "./src/profile-reducer.mjs"
+    },
+    "./v8-cpuprofile-to-pprof": {
+      "types": "./src/v8-cpuprofile-to-pprof.d.mts",
+      "default": "./src/v8-cpuprofile-to-pprof.mjs"
     }
   },
   "scripts": {
@@ -24,7 +28,8 @@
   },
   "dependencies": {
     "@pyroscope/nodejs": "^0.4.11",
-    "@vt/observability": "*"
+    "@vt/observability": "*",
+    "pprof-format": "^2.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
