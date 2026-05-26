@@ -33,7 +33,7 @@ flowchart TD
   click electronRenderer "webapp/src/shell/UI/App.tsx"
   click graphd "packages/systems/graph-db-server/bin/vt-graphd.ts"
   click tmuxServer "packages/systems/agent-runtime/src/application/terminals/tmux"
-  click mcpServer "packages/systems/voicetree-mcp/src/tools/agent-control/mcp-server.ts"
-  click vtCli "webapp/bin/vt"
+  click mcpServer "packages/systems/vt-daemon/src/transport/httpServer.ts"
+  click vtCli "packages/systems/voicetree-cli/bin/vt"
   click agentProcesses "packages/systems/agent-runtime/src/application/spawn"
 ```
