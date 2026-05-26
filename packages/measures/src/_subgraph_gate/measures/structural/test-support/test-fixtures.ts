@@ -96,5 +96,6 @@ export function makeSyntheticSubgraph(spec: FixtureSpec): ParsedSubgraph {
         getProject(): Project {
             throw new Error('synthetic ParsedSubgraph has no ts-morph project; use real parseSubgraph for AST tests')
         },
+        getContent: () => null,
     }
 }

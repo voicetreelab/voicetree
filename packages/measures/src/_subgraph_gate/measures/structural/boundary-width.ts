@@ -53,7 +53,14 @@ export const MEASURE_ID = 'boundary-width'
  */
 export const BOUNDARY_WIDTH_ABSOLUTE_BUDGET = 30
 
-async function countExportsInFile(file: SourceFile): Promise<number> {
+async function countExportsInFile(file: SourceFile, parsedSubgraph: SubgraphMeasureInput['parsedSubgraph']): Promise<number> {
+    // Prefer parsedSubgraph's cached content — it routes through the
+    // runner's staged-blob loader so unstaged peer-WIP doesn't pollute
+    // this commit's score. Fall back to disk only when the subgraph was
+    // built by an out-of-band path (test helpers) that didn't populate
+    // the cache.
+    const cached = parsedSubgraph.getContent(file.absolutePath)
+    if (cached !== null) return exportedSymbolNames(file.absolutePath, cached).length
     try {
         const text = await readFile(file.absolutePath, 'utf8')
         return exportedSymbolNames(file.absolutePath, text).length
@@ -78,7 +85,7 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
     const perCommunity: Record<string, number> = {}
     for (const community of parsedSubgraph.touchedCommunities) {
         const files = filesByCommunity.get(community) ?? []
-        const counts = await Promise.all(files.map(countExportsInFile))
+        const counts = await Promise.all(files.map(f => countExportsInFile(f, parsedSubgraph)))
         perCommunity[community] = counts.reduce((s, n) => s + n, 0)
     }
 
