@@ -20,7 +20,7 @@ import {
     type ToolCatalog,
     type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
-import {agentRuntime} from '@vt/agent-runtime'
+import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 interface BoundState {
@@ -42,7 +42,7 @@ function chain<T>(work: () => Promise<T>): Promise<T> {
 const hookHandler: HookHandler = (input): unknown =>
     handleHookEventRequest(
         {source: input.source, terminalId: input.terminalId, hookEventName: input.eventName},
-        {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
+        {updateAgentEvent: terminalRuntimeSurface.updateTerminalAgentEvent},
     )
 
 export function bindHttpDaemonForVault(vaultPath: string): Promise<HttpDaemonServerHandle> {
