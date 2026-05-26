@@ -30,7 +30,8 @@ import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCre
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
-import {getMcpPort, setMcpIntegration, writeMcpClientConfigsToDir} from '@vt/voicetree-mcp';
+import {getMcpPort, setMcpIntegration} from '@vt/voicetree-mcp';
+import {writeMcpClientConfigsToDir} from '@vt/voicetree-mcp/mcp-client-config';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
