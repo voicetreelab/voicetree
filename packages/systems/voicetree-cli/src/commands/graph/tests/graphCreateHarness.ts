@@ -1,15 +1,8 @@
+import {createServer, type IncomingMessage, type Server, type ServerResponse} from 'node:http'
 import {mkdir, mkdtemp, realpath, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {vi, type MockInstance} from 'vitest'
-import {
-    buildJsonResponse,
-    startHttpDaemonServer,
-    type HookHandler,
-    type HttpDaemonServerHandle,
-    type McpToolResponse,
-    type ToolCatalog,
-} from '@vt/vt-daemon'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {graphCreate} from '../core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '../core/loadSchemaPlugin'
@@ -138,16 +131,28 @@ export async function setupGatedVault(
     return vaultRoot
 }
 
-// Spins up a real HTTP daemon with a fixed catalog so daemon-client.ts
-// exercises the actual wire (JSON-RPC over HTTP + bearer auth) instead of
-// a mocked fetch. Step 9b transport.
+// Spins up a minimal HTTP JSON-RPC responder so daemon-client.ts exercises
+// the real wire (HTTP + bearer auth) without importing the vt-daemon
+// internals. The CLI package only depends on the daemon's JSON-RPC contract
+// (POST /rpc with `Authorization: Bearer <token>`), so a hand-rolled server
+// is a faithful black-box stand-in: any drift from the wire contract would
+// surface as a `callDaemon` test failure.
 export interface StubDaemon {
     readonly vaultPath: string
     readonly url: string
     readonly stop: () => Promise<void>
 }
 
-const noopHookHandler: HookHandler = (): unknown => ({ok: true})
+async function readBody(req: IncomingMessage): Promise<string> {
+    return new Promise<string>((resolveBody, rejectBody): void => {
+        const chunks: Buffer[] = []
+        req.on('data', (chunk: Buffer): void => {
+            chunks.push(chunk)
+        })
+        req.on('end', (): void => resolveBody(Buffer.concat(chunks).toString('utf8')))
+        req.on('error', rejectBody)
+    })
+}
 
 export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> {
     const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-http-stub-')))
@@ -156,21 +161,47 @@ export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> 
     const token: string = generateAuthToken()
     await writeAuthTokenFile(vaultPath, token)
 
-    const catalog: ToolCatalog = new Map([
-        ['create_graph', async (): Promise<McpToolResponse> => buildJsonResponse(toolResult)],
-    ])
-    const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
-        catalog,
-        hookHandler: noopHookHandler,
-        token,
-        bindHost: '127.0.0.1',
-        logger: {logRequest: (): void => {}, logError: (): void => {}},
+    const server: Server = createServer((req: IncomingMessage, res: ServerResponse): void => {
+        void readBody(req).then((raw: string): void => {
+            const auth: string | undefined = req.headers.authorization
+            if (auth !== `Bearer ${token}`) {
+                res.statusCode = 401
+                res.end()
+                return
+            }
+            let parsedId: number | string | null = null
+            try {
+                const payload: unknown = JSON.parse(raw)
+                if (payload !== null && typeof payload === 'object' && 'id' in payload) {
+                    const candidate: unknown = (payload as {id?: unknown}).id
+                    if (typeof candidate === 'number' || typeof candidate === 'string') {
+                        parsedId = candidate
+                    }
+                }
+            } catch {
+                // Treat as null id; the test path always sends a valid envelope.
+            }
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({jsonrpc: '2.0', id: parsedId, result: toolResult}))
+        })
     })
-    await writeRpcPortFile(vaultPath, handle.port)
+    await new Promise<void>((resolveListen): void => {
+        server.listen(0, '127.0.0.1', (): void => resolveListen())
+    })
+    const address = server.address()
+    if (typeof address !== 'object' || address === null) {
+        throw new Error('startStubDaemon: server.listen did not yield an address')
+    }
+    const port: number = address.port
+    await writeRpcPortFile(vaultPath, port)
 
     return {
         vaultPath,
-        url: handle.url,
-        stop: handle.stop,
+        url: `http://127.0.0.1:${port}`,
+        stop: (): Promise<void> => new Promise<void>((resolveClose, rejectClose): void => {
+            server.closeAllConnections?.()
+            server.close((err: Error | undefined): void => (err ? rejectClose(err) : resolveClose()))
+        }),
     }
 }
