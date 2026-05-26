@@ -1,7 +1,7 @@
 // Per-topic monotonic-seq pubsub with a bounded resume buffer and a
 // per-subscriber bounded outbound queue. Topics are pinned to
-// `vault-state` (chokidar) and `agent-lifecycle` (hook ingestion) per design
-// doc §4.3 / §8.2.
+// `agent-lifecycle` (hook ingestion) per design doc §4.3 / §8.2.
+// Single watcher invariant lives in vt-graphd; this hub fans out hook events only.
 //
 // Wire envelopes (text frames on the WS):
 //   server→client: { type: 'event', topic, seq, event, data }
@@ -13,9 +13,9 @@
 // httpServer layer wraps each subscriber's send fn around the WS connection
 // and uses overflow() to close with WS code 1011.
 
-export type TopicName = 'vault-state' | 'agent-lifecycle'
+export type TopicName = 'agent-lifecycle'
 
-export const ALLOWED_TOPICS: readonly TopicName[] = ['vault-state', 'agent-lifecycle']
+export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-lifecycle']
 
 const RESUME_BUFFER_SIZE: number = 100
 const PER_SUBSCRIBER_QUEUE_LIMIT: number = 1000

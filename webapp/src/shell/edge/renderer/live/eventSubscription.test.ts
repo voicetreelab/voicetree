@@ -67,7 +67,7 @@ function makeCollectors(): Collected & { readonly cfg: (overrides: Partial<Event
         cfg: (overrides: Partial<EventSubscriptionConfig>): EventSubscriptionConfig => ({
             getDaemonUrl: () => Promise.resolve(''),
             getAuthToken: () => Promise.resolve(TEST_TOKEN),
-            topics: ['vault-state'] as readonly Topic[],
+            topics: ['agent-lifecycle'] as readonly Topic[],
             onEvent: (f: EventFrame): void => { events.push(f) },
             onGap: (f: GapFrame): void => { gaps.push(f) },
             onConnectionState: (s: ConnectionState): void => { states.push(s) },
@@ -112,14 +112,14 @@ describe('eventSubscription — §4.3 byte-for-byte stub round-trip', () => {
 
         const client: StubClient = await server.nextClient()
         const subscribe: StubSubscribeFrame = await client.nextSubscribe()
-        expect(subscribe.topics).toEqual([{ topic: 'vault-state', resumeSeq: 0 }])
+        expect(subscribe.topics).toEqual([{ topic: 'agent-lifecycle', resumeSeq: 0 }])
 
         const frame: EventFrame = {
             type: 'event',
-            topic: 'vault-state',
+            topic: 'agent-lifecycle',
             seq: 1,
-            event: 'file-added',
-            data: { path: '/v/foo.md' },
+            event: 'agent-spawned',
+            data: { terminalId: 'T1', source: 'claude', at: 0 },
         }
         client.sendEvent(frame)
         await waitFor((): EventFrame | undefined => events[0])
@@ -136,7 +136,7 @@ describe('eventSubscription — §4.3 byte-for-byte stub round-trip', () => {
         const client: StubClient = await server.nextClient()
         await client.nextSubscribe()
 
-        const gap: GapFrame = { type: 'gap', topic: 'vault-state', fromSeq: 5, currentSeq: 42 }
+        const gap: GapFrame = { type: 'gap', topic: 'agent-lifecycle', fromSeq: 5, currentSeq: 42 }
         client.sendGap(gap)
         await waitFor((): GapFrame | undefined => gaps[0])
         expect(gaps).toEqual([gap])
@@ -150,7 +150,7 @@ describe('eventSubscription — §4.3 byte-for-byte stub round-trip', () => {
         const firstSubscribe: StubSubscribeFrame = await first.nextSubscribe()
         expect(firstSubscribe.topics[0]?.resumeSeq).toBe(0)
 
-        const seq7: EventFrame = { type: 'event', topic: 'vault-state', seq: 7, event: 'file-changed', data: { path: '/v/a.md' } }
+        const seq7: EventFrame = { type: 'event', topic: 'agent-lifecycle', seq: 7, event: 'agent-exited', data: { terminalId: 'T1', source: 'claude', at: 0 } }
         first.sendEvent(seq7)
         await waitFor((): EventFrame | undefined => events[0])
 
@@ -158,7 +158,7 @@ describe('eventSubscription — §4.3 byte-for-byte stub round-trip', () => {
 
         const second: StubClient = await server.nextClient()
         const resubscribe: StubSubscribeFrame = await second.nextSubscribe()
-        expect(resubscribe.topics).toEqual([{ topic: 'vault-state', resumeSeq: 7 }])
+        expect(resubscribe.topics).toEqual([{ topic: 'agent-lifecycle', resumeSeq: 7 }])
     })
 
     it('close 1008 (policy): re-reads token via getAuthToken on reconnect', async () => {

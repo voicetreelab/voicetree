@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { connectVaultStateSubscription } from './connectVaultStateSubscription'
 import type { ConnectionState, EventFrame, Topic } from './eventSubscription'
 
-const DEFAULT_TOPICS: readonly Topic[] = ['vault-state', 'agent-lifecycle']
+const DEFAULT_TOPICS: readonly Topic[] = ['agent-lifecycle']
 
 export interface EventSubscriptionConnectionState {
     readonly state: ConnectionState

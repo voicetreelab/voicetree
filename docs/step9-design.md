@@ -180,8 +180,10 @@ WebSocket to `GET /events` with the bearer token in the
 `subscribe` frames listing topics; the server pushes JSON event
 frames keyed by topic. Wire shape pinned in §4.3.
 
-Initial topic taxonomy: `vault-state` (chokidar) and `agent-lifecycle`
-(from `/hook/:source` ingestion). Additional topics may be added
+Initial topic taxonomy: `agent-lifecycle` (from `/hook/:source`
+ingestion). vt-graphd is the canonical owner of the mounted watcher;
+this hub publishes `agent-lifecycle` only (per
+`docs/daemon-first-architecture.md`). Additional topics may be added
 without re-litigating the wire — adding a topic is server-side only;
 subscribers that don't subscribe are unaffected.
 
@@ -411,9 +413,12 @@ TCP connection (no WS handshake completion).
 **Client → server frames.** Text frames, JSON-encoded:
 
 ```
-{ "op": "subscribe",   "topics": [ { "topic": "vault-state", "resumeSeq": 0 }, … ] }
-{ "op": "unsubscribe", "topics": ["vault-state", …] }
+{ "op": "subscribe",   "topics": [ { "topic": "agent-lifecycle", "resumeSeq": 0 }, … ] }
+{ "op": "unsubscribe", "topics": ["agent-lifecycle", …] }
 ```
+
+vt-graphd is the canonical owner of the mounted watcher; this hub
+publishes `agent-lifecycle` only (per `docs/daemon-first-architecture.md`).
 
 `resumeSeq` optional; omit (or `0`) for "subscribe from now". If the
 server's resume buffer contains the requested `seq`, server replays
@@ -446,7 +451,6 @@ backoff.
 
 | Topic              | Event names                                                       | Data shape                                                              |
 |--------------------|-------------------------------------------------------------------|-------------------------------------------------------------------------|
-| `vault-state`      | `file-changed`, `file-added`, `file-removed`                      | `{ path: string, prevHash?: string, newHash?: string }`                 |
 | `agent-lifecycle`  | `agent-spawned`, `agent-closed`, `agent-message`, `agent-tool-invoked` | `{ terminalId: string, source: "claude"|"codex"|"opencode", at: <epoch-ms>, … }` |
 
 Adding topics later is server-side only; non-subscribers unaffected.
@@ -557,10 +561,11 @@ Assumes Step 7g (`@vt/vt-daemon` → `@vt/tool-catalog`, commit
 
 ### 5.4 Renderer state path
 
-Today (post-Step-7) the renderer learns chokidar events via Electron
-main → preload bridge → renderer. Under Step 9 the daemon owns
-chokidar across the WSL bridge from Electron main. The renderer
-opens a WebSocket to `/events` and subscribes to `vault-state`.
+vt-graphd is the canonical owner of the mounted watcher; this hub
+publishes `agent-lifecycle` only (per
+`docs/daemon-first-architecture.md`). The renderer opens a WebSocket
+to `/events` and subscribes to `agent-lifecycle`; chokidar-derived
+file events are no longer fanned out via this channel.
 
 Open question §8.1: where the renderer-side WebSocket client lives
 (directly in renderer vs in Electron main with re-broadcast).
@@ -693,7 +698,9 @@ renderer already needs the token. Pin in 9e's brief.
 
 ### 8.2 Topic taxonomy completeness
 
-§4.3 initial taxonomy lists `vault-state` and `agent-lifecycle`.
+§4.3 initial taxonomy lists `agent-lifecycle` only — vt-graphd is the
+canonical owner of the mounted watcher; this hub publishes
+`agent-lifecycle` only (per `docs/daemon-first-architecture.md`).
 Candidates worth checking via R8 grep audit before 9e lands:
 
 - `terminal-output` — likely no (tmux relay is its own WS).

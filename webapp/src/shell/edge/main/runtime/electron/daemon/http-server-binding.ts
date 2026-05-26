@@ -14,11 +14,9 @@ import {
     buildDefaultToolCatalog,
     handleHookEventRequest,
     startHttpDaemonServer,
-    startVaultStateWatcher,
     type HttpDaemonServerHandle,
     type HookHandler,
     type ToolCatalog,
-    type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
 import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
@@ -26,7 +24,6 @@ import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rp
 interface BoundState {
     readonly vaultPath: string
     readonly handle: HttpDaemonServerHandle
-    readonly watcher: VaultStateWatcherHandle
     readonly token: string
 }
 
@@ -53,9 +50,6 @@ export function bindHttpDaemonForVault(vaultPath: string): Promise<HttpDaemonSer
         if (currentBound) {
             const prev: BoundState = currentBound
             currentBound = null
-            await prev.watcher.stop().catch((cause: unknown): void => {
-                console.error('[http-daemon] watcher stop during rebind:', cause)
-            })
             await prev.handle.stop().catch((cause: unknown): void => {
                 console.error('[http-daemon] server stop during rebind:', cause)
             })
@@ -73,12 +67,8 @@ export function bindHttpDaemonForVault(vaultPath: string): Promise<HttpDaemonSer
         })
 
         await writeRpcPortFile(vaultPath, handle.port)
-        const watcher: VaultStateWatcherHandle = startVaultStateWatcher({
-            vaultPath,
-            hub: handle.hub,
-        })
 
-        currentBound = {vaultPath, handle, watcher, token}
+        currentBound = {vaultPath, handle, token}
         return handle
     })
 }
@@ -88,9 +78,6 @@ export function unbindHttpDaemon(): Promise<void> {
         const bound: BoundState | null = currentBound
         if (!bound) return
         currentBound = null
-        await bound.watcher.stop().catch((cause: unknown): void => {
-            console.error('[http-daemon] watcher stop:', cause)
-        })
         await bound.handle.stop().catch((cause: unknown): void => {
             console.error('[http-daemon] server stop:', cause)
         })
