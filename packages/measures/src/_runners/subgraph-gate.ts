@@ -32,6 +32,7 @@ import {readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {DEFAULT_REPO_ROOT} from '../_shared/discovery/discover-packages.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
+import {appendScore} from '../_shared/writers/scores-history-writer.ts'
 import {
     listMeasures,
     loadBaseline,
@@ -225,8 +226,32 @@ async function runGate(args: Args): Promise<GateOutcome> {
         const raw = await measure.run({changedFiles, parsedSubgraph})
         results.push(await decorateWithBaselines(raw))
     }
+    await recordGateRows(results)
     const failCount = results.reduce((n, r) => n + r.violations.filter(v => v.severity === 'fail').length, 0)
     return {kind: 'evaluated', results, failCount}
+}
+
+/**
+ * Append one row per (measure, touched-community) to the scores-history CSV
+ * so pre-commit gate decisions survive the blocked-commit case. Rows route
+ * to scores-history/<UUID>.local.csv because pre-commit always runs with
+ * staged changes (dirty tree). Measure id is namespaced
+ * `subgraph-gate/<measureId>/<community>` so gate rows are distinguishable
+ * from clean-tree measure runs.
+ */
+async function recordGateRows(results: readonly SubgraphMeasureResult[]): Promise<void> {
+    for (const result of results) {
+        const violatedCommunities = new Set(
+            result.violations.filter(v => v.severity === 'fail').map(v => v.community),
+        )
+        for (const [community, score] of Object.entries(result.perCommunity)) {
+            await appendScore({
+                measure: `subgraph-gate/${result.measureId}/${community}`,
+                score,
+                status: violatedCommunities.has(community) ? 'fail' : 'pass',
+            })
+        }
+    }
 }
 
 function renderViolation(v: Violation): string {

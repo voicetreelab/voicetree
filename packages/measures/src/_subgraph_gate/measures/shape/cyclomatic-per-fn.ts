@@ -43,7 +43,6 @@ import type {
 import {isFunctionLikeBoundary, walkFunctions, type FunctionDetail} from './_ast-helpers.ts'
 
 export const CYCLOMATIC_WARN_SOFT = 10
-export const CYCLOMATIC_WARN_HARD = 15
 export const CYCLOMATIC_FAIL = 30
 
 function isLogicalOperator(kind: ts.SyntaxKind): boolean {

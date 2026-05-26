@@ -1,0 +1,30 @@
+# Two-way mutagen sync for the per-machine scores-history CSV files.
+#
+# Scope: just `health-dashboard/reports/scores-history/`. Each machine
+# owns its own UUID-named files in there (see `scores-history-writer.ts`),
+# so cross-machine writes never touch the same file — two-way-safe mode is
+# guaranteed conflict-free in practice.
+#
+# Why this is a SECOND session (not a config on `vt-remote`):
+#   - `vt-remote` is one-way-replica and `scripts/run-remote.mjs` enforces
+#     that mode for code/test sync. We don't want to change its behavior.
+#   - Mutagen sessions can't do "mostly one-way, but two-way for glob X";
+#     the mode is whole-session.
+#   - Two disjoint sessions targeting disjoint paths is the clean answer.
+#
+# Lifecycle commands live in `get_dev_healthy/vt-remote.sh`:
+#   vt-remote.sh csv-history-create
+#   vt-remote.sh csv-history-status
+#   vt-remote.sh csv-history-terminate
+sync:
+  defaults:
+    mode: "two-way-safe"
+    symlink:
+      mode: "posix-raw"
+    ignore:
+      # Sync everything in scores-history/, including .local.csv files
+      # (gitignored on purpose so each clone's history isn't tracked,
+      # but we DO want them mirrored across machines).
+      vcs: false
+      paths:
+        - "**/.DS_Store"
