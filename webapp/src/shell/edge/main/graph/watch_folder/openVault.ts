@@ -32,7 +32,6 @@ import {
 } from '@/shell/edge/main/agent/terminals/terminal-registry-bridge'
 import { bindVtDaemonForVault, getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
-import { registerChildIfMonitored } from '@vt/vt-daemon'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
 export type StartupVaultHint =
@@ -64,9 +63,12 @@ function handleTerminalRegistryEnvelope(envelope: TerminalRegistryEnvelope): voi
     const event = outcome.event
     if (event.type === 'terminal-ui-launch') {
         void uiAPI.launchTerminalOntoUI(event.nodeId, event.terminalData, event.skipFitAnimation)
-    } else if (event.type === 'terminal-ui-child-registered') {
-        registerChildIfMonitored(event.parentTerminalId, event.childTerminalId)
     }
+    // `terminal-ui-child-registered`: no webapp-side action. The agent-
+    // completion monitor's terminal-id table lives in vtd's process and is
+    // updated there by `buildPublishTerminalRegistryEvent` (vtd.ts) on the
+    // same event; webapp's previous in-process `registerChildIfMonitored`
+    // mutated a disjoint, empty Map (no monitor entries in webapp).
 }
 
 async function pathIsDirectory(directoryPath: string): Promise<boolean> {

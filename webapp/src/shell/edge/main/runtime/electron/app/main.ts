@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import {app, BrowserWindow, nativeImage} from 'electron';
-import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {isAbsolute, join} from 'node:path';
@@ -8,7 +7,6 @@ import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/appli
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
-import {configureMcpServer} from '@vt/vt-daemon';
 import {existsSync} from 'node:fs';
 import {getAuthToken, getDaemonUrl, unbindVtDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {installVtDaemonEventsBridge} from '@/shell/edge/main/runtime/electron/daemon/events/vtDaemonEventsBridge';
@@ -34,17 +32,7 @@ import {
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
-import {
-    getGraphFromDaemon,
-    postDeltaThroughDaemonWithEditors,
-} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
-import {
-    getVaultPaths,
-    getWatchStatus,
-    getWriteFolder,
-} from '@/shell/edge/main/graph/watch_folder/watchFolder';
-import {askQuery} from '@/shell/edge/main/runtime/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/workspace/saveNodePositions';
 import {validateStartupCwd} from '@/shell/edge/main/runtime/electron/startup/startup-diagnostics';
 import {subscribeToTerminalRegistryCache} from '@/shell/edge/main/agent/terminals/terminal-registry-bridge';
@@ -55,10 +43,7 @@ import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/li
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
 import {tracing} from '@vt/observability';
-import {
-    getDaemonClient,
-    shutdownActiveDaemonConnection,
-} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
+import {shutdownActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 import {unsubscribeFromTerminalRegistrySse} from '@/shell/edge/main/runtime/electron/daemon/sync/terminal-registry-sse-subscription';
@@ -89,45 +74,17 @@ validateStartupCwd();
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Wire @vt/vt-daemon late-bound bridges. Headless vt-mcpd will provide
-// its own implementations (or omit, for tools that don't apply headlessly).
-configureMcpServer({
-    graph: {
-        getGraph: async () => getGraphFromDaemon(),
-        getVaultPaths,
-        getWriteFolder: async () => {
-            const writeFolder: O.Option<string> = await getWriteFolder();
-            return O.isSome(writeFolder) ? writeFolder.value : null;
-        },
-        applyGraphDelta: (delta, recordForUndo) =>
-            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRoot,
-        getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
-            return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
-                contextNodeId,
-                searchFromNode,
-            );
-        },
-    },
-    search: {
-        askQuery,
-    },
-});
+// Note: vt-daemon's MCP server runs out-of-process inside the per-vault VTD
+// child. The in-process `configureMcpServer` call that used to live here
+// wired in-process bridges (`getMcpGraph`, `getLiveStateBridge`, …) against
+// vt-daemon's module-level state. After BF-375/BF-376 those bridges are
+// consumed only by the vtd binary's own `configureHeadlessMcpBridges` —
+// webapp's in-process copy was a no-op.
 
 const {autoUpdater} = electronUpdater;
 
-function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
-    return getDaemonClient();
-}
-
 function pinProcessAppSupportPath(): void {
     process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
-}
-
-async function getProjectRoot(): Promise<string | null> {
-    const status: {readonly isWatching: boolean; readonly directory: string | undefined} =
-        await getWatchStatus();
-    return status.directory ?? null;
 }
 
 /**
