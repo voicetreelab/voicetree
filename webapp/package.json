@@ -142,6 +142,7 @@
     "@vt/graph-tools": "*",
     "@vt/perf-fixtures": "*",
     "@vt/vt-daemon": "*",
+    "@vt/vt-daemon-client": "*",
     "@vt/vt-rpc": "*",
     "@vitest/ui": "^3.2.4",
     "chokidar": "^4.0.3",
