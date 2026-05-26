@@ -101,12 +101,16 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
         return api.main.getAppSupportPath();
       });
 
-      const watchResult = await appWindow.evaluate(async (projectRoot) => {
+      // Resolve the vault. openVault throws on a non-directory and resolves
+      // with the bound vault state on success; we only need the side effect
+      // of the unified daemon binding to this vault so the relay route works.
+      const openResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return await api.main.startFileWatching(projectRoot);
+        const response = await api.main.openVault(projectRoot);
+        return { writeFolder: response.writeFolder };
       }, fixtureVaultPath);
-      expect(watchResult.success, 'startFileWatching failed').toBe(true);
+      expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
 
       await expect.poll(async () => appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
