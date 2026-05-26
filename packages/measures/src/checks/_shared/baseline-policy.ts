@@ -11,19 +11,19 @@
 // Only files under .../budgets/subgraph/ are themselves baselines. The
 // budgets/ root holds documentation (README, BASELINE_BUMP_LOG) that is
 // *about* baselines without being one — those must remain freely committable.
-export const BASELINE_PREFIX = 'packages/measures/budgets/subgraph/'
-export const RATIONALE_TRAILER = 'Baseline-bump-rationale:'
-export const MIN_RATIONALE_CHARS = 20
+const BASELINE_PREFIX = 'packages/measures/budgets/subgraph/'
+const RATIONALE_TRAILER = 'Baseline-bump-rationale:'
+const MIN_RATIONALE_CHARS = 20
 
-export type StagedDiffClassification = 'no-baselines' | 'pure-bump' | 'mixed'
+type StagedDiffClassification = 'no-baselines' | 'pure-bump' | 'mixed'
 
-export type CommitMessageClassification = 'ok' | 'missing-rationale' | 'rationale-too-short'
+type CommitMessageClassification = 'ok' | 'missing-rationale' | 'rationale-too-short'
 
-export function isBaselinePath(path: string): boolean {
+function isBaselinePath(path: string): boolean {
     return path.startsWith(BASELINE_PREFIX)
 }
 
-export function classifyStagedDiff(paths: readonly string[]): StagedDiffClassification {
+function classifyStagedDiff(paths: readonly string[]): StagedDiffClassification {
     if (paths.length === 0) return 'no-baselines'
     const baselines = paths.filter(isBaselinePath)
     if (baselines.length === 0) return 'no-baselines'
@@ -41,7 +41,7 @@ function extractRationale(message: string): string | null {
     return null
 }
 
-export function classifyCommitMessage(message: string): CommitMessageClassification {
+function classifyCommitMessage(message: string): CommitMessageClassification {
     const rationale = extractRationale(message)
     if (rationale === null) return 'missing-rationale'
     if (rationale.length < MIN_RATIONALE_CHARS) return 'rationale-too-short'
@@ -50,7 +50,7 @@ export function classifyCommitMessage(message: string): CommitMessageClassificat
 
 const BAR = '━'.repeat(80)
 
-export function formatMixedViolation(baselinePaths: readonly string[], otherPaths: readonly string[]): string {
+function formatMixedViolation(baselinePaths: readonly string[], otherPaths: readonly string[]): string {
     const baselineList = baselinePaths.map(p => `    ${p}`).join('\n')
     const otherList = otherPaths.map(p => `    ${p}`).join('\n')
     return [
@@ -74,7 +74,7 @@ export function formatMixedViolation(baselinePaths: readonly string[], otherPath
     ].join('\n')
 }
 
-export function formatRationaleViolation(kind: 'missing-rationale' | 'rationale-too-short'): string {
+function formatRationaleViolation(kind: 'missing-rationale' | 'rationale-too-short'): string {
     const reason = kind === 'missing-rationale'
         ? `No \`${RATIONALE_TRAILER}\` trailer found in the commit message.`
         : `The \`${RATIONALE_TRAILER}\` trailer is shorter than ${MIN_RATIONALE_CHARS} characters.`
@@ -96,3 +96,14 @@ export function formatRationaleViolation(kind: 'missing-rationale' | 'rationale-
         '',
     ].join('\n')
 }
+
+export const baselinePolicy = {
+    baselinePrefix: BASELINE_PREFIX,
+    rationaleTrailer: RATIONALE_TRAILER,
+    minRationaleChars: MIN_RATIONALE_CHARS,
+    isBaselinePath,
+    classifyStagedDiff,
+    classifyCommitMessage,
+    formatMixedViolation,
+    formatRationaleViolation,
+} as const

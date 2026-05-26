@@ -9,6 +9,7 @@
 // one-import edge (mirroring _runners/check-directory-fanout.ts).
 
 import {execFileSync} from 'node:child_process'
+import {readFileSync} from 'node:fs'
 import {readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 
@@ -38,14 +39,42 @@ function stagedFiles(): readonly StagedFile[] {
     return out
 }
 
-function previousContentAtHead(repoRelativePath: string): string | null {
+function previousContentAtRevision(revision: string, repoRelativePath: string): string | null {
     try {
-        return execFileSync('git', ['show', `HEAD:${repoRelativePath}`], {
+        return execFileSync('git', ['show', `${revision}:${repoRelativePath}`], {
             encoding: 'utf8', cwd: DEFAULT_REPO_ROOT, stdio: ['ignore', 'pipe', 'ignore'],
         })
     } catch {
         return null
     }
+}
+
+function mergeHeadShas(): readonly string[] {
+    try {
+        const mergeHeadPath = execFileSync('git', ['rev-parse', '--git-path', 'MERGE_HEAD'], {
+            encoding: 'utf8', cwd: DEFAULT_REPO_ROOT, stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim()
+        return readFileSync(mergeHeadPath, 'utf8')
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+    } catch {
+        return []
+    }
+}
+
+function previousContentForScope(file: StagedFile, mergeHeads: readonly string[]): string | null {
+    const revisions = ['HEAD', ...mergeHeads]
+    const contents = revisions
+        .map(revision => previousContentAtRevision(revision, file.path))
+        .filter((content): content is string => content !== null)
+    if (contents.length === 0) return null
+
+    // Merge commits should only gate declarations introduced by the final
+    // merge resolution, not declarations that already exist on either parent.
+    // Concatenating parent contents makes extractScopeDeclarations compare
+    // against the union of parent declarations.
+    return [...new Set(contents)].join('\n')
 }
 
 function headSha(): string | null {
@@ -59,11 +88,12 @@ function headSha(): string | null {
 }
 
 async function gatherScope(files: readonly StagedFile[]) {
+    const mergeHeads = mergeHeadShas()
     const scope = await Promise.all(files.map(async file => {
         const absPath = resolve(DEFAULT_REPO_ROOT, file.path)
         const content = await readFile(absPath, 'utf8').catch(() => null)
         if (content === null) return []
-        const prev = file.status === 'A' ? null : previousContentAtHead(file.path)
+        const prev = previousContentForScope(file, mergeHeads)
         return extractScopeDeclarations({filePath: absPath, content, previousContent: prev})
     }))
     return scope.flat()

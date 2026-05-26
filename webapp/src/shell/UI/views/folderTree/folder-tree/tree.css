@@ -1,0 +1,18 @@
+/* ============================================================================
+ * Tree Container
+ * ============================================================================ */
+
+.folder-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+}
+
+.folder-tree-empty {
+    padding: 12px 8px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    text-align: center;
+    opacity: 0.6;
+}

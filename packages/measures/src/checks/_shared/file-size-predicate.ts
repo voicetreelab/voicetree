@@ -6,16 +6,21 @@
 const FILE_SIZE_MAX_LINES = 500
 const SOURCE_EXT_PATTERN = /\.(ts|tsx|js|jsx|css|scss|less)$/
 
-export type FileSizeResult =
+type FileSizeResult =
     | {readonly kind: 'ok'}
     | {readonly kind: 'violation'; readonly actualLines: number; readonly maxLines: number}
 
-export function isSourceFile(filePath: string): boolean {
+function isSourceFile(filePath: string): boolean {
     return SOURCE_EXT_PATTERN.test(filePath)
 }
 
-export function fileSizeCheck(content: string): FileSizeResult {
+function fileSizeCheck(content: string): FileSizeResult {
     const lines = content.split('\n').length
     if (lines <= FILE_SIZE_MAX_LINES) return {kind: 'ok'}
     return {kind: 'violation', actualLines: lines, maxLines: FILE_SIZE_MAX_LINES}
 }
+
+export const fileSizePredicate = {
+    isSourceFile,
+    fileSizeCheck,
+} as const

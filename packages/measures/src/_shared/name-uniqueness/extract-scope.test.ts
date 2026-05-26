@@ -78,6 +78,15 @@ describe('extractScopeDeclarations', () => {
         expect(scope.map(d => d.name)).toEqual(['extra'])
     })
 
+    it('modified file during merge → declarations from any parent are not in scope', () => {
+        const scope = extractScopeDeclarations({
+            filePath: '/repo/file.ts',
+            content: 'export function fromFirstParent() {}\nexport function fromSecondParent() {}\nexport function mergeResolution() {}',
+            previousContent: 'export function fromFirstParent() {}\nexport function fromSecondParent() {}',
+        })
+        expect(scope.map(d => d.name)).toEqual(['mergeResolution'])
+    })
+
     it('modified file where an export was renamed → new name is in scope, old absence is ignored', () => {
         const scope = extractScopeDeclarations({
             filePath: '/repo/file.ts',

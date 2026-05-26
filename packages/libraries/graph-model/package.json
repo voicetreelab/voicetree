@@ -25,7 +25,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:mutation": "stryker run stryker.config.json"
+    "test:mutation": "stryker run stryker.config.json",
+    "test:mutation:smoke": "stryker run stryker.smoke.config.json"
   },
   "dependencies": {
     "fp-ts": "^2.16.9",

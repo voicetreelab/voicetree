@@ -1,22 +1,4 @@
-/**
- * Pure collapse/edge-aggregation primitives shared between graph-tools and graph-model.
- * Lives here (graph-tools) because graph-model depends on graph-tools, not vice versa.
- */
-
 import type {ContainmentTree} from '../lint/lintContainment'
-
-export interface OriginalEdgeRef {
-    readonly sourceId: string
-    readonly targetId: string
-    readonly label?: string
-}
-
-export interface SyntheticEdgeSpec {
-    readonly syntheticEdgeId: string
-    readonly direction: 'incoming' | 'outgoing'
-    readonly externalNodeId: string
-    readonly originalEdges: readonly OriginalEdgeRef[]
-}
 
 export interface CollapsedInfo {
     readonly descendantCount: number
@@ -28,50 +10,15 @@ export interface NodeWithOutgoingIds {
     readonly outgoingIds: readonly string[]
 }
 
+type DirectedEdge = {
+    readonly sourceId: string
+    readonly targetId: string
+}
+
 export const VIRTUAL_FOLDER_PREFIX = '__virtual_folder__/'
 
 export function isVirtualFolder(id: string): boolean {
     return id.startsWith(VIRTUAL_FOLDER_PREFIX)
-}
-
-/**
- * Compute synthetic edge specs from pre-extracted cy data. PURE.
- * Groups cross-boundary edges by direction + external node, generates stable IDs.
- * Deduplicates by (direction, external endpoint) per F6 design law decision 3.
- */
-export function computeSyntheticEdgeSpecs(
-    folderId: string,
-    descendantIds: ReadonlySet<string>,
-    connectedEdges: readonly { readonly sourceId: string; readonly targetId: string; readonly label?: string }[]
-): readonly SyntheticEdgeSpec[] {
-    const crossEdges = connectedEdges.filter(e =>
-        !descendantIds.has(e.sourceId) || !descendantIds.has(e.targetId)
-    )
-
-    type EdgeGroup = { readonly direction: 'incoming' | 'outgoing'; readonly edges: OriginalEdgeRef[] }
-    const groups = new Map<string, EdgeGroup>()
-
-    for (const e of crossEdges) {
-        const srcInside: boolean = descendantIds.has(e.sourceId)
-        if (srcInside) {
-            const key: string = `out:${e.targetId}`
-            const g: EdgeGroup = groups.get(key) ?? { direction: 'outgoing' as const, edges: [] }
-            g.edges.push({ sourceId: e.sourceId, targetId: e.targetId, label: e.label })
-            groups.set(key, g)
-        } else {
-            const key: string = `in:${e.sourceId}`
-            const g: EdgeGroup = groups.get(key) ?? { direction: 'incoming' as const, edges: [] }
-            g.edges.push({ sourceId: e.sourceId, targetId: e.targetId, label: e.label })
-            groups.set(key, g)
-        }
-    }
-
-    return [...groups.entries()].map(([key, { direction, edges }]) => ({
-        syntheticEdgeId: `synthetic:${folderId}:${key}`,
-        direction,
-        externalNodeId: key.slice(key.indexOf(':') + 1),
-        originalEdges: edges
-    }))
 }
 
 function folderPathToEntityId(folderPath: string, folderIndexMap: ReadonlyMap<string, string>): string {
@@ -112,7 +59,7 @@ function computeCollapsedInfo(
     nodeById: ReadonlyMap<string, NodeWithOutgoingIds>,
 ): CollapsedInfo {
     const allInSubtree = new Set([entityId, ...descendants])
-    const connectedEdges: {sourceId: string; targetId: string}[] = []
+    const connectedEdges: DirectedEdge[] = []
 
     for (const id of allInSubtree) {
         if (isVirtualFolder(id)) continue
@@ -123,15 +70,30 @@ function computeCollapsedInfo(
         }
     }
 
-    const specs: readonly SyntheticEdgeSpec[] = computeSyntheticEdgeSpecs(entityId, descendants, connectedEdges)
-    const outgoingSpecs: readonly SyntheticEdgeSpec[] = specs.filter(spec => spec.direction === 'outgoing')
-    const externalTargets: string[] = outgoingSpecs.map(spec => spec.externalNodeId)
+    const externalTargets: string[] = collectExternalOutgoingTargets(entityId, descendants, connectedEdges)
 
     return {
         descendantCount: descendants.size,
         externalOutgoingCount: externalTargets.length,
         externalTargets,
     }
+}
+
+function collectExternalOutgoingTargets(
+    folderId: string,
+    descendants: ReadonlySet<string>,
+    edges: readonly DirectedEdge[],
+): string[] {
+    const inside = new Set([folderId, ...descendants])
+    const externalTargets = new Set<string>()
+
+    for (const edge of edges) {
+        if (!inside.has(edge.sourceId)) continue
+        if (inside.has(edge.targetId)) continue
+        externalTargets.add(edge.targetId)
+    }
+
+    return [...externalTargets].sort()
 }
 
 export function buildCollapsedMap(

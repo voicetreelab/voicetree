@@ -9,9 +9,9 @@
 //      single multi-line message; return null when there are none.
 //
 // Warn-mode escalation (per design.md Decision G): the measure ships in
-// warn-only for the first 7 days post-merge (returns null but still
-// prints the formatted message to stderr so agents see it). On
-// WARN_MODE_UNTIL we flip the constant to false and start exit-2-blocking.
+// warn-only for the first 7 days post-merge (returns a warning result that
+// the runner prints without blocking). On WARN_MODE_UNTIL we flip the
+// constant to false and start exit-2-blocking.
 
 import {execFileSync} from 'node:child_process'
 
@@ -81,7 +81,7 @@ function formatBlockMessage(filePath: string, violations: ReturnType<typeof find
 export async function checkFile(args: {
     readonly filePath: string
     readonly content: string
-}): Promise<{readonly message: string} | null> {
+}): Promise<{readonly message: string; readonly severity?: 'block' | 'warn'} | null> {
     if (!SOURCE_EXT_PATTERN.test(args.filePath)) return null
     const previousContent = previousContentAtHead(args.filePath)
     const scope = extractScopeDeclarations({
@@ -101,9 +101,6 @@ export async function checkFile(args: {
     if (violations.length === 0) return null
 
     const message = formatBlockMessage(args.filePath, violations)
-    if (WARN_MODE) {
-        process.stderr.write(message + '\n')
-        return null
-    }
+    if (WARN_MODE) return {message, severity: 'warn'}
     return {message}
 }

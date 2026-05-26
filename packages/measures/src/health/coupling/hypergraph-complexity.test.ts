@@ -335,6 +335,61 @@ function formatSubdirTable(subdirs: readonly SubdirCoupling[]): string {
     return lines.join('\n')
 }
 
+// Top N entries from a map<string, number> sorted descending by value.
+function topN<K>(counts: ReadonlyMap<K, number>, n: number): Array<[K, number]> {
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n)
+}
+
+function countBy<T>(items: readonly T[], key: (item: T) => string): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const item of items) {
+        const k = key(item)
+        counts.set(k, (counts.get(k) ?? 0) + 1)
+    }
+    return counts
+}
+
+function formatTopOffenders(
+    chargedScores: readonly ChargedPairScore[],
+    edgesByPair: ReadonlyMap<string, readonly DirectedFileEdge[]>,
+    facadeFiles: ReadonlySet<string>,
+    pairLimit: number,
+    fileLimit: number,
+): string {
+    const ranked = [...chargedScores]
+        .filter(p => p.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, pairLimit)
+
+    const lines: string[] = ['', '=== Top BCI Contributors (charged files) ===', '']
+    if (ranked.length === 0) {
+        lines.push('  (no pair contributes to charged BCI)')
+        return lines.join('\n')
+    }
+
+    for (let i = 0; i < ranked.length; i++) {
+        const pair = ranked[i]
+        const chargedEdges = (edgesByPair.get(pair.pair) ?? []).filter(e => !facadeFiles.has(e.to))
+        const importerCounts = countBy(chargedEdges, e => e.from)
+        const targetCounts = countBy(chargedEdges, e => e.to)
+
+        lines.push(`  ${i + 1}. ${pair.pair}`)
+        lines.push(`     score=${pair.score.toFixed(2)}  chargedEdges=${pair.chargedEdges}  srcFan=${pair.chargedSrcFan}  tgtFan=${pair.chargedTgtFan}  density=${pair.chargedDensity.toFixed(3)}`)
+        lines.push(`     top importer files (non-facade cross-edges originating here):`)
+        for (const [file, count] of topN(importerCounts, fileLimit)) {
+            lines.push(`       ${String(count).padStart(4)}  ${file}`)
+        }
+        lines.push(`     top target files (non-facade cross-edges landing here):`)
+        for (const [file, count] of topN(targetCounts, fileLimit)) {
+            lines.push(`       ${String(count).padStart(4)}  ${file}`)
+        }
+        lines.push('')
+    }
+    lines.push('  Routing through package facade files strips edges from this charged view.')
+    lines.push('  Reducing charged fan-out or density on the pairs above lowers aggregate BCI.')
+    return lines.join('\n')
+}
+
 function formatAggregate(
     maxTw: number,
     maxBoundaryRatio: number,
@@ -409,6 +464,7 @@ describe('hypergraph boundary complexity', () => {
         console.info(formatPairTable(pairMetrics))
         console.info(formatBoundaryTable(boundaries))
         console.info(formatSubdirTable(subdirCouplings))
+        console.info(formatTopOffenders(chargedScores, edgesByPair, facadeFiles, 5, 8))
         console.info(formatAggregate(maxTw, maxBoundaryRatio, bci, facadeFiles.size))
 
         const violations: string[] = []

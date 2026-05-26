@@ -14,6 +14,7 @@
     "test:t0": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=0'",
     "health:subgraph-gate": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/subgraph-gate.ts",
     "gen:workflows": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/scripts/gen-workflows.ts",
+    "sync:workflow-rulesets": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/scripts/sync-workflow-rulesets.ts",
     "test:t1": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=1'",
     "test:t2": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=2'",
     "test:t3": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=3'",
@@ -47,7 +48,7 @@
     "measures:dashboard": "node health-dashboard/server.mjs",
     "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
     "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
-    "measures:capture-baselines": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-subgraph-baselines.ts",
+    "measures:capture-baselines": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/scripts/capture-subgraph-baselines.ts",
     "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs"
   },
   "devDependencies": {

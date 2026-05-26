@@ -4,7 +4,7 @@ import {join} from 'node:path'
 
 import {describe, expect, it} from 'vitest'
 
-import {runTierBudgetGate, type EvaluationResult} from '../../../_runners/check-tier-budgets.ts'
+import {runTierBudgetGate, type EvaluationResult} from '../../../../scripts/check-tier-budgets.ts'
 
 type ReportInput = {
     checkId: string
@@ -80,10 +80,10 @@ describe('runTierBudgetGate — wall-clock aggregation', () => {
         })
     })
 
-    it('groups reports by tier and ignores ones without a checks/tier_N/ path', async () => {
+    it('groups reports by tier and accepts tier folders with suffixes', async () => {
         await withFixture([
             {checkId: 'a', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:01.000Z',
-                measurePath: 'packages/measures/src/checks/tier_0/x/a.ts'},
+                measurePath: 'packages/measures/src/checks/tier_0_pre_commit/lint/a.ts'},
             {checkId: 'b', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:02.000Z',
                 measurePath: 'packages/measures/src/checks/tier_2/x/b.ts'},
             {checkId: 'c', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:03.000Z',
@@ -193,6 +193,82 @@ describe('runTierBudgetGate — budget evaluation', () => {
             expect(exitCode).toBe(0)
             expect(result.tiersEvaluated).toEqual([])
             expect(result.breaches).toEqual([])
+        })
+    })
+})
+
+describe('runTierBudgetGate — branch-aware CI integrity', () => {
+    it('fails when a required upstream generated job did not succeed', async () => {
+        await withFixture([
+            {checkId: 'a', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:01.000Z'},
+        ], {1: TIER_1_BUDGET}, async (opts) => {
+            const {result, exitCode} = await runTierBudgetGate({
+                ...opts,
+                baseRef: 'dev',
+                needsJson: JSON.stringify({'tier-1-unit': {result: 'failure'}}),
+                requiredJobsByBaseRefJson: JSON.stringify({dev: ['tier-1-unit', 'budget-gate']}),
+            })
+            expect(exitCode).toBe(1)
+            expect(result.ciFailures).toEqual([{
+                kind: 'required-job',
+                jobId: 'tier-1-unit',
+                message: 'required job tier-1-unit for dev finished with failure',
+            }])
+        })
+    })
+
+    it('fails when a required tier produced no reports even if its job succeeded', async () => {
+        await withFixture([], {2: TIER_1_BUDGET}, async (opts) => {
+            const {result, exitCode} = await runTierBudgetGate({
+                ...opts,
+                baseRef: 'dev',
+                needsJson: JSON.stringify({'tier-2-unit': {result: 'success'}}),
+                requiredJobsByBaseRefJson: JSON.stringify({dev: ['tier-2-unit', 'budget-gate']}),
+            })
+            expect(exitCode).toBe(1)
+            expect(result.ciFailures).toEqual([{
+                kind: 'missing-required-tier',
+                tier: 2,
+                message: 'required tier_2 for dev produced no check reports',
+            }])
+        })
+    })
+
+    it('allows conditional tier 4 to skip when the precheck says it is not required', async () => {
+        await withFixture([], {4: {wallClockMs: 10_000, sumMs: null, perCheckMaxRatio: 0.6}}, async (opts) => {
+            const {result, exitCode} = await runTierBudgetGate({
+                ...opts,
+                baseRef: 'main',
+                needsJson: JSON.stringify({
+                    'tier4-precheck': {result: 'success', outputs: {should_run: 'false'}},
+                    'tier-4-analyzers': {result: 'skipped'},
+                }),
+                conditionalJobsByBaseRefJson: JSON.stringify({main: ['tier-4-analyzers']}),
+                conditionalPrecheckByJobIdJson: JSON.stringify({'tier-4-analyzers': 'tier4-precheck'}),
+            })
+            expect(exitCode).toBe(0)
+            expect(result.ciFailures).toEqual([])
+        })
+    })
+
+    it('fails when conditional tier 4 skips after the precheck required it', async () => {
+        await withFixture([], {4: {wallClockMs: 10_000, sumMs: null, perCheckMaxRatio: 0.6}}, async (opts) => {
+            const {result, exitCode} = await runTierBudgetGate({
+                ...opts,
+                baseRef: 'main',
+                needsJson: JSON.stringify({
+                    'tier4-precheck': {result: 'success', outputs: {should_run: 'true'}},
+                    'tier-4-analyzers': {result: 'skipped'},
+                }),
+                conditionalJobsByBaseRefJson: JSON.stringify({main: ['tier-4-analyzers']}),
+                conditionalPrecheckByJobIdJson: JSON.stringify({'tier-4-analyzers': 'tier4-precheck'}),
+            })
+            expect(exitCode).toBe(1)
+            expect(result.ciFailures).toEqual([{
+                kind: 'conditional-job',
+                jobId: 'tier-4-analyzers',
+                message: 'conditional job tier-4-analyzers for main finished with skipped while precheck tier4-precheck should_run=true',
+            }])
         })
     })
 })

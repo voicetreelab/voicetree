@@ -1,4 +1,4 @@
-import {type CheckDef, vitestJsonArgs} from '../../../_types.ts'
+import {checkArgs, type CheckDef} from '../../_types.ts'
 
 export const check: CheckDef = {
     id: 'architecture-drift',
@@ -10,7 +10,7 @@ export const check: CheckDef = {
         'vitest',
         'run',
         'packages/measures/src/health/coupling/architecture-drift.test.ts',
-        ...vitestJsonArgs(jsonOut),
+        ...checkArgs.vitestJsonArgs(jsonOut),
     ],
     parser: 'vitest',
 }

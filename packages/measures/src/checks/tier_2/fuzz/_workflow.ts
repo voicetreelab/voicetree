@@ -1,6 +1,5 @@
 // tier_2/fuzz/ concern override: emit one matrix job per fuzz check so each
-// runs with full timeout isolation (mirrors the existing 5-way matrix in
-// stage1-checks.yml).
+// runs with full timeout isolation.
 
 import type {WorkflowSpec} from '../../_workflow-types.ts'
 

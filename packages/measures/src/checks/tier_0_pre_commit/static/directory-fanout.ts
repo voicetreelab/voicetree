@@ -1,4 +1,4 @@
-import {type CheckDef} from '../../../_types.ts'
+import {type CheckDef} from '../../_types.ts'
 
 const SCRIPT_PATH = 'packages/measures/src/_runners/check-directory-fanout.ts'
 
