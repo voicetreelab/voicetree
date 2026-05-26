@@ -13,7 +13,7 @@
  * graph-db-client, server lifecycle) lives in BF-343..BF-348.
  */
 
-import type { OwnerRecord } from './types.ts'
+import type { OwnerRecord } from '../types.ts'
 
 /**
  * Liveness observation for the recorded owner pid.

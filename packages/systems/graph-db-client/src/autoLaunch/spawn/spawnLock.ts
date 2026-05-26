@@ -18,7 +18,7 @@
 
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { readProcessLiveness } from './processLiveness.ts'
+import { readProcessLiveness } from '../probes/processLiveness.ts'
 
 export const SPAWN_LOCK_FILENAME = 'graphd.spawn.lock'
 

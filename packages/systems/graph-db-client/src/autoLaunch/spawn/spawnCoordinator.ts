@@ -15,26 +15,26 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import type { CallerKind, OwnerRecord } from './types.ts'
-import { GraphDbClient } from '../GraphDbClient.ts'
-import { DaemonLaunchTimeout, UnsafeOwnerError } from '../errors.ts'
+import type { CallerKind, OwnerRecord } from '../types.ts'
+import { GraphDbClient } from '../../GraphDbClient.ts'
+import { DaemonLaunchTimeout, UnsafeOwnerError } from '../../errors.ts'
 import {
   clearCooldownBreadcrumb,
   decideActiveCooldown,
   readCooldownBreadcrumb,
   writeCooldownBreadcrumb,
-} from './cooldownBreadcrumb.ts'
-import { emitOwnerDiagnostic } from './diagnostics.ts'
-import { probeOwnerHealth } from './healthIdentityProbe.ts'
+} from '../ownership/cooldownBreadcrumb.ts'
+import { emitOwnerDiagnostic } from '../diagnostics.ts'
+import { probeOwnerHealth } from '../probes/healthIdentityProbe.ts'
 import {
   decideOwnerAction,
   type OwnerEvidence,
-} from './ownerDecision.ts'
-import { deleteOwnerRecord, readOwnerRecord } from './ownerRecordIo.ts'
+} from '../ownership/ownerDecision.ts'
+import { deleteOwnerRecord, readOwnerRecord } from '../ownership/ownerRecordIo.ts'
 import {
   readCommandFingerprintMatch,
   readProcessLiveness,
-} from './processLiveness.ts'
+} from '../probes/processLiveness.ts'
 import { resolveCommand, type CommandSpec } from './runtime.ts'
 import { acquireSpawnLock } from './spawnLock.ts'
 

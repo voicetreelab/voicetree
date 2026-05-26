@@ -33,7 +33,7 @@ export {
   cooldownBreadcrumbPathFor,
   COOLDOWN_BREADCRUMB_FILENAME,
   type CooldownBreadcrumb,
-} from './autoLaunch/cooldownBreadcrumb.ts'
+} from './autoLaunch/ownership/cooldownBreadcrumb.ts'
 export {
   isVtGraphdProcessForVault,
   killOrphanVtGraphdDaemons,

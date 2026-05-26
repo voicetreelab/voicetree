@@ -9,7 +9,7 @@ import {
   type OwnerDecisionPolicy,
   type OwnerEvidence,
   type ProcessLiveness,
-} from '../autoLaunch/ownerDecision.ts'
+} from '../autoLaunch/ownership/ownerDecision.ts'
 
 const VAULT = '/vault'
 

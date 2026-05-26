@@ -11,7 +11,7 @@
 
 import { readFile, unlink } from 'node:fs/promises'
 import { ownerRecordFile } from '@vt/graph-db-protocol'
-import type { OwnerRecord } from './types.ts'
+import type { OwnerRecord } from '../types.ts'
 
 /**
  * Read and decode the owner record. Returns `null` when the file is absent

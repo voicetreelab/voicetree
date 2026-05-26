@@ -23,7 +23,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { CallerKind } from './types.ts'
+import type { CallerKind } from '../types.ts'
 import type { Cooldown } from './ownerDecision.ts'
 
 export const COOLDOWN_BREADCRUMB_FILENAME = 'graphd.cooldown.json'

@@ -9,11 +9,11 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import type { CommandFingerprint } from './types.ts'
+import type { CommandFingerprint } from '../types.ts'
 import type {
   CommandFingerprintMatch,
   ProcessLiveness,
-} from './ownerDecision.ts'
+} from '../ownership/ownerDecision.ts'
 
 export function readProcessLiveness(pid: number): ProcessLiveness {
   if (!Number.isInteger(pid) || pid <= 0) return 'unknown'

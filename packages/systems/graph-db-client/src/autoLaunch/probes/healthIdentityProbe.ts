@@ -18,7 +18,7 @@
  */
 
 import { HealthResponseSchema } from '@vt/graph-db-protocol'
-import type { HealthProbeResult } from './ownerDecision.ts'
+import type { HealthProbeResult } from '../ownership/ownerDecision.ts'
 
 export type ProbeHealthOptions = {
   readonly timeoutMs?: number

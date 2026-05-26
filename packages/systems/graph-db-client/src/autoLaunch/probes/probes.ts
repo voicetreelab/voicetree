@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
-import { DaemonUnreachableError } from '../errors.ts'
-import { discoverPort, readPortFile } from '../portDiscovery.ts'
+import { DaemonUnreachableError } from '../../errors.ts'
+import { discoverPort, readPortFile } from '../../portDiscovery.ts'
 
 export const REUSE_PROBE_AFTER_LOCK_HELD_MS = 2000
 
