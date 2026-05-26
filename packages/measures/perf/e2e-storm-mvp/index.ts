@@ -3,13 +3,12 @@
  *
  * Minimal end-to-end perf-architecture smoke: launches the real Electron
  * VoiceTree main bundle, lets it boot the daemon + MCP server against a
- * freshly seeded vault, discovers the MCP port from `.mcp.json`, spawns ONE
- * vt-fake-agent that creates ONE node via real MCP, then asserts a new
- * markdown file landed on disk.
+ * freshly seeded vault, discovers the MCP port from `.mcp.json`, spawns 10
+ * vt-fake-agents that each create 10 nodes via real MCP, then asserts the
+ * expected markdown files landed on disk.
  *
- * Profilers, NDJSON span aggregation, CDP wiring, and multi-agent storms
- * are deliberately out of scope — those layer on top once this baseline
- * stays green.
+ * Profilers, NDJSON span aggregation, and CDP wiring are deliberately out
+ * of scope — those layer on top once this baseline stays green.
  *
  * Run:
  *   node --import tsx packages/measures/perf/e2e-storm-mvp/index.ts
@@ -25,7 +24,7 @@ import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
-import { runFakeAgent, buildSingleCreateNodeScript } from './runFakeAgent.ts'
+import { runFakeAgent, buildMultiCreateNodeScript, type FakeAgentResult } from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
 import { computePerfRunDir, flushAndStopVtGraphd } from './perfProfile.ts'
 
@@ -34,6 +33,9 @@ const __dirname = path.dirname(__filename)
 
 // measures/perf/e2e-storm-mvp -> measures/perf -> measures -> packages -> repo root
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
+const AGENT_COUNT = 10
+const NODES_PER_AGENT = 10
+const EXPECTED_NODES_CREATED = AGENT_COUNT * NODES_PER_AGENT
 
 interface Args {
     readonly keepArtifacts: boolean
@@ -43,10 +45,25 @@ interface Args {
     readonly outPath: string | null
 }
 
+function percentile(sorted: readonly number[], p: number): number {
+    if (sorted.length === 0) return 0
+    const index = Math.ceil((p / 100) * sorted.length) - 1
+    return sorted[Math.max(0, Math.min(index, sorted.length - 1))]
+}
+
+function wallTimeStats(results: readonly FakeAgentResult[]) {
+    const sorted = results.map(r => r.wallMs).sort((a, b) => a - b)
+    return {
+        p50: percentile(sorted, 50),
+        p99: percentile(sorted, 99),
+        max: sorted[sorted.length - 1] ?? 0,
+    }
+}
+
 function parseArgs(argv: readonly string[]): Args {
     let keepArtifacts = false
     let mcpDiscoveryTimeoutMs = 120_000
-    let agentTimeoutMs = 120_000
+    let agentTimeoutMs = 60_000
     let inspectPort = 9244
     let outPath: string | null = null
 
@@ -69,7 +86,7 @@ function parseArgs(argv: readonly string[]): Args {
                 process.stdout.write(
                     'e2e-storm-mvp: prove headful-Electron + daemon + MCP + fake-agent end-to-end.\n'
                     + '  --mcp-discovery-timeout-ms MS   default 120000\n'
-                    + '  --agent-timeout-ms MS           default 120000\n'
+                    + '  --agent-timeout-ms MS           default 60000\n'
                     + '  --inspect-port N                default 9244\n'
                     + '  --keep-artifacts                keep temp dirs after the run\n'
                     + '  --out PATH                      report path (default ~/.voicetree/reports/perf-e2e-mvp-<ts>.json)\n',
@@ -123,10 +140,12 @@ async function main(): Promise<void> {
     let mcpPort = 0
     let electronBootMs = 0
     let mcpDiscoveryMs = 0
-    let agentWallMs = 0
-    let agentExitCode: number | null = null
-    let agentSignal: NodeJS.Signals | null = null
-    let agentTimedOut = false
+    let agentsSucceeded = 0
+    let agentsTimedOut = 0
+    let agentWallMsP50 = 0
+    let agentWallMsP99 = 0
+    let agentWallMsMax = 0
+    let nodesCreated = 0
     let filesAfter = filesBefore
     let app: Awaited<ReturnType<typeof launchElectronAndDiscoverMcp>>['app'] | null = null
 
@@ -161,36 +180,45 @@ async function main(): Promise<void> {
         appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
 
-        const script = buildSingleCreateNodeScript('MVP First Node')
-        const agentResult = await runFakeAgent({
-            appWindow,
-            repoRoot: REPO_ROOT,
-            vaultDir,
-            mcpPort,
-            seedNodeAbsolutePath,
-            terminalId: 'e2e-mvp-agent-0',
-            script,
-            timeoutMs: args.agentTimeoutMs,
-        })
-        agentWallMs = agentResult.wallMs
-        agentExitCode = agentResult.exitedCleanly ? 0 : -1
-        agentSignal = null
-        agentTimedOut = agentResult.timedOut
+        const agentResults = await Promise.all(Array.from({ length: AGENT_COUNT }, (_, agentIndex) => (
+            runFakeAgent({
+                appWindow,
+                repoRoot: REPO_ROOT,
+                vaultDir,
+                mcpPort,
+                seedNodeAbsolutePath,
+                terminalId: `e2e-mvp-agent-${agentIndex}`,
+                script: buildMultiCreateNodeScript(agentIndex, NODES_PER_AGENT),
+                timeoutMs: args.agentTimeoutMs,
+            })
+        )))
+        const wallStats = wallTimeStats(agentResults)
+        agentWallMsP50 = wallStats.p50
+        agentWallMsP99 = wallStats.p99
+        agentWallMsMax = wallStats.max
+        agentsSucceeded = agentResults.filter(result => result.spawnSuccess && result.exitedCleanly && !result.timedOut).length
+        agentsTimedOut = agentResults.filter(result => result.timedOut).length
 
-        if (agentResult.headlessOutput) {
-            process.stdout.write(`[mvp] agent headless output:\n${agentResult.headlessOutput}\n`)
+        for (const [agentIndex, result] of agentResults.entries()) {
+            if (result.headlessOutput) {
+                process.stdout.write(`[mvp] agent ${agentIndex} headless output:\n${result.headlessOutput}\n`)
+            }
         }
 
         filesAfter = countMarkdownFiles(vaultDir)
+        nodesCreated = filesAfter - filesBefore
 
-        if (!agentResult.spawnSuccess) {
-            failureReason = `agent spawn failed: ${agentResult.spawnError}`
-        } else if (agentResult.timedOut) {
-            failureReason = `agent timed out after ${args.agentTimeoutMs}ms (no [fake-agent] Executing: exit in output)`
-        } else if (!agentResult.exitedCleanly) {
+        const spawnFailure = agentResults.find(result => !result.spawnSuccess)
+        const scriptFailure = agentResults.find(result => result.spawnSuccess && !result.exitedCleanly && !result.timedOut)
+
+        if (spawnFailure) {
+            failureReason = `agent spawn failed: ${spawnFailure.spawnError}`
+        } else if (agentsTimedOut > 0) {
+            failureReason = `${agentsTimedOut} agent(s) timed out after ${args.agentTimeoutMs}ms (no [fake-agent] Executing: exit in output)`
+        } else if (scriptFailure) {
             failureReason = `agent reported failure in output`
-        } else if (filesAfter <= filesBefore) {
-            failureReason = `no new markdown files written (before=${filesBefore}, after=${filesAfter})`
+        } else if (nodesCreated !== EXPECTED_NODES_CREATED) {
+            failureReason = `expected ${EXPECTED_NODES_CREATED} new markdown files, got ${nodesCreated} (before=${filesBefore}, after=${filesAfter})`
         } else {
             pass = true
         }
@@ -260,10 +288,14 @@ async function main(): Promise<void> {
         failureReason,
         electronBootMs,
         mcpDiscoveryMs,
-        agentWallMs,
-        agentExitCode,
-        agentSignal,
-        agentTimedOut,
+        agentCount: AGENT_COUNT,
+        nodesPerAgent: NODES_PER_AGENT,
+        agentsSucceeded,
+        agentsTimedOut,
+        agentWallMsP50,
+        agentWallMsP99,
+        agentWallMsMax,
+        nodesCreated,
         filesBefore,
         filesAfter,
         mcpPort,

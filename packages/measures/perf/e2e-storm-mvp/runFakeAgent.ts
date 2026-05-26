@@ -24,6 +24,7 @@
  * on; lifecycle tracking is the canonical "is it done" signal.
  */
 import type { Page } from '@playwright/test'
+import type { FakeAgentScript } from '../../../../tools/vt-fake-agent/src/types.ts'
 import { createRequire } from 'node:module'
 import * as path from 'node:path'
 import { existsSync } from 'node:fs'
@@ -42,7 +43,7 @@ export interface FakeAgentInputs {
     readonly mcpPort: number
     readonly seedNodeAbsolutePath: string
     readonly terminalId: string
-    readonly script: object
+    readonly script: FakeAgentScript
     readonly timeoutMs: number
 }
 
@@ -55,7 +56,7 @@ export interface FakeAgentResult {
     readonly headlessOutput: string
 }
 
-function buildAgentPrompt(script: object): string {
+function buildAgentPrompt(script: FakeAgentScript): string {
     return `### FAKE_AGENT_SCRIPT ###\n${JSON.stringify(script)}\n### END_FAKE_AGENT_SCRIPT ###`
 }
 
@@ -69,15 +70,20 @@ function resolveTsxImportPath(): string {
     return require.resolve('tsx')
 }
 
-export function buildSingleCreateNodeScript(title: string): object {
+export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number): FakeAgentScript {
+    const actions: FakeAgentScript['actions'] = Array.from({ length: nodeCount }, (_, nodeIndex) => {
+        const title = `mvp-agent-${agentIndex}-node-${nodeIndex}`
+        return {
+            type: 'create_node',
+            title,
+            summary: `MVP storm node ${title}`,
+            content: `Body of ${title} written by the e2e-storm-mvp harness.`,
+        }
+    })
+
     return {
         actions: [
-            {
-                type: 'create_node',
-                title,
-                summary: `MVP node ${title}`,
-                content: `Body of ${title} written by the e2e-storm-mvp harness.`,
-            },
+            ...actions,
             { type: 'exit', code: 0 },
         ],
     }

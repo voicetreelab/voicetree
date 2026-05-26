@@ -13,10 +13,14 @@ export interface ReportInput {
     readonly failureReason: string | null
     readonly electronBootMs: number
     readonly mcpDiscoveryMs: number
-    readonly agentWallMs: number
-    readonly agentExitCode: number | null
-    readonly agentSignal: NodeJS.Signals | null
-    readonly agentTimedOut: boolean
+    readonly agentCount: number
+    readonly nodesPerAgent: number
+    readonly agentsSucceeded: number
+    readonly agentsTimedOut: number
+    readonly agentWallMsP50: number
+    readonly agentWallMsP99: number
+    readonly agentWallMsMax: number
+    readonly nodesCreated: number
     readonly filesBefore: number
     readonly filesAfter: number
     readonly mcpPort: number
@@ -56,12 +60,17 @@ export function writeReportAndSummary(input: ReportInput): void {
             totalWallMs: input.totalWallMs,
             electronBootMs: input.electronBootMs,
             mcpDiscoveryMs: input.mcpDiscoveryMs,
-            agentWallMs: input.agentWallMs,
+            agentWallMsP50: input.agentWallMsP50,
+            agentWallMsP99: input.agentWallMsP99,
+            agentWallMsMax: input.agentWallMsMax,
         },
-        agent: {
-            exitCode: input.agentExitCode,
-            signal: input.agentSignal,
-            timedOut: input.agentTimedOut,
+        storm: {
+            agentCount: input.agentCount,
+            nodesPerAgent: input.nodesPerAgent,
+            expectedNodes: input.agentCount * input.nodesPerAgent,
+            nodesCreated: input.nodesCreated,
+            agentsSucceeded: input.agentsSucceeded,
+            agentsTimedOut: input.agentsTimedOut,
         },
         files: {
             before: input.filesBefore,
@@ -87,7 +96,8 @@ export function writeReportAndSummary(input: ReportInput): void {
         `\n${sep}\n`
         + `  e2e-storm-mvp: ${status}${input.failureReason ? ` — ${input.failureReason}` : ''}\n`
         + `  electron boot: ${input.electronBootMs}ms   mcp discovery: ${input.mcpDiscoveryMs}ms\n`
-        + `  agent wall:    ${input.agentWallMs}ms (exit=${input.agentExitCode}${input.agentTimedOut ? ',timeout' : ''})\n`
+        + `  storm:         agents=${input.agentsSucceeded}/${input.agentCount} nodes=${input.nodesCreated}/${input.agentCount * input.nodesPerAgent} timedOut=${input.agentsTimedOut}\n`
+        + `  agent wall:    p50=${input.agentWallMsP50}ms p99=${input.agentWallMsP99}ms max=${input.agentWallMsMax}ms\n`
         + `  files:         ${input.filesBefore} → ${input.filesAfter} (Δ=${input.filesAfter - input.filesBefore})\n`
         + `  total:         ${input.totalWallMs}ms   report: ${input.outPath}\n`
         + `  perf run dir:  ${input.perfRunDir}\n`
