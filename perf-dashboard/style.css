@@ -181,6 +181,12 @@ h1 em {
   padding: 14px;
 }
 
+.panel-host {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
 .panel-slot span {
   display: block;
   color: var(--muted);
@@ -196,6 +202,82 @@ code {
   color: var(--text);
   font-family: var(--mono);
   font-size: 12px;
+}
+
+.panel-note {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.metric-panel,
+.topk-panel {
+  min-width: 0;
+}
+
+.metric-panel h4,
+.topk-panel h4 {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chart-frame {
+  height: 220px;
+  min-width: 0;
+}
+
+.panel-header-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.toggle-row input {
+  accent-color: var(--good);
+}
+
+.topk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.topk-table th,
+.topk-table td {
+  border-top: 1px solid var(--line);
+  padding: 8px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.topk-table th {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.topk-table td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
+.topk-table td:nth-child(3) {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .artifact-list {

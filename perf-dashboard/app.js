@@ -1,6 +1,9 @@
 import { fetchManifest, fetchRuns } from './data/manifest.js'
+import { render as renderTimeSeries } from './panels/per-process-time-series.js'
+import { render as renderTopKFunctions } from './panels/top-k-functions.js'
 
 const app = document.getElementById('app')
+let loadSeq = 0
 
 function esc(value) {
   return String(value)
@@ -47,6 +50,10 @@ function manifestFileUrl(ts, relPath) {
   return `/api/runs/${encodeURIComponent(ts)}/file?path=${encodeURIComponent(relPath)}`
 }
 
+function panelSlot(kind, svc) {
+  return [...document.querySelectorAll(`[data-panel="${kind}"]`)].find(slot => slot.dataset.svc === svc)
+}
+
 function renderRunDetails(ts, manifest) {
   const metricEntries = Object.entries(manifest.metrics)
   const profileEntries = Object.entries(manifest.profiles)
@@ -55,11 +62,11 @@ function renderRunDetails(ts, manifest) {
   const serviceCards = manifest.services.map(svc => `<section class="slot" data-slot="service-${esc(svc)}">
   <h3>${esc(svc)}</h3>
   <div class="slot-grid">
-    <div class="panel-slot" data-slot="metrics-${esc(svc)}">
+    <div class="panel-slot panel-host" data-panel="metrics" data-svc="${esc(svc)}">
       <span>Metrics</span>
       <code>${esc(manifest.metrics[svc] ?? 'not captured')}</code>
     </div>
-    <div class="panel-slot" data-slot="profiles-${esc(svc)}">
+    <div class="panel-slot panel-host" data-panel="top-k" data-svc="${esc(svc)}">
       <span>CPU Profile</span>
       <code>${esc(manifest.profiles[svc]?.cpu ?? 'not captured')}</code>
     </div>
@@ -102,6 +109,36 @@ function renderRunDetails(ts, manifest) {
 </main>`
 }
 
+function mountPanelError(slot, message) {
+  slot.replaceChildren()
+  const note = document.createElement('p')
+  note.className = 'panel-note is-error'
+  note.textContent = message
+  slot.append(note)
+}
+
+async function mountRunPanels(ts, manifest, seq) {
+  for (const svc of manifest.services) {
+    const metricsSlot = panelSlot('metrics', svc)
+    const metricsRel = manifest.metrics[svc]
+    if (metricsSlot && metricsRel) {
+      renderTimeSeries(metricsSlot, svc, manifestFileUrl(ts, metricsRel))
+        .catch((err) => {
+          if (seq === loadSeq) mountPanelError(metricsSlot, `Metrics failed: ${err?.message ?? err}`)
+        })
+    }
+
+    const topKSlot = panelSlot('top-k', svc)
+    const cpuRel = manifest.profiles[svc]?.cpu
+    if (topKSlot && cpuRel) {
+      renderTopKFunctions(topKSlot, svc, manifestFileUrl(ts, cpuRel))
+        .catch((err) => {
+          if (seq === loadSeq) mountPanelError(topKSlot, `CPU profile failed: ${err?.message ?? err}`)
+        })
+    }
+  }
+}
+
 function renderEmptyState() {
   return `<main class="content" aria-label="Run details">
   <section class="empty-state">
@@ -121,6 +158,7 @@ function renderError(message) {
 }
 
 async function load() {
+  const seq = ++loadSeq
   const selectedTs = selectedRunFromHash()
   app.innerHTML = '<div class="state-loading"><div class="spinner" aria-hidden="true"></div><p>Loading runs...</p></div>'
 
@@ -128,8 +166,11 @@ async function load() {
     const runs = await fetchRuns()
     const ts = selectedTs ?? runs[0]?.ts ?? null
     const manifest = ts ? await fetchManifest(ts) : null
+    if (seq !== loadSeq) return
     app.innerHTML = `<div class="layout">${renderSidebar(runs, ts)}${manifest ? renderRunDetails(ts, manifest) : renderEmptyState()}</div>`
+    if (manifest) await mountRunPanels(ts, manifest, seq)
   } catch (err) {
+    if (seq !== loadSeq) return
     app.innerHTML = `<div class="layout"><aside class="sidebar"></aside>${renderError(err?.message ?? err)}</div>`
   }
 }

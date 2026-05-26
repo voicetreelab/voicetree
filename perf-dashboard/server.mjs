@@ -177,6 +177,11 @@ export async function buildManifest(ts) {
 
 async function serveStatic(req, res) {
   const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname)
+  if (urlPath === '/node_modules/@vt/perf-analysis/profile-reducer.mjs') {
+    await servePackageExport(res, '@vt/perf-analysis/profile-reducer.mjs')
+    return
+  }
+
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '')
   const target = resolve(ROOT, normalize(rel))
   if (!isWithin(ROOT, target)) {
@@ -194,6 +199,28 @@ async function serveStatic(req, res) {
       return
     }
 
+    const buf = await readFile(target)
+    const ext = extname(target).toLowerCase()
+    res.writeHead(200, {
+      'Content-Type': MIME[ext] ?? 'application/octet-stream',
+      'Cache-Control': 'no-store',
+    })
+    res.end(buf)
+  } catch {
+    sendText(res, 404, 'not found')
+  }
+}
+
+async function servePackageExport(res, specifier) {
+  let target
+  try {
+    target = fileURLToPath(import.meta.resolve(specifier))
+  } catch {
+    sendText(res, 404, 'not found')
+    return
+  }
+
+  try {
     const buf = await readFile(target)
     const ext = extname(target).toLowerCase()
     res.writeHead(200, {
