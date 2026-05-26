@@ -3,8 +3,8 @@
  *
  * Minimal end-to-end perf-architecture smoke: launches the real Electron
  * VoiceTree main bundle, lets it boot the daemon + MCP server against a
- * freshly seeded vault, discovers the MCP port from `.mcp.json`, spawns 10
- * vt-fake-agents that each create 10 nodes via real MCP, then asserts the
+ * freshly seeded vault, discovers the MCP port from `.mcp.json`, spawns 30
+ * vt-fake-agents that each create 5 nodes via real MCP, then asserts the
  * expected markdown files landed on disk.
  *
  * Profilers, NDJSON span aggregation, and CDP wiring are deliberately out
@@ -33,8 +33,8 @@ const __dirname = path.dirname(__filename)
 
 // measures/perf/e2e-storm-mvp -> measures/perf -> measures -> packages -> repo root
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
-const AGENT_COUNT = 10
-const NODES_PER_AGENT = 10
+const AGENT_COUNT = 30
+const NODES_PER_AGENT = 5
 const EXPECTED_NODES_CREATED = AGENT_COUNT * NODES_PER_AGENT
 
 interface Args {
