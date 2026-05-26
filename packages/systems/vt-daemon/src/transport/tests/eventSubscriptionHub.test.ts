@@ -37,8 +37,11 @@ function makeSubscriber(send?: (frame: string) => void): CapturingSubscriber {
 }
 
 describe('eventSubscriptionHub', (): void => {
-    it('exposes the canonical single-topic taxonomy', (): void => {
-        expect(ALLOWED_TOPICS).toEqual(['agent-events'])
+    it('exposes the canonical topic taxonomy', (): void => {
+        // Post-BF-376: terminal-registry is its own narrow homogeneous topic
+        // alongside agent-events. The pre-Phase-0 vault-state topic was
+        // removed by BF-366.
+        expect(ALLOWED_TOPICS).toEqual(['agent-events', 'terminal-registry'])
     })
 
     it('routes published events to matching subscribers', (): void => {

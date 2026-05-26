@@ -293,17 +293,17 @@ describe('GET /events — WebSocket subscription', (): void => {
         ws.on('message', (raw: Buffer): void => { received.push(raw.toString('utf8')) })
         await opened
 
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-lifecycle'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-events'}]}))
         // Allow the server to register the subscription.
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('agent-lifecycle', 'agent-spawned', {terminalId: 'T1'})
+        handle.hub.publish('agent-events', 'agent-spawned', {terminalId: 'T1'})
         // Allow time for the event to arrive over the loopback WS.
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
 
         ws.close()
         expect(received).toHaveLength(1)
         const event = JSON.parse(received[0]) as {topic: string; event: string; seq: number}
-        expect(event).toMatchObject({topic: 'agent-lifecycle', event: 'agent-spawned', seq: 1})
+        expect(event).toMatchObject({topic: 'agent-events', event: 'agent-spawned', seq: 1})
     })
 
     it('256 KiB inbound frame cap — server closes with 1009 (design doc §8.6)', async (): Promise<void> => {

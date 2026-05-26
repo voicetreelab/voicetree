@@ -102,15 +102,15 @@ describe('GET /events — vt-bearer subprotocol auth (Step 9b.1)', (): void => {
         expect(ws.protocol).toBe('vt-bearer')
 
         ws.on('message', (raw: Buffer): void => { received.push(raw.toString('utf8')) })
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-lifecycle'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-events'}]}))
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('agent-lifecycle', 'agent-spawned', {terminalId: 'T1'})
+        handle.hub.publish('agent-events', 'agent-spawned', {terminalId: 'T1'})
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
         ws.close()
 
         expect(received).toHaveLength(1)
         const event = JSON.parse(received[0]) as {topic: string; event: string}
-        expect(event).toMatchObject({topic: 'agent-lifecycle', event: 'agent-spawned'})
+        expect(event).toMatchObject({topic: 'agent-events', event: 'agent-spawned'})
     })
 
     it('2. valid literal + wrong token → 401 before handshake', async (): Promise<void> => {
@@ -226,16 +226,16 @@ describe('cross-wire renderer smoke — browser-shape WebSocket against real dae
             received.push(ev.data)
         })
 
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-lifecycle'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-events'}]}))
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('agent-lifecycle', 'agent-spawned', {terminalId: 'T-renderer-smoke'})
+        handle.hub.publish('agent-events', 'agent-spawned', {terminalId: 'T-renderer-smoke'})
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
         ws.close()
 
         expect(received).toHaveLength(1)
         const event = JSON.parse(received[0]) as {topic: string; event: string; data: {terminalId: string}}
         expect(event).toMatchObject({
-            topic: 'agent-lifecycle',
+            topic: 'agent-events',
             event: 'agent-spawned',
             data: {terminalId: 'T-renderer-smoke'},
         })
