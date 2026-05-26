@@ -234,14 +234,14 @@ function configureAgentRuntimeForVtd(
  *
  *   1. Wire publish onto the new `terminal-registry` SSE topic so renderer
  *      clients learn about registry mutations and the imperative UI-launch
- *      instructions that used to fire through `getRuntimeUI()`.
+ *      instructions that used to fire as in-process UI callbacks.
  *   2. In-process side effect for `terminal-ui-child-registered`: VTD owns
  *      the agent-completion monitor (`@vt/vt-daemon`'s
  *      `registerChildIfMonitored`); when a spawn announces a new child of a
  *      monitored parent, the monitor's terminal-id table must learn about
- *      it before the child's first poll. Pre-S2-R this happened through the
- *      `getRuntimeUI().registerChildIfMonitored` callback; that callback is
- *      gone, so we route the same data through the publish sink instead.
+ *      it before the child's first poll. Pre-S2-R this happened through an
+ *      in-process callback; that callback is gone, so we route the same
+ *      data through the publish sink instead.
  *
  * The sink is the canonical place to do both because it sits at the boundary
  * where every event passes through exactly once.

@@ -2,8 +2,8 @@
 // per-subscriber bounded outbound queue. Topics are pinned to
 // `vault-state` (chokidar), `agent-events` (hook ingestion), and
 // `terminal-registry` (BF-376 outbound — registry mutations + the
-// imperative UI-launch instructions that `getRuntimeUI()` used to fire
-// in-process). Per design decision 2 (BF-376 outbound design.md §6),
+// imperative UI-launch instructions that used to fire as in-process
+// callbacks). Per design decision 2 (BF-376 outbound design.md §6),
 // terminal-registry is its own narrow homogeneous topic, NOT a widening
 // of the agent-events envelope.
 //
