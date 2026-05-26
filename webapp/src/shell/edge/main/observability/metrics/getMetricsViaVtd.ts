@@ -12,6 +12,21 @@ import type {AgentMetricsData, SessionMetric} from '@vt/vt-daemon'
 
 import {peekCurrentVault} from '@vt/vt-daemon'
 
+// Cache one RPC client per vault. The renderer's useAgentMetrics hook polls
+// every ~10s; rebuilding the client per call re-reads rpc.port + auth-token
+// from disk each time. Keyed on absolute vault path; entries for prior vaults
+// linger after vault rebind (negligible — one daemon-client struct per vault
+// ever opened in a session).
+const clientByVault: Map<string, DaemonRpcClient> = new Map()
+
+async function getClient(vault: string): Promise<DaemonRpcClient> {
+    const cached: DaemonRpcClient | undefined = clientByVault.get(vault)
+    if (cached) return cached
+    const client: DaemonRpcClient = await createRpcClientForVault(vault, {env: process.env})
+    clientByVault.set(vault, client)
+    return client
+}
+
 export async function getMetrics(): Promise<AgentMetricsData> {
     const vault: string | null = peekCurrentVault()
     if (vault === null) {
@@ -21,7 +36,7 @@ export async function getMetrics(): Promise<AgentMetricsData> {
         // "no sessions yet."
         return {sessions: []}
     }
-    const client: DaemonRpcClient = await createRpcClientForVault(vault, {env: process.env})
+    const client: DaemonRpcClient = await getClient(vault)
     const response: JsonRpcResponse = await client.call('metrics.getSessions', {})
     if ('error' in response) {
         throw new Error(`metrics.getSessions: ${response.error.message}`)
