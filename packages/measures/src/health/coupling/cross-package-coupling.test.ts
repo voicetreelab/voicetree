@@ -125,12 +125,33 @@ type ImportEdge = {
 //     in-process daemon with the same tool catalog the Electron shell uses)
 //   voicetree-cli -> vt-rpc:               0 -> 9  (rpc client + auth/port
 //     discovery for talking to the daemon)
+//
+// 2026-05-26 [BF-369/370/373]: VTD standalone-controller Phase 1 introduces
+// the `vt-daemon-client` package and new vt-daemon → {graph-db-protocol,
+// daemon-lifecycle} edges. None of these existed before Phase 1; each row
+// records the measured value at the package-introduction commit:
+//   vt-daemon-client -> daemon-lifecycle: 0 -> 10 (full owner-lifecycle
+//     surface: spawn coordinator, decideOwnerAction, probes, errors,
+//     diagnostics — mirrors the graph-db-client edge)
+//   vt-daemon-client -> graph-db-client: 0 -> 3   (spawnCoordinator
+//     orchestrator reuse via sub-path)
+//   vt-daemon-client -> graph-db-protocol: 0 -> 1 (CONTRACT_VERSION)
+//   vt-daemon-client -> vt-rpc: 0 -> 1            (auth/port helpers)
+//   vt-daemon -> daemon-lifecycle: 0 -> 9         (BF-369 factored vtd
+//     owner lifecycle into the shared library)
+//   vt-daemon -> graph-db-protocol: 0 -> 2        (BF-370 uses the owner
+//     contract directly for the vtd owner record)
+//
+// Same commit also raises the existing `daemon-lifecycle -> graph-db-protocol`
+// budget from 2 to 3 (+1) — see the inline comment above that entry below.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
     'agent-runtime -> graph-model': 13,
     'app-config -> graph-model': 4,
-    'daemon-lifecycle -> graph-db-protocol': 2,
+    // BF-369: +1 vs base — daemonKind generalisation widened the protocol
+    // surface (DaemonKind type now imported alongside the existing 2 symbols).
+    'daemon-lifecycle -> graph-db-protocol': 3,
     'graph-db-client -> daemon-lifecycle': 23,
     'graph-db-client -> graph-db-protocol': 24,
     'graph-db-client -> graph-db-server': 17,
@@ -154,12 +175,18 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'voicetree-cli -> vt-rpc': 9,
     'vt-daemon -> agent-runtime': 14,
     'vt-daemon -> app-config': 1,
+    'vt-daemon -> daemon-lifecycle': 9,
+    'vt-daemon -> graph-db-protocol': 2,
     'vt-daemon -> graph-db-server': 8,
     'vt-daemon -> graph-model': 9,
     'vt-daemon -> graph-state': 1,
     'vt-daemon -> graph-tools': 7,
     'vt-daemon -> voicetree-graph-validation': 1,
     'vt-daemon -> vt-rpc': 2,
+    'vt-daemon-client -> daemon-lifecycle': 10,
+    'vt-daemon-client -> graph-db-client': 3,
+    'vt-daemon-client -> graph-db-protocol': 1,
+    'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
     'webapp -> agent-runtime': 15,
     'webapp -> app-config': 22,
