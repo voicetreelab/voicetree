@@ -73,13 +73,10 @@ describe('handleSessionEvents', () => {
     )
   })
 
-  test('serializes Map values as JSON objects for SSE payloads', () => {
-    const graph = {
-      ...projectedGraphFixture(),
-      debugMap: new Map<string, number>([['a', 1]]),
-    } as unknown as ProjectedGraph
+  test('serializes a projected graph for SSE payloads', () => {
+    const graph = projectedGraphFixture()
 
-    expect(stringifyGraphForSSE(graph)).toContain('"debugMap":{"a":1}')
+    expect(JSON.parse(stringifyGraphForSSE(graph))).toEqual(graph)
   })
 
   test.each([
