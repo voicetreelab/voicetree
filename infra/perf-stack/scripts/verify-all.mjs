@@ -1,28 +1,129 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
-import { access } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { access, readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const SIGNALS = ['logs', 'metrics', 'traces', 'profiles']
+const SIGNALS = [
+  { name: 'logs', backend: 'loki:3100' },
+  { name: 'metrics', backend: 'victoriametrics:8428' },
+  { name: 'traces', backend: 'tempo:3200' },
+  { name: 'profiles', backend: 'pyroscope:4040' },
+]
 
 const exists = async (path) => access(path).then(() => true, () => false)
+const verifyDirFor = (runUuid) => join(homedir(), '.voicetree', 'perf', runUuid, 'verify')
+const resultPathFor = ({ runUuid, signal }) => join(verifyDirFor(runUuid), `${signal}.json`)
 
-const runScript = async (signal) => {
-  const path = join(SCRIPT_DIR, `verify-${signal}.mjs`)
-  if (!(await exists(path))) return { signal, ok: false, detail: 'missing verify script' }
+const runUuid = process.env.VOICETREE_RUN_INSTANCE_ID ?? randomUUID()
+
+const runScript = async ({ name }) => {
+  const path = join(SCRIPT_DIR, `verify-${name}.mjs`)
+  if (!(await exists(path))) {
+    return { signal: name, exitCode: 1, stdout: '', stderr: `missing verify script: ${path}` }
+  }
+
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [path], { stdio: 'inherit' })
-    child.on('exit', (code) => resolve({ signal, ok: code === 0, detail: `exit ${code}` }))
+    const child = spawn(process.execPath, [path], {
+      env: {
+        ...process.env,
+        VOICETREE_RUN_INSTANCE_ID: runUuid,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (chunk) => { stdout += chunk })
+    child.stderr.on('data', (chunk) => { stderr += chunk })
+    child.on('error', (err) => {
+      resolve({ signal: name, exitCode: 1, stdout, stderr: `${stderr}${err.message}` })
+    })
+    child.on('exit', (code) => {
+      resolve({ signal: name, exitCode: code ?? 1, stdout, stderr })
+    })
   })
 }
 
-const results = await Promise.all(SIGNALS.map(runScript))
-
-console.log('signal     status  detail')
-for (const result of results) {
-  console.log(`${result.signal.padEnd(10)} ${result.ok ? 'ok'.padEnd(7) : 'fail'.padEnd(7)} ${result.detail}`)
+const readSignalJson = async ({ runUuid, signal }) => {
+  const path = resultPathFor({ runUuid, signal })
+  try {
+    return {
+      path,
+      result: JSON.parse(await readFile(path, 'utf8')),
+    }
+  } catch (err) {
+    return {
+      path,
+      readError: err instanceof Error ? err.message : String(err),
+    }
+  }
 }
 
-process.exit(results.every((result) => result.ok) ? 0 : 1)
+const formatRoundTrip = (ms) => (
+  Number.isFinite(ms) ? `${(ms / 1000).toFixed(1)}s` : 'n/a'
+)
+
+const summarize = ({ spec, child, json }) => {
+  const ok = child.exitCode === 0 && json.result?.ok === true
+  return {
+    signal: spec.name,
+    backend: spec.backend,
+    ok,
+    roundTripMs: json.result?.round_trip_ms,
+    failure: {
+      exitCode: child.exitCode,
+      jsonPath: json.path,
+      readError: json.readError,
+      stdout: child.stdout.trim(),
+      stderr: child.stderr.trim(),
+    },
+  }
+}
+
+const childResults = await Promise.all(SIGNALS.map(runScript))
+const jsonResults = await Promise.all(SIGNALS.map((spec) => readSignalJson({
+  runUuid,
+  signal: spec.name,
+})))
+const summaries = SIGNALS.map((spec, index) => summarize({
+  spec,
+  child: childResults[index],
+  json: jsonResults[index],
+}))
+
+for (const summary of summaries) {
+  console.log([
+    summary.ok ? '✓' : '✗',
+    summary.signal.padEnd(10),
+    'round-trip',
+    formatRoundTrip(summary.roundTripMs).padEnd(6),
+    `backend=${summary.backend}`,
+  ].join(' '))
+}
+
+const successes = summaries.filter((summary) => summary.ok)
+if (successes.length === SIGNALS.length) {
+  console.log(`all ${SIGNALS.length} signals OK · results at ~/.voicetree/perf/${runUuid}/verify/`)
+  process.exit(0)
+}
+
+const failures = summaries.filter((summary) => !summary.ok)
+console.log(`${successes.length}/${SIGNALS.length} signals OK; failures: [${failures.map((failure) => failure.signal).join(', ')}]`)
+
+for (const failure of failures) {
+  if (failure.failure.readError) {
+    console.error(`${failure.signal}: could not read ${failure.failure.jsonPath}: ${failure.failure.readError}`)
+  }
+  if (failure.failure.stdout) {
+    console.error(`${failure.signal} stdout:\n${failure.failure.stdout}`)
+  }
+  if (failure.failure.stderr) {
+    console.error(`${failure.signal} stderr:\n${failure.failure.stderr}`)
+  }
+}
+
+process.exit(1)

@@ -49,7 +49,7 @@ const writeResult = async ({ runDir, result }) => {
 const verifyLogs = async () => {
   const home = requireHome()
   const sentinel = randomUUID()
-  const runUuid = randomUUID()
+  const runUuid = process.env.VOICETREE_RUN_INSTANCE_ID ?? randomUUID()
   const runDir = join(home, '.voicetree', 'perf', runUuid)
   const logPath = join(runDir, 'logs', 'vt-test.log')
   const injectedAtMs = Date.now()

@@ -200,7 +200,7 @@ const resultFor = ({ ok, sentinel, roundTripMs, query, details }) => ({
 const verifyProfiles = async () => {
   const home = requireHome()
   const sentinel = randomUUID()
-  const serviceInstanceId = randomUUID()
+  const serviceInstanceId = process.env.VOICETREE_RUN_INSTANCE_ID ?? randomUUID()
   const sentinelShort = sentinel.replaceAll('-', '').slice(0, 12)
   const functionName = `__vt_test_fn_${sentinelShort}`
   const runDir = join(home, '.voicetree', 'perf', serviceInstanceId)
