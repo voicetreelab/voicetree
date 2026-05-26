@@ -9,7 +9,15 @@
  * process whose exit should take the daemon with it (Electron Main,
  * vt CLI). Compare with {@link startParentWatch} which detects the
  * ppid==1 reparent that follows unclean parent death.
+ *
+ * The default liveness probe reuses {@link isOwnerPidAlive} so the
+ * watchdog and the owner-record-delete path agree on the same
+ * conservative semantics: only ESRCH means dead; anything else (EPERM,
+ * exotic kernel returns) is treated as alive so the watchdog never
+ * tears the daemon down on a transient probe failure.
  */
+
+import { isOwnerPidAlive } from './ownerRecordIo.ts'
 
 export type ParentPidWatchdogOptions = {
   parentPid: number
@@ -33,17 +41,6 @@ export type ParentPidWatchdogHandle = {
 
 const DEFAULT_POLL_INTERVAL_MS = 2000
 
-function defaultIsAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ESRCH') return false
-    return true
-  }
-}
-
 const realScheduler: ParentPidWatchdogScheduler = {
   clearInterval: (timer) => clearInterval(timer as NodeJS.Timeout),
   setImmediate: (fn) => { setImmediate(fn) },
@@ -55,7 +52,7 @@ export function startParentPidWatchdog(opts: ParentPidWatchdogOptions): ParentPi
     throw new Error(`startParentPidWatchdog: invalid parentPid ${opts.parentPid}`)
   }
 
-  const isAlive = opts.isAlive ?? defaultIsAlive
+  const isAlive = opts.isAlive ?? isOwnerPidAlive
   const intervalMs = opts.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS
   const scheduler = opts.scheduler ?? realScheduler
 
