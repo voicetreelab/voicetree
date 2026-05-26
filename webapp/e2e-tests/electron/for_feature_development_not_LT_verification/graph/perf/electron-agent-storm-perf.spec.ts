@@ -204,7 +204,10 @@ const test = base.extend<StormFixtures>({
         await projectBtn.click({ timeout: 60_000, force: true })
         console.log(`[E2E Storm] Clicked project '${projectName}' to enter graph view`)
 
-        const mcpJsonPath = path.join(vaultPath, '.mcp.json')
+        // .mcp.json is written by voicetree-mcp at the *project root*
+        // (= the dir we put in projects.json), which is the parent of the
+        // write-folder vault. Not inside the vault itself.
+        const mcpJsonPath = path.join(path.dirname(vaultPath), '.mcp.json')
         const port = await readMcpPort(mcpJsonPath, 90_000)
         console.log(`[E2E Storm] discovered MCP port=${port} from ${mcpJsonPath}`)
         await use(port)
