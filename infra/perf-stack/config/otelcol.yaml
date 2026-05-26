@@ -1,0 +1,28 @@
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+    path: /healthz
+
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 127.0.0.1:4317 }
+      http: { endpoint: 127.0.0.1:4318 }
+  # PHASE_2A_LOGS_RECEIVERS: filelog goes here
+
+exporters:
+  debug:
+    verbosity: basic
+  # PHASE_2A_LOGS_EXPORTERS: loki exporter
+  # PHASE_2B_METRICS_EXPORTERS: prometheusremotewrite + file
+  # PHASE_2C_TRACES_EXPORTERS: otlp/tempo + file
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces/smoke:
+      receivers: [otlp]
+      exporters: [debug]
+    # PHASE_2A_LOGS_PIPELINE
+    # PHASE_2B_METRICS_PIPELINE
+    # PHASE_2C_TRACES_PIPELINE

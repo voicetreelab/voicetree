@@ -194,6 +194,7 @@ webapp/workers/share-worker/.wrangler/**
 !packages/measures/perf/*.md
 !packages/measures/budgets/BASELINE_BUMP_LOG.md
 !packages/measures/budgets/HOW_TO_BUMP_BASELINES.md
+!infra/perf-stack/*.md
 !packages/systems/agent-runtime/src/application/terminals/tmux/README.md
 !scripts/agent-debugging/README.md
 !scripts/agent-debugging/REFERENCE.md
