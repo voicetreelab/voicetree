@@ -8,12 +8,14 @@ import {
 import type { State } from '@vt/graph-state'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import {
+  batchProjectDeltaEvents,
   decideReplayStrategy,
   formatSSE,
   handleProjectDeltaEvent,
   handleReplayResetSnapshot,
   parseSince,
   stringifyGraphForSSE,
+  type ProjectDeltaEventInput,
 } from '../handleSessionEvents.ts'
 
 const NODE_ID = '/vault/docs/one.md'
@@ -141,6 +143,101 @@ describe('handleSessionEvents', () => {
     })
 
     expect(result.graph.suppressForSubscribers).toEqual(['editor-1'])
+  })
+
+  test('batches homogeneous-suppress events into one combined event with latest seq', () => {
+    const firstNode = graphNodeFixture('/vault/docs/first.md')
+    const secondNode = graphNodeFixture('/vault/docs/second.md')
+    const result = batchProjectDeltaEvents([
+      {
+        delta: [{ type: 'UpsertNode', nodeToUpsert: firstNode, previousNode: O.none }],
+        seq: 10,
+        suppressForSubscribers: ['editor-1'],
+      },
+      {
+        delta: [{ type: 'UpsertNode', nodeToUpsert: secondNode, previousNode: O.none }],
+        seq: 11,
+        suppressForSubscribers: ['editor-1'],
+      },
+    ])
+
+    expect(result).toEqual([
+      {
+        delta: [
+          { type: 'UpsertNode', nodeToUpsert: firstNode, previousNode: O.none },
+          { type: 'UpsertNode', nodeToUpsert: secondNode, previousNode: O.none },
+        ],
+        seq: 11,
+        suppressForSubscribers: ['editor-1'],
+      },
+    ])
+  })
+
+  // Scenario this prevents:
+  //   Event A: editor-X just typed at NODE — suppressForSubscribers=['editor-X']
+  //            so the daemon's projection does NOT echo the user's own
+  //            keystrokes back to that editor.
+  //   Event B: an external writer (FS watcher, reconcile, another agent)
+  //            writes to the SAME node — suppress is empty, so editor-X
+  //            should receive this update.
+  // If A and B were merged into one projection with a union'd suppress set,
+  // the SSE renderer in EditorSync.ts (which applies one suppress set to
+  // every nodeDelta in the batch) would skip editor-X for B's content too.
+  // Splitting by suppress equality keeps the projections separate so the
+  // renderer evaluates each suppress set against its own nodeDelta batch.
+  test('batchProjectDeltaEvents splits at every suppress-set boundary', () => {
+    const sharedNode = graphNodeFixture('/vault/docs/shared.md')
+    const eventA: ProjectDeltaEventInput = {
+      delta: [{ type: 'UpsertNode', nodeToUpsert: sharedNode, previousNode: O.none }],
+      seq: 20,
+      suppressForSubscribers: ['editor-X'],
+    }
+    const eventB: ProjectDeltaEventInput = {
+      delta: [{ type: 'UpsertNode', nodeToUpsert: sharedNode, previousNode: O.none }],
+      seq: 21,
+      suppressForSubscribers: [],
+    }
+
+    expect(batchProjectDeltaEvents([eventA, eventB])).toEqual([
+      { delta: eventA.delta, seq: 20, suppressForSubscribers: ['editor-X'] },
+      { delta: eventB.delta, seq: 21 },
+    ])
+  })
+
+  test('batchProjectDeltaEvents merges contiguous matching-suppress runs only', () => {
+    const firstNode = graphNodeFixture('/vault/docs/first.md')
+    const secondNode = graphNodeFixture('/vault/docs/second.md')
+    const thirdNode = graphNodeFixture('/vault/docs/third.md')
+    const upsertFirst = { type: 'UpsertNode' as const, nodeToUpsert: firstNode, previousNode: O.none }
+    const upsertSecond = { type: 'UpsertNode' as const, nodeToUpsert: secondNode, previousNode: O.none }
+    const upsertThird = { type: 'UpsertNode' as const, nodeToUpsert: thirdNode, previousNode: O.none }
+
+    const result = batchProjectDeltaEvents([
+      { delta: [upsertFirst], seq: 30, suppressForSubscribers: ['editor-X'] },
+      { delta: [upsertSecond], seq: 31, suppressForSubscribers: ['editor-X'] },
+      { delta: [upsertThird], seq: 32, suppressForSubscribers: [] },
+    ])
+
+    expect(result).toEqual([
+      { delta: [upsertFirst, upsertSecond], seq: 31, suppressForSubscribers: ['editor-X'] },
+      { delta: [upsertThird], seq: 32 },
+    ])
+  })
+
+  test('batchProjectDeltaEvents treats undefined and empty suppress as equal', () => {
+    const firstNode = graphNodeFixture('/vault/docs/first.md')
+    const secondNode = graphNodeFixture('/vault/docs/second.md')
+    const upsertFirst = { type: 'UpsertNode' as const, nodeToUpsert: firstNode, previousNode: O.none }
+    const upsertSecond = { type: 'UpsertNode' as const, nodeToUpsert: secondNode, previousNode: O.none }
+
+    const result = batchProjectDeltaEvents([
+      { delta: [upsertFirst], seq: 40 },
+      { delta: [upsertSecond], seq: 41, suppressForSubscribers: [] },
+    ])
+
+    expect(result).toEqual([
+      { delta: [upsertFirst, upsertSecond], seq: 41 },
+    ])
   })
 
   test('projects a replay reset snapshot with metadata', () => {

@@ -1,11 +1,13 @@
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import {
+  batchProjectDeltaEvents,
   decideReplayStrategy,
   formatSSE,
   handleProjectDeltaEvent,
   handleReplayResetSnapshot,
   parseSince,
   stringifyGraphForSSE,
+  type ProjectDeltaEventInput,
 } from '../core/handleSessionEvents.ts'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { Session } from '../session/types.ts'
@@ -22,6 +24,7 @@ import {
   type ProjectedGraphEvent,
 } from '@vt/graph-db-server/state/events/projectedGraphEventBus'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 
 export type SessionEventTimers = {
   readonly setInterval: (
@@ -60,24 +63,75 @@ export async function runSessionEventsWorkflow(input: {
   let unsubscribeProjected: (() => void) | null = null
   let unsubscribeDelta: (() => void) | null = null
 
-  const sendGraph = (graph: ProjectedGraph): void => {
-    void stream.write(formatSSE('projectedGraph', stringifyGraphForSSE(graph)))
+  const sendGraph = async (graph: ProjectedGraph): Promise<void> => {
+    const payload = await traceGraphdSpan('session.events.stringify-projected-graph', async (span) => {
+      const data = stringifyGraphForSSE(graph)
+      span.setAttribute('graph.seq', graph.seq ?? 0)
+      span.setAttribute('graph.nodes', graph.nodes.length)
+      span.setAttribute('graph.edges', graph.edges.length)
+      span.setAttribute('graph.recent_nodes', graph.recentNodeIds?.length ?? 0)
+      span.setAttribute('sse.data_bytes', Buffer.byteLength(data, 'utf8'))
+      return formatSSE('projectedGraph', data)
+    })
+
+    await traceGraphdSpan('session.events.write-projected-graph-sse', async (span) => {
+      span.setAttribute('graph.seq', graph.seq ?? 0)
+      span.setAttribute('sse.payload_bytes', Buffer.byteLength(payload, 'utf8'))
+      await stream.write(payload)
+    })
   }
 
   const projectDeltaForSession = async (
-    event: SequencedDeltaEvent,
+    event: ProjectDeltaEventInput,
   ): Promise<ProjectedGraph | null> => {
     const freshSession: Session | null = registry.get(sessionId)
     if (!freshSession) return null
 
-    const state = await buildDaemonState(freshSession)
-    return handleProjectDeltaEvent(state, event).graph
+    const state = await traceGraphdSpan('session.events.build-daemon-state', async (span) => {
+      span.setAttribute('session.id', sessionId)
+      span.setAttribute('graph.delta.seq', event.seq)
+      span.setAttribute('graph.delta.actions', event.delta.length)
+      return await buildDaemonState(freshSession)
+    })
+
+    return await traceGraphdSpan('session.events.project-delta', async (span) => {
+      span.setAttribute('session.id', sessionId)
+      span.setAttribute('graph.delta.seq', event.seq)
+      span.setAttribute('graph.delta.actions', event.delta.length)
+      const graph = handleProjectDeltaEvent(state, event).graph
+      span.setAttribute('graph.nodes', graph.nodes.length)
+      span.setAttribute('graph.edges', graph.edges.length)
+      span.setAttribute('graph.recent_nodes', graph.recentNodeIds?.length ?? 0)
+      return graph
+    })
   }
 
-  const sendDeltaProjection = async (event: SequencedDeltaEvent): Promise<void> => {
+  const sendDeltaProjection = async (event: ProjectDeltaEventInput): Promise<void> => {
     const graph = await projectDeltaForSession(event)
     if (!graph) return
-    sendGraph(graph)
+    await sendGraph(graph)
+  }
+
+  let pendingLiveEvents: SequencedDeltaEvent[] = []
+  let liveFlushScheduled = false
+  const flushLiveDeltaProjection = async (): Promise<void> => {
+    liveFlushScheduled = false
+    const events = pendingLiveEvents
+    pendingLiveEvents = []
+    for (const batched of batchProjectDeltaEvents(events)) {
+      await sendDeltaProjection(batched)
+    }
+    if (pendingLiveEvents.length > 0 && !liveFlushScheduled) {
+      liveFlushScheduled = true
+      queueMicrotask(() => void flushLiveDeltaProjection())
+    }
+  }
+
+  const enqueueLiveDeltaProjection = (event: SequencedDeltaEvent): void => {
+    pendingLiveEvents.push(event)
+    if (liveFlushScheduled) return
+    liveFlushScheduled = true
+    queueMicrotask(() => void flushLiveDeltaProjection())
   }
 
   const sendReplayResetSnapshot = async (
@@ -89,7 +143,7 @@ export async function runSessionEventsWorkflow(input: {
     if (!freshSession) return snapshotSeq
 
     const state = await buildDaemonState(freshSession)
-    sendGraph(handleReplayResetSnapshot(
+    await sendGraph(handleReplayResetSnapshot(
       state,
       requestedSince,
       oldestSeq,
@@ -100,7 +154,7 @@ export async function runSessionEventsWorkflow(input: {
 
   unsubscribeProjected = subscribeToProjectedGraph((event: ProjectedGraphEvent) => {
     if (event.sessionId !== sessionId) return
-    sendGraph(event.graph)
+    void sendGraph(event.graph)
   })
 
   const currentSeqAtConnect = getCurrentSeq()
@@ -115,7 +169,7 @@ export async function runSessionEventsWorkflow(input: {
       queuedLiveEvents.push(event)
       return
     }
-    void sendDeltaProjection(event)
+    enqueueLiveDeltaProjection(event)
   })
 
   const oldestSeq = getOldestBufferedSeq()
@@ -138,7 +192,7 @@ export async function runSessionEventsWorkflow(input: {
   replayComplete = true
   for (const event of queuedLiveEvents) {
     if (event.seq > highWaterSeq) {
-      void sendDeltaProjection(event)
+      enqueueLiveDeltaProjection(event)
     }
   }
 
