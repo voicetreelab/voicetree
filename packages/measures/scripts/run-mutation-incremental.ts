@@ -20,6 +20,20 @@ const SCRIPT_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(SCRIPT_DIR, '..', '..', '..')
 const DEFAULT_BASE_REF = 'origin/main'
 
+// Base ref resolution order:
+//   1. MUTATION_BASE_REF — explicit override (local + CI).
+//   2. GITHUB_BASE_REF — GitHub Actions sets this on pull_request events; we
+//      prefix `origin/` since the runner has a fetched remote ref.
+//   3. DEFAULT_BASE_REF — local dev default.
+// Pure: env in, string out. Exported for unit testing.
+export function resolveBaseRef(env: NodeJS.ProcessEnv): string {
+    const explicit = env['MUTATION_BASE_REF']
+    if (explicit !== undefined && explicit.length > 0) return explicit
+    const ghBase = env['GITHUB_BASE_REF']
+    if (ghBase !== undefined && ghBase.length > 0) return `origin/${ghBase}`
+    return DEFAULT_BASE_REF
+}
+
 export type IncrementalMutationInput = {
     readonly workspace: string
     readonly baseRef: string
@@ -151,11 +165,30 @@ function filterByMutatePatterns(
     return out
 }
 
+async function ensureBaseRefFetched(baseRef: string, cwd: string): Promise<void> {
+    const slash = baseRef.indexOf('/')
+    if (slash <= 0) return // local ref or bare SHA — leave alone
+    const remote = baseRef.slice(0, slash)
+    const branch = baseRef.slice(slash + 1)
+    try {
+        await execFileAsync('git', ['fetch', '--no-tags', '--depth=100', remote, branch], {
+            cwd, maxBuffer: 32 * 1024 * 1024,
+        })
+    } catch {
+        // If the fetch fails, the diff below will surface a clearer error.
+    }
+}
+
 // ── default impure deps ─────────────────────────────────────────────────────
 
 export function defaultDeps(): IncrementalMutationDeps {
     return {
         getChangedFiles: async (baseRef, cwd) => {
+            // GHA's default `actions/checkout@v4` is shallow (depth 1); the
+            // base ref isn't available locally. Best-effort fetch so the
+            // `<baseRef>...HEAD` diff can resolve. No-op for already-fetched
+            // refs / local-only refs / bare SHAs.
+            await ensureBaseRefFetched(baseRef, cwd)
             // Union of:
             //   1. committed branch diffs vs the merge-base with baseRef
             //   2. working-tree diffs vs HEAD (staged + unstaged)
@@ -198,10 +231,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     if (!workspace) {
         console.error('usage: run-mutation-incremental.ts <workspace>')
         console.error('  e.g. run-mutation-incremental.ts @vt/graph-state')
-        console.error('  env: MUTATION_BASE_REF (default: origin/main)')
+        console.error('  env: MUTATION_BASE_REF (default: origin/$GITHUB_BASE_REF or origin/main)')
         process.exit(64)
     }
-    const baseRef = process.env.MUTATION_BASE_REF ?? DEFAULT_BASE_REF
+    const baseRef = resolveBaseRef(process.env)
     runIncrementalMutation({workspace, baseRef, repoRoot: REPO_ROOT}, defaultDeps())
         .then(result => process.exit(result.exitCode))
         .catch(err => { console.error(err); process.exit(2) })

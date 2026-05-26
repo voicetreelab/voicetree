@@ -13,6 +13,7 @@ import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 
 import {
+    resolveBaseRef,
     runIncrementalMutation,
     type IncrementalMutationDeps,
 } from './run-mutation-incremental.ts'
@@ -157,5 +158,23 @@ describe('runIncrementalMutation — input errors', () => {
             deps,
         )
         expect(observedBaseRef).toBe('origin/dev-manu')
+    })
+})
+
+describe('resolveBaseRef', () => {
+    it('returns MUTATION_BASE_REF when set (highest precedence)', () => {
+        expect(resolveBaseRef({MUTATION_BASE_REF: 'origin/feature', GITHUB_BASE_REF: 'main'})).toBe('origin/feature')
+    })
+
+    it('falls back to origin/$GITHUB_BASE_REF in CI', () => {
+        expect(resolveBaseRef({GITHUB_BASE_REF: 'dev-manu'})).toBe('origin/dev-manu')
+    })
+
+    it('falls back to origin/main outside CI with no override', () => {
+        expect(resolveBaseRef({})).toBe('origin/main')
+    })
+
+    it('ignores empty-string env values', () => {
+        expect(resolveBaseRef({MUTATION_BASE_REF: '', GITHUB_BASE_REF: ''})).toBe('origin/main')
     })
 })
