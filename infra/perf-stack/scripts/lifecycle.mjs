@@ -41,13 +41,19 @@ const SERVICES = [
       `-storageDataPath=${join(STORAGE_DIR, 'victoriametrics')}`,
       '-httpListenAddr=127.0.0.1:8428',
       '-retentionPeriod=1d',
+      '-search.latencyOffset=0s',
     ],
     ready: 'http://127.0.0.1:8428/health',
   },
   {
     name: 'pyroscope',
     command: join(BIN_DIR, 'pyroscope'),
-    args: ['--config.file=infra/perf-stack/config/pyroscope.yaml'],
+    args: [
+      '--config.file=infra/perf-stack/config/pyroscope.yaml',
+      '--segment-writer.lifecycler.addr=127.0.0.1',
+      '--segment-writer.lifecycler.port=9097',
+      '--segment-writer.store=inmemory',
+    ],
     ready: 'http://127.0.0.1:4040/ready',
   },
   {
