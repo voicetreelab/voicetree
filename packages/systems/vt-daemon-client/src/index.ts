@@ -71,5 +71,8 @@ export {
   listUnclaimedTmuxSessions,
 } from './wrappers/index.ts'
 
-// Protocol re-exports land in the next commit
-// (`Re-export protocol types from vt-daemon-client index`).
+// Protocol re-exports — `@vt/vt-daemon-protocol` is the canonical home;
+// the client re-exports its full surface so webapp callers do not need
+// a separate dependency on the protocol package. Stage 4 closure check
+// asserts no `@vt/agent-runtime` symbol leaks through this re-export.
+export * from '@vt/vt-daemon-protocol'
