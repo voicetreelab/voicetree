@@ -18,7 +18,7 @@ const closeHeadlessAgentRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: CloseHeadlessAgent.Request = args as unknown as CloseHeadlessAgent.Request
-        const result: CloseHeadlessAgent.Response = agentRuntime.closeHeadlessAgent(req.terminalId as TerminalId)
+        const result: CloseHeadlessAgent.Response = await agentRuntime.closeHeadlessAgent(req.terminalId as TerminalId)
         return buildJsonResponse(result)
     },
 }

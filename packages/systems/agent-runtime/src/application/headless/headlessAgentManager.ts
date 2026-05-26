@@ -60,22 +60,25 @@ export function spawnHeadlessAgent(
 /**
  * Kill a headless agent (SIGTERM via tmux).
  * Returns true if the session existed and was signalled, false otherwise.
+ * Async: awaits tmux session teardown so callers observe a settled state.
  */
-export function killHeadlessAgent(
+export async function killHeadlessAgent(
     terminalId: TerminalId,
     deps: Pick<HeadlessAgentDeps, 'markTerminalExited'> = defaultHeadlessAgentDeps,
-): boolean {
+): Promise<boolean> {
     return killTmuxHeadlessAgent(terminalId, deps)
 }
 
 /**
  * Close a headless agent: kill session (if running) + remove from registry.
  * Handles both running and already-exited agents.
+ * Async: awaits the underlying tmux kill so the session is gone from
+ * `tmux ls` by the time the response is returned to the caller.
  */
-export function closeHeadlessAgent(
+export async function closeHeadlessAgent(
     terminalId: TerminalId,
     deps: Pick<HeadlessAgentDeps, 'markTerminalExited' | 'removeTerminalFromRegistry' | 'getTerminalRecords'> = defaultHeadlessAgentDeps,
-): {closed: true; wasRunning: boolean} | {closed: false} {
+): Promise<{closed: true; wasRunning: boolean} | {closed: false}> {
     const record: TerminalRecord | undefined = deps.getTerminalRecords().find(
         (r: TerminalRecord) => r.terminalId === terminalId
     )
@@ -87,7 +90,7 @@ export function closeHeadlessAgent(
     }
 
     if (hasTmuxHeadlessRuntime(terminalId)) {
-        killTmuxHeadlessAgent(terminalId, deps)
+        await killTmuxHeadlessAgent(terminalId, deps)
         deps.removeTerminalFromRegistry(terminalId)
         removeTmuxHeadlessAgentState(terminalId)
         return {closed: true, wasRunning: true}

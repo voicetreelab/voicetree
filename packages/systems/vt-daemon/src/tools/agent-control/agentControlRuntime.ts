@@ -62,7 +62,7 @@ export const consumeSpawnBudget = agentRuntime.tryConsumeAndSplitBudget
 export const rememberChildTerminal = agentRuntime.registerChild
 export const spawnContextTerminal = agentRuntime.spawnTerminalWithContextNode
 
-export function closeHeadlessTerminal(terminalId: TerminalId): {closed: true; wasRunning: boolean} | {closed: false} {
+export async function closeHeadlessTerminal(terminalId: TerminalId): Promise<{closed: true; wasRunning: boolean} | {closed: false}> {
     return agentRuntime.closeHeadlessAgent(terminalId)
 }
 

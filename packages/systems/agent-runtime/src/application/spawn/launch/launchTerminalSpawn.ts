@@ -38,10 +38,10 @@ function maybeSetTerminalBudget(terminalId: TerminalId, terminalData: TerminalDa
     }
 }
 
-function launchPreparedTerminal(
+async function launchPreparedTerminal(
     params: LaunchTerminalSpawnParams,
     terminalData: TerminalData,
-): void {
+): Promise<void> {
     if (params.headless) {
         // Use the prepared initialCommand (which has VoiceTree's hook flags
         // already injected by prepareTerminalDataInMain) rather than
@@ -49,7 +49,10 @@ function launchPreparedTerminal(
         const headlessCommand: string = buildHeadlessCommand(terminalData.initialCommand ?? params.command)
         const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
         if (params.inheritTerminalId) {
-            killHeadlessAgent(params.inheritTerminalId as TerminalId)
+            // Await the kill so the replacement spawn below doesn't race the
+            // tmux session teardown — otherwise two sessions briefly share an
+            // alias and we re-bind to the dying one.
+            await killHeadlessAgent(params.inheritTerminalId as TerminalId)
         }
         spawnHeadlessAgent(
             getTerminalId(terminalData),
@@ -95,7 +98,7 @@ export async function launchTerminalSpawn(params: LaunchTerminalSpawnParams): Pr
             params.agentName
         )
 
-        launchPreparedTerminal(params, terminalData)
+        await launchPreparedTerminal(params, terminalData)
 
         if (params.parentTerminalId) {
             publishTerminalRegistryEvent({

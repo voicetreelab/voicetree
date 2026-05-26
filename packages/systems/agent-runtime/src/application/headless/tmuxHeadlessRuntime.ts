@@ -219,15 +219,20 @@ export function spawnTmuxHeadlessAgent(
     })
 }
 
-export function killTmuxHeadlessAgent(
+export async function killTmuxHeadlessAgent(
     terminalId: TerminalId,
     deps: Pick<HeadlessAgentDeps, 'markTerminalExited'> = defaultHeadlessAgentDeps,
-): boolean {
+): Promise<boolean> {
     const tmuxSession: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!tmuxSession) return false
 
     clearTmuxPoll(terminalId)
-    void killSession(tmuxSession.sessionName).catch(() => undefined)
+    // Await tmux teardown so callers observe a settled state: the session is
+    // gone from `tmux ls` by the time we return. Fire-and-forget here caused
+    // close-then-assert races in tests and a transient window where production
+    // callers (RPC closeHeadlessAgent, closeAgentTool) could hand control back
+    // to the client while the session was still alive.
+    await killSession(tmuxSession.sessionName).catch(() => undefined)
     markTmuxMetadataExited(terminalId, null)
     deletePromptFileByPath(tmuxSession.promptFilePath)
     deps.markTerminalExited(terminalId, null)

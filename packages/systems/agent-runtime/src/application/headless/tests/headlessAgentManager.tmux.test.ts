@@ -122,7 +122,7 @@ describe('headlessAgentManager tmux backend', () => {
         expect(exited?.exitCode).toBe(0)
         await waitFor(async () => !(await hasSession(terminalId)))
         sessions.delete(terminalId)
-        closeHeadlessAgent(terminalId)
+        await closeHeadlessAgent(terminalId)
     }, 15000)
 
     // M1-fix: Phase 4 (Electron interactive) creates tmux sessions via the same
@@ -169,7 +169,7 @@ describe('headlessAgentManager tmux backend', () => {
 
         await killSession(terminalId)
         sessions.delete(terminalId)
-        closeHeadlessAgent(terminalId)
+        await closeHeadlessAgent(terminalId)
     }, 15000)
 
     it('preserves tmux sessions when terminal runtime cleanup detaches host state', async () => {
@@ -262,6 +262,6 @@ describe('headlessAgentManager tmux backend', () => {
 
         await killSession(terminalId)
         sessions.delete(terminalId)
-        closeHeadlessAgent(terminalId)
+        await closeHeadlessAgent(terminalId)
     }, 15000)
 })

@@ -191,7 +191,7 @@ function buildInteractiveCloseResponse(terminalId: string): McpToolResponse {
     })
 }
 
-function closeHeadlessOrFallback(terminalId: string): McpToolResponse {
+async function closeHeadlessOrFallback(terminalId: string): Promise<McpToolResponse> {
     // Post-BF-376: every tmux-backed terminal (interactive or headless) is
     // closed through `closeHeadlessAgent` — the function name is historical;
     // it kills the tmux session and removes the registry row regardless of
@@ -200,7 +200,7 @@ function closeHeadlessOrFallback(terminalId: string): McpToolResponse {
     // successful no-op response. There is no separate UI-close call site
     // anymore: receivers subscribe to the `terminal-registry` SSE topic and
     // drop their panel when `terminal-removed` arrives (design.md §4).
-    const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessTerminal(terminalId as TerminalId)
+    const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = await closeHeadlessTerminal(terminalId as TerminalId)
     if (headlessResult.closed) {
         return buildJsonResponse({
             success: true,
@@ -213,7 +213,7 @@ function closeHeadlessOrFallback(terminalId: string): McpToolResponse {
     return buildInteractiveCloseResponse(terminalId)
 }
 
-function performCloseEffect(action: CloseEffectAction): McpToolResponse {
+async function performCloseEffect(action: CloseEffectAction): Promise<McpToolResponse> {
     switch (action.kind) {
         case 'close-interactive':
             // Interactive tmux-backed terminals share the same teardown path
@@ -224,7 +224,7 @@ function performCloseEffect(action: CloseEffectAction): McpToolResponse {
             // the new `terminal-registry` topic; the renderer's SSE
             // subscription drops the panel from that event alone (design.md
             // §4 — `closeTerminalById is derivable from terminal-removed`).
-            closeHeadlessTerminal(action.terminalId as TerminalId)
+            await closeHeadlessTerminal(action.terminalId as TerminalId)
             return buildInteractiveCloseResponse(action.terminalId)
         case 'close-headless':
         case 'cleanup-already-exited':
