@@ -92,10 +92,9 @@ export function primeTerminalRegistryCache(initial: readonly TerminalRecord[]): 
 
 /**
  * Register a listener fired after every cache mutation (envelope-driven
- * or cold-start prime). Replaces the old in-process
- * `terminalRuntimeSurface.subscribeToRegistry` fan-out — the runtime
- * isn't in webapp/Main anymore, so the cache mirror is the canonical
- * change source. Returns an unsubscribe handle.
+ * or cold-start prime). The cache mirror is the canonical change source
+ * post-BF-376 outbound — agent-runtime no longer lives in webapp/Main.
+ * Returns an unsubscribe handle.
  *
  * Listeners receive the same `readonly TerminalRecord[]` snapshot as
  * `getCachedTerminalRecords()` — call sites that need a stable reference
