@@ -1,10 +1,12 @@
 import type {TerminalData} from './types'
 import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
+import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
 import {
     notificationStateByTerminal,
     pendingTerminals,
     terminalRecords,
     type PendingTerminal,
+    type TerminalRecord,
     type TerminalRegistryClock,
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
@@ -22,7 +24,7 @@ export function recordTerminalSpawn(
     const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
     pendingTerminals.delete(terminalId)
 
-    terminalRecords.set(terminalId, {
+    const record: TerminalRecord = {
         terminalId,
         terminalData,
         status: 'running',
@@ -31,7 +33,8 @@ export function recordTerminalSpawn(
         killReason: null,
         auditRetryCount: 0,
         spawnedAt: clock.now()
-    })
+    }
+    terminalRecords.set(terminalId, record)
 
     notificationStateByTerminal.set(terminalId, {
         lastNotificationTime: 0,
@@ -40,6 +43,7 @@ export function recordTerminalSpawn(
     })
 
     notifyRegistrySubscribers()
+    publishTerminalRegistryEvent({type: 'terminal-registered', record})
 
     // Drain queued messages from the pending phase (if any). sendTextToTerminal
     // serializes per-terminal and has its own preamble delays, so it tolerates

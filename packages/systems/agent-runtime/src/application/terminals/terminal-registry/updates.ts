@@ -1,4 +1,6 @@
+import type {TerminalId} from '@vt/vt-daemon-protocol'
 import type {TerminalData} from './types'
+import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
 import {
     terminalRecords,
     type TerminalRecord,
@@ -13,6 +15,11 @@ export function updateTerminalMinimized(terminalId: string, isMinimized: boolean
         terminalData: {...record.terminalData, isMinimized}
     })
     notifyRegistrySubscribers()
+    publishTerminalRegistryEvent({
+        type: 'terminal-record-changed',
+        terminalId: terminalId as TerminalId,
+        patch: {kind: 'minimized', value: isMinimized},
+    })
 }
 
 export function updateTerminalPinned(terminalId: string, isPinned: boolean): void {
@@ -23,6 +30,11 @@ export function updateTerminalPinned(terminalId: string, isPinned: boolean): voi
         terminalData: {...record.terminalData, isPinned}
     })
     notifyRegistrySubscribers()
+    publishTerminalRegistryEvent({
+        type: 'terminal-record-changed',
+        terminalId: terminalId as TerminalId,
+        patch: {kind: 'pinned', value: isPinned},
+    })
 }
 
 /**
@@ -42,4 +54,15 @@ export function updateTerminalActivityState(
     })
     // NOTE: No notifyRegistrySubscribers() - activity updates are high frequency
     // and should not trigger full re-renders. Renderer updates local state directly.
+    publishTerminalRegistryEvent({
+        type: 'terminal-record-changed',
+        terminalId: terminalId as TerminalId,
+        patch: {
+            kind: 'activity',
+            value: {
+                ...(updates.lastOutputTime !== undefined ? {lastOutputTime: updates.lastOutputTime} : {}),
+                ...(updates.activityCount !== undefined ? {activityCount: updates.activityCount} : {}),
+            },
+        },
+    })
 }
