@@ -4,7 +4,7 @@
  * `vt manual` command can both consume. Format (every rule is enforced by the
  * drift check — drift will fail the test rather than silently mis-parse):
  *
- *   ### `<mcp_tool_name>` — `<vt cli verb>`
+ *   ### `<vt cli verb>`
  *
  *   <multi-line description in markdown>
  *
@@ -15,6 +15,11 @@
  *     <continuation indented two spaces — joined back with \n>
  *
  * Tools with no parameters omit the `**Parameters:**` block entirely.
+ *
+ * The header carries the CLI verb only. The MCP / RPC tool name is no longer
+ * encoded here — the CLI surface is canonical and the mapping CLI verb ↔ RPC
+ * name lives next to each subcommand spec (see `commands/runtime/agentSpecs.ts`
+ * for the agent verbs, and the daemon's `tools/catalog.ts` for the full set).
  */
 
 export type ManualParam = {
@@ -23,13 +28,12 @@ export type ManualParam = {
 }
 
 export type ManualTool = {
-    readonly mcpToolName: string
     readonly cliVerb: string
     readonly description: string
     readonly params: readonly ManualParam[]
 }
 
-const TOOL_HEADER: RegExp = /^### `([^`]+)` — `([^`]+)`$/
+const TOOL_HEADER: RegExp = /^### `([^`]+)`$/
 const PARAM_BULLET: RegExp = /^- `([^`]+)`:(?: (.*))?$/
 
 export function parseManual(markdown: string): readonly ManualTool[] {
@@ -44,15 +48,13 @@ export function parseManual(markdown: string): readonly ManualTool[] {
             continue
         }
 
-        const mcpToolName: string = headerMatch[1]
-        const cliVerb: string = headerMatch[2]
+        const cliVerb: string = headerMatch[1]
         cursor += 1
 
         const sectionEnd: number = findNextHeader(lines, cursor)
         const sectionLines: string[] = lines.slice(cursor, sectionEnd)
         const split: SectionSplit = splitDescriptionAndParams(sectionLines)
         tools.push({
-            mcpToolName,
             cliVerb,
             description: split.description,
             params: split.params,

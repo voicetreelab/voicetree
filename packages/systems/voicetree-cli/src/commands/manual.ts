@@ -1,9 +1,21 @@
 /**
  * `vt manual` — prints the canonical CLI manual from the package's
  * `prompts/cli-manual.md`. With no args, prints the whole document.
- * With one or two args, looks up a tool section by MCP tool name (e.g.
- * `vt manual spawn_agent`) or by CLI verb (e.g. `vt manual agent spawn`,
- * `vt manual graph create`).
+ *
+ * Tool lookup accepts the CLI verb in either form:
+ *
+ *   - Multi-token, exactly as it appears on the command line:
+ *       `vt manual agent spawn`
+ *       `vt manual graph create`
+ *   - Single-token, joined with spaces and optionally `vt`-prefixed:
+ *       `vt manual "vt agent spawn"`
+ *       `vt manual "agent spawn"`
+ *
+ * The MCP / RPC tool name (e.g. `spawn_agent`) is intentionally NOT a valid
+ * selector: the CLI surface is canonical and the manual no longer carries
+ * underscored daemon names in its section headers. To discover the RPC
+ * parameter shape from a CLI verb, run `vt <verb> --help` — every flag's
+ * `(RPC: <param>)` annotation makes the mapping explicit.
  *
  * The on-disk markdown file is the source of truth for client-facing
  * descriptions; the drift check in
@@ -37,7 +49,7 @@ function findManualPath(startUrl: string): string | undefined {
 export function runManualCommand(args: readonly string[]): void {
     const markdown: string = readManualFile()
 
-    if (args.length === 0 || args[0] === '--help' || args[0] === 'help') {
+    if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] === 'help') {
         process.stdout.write(markdown)
         if (!markdown.endsWith('\n')) process.stdout.write('\n')
         return
@@ -48,7 +60,7 @@ export function runManualCommand(args: readonly string[]): void {
     const match: ManualTool | undefined = findToolBySelector(tools, selector)
     if (!match) {
         const known: string = tools
-            .map((tool: ManualTool): string => `  ${tool.mcpToolName} (${tool.cliVerb})`)
+            .map((tool: ManualTool): string => `  ${tool.cliVerb}`)
             .join('\n')
         error(`vt manual: no tool matches \`${selector}\`. Known tools:\n${known}`)
     }
@@ -69,23 +81,24 @@ function readManualFile(): string {
     }
 }
 
+/**
+ * Collapse whitespace between argv tokens so that `agent spawn`,
+ * `'agent spawn'`, and `vt agent spawn` all normalize to the same selector
+ * the matcher then compares against `cliVerb` values from the manual.
+ */
 function normalizeSelector(args: readonly string[]): string {
-    return args.join(' ').trim()
+    return args.join(' ').trim().replace(/\s+/g, ' ')
 }
 
 function findToolBySelector(tools: readonly ManualTool[], selector: string): ManualTool | undefined {
     const lowered: string = selector.toLowerCase()
-    return tools.find((tool: ManualTool): boolean => {
-        if (tool.mcpToolName.toLowerCase() === lowered) return true
-        if (tool.cliVerb.toLowerCase() === lowered) return true
-        if (tool.cliVerb.toLowerCase() === `vt ${lowered}`) return true
-        return false
-    })
+    const withPrefix: string = lowered.startsWith('vt ') ? lowered : `vt ${lowered}`
+    return tools.find((tool: ManualTool): boolean => tool.cliVerb.toLowerCase() === withPrefix)
 }
 
 function renderTool(tool: ManualTool): void {
     const lines: string[] = []
-    lines.push(`### \`${tool.mcpToolName}\` — \`${tool.cliVerb}\``)
+    lines.push(`### \`${tool.cliVerb}\``)
     lines.push('')
     if (tool.description.length > 0) {
         lines.push(tool.description)
