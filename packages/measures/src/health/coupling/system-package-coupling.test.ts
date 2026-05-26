@@ -54,6 +54,13 @@ const ALLOWED_AGENT_RUNTIME_WEBAPP_LAUNCHERS: ReadonlySet<string> = new Set([
     // in-process agent-completion progress-node gate. The bridge crosses the
     // boundary by intent; no other webapp file may import the symbol.
     'webapp/src/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init.ts',
+    // BF-376 (half-cutover): agent-events SSE bridge forwards hook-event
+    // envelopes from the per-vault VTD's SSE channel into Main's in-process
+    // terminal registry via agentRuntime.updateTerminalAgentEvent. This is
+    // the inbound half of the cutover; the outbound RPC fan-out (BF-376b)
+    // will remove the in-process agent-runtime in Main entirely, at which
+    // point this allowlist entry is removed.
+    'webapp/src/shell/edge/main/agent/terminals/agent-events-registry-bridge.ts',
 ])
 
 type RuntimeSites = {
