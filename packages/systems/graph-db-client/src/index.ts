@@ -24,16 +24,17 @@ export {
   type EnsureGraphDaemonOptions,
   type EnsureGraphDaemonResult,
 } from './autoLaunch.ts'
-export {
-  subscribeOwnerDiagnostics,
-  type OwnerDiagnosticListener,
-  type OwnerDiagnosticUnsubscribe,
-} from './autoLaunch/diagnostics.ts'
+// BF-369: diagnostics bus + cooldown breadcrumb live in @vt/daemon-lifecycle.
+// Re-export the bus subscription + breadcrumb read helpers here so existing
+// graph-db-client consumers (webapp Electron shell, voicetree-cli) don't
+// need to add an extra dep just for these symbols.
 export {
   cooldownBreadcrumbPathFor,
-  COOLDOWN_BREADCRUMB_FILENAME,
+  subscribeOwnerDiagnostics,
   type CooldownBreadcrumb,
-} from './autoLaunch/ownership/cooldownBreadcrumb.ts'
+  type OwnerDiagnosticListener,
+  type OwnerDiagnosticUnsubscribe,
+} from '@vt/daemon-lifecycle'
 export {
   isVtGraphdProcessForVault,
   killOrphanVtGraphdDaemons,

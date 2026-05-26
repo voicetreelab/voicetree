@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --import tsx
 import { resolve } from 'node:path'
 import { startDaemon } from '../src/daemon/server.ts'
-import { startParentPidWatchdog } from '../src/daemon/parentPidWatchdog.ts'
+import { startParentPidWatchdog } from '@vt/daemon-lifecycle'
 import { tracing } from '@vt/observability'
 
 // The daemon is spawned detached by ensureDaemon with stderr piped to its

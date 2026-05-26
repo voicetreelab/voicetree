@@ -1,9 +1,12 @@
 // Unified HTTP daemon server. Single http.createServer bound to 0.0.0.0 (or
-// $VOICETREE_DAEMON_BIND). Four routes per design doc §2.5 / §4:
+// $VOICETREE_DAEMON_BIND). Five routes per design doc §2.5 / §4:
 //   POST /rpc                        — JSON-RPC tool dispatch (catalog)
 //   POST /hook/:source               — agent lifecycle ingestion
 //   GET  /events                     — WebSocket subscription channel
 //   GET  /terminals/:id/attach       — tmux relay (wired in Step 9f)
+//   GET  /health                     — owner-identity probe (BF-372,
+//                                       unauthenticated; everything else
+//                                       is bearer-gated)
 //
 // Auth — design doc §4.3 + the §4.3 subprotocol override carried in
 // ctx-nodes/.../step9-design-override-ws-subprotocol-auth.md (Gus, 2026-05-22):
@@ -25,12 +28,9 @@ import http, {type IncomingMessage, type Server, type ServerResponse} from 'node
 import type {Duplex} from 'node:stream'
 import {WebSocket, WebSocketServer} from 'ws'
 
-import {ERROR_CODES, redactAuthorizationHeader} from '@vt/vt-rpc'
-import {CatalogValidationError} from '../tools/catalog.ts'
-import type {McpToolResponse} from '../tools/toolResponse.ts'
+import type {VtDaemonHealthResponse} from '../contract.ts'
 import {createEventSubscriptionHub, type EventSubscriptionHub} from './eventSubscriptionHub.ts'
 import {
-    authorizationHeaderOf,
     authorizeWsUpgrade,
     isAuthorized,
     VT_BEARER_SUBPROTOCOL,
@@ -38,31 +38,29 @@ import {
 } from './wsUpgradeAuth.ts'
 import {wireWebSocketSubscriber} from './wsSubscriberWiring.ts'
 import {createTmuxAttachWiring, type TmuxAttachWiring} from './tmuxAttachWiring.ts'
+import {buildAccessLogLine} from './accessLog.ts'
+import {readBodyWithCap} from './bodyReader.ts'
+import {handleRpc} from './rpcDispatch.ts'
+import type {
+    AccessLogger,
+    HookHandler,
+    HttpDaemonServerHandle,
+    ToolCatalog,
+} from './httpServerTypes.ts'
 
+// Re-export the surface types so existing consumers (`@vt/vt-daemon` barrel,
+// transport tests) keep their import paths. The implementation lives in
+// httpServerTypes.ts; the re-export is the stable public surface.
+export type {
+    AccessLogger,
+    HookHandler,
+    HookHandlerInvocation,
+    HttpDaemonServerHandle,
+    ToolCatalog,
+    ToolHandler,
+} from './httpServerTypes.ts'
+export {buildAccessLogLine} from './accessLog.ts'
 export {isAuthorized} from './wsUpgradeAuth.ts'
-
-export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
-export type ToolCatalog = ReadonlyMap<string, ToolHandler>
-
-export interface HookHandlerInvocation {
-    readonly source: string
-    readonly terminalId: string | undefined
-    readonly eventName: string | undefined
-}
-
-export type HookHandler = (invocation: HookHandlerInvocation) => unknown
-
-export interface AccessLogger {
-    readonly logRequest: (line: string) => void
-    readonly logError: (line: string, error?: unknown) => void
-}
-
-export interface HttpDaemonServerHandle {
-    readonly port: number
-    readonly url: string
-    readonly hub: EventSubscriptionHub
-    readonly stop: () => Promise<void>
-}
 
 export interface StartHttpDaemonOptions {
     readonly catalog: ToolCatalog
@@ -71,13 +69,24 @@ export interface StartHttpDaemonOptions {
     readonly bindHost?: string
     readonly port?: number
     readonly logger?: AccessLogger
+    /**
+     * Owner-identity projector consulted on every GET /health request
+     * (BF-372). Optional during the Phase-1 decomposition: callers that
+     * have not yet wired the projector (Electron embedding, harness
+     * fixtures, the existing vt-mcpd shim) will see GET /health return
+     * 503 with a json error body so the unwired state is observable
+     * rather than silently presenting an empty `/health`. The vtd
+     * binary (Leaf C / Bob's post-merge wiring) supplies this and
+     * unlocks the discovery probe used by BF-373's ensure path.
+     */
+    readonly readHealth?: () => VtDaemonHealthResponse
 }
 
-const BODY_LIMIT_BYTES: number = 64 * 1024
 const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
 const RPC_PATH: string = '/rpc'
 const HOOK_PATH_PREFIX: string = '/hook/'
 const EVENTS_PATH: string = '/events'
+const HEALTH_PATH: string = '/health'
 
 function defaultLogger(): AccessLogger {
     return {
@@ -86,12 +95,6 @@ function defaultLogger(): AccessLogger {
             process.stderr.write(`${line}${err ? `: ${err instanceof Error ? err.message : String(err)}` : ''}\n`)
         },
     }
-}
-
-export function buildAccessLogLine(req: IncomingMessage, status: number): string {
-    const authHeader: string | undefined = authorizationHeaderOf(req)
-    const redacted: string = authHeader ? redactAuthorizationHeader(authHeader) : '<none>'
-    return `[httpDaemon] ${req.method ?? '-'} ${req.url ?? '-'} ${status} authorization="${redacted}"`
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -114,126 +117,6 @@ function methodNotAllowed(req: IncomingMessage, res: ServerResponse, logger: Acc
     res.statusCode = 405
     res.end()
     logger.logRequest(buildAccessLogLine(req, 405))
-}
-
-function readBodyWithCap(req: IncomingMessage): Promise<string | {readonly tooLarge: true}> {
-    return new Promise<string | {readonly tooLarge: true}>((resolveBody, rejectBody): void => {
-        const chunks: Buffer[] = []
-        let total: number = 0
-        let settled: boolean = false
-        req.on('data', (chunk: Buffer): void => {
-            if (settled) return
-            total += chunk.length
-            if (total > BODY_LIMIT_BYTES) {
-                settled = true
-                resolveBody({tooLarge: true})
-                return
-            }
-            chunks.push(chunk)
-        })
-        req.on('end', (): void => {
-            if (settled) return
-            settled = true
-            resolveBody(Buffer.concat(chunks).toString('utf8'))
-        })
-        req.on('error', (cause: Error): void => {
-            if (settled) return
-            settled = true
-            rejectBody(cause)
-        })
-    })
-}
-
-function rpcErrorEnvelope(id: number | string | null, code: number, message: string, data?: unknown): unknown {
-    return data === undefined
-        ? {jsonrpc: '2.0', id, error: {code, message}}
-        : {jsonrpc: '2.0', id, error: {code, message, data}}
-}
-
-function unwrapToolResponse(response: McpToolResponse): {ok: true; payload: unknown} | {ok: false; payload: unknown} {
-    const text: string = response.content[0]?.text ?? ''
-    let payload: unknown
-    try {
-        payload = text === '' ? null : JSON.parse(text)
-    } catch {
-        payload = text
-    }
-    return response.isError === true ? {ok: false, payload} : {ok: true, payload}
-}
-
-async function dispatchRpcRequest(
-    rawBody: string,
-    catalog: ToolCatalog,
-): Promise<{readonly status: 200 | 400; readonly body: unknown}> {
-    let parsed: unknown
-    try {
-        parsed = JSON.parse(rawBody)
-    } catch (cause) {
-        return {
-            status: 200,
-            body: rpcErrorEnvelope(null, ERROR_CODES.parse_error, cause instanceof Error ? cause.message : 'Malformed JSON'),
-        }
-    }
-    if (!isRecord(parsed) || parsed.jsonrpc !== '2.0') {
-        return {status: 200, body: rpcErrorEnvelope(null, ERROR_CODES.invalid_request, 'Request must be a JSON-RPC 2.0 envelope')}
-    }
-    const id: number | string | null = (typeof parsed.id === 'number' || typeof parsed.id === 'string') ? parsed.id : null
-    const method: unknown = parsed.method
-    if (typeof method !== 'string' || method.length === 0) {
-        return {status: 200, body: rpcErrorEnvelope(id, ERROR_CODES.invalid_request, 'Request missing "method"')}
-    }
-    const handler: ToolHandler | undefined = catalog.get(method)
-    if (!handler) {
-        return {status: 200, body: rpcErrorEnvelope(id, ERROR_CODES.tool_not_found, `Unknown method: ${method}`)}
-    }
-    const params: Record<string, unknown> = isRecord(parsed.params) ? parsed.params : {}
-
-    let response: McpToolResponse
-    try {
-        response = await handler(params)
-    } catch (cause) {
-        if (cause instanceof CatalogValidationError) {
-            return {
-                status: 200,
-                body: rpcErrorEnvelope(id, ERROR_CODES.validation_failed, cause.message, {
-                    kind: 'validation_failed', tool: cause.toolName, issues: cause.issues,
-                }),
-            }
-        }
-        return {
-            status: 200,
-            body: rpcErrorEnvelope(id, ERROR_CODES.internal_error, cause instanceof Error ? cause.message : String(cause)),
-        }
-    }
-
-    const unwrapped: {ok: boolean; payload: unknown} = unwrapToolResponse(response)
-    if (unwrapped.ok) {
-        return {status: 200, body: {jsonrpc: '2.0', id, result: unwrapped.payload}}
-    }
-    return {
-        status: 200,
-        body: rpcErrorEnvelope(id, ERROR_CODES.tool_handler_failed, 'Tool handler returned an error response', unwrapped.payload),
-    }
-}
-
-async function handleRpc(
-    req: IncomingMessage,
-    res: ServerResponse,
-    catalog: ToolCatalog,
-    logger: AccessLogger,
-): Promise<void> {
-    const body: string | {tooLarge: true} = await readBodyWithCap(req)
-    if (typeof body !== 'string') {
-        res.statusCode = 413
-        res.end()
-        logger.logRequest(buildAccessLogLine(req, 413))
-        return
-    }
-    const {status, body: payload} = await dispatchRpcRequest(body, catalog)
-    res.statusCode = status
-    res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify(payload))
-    logger.logRequest(buildAccessLogLine(req, status))
 }
 
 async function handleHook(
@@ -308,12 +191,35 @@ function rejectUpgradeNotFound(socket: Duplex): void {
     socket.destroy()
 }
 
+function handleHealth(
+    req: IncomingMessage,
+    res: ServerResponse,
+    readHealth: (() => VtDaemonHealthResponse) | undefined,
+    logger: AccessLogger,
+): void {
+    res.setHeader('Content-Type', 'application/json')
+    if (readHealth === undefined) {
+        // Optional during Phase-1 decomposition (see StartHttpDaemonOptions).
+        // 503 is the correct signal: the daemon is up but cannot answer the
+        // identity question, so a probe should treat the daemon as not yet
+        // claimable rather than fall through to a generic 404.
+        res.statusCode = 503
+        res.end(JSON.stringify({error: 'health probe not wired'}))
+        logger.logRequest(buildAccessLogLine(req, 503))
+        return
+    }
+    res.statusCode = 200
+    res.end(JSON.stringify(readHealth()))
+    logger.logRequest(buildAccessLogLine(req, 200))
+}
+
 function buildRequestHandler(
     catalog: ToolCatalog,
     hookHandler: HookHandler,
     hub: EventSubscriptionHub,
     token: string,
     logger: AccessLogger,
+    readHealth: (() => VtDaemonHealthResponse) | undefined,
 ): (req: IncomingMessage, res: ServerResponse) => void {
     return (req: IncomingMessage, res: ServerResponse): void => {
         const method: string = req.method ?? 'GET'
@@ -323,6 +229,17 @@ function buildRequestHandler(
             res.statusCode = 204
             res.end()
             logger.logRequest(buildAccessLogLine(req, 204))
+            return
+        }
+        // /health is the ONLY unauthenticated route. Placement BEFORE the
+        // isAuthorized gate is intentional and load-bearing: BF-373's
+        // ensure path invokes probeOwnerHealth BEFORE it has read
+        // <vault>/.voicetree/auth-token — that probe IS the gate that
+        // decides whether to read the token. Gating /health on auth would
+        // chicken-and-egg the discovery path. Mirrors graphd's
+        // unauthenticated /health.
+        if (method === 'GET' && url === HEALTH_PATH) {
+            handleHealth(req, res, readHealth, logger)
             return
         }
         if (!isAuthorized(req, token)) {
@@ -353,6 +270,8 @@ function buildRequestHandler(
         }
         // /events and /terminals/:id/attach are GET-upgrade only; reaching
         // here means a non-upgrade GET to the WS routes (or genuine 404).
+        // GET /health with no readHealth has already been answered above.
+        // POST /health (or any other method/path) falls through here.
         notFound(req, res, logger)
     }
 }
@@ -422,7 +341,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
     const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring()
 
     const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, options.hookHandler, hub, options.token, logger,
+        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth,
     ))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 

@@ -1,0 +1,28 @@
+{
+  "name": "@vt/vt-daemon-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Typed HTTP client + ensure-launcher for the standalone VTD (vt-daemon) controller. Mirrors @vt/graph-db-client for graphd: ensureVtDaemonForVault discovers, waits, claims, spawns, or stale-reclaims the per-vault VTD owner via the BF-348 single-flight + spawn-lock protocol, then returns a VtDaemonClient bound to the discovered loopback port with the published bearer auth-token. Runtime dependency on @vt/vt-daemon goes through HTTP, not module imports — types only.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@vt/daemon-lifecycle": "*",
+    "@vt/graph-db-client": "*",
+    "@vt/graph-db-protocol": "*",
+    "@vt/vt-rpc": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
