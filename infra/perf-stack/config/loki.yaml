@@ -28,6 +28,9 @@ schema_config:
         prefix: index_
         period: 24h
 
+limits_config:
+  allow_structured_metadata: true
+
 ruler:
   alertmanager_url: http://127.0.0.1:9093
 
