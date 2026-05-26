@@ -11,7 +11,7 @@ receivers:
   filelog:
     include: [ "${env:HOME}/.voicetree/perf/*/logs/*.log" ]
     include_file_path: true
-    start_at: beginning
+    start_at: end
     operators:
       - type: regex_parser
         regex: '^.*/\.voicetree/perf/(?P<service_instance_id>[^/]+)/logs/(?P<service_name>[^/]+)\.log$'
