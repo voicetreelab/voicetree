@@ -159,42 +159,6 @@ async function readActiveElement(page: PageLike): Promise<ActiveElementInfo> {
   return page.evaluate(READ_ACTIVE_ELEMENT_SOURCE)
 }
 
-async function focusTarget(page: PageLike, selector: string): Promise<void> {
-  const result = await page.evaluate<{ ok: boolean; error: string }>(String.raw`(() => {
-    const rootSelector = ${JSON.stringify(selector)}
-    const root = document.querySelector(rootSelector)
-    if (!(root instanceof HTMLElement)) {
-      return { ok: false, error: 'selector not found: ' + rootSelector }
-    }
-
-    const focusableSelector =
-      '.cm-content, textarea, input, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])'
-    const target =
-      root.matches(focusableSelector)
-        ? root
-        : root.querySelector(focusableSelector)
-
-    if (!(target instanceof HTMLElement)) {
-      return { ok: false, error: 'selector "' + rootSelector + '" did not resolve to a focusable element' }
-    }
-
-    target.focus()
-    const active = document.activeElement
-    if (!(active instanceof HTMLElement)) {
-      return { ok: false, error: 'selector "' + rootSelector + '" did not take focus' }
-    }
-
-    return {
-      ok: target === active || target.contains(active),
-      error: 'selector "' + rootSelector + '" did not take focus',
-    }
-  })()`)
-
-  if (!result.ok) {
-    throw new Error(result.error)
-  }
-}
-
 async function resolveTarget(opts: CommonOpts) {
   const pick = await resolveDebugInstance({ port: opts.port, pid: opts.pid, vault: opts.vault, forceNew: opts.forceNew })
   if (!pick.ok) {
@@ -220,7 +184,7 @@ async function keyboardType(opts: TypeOpts): Promise<Response<KeyboardResult>> {
       return err('keyboard type', 'CDP connected but no pages found', 'verify app is fully started', 3)
     }
     if (opts.selector) {
-      await focusTarget(page, opts.selector)
+      await session.focusTarget(page, opts.selector)
     }
     await page.keyboard.type(opts.text, opts.delayMs !== undefined ? { delay: opts.delayMs } : undefined)
     return ok('keyboard type', {
@@ -251,7 +215,7 @@ async function keyboardPress(opts: PressOpts): Promise<Response<KeyboardResult>>
       return err('keyboard press', 'CDP connected but no pages found', 'verify app is fully started', 3)
     }
     if (opts.selector) {
-      await focusTarget(page, opts.selector)
+      await session.focusTarget(page, opts.selector)
     }
     const normalizedChord = normalizeChord(opts.chord)
     await pressChord(page, normalizedChord)

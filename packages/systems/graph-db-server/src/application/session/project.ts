@@ -24,7 +24,7 @@ type FolderRecord = {
   readonly directFiles: readonly FileTreeNode[]
 }
 
-export interface ProjectSessionStateArgs {
+interface ProjectSessionStateArgs {
   readonly graph: Graph
   readonly vault: VaultState
   readonly folderTree: FolderTreeNode | null

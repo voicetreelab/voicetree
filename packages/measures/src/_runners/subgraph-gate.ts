@@ -28,6 +28,7 @@
  *   2   bad CLI usage
  */
 import {execFileSync} from 'node:child_process'
+import {readFileSync} from 'node:fs'
 import {readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {DEFAULT_REPO_ROOT} from '../_shared/discovery/discover-packages.ts'
@@ -98,13 +99,57 @@ function parseArgs(argv: readonly string[]): ArgsParse {
     return {ok: true, args: {changedFilesFrom, hops, depth, includeInbound, baselineRefresh}}
 }
 
-function readStagedDiffPaths(): readonly string[] {
+function readRawStagedDiffPaths(): readonly string[] {
     const raw = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACM'], {
         cwd: DEFAULT_REPO_ROOT,
         encoding: 'utf8',
     })
     return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0)
 }
+
+function mergeHeadShas(): readonly string[] {
+    try {
+        const mergeHeadPath = execFileSync('git', ['rev-parse', '--git-path', 'MERGE_HEAD'], {
+            cwd: DEFAULT_REPO_ROOT,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim()
+        return readFileSync(mergeHeadPath, 'utf8')
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+    } catch {
+        return []
+    }
+}
+
+function objectIdAt(ref: string): string | null {
+    try {
+        return execFileSync('git', ['rev-parse', '--verify', ref], {
+            cwd: DEFAULT_REPO_ROOT,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim()
+    } catch {
+        return null
+    }
+}
+
+function isInheritedMergePath(path: string, mergeHeads: readonly string[]): boolean {
+    if (mergeHeads.length === 0) return false
+    const stagedOid = objectIdAt(`:${path}`)
+    if (stagedOid === null) return false
+    const parentOids = ['HEAD', ...mergeHeads]
+        .map(revision => objectIdAt(`${revision}:${path}`))
+        .filter((oid): oid is string => oid !== null)
+    return parentOids.includes(stagedOid)
+}
+
+function readStagedDiffPaths(): readonly string[] {
+    const mergeHeads = mergeHeadShas()
+    return readRawStagedDiffPaths().filter(path => !isInheritedMergePath(path, mergeHeads))
+}
+
 
 async function loadChangedFiles(args: Args): Promise<readonly string[]> {
     if (args.changedFilesFrom !== null) {
@@ -205,7 +250,7 @@ async function runGate(args: Args): Promise<GateOutcome> {
     // Only active in the default flow (no --changed-files-from): an explicit
     // file list is a tooling/test invocation that wants worktree semantics.
     const stagedPaths: ReadonlySet<string> = args.changedFilesFrom === null
-        ? new Set(readStagedDiffPaths())
+        ? new Set(readRawStagedDiffPaths())
         : new Set<string>()
     const loadContent = stagedPaths.size > 0
         ? makeStagedContentLoader(stagedPaths, DEFAULT_REPO_ROOT)

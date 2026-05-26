@@ -1,4 +1,4 @@
-import {type CheckDef} from '../../../_types.ts'
+import {type CheckDef} from '../../_types.ts'
 
 export const check: CheckDef = {
     id: 'blackbox-tests-lint',

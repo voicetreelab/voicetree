@@ -1,15 +1,15 @@
-export type VitestFailedTestSummary = {
+type VitestFailedTestSummary = {
     readonly fileName?: string
     readonly fullName: string
     readonly message: string
 }
 
-export type VitestFailureDetails = {
+type VitestFailureDetails = {
     readonly failedTests: readonly VitestFailedTestSummary[]
     readonly failedTestsTruncated: boolean
 }
 
-export type VitestFailureDetailLimits = {
+type VitestFailureDetailLimits = {
     readonly maxFailures: number
     readonly maxMessageChars: number
     readonly maxTotalMessageChars: number

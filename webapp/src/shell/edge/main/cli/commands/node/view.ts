@@ -1,9 +1,22 @@
+/**
+ * `vt view ...` CLI subcommand: argument parsing, command dispatch, and
+ * the per-branch runners that hit the graph-db daemon.
+ *
+ * Kept as a single file (over the 500-line per-edit hint) intentionally:
+ * the prior decomposition split it into four sibling files (index.ts,
+ * parseViewCommand.ts, runViewCommand.ts, usage.ts) that together added
+ * four public exports to the `webapp/shell` community boundary-width
+ * without buying a deep-function shape — every helper had exactly one
+ * caller. Per FP-rearchitecting, helpers with one caller belong in the
+ * file that uses them. The single public surface is `runViewCommand`.
+ */
+
 import {readFile} from 'node:fs/promises'
 import {resolve as resolvePath} from 'node:path'
 import {
     ensureDaemon,
-    type FolderState,
     GraphDbClient,
+    type FolderState,
     type LiveStateSnapshot,
     type SelectionMode,
     type ViewRecord,
@@ -26,14 +39,31 @@ import {
     type CliViewRecord,
 } from './viewFormatters.ts'
 
-type Position = {
-    x: number
-    y: number
+// ────────────────────────────────────────────────────────────────────────
+// Usage string + validationError sink (formerly view/usage.ts).
+// ────────────────────────────────────────────────────────────────────────
+
+const VIEW_USAGE: string = `Usage:
+  vt view list [--vault <path>] [--json]
+  vt view switch <id-or-name> [--vault <path>] [--json]
+  vt view clone <src-id-or-name> <dst-name> [--vault <path>] [--json]
+  vt view delete <id-or-name> [--vault <path>] [--json]
+  vt view set-folder <path> <expanded|collapsed|hidden> [--vault <path>] [--session <id>] [--json]
+  vt view selection set <nodeIds...> [--vault <path>] [--session <id>] [--json]
+  vt view selection add <nodeIds...> [--vault <path>] [--session <id>] [--json]
+  vt view selection remove <nodeIds...> [--vault <path>] [--session <id>] [--json]
+  vt view show [--vault <path>] [--session <id>] [--json]
+  vt view layout set-pan <x> <y> [--vault <path>] [--session <id>] [--json]
+  vt view layout set-zoom <zoom> [--vault <path>] [--session <id>] [--json]
+  vt view layout set-positions <positions-json-file> [--vault <path>] [--session <id>] [--json]`
+
+function validationError(message?: string): never {
+    throw new ArgValidationError(message === undefined ? VIEW_USAGE : `${message}\n\n${VIEW_USAGE}`)
 }
 
-type LayoutPositions = Record<string, Position>
-
-type LayoutSubcommand = 'set-pan' | 'set-positions' | 'set-zoom'
+// ────────────────────────────────────────────────────────────────────────
+// Parsed command ADT (formerly view/parseViewCommand.ts).
+// ────────────────────────────────────────────────────────────────────────
 
 type ParsedViewBase = {
     forceJson: boolean
@@ -41,14 +71,29 @@ type ParsedViewBase = {
     vaultFlag?: string
 }
 
-type ParsedLayoutCommand = ParsedViewBase & {
+type ParsedSetPanCommand = ParsedViewBase & {
     branch: 'layout'
-    positionsFile?: string
-    subcommand: LayoutSubcommand
-    x?: number
-    y?: number
-    zoom?: number
+    subcommand: 'set-pan'
+    x: number
+    y: number
 }
+
+type ParsedSetPositionsCommand = ParsedViewBase & {
+    branch: 'layout'
+    positionsFile: string
+    subcommand: 'set-positions'
+}
+
+type ParsedSetZoomCommand = ParsedViewBase & {
+    branch: 'layout'
+    subcommand: 'set-zoom'
+    zoom: number
+}
+
+type ParsedLayoutCommand =
+    | ParsedSetPanCommand
+    | ParsedSetPositionsCommand
+    | ParsedSetZoomCommand
 
 type ParsedListCommand = ParsedViewBase & {
     branch: 'list'
@@ -96,30 +141,11 @@ type ParsedViewCommand =
     | ParsedSelectionCommand
     | ParsedShowCommand
 
-const VIEW_USAGE: string = `Usage:
-  vt view list [--vault <path>] [--json]
-  vt view switch <id-or-name> [--vault <path>] [--json]
-  vt view clone <src-id-or-name> <dst-name> [--vault <path>] [--json]
-  vt view delete <id-or-name> [--vault <path>] [--json]
-  vt view set-folder <path> <expanded|collapsed|hidden> [--vault <path>] [--session <id>] [--json]
-  vt view selection set <nodeIds...> [--vault <path>] [--session <id>] [--json]
-  vt view selection add <nodeIds...> [--vault <path>] [--session <id>] [--json]
-  vt view selection remove <nodeIds...> [--vault <path>] [--session <id>] [--json]
-  vt view show [--vault <path>] [--session <id>] [--json]
-  vt view layout set-pan <x> <y> [--vault <path>] [--session <id>] [--json]
-  vt view layout set-zoom <zoom> [--vault <path>] [--session <id>] [--json]
-  vt view layout set-positions <positions-json-file> [--vault <path>] [--session <id>] [--json]`
-
-function validationError(message: string): never {
-    throw new ArgValidationError(`${message}\n\n${VIEW_USAGE}`)
-}
-
 function readRequiredFlagValue(argv: string[], index: number, flag: string): string {
     const value: string | undefined = argv[index + 1]
     if (!value || value.startsWith('--')) {
         validationError(`${flag} requires a value`)
     }
-
     return value
 }
 
@@ -128,7 +154,6 @@ function parseOptionalFlagAssignment(flag: string, arg: string): string {
     if (!value) {
         validationError(`${flag} requires a value`)
     }
-
     return value
 }
 
@@ -137,23 +162,16 @@ function parseNumberArg(value: string, label: 'x' | 'y' | 'zoom'): number {
     if (!Number.isFinite(parsed)) {
         validationError(`${label} must be a finite number.`)
     }
-
     return parsed
 }
 
-function requireSingleValue(
-    args: string[],
-    label: string,
-    commandLabel: string,
-): string {
+function requireSingleValue(args: string[], label: string, commandLabel: string): string {
     if (args.length === 0) {
         validationError(`Missing required ${label} for \`${commandLabel}\`.`)
     }
-
     if (args.length > 1) {
         validationError(`Too many positional arguments for \`${commandLabel}\`.`)
     }
-
     return args[0]
 }
 
@@ -193,50 +211,38 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
 
     for (let index: number = 0; index < remaining.length; index += 1) {
         const arg: string = remaining[index]
-
         if (arg === '--json') {
             forceJson = true
             continue
         }
-
         if (arg === '--vault') {
             vaultFlag = readRequiredFlagValue(remaining, index, '--vault')
             index += 1
             continue
         }
-
         if (arg.startsWith('--vault=')) {
             vaultFlag = parseOptionalFlagAssignment('--vault', arg)
             continue
         }
-
         if (arg === '--help' || arg === '-h') {
-            throw new ArgValidationError(VIEW_USAGE)
+            validationError()
         }
-
         if (arg.startsWith('--')) {
             validationError(`Unknown argument: ${arg}`)
         }
-
         positionalArgs.push(arg)
     }
 
     const [rawBranch, ...rest] = positionalArgs
     if (!rawBranch) {
-        throw new ArgValidationError(VIEW_USAGE)
+        validationError()
     }
 
     if (rawBranch === 'list') {
         if (rest.length > 0) {
             validationError('`list` does not accept positional arguments.')
         }
-
-        return {
-            branch: 'list',
-            vaultFlag,
-            sessionFlag: session,
-            forceJson,
-        }
+        return {branch: 'list', vaultFlag, sessionFlag: session, forceJson}
     }
 
     if (rawBranch === 'switch') {
@@ -256,7 +262,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         if (rest.length > 2) {
             validationError('Too many positional arguments for `clone`.')
         }
-
         return {
             branch: 'clone',
             source: rest[0],
@@ -284,7 +289,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         if (rest.length > 2) {
             validationError('Too many positional arguments for `set-folder`.')
         }
-
         return {
             branch: 'set-folder',
             folderPath: resolvePath(rest[0]),
@@ -301,28 +305,14 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         if (nodeIds.length === 0) {
             validationError(`Missing required <nodeIds...> for \`selection ${rawMode}\`.`)
         }
-
-        return {
-            branch: 'selection',
-            mode,
-            nodeIds,
-            vaultFlag,
-            sessionFlag: session,
-            forceJson,
-        }
+        return {branch: 'selection', mode, nodeIds, vaultFlag, sessionFlag: session, forceJson}
     }
 
     if (rawBranch === 'show') {
         if (rest.length > 0) {
             validationError('`show` does not accept positional arguments.')
         }
-
-        return {
-            branch: 'show',
-            vaultFlag,
-            sessionFlag: session,
-            forceJson,
-        }
+        return {branch: 'show', vaultFlag, sessionFlag: session, forceJson}
     }
 
     if (rawBranch !== 'layout') {
@@ -339,7 +329,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             if (layoutArgs.length > 2) {
                 validationError('Too many positional arguments for `layout set-pan`.')
             }
-
             return {
                 branch: 'layout',
                 subcommand: 'set-pan',
@@ -356,7 +345,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             if (layoutArgs.length > 1) {
                 validationError('Too many positional arguments for `layout set-zoom`.')
             }
-
             return {
                 branch: 'layout',
                 subcommand: 'set-zoom',
@@ -372,7 +360,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             if (layoutArgs.length > 1) {
                 validationError('Too many positional arguments for `layout set-positions`.')
             }
-
             return {
                 branch: 'layout',
                 subcommand: 'set-positions',
@@ -386,6 +373,23 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         default:
             return validationError(`Unknown layout subcommand: ${rawSubcommand}`)
     }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Per-branch runners (formerly view/runViewCommand.ts).
+// ────────────────────────────────────────────────────────────────────────
+
+type Position = {
+    x: number
+    y: number
+}
+
+type LayoutPositions = Record<string, Position>
+
+type LayoutMutation = {
+    pan?: Position
+    positions?: LayoutPositions
+    zoom?: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -413,11 +417,7 @@ function parsePositionsRecord(value: unknown, filePath: string): LayoutPositions
                 `Positions file "${filePath}" has an invalid position for "${nodeId}".`,
             )
         }
-
-        positions[nodeId] = {
-            x: rawPosition.x,
-            y: rawPosition.y,
-        }
+        positions[nodeId] = {x: rawPosition.x, y: rawPosition.y}
     }
 
     return positions
@@ -431,54 +431,35 @@ async function readPositionsFile(filePath: string): Promise<LayoutPositions> {
         if (err instanceof ArgValidationError) {
             throw err
         }
-
         if (err instanceof SyntaxError) {
             validationError(`Could not parse positions JSON at "${filePath}": ${err.message}`)
         }
-
         if (err instanceof Error) {
             validationError(`Could not read positions file "${filePath}": ${err.message}`)
         }
-
         validationError(`Could not read positions file "${filePath}".`)
     }
 }
 
-async function buildLayoutMutation(
-    parsed: ParsedLayoutCommand,
-): Promise<{pan?: Position; positions?: LayoutPositions; zoom?: number}> {
+async function buildLayoutMutation(parsed: ParsedLayoutCommand): Promise<LayoutMutation> {
     switch (parsed.subcommand) {
         case 'set-pan':
-            return {
-                pan: {
-                    x: parsed.x,
-                    y: parsed.y,
-                },
-            }
+            return {pan: {x: parsed.x, y: parsed.y}}
         case 'set-zoom':
-            return {
-                zoom: parsed.zoom,
-            }
+            return {zoom: parsed.zoom}
         case 'set-positions':
-            return {
-                positions: await readPositionsFile(parsed.positionsFile),
-            }
+            return {positions: await readPositionsFile(parsed.positionsFile)}
     }
 }
 
 async function createSessionClient(vaultFlag: string | undefined): Promise<GraphDbClient> {
     const vault: string = resolveVault({flag: vaultFlag})
     const {port}: {port: number} = await ensureDaemon(vault)
-    return new GraphDbClient({
-        baseUrl: `http://127.0.0.1:${port}`,
-    })
+    return new GraphDbClient({baseUrl: `http://127.0.0.1:${port}`})
 }
 
 function toCliViewRecord(view: ViewRecord): CliViewRecord {
-    return {
-        ...view,
-        is_active: view.isActive,
-    }
+    return {...view, is_active: view.isActive}
 }
 
 async function resolveViewRecord(client: GraphDbClient, target: string): Promise<ViewRecord> {
@@ -506,11 +487,9 @@ async function resolveCommandSessionId(
 }
 
 async function runLayoutCommand(parsed: ParsedLayoutCommand): Promise<void> {
-    const mutation: {pan?: Position; positions?: LayoutPositions; zoom?: number} =
-        await buildLayoutMutation(parsed)
+    const mutation: LayoutMutation = await buildLayoutMutation(parsed)
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
-
     emitResult(await client.updateLayout(sessionId, mutation), formatLayout, parsed.forceJson)
 }
 
@@ -550,22 +529,15 @@ async function runSetFolderCommand(parsed: ParsedSetFolderCommand): Promise<void
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
     await client.setFolderState(sessionId, parsed.folderPath, parsed.state)
-    const row: CliFolderStateRow = {
-        path: parsed.folderPath,
-        state: parsed.state,
-    }
+    const row: CliFolderStateRow = {path: parsed.folderPath, state: parsed.state}
     emitResult(row, formatFolderStateRow, parsed.forceJson)
 }
 
 async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void> {
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
-
     emitResult(
-        await client.setSelection(sessionId, {
-            mode: parsed.mode,
-            nodeIds: parsed.nodeIds,
-        }),
+        await client.setSelection(sessionId, {mode: parsed.mode, nodeIds: parsed.nodeIds}),
         formatSelection,
         parsed.forceJson,
     )
@@ -581,40 +553,42 @@ async function runShowCommand(parsed: ParsedShowCommand): Promise<void> {
         return
     }
 
-    const view = await client.getView(sessionId, { title: state.activeView.name })
+    const view = await client.getView(sessionId, {title: state.activeView.name})
     console.log(view.output)
+}
+
+async function runParsedViewCommand(parsed: ParsedViewCommand): Promise<void> {
+    switch (parsed.branch) {
+        case 'layout':
+            await runLayoutCommand(parsed)
+            return
+        case 'list':
+            await runListCommand(parsed)
+            return
+        case 'switch':
+            await runSwitchCommand(parsed)
+            return
+        case 'clone':
+            await runCloneCommand(parsed)
+            return
+        case 'delete':
+            await runDeleteCommand(parsed)
+            return
+        case 'set-folder':
+            await runSetFolderCommand(parsed)
+            return
+        case 'selection':
+            await runSelectionCommand(parsed)
+            return
+        case 'show':
+            await runShowCommand(parsed)
+            return
+    }
 }
 
 export async function runViewCommand(argv: string[]): Promise<void> {
     try {
-        const parsed: ParsedViewCommand = parseViewCommand(argv)
-
-        switch (parsed.branch) {
-            case 'layout':
-                await runLayoutCommand(parsed)
-                return
-            case 'list':
-                await runListCommand(parsed)
-                return
-            case 'switch':
-                await runSwitchCommand(parsed)
-                return
-            case 'clone':
-                await runCloneCommand(parsed)
-                return
-            case 'delete':
-                await runDeleteCommand(parsed)
-                return
-            case 'set-folder':
-                await runSetFolderCommand(parsed)
-                return
-            case 'selection':
-                await runSelectionCommand(parsed)
-                return
-            case 'show':
-                await runShowCommand(parsed)
-                return
-        }
+        await runParsedViewCommand(parseViewCommand(argv))
     } catch (err) {
         handleCliError(err)
     }

@@ -2,11 +2,10 @@ name: Main CI
 
 on:
   # Scheduled-only by design. Per-merge verification happens pre-merge in
-  # `PR CI` (stage1-checks.yml), including the conditional `Tier 4
-  # (Conditional Pre-merge)` job. Post-merge runs only exist to keep an
-  # informational drift signal on `main` and to provide the staleness
-  # denominator for `mutation-gate` (which queries `Main CI / Full`
-  # check-runs against `origin/main` HEAD commits).
+  # `Measures (generated)`, including conditional Tier 4. Post-merge runs
+  # only exist to keep an informational drift signal on `main` and to provide
+  # the staleness denominator for `tier4-precheck` (which queries
+  # `Main CI / Full` check-runs against `origin/main` HEAD commits).
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:

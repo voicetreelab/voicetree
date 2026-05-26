@@ -194,15 +194,21 @@ webapp/workers/share-worker/.wrangler/**
 !packages/measures/perf/*.md
 !packages/measures/budgets/BASELINE_BUMP_LOG.md
 !packages/measures/budgets/HOW_TO_BUMP_BASELINES.md
+!packages/measures/src/health/coupling/__tests__/**/*.md
 !packages/systems/agent-runtime/src/application/terminals/tmux/README.md
 !scripts/agent-debugging/README.md
 !scripts/agent-debugging/REFERENCE.md
+!openspec/**/*.md
+!/architecture.md
 
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
 
 # Codex config (machine-local)
 **/.codex/config.toml
+
+# Agent-created nested worktree mirrors
+.claude/worktrees/
 
 # Gemini settings (machine-local)
 **/.gemini/settings.json
@@ -212,6 +218,9 @@ webapp/workers/share-worker/.wrangler/**
 
 # Node modules
 **/node_modules/**
+
+# TypeScript build state
+*.tsbuildinfo
 
 # Web dist
 **/dist-web/**

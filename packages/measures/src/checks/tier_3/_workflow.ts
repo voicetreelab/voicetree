@@ -14,6 +14,10 @@ export const workflow: WorkflowSpec = {
     trigger: {
         baseRef: null,
     },
+    protection: {
+        requiredOn: ['main'],
+        conditionalOn: [],
+    },
     precheck: null,
     parallelism: 'per-concern',
     sequential: false,
