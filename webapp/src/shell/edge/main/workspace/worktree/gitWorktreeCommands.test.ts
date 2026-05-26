@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { writeFileSync, mkdtempSync, chmodSync, readFileSync, unlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import path from 'node:path';
+import * as path from 'node:path';
 import { runHook } from './gitWorktreeCommands';
 
 describe('runHook env plumbing', () => {
