@@ -233,7 +233,16 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
-    'webapp -> vt-daemon': 13,
+    // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
+    // cleanups above (drop in-process configureMcpServer +
+    // registerChildIfMonitored, move FS helpers to @vt/app-config, fix
+    // peekCurrentVault -> getActiveVault in getMetricsViaVtd) webapp has
+    // ZERO value imports from `@vt/vt-daemon`. The remaining type-only
+    // imports (AgentMetricsData / SessionMetric / TopicName / etc.) cost
+    // nothing at runtime and stay free. Any future value import becomes
+    // a hard CI failure — webapp is supposed to reach vt-daemon over the
+    // HTTP boundary via `@vt/vt-daemon-client`, not in-process.
+    'webapp -> vt-daemon': 0,
     'webapp -> vt-daemon-client': 13,
     'webapp -> vt-rpc': 3,
 }

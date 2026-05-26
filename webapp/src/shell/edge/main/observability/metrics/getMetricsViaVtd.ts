@@ -10,7 +10,7 @@
 import {createRpcClientForVault, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
 import type {AgentMetricsData, SessionMetric} from '@vt/vt-daemon'
 
-import {peekCurrentVault} from '@vt/vt-daemon'
+import {getActiveVault} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 
 // Cache one RPC client per vault. The renderer's useAgentMetrics hook polls
 // every ~10s; rebuilding the client per call re-reads rpc.port + auth-token
@@ -28,7 +28,15 @@ async function getClient(vault: string): Promise<DaemonRpcClient> {
 }
 
 export async function getMetrics(): Promise<AgentMetricsData> {
-    const vault: string | null = peekCurrentVault()
+    // Read the webapp's authoritative active-vault snapshot — `daemon-url-
+    // binding` is the module that owns "the vault Main currently considers
+    // active" (set by `bindVtDaemonForVault`). Previously this read
+    // `peekCurrentVault()` from `@vt/vt-daemon`, but that exposes a
+    // module-level cell mutated only by the vt-daemon BINARY's process;
+    // webapp's in-process copy is never written, so the function always
+    // returned null and the whole metrics flow silently degraded to
+    // `{sessions: []}`.
+    const vault: string | null = getActiveVault()
     if (vault === null) {
         // No vault bound yet (boot races, vault rebind in progress). Mirrors
         // the legacy Main-side behaviour on a missing file: return an empty
