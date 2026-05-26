@@ -130,7 +130,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "min by (service_instance_id) (timestamp(first_over_time({__name__=~\".+\", service_instance_id=~\".+\"}[$__range])))",
+          "expr": "label_replace(min by (service_instance_id) (min_over_time(timestamp({__name__=~\".+\", service_instance_id=~\".+\"})[$__range:1m])), \"run_stat\", \"first_seen\", \"service_instance_id\", \".+\") * 1000",
           "format": "table",
           "instant": true,
           "legendFormat": "first_seen",
@@ -143,7 +143,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (service_instance_id) (timestamp(last_over_time({__name__=~\".+\", service_instance_id=~\".+\"}[$__range])))",
+          "expr": "label_replace(max by (service_instance_id) (max_over_time(timestamp({__name__=~\".+\", service_instance_id=~\".+\"})[$__range:1m])), \"run_stat\", \"last_seen\", \"service_instance_id\", \".+\") * 1000",
           "format": "table",
           "instant": true,
           "legendFormat": "last_seen",
@@ -156,7 +156,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (service_instance_id) (timestamp(last_over_time({__name__=~\".+\", service_instance_id=~\".+\"}[$__range]))) - min by (service_instance_id) (timestamp(first_over_time({__name__=~\".+\", service_instance_id=~\".+\"}[$__range])))",
+          "expr": "label_replace(max by (service_instance_id) (max_over_time(timestamp({__name__=~\".+\", service_instance_id=~\".+\"})[$__range:1m])) - min by (service_instance_id) (min_over_time(timestamp({__name__=~\".+\", service_instance_id=~\".+\"})[$__range:1m])), \"run_stat\", \"duration\", \"service_instance_id\", \".+\")",
           "format": "table",
           "instant": true,
           "legendFormat": "duration",
@@ -167,23 +167,35 @@
       "title": "Runs table",
       "transformations": [
         {
-          "id": "joinByLabels",
+          "id": "labelsToFields",
           "options": {
-            "join": [
-              "service_instance_id"
-            ],
-            "value": "Value"
+            "valueLabel": "run_stat"
           }
         },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
+              "run_stat": true,
               "Time": true
             },
+            "indexByName": {}
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
             "indexByName": {},
             "renameByName": {
-              "service_instance_id": "run_id"
+              "service_instance_id": "run_id",
+              "Value #duration": "duration",
+              "Value #first_seen": "first_seen",
+              "Value #last_seen": "last_seen"
             }
           }
         }
