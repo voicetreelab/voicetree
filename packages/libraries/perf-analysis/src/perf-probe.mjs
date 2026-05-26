@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { writeHeapSnapshot } from 'node:v8'
 
 import Pyroscope from '@pyroscope/nodejs'
-import { observabilityMetrics } from '@vt/observability'
+import { observabilityMetrics, tracing } from '@vt/observability'
 
 const PROFILE_ENABLED = '1'
 const RUN_ID_ENV = 'VOICETREE_RUN_INSTANCE_ID'
@@ -19,6 +19,11 @@ const SAMPLE_INTERVAL_MS = 1_000
 const HEAP_SNAPSHOT_OFFSETS_MS = [0, 5_000, 10_000]
 
 const nsToMs = (value) => value / 1_000_000
+
+function appendTraceContext(message, traceContext) {
+  if (!traceContext) return message
+  return `${message} trace_id=${traceContext.traceId} span_id=${traceContext.spanId}`
+}
 
 function resolveRunUuid(env = process.env) {
   const existing = env[RUN_ID_ENV]
@@ -46,12 +51,20 @@ function createPlainLogWriter(svc, logPath) {
   const stream = createWriteStream(logPath, { flags: 'a' })
 
   const write = (level, message) => {
-    stream.write(`${new Date().toISOString()} ${level} ${message}\n`)
+    stream.write(`${new Date().toISOString()} ${level} ${appendTraceContext(message, tracing.activeTraceContext())}\n`)
   }
 
-  write('INFO', `perf-probe startup service=${svc}`)
+  const writeInSpan = (spanName, level, message) => {
+    tracing.syncSpan(spanName, () => {
+      write(level, message)
+    }, {
+      'service.name': svc,
+    })
+  }
+
+  writeInSpan('perf-probe.startup', 'INFO', `perf-probe startup service=${svc}`)
   const heartbeat = setInterval(() => {
-    write('INFO', `perf-probe heartbeat service=${svc}`)
+    writeInSpan('perf-probe.heartbeat', 'INFO', `perf-probe heartbeat service=${svc}`)
   }, SAMPLE_INTERVAL_MS)
   heartbeat.unref()
 
@@ -59,7 +72,7 @@ function createPlainLogWriter(svc, logPath) {
     write,
     async stop() {
       clearInterval(heartbeat)
-      write('INFO', `perf-probe shutdown service=${svc}`)
+      writeInSpan('perf-probe.shutdown', 'INFO', `perf-probe shutdown service=${svc}`)
       stream.end()
       await finished(stream)
     },

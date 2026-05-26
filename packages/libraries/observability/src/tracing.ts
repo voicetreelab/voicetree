@@ -2,6 +2,7 @@ import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   context,
+  isSpanContextValid,
   propagation,
   SpanStatusCode,
   trace,
@@ -147,6 +148,10 @@ function initTracingImpl(serviceName: string, env: TracingEnv = {}): void {
 
 type TraceOperation<T> = (span: Span) => T | Promise<T>
 type SyncTraceOperation<T> = (span: Span) => T
+type ActiveTraceContext = {
+  readonly traceId: string
+  readonly spanId: string
+}
 
 const tracer = trace.getTracer('@vt/observability')
 
@@ -156,6 +161,16 @@ function recordSpanError(span: Span, error: unknown): void {
     code: SpanStatusCode.ERROR,
     message: error instanceof Error ? error.message : String(error),
   })
+}
+
+function activeTraceContextImpl(): ActiveTraceContext | undefined {
+  const span = trace.getActiveSpan()
+  const spanContext = span?.spanContext()
+  if (!spanContext || !isSpanContextValid(spanContext)) return undefined
+  return {
+    traceId: spanContext.traceId,
+    spanId: spanContext.spanId,
+  }
 }
 
 async function spanImpl<T>(
@@ -239,6 +254,8 @@ export const tracing = {
   span: spanImpl,
   /** Synchronous variant of `span`. */
   syncSpan: syncSpanImpl,
+  /** Return the active span identity, when code is running inside a valid span. */
+  activeTraceContext: activeTraceContextImpl,
   /** Bridge graph-db-client owner-diagnostic events to OTel spans. Idempotent. */
   bridgeOwnerDiagnostics: bridgeOwnerDiagnosticsImpl,
 } as const
