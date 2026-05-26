@@ -3,7 +3,7 @@
 // Each `tier_N/_workflow.ts` (and optional `tier_N/<concern>/_workflow.ts`)
 // exports a `workflow: WorkflowSpec` describing how to translate that folder
 // into one or more GitHub Actions jobs. `packages/measures/scripts/gen-workflows.mjs`
-// discovers these declarations and emits `.github/workflows/measures-budget-gate.yml`.
+// discovers these declarations and emits `.github/workflows/measures-budget-gate.generated.yml`.
 //
 // Why this lives in `checks/` and not `_runners/`:
 //   The `_workflow.ts` files all import from this module. Keeping the type

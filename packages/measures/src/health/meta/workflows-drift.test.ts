@@ -3,7 +3,7 @@
 // Two black-box assertions:
 //   1) Pure transform sanity: the same TierSpecs input → the same YAML
 //      output (deterministic, no mocking of internals).
-//   2) Checked-in artifact: `.github/workflows/measures-budget-gate.yml`
+//   2) Checked-in artifact: `.github/workflows/measures-budget-gate.generated.yml`
 //      matches what `discoverTiers + tierSpecsToWorkflow + workflowYamlToText`
 //      would emit right now from the real folder tree. Drift = "you edited
 //      the generator (or a _workflow.ts) but didn't run `npm run gen:workflows`".
@@ -29,7 +29,7 @@ import {
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '..', '..', '..', '..', '..')
 const CHECKS_DIR = join(REPO_ROOT, 'packages', 'measures', 'src', 'checks')
-const GENERATED_YAML_PATH = join(REPO_ROOT, '.github', 'workflows', 'measures-budget-gate.yml')
+const GENERATED_YAML_PATH = join(REPO_ROOT, '.github', 'workflows', 'measures-budget-gate.generated.yml')
 
 describe('workflow generator — pure transform on a synthesized fixture', () => {
     it('is deterministic: same fixture input → identical output across runs', async () => {
@@ -173,14 +173,14 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
 })
 
 describe('workflow generator — checked-in YAML matches current folder tree', () => {
-    it('.github/workflows/measures-budget-gate.yml is up to date', async () => {
+    it('.github/workflows/measures-budget-gate.generated.yml is up to date', async () => {
         const expected = workflowYamlToText(tierSpecsToWorkflow(await discoverTiers(CHECKS_DIR)))
         const actual = await readFile(GENERATED_YAML_PATH, 'utf8')
         if (actual !== expected) {
             // Surface the diff up to the user via Vitest's normal mismatch
             // diff. The error message also points at the fix command.
             const errorMsg = (
-                'measures-budget-gate.yml is out of sync with the folder tree.\n' +
+                'measures-budget-gate.generated.yml is out of sync with the folder tree.\n' +
                 'Run `npm run gen:workflows` to regenerate.'
             )
             expect(actual, errorMsg).toBe(expected)
