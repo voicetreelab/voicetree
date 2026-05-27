@@ -240,7 +240,7 @@ describe('tmux attach relay', () => {
         await waitForTmuxOutput(sessionName, 'BF312_READY')
 
         relay?.close()
-        relay = mountTmuxAttachRelay(server!, {
+        relay = mountForTest(server!, {
             getTmuxMouseMode: () => true,
         })
 
