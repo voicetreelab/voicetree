@@ -110,11 +110,6 @@ export function closeHoverEditor(cy: Core): void {
     const hoverEditorOption: O.Option<EditorData> = getHoverEditor();
     if (O.isNone(hoverEditorOption)) return;
 
-    // Restore the node's Cytoscape label
-    const nodeId: string = hoverEditorOption.value.contentLinkedToNodeId;
-    // [L2-seam-residual] cy-only: CSS class manipulation on cy node
-    cy.getElementById(nodeId).removeClass('hover-editor-open');
-
     //console.log('[FloatingEditorManager-v2] Closing command-hover editor');
     closeEditor(cy, hoverEditorOption.value);
 }
@@ -181,10 +176,6 @@ export async function openHoverEditor(
         editor.ui.windowElement.style.top = `${graphY * zoom}px`;
         editor.ui.windowElement.style.transformOrigin = 'top center';
         editor.ui.windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
-
-        // Hide the node's Cytoscape label (editor title bar shows the name)
-        // [L2-seam-residual] cy-only: CSS class manipulation on cy node
-        cy.getElementById(nodeId).addClass('hover-editor-open');
 
         // Close on click outside (but allow clicks on menus that control this editor)
         const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {

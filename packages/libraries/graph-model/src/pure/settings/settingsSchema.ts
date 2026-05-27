@@ -114,6 +114,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     notifyOnAgentCompletion:   { default: true,  section: 'general', label: 'Notify on Agent Completion' },
     zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
     terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
+    terminalTmuxMouseMode:     { default: false, section: 'general', label: 'Terminal tmux Mouse Mode' },
     shell:                     { section: 'general', label: 'Shell Override' },
     emptyFolderTemplate:       { default: `# {{DATE}}\n\nHighest priority task: `, section: 'general', label: 'Empty Folder Template' },
 

@@ -60,10 +60,10 @@ worktree_add_path_arg() {
   done
 }
 
-ensure_remote_added_worktree_ready() {
+prewarm_remote_added_worktree_ready_async() {
   local wt_path="$1"
   if [ -z "$wt_path" ]; then
-    echo "git-gate: worktree add path not detected; skipping dependency readiness" >&2
+    echo "git-gate: worktree add path not detected; skipping async dependency prewarm" >&2
     return 0
   fi
 
@@ -82,13 +82,6 @@ ensure_remote_added_worktree_ready() {
     return 0
   fi
 
-  local ready_script="$main_repo/scripts/git/worktree/ensure-ready.mjs"
-  if [ ! -x "$ready_script" ]; then
-    echo "git-gate: warning: missing executable readiness script: $ready_script" >&2
-    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
-    return 0
-  fi
-
   local remote_runner="$main_repo/scripts/run-remote.mjs"
   if [ ! -f "$remote_runner" ]; then
     echo "git-gate: warning: missing remote runner: $remote_runner" >&2
@@ -96,15 +89,13 @@ ensure_remote_added_worktree_ready() {
     return 0
   fi
 
-  echo "git-gate: ensuring remote worktree dependencies on the devbox" >&2
-  echo "git-gate: local node_modules will not be created by default" >&2
-  echo "git-gate: remote readiness will copy node_modules first, then run npm install if dependency inputs differ" >&2
-  if (cd "$wt_abs" && node "$remote_runner" true); then
-    echo "git-gate: remote worktree dependency readiness complete" >&2
-  else
-    echo "git-gate: warning: remote worktree dependency readiness failed for $wt_abs" >&2
-    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
-  fi
+  local log_name
+  log_name="$(basename "$wt_abs" | tr -c 'A-Za-z0-9_.-' '_')"
+  local log_file="${TMPDIR:-/tmp}/voicetree-worktree-prewarm-${log_name}.log"
+
+  echo "git-gate: prewarming remote worktree dependencies asynchronously" >&2
+  echo "git-gate: dependency prewarm log: $log_file" >&2
+  nohup sh -c 'cd "$1" && exec node "$2" true' sh "$wt_abs" "$remote_runner" >"$log_file" 2>&1 &
 }
 
 case "$sub" in
@@ -165,6 +156,10 @@ esac
 # host-portable. `worktree repair --relative-paths` rewrites both sides of
 # the pointer pair and is idempotent. Best-effort: failure does not affect
 # the underlying add's exit code.
+#
+# Dependency readiness is prewarmed asynchronously below. The command boundary
+# still enforces readiness before remote commands, so a failed prewarm cannot
+# make later execution unsafe.
 if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
   wt_path="$(worktree_add_path_arg "$@")"
   echo "git-gate: running git worktree add" >&2
@@ -177,7 +172,11 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
     else
       echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
     fi
-    ensure_remote_added_worktree_ready "$wt_path"
+    if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
+      echo "git-gate: skipping async dependency prewarm; caller owns worktree hooks" >&2
+    else
+      prewarm_remote_added_worktree_ready_async "$wt_path"
+    fi
     echo "git-gate: worktree add post-setup complete" >&2
   else
     echo "git-gate: git worktree add failed with exit code $ec" >&2

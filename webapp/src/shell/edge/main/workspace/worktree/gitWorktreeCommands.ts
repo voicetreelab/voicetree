@@ -35,10 +35,17 @@ function toForwardSlashes(p: string): string {
 export async function runHook(
     command: string,
     args: string[],
-    cwd: string
+    cwd: string,
+    extraEnv?: Record<string, string>,
 ): Promise<{ success: boolean; error?: string; stdout?: string; stderr?: string }> {
     const quotedArgs: string = args.map(shellQuote).join(' ')
-    const fullCommand: string = quotedArgs ? `${command} ${quotedArgs}` : command
+    // Inject extra env vars via a shell prefix instead of mutating env-object —
+    // keeps the parent's env intact (exec inherits when `env` is unset) and
+    // avoids reading process.env here.
+    const envPrefix: string = extraEnv
+        ? Object.entries(extraEnv).map(([k, v]) => `${k}=${shellQuote(v)}`).join(' ') + ' '
+        : ''
+    const fullCommand: string = envPrefix + (quotedArgs ? `${command} ${quotedArgs}` : command)
     return new Promise((resolve) => {
         exec(fullCommand, { cwd, timeout: 30000 }, (error: Error | null, stdout: string, stderr: string) => {
             if (error) {
@@ -99,13 +106,18 @@ export async function createWorktree(
     worktreeName: string,
     blockingHookCommand?: string,
     asyncHookCommand?: string,
+    hookEnv?: Record<string, string>,
 ): Promise<string> {
     const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
 
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
     try {
-        await execFileAsync('git', ['worktree', 'add', '-b', worktreeName, worktreePath], { cwd: repoRoot });
+        await execFileAsync(
+            'env',
+            ['VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1', 'git', 'worktree', 'add', '-b', worktreeName, worktreePath],
+            { cwd: repoRoot },
+        );
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
@@ -113,7 +125,7 @@ export async function createWorktree(
 
     // Blocking hook: awaited after creation, before returning worktreePath to caller
     if (blockingHookCommand) {
-        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot);
+        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot, hookEnv);
         if (result.success) {
             console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
         } else {
@@ -123,7 +135,7 @@ export async function createWorktree(
 
     // Async hook: fire-and-forget after creation, does not block terminal spawn
     if (asyncHookCommand) {
-        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot).then(result => {
+        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot, hookEnv).then(result => {
             if (result.success) {
                 console.log(`[createWorktree] Async hook succeeded for ${worktreeName}`);
             } else {

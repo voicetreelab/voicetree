@@ -88,6 +88,7 @@ describe('resumePersistedAgentSession — Claude', () => {
         expect(result.kind).toBe('spawned')
         if (result.kind === 'spawned') {
             expect(result.command).toContain('claude --resume sess-uuid-resume')
+            expect(result.terminalData).toEqual(row.terminalData)
         }
         expect(spawnCalls).toHaveLength(1)
         expect(spawnCalls[0].terminalId).toBe(TERMINAL_ID_A)

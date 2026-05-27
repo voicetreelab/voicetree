@@ -13,7 +13,7 @@ import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/stores/Pendin
 import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/chrome/update-window-from-zoom';
 import {updateShadowNodeDimensions} from '@/shell/edge/UI-edge/floating-windows/chrome/setup-resize-observer';
 import {cleanupRegistry} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
-import {markNodeDirty} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTriggers';
+import {markNodeDirty} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 import {cySmartCenter} from '@/utils/responsivePadding';
 import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
 

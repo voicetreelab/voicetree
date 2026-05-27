@@ -197,7 +197,9 @@ webapp/workers/share-worker/.wrangler/**
 !packages/measures/src/health/coupling/__tests__/**/*.md
 !infra/perf-stack/*.md
 !packages/systems/agent-runtime/src/application/terminals/tmux/README.md
+!webapp/e2e-tests/electron/README.md
 !scripts/agent-debugging/README.md
+!scripts/dev-setup/remote/AGENT_PROMPT.md
 !scripts/agent-debugging/REFERENCE.md
 !openspec/**/*.md
 !/architecture.md
@@ -262,6 +264,7 @@ test_output/*
 !/health-dashboard/reports/scores-history/
 !/health-dashboard/reports/scores-history/.gitkeep
 **/.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.json
 /test-results/
 /VoiceTree/
 .codeql/

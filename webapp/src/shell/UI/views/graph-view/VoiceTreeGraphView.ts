@@ -68,7 +68,7 @@ import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edg
 import {subscribeToGraphUpdates as subscribeToGraphUpdatesFn} from '@/shell/edge/UI-edge/graph/view/subscribeToGraphUpdates';
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI';
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/styles/StyleService';
-import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTriggers';
+import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 import {collectFeedback} from '@/shell/edge/UI-edge/graph/popups/userEngagementPrompts';
 import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import {createSettingsEditor} from '@/shell/edge/UI-edge/settings/createSettingsEditor';

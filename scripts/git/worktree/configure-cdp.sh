@@ -74,3 +74,49 @@ fi
 echo "configure-cdp: worktree $WORKTREE_NAME configured with CDP port $PORT"
 echo "  .cdp-port: $WORKTREE_PATH/webapp/.cdp-port"
 echo "  .mcp.json: $WORKTREE_PATH/.mcp.json"
+
+# --- Sync voicetree MCP URL into worktree configs ---
+# Electron forwards VOICETREE_MCP_PORT via runHook so codex/claude-code agents
+# spawned in this worktree reach the running MCP server. Silent skip if absent
+# (e.g. running the hook by hand outside Electron).
+if [ -n "$VOICETREE_MCP_PORT" ]; then
+    VT_MCP_URL="http://localhost:$VOICETREE_MCP_PORT/mcp"
+    echo "configure-cdp: syncing voicetree MCP URL = $VT_MCP_URL"
+
+    # --- Patch .mcp.json voicetree.url (preserve other servers + Playwright args) ---
+    if command -v jq >/dev/null 2>&1; then
+        jq --arg url "$VT_MCP_URL" \
+           '.mcpServers.voicetree.url = $url | .mcpServers.voicetree.type = "http"' \
+           "$WORKTREE_PATH/.mcp.json" > "$WORKTREE_PATH/.mcp.json.tmp" && \
+        mv "$WORKTREE_PATH/.mcp.json.tmp" "$WORKTREE_PATH/.mcp.json"
+    else
+        # sed fallback: replace any http://host:port/mcp in voicetree block.
+        # Less safe than jq but the file template is small and stable.
+        sed -E "s|(\"voicetree\"[^}]*\"url\":[[:space:]]*\")[^\"]*(\")|\1$VT_MCP_URL\2|" \
+            "$WORKTREE_PATH/.mcp.json" > "$WORKTREE_PATH/.mcp.json.tmp" && \
+        mv "$WORKTREE_PATH/.mcp.json.tmp" "$WORKTREE_PATH/.mcp.json"
+    fi
+
+    # --- Patch .codex/config.toml [mcp_servers.voicetree] (preserve other sections) ---
+    CODEX_DIR="$WORKTREE_PATH/.codex"
+    CODEX_CFG="$CODEX_DIR/config.toml"
+    mkdir -p "$CODEX_DIR"
+    if [ -f "$CODEX_CFG" ] && grep -q '^\[mcp_servers\.voicetree\]' "$CODEX_CFG"; then
+        # Replace the section's url line. The TOML section is one line + one key line.
+        # awk preserves every other section verbatim.
+        awk -v url="$VT_MCP_URL" '
+            BEGIN { in_section = 0 }
+            /^\[mcp_servers\.voicetree\]/ { print; in_section = 1; next }
+            in_section && /^\[/ { in_section = 0 }
+            in_section && /^url[[:space:]]*=/ { print "url = \"" url "\""; next }
+            { print }
+        ' "$CODEX_CFG" > "$CODEX_CFG.tmp" && mv "$CODEX_CFG.tmp" "$CODEX_CFG"
+    else
+        # Append a fresh section (or create the file)
+        if [ -s "$CODEX_CFG" ]; then printf '\n' >> "$CODEX_CFG"; fi
+        printf '[mcp_servers.voicetree]\nurl = "%s"\n' "$VT_MCP_URL" >> "$CODEX_CFG"
+    fi
+    echo "  .codex/config.toml: $CODEX_CFG"
+else
+    echo "configure-cdp: VOICETREE_MCP_PORT unset; skipping voicetree MCP URL sync" >&2
+fi

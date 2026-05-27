@@ -1,5 +1,11 @@
 import * as esbuild from 'esbuild'
 import { readFile, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '../../..')
+const perfProbePath = resolve(repoRoot, 'packages/libraries/perf-analysis/src/perf-probe.mjs')
 
 await esbuild.build({
   entryPoints: ['bin/vt-graphd.ts'],
@@ -18,6 +24,16 @@ await esbuild.build({
     // Bundling it into ESM breaks that lookup; leave the package boundary
     // intact so Node's CommonJS loader provides the expected runtime globals.
     '@pyroscope/nodejs',
+  ],
+  plugins: [
+    {
+      name: 'workspace-perf-analysis',
+      setup(build) {
+        build.onResolve({ filter: /^@vt\/perf-analysis\/perf-probe$/ }, () => ({
+          path: perfProbePath,
+        }))
+      },
+    },
   ],
   banner: {
     js: [

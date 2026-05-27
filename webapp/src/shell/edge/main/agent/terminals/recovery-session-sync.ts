@@ -45,6 +45,11 @@ export async function resumeRecoverySession(terminalId: string): Promise<Rendere
     const result = await terminalRuntimeSurface.resumePersistedAgentSession(terminalId as TerminalId)
     void refreshRecoverySessions().catch(() => undefined)
     if (result.kind === 'spawned') {
+        void uiAPI.launchTerminalOntoUI(
+            result.terminalData.attachedToContextNodeId,
+            result.terminalData,
+            false,
+        )
         return {success: true, terminalId}
     }
     if (result.kind === 'stale' || result.kind === 'unsupported') {
@@ -60,6 +65,11 @@ export async function forkRecoverySession(sourceTerminalId: string): Promise<Ren
     const result = await terminalRuntimeSurface.forkAgentSession(sourceTerminalId as TerminalId)
     void refreshRecoverySessions().catch(() => undefined)
     if (result.kind === 'spawned') {
+        void uiAPI.launchTerminalOntoUI(
+            result.terminalData.attachedToContextNodeId,
+            result.terminalData,
+            false,
+        )
         return {success: true, terminalId: result.forkedTerminalId}
     }
     if (result.kind === 'stale' || result.kind === 'unsupported') {
