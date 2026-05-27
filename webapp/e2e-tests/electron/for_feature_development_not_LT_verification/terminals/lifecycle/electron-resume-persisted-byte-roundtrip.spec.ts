@@ -1,19 +1,21 @@
 /**
  * E2E: BF-332 — load-bearing persisted-resume gate.
  *
- * Seeds a `.voicetree/terminals/<id>.json` metadata fixture plus a matching
- * Claude transcript JSONL, launches the Electron app with NO live tmux session
- * for that terminalId, clicks the Resume button surfaced by the Surviving
- * Agents sidebar, and asserts the recovery flow actually:
- *   (a) creates a new tmux session under the canonical session name, and
- *   (b) materialises a live terminal-tree-node + floating window for the
- *       resumed terminalId.
+ * Seeds a `.voicetree/terminals/<id>.json` metadata fixture plus (optionally)
+ * a matching Claude transcript JSONL, launches the Electron app with NO live
+ * tmux session for that terminalId, clicks the Resume button surfaced by the
+ * Surviving Agents sidebar, and asserts the recovery flow:
+ *   (a) creates a new tmux session under the canonical session name,
+ *   (b) materialises a live terminal-tree-node + floating window,
+ *   (c) round-trips bytes — xterm DOM keystrokes reach the tmux pane AND tmux
+ *       pane output renders into the xterm buffer, and
+ *   (d) when the metadata has no matching native session, surfaces a
+ *       structured diagnostic in the sidebar without spawning anything.
  *
- * SCOPE — T9 (this file):
- *   The Resume-click → new tmux pane → live tab assertions. The byte
- *   round-trip (keystrokes through xterm → tmux pane; tmux output → xterm
- *   DOM) and the negative scenario (metadata lacks a native session id) are
- *   landed by Lane C T10 by extending this spec.
+ * Tests:
+ *   1. T9   — Resume click → new tmux pane + live tab + correct argv.
+ *   2. T10a — Byte round trip through the rendered xterm.
+ *   3. T10b — Negative scenario: metadata-only row, resolver miss → diagnostic.
  *
  * NO MOCKS:
  *   tmux, the recovery discovery flow, the Claude native-session resolver,
@@ -21,185 +23,39 @@
  *   real. The only headless-CI accommodation is a stub `claude` binary placed
  *   at the front of PATH so the spawned `claude --resume <native_session_id>`
  *   pane has something to exec without requiring the real Claude CLI in CI.
- *   The stub keeps the pane alive (exec bash) so T10 can drive byte traffic
- *   through it.
+ *   The stub keeps the pane alive (`bash --noprofile --norc -i`) so the
+ *   byte round trip can drive real keystrokes through xterm → tmux → xterm.
  *
  *   `run-resume-proof.mjs` is the devbox-only screenshot proof that uses the
  *   REAL Claude binary. This spec is the gated companion that runs in CI
  *   without depending on Claude being installed.
+ *
+ * The Playwright fixture extension (`test`) lives in
+ * `electron-resume-persisted-helpers.ts` because it would otherwise push this
+ * file over the 500-line per-file ceiling. tmux / process / xterm read helpers
+ * stay inline to keep webapp/shell's boundary-width budget tight.
  */
 
-import {expect, _electron as electron} from '@playwright/test';
-import type {ElectronApplication, Page} from '@playwright/test';
+import {expect, type Page} from '@playwright/test';
 import {spawnSync} from 'child_process';
+import {randomBytes} from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
-    PROJECT_ID,
-    PROJECT_ROOT,
     SCREENSHOT_DIR,
     TMUX_BIN,
-    buildElectronTestPath,
     buildSessionName,
-    createSurvivingAgentsVault,
-    electronLinuxLaunchFlags,
     ensureScreenshotDir,
     ensureVaultLoadedIntoGraph,
     fixtureClaudeTranscript,
     fixtureRecoveryMetadata,
-    test as baseTest,
     tmuxSocketPath,
     type ExtendedWindow,
-    type SurvivingAgentsVault,
 } from '../content/electron-surviving-agents-helpers';
+import {test} from './electron-resume-persisted-helpers';
 
 const RESUME_TERMINAL_ID: string = 'PersistedResumeT9';
 const RESUME_NATIVE_SESSION_ID: string = '0f4e2c3a-7b1d-4d9e-9a2f-8c7b6e5d4321';
-const STUB_CLAUDE_BODY: string = [
-    '#!/usr/bin/env bash',
-    '# E2E stub for the `claude` CLI used during the persisted-resume gate.',
-    '#',
-    '# - Stays alive so the spawned tmux pane and terminal-tree-node remain',
-    '#   present long enough for the assertions to fire (and T10 to drive',
-    '#   byte traffic).',
-    '# - Deliberately does NOT `exec`, so `ps -o args=` on the pane pid keeps',
-    '#   showing the original `claude --resume <native_session_id>` argv —',
-    '#   the load-bearing proof that the recovery flow ran the resume command',
-    '#   the BF-329 lazy native-session resolver produced.',
-    '# - Spawns an interactive child bash for byte round-trip (T10).',
-    'bash --noprofile --norc -i',
-    '',
-].join('\n');
-
-/**
- * Resume-spec fixture extension:
- *   - `vault`            — fresh temp project dir (same shape as the shared helper).
- *   - `stubClaudeBinDir` — a temp dir containing a `claude` shim that the test
- *                          puts at the front of PATH for the Electron launch.
- *   - `electronApp`/`appWindow` — Electron launched with that PATH override.
- *
- * The shared helper's `electronApp` does not accept a PATH override, so this
- * file re-declares those fixtures rather than mutating the shared helper
- * (which would force every other surviving-agents spec to rebuild).
- */
-const test = baseTest.extend<{
-    stubClaudeBinDir: string;
-}>({
-    vault: [async ({}, use) => {
-        const v: SurvivingAgentsVault = await createSurvivingAgentsVault();
-        try {
-            await use(v);
-        } finally {
-            await fs.rm(v.tempRoot, {recursive: true, force: true});
-        }
-    }, {timeout: 10_000}],
-
-    stubClaudeBinDir: [async ({vault}, use) => {
-        const dir: string = path.join(vault.tempRoot, 'stub-bin');
-        await fs.mkdir(dir, {recursive: true});
-        const stubPath: string = path.join(dir, 'claude');
-        await fs.writeFile(stubPath, STUB_CLAUDE_BODY, 'utf8');
-        await fs.chmod(stubPath, 0o755);
-        await use(dir);
-    }, {timeout: 10_000}],
-
-    electronApp: [async ({vault, stubClaudeBinDir}, use) => {
-        const tempUserDataPath: string = vault.appSupportPath;
-        await fs.mkdir(tempUserDataPath, {recursive: true});
-
-        await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vault.projectRoot,
-            vaultConfig: {
-                [vault.projectRoot]: {
-                    writeFolder: vault.projectRoot,
-                    readPaths: [],
-                },
-            },
-        }, null, 2), 'utf8');
-
-        await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
-            id: PROJECT_ID,
-            path: vault.projectRoot,
-            name: PROJECT_ID,
-            type: 'folder',
-            lastOpened: Date.now(),
-            voicetreeInitialized: true,
-        }], null, 2), 'utf8');
-
-        const electronApp: ElectronApplication = await electron.launch({
-            args: [
-                ...electronLinuxLaunchFlags(),
-                path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-                `--user-data-dir=${tempUserDataPath}`,
-            ],
-            env: {
-                ...process.env,
-                PATH: buildElectronTestPath([stubClaudeBinDir]),
-                NODE_ENV: 'test',
-                HEADLESS_TEST: '1',
-                MINIMIZE_TEST: '1',
-                VOICETREE_PERSIST_STATE: '1',
-                VOICETREE_APP_SUPPORT: tempUserDataPath,
-                VOICETREE_CLAUDE_PROJECTS_DIR: vault.claudeProjectsRoot,
-            },
-            timeout: 15_000,
-        });
-
-        const electronProcess = electronApp.process();
-        electronProcess?.stdout?.on('data', (chunk: Buffer) => {
-            console.log(`[MAIN STDOUT] ${chunk.toString().trim()}`);
-        });
-        electronProcess?.stderr?.on('data', (chunk: Buffer) => {
-            console.error(`[MAIN STDERR] ${chunk.toString().trim()}`);
-        });
-
-        await use(electronApp);
-
-        const closeTask: Promise<void> = (async (): Promise<void> => {
-            try {
-                const window = await electronApp.firstWindow();
-                await window.evaluate(async () => {
-                    const api = (window as unknown as ExtendedWindow).electronAPI;
-                    if (api) await api.main.stopFileWatching();
-                });
-                await window.waitForTimeout(200);
-            } catch { /* best-effort cleanup */ }
-            try { await electronApp.close(); } catch { /* ignore */ }
-        })();
-        const closed: boolean = await Promise.race([
-            closeTask.then(() => true).catch(() => true),
-            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 8_000)),
-        ]);
-        if (!closed) {
-            electronApp.process()?.kill('SIGKILL');
-            await Promise.race([
-                closeTask.catch(() => undefined),
-                new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
-            ]);
-        }
-    }, {timeout: 30_000}],
-
-    appWindow: [async ({electronApp}, use) => {
-        const window: Page = await electronApp.firstWindow({timeout: 60_000});
-        window.on('console', (msg) => {
-            if (!msg.text().includes('Electron Security Warning')) {
-                console.log(`BROWSER [${msg.type()}]:`, msg.text());
-            }
-        });
-        window.on('pageerror', (error) => console.error('PAGE ERROR:', error.message));
-
-        await window.waitForLoadState('domcontentloaded');
-        await window.waitForSelector('text=Recent Projects', {timeout: 15_000});
-        await window.locator(`button:has-text("${PROJECT_ID}")`).first().click();
-
-        await window.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-            {timeout: 30_000},
-        );
-
-        await use(window);
-    }, {timeout: 60_000}],
-});
 
 function tmuxHasSession(sessionName: string, socketPath: string): boolean {
     const r = spawnSync(TMUX_BIN, ['-S', socketPath, 'has-session', '-t', sessionName], {encoding: 'utf8'});
@@ -219,6 +75,24 @@ function tmuxPanePid(sessionName: string, socketPath: string): number | null {
     if (r.status !== 0) return null;
     const pid: number = Number(r.stdout.trim());
     return Number.isInteger(pid) && pid > 0 ? pid : null;
+}
+
+function tmuxCapturePane(sessionName: string, socketPath: string): string {
+    const r = spawnSync(
+        TMUX_BIN,
+        ['-S', socketPath, 'capture-pane', '-p', '-J', '-S', '-200', '-t', sessionName],
+        {encoding: 'utf8'},
+    );
+    return r.status === 0 ? r.stdout : '';
+}
+
+async function readXtermBufferText(appWindow: Page, terminalId: string): Promise<string> {
+    return await appWindow.evaluate((id) => {
+        const debug = (window as unknown as {
+            __vtDebug__?: {readTerminalBuffer?: (id: string) => string | null};
+        }).__vtDebug__;
+        return debug?.readTerminalBuffer?.(id) ?? '';
+    }, terminalId);
 }
 
 function collectProcessTreeArgv(rootPid: number): readonly string[] {
@@ -252,8 +126,7 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
         const sessionName: string = buildSessionName(vault.projectRoot, RESUME_TERMINAL_ID);
         const socketPath: string = tmuxSocketPath(vault.appSupportPath);
 
-        // Pre-condition: no live tmux session for this terminalId. The whole
-        // point of "persisted resume" is that the runtime died.
+        // Pre-condition: no live tmux session for this terminalId.
         expect(tmuxHasSession(sessionName, socketPath), `tmux session ${sessionName} must NOT exist before the test starts`).toBe(false);
 
         let metadataPath: string | null = null;
@@ -274,7 +147,6 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
                 sessionId: RESUME_NATIVE_SESSION_ID,
             });
 
-            // Drive recovery discovery so the sidebar surfaces the seeded row.
             const refreshed = await appWindow.evaluate(async () => {
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 if (!api) throw new Error('electronAPI not available');
@@ -304,7 +176,6 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
             await expect(resumeButton).toBeVisible({timeout: 5_000});
             await resumeButton.click();
 
-            // (a) A new tmux session under the canonical name appears.
             await expect.poll(
                 () => tmuxHasSession(sessionName, socketPath),
                 {
@@ -314,8 +185,6 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
                 },
             ).toBe(true);
 
-            // (b) The persisted Resume row is replaced by a live terminal-tree-node
-            //     for the same terminalId — i.e. the row was actually promoted.
             await expect.poll(
                 async () => await appWindow.locator(
                     `[data-has-resume="true"][data-terminal-id="${RESUME_TERMINAL_ID}"]`,
@@ -334,9 +203,7 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
 
             // Load-bearing per BF-332: prove the lazy resolver actually found the
             // seeded Claude transcript AND the resume command (`claude --resume
-            // <native_session_id>`) is the argv running inside the pane. If the
-            // resolver had returned not-found, the spawn would never have happened
-            // and the row would have produced a diagnostic instead.
+            // <native_session_id>`) is the argv running inside the pane.
             await expect.poll(
                 () => {
                     const pid: number | null = tmuxPanePid(sessionName, socketPath);
@@ -350,9 +217,7 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
                 },
             ).toContain(`claude --resume ${RESUME_NATIVE_SESSION_ID}`);
 
-            // The floating window mount (xterm host) is the surface T10 will
-            // drive keystrokes through; assert it exists so the byte-round-trip
-            // extension has a stable target.
+            // Surface T10's byte round trip will drive keystrokes through.
             const floatingWindow = appWindow.locator(
                 `[data-floating-window-id="${RESUME_TERMINAL_ID}"]`,
             );
@@ -367,6 +232,168 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
             killTmuxSessionIfPresent(sessionName, socketPath);
         }
     });
-});
 
-export {test};
+    test('Resume → byte round trip: xterm DOM keystrokes reach tmux pane AND pane output renders into the xterm buffer', async ({appWindow, vault, stubClaudeBinDir}) => {
+        void stubClaudeBinDir;
+
+        const TERMINAL_ID: string = 'PersistedResumeT10Round';
+        const NATIVE_SESSION_ID: string = '7a3b4d5e-1f2c-4e9d-8b7a-3c2d1e0f9a8b';
+
+        await ensureScreenshotDir();
+        await ensureVaultLoadedIntoGraph(appWindow);
+
+        const taskNodePath: string = path.join(vault.projectRoot, 'readme.md');
+        const sessionName: string = buildSessionName(vault.projectRoot, TERMINAL_ID);
+        const socketPath: string = tmuxSocketPath(vault.appSupportPath);
+
+        expect(tmuxHasSession(sessionName, socketPath), `tmux session ${sessionName} must NOT exist before the test starts`).toBe(false);
+
+        let metadataPath: string | null = null;
+        let transcriptPath: string | null = null;
+        try {
+            metadataPath = await fixtureRecoveryMetadata({
+                projectRoot: vault.projectRoot,
+                terminalId: TERMINAL_ID,
+                agentName: TERMINAL_ID,
+                cliBinary: 'claude',
+                taskNodePath,
+            });
+            transcriptPath = await fixtureClaudeTranscript({
+                claudeProjectsRoot: vault.claudeProjectsRoot,
+                terminalId: TERMINAL_ID,
+                projectRoot: vault.projectRoot,
+                taskNodePath,
+                sessionId: NATIVE_SESSION_ID,
+            });
+
+            await appWindow.evaluate(async () => {
+                const api = (window as unknown as ExtendedWindow).electronAPI;
+                if (!api) throw new Error('electronAPI not available');
+                await api.main.refreshRecoverySessions();
+            });
+
+            const resumeRow = appWindow.locator(
+                `[data-has-resume="true"][data-terminal-id="${TERMINAL_ID}"]`,
+            );
+            await expect(resumeRow).toBeVisible({timeout: 10_000});
+            await resumeRow.getByRole('button', {name: /resume claude session/i}).click();
+
+            await expect.poll(() => tmuxHasSession(sessionName, socketPath), {
+                message: `Resume click must spawn tmux session "${sessionName}"`,
+                timeout: 15_000,
+                intervals: [250, 500, 1_000],
+            }).toBe(true);
+            const floatingWindow = appWindow.locator(`[data-floating-window-id="${TERMINAL_ID}"]`);
+            await expect(floatingWindow).toBeVisible({timeout: 15_000});
+
+            // Settle <2s: the stub-claude's `bash --noprofile --norc -i` child
+            // needs a beat to repaint its prompt before keystrokes can race the
+            // shell. Matches the 1500ms settle in electron-tmux-keystroke-relay.
+            await appWindow.waitForTimeout(1_500);
+
+            const helperTextarea = floatingWindow.locator('.xterm-helper-textarea').first();
+            await helperTextarea.focus();
+
+            const sentinel: string = `BF332_ROUNDTRIP_${randomBytes(3).toString('hex').toUpperCase()}`;
+            const line: string = `echo ${sentinel}`;
+            // Keystroke-by-keystroke pacing — single-character frames are what
+            // reproduce bufferutil unmask regressions (per electron-tmux-keystroke-relay).
+            for (const ch of line) {
+                await appWindow.keyboard.press(ch);
+            }
+            await appWindow.keyboard.press('Enter');
+
+            // (a) Direction xterm DOM keystrokes → tmux pane.
+            await expect.poll(() => tmuxCapturePane(sessionName, socketPath), {
+                message: `xterm keystrokes must reach tmux pane (sentinel ${sentinel})`,
+                timeout: 15_000,
+                intervals: [250, 500, 1_000],
+            }).toContain(sentinel);
+
+            // (b) Direction tmux pane output → xterm rendered buffer.
+            // xterm uses a WebGL renderer (TerminalVanilla.attachWebGL) so the
+            // .xterm-screen/.xterm-rows DOM has no scrapable textContent; the
+            // rendered buffer is the source of truth and is read via the
+            // existing window.__vtDebug__ introspection surface.
+            await expect.poll(() => readXtermBufferText(appWindow, TERMINAL_ID), {
+                message: `tmux pane output must render into the xterm buffer (sentinel ${sentinel})`,
+                timeout: 15_000,
+                intervals: [250, 500, 1_000],
+            }).toContain(sentinel);
+        } finally {
+            if (metadataPath) await fs.rm(metadataPath, {force: true});
+            if (transcriptPath) await fs.rm(transcriptPath, {force: true});
+            killTmuxSessionIfPresent(sessionName, socketPath);
+        }
+    });
+
+    test('Resume metadata WITHOUT a Claude transcript → click surfaces no-jsonl-matches diagnostic AND no tmux pane spawns', async ({appWindow, vault, stubClaudeBinDir}) => {
+        void stubClaudeBinDir;
+
+        const TERMINAL_ID: string = 'PersistedResumeT10NoSession';
+
+        await ensureScreenshotDir();
+        await ensureVaultLoadedIntoGraph(appWindow);
+
+        const taskNodePath: string = path.join(vault.projectRoot, 'readme.md');
+        const sessionName: string = buildSessionName(vault.projectRoot, TERMINAL_ID);
+        const socketPath: string = tmuxSocketPath(vault.appSupportPath);
+
+        expect(tmuxHasSession(sessionName, socketPath)).toBe(false);
+
+        let metadataPath: string | null = null;
+        try {
+            // Seed metadata but DELIBERATELY no transcript — the whole point of
+            // the negative scenario is that claudeProjectsRoot has no .jsonl
+            // matching this terminalId. Per BF-329 lazy-resolver design the row
+            // STILL surfaces (resume capability is a metadata-only signal); the
+            // resolver only runs at click time and returns not-found.
+            metadataPath = await fixtureRecoveryMetadata({
+                projectRoot: vault.projectRoot,
+                terminalId: TERMINAL_ID,
+                agentName: TERMINAL_ID,
+                cliBinary: 'claude',
+                taskNodePath,
+            });
+
+            const refreshed = await appWindow.evaluate(async () => {
+                const api = (window as unknown as ExtendedWindow).electronAPI;
+                if (!api) throw new Error('electronAPI not available');
+                return await api.main.refreshRecoverySessions();
+            });
+            const seededRow = refreshed.find((s) => s.terminalId === TERMINAL_ID);
+            expect(seededRow, 'discovery should surface the metadata-only row even without a transcript').toBeDefined();
+            expect(seededRow?.resume?.cliType).toBe('claude');
+
+            const resumeRow = appWindow.locator(
+                `[data-has-resume="true"][data-terminal-id="${TERMINAL_ID}"]`,
+            );
+            await expect(resumeRow).toBeVisible({timeout: 10_000});
+            await resumeRow.getByRole('button', {name: /resume claude session/i}).click();
+
+            // The renderer surfaces the structured failure as a
+            // [data-testid="surviving-agents-resume-failure"] block. For a claude
+            // metadata row with an EMPTY claudeProjectsRoot the resolver chain
+            // collapses to {kind: 'not-found', reason: 'no-jsonl-matches'} which
+            // resumePersistedAgentSession maps to {kind: 'no-native-session', ...}.
+            const failureBlock = appWindow.locator('[data-testid="surviving-agents-resume-failure"]');
+            await expect(failureBlock, 'a structured resolver-miss diagnostic must surface').toBeVisible({timeout: 10_000});
+            await expect(failureBlock).toHaveAttribute('data-cli-type', 'claude');
+            await expect(failureBlock).toHaveAttribute('data-reason', 'no-jsonl-matches');
+
+            // No tmux session spawned — the resolver short-circuited before spawn.
+            expect(tmuxHasSession(sessionName, socketPath),
+                `No tmux session "${sessionName}" must come up when the resolver returns not-found`,
+            ).toBe(false);
+
+            // No live terminal tab was created either.
+            await expect(
+                appWindow.locator(`.terminal-tree-node[data-terminal-id="${TERMINAL_ID}"]`),
+                'no live terminal tab should be created on resolver miss',
+            ).toHaveCount(0);
+        } finally {
+            if (metadataPath) await fs.rm(metadataPath, {force: true});
+            // No tmux session to kill — the resolver short-circuited.
+        }
+    });
+});
