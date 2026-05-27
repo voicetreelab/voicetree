@@ -27,7 +27,7 @@ describe('resolveAllowlistForProject', () => {
         writeFolder = path.join(watchedDir, 'voicetree')
         await mkdir(writeFolder, { recursive: true })
         process.env.VOICETREE_APP_SUPPORT = appSupportPath
-        await saveVaultConfigForDirectory(appSupportPath, watchedDir, { writeFolder })
+        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
         getExpandedFolderPathsForVault.mockResolvedValue([path.join(watchedDir, 'external')])
     })
 

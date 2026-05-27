@@ -88,7 +88,7 @@ describe('write path folder visibility seeding', () => {
         setGraph(createEmptyGraph())
         clearWatchFolderState()
         clearSettingsCache()
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [] })
     })
 
     afterEach(async () => {
@@ -107,7 +107,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(nested, { recursive: true })
         await fs.mkdir(childB, { recursive: true })
         setProjectRoot(watchedDir)
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, { writeFolder })
+        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
 
         const result = await setWriteFolder(writeFolder, { createStarterIfEmpty: false })
 
@@ -127,7 +127,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(hiddenChild, { recursive: true })
         await fs.mkdir(newChild, { recursive: true })
         setProjectRoot(watchedDir)
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, { writeFolder })
+        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
         await setActiveViewFolderState(watchedDir, hiddenChild, 'hidden')
 
         const result = await setWriteFolder(writeFolder, { createStarterIfEmpty: false })

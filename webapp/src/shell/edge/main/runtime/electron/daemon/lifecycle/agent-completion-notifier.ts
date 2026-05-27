@@ -97,7 +97,7 @@ function shouldSkipNotifications(): boolean {
 function showBatchWhenEnabled(batch: readonly CompletionEvent[]): void {
     if (isAppFocused()) return;
 
-    void loadSettings(getAppSupportPath())
+    void loadSettings()
         .then(settings => {
             if (settings.notifyOnAgentCompletion !== false) {
                 showCompletionNotification(batch);

@@ -65,6 +65,7 @@ async function createProjectFixture(prefix: string): Promise<ProjectFixture> {
 
 async function resetAroundProject(nextFixture: ProjectFixture): Promise<void> {
   electronMock.userDataPath = nextFixture.userDataPath
+  process.env.VOICETREE_APP_SUPPORT = nextFixture.userDataPath
   initGraphModel({
     fitViewport: vi.fn(),
     notifyWriteDirectory: vi.fn(),
@@ -75,7 +76,7 @@ async function resetAroundProject(nextFixture: ProjectFixture): Promise<void> {
   })
   setGraph(createEmptyGraph())
   clearWatchFolderState()
-  await saveVaultConfigForDirectory(nextFixture.userDataPath, nextFixture.primaryPath, {
+  await saveVaultConfigForDirectory(nextFixture.primaryPath, {
     writeFolder: nextFixture.primaryPath,
     readPaths: [],
   })

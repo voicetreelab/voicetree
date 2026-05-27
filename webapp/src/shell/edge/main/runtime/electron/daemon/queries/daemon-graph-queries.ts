@@ -81,7 +81,7 @@ export async function createContextNodeThroughDaemon(
     parentNodeId: NodeIdAndFilePath,
 ): Promise<NodeIdAndFilePath> {
     return await callDaemon(async (client) => {
-        const settings: VTSettings = await loadSettings(getAppSupportPath())
+        const settings: VTSettings = await loadSettings()
         const graph: Graph = await getNormalizedDaemonGraph(client)
         const parentNode: GraphNode | undefined = resolveGraphNode(graph, parentNodeId)
         const semanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext && parentNode
@@ -100,7 +100,7 @@ export async function createContextNodeFromQuestionThroughDaemon(
     question: string,
 ): Promise<{ nodeId: NodeIdAndFilePath; parentNodePath: NodeIdAndFilePath | ''; title: string }> {
     return await callDaemon(async (client) => {
-        const settings: VTSettings = await loadSettings(getAppSupportPath())
+        const settings: VTSettings = await loadSettings()
         const semanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
             ? await getSemanticRelevantNodes(question, settings.askModeContextDistance)
             : []

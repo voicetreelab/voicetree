@@ -110,7 +110,7 @@ async function initializeProject(projectPath: string): Promise<string | null> {
  * and passes it to the core function. Hook failure is non-blocking.
  */
 async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
-    const settings: VTSettings = await loadSettings(getAppSupportPath());
+    const settings: VTSettings = await loadSettings();
     const blockingHook: string | undefined = settings.hooks?.onWorktreeCreatedBlocking;
     const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
     const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
@@ -221,9 +221,9 @@ export const mainAPI = {
   saveNodePositions,
 
   // Settings operations — renderer never sees appSupportPath; main fills it in.
-  loadSettings: (): Promise<VTSettings> => loadSettings(getAppSupportPath()),
+  loadSettings: (): Promise<VTSettings> => loadSettings(),
 
-  saveSettings: (settings: VTSettings): Promise<boolean> => saveSettings(getAppSupportPath(), settings),
+  saveSettings: (settings: VTSettings): Promise<boolean> => saveSettings(settings),
 
   // Vault operations — single canonical entry-point.
   openVault,
@@ -339,9 +339,9 @@ export const mainAPI = {
   // Project selection operations
   scanForProjects,
   getDefaultSearchDirectories,
-  loadProjects: (): Promise<SavedProject[]> => loadProjects(getAppSupportPath()),
-  saveProject: (project: SavedProject): Promise<void> => saveProject(getAppSupportPath(), project),
-  removeProject: (id: string): Promise<void> => removeProject(getAppSupportPath(), id),
+  loadProjects: (): Promise<SavedProject[]> => loadProjects(),
+  saveProject: (project: SavedProject): Promise<void> => saveProject(project),
+  removeProject: (id: string): Promise<void> => removeProject(id),
   initializeProject,
   showFolderPicker,
   createNewProject,

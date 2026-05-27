@@ -114,7 +114,7 @@ export function initializeGraphModel(): void {
 
         // Hooks
         onNewNodeHook(_nodeId: string, graphData: GraphDelta): void {
-            void loadSettings(getAppSupportPath()).then(async settings => {
+            void loadSettings().then(async settings => {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
                     await dispatchOnNewNodeHooks(getVtDaemonClient(), { delta: graphData, hookCommand: hookPath })

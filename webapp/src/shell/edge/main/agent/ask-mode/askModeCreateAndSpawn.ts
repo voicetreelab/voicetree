@@ -51,7 +51,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const terminalCount: number = 0;
 
   // 4. Load settings
-  const settings: VTSettings = await loadSettings(getAppSupportPath());
+  const settings: VTSettings = await loadSettings();
   const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
   const command: string = getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
 

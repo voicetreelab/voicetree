@@ -18,7 +18,6 @@ import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {type McpToolResponse, buildJsonResponse} from '../tools/toolResponse'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
     type ValidationResult,
     ALL_RULES,
@@ -180,7 +179,7 @@ async function validateOverridableRules(
 ): Promise<string | null> {
     const callerTaskNodeId: NodeIdAndFilePath | null =
         O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
-    const settings: VTSettings = await loadSettings(resolveAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     const validationResult: ValidationResult = runValidations(ALL_RULES, {
         nodes,
         resolvedParentNodeId,

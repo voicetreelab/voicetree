@@ -147,10 +147,10 @@ describe.skip('Folder Loading - Integration Tests', () => {
     // Reset graph state
     setGraph(createGraph({}))
 
-    await saveVaultConfigForDirectory(appSupport, exampleSmallPath, {
+    await saveVaultConfigForDirectory(exampleSmallPath, {
       writeFolder: path.join(exampleSmallPath, 'voicetree')
     })
-    await saveVaultConfigForDirectory(appSupport, exampleLargePath, {
+    await saveVaultConfigForDirectory(exampleLargePath, {
       writeFolder: path.join(exampleLargePath, 'voicetree')
     })
 

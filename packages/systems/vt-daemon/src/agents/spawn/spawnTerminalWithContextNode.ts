@@ -16,7 +16,6 @@
  */
 
 import { loadSettings } from '@vt/app-config/settings';
-import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts';
 import {type TerminalId } from '@vt/vt-daemon/terminals/terminal-registry/types.ts';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
@@ -72,7 +71,7 @@ export async function spawnTerminalWithContextNode(
     taskNodeId = normalizedNodeId;
 
     // Load settings to get agents
-    const settings: VTSettings = await loadSettings(getAppSupportPath());
+    const settings: VTSettings = await loadSettings();
     const command: string = resolveAgentCommand(agentCommand, settings, taskNodeId);
 
     // Read through the runtime graph bridge; the daemon watcher owns disk-to-graph synchronization.

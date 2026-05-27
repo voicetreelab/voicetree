@@ -95,7 +95,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
         writeFolder: vaultPath,
         readPaths: [vaultPath]  // Same path in both writeFolder AND readPaths
       }
-      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, buggyConfig)
+      await saveVaultConfigForDirectory(watchedDir, buggyConfig)
 
       // WHEN: getVaultPaths is called
       const paths: readonly string[] = await getVaultPaths()
@@ -122,7 +122,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
         writeFolder: writeFolderA,
         readPaths: [readPathB]
       }
-      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, initialConfig)
+      await saveVaultConfigForDirectory(watchedDir, initialConfig)
 
       // WHEN: setWriteFolder is called with a path that's already in readPaths
       await setWriteFolder(readPathB)
@@ -149,7 +149,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
       await fs.mkdir(newWriteFolderC, { recursive: true })
       setProjectRoot(watchedDir)
 
-      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, {
+      await saveVaultConfigForDirectory(watchedDir, {
         writeFolder: writeFolderA,
       })
       await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
@@ -173,7 +173,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
       await fs.mkdir(readPathB, { recursive: true })
       setProjectRoot(watchedDir)
 
-      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, {
+      await saveVaultConfigForDirectory(watchedDir, {
         writeFolder: writeFolderA,
         readPaths: [readPathB]
       })
@@ -293,7 +293,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
         writeFolder: writeFolder,
         readPaths: []
       }
-      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, config)
+      await saveVaultConfigForDirectory(watchedDir, config)
 
       await seedMarkdownFiles(newReadPath, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
@@ -322,7 +322,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
         writeFolder: currentWriteFolder,
         readPaths: []
       }
-      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, config)
+      await saveVaultConfigForDirectory(watchedDir, config)
 
       await seedMarkdownFiles(newWriteFolder, FILE_COUNT_ABOVE_RAISED_LIMIT)
 

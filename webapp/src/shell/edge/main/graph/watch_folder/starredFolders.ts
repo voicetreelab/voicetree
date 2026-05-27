@@ -20,7 +20,7 @@ function slugify(text: string): string {
 }
 
 async function syncVaultStateToRenderer(): Promise<void> {
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     const writeFolderOption: O.Option<string> = await getWriteFolder()
     uiAPI.syncVaultState({
         readPaths: [...await getVaultPaths()],
@@ -30,24 +30,24 @@ async function syncVaultStateToRenderer(): Promise<void> {
 }
 
 export async function getStarredFolders(): Promise<readonly string[]> {
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     return settings.starredFolders ?? []
 }
 
 export async function addStarredFolder(folderPath: string): Promise<void> {
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     const current: readonly string[] = settings.starredFolders ?? []
     if (current.includes(folderPath)) {
         return
     }
-    await saveSettings(getAppSupportPath(), { ...settings, starredFolders: [...current, folderPath] })
+    await saveSettings({ ...settings, starredFolders: [...current, folderPath] })
     await syncVaultStateToRenderer()
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     const current: readonly string[] = settings.starredFolders ?? []
-    await saveSettings(getAppSupportPath(), { ...settings, starredFolders: current.filter((p: string) => p !== folderPath) })
+    await saveSettings({ ...settings, starredFolders: current.filter((p: string) => p !== folderPath) })
     await syncVaultStateToRenderer()
 }
 

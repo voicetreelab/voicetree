@@ -109,7 +109,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         clearSettingsCache()
 
         // Write default settings so getStarredFolders doesn't fail
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [] })
     })
 
     afterEach(async () => {
@@ -128,7 +128,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await fs.mkdir(readPathA, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -157,7 +157,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await fs.mkdir(readPathA, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -182,7 +182,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await fs.mkdir(readPathB, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -230,7 +230,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolder should also complete 
             unwatch: vi.fn(),
         } as never)
         clearSettingsCache()
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [] })
     })
 
     afterEach(async () => {
@@ -249,7 +249,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolder should also complete 
         await fs.mkdir(newReadPath, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
 
@@ -273,7 +273,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolder should also complete 
         await fs.mkdir(newWriteFolder, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
 
@@ -319,7 +319,7 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
             unwatch: vi.fn(),
         } as never)
         clearSettingsCache()
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [] })
     })
 
     afterEach(async () => {
@@ -338,7 +338,7 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
         await fs.mkdir(readPathA, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -402,14 +402,14 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         await fs.mkdir(writeFolder, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
 
         // AND: A starred folder that is NOT currently expanded
         const starredFolder = path.join(testTmpDir, 'starred-vault')
         await fs.mkdir(starredFolder, { recursive: true })
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [starredFolder] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredFolder] })
 
         // WHEN: User creates a new dated folder
         const result = await createDatedVoiceTreeFolder()
@@ -427,7 +427,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         await fs.mkdir(writeFolder, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
 
@@ -436,7 +436,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         const starredB = path.join(testTmpDir, 'starred-b')
         await fs.mkdir(starredA, { recursive: true })
         await fs.mkdir(starredB, { recursive: true })
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [starredA, starredB] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredA, starredB] })
 
         // WHEN: createDatedVoiceTreeFolder is called
         const result = await createDatedVoiceTreeFolder()
@@ -457,12 +457,12 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         await fs.mkdir(starredAndLoaded, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(appSupportDir, watchedDir, {
+        await saveVaultConfigForDirectory(watchedDir, {
             writeFolder,
         })
         await setActiveViewFolderState(watchedDir, starredAndLoaded, 'expanded')
 
-        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [starredAndLoaded] })
+        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredAndLoaded] })
 
         // WHEN: createDatedVoiceTreeFolder is called
         const result = await createDatedVoiceTreeFolder()

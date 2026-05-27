@@ -144,7 +144,7 @@ describe('graph daemon migration', () => {
         setGraph(createEmptyGraph())
 
         await mkdir(join(harness.docsPath, 'nested'), {recursive: true})
-        await saveVaultConfigForDirectory(harness.appSupportPath, harness.vault, {
+        await saveVaultConfigForDirectory(harness.vault, {
             writeFolder: harness.docsPath,
             readPaths: [],
         })

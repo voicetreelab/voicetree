@@ -8,7 +8,6 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {type McpToolResponse, buildJsonResponse} from '../types'
 import {getAgentNodes, getNewNodesForAgentIdentities} from '../agentDependencies'
 import * as O from 'fp-ts/lib/Option.js'
@@ -119,7 +118,7 @@ export async function listAgentsTool(bridge: GraphBridge): Promise<McpToolRespon
 
     // Include available agent types from settings so callers can discover
     // what agentName values are valid for spawn_agent
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     const availableAgents: readonly string[] = (settings?.agents ?? []).map(
         (a: { readonly name: string; readonly command: string }) => a.name
     )

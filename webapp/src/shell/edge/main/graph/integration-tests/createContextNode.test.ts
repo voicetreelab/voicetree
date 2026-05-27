@@ -159,7 +159,7 @@ describe('createContextNode - Integration Tests', () => {
         await fs.readFile(absoluteParentNodeId, 'utf-8')
       )
 
-      await saveVaultConfigForDirectory('/tmp/test-userdata-context-node', EXAMPLE_SMALL_PATH, {
+      await saveVaultConfigForDirectory(EXAMPLE_SMALL_PATH, {
         writeFolder: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
         readPaths: [],
       })

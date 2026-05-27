@@ -33,7 +33,6 @@ import {
 } from '@vt/vt-daemon-client'
 import {error} from '../output'
 import {emitInvocationStart} from '../telemetry/recordCliInvocation'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 
 type ServeArgs = {
     readonly vault: string
@@ -109,12 +108,6 @@ const verb = (result: {readonly launched: boolean}): string =>
 
 export async function runServeCommand(argv: string[]): Promise<void> {
     const args: ServeArgs = parseServeArgs(argv)
-
-    // Propagate the resolved app-support path to the spawned daemons. Both
-    // ensure clients forward this env var to the child they spawn so that
-    // graphd's and vtd's app-support resolution stay aligned with this CLI
-    // process even when the user did not set the env var themselves.
-    process.env.VOICETREE_APP_SUPPORT = resolveAppSupportPath()
 
     let graphd: EnsureGraphDaemonResult
     try {

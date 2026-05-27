@@ -6,7 +6,6 @@ import type {Graph, GraphDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
@@ -83,7 +82,7 @@ export async function triggerOvernight(
     await applyMcpGraphDelta(bridge, taskNodeDelta)
 
     // Resolve Opus agent command (find "Claude" in settings.agents)
-    const settings: VTSettings = await loadSettings(resolveAppSupportPath())
+    const settings: VTSettings = await loadSettings()
     const agents: readonly {readonly name: string; readonly command: string}[] = settings?.agents ?? []
     const claudeAgent: {readonly name: string; readonly command: string} | undefined =
         agents.find((a: {readonly name: string; readonly command: string}) => a.name === 'Claude')

@@ -13,7 +13,6 @@ import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {startMonitor} from '../agentDependencies'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
-import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {
     consumeSpawnBudget,
     listTerminalRecords,
@@ -51,7 +50,7 @@ export function makeSpawnAgentDeps(bridge: GraphBridge): SpawnAgentDeps {
     return {
         listTerminalRecords,
         consumeBudget: consumeSpawnBudget,
-        loadAgentSettings: () => loadSettings(getAppSupportPath()),
+        loadAgentSettings: () => loadSettings(),
         loadWriteFolder: () => getMcpWriteFolder(bridge),
         loadGraph: () => getMcpGraph(bridge),
         applyDelta: (delta, recordForUndo) => applyMcpGraphDelta(bridge, delta, recordForUndo),

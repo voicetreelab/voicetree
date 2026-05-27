@@ -1,6 +1,5 @@
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import type {TerminalId} from '@vt/vt-daemon-protocol'
 import {getRuntimeGraph} from '@vt/vt-daemon/runtime/graph-bridge.ts'
 import {
@@ -68,7 +67,7 @@ function runIdleHooks(
             runtime.logger.error('[terminal-registry] Failed to run idle stop-gate audit:', error)
         })
 
-        void loadSettings(getAppSupportPath())
+        void loadSettings()
             .then((settings: VTSettings) => {
                 if (settings.autoNotifyUnseenNodes) {
                     void notifyAgentOfUnseenNodes(tid, rec, {

@@ -23,30 +23,28 @@ function slugify(text: string): string {
 }
 
 export async function getStarredFolders(): Promise<readonly string[]> {
-    const settings: VTSettings = await loadSettings(resolveAppSupportPath());
+    const settings: VTSettings = await loadSettings();
     return settings.starredFolders ?? [];
 }
 
 export async function addStarredFolder(folderPath: string): Promise<void> {
-    const appSupport: string = resolveAppSupportPath();
-    const settings: VTSettings = await loadSettings(appSupport);
+    const settings: VTSettings = await loadSettings();
     const current: readonly string[] = settings.starredFolders ?? [];
     // Idempotent — no-op if already starred
     if (current.includes(folderPath)) return;
-    await saveSettings(appSupport, { ...settings, starredFolders: [...current, folderPath] });
+    await saveSettings({ ...settings, starredFolders: [...current, folderPath] });
     void broadcastVaultState();
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
-    const appSupport: string = resolveAppSupportPath();
-    const settings: VTSettings = await loadSettings(appSupport);
+    const settings: VTSettings = await loadSettings();
     const current: readonly string[] = settings.starredFolders ?? [];
-    await saveSettings(appSupport, { ...settings, starredFolders: current.filter((p: string) => p !== folderPath) });
+    await saveSettings({ ...settings, starredFolders: current.filter((p: string) => p !== folderPath) });
     void broadcastVaultState();
 }
 
 export async function isStarred(folderPath: string): Promise<boolean> {
-    const settings: VTSettings = await loadSettings(resolveAppSupportPath());
+    const settings: VTSettings = await loadSettings();
     return (settings.starredFolders ?? []).includes(folderPath);
 }
 

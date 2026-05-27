@@ -69,7 +69,7 @@ async function resolvePrettySetupAgentCommand(env: NodeJS.ProcessEnv = process.e
         return undefined;
     }
 
-    const settings = await loadSettings(getAppSupportPath());
+    const settings = await loadSettings();
     const fakeAgentCommand = findFakeAgentCommand(settings.agents);
 
     if (fakeAgentCommand) {
@@ -119,7 +119,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
             lastOpened: Date.now(),
             voicetreeInitialized: true
         };
-        await saveProject(getAppSupportPath(), project);
+        await saveProject(project);
         console.log('[DebugSetup] Saved project:', project.id);
 
         try {
