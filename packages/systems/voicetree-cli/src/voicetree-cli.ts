@@ -16,7 +16,7 @@ import {runSessionCommand} from './commands/runtime/session.ts'
 import {runVaultCommand} from './commands/runtime/vault.ts'
 import {runViewCommand} from './commands/node/view.ts'
 import {getErrorMessage} from './commands/graph/core/util.ts'
-import {error} from './commands/output.ts'
+import {CliError, error} from './commands/output.ts'
 import {argsShape} from './commands/telemetry/argsShape.ts'
 import {
     installCliInvocationSink,
@@ -364,7 +364,11 @@ function isDirectExecution(): boolean {
 
 if (isDirectExecution()) {
     void main().catch((cause: unknown) => {
-        setErrorClass(cause instanceof Error ? cause.name : 'UnknownError')
-        error(getErrorMessage(cause))
+        const errorClass: string = cause instanceof CliError
+            ? 'CliError'
+            : cause instanceof Error ? cause.name : 'UnknownError'
+        setErrorClass(errorClass)
+        console.error(`error: ${getErrorMessage(cause)}`)
+        process.exit(1)
     })
 }
