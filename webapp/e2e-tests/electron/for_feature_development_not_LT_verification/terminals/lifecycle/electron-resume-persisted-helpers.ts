@@ -58,7 +58,7 @@ export const test = baseTest.extend<{
         } finally {
             await fs.rm(v.tempRoot, {recursive: true, force: true});
         }
-    }, {timeout: 10_000}],
+    }, {scope: 'test', timeout: 10_000}],
 
     stubClaudeBinDir: [async ({vault}, use) => {
         const dir: string = path.join(vault.tempRoot, 'stub-bin');
@@ -67,7 +67,7 @@ export const test = baseTest.extend<{
         await fs.writeFile(stubPath, STUB_CLAUDE_BODY, 'utf8');
         await fs.chmod(stubPath, 0o755);
         await use(dir);
-    }, {timeout: 10_000}],
+    }, {scope: 'test', timeout: 10_000}],
 
     electronApp: [async ({vault, stubClaudeBinDir}, use) => {
         const tempUserDataPath: string = vault.appSupportPath;
@@ -143,7 +143,7 @@ export const test = baseTest.extend<{
                 new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
             ]);
         }
-    }, {timeout: 30_000}],
+    }, {scope: 'test', timeout: 30_000}],
 
     appWindow: [async ({electronApp}, use) => {
         const window: Page = await electronApp.firstWindow({timeout: 60_000});
@@ -164,5 +164,5 @@ export const test = baseTest.extend<{
         );
 
         await use(window);
-    }, {timeout: 60_000}],
+    }, {scope: 'test', timeout: 60_000}],
 });
