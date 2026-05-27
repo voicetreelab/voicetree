@@ -106,3 +106,79 @@ describe('parseSubgraph loadContent override', () => {
         expect(project.getSourceFile(aPath), 'default parseSubgraph still populates ts-morph').toBeDefined()
     })
 })
+
+describe('parseSubgraph staged tree filters', () => {
+    it('removes peer worktree source files that are absent from the staged tree', async () => {
+        const {repoRoot, aPath} = await buildFixture()
+        const peerPath = join(repoRoot, 'packages', 'fakepkg', 'src', 'peer-wip.ts')
+        await writeFile(peerPath, "export const peerWip = 'not staged'\n")
+
+        const subgraph = await parseSubgraph([aPath], {
+            repoRoot,
+            stagedTreeFiles: new Set([
+                'packages/fakepkg/package.json',
+                'packages/fakepkg/src/a.ts',
+                'packages/fakepkg/src/b.ts',
+            ]),
+            stagedTreePackages: new Set(['packages/fakepkg/package.json']),
+        })
+
+        const relativeFiles = subgraph.files.map(file => file.relativePath).sort()
+        expect(relativeFiles).toEqual([
+            'packages/fakepkg/src/a.ts',
+            'packages/fakepkg/src/b.ts',
+        ])
+        expect(relativeFiles).not.toContain('packages/fakepkg/src/peer-wip.ts')
+        expect(subgraph.edges.map(edge => edge.from.absolutePath)).not.toContain(peerPath)
+        expect(subgraph.edges.map(edge => edge.to.absolutePath)).not.toContain(peerPath)
+        expect(subgraph.getProject().getSourceFile(peerPath)).toBeUndefined()
+    })
+
+    it('filters discovered packages by staged package.json paths', async () => {
+        const repoRoot = await mkdtemp(join(tmpdir(), 'parse-subgraph-staged-packages-'))
+        tmpRoots.push(repoRoot)
+
+        const baseDir = join(repoRoot, 'packages', 'base')
+        const baseSrc = join(baseDir, 'src')
+        const peerDir = join(repoRoot, 'packages', 'peer')
+        const peerSrc = join(peerDir, 'src')
+        await mkdir(baseSrc, {recursive: true})
+        await mkdir(peerSrc, {recursive: true})
+        await writeFile(join(baseDir, 'package.json'), JSON.stringify({name: '@fake/base'}))
+        await writeFile(join(peerDir, 'package.json'), JSON.stringify({name: '@fake/peer'}))
+
+        const basePath = join(baseSrc, 'a.ts')
+        const peerPath = join(peerSrc, 'peer.ts')
+        await writeFile(basePath, "import {peer} from '@fake/peer/peer'\nexport const base = peer\n")
+        await writeFile(peerPath, "export const peer = 'peer'\n")
+
+        const stagedTreeFiles = new Set([
+            'packages/base/package.json',
+            'packages/base/src/a.ts',
+            'packages/peer/src/peer.ts',
+        ])
+        const withoutPeerPackage = await parseSubgraph([basePath], {
+            repoRoot,
+            stagedTreeFiles,
+            stagedTreePackages: new Set(['packages/base/package.json']),
+        })
+        expect(withoutPeerPackage.files.map(file => file.relativePath)).toEqual(['packages/base/src/a.ts'])
+        expect(withoutPeerPackage.edges).toEqual([])
+
+        const withPeerPackage = await parseSubgraph([basePath], {
+            repoRoot,
+            stagedTreeFiles,
+            stagedTreePackages: new Set([
+                'packages/base/package.json',
+                'packages/peer/package.json',
+            ]),
+        })
+        expect(withPeerPackage.files.map(file => file.relativePath).sort()).toEqual([
+            'packages/base/src/a.ts',
+            'packages/peer/src/peer.ts',
+        ])
+        expect(withPeerPackage.edges.map(edge => `${edge.from.relativePath}->${edge.to.relativePath}`)).toEqual([
+            'packages/base/src/a.ts->packages/peer/src/peer.ts',
+        ])
+    })
+})

@@ -9,7 +9,6 @@ import {expect} from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import {
-    PROJECT_ID,
     SCREENSHOT_DIR,
     SEEDED_TERMINAL_ID,
     buildSessionName,

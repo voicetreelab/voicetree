@@ -14,10 +14,10 @@
 // worktrees under `.worktrees/` are mapped to the matching remote worktree path.
 // Blocks on the sync reaching `Status: Watching for changes` before invoking ssh.
 
-import {readFileSync, existsSync} from 'node:fs'
+import {readFileSync, existsSync, readdirSync} from 'node:fs'
 import {spawn, execFile, execFileSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
-import {dirname, resolve as pathResolve, relative as pathRelative} from 'node:path'
+import {dirname, resolve as pathResolve, relative as pathRelative, basename} from 'node:path'
 import {posix as ppath} from 'node:path'
 import {promisify} from 'node:util'
 
@@ -132,7 +132,7 @@ function assertOneWayReplica(mutagenListOutput) {
   throw new Error(
     `mutagen '${MUTAGEN_SESSION}' must be one-way-replica before remote execution` +
       (mode === null ? '' : ` (current mode: ${mode})`) +
-      `.\nHint: recreate vt-remote from get_dev_healthy/mutagen-vt-remote.yml.`,
+      `.\nHint: recreate vt-remote from scripts/dev-setup/remote/mutagen-vt-remote.yml.`,
   )
 }
 
@@ -178,6 +178,125 @@ function repairRemoteWorktreeMetadataScript(remoteCwd) {
     `printf '%s\\n' '../..' > ${shq(adminCommondirFile)};`,
     'fi',
   ].join(' ')
+}
+
+// Inventory of worktree names known to the local repo.
+//
+// Union of `git worktree list` basenames and `ls .git/worktrees/`. The union
+// is intentionally maximal so the stale-on-remote diff stays minimal —
+// anything plausibly local must not be deleted on remote.
+function localWorktreeNames(repoRoot = REPO_ROOT) {
+  const names = new Set()
+  try {
+    const out = execFileSync('git', ['-C', repoRoot, 'worktree', 'list', '--porcelain'], {encoding: 'utf8'})
+    for (const line of out.split(/\r?\n/)) {
+      if (line.startsWith('worktree ')) names.add(basename(line.slice('worktree '.length)))
+    }
+  } catch {
+    // No git or not a repo — treat as empty; reconciler will skip.
+  }
+  try {
+    for (const entry of readdirSync(pathResolve(repoRoot, '.git/worktrees'))) names.add(entry)
+  } catch {
+    // .git/worktrees missing (no linked worktrees) — empty set is fine.
+  }
+  return [...names]
+}
+
+// Shell snippet that prints the remote worktree inventory as two newline-
+// separated sections. Pure: returns a string. Caller is responsible for
+// sending it over ssh.
+function remoteWorktreeListingScript(remoteRoot = REMOTE_ROOT) {
+  return [
+    'echo ===GIT===',
+    `ls -1 ${shq(`${remoteRoot}/.git/worktrees`)} 2>/dev/null || true`,
+    'echo ===WT===',
+    `ls -1 ${shq(`${remoteRoot}/.worktrees`)} 2>/dev/null || true`,
+  ].join('; ')
+}
+
+// Parse the two-section listing produced by remoteWorktreeListingScript.
+// Pure: returns {git, wt} string arrays.
+function parseRemoteWorktreeListing(stdout) {
+  const lines = stdout.split(/\r?\n/)
+  const gitIdx = lines.indexOf('===GIT===')
+  const wtIdx = lines.indexOf('===WT===')
+  if (gitIdx < 0 || wtIdx < 0 || wtIdx < gitIdx) return {git: [], wt: []}
+  const collect = (start, end) =>
+    lines.slice(start, end).map(s => s.trim()).filter(s => s !== '')
+  return {
+    git: collect(gitIdx + 1, wtIdx),
+    wt: collect(wtIdx + 1, lines.length),
+  }
+}
+
+// Names present on remote but not local. Pure.
+function computeStaleWorktreeNames({localNames, remoteNames}) {
+  const local = new Set(localNames)
+  return remoteNames.filter(n => !local.has(n)).sort()
+}
+
+// Build a shell snippet that removes the stale dirs on remote. Returns null
+// when nothing needs to happen. Defensive: rejects names with shell-unsafe
+// characters so we never feed unvalidated input into rm -rf. Pure.
+function buildReconcileCleanupScript({staleGit, staleWt, remoteRoot = REMOTE_ROOT}) {
+  const safe = n => typeof n === 'string' && /^[A-Za-z0-9._-]+$/.test(n) && n !== '.' && n !== '..'
+  const okGit = staleGit.filter(safe)
+  const okWt = staleWt.filter(safe)
+  if (okGit.length === 0 && okWt.length === 0) return null
+  const targets = [
+    ...okGit.map(n => shq(ppath.join(remoteRoot, '.git/worktrees', n))),
+    ...okWt.map(n => shq(ppath.join(remoteRoot, '.worktrees', n))),
+  ].join(' ')
+  return `rm -rf ${targets}`
+}
+
+// Default impure boundary: invoke ssh with a script. Returns stdout on
+// success; throws on any ssh failure (caller decides whether to soft-fail).
+async function defaultSshExec(host, script) {
+  const {stdout} = await execFileAsync(
+    'ssh',
+    ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host, script],
+  )
+  return stdout
+}
+
+// Pre-flight reconciler: delete worktree dirs that exist on remote but not
+// local. Catches drift from `rm -rf`, `git worktree prune`, or worktrees
+// removed before the git-gate `worktree remove` hook landed.
+//
+// Soft-fails (warns, doesn't throw) on SSH errors — never block the user's
+// command for an unreachable devbox.
+//
+// `sshExec` is injectable for testing; production callers omit it.
+async function reconcileRemoteWorktrees({
+  host,
+  repoRoot = REPO_ROOT,
+  remoteRoot = REMOTE_ROOT,
+  sshExec = defaultSshExec,
+  log = msg => process.stderr.write(msg),
+} = {}) {
+  const localNames = localWorktreeNames(repoRoot)
+  let listingStdout
+  try {
+    listingStdout = await sshExec(host, remoteWorktreeListingScript(remoteRoot))
+  } catch (e) {
+    log(`[run-remote] worktree reconcile: skipped (ssh listing failed: ${(e.message || '').split('\n')[0]})\n`)
+    return {status: 'skipped', reason: 'ssh-listing-failed'}
+  }
+  const remote = parseRemoteWorktreeListing(listingStdout)
+  const staleGit = computeStaleWorktreeNames({localNames, remoteNames: remote.git})
+  const staleWt = computeStaleWorktreeNames({localNames, remoteNames: remote.wt})
+  const cleanupScript = buildReconcileCleanupScript({staleGit, staleWt, remoteRoot})
+  if (cleanupScript === null) return {status: 'clean'}
+  log(`[run-remote] worktree reconcile: removing stale on remote — git=[${staleGit.join(',')}] wt=[${staleWt.join(',')}]\n`)
+  try {
+    await sshExec(host, cleanupScript)
+  } catch (e) {
+    log(`[run-remote] worktree reconcile: skipped cleanup (ssh failed: ${(e.message || '').split('\n')[0]})\n`)
+    return {status: 'skipped', reason: 'ssh-cleanup-failed', staleGit, staleWt}
+  }
+  return {status: 'cleaned', staleGit, staleWt}
 }
 
 function runRemote(host, cmd, args) {
@@ -226,6 +345,8 @@ async function main() {
     return
   }
 
+  process.stderr.write(`[run-remote] routing to ${host} (reconciling worktrees…)\n`)
+  await reconcileRemoteWorktrees({host})
   process.stderr.write(`[run-remote] routing to ${host} (waiting for mutagen idle…)\n`)
   repairLocalWorktreeMetadataIfNeeded()
   const mutagenListOutput = await waitMutagenIdle()
@@ -245,7 +366,12 @@ if (isDirectRun) {
 
 export {
   assertOneWayReplica,
+  buildReconcileCleanupScript,
+  computeStaleWorktreeNames,
   ensureRemoteWorktreeReadyScript,
+  parseRemoteWorktreeListing,
+  reconcileRemoteWorktrees,
+  remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
   repairLocalWorktreeMetadataIfNeeded,
   refreshRemoteGitIndexScript,
