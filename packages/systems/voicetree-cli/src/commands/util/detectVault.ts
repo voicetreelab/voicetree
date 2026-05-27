@@ -19,7 +19,11 @@ export class VaultNotDetectedError extends Error {
     }
 }
 
-export function detectVaultFromCwd(cwd: string = process.cwd()): string | null {
+// `cwd` is a required input rather than a `process.cwd()` default — the
+// transitive-purity gate flags any process.* access inside a function body,
+// including default-parameter expressions, so callers thread cwd in
+// explicitly from the shell boundary.
+export function detectVaultFromCwd(cwd: string): string | null {
     let currentPath: string = resolve(cwd)
 
     for (;;) {
@@ -36,11 +40,9 @@ export function detectVaultFromCwd(cwd: string = process.cwd()): string | null {
     }
 }
 
-export function resolveVault({flag, cwd}: {flag?: string; cwd?: string}): string {
-    const searchCwd: string = cwd ?? process.cwd()
-
+export function resolveVault({flag, cwd}: {flag?: string; cwd: string}): string {
     if (flag) {
-        const resolvedFlag: string = resolve(searchCwd, flag)
+        const resolvedFlag: string = resolve(cwd, flag)
         if (hasVoicetreeMarker(resolvedFlag)) {
             return resolvedFlag
         }
@@ -50,7 +52,7 @@ export function resolveVault({flag, cwd}: {flag?: string; cwd?: string}): string
         )
     }
 
-    const detectedVault: string | null = detectVaultFromCwd(searchCwd)
+    const detectedVault: string | null = detectVaultFromCwd(cwd)
     if (detectedVault !== null) {
         return detectedVault
     }

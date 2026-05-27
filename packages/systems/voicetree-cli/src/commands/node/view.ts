@@ -464,7 +464,7 @@ async function buildLayoutMutation(
 }
 
 async function createSessionClient(vaultFlag: string | undefined): Promise<GraphDbClient> {
-    const vault: string = resolveVault({flag: vaultFlag})
+    const vault: string = resolveVault({flag: vaultFlag, cwd: process.cwd()})
     const {port}: {port: number} = await ensureDaemon(vault)
     return new GraphDbClient({
         baseUrl: `http://127.0.0.1:${port}`,

@@ -161,7 +161,7 @@ function formatVaultState(data: VaultState): string {
 export async function runVaultCommand(argv: string[]): Promise<void> {
     try {
         const parsed: ParsedVaultCommand = parseVaultCommand(argv)
-        const vault: string = resolveVault({flag: parsed.vaultFlag})
+        const vault: string = resolveVault({flag: parsed.vaultFlag, cwd: process.cwd()})
         const {port}: {port: number} = await ensureDaemon(vault)
         const client = new GraphDbClient({
             baseUrl: `http://127.0.0.1:${port}`,
