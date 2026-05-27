@@ -41,7 +41,7 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics, type VaultState} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
 import {tracing} from '@vt/observability';
 import {shutdownActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';

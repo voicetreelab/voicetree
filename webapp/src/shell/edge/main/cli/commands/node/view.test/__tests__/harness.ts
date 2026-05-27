@@ -2,7 +2,7 @@ import {mkdir, mkdtemp} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {expect, vi, type MockInstance} from 'vitest'
-import {runViewCommand} from '../../view.ts'
+import {runViewCommand} from '@/shell/edge/main/cli/commands/node/view'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) {
