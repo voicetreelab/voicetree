@@ -1,19 +1,23 @@
 // Tier-0 post-edit measure: name-uniqueness.
 //
-// Conforms to the per-edit-hook contract `checkFile({filePath, content})
-// → {message} | null`. Internally:
-//   1. Resolve `git show HEAD:<path>` (or null for an untracked file).
+// Conforms to the per-edit-hook contract `checkFile({filePath, content, env})
+// → {message, severity?} | null`. Internally:
+//   1. Resolve previous content via `env.gitFileAtHead` (or null for an
+//      untracked file).
 //   2. Compute the file's introduced declarations via extract-scope.
-//   3. Build (cached) name-uniqueness context, cache key = HEAD sha.
+//   3. Build (cached) name-uniqueness context, cache key = HEAD sha from
+//      `env.gitHeadSha`.
 //   4. Run `findNameUniquenessViolations`. Format any violations as a
 //      single multi-line message; return null when there are none.
+//
+// All impure capabilities (git invocations, file reads) come through
+// `env` (FP pattern 3 — Reader-env) so this file imports no fs / path /
+// child_process modules and the impurity boundary lives in the runner.
 //
 // Warn-mode escalation (per design.md Decision G): the measure ships in
 // warn-only for the first 7 days post-merge (returns a warning result that
 // the runner prints without blocking). On WARN_MODE_UNTIL we flip the
 // constant to false and start exit-2-blocking.
-
-import {execFileSync} from 'node:child_process'
 
 import {buildNameUniquenessContext} from '../../_shared/name-uniqueness/build-context.ts'
 import {extractScopeDeclarations} from '../../_shared/name-uniqueness/extract-scope.ts'
@@ -26,26 +30,11 @@ const WARN_MODE_UNTIL = '2026-06-02'
 
 const SOURCE_EXT_PATTERN = /\.(ts|tsx|js|jsx|mjs|cjs)$/
 
-function currentHeadSha(): string | null {
-    try {
-        return execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim()
-    } catch {
-        return null
-    }
-}
-
-function previousContentAtHead(filePath: string): string | null {
-    try {
-        const relPath = execFileSync('git', ['ls-files', '--full-name', '--', filePath], {
-            encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-        }).trim()
-        if (relPath.length === 0) return null
-        return execFileSync('git', ['show', `HEAD:${relPath}`], {
-            encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-        })
-    } catch {
-        return null
-    }
+// Narrow Reader-env: only the impure capabilities this measure needs.
+// Structurally compatible with the runner's full PerEditEnv.
+type Env = {
+    readonly gitHeadSha: () => string | null
+    readonly gitFileAtHead: (absOrRelPath: string) => string | null
 }
 
 function formatViolation(violation: ReturnType<typeof findNameUniquenessViolations>[number]): string {
@@ -81,9 +70,10 @@ function formatBlockMessage(filePath: string, violations: ReturnType<typeof find
 export async function checkFile(args: {
     readonly filePath: string
     readonly content: string
+    readonly env: Env
 }): Promise<{readonly message: string; readonly severity?: 'block' | 'warn'} | null> {
     if (!SOURCE_EXT_PATTERN.test(args.filePath)) return null
-    const previousContent = previousContentAtHead(args.filePath)
+    const previousContent = args.env.gitFileAtHead(args.filePath)
     const scope = extractScopeDeclarations({
         filePath: args.filePath,
         content: args.content,
@@ -91,7 +81,7 @@ export async function checkFile(args: {
     })
     if (scope.length === 0) return null
 
-    const context = await buildNameUniquenessContext({cacheKey: currentHeadSha()})
+    const context = await buildNameUniquenessContext({cacheKey: args.env.gitHeadSha()})
     const violations = findNameUniquenessViolations({
         scope,
         index: context.index,

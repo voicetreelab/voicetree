@@ -5,14 +5,19 @@
 // any measure violated (blocks the agent so it must refactor).
 //
 // All I/O lives here (the runner edge); the measures themselves are
-// pure transforms of {filePath, content} → violation | null. This
-// keeps checks/tier_0_post_edit/ in the pure core of measures/checks/.
+// pure transforms of {filePath, content, env} → violation | null. The
+// `env` argument (FP pattern 3, Reader-env) holds the impure capabilities
+// each measure may need — fs / path / git — so measure files declare a
+// narrow env shape in their own signature (structural typing) and never
+// import fs/path/child_process themselves. The impurity boundary stays
+// in this file.
 //
 // Invoked by .claude/hooks/run-per-edit.cjs and (via symlink)
 // .codex/hooks/run-per-edit.cjs.
 
+import {execFileSync} from 'node:child_process'
 import {readFile, readdir} from 'node:fs/promises'
-import {dirname, extname, join, resolve} from 'node:path'
+import {basename as pathBasename, dirname, extname, join, resolve as pathResolve} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
 
 type ToolEnvelope = {
@@ -23,13 +28,52 @@ type ToolEnvelope = {
     }
 }
 
-type PerEditMeasure = (args: {readonly filePath: string; readonly content: string}) =>
+type PerEditEnv = {
+    readonly readFile: (absPath: string) => Promise<string | null>
+    readonly basename: (absPath: string) => string
+    readonly resolve: (...parts: readonly string[]) => string
+    readonly gitToplevel: () => string | null
+    readonly gitHeadSha: () => string | null
+    readonly gitFileAtHead: (absOrRelPath: string) => string | null
+}
+
+type PerEditMeasure = (args: {
+    readonly filePath: string
+    readonly content: string
+    readonly env: PerEditEnv
+}) =>
     | {readonly message: string; readonly severity?: 'block' | 'warn'}
     | null
     | Promise<{readonly message: string; readonly severity?: 'block' | 'warn'} | null>
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const MEASURE_DIR = resolve(SCRIPT_DIR, '..', 'checks', 'tier_0_post_edit')
+const MEASURE_DIR = pathResolve(SCRIPT_DIR, '..', 'checks', 'tier_0_post_edit')
+
+function runGitOrNull(args: readonly string[]): string | null {
+    try {
+        return execFileSync('git', [...args], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        })
+    } catch {
+        return null
+    }
+}
+
+function buildEnv(): PerEditEnv {
+    return {
+        readFile: (absPath) => readFile(absPath, 'utf8').then(c => c as string | null).catch(() => null),
+        basename: (absPath) => pathBasename(absPath),
+        resolve: (...parts) => pathResolve(...parts),
+        gitToplevel: () => runGitOrNull(['rev-parse', '--show-toplevel'])?.trim() ?? null,
+        gitHeadSha: () => runGitOrNull(['rev-parse', 'HEAD'])?.trim() ?? null,
+        gitFileAtHead: (filePath) => {
+            const relPath = runGitOrNull(['ls-files', '--full-name', '--', filePath])?.trim()
+            if (relPath === null || relPath === undefined || relPath.length === 0) return null
+            return runGitOrNull(['show', `HEAD:${relPath}`])
+        },
+    }
+}
 
 async function readStdin(): Promise<string> {
     const chunks: Buffer[] = []
@@ -76,7 +120,8 @@ async function main(): Promise<number> {
         return 0
     }
     const measures = await discoverMeasures()
-    const settled = await Promise.all(measures.map(measure => measure({filePath, content})))
+    const env = buildEnv()
+    const settled = await Promise.all(measures.map(measure => measure({filePath, content, env})))
     const violations = settled.filter((v): v is {readonly message: string; readonly severity?: 'block' | 'warn'} => v !== null)
     if (violations.length === 0) return 0
     process.stderr.write(violations.map(v => v.message).join('\n') + '\n')
