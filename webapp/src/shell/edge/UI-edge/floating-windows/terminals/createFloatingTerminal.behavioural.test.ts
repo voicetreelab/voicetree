@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core, EdgeSingular } from 'cytoscape';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
-import { createTerminalData } from '@vt/agent-runtime/types';
+import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import {
     getShadowNodeId,

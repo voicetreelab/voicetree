@@ -26,31 +26,37 @@
  *     uses; only the *fake-agent* is mocked, the daemon + MCP + watch-folder
  *     are real.
  *
+ * Pre-existing damage (out of scope for the getMcpPort → /rpc migration):
+ *   The MCP→CLI cutover (commits 2651ade78, fab76e7d4, 15595a854) removed
+ *   the in-process MCP server and replaced its `.mcp.json` handshake with
+ *   `.voicetree/daemon-url` + `.voicetree/auth-token`. This harness still
+ *   discovers via `waitForMcpPort` (`.mcp.json` poll) and will time out
+ *   against a post-cutover app. The env-var swap below makes the
+ *   *spawned-fake-agent* contract correct; fixing the boot-path handshake
+ *   is a follow-up.
+ *
  * Run:
  *   npm run perf:main-storm:local -- --agents 5 --nodes-per-agent 5
  *   npm run perf:main-storm       -- --agents 5 --nodes-per-agent 5  (via Onidel)
  */
 
 import {
-    existsSync,
     mkdirSync,
     mkdtempSync,
     readFileSync,
     rmSync,
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
-import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
+import { terminalRuntimeSurface as agentRuntime } from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/agent-runtime/types'
-import { initGraphModel } from '@vt/graph-model'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import {
@@ -61,296 +67,30 @@ import {
     type MainProcessCdpHandle,
 } from './_shared/main-process-cdp.ts'
 
-// ---------------------------------------------------------------------------
-// Args
-// ---------------------------------------------------------------------------
+import {
+    buildAgentPrompt,
+    buildFakeAgentScript,
+    resolveFakeAgentEntrypoint,
+    resolveTsxImportPath,
+} from './agent-storm-helpers.ts'
 
-interface Args {
-    readonly agents: number
-    readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
-    readonly perAgentTimeoutMs: number
-    readonly bootTimeoutMs: number
-    readonly settleAfterStormMs: number
-    readonly outPath: string | null
-    readonly keepArtifacts: boolean
-}
-
-function parseArgs(argv: readonly string[]): Args {
-    const defaults: Args = {
-        agents: 5,
-        nodesPerAgent: 5,
-        vaultSeedNodeCount: 200,
-        perAgentTimeoutMs: 60_000,
-        bootTimeoutMs: 60_000,
-        settleAfterStormMs: 2_000,
-        outPath: null,
-        keepArtifacts: false,
-    }
-    let agents = defaults.agents
-    let nodesPerAgent = defaults.nodesPerAgent
-    let vaultSeedNodeCount = defaults.vaultSeedNodeCount
-    let perAgentTimeoutMs = defaults.perAgentTimeoutMs
-    let bootTimeoutMs = defaults.bootTimeoutMs
-    let settleAfterStormMs = defaults.settleAfterStormMs
-    let outPath = defaults.outPath
-    let keepArtifacts = defaults.keepArtifacts
-
-    const intArg = (raw: string | undefined, name: string): number => {
-        const n = Number.parseInt(raw ?? '', 10)
-        if (!Number.isInteger(n) || n < 0) throw new Error(`bad --${name}: ${raw}`)
-        return n
-    }
-
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i]
-        switch (a) {
-            case '--agents': agents = intArg(argv[++i], 'agents'); break
-            case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
-            case '--vault-seed-nodes': vaultSeedNodeCount = intArg(argv[++i], 'vault-seed-nodes'); break
-            case '--per-agent-timeout-ms': perAgentTimeoutMs = intArg(argv[++i], 'per-agent-timeout-ms'); break
-            case '--boot-timeout-ms': bootTimeoutMs = intArg(argv[++i], 'boot-timeout-ms'); break
-            case '--settle-after-storm-ms': settleAfterStormMs = intArg(argv[++i], 'settle-after-storm-ms'); break
-            case '--out': outPath = argv[++i] ?? null; break
-            case '--keep-artifacts': keepArtifacts = true; break
-            case '--help':
-            case '-h':
-                process.stdout.write(
-                    'electron-main-storm.ts: profile Electron main CPU under an N-agent fake-agent storm.\n'
-                    + '  --agents N                    parallel fake-agents (default 5)\n'
-                    + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
-                    + '  --vault-seed-nodes N          seed-vault size (default 200)\n'
-                    + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
-                    + '  --boot-timeout-ms MS          how long to wait for app boot + .mcp.json (default 60000)\n'
-                    + '  --settle-after-storm-ms MS   keep profiling N ms after last agent exits (default 2000)\n'
-                    + '  --out PATH                    .cpuprofile path (default ~/.voicetree/reports/electron-main-storm-<ts>.cpuprofile)\n'
-                    + '  --keep-artifacts              keep temp vault + userData after the run\n',
-                )
-                process.exit(0)
-                break
-            default:
-                throw new Error(`unknown argument: ${a}`)
-        }
-    }
-    return {
-        agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs,
-        bootTimeoutMs, settleAfterStormMs, outPath, keepArtifacts,
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Repo + binary resolution
-// ---------------------------------------------------------------------------
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const require = createRequire(import.meta.url)
-
-// measures/perf -> measures -> packages -> repo root
-const REPO_ROOT = resolve(__dirname, '..', '..', '..')
-
-function resolveElectronBinary(): string {
-    // `require('electron')` returns the absolute path to the platform binary
-    // (e.g. .../node_modules/electron/dist/electron on Linux,
-    //       .../node_modules/electron/dist/Electron.app/Contents/MacOS/Electron on macOS).
-    // Resolve from webapp/ so we get the workspace-local copy electron-vite uses.
-    const electronModuleEntry = require.resolve('electron', {
-        paths: [join(REPO_ROOT, 'webapp'), REPO_ROOT],
-    })
-    const binary = require(electronModuleEntry) as unknown
-    if (typeof binary !== 'string') {
-        throw new Error(`require('electron') did not return a string path (got ${typeof binary})`)
-    }
-    if (!existsSync(binary)) {
-        throw new Error(
-            `electron binary missing at ${binary}\n`
-            + `The electron npm package was installed but its postinstall didn't download the\n`
-            + `platform binary. Run \`npm rebuild electron\` (or reinstall) on this machine.`,
-        )
-    }
-    return binary
-}
-
-function resolveMainBundleEntry(): string {
-    const entry = join(REPO_ROOT, 'webapp', 'dist-electron', 'main', 'index.js')
-    if (!existsSync(entry)) {
-        throw new Error(
-            `Built electron main bundle missing at ${entry}.\n`
-            + `Run \`npm --workspace webapp exec -- electron-vite build\` first.`,
-        )
-    }
-    return entry
-}
-
-function resolveFakeAgentEntrypoint(): { dir: string; entry: string } {
-    const dir = join(REPO_ROOT, 'tools', 'vt-fake-agent')
-    const entry = join(dir, 'src', 'index.ts')
-    if (!existsSync(entry)) throw new Error(`vt-fake-agent entrypoint not found at ${entry}`)
-    return { dir, entry }
-}
-
-function resolveTsxImportPath(): string {
-    return require.resolve('tsx')
-}
-
-// ---------------------------------------------------------------------------
-// Electron lifecycle
-// ---------------------------------------------------------------------------
-
-/**
- * Spawn the prebuilt electron app with `--inspect=0` and capture the inspect
- * port from stderr. Returns once Node has emitted the `Debugger listening` line.
- */
-async function spawnElectron(args: {
-    electronBinary: string
-    mainEntry: string
-    userDataDir: string
-    openFolder: string
-    bootTimeoutMs: number
-}): Promise<{ proc: ChildProcessWithoutNullStreams; inspectPort: number }> {
-    // Linux dev boxes (Onidel) run as root and have no X server; mirror the
-    // flag set used by webapp's e2e specs (no-sandbox + swiftshader + dev-shm).
-    // On macOS none of these are needed.
-    const linuxFlags = process.platform === 'linux'
-        ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
-        : []
-    const proc = spawn(
-        args.electronBinary,
-        [
-            '--inspect=0',
-            ...linuxFlags,
-            args.mainEntry,
-            `--user-data-dir=${args.userDataDir}`,
-            // --open-folder bypasses the project-picker UI and tells main to
-            // open this vault directly on launch (see environment-config.ts).
-            '--open-folder', args.openFolder,
-        ],
-        {
-            env: {
-                ...process.env,
-                NODE_ENV: 'test',
-                VOICETREE_PERSIST_STATE: '1',
-            },
-            stdio: ['ignore', 'pipe', 'pipe'],
-        },
-    ) as ChildProcessWithoutNullStreams
-
-    const inspectPort = await new Promise<number>((resolveP, rejectP) => {
-        const timeout = setTimeout(
-            () => rejectP(new Error(`timed out waiting for --inspect port after ${args.bootTimeoutMs}ms`)),
-            args.bootTimeoutMs,
-        )
-        let stderrBuf = ''
-        proc.stderr.on('data', (chunk: Buffer) => {
-            const text = chunk.toString()
-            stderrBuf += text
-            // Echo electron stderr to our stderr so boot errors are visible.
-            process.stderr.write(`[electron] ${text}`)
-            const match = stderrBuf.match(/Debugger listening on ws:\/\/127\.0\.0\.1:(\d+)\//)
-            if (match) {
-                clearTimeout(timeout)
-                resolveP(Number.parseInt(match[1], 10))
-            }
-        })
-        proc.on('error', (err) => { clearTimeout(timeout); rejectP(err) })
-        proc.on('exit', (code, signal) => {
-            clearTimeout(timeout)
-            rejectP(new Error(`electron exited before inspect port appeared (code=${code} signal=${signal})`))
-        })
-    })
-
-    // Continue echoing electron stdout for visibility, but stop accumulating.
-    proc.stdout.on('data', (chunk: Buffer) => {
-        process.stderr.write(`[electron] ${chunk.toString()}`)
-    })
-    return { proc, inspectPort }
-}
-
-/**
- * Poll `<vault>/.mcp.json` for the voicetree MCP port. This file is written by
- * the electron app once its in-process MCP server has bound a port.
- */
-async function waitForMcpPort(vault: string, timeoutMs: number): Promise<number> {
-    const mcpPath = join(vault, '.mcp.json')
-    const deadline = Date.now() + timeoutMs
-    while (Date.now() < deadline) {
-        if (existsSync(mcpPath)) {
-            try {
-                const raw = readFileSync(mcpPath, 'utf8')
-                const cfg = JSON.parse(raw) as {
-                    mcpServers?: Record<string, { url?: string }>
-                }
-                const url = cfg.mcpServers?.voicetree?.url
-                if (url) {
-                    const m = url.match(/:(\d+)\/mcp$/)
-                    if (m) return Number.parseInt(m[1], 10)
-                }
-            } catch {
-                // file may be mid-write; retry
-            }
-        }
-        await new Promise((r) => setTimeout(r, 200))
-    }
-    throw new Error(`timed out waiting for ${mcpPath} after ${timeoutMs}ms`)
-}
-
-async function stopElectron(proc: ChildProcessWithoutNullStreams): Promise<void> {
-    if (proc.exitCode !== null || proc.signalCode !== null) return
-    proc.kill('SIGTERM')
-    await new Promise<void>((resolveP) => {
-        const force = setTimeout(() => { try { proc.kill('SIGKILL') } catch { /* */ } }, 5000)
-        proc.on('exit', () => { clearTimeout(force); resolveP() })
-    })
-}
+import {
+    parseElectronMainStormArgs,
+    resolveElectronBinary,
+    resolveMainBundleEntry,
+    spawnElectron,
+    stopElectron,
+    waitForExitOrTimeout,
+    waitForMcpPort,
+    type AgentResult,
+} from './electron-main-storm-helpers.ts'
 
 // ---------------------------------------------------------------------------
 // Fake-agent storm
 // ---------------------------------------------------------------------------
 
-function buildFakeAgentScript(nodesPerAgent: number): object {
-    const actions: object[] = []
-    for (let i = 0; i < nodesPerAgent; i++) {
-        actions.push({
-            type: 'create_node',
-            title: `Perf Node ${i}`,
-            summary: `Synthetic node ${i} from electron-main-storm.`,
-            content: `Node body ${i}.`,
-        })
-    }
-    actions.push({ type: 'exit', code: 0 })
-    return { actions }
-}
-
-interface AgentResult {
-    readonly terminalId: string
-    readonly spawnSuccess: boolean
-    readonly exitCode: number | null
-    readonly exitedAtMs: number | null
-    readonly errorMessage?: string
-}
-
-async function waitForExit(
-    terminalId: string,
-    exitedTerminals: Map<string, { code: number; atMs: number }>,
-    timeoutMs: number,
-): Promise<{ code: number; atMs: number } | null> {
-    const deadline = Date.now() + timeoutMs
-    while (Date.now() < deadline) {
-        const found = exitedTerminals.get(terminalId)
-        if (found) return found
-        const record = agentRuntime.getTerminalRecords().find((r) => r.terminalId === terminalId)
-        if (record?.status === 'exited') {
-            const entry = { code: 0, atMs: Date.now() }
-            exitedTerminals.set(terminalId, entry)
-            return entry
-        }
-        await new Promise((r) => setTimeout(r, 200))
-    }
-    return null
-}
-
 async function runStorm(args: {
-    mcpPort: number
+    daemonUrl: string
     vault: string
     appSupport: string
     agents: number
@@ -360,23 +100,19 @@ async function runStorm(args: {
     const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
     const tsxImportPath = resolveTsxImportPath()
 
-    // graph-model is initialised by `startDaemon` in the daemon-only harness;
-    // here Electron owns the daemon, so init it locally for the in-process
-    // agentRuntime (`loadSettings` → `getSettingsPath` → `getConfig`).
-    initGraphModel({ appSupportPath: args.appSupport })
+    // Set VOICETREE_APP_SUPPORT so every leaf in this process resolves the
+    // perf-test app-support dir via resolveAppSupportPath().
+    process.env.VOICETREE_APP_SUPPORT = args.appSupport
 
     configureAgentRuntime({
-        env: {
-            getAppSupportPath: (): string => args.appSupport,
-            getMcpPort: (): number => args.mcpPort,
-        },
+        env: {},
     })
 
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 
     const script = buildFakeAgentScript(args.nodesPerAgent)
-    const agentPrompt = `### FAKE_AGENT_SCRIPT ###\n${JSON.stringify(script)}\n### END_FAKE_AGENT_SCRIPT ###`
+    const agentPrompt = buildAgentPrompt(script)
 
     const exitedTerminals = new Map<string, { code: number; atMs: number }>()
     const onData = (_id: string, _data: string): void => { /* drop; profile is the artifact */ }
@@ -389,7 +125,7 @@ async function runStorm(args: {
         const terminalId = `perf-agent-${i}` as TerminalId
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_MCP_PORT: String(args.mcpPort),
+            VOICETREE_DAEMON_URL: args.daemonUrl,
             VOICETREE_VAULT_PATH: args.vault,
             TASK_NODE_PATH: `${args.vault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
@@ -423,7 +159,11 @@ async function runStorm(args: {
                     errorMessage: spawnRes.error ?? 'spawn failed',
                 }
             }
-            const exit = await waitForExit(terminalId, exitedTerminals, args.perAgentTimeoutMs)
+            const exit = await waitForExitOrTimeout(
+                () => exitedTerminals.get(terminalId),
+                () => agentRuntime.getTerminalRecords().find((r) => r.terminalId === terminalId)?.status === 'exited',
+                args.perAgentTimeoutMs,
+            )
             return {
                 terminalId,
                 spawnSuccess: true,
@@ -441,7 +181,7 @@ async function runStorm(args: {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-    const args = parseArgs(process.argv.slice(2))
+    const args = parseElectronMainStormArgs(process.argv.slice(2))
 
     const electronBinary = resolveElectronBinary()
     const mainEntry = resolveMainBundleEntry()
@@ -468,8 +208,15 @@ async function main(): Promise<void> {
         const inspectPort = spawned.inspectPort
         process.stdout.write(`[main-storm] electron pid=${electronProc.pid} inspect=${inspectPort}\n`)
 
+        // NOTE: waitForMcpPort still polls `.mcp.json`, which the post-cutover
+        // Electron app no longer writes — discovery will time out against
+        // current main. Replacing the discovery primitive (poll
+        // `.voicetree/rpc.port` + `.voicetree/auth-token` via @vt/vt-rpc) is
+        // tracked as follow-up. This harness only carries the field rename;
+        // the boot-path handshake fix is a separate scope.
         const mcpPort = await waitForMcpPort(tempVault, args.bootTimeoutMs)
-        process.stdout.write(`[main-storm] discovered MCP port=${mcpPort}\n`)
+        const daemonUrl = `http://127.0.0.1:${mcpPort}`
+        process.stdout.write(`[main-storm] discovered daemon at ${daemonUrl}\n`)
 
         // Start the CPU profiler *before* the storm so all spawn-time cost is
         // captured. The first inspector connection can race with the daemon's
@@ -480,7 +227,7 @@ async function main(): Promise<void> {
 
         const stormStart = Date.now()
         const results = await runStorm({
-            mcpPort,
+            daemonUrl,
             vault: tempVault,
             appSupport: tempAppSupport,
             agents: args.agents,

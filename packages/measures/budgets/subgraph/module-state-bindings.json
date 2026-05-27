@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "refreshedAt": "2026-05-25T03:46:40.890Z",
+  "refreshedAt": "2026-05-24T09:29:35.211Z",
   "byCommunity": {
     "agent-runtime/api": 0,
-    "agent-runtime/application": 10,
+    "agent-runtime/application": 9,
     "app-config/__root__": 0,
     "app-config/positions": 0,
     "app-config/project": 0,
@@ -38,19 +38,15 @@
     "measures/__root__": 0,
     "measures/_runners": 0,
     "measures/_shared": 1,
-    "measures/_subgraph_gate": 0,
     "measures/checks": 0,
-    "measures/correctness": 0,
     "measures/health": 0,
-    "observability/__root__": 2,
-    "perf-fixtures/__root__": 0,
     "share-worker/__root__": 0,
-    "voicetree-mcp/agents": 1,
-    "voicetree-mcp/config": 0,
-    "voicetree-mcp/create-graph": 0,
-    "voicetree-mcp/tools": 0,
-    "vt-fake-agent/__root__": 1,
-    "webapp/shell": 78,
+    "vt-daemon/agents": 1,
+    "vt-daemon/config": 0,
+    "vt-daemon/create-graph": 0,
+    "vt-daemon/tools": 0,
+    "vt-fake-agent/__root__": 0,
+    "webapp/shell": 71,
     "webapp/utils": 2
   }
 }

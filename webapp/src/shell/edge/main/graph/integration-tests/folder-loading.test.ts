@@ -21,10 +21,8 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching, getProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { openVault, stopFileWatching, isWatching, getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
-import { setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import * as O from 'fp-ts/lib/Option.js'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
@@ -55,19 +53,17 @@ const MIN_LARGE_NODE_COUNT: 75 = 75 as const
 const INTEGRATION_TEST_TIMEOUT_MS: 30000 = 30000 as const
 
 async function loadFixtureFolder(folderPath: string): Promise<void> {
-  await loadFolder(folderPath, { includeActiveViewExpandedPaths: false })
+  await openVault(folderPath)
   await waitForCondition(
     () => Object.keys(getGraph().nodes).some(nodePath => nodePath.startsWith(`${folderPath}${path.sep}`)),
     { maxWaitMs: 10000, errorMessage: `Graph did not populate for loaded fixture folder: ${folderPath}` }
   )
 }
 
-function expectWatchedDirectory(expected: string): void {
-  const projectRoot: O.Option<string> = getProjectRoot()
-  expect(O.isSome(projectRoot)).toBe(true)
-  if (O.isSome(projectRoot)) {
-    expect(projectRoot.value).toBe(expected)
-  }
+async function expectWatchedDirectory(expected: string): Promise<void> {
+  const status = await getWatchStatus()
+  expect(status.isWatching).toBe(true)
+  expect(status.directory).toBe(expected)
 }
 
 // State for mocks
@@ -136,21 +132,19 @@ describe.skip('Folder Loading - Integration Tests', () => {
     broadcastCalls = []
 
     // Initialize graph model with test callbacks that mirror Electron IPC channels.
-    initGraphModel(
-      { appSupportPath: path.join(tempFixtureRoot, 'app-support') },
-      {
-        onGraphCleared: (): void => {
-          broadcastCalls.push({ channel: 'graph:clear', delta: [] })
-        },
-        onWatchingStarted: (): void => {
-          broadcastCalls.push({ channel: 'watching-started', delta: [] })
-        }
+    const appSupport = path.join(tempFixtureRoot, 'app-support')
+    process.env.VOICETREE_APP_SUPPORT = appSupport
+    initGraphModel({
+      onGraphCleared: (): void => {
+        broadcastCalls.push({ channel: 'graph:clear', delta: [] })
+      },
+      onWatchingStarted: (): void => {
+        broadcastCalls.push({ channel: 'watching-started', delta: [] })
       }
-    )
+    })
 
     // Reset graph state
     setGraph(createGraph({}))
-    setProjectRoot('')
 
     await saveVaultConfigForDirectory(exampleSmallPath, {
       writeFolder: path.join(exampleSmallPath, 'voicetree')
@@ -350,7 +344,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       expect(firstBroadcastCount).toBeGreaterThan(0)
 
       // Verify that file watcher was set up after loading
-      expect(isWatching()).toBe(true)
+      expect(await isWatching()).toBe(true)
 
       // STEP 1b: Test file addition and deletion by simulating FS events
       // Clear broadcasts from initial load
@@ -490,7 +484,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       })
 
       // Verify that file watcher was set up after loading
-      expect(isWatching()).toBe(true)
+      expect(await isWatching()).toBe(true)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should not throw when switching vaults while a previous load is not connected to the daemon', async () => {
@@ -500,19 +494,17 @@ describe.skip('Folder Loading - Integration Tests', () => {
       //
       // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
       // second load seeing stale state from the first (daemon not yet connected).
-      setProjectRoot(exampleSmallPath)
       // The old load implementation attempted writeCurrentPositionsThroughDaemon and
       // had to avoid propagating that error.
 
-      const result = await loadFolder(exampleLargePath)
-      expect(result.success).toBe(true)
-      expectWatchedDirectory(exampleLargePath)
+      await openVault(exampleLargePath)
+      await expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should detect file addition and deletion after folder is loaded', async () => {
       // GIVEN: Load a folder and wait for watcher to be ready
       await loadFixtureFolder(exampleSmallPath)
-      expect(isWatching()).toBe(true)
+      expect(await isWatching()).toBe(true)
 
       // Clear broadcasts from initial load
       broadcastCalls.length = 0
@@ -720,27 +712,27 @@ describe.skip('Folder Loading - Integration Tests', () => {
     it('should update projectRoot immediately when loadFolder is called', async () => {
       // GIVEN: Load the first folder
       await loadFixtureFolder(exampleSmallPath)
-      expectWatchedDirectory(exampleSmallPath)
+      await expectWatchedDirectory(exampleSmallPath)
 
       // WHEN: Load a different folder
       await loadFixtureFolder(exampleLargePath)
 
-      // THEN: projectRoot should be updated to the new folder
-      expectWatchedDirectory(exampleLargePath)
+      // THEN: projectRootWatchedDirectory should be updated to the new folder
+      await expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should maintain projectRoot even after switching folders multiple times', async () => {
       // Load folder A
       await loadFixtureFolder(exampleSmallPath)
-      expectWatchedDirectory(exampleSmallPath)
+      await expectWatchedDirectory(exampleSmallPath)
 
       // Load folder B
       await loadFixtureFolder(exampleLargePath)
-      expectWatchedDirectory(exampleLargePath)
+      await expectWatchedDirectory(exampleLargePath)
 
       // Load folder A again
       await loadFixtureFolder(exampleSmallPath)
-      expectWatchedDirectory(exampleSmallPath)
+      await expectWatchedDirectory(exampleSmallPath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 })

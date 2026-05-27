@@ -17,7 +17,7 @@ export const CONTRACT_VERSION = '0.2.0'
  */
 export const HealthOwnerSchema = z.object({
   schemaVersion: z.literal(1),
-  canonicalProjectRoot: z.string().min(1),
+  canonicalVault: z.string().min(1),
   pid: z.number().int().positive(),
   ppid: z.number().int().nonnegative(),
   port: z.number().int().min(0).max(65535),
@@ -39,6 +39,51 @@ export const HealthResponseSchema = z.object({
   owner: HealthOwnerSchema.nullable(),
 })
 export type HealthResponse = z.infer<typeof HealthResponseSchema>
+
+/**
+ * vt-daemon (VTD) `/health` wire shapes (BF-372).
+ *
+ * Sibling of {@link HealthOwnerSchema} / {@link HealthResponseSchema} above.
+ * Both daemons report the same identity tuple but tag the response with a
+ * distinct `daemonKind` so a probe (parameterised by `daemonKind`) can
+ * verify it is talking to the daemon it expected.
+ *
+ * Co-located here — not under `vt-daemon` — to avoid a would-be cycle:
+ * `@vt/daemon-lifecycle` (which hosts `probeOwnerHealth`) needs the VTD
+ * schema to validate responses, and `@vt/vt-daemon` already depends on
+ * `@vt/daemon-lifecycle`. Sibling co-location keeps both wire shapes in
+ * one protocol-level package without runtime import cycles.
+ */
+export const VtDaemonHealthOwnerSchema = z.object({
+  schemaVersion: z.literal(1),
+  canonicalVault: z.string().min(1),
+  pid: z.number().int().positive(),
+  ppid: z.number().int().nonnegative(),
+  port: z.number().int().min(0).max(65535),
+  ownerNonce: z.string().min(1),
+  contractVersion: z.string().min(1),
+})
+export type VtDaemonHealthOwner = z.infer<typeof VtDaemonHealthOwnerSchema>
+
+export const VtDaemonHealthResponseSchema = z.object({
+  version: z.string(),
+  vault: z.string().nullable(),
+  uptimeSeconds: z.number().nonnegative(),
+  /**
+   * Discriminator. Tagged so a probe that asked for `'vtd'` cannot
+   * silently accept a graphd `HealthResponse` that happens to share the
+   * other fields. The graphd schema has no `daemonKind` field; the VTD
+   * schema requires this literal.
+   */
+  daemonKind: z.literal('vtd'),
+  /**
+   * Owner identity. `null` during the vaultless startup window between
+   * `claimVtDaemonOwner` and `ownerHandle.bindPort` (the handle's
+   * `health()` getter returns `null` until the port is bound).
+   */
+  owner: VtDaemonHealthOwnerSchema.nullable(),
+})
+export type VtDaemonHealthResponse = z.infer<typeof VtDaemonHealthResponseSchema>
 
 export const ShutdownResponseSchema = z.object({
   ok: z.literal(true),

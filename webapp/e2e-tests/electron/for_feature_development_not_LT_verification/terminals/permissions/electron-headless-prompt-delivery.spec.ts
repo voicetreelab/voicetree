@@ -17,6 +17,11 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import {
+    getBearerToken,
+    getDaemonRpcUrl,
+    rpcCallTool,
+} from '../../../critical_e2e_verification_tests/helpers/e2e-rpc-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
@@ -30,7 +35,6 @@ interface ExtendedWindow {
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
             saveSettings: (settings: Record<string, unknown>) => Promise<boolean>;
-            getMcpPort: () => Promise<number>;
         };
         terminal: {
             spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
@@ -149,83 +153,6 @@ const test = base.extend<{
     }
 });
 
-// ─── MCP HTTP Helpers ────────────────────────────────────────────────────────
-
-async function waitForMcpServer(mcpUrl: string, maxRetries = 20, delayMs = 1000): Promise<boolean> {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(mcpUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/event-stream'
-                },
-                body: JSON.stringify({
-                    jsonrpc: '2.0', id: 0, method: 'initialize',
-                    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'healthcheck', version: '1.0.0' } }
-                })
-            });
-            if (response.ok) {
-                console.log(`[Prompt Delivery] MCP server available after ${i + 1} attempts`);
-                return true;
-            }
-        } catch {
-            if (i % 5 === 0) console.log(`[Prompt Delivery] MCP server not ready, attempt ${i + 1}/${maxRetries}`);
-        }
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-    return false;
-}
-
-async function mcpRequest(mcpUrl: string, method: string, params: Record<string, unknown> = {}, id = 1): Promise<unknown> {
-    const response = await fetch(mcpUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({ jsonrpc: '2.0', id, method, params })
-    });
-    const text = await response.text();
-    return JSON.parse(text);
-}
-
-async function mcpCallTool(
-    mcpUrl: string,
-    toolName: string,
-    args: Record<string, unknown>
-): Promise<{
-    success: boolean;
-    content?: Array<{ type: string; text: string }>;
-    isError?: boolean;
-    parsed?: Record<string, unknown>;
-}> {
-    const response = await mcpRequest(mcpUrl, 'tools/call', {
-        name: toolName,
-        arguments: args
-    }) as {
-        result?: { content?: Array<{ type: string; text: string }>; isError?: boolean };
-        error?: { message: string };
-    };
-
-    if (response.error) {
-        throw new Error(`MCP error: ${response.error.message}`);
-    }
-
-    const content = response.result?.content;
-    if (content && content[0]?.text) {
-        const parsed = JSON.parse(content[0].text) as Record<string, unknown>;
-        return {
-            success: parsed.success as boolean,
-            content,
-            isError: response.result?.isError,
-            parsed
-        };
-    }
-
-    return { success: false };
-}
-
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Headless Agent Prompt Delivery', () => {
@@ -233,34 +160,12 @@ test.describe('Headless Agent Prompt Delivery', () => {
 
     test('headless agent receives prompt via env var expansion', async ({ appWindow }) => {
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 1: Discover MCP port
+        // STEP 1: Discover daemon /rpc + bearer token
         // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 1: Discover MCP port ===');
-        const mcpPort: number = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
-            return await api.main.getMcpPort();
-        });
-        const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-        console.log(`[Prompt Delivery] MCP port: ${mcpPort}`);
-
-        // ═══════════════════════════════════════════════════════════════════
-        // STEP 2: Wait for MCP server
-        // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 2: Wait for MCP server ===');
-        const serverReady = await waitForMcpServer(mcpUrl, 20, 1000);
-        if (!serverReady) {
-            console.log('[Prompt Delivery] MCP server not available');
-            test.skip();
-            return;
-        }
-
-        await mcpRequest(mcpUrl, 'initialize', {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: { name: 'prompt-delivery-e2e-test', version: '1.0.0' }
-        });
-        console.log('[Prompt Delivery] MCP initialized');
+        console.log('=== STEP 1: Discover daemon /rpc + bearer token ===');
+        const rpcUrl: string = await getDaemonRpcUrl(appWindow);
+        const token: string = await getBearerToken(appWindow);
+        console.log(`[Prompt Delivery] Daemon: ${rpcUrl}`);
 
         // ═══════════════════════════════════════════════════════════════════
         // STEP 3: Wait for graph to load
@@ -333,7 +238,7 @@ test.describe('Headless Agent Prompt Delivery', () => {
         // STEP 6: Spawn headless echo agent via MCP
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 6: Spawn headless echo agent ===');
-        const headlessResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        const headlessResult = await rpcCallTool(rpcUrl, token, 'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId: callerTerminalId,
             headless: true
@@ -352,7 +257,7 @@ test.describe('Headless Agent Prompt Delivery', () => {
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 7: Wait for agent exit ===');
         await expect.poll(async () => {
-            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const result = await rpcCallTool(rpcUrl, token, 'list_agents', {});
             const agents = (result.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -369,7 +274,7 @@ test.describe('Headless Agent Prompt Delivery', () => {
         // STEP 8: Read terminal output and verify prompt delivery
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 8: Verify prompt delivery via output ===');
-        const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+        const readResult = await rpcCallTool(rpcUrl, token, 'read_terminal_output', {
             terminalId: headlessTerminalId,
             callerTerminalId: callerTerminalId
         });
@@ -390,7 +295,7 @@ test.describe('Headless Agent Prompt Delivery', () => {
         // ═══════════════════════════════════════════════════════════════════
         console.log('');
         console.log('=== HEADLESS PROMPT DELIVERY E2E TEST SUMMARY ===');
-        console.log('[Pass] MCP server started and initialized');
+        console.log('[Pass] Daemon /rpc reachable');
         console.log('[Pass] Vault loaded into graph');
         console.log('[Pass] Caller terminal registered');
         console.log('[Pass] Headless echo agent spawned');

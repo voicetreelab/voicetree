@@ -18,10 +18,7 @@ describe('handleFSEvent agent_name detection', () => {
         agentNameCallback = vi.fn()
         clearRecentDeltas()
         setGraph(createEmptyGraph())
-        initGraphModel(
-            { appSupportPath: '/tmp/test-agent-name-detection' },
-            { onFSNodeWithAgentName: agentNameCallback },
-        )
+        initGraphModel({ onFSNodeWithAgentName: agentNameCallback })
     })
 
     it('fires onFSNodeWithAgentName for a new node with agent_name frontmatter', async () => {

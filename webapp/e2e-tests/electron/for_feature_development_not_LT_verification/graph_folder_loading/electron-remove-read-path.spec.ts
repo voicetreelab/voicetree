@@ -79,7 +79,7 @@ This node is in the read-vault and should be removed when vault is removed.
   },
 
   tempUserDataPath: async ({}, use) => {
-    const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-remove-read-path-userdata-'));
+    const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-removepath-userdata-'));
     await use(tempPath);
     // Cleanup
     await fs.rm(tempPath, { recursive: true, force: true });

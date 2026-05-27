@@ -15,7 +15,7 @@ import {
     getProject,
     mutateProject,
     type ProjectState,
-} from '@vt/graph-db-server/application/workflows/projectState'
+} from '@vt/graph-db-server/application/workflows/state/projectState'
 import { onViewSwitched } from './viewsStore'
 import { getWatchRootsForActiveView } from '../watch-folder/folder-visibility-active-view'
 import { getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist'
@@ -34,7 +34,9 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
         }).process
     if (!maybeProcess?.env) return DEFAULT_WATCHER_OPTIONS
     return createWatcherOptions(
-        maybeProcess.env.HEADLESS_TEST === '1' || maybeProcess.env.NODE_ENV === 'test'
+        maybeProcess.env.HEADLESS_TEST === '1' ||
+        maybeProcess.env.NODE_ENV === 'test' ||
+        maybeProcess.env.NODE_ENV === 'development'
     )
 }
 

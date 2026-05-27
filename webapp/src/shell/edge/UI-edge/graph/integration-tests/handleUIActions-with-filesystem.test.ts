@@ -27,7 +27,6 @@ import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import {
     applyDeltaToTestProjectionState,
@@ -128,18 +127,6 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
     }
 })
 
-// Import IPC handlers once at module level
-let handlersImported: boolean = false
-async function ensureHandlersImported(): Promise<void> {
-    if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
-        registerTerminalIpcHandlers(
-            {} as any, // terminalManager
-            () => '' // getToolsDirectory
-        )
-        handlersImported = true
-    }
-}
 
 function installWindowElectronApi(cy: Core): void {
     if (!global.window) {
@@ -174,16 +161,14 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
 
     beforeEach(async () => {
         resetTestProjectionState()
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
+        initGraphModel({})
         // Import IPC handlers once - they auto-register on import
-        await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-ui-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
 
         // Set vault path in graph store and real graph-model state
         setProjectRootReal(tempVault)
-        setProjectRoot(tempVault)
 
         // Create initial markdown files with frontmatter and wikilinks
         await fs.writeFile(
@@ -219,7 +204,7 @@ Child content`
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.of({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             },
@@ -230,7 +215,7 @@ Child content`
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.of({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }
@@ -350,16 +335,14 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
     let mockGraph: Graph
 
     beforeEach(async () => {
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
+        initGraphModel({})
         // Import IPC handlers once - they auto-register on import
-        await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-delete-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
 
         // Set vault path in graph store and real graph-model state
         setProjectRootReal(tempVault)
-        setProjectRoot(tempVault)
 
         // Create initial markdown files
         await fs.writeFile(
@@ -395,7 +378,7 @@ Child content`
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.of({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             },
@@ -406,7 +389,7 @@ Child content`
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.of({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }

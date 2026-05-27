@@ -2,6 +2,8 @@
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
 import type { mainAPI } from '@/shell/edge/main/runtime/api';
+import type { ConnectionState, EventFrame, GapFrame, TopicName } from '@vt/vt-daemon/transport/eventTypes';
+import type { RelayConnectionStatus } from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
 
 // Re-export TerminalData for use in terminal API
 
@@ -36,12 +38,28 @@ export interface ElectronAPI {
   onViewSwitched: (callback: (data: { activeViewId: string }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
-  // Terminal operations. Tmux-backed terminals talk to the relay over a
-  // renderer-side WebSocket for input/output; the only IPC needed at spawn
-  // time is session creation. Text injection from non-TerminalVanilla
-  // callers goes through `main.sendTextToTerminal` in mainAPI.
+  // Terminal operations (Phase 0 / BF-367+368). Tmux-backed terminals:
+  // `attach` opens a Main-owned `/terminals/:id/attach` WebSocket and
+  // returns an opaque handle id. Renderer-side I/O flows over IPC; the
+  // bearer token never enters the renderer. Text injection from
+  // non-TerminalVanilla callers goes through `main.sendTextToTerminal`.
+  // Spawn moved to vt-daemon-client RPC + terminal-registry SSE in
+  // Phase 2 BF-376; the renderer no longer initiates spawn here.
   terminal: {
-    spawn: (nodeMetadata?: TerminalData) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
+    attach: (terminalId: string) => Promise<string>;
+    onData: (handle: string, listener: (data: string) => void) => () => void;
+    onStatus: (handle: string, listener: (status: RelayConnectionStatus) => void) => () => void;
+    write: (handle: string, data: string) => Promise<boolean>;
+    resize: (handle: string, cols: number, rows: number) => Promise<boolean>;
+    detach: (handle: string) => Promise<boolean>;
+  };
+
+  // VTD /events stream — Main holds the WebSocket; renderer receives frames
+  // via IPC. `on(topic, …)` filters per-topic in the preload wrapper.
+  events: {
+    on: (topic: TopicName, listener: (frame: EventFrame | GapFrame) => void) => () => void;
+    onConnectionState: (listener: (state: ConnectionState) => void) => () => void;
+    resnapshot: (topic: TopicName) => Promise<void>;
   };
 
   // Backend log streaming

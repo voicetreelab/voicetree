@@ -6,7 +6,6 @@ import { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreO
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from "@vt/graph-model/settings";
-import { initGraphModel } from '@vt/graph-model';
 
 vi.mock('electron', () => ({
   app: {
@@ -15,16 +14,23 @@ vi.mock('electron', () => ({
 }));
 
 let testUserDataPath: string;
+let originalEnv: string | undefined;
 
 describe('settings', () => {
   beforeEach(async () => {
     testUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'settings-test-'));
-    initGraphModel({ appSupportPath: testUserDataPath });
+    originalEnv = process.env.VOICETREE_APP_SUPPORT;
+    process.env.VOICETREE_APP_SUPPORT = testUserDataPath;
     clearSettingsCache();
   });
 
   afterEach(async () => {
     await fs.rm(testUserDataPath, { recursive: true, force: true });
+    if (originalEnv === undefined) {
+      delete process.env.VOICETREE_APP_SUPPORT;
+    } else {
+      process.env.VOICETREE_APP_SUPPORT = originalEnv;
+    }
   });
 
   it('should create file with defaults on first run', async () => {

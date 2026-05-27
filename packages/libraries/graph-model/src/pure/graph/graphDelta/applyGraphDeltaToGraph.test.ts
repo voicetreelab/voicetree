@@ -20,7 +20,7 @@ function makeNode(
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     }
 }
@@ -66,7 +66,7 @@ describe('applyGraphDeltaToGraph', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
             const graph: Graph = makeGraph([existingNode])
@@ -157,7 +157,7 @@ describe('applyGraphDeltaToGraph', () => {
                 nodeUIMetadata: {
                     color: O.some('blue'),
                     position: O.some({ x: 300, y: 400 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
             const graph: Graph = makeGraph([oldNode])
@@ -182,7 +182,7 @@ describe('applyGraphDeltaToGraph', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
             const graph: Graph = makeGraph([oldNode])
@@ -192,7 +192,7 @@ describe('applyGraphDeltaToGraph', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 500, y: 600 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
             const delta: GraphDelta = [

@@ -3,8 +3,11 @@ import {BrowserWindow, screen} from 'electron';
 import path from 'path';
 import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
-import {terminalRuntimeSurface, type TerminalManager} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
-import {cleanupTerminalsForWindow} from '@/shell/edge/main/agent/terminals/terminal-window-tracker';
+import {
+    getCachedTerminalRecords,
+    subscribeToTerminalRegistryCache,
+} from '@/shell/edge/main/agent/terminals/terminal-registry-bridge';
+import type {TerminalRecord} from '@vt/vt-daemon-client';
 import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {recordAppUsage} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
@@ -70,11 +73,15 @@ export function stopTrackpadMonitoring(): void {
 
 /**
  * Create the main BrowserWindow, load the appropriate content (dev server
- * or production dist), wire up macOS hide-on-close, terminal cleanup,
- * trackpad detection, and focus tracking.
+ * or production dist), wire up macOS hide-on-close, trackpad detection,
+ * and focus tracking.
+ *
+ * Post-BF-376: tmux PTY lifetimes are owned by the per-vault VTD, so the
+ * window-close path no longer issues a `cleanupForWindow` call into an
+ * in-process `TerminalManager` — sessions persist on the daemon's tmux
+ * server across window destruction (matching dock-hide semantics).
  */
 export function createWindow(deps: {
-    terminalManager: TerminalManager;
     isQuitting: () => boolean;
 }): void {
     // Note: BrowserWindow icon property only works on Windows/Linux
@@ -105,9 +112,6 @@ export function createWindow(deps: {
             preload: path.join(appRuntimeDir, '../preload/index.js')
         }
     });
-
-    // Capture window ID before it gets destroyed
-    const windowId: number = mainWindow.webContents.id;
 
     // Set global main window reference (used by handlers)
     setMainWindow(mainWindow);
@@ -169,7 +173,7 @@ export function createWindow(deps: {
     function recomputeAndApplyTier(): void {
         const tier: AppActivityTier = windowFocused
             ? 'active'
-            : terminalRuntimeSurface.getTerminalRecords().some(r => r.status === 'running') ? 'background' : 'idle';
+            : getCachedTerminalRecords().some((r: TerminalRecord): boolean => r.status === 'running') ? 'background' : 'idle';
         setDaemonGraphSyncTier(tier);
     }
 
@@ -184,7 +188,7 @@ export function createWindow(deps: {
         recomputeAndApplyTier();
     });
 
-    terminalRuntimeSurface.subscribeToRegistry(() => {
+    subscribeToTerminalRegistryCache((): void => {
         if (!windowFocused) recomputeAndApplyTier();
     });
 
@@ -213,10 +217,10 @@ export function createWindow(deps: {
         }
     });
 
-    // Clean up terminals when window closes
+    // Window close — persist node positions if not already saved.
+    // Tmux sessions are daemon-owned and outlive the window; no PTY
+    // teardown happens here.
     mainWindow.on('closed', () => {
-        cleanupTerminalsForWindow(deps.terminalManager, windowId);
-        // Persist node positions to .voicetree/positions.json before exit
         if (!persistedPositionsBeforeClose) {
             void writeCurrentPositionsThroughDaemon().catch((error: unknown) => {
                 console.warn('[Main] Failed to persist node positions on window close:', error);

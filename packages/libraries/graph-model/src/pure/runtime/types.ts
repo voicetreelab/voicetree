@@ -1,10 +1,6 @@
 import type { GraphDelta } from '../graph'
 import type { FolderTreeNode } from '../folders/types'
 
-export interface GraphModelConfig {
-  appSupportPath: string  // replaces app.getPath('userData')
-}
-
 type WatchingStartedInfo = { directory: string; writeFolder: string; timestamp: string }
 
 export interface GraphModelCallbacks {
@@ -47,24 +43,21 @@ export interface GraphModelCallbacks {
   semanticSearch?: (query: string, topK: number) => Promise<readonly string[]>
 
   // App-specific setup callbacks (Electron)
-  enableMcpIntegration?: () => Promise<void>  // replaces mcp-server/mcp-client-config
+  stripStaleMcpEntries?: (vaultDir: string) => Promise<void>
+  writeVaultAgentDiscoveryFile?: (vaultDir: string) => Promise<void>
   ensureProjectSetup?: (projectPath: string) => Promise<void>  // replaces electron/tools-setup
   ensureDaemonForVault?: (projectRoot: string) => Promise<void>
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 
-// Module-level DI state
-let _config: GraphModelConfig | undefined
+// Module-level callbacks. The appSupportPath that previously lived here is
+// now resolved per-call from $VOICETREE_APP_SUPPORT via
+// @vt/app-config/app-support-path (see resolveAppSupportPath); each
+// launching process normalises the env var at boot.
 let _callbacks: GraphModelCallbacks = {}
 
-export function initGraphModel(config: GraphModelConfig, callbacks?: GraphModelCallbacks): void {
-  _config = config
+export function initGraphModel(callbacks?: GraphModelCallbacks): void {
   _callbacks = callbacks ?? {}
-}
-
-export function getConfig(): GraphModelConfig {
-  if (!_config) throw new Error('GraphModel not initialized. Call initGraphModel() first.')
-  return _config
 }
 
 export function getCallbacks(): GraphModelCallbacks {

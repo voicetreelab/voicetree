@@ -96,7 +96,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'red' } as const,
             position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -111,7 +111,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'cyan' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 150 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -126,7 +126,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: '#FF5733' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 200 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -141,7 +141,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -226,7 +226,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'green' } as const,
             position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -237,7 +237,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         }} as const
@@ -290,7 +290,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'cyancyan' } as const,
             position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -305,7 +305,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'notacolor' } as const,
             position: { _tag: 'Some', value: { x: 200, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -320,7 +320,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: '###' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -359,7 +359,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: '#ff0000' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -387,7 +387,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'cyancyan' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -398,7 +398,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: '#ff0000' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 100 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         }} as const

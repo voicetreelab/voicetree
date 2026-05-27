@@ -1,5 +1,6 @@
 import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
+import {useEventSubscriptionConnection} from "@/shell/edge/renderer/live/useEventSubscriptionConnection";
 import {VoiceTreeGraphView} from "@/shell/UI/views/graph-view/VoiceTreeGraphView";
 import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBackground";
 import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
@@ -63,6 +64,10 @@ function App(): JSX.Element {
         startWatching,
         stopWatching,
     } = useFolderWatcher();
+
+    // Step 9 §8.1: renderer subscribes to /events directly; isConnected
+    // gates renderer mutations (point 7 of the 9e brief).
+    const { isConnected: _daemonConnected } = useEventSubscriptionConnection();
 
     // Ref for graph container
     const graphContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);

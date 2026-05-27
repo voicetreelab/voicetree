@@ -245,7 +245,7 @@ describe('applyPositions', () => {
           nodeUIMetadata: {
             color: O.none,
             position: O.some({ x: 10000, y: 10000 }),
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
           },
         },
@@ -254,7 +254,7 @@ describe('applyPositions', () => {
           nodeUIMetadata: {
             color: O.none,
             position: O.some({ x: 10500, y: 10000 }),
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
           },
         },
@@ -306,7 +306,7 @@ function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFile
 
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   }

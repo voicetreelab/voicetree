@@ -1,7 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {detectCompletions, type CompletionEvent} from './agent-completion-notifier';
-import type {TerminalRecord} from '@vt/agent-runtime';
-import type {TerminalLifecycle} from '@vt/agent-runtime/lifecycle';
+import type {TerminalLifecycle, TerminalRecord} from '@vt/vt-daemon-client';
 
 function makeRecord(terminalId: string, lifecycle: TerminalLifecycle, agentName: string = 'Ren'): TerminalRecord {
     return {

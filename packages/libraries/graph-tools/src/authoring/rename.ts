@@ -1,7 +1,6 @@
 import { runGraphMove } from './move'
 
 export async function graphRename(
-    _port: number,
     _terminalId: string | undefined,
     args: string[]
 ): Promise<void> {

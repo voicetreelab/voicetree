@@ -16,7 +16,6 @@ import type { ProjectedGraph } from '@vt/graph-state/contract';
 import {
     subscribeFolderTree,
     getFolderTreeState,
-    initializeFromMainIfEmpty,
     toggleFolderExpanded,
     setFolderTreeSearch,
     toggleFolderTreeSidebar,
@@ -290,10 +289,6 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
     const latestProjectedGraph: ProjectedGraph | null = useLatestProjectedGraph();
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
-
-    useEffect(() => {
-        void initializeFromMainIfEmpty();
-    }, []);
 
     const handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>): void => {

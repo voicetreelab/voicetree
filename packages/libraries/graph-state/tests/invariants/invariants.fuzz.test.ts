@@ -94,7 +94,7 @@ function generateCommand(rng: () => number, state: State, commandId: string): Co
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.none,
-                        additionalYAMLProps: new Map<string, string>(),
+                        additionalYAMLProps: {},
                     },
                 },
             }

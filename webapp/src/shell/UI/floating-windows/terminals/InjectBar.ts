@@ -43,8 +43,8 @@ export interface UnseenNodeInfo {
 // These exist on mainAPI but TypeScript can't resolve their types in the renderer
 // tsconfig because the import chain includes Node.js modules (fs, etc.).
 interface InjectBarMainIPC {
-    getUnseenNodesForTerminal(terminalId: string): Promise<readonly UnseenNodeInfo[]>;
-    injectNodesIntoTerminal(terminalId: string, nodeIds: readonly string[]): Promise<{ success: boolean; injectedCount: number }>;
+    getUnseenNodesForTerminal(request: { terminalId: string }): Promise<readonly UnseenNodeInfo[]>;
+    injectNodesIntoTerminal(request: { terminalId: string; nodeIds: readonly string[] }): Promise<{ success: boolean; injectedCount: number }>;
 }
 
 export interface InjectBarOptions {
@@ -263,7 +263,7 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
 
     async function fetchUnseenNodes(): Promise<UnseenNodeInfo[]> {
         try {
-            const result: readonly UnseenNodeInfo[] | undefined = await mainIPC?.getUnseenNodesForTerminal(terminalId);
+            const result: readonly UnseenNodeInfo[] | undefined = await mainIPC?.getUnseenNodesForTerminal({ terminalId });
             return result ? [...result] : [];
         } catch (err: unknown) {
             console.warn('[InjectBar] Failed to fetch unseen nodes:', err);

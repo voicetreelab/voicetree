@@ -36,7 +36,7 @@ import type { WatcherOptions } from "@vt/graph-db-server/watch-folder/watching/f
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "@vt/graph-db-server/watch-folder/watching/watcher-options.shared";
 import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "@vt/graph-db-server/watch-folder/broadcast/broadcast-vault-state";
-import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
+import { positionsIO } from "@vt/app-config/positions-io";
 import {
     decideVaultConfig,
     type WatchFolderConfig,
@@ -90,7 +90,9 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
     }
 
     return createWatcherOptions(
-        maybeProcess.env.HEADLESS_TEST === '1' || maybeProcess.env.NODE_ENV === 'test'
+        maybeProcess.env.HEADLESS_TEST === '1' ||
+        maybeProcess.env.NODE_ENV === 'test' ||
+        maybeProcess.env.NODE_ENV === 'development'
     );
 }
 
@@ -248,12 +250,10 @@ async function prepareForFolderSwitch(
 ): Promise<void> {
     const previousRoot: FilePath | null = getProjectRoot();
     if (previousRoot) {
-        savePositionsSync(getGraph(), previousRoot);
+        positionsIO.save(getGraph(), previousRoot);
     }
 
     setProjectRoot(watchedFolderPath);
-
-    void env.callbacks().enableMcpIntegration?.().catch(() => { /* MCP server may not be ready yet */ });
 
     const oldWatcher: FSWatcher | null = getWatcher();
     if (oldWatcher) {
@@ -279,7 +279,7 @@ async function resolveConfigAndPositions(
 
     setGraph(createEmptyGraph());
 
-    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedFolderPath);
+    const positions: ReadonlyMap<string, Position> = await positionsIO.load(watchedFolderPath);
     return { config, positions };
 }
 

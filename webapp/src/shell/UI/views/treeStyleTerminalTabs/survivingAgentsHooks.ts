@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import type {RecoverableAgentSession, UnclaimedTmuxSession} from '@vt/agent-runtime';
+import type {RecoverableAgentSession, UnclaimedTmuxSession} from '@vt/vt-daemon-client';
 import {
     getUnclaimedTmuxSessions,
     subscribeToUnclaimedTmuxChanges,

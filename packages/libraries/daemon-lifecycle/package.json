@@ -1,0 +1,24 @@
+{
+  "name": "@vt/daemon-lifecycle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Daemon ownership lifecycle primitives shared by vt-graphd (graph-db-server/client) and vt-daemon. Parent-pid watchdog, owner-record I/O, decideOwnerAction + evidence types, spawn lock, cooldown breadcrumb, process liveness probes, health identity probe, generic spawnDaemon, error shapes, diagnostics bus. Parameterised over DaemonKind so a single vault can host both a graphd and a vtd owner.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@vt/graph-db-protocol": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

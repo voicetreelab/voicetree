@@ -2,11 +2,30 @@ import {readFile, readdir, stat} from 'node:fs/promises'
 import {basename, dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
+// A node_modules-style conditional-exports value: either a literal file path
+// or an object mapping conditions (import/default/require/types) to file paths.
+export type ConditionalExport =
+    | string
+    | {
+        readonly import?: string
+        readonly default?: string
+        readonly require?: string
+        readonly types?: string
+    }
+
+// The shape of a package.json `exports` field. Either the string-shorthand for the root export,
+// a single conditional object for the root, or a subpath map keyed by "./..." entries.
+export type PackageExports =
+    | string
+    | {readonly [subpath: string]: ConditionalExport}
+
 export type PackageInfo = {
     readonly name: string
     readonly dirName: string
     readonly srcRoot: string
     readonly absDir: string
+    readonly main: string | undefined
+    readonly exports: PackageExports | undefined
 }
 
 const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
@@ -41,6 +60,12 @@ async function pathExists(path: string): Promise<boolean> {
     }
 }
 
+type ParsedPackageJson = {
+    readonly name?: unknown
+    readonly main?: unknown
+    readonly exports?: unknown
+}
+
 async function readdirOrEmpty(absDir: string): Promise<Awaited<ReturnType<typeof readdir>>> {
     try {
         return await readdir(absDir, {withFileTypes: true})
@@ -50,7 +75,7 @@ async function readdirOrEmpty(absDir: string): Promise<Awaited<ReturnType<typeof
     }
 }
 
-async function readPackageJson(absDir: string): Promise<{name?: unknown} | null> {
+async function readPackageJson(absDir: string): Promise<ParsedPackageJson | null> {
     const pkgJsonPath = join(absDir, 'package.json')
     if (!(await pathExists(pkgJsonPath))) return null
     try {
@@ -58,6 +83,12 @@ async function readPackageJson(absDir: string): Promise<{name?: unknown} | null>
     } catch {
         return null
     }
+}
+
+function validateExports(raw: unknown): PackageExports | undefined {
+    if (typeof raw === 'string') return raw
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+    return raw as PackageExports
 }
 
 async function isNestedGitRoot(absDir: string, repoRoot: string): Promise<boolean> {
@@ -80,6 +111,8 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
                         dirName: basename(absDir),
                         srcRoot: srcDir,
                         absDir,
+                        main: typeof pkgJson.main === 'string' ? pkgJson.main : undefined,
+                        exports: validateExports(pkgJson.exports),
                     })
                 }
             }

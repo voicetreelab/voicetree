@@ -47,12 +47,12 @@ const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetre
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
   let parentNodeBackups: Map<NodeIdAndFilePath, string> = new Map()
+  let originalAppSupportPath: string | undefined
 
   beforeEach(async () => {
-    initGraphModel(
-      { appSupportPath: '/tmp/test-userdata-context-node' },
-      { getWriteFolder: async () => EXAMPLE_SMALL_WRITE_PATH }
-    )
+    originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
+    process.env.VOICETREE_APP_SUPPORT = '/tmp/test-userdata-context-node'
+    initGraphModel({ getWriteFolder: async () => EXAMPLE_SMALL_WRITE_PATH })
 
     // Initialize vault path with example_small fixture
     setProjectRoot(EXAMPLE_SMALL_PATH)
@@ -88,6 +88,9 @@ describe('createContextNode - Integration Tests', () => {
       })
     }
     parentNodeBackups.clear()
+
+    if (originalAppSupportPath === undefined) delete process.env.VOICETREE_APP_SUPPORT
+    else process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
   })
 
   /**
@@ -312,10 +315,8 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with zero outgoing/incoming wikilink edges (orphaned)', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setProjectRoot(EXAMPLE_LARGE_PATH)
-      initGraphModel(
-        { appSupportPath: '/tmp/test-userdata-context-node' },
-        { getWriteFolder: async () => EXAMPLE_LARGE_WRITE_PATH }
-      )
+      process.env.VOICETREE_APP_SUPPORT = '/tmp/test-userdata-context-node'
+      initGraphModel({ getWriteFolder: async () => EXAMPLE_LARGE_WRITE_PATH })
       const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_WRITE_PATH])
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
       const largeGraph: Graph = largeLoadResult.right

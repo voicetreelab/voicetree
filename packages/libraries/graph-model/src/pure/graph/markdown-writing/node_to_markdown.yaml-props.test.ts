@@ -19,10 +19,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map([
-            ['author', 'John Doe'],
-            ['custom_field', 'some value']
-          ]),
+          additionalYAMLProps: { author: 'John Doe', custom_field: 'some value' },
           isContextNode: false
         }
       }
@@ -43,10 +40,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map([
-            ['priority', '5'],
-            ['version', '2.1']
-          ]),
+          additionalYAMLProps: { priority: '5', version: '2.1' },
           isContextNode: false
         }
       }
@@ -67,10 +61,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map([
-            ['published', 'true'],
-            ['archived', 'false']
-          ]),
+          additionalYAMLProps: { published: 'true', archived: 'false' },
           isContextNode: false
         }
       }
@@ -91,9 +82,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map([
-            ['tags', '["important","draft"]']
-          ]),
+          additionalYAMLProps: { tags: '["important","draft"]' },
           isContextNode: false
         }
       }
@@ -116,9 +105,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map([
-            ['metadata', '{"created":"2024-01-15","version":2}']
-          ]),
+          additionalYAMLProps: { metadata: '{"created":"2024-01-15","version":2}' },
           isContextNode: false
         }
       }
@@ -140,10 +127,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#FF0000'),
           position: O.some({ x: 100, y: 200 }),
-          additionalYAMLProps: new Map([
-            ['author', 'Jane Smith'],
-            ['priority', '3']
-          ]),
+          additionalYAMLProps: { author: 'Jane Smith', priority: '3' },
           isContextNode: false
         }
       }
@@ -169,7 +153,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.some('#FF0000'),
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -193,7 +177,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: true,
           containedNodeIds: ['node1.md', 'folder/node2.md', 'node3.md']
         }
@@ -241,7 +225,7 @@ containedNodeIds:
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }

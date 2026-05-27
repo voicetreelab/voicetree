@@ -1,6 +1,4 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
-import { afterEach, describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
@@ -9,52 +7,9 @@ import {
   composeVaultState,
   composeWriteFolderResponse,
   decodeVaultPath,
-  resolveAppSupportPath,
 } from '../handleVault.ts'
 
 describe('handleVault', () => {
-  const originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
-  const originalAppData = process.env.APPDATA
-  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME
-
-  afterEach(() => {
-    if (originalAppSupportPath === undefined) {
-      delete process.env.VOICETREE_APP_SUPPORT
-    } else {
-      process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
-    }
-    if (originalAppData === undefined) {
-      delete process.env.APPDATA
-    } else {
-      process.env.APPDATA = originalAppData
-    }
-    if (originalXdgConfigHome === undefined) {
-      delete process.env.XDG_CONFIG_HOME
-    } else {
-      process.env.XDG_CONFIG_HOME = originalXdgConfigHome
-    }
-  })
-
-  test('resolves app support path from VOICETREE_APP_SUPPORT when set', () => {
-    process.env.VOICETREE_APP_SUPPORT = ' /tmp/voicetree-support '
-
-    expect(resolveAppSupportPath()).toBe('/tmp/voicetree-support')
-  })
-
-  test('resolves platform default app support path when env override is absent', () => {
-    delete process.env.VOICETREE_APP_SUPPORT
-    delete process.env.APPDATA
-    delete process.env.XDG_CONFIG_HOME
-
-    const expected = process.platform === 'darwin'
-      ? join(homedir(), 'Library', 'Application Support', 'Voicetree')
-      : process.platform === 'win32'
-        ? join(homedir(), 'AppData', 'Roaming', 'Voicetree')
-        : join(homedir(), '.config', 'Voicetree')
-
-    expect(resolveAppSupportPath()).toBe(expected)
-  })
-
   test('decodes valid vault path parameters', () => {
     expect(decodeVaultPath(encodeURIComponent('/tmp/vault/docs'))).toEqual({
       ok: true,

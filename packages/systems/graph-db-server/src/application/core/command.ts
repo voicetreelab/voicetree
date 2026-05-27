@@ -36,7 +36,6 @@ export type Command =
       searchFromNode?: string
     }
   | { type: 'GetWatchedDirectory' }
-  | { type: 'InitializeGraphModel'; appSupportPath: string }
   | { type: 'PerformRedo' }
   | { type: 'PerformUndo' }
   | { type: 'ReadVaultState' }
@@ -65,7 +64,6 @@ export type CommandOutput = {
   GetPreviewContainedNodeIds: readonly string[]
   GetUnseenNodesAroundContextNode: unknown
   GetWatchedDirectory: string | null | undefined
-  InitializeGraphModel: void
   PerformRedo: boolean
   PerformUndo: boolean
   ProjectAndBroadcast: void

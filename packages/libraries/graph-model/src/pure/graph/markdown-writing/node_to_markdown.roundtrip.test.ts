@@ -29,9 +29,9 @@ Some content here`
       const reparsedNode: GraphNode = parseMarkdownToGraphNode(writtenMarkdown, 'test.md', emptyGraph)
 
       // Check that additionalYAMLProps are preserved
-      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('John Doe')
-      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('status')).toBe('draft')
-      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.size).toBe(2)
+      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps['author']).toBe('John Doe')
+      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps['status']).toBe('draft')
+      expect(Object.keys(reparsedNode.nodeUIMetadata.additionalYAMLProps).length).toBe(2)
     })
 
     it('should preserve additionalYAMLProps through round-trip with various types', () => {
@@ -54,8 +54,8 @@ Content with complex frontmatter`
       const node: GraphNode = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
 
       // Verify initial parsing
-      expect(node.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
-      expect(node.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
+      expect(node.nodeUIMetadata.additionalYAMLProps['priority']).toBe('5')
+      expect(node.nodeUIMetadata.additionalYAMLProps['published']).toBe('true')
 
       // Write node back to markdown
       const writtenMarkdown: string = fromNodeToMarkdownContent(node)
@@ -64,16 +64,16 @@ Content with complex frontmatter`
       const reparsedNode: GraphNode = parseMarkdownToGraphNode(writtenMarkdown, 'test.md', emptyGraph)
 
       // Check that all properties are preserved
-      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
-      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
+      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps['priority']).toBe('5')
+      expect(reparsedNode.nodeUIMetadata.additionalYAMLProps['published']).toBe('true')
 
       // Arrays and objects are stored as JSON strings and should be preserved
-      const tags: string | undefined = reparsedNode.nodeUIMetadata.additionalYAMLProps.get('tags')
+      const tags: string | undefined = reparsedNode.nodeUIMetadata.additionalYAMLProps['tags']
       expect(tags).toBeDefined()
       // After round-trip, arrays are parsed back from YAML so they may be JSON-stringified again
       expect(tags).toBeTruthy()
 
-      const metadata: string | undefined = reparsedNode.nodeUIMetadata.additionalYAMLProps.get('metadata')
+      const metadata: string | undefined = reparsedNode.nodeUIMetadata.additionalYAMLProps['metadata']
       expect(metadata).toBeDefined()
       expect(metadata).toBeTruthy()
     })
@@ -88,10 +88,7 @@ Content with complex frontmatter`
         nodeUIMetadata: {
           color: O.some('#ABCDEF'),
           position: O.some({ x: 150, y: 250 }),
-          additionalYAMLProps: new Map([
-            ['author', 'Jane Smith'],
-            ['category', 'research']
-          ]),
+          additionalYAMLProps: { author: 'Jane Smith', category: 'research' },
           isContextNode: false
         }
       }
@@ -111,8 +108,8 @@ Content with complex frontmatter`
       const node2: GraphNode = parseMarkdownToGraphNode(markdown, 'test.md', emptyGraph)
 
       // Verify additionalYAMLProps are preserved
-      expect(node2.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('Jane Smith')
-      expect(node2.nodeUIMetadata.additionalYAMLProps.get('category')).toBe('research')
+      expect(node2.nodeUIMetadata.additionalYAMLProps['author']).toBe('Jane Smith')
+      expect(node2.nodeUIMetadata.additionalYAMLProps['category']).toBe('research')
 
       // Position should be O.none after round-trip since it's no longer written to YAML
       expect(O.isNone(node2.nodeUIMetadata.position)).toBe(true)
@@ -128,7 +125,7 @@ Just content, no frontmatter`
       const node2: GraphNode = parseMarkdownToGraphNode(markdown2, 'test.md', emptyGraph)
 
       // Should have empty additionalYAMLProps
-      expect(node2.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
+      expect(Object.keys(node2.nodeUIMetadata.additionalYAMLProps).length).toBe(0)
       expect(O.isNone(node2.nodeUIMetadata.color)).toBe(true)
       expect(O.isNone(node2.nodeUIMetadata.position)).toBe(true)
     })

@@ -43,7 +43,7 @@ describe('apply_graph_deltas_to_db', () => {
       nodeUIMetadata: {
         color: O.none,
         position: O.none,
-        additionalYAMLProps: new Map(),
+        additionalYAMLProps: {},
         isContextNode: false
       }
     }

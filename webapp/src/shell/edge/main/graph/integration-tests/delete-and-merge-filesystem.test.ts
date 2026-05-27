@@ -15,7 +15,6 @@
  */
 
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
@@ -29,7 +28,6 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
@@ -145,18 +143,6 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
     }
 })
 
-// Import IPC handlers once at module level
-let handlersImported: boolean = false
-async function ensureHandlersImported(): Promise<void> {
-    if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
-        registerTerminalIpcHandlers(
-            {} as any, // terminalManager
-            () => '' // getToolsDirectory
-        )
-        handlersImported = true
-    }
-}
 
 // Helper to create a minimal GraphNode
 function createTestNode(
@@ -173,7 +159,7 @@ function createTestNode(
         nodeUIMetadata: {
             color: O.none,
             position: position ? O.some(position) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode
         }
     }
@@ -219,11 +205,9 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
 
     beforeEach(async () => {
         resetTestProjectionState()
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
-        await ensureHandlersImported()
+        initGraphModel({})
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setProjectRoot(tempVault)
         setProjectRoot(tempVault)
     })
 
@@ -397,11 +381,9 @@ describe('Merge Operation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
-        await ensureHandlersImported()
+        initGraphModel({})
         tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setProjectRoot(tempVault)
         setProjectRoot(tempVault)
     })
 
@@ -520,11 +502,9 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
-        await ensureHandlersImported()
+        initGraphModel({})
         tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setProjectRoot(tempVault)
         setProjectRoot(tempVault)
     })
 

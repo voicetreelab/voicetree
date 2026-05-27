@@ -6,7 +6,7 @@ import { join } from 'path';
 const SYSTEM_PACKAGES = new Set([
   '@vt/graph-db-server',
   '@vt/agent-runtime',
-  '@vt/voicetree-mcp',
+  '@vt/vt-daemon',
   '@vt/graph-db-client',
 ]);
 
@@ -20,7 +20,7 @@ const ALL_DIRS = [...LIBRARY_DIRS, ...SYSTEM_DIRS, ...APP_DIRS];
 const PACKAGE_TARGETS = {
   '@vt/graph-db-server': { target: 0, kind: 'daemon', note: 'use @vt/graph-db-client' },
   '@vt/agent-runtime':   { target: 15, kind: 'embedded', note: 'thin API' },
-  '@vt/voicetree-mcp':   { target: 15, kind: 'embedded', note: 'thin API' },
+  '@vt/vt-daemon':   { target: 15, kind: 'embedded', note: 'thin API' },
   '@vt/graph-db-client':  { target: 15, kind: 'client', note: 'consumer-facing' },
 };
 

@@ -1,7 +1,6 @@
 import {BrowserWindow, Notification} from 'electron';
 import {loadSettings} from '@vt/app-config/settings';
-import type {TerminalRecord} from '@vt/agent-runtime';
-import type {TerminalLifecycle} from '@vt/agent-runtime/lifecycle';
+import type {TerminalLifecycle, TerminalRecord} from '@vt/vt-daemon-client';
 
 const NOTIFY_STATES: ReadonlySet<TerminalLifecycle> = new Set(['completed', 'errored', 'awaiting_input']);
 const BATCH_WINDOW_MS: number = 5_000;

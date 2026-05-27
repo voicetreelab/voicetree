@@ -240,8 +240,7 @@ export function maxPreviewLinesForHops(hops: number): number {
  * Prepends YAML `summary` field if it exists.
  */
 function getNodeSummaryContent(node: GraphNode, escapedContent: string, maxLines: number): string {
-    const props: ReadonlyMap<string, string> = node.nodeUIMetadata.additionalYAMLProps
-    const summary: string | undefined = props instanceof Map ? props.get('summary') : undefined
+    const summary: string | undefined = node.nodeUIMetadata.additionalYAMLProps['summary']
     const nonEmptyLines: string[] = escapedContent.split('\n').filter((l: string) => l.trim().length > 0)
     const preview: string = nonEmptyLines.slice(0, maxLines).join('\n')
     const omitted: number = nonEmptyLines.length - maxLines

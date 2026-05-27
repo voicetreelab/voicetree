@@ -11,20 +11,21 @@ import {
   composeReadPathsResponse,
   composeWriteFolderResponse,
   decodeVaultPath,
-  resolveAppSupportPath,
 } from '../core/handleVault.ts'
 import { executeCommand } from './dispatch.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
+import { awaitVaultOpenReady } from './vaultOpenGate.ts'
 
-export function ensureVaultWorkflowInitialized(): void {
-  void executeCommand({
-    type: 'InitializeGraphModel',
-    appSupportPath: resolveAppSupportPath(),
-  })
-}
+// Upper bound for how long a vault-scoped read may wait on an in-flight
+// `openVaultWorkflow` before falling through to the existing 409 path. Picked
+// well above any expected open latency (folder scan + sync wiring is ~hundreds
+// of ms in practice) while still leaving the renderer's overall RPC budget
+// intact if the daemon genuinely stalls.
+const VAULT_OPEN_READY_TIMEOUT_MS = 5000
 
 export async function readVaultWorkflow(): Promise<HttpResult> {
   try {
+    await awaitVaultOpenReady(VAULT_OPEN_READY_TIMEOUT_MS)
     return jsonResult(await executeCommand({ type: 'ReadVaultState' }))
   } catch (error) {
     if (error instanceof VaultNotOpenError) {

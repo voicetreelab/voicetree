@@ -5,34 +5,28 @@
  * Bridges graph-model's DI callbacks to Electron APIs (dialog, IPC, uiAPI).
  */
 
-import { app, dialog } from 'electron'
+import { dialog } from 'electron'
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
-import log from 'electron-log'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
+import { dispatchOnNewNodeHooks } from '@vt/vt-daemon-client'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getWriteFolder, openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/agent/terminals/inject-badge-refresh'
-import { terminalRuntimeSurface, type TerminalRecord } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
-import { registerAgentNodes } from '@vt/voicetree-mcp'
+import { stripStaleVoicetreeMcpEntries } from '@/shell/edge/main/runtime/electron/startup/vault-bootstrap/mcp-client-config'
+import { writeVaultAgentDiscoveryFile } from '@/shell/edge/main/runtime/electron/startup/vault-bootstrap/vaultAgentDiscoveryFile'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-api'
-import { enableMcpClientIntegrations } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
+import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+import { getVtDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
-
-async function reconcileTmuxTerminalsForVault(writeFolder: string): Promise<void> {
-    const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(writeFolder)
-    if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
-        log.info('[Vault] Reconciled tmux terminals', reconciliation)
-    }
-}
 
 async function loadGraphThroughDaemon(_vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
     // Post BF-345: there is no vaultless daemon fallback. Callers that need a
@@ -68,12 +62,6 @@ export function initializeGraphModel(): void {
         },
 
         // Watch folder events
-        onVaultSwitching(): void {
-            terminalRuntimeSurface.getTerminalManager().cleanup()
-        },
-        async onVaultOpened(info): Promise<void> {
-            await reconcileTmuxTerminalsForVault(info.writeFolder)
-        },
         onWatchingStarted(info): void {
             const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -124,22 +112,13 @@ export function initializeGraphModel(): void {
         },
 
         // Hooks
-        onNewNodeHook(nodeId: string, graphData: GraphDelta): void {
-            void loadSettings().then(settings => {
+        onNewNodeHook(_nodeId: string, graphData: GraphDelta): void {
+            void loadSettings().then(async settings => {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
-                    // Create a single-node delta for dispatch
-                    terminalRuntimeSurface.dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
+                    await dispatchOnNewNodeHooks(getVtDaemonClient(), { delta: graphData, hookCommand: hookPath })
                 }
             })
-        },
-        onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
-            const record: TerminalRecord | undefined = terminalRuntimeSurface.getTerminalRecords().find(
-                (r: TerminalRecord) => r.terminalData.agentName === agentName
-            )
-            if (!record) return
-            registerAgentNodes(record.terminalId, [{ nodeId, title }])
-            terminalRuntimeSurface.resetAuditRetryCount(record.terminalId)
         },
         refreshBadge(): void {
             refreshAllInjectBadges()
@@ -169,8 +148,11 @@ export function initializeGraphModel(): void {
         },
 
         // App-specific setup
-        enableMcpIntegration(): Promise<void> {
-            return enableMcpClientIntegrations()
+        stripStaleMcpEntries(vaultDir: string): Promise<void> {
+            return stripStaleVoicetreeMcpEntries(vaultDir)
+        },
+        writeVaultAgentDiscoveryFile(vaultDir: string): Promise<void> {
+            return writeVaultAgentDiscoveryFile(vaultDir, getBuildConfig().cliManualPath)
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)
@@ -183,8 +165,5 @@ export function initializeGraphModel(): void {
         },
     }
 
-    initGraphModel(
-        { appSupportPath: app.getPath('userData') },
-        callbacks
-    )
+    initGraphModel(callbacks)
 }

@@ -30,7 +30,7 @@ import type { CallerKind } from './owner.ts'
 type OwnerDiagnosticEventBase = {
   readonly attemptId: string
   readonly callerKind: CallerKind
-  readonly canonicalProjectRoot: string
+  readonly canonicalVault: string
   readonly nowMs: number
 }
 

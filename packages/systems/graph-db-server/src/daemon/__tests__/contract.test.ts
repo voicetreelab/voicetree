@@ -47,7 +47,7 @@ describe('contract', () => {
       sessionCount: 0,
       owner: {
         schemaVersion: 1,
-        canonicalProjectRoot: '/tmp/vault',
+        canonicalVault: '/tmp/vault',
         pid: 1234,
         ppid: 1,
         port: 65123,
@@ -120,7 +120,7 @@ describe('contract', () => {
         sessionCount: 0,
         owner: {
           schemaVersion: 2,
-          canonicalProjectRoot: '/tmp/v',
+          canonicalVault: '/tmp/v',
           pid: 1,
           ppid: 0,
           port: 1,

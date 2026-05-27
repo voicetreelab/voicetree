@@ -15,6 +15,7 @@ import {
 } from '@/shell/edge/renderer/debug/liveState'
 import type { ButtonEntry } from '@/shell/edge/renderer/debug/buttonRegistry'
 import { tryDumpCy } from '@/shell/edge/renderer/debug/vtDebugHelper'
+import { getEditorInstanceForDebug } from '@/shell/edge/renderer/debug/editorInstanceDebugHelper'
 
 // Install debug capture BEFORE React bootstrap — catches startup errors (thrown useEffects,
 // module-load ReferenceErrors) that would be invisible if devtools attached after the crash.
@@ -32,7 +33,7 @@ if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
       stack: (e.reason as { stack?: string } | undefined)?.stack,
       atIso: new Date().toISOString(),
     }))
-  ;(window as Record<string, unknown>)['__vtDebug__'] = {
+  ;(window as unknown as Record<string, unknown>)['__vtDebug__'] = {
     cy: () => tryDumpCy(),
     console: () => ringBuffer.tail(500),
     exceptions: () => ringBuffer.exceptions(),
@@ -41,6 +42,7 @@ if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
     applyLiveCommand: (command: unknown) => applyRendererLiveCommand(command),
     registerDebugButton: (entry: ButtonEntry) => _register(entry),
     unregisterDebugButton: (nodeId: string, label: string) => _unregister(nodeId, label),
+    editorInstance: (editorId: string) => getEditorInstanceForDebug(editorId),
   }
 }
 

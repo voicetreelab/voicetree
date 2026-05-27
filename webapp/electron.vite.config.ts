@@ -251,7 +251,7 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'fsevents',
   'bufferutil',
   'utf-8-validate',
-  // Express + middleware tree. Reachable from main.ts via @vt/voicetree-mcp +
+  // Express + middleware tree. Reachable from main.ts via @vt/vt-daemon +
   // @vt/graph-tools/node, both of which are in webapp devDependencies (not
   // dependencies), so electron-vite's externalizeDepsPlugin doesn't externalize
   // them and pulls express inline. Express is Node-only; main runs in Node so
@@ -273,15 +273,16 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
 ]
 
 // externalizeDepsPlugin resolves bundled packages (@vt/graph-model, @vt/graph-tools) to absolute
-// paths before rollup sees them, so string matching in external[] fails for their transitive deps.
-// Use a function that matches both raw specifiers and resolved absolute paths, and catches .node
-// native binaries that rollup cannot parse.
-const isMainExternal = (id: string): boolean => {
-  if (id.endsWith('.node')) return true
-  return MAIN_RUNTIME_EXTERNALS.some(
-    dep => id === dep || id.includes(`/node_modules/${dep}/`) || id.includes(`/node_modules/${dep}`)
-  )
-}
+// paths before the bundler sees them, so a bare-string entry in `external` fails to match resolved
+// transitive deps. Rolldown's `external` accepts only string | RegExp (Functions are rejected),
+// so we emit both the bare specifier (for unresolved imports) and a /node_modules/<dep>(/|$) regex
+// (for resolved absolute paths) per dep, plus a regex for .node native binaries.
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const MAIN_EXTERNAL_PATTERNS: (string | RegExp)[] = [
+  /\.node$/,
+  ...MAIN_RUNTIME_EXTERNALS,
+  ...MAIN_RUNTIME_EXTERNALS.map(dep => new RegExp(`/node_modules/${escapeRegExp(dep)}(/|$)`)),
+]
 
 // @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
 // The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
@@ -297,7 +298,7 @@ const externalNativePlugin = {
   }
 }
 
-// Express + middleware tree is reachable from main.ts via @vt/voicetree-mcp +
+// Express + middleware tree is reachable from main.ts via @vt/vt-daemon +
 // @vt/graph-tools/node. Both are in webapp devDependencies (not deps), so
 // electron-vite's externalizeDepsPlugin doesn't externalize them and pulls
 // express inline. Marking via rollupOptions.external is too late — @rollup/plugin-commonjs
@@ -558,7 +559,6 @@ export default defineConfig({
         { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
         { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
         { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
-        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
@@ -570,7 +570,7 @@ export default defineConfig({
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/main.ts')
         },
-        external: isMainExternal,
+        external: MAIN_EXTERNAL_PATTERNS,
         output: {
           format: 'cjs',
           entryFileNames: '[name].js'
@@ -594,7 +594,6 @@ export default defineConfig({
         { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
         { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
         { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
-        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },

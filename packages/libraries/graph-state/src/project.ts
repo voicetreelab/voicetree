@@ -117,8 +117,7 @@ function projectNodes(
         const classes: string[] = [
             ...(node.nodeUIMetadata.isContextNode === true ? ['context-node'] : []),
         ]
-        const rawProps = node.nodeUIMetadata.additionalYAMLProps
-        const additionalYAMLProps = [...(rawProps instanceof Map ? rawProps.entries() : Object.entries(rawProps))]
+        const additionalYAMLProps = Object.entries(node.nodeUIMetadata.additionalYAMLProps)
             .sort(([left], [right]) => left.localeCompare(right)) as (readonly [string, string])[]
 
         nodes.push({

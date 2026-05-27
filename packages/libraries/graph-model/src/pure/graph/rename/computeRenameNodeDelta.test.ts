@@ -20,7 +20,7 @@ function makeNode(
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     }
 }
@@ -72,7 +72,7 @@ describe('computeRenameNodeDelta', () => {
                 nodeUIMetadata: {
                     color: O.some('blue'),
                     position: O.some({ x: 100, y: 200 }),
-                    additionalYAMLProps: new Map([['agent_name', 'Test']])
+                    additionalYAMLProps: { agent_name: 'Test' }
                 }
             }
             const graph: Graph = makeGraph([node])
@@ -248,7 +248,7 @@ describe('computeRenameNodeDelta', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }

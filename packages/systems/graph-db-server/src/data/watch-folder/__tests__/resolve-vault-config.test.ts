@@ -11,7 +11,6 @@ vi.mock('../folder-visibility-active-view', () => ({
     getExpandedFolderPathsForVault,
 }))
 
-import { initGraphModel } from '@vt/graph-model'
 import { resolveAllowlistForProject } from '../paths/resolve-vault-config'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
@@ -27,7 +26,7 @@ describe('resolveAllowlistForProject', () => {
         watchedDir = path.join(root, 'project')
         writeFolder = path.join(watchedDir, 'voicetree')
         await mkdir(writeFolder, { recursive: true })
-        initGraphModel({ appSupportPath })
+        process.env.VOICETREE_APP_SUPPORT = appSupportPath
         await saveVaultConfigForDirectory(watchedDir, { writeFolder })
         getExpandedFolderPathsForVault.mockResolvedValue([path.join(watchedDir, 'external')])
     })

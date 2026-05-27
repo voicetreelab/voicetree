@@ -11,7 +11,6 @@
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
-import type { EditorView } from '@codemirror/view';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -21,16 +20,18 @@ import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
 import { closeElectronAppForE2E } from './helpers/close-electron-app';
 import { safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
+import {
+  focusEditorInstanceAtEnd,
+  getEditorInstanceId,
+  readEditorValue,
+  waitForEditorInstance,
+} from './helpers/editor-instance';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
-}
-
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: EditorView };
 }
 
 function idSelector(id: string): string {
@@ -181,15 +182,16 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   });
 
   const editorWindowId = `window-${nodeId}-editor`;
+  const editorInstanceId = getEditorInstanceId(nodeId);
   const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
   await editorContent.waitFor({ state: 'visible', timeout: 10_000 });
+  await waitForEditorInstance(appWindow, editorInstanceId);
 
-  // 2. Focus the editor
+  // 2. Focus the editor (cursor at end so select-all + type replaces the entire body).
+  await focusEditorInstanceAtEnd(appWindow, editorInstanceId);
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
-      const windowElement = document.getElementById(winId);
-      windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`);
       return document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
     }, editorWindowId);
@@ -198,25 +200,18 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
     timeout: 5_000,
   }).toBe(true);
 
-  // 3. Set title content via CodeMirror dispatch with userEvent (arms autosave debounce)
+  // 3. Replace content via real input events so CM6 tags transactions as
+  //    `input.type` and the autosave-debounce is armed exactly as a user
+  //    would arm it. We use `insertText` (which dispatches an `insertText`
+  //    input event the way a paste / IME commit would) so the leading `#`
+  //    isn't intercepted by the markdown-aware keymap when typed at
+  //    start-of-document.
   const typedTitle = '# My Important Title';
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await appWindow.keyboard.press(`${modifier}+A`);
+  await appWindow.keyboard.insertText(typedTitle);
 
-  await appWindow.evaluate(({ winId, content }) => {
-    const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    if (!editorElement?.cmView?.view) throw new Error('CodeMirror view not found');
-    const view = editorElement.cmView.view;
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: content },
-      userEvent: 'input',
-    });
-  }, { winId: editorWindowId, content: typedTitle });
-
-  await expect.poll(async () => {
-    return appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.cmView?.view.state.doc.toString() ?? null;
-    }, editorWindowId);
-  }, {
+  await expect.poll(async () => readEditorValue(appWindow, editorInstanceId), {
     message: 'Waiting for typed title in editor',
     timeout: 3_000,
   }).toBe(typedTitle);
@@ -252,10 +247,7 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   expect(diskContent).toContain('My Important Title');
 
   // 8. CRITICAL: Parent editor still has the title
-  const editorText = await appWindow.evaluate((winId) => {
-    const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    return editorElement?.cmView?.view.state.doc.toString() ?? null;
-  }, editorWindowId);
+  const editorText = await readEditorValue(appWindow, editorInstanceId);
   expect(editorText).toContain('My Important Title');
 
   // 9. Wikilink edge is also on disk

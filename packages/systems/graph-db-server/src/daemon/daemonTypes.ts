@@ -1,5 +1,4 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import type { HealthOwner, HealthResponse } from '../contract.ts'
 import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 
@@ -59,28 +58,8 @@ const defaultDaemonLogger: DaemonLogger = {
   writeStderr: defaultDaemonWriteStderr,
 }
 
-function defaultAppSupportPath(): string {
-  if (process.platform === 'darwin') {
-    return join(homedir(), 'Library', 'Application Support', 'Voicetree')
-  }
-  if (process.platform === 'win32') {
-    return join(
-      process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),
-      'Voicetree',
-    )
-  }
-  return join(
-    process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
-    'Voicetree',
-  )
-}
-
 export function resolveDaemonAppSupportPath(opts: StartDaemonOptions): string {
-  return (
-    opts.appSupportPath ??
-    process.env.VOICETREE_APP_SUPPORT ??
-    defaultAppSupportPath()
-  )
+  return opts.appSupportPath ?? resolveAppSupportPath()
 }
 
 export function resolveDaemonClock(opts: StartDaemonOptions): () => number {

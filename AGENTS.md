@@ -1,7 +1,8 @@
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
-EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PREFER. PUSH IMPURITY TO EDGE / SHELL.
+EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
 
 We favor "deep functions", a single function to provide a minimal public API hiding internal complexity.
+
 Deep and narrow. These can themselves be composition of functions.
 
 Test the function as a black box. Call it with inputs, assert on outputs. Do not

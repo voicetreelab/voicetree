@@ -14,7 +14,6 @@ const PROJECT_PROMPT_FILES: readonly string[] = [
   'CREATE_SUBAGENTS_COMMAND.md',
   'decompose_subtask_dependency_graph.md',
   'subtask_template.md',
-  'addProgressTreeManualFallback.md',
 ];
 
 // Hook scripts to copy into {projectRoot}/.voicetree/hooks/
@@ -192,8 +191,10 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
 }
 
 /**
- * Copy specific files from sourceDir to destDir (creates destDir if needed).
- * Skips files that don't exist in the source — graceful for partial installs.
+ * Copy specific files from sourceDir to destDir (creates destDir if needed),
+ * per-file idempotent: existing files in destDir are preserved (user
+ * customizations), missing ones are filled from sourceDir. Source files that
+ * don't exist are skipped silently (graceful for partial installs).
  */
 async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: readonly string[]): Promise<void> {
   await fs.mkdir(destDir, { recursive: true });
@@ -201,9 +202,15 @@ async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: 
     const src: string = path.join(sourceDir, fileName);
     const dest: string = path.join(destDir, fileName);
     try {
+      await fs.access(dest);
+      continue;
+    } catch {
+      // Dest doesn't exist — fall through to copy.
+    }
+    try {
       await fs.copyFile(src, dest);
     } catch {
-      // Source file missing — skip gracefully (partial install or bundling difference)
+      // Source file missing — skip gracefully
     }
   }
 }
@@ -224,28 +231,16 @@ export async function ensureProjectDotVoicetree(projectRoot: string): Promise<vo
   // Ensure .voicetree/ directory exists
   await fs.mkdir(dotVoicetree, { recursive: true });
 
-  // Copy prompts (skip if directory already exists — user may have customized)
+  // Copy prompts (per-file idempotent — fills gaps, preserves user-customized files)
   const promptsDest: string = path.join(dotVoicetree, 'prompts');
-  try {
-    await fs.access(promptsDest);
-    // Directory exists — skip
-  } catch {
-    await copySpecificFiles(config.promptsSource, promptsDest, PROJECT_PROMPT_FILES);
-  }
+  await copySpecificFiles(config.promptsSource, promptsDest, PROJECT_PROMPT_FILES);
 
-  // Copy hooks (skip if directory already exists — user may have customized)
+  // Copy hooks (per-file idempotent — fills gaps, preserves user-customized files)
   const hooksDest: string = path.join(dotVoicetree, 'hooks');
-  try {
-    await fs.access(hooksDest);
-    // Directory exists — skip
-  } catch {
-    // Copy hook scripts
-    await copySpecificFiles(config.hookScriptsSource, hooksDest, HOOK_SCRIPT_FILES);
-    // Copy hook prompts (muse.md, gardener.md, dispatcher.md)
-    const hookPromptsSource: string = path.join(config.hookScriptsSource, 'prompts');
-    const hookPromptsDest: string = path.join(hooksDest, 'prompts');
-    await copySpecificFiles(hookPromptsSource, hookPromptsDest, HOOK_PROMPT_FILES);
-  }
+  await copySpecificFiles(config.hookScriptsSource, hooksDest, HOOK_SCRIPT_FILES);
+  const hookPromptsSource: string = path.join(config.hookScriptsSource, 'prompts');
+  const hookPromptsDest: string = path.join(hooksDest, 'prompts');
+  await copySpecificFiles(hookPromptsSource, hookPromptsDest, HOOK_PROMPT_FILES);
 
   // Always write .version with current app version
   await fs.writeFile(path.join(dotVoicetree, '.version'), app.getVersion());

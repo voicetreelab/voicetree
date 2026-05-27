@@ -34,6 +34,11 @@ import {
   VaultNotOpenError,
   VaultOpenFailedError,
 } from '../errors/vaultNotOpen.ts'
+import {
+  beginVaultOpen,
+  completeVaultOpen,
+  resetVaultOpenGate,
+} from './vaultOpenGate.ts'
 
 export type VaultResource = {
   openForVault(projectRoot: string): Promise<void>
@@ -69,6 +74,7 @@ export function resetVaultLifecycle(): void {
   lifecycleState.activeSessionId = null
   lifecycleState.registry = null
   mutexTail = Promise.resolve()
+  resetVaultOpenGate()
 }
 
 export async function withVaultMutex<T>(fn: () => Promise<T>): Promise<T> {
@@ -176,47 +182,52 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
   return await traceGraphdSpan('daemon.open-vault', async (span) => {
     return await withVaultMutex(async () => {
-      const body = OpenVaultRequestSchema.parse(input)
-      const targetProjectRoot = resolve(body.path)
-      const currentProjectRoot = getProjectRoot()
-      span.setAttribute('targetVaultPath', targetProjectRoot)
-      span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
-
-      if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
-        await bindVault(
-          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-          targetProjectRoot,
-        )
-        span.setAttribute('outcome', 'reuse-current')
-        return await buildOpenVaultResponse(targetProjectRoot)
-      }
-
-      if (currentProjectRoot) {
-        span.setAttribute('switchedFromActive', true)
-        await closeResources()
-      }
-
-      lifecycleState.activeSessionId = null
-      setGraph(createEmptyGraph())
-
+      beginVaultOpen()
       try {
-        await bindVault(
-          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-          targetProjectRoot,
-        )
-        await openResources(targetProjectRoot)
-        span.setAttribute('outcome', 'opened')
-        return await buildOpenVaultResponse(targetProjectRoot)
-      } catch (error) {
-        span.setAttribute('outcome', 'open-failed')
-        span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
-        await closeResources()
-        clearProjectRoot()
-        throw error instanceof VaultOpenFailedError
-          ? error
-          : new VaultOpenFailedError(
-              error instanceof Error ? error.message : 'Failed to open vault',
-            )
+        const body = OpenVaultRequestSchema.parse(input)
+        const targetProjectRoot = resolve(body.path)
+        const currentProjectRoot = getProjectRoot()
+        span.setAttribute('targetVaultPath', targetProjectRoot)
+        span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
+
+        if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
+          await bindVault(
+            { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+            targetProjectRoot,
+          )
+          span.setAttribute('outcome', 'reuse-current')
+          return await buildOpenVaultResponse(targetProjectRoot)
+        }
+
+        if (currentProjectRoot) {
+          span.setAttribute('switchedFromActive', true)
+          await closeResources()
+        }
+
+        lifecycleState.activeSessionId = null
+        setGraph(createEmptyGraph())
+
+        try {
+          await bindVault(
+            { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+            targetProjectRoot,
+          )
+          await openResources(targetProjectRoot)
+          span.setAttribute('outcome', 'opened')
+          return await buildOpenVaultResponse(targetProjectRoot)
+        } catch (error) {
+          span.setAttribute('outcome', 'open-failed')
+          span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
+          await closeResources()
+          clearProjectRoot()
+          throw error instanceof VaultOpenFailedError
+            ? error
+            : new VaultOpenFailedError(
+                error instanceof Error ? error.message : 'Failed to open vault',
+              )
+        }
+      } finally {
+        completeVaultOpen()
       }
     })
   })

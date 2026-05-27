@@ -1,37 +1,20 @@
 import {app, BrowserWindow, dialog} from 'electron'
-import type {TerminalRecord} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import {getCachedTerminalRecords} from '@/shell/edge/main/agent/terminals/terminal-registry-bridge'
 import {
     buildQuitTmuxSessionPromptModel,
-    cleanupPolicyForQuitTmuxDecision,
     getActiveTmuxSessionSummaries,
-    type QuitTmuxCleanupPolicy,
     type QuitTmuxSessionPromptModel,
     type QuitTmuxSessionSummary,
 } from './quit-tmux-session-prompt'
 
-type StoppableHandle = {
-    stop(): Promise<void>
-}
-
-type TerminalManagerForQuit = {
-    cleanup(policy: QuitTmuxCleanupPolicy): void
-    cleanupAndWait(policy: QuitTmuxCleanupPolicy): Promise<void>
-}
-
 export type QuitLifecycleDeps = {
     readonly cleanupOrphanedContextNodes: () => Promise<unknown>
-    readonly clearMcpHandle: () => void
-    readonly disableMcpJsonIntegration: () => Promise<unknown>
-    readonly getMcpHandle: () => StoppableHandle | null
-    readonly getTerminalRecords: () => readonly TerminalRecord[]
     readonly setIsQuitting: (value: boolean) => void
     readonly stopNotificationScheduler: () => void
-    readonly stopOTLPReceiver: () => unknown
     readonly stopRecoverySessionPolling: () => void
     readonly stopTextToTreeServer: () => void
     readonly stopTrackpadMonitoring: () => void
     readonly stopUnclaimedTmuxSessionPolling: () => void
-    readonly terminalManager: TerminalManagerForQuit
     readonly unregisterInstance: () => void
 }
 
@@ -40,43 +23,19 @@ type QuitLifecycleState = {
     quitPromptInProgress: boolean
 }
 
-function stopMcpServerForQuit(deps: QuitLifecycleDeps): Promise<void> | void {
-    const handle: StoppableHandle | null = deps.getMcpHandle()
-    if (!handle) return
-    deps.clearMcpHandle()
-    return handle.stop().catch((err: unknown) => {
-        console.warn('[App] Failed to stop MCP server:', err)
-    })
-}
-
-function runNonTerminalQuitCleanup(deps: QuitLifecycleDeps): void {
+function runQuitCleanup(deps: QuitLifecycleDeps): void {
+    deps.unregisterInstance()
+    deps.stopTextToTreeServer()
     deps.stopUnclaimedTmuxSessionPolling()
     deps.stopRecoverySessionPolling()
     void deps.cleanupOrphanedContextNodes().catch((error: unknown) => {
         console.warn('[App] Failed to clean up orphaned context nodes before quit:', error)
     })
-    void deps.disableMcpJsonIntegration().catch((error: unknown) => {
-        console.warn('[App] Failed to disable .mcp.json integration before quit:', error)
-    })
-    void deps.stopOTLPReceiver()
+    // OTLP receiver lifecycle is daemon-owned post-Phase-3 (BF-382): vtd.ts
+    // starts the listener on bind and stops it on its own SIGINT/SIGTERM.
+    // Webapp's quit no longer calls into OTLP.
     deps.stopNotificationScheduler()
     deps.stopTrackpadMonitoring()
-}
-
-function runBeforeQuitCleanup(deps: QuitLifecycleDeps, policy: QuitTmuxCleanupPolicy): void {
-    deps.unregisterInstance()
-    deps.stopTextToTreeServer()
-    void stopMcpServerForQuit(deps)
-    deps.terminalManager.cleanup(policy)
-    runNonTerminalQuitCleanup(deps)
-}
-
-async function runBeforeQuitCleanupAndWait(deps: QuitLifecycleDeps, policy: QuitTmuxCleanupPolicy): Promise<void> {
-    deps.unregisterInstance()
-    deps.stopTextToTreeServer()
-    await stopMcpServerForQuit(deps)
-    await deps.terminalManager.cleanupAndWait(policy)
-    runNonTerminalQuitCleanup(deps)
 }
 
 function getQuitDialogParentWindow(): BrowserWindow | undefined {
@@ -85,25 +44,29 @@ function getQuitDialogParentWindow(): BrowserWindow | undefined {
     return BrowserWindow.getAllWindows().find((window: BrowserWindow): boolean => !window.isDestroyed())
 }
 
-async function promptForTmuxQuitPolicy(
+async function showActiveSessionsAcknowledgement(
     activeSessions: readonly QuitTmuxSessionSummary[],
-): Promise<QuitTmuxCleanupPolicy | null> {
+): Promise<void> {
+    // Post-BF-376: tmux sessions are daemon-owned and outlive a webapp quit
+    // by design — the daemon's parent-pid watchdog plus the orphan reaper at
+    // next startup are the bounded cleanup paths. We still surface the
+    // "running agents" notice so the user knows their work persists, but no
+    // policy is enforced from webapp anymore.
     const model: QuitTmuxSessionPromptModel = buildQuitTmuxSessionPromptModel(activeSessions)
     const options = {
         type: model.type,
         title: model.title,
         message: model.message,
         detail: model.detail,
-        buttons: [...model.buttons],
-        defaultId: model.defaultId,
-        cancelId: model.cancelId,
+        buttons: ['Quit'],
+        defaultId: 0,
+        cancelId: 0,
         noLink: model.noLink,
     }
     const parentWindow: BrowserWindow | undefined = getQuitDialogParentWindow()
-    const result: Electron.MessageBoxReturnValue = parentWindow
-        ? await dialog.showMessageBox(parentWindow, options)
-        : await dialog.showMessageBox(options)
-    return cleanupPolicyForQuitTmuxDecision(model.choices[result.response] ?? 'cancel')
+    await (parentWindow
+        ? dialog.showMessageBox(parentWindow, options)
+        : dialog.showMessageBox(options))
 }
 
 function handleBeforeQuit(deps: QuitLifecycleDeps, state: QuitLifecycleState, event: Electron.Event): void {
@@ -112,10 +75,12 @@ function handleBeforeQuit(deps: QuitLifecycleDeps, state: QuitLifecycleState, ev
         return
     }
 
-    const activeSessions: readonly QuitTmuxSessionSummary[] = getActiveTmuxSessionSummaries(deps.getTerminalRecords())
+    const activeSessions: readonly QuitTmuxSessionSummary[] =
+        getActiveTmuxSessionSummaries(getCachedTerminalRecords())
     if (activeSessions.length === 0) {
         deps.setIsQuitting(true)
-        runBeforeQuitCleanup(deps, {tmuxSessions: 'preserve'})
+        runQuitCleanup(deps)
+        state.quitCleanupCompleted = true
         return
     }
 
@@ -125,15 +90,9 @@ function handleBeforeQuit(deps: QuitLifecycleDeps, state: QuitLifecycleState, ev
     state.quitPromptInProgress = true
     deps.setIsQuitting(true)
     void (async (): Promise<void> => {
-        const policy: QuitTmuxCleanupPolicy | null = await promptForTmuxQuitPolicy(activeSessions)
-        if (!policy) {
-            state.quitPromptInProgress = false
-            deps.setIsQuitting(false)
-            return
-        }
-
         try {
-            await runBeforeQuitCleanupAndWait(deps, policy)
+            await showActiveSessionsAcknowledgement(activeSessions)
+            runQuitCleanup(deps)
         } finally {
             state.quitCleanupCompleted = true
             state.quitPromptInProgress = false
@@ -144,7 +103,6 @@ function handleBeforeQuit(deps: QuitLifecycleDeps, state: QuitLifecycleState, ev
 
 function handleWindowAllClosed(deps: QuitLifecycleDeps): void {
     if (process.platform === 'darwin') {
-        deps.terminalManager.cleanup({tmuxSessions: 'preserve'})
         deps.stopUnclaimedTmuxSessionPolling()
         deps.stopRecoverySessionPolling()
         return

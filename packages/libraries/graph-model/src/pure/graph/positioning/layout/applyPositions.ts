@@ -47,7 +47,7 @@ export function applyPositions(graph: Graph): Graph {
         nodeUIMetadata: {
             color: O.none,
             position: O.some(GHOST_ROOT_POSITION),
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }

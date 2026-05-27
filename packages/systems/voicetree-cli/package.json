@@ -1,0 +1,52 @@
+{
+  "name": "@voicetree/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Voicetree `vt` CLI — backend tool that runs headless on Mac/Linux/WSL. Decoupled from the Electron webapp shell so it can be embedded by other runtimes and published independently.",
+  "bin": {
+    "vt": "bin/vt"
+  },
+  "exports": {
+    "./commands/output": "./src/commands/output.ts"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "prompts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "node build.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@mermaid-js/parser": "^0.6.2",
+    "@vscode/ripgrep": "^1.15.9",
+    "chokidar": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vt/app-config": "*",
+    "@vt/graph-db-client": "*",
+    "@vt/graph-db-protocol": "*",
+    "@vt/graph-db-server": "*",
+    "@vt/graph-model": "*",
+    "@vt/graph-tools": "*",
+    "@vt/graph-validation": "*",
+    "@vt/vt-daemon-client": "*",
+    "@vt/vt-rpc": "*",
+    "esbuild": "^0.25.0",
+    "fp-ts": "^2.16.9",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
