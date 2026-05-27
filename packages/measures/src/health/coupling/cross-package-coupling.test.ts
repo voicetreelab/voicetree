@@ -205,7 +205,15 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     // 9 -> 10 as the daemon takes over Main's normalization paths under
     // BF-379. New value: `createTaskNode` for daemon-side graph mutation
     // helpers; all other 9 symbols are unchanged.
-    'vt-daemon -> graph-model': 10,
+    //
+    // 2026-05-27 [Slice D]: 10 -> 18. Pre-absorption budget was
+    // vt-daemon→graph-model 10 + agent-runtime→graph-model 13 = 23 total.
+    // Post-absorption collapses to 18 (net -5). Topology change, not
+    // regression — agent-runtime is deleted; its 13 graph-model imports were
+    // absorbed into vt-daemon and overlap by 5 with the prior 10. The 18 are
+    // the same call sites that previously crossed a sibling boundary; they
+    // now cross the same (vt-daemon → graph-model) boundary instead.
+    'vt-daemon -> graph-model': 18,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
