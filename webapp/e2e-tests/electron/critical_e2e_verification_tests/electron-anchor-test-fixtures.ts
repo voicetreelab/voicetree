@@ -113,6 +113,12 @@ export const test = base.extend<{
         MINIMIZE_TEST: "1",
         VOICETREE_PERSIST_STATE: "1",
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // Pin the daemon's app-support path to the temp user-data dir so it
+        // talks tmux on the same socket as the test (resolved from the same
+        // env). Without this, pinProcessAppSupportPath() in webapp main can
+        // race --user-data-dir resolution and the daemon ends up on
+        // /root/.voicetree/tmux.sock while the test polls a different socket.
+        VOICETREE_APP_SUPPORT: tempUserDataPath,
       },
       timeout: 60_000,
     });
