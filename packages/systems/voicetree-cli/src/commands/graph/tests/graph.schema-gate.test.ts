@@ -4,7 +4,7 @@ import {join} from 'node:path'
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {graphCreate} from '../core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '../core/loadSchemaPlugin'
-import {CliError} from '../../output'
+import {CliError} from '@voicetree/cli/commands/output'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) {

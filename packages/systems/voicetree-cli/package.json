@@ -6,6 +6,9 @@
   "bin": {
     "vt": "bin/vt"
   },
+  "exports": {
+    "./commands/output": "./src/commands/output.ts"
+  },
   "files": [
     "bin",
     "dist",

@@ -3,7 +3,7 @@ import {parseGraphCreateArgs} from '../core/args'
 import {mergeOverrideSpecs, parseOverrideEntry} from '../core/overrideSpec'
 import {rewriteOverrideHintForCli} from '../actions/batchEmit'
 import type {OverrideSpec, ParsedLiveCreateArgs} from '../core/types'
-import {CliError} from '../../output'
+import {CliError} from '@voicetree/cli/commands/output'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) { super(`process.exit(${code})`) }

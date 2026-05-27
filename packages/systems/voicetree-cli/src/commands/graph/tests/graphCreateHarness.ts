@@ -6,7 +6,7 @@ import {vi, type MockInstance} from 'vitest'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {graphCreate} from '../core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '../core/loadSchemaPlugin'
-import {CliError} from '../../output'
+import {CliError} from '@voicetree/cli/commands/output'
 
 export class ExitCalled extends Error {
     constructor(public readonly code: number) {
