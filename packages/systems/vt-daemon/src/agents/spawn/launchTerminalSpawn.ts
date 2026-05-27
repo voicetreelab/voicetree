@@ -4,6 +4,9 @@ import {clearPendingTerminal, recordTerminalPending, removeTerminalFromRegistry}
 import {setTerminalBudget} from '@vt/vt-daemon/terminals/global-budget-registry.ts'
 import {spawnHeadlessAgent, killHeadlessAgent} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {publishTerminalRegistryEvent} from '@vt/vt-daemon/terminals/terminal-registry/terminal-registry-publisher.ts'
+import {getTerminalManager} from '@vt/vt-daemon/terminals/manager/terminal-manager-instance.ts'
+import type {TerminalSpawnResult} from '@vt/vt-daemon-protocol'
+import {getRuntimeEnv} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {buildHeadlessCommand} from './cli/headlessCli'
 import {prepareTerminalDataInMain} from './terminalData'
 import type {SpawnTerminalLogger} from './reloadNodeFromDisk'
@@ -72,6 +75,23 @@ async function launchPreparedTerminal(
         removeTerminalFromRegistry(params.inheritTerminalId)
         recordTerminalPending(params.inheritTerminalId, !!params.headless)
     }
+
+    // The renderer's xterm attaches via WebSocket to /terminals/:id/attach, which
+    // expects an EXISTING tmux session — the relay does not create one. Create
+    // the tmux session here BEFORE publishing terminal-ui-launch so the WS
+    // attach lands on a live session. Without this call the renderer mounts
+    // its floating window, opens the WS, and the relay closes it with
+    // "session not found" / "[session ended — agent exited]".
+    const spawnResult: TerminalSpawnResult = await getTerminalManager().spawnTmuxBacked({
+        terminalData,
+        getToolsDirectory: () => getRuntimeEnv().getVtBinDir?.() ?? '',
+        onData: () => {},
+        onExit: () => {},
+    })
+    if (!spawnResult.success) {
+        throw new Error(`Failed to spawn tmux session for ${spawnResult.terminalId}: ${spawnResult.error}`)
+    }
+
     publishTerminalRegistryEvent({
         type: 'terminal-ui-launch',
         nodeId: params.contextNodeId,
