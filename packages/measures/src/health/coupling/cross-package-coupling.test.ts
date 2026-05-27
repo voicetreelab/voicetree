@@ -160,29 +160,12 @@ type ImportEdge = {
 // agent-events wrappers plus `ensureVtDaemonForVault` + `bindVtDaemonClient`
 // for vault-bind and `TERMINAL_REGISTRY_EVENT_TYPES` for the SSE topic.
 //
-// `webapp -> agent-runtime`: removed (was 15). webapp/package.json no
-// longer depends on `@vt/agent-runtime` after BF-376 outbound; the
-// in-process runtime moved entirely behind vt-daemon. `rg
-// "@vt/agent-runtime" webapp/src` returns zero from this commit.
-//
-// 2026-05-27: remove 4 dead-edge budget entries (BF-375/BF-376 fallout).
-// Each had actual=0 production imports — the budgets were fossils. Default
-// budget is 0, so re-adding any of these edges in src/ now hard-errors:
-//   removed: agent-runtime -> graph-db-server (was 12)
-//   removed: graph-db-client -> graph-db-server (was 17 — sole reference
-//     was a template-literal child-process source in vaultlessSpawn.ts)
-//   removed: vt-daemon -> graph-db-server (was 8 — vtd reaches graphd via
-//     `@vt/graph-db-client` HTTP only; protocol leak retired by BF-375)
-//   removed: webapp -> graph-db-server (was 11 — webapp reaches graphd
-//     via `@vt/graph-db-client` HTTP only)
-//
-// 2026-05-27: ratchet `vt-daemon -> agent-runtime` 14 -> 10. All 10 are the
-// migration-in-flight RPC/MCP-tool surface absorbing agent-runtime into
-// vt-daemon. Phase 3 retires this edge mechanically when absorption is
-// complete.
+// 2026-05-27 [Slice D]: @vt/agent-runtime retired. All terminal/spawn/runtime/
+// lifecycle/headless/hooks/inject/recovery/completion code absorbed into
+// @vt/vt-daemon. All previously-budgeted agent-runtime edges drop to zero
+// and their budget entries are removed; default budget is 0, so re-adding
+// any edge to a deleted package would hard-error.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
-    'agent-runtime -> app-config': 1,
-    'agent-runtime -> graph-model': 13,
     'app-config -> graph-model': 4,
     // BF-369: +1 vs base — daemonKind generalisation widened the protocol
     // surface (DaemonKind type now imported alongside the existing 2 symbols).
@@ -199,7 +182,6 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
     'graph-tools -> vt-rpc': 8,
-    'voicetree-cli -> agent-runtime': 4,
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
@@ -211,7 +193,6 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     // calls `ensureVtDaemonForVault` to spawn-or-adopt the per-vault VTD.
     'voicetree-cli -> vt-daemon-client': 1,
     'voicetree-cli -> vt-rpc': 9,
-    'vt-daemon -> agent-runtime': 10,
     'vt-daemon -> app-config': 1,
     'vt-daemon -> daemon-lifecycle': 9,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP

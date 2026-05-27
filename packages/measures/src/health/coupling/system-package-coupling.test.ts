@@ -8,8 +8,6 @@ const REPO_ROOT: string = DEFAULT_REPO_ROOT
 const SYSTEM_PACKAGES: ReadonlySet<string> = new Set([
     // The daemon package owns graph mutation execution; runtime fan-in should stay small and explicit.
     '@vt/graph-db-server',
-    // The agent runtime owns terminal/session orchestration; webapp runtime access is launcher-only.
-    '@vt/agent-runtime',
     // The vt-daemon package is the external control-plane adapter; new runtime consumers need review.
     '@vt/vt-daemon',
     // The graph-db client is the stable daemon client/launcher surface; broad fan-in stays bounded.
@@ -18,7 +16,6 @@ const SYSTEM_PACKAGES: ReadonlySet<string> = new Set([
 
 const RUNTIME_SYMBOL_THRESHOLD = 15
 const DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD = 0
-const WEBAPP_AGENT_RUNTIME_BOUNDARY_THRESHOLD = 0
 
 const SCAN_ROOTS: readonly string[] = [
     'packages/libraries',
@@ -45,22 +42,6 @@ const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES: ReadonlySet<string> = new Se
     // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer imports
     // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
     // SIBLING process. No allowlist entry required.
-])
-
-const ALLOWED_AGENT_RUNTIME_WEBAPP_LAUNCHERS: ReadonlySet<string> = new Set([
-    // FS-watcher -> agent-completion-index bridge: graph-model-init wires the
-    // Electron file-watcher callback to registerAgentNodes so nodes authored
-    // by an agent via FS write (not create_graph) still satisfy the
-    // in-process agent-completion progress-node gate. The bridge crosses the
-    // boundary by intent; no other webapp file may import the symbol.
-    'webapp/src/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init.ts',
-    // BF-376 (half-cutover): agent-events SSE bridge forwards hook-event
-    // envelopes from the per-vault VTD's SSE channel into Main's in-process
-    // terminal registry via agentRuntime.updateTerminalAgentEvent. This is
-    // the inbound half of the cutover; the outbound RPC fan-out (BF-376b)
-    // will remove the in-process agent-runtime in Main entirely, at which
-    // point this allowlist entry is removed.
-    'webapp/src/shell/edge/main/agent/terminals/agent-events-registry-bridge.ts',
 ])
 
 type RuntimeSites = {
@@ -314,24 +295,4 @@ describe('system package coupling bounds', () => {
         ).toEqual([])
     })
 
-    it('keeps webapp runtime imports from agent-runtime inside the CLI runtime launcher', async () => {
-        const packageData = await getPackageData()
-        const data = packageData.get('@vt/agent-runtime') ?? emptyPackageData()
-        const webappRuntimeEntries = symbolFileEntries(data.runtime.prod)
-            .filter(({file}) => file.startsWith('webapp/src/'))
-        const violationEntries = webappRuntimeEntries
-            .filter(({file}) => !ALLOWED_AGENT_RUNTIME_WEBAPP_LAUNCHERS.has(file))
-            .sort((a, b) => a.file.localeCompare(b.file) || a.symbol.localeCompare(b.symbol))
-
-        console.info([
-            'Webapp to agent-runtime back-channel invariant:',
-            `violatingImports=${violationEntries.length} / ${WEBAPP_AGENT_RUNTIME_BOUNDARY_THRESHOLD}`,
-            `allowlistedImports=${webappRuntimeEntries.length - violationEntries.length}`,
-        ].join('\n'))
-
-        expect(
-            violationEntries.map(({symbol, file}) => `${file}: ${symbol}`),
-            'webapp/src/** must not embed @vt/agent-runtime at runtime; terminal ops cross the MCP-owned terminal surface.',
-        ).toEqual([])
-    })
 })

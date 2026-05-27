@@ -24,7 +24,7 @@ const FORBIDDEN_RULES: readonly {rule: string, pattern: RegExp}[] = [
         pattern: /from\s+['"]@\/shell\/edge\//,
     },
     {
-        rule: "No 'uiAPI' references (renderer surface) — keep agent-runtime UI-agnostic",
+        rule: "No 'uiAPI' references (renderer surface) — keep vt-daemon agent runtime UI-agnostic",
         pattern: /\buiAPI\b/,
     },
     {
@@ -99,7 +99,7 @@ function formatViolation(v: Violation): string {
     return `${v.file}:${v.line} — ${v.rule}\n    ${v.snippet}`
 }
 
-describe('@vt/agent-runtime package boundaries', () => {
+describe('@vt/vt-daemon agent runtime package boundaries', () => {
     it('forbids electron / webapp-edge / uiAPI / deep webapp / graph-db-server imports in production sources', async () => {
         const violations = await findViolations()
         expect(violations.map(formatViolation)).toEqual([])

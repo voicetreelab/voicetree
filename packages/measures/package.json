@@ -13,7 +13,6 @@
     "perf:main-storm": "node --import tsx perf/electron-main-storm.ts"
   },
   "dependencies": {
-    "@vt/agent-runtime": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
