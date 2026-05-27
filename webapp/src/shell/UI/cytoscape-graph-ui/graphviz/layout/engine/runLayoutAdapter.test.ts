@@ -18,6 +18,24 @@ const createGraph = (): Core => cytoscape({
   ],
 });
 
+const createDenseGraph = (nodeCount: number): Core => cytoscape({
+  headless: true,
+  styleEnabled: true,
+  style: [
+    {
+      selector: 'node',
+      style: {
+        width: 80,
+        height: 80,
+      },
+    },
+  ],
+  elements: Array.from({ length: nodeCount }, (_, index) => ({
+    data: { id: `node-${index}` },
+    position: { x: 0, y: 0 },
+  })),
+});
+
 const configFor = (engine: LayoutEngine): LayoutConfig => ({
   engine,
   cola: {
@@ -35,6 +53,19 @@ const expectFinitePositions = (cy: Core): void => {
     expect(Number.isFinite(position.x)).toBe(true);
     expect(Number.isFinite(position.y)).toBe(true);
   });
+};
+
+const countOverlaps = (cy: Core, minDistance: number): number => {
+  const positions = cy.nodes().map((node) => node.position());
+  let overlaps = 0;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      const dx = positions[left].x - positions[right].x;
+      const dy = positions[left].y - positions[right].y;
+      if (Math.hypot(dx, dy) < minDistance) overlaps += 1;
+    }
+  }
+  return overlaps;
 };
 
 describe('runLayoutAdapter', () => {
@@ -56,4 +87,21 @@ describe('runLayoutAdapter', () => {
       }
     },
   );
+
+  it('keeps the ForceAtlas2 backend from leaving dense nodes piled up', async () => {
+    const cy = createDenseGraph(24);
+    try {
+      await runLayoutAdapter({
+        cy,
+        eles: cy.elements(),
+        config: configFor('forceatlas2'),
+        mode: 'full',
+      });
+
+      expectFinitePositions(cy);
+      expect(countOverlaps(cy, 40)).toBeLessThan(10);
+    } finally {
+      cy.destroy();
+    }
+  });
 });
