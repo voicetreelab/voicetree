@@ -147,8 +147,12 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         if (!resumableRow?.resume) {
             throw new Error('expected resume capability after defined check');
         }
+        // BF-329 lazy-resolver design: discovery surfaces only the resume CLI
+        // type; the native session id is resolved at click time inside
+        // resumePersistedAgentSession. The Resume-click → process-tree assertion
+        // for that resolution lives in
+        // ../lifecycle/electron-resume-persisted-byte-roundtrip.spec.ts.
         expect(resumableRow.resume.cliType).toBe('claude');
-        expect(resumableRow.resume.nativeSessionId).toBe(fixturedNativeSessionId);
         expect(resumableRow.attach).toBeUndefined();
         expect(resumableRow.isClaimed).toBe(false);
 
@@ -157,7 +161,6 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         );
         await expect(rowEl).toBeVisible({timeout: 10000});
         await expect(rowEl).toContainText(/Resumable \(claude\)/);
-        await expect(rowEl).toContainText(fixturedNativeSessionId);
         await expect(rowEl.getByRole('button', {name: /resume claude session/i})).toBeVisible();
         await expect(rowEl.getByRole('button', {name: /^attach/i})).toHaveCount(0);
 
@@ -217,8 +220,10 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
             expect(matching.length, 'should produce exactly one row for the terminalId').toBe(1);
             const row: RecoverableAgentSessionShape = matching[0]!;
             expect(row.attach?.session.sessionName).toBe(twinSessionName);
+            // BF-329 lazy-resolver design: native session id is resolved at
+            // click time, not at discovery. See electron-resume-persisted-
+            // byte-roundtrip.spec.ts for the post-click resolution proof.
             expect(row.resume?.cliType).toBe('claude');
-            expect(row.resume?.nativeSessionId).toBe(twinNativeSessionId);
 
             const rowEl = appWindow.locator(
                 `[data-has-attach="true"][data-has-resume="true"][data-terminal-id="${twinTerminalId}"]`,
