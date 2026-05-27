@@ -19,12 +19,16 @@ describe('buildTerminalEnvVars', () => {
             env: {
                 getAppSupportPath: () => '/app-support',
                 getMcpPort: () => 4242,
+                getVaultSnapshot: async () => ({
+                    projectRoot: '/watched-project',
+                    readPaths: [
+                        '/watched-project/voicetree-25-5',
+                        '/watched-project/reference',
+                    ],
+                    writeFolder: '/watched-project/voicetree-25-5',
+                }),
                 getProjectRoot: async () => '/watched-project',
                 getWriteFolder: async () => '/watched-project/voicetree-25-5',
-                getVaultPaths: async () => [
-                    '/watched-project/voicetree-25-5',
-                    '/watched-project/reference',
-                ],
             },
         })
 
@@ -43,7 +47,7 @@ describe('buildTerminalEnvVars', () => {
         expect(env.AGENT_PROMPT).toContain('project=/watched-project/.voicetree')
     })
 
-    it('builds vault env from one vault snapshot when available', async () => {
+    it('builds vault env from one vault snapshot', async () => {
         let vaultSnapshotReads = 0
         configureAgentRuntime({
             env: {
@@ -65,9 +69,6 @@ describe('buildTerminalEnvVars', () => {
                 },
                 getWriteFolder: async () => {
                     throw new Error('getWriteFolder should not be called when vault snapshot exists')
-                },
-                getVaultPaths: async () => {
-                    throw new Error('getVaultPaths should not be called when vault snapshot exists')
                 },
             },
         })

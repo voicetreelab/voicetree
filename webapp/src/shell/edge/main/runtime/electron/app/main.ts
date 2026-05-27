@@ -135,7 +135,6 @@ terminalRuntimeSurface.configureAgentRuntime({
                 writeFolder: vaultState.writeFolder,
             };
         },
-        getVaultPaths,
         getWriteFolder: async () => {
             const writeFolder: O.Option<string> = await getWriteFolder();
             return O.isSome(writeFolder) ? writeFolder.value : null;

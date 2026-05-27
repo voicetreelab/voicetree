@@ -124,6 +124,13 @@ async function main(): Promise<void> {
         env: {
             getAppSupportPath: (): string => tempAppSupport,
             getMcpPort,
+            getProjectRoot: async (): Promise<string> => tempVault,
+            getVaultSnapshot: async () => ({
+                projectRoot: tempVault,
+                readPaths: [tempVault],
+                writeFolder: tempVault,
+            }),
+            getWriteFolder: async (): Promise<string> => tempVault,
         },
         ui: { registerChildIfMonitored },
     })

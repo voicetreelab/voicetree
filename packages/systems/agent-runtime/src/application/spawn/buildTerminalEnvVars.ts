@@ -3,11 +3,9 @@
  * Eliminates duplication across spawnPlainTerminal, spawnHookTerminal, and prepareTerminalDataInMain.
  */
 
-import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWriteFolder} from '../runtime/graph-bridge'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
@@ -35,25 +33,12 @@ function vaultPathsFromSnapshot(snapshot: VaultSnapshot): readonly string[] {
 }
 
 async function resolveVaultEnv(env: ReturnType<typeof getRuntimeEnv>): Promise<VaultEnv> {
-    if (env.getVaultSnapshot) {
-        const snapshot: VaultSnapshot = await env.getVaultSnapshot()
-        return {
-            allVaultPaths: vaultPathsFromSnapshot(snapshot),
-            projectRoot: snapshot.projectRoot,
-            writeFolder: snapshot.writeFolder ?? '',
-        }
+    const snapshot: VaultSnapshot = await env.getVaultSnapshot()
+    return {
+        allVaultPaths: vaultPathsFromSnapshot(snapshot),
+        projectRoot: snapshot.projectRoot,
+        writeFolder: snapshot.writeFolder ?? '',
     }
-
-    const allVaultPaths: readonly string[] = env.getVaultPaths
-        ? await env.getVaultPaths()
-        : await getRuntimeVaultPaths()
-    const writeFolder: string = env.getWriteFolder
-        ? (await env.getWriteFolder()) ?? ''
-        : O.getOrElse(() => '')(await getRuntimeWriteFolder())
-    const projectRoot: string | null = env.getProjectRoot
-        ? await env.getProjectRoot()
-        : await getRuntimeProjectRoot()
-    return {allVaultPaths, projectRoot, writeFolder}
 }
 
 export async function buildTerminalEnvVars(params: {

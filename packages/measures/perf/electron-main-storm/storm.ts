@@ -65,6 +65,13 @@ export async function runStorm(args: {
         env: {
             getAppSupportPath: (): string => args.appSupport,
             getMcpPort: (): number => args.mcpPort,
+            getProjectRoot: async (): Promise<string> => args.vault,
+            getVaultSnapshot: async () => ({
+                projectRoot: args.vault,
+                readPaths: [args.vault],
+                writeFolder: args.vault,
+            }),
+            getWriteFolder: async (): Promise<string> => args.vault,
         },
     })
 
