@@ -8,6 +8,7 @@ export type {
     AskQueryResponse,
     GraphBridge,
     LiveStateBridge,
+    McpGraphSnapshot,
     McpServerConfig,
     SearchBridge,
     SearchSimilarResult,

@@ -10,10 +10,12 @@ const testDir: string = '/tmp/test-voicetree-mcp-opencode';
 
 function makeGraphBridge(): GraphBridge {
     return {
-        getGraph: vi.fn(async () => createEmptyGraph()),
-        getVaultPaths: vi.fn(async () => [testDir]),
-        getWriteFolder: vi.fn(async () => testDir),
-        getProjectRoot: vi.fn(async () => testDir),
+        getSnapshot: vi.fn(async () => ({
+            graph: createEmptyGraph(),
+            projectRoot: testDir,
+            vaultPaths: [testDir],
+            writeFolder: testDir,
+        })),
         applyGraphDelta: vi.fn(async () => undefined),
     };
 }

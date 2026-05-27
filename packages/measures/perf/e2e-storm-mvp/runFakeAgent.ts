@@ -1,27 +1,14 @@
 /**
- * Spawn ONE vt-fake-agent through electron's `terminal:spawn` IPC.
+ * Spawn ONE vt-fake-agent through the normal MCP `spawn_agent` flow.
  *
- * Why not plain child_process: vt-mcpd's `create_graph` tool requires the
- * caller's terminal to be registered in electron's `agent-runtime`
- * `TerminalRecord` registry. A test-process child_process call is invisible
- * to electron's runtime singleton; the agent will get
- * `Unknown caller terminal: <id>` and exit non-zero.
+ * Why not plain child_process: vt-mcpd's `create_graph` tool requires a
+ * caller terminal registered in Electron's `agent-runtime` singleton. A
+ * test-process child is invisible to that registry.
  *
- * Why not the existing agent-storm-perf-spec pattern (call
- * `agentRuntime.getTerminalManager().spawnTmuxBacked` from the test
- * process): same problem — the test-process agent-runtime is a separate
- * module instance from electron's. The parent agent observed this as the
- * "GraphModel not initialized" failure.
- *
- * Right answer: route the spawn through electron via Playwright's
- * `appWindow.evaluate(...)` → `window.electronAPI.terminal.spawn(td)`. That
- * triggers `ipcMain.handle('terminal:spawn')` in main, which calls
- * `terminalManager.spawnTmuxBacked()` on electron's runtime, registering
- * the TerminalRecord MCP needs.
- *
- * We then poll the agent registry for the terminal becoming `exited`. The
- * fake-agent's `exit` action calls process.exit, but the tmux session lives
- * on; lifecycle tracking is the canonical "is it done" signal.
+ * Right answer: create one real caller terminal in Electron, then ask the
+ * running MCP server to spawn child agents exactly as production agents do.
+ * That path calls spawnTerminalWithContextNode -> launchTerminalOntoUI, so
+ * headful fake agents get real floating terminal windows.
  */
 import type { Page } from '@playwright/test'
 import type { FakeAgentScript } from '../../../../tools/vt-fake-agent/src/types.ts'
@@ -30,8 +17,6 @@ import * as path from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { createTerminalData, type TerminalData, type TerminalId } from '@vt/agent-runtime/types'
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const require = createRequire(import.meta.url)
@@ -39,43 +24,70 @@ const require = createRequire(import.meta.url)
 export interface FakeAgentInputs {
     readonly appWindow: Page
     readonly repoRoot: string
-    readonly vaultDir: string
     readonly mcpPort: number
     readonly seedNodeAbsolutePath: string
-    readonly terminalId: string
-    readonly script: FakeAgentScript
+    readonly callerTerminalId: string
+    readonly promptTemplate: string
     readonly timeoutMs: number
 }
 
 export interface FakeAgentResult {
+    readonly terminalId: string | null
     readonly spawnSuccess: boolean
     readonly spawnError: string | null
     readonly exitedCleanly: boolean
     readonly spawnWallMs: number
     readonly wallMs: number
     readonly timedOut: boolean
-    readonly headlessOutput: string
+    readonly terminalOutput: string
 }
 
-function buildAgentPrompt(script: FakeAgentScript): string {
+type McpJsonResponse = {
+    readonly result?: {
+        readonly content?: readonly { readonly type: string; readonly text: string }[]
+        readonly isError?: boolean
+    }
+    readonly error?: { readonly message: string }
+}
+
+type McpToolResult = {
+    readonly success: boolean
+    readonly parsed?: Record<string, unknown>
+    readonly isError?: boolean
+}
+
+export function buildStormAgentPrompt(script: FakeAgentScript): string {
     return `### FAKE_AGENT_SCRIPT ###\n${JSON.stringify(script)}\n### END_FAKE_AGENT_SCRIPT ###`
 }
 
-function resolveFakeAgentEntrypoint(repoRoot: string): string {
+export function promptTemplateName(agentIndex: number): string {
+    return `AGENT_PROMPT_STORM_${agentIndex}`
+}
+
+export function resolveFakeAgentEntrypoint(repoRoot: string): string {
     const entry = path.join(repoRoot, 'tools', 'vt-fake-agent', 'src', 'index.ts')
     if (!existsSync(entry)) throw new Error(`vt-fake-agent entrypoint not found at ${entry}`)
     return entry
 }
 
-function resolveTsxImportPath(): string {
+export function resolveTsxImportPath(): string {
     return require.resolve('tsx')
 }
 
+export function buildFakeAgentCommand(repoRoot: string): string {
+    return [
+        JSON.stringify(process.execPath),
+        '--import',
+        JSON.stringify(resolveTsxImportPath()),
+        JSON.stringify(resolveFakeAgentEntrypoint(repoRoot)),
+        '"$AGENT_PROMPT"',
+    ].join(' ')
+}
+
 export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number): FakeAgentScript {
-    const actions: FakeAgentScript['actions'] = Array.from({ length: nodeCount }, (_, nodeIndex) => {
+    const nodes = Array.from({ length: nodeCount }, (_, nodeIndex) => {
         const title = `mvp-agent-${agentIndex}-node-${nodeIndex}`
         return {
-            type: 'create_node',
             title,
             summary: `MVP storm node ${title}`,
             content: `Body of ${title} written by the e2e-storm-mvp harness.`,
@@ -84,7 +96,7 @@ export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number
 
     return {
         actions: [
-            ...actions,
+            { type: 'create_nodes', nodes },
             { type: 'exit', code: 0 },
         ],
     }
@@ -93,38 +105,98 @@ export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number
 /** Mark `__dirname` as referenced so noUnusedLocals stays happy under tsx. */
 export const __sourceDir = __dirname
 
-function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
-    const fakeAgentEntry = resolveFakeAgentEntrypoint(inputs.repoRoot)
-    const fakeAgentDir = path.dirname(fakeAgentEntry)
-    const tsxImportPath = resolveTsxImportPath()
-
-    return createTerminalData({
-        terminalId: inputs.terminalId as TerminalId,
-        attachedToNodeId: inputs.seedNodeAbsolutePath,
-        terminalCount: 0,
-        title: inputs.terminalId,
-        agentName: inputs.terminalId,
-        isHeadless: true,
-        initialEnvVars: {
-            VOICETREE_TERMINAL_ID: inputs.terminalId,
-            VOICETREE_MCP_PORT: String(inputs.mcpPort),
-            VOICETREE_VAULT_PATH: inputs.vaultDir,
-            TASK_NODE_PATH: path.join(inputs.vaultDir, `${inputs.terminalId}-task.md`),
-            AGENT_PROMPT: buildAgentPrompt(inputs.script),
+async function mcpRequest(mcpPort: number, method: string, params: Record<string, unknown> = {}, id = 1): Promise<McpJsonResponse> {
+    const response = await fetch(`http://127.0.0.1:${mcpPort}/mcp`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
         },
-        initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(tsxImportPath)} ${JSON.stringify(fakeAgentEntry)}; exit`,
-        executeCommand: true,
-        initialSpawnDirectory: fakeAgentDir,
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
     })
+    return JSON.parse(await response.text()) as McpJsonResponse
+}
+
+async function mcpCallTool(mcpPort: number, toolName: string, args: Record<string, unknown>): Promise<McpToolResult> {
+    const response = await mcpRequest(mcpPort, 'tools/call', {
+        name: toolName,
+        arguments: args,
+    })
+    if (response.error) throw new Error(`MCP error: ${response.error.message}`)
+
+    const text = response.result?.content?.[0]?.text
+    const parsed = text ? JSON.parse(text) as Record<string, unknown> : undefined
+    return {
+        success: parsed?.success === true,
+        parsed,
+        isError: response.result?.isError,
+    }
+}
+
+export async function initializeMcpClient(mcpPort: number): Promise<void> {
+    const response = await mcpRequest(mcpPort, 'initialize', {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'e2e-storm-mvp', version: '1.0.0' },
+    }, 0)
+    if (response.error) throw new Error(`MCP initialize failed: ${response.error.message}`)
+}
+
+export async function waitForAgentListed(
+    mcpPort: number,
+    terminalId: string,
+    timeoutMs: number,
+): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+        const result = await mcpCallTool(mcpPort, 'list_agents', {})
+        const agents = result.parsed?.agents
+        if (Array.isArray(agents) && agents.some(agent => (
+            typeof agent === 'object'
+            && agent !== null
+            && 'terminalId' in agent
+            && agent.terminalId === terminalId
+        ))) {
+            return true
+        }
+        await new Promise(r => setTimeout(r, 250))
+    }
+    return false
+}
+
+export async function waitForInteractiveTerminalMounted(
+    appWindow: Page,
+    terminalId: string,
+    timeoutMs: number,
+): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+        const mounted = await appWindow.evaluate((id) => {
+            const selector = `[data-floating-window-id="${CSS.escape(id)}"].cy-floating-window-terminal`
+            const windowEl = document.querySelector<HTMLElement>(selector)
+            const xtermEl = windowEl?.querySelector<HTMLElement>('.xterm')
+            if (!windowEl || !xtermEl) return false
+
+            const style = window.getComputedStyle(windowEl)
+            const rect = windowEl.getBoundingClientRect()
+            return style.display !== 'none'
+                && style.visibility !== 'hidden'
+                && rect.width > 0
+                && rect.height > 0
+        }, terminalId)
+        if (mounted) return true
+        await new Promise(r => setTimeout(r, 250))
+    }
+    return false
 }
 
 /**
- * Wait for the fake-agent to reach its `exit` action via the ring-buffered
- * headless output. The executor emits `[fake-agent] Executing: <type>` for
+ * Wait for the fake-agent to reach its `exit` action via the tmux-backed
+ * output buffer. The executor emits `[fake-agent] Executing: <type>` for
  * every action BEFORE running it (vt-fake-agent/src/executor.ts:39); the
  * `exit` action then calls `process.exit(0)` so no further line is ever
  * printed. So `Executing: exit` is the last-line-emitted completion marker
- * for our single-create-node script.
+ * for our create-node script.
  *
  * Using `Script complete.` would never match — the agent exits before that
  * log line is reached.
@@ -157,43 +229,69 @@ async function pollForScriptComplete(
 }
 
 export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentResult> {
-    const td = buildTerminalData(inputs)
-
     const wallStart = Date.now()
     const spawnStart = Date.now()
-    const spawnResult = await inputs.appWindow.evaluate(async (terminalData) => {
-        const api = (window as unknown as {
-            electronAPI?: {
-                terminal?: {
-                    spawn?: (td: unknown) => Promise<{ success: boolean; terminalId?: string; error?: string }>
-                }
-            }
-        }).electronAPI?.terminal
-        if (!api?.spawn) return { success: false, error: 'window.electronAPI.terminal.spawn unavailable' }
-        return api.spawn(terminalData)
-    }, td as unknown as Parameters<Page['evaluate']>[1])
+    const spawnResult = await mcpCallTool(inputs.mcpPort, 'spawn_agent', {
+        nodeId: inputs.seedNodeAbsolutePath,
+        callerTerminalId: inputs.callerTerminalId,
+        agentName: 'Fake Agent',
+        spawnDirectory: inputs.repoRoot,
+        depthBudget: 0,
+        headless: false,
+        promptTemplate: inputs.promptTemplate,
+    })
     const spawnWallMs = Date.now() - spawnStart
 
     if (!spawnResult.success) {
         return {
+            terminalId: null,
             spawnSuccess: false,
-            spawnError: spawnResult.error ?? 'unknown spawn error',
+            spawnError: typeof spawnResult.parsed?.error === 'string' ? spawnResult.parsed.error : 'unknown spawn error',
             exitedCleanly: false,
             spawnWallMs,
             wallMs: Date.now() - wallStart,
             timedOut: false,
-            headlessOutput: '',
+            terminalOutput: '',
         }
     }
 
-    const exit = await pollForScriptComplete(inputs.appWindow, inputs.terminalId, inputs.timeoutMs, 250)
+    const terminalId = typeof spawnResult.parsed?.terminalId === 'string' ? spawnResult.parsed.terminalId : ''
+    if (!terminalId) {
+        return {
+            terminalId: null,
+            spawnSuccess: false,
+            spawnError: 'spawn_agent returned no terminalId',
+            exitedCleanly: false,
+            spawnWallMs,
+            wallMs: Date.now() - wallStart,
+            timedOut: false,
+            terminalOutput: '',
+        }
+    }
+
+    const terminalMounted = await waitForInteractiveTerminalMounted(inputs.appWindow, terminalId, 10_000)
+    if (!terminalMounted) {
+        return {
+            terminalId,
+            spawnSuccess: false,
+            spawnError: `spawn_agent returned ${terminalId}, but no headful xterm floating window mounted`,
+            exitedCleanly: false,
+            spawnWallMs,
+            wallMs: Date.now() - wallStart,
+            timedOut: false,
+            terminalOutput: '',
+        }
+    }
+
+    const exit = await pollForScriptComplete(inputs.appWindow, terminalId, inputs.timeoutMs, 250)
     return {
+        terminalId,
         spawnSuccess: true,
         spawnError: null,
         exitedCleanly: exit.scriptCompleted,
         spawnWallMs,
         wallMs: Date.now() - wallStart,
         timedOut: !exit.scriptCompleted,
-        headlessOutput: exit.output,
+        terminalOutput: exit.output,
     }
 }

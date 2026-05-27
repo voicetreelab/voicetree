@@ -7,7 +7,7 @@
         "actions": [
           { "type": "log", "message": "FastWorker starting (2s)" },
           { "type": "delay", "ms": 2000 },
-          { "type": "create_node", "title": "FastWorker Result", "summary": "Fast task completed in ~2s." },
+          { "type": "create_nodes", "nodes": [{ "title": "FastWorker Result", "summary": "Fast task completed in ~2s." }] },
           { "type": "exit", "code": 0 }
         ]
       }
@@ -18,7 +18,7 @@
         "actions": [
           { "type": "log", "message": "MediumWorker starting (4s)" },
           { "type": "delay", "ms": 4000 },
-          { "type": "create_node", "title": "MediumWorker Result", "summary": "Medium task completed in ~4s." },
+          { "type": "create_nodes", "nodes": [{ "title": "MediumWorker Result", "summary": "Medium task completed in ~4s." }] },
           { "type": "exit", "code": 0 }
         ]
       }
@@ -29,7 +29,7 @@
         "actions": [
           { "type": "log", "message": "SlowWorker starting (6s)" },
           { "type": "delay", "ms": 6000 },
-          { "type": "create_node", "title": "SlowWorker Result", "summary": "Slow task completed in ~6s." },
+          { "type": "create_nodes", "nodes": [{ "title": "SlowWorker Result", "summary": "Slow task completed in ~6s." }] },
           { "type": "exit", "code": 0 }
         ]
       }

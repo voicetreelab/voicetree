@@ -1,5 +1,5 @@
 /**
- * Electron main-process CPU profiler via Node inspector debugger protocol.
+ * Electron CPU profiler via Chrome DevTools Protocol.
  *
  * Connects to a Node `--inspect=<port>` debugger via the V8 Inspector WebSocket
  * (CDP), drives the `Profiler` domain to capture a sampling CPU profile, and
@@ -8,12 +8,12 @@
  *   - VS Code (click to open)
  *   - https://www.speedscope.app
  *
- * Two consumers as of this writing:
+ * Consumers as of this writing:
  *   - `webapp/e2e-tests/.../perf/electron-500-node-cdp-perf.spec.ts`
  *     (Playwright-driven; passes the inspect port captured via Playwright's
  *     own stderr pipe)
  *   - `packages/measures/perf/electron-main-storm.ts`
- *     (raw `child_process.spawn`; captures the inspect port itself)
+ *     (raw `child_process.spawn`; captures main and renderer profiles)
  *
  * The helper is deliberately Playwright-free so it can be used from either.
  */
@@ -31,6 +31,13 @@ interface CdpResponse {
     id: number
     result?: Record<string, unknown>
     error?: { message: string }
+}
+
+interface CdpTarget {
+    type?: string
+    title?: string
+    url?: string
+    webSocketDebuggerUrl?: string
 }
 
 /**
@@ -85,16 +92,53 @@ async function discoverInspectorWsUrl(inspectPort: number): Promise<string> {
     })
 }
 
-// ============================================================================
-// Public API — profiler lifecycle
-// ============================================================================
+async function fetchCdpTargets(debugPort: number, pathSuffix: string): Promise<readonly CdpTarget[]> {
+    return new Promise((resolve, reject) => {
+        http.get(`http://127.0.0.1:${debugPort}${pathSuffix}`, (res) => {
+            let data = ''
+            res.on('data', (chunk: string) => { data += chunk })
+            res.on('end', () => {
+                try {
+                    const targets = JSON.parse(data) as CdpTarget[]
+                    resolve(Array.isArray(targets) ? targets : [])
+                } catch (err) {
+                    reject(new Error(`${pathSuffix} parse failed: ${(err as Error).message}`))
+                }
+            })
+        }).on('error', reject)
+    })
+}
 
-/**
- * Open a CDP connection to the inspector and start `Profiler.start`. Returns a
- * handle the caller passes to `stopMainProcessProfileAndSave`.
- */
-export async function startMainProcessProfile(inspectPort: number): Promise<MainProcessCdpHandle> {
-    const wsUrl = await discoverInspectorWsUrl(inspectPort)
+export function selectInspectablePageTarget(targets: readonly CdpTarget[]): CdpTarget | undefined {
+    return targets.find((target) =>
+        target.type === 'page'
+        && typeof target.webSocketDebuggerUrl === 'string'
+        && target.webSocketDebuggerUrl.length > 0
+        && target.url !== 'devtools://devtools/bundled/inspector.html',
+    )
+}
+
+async function discoverRendererWsUrl(debugPort: number, timeoutMs: number): Promise<string> {
+    const deadline = Date.now() + timeoutMs
+    let lastError: Error | undefined
+
+    while (Date.now() < deadline) {
+        try {
+            const target = selectInspectablePageTarget(await fetchCdpTargets(debugPort, '/json'))
+            if (target?.webSocketDebuggerUrl) return target.webSocketDebuggerUrl
+        } catch (err) {
+            lastError = err as Error
+        }
+        await new Promise((r) => setTimeout(r, 200))
+    }
+
+    throw new Error(
+        `no inspectable renderer page target on remote debugging port ${debugPort}`
+        + (lastError ? ` (${lastError.message})` : ''),
+    )
+}
+
+async function connectAndStartProfiler(wsUrl: string): Promise<MainProcessCdpHandle> {
     const ws = await new Promise<WebSocket>((resolve, reject) => {
         const w = new WebSocket(wsUrl)
         w.on('open', () => resolve(w))
@@ -106,7 +150,7 @@ export async function startMainProcessProfile(inspectPort: number): Promise<Main
     return handle
 }
 
-export async function stopMainProcessProfileAndSave(
+async function stopProfileAndSave(
     handle: MainProcessCdpHandle,
     outputDir: string,
     filename: string,
@@ -120,6 +164,43 @@ export async function stopMainProcessProfileAndSave(
     const filepath = path.join(outputDir, filename)
     await writeFile(filepath, profileJson, 'utf8')
     return filepath
+}
+
+// ============================================================================
+// Public API — profiler lifecycle
+// ============================================================================
+
+/**
+ * Open a CDP connection to the inspector and start `Profiler.start`. Returns a
+ * handle the caller passes to `stopMainProcessProfileAndSave`.
+ */
+export async function startMainProcessProfile(inspectPort: number): Promise<MainProcessCdpHandle> {
+    const wsUrl = await discoverInspectorWsUrl(inspectPort)
+    return connectAndStartProfiler(wsUrl)
+}
+
+export async function startRendererProcessProfile(
+    remoteDebugPort: number,
+    timeoutMs: number,
+): Promise<MainProcessCdpHandle> {
+    const wsUrl = await discoverRendererWsUrl(remoteDebugPort, timeoutMs)
+    return connectAndStartProfiler(wsUrl)
+}
+
+export async function stopMainProcessProfileAndSave(
+    handle: MainProcessCdpHandle,
+    outputDir: string,
+    filename: string,
+): Promise<string> {
+    return stopProfileAndSave(handle, outputDir, filename)
+}
+
+export async function stopRendererProcessProfileAndSave(
+    handle: MainProcessCdpHandle,
+    outputDir: string,
+    filename: string,
+): Promise<string> {
+    return stopProfileAndSave(handle, outputDir, filename)
 }
 
 // ============================================================================

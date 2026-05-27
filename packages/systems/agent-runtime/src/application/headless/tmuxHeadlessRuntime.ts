@@ -305,15 +305,16 @@ export async function reconcileTmuxHeadlessAgents(
         onRunningSession: ({terminalId, metadataPath, metadata}) => {
             if (tmuxHeadlessState.sessions.has(terminalId)) return
             const sessionName: string = metadata.session ?? terminalId
+            const isHeadless: boolean = metadata.terminalData?.isHeadless ?? true
             registerTmuxSessionAlias(terminalId, sessionName)
             tmuxHeadlessState.sessions.set(terminalId, {
                 sessionName,
                 logPath: metadata.logFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.log`),
                 metadataPath,
                 exitCodePath: metadata.exitCodeFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.exitcode`),
-                exitCodeDriven: metadata.terminalData.isHeadless,
+                exitCodeDriven: isHeadless,
                 promptFilePath: join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
-                pollTimer: startTmuxExitPoll(terminalId, sessionName, metadata.terminalData.isHeadless, deps),
+                pollTimer: startTmuxExitPoll(terminalId, sessionName, isHeadless, deps),
             })
         },
     })

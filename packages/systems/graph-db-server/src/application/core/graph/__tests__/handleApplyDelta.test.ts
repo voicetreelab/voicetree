@@ -1,9 +1,8 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { describe, expect, test } from 'vitest'
-import { createGraph, type GraphNode } from '@vt/graph-model/graph'
+import type { GraphNode } from '@vt/graph-model/graph'
 import {
   buildDeleteNodeDelta,
-  composeApplyDeltaResponse,
   normalizeAdditionalYAMLProps,
   normalizeDelta,
   normalizeGraphNode,
@@ -172,10 +171,9 @@ describe('handleApplyDelta', () => {
     })
   })
 
-  test('builds delete-node deltas and apply responses', () => {
+  test('builds delete-node deltas', () => {
     const node = graphNodeFixture()
     const delta = buildDeleteNodeDelta(NODE_ID, node)
-    const response = composeApplyDeltaResponse(delta, createGraph({ [NODE_ID]: node }))
 
     expect(delta).toEqual([
       {
@@ -184,11 +182,5 @@ describe('handleApplyDelta', () => {
         deletedNode: O.some(node),
       },
     ])
-    expect(response).toEqual({
-      delta,
-      graph: expect.objectContaining({
-        nodes: { [NODE_ID]: node },
-      }),
-    })
   })
 })

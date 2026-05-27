@@ -61,6 +61,12 @@ describe('fake-agent send_message: A → B', () => {
                 getAppSupportPath: () => tempAppSupportPath,
                 getMcpPort: () => mcpPort,
                 getProjectRoot: async () => tempAppSupportPath,
+                getVaultSnapshot: async () => ({
+                    projectRoot: tempAppSupportPath,
+                    readPaths: [tempAppSupportPath],
+                    writeFolder: tempAppSupportPath,
+                }),
+                getWriteFolder: async () => tempAppSupportPath,
             },
         })
         stubServer = await startStubMcpServer(mcpPort)
@@ -78,24 +84,26 @@ describe('fake-agent send_message: A → B', () => {
         try { fs.rmSync(tempAppSupportPath, {recursive: true, force: true}) } catch { /* ignore */ }
     })
 
-    it('delivers a create_node action from agent A to agent B, B creates the node', async () => {
+    it('delivers a create_nodes action from agent A to agent B, B creates the node', async () => {
         const agentA: string = 'fake-send-A'
         const agentB: string = 'fake-send-B'
         const nodeTitle: string = `msg-from-A-${Date.now()}`
 
         // B: empty script. Boots, connects MCP, enters REPL waiting for messages.
         // When A's message arrives via PTY stdin, the executor's REPL loop will
-        // pick it up, parse the embedded JSON action, and run create_node.
+        // pick it up, parse the embedded JSON action, and run create_nodes.
         const scriptB: object = {actions: [{type: 'log', message: 'B ready, awaiting messages'}]}
 
         // A: brief delay so B is in REPL, then send_message carrying a
-        // create_node action, then exit. The action JSON is what we expect B
+        // create_nodes action, then exit. The action JSON is what we expect B
         // to execute on receipt.
         const createNodeAction: string = JSON.stringify({
-            type: 'create_node',
-            title: nodeTitle,
-            summary: 'sent from A via real send_message tool',
-            color: 'green',
+            type: 'create_nodes',
+            nodes: [{
+                title: nodeTitle,
+                summary: 'sent from A via real send_message tool',
+                color: 'green',
+            }],
         })
         const scriptA: object = {
             actions: [
@@ -119,7 +127,7 @@ describe('fake-agent send_message: A → B', () => {
         await waitForAgentOutput(harness, agentB, '[fake-agent] Received message:', TEST_TIMEOUT_MS)
 
         // Observe B executing the embedded action.
-        await waitForAgentOutput(harness, agentB, 'Executing message action: create_node', TEST_TIMEOUT_MS)
+        await waitForAgentOutput(harness, agentB, 'Executing message action: create_nodes', TEST_TIMEOUT_MS)
 
         // The observable side effect: B's MCP create_graph call registered the
         // node title in the stub's agent-nodes registry, keyed by callerTerminalId=B.

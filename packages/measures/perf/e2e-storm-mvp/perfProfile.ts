@@ -1,53 +1,18 @@
 /**
- * Glue between this MVP and Bob's perf-dashboard producer
- * (`@vt/perf-analysis/perf-probe`).
+ * Process-control helpers for the e2e-storm MVP.
  *
- * The producer is env-gated: any node process that imports
- * `perfProbeFromEnv` only attaches CPU sampling + the 1 Hz NDJSON sampler
- * when `VOICETREE_PERF_PROFILE=1`. It writes to a per-run directory rooted
- * at `~/.voicetree/reports/stable-perf-<ts>/` — the dashboard's
- * `listRuns` filter literally `startsWith('stable-perf-')`, so the name
- * matters.
+ * Run identity now comes from VOICETREE_RUN_INSTANCE_ID and artifacts live
+ * under ~/.voicetree/perf/<uuid>/. This file intentionally contains no
+ * stable-perf report-directory compatibility path.
  *
- * If `VOICETREE_PERF_RUN_DIR` is already set, the producer reuses it. We
- * pre-compute the path here so this test process and every spawned child
- * (electron-main → vt-graphd) all land artifacts in the same directory.
- *
- * vt-graphd calls `perfProbeFromEnv`. Electron main is sampled externally
- * through its Node inspector port and writes compatible artifacts into the
- * same run dir. If renderer / mcpd ever add perf-probe call sites, they'll
- * share this run dir without further wiring.
- *
- * Flush-on-shutdown: `perfProbeFromEnv` writes the `.cpuprofile` and
- * flushes the metrics stream only inside its SIGINT/SIGTERM/beforeExit
- * handler. A SIGKILL skips that handler. So before tearing down electron
- * we explicitly SIGTERM the vt-graphd child the daemon-client spawned,
- * give it time to flush, and only then close electron.
+ * Flush-on-shutdown: `perfProbeFromEnv` flushes Pyroscope/metrics/log state
+ * inside its SIGINT/SIGTERM/beforeExit handler. A SIGKILL skips that handler.
+ * Before tearing down Electron we explicitly SIGTERM the vt-graphd child the
+ * daemon-client spawned, give it time to flush, and only then close Electron.
  */
 import * as path from 'node:path'
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-
-export interface PerfProfileEnv {
-    readonly VOICETREE_PERF_PROFILE: '1'
-    readonly VOICETREE_PERF_RUN_DIR: string
-}
-
-export interface PerfProfileSetup {
-    readonly runDir: string
-    readonly env: PerfProfileEnv
-}
-
-export function computePerfRunDir(reportsDir: string, tsSuffix: string): PerfProfileSetup {
-    const runDir = path.join(reportsDir, `stable-perf-e2e-mvp-${tsSuffix}`)
-    return {
-        runDir,
-        env: {
-            VOICETREE_PERF_PROFILE: '1',
-            VOICETREE_PERF_RUN_DIR: runDir,
-        },
-    }
-}
 
 function ownerRecordPid(projectRoot: string): number | null {
     try {

@@ -16,21 +16,34 @@
  *
  * Exit code: 0 on pass, 1 on fail.
  */
-import { createWriteStream, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
-import * as os from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { finished } from 'node:stream/promises'
+import { randomUUID } from 'node:crypto'
+import { inflateSync } from 'node:zlib'
 import type { Page } from '@playwright/test'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
-import { runFakeAgent, buildMultiCreateNodeScript, type FakeAgentResult } from './runFakeAgent.ts'
+import {
+    buildFakeAgentCommand,
+    buildMultiCreateNodeScript,
+    buildStormAgentPrompt,
+    initializeMcpClient,
+    promptTemplateName,
+    runFakeAgent,
+    waitForAgentListed,
+    waitForInteractiveTerminalMounted,
+    type FakeAgentResult,
+} from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
-import { computePerfRunDir, flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
+import { flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
 import { startHostVmMetricsSampler, type HostVmMetricsSummary, type HostVmMetricsSampler } from './hostVmMetrics.ts'
+import { uploadV8CpuProfileToPyroscope } from './pyroscopeProfile.ts'
+import { createOtelMetricSink } from './otelMetricSink.ts'
 import {
     startMainProcessProfile,
     stopMainProcessProfileAndSave,
@@ -42,9 +55,9 @@ const __dirname = path.dirname(__filename)
 
 // measures/perf/e2e-storm-mvp -> measures/perf -> measures -> packages -> repo root
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
-const AGENT_COUNT = 30
-const NODES_PER_AGENT = 5
-const EXPECTED_NODES_CREATED = AGENT_COUNT * NODES_PER_AGENT
+const DEFAULT_AGENT_COUNT = 30
+const DEFAULT_NODES_PER_AGENT = 5
+const STORM_CALLER_COMMAND = 'sleep 120'
 
 interface Args {
     readonly keepArtifacts: boolean
@@ -52,6 +65,15 @@ interface Args {
     readonly agentTimeoutMs: number
     readonly inspectPort: number
     readonly outPath: string | null
+    readonly agentCount: number
+    readonly nodesPerAgent: number
+}
+
+interface RunContext {
+    readonly runUuid: string
+    readonly runDir: string
+    readonly otlpEndpoint?: string
+    readonly perfEnv: Readonly<Record<string, string>>
 }
 
 function percentile(sorted: readonly number[], p: number): number {
@@ -75,6 +97,120 @@ function wallTimeStats(results: readonly FakeAgentResult[]) {
 
 function spawnTimeStats(results: readonly FakeAgentResult[]) {
     return durationStats(results.map(r => r.spawnWallMs))
+}
+
+function walkMarkdownFiles(dir: string): readonly string[] {
+    const result: string[] = []
+    const walk = (d: string): void => {
+        let entries: readonly string[]
+        try { entries = readdirSync(d) } catch { return }
+        for (const entry of entries) {
+            if (entry.startsWith('.')) continue
+            const full = path.join(d, entry)
+            let stat
+            try { stat = statSync(full) } catch { continue }
+            if (stat.isDirectory()) walk(full)
+            else if (stat.isFile() && entry.endsWith('.md')) result.push(full)
+        }
+    }
+    walk(dir)
+    return result
+}
+
+function countStormOutputNodes(vaultDir: string): number {
+    const marker = 'MVP storm node mvp-agent-'
+    return walkMarkdownFiles(vaultDir).filter(file => {
+        try { return readFileSync(file, 'utf8').includes(marker) } catch { return false }
+    }).length
+}
+
+function writeStormSettings(appSupportPath: string, args: Args): void {
+    const injectedPrompts = Object.fromEntries(
+        Array.from({ length: args.agentCount }, (_, agentIndex) => [
+            promptTemplateName(agentIndex),
+            buildStormAgentPrompt(buildMultiCreateNodeScript(agentIndex, args.nodesPerAgent)),
+        ]),
+    )
+    writeFileSync(
+        path.join(appSupportPath, 'settings.json'),
+        JSON.stringify({
+            agents: [
+                { name: 'Storm Caller', command: STORM_CALLER_COMMAND },
+                { name: 'Fake Agent', command: buildFakeAgentCommand(REPO_ROOT) },
+            ],
+            defaultAgent: 'Storm Caller',
+            terminalSpawnPathRelativeToWatchedDirectory: '/',
+            INJECT_ENV_VARS: {
+                AGENT_PROMPT: '',
+                ...injectedPrompts,
+            },
+        }, null, 2),
+        'utf8',
+    )
+}
+
+async function spawnCallerTerminal(
+    appWindow: Page,
+    seedNodeAbsolutePath: string,
+): Promise<string> {
+    const result = await appWindow.evaluate(async ({ nodeId, command, repoRoot }) => {
+        const api = (window as unknown as {
+            electronAPI?: {
+                main?: {
+                    spawnTerminalWithContextNode?: (
+                        taskNodeId: string,
+                        agentCommand: string | undefined,
+                        terminalCount?: number,
+                        skipFitAnimation?: boolean,
+                        startUnpinned?: boolean,
+                        selectedNodeIds?: readonly string[],
+                        spawnDirectory?: string,
+                    ) => Promise<{ terminalId: string; contextNodeId: string }>
+                }
+            }
+        }).electronAPI?.main
+        if (!api?.spawnTerminalWithContextNode) {
+            throw new Error('window.electronAPI.main.spawnTerminalWithContextNode unavailable')
+        }
+        return api.spawnTerminalWithContextNode(
+            nodeId,
+            command,
+            0,
+            true,
+            true,
+            undefined,
+            repoRoot,
+        )
+    }, { nodeId: seedNodeAbsolutePath, command: STORM_CALLER_COMMAND, repoRoot: REPO_ROOT })
+    return result.terminalId
+}
+
+async function focusTerminalForScreenshot(appWindow: Page): Promise<void> {
+    const hasTerminalWindow = await appWindow.evaluate(() => (
+        document.querySelector('.cy-floating-window-terminal') !== null
+    ))
+    if (!hasTerminalWindow) return
+
+    await appWindow.keyboard.press('Meta+]')
+    await appWindow.waitForTimeout(350)
+    await appWindow.evaluate(() => {
+        const cy = (window as unknown as {
+            cytoscapeInstance?: {
+                getElementById: (id: string) => { length: number }
+                fit: (eles: unknown, padding?: number) => void
+            }
+        }).cytoscapeInstance
+        if (!cy) return
+
+        const terminals = Array.from(document.querySelectorAll<HTMLElement>('.cy-floating-window-terminal'))
+        const terminal = terminals.find(el => el.querySelector('.xterm')) ?? terminals.at(-1)
+        const shadowNodeId = terminal?.dataset.shadowNodeId
+        if (!shadowNodeId) return
+
+        const shadowNode = cy.getElementById(shadowNodeId)
+        if (shadowNode.length > 0) cy.fit(shadowNode, 180)
+    })
+    await appWindow.waitForTimeout(350)
 }
 
 interface MainProcessSnapshot {
@@ -105,29 +241,43 @@ async function readMainProcessSnapshot(handle: MainProcessCdpHandle): Promise<Ma
 
 async function startMainProcessMetricsSampler(
     handle: MainProcessCdpHandle,
-    metricsPath: string,
+    env: { readonly otlpEndpoint?: string; readonly instanceId?: string },
 ): Promise<() => Promise<void>> {
-    mkdirSync(path.dirname(metricsPath), { recursive: true })
-    const stream = createWriteStream(metricsPath, { flags: 'a' })
+    const managedMeter = createOtelMetricSink({
+        serviceName: 'vt-electron-main',
+        meterName: 'vt-e2e-storm-mvp',
+        otlpEndpoint: env.otlpEndpoint,
+        instanceId: env.instanceId,
+    })
+    const meter = managedMeter.meter
+    const cpuCounter = meter.createCounter('process.cpu.time', {
+        description: 'Electron main CPU time consumed between e2e-storm CDP samples.',
+        unit: 's',
+    })
+    let latestSnapshot: MainProcessSnapshot | null = null
+    meter.createObservableGauge('process.memory.usage', {
+        description: 'Electron main memory usage sampled via CDP Runtime.evaluate.',
+        unit: 'By',
+    }).addCallback((result) => {
+        const memory = latestSnapshot?.memory
+        if (!memory) return
+        result.observe(memory.rss, { type: 'rss' })
+        result.observe(memory.heapUsed, { type: 'heap_used' })
+        result.observe(memory.heapTotal, { type: 'heap_total' })
+        result.observe(memory.external, { type: 'external' })
+        result.observe(memory.arrayBuffers, { type: 'array_buffers' })
+    })
+
     let previousCpu = (await readMainProcessSnapshot(handle)).cpu
     let stopped = false
 
     const writeRow = async (): Promise<void> => {
         if (stopped) return
         const snapshot = await readMainProcessSnapshot(handle)
-        const row = {
-            t: Date.now(),
-            svc: 'electron-main',
-            cpu_user_ms: (snapshot.cpu.user - previousCpu.user) / 1000,
-            cpu_sys_ms: (snapshot.cpu.system - previousCpu.system) / 1000,
-            rss: snapshot.memory.rss,
-            heap_used: snapshot.memory.heapUsed,
-            heap_total: snapshot.memory.heapTotal,
-            external: snapshot.memory.external,
-            array_buffers: snapshot.memory.arrayBuffers,
-        }
+        cpuCounter.add((snapshot.cpu.user - previousCpu.user) / 1_000_000, { type: 'user' })
+        cpuCounter.add((snapshot.cpu.system - previousCpu.system) / 1_000_000, { type: 'system' })
         previousCpu = snapshot.cpu
-        stream.write(`${JSON.stringify(row)}\n`)
+        latestSnapshot = snapshot
     }
 
     const interval = setInterval(() => {
@@ -142,8 +292,8 @@ async function startMainProcessMetricsSampler(
         clearInterval(interval)
         await writeRow()
         stopped = true
-        stream.end()
-        await finished(stream)
+        await managedMeter.forceFlush()
+        await managedMeter.shutdown()
     }
 }
 
@@ -161,21 +311,127 @@ type RendererProfileCapture = {
     readonly stop: () => Promise<void>
 }
 
+type RendererScreenshotCapture = {
+    readonly dir: string
+    readonly stop: () => Promise<void>
+}
+
 function rendererMetricValue(metrics: readonly RendererMetric[], name: string): number | undefined {
     return metrics.find(metric => metric.name === name)?.value
 }
 
+function pngLooksNonBlank(buffer: Buffer): boolean {
+    if (buffer.subarray(0, 8).compare(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) !== 0) return false
+    let offset = 8
+    let width = 0
+    let height = 0
+    let colorType = 0
+    const idat: Buffer[] = []
+
+    while (offset + 12 <= buffer.length) {
+        const length = buffer.readUInt32BE(offset)
+        const type = buffer.subarray(offset + 4, offset + 8).toString('ascii')
+        const data = buffer.subarray(offset + 8, offset + 8 + length)
+        offset += 12 + length
+
+        if (type === 'IHDR') {
+            width = data.readUInt32BE(0)
+            height = data.readUInt32BE(4)
+            const bitDepth = data[8]
+            colorType = data[9] ?? 0
+            if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) return false
+        } else if (type === 'IDAT') {
+            idat.push(data)
+        } else if (type === 'IEND') {
+            break
+        }
+    }
+
+    if (width === 0 || height === 0 || idat.length === 0) return false
+    const bytesPerPixel = colorType === 6 ? 4 : 3
+    const rowBytes = width * bytesPerPixel
+    const inflated = inflateSync(Buffer.concat(idat))
+    let read = 0
+    let previous = Buffer.alloc(rowBytes)
+    let darkest = 255
+    let brightest = 0
+    let sampled = 0
+
+    for (let y = 0; y < height; y++) {
+        const filter = inflated[read++] ?? 0
+        const row = Buffer.from(inflated.subarray(read, read + rowBytes))
+        read += rowBytes
+
+        for (let x = 0; x < rowBytes; x++) {
+            const left = x >= bytesPerPixel ? row[x - bytesPerPixel] ?? 0 : 0
+            const up = previous[x] ?? 0
+            const upLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] ?? 0 : 0
+            const p = left + up - upLeft
+            const pa = Math.abs(p - left)
+            const pb = Math.abs(p - up)
+            const pc = Math.abs(p - upLeft)
+            const paeth = pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft
+            const predictor =
+                filter === 1 ? left
+                    : filter === 2 ? up
+                        : filter === 3 ? Math.floor((left + up) / 2)
+                            : filter === 4 ? paeth
+                                : 0
+            row[x] = ((row[x] ?? 0) + predictor) & 0xff
+        }
+
+        const stride = Math.max(1, Math.floor(width / 32))
+        for (let x = 0; x < width; x += stride) {
+            const i = x * bytesPerPixel
+            const luminance = Math.round(
+                ((row[i] ?? 0) * 0.2126) + ((row[i + 1] ?? 0) * 0.7152) + ((row[i + 2] ?? 0) * 0.0722),
+            )
+            darkest = Math.min(darkest, luminance)
+            brightest = Math.max(brightest, luminance)
+            sampled += 1
+        }
+        previous = row
+    }
+
+    return sampled > 0 && brightest > 20 && (brightest - darkest) > 10
+}
+
 async function startRendererProfileCapture(
     appWindow: Page,
-    runDir: string,
+    runContext: RunContext,
 ): Promise<RendererProfileCapture> {
     const cdp = await appWindow.context().newCDPSession(appWindow) as RendererCdpHandle
-    const metricsPath = path.join(runDir, 'metrics', 'renderer.metrics.ndjson')
-    const profilesDir = path.join(runDir, 'profiles')
-    mkdirSync(path.dirname(metricsPath), { recursive: true })
+    const managedMeter = createOtelMetricSink({
+        serviceName: 'vt-renderer',
+        meterName: 'vt-e2e-storm-mvp',
+        otlpEndpoint: runContext.otlpEndpoint,
+        instanceId: runContext.runUuid,
+    })
+    const profilesDir = path.join(runContext.runDir, 'profiles')
     mkdirSync(profilesDir, { recursive: true })
-    const stream = createWriteStream(metricsPath, { flags: 'a' })
+    let latestMetrics: readonly RendererMetric[] = []
     let stopped = false
+
+    const meter = managedMeter.meter
+    meter.createObservableGauge('process.memory.usage', {
+        description: 'Renderer JavaScript heap memory sampled via CDP Performance.getMetrics.',
+        unit: 'By',
+    }).addCallback((result) => {
+        result.observe(rendererMetricValue(latestMetrics, 'JSHeapUsedSize') ?? 0, { type: 'heap_used' })
+        result.observe(rendererMetricValue(latestMetrics, 'JSHeapTotalSize') ?? 0, { type: 'heap_total' })
+    })
+    meter.createObservableGauge('browser.renderer.metric', {
+        description: 'Renderer CDP Performance.getMetrics values for DOM and layout health.',
+    }).addCallback((result) => {
+        result.observe(rendererMetricValue(latestMetrics, 'Nodes') ?? 0, { metric: 'nodes' })
+        result.observe(rendererMetricValue(latestMetrics, 'Documents') ?? 0, { metric: 'documents' })
+        result.observe(rendererMetricValue(latestMetrics, 'LayoutCount') ?? 0, { metric: 'layout_count' })
+        result.observe(rendererMetricValue(latestMetrics, 'RecalcStyleCount') ?? 0, { metric: 'recalc_style_count' })
+        result.observe((rendererMetricValue(latestMetrics, 'LayoutDuration') ?? 0) * 1000, { metric: 'layout_duration_ms' })
+        result.observe((rendererMetricValue(latestMetrics, 'RecalcStyleDuration') ?? 0) * 1000, { metric: 'recalc_style_duration_ms' })
+        result.observe((rendererMetricValue(latestMetrics, 'ScriptDuration') ?? 0) * 1000, { metric: 'script_duration_ms' })
+        result.observe((rendererMetricValue(latestMetrics, 'TaskDuration') ?? 0) * 1000, { metric: 'task_duration_ms' })
+    })
 
     await cdp.send('Performance.enable')
     await cdp.send('Profiler.setSamplingInterval', { interval: 100 })
@@ -185,22 +441,7 @@ async function startRendererProfileCapture(
     const writeRow = async (): Promise<void> => {
         if (stopped) return
         const response = await cdp.send('Performance.getMetrics') as { readonly metrics?: readonly RendererMetric[] }
-        const metrics = response.metrics ?? []
-        const row = {
-            t: Date.now(),
-            svc: 'renderer',
-            js_heap_used: rendererMetricValue(metrics, 'JSHeapUsedSize') ?? 0,
-            js_heap_total: rendererMetricValue(metrics, 'JSHeapTotalSize') ?? 0,
-            nodes: rendererMetricValue(metrics, 'Nodes') ?? 0,
-            documents: rendererMetricValue(metrics, 'Documents') ?? 0,
-            layout_count: rendererMetricValue(metrics, 'LayoutCount') ?? 0,
-            recalc_style_count: rendererMetricValue(metrics, 'RecalcStyleCount') ?? 0,
-            layout_duration_ms: (rendererMetricValue(metrics, 'LayoutDuration') ?? 0) * 1000,
-            recalc_style_duration_ms: (rendererMetricValue(metrics, 'RecalcStyleDuration') ?? 0) * 1000,
-            script_duration_ms: (rendererMetricValue(metrics, 'ScriptDuration') ?? 0) * 1000,
-            task_duration_ms: (rendererMetricValue(metrics, 'TaskDuration') ?? 0) * 1000,
-        }
-        stream.write(`${JSON.stringify(row)}\n`)
+        latestMetrics = response.metrics ?? []
     }
 
     const interval = setInterval(() => {
@@ -219,12 +460,96 @@ async function startRendererProfileCapture(
             const response = await cdp.send('Profiler.stop') as { readonly profile?: unknown }
             await cdp.send('Performance.disable').catch(() => undefined)
             await cdp.detach().catch(() => undefined)
-            stream.end()
-            await finished(stream)
+            await managedMeter.forceFlush()
+            await managedMeter.shutdown()
             if (!response.profile) throw new Error('Renderer Profiler.stop returned no profile')
-            writeFileSync(path.join(profilesDir, 'renderer.cpuprofile'), JSON.stringify(response.profile), 'utf8')
+            const cpuprofilePath = path.join(profilesDir, 'renderer.cpuprofile')
+            writeFileSync(cpuprofilePath, JSON.stringify(response.profile), 'utf8')
+            const upload = await uploadV8CpuProfileToPyroscope({
+                cpuprofilePath,
+                serviceName: 'vt-renderer',
+                runUuid: runContext.runUuid,
+                stoppedAtMs: Date.now(),
+            })
+            process.stdout.write(`[mvp] uploaded renderer profile to Pyroscope: ${upload.renderQuery}\n`)
         },
     }
+}
+
+async function startRendererScreenshotCapture(
+    appWindow: Page,
+    runDir: string,
+    intervalMs: number = 5_000,
+): Promise<RendererScreenshotCapture> {
+    const dir = path.join(runDir, 'screenshots')
+    mkdirSync(dir, { recursive: true })
+    let stopped = false
+    let activeCapture: Promise<void> | null = null
+    let index = 0
+
+    const runCapture = async (reason: 'sample' | 'final'): Promise<void> => {
+        const paddedIndex = String(index++).padStart(3, '0')
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
+        await focusTerminalForScreenshot(appWindow).catch((error: unknown) => {
+            process.stderr.write(`[mvp] terminal screenshot focus failed: ${(error as Error).message}\n`)
+        })
+        const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5_000 })
+        if (!pngLooksNonBlank(Buffer.from(bytes))) throw new Error(`blank renderer screenshot: ${screenshotPath}`)
+        process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
+    }
+
+    const capture = async (reason: 'sample' | 'final'): Promise<void> => {
+        if (activeCapture) {
+            if (reason === 'sample') return
+            await activeCapture
+        }
+        activeCapture = runCapture(reason).finally(() => {
+            activeCapture = null
+        })
+        await activeCapture
+    }
+
+    void capture('sample').catch((error: unknown) => {
+        process.stderr.write(`[mvp] initial renderer screenshot failed: ${(error as Error).message}\n`)
+    })
+    const interval = setInterval(() => {
+        if (stopped) return
+        void capture('sample').catch((error: unknown) => {
+            process.stderr.write(`[mvp] renderer screenshot failed: ${(error as Error).message}\n`)
+        })
+    }, intervalMs)
+    interval.unref()
+
+    return {
+        dir,
+        stop: async () => {
+            if (stopped) return
+            stopped = true
+            clearInterval(interval)
+            await capture('final').catch((error: unknown) => {
+                process.stderr.write(`[mvp] final renderer screenshot failed: ${(error as Error).message}\n`)
+            })
+        },
+    }
+}
+
+function resolveRunContext(env: NodeJS.ProcessEnv = process.env): RunContext {
+    const runUuid = env.VOICETREE_RUN_INSTANCE_ID && env.VOICETREE_RUN_INSTANCE_ID.length > 0
+        ? env.VOICETREE_RUN_INSTANCE_ID
+        : randomUUID()
+    const runDir = path.join(homedir(), '.voicetree', 'perf', runUuid)
+    const otlpEndpoint = env.VOICETREE_OTLP_ENDPOINT && env.VOICETREE_OTLP_ENDPOINT.length > 0
+        ? env.VOICETREE_OTLP_ENDPOINT
+        : undefined
+    const perfEnv: Record<string, string> = {
+        VOICETREE_RUN_INSTANCE_ID: runUuid,
+        VOICETREE_PERF_PROFILE: '1',
+    }
+    if (otlpEndpoint !== undefined) perfEnv.VOICETREE_OTLP_ENDPOINT = otlpEndpoint
+    env.VOICETREE_RUN_INSTANCE_ID = runUuid
+
+    return { runUuid, runDir, otlpEndpoint, perfEnv }
 }
 
 function parseArgs(argv: readonly string[]): Args {
@@ -233,6 +558,8 @@ function parseArgs(argv: readonly string[]): Args {
     let agentTimeoutMs = 60_000
     let inspectPort = 9244
     let outPath: string | null = null
+    let agentCount = DEFAULT_AGENT_COUNT
+    let nodesPerAgent = DEFAULT_NODES_PER_AGENT
 
     const intArg = (raw: string | undefined, name: string): number => {
         const n = Number.parseInt(raw ?? '', 10)
@@ -248,15 +575,19 @@ function parseArgs(argv: readonly string[]): Args {
             case '--agent-timeout-ms': agentTimeoutMs = intArg(argv[++i], 'agent-timeout-ms'); break
             case '--inspect-port': inspectPort = intArg(argv[++i], 'inspect-port'); break
             case '--out': outPath = argv[++i] ?? null; break
+            case '--agents': agentCount = intArg(argv[++i], 'agents'); break
+            case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
             case '--help':
             case '-h':
                 process.stdout.write(
                     'e2e-storm-mvp: prove headful-Electron + daemon + MCP + fake-agent end-to-end.\n'
+                    + '  --agents N                    parallel fake-agents (default 30)\n'
+                    + '  --nodes-per-agent N           nodes created per fake agent (default 5)\n'
                     + '  --mcp-discovery-timeout-ms MS   default 120000\n'
                     + '  --agent-timeout-ms MS           default 60000\n'
                     + '  --inspect-port N                default 9244\n'
                     + '  --keep-artifacts                keep temp dirs after the run\n'
-                    + '  --out PATH                      report path (default ~/.voicetree/reports/perf-e2e-mvp-<ts>.json)\n',
+                    + '  --out PATH                      report path (default ~/.voicetree/perf/<run-id>/e2e-storm-mvp-report.json)\n',
                 )
                 process.exit(0)
             default:
@@ -264,35 +595,27 @@ function parseArgs(argv: readonly string[]): Args {
         }
     }
 
-    return { keepArtifacts, mcpDiscoveryTimeoutMs, agentTimeoutMs, inspectPort, outPath }
+    return { keepArtifacts, mcpDiscoveryTimeoutMs, agentTimeoutMs, inspectPort, outPath, agentCount, nodesPerAgent }
 }
 
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2))
+    const runContext = resolveRunContext()
 
     const overallStart = Date.now()
-    const projectRoot = mkdtempSync(path.join(os.tmpdir(), 'vt-e2e-mvp-project-'))
+    const projectRoot = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-project-'))
     const projectDir = path.join(projectRoot, 'mvp-project')
     const vaultDir = path.join(projectDir, 'mvp-vault')
     mkdirSync(vaultDir, { recursive: true })
 
-    const appSupportPath = mkdtempSync(path.join(os.tmpdir(), 'vt-e2e-mvp-app-'))
-
-    const reportsDir = path.join(os.homedir(), '.voicetree', 'reports')
-    mkdirSync(reportsDir, { recursive: true })
-    const ts = new Date().toISOString().replace(/[:.]/g, '-')
-    const outPath = args.outPath ?? path.join(reportsDir, `perf-e2e-mvp-${ts}.json`)
-    const electronLogPath = path.join(reportsDir, `perf-e2e-mvp-electron-${ts}.log`)
-
-    // Bob's perf-dashboard producer lands artifacts in a per-run subdir of
-    // ~/.voicetree/reports/. The dashboard's listRuns filter requires the
-    // directory name to start with `stable-perf-`. Pre-creating the dir +
-    // env-pinning it means every spawned process (electron-main, vt-graphd,
-    // any future probed service) writes to the same run dir under a single
-    // dashboard entry.
-    const perfProfile = computePerfRunDir(reportsDir, ts)
-    mkdirSync(perfProfile.runDir, { recursive: true })
-    process.stdout.write(`[mvp] perf run dir: ${perfProfile.runDir}\n`)
+    const appSupportPath = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-app-'))
+    writeStormSettings(appSupportPath, args)
+    const logsDir = path.join(runContext.runDir, 'logs')
+    mkdirSync(logsDir, { recursive: true })
+    const outPath = args.outPath ?? path.join(runContext.runDir, 'e2e-storm-mvp-report.json')
+    const electronLogPath = path.join(logsDir, 'vt-electron-main.log')
+    process.stdout.write(`[mvp] run id: ${runContext.runUuid}\n`)
+    process.stdout.write(`[mvp] perf run dir: ${runContext.runDir}\n`)
 
     // Seed a small realistic vault so the daemon has nodes to attach to. The
     // single-agent MVP doesn't dogpile, but we still want the seed vault to
@@ -321,14 +644,20 @@ async function main(): Promise<void> {
     let electronMainProfile: MainProcessCdpHandle | null = null
     let stopElectronMainMetrics: (() => Promise<void>) | null = null
     let rendererProfile: RendererProfileCapture | null = null
+    let rendererScreenshots: RendererScreenshotCapture | null = null
     let hostVmMetrics: HostVmMetricsSampler | null = null
     let hostVmMetricsSummary: HostVmMetricsSummary | null = null
 
     try {
-        hostVmMetrics = await startHostVmMetricsSampler(
-            path.join(perfProfile.runDir, 'metrics', 'devbox-vm.metrics.ndjson'),
-        )
-        process.stdout.write(`[mvp] started devbox-vm metrics sampler: ${hostVmMetrics.metricsPath}\n`)
+        try {
+            hostVmMetrics = await startHostVmMetricsSampler({
+                otlpEndpoint: runContext.otlpEndpoint,
+                instanceId: runContext.runUuid,
+            })
+            process.stdout.write('[mvp] started devbox-vm OTEL metrics sampler\n')
+        } catch (error) {
+            process.stderr.write(`[mvp] devbox-vm metrics sampler disabled: ${(error as Error).message}\n`)
+        }
 
         const launched = await launchElectronAndDiscoverMcp({
             repoRoot: REPO_ROOT,
@@ -338,7 +667,7 @@ async function main(): Promise<void> {
             logFilePath: electronLogPath,
             inspectPort: args.inspectPort,
             mcpDiscoveryTimeoutMs: args.mcpDiscoveryTimeoutMs,
-            extraEnv: perfProfile.env,
+            extraEnv: runContext.perfEnv,
         })
         app = launched.app
         mcpPort = launched.mcpPort
@@ -351,7 +680,7 @@ async function main(): Promise<void> {
         electronMainProfile = await startMainProcessProfile(args.inspectPort)
         stopElectronMainMetrics = await startMainProcessMetricsSampler(
             electronMainProfile,
-            path.join(perfProfile.runDir, 'metrics', 'electron-main.metrics.ndjson'),
+            { otlpEndpoint: runContext.otlpEndpoint, instanceId: runContext.runUuid },
         )
         process.stdout.write('[mvp] started electron-main CDP profile + metrics sampler\n')
 
@@ -365,18 +694,33 @@ async function main(): Promise<void> {
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
-        rendererProfile = await startRendererProfileCapture(appWindow, perfProfile.runDir)
-        process.stdout.write('[mvp] started renderer CDP profile + metrics sampler\n')
+        await initializeMcpClient(mcpPort)
+        process.stdout.write('[mvp] initialized MCP client\n')
 
-        const agentResults = await Promise.all(Array.from({ length: AGENT_COUNT }, (_, agentIndex) => (
+        const callerTerminalId = await spawnCallerTerminal(appWindow, seedNodeAbsolutePath)
+        process.stdout.write(`[mvp] spawned real caller terminal: ${callerTerminalId}\n`)
+        if (!await waitForAgentListed(mcpPort, callerTerminalId, 10_000)) {
+            throw new Error(`caller terminal ${callerTerminalId} did not appear in list_agents`)
+        }
+        process.stdout.write(`[mvp] caller terminal visible to MCP: ${callerTerminalId}\n`)
+        if (!await waitForInteractiveTerminalMounted(appWindow, callerTerminalId, 10_000)) {
+            throw new Error(`caller terminal ${callerTerminalId} did not mount a headful xterm floating window`)
+        }
+        process.stdout.write(`[mvp] caller terminal mounted in renderer: ${callerTerminalId}\n`)
+
+        rendererProfile = await startRendererProfileCapture(appWindow, runContext)
+        process.stdout.write('[mvp] started renderer CDP profile + metrics sampler\n')
+        rendererScreenshots = await startRendererScreenshotCapture(appWindow, runContext.runDir)
+        process.stdout.write(`[mvp] started renderer screenshot sampler: ${rendererScreenshots.dir}\n`)
+
+        const agentResults = await Promise.all(Array.from({ length: args.agentCount }, (_, agentIndex) => (
             runFakeAgent({
                 appWindow,
                 repoRoot: REPO_ROOT,
-                vaultDir,
                 mcpPort,
                 seedNodeAbsolutePath,
-                terminalId: `e2e-mvp-agent-${agentIndex}`,
-                script: buildMultiCreateNodeScript(agentIndex, NODES_PER_AGENT),
+                callerTerminalId,
+                promptTemplate: promptTemplateName(agentIndex),
                 timeoutMs: args.agentTimeoutMs,
             })
         )))
@@ -392,13 +736,13 @@ async function main(): Promise<void> {
         agentsTimedOut = agentResults.filter(result => result.timedOut).length
 
         for (const [agentIndex, result] of agentResults.entries()) {
-            if (result.headlessOutput) {
-                process.stdout.write(`[mvp] agent ${agentIndex} headless output:\n${result.headlessOutput}\n`)
+            if (result.terminalOutput) {
+                process.stdout.write(`[mvp] agent ${agentIndex} terminal output:\n${result.terminalOutput}\n`)
             }
         }
 
         filesAfter = countMarkdownFiles(vaultDir)
-        nodesCreated = filesAfter - filesBefore
+        nodesCreated = countStormOutputNodes(vaultDir)
 
         const spawnFailure = agentResults.find(result => !result.spawnSuccess)
         const scriptFailure = agentResults.find(result => result.spawnSuccess && !result.exitedCleanly && !result.timedOut)
@@ -409,8 +753,8 @@ async function main(): Promise<void> {
             failureReason = `${agentsTimedOut} agent(s) timed out after ${args.agentTimeoutMs}ms (no [fake-agent] Executing: exit in output)`
         } else if (scriptFailure) {
             failureReason = `agent reported failure in output`
-        } else if (nodesCreated !== EXPECTED_NODES_CREATED) {
-            failureReason = `expected ${EXPECTED_NODES_CREATED} new markdown files, got ${nodesCreated} (before=${filesBefore}, after=${filesAfter})`
+        } else if (nodesCreated !== args.agentCount * args.nodesPerAgent) {
+            failureReason = `expected ${args.agentCount * args.nodesPerAgent} new markdown files, got ${nodesCreated} (before=${filesBefore}, after=${filesAfter})`
         } else {
             pass = true
         }
@@ -418,6 +762,18 @@ async function main(): Promise<void> {
         failureReason = (err as Error).message
         if ((err as Error).stack) process.stderr.write(`[mvp] ${(err as Error).stack}\n`)
     } finally {
+        if (app && rendererScreenshots !== null) {
+            try {
+                await rendererScreenshots.stop()
+                process.stdout.write(`[mvp] saved renderer screenshots: ${rendererScreenshots.dir}\n`)
+                rendererScreenshots = null
+            } catch (e) {
+                process.stderr.write(`[mvp] renderer screenshot save failed: ${(e as Error).message}\n`)
+                failureReason ??= `renderer screenshot save failed: ${(e as Error).message}`
+                pass = false
+            }
+        }
+
         // Give vt-graphd a chance to flush its cpuprofile + metrics stream
         // BEFORE we tear down electron. perfProbeFromEnv writes those
         // artifacts only inside its SIGTERM/SIGINT/beforeExit handler — a
@@ -443,6 +799,8 @@ async function main(): Promise<void> {
                     process.stdout.write('[mvp] saved renderer CDP profile + metrics\n')
                 } catch (e) {
                     process.stderr.write(`[mvp] renderer profile save failed: ${(e as Error).message}\n`)
+                    failureReason ??= `renderer profile save failed: ${(e as Error).message}`
+                    pass = false
                 }
             }
 
@@ -452,13 +810,22 @@ async function main(): Promise<void> {
                     stopElectronMainMetrics = null
                     await stopMainProcessProfileAndSave(
                         electronMainProfile,
-                        path.join(perfProfile.runDir, 'profiles'),
+                        path.join(runContext.runDir, 'profiles'),
                         'electron-main.cpuprofile',
                     )
+                    const upload = await uploadV8CpuProfileToPyroscope({
+                        cpuprofilePath: path.join(runContext.runDir, 'profiles', 'electron-main.cpuprofile'),
+                        serviceName: 'vt-electron-main',
+                        runUuid: runContext.runUuid,
+                        stoppedAtMs: Date.now(),
+                    })
+                    process.stdout.write(`[mvp] uploaded electron-main profile to Pyroscope: ${upload.renderQuery}\n`)
                     electronMainProfile = null
                     process.stdout.write('[mvp] saved electron-main CDP profile + metrics\n')
                 } catch (e) {
                     process.stderr.write(`[mvp] electron-main profile save failed: ${(e as Error).message}\n`)
+                    failureReason ??= `electron-main profile save failed: ${(e as Error).message}`
+                    pass = false
                 }
             }
 
@@ -470,23 +837,9 @@ async function main(): Promise<void> {
             // captured every metric the report cares about by this point —
             // SIGKILL the electron process tree as the canonical exit path.
             const electronPid = app.process().pid
-            const closeWithTimeout = Promise.race([
-                app.close().then(() => 'closed' as const),
-                new Promise<'timeout'>(r => setTimeout(() => r('timeout'), 5_000)),
-            ])
-            try {
-                const outcome = await closeWithTimeout
-                if (outcome === 'timeout') {
-                    process.stdout.write(`[mvp] electron close timed out after 5s — SIGKILL pid=${electronPid}\n`)
-                    if (electronPid !== undefined) {
-                        try { process.kill(electronPid, 'SIGKILL') } catch { /* already gone */ }
-                    }
-                }
-            } catch (e) {
-                process.stderr.write(`[mvp] electron close failed: ${(e as Error).message}\n`)
-                if (electronPid !== undefined) {
-                    try { process.kill(electronPid, 'SIGKILL') } catch { /* already gone */ }
-                }
+            process.stdout.write(`[mvp] terminating electron (teardown phase, post-flush) pid=${electronPid}\n`)
+            if (electronPid !== undefined) {
+                try { process.kill(electronPid, 'SIGKILL') } catch { /* already gone */ }
             }
         }
 
@@ -518,6 +871,8 @@ async function main(): Promise<void> {
                 process.stdout.write('[mvp] saved devbox-vm metrics\n')
             } catch (e) {
                 process.stderr.write(`[mvp] devbox-vm metrics save failed: ${(e as Error).message}\n`)
+                failureReason ??= `devbox-vm metrics save failed: ${(e as Error).message}`
+                pass = false
             }
         }
     }
@@ -527,8 +882,8 @@ async function main(): Promise<void> {
         failureReason,
         electronBootMs,
         mcpDiscoveryMs,
-        agentCount: AGENT_COUNT,
-        nodesPerAgent: NODES_PER_AGENT,
+        agentCount: args.agentCount,
+        nodesPerAgent: args.nodesPerAgent,
         agentsSucceeded,
         agentsTimedOut,
         agentWallMsP50,
@@ -545,7 +900,8 @@ async function main(): Promise<void> {
         projectDir,
         appSupportPath,
         electronLogPath,
-        perfRunDir: perfProfile.runDir,
+        perfRunDir: runContext.runDir,
+        screenshotDir: path.join(runContext.runDir, 'screenshots'),
         hostVmMetrics: hostVmMetricsSummary,
         outPath,
         totalWallMs: Date.now() - overallStart,

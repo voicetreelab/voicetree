@@ -1,8 +1,6 @@
-import { createWriteStream, readFileSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import * as os from 'node:os'
-import * as path from 'node:path'
-import { finished } from 'node:stream/promises'
+import { createOtelMetricSink, type OtelMetricSink } from './otelMetricSink.ts'
 
 export interface HostVmMetricsSummary {
     readonly sampleCount: number
@@ -49,8 +47,12 @@ interface HostVmMetricRow {
 }
 
 export interface HostVmMetricsSampler {
-    readonly metricsPath: string
     readonly stop: () => Promise<HostVmMetricsSummary>
+}
+
+export interface HostVmMetricsEnv {
+    readonly otlpEndpoint?: string
+    readonly instanceId?: string
 }
 
 export function parseHostCpuSnapshot(procStat: string): CpuSnapshot {
@@ -166,13 +168,71 @@ function hostVmMetricRow(
     }
 }
 
+function startHostVmOtelMetrics(
+    env: HostVmMetricsEnv,
+    currentRow: () => HostVmMetricRow | null,
+): OtelMetricSink {
+    const managedMeter = createOtelMetricSink({
+        serviceName: 'vt-devbox-vm',
+        meterName: 'vt-e2e-storm-mvp',
+        otlpEndpoint: env.otlpEndpoint,
+        instanceId: env.instanceId,
+    })
+    const meter = managedMeter.meter
+
+    meter.createObservableGauge('host.cpu.count', {
+        description: 'Logical CPU count on the host running the e2e storm.',
+    }).addCallback((result) => {
+        const row = currentRow()
+        if (row) result.observe(row.cpu_count)
+    })
+    meter.createObservableGauge('host.cpu.usage', {
+        description: 'Host CPU percentages sampled from /proc/stat.',
+        unit: '%',
+    }).addCallback((result) => {
+        const row = currentRow()
+        if (!row) return
+        result.observe(row.cpu_used_pct, { type: 'used' })
+        result.observe(row.cpu_idle_pct, { type: 'idle' })
+        result.observe(row.cpu_iowait_pct, { type: 'iowait' })
+        result.observe(row.cpu_steal_pct, { type: 'steal' })
+    })
+    meter.createObservableGauge('host.load.1m', {
+        description: 'Host one-minute load average.',
+    }).addCallback((result) => {
+        const row = currentRow()
+        if (!row) return
+        result.observe(row.load_1m)
+        result.observe(row.load_1m_per_cpu_pct, { type: 'per_cpu_pct' })
+    })
+    meter.createObservableGauge('host.memory.usage', {
+        description: 'Host memory usage sampled from /proc/meminfo.',
+        unit: 'By',
+    }).addCallback((result) => {
+        const row = currentRow()
+        if (!row) return
+        result.observe(row.mem_total_bytes, { type: 'total' })
+        result.observe(row.mem_available_bytes, { type: 'available' })
+        result.observe(row.mem_used_bytes, { type: 'used' })
+    })
+    meter.createObservableGauge('host.memory.usage_pct', {
+        description: 'Host memory used percentage sampled from /proc/meminfo.',
+        unit: '%',
+    }).addCallback((result) => {
+        const row = currentRow()
+        if (row) result.observe(row.mem_used_pct)
+    })
+
+    return managedMeter
+}
+
 export async function startHostVmMetricsSampler(
-    metricsPath: string,
+    env: HostVmMetricsEnv,
     intervalMs = 1000,
 ): Promise<HostVmMetricsSampler> {
-    await mkdir(path.dirname(metricsPath), { recursive: true })
-    const stream = createWriteStream(metricsPath, { flags: 'a' })
     const rows: HostVmMetricRow[] = []
+    let latestRow: HostVmMetricRow | null = null
+    const managedMeter = startHostVmOtelMetrics(env, () => latestRow)
     const cpuCount = os.cpus().length
     let previousCpu = parseHostCpuSnapshot(readFileSync('/proc/stat', 'utf8'))
     let stopped = false
@@ -185,7 +245,7 @@ export async function startHostVmMetricsSampler(
         const row = hostVmMetricRow(previousCpu, currentCpu, mem, load1, cpuCount)
         previousCpu = currentCpu
         rows.push(row)
-        stream.write(`${JSON.stringify(row)}\n`)
+        latestRow = row
     }
 
     const interval = setInterval(() => {
@@ -198,7 +258,6 @@ export async function startHostVmMetricsSampler(
     interval.unref()
 
     return {
-        metricsPath,
         stop: async () => {
             if (!stopped) {
                 try {
@@ -208,8 +267,8 @@ export async function startHostVmMetricsSampler(
                 } finally {
                     stopped = true
                     clearInterval(interval)
-                    stream.end()
-                    await finished(stream)
+                    await managedMeter.forceFlush()
+                    await managedMeter.shutdown()
                 }
             }
             return summarizeHostVmMetricRows(rows)

@@ -211,9 +211,11 @@ function buildFakeAgentPromptWithSentinel(sentinelTitle: string): string {
   const script = {
     actions: [
       {
-        type: "create_node",
-        title: sentinelTitle,
-        summary: "Phase-6 prompt delivery sentinel",
+        type: "create_nodes",
+        nodes: [{
+          title: sentinelTitle,
+          summary: "Phase-6 prompt delivery sentinel",
+        }],
       },
       { type: "delay", ms: 120_000 },
     ],
