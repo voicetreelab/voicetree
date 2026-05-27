@@ -33,7 +33,7 @@ const PACKAGE_DIR_LAYERS: readonly string[] = [
 
 const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES: ReadonlySet<string> = new Set([
     // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
-    'packages/systems/graph-db-client/src/autoLaunch/spawn/vaultlessSpawn.ts',
+    'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
     // CLI serve command is the intentional entrypoint for starting the daemon.
     'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
     // Route-parity command imports daemon route types for CLI/API consistency checks.
