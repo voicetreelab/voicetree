@@ -161,6 +161,11 @@ type RendererProfileCapture = {
     readonly stop: () => Promise<void>
 }
 
+type RendererScreenshotCapture = {
+    readonly dir: string
+    readonly stop: () => Promise<void>
+}
+
 function rendererMetricValue(metrics: readonly RendererMetric[], name: string): number | undefined {
     return metrics.find(metric => metric.name === name)?.value
 }
@@ -223,6 +228,53 @@ async function startRendererProfileCapture(
             await finished(stream)
             if (!response.profile) throw new Error('Renderer Profiler.stop returned no profile')
             writeFileSync(path.join(profilesDir, 'renderer.cpuprofile'), JSON.stringify(response.profile), 'utf8')
+        },
+    }
+}
+
+async function startRendererScreenshotCapture(
+    appWindow: Page,
+    runDir: string,
+    intervalMs: number = 20_000,
+): Promise<RendererScreenshotCapture> {
+    const dir = path.join(runDir, 'screenshots')
+    mkdirSync(dir, { recursive: true })
+    let stopped = false
+    let inFlight = false
+    let index = 0
+
+    const capture = async (reason: 'sample' | 'final'): Promise<void> => {
+        if (inFlight) return
+        inFlight = true
+        const paddedIndex = String(index++).padStart(3, '0')
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
+        try {
+            await appWindow.screenshot({ path: screenshotPath })
+            process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
+        } finally {
+            inFlight = false
+        }
+    }
+
+    await capture('sample')
+    const interval = setInterval(() => {
+        if (stopped) return
+        void capture('sample').catch((error: unknown) => {
+            process.stderr.write(`[mvp] renderer screenshot failed: ${(error as Error).message}\n`)
+        })
+    }, intervalMs)
+    interval.unref()
+
+    return {
+        dir,
+        stop: async () => {
+            if (stopped) return
+            stopped = true
+            clearInterval(interval)
+            await capture('final').catch((error: unknown) => {
+                process.stderr.write(`[mvp] final renderer screenshot failed: ${(error as Error).message}\n`)
+            })
         },
     }
 }
@@ -321,6 +373,7 @@ async function main(): Promise<void> {
     let electronMainProfile: MainProcessCdpHandle | null = null
     let stopElectronMainMetrics: (() => Promise<void>) | null = null
     let rendererProfile: RendererProfileCapture | null = null
+    let rendererScreenshots: RendererScreenshotCapture | null = null
     let hostVmMetrics: HostVmMetricsSampler | null = null
     let hostVmMetricsSummary: HostVmMetricsSummary | null = null
 
@@ -367,6 +420,8 @@ async function main(): Promise<void> {
         await appWindow.waitForLoadState('domcontentloaded')
         rendererProfile = await startRendererProfileCapture(appWindow, perfProfile.runDir)
         process.stdout.write('[mvp] started renderer CDP profile + metrics sampler\n')
+        rendererScreenshots = await startRendererScreenshotCapture(appWindow, perfProfile.runDir)
+        process.stdout.write(`[mvp] started renderer screenshot sampler: ${rendererScreenshots.dir}\n`)
 
         const agentResults = await Promise.all(Array.from({ length: AGENT_COUNT }, (_, agentIndex) => (
             runFakeAgent({
@@ -436,6 +491,16 @@ async function main(): Promise<void> {
         }
 
         if (app) {
+            if (rendererScreenshots !== null) {
+                try {
+                    await rendererScreenshots.stop()
+                    process.stdout.write(`[mvp] saved renderer screenshots: ${rendererScreenshots.dir}\n`)
+                    rendererScreenshots = null
+                } catch (e) {
+                    process.stderr.write(`[mvp] renderer screenshot save failed: ${(e as Error).message}\n`)
+                }
+            }
+
             if (rendererProfile !== null) {
                 try {
                     await rendererProfile.stop()
@@ -532,6 +597,7 @@ async function main(): Promise<void> {
         appSupportPath,
         electronLogPath,
         perfRunDir: perfProfile.runDir,
+        screenshotDir: path.join(perfProfile.runDir, 'screenshots'),
         hostVmMetrics: hostVmMetricsSummary,
         outPath,
         totalWallMs: Date.now() - overallStart,
