@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
-import {resumePersistedAgentSession, type ResumePersistedDeps} from './resumePersistedAgentSession'
-import type {NativeSessionRequest, NativeSessionResult} from './resolvers/resolveNativeSession'
-import type {RecoverableAgentSession} from './types'
+import {resumePersistedAgentSession, type ResumePersistedDeps} from '../resumePersistedAgentSession'
+import type {NativeSessionRequest, NativeSessionResult} from '../resolvers/resolveNativeSession'
+import type {RecoverableAgentSession} from '../types'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import {makeLiveSession, makeTerminalData, SESSION_A, TERMINAL_A, VAULT_PATH} from './classifier.test-fixtures'
 

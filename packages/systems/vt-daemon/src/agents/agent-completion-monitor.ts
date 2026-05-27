@@ -17,12 +17,16 @@ import {
 import {
     isAgentComplete,
     getAgentStatus,
+} from './completion/isAgentComplete.ts'
+import {
     buildCompletionMessage,
     type AgentResult,
+} from './completion/buildCompletionMessage.ts'
+import {
     getAgentNodes,
     type AgentNodeEntry,
-    getNewNodesForAgent,
-} from '@vt/agent-runtime'
+} from './completion/agentNodeIndex.ts'
+import {getNewNodesForAgent} from './completion/getNewNodesForAgent.ts'
 import {getMcpGraph} from '../config/mcp-graph-bridge'
 
 type MonitorEntry = {

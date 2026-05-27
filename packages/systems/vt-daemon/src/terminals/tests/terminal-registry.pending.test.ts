@@ -24,7 +24,7 @@ import {
 } from '../terminal-registry'
 
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true })
-vi.mock('@vt/agent-runtime/inject/send-text-to-terminal.ts', () => ({
+vi.mock('@vt/vt-daemon/agents/inject/send-text-to-terminal.ts', () => ({
     sendTextToTerminal: (terminalId: string, text: string): Promise<{ success: boolean }> =>
         mockSendTextToTerminal(terminalId, text)
 }))

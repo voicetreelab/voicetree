@@ -9,11 +9,11 @@ import {
     configureAgentRuntime,
     createTerminalData,
     getTerminalRecords,
-    spawnTmuxBackedTerminal,
     type TerminalData,
     type TerminalId,
 } from '@vt/agent-runtime'
-import {hasSession, killSession} from '../../terminals/tmux/tmux-session-manager'
+import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
+import {hasSession, killSession} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import {configureMcpServer} from '../../config/mcp-config'
 import {closeAgentTool} from './closeAgentTool'

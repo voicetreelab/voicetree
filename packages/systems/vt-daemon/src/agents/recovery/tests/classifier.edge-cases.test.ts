@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {classifyRecoveryCandidates} from './classifier'
+import {classifyRecoveryCandidates} from '../classifier'
 import {
     baseInput,
     FOREIGN_HASH,

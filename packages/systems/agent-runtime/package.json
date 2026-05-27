@@ -8,10 +8,7 @@
   "exports": {
     ".": "./src/api/index.ts",
     "./runtime/agent-runtime-api": "./src/api/agent-runtime-api.ts",
-    "./api/*": "./src/api/*",
-    "./headless/*": "./src/application/headless/*",
-    "./hooks/*": "./src/application/hooks/*",
-    "./inject/*": "./src/application/inject/*"
+    "./api/*": "./src/api/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

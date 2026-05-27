@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
-import {discoverRecoverableAgentSessions, type DiscoverRecoveryDeps} from './discovery'
-import type {MetadataRecord} from './classifier'
-import type {RecoverableAgentSession} from './types'
+import {discoverRecoverableAgentSessions, type DiscoverRecoveryDeps} from '../discovery'
+import type {MetadataRecord} from '../classifier'
+import type {RecoverableAgentSession} from '../types'
 import type {UnclaimedTmuxSession} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
 import {
     baseInput as _ignored,  // imported only to ensure shared fixture module compiles together

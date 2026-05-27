@@ -2,7 +2,8 @@
 
 import {z} from 'zod'
 
-import {agentRuntime, type TerminalId} from '@vt/agent-runtime'
+import type {TerminalId} from '@vt/agent-runtime'
+import {closeHeadlessAgent, getHeadlessAgentOutput} from '../agents/headless/headlessAgentManager.ts'
 import type {
     CloseHeadlessAgent,
     GetHeadlessAgentOutput,
@@ -18,7 +19,7 @@ const closeHeadlessAgentRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: CloseHeadlessAgent.Request = args as unknown as CloseHeadlessAgent.Request
-        const result: CloseHeadlessAgent.Response = await agentRuntime.closeHeadlessAgent(req.terminalId as TerminalId)
+        const result: CloseHeadlessAgent.Response = await closeHeadlessAgent(req.terminalId as TerminalId)
         return buildJsonResponse(result)
     },
 }
@@ -30,7 +31,7 @@ const getHeadlessAgentOutputRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: GetHeadlessAgentOutput.Request = args as unknown as GetHeadlessAgentOutput.Request
-        const result: GetHeadlessAgentOutput.Response = agentRuntime.getHeadlessAgentOutput(req.terminalId)
+        const result: GetHeadlessAgentOutput.Response = getHeadlessAgentOutput(req.terminalId)
         return buildJsonResponse(result)
     },
 }

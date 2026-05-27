@@ -7,7 +7,7 @@
  */
 
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
-import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
+import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry/index.ts'
 import {
     cleanupTmuxHeadlessAgentsAndWait,
     cleanupTmuxHeadlessAgents,

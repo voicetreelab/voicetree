@@ -1,15 +1,3 @@
-import {
-    closeHeadlessAgent,
-    getHeadlessAgentOutput,
-    isTmuxHeadlessAgent,
-    reconcileTmuxHeadlessAgents,
-    sendHeadlessAgentInput,
-} from '../application/headless/headlessAgentManager'
-import { createOnNewNodeHookDispatcher } from '../application/hooks/onNewNodeHook'
-import { runStopHooks } from '../application/hooks/stopGateHookRunner'
-import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-nodes-for-terminal'
-import { injectNodesIntoTerminal } from '../application/inject/inject-nodes-into-terminal'
-import { sendTextToTerminal } from '../application/inject/send-text-to-terminal'
 import { shouldFlipToActiveOnOutput } from '@vt/vt-daemon/agent-lifecycle/output-transition.ts'
 import { getTierTelemetrySnapshot } from '@vt/vt-daemon/agent-lifecycle/tierTelemetry.ts'
 import { installJsonlTelemetrySink } from '@vt/vt-daemon/agent-lifecycle/tierTelemetryJsonlSink.ts'
@@ -25,9 +13,6 @@ import {
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
 } from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
-import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
-import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
-import { forkAgentSession } from '../application/recovery/forkAgentSession'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -49,19 +34,17 @@ import {
     tryConsumeAndSplitBudget,
 } from '@vt/vt-daemon/terminals/global-budget-registry.ts'
 
-const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
+// Slice C (completion, recovery, headless, hooks, inject) has been absorbed
+// into @vt/vt-daemon. Reach those symbols via `@vt/vt-daemon/agents/...`
+// directly — they're no longer part of this facade.
 
 export const agentRuntime = {
     attachUnclaimedTmuxSession,
-    closeHeadlessAgent,
     configureAgentRuntime,
-    dispatchOnNewNodeHooks,
     ensureTmuxAvailable,
     ensureTmuxServer,
     enqueuePendingMessage,
     getExistingAgentNames,
-    getHeadlessAgentOutput,
-    isTmuxHeadlessAgent,
     getIdleSince,
     getOutput,
     getPendingTerminal,
@@ -70,21 +53,12 @@ export const agentRuntime = {
     getTerminalManager,
     getTerminalRecords,
     getTierTelemetrySnapshot,
-    getUnseenNodesForTerminal,
     installJsonlTelemetrySink,
-    injectNodesIntoTerminal,
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
-    discoverRecoverableAgentSessions,
-    resumePersistedAgentSession,
-    forkAgentSession,
     registerChild,
-    reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,
     resetAuditRetryCount,
-    runStopHooks,
-    sendTextToTerminal,
-    sendHeadlessAgentInput,
     shouldFlipToActiveOnOutput,
     shutdownTmuxServer,
     spawnPlainTerminal,

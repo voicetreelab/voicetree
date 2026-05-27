@@ -14,21 +14,23 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import type {Graph} from '@vt/graph-model/graph'
 import {
-    clearAgentNodes,
     clearTerminalRecords,
     createTerminalData,
-    getAgentNodes,
     getIdleSince,
     getTerminalRecords,
-    isAgentComplete,
     recordTerminalSpawn,
-    registerAgentNodes,
     resetAuditRetryCount,
     updateTerminalIsDone,
     type TerminalData,
     type TerminalId,
     type TerminalRecord,
 } from '@vt/agent-runtime'
+import {
+    clearAgentNodes,
+    getAgentNodes,
+    registerAgentNodes,
+} from '../src/agents/completion/agentNodeIndex.ts'
+import {isAgentComplete} from '../src/agents/completion/isAgentComplete.ts'
 
 /**
  * Production callback reproduced from `graph-model-init.ts` (Electron-only).

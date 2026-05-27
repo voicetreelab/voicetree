@@ -2,7 +2,8 @@
 
 import {z} from 'zod'
 
-import {agentRuntime} from '@vt/agent-runtime'
+import {sendTextToTerminal} from '../agents/inject/send-text-to-terminal.ts'
+import {injectNodesIntoTerminal} from '../agents/inject/inject-nodes-into-terminal.ts'
 import type {
     SendTextToTerminal,
     InjectNodesIntoTerminal,
@@ -19,7 +20,7 @@ const sendTextToTerminalRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: SendTextToTerminal.Request = args as unknown as SendTextToTerminal.Request
-        const result: SendTextToTerminal.Response = await agentRuntime.sendTextToTerminal(req.terminalId, req.text)
+        const result: SendTextToTerminal.Response = await sendTextToTerminal(req.terminalId, req.text)
         return buildJsonResponse(result)
     },
 }
@@ -32,7 +33,7 @@ const injectNodesIntoTerminalRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: InjectNodesIntoTerminal.Request = args as unknown as InjectNodesIntoTerminal.Request
-        const result: InjectNodesIntoTerminal.Response = await agentRuntime.injectNodesIntoTerminal(req.terminalId, [...req.nodeIds])
+        const result: InjectNodesIntoTerminal.Response = await injectNodesIntoTerminal(req.terminalId, [...req.nodeIds])
         return buildJsonResponse(result)
     },
 }

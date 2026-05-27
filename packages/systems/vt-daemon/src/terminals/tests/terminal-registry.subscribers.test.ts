@@ -25,7 +25,7 @@ import {
     subscribeToRegistry
 } from '../terminal-registry'
 
-vi.mock('@vt/agent-runtime/inject/send-text-to-terminal.ts', () => ({
+vi.mock('@vt/vt-daemon/agents/inject/send-text-to-terminal.ts', () => ({
     sendTextToTerminal: vi.fn().mockResolvedValue({ success: true })
 }))
 

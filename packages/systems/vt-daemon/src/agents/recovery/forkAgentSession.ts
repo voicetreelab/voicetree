@@ -5,7 +5,7 @@ import {
 } from './discovery'
 import {buildResumeCommand, type ResumeMode} from '@vt/vt-daemon/spawn/cli/resumeCli.ts'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
-import {getExistingAgentNames} from '@vt/vt-daemon/terminals/terminal-registry'
+import {getExistingAgentNames} from '@vt/vt-daemon/terminals/terminal-registry/index.ts'
 import {getUniqueAgentName} from '@vt/graph-model/settings'
 import {
     defaultResolveNativeSession,

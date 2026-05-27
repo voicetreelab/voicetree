@@ -1,7 +1,7 @@
 import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
-import type {TmuxReconciliationResult} from '@vt/vt-daemon/terminals/terminal-registry'
+import type {TmuxReconciliationResult} from '@vt/vt-daemon/terminals/terminal-registry/index.ts'
 import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '@vt/vt-daemon/terminals/terminal-registry/terminal-metadata.ts'
 import {
     captureOutput,
@@ -17,7 +17,7 @@ import {
     registerTmuxSessionAlias,
     sendKeys,
 } from '@vt/vt-daemon/terminals/tmux/tmux-session-manager.ts'
-import {reconcileTmuxTerminalRegistry} from '@vt/vt-daemon/terminals/terminal-registry'
+import {reconcileTmuxTerminalRegistry} from '@vt/vt-daemon/terminals/terminal-registry/index.ts'
 import {shellQuote} from '@vt/vt-daemon/terminals/util/shellQuote.ts'
 import {applyPromptFileToHeadlessSpawn, deletePromptFile, deletePromptFileByPath} from './tmuxPromptFile'
 import {

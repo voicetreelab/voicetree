@@ -9,8 +9,8 @@ import {
   TERMINATE_TMUX_SESSIONS,
   type HeadlessAgentCleanupPolicy,
   spawnTmuxBackedTerminal,
-} from '@vt/agent-runtime/headless/headlessAgentManager.ts';
-import {injectAgentCommandHeadful, writePromptFile} from '@vt/agent-runtime/headless/tmuxPromptFile.ts';
+} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts';
+import {injectAgentCommandHeadful, writePromptFile} from '@vt/vt-daemon/agents/headless/tmuxPromptFile.ts';
 import {
   getWindowsShell,
   resolveTerminalCwd,

@@ -34,7 +34,7 @@ vi.mock('@vt/graph-model/pure/graph/markdown-parsing', () => ({
     getNodeTitle: vi.fn(() => 'Mock Title')
 }))
 
-vi.mock('@vt/agent-runtime/inject/send-text-to-terminal.ts', () => ({
+vi.mock('@vt/vt-daemon/agents/inject/send-text-to-terminal.ts', () => ({
     sendTextToTerminal: vi.fn()
 }))
 

@@ -13,12 +13,14 @@ import type {Graph, GraphNode} from '@vt/graph-model/graph'
 
 import {
     createTerminalData,
-    isAgentComplete,
-    type IsAgentCompleteDeps,
     type TerminalData,
     type TerminalId,
     type TerminalRecord,
 } from '@vt/agent-runtime'
+import {
+    isAgentComplete,
+    type IsAgentCompleteDeps,
+} from '../src/agents/completion/isAgentComplete.ts'
 
 function buildGraphNode(nodeId: string, title: string, agentName: string, isContextNode: boolean = false): GraphNode {
     return {

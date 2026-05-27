@@ -1,6 +1,6 @@
 import type {Graph} from '@vt/graph-model/graph'
-import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
-import {runStopHooks, type StopHookResult} from '@vt/agent-runtime/hooks/stopGateHookRunner.ts'
+import {sendTextToTerminal} from '@vt/vt-daemon/agents/inject/send-text-to-terminal.ts'
+import {runStopHooks, type StopHookResult} from '@vt/vt-daemon/agents/hooks/stopGateHookRunner.ts'
 import {hasActiveChildren} from '../terminal-registry-state.ts'
 import type {
     TerminalRecord,

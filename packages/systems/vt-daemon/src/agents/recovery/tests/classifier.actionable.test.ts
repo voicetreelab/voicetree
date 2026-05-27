@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
-import {classifyRecoveryCandidates} from './classifier'
-import type {ResumeCapability} from './types'
+import {classifyRecoveryCandidates} from '../classifier'
+import type {ResumeCapability} from '../types'
 import {
     baseInput,
     makeLiveSession,

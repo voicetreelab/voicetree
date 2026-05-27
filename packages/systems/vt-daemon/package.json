@@ -13,6 +13,7 @@
     "./tools/*": "./src/tools/*",
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",
+    "./agents/*": "./src/agents/*",
     "./mcp-config": "./src/config/mcp-config-public.ts",
     "./terminals/terminal-registry": "./src/terminals/terminal-registry/index.ts",
     "./terminals/*": "./src/terminals/*",

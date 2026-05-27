@@ -13,7 +13,7 @@
 
 import {z} from 'zod'
 
-import {agentRuntime} from '@vt/agent-runtime'
+import {createOnNewNodeHookDispatcher} from '../agents/hooks/onNewNodeHook.ts'
 import type {DispatchOnNewNodeHooks} from '@vt/vt-daemon-protocol'
 import type {GraphDelta} from '@vt/graph-model/graph'
 
@@ -23,18 +23,20 @@ function logHookResult(message: string): void {
     process.stderr.write(`vtd: ${message}\n`)
 }
 
+const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
+
 const dispatchOnNewNodeHooksRoute: RpcRoute = {
     name: 'dispatchOnNewNodeHooks',
     // `delta` is the typed GraphDelta from `@vt/graph-model/graph`. Validating
     // its full structure with zod would duplicate the canonical TypeScript
-    // type for no win — accept an unknown array here and let agent-runtime's
+    // type for no win — accept an unknown array here and let the local
     // dispatcher consume it.
     inputShape: {
         delta: z.unknown(),
         hookCommand: z.string(),
     },
     handler: voidRoute<DispatchOnNewNodeHooks.Request>((req: DispatchOnNewNodeHooks.Request): void => {
-        agentRuntime.dispatchOnNewNodeHooks(req.delta as GraphDelta, req.hookCommand, logHookResult)
+        dispatchOnNewNodeHooks(req.delta as GraphDelta, req.hookCommand, logHookResult)
     }),
 }
 
