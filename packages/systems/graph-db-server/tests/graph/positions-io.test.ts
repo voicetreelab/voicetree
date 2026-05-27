@@ -1,10 +1,8 @@
 /**
- * Unit tests for positions-store.ts
+ * Unit tests for positions-io.ts
  *
- * Tests the 3 exported functions directly:
- * - loadPositions: reads .voicetree/positions.json → Map
- * - mergePositionsIntoGraph: merges positions into graph nodes
- * - savePositionsSync: writes positions to .voicetree/positions.json
+ * Black-box tests against the public `positionsIO` bundle plus
+ * `mergePositionsIntoGraph` (which is re-exported from graph-model/spatial).
  */
 
 import { describe, it, expect, afterEach } from 'vitest'
@@ -14,16 +12,18 @@ import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
-import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from '@vt/app-config/positions'
+import { mergePositionsIntoGraph } from '@vt/graph-model/spatial'
+import { positionsIO } from '@vt/app-config/positions-io'
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
 function makeTmpDir(): string {
-    return fs.mkdtempSync(path.join(os.tmpdir(), 'positions-store-test-'))
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'positions-io-test-'))
 }
 
 function makeNode(id: string, position: O.Option<Position>): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${id}`,
         outgoingEdges: [],
@@ -54,7 +54,7 @@ describe('loadPositions', () => {
         const tmp: string = makeTmpDir()
         tmpDirs.push(tmp)
 
-        const result: ReadonlyMap<string, Position> = await loadPositions(tmp)
+        const result: ReadonlyMap<string, Position> = await positionsIO.load(tmp)
 
         expect(result.size).toBe(0)
     })
@@ -66,7 +66,7 @@ describe('loadPositions', () => {
         fs.mkdirSync(voicetreeDir)
         fs.writeFileSync(path.join(voicetreeDir, 'positions.json'), '{not valid json!!!', 'utf-8')
 
-        const result: ReadonlyMap<string, Position> = await loadPositions(tmp)
+        const result: ReadonlyMap<string, Position> = await positionsIO.load(tmp)
 
         expect(result.size).toBe(0)
     })
@@ -83,7 +83,7 @@ describe('loadPositions', () => {
         }
         fs.writeFileSync(path.join(voicetreeDir, 'positions.json'), JSON.stringify(positionsData), 'utf-8')
 
-        const result: ReadonlyMap<string, Position> = await loadPositions(tmp)
+        const result: ReadonlyMap<string, Position> = await positionsIO.load(tmp)
 
         expect(result.size).toBe(2)
         expect(result.get('/path/to/node-a.md')).toEqual({ x: 100, y: 200 })
@@ -105,7 +105,7 @@ describe('loadPositions', () => {
         }
         fs.writeFileSync(path.join(voicetreeDir, 'positions.json'), JSON.stringify(positionsData), 'utf-8')
 
-        const result: ReadonlyMap<string, Position> = await loadPositions(tmp)
+        const result: ReadonlyMap<string, Position> = await positionsIO.load(tmp)
 
         expect(result.size).toBe(2)
         expect(result.get('good.md')).toEqual({ x: 10, y: 20 })
@@ -179,7 +179,7 @@ describe('savePositionsSync', () => {
         const node: GraphNode = makeNode('node.md', O.some({ x: 123.7, y: -456.3 }))
         const graph: Graph = createGraph({ 'node.md': node })
 
-        savePositionsSync(graph, tmp)
+        positionsIO.save(graph, tmp)
 
         const filePath: string = path.join(tmp, '.voicetree', 'positions.json')
         const written: string = fs.readFileSync(filePath, 'utf-8')
@@ -198,7 +198,7 @@ describe('savePositionsSync', () => {
         const node: GraphNode = makeNode('node.md', O.some({ x: 0, y: 0 }))
         const graph: Graph = createGraph({ 'node.md': node })
 
-        savePositionsSync(graph, tmp)
+        positionsIO.save(graph, tmp)
 
         expect(fs.existsSync(voicetreeDir)).toBe(true)
         expect(fs.existsSync(path.join(voicetreeDir, 'positions.json'))).toBe(true)
@@ -212,7 +212,7 @@ describe('savePositionsSync', () => {
         const withoutPos: GraphNode = makeNode('no-pos.md', O.none)
         const graph: Graph = createGraph({ 'has-pos.md': withPos, 'no-pos.md': withoutPos })
 
-        savePositionsSync(graph, tmp)
+        positionsIO.save(graph, tmp)
 
         const filePath: string = path.join(tmp, '.voicetree', 'positions.json')
         const parsed: Record<string, { x: number; y: number }> = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
