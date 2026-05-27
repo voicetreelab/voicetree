@@ -11,7 +11,6 @@ import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
 import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
 import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {getCallbacks} from '@vt/graph-model'
 import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultNotOpen'
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
@@ -62,7 +61,7 @@ function commitGraphDeltaMemState(prepared: PreparedMemState): GraphDelta {
     // Fire onNewNode hook (fire-and-forget). Runs for both UI and FS-event paths.
     // dispatchOnNewNodeHooks filters for UpsertNode with previousNode=None, so
     // delete-only deltas (e.g. removeReadPath) are no-ops.
-    void loadSettings(resolveAppSupportPath()).then(settings => {
+    void loadSettings().then(settings => {
         const hookPath: string | undefined = settings.hooks?.onNewNode
         if (hookPath && !hookPath.startsWith('#')) {
             const callbacks = getCallbacks()

@@ -15,7 +15,6 @@ import {
     getVaultConfigForDirectory,
     hasLegacyReadPathsForDirectory,
 } from "@vt/app-config/vault-config";
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 
 /**
  * Resolve a writeFolder to an absolute path with normalized separators.
@@ -58,7 +57,7 @@ export async function logIgnoredLegacyReadPathsIfPresent(
     watchedDir: string,
     logger: LegacyReadPathLogger = defaultLegacyReadPathLogger,
 ): Promise<void> {
-    if (await hasLegacyReadPathsForDirectory(resolveAppSupportPath(), watchedDir)) {
+    if (await hasLegacyReadPathsForDirectory(watchedDir)) {
         logger.debug('[resolveAllowlistForProject] ignoring legacy readPaths from voicetree-config.json');
     }
 }
@@ -75,7 +74,7 @@ export async function resolveAllowlistForProject(
     watchedDir: string,
     options: ResolveAllowlistOptions = {},
 ): Promise<ResolvedVaultConfig | null> {
-    const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(resolveAppSupportPath(), watchedDir);
+    const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     await logIgnoredLegacyReadPathsIfPresent(watchedDir);
 
     // If no saved config exists, return null so caller can attempt loading directly

@@ -8,7 +8,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { loadSettings, saveSettings } from '@vt/app-config/settings';
 import { getNode } from '@vt/graph-db-server/state/graph-store';
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown';
 import { broadcastVaultState } from './broadcast/broadcast-vault-state';
 import type { VTSettings } from '@vt/graph-model/settings';
