@@ -193,7 +193,21 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     // calls `ensureVtDaemonForVault` to spawn-or-adopt the per-vault VTD.
     'voicetree-cli -> vt-daemon-client': 1,
     'voicetree-cli -> vt-rpc': 9,
-    'vt-daemon -> app-config': 1,
+    // 2026-05-27: collapse-app-support-path. `resolveAppSupportPath` is now
+    // sourced from @vt/app-config (the canonical single-line resolver), not
+    // from a CLI-local mirrored copy. The function body is 1 line — the
+    // duplicate `voicetree-cli/src/commands/util/appSupportPath.ts` shim
+    // (with its "must stay in sync" comment) and the second copy at
+    // `voicetree-cli/src/appSupportPath.ts` are both deleted. Net: +1 value
+    // symbol on this edge, −2 duplicate files and one human-attention
+    // invariant.
+    'voicetree-cli -> app-config': 1,
+    // 2026-05-27: collapse-app-support-path. `resolveAppSupportPath` is again
+    // imported into vt-daemon (vtd boot + spawn helpers + graph-db-server's
+    // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
+    // app-support.ts` shim is deleted (the shim's `getAppSupportPath` had
+    // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
+    'vt-daemon -> app-config': 2,
     'vt-daemon -> daemon-lifecycle': 9,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
     // client (BF-375 standalone-vtd boundary). Single value symbol
