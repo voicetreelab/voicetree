@@ -279,7 +279,7 @@ async function showOutputPopover(terminalId: TerminalId, badge: HTMLElement): Pr
     // Dismiss any existing popover first
     dismissPopover();
 
-    const output: string = await window.electronAPI?.main.getHeadlessAgentOutput(terminalId) as string;
+    const output: string = await window.electronAPI?.main.getHeadlessAgentOutput({ terminalId }) as string;
 
     // Check if mouse has already left (race condition with async IPC)
     if (badgeOverlayState.hoverDebounceTimer === null && badgeOverlayState.activePopoverTerminalId !== terminalId) {

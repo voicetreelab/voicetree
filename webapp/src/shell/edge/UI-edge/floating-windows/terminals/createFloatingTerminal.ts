@@ -17,7 +17,7 @@ import { createInjectBar, registerInjectBar, type InjectBarHandle } from "@/shel
 // Same pattern as InjectBarMainIPC in InjectBar.ts — cast through this to avoid
 // renderer tsconfig issues with Node.js dependencies in the main-process import chain.
 interface FloatingTerminalMainIPC {
-    injectNodesIntoTerminal(terminalId: string, nodeIds: readonly string[]): Promise<{ success: boolean; injectedCount: number }>;
+    injectNodesIntoTerminal(request: { terminalId: string; nodeIds: readonly string[] }): Promise<{ success: boolean; injectedCount: number }>;
 }
 
 /**
@@ -150,7 +150,7 @@ export function createFloatingTerminalWindow(
             terminalId,
             onInject: async (nodeIds: NodeIdAndFilePath[]): Promise<void> => {
                 try {
-                    const result: { success: boolean; injectedCount: number } | undefined = await mainIPC?.injectNodesIntoTerminal(terminalId, nodeIds);
+                    const result: { success: boolean; injectedCount: number } | undefined = await mainIPC?.injectNodesIntoTerminal({ terminalId, nodeIds });
                     if (result && !result.success) {
                         console.warn('[createFloatingTerminal] injectNodesIntoTerminal returned success=false for', terminalId);
                     }
