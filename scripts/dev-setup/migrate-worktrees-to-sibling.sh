@@ -35,29 +35,45 @@ if [ ! -d "$OLD_WTS" ]; then
   exit 0
 fi
 
-# Pre-flight: check for unstaged or untracked work in any worktree.
+# Skip list: worktrees that should NOT be migrated. Space-separated names.
+# Set via MIGRATE_SKIP env var, or hardcode here. Skipped worktrees are left
+# in .worktrees/ and not touched.
+SKIP_NAMES="${MIGRATE_SKIP:-}"
+is_skipped() {
+  case " $SKIP_NAMES " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
+
+# Pre-flight: check for unstaged or untracked work in any non-skipped worktree.
 # `git status --porcelain` is empty iff the tree is clean.
 echo "migrate: scanning for uncommitted work in $OLD_WTS"
 for wt in "$OLD_WTS"/*/; do
   [ -d "$wt" ] || continue
   wt="${wt%/}"
   name="$(basename "$wt")"
+  if is_skipped "$name"; then
+    echo "migrate: skipping $name (in MIGRATE_SKIP)"
+    continue
+  fi
   status="$(git -C "$wt" status --porcelain 2>/dev/null || true)"
   if [ -n "$status" ]; then
     echo "migrate: REFUSING — $name has uncommitted changes:" >&2
     echo "$status" | head -10 | sed 's/^/  /' >&2
     echo "migrate: commit / stash inside that worktree, then re-run." >&2
+    echo "migrate: (or add to MIGRATE_SKIP to leave it in place)" >&2
     exit 1
   fi
 done
 
 mkdir -p "$NEW_WTS"
 
-# Move each worktree dir.
+# Move each non-skipped worktree dir.
 for wt in "$OLD_WTS"/*/; do
   [ -d "$wt" ] || continue
   wt="${wt%/}"
   name="$(basename "$wt")"
+  if is_skipped "$name"; then
+    continue
+  fi
   dest="$NEW_WTS/$name"
   if [ -e "$dest" ]; then
     echo "migrate: skipping $name — $dest already exists" >&2
