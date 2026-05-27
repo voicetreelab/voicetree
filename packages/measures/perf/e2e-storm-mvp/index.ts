@@ -311,7 +311,7 @@ async function startRendererProfileCapture(
 async function startRendererScreenshotCapture(
     appWindow: Page,
     runDir: string,
-    intervalMs: number = 20_000,
+    intervalMs: number = 5_000,
 ): Promise<RendererScreenshotCapture> {
     const dir = path.join(runDir, 'screenshots')
     mkdirSync(dir, { recursive: true })
