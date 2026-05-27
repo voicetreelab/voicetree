@@ -134,7 +134,7 @@ export interface VTSettings {
     readonly notifyOnAgentCompletion?: boolean;
     /** Show FPS counter overlay on the Cytoscape WebGL renderer (top-left). Requires app restart. */
     readonly showFps?: boolean;
-    /** Layout engine configuration as JSON. Supports forceatlas2, combocombined, mindmap, and webcola engines. */
+    /** Layout engine configuration as JSON. Supports 'cola' engine. Edit in Advanced settings. */
     readonly layoutConfig?: string;
 }
 
