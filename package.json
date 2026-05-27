@@ -52,7 +52,8 @@
     "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
     "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
     "measures:capture-baselines": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/scripts/capture-subgraph-baselines.ts",
-    "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs"
+    "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs",
+    "vt-resume": "node --no-warnings=ExperimentalWarning --import tsx packages/systems/agent-runtime/bin/vt-resume.ts"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",
