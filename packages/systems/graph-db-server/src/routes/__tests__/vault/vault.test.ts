@@ -9,7 +9,7 @@ import { startDaemon, type DaemonHandle } from '../../../daemon/server.ts'
 import {
   beginVaultOpen,
   completeVaultOpen,
-} from '../../../application/workflows/vault/vaultOpenGate.ts'
+} from '../../../application/workflows/vaultOpenGate.ts'
 
 async function makeTempDir(prefix: string): Promise<string> {
   return await mkdtemp(join(tmpdir(), prefix))

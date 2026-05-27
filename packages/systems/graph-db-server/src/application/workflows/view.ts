@@ -7,10 +7,10 @@ import {
   handleDeleteExpandOverride,
   handleReadProjectedGraph,
   handleRenderView,
-} from '../../core/handleView.ts'
-import { dispatch, dispatchOrCreateWithState } from '../dispatch.ts'
-import type { HttpResult } from '../httpResult.ts'
-import type { WorkflowSessionRegistry } from '../session/sessionRoutes.ts'
+} from '../core/handleView.ts'
+import { dispatch, dispatchOrCreateWithState } from './dispatch.ts'
+import type { HttpResult } from './httpResult.ts'
+import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export async function renderSessionViewWorkflow(
   registry: WorkflowSessionRegistry,

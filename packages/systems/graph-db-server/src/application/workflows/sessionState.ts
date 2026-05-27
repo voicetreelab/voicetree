@@ -11,8 +11,8 @@ import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { getReadPaths, getVaultPaths, getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store'
-import { handleReadSessionState } from '../../core/handleSessionState.ts'
-import { jsonResult, notFoundResult, type HttpResult } from '../httpResult.ts'
+import { handleReadSessionState } from '../core/handleSessionState.ts'
+import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 function resolveWriteFolder(

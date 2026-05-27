@@ -6,9 +6,9 @@ import {
   handleReplayResetSnapshot,
   parseSince,
   stringifyGraphForSSE,
-} from '../../core/handleSessionEvents.ts'
-import { buildDaemonState } from '../../session/buildDaemonState.ts'
-import type { Session } from '../../session/types.ts'
+} from '../core/handleSessionEvents.ts'
+import { buildDaemonState } from '../session/buildDaemonState.ts'
+import type { Session } from '../session/types.ts'
 import {
   getCurrentSeq,
   getDeltasSince,

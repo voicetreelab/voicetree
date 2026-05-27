@@ -6,7 +6,7 @@ import {
 } from '../core/runCommand.ts'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
-import type { WorkflowSessionRegistry } from './session/sessionRoutes.ts'
+import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 type Session = ReturnType<WorkflowSessionRegistry['getOrCreate']>
 

@@ -15,8 +15,8 @@ import {
   updateContextNodeContainedIdsWorkflow,
   writeMarkdownFileWorkflow,
   writePositionsWorkflow,
-} from '@vt/graph-db-server/application/workflows/routes/graph'
-import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/session/sessionRoutes'
+} from '@vt/graph-db-server/application/workflows/graph'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById, daemonRouteSpecBySignature } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'

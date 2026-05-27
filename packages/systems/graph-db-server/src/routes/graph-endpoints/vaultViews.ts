@@ -5,7 +5,7 @@ import {
   ListViewsResponseSchema,
   ViewRecordSchema,
 } from '@vt/graph-db-server/contract'
-import { withVaultMutex } from '@vt/graph-db-server/application/workflows/vault/vaultLifecycle'
+import { withVaultMutex } from '@vt/graph-db-server/application/workflows/vaultLifecycle'
 import { getCurrentFolderVisibilityDb } from '@vt/graph-db-server/views/folderVisibilityResource'
 import { createViewsStore } from '@vt/graph-db-server/views/viewsStore'
 import {

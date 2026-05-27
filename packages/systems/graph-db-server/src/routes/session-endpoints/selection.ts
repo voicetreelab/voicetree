@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
-import { updateSelectionWorkflow } from '@vt/graph-db-server/application/workflows/routes/selection'
-import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/session/sessionRoutes'
+import { updateSelectionWorkflow } from '@vt/graph-db-server/application/workflows/selection'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'

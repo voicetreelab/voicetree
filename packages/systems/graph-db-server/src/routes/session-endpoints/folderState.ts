@@ -6,7 +6,7 @@ import {
   type FolderState,
   type FolderStateBatchUpdate,
 } from '@vt/graph-db-server/contract'
-import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/session/sessionRoutes'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import {
   readCurrentFolderState,

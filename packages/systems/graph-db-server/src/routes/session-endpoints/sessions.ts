@@ -4,7 +4,7 @@ import {
   deleteSessionWorkflow,
   readSessionWorkflow,
   type WorkflowSessionRegistry,
-} from '@vt/graph-db-server/application/workflows/session/sessionRoutes'
+} from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'
