@@ -2,7 +2,7 @@ import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {DEFAULT_REPO_ROOT, type PackageInfo} from '../discovery/discover-packages.ts'
-import {resolveWorkspaceBasePath} from '../discovery/package-exports'
+import {resolveWorkspaceBasePath} from '../discovery/package-exports.ts'
 
 const SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx']
 
