@@ -80,10 +80,13 @@ function projectGraphPositions(graph: Graph): PositionsFile {
 /**
  * Load positions from .voicetree/positions.json.
  * Returns empty map if file doesn't exist or is invalid.
+ *
+ * `deps` defaults to real fs IO; tests can pass a fake to observe / control
+ * the reads without callers having to import the defaults just to forward them.
  */
 export async function loadPositions(
     projectRoot: string,
-    deps: PositionsAsyncDeps,
+    deps: PositionsAsyncDeps = defaultPositionsAsyncDeps,
 ): Promise<ReadonlyMap<NodeIdAndFilePath, Position>> {
     const filePath: string = positionsFilePath(projectRoot)
     try {
@@ -105,7 +108,7 @@ export async function loadPositions(
 export function savePositionsSync(
     graph: Graph,
     projectRoot: string,
-    deps: PositionsSyncDeps,
+    deps: PositionsSyncDeps = defaultPositionsSyncDeps,
 ): void {
     const positions: PositionsFile = projectGraphPositions(graph)
     const filePath: string = positionsFilePath(projectRoot)

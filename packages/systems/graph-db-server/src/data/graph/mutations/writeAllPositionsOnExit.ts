@@ -1,5 +1,5 @@
 import type { Graph } from '@vt/graph-model/graph'
-import { defaultPositionsSyncDeps, savePositionsSync } from '@vt/app-config/positions'
+import { savePositionsSync } from '@vt/app-config/positions'
 
 /**
  * Synchronously persist all node positions to .voicetree/positions.json on app exit.
@@ -11,5 +11,5 @@ import { defaultPositionsSyncDeps, savePositionsSync } from '@vt/app-config/posi
  * @param projectRoot - The project root directory (where .voicetree/ lives)
  */
 export function writeAllPositionsSync(graph: Graph, projectRoot: string): void {
-    savePositionsSync(graph, projectRoot, defaultPositionsSyncDeps)
+    savePositionsSync(graph, projectRoot)
 }

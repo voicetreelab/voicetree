@@ -240,11 +240,11 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
-    // 2026-05-27: +2 — `stripStaleVoicetreeMcpEntries` and
-    // `writeVaultAgentDiscoveryFile` moved here from `@vt/vt-daemon` (both
-    // are pure FS helpers with no daemon-runtime state; their location in
-    // vt-daemon was historical from the universal-vault-boot era).
-    'webapp -> app-config': 24,
+    // 2026-05-27: ratcheted 24 -> 22. stripStaleVoicetreeMcpEntries +
+    // writeVaultAgentDiscoveryFile were briefly here (ce909fdeb) but only
+    // webapp's electron-main calls them; now live colocated in
+    // webapp/src/shell/edge/main/runtime/electron/startup/vault-bootstrap/.
+    'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,

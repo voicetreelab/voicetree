@@ -38,8 +38,6 @@ import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "@vt/graph-db-serv
 import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "@vt/graph-db-server/watch-folder/broadcast/broadcast-vault-state";
 import {
-    defaultPositionsAsyncDeps,
-    defaultPositionsSyncDeps,
     loadPositions,
     savePositionsSync,
 } from "@vt/app-config/positions";
@@ -256,7 +254,7 @@ async function prepareForFolderSwitch(
 ): Promise<void> {
     const previousRoot: FilePath | null = getProjectRoot();
     if (previousRoot) {
-        savePositionsSync(getGraph(), previousRoot, defaultPositionsSyncDeps);
+        savePositionsSync(getGraph(), previousRoot);
     }
 
     setProjectRoot(watchedFolderPath);
@@ -285,7 +283,7 @@ async function resolveConfigAndPositions(
 
     setGraph(createEmptyGraph());
 
-    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedFolderPath, defaultPositionsAsyncDeps);
+    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedFolderPath);
     return { config, positions };
 }
 
