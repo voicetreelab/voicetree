@@ -3,15 +3,16 @@ import test from 'node:test'
 
 import {
   assertOneWayReplica,
+  assertSessionAlive,
   buildReconcileCleanupScript,
   computeStaleWorktreeNames,
   ensureRemoteWorktreeReadyScript,
-  localWorktreeRoot,
+  localWorktreeName,
   parseRemoteWorktreeListing,
+  parseSessionConnectivity,
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
-  refreshRemoteGitIndexScript,
   remoteWorktreeRoot,
   synchronizationMode,
 } from './run-remote.mjs'
@@ -27,49 +28,51 @@ test('parses the mutagen synchronization mode from list output', () => {
 })
 
 test('accepts one-way replica before remote execution', () => {
-  assert.doesNotThrow(() => assertOneWayReplica('Synchronization mode: One Way Replica\n'))
+  assert.doesNotThrow(() => assertOneWayReplica('vt-remote', 'Synchronization mode: One Way Replica\n'))
 })
 
 test('rejects bidirectional mutagen modes before remote execution', () => {
   assert.throws(
-    () => assertOneWayReplica('Synchronization mode: Default (Two Way Safe)\n'),
+    () => assertOneWayReplica('vt-wts', 'Synchronization mode: Default (Two Way Safe)\n'),
     /must be one-way-replica/,
   )
 })
 
-test('refreshes the remote git index without touching the working tree', () => {
-  assert.match(refreshRemoteGitIndexScript(), /git reset --mixed -q HEAD/)
-})
-
-test('detects remote worktree roots from nested remote cwd', () => {
+test('detects remote worktree roots from nested remote cwd under /root/vt-wts/', () => {
   assert.equal(
-    remoteWorktreeRoot('/root/voicetree-public/.worktrees/wt-one/webapp'),
-    '/root/voicetree-public/.worktrees/wt-one',
+    remoteWorktreeRoot('/root/vt-wts/wt-one/webapp'),
+    '/root/vt-wts/wt-one',
   )
   assert.equal(remoteWorktreeRoot('/root/voicetree-public/webapp'), null)
+  assert.equal(remoteWorktreeRoot('/root/vt-wts'), null)
 })
 
-test('detects local worktree roots from nested cwd', () => {
+test('extracts local worktree name from nested cwd under vt-wts/', () => {
   assert.equal(
-    localWorktreeRoot('/repo/.worktrees/wt-one/webapp', '/repo'),
-    '/repo/.worktrees/wt-one',
+    localWorktreeName('/Users/x/repos/vt-wts/wt-one/webapp', '/Users/x/repos/vt-wts'),
+    'wt-one',
   )
-  assert.equal(localWorktreeRoot('/repo/webapp', '/repo'), null)
+  assert.equal(localWorktreeName('/Users/x/repos/voicetree-public/webapp', '/Users/x/repos/vt-wts'), null)
+  assert.equal(localWorktreeName('/Users/x/repos/vt-wts', '/Users/x/repos/vt-wts'), null)
 })
 
 test('adds remote worktree readiness only for worktree commands', () => {
   assert.match(
-    ensureRemoteWorktreeReadyScript('/root/voicetree-public/.worktrees/wt-one/webapp'),
-    /scripts\/git\/worktree\/ensure-ready\.mjs' '\/root\/voicetree-public\/\.worktrees\/wt-one'/,
+    ensureRemoteWorktreeReadyScript('/root/vt-wts/wt-one/webapp'),
+    /scripts\/git\/worktree\/ensure-ready\.mjs' '\/root\/vt-wts\/wt-one'/,
   )
   assert.equal(ensureRemoteWorktreeReadyScript('/root/voicetree-public/webapp'), ':')
 })
 
-test('repairs remote worktree metadata only for worktree commands', () => {
-  const script = repairRemoteWorktreeMetadataScript('/root/voicetree-public/.worktrees/wt-one/webapp')
+test('repairs remote worktree metadata for sibling-layout worktree commands', () => {
+  const script = repairRemoteWorktreeMetadataScript('/root/vt-wts/wt-one/webapp')
   assert.match(script, /repairing remote worktree git metadata/)
-  assert.match(script, /gitdir: \.\.\/\.\.\/\.git\/worktrees\/wt-one/)
-  assert.match(script, /\.\.\/\.\.\/\.\.\/\.worktrees\/wt-one\/\.git/)
+  // worktree-root .git file points up to the sibling main repo's admin dir
+  assert.match(script, /gitdir: \.\.\/\.\.\/voicetree-public\/\.git\/worktrees\/wt-one/)
+  // admin's gitdir points back across to the sibling vt-wts worktree
+  assert.match(script, /\.\.\/\.\.\/\.\.\/\.\.\/vt-wts\/wt-one\/\.git/)
+  // commondir from admin to main .git stays `../..`
+  assert.match(script, /'\.\.\/\.\.'/)
   assert.equal(repairRemoteWorktreeMetadataScript('/root/voicetree-public/webapp'), ':')
 })
 
@@ -121,16 +124,17 @@ test('returns empty stale list when remote matches local', () => {
   )
 })
 
-test('builds a cleanup script joining .git/worktrees and .worktrees targets', () => {
+test('builds a cleanup script joining .git/worktrees and sibling vt-wts targets', () => {
   const script = buildReconcileCleanupScript({
     staleGit: ['wt-a', 'wt-b'],
     staleWt: ['wt-a'],
     remoteRoot: '/root/voicetree-public',
+    remoteWtsRoot: '/root/vt-wts',
   })
   assert.match(script, /^rm -rf /)
   assert.match(script, /'\/root\/voicetree-public\/\.git\/worktrees\/wt-a'/)
   assert.match(script, /'\/root\/voicetree-public\/\.git\/worktrees\/wt-b'/)
-  assert.match(script, /'\/root\/voicetree-public\/\.worktrees\/wt-a'/)
+  assert.match(script, /'\/root\/vt-wts\/wt-a'/)
 })
 
 test('returns null cleanup script when nothing is stale', () => {
@@ -152,11 +156,14 @@ test('rejects unsafe worktree names from cleanup script (defense in depth)', () 
 })
 
 test('remote listing script asks for both worktree dirs and tolerates missing dirs', () => {
-  const script = remoteWorktreeListingScript('/root/voicetree-public')
+  const script = remoteWorktreeListingScript({
+    remoteRoot: '/root/voicetree-public',
+    remoteWtsRoot: '/root/vt-wts',
+  })
   assert.match(script, /echo ===GIT===/)
   assert.match(script, /echo ===WT===/)
   assert.match(script, /ls -1 '\/root\/voicetree-public\/\.git\/worktrees' 2>\/dev\/null \|\| true/)
-  assert.match(script, /ls -1 '\/root\/voicetree-public\/\.worktrees' 2>\/dev\/null \|\| true/)
+  assert.match(script, /ls -1 '\/root\/vt-wts' 2>\/dev\/null \|\| true/)
 })
 
 // --- Reconciler orchestrator: integration with injected ssh boundary -----
@@ -186,6 +193,7 @@ test('reconciler issues cleanup script for stale remote dirs', async () => {
     host: 'fake',
     repoRoot: '/nonexistent-repo-root',
     remoteRoot: '/root/voicetree-public',
+    remoteWtsRoot: '/root/vt-wts',
     sshExec,
     log: SILENT_LOG,
   })
@@ -195,7 +203,7 @@ test('reconciler issues cleanup script for stale remote dirs', async () => {
   assert.equal(calls.length, 2)
   assert.match(calls[1], /^rm -rf /)
   assert.match(calls[1], /'\/root\/voicetree-public\/\.git\/worktrees\/wt-stale'/)
-  assert.match(calls[1], /'\/root\/voicetree-public\/\.worktrees\/wt-stale'/)
+  assert.match(calls[1], /'\/root\/vt-wts\/wt-stale'/)
 })
 
 test('reconciler soft-fails when ssh listing throws', async () => {
@@ -226,4 +234,78 @@ test('reconciler soft-fails when ssh cleanup throws after a successful listing',
   assert.equal(result.status, 'skipped')
   assert.equal(result.reason, 'ssh-cleanup-failed')
   assert.deepEqual(result.staleGit, ['wt-stale'])
+})
+
+// --- Session-alive gating (replaces waitMutagenIdle) ---------------------
+//
+// We no longer block on `Watching for changes`. Under multi-agent load that
+// quiet window may never come, and `mutagen sync flush` drives the current
+// pending cycle to completion regardless. The session-alive check now only
+// asserts the session is usable: not paused, both endpoints connected.
+
+const SAMPLE_HEALTHY_SESSION = `--------------------------------------------------------------------------------
+Name: vt-remote
+Configuration:
+\tSynchronization mode: One Way Replica
+Alpha:
+\tURL: /Users/x/repo
+\tConnected: Yes
+\tSynchronizable contents:
+\t\t100 directories
+Beta:
+\tURL: root@host:/root/repo
+\tConnected: Yes
+\tSynchronizable contents:
+\t\t100 directories
+Status: Staging files on beta
+--------------------------------------------------------------------------------
+`
+
+const SAMPLE_PAUSED_SESSION = `Name: vt-remote
+Alpha:
+\tURL: /Users/x/repo
+\tConnected: No
+Beta:
+\tURL: root@host:/root/repo
+\tConnected: No
+Status: [Paused]
+`
+
+const SAMPLE_BETA_DOWN_SESSION = `Name: vt-remote
+Alpha:
+\tURL: /Users/x/repo
+\tConnected: Yes
+Beta:
+\tURL: root@host:/root/repo
+\tConnected: No
+Status: Connecting to beta
+`
+
+test('parses alpha/beta connectivity and status from session output', () => {
+  const result = parseSessionConnectivity(SAMPLE_HEALTHY_SESSION)
+  assert.equal(result.alpha, true)
+  assert.equal(result.beta, true)
+  assert.equal(result.status, 'Staging files on beta')
+})
+
+test('parses a paused session as disconnected', () => {
+  const result = parseSessionConnectivity(SAMPLE_PAUSED_SESSION)
+  assert.equal(result.alpha, false)
+  assert.equal(result.beta, false)
+  assert.equal(result.status, '[Paused]')
+})
+
+test('accepts a busy-but-connected session — does NOT require idle', () => {
+  // The whole point of this change: `Staging files on beta` is fine. We do
+  // not require `Watching for changes` because peer agents may keep it busy
+  // indefinitely.
+  assert.doesNotThrow(() => assertSessionAlive('vt-remote', SAMPLE_HEALTHY_SESSION))
+})
+
+test('rejects a paused session', () => {
+  assert.throws(() => assertSessionAlive('vt-remote', SAMPLE_PAUSED_SESSION), /is paused/)
+})
+
+test('rejects a session with beta disconnected', () => {
+  assert.throws(() => assertSessionAlive('vt-remote', SAMPLE_BETA_DOWN_SESSION), /endpoint\(s\) disconnected/)
 })
