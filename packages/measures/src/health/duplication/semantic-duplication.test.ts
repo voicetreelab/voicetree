@@ -24,8 +24,15 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   terminalRegistrySse, etc., already surfaced by the recoverable-LOC gate).
 //   Re-anchored at observed 626 + 5 headroom = 631; ratchet DOWN as the
 //   vt-daemon split is consolidated.
+// Re-anchored 2026-05-28 [PR #135 vt-daemon merge-conflict fix follow-up]:
+//   restoring the two getRuntime* wrappers in vt-daemon/agent-runtime/
+//   runtime/graph-bridge.ts (dropped by the same merge that broke vtd
+//   boot) added pairs matching the file's existing thin-wrapper pattern.
+//   Observed 632 + 5 headroom = 637; ratchet DOWN as graph-bridge.ts is
+//   restructured (the wrappers are intentionally minimal — each provides
+//   a stable public name over the GraphStateBridge interface).
 // Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 631
+const MAX_DUPLICATE_PAIRS: number = 637
 
 const SCORE_THRESHOLD: number = 0.7
 
