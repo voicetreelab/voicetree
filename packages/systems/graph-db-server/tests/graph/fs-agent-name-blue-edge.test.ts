@@ -44,7 +44,7 @@ function getAgentNameFromProjectedNode(node: ProjectedNode): string | undefined 
 
 describe('FS-written node with agent_name → blue edge data path', () => {
     beforeEach(() => {
-        initGraphModel({ appSupportPath: '/tmp/test-blue-edge' })
+        initGraphModel({})
     })
 
     it('agent_name survives: FS event → GraphDelta → graph → ElementSpec', () => {

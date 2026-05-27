@@ -1,5 +1,6 @@
 import {BrowserWindow, Notification} from 'electron';
 import {loadSettings} from '@vt/app-config/settings';
+import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import type {TerminalLifecycle, TerminalRecord} from '@vt/vt-daemon-client';
 
 const NOTIFY_STATES: ReadonlySet<TerminalLifecycle> = new Set(['completed', 'errored', 'awaiting_input']);
@@ -96,7 +97,7 @@ function shouldSkipNotifications(): boolean {
 function showBatchWhenEnabled(batch: readonly CompletionEvent[]): void {
     if (isAppFocused()) return;
 
-    void loadSettings()
+    void loadSettings(getAppSupportPath())
         .then(settings => {
             if (settings.notifyOnAgentCompletion !== false) {
                 showCompletionNotification(batch);

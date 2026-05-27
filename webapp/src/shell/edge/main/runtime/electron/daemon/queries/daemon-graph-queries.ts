@@ -4,6 +4,7 @@ import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@vt/graph-mo
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
+import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state'
 import type { VTSettings } from '@vt/graph-model/settings'
 import path from 'path'
 
@@ -80,7 +81,7 @@ export async function createContextNodeThroughDaemon(
     parentNodeId: NodeIdAndFilePath,
 ): Promise<NodeIdAndFilePath> {
     return await callDaemon(async (client) => {
-        const settings: VTSettings = await loadSettings()
+        const settings: VTSettings = await loadSettings(getAppSupportPath())
         const graph: Graph = await getNormalizedDaemonGraph(client)
         const parentNode: GraphNode | undefined = resolveGraphNode(graph, parentNodeId)
         const semanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext && parentNode
@@ -99,7 +100,7 @@ export async function createContextNodeFromQuestionThroughDaemon(
     question: string,
 ): Promise<{ nodeId: NodeIdAndFilePath; parentNodePath: NodeIdAndFilePath | ''; title: string }> {
     return await callDaemon(async (client) => {
-        const settings: VTSettings = await loadSettings()
+        const settings: VTSettings = await loadSettings(getAppSupportPath())
         const semanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
             ? await getSemanticRelevantNodes(question, settings.askModeContextDistance)
             : []

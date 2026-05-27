@@ -33,6 +33,7 @@ import {
     type TerminalId,
 } from "@vt/vt-daemon"
 import {spawnTmuxBackedTerminal} from '../src/agents/headless/headlessAgentManager.ts'
+import {setAppSupportPath} from '../src/state/app-support.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
 import {
     TERMINAL_RPC_METHODS,
@@ -71,9 +72,9 @@ async function captureEventsWithRealRuntime(): Promise<void> {
     events.length = 0
     const appSupport: string = await makeTempVault()
     const writeFolder: string = await makeTempVault()
+    setAppSupportPath(appSupport)
     configureAgentRuntime({
         env: {
-            getAppSupportPath: (): string => appSupport,
             getCliManualPath: (): string | null => null,
             getVtBinDir: (): string | null => null,
         },

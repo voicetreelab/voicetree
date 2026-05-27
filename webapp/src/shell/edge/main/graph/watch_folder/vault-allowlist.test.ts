@@ -16,6 +16,7 @@ vi.mock('electron', () => ({
 // Import after mocks are set up
 import { getVaultPaths, loadAndMergeVaultPath, type VaultLoadOutcome, addReadPath, setWriteFolder } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { setProjectRoot, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
@@ -34,14 +35,12 @@ const FILE_COUNT_ABOVE_RAISED_LIMIT = 1001
 
 function resetGraphModel(): void {
   notifyWriteDirectory = vi.fn()
-  initGraphModel(
-    { appSupportPath: mockUserDataPath },
-    {
-      notifyWriteDirectory,
-      fitViewport: vi.fn(),
-      syncVaultState: vi.fn()
-    }
-  )
+  setAppSupportPath(mockUserDataPath)
+  initGraphModel({
+    notifyWriteDirectory,
+    fitViewport: vi.fn(),
+    syncVaultState: vi.fn()
+  })
 }
 
 async function seedMarkdownFiles(dir: string, count: number): Promise<void> {
@@ -96,7 +95,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
         writeFolder: vaultPath,
         readPaths: [vaultPath]  // Same path in both writeFolder AND readPaths
       }
-      await saveVaultConfigForDirectory(watchedDir, buggyConfig)
+      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, buggyConfig)
 
       // WHEN: getVaultPaths is called
       const paths: readonly string[] = await getVaultPaths()
@@ -123,7 +122,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
         writeFolder: writeFolderA,
         readPaths: [readPathB]
       }
-      await saveVaultConfigForDirectory(watchedDir, initialConfig)
+      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, initialConfig)
 
       // WHEN: setWriteFolder is called with a path that's already in readPaths
       await setWriteFolder(readPathB)
@@ -150,7 +149,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
       await fs.mkdir(newWriteFolderC, { recursive: true })
       setProjectRoot(watchedDir)
 
-      await saveVaultConfigForDirectory(watchedDir, {
+      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, {
         writeFolder: writeFolderA,
       })
       await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
@@ -174,7 +173,7 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
       await fs.mkdir(readPathB, { recursive: true })
       setProjectRoot(watchedDir)
 
-      await saveVaultConfigForDirectory(watchedDir, {
+      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, {
         writeFolder: writeFolderA,
         readPaths: [readPathB]
       })
@@ -294,7 +293,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
         writeFolder: writeFolder,
         readPaths: []
       }
-      await saveVaultConfigForDirectory(watchedDir, config)
+      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, config)
 
       await seedMarkdownFiles(newReadPath, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
@@ -323,7 +322,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
         writeFolder: currentWriteFolder,
         readPaths: []
       }
-      await saveVaultConfigForDirectory(watchedDir, config)
+      await saveVaultConfigForDirectory(mockUserDataPath, watchedDir, config)
 
       await seedMarkdownFiles(newWriteFolder, FILE_COUNT_ABOVE_RAISED_LIMIT)
 

@@ -31,6 +31,7 @@ import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
+import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { createGraph } from '@vt/graph-model/graph'
 import type { GraphDelta } from '@vt/graph-model/graph'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
@@ -106,16 +107,15 @@ async function waitForDaemonNodeCount(vault: string): Promise<number> {
 describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
     beforeAll(async () => {
         tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'parallel-load-folder-'))
-        initGraphModel(
-            { appSupportPath: path.join(tempFixtureRoot, 'app-support') },
-            {
-                onGraphDelta: (): void => undefined,
-                onGraphCleared: (): void => undefined,
-                onWatchingStarted: (): void => undefined,
-            },
-        )
+        const appSupport = path.join(tempFixtureRoot, 'app-support')
+        setAppSupportPath(appSupport)
+        initGraphModel({
+            onGraphDelta: (): void => undefined,
+            onGraphCleared: (): void => undefined,
+            onWatchingStarted: (): void => undefined,
+        })
         projectRoot = await copyFixture()
-        await saveVaultConfigForDirectory(projectRoot, {
+        await saveVaultConfigForDirectory(appSupport, projectRoot, {
             writeFolder: path.join(projectRoot, 'voicetree'),
         })
     }, TIMEOUT_MS)
@@ -133,10 +133,8 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
             onGraphCleared: (): void => undefined,
             onWatchingStarted: (): void => undefined,
         }
-        initGraphModel(
-            { appSupportPath: path.join(tempFixtureRoot!, 'app-support') },
-            noopBroadcasts,
-        )
+        setAppSupportPath(path.join(tempFixtureRoot!, 'app-support'))
+        initGraphModel(noopBroadcasts)
 
         setGraph(createGraph({}))
         clearRecentDeltas()

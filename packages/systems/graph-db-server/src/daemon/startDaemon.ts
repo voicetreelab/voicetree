@@ -44,6 +44,7 @@ import {
   getFolderTreeReadModel,
   resetFolderTreeReadModel,
 } from '../state/folder-tree-read-model-store.ts'
+import { setAppSupportPath } from '../state/app-support-store.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -115,7 +116,9 @@ async function startOwnedDaemon(
     resetVaultLifecycle()
     resetFolderTreeReadModel()
     installFolderTreeReadModel(opts.folderTreeScanner)
-    initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
+    const daemonAppSupportPath: string = resolveDaemonAppSupportPath(opts)
+    setAppSupportPath(daemonAppSupportPath)
+    initDaemonGraphModel()
 
     const startMs = clock()
     const registry = new SessionRegistry()

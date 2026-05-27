@@ -16,8 +16,8 @@ import path from 'node:path'
 import os from 'node:os'
 
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {initGraphModel} from '@vt/graph-model'
 import {clearSettingsCache} from '@vt/app-config/settings'
+import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 
 import {
@@ -67,7 +67,7 @@ let currentGraph: Graph
 
 beforeEach(async () => {
     appSupport = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-list-agents-'))
-    initGraphModel({appSupportPath: appSupport})
+    setAppSupportPath(appSupport)
     clearSettingsCache()
     await fs.writeFile(
         path.join(appSupport, 'settings.json'),

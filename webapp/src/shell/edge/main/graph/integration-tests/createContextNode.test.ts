@@ -40,6 +40,7 @@ import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 
 const EXAMPLE_SMALL_WRITE_PATH: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
 const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetree-24-2')
@@ -49,10 +50,8 @@ describe('createContextNode - Integration Tests', () => {
   let parentNodeBackups: Map<NodeIdAndFilePath, string> = new Map()
 
   beforeEach(async () => {
-    initGraphModel(
-      { appSupportPath: '/tmp/test-userdata-context-node' },
-      { getWriteFolder: async () => EXAMPLE_SMALL_WRITE_PATH }
-    )
+    setAppSupportPath('/tmp/test-userdata-context-node')
+    initGraphModel({ getWriteFolder: async () => EXAMPLE_SMALL_WRITE_PATH })
 
     // Initialize vault path with example_small fixture
     setProjectRoot(EXAMPLE_SMALL_PATH)
@@ -160,7 +159,7 @@ describe('createContextNode - Integration Tests', () => {
         await fs.readFile(absoluteParentNodeId, 'utf-8')
       )
 
-      await saveVaultConfigForDirectory(EXAMPLE_SMALL_PATH, {
+      await saveVaultConfigForDirectory('/tmp/test-userdata-context-node', EXAMPLE_SMALL_PATH, {
         writeFolder: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
         readPaths: [],
       })
@@ -312,10 +311,8 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with zero outgoing/incoming wikilink edges (orphaned)', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setProjectRoot(EXAMPLE_LARGE_PATH)
-      initGraphModel(
-        { appSupportPath: '/tmp/test-userdata-context-node' },
-        { getWriteFolder: async () => EXAMPLE_LARGE_WRITE_PATH }
-      )
+      setAppSupportPath('/tmp/test-userdata-context-node')
+      initGraphModel({ getWriteFolder: async () => EXAMPLE_LARGE_WRITE_PATH })
       const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_WRITE_PATH])
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
       const largeGraph: Graph = largeLoadResult.right

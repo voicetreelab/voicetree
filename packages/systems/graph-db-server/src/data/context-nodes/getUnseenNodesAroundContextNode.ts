@@ -2,6 +2,7 @@ import type { Graph, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/graph'
 import { getSubgraphByDistance } from '@vt/graph-model/graph'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
+import { getAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { type VTSettings } from '@vt/graph-model/settings'
 import type { UnseenNode } from '@vt/graph-db-server/contract'
 
@@ -45,7 +46,7 @@ export async function getUnseenNodesAroundContextNode(
     const startNodeId: NodeIdAndFilePath = searchFromNode ?? containedNodeIds[0]
 
     // 4. Re-run the graph traversal from the start node
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,
         startNodeId,

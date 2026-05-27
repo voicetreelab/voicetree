@@ -8,7 +8,7 @@ import {
 import {homedir, tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
-import {getRuntimeEnv} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 
 type ExecFileCallback = (error: Error | null, stdout: string | Buffer, stderr: string | Buffer) => void
 
@@ -101,10 +101,10 @@ function isTestRuntime(env: NodeJS.ProcessEnv): boolean {
 
 function defaultAppSupportPath(deps: TmuxServerDeps): string {
     try {
-        const fromRuntime: string | undefined = getRuntimeEnv().getAppSupportPath()?.trim()
-        if (fromRuntime) return fromRuntime
+        const fromState: string | undefined = getAppSupportPath()?.trim()
+        if (fromState) return fromState
     } catch {
-        // Runtime env is not configured in low-level tests and direct package use.
+        // Process-local cell is not configured in low-level tests and direct package use.
     }
 
     const fromEnv: string | undefined = deps.env.VOICETREE_APP_SUPPORT?.trim()

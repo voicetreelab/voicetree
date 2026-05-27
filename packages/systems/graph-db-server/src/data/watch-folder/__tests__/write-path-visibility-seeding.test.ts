@@ -64,6 +64,7 @@ import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setActiveViewFolderState } from '../folder-visibility-active-view'
 import { setWriteFolder, getReadPaths } from '../../../state/vaultAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
+import { setAppSupportPath } from '../../../state/app-support-store'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 import { getFolderStateForActiveView } from '../../views/folderStateOps'
 
@@ -76,21 +77,19 @@ describe('write path folder visibility seeding', () => {
         appSupportDir = path.join(testTmpDir, 'app-support')
         await fs.mkdir(appSupportDir, { recursive: true })
 
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: vi.fn(),
-                syncFolderTree: vi.fn(),
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
+        setAppSupportPath(appSupportDir)
+        initGraphModel({
+            syncVaultState: vi.fn(),
+            syncFolderTree: vi.fn(),
+            syncStarredFolderTrees: vi.fn(),
+            syncExternalFolderTrees: vi.fn(),
+            fitViewport: vi.fn(),
+        })
 
         setGraph(createEmptyGraph())
         clearWatchFolderState()
         clearSettingsCache()
-        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [] })
+        await saveSettings(appSupportDir, { ...DEFAULT_SETTINGS, starredFolders: [] })
     })
 
     afterEach(async () => {
@@ -109,7 +108,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(nested, { recursive: true })
         await fs.mkdir(childB, { recursive: true })
         setProjectRoot(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
+        await saveVaultConfigForDirectory(appSupportDir, watchedDir, { writeFolder })
 
         const result = await setWriteFolder(writeFolder, { createStarterIfEmpty: false })
 
@@ -129,7 +128,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(hiddenChild, { recursive: true })
         await fs.mkdir(newChild, { recursive: true })
         setProjectRoot(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
+        await saveVaultConfigForDirectory(appSupportDir, watchedDir, { writeFolder })
         await setActiveViewFolderState(watchedDir, hiddenChild, 'hidden')
 
         const result = await setWriteFolder(writeFolder, { createStarterIfEmpty: false })

@@ -50,6 +50,7 @@ import {
 } from "@vt/app-config/vault-config";
 import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-vault-state";
 import {getCallbacks} from '@vt/graph-model';
+import {getAppSupportPath} from './app-support-store';
 import {
     getExpandedFolderPathsForVault,
     seedActiveViewExpandedFolderStates,
@@ -64,7 +65,7 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) return [];
     await logIgnoredLegacyReadPathsIfPresent(watchedDir);
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(getAppSupportPath(), watchedDir);
     if (!config) return [];
     const resolvedWriteFolder: string = resolveWriteFolder(watchedDir, config.writeFolder);
     const expandedPaths: readonly FilePath[] = await getReadPaths();
@@ -92,7 +93,7 @@ export async function getReadPaths(): Promise<readonly FilePath[]> {
 export async function getWriteFolder(): Promise<O.Option<FilePath>> {
     const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) return O.none;
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(getAppSupportPath(), watchedDir);
     if (config?.writeFolder) {
         return O.some(resolveWriteFolder(watchedDir, config.writeFolder));
     }
@@ -121,7 +122,7 @@ export async function setWriteFolder(
     }
 
     const [config, positions]: [VaultConfig | undefined, ReadonlyMap<string, Position>] = await Promise.all([
-        traceGraphdSpan('daemon.set-write-folder.get-vault-config', async () => await getVaultConfigForDirectory(watchedDir)),
+        traceGraphdSpan('daemon.set-write-folder.get-vault-config', async () => await getVaultConfigForDirectory(getAppSupportPath(), watchedDir)),
         traceGraphdSpan('daemon.set-write-folder.load-positions', async (span) => {
             const loadedPositions: ReadonlyMap<string, Position> = await loadPositions(watchedDir, defaultPositionsAsyncDeps);
             span.setAttribute('positions.count', loadedPositions.size);
@@ -156,7 +157,7 @@ export async function setWriteFolder(
 
     // Save to config only AFTER successful load (atomic operation)
     await traceGraphdSpan('daemon.set-write-folder.save-vault-config', async () => {
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveVaultConfigForDirectory(getAppSupportPath(), watchedDir, {
             writeFolder: vaultPath,
         });
     });
@@ -193,7 +194,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(getAppSupportPath(), watchedDir);
     const currentWriteFolder: string = config?.writeFolder ?? watchedDir;
     const currentExpandedPaths: readonly FilePath[] = await getReadPaths();
 
@@ -227,7 +228,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
 
     // Only save visibility and add to watcher AFTER successful load
     await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
-    await saveVaultConfigForDirectory(watchedDir, {
+    await saveVaultConfigForDirectory(getAppSupportPath(), watchedDir, {
         writeFolder: currentWriteFolder,
     });
 
@@ -260,7 +261,7 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
     // Normalize input path for consistent comparisons (nodeIds use forward slashes)
     const normalizedVaultPath: string = normalizePath(vaultPath);
 
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(getAppSupportPath(), watchedDir);
     if (!config) {
         return { success: false, error: 'No vault config found' };
     }
@@ -326,7 +327,7 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
     await setActiveViewFolderState(watchedDir, vaultPath, 'hidden');
 
     // Save write path to config (visibility is sqlite-backed)
-    await saveVaultConfigForDirectory(watchedDir, {
+    await saveVaultConfigForDirectory(getAppSupportPath(), watchedDir, {
         writeFolder: config.writeFolder,
     });
 
@@ -348,7 +349,7 @@ export async function createDatedVoiceTreeFolder(): Promise<{
     if (!watchedDir) return { success: false, error: 'No project open' };
 
     // Capture old write path before switching, so we can unwatch it afterward
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(getAppSupportPath(), watchedDir);
     const oldWriteFolder: string | null = config?.writeFolder
         ? resolveWriteFolder(watchedDir, config.writeFolder)
         : null;

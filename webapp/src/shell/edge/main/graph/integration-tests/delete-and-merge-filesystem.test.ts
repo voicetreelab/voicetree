@@ -205,7 +205,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
 
     beforeEach(async () => {
         resetTestProjectionState()
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
+        initGraphModel({})
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setProjectRoot(tempVault)
@@ -381,7 +381,7 @@ describe('Merge Operation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
+        initGraphModel({})
         tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setProjectRoot(tempVault)
@@ -502,7 +502,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
+        initGraphModel({})
         tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setProjectRoot(tempVault)

@@ -5,7 +5,7 @@
  * Bridges graph-model's DI callbacks to Electron APIs (dialog, IPC, uiAPI).
  */
 
-import { app, dialog } from 'electron'
+import { dialog } from 'electron'
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
@@ -15,6 +15,7 @@ import { dispatchOnNewNodeHooks } from '@vt/vt-daemon-client'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getWriteFolder, openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
+import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/agent/terminals/inject-badge-refresh'
@@ -112,7 +113,7 @@ export function initializeGraphModel(): void {
 
         // Hooks
         onNewNodeHook(_nodeId: string, graphData: GraphDelta): void {
-            void loadSettings().then(async settings => {
+            void loadSettings(getAppSupportPath()).then(async settings => {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
                     await dispatchOnNewNodeHooks(getVtDaemonClient(), { delta: graphData, hookCommand: hookPath })
@@ -164,8 +165,5 @@ export function initializeGraphModel(): void {
         },
     }
 
-    initGraphModel(
-        { appSupportPath: app.getPath('userData') },
-        callbacks
-    )
+    initGraphModel(callbacks)
 }

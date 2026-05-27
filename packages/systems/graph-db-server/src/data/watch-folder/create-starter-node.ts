@@ -8,6 +8,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import { loadSettings } from '@vt/app-config/settings'
+import { getAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import type { VTSettings } from '@vt/graph-model/settings'
 
 export interface CreateStarterNodeDependencies {
@@ -20,7 +21,7 @@ export interface CreateStarterNodeDependencies {
 }
 
 const defaultCreateStarterNodeDependencies: CreateStarterNodeDependencies = {
-    loadSettings,
+    loadSettings: () => loadSettings(getAppSupportPath()),
     now(): Date {
         return new Date()
     },

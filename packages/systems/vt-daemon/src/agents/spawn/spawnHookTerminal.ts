@@ -13,6 +13,7 @@ import type {TerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types
 import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry/index.ts'
 import {sendTextToTerminal} from '@vt/vt-daemon/agents/inject/send-text-to-terminal.ts'
 import {loadSettings} from '@vt/app-config/settings'
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge'
 import {publishTerminalRegistryEvent} from '@vt/vt-daemon/terminals/terminal-registry/terminal-registry-publisher.ts'
@@ -96,7 +97,7 @@ async function createHookNode(): Promise<string> {
 async function spawnHookTerminal(
     logger: HookTerminalLogger = defaultHookTerminalLogger,
 ): Promise<void> {
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
 
     const graph: Graph = await getRuntimeGraph()
     if (!hookNodeId || !graph.nodes[hookNodeId]) {

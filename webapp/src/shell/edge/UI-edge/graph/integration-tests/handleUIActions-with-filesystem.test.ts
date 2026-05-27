@@ -161,7 +161,7 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
 
     beforeEach(async () => {
         resetTestProjectionState()
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
+        initGraphModel({})
         // Import IPC handlers once - they auto-register on import
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-ui-${Date.now()}`)
@@ -335,7 +335,7 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
     let mockGraph: Graph
 
     beforeEach(async () => {
-        initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
+        initGraphModel({})
         // Import IPC handlers once - they auto-register on import
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-delete-${Date.now()}`)

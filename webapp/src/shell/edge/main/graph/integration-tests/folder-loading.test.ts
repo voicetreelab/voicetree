@@ -35,6 +35,7 @@ import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store
 import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
@@ -132,25 +133,24 @@ describe.skip('Folder Loading - Integration Tests', () => {
     broadcastCalls = []
 
     // Initialize graph model with test callbacks that mirror Electron IPC channels.
-    initGraphModel(
-      { appSupportPath: path.join(tempFixtureRoot, 'app-support') },
-      {
-        onGraphCleared: (): void => {
-          broadcastCalls.push({ channel: 'graph:clear', delta: [] })
-        },
-        onWatchingStarted: (): void => {
-          broadcastCalls.push({ channel: 'watching-started', delta: [] })
-        }
+    const appSupport = path.join(tempFixtureRoot, 'app-support')
+    setAppSupportPath(appSupport)
+    initGraphModel({
+      onGraphCleared: (): void => {
+        broadcastCalls.push({ channel: 'graph:clear', delta: [] })
+      },
+      onWatchingStarted: (): void => {
+        broadcastCalls.push({ channel: 'watching-started', delta: [] })
       }
-    )
+    })
 
     // Reset graph state
     setGraph(createGraph({}))
 
-    await saveVaultConfigForDirectory(exampleSmallPath, {
+    await saveVaultConfigForDirectory(appSupport, exampleSmallPath, {
       writeFolder: path.join(exampleSmallPath, 'voicetree')
     })
-    await saveVaultConfigForDirectory(exampleLargePath, {
+    await saveVaultConfigForDirectory(appSupport, exampleLargePath, {
       writeFolder: path.join(exampleLargePath, 'voicetree')
     })
 

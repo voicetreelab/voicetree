@@ -16,8 +16,8 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
-import {initGraphModel} from '@vt/graph-model'
 import {clearSettingsCache} from '@vt/app-config/settings'
+import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {
     clearTerminalRecords,
     createTerminalData,
@@ -185,7 +185,7 @@ export async function setupRealDeps(options?: {
     callerOptions?: Parameters<typeof recordCaller>[0]
 }): Promise<{appSupport: string; state: BridgeState}> {
     const appSupport: string = await makeTempAppSupport()
-    initGraphModel({appSupportPath: appSupport})
+    setAppSupportPath(appSupport)
     clearSettingsCache()
     await writeSettings(appSupport, {
         ...DEFAULT_SETTINGS,

@@ -1,10 +1,6 @@
 import type { GraphDelta } from '../graph'
 import type { FolderTreeNode } from '../folders/types'
 
-export interface GraphModelConfig {
-  appSupportPath: string  // replaces app.getPath('userData')
-}
-
 type WatchingStartedInfo = { directory: string; writeFolder: string; timestamp: string }
 
 export interface GraphModelCallbacks {
@@ -54,18 +50,16 @@ export interface GraphModelCallbacks {
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 
-// Module-level DI state
-let _config: GraphModelConfig | undefined
+// Module-level callbacks. The appSupportPath cell that previously lived here
+// has moved out to per-process state modules so the boot-time dependency is
+// visible in the import graph (see Eli's BF-377 / DI-eliminate refactor:
+// `packages/systems/vt-daemon/src/state/app-support.ts`,
+// `packages/systems/graph-db-server/src/state/app-support-store.ts`,
+// `webapp/src/shell/edge/main/runtime/state/app-electron-state.ts`).
 let _callbacks: GraphModelCallbacks = {}
 
-export function initGraphModel(config: GraphModelConfig, callbacks?: GraphModelCallbacks): void {
-  _config = config
+export function initGraphModel(callbacks?: GraphModelCallbacks): void {
   _callbacks = callbacks ?? {}
-}
-
-export function getConfig(): GraphModelConfig {
-  if (!_config) throw new Error('GraphModel not initialized. Call initGraphModel() first.')
-  return _config
 }
 
 export function getCallbacks(): GraphModelCallbacks {

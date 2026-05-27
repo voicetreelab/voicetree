@@ -53,7 +53,6 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
-import {initGraphModel} from '@vt/graph-model'
 import {tracing} from '@vt/observability'
 import {
     buildDefaultToolCatalog,
@@ -68,6 +67,7 @@ import {
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon'
 import {terminalRuntimeSurface as agentRuntime, configureAgentRuntime} from "@vt/vt-daemon"
+import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {resolveVtBinDir} from '@vt/vt-daemon/spawn/vtPathInjection.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
@@ -183,7 +183,6 @@ function callerKindFromEnv(): CallerKind {
 }
 
 function configureAgentRuntimeForVtd(
-    appSupportPath: string,
     publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
 ): void {
     // The CLI manual and `vt` binary are both shipped inside @voicetree/cli.
@@ -204,7 +203,6 @@ function configureAgentRuntimeForVtd(
 
     configureAgentRuntime({
         env: {
-            getAppSupportPath: (): string => appSupportPath,
             getCliManualPath: (): string => vtCliManualPath,
             getVtBinDir: (): string | null => vtBinDir,
         },
@@ -246,15 +244,13 @@ async function main(): Promise<void> {
     const args: Args = parseArgs(process.argv.slice(2))
     const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
 
-    // Initialize @vt/graph-model's module-level DI for THIS process. Every
-    // Node process that uses @vt/graph-model (electron-main, vt-graphd, vtd)
-    // must call initGraphModel separately because the config is per-process.
-    // app-config's `loadSettings`, `voicetree-config-io`, and `project-store`
-    // resolve their on-disk paths through `getConfig().appSupportPath` —
-    // without this call those throw "GraphModel not initialized" the first
-    // time any tool handler hits app-config. Headless: no UI callbacks are
-    // wired (Electron is the only caller that needs them).
-    initGraphModel({appSupportPath})
+    // Bind this process's appSupportPath cell before any tool handler runs.
+    // Every Node process (electron-main, vt-graphd, vtd) keeps its own
+    // process-local cell — see `packages/systems/vt-daemon/src/state/app-support.ts`.
+    // Without this call, `loadSettings()` / `loadConfig()` / `loadProjects()`
+    // throw "vt-daemon appSupportPath not set" the first time any tool handler
+    // hits @vt/app-config.
+    setAppSupportPath(appSupportPath)
 
     // Step 1: claim the owner record FIRST, before any HTTP / GDB / tmux work.
     // On conflict (another VTD already owns this vault) die loudly with the
@@ -370,7 +366,6 @@ async function main(): Promise<void> {
     // the publish sink that routes terminal-registry events onto the new
     // topic + the in-process completion-monitor side channel.
     configureAgentRuntimeForVtd(
-        appSupportPath,
         buildPublishTerminalRegistryEvent(
             (event: string, data: unknown): void =>
                 httpHandle.hub.publish(TERMINAL_REGISTRY_TOPIC, event, data),

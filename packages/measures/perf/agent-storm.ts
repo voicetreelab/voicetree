@@ -64,6 +64,7 @@ import {
     writeRpcPortFile,
 } from '@vt/vt-rpc'
 import { terminalRuntimeSurface as agentRuntime, configureAgentRuntime } from "@vt/vt-daemon"
+import { setAppSupportPath } from '@vt/vt-daemon/state/app-support.ts'
 import {
     createTerminalData,
     type TerminalData,
@@ -155,11 +156,9 @@ async function main(): Promise<void> {
     const graphdOffset = ndjsonFileSize(graphdNdjson)
     const electronOffset = ndjsonFileSize(electronNdjson)
 
+    setAppSupportPath(tempAppSupport)
     configureAgentRuntime({
-        env: {
-            getAppSupportPath: (): string => tempAppSupport,
-        },
-        ui: { registerChildIfMonitored },
+        env: {},
     })
 
     await agentRuntime.ensureTmuxAvailable()

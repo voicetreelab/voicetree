@@ -15,6 +15,7 @@
     "./util/*": "./src/util/*",
     "./agents/*": "./src/agents/*",
     "./mcp-config": "./src/config/mcp-config-public.ts",
+    "./state/*": "./src/state/*",
     "./terminals/terminal-registry": "./src/terminals/terminal-registry/index.ts",
     "./terminals/*": "./src/terminals/*",
     "./transport/eventTypes": "./src/transport/eventTypes.ts",

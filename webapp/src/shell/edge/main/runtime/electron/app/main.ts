@@ -202,7 +202,7 @@ void app.whenReady().then(async () => {
     console.timeEnd('[Startup] setupOnboardingDirectory');
 
     // Refresh the shipped AGENT_PROMPT_CORE once per app version, while preserving same-version edits.
-    await migrateAgentPromptCoreOnAppUpdateIfNeeded(app.getVersion());
+    await migrateAgentPromptCoreOnAppUpdateIfNeeded(getAppSupportPath(), app.getVersion());
 
     // Start the server and store the port it's using
     // Factory automatically chooses StubServer (test) or RealServer (production)
@@ -221,12 +221,12 @@ void app.whenReady().then(async () => {
     console.timeEnd('[Startup] Total time to window');
 
     // Silently migrate layoutConfig nodeSpacing from old default (70) to new default (120)
-    await migrateLayoutConfigIfNeeded();
+    await migrateLayoutConfigIfNeeded(getAppSupportPath());
 
     // Silently migrate starredFolders from empty array to include ~/brain/workflows
-    await migrateStarredFoldersIfNeeded();
+    await migrateStarredFoldersIfNeeded(getAppSupportPath());
     // Silently migrate starredFolders entries from ~/voicetree/workflows to ~/brain/workflows
-    await migrateStarredFoldersBrainRename();
+    await migrateStarredFoldersBrainRename(getAppSupportPath());
 
     // Start re-engagement notification scheduler
     startNotificationScheduler();

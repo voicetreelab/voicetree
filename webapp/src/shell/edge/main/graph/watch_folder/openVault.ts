@@ -10,6 +10,7 @@ import {
     saveLastDirectory,
     saveVaultConfigForDirectory,
 } from '@vt/app-config/vault-config'
+import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { OpenVaultResponse } from '@vt/graph-db-client'
 
@@ -86,7 +87,7 @@ function resolveLocalWriteFolder(projectPath: string, writeFolder: string): stri
 }
 
 async function resolveOrCreateWriteFolder(projectPath: string): Promise<string> {
-    const existingConfig: VaultConfig | undefined = await getVaultConfigForDirectory(projectPath)
+    const existingConfig: VaultConfig | undefined = await getVaultConfigForDirectory(getAppSupportPath(), projectPath)
     if (existingConfig?.writeFolder) {
         const writeFolder: string = resolveLocalWriteFolder(projectPath, existingConfig.writeFolder)
         if (await pathIsDirectory(writeFolder)) {
@@ -100,7 +101,7 @@ async function resolveOrCreateWriteFolder(projectPath: string): Promise<string> 
         : undefined
     const initializedPath: string | null = await initializeProject(projectPath, onboardingSourceDir)
     const writeFolder: string = initializedPath ?? projectPath
-    await saveVaultConfigForDirectory(projectPath, { writeFolder })
+    await saveVaultConfigForDirectory(getAppSupportPath(), projectPath, { writeFolder })
     return writeFolder
 }
 
@@ -110,7 +111,7 @@ export async function getStartupVaultHint(): Promise<StartupVaultHint> {
         return { kind: 'open-folder', path: startupFolder }
     }
 
-    const lastDirectory: O.Option<string> = await getLastDirectory()
+    const lastDirectory: O.Option<string> = await getLastDirectory(getAppSupportPath())
     return O.isSome(lastDirectory)
         ? { kind: 'last-directory', path: lastDirectory.value }
         : { kind: 'none' }
@@ -197,7 +198,7 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
 
         await startDaemonGraphSync(projectRoot)
         markLoadTiming('main:daemon-graph-sync-started')
-        await saveLastDirectory(projectRoot)
+        await saveLastDirectory(getAppSupportPath(), projectRoot)
 
         const watchingStartedInfo = {
             directory: projectRoot,

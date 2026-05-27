@@ -3,6 +3,7 @@ import { getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/dae
 import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
+import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state';
 import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { SavedProject } from '@vt/graph-model/project';
 import * as path from 'path';
@@ -68,7 +69,7 @@ async function resolvePrettySetupAgentCommand(env: NodeJS.ProcessEnv = process.e
         return undefined;
     }
 
-    const settings = await loadSettings();
+    const settings = await loadSettings(getAppSupportPath());
     const fakeAgentCommand = findFakeAgentCommand(settings.agents);
 
     if (fakeAgentCommand) {
@@ -118,7 +119,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
             lastOpened: Date.now(),
             voicetreeInitialized: true
         };
-        await saveProject(project);
+        await saveProject(getAppSupportPath(), project);
         console.log('[DebugSetup] Saved project:', project.id);
 
         try {

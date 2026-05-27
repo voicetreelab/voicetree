@@ -1,4 +1,3 @@
-import { initGraphModel } from '@vt/graph-model'
 import { applyGraphDeltaToDBThroughMemAndUI } from '@vt/graph-db-server/graph/applyGraphDelta'
 import { findFileByName } from '@vt/graph-db-server/graph/findFileByName'
 import { getPreviewContainedNodeIds } from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
@@ -93,9 +92,6 @@ const commandHandlers = {
     command.searchFromNode,
   ),
   GetWatchedDirectory: () => getProjectRoot(),
-  InitializeGraphModel: command => {
-    initGraphModel({ appSupportPath: command.appSupportPath })
-  },
   PerformRedo: () => performRedo(),
   PerformUndo: () => performUndo(),
   ProjectAndBroadcast: async command => {

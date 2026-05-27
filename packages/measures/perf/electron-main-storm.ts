@@ -56,7 +56,7 @@ import {
     type TerminalData,
     type TerminalId,
 } from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
-import { initGraphModel } from '@vt/graph-model'
+import { setAppSupportPath } from '@vt/vt-daemon/state/app-support.ts'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import {
@@ -100,15 +100,13 @@ async function runStorm(args: {
     const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
     const tsxImportPath = resolveTsxImportPath()
 
-    // graph-model is initialised by `startDaemon` in the daemon-only harness;
-    // here Electron owns the daemon, so init it locally for the in-process
-    // agentRuntime (`loadSettings` → `getSettingsPath` → `getConfig`).
-    initGraphModel({ appSupportPath: args.appSupport })
+    // Bind this process's appSupportPath cell before any in-process agent-runtime
+    // tool runs. vt-daemon's `state/app-support.ts` is the canonical store
+    // (see DI-eliminate refactor); `loadSettings()` calls reach for it.
+    setAppSupportPath(args.appSupport)
 
     configureAgentRuntime({
-        env: {
-            getAppSupportPath: (): string => args.appSupport,
-        },
+        env: {},
     })
 
     await agentRuntime.ensureTmuxAvailable()

@@ -67,7 +67,7 @@ vi.mock('electron', () => ({
 
 describe.skip('File Watching - Edge Management Tests', () => {
   beforeAll(async () => {
-    initGraphModel({ appSupportPath: '/tmp/test-userdata-file-watching' })
+    initGraphModel({})
 
     testProjectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'file-watching-test-'))
     await fs.cp(EXAMPLE_SMALL_PATH, testProjectPath, { recursive: true })

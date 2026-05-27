@@ -2,6 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { getNodeThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries'
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO'
+import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { getVaultPaths, getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown'
@@ -19,7 +20,7 @@ function slugify(text: string): string {
 }
 
 async function syncVaultStateToRenderer(): Promise<void> {
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
     const writeFolderOption: O.Option<string> = await getWriteFolder()
     uiAPI.syncVaultState({
         readPaths: [...await getVaultPaths()],
@@ -29,24 +30,24 @@ async function syncVaultStateToRenderer(): Promise<void> {
 }
 
 export async function getStarredFolders(): Promise<readonly string[]> {
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
     return settings.starredFolders ?? []
 }
 
 export async function addStarredFolder(folderPath: string): Promise<void> {
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
     const current: readonly string[] = settings.starredFolders ?? []
     if (current.includes(folderPath)) {
         return
     }
-    await saveSettings({ ...settings, starredFolders: [...current, folderPath] })
+    await saveSettings(getAppSupportPath(), { ...settings, starredFolders: [...current, folderPath] })
     await syncVaultStateToRenderer()
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
     const current: readonly string[] = settings.starredFolders ?? []
-    await saveSettings({ ...settings, starredFolders: current.filter((p: string) => p !== folderPath) })
+    await saveSettings(getAppSupportPath(), { ...settings, starredFolders: current.filter((p: string) => p !== folderPath) })
     await syncVaultStateToRenderer()
 }
 

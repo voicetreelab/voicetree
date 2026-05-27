@@ -7,6 +7,7 @@
 
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
+import type {SavedProject} from '@vt/graph-model/project'
 import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWriteFolder, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
@@ -109,7 +110,7 @@ async function initializeProject(projectPath: string): Promise<string | null> {
  * and passes it to the core function. Hook failure is non-blocking.
  */
 async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
-    const settings: VTSettings = await loadSettings();
+    const settings: VTSettings = await loadSettings(getAppSupportPath());
     const blockingHook: string | undefined = settings.hooks?.onWorktreeCreatedBlocking;
     const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
     const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
@@ -219,10 +220,10 @@ export const mainAPI = {
   // Position saving through daemon persistence
   saveNodePositions,
 
-  // Settings operations
-  loadSettings,
+  // Settings operations — renderer never sees appSupportPath; main fills it in.
+  loadSettings: (): Promise<VTSettings> => loadSettings(getAppSupportPath()),
 
-  saveSettings,
+  saveSettings: (settings: VTSettings): Promise<boolean> => saveSettings(getAppSupportPath(), settings),
 
   // Vault operations — single canonical entry-point.
   openVault,
@@ -338,9 +339,9 @@ export const mainAPI = {
   // Project selection operations
   scanForProjects,
   getDefaultSearchDirectories,
-  loadProjects,
-  saveProject,
-  removeProject,
+  loadProjects: (): Promise<SavedProject[]> => loadProjects(getAppSupportPath()),
+  saveProject: (project: SavedProject): Promise<void> => saveProject(getAppSupportPath(), project),
+  removeProject: (id: string): Promise<void> => removeProject(getAppSupportPath(), id),
   initializeProject,
   showFolderPicker,
   createNewProject,

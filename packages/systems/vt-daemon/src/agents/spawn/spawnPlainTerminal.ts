@@ -13,13 +13,14 @@ import {createTerminalData, type TerminalId} from '@vt/vt-daemon/terminals/termi
 import {getExistingAgentNames} from '@vt/vt-daemon/terminals/terminal-registry/index.ts';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts';
 import type {TerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
 import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge';
 import {publishTerminalRegistryEvent} from '@vt/vt-daemon/terminals/terminal-registry/terminal-registry-publisher.ts';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
-  const settings: VTSettings = await loadSettings();
+  const settings: VTSettings = await loadSettings(getAppSupportPath());
 
   const graph: Graph = await getRuntimeGraph();
   const node: GraphNode | undefined = graph.nodes[nodeId];

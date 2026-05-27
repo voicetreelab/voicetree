@@ -8,6 +8,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { loadSettings, saveSettings } from '@vt/app-config/settings';
 import { getNode } from '@vt/graph-db-server/state/graph-store';
+import { getAppSupportPath } from '@vt/graph-db-server/state/app-support-store';
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown';
 import { broadcastVaultState } from './broadcast/broadcast-vault-state';
 import type { VTSettings } from '@vt/graph-model/settings';
@@ -23,28 +24,30 @@ function slugify(text: string): string {
 }
 
 export async function getStarredFolders(): Promise<readonly string[]> {
-    const settings: VTSettings = await loadSettings();
+    const settings: VTSettings = await loadSettings(getAppSupportPath());
     return settings.starredFolders ?? [];
 }
 
 export async function addStarredFolder(folderPath: string): Promise<void> {
-    const settings: VTSettings = await loadSettings();
+    const appSupport: string = getAppSupportPath();
+    const settings: VTSettings = await loadSettings(appSupport);
     const current: readonly string[] = settings.starredFolders ?? [];
     // Idempotent — no-op if already starred
     if (current.includes(folderPath)) return;
-    await saveSettings({ ...settings, starredFolders: [...current, folderPath] });
+    await saveSettings(appSupport, { ...settings, starredFolders: [...current, folderPath] });
     void broadcastVaultState();
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
-    const settings: VTSettings = await loadSettings();
+    const appSupport: string = getAppSupportPath();
+    const settings: VTSettings = await loadSettings(appSupport);
     const current: readonly string[] = settings.starredFolders ?? [];
-    await saveSettings({ ...settings, starredFolders: current.filter((p: string) => p !== folderPath) });
+    await saveSettings(appSupport, { ...settings, starredFolders: current.filter((p: string) => p !== folderPath) });
     void broadcastVaultState();
 }
 
 export async function isStarred(folderPath: string): Promise<boolean> {
-    const settings: VTSettings = await loadSettings();
+    const settings: VTSettings = await loadSettings(getAppSupportPath());
     return (settings.starredFolders ?? []).includes(folderPath);
 }
 

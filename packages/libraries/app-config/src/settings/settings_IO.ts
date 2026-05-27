@@ -3,34 +3,33 @@ import path from 'path';
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
-import {getCallbacks, getConfig} from '@vt/graph-model';
+import {getCallbacks} from '@vt/graph-model';
 
-function getSettingsPath(): string {
-  return path.join(getConfig().appSupportPath, 'settings.json');
+function getSettingsPath(appSupportPath: string): string {
+  return path.join(appSupportPath, 'settings.json');
 }
 
-let settingsCache: VTSettings | null = null;
-let settingsCacheTime: number = 0;
+const settingsCacheByPath: Map<string, { settings: VTSettings; loadedAt: number }> = new Map();
 const SETTINGS_CACHE_TTL_MS: number = 5000;
 
 /** Reset the settings cache. For testing only. */
 export function clearSettingsCache(): void {
-  settingsCache = null;
-  settingsCacheTime = 0;
+  settingsCacheByPath.clear();
 }
 
-export async function loadSettings(): Promise<VTSettings> {
+export async function loadSettings(appSupportPath: string): Promise<VTSettings> {
   const now: number = Date.now();
-  if (settingsCache && (now - settingsCacheTime) < SETTINGS_CACHE_TTL_MS) {
-    return settingsCache;
+  const cached: { settings: VTSettings; loadedAt: number } | undefined = settingsCacheByPath.get(appSupportPath);
+  if (cached && (now - cached.loadedAt) < SETTINGS_CACHE_TTL_MS) {
+    return cached.settings;
   }
-  const settingsPath: string = getSettingsPath();
+  const settingsPath: string = getSettingsPath(appSupportPath);
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
     // Shallow merge at top level; deep-merge INJECT_ENV_VARS so new default keys always reach users
     // without clobbering user-owned overrides such as AGENT_PROMPT_CORE.
-    settingsCache = {
+    const settings: VTSettings = {
       ...DEFAULT_SETTINGS,
       ...userSettings,
       INJECT_ENV_VARS: {
@@ -38,11 +37,11 @@ export async function loadSettings(): Promise<VTSettings> {
         ...userSettings.INJECT_ENV_VARS,
       },
     };
-    settingsCacheTime = now;
-    return settingsCache;
+    settingsCacheByPath.set(appSupportPath, { settings, loadedAt: now });
+    return settings;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      await saveSettings(DEFAULT_SETTINGS);
+      await saveSettings(appSupportPath, DEFAULT_SETTINGS);
       return DEFAULT_SETTINGS;
     }
     throw error;
@@ -53,8 +52,8 @@ export async function loadSettings(): Promise<VTSettings> {
  * On app update, refresh AGENT_PROMPT_CORE to the shipped default exactly once for the new app version.
  * Normal settings loads preserve user edits; only a version transition triggers this overwrite.
  */
-export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersion: string): Promise<boolean> {
-  const settingsPath: string = getSettingsPath();
+export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(appSupportPath: string, currentAppVersion: string): Promise<boolean> {
+  const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -82,7 +81,7 @@ export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersio
     agentPromptCoreSyncedAppVersion: currentAppVersion,
   };
 
-  await saveSettings(updatedSettings);
+  await saveSettings(appSupportPath, updatedSettings);
   return true;
 }
 
@@ -91,8 +90,8 @@ export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersio
  * Silent migration — no dialog, since users are unlikely to have intentionally set this value.
  * @returns true if migration occurred, false otherwise
  */
-export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
-  const settingsPath: string = getSettingsPath();
+export async function migrateLayoutConfigIfNeeded(appSupportPath: string): Promise<boolean> {
+  const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -121,7 +120,7 @@ export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
       ...userSettings,
       layoutConfig: JSON.stringify(parsed, null, 2),
     };
-    await saveSettings(updatedSettings);
+    await saveSettings(appSupportPath, updatedSettings);
     return true;
   } catch {
     return false; // Malformed JSON — leave as-is
@@ -133,8 +132,8 @@ export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
  * which includes ~/brain/workflows. Silent migration.
  * @returns true if migration occurred, false otherwise
  */
-export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
-  const settingsPath: string = getSettingsPath();
+export async function migrateStarredFoldersIfNeeded(appSupportPath: string): Promise<boolean> {
+  const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -164,7 +163,7 @@ export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
     starredFolders: [...defaultStarred],
   };
 
-  await saveSettings(updatedSettings);
+  await saveSettings(appSupportPath, updatedSettings);
   return true;
 }
 
@@ -173,8 +172,8 @@ export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
  * Simple string replace on each entry. Silent migration.
  * @returns true if migration occurred, false otherwise
  */
-export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
-  const settingsPath: string = getSettingsPath();
+export async function migrateStarredFoldersBrainRename(appSupportPath: string): Promise<boolean> {
+  const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -206,18 +205,17 @@ export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
     starredFolders: migrated,
   };
 
-  await saveSettings(updatedSettings);
+  await saveSettings(appSupportPath, updatedSettings);
   return true;
 }
 
-export async function saveSettings(settings: VTSettings): Promise<boolean> {
-  const settingsPath: string = getSettingsPath();
+export async function saveSettings(appSupportPath: string, settings: VTSettings): Promise<boolean> {
+  const settingsPath: string = getSettingsPath(appSupportPath);
   const settingsDir: string = path.dirname(settingsPath);
 
   await fs.mkdir(settingsDir, { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-  settingsCache = settings;
-  settingsCacheTime = Date.now();
+  settingsCacheByPath.set(appSupportPath, { settings, loadedAt: Date.now() });
   getCallbacks().onSettingsChanged?.();
   return true;
 }

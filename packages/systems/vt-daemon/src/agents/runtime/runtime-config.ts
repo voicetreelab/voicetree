@@ -14,7 +14,6 @@ import {
 export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
 
 export type RuntimeEnvProvider = {
-    readonly getAppSupportPath: () => string;
     readonly getProjectRoot?: () => Promise<string | null>;
     readonly getVaultPaths?: () => Promise<readonly string[]>;
     readonly getWriteFolder?: () => Promise<string | null>;

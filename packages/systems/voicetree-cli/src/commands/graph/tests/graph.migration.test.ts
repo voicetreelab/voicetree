@@ -13,9 +13,9 @@ import {
 } from '@vt/graph-tools/node'
 import {
     createEmptyGraph,
-    initGraphModel,
 } from '@vt/graph-model'
 import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
+import {setAppSupportPath} from '@vt/graph-db-server/state/app-support-store'
 import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
 import {main} from '../../../voicetree-cli.ts'
@@ -140,12 +140,12 @@ describe('graph daemon migration', () => {
         stdoutIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
         setStdoutIsTTY(true)
 
-        initGraphModel({appSupportPath: harness.appSupportPath})
+        setAppSupportPath(harness.appSupportPath)
         clearWatchFolderState()
         setGraph(createEmptyGraph())
 
         await mkdir(join(harness.docsPath, 'nested'), {recursive: true})
-        await saveVaultConfigForDirectory(harness.vault, {
+        await saveVaultConfigForDirectory(harness.appSupportPath, harness.vault, {
             writeFolder: harness.docsPath,
             readPaths: [],
         })

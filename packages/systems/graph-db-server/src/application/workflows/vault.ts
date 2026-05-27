@@ -11,7 +11,6 @@ import {
   composeReadPathsResponse,
   composeWriteFolderResponse,
   decodeVaultPath,
-  resolveAppSupportPath,
 } from '../core/handleVault.ts'
 import { executeCommand } from './dispatch.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
@@ -23,13 +22,6 @@ import { awaitVaultOpenReady } from './vaultOpenGate.ts'
 // of ms in practice) while still leaving the renderer's overall RPC budget
 // intact if the daemon genuinely stalls.
 const VAULT_OPEN_READY_TIMEOUT_MS = 5000
-
-export function ensureVaultWorkflowInitialized(): void {
-  void executeCommand({
-    type: 'InitializeGraphModel',
-    appSupportPath: resolveAppSupportPath(),
-  })
-}
 
 export async function readVaultWorkflow(): Promise<HttpResult> {
   try {

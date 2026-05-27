@@ -6,6 +6,7 @@
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt, readCliManualOrNull} from './cliManualInjection'
 import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
@@ -36,7 +37,7 @@ export async function buildTerminalEnvVars(params: {
         resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]
     }
     const env = getRuntimeEnv()
-    const appSupportPath: string = env.getAppSupportPath()
+    const appSupportPath: string = getAppSupportPath()
     const allVaultPaths: readonly string[] = env.getVaultPaths
         ? await env.getVaultPaths()
         : await getRuntimeVaultPaths()

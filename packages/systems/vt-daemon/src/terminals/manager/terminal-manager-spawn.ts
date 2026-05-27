@@ -1,6 +1,7 @@
 import {execFileSync} from 'child_process'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import type {TerminalData} from '../terminal-registry/types'
 
 export type TerminalManagerLogger = {
@@ -40,7 +41,7 @@ export function getWindowsShell(
 }
 
 export async function resolveTerminalShell(deps: TerminalManagerDeps): Promise<string> {
-    const settings: VTSettings = await loadSettings()
+    const settings: VTSettings = await loadSettings(getAppSupportPath())
     return settings.shell
         ?? (deps.platform === 'win32' ? deps.getWindowsShell() : deps.env.SHELL ?? '/bin/bash')
 }

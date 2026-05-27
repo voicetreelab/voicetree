@@ -10,6 +10,7 @@ import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjecti
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
 import {readDaemonPortFromVault} from './daemonUrlFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
@@ -118,7 +119,7 @@ export async function prepareTerminalDataInMain(
     // env / CLI args (design doc §3.3) — hook curls read it via `cat` from
     // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` at fire time.
     const env = getRuntimeEnv()
-    const appSupportPath: string = env.getAppSupportPath()
+    const appSupportPath: string = getAppSupportPath()
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()

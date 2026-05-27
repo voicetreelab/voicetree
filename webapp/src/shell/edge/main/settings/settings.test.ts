@@ -6,7 +6,6 @@ import { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreO
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from "@vt/graph-model/settings";
-import { initGraphModel } from '@vt/graph-model';
 
 vi.mock('electron', () => ({
   app: {
@@ -19,7 +18,6 @@ let testUserDataPath: string;
 describe('settings', () => {
   beforeEach(async () => {
     testUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'settings-test-'));
-    initGraphModel({ appSupportPath: testUserDataPath });
     clearSettingsCache();
   });
 
@@ -28,7 +26,7 @@ describe('settings', () => {
   });
 
   it('should create file with defaults on first run', async () => {
-    const settings: VTSettings = await loadSettings();
+    const settings: VTSettings = await loadSettings(testUserDataPath);
 
     expect(settings).toEqual(DEFAULT_SETTINGS);
 
@@ -42,8 +40,8 @@ describe('settings', () => {
 
   it('should return saved settings on subsequent calls', async () => {
     const custom: VTSettings = { ...DEFAULT_SETTINGS, darkMode: true, vimMode: true };
-    await saveSettings(custom);
-    expect(await loadSettings()).toEqual(custom);
+    await saveSettings(testUserDataPath,custom);
+    expect(await loadSettings(testUserDataPath)).toEqual(custom);
   });
 
   it('should persist data correctly', async () => {
@@ -57,7 +55,7 @@ describe('settings', () => {
       askModeContextDistance: 4
     };
 
-    await saveSettings(customSettings);
+    await saveSettings(testUserDataPath,customSettings);
 
     const settingsPath: string = path.join(testUserDataPath, 'settings.json');
     const fileContent: string = await fs.readFile(settingsPath, 'utf-8');
@@ -78,7 +76,7 @@ describe('settings', () => {
       askModeContextDistance: 4
     };
 
-    await saveSettings(settings);
+    await saveSettings(testUserDataPath,settings);
 
     const settingsPath: string = path.join(testUserDataPath, 'settings.json');
     const fileExists: boolean = await fs.access(settingsPath).then(() => true).catch(() => false);
@@ -89,7 +87,7 @@ describe('settings', () => {
     const settingsPath: string = path.join(testUserDataPath, 'settings.json');
     await fs.writeFile(settingsPath, 'not valid json{');
 
-    await expect(loadSettings()).rejects.toThrow();
+    await expect(loadSettings(testUserDataPath)).rejects.toThrow();
   });
 
   describe('INJECT_ENV_VARS deep-merge', () => {
@@ -100,7 +98,7 @@ describe('settings', () => {
         terminalSpawnPathRelativeToWatchedDirectory: '/'
       }), 'utf-8');
 
-      const settings: VTSettings = await loadSettings();
+      const settings: VTSettings = await loadSettings(testUserDataPath);
 
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('$AGENT_PROMPT_CORE');
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBeTruthy();
@@ -114,7 +112,7 @@ describe('settings', () => {
         INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
       }), 'utf-8');
 
-      const settings: VTSettings = await loadSettings();
+      const settings: VTSettings = await loadSettings(testUserDataPath);
 
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('$AGENT_PROMPT_CORE');
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
@@ -127,7 +125,7 @@ describe('settings', () => {
         INJECT_ENV_VARS: { AGENT_PROMPT: 'Always use bun. $AGENT_PROMPT_CORE' }
       }), 'utf-8');
 
-      const settings: VTSettings = await loadSettings();
+      const settings: VTSettings = await loadSettings(testUserDataPath);
 
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('Always use bun. $AGENT_PROMPT_CORE');
       // Other keys still come from defaults
@@ -141,7 +139,7 @@ describe('settings', () => {
         INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
       }), 'utf-8');
 
-      const settings: VTSettings = await loadSettings();
+      const settings: VTSettings = await loadSettings(testUserDataPath);
 
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
     });
@@ -154,11 +152,11 @@ describe('settings', () => {
         INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
       }), 'utf-8');
 
-      const loadedSettings: VTSettings = await loadSettings();
-      await saveSettings({ ...loadedSettings, darkMode: true });
+      const loadedSettings: VTSettings = await loadSettings(testUserDataPath);
+      await saveSettings(testUserDataPath,{ ...loadedSettings, darkMode: true });
 
       clearSettingsCache();
-      const reloadedSettings: VTSettings = await loadSettings();
+      const reloadedSettings: VTSettings = await loadSettings(testUserDataPath);
 
       expect(reloadedSettings.darkMode).toBe(true);
       expect(reloadedSettings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
@@ -174,11 +172,11 @@ describe('settings', () => {
         agentPromptCoreSyncedAppVersion: '2.9.12'
       }), 'utf-8');
 
-      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded('2.9.13');
+      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded(testUserDataPath, '2.9.13');
 
       expect(migrated).toBe(true);
       clearSettingsCache();
-      const settings: VTSettings = await loadSettings();
+      const settings: VTSettings = await loadSettings(testUserDataPath);
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE);
       expect(settings.agentPromptCoreSyncedAppVersion).toBe('2.9.13');
     });
@@ -191,11 +189,11 @@ describe('settings', () => {
         agentPromptCoreSyncedAppVersion: '2.9.13'
       }), 'utf-8');
 
-      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded('2.9.13');
+      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded(testUserDataPath, '2.9.13');
 
       expect(migrated).toBe(false);
       clearSettingsCache();
-      const settings: VTSettings = await loadSettings();
+      const settings: VTSettings = await loadSettings(testUserDataPath);
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(sameVersionCustomCore);
       expect(settings.agentPromptCoreSyncedAppVersion).toBe('2.9.13');
     });

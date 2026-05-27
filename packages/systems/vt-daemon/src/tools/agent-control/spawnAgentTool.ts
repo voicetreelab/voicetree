@@ -12,6 +12,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {startMonitor} from '../agentDependencies'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../mcpConfigDependencies'
+import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {
     consumeSpawnBudget,
     listTerminalRecords,
@@ -36,7 +37,7 @@ export interface SpawnAgentParams {
 export interface SpawnAgentDeps {
     readonly listTerminalRecords: () => TerminalRecord[]
     readonly consumeBudget: typeof consumeSpawnBudget
-    readonly loadAgentSettings: typeof loadSettings
+    readonly loadAgentSettings: () => Promise<VTSettings>
     readonly loadWriteFolder: typeof getMcpWriteFolder
     readonly loadGraph: typeof getMcpGraph
     readonly applyDelta: typeof applyMcpGraphDelta
@@ -48,7 +49,7 @@ export interface SpawnAgentDeps {
 const defaultSpawnAgentDeps: SpawnAgentDeps = {
     listTerminalRecords,
     consumeBudget: consumeSpawnBudget,
-    loadAgentSettings: loadSettings,
+    loadAgentSettings: () => loadSettings(getAppSupportPath()),
     loadWriteFolder: getMcpWriteFolder,
     loadGraph: getMcpGraph,
     applyDelta: applyMcpGraphDelta,
