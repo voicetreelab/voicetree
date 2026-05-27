@@ -66,7 +66,7 @@ import {
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
-import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
+import {resolveVtBinDir} from '../src/agents/spawn/vtPathInjection.ts'
 import {
     TERMINAL_REGISTRY_TOPIC,
     type TerminalRegistryEvent,

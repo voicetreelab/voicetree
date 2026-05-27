@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {configureAgentRuntime} from '../../runtime/runtime-config'
+import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 
 const settings = {

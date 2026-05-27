@@ -12,15 +12,15 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createTerminalData } from '../../terminals/terminal-registry/types';
-import type { TerminalData, TerminalId } from '../../terminals/terminal-registry/types';
+import { createTerminalData } from '@vt/agent-runtime/terminals/terminal-registry/types.ts';
+import type { TerminalData, TerminalId } from '@vt/agent-runtime/terminals/terminal-registry/types.ts';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import {
     recordTerminalSpawn,
     getTerminalRecords,
     clearTerminalRecords,
     updateTerminalIsDone,
-} from '../../terminals/terminal-registry';
+} from '@vt/agent-runtime/terminals/terminal-registry/index.ts';
 
 function spawn(id: string, agentName: string = 'TestAgent'): TerminalData {
     const data: TerminalData = createTerminalData({

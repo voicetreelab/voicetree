@@ -1,6 +1,6 @@
 import type {ChildProcess} from 'child_process'
 import type {Graph} from '@vt/graph-model/graph'
-import type {SupportedHeadlessCli} from '../spawn/cli/headlessCli'
+import type {SupportedHeadlessCli} from '@vt/vt-daemon/spawn/cli/headlessCli.ts'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {StopHookResult} from '../hooks/stopGateHookRunner'
 import type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentDeps'

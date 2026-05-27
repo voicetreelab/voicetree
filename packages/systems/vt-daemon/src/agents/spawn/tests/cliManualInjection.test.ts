@@ -18,7 +18,7 @@ import {promises as fs} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {configureAgentRuntime} from '../../runtime/runtime-config'
+import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 import {appendCliManualToAgentPrompt} from '../cliManualInjection'
 

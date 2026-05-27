@@ -3,9 +3,9 @@
 // (or via the stable deep paths declared in package.json#exports).
 
 export * from '../application/terminals/terminal-registry/types'
-export * from '../application/runtime/runtime-config'
+export * from '@vt/vt-daemon/runtime/runtime-config.ts'
 export * from './agent-runtime-api'
-export * from '../application/lifecycle'
+export * from '@vt/vt-daemon/agent-lifecycle'
 
 export { TerminalManager } from '../application/terminals/terminal-manager'
 export type {
@@ -28,10 +28,10 @@ export {forkAgentSession, defaultForkAgentDeps, type ForkAgentSessionDeps, type 
 
 export * from '../application/headless/headlessAgentManager'
 
-export * from '../application/spawn/spawnHookTerminal'
-export * from '../application/spawn/spawnPlainTerminal'
-export * from '../application/spawn/spawnTerminalWithContextNode'
-export * from '../application/spawn/buildTerminalEnvVars'
+export * from '@vt/vt-daemon/spawn/spawnHookTerminal.ts'
+export * from '@vt/vt-daemon/spawn/spawnPlainTerminal.ts'
+export * from '@vt/vt-daemon/spawn/spawnTerminalWithContextNode.ts'
+export * from '@vt/vt-daemon/spawn/buildTerminalEnvVars.ts'
 
 export * from '../application/hooks/stopGateAudit'
 export * from '../application/hooks/stopGateHookRunner'

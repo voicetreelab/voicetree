@@ -9,7 +9,7 @@ import type { NodeIdAndFilePath, Graph, GraphNode } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { sendTextToTerminal } from './send-text-to-terminal'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
-import { getRuntimeGraph, runtimeUpdateContextNodeContainedIds } from '../runtime/graph-bridge'
+import { getRuntimeGraph, runtimeUpdateContextNodeContainedIds } from '@vt/vt-daemon/runtime/graph-bridge.ts'
 
 const MAX_NODES_PER_INJECTION: number = 5
 

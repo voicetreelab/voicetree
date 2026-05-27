@@ -1,6 +1,6 @@
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import path from 'node:path'
-import {getRuntimeEnv} from '../runtime/runtime-config'
+import {getRuntimeEnv} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
 import {readMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'

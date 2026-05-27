@@ -26,7 +26,7 @@ import {
   type HeadfulPromptInjectionRequest,
   type PromptFileWriteRequest,
 } from './tmux/tmuxSpawnPlanning';
-import {getRuntimeEnv} from '../runtime/runtime-config';
+import {getRuntimeEnv} from '@vt/vt-daemon/runtime/runtime-config.ts';
 import type {TerminalSpawnResult} from '@vt/vt-daemon-protocol'
 
 // `TerminalSpawnResult` / `TerminalOperationResult` are canonically owned by

@@ -1,4 +1,4 @@
-import type {TerminalLifecycle} from '@vt/agent-runtime/lifecycle'
+import type {TerminalLifecycle} from '@vt/vt-daemon/agent-lifecycle'
 import type {
     TerminalRecord,
     TerminalRegistryClock,

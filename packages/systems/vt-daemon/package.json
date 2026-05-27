@@ -15,7 +15,11 @@
     "./util/*": "./src/util/*",
     "./mcp-config": "./src/config/mcp-config-public.ts",
     "./transport/eventTypes": "./src/transport/eventTypes.ts",
-    "./bin/vtd.ts": "./bin/vtd.ts"
+    "./bin/vtd.ts": "./bin/vtd.ts",
+    "./spawn/*": "./src/agents/spawn/*",
+    "./runtime/*": "./src/agents/runtime/*",
+    "./agent-lifecycle": "./src/agents/lifecycle/index.ts",
+    "./agent-lifecycle/*": "./src/agents/lifecycle/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

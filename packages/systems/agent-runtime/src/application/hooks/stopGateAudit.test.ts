@@ -8,7 +8,7 @@
 
 import {describe, it, expect} from 'vitest'
 import {parseObligations, resolveSkillPathsFromContent, buildDeficiencyPrompt, type ComplianceResult, type Obligation} from './stopGateAudit'
-import {detectCliType, buildHeadlessCommand} from '../spawn/spawnTerminalWithContextNode'
+import {detectCliType, buildHeadlessCommand} from '@vt/vt-daemon/spawn/spawnTerminalWithContextNode.ts'
 import {buildResumeCommand} from '../headless/headlessAgentManager'
 
 // ─── parseObligations ───────────────────────────────────────────────────────
