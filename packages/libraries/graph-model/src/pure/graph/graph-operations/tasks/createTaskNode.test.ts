@@ -207,8 +207,7 @@ describe('createTaskNode', () => {
         taskDescription: 'A task',
         selectedNodeIds: ['/vault/subdir/parent-node.md'] as readonly NodeIdAndFilePath[],
         graph,
-        writeFolder: '/vault',
-        position: { x: 0, y: 0 }
+        writeFolder: '/vault'
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -232,8 +231,7 @@ describe('createTaskNode', () => {
         taskDescription: 'A task',
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
-        writeFolder: '/vault',
-        position: { x: 0, y: 0 }
+        writeFolder: '/vault'
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -259,8 +257,7 @@ describe('createTaskNode', () => {
         taskDescription: 'A task',
         selectedNodeIds: ['/vault/subdir/parent-node.md'] as readonly NodeIdAndFilePath[],
         graph,
-        writeFolder: '/vault',
-        position: { x: 0, y: 0 }
+        writeFolder: '/vault'
       }
 
       const result: GraphDelta = createTaskNode(params)
