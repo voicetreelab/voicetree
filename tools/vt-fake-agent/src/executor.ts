@@ -70,11 +70,6 @@ export async function executeScript(
         break
       }
 
-      case 'create_node': {
-        await mcpClient.createGraph(env.terminalId, [buildCreateGraphNode(env, action)], env.outputDir)
-        break
-      }
-
       case 'create_nodes': {
         await mcpClient.createGraph(
           env.terminalId,

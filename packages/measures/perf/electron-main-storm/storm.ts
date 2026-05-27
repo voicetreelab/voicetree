@@ -13,10 +13,12 @@ function buildFakeAgentScript(nodesPerAgent: number): object {
     const actions: object[] = []
     for (let i = 0; i < nodesPerAgent; i++) {
         actions.push({
-            type: 'create_node',
-            title: `Perf Node ${i}`,
-            summary: `Synthetic node ${i} from electron-main-storm.`,
-            content: `Node body ${i}.`,
+            type: 'create_nodes',
+            nodes: [{
+                title: `Perf Node ${i}`,
+                summary: `Synthetic node ${i} from electron-main-storm.`,
+                content: `Node body ${i}.`,
+            }],
         })
     }
     actions.push({ type: 'exit', code: 0 })

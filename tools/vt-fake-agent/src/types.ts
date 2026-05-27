@@ -1,6 +1,5 @@
 export type Action =
   | { type: 'delay'; ms: number }
-  | { type: 'create_node'; title: string; summary: string; content?: string; color?: string }
   | { type: 'create_nodes'; nodes: readonly { title: string; summary: string; content?: string; color?: string }[] }
   | { type: 'spawn_child'; task: string; childScript?: FakeAgentScript; depthBudget?: number; headless?: boolean }
   | { type: 'wait_for_children' }

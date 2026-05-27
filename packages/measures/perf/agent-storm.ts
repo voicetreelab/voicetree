@@ -4,7 +4,7 @@
  * Boots an in-process headless VoiceTree (graph-db-server + voicetree-mcp +
  * agent-runtime, no Electron) against a fresh temp vault, then spawns N
  * tmux-backed `vt-fake-agent` terminals in parallel. Each fake-agent runs a
- * deterministic script of `create_node` actions, which exercise the real MCP
+ * deterministic script of `create_nodes` actions, which exercise the real MCP
  * `create_graph` tool and the daemon-routed vault write path end-to-end.
  *
  * Why this exists: the existing perf tests measure Cytoscape layout, SSE
