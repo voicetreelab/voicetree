@@ -16,7 +16,7 @@
  *
  * Exit code: 0 on pass, 1 on fail.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -28,7 +28,17 @@ import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
-import { runFakeAgent, buildMultiCreateNodeScript, type FakeAgentResult } from './runFakeAgent.ts'
+import {
+    buildFakeAgentCommand,
+    buildMultiCreateNodeScript,
+    buildStormAgentPrompt,
+    initializeMcpClient,
+    promptTemplateName,
+    runFakeAgent,
+    waitForAgentListed,
+    waitForInteractiveTerminalMounted,
+    type FakeAgentResult,
+} from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
 import { flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
 import { startHostVmMetricsSampler, type HostVmMetricsSummary, type HostVmMetricsSampler } from './hostVmMetrics.ts'
@@ -47,6 +57,7 @@ const __dirname = path.dirname(__filename)
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
 const DEFAULT_AGENT_COUNT = 30
 const DEFAULT_NODES_PER_AGENT = 5
+const STORM_CALLER_COMMAND = 'sleep 120'
 
 interface Args {
     readonly keepArtifacts: boolean
@@ -86,6 +97,120 @@ function wallTimeStats(results: readonly FakeAgentResult[]) {
 
 function spawnTimeStats(results: readonly FakeAgentResult[]) {
     return durationStats(results.map(r => r.spawnWallMs))
+}
+
+function walkMarkdownFiles(dir: string): readonly string[] {
+    const result: string[] = []
+    const walk = (d: string): void => {
+        let entries: readonly string[]
+        try { entries = readdirSync(d) } catch { return }
+        for (const entry of entries) {
+            if (entry.startsWith('.')) continue
+            const full = path.join(d, entry)
+            let stat
+            try { stat = statSync(full) } catch { continue }
+            if (stat.isDirectory()) walk(full)
+            else if (stat.isFile() && entry.endsWith('.md')) result.push(full)
+        }
+    }
+    walk(dir)
+    return result
+}
+
+function countStormOutputNodes(vaultDir: string): number {
+    const marker = 'MVP storm node mvp-agent-'
+    return walkMarkdownFiles(vaultDir).filter(file => {
+        try { return readFileSync(file, 'utf8').includes(marker) } catch { return false }
+    }).length
+}
+
+function writeStormSettings(appSupportPath: string, args: Args): void {
+    const injectedPrompts = Object.fromEntries(
+        Array.from({ length: args.agentCount }, (_, agentIndex) => [
+            promptTemplateName(agentIndex),
+            buildStormAgentPrompt(buildMultiCreateNodeScript(agentIndex, args.nodesPerAgent)),
+        ]),
+    )
+    writeFileSync(
+        path.join(appSupportPath, 'settings.json'),
+        JSON.stringify({
+            agents: [
+                { name: 'Storm Caller', command: STORM_CALLER_COMMAND },
+                { name: 'Fake Agent', command: buildFakeAgentCommand(REPO_ROOT) },
+            ],
+            defaultAgent: 'Storm Caller',
+            terminalSpawnPathRelativeToWatchedDirectory: '/',
+            INJECT_ENV_VARS: {
+                AGENT_PROMPT: '',
+                ...injectedPrompts,
+            },
+        }, null, 2),
+        'utf8',
+    )
+}
+
+async function spawnCallerTerminal(
+    appWindow: Page,
+    seedNodeAbsolutePath: string,
+): Promise<string> {
+    const result = await appWindow.evaluate(async ({ nodeId, command, repoRoot }) => {
+        const api = (window as unknown as {
+            electronAPI?: {
+                main?: {
+                    spawnTerminalWithContextNode?: (
+                        taskNodeId: string,
+                        agentCommand: string | undefined,
+                        terminalCount?: number,
+                        skipFitAnimation?: boolean,
+                        startUnpinned?: boolean,
+                        selectedNodeIds?: readonly string[],
+                        spawnDirectory?: string,
+                    ) => Promise<{ terminalId: string; contextNodeId: string }>
+                }
+            }
+        }).electronAPI?.main
+        if (!api?.spawnTerminalWithContextNode) {
+            throw new Error('window.electronAPI.main.spawnTerminalWithContextNode unavailable')
+        }
+        return api.spawnTerminalWithContextNode(
+            nodeId,
+            command,
+            0,
+            true,
+            true,
+            undefined,
+            repoRoot,
+        )
+    }, { nodeId: seedNodeAbsolutePath, command: STORM_CALLER_COMMAND, repoRoot: REPO_ROOT })
+    return result.terminalId
+}
+
+async function focusTerminalForScreenshot(appWindow: Page): Promise<void> {
+    const hasTerminalWindow = await appWindow.evaluate(() => (
+        document.querySelector('.cy-floating-window-terminal') !== null
+    ))
+    if (!hasTerminalWindow) return
+
+    await appWindow.keyboard.press('Meta+]')
+    await appWindow.waitForTimeout(350)
+    await appWindow.evaluate(() => {
+        const cy = (window as unknown as {
+            cytoscapeInstance?: {
+                getElementById: (id: string) => { length: number }
+                fit: (eles: unknown, padding?: number) => void
+            }
+        }).cytoscapeInstance
+        if (!cy) return
+
+        const terminals = Array.from(document.querySelectorAll<HTMLElement>('.cy-floating-window-terminal'))
+        const terminal = terminals.find(el => el.querySelector('.xterm')) ?? terminals.at(-1)
+        const shadowNodeId = terminal?.dataset.shadowNodeId
+        if (!shadowNodeId) return
+
+        const shadowNode = cy.getElementById(shadowNodeId)
+        if (shadowNode.length > 0) cy.fit(shadowNode, 180)
+    })
+    await appWindow.waitForTimeout(350)
 }
 
 interface MainProcessSnapshot {
@@ -359,22 +484,30 @@ async function startRendererScreenshotCapture(
     const dir = path.join(runDir, 'screenshots')
     mkdirSync(dir, { recursive: true })
     let stopped = false
-    let inFlight = false
+    let activeCapture: Promise<void> | null = null
     let index = 0
 
-    const capture = async (reason: 'sample' | 'final'): Promise<void> => {
-        if (inFlight) return
-        inFlight = true
+    const runCapture = async (reason: 'sample' | 'final'): Promise<void> => {
         const paddedIndex = String(index++).padStart(3, '0')
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
-        try {
-            const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5_000 })
-            if (!pngLooksNonBlank(Buffer.from(bytes))) throw new Error(`blank renderer screenshot: ${screenshotPath}`)
-            process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
-        } finally {
-            inFlight = false
+        await focusTerminalForScreenshot(appWindow).catch((error: unknown) => {
+            process.stderr.write(`[mvp] terminal screenshot focus failed: ${(error as Error).message}\n`)
+        })
+        const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5_000 })
+        if (!pngLooksNonBlank(Buffer.from(bytes))) throw new Error(`blank renderer screenshot: ${screenshotPath}`)
+        process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
+    }
+
+    const capture = async (reason: 'sample' | 'final'): Promise<void> => {
+        if (activeCapture) {
+            if (reason === 'sample') return
+            await activeCapture
         }
+        activeCapture = runCapture(reason).finally(() => {
+            activeCapture = null
+        })
+        await activeCapture
     }
 
     void capture('sample').catch((error: unknown) => {
@@ -476,6 +609,7 @@ async function main(): Promise<void> {
     mkdirSync(vaultDir, { recursive: true })
 
     const appSupportPath = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-app-'))
+    writeStormSettings(appSupportPath, args)
     const logsDir = path.join(runContext.runDir, 'logs')
     mkdirSync(logsDir, { recursive: true })
     const outPath = args.outPath ?? path.join(runContext.runDir, 'e2e-storm-mvp-report.json')
@@ -515,11 +649,15 @@ async function main(): Promise<void> {
     let hostVmMetricsSummary: HostVmMetricsSummary | null = null
 
     try {
-        hostVmMetrics = await startHostVmMetricsSampler({
-            otlpEndpoint: runContext.otlpEndpoint,
-            instanceId: runContext.runUuid,
-        })
-        process.stdout.write('[mvp] started devbox-vm OTEL metrics sampler\n')
+        try {
+            hostVmMetrics = await startHostVmMetricsSampler({
+                otlpEndpoint: runContext.otlpEndpoint,
+                instanceId: runContext.runUuid,
+            })
+            process.stdout.write('[mvp] started devbox-vm OTEL metrics sampler\n')
+        } catch (error) {
+            process.stderr.write(`[mvp] devbox-vm metrics sampler disabled: ${(error as Error).message}\n`)
+        }
 
         const launched = await launchElectronAndDiscoverMcp({
             repoRoot: REPO_ROOT,
@@ -556,6 +694,20 @@ async function main(): Promise<void> {
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
+        await initializeMcpClient(mcpPort)
+        process.stdout.write('[mvp] initialized MCP client\n')
+
+        const callerTerminalId = await spawnCallerTerminal(appWindow, seedNodeAbsolutePath)
+        process.stdout.write(`[mvp] spawned real caller terminal: ${callerTerminalId}\n`)
+        if (!await waitForAgentListed(mcpPort, callerTerminalId, 10_000)) {
+            throw new Error(`caller terminal ${callerTerminalId} did not appear in list_agents`)
+        }
+        process.stdout.write(`[mvp] caller terminal visible to MCP: ${callerTerminalId}\n`)
+        if (!await waitForInteractiveTerminalMounted(appWindow, callerTerminalId, 10_000)) {
+            throw new Error(`caller terminal ${callerTerminalId} did not mount a headful xterm floating window`)
+        }
+        process.stdout.write(`[mvp] caller terminal mounted in renderer: ${callerTerminalId}\n`)
+
         rendererProfile = await startRendererProfileCapture(appWindow, runContext)
         process.stdout.write('[mvp] started renderer CDP profile + metrics sampler\n')
         rendererScreenshots = await startRendererScreenshotCapture(appWindow, runContext.runDir)
@@ -565,11 +717,10 @@ async function main(): Promise<void> {
             runFakeAgent({
                 appWindow,
                 repoRoot: REPO_ROOT,
-                vaultDir,
                 mcpPort,
                 seedNodeAbsolutePath,
-                terminalId: `e2e-mvp-agent-${agentIndex}`,
-                script: buildMultiCreateNodeScript(agentIndex, args.nodesPerAgent),
+                callerTerminalId,
+                promptTemplate: promptTemplateName(agentIndex),
                 timeoutMs: args.agentTimeoutMs,
             })
         )))
@@ -591,7 +742,7 @@ async function main(): Promise<void> {
         }
 
         filesAfter = countMarkdownFiles(vaultDir)
-        nodesCreated = filesAfter - filesBefore
+        nodesCreated = countStormOutputNodes(vaultDir)
 
         const spawnFailure = agentResults.find(result => !result.spawnSuccess)
         const scriptFailure = agentResults.find(result => result.spawnSuccess && !result.exitedCleanly && !result.timedOut)
@@ -611,6 +762,18 @@ async function main(): Promise<void> {
         failureReason = (err as Error).message
         if ((err as Error).stack) process.stderr.write(`[mvp] ${(err as Error).stack}\n`)
     } finally {
+        if (app && rendererScreenshots !== null) {
+            try {
+                await rendererScreenshots.stop()
+                process.stdout.write(`[mvp] saved renderer screenshots: ${rendererScreenshots.dir}\n`)
+                rendererScreenshots = null
+            } catch (e) {
+                process.stderr.write(`[mvp] renderer screenshot save failed: ${(e as Error).message}\n`)
+                failureReason ??= `renderer screenshot save failed: ${(e as Error).message}`
+                pass = false
+            }
+        }
+
         // Give vt-graphd a chance to flush its cpuprofile + metrics stream
         // BEFORE we tear down electron. perfProbeFromEnv writes those
         // artifacts only inside its SIGTERM/SIGINT/beforeExit handler — a
@@ -629,18 +792,6 @@ async function main(): Promise<void> {
         }
 
         if (app) {
-            if (rendererScreenshots !== null) {
-                try {
-                    await rendererScreenshots.stop()
-                    process.stdout.write(`[mvp] saved renderer screenshots: ${rendererScreenshots.dir}\n`)
-                    rendererScreenshots = null
-                } catch (e) {
-                    process.stderr.write(`[mvp] renderer screenshot save failed: ${(e as Error).message}\n`)
-                    failureReason ??= `renderer screenshot save failed: ${(e as Error).message}`
-                    pass = false
-                }
-            }
-
             if (rendererProfile !== null) {
                 try {
                     await rendererProfile.stop()
