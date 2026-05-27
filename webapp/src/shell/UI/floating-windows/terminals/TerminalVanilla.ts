@@ -311,6 +311,17 @@ export class TerminalVanilla {
       : status === 'reconnecting'
         ? 'tmux reconnecting'
         : `tmux ${status}`;
+
+    // 'closed' is the relay's exit signal — the daemon side only sends
+    // {type:'exit'} when the tmux session is genuinely gone (agent process
+    // exited). Trigger the same close path the traffic-light close button
+    // uses so the floating window, WS subscriber, and tmux registry entry
+    // all tear down in one shot. Without this the renderer keeps the dead
+    // window onscreen and the WS reconnect loop pings forever.
+    if (status === 'closed') {
+      const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
+      windowElement?.dispatchEvent(new CustomEvent('traffic-light-close', {bubbles: true}));
+    }
   }
 
 
