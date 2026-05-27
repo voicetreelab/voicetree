@@ -30,13 +30,33 @@
  * rebind must not race a teardown of the prior `active` snapshot.
  */
 
+import {randomUUID} from 'node:crypto'
+import {readFileSync} from 'node:fs'
+import {mkdir} from 'node:fs/promises'
+import {createRequire} from 'node:module'
+import {resolve} from 'node:path'
 import {
     bindVtDaemonClient,
     type EnsureVtDaemonResult,
     type VtDaemonClient,
     type VtDaemonClientFacade,
 } from '@vt/vt-daemon-client'
-import { ensureVtDaemonForVault } from './vt-daemon-ensure'
+import {
+    ensureNodeVtDaemonForVault,
+    type NodeEnsureVtDaemonRuntime,
+} from '@vt/vt-daemon-client/nodeEnsureVtDaemonForVault'
+
+const requireFromHere = createRequire(import.meta.url)
+
+const nodeEnsureRuntime: NodeEnsureVtDaemonRuntime = {
+    env: {...process.env},
+    mkdir,
+    newAttemptId: randomUUID,
+    now: Date.now,
+    readTextFileSync: readFileSync,
+    resolveModule: (specifier: string): string => requireFromHere.resolve(specifier),
+    resolvePath: resolve,
+}
 
 interface ActiveVtDaemon {
     readonly vaultPath: string
@@ -87,7 +107,7 @@ export function bindVtDaemonForVault(vaultPath: string): Promise<ActiveVtDaemon>
         // cleanup is VTD's parent-pid watchdog (BF-369) plus
         // killOrphanVt*Daemons on next startup.
         active = null
-        const result: ActiveEnsureResult = await ensureVtDaemonForVault(vaultPath, 'electron')
+        const result: ActiveEnsureResult = await ensureNodeVtDaemonForVault(nodeEnsureRuntime, vaultPath, 'electron')
         const next: ActiveVtDaemon = snapshotFromEnsure(vaultPath, result)
         active = next
         return next
@@ -191,7 +211,7 @@ export function __setBoundVaultForTests(vaultPath: string | null): void {
 async function refreshActive(): Promise<ActiveVtDaemon> {
     const current: ActiveVtDaemon | null = active
     if (!current) throw new Error('daemon_unreachable: no active vt-daemon binding')
-    const result: ActiveEnsureResult = await ensureVtDaemonForVault(current.vaultPath, 'electron')
+    const result: ActiveEnsureResult = await ensureNodeVtDaemonForVault(nodeEnsureRuntime, current.vaultPath, 'electron')
     if (result.pid === current.pid && result.ownerNonce === current.ownerNonce) {
         // Hot-path: same owner. Avoid rebuilding the snapshot.
         return current
