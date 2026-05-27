@@ -68,7 +68,6 @@ export type RecoverableAgentSessionShape = {
     };
     readonly resume?: {
         readonly cliType: 'claude' | 'codex';
-        readonly nativeSessionId: string;
     };
 };
 

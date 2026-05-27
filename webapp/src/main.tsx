@@ -17,6 +17,14 @@ import type { ButtonEntry } from '@/shell/edge/renderer/debug/buttonRegistry'
 import { tryDumpCy } from '@/shell/edge/renderer/debug/vtDebugHelper'
 import { getEditorInstanceForDebug } from '@/shell/edge/renderer/debug/editorInstanceDebugHelper'
 
+// Terminal-buffer reader registry, used by e2e tests to read xterm.js's
+// rendered buffer (WebGL renderer paints to canvas, so the DOM has no
+// scrapable textContent). TerminalVanilla calls setTerminalBufferReader on
+// mount and clearTerminalBufferReader on dispose. Kept inline here rather than
+// in its own module so it adds no new public symbols to webapp/shell — the
+// __vtDebug__ properties are not TS exports.
+const __terminalBufferReaders: Map<string, () => string> = new Map()
+
 // Install debug capture BEFORE React bootstrap — catches startup errors (thrown useEffects,
 // module-load ReferenceErrors) that would be invisible if devtools attached after the crash.
 if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
@@ -43,6 +51,12 @@ if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
     registerDebugButton: (entry: ButtonEntry) => _register(entry),
     unregisterDebugButton: (nodeId: string, label: string) => _unregister(nodeId, label),
     editorInstance: (editorId: string) => getEditorInstanceForDebug(editorId),
+    setTerminalBufferReader: (terminalId: string, reader: () => string) => __terminalBufferReaders.set(terminalId, reader),
+    clearTerminalBufferReader: (terminalId: string) => __terminalBufferReaders.delete(terminalId),
+    readTerminalBuffer: (terminalId: string): string | null => {
+      const reader = __terminalBufferReaders.get(terminalId)
+      return reader ? reader() : null
+    },
   }
 }
 
