@@ -9,7 +9,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {tracing} from '@vt/observability'
 import {type McpToolResponse, buildJsonResponse} from '../tools/toolResponse'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
@@ -297,21 +296,12 @@ export async function createGraphTool({
     registerAgentNodes(callerTerminalId, createdAgentNodeRecords(sortedNodes, batchResult.createdNodes))
     const contextDelta: GraphDelta = buildCallerContextDelta(graph, callerRecord, batchResult.allNewNodeIds)
     if (contextDelta.length > 0) {
-        await tracing.span('createGraph.context-update', async (span) => {
-            span.setAttribute('delta.length', contextDelta.length)
-            try {
-                await applyMcpGraphDelta(contextDelta)
-                span.setAttribute('outcome', 'applied')
-            } catch (contextError: unknown) {
-                span.setAttribute('outcome', 'failed-non-fatal')
-                span.recordException(contextError instanceof Error ? contextError : String(contextError))
-                span.addEvent('createGraph.context-update.failed', {
-                    'error.message': contextError instanceof Error ? contextError.message : String(contextError),
-                    'error.type': contextError instanceof Error ? contextError.name : typeof contextError,
-                })
-                // Non-fatal: context node update failed, nodes were still created.
-            }
-        })
+        try {
+            await applyMcpGraphDelta(contextDelta)
+        } catch (contextError: unknown) {
+            // Non-fatal: nodes were created; context-node append failed.
+            console.error('[createGraph] context-node update failed (non-fatal):', contextError)
+        }
     }
 
     resetTerminalAuditRetryCount(callerTerminalId)
