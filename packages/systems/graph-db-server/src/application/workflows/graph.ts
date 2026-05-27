@@ -1,7 +1,6 @@
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import {
   buildDeleteNodeDelta,
-  composeApplyDeltaResponse,
   parseApplyDeltaRequest,
   parseGraphDeltaRequest,
   composeContainedIdsUpdateResponse,
@@ -216,6 +215,7 @@ async function tracedApplyDeltaAndAck(
   delta: GraphDelta,
   sessionId: string,
   recordForUndo: boolean | undefined,
+  errorCode = 'GRAPH_DELTA_APPLY_FAILED',
 ): Promise<HttpResult> {
   try {
     await applyGraphDeltaAndPublish(
@@ -225,7 +225,7 @@ async function tracedApplyDeltaAndAck(
     )
     return jsonResult({ ok: true })
   } catch (error) {
-    return vaultAwareWorkflowErrorResult(error, 'GRAPH_DELTA_APPLY_FAILED')
+    return vaultAwareWorkflowErrorResult(error, errorCode)
   }
 }
 
@@ -262,16 +262,19 @@ export async function applyGraphDeltaWithOptionsWorkflow(
   })
 }
 
-export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResult> {
-  return await wrapWorkflow(
-    prepareDeleteGraphNode,
-    async parsed => {
-      await executeCommand({ type: 'ApplyGraphDeltaToDB', delta: parsed.delta })
-      return await executeCommand({ type: 'ReadGraph' })
-    },
-    (graph, parsed) => composeApplyDeltaResponse(parsed.delta, graph),
+export async function deleteGraphNodeWorkflow(
+  nodeId: string,
+  sessionId: string,
+): Promise<HttpResult> {
+  const parsed = await prepareDeleteGraphNode(nodeId)
+  if (!parsed.ok) return parseRejectionResult(parsed)
+
+  return await tracedApplyDeltaAndAck(
+    parsed.delta,
+    sessionId,
+    undefined,
     'GRAPH_NODE_DELETE_FAILED',
-  )(nodeId)
+  )
 }
 
 export async function findFileWorkflow(name: string | undefined): Promise<HttpResult> {

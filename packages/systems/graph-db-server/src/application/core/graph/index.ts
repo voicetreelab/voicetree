@@ -1,6 +1,5 @@
 export {
   buildDeleteNodeDelta,
-  composeApplyDeltaResponse,
   parseApplyDeltaRequest,
   parseGraphDeltaRequest,
 } from './handleApplyDelta.ts'

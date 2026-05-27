@@ -195,6 +195,73 @@ describe('HTTP graph delta writes', () => {
     await expect(undoRes.json()).resolves.toEqual({ applied: false })
   }, 20000)
 
+  test('delete-node returns ack, updates graph, and publishes SSE', async () => {
+    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    handles.push(handle)
+    const base = `http://127.0.0.1:${handle.port}`
+    const testNodePath = join(vault, 'delete-node-http.md')
+    const delta = [
+      {
+        type: 'UpsertNode',
+        nodeToUpsert: {
+          kind: 'leaf',
+          outgoingEdges: [],
+          absoluteFilePathIsID: testNodePath,
+          contentWithoutYamlOrLinks: '# Delete HTTP Node\nDeleted through HTTP',
+          nodeUIMetadata: {
+            color: { _tag: 'None' },
+            position: { _tag: 'None' },
+            additionalYAMLProps: {},
+          },
+        },
+        previousNode: { _tag: 'None' },
+      },
+    ]
+
+    const createRes = await fetch(`${base}/graph/delta`, {
+      body: JSON.stringify(delta),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
+    expect(createRes.status).toBe(200)
+
+    const sessionRes = await fetch(`${base}/sessions`, { method: 'POST' })
+    expect(sessionRes.status).toBe(201)
+    const { sessionId } = SessionCreateResponseSchema.parse(await sessionRes.json())
+
+    sseController = new AbortController()
+    const sseRes = await fetch(`${base}/sessions/${sessionId}/events`, {
+      signal: sseController.signal,
+    })
+    expect(sseRes.status).toBe(200)
+    const reader = sseRes.body!.getReader()
+    await reader.read()
+
+    const expectedSeq = getCurrentSeq() + 1
+    const deleteRes = await fetch(
+      `${base}/graph/node/${encodeURIComponent(testNodePath)}`,
+      {
+        headers: { 'X-Session-Id': sessionId },
+        method: 'DELETE',
+      },
+    )
+
+    expect(deleteRes.status).toBe(200)
+    await expect(deleteRes.json()).resolves.toEqual({ ok: true })
+
+    const graphRes = await fetch(`${base}/graph`)
+    expect(graphRes.status).toBe(200)
+    const graphBody = await graphRes.json()
+    expect(graphBody.nodes[testNodePath]).toBeUndefined()
+    await expect(readFile(testNodePath, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+
+    const projectedGraph = await readProjectedGraph(reader)
+    expect(projectedGraph.seq).toBe(expectedSeq)
+    expect(projectedGraph.nodes.find(node => node.id === testNodePath)).toBeUndefined()
+  }, 20000)
+
   test('rejects invalid graph delta payloads', async () => {
     const handle = await startDaemon({ vault, appSupportPath: appSupport })
     handles.push(handle)

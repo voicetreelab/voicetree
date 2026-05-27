@@ -72,6 +72,7 @@ export function createGraphRoutes(_registry: WorkflowSessionRegistry): Hono {
         c,
         await deleteGraphNodeWorkflow(
           decodeURIComponent(routeParam(c, 'encodedNodeId')),
+          c.req.header('X-Session-Id') ?? 'anonymous',
         ),
       )
     },
