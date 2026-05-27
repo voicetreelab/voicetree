@@ -17,7 +17,7 @@ import {
     terminalExists,
     type TerminalRecord,
 } from './agentControlRuntime'
-import {type McpToolResponse, buildJsonResponse} from '../../_shared/toolResponse.ts'
+import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 function buildPrefixedMessage(callerTerminalId: string, message: string): string {
     return `[From: ${callerTerminalId}] ${message}\n\nIf needed, you can reply directly with the voicetree mcp send_message tool to ${callerTerminalId}. mcp__voicetree__send_message (DO NOT USE SendMessage or other messaging tools you may have, they won't work)`

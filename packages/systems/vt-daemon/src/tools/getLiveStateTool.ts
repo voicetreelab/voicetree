@@ -12,8 +12,8 @@ import { getCurrentSessionState } from '../state/sessionStateStore'
 import { serializeState } from '../state/serializeState'
 import { getCurrentVault } from '../state/currentVault'
 
-import { buildJsonResponse } from '../_shared/toolResponse.ts'
-import type { McpToolResponse } from '../_shared/toolResponse.ts'
+import { buildJsonResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type { McpToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export async function getLiveState(): Promise<SerializedState> {
     return serializeState(await getCurrentSessionState(getCurrentVault()))

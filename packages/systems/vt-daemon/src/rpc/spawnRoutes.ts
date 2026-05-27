@@ -16,7 +16,7 @@ import type {
 import type {NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
 
 import {voidRoute, type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const positionShape = z.object({x: z.number(), y: z.number()}).passthrough()
 

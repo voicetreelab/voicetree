@@ -53,8 +53,8 @@ export type {
 } from './agent-control/terminalRuntimeSurface'
 export {findAvailablePort, isPortAvailable} from '../tools/findAvailablePort'
 
-export type {McpToolResponse} from '../_shared/toolResponse.ts'
-export {buildJsonResponse} from '../_shared/toolResponse.ts'
+export type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+export {buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export {
     startMonitor,

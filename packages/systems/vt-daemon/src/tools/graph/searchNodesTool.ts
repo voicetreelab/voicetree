@@ -3,7 +3,7 @@
  * Stubbed while vector search is unavailable.
  */
 
-import {type McpToolResponse, buildJsonResponse} from '../../_shared/toolResponse.ts'
+import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface SearchNodesParams {
     query: string

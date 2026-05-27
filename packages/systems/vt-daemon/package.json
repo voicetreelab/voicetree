@@ -14,6 +14,7 @@
     "./agent-runtime/terminals/terminal-registry": "./src/agent-runtime/terminals/terminal-registry/index.ts",
     "./agent-runtime/lifecycle": "./src/agent-runtime/lifecycle/index.ts",
     "./agent-runtime/*": "./src/agent-runtime/*",
+    "./_shared/*": "./src/_shared/*",
     "./tools/*": "./src/tools/*",
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",

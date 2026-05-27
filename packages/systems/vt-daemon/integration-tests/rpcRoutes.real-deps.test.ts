@@ -49,7 +49,7 @@ import {
 } from '@vt/vt-daemon-protocol'
 
 import {buildCatalogDispatchMap, type CatalogHandler} from '../src/tools/catalog'
-import type {McpToolResponse} from '../src/_shared/toolResponse.ts'
+import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 // ─── Test scaffold ───────────────────────────────────────────────────────────
 

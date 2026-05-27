@@ -5,7 +5,7 @@
 
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
-import {type McpToolResponse, buildJsonResponse} from '../../_shared/toolResponse.ts'
+import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
