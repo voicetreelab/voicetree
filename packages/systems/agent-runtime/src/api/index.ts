@@ -22,20 +22,6 @@ export * from '../application/terminals/tmux/tmux-server'
 export * from '../application/terminals/tmux/unclaimed-tmux'
 
 export * from '../application/recovery/types'
-export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'
-export {resumePersistedAgentSession, defaultResumePersistedDeps, type ResumePersistedDeps, type ResumePersistedResult} from '../application/recovery/resumePersistedAgentSession'
-export {forkAgentSession, defaultForkAgentDeps, type ForkAgentSessionDeps, type ForkAgentSessionResult} from '../application/recovery/forkAgentSession'
-export {
-    migrateLegacyTerminalDir,
-    type MigrateLegacyTerminalDirArgs,
-    type MigrateLegacyTerminalDirResult,
-} from '../application/recovery/migrate-legacy-terminal-dir'
-export {
-    removePersistedAgentRecord,
-    defaultRemovePersistedAgentRecordDeps,
-    type RemovePersistedAgentRecordDeps,
-    type RemovePersistedAgentRecordResult,
-} from '../application/recovery/removePersistedAgentRecord'
 
 export * from '../application/headless/headlessAgentManager'
 

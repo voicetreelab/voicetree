@@ -1,9 +1,9 @@
 import {describe, expect, it} from 'vitest'
 import {resumePersistedAgentSession, type ResumePersistedDeps} from './resumePersistedAgentSession'
-import type {NativeSessionRequest, NativeSessionResult} from './resolvers/resolveNativeSession'
-import type {RecoverableAgentSession} from './types'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
-import {makeLiveSession, makeTerminalData, SESSION_A, TERMINAL_A, VAULT_PATH} from './classifier.test-fixtures'
+import type {NativeSessionRequest, NativeSessionResult} from '../resolvers/resolveNativeSession'
+import type {RecoverableAgentSession} from '../types'
+import type {TerminalData, TerminalId} from '@vt/agent-runtime/terminals/terminal-registry/types'
+import {makeLiveSession, makeTerminalData, SESSION_A, TERMINAL_A, VAULT_PATH} from '../classifier/classifier.test-fixtures'
 
 const TERMINAL_ID_A: TerminalId = TERMINAL_A as TerminalId
 

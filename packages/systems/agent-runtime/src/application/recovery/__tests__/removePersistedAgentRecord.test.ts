@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
-import {removePersistedAgentRecord, type RemovePersistedAgentRecordDeps} from '../removePersistedAgentRecord'
+import {removePersistedAgentRecord, type RemovePersistedAgentRecordDeps} from '../persistence/removePersistedAgentRecord'
 
 type DepsOverrides = Partial<RemovePersistedAgentRecordDeps>
 

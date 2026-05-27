@@ -1,8 +1,8 @@
 import type {ClassifierInput, MetadataRecord} from './classifier'
-import type {TerminalData} from '../terminals/terminal-registry/types'
-import {buildTmuxNamespaceHash} from '../terminals/tmux/tmux-session-manager'
-import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
-import type {ResumeCapability} from './types'
+import type {TerminalData} from '@vt/agent-runtime/terminals/terminal-registry/types'
+import {buildTmuxNamespaceHash} from '@vt/agent-runtime/terminals/tmux/tmux-session-manager'
+import type {UnclaimedTmuxSession} from '@vt/agent-runtime/terminals/tmux/unclaimed-tmux'
+import type {ResumeCapability} from '../types'
 import * as O from 'fp-ts/lib/Option.js'
 
 // VAULT_PATH is used consistently so that computed session names (via
@@ -49,6 +49,26 @@ export function makeRunningClaudeMetadata(overrides: Record<string, unknown> = {
     return {
         name: TERMINAL_A,
         status: 'running',
+        session: SESSION_A,
+        terminalData: makeTerminalData({initialCommand: 'claude'}),
+        ...overrides,
+    }
+}
+
+export function makeExitedClaudeMetadata(overrides: Record<string, unknown> = {}): unknown {
+    return {
+        name: TERMINAL_A,
+        status: 'exited',
+        session: SESSION_A,
+        terminalData: makeTerminalData({initialCommand: 'claude'}),
+        ...overrides,
+    }
+}
+
+export function makeKilledClaudeMetadata(overrides: Record<string, unknown> = {}): unknown {
+    return {
+        name: TERMINAL_A,
+        status: 'killed',
         session: SESSION_A,
         terminalData: makeTerminalData({initialCommand: 'claude'}),
         ...overrides,

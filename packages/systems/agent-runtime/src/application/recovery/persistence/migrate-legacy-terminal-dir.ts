@@ -1,7 +1,7 @@
 import {existsSync, mkdirSync, readdirSync, renameSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 
-import {getRecoveryMetadataDir} from './paths'
+import {getRecoveryMetadataDir} from '../paths'
 
 type Logger = {
     readonly warn?: (message: string) => void

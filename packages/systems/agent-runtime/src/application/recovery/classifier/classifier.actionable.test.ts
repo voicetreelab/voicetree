@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import {classifyRecoveryCandidates} from './classifier'
-import type {ResumeCapability} from './types'
+import type {ResumeCapability} from '../types'
 import {
     baseInput,
     makeLiveSession,

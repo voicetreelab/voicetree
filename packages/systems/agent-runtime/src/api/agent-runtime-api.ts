@@ -26,10 +26,10 @@ import {
     listUnclaimedTmuxSessions,
 } from '../application/terminals/tmux/unclaimed-tmux'
 import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
-import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
-import { forkAgentSession } from '../application/recovery/forkAgentSession'
-import { migrateLegacyTerminalDir } from '../application/recovery/migrate-legacy-terminal-dir'
-import { removePersistedAgentRecord } from '../application/recovery/removePersistedAgentRecord'
+import { resumePersistedAgentSession } from '../application/recovery/sessions/resumePersistedAgentSession'
+import { forkAgentSession } from '../application/recovery/sessions/forkAgentSession'
+import { migrateLegacyTerminalDir } from '../application/recovery/persistence/migrate-legacy-terminal-dir'
+import { removePersistedAgentRecord } from '../application/recovery/persistence/removePersistedAgentRecord'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,

@@ -20,12 +20,10 @@ import {existsSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
 
-import {
-    configureAgentRuntime,
-    discoverRecoverableAgentSessions,
-    resumePersistedAgentSession,
-    type RecoverableAgentSession,
-} from '../src/api/index.ts'
+import {configureAgentRuntime} from '../src/application/runtime/runtime-config.ts'
+import {discoverRecoverableAgentSessions} from '../src/application/recovery/discovery.ts'
+import {resumePersistedAgentSession} from '../src/application/recovery/sessions/resumePersistedAgentSession.ts'
+import type {RecoverableAgentSession} from '../src/application/recovery/types.ts'
 import {buildTmuxSessionName} from '../src/application/terminals/tmux/tmux-session-manager.ts'
 
 type Cmd = 'list' | 'resume'

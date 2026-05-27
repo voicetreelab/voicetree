@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {discoverRecoverableAgentSessions, type DiscoverRecoveryDeps} from './discovery'
-import type {MetadataRecord} from './classifier'
+import type {MetadataRecord} from './classifier/classifier'
 import type {RecoverableAgentSession} from './types'
 import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
 import {
@@ -14,7 +14,7 @@ import {
     TERMINAL_A,
     VAULT_HASH,
     VAULT_PATH,
-} from './classifier.test-fixtures'
+} from './classifier/classifier.test-fixtures'
 
 void _ignored
 

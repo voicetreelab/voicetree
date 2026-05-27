@@ -1,12 +1,12 @@
 import * as O from 'fp-ts/lib/Option.js'
-import {createTerminalData, type TerminalData, type TerminalId} from '../terminals/terminal-registry/types'
-import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
-import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
-import {detectCliType} from '../spawn/headlessCli'
-import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
-import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
-import {isoToMsOrZero} from './horizon'
-import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
+import {createTerminalData, type TerminalData, type TerminalId} from '@vt/agent-runtime/terminals/terminal-registry/types'
+import type {TmuxTerminalMetadata} from '@vt/agent-runtime/terminals/terminal-registry/terminal-metadata'
+import type {UnclaimedTmuxSession} from '@vt/agent-runtime/terminals/tmux/unclaimed-tmux'
+import {detectCliType} from '@vt/agent-runtime/spawn/headlessCli'
+import {buildTmuxSessionName} from '@vt/agent-runtime/terminals/tmux/tmux-session-manager'
+import {parseVoicetreeTmuxSessionName} from '@vt/agent-runtime/terminals/tmux/unclaimed-tmux'
+import {isoToMsOrZero} from '../horizon'
+import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from '../types'
 
 export type ClassifierInput = {
     /**
@@ -144,11 +144,53 @@ function extractNamespaceHash(sessionName: string): string | null {
     return parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
 }
 
+function coalesceEmpty(value: string | undefined): string | undefined {
+    return value && value.length > 0 ? value : undefined
+}
+
+function compactDefined<T extends object>(obj: T): Partial<T> {
+    return Object.fromEntries(
+        Object.entries(obj).filter(([, v]) => v !== undefined && v !== null),
+    ) as Partial<T>
+}
+
+function buildRecoverableSession(
+    metadata: TmuxTerminalMetadata,
+    terminalData: TerminalData,
+    sessionName: string,
+    metadataPath: string,
+    input: ClassifierInput,
+): RecoverableAgentSession {
+    const terminalId = metadata.name as TerminalId
+    const liveSession: UnclaimedTmuxSession | undefined = input.liveTmuxSessionsByName.get(sessionName)
+    const endedAtMs: number = isoToMsOrZero(metadata.endedAt)
+    const killReasonRaw: string | undefined = typeof metadata.killReason === 'string' ? metadata.killReason : undefined
+
+    return {
+        terminalId,
+        agentName: terminalData.agentName ?? metadata.name,
+        metadataPath,
+        terminalData,
+        isClaimed: input.registryTerminalIds.has(metadata.name),
+        status: metadata.status,
+        ...compactDefined({
+            attach: liveSession ? {session: liveSession} : undefined,
+            resume: input.resumeHandleByTerminalId.get(terminalId),
+            worktreeName: terminalData.worktreeName,
+            title: coalesceEmpty(terminalData.title),
+            agentTypeName: coalesceEmpty(terminalData.agentTypeName),
+            startedAt: metadata.startedAt,
+            endedAt: metadata.endedAt,
+            closedAt: endedAtMs > 0 ? endedAtMs : undefined,
+            killReason: coalesceEmpty(killReasonRaw),
+        }),
+    }
+}
+
 function classifyRecord(record: MetadataRecord, input: ClassifierInput): RecoveryClassification {
     const metadata = validateMetadata(record.data)
     if (!metadata) return {kind: 'dropped', reason: 'invalid', metadataPath: record.path}
 
-    const terminalId = metadata.name as TerminalId
     const sessionName: string = resolveSessionName(metadata)
 
     if (input.currentNamespaceHash !== null) {
@@ -159,41 +201,13 @@ function classifyRecord(record: MetadataRecord, input: ClassifierInput): Recover
     }
 
     const terminalData: TerminalData | null = normalizeMetadataTerminalData(metadata)
+    // Without terminalData we can't surface a useful row — the UI needs it
+    // for context node, env vars, and initial command. Treat as invalid.
     if (!terminalData) {
-        // Without terminalData we can't surface a useful row — the UI needs it
-        // for context node, env vars, and initial command. Treat as invalid.
         return {kind: 'dropped', reason: 'invalid', metadataPath: record.path}
     }
 
-    const liveSession: UnclaimedTmuxSession | undefined = input.liveTmuxSessionsByName.get(sessionName)
-    const attach: AttachCapability | undefined = liveSession ? {session: liveSession} : undefined
-    const resume: ResumeCapability | undefined = input.resumeHandleByTerminalId.get(terminalId)
-
-    const worktreeName: string | undefined = terminalData.worktreeName
-    const title: string | undefined = terminalData.title && terminalData.title.length > 0 ? terminalData.title : undefined
-    const agentTypeName: string | undefined = terminalData.agentTypeName && terminalData.agentTypeName.length > 0 ? terminalData.agentTypeName : undefined
-    const killReason: string | undefined = typeof metadata.killReason === 'string' && metadata.killReason.length > 0 ? metadata.killReason : undefined
-    const endedAtMs: number = isoToMsOrZero(metadata.endedAt)
-
-    const recoverable: RecoverableAgentSession = {
-        terminalId,
-        agentName: terminalData.agentName ?? metadata.name,
-        metadataPath: record.path,
-        terminalData,
-        isClaimed: input.registryTerminalIds.has(metadata.name),
-        status: metadata.status,
-        ...(attach ? {attach} : {}),
-        ...(resume ? {resume} : {}),
-        ...(worktreeName ? {worktreeName} : {}),
-        ...(title ? {title} : {}),
-        ...(agentTypeName ? {agentTypeName} : {}),
-        ...(metadata.startedAt ? {startedAt: metadata.startedAt} : {}),
-        ...(metadata.endedAt ? {endedAt: metadata.endedAt} : {}),
-        ...(endedAtMs > 0 ? {closedAt: endedAtMs} : {}),
-        ...(killReason ? {killReason} : {}),
-    }
-
-    return {kind: 'recoverable', record: recoverable}
+    return {kind: 'recoverable', record: buildRecoverableSession(metadata, terminalData, sessionName, record.path, input)}
 }
 
 /**
