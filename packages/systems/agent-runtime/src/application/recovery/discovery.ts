@@ -1,6 +1,6 @@
-import {getRecoveryEnv, getRuntimeEnv, type RecoveryEnv} from '../runtime/runtime-config'
+import {getRuntimeEnv, type RecoveryEnv} from '../runtime/runtime-config'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
-import {readMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
+import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
 import {
     getCurrentTmuxNamespaceHash,
@@ -9,16 +9,16 @@ import {
     type UnclaimedTmuxSession,
 } from '../terminals/tmux/unclaimed-tmux'
 import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
+import {detectCliType} from '../spawn/headlessCli'
 import {
     classifyRecoveryCandidates,
-    detectSupportedCliFromMetadata,
     type MetadataRecord,
 } from './classifier/classifier'
 import {isoToMsOrZero, resolveRecoveryHorizonMs} from './horizon'
 import {getRecoveryMetadataDir} from './paths'
 import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
-export type DiscoverRecoveryDeps = {
+type DiscoverRecoveryDeps = {
     readonly readVaultMetadataDir: () => Promise<readonly MetadataRecord[]>
     readonly listLiveUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSession[]>
     readonly getRegistryTerminalIds: () => ReadonlySet<string>
@@ -103,18 +103,17 @@ function applyHorizon(
  * agent that never wrote a transcript) are dropped — there's nothing the UI
  * could do with them.
  */
-export async function discoverRecoverableAgentSessionsWithEnv(
+export async function discoverRecoverableAgentSessions(
     env: RecoveryEnv,
-    deps?: DiscoverRecoveryDeps,
     opts: DiscoverRecoveryOptions = {},
+    deps: DiscoverRecoveryDeps = defaultDiscoverRecoveryDeps(env),
 ): Promise<readonly RecoverableAgentSession[]> {
-    const resolvedDeps: DiscoverRecoveryDeps = deps ?? defaultDiscoverRecoveryDepsWithEnv(env)
     const [metadataRecords, liveUnclaimed, currentNamespaceHash] = await Promise.all([
-        resolvedDeps.readVaultMetadataDir(),
-        resolvedDeps.listLiveUnclaimedTmuxSessions(),
-        resolvedDeps.getCurrentNamespaceHash(),
+        deps.readVaultMetadataDir(),
+        deps.listLiveUnclaimedTmuxSessions(),
+        deps.getCurrentNamespaceHash(),
     ])
-    const registryTerminalIds: ReadonlySet<string> = resolvedDeps.getRegistryTerminalIds()
+    const registryTerminalIds: ReadonlySet<string> = deps.getRegistryTerminalIds()
     const liveTmuxSessionsByName: ReadonlyMap<string, UnclaimedTmuxSession> = new Map(
         liveUnclaimed.map((session) => [session.sessionName, session]),
     )
@@ -155,22 +154,6 @@ export async function discoverRecoverableAgentSessionsWithEnv(
         : opts.horizonMs
     const withinHorizon: readonly RecoverableAgentSession[] = applyHorizon(recoverable, horizonMs, env.now())
     return sortRecords(withinHorizon)
-}
-
-/**
- * Convenience binding: reads the recovery env from the configured runtime
- * registry and dispatches. Preserves the legacy zero-arg call shape consumed
- * by the api/agent-runtime-api.ts re-export surface and the sessions/* default
- * deps factories, so those callers don't need env threading yet.
- *
- * Callers that already hold a `RecoveryEnv` should call
- * `discoverRecoverableAgentSessionsWithEnv(env, ...)` directly.
- */
-export async function discoverRecoverableAgentSessions(
-    deps?: DiscoverRecoveryDeps,
-    opts: DiscoverRecoveryOptions = {},
-): Promise<readonly RecoverableAgentSession[]> {
-    return discoverRecoverableAgentSessionsWithEnv(getRecoveryEnv(), deps, opts)
 }
 
 function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAgentSession {
@@ -240,6 +223,18 @@ function detectResumeCapabilitiesFromMetadata(
     return out
 }
 
+/**
+ * Which supported CLI does this metadata target (if any)? Used to gate the
+ * resolver work — only records pointing at `claude` or `codex` get a native
+ * session id at click time.
+ */
+function detectSupportedCliFromMetadata(metadata: TmuxTerminalMetadata): 'claude' | 'codex' | null {
+    const initialCommand: string | undefined = metadata.terminalData?.initialCommand
+    if (!initialCommand) return null
+    const cliType = detectCliType(initialCommand)
+    return cliType === 'claude' || cliType === 'codex' ? cliType : null
+}
+
 async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
     // Canonical location is always `<projectRoot>/.voicetree/terminals/`.
     // `writeFolder` is intentionally NOT consulted: the historical
@@ -273,7 +268,7 @@ function readMetadataDir(env: RecoveryEnv, dir: string): readonly MetadataRecord
     return records
 }
 
-export function defaultDiscoverRecoveryDepsWithEnv(env: RecoveryEnv): DiscoverRecoveryDeps {
+function defaultDiscoverRecoveryDeps(env: RecoveryEnv): DiscoverRecoveryDeps {
     return {
         readVaultMetadataDir: async (): Promise<readonly MetadataRecord[]> => {
             const dir: string | null = await resolveCurrentVaultMetadataDir()
@@ -288,16 +283,3 @@ export function defaultDiscoverRecoveryDepsWithEnv(env: RecoveryEnv): DiscoverRe
     }
 }
 
-/**
- * Convenience binding for the sessions/* default deps factories: pulls the
- * recovery env from the configured runtime and dispatches. Preserves the
- * pre-Pattern-3 zero-arg call shape, so callers that haven't been env-threaded
- * yet keep compiling.
- */
-export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
-    return defaultDiscoverRecoveryDepsWithEnv(getRecoveryEnv())
-}
-
-// Re-export for convenience: callers building custom deps that still want to
-// share the on-disk metadata reader.
-export {readMetadata}

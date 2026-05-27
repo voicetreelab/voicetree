@@ -50,7 +50,7 @@ export async function refreshRecoverySessions(
             : (typeof horizonDays === 'number' ? horizonDays * 24 * 60 * 60 * 1000 : undefined)
         const opts = horizonMs === undefined ? undefined : {horizonMs}
         const sessions: readonly RecoverableAgentSession[] = opts
-            ? await terminalRuntimeSurface.discoverRecoverableAgentSessions(undefined, opts)
+            ? await terminalRuntimeSurface.discoverRecoverableAgentSessions(opts)
             : await terminalRuntimeSurface.discoverRecoverableAgentSessions()
         publishRecoverySessions(sessions)
         return sessions

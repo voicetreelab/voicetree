@@ -1,9 +1,14 @@
-import type {ClassifierInput, MetadataRecord} from './classifier'
+import {classifyRecoveryCandidates, type MetadataRecord} from './classifier'
 import type {TerminalData} from '../terminals/terminal-registry/types'
 import {buildTmuxNamespaceHash} from '../terminals/tmux/tmux-session-manager'
 import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
 import type {ResumeCapability} from './types'
 import * as O from 'fp-ts/lib/Option.js'
+
+// Derive the classifier's input type from its function signature so fixtures
+// don't need a separate exported type from classifier.ts (keeps the public
+// surface of the recovery community minimal).
+type ClassifierInput = Parameters<typeof classifyRecoveryCandidates>[0]
 
 // VAULT_PATH is used consistently so that computed session names (via
 // buildTmuxSessionName) match SESSION_A in tests that omit the session field.

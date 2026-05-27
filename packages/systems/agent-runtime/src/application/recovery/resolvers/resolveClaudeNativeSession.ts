@@ -1,7 +1,7 @@
 import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {matchClaudeSessionId, type ClaudeTranscriptRecord} from './claude-transcript-matcher'
 
-export type ResolveClaudeRequest = {
+type ResolveClaudeRequest = {
     readonly terminalId: string
     readonly projectRoot: string
     readonly taskNodePath: string
@@ -27,16 +27,9 @@ export type ResolveClaudeResult =
     | {readonly kind: 'found'; readonly sessionId: string; readonly providerStorePath: string}
     | {readonly kind: 'not-found'; readonly reason: ClaudeMissReason}
 
-export type ClaudeTranscriptsList =
+type ClaudeTranscriptsList =
     | {readonly kind: 'transcripts'; readonly paths: readonly string[]}
     | {readonly kind: 'projects-dir-missing'}
-
-export type ResolveClaudeDeps = {
-    readonly listProjectTranscripts: () => ClaudeTranscriptsList
-    readonly fileModifiedAt: (filePath: string) => number       // epoch ms
-    readonly readJsonlLines: (filePath: string) => readonly ClaudeTranscriptRecord[]
-    readonly now: () => number                                  // epoch ms
-}
 
 const DEFAULT_RECENCY_WINDOW_MS = 24 * 60 * 60 * 1000
 const DEFAULT_SCAN_TIMEOUT_MS = 10 * 1000
@@ -54,29 +47,30 @@ const DEFAULT_SCAN_TIMEOUT_MS = 10 * 1000
  * so an O(files) deadline check is sufficient to bound total wall time.
  */
 export async function resolveClaudeNativeSession(
+    env: RecoveryEnv,
     request: ResolveClaudeRequest,
-    deps: ResolveClaudeDeps,
 ): Promise<ResolveClaudeResult> {
+    const projectsRoot: string = env.recoveryConfig.claudeProjectsDir
     const recencyWindowMs: number = request.recencyWindowMs ?? DEFAULT_RECENCY_WINDOW_MS
     const scanTimeoutMs: number = request.scanTimeoutMs ?? DEFAULT_SCAN_TIMEOUT_MS
-    const startMs: number = deps.now()
+    const startMs: number = env.now()
     const deadlineMs: number = startMs + scanTimeoutMs
     const cutoff: number = startMs - recencyWindowMs
 
-    const list: ClaudeTranscriptsList = deps.listProjectTranscripts()
+    const list: ClaudeTranscriptsList = listProjectTranscripts(env, projectsRoot)
     if (list.kind === 'projects-dir-missing') return {kind: 'not-found', reason: 'projects-dir-missing'}
 
     const recent: Array<{readonly path: string; readonly mtime: number}> = []
     for (const filePath of list.paths) {
-        const mtime: number = deps.fileModifiedAt(filePath)
+        const mtime: number = fileModifiedAt(env, filePath)
         if (mtime >= cutoff) recent.push({path: filePath, mtime})
     }
     if (recent.length === 0) return {kind: 'not-found', reason: 'no-jsonl-matches'}
     recent.sort((a, b) => b.mtime - a.mtime)
 
     for (const {path: filePath} of recent) {
-        if (deps.now() > deadlineMs) return {kind: 'not-found', reason: 'scan-timeout'}
-        const records: readonly ClaudeTranscriptRecord[] = deps.readJsonlLines(filePath)
+        if (env.now() > deadlineMs) return {kind: 'not-found', reason: 'scan-timeout'}
+        const records: readonly ClaudeTranscriptRecord[] = parseJsonlLines(env.fs.readFileUtf8(filePath))
         const sessionId: string | null = matchClaudeSessionId({
             records,
             terminalId: request.terminalId,
@@ -86,6 +80,19 @@ export async function resolveClaudeNativeSession(
         if (sessionId) return {kind: 'found', sessionId, providerStorePath: filePath}
     }
     return {kind: 'not-found', reason: 'marker-mismatch'}
+}
+
+function listProjectTranscripts(env: RecoveryEnv, projectsRoot: string): ClaudeTranscriptsList {
+    if (!env.fs.existsSync(projectsRoot)) return {kind: 'projects-dir-missing'}
+    // env.fs.readdirSync may throw on the root if it disappears between
+    // the existsSync check and the walk; defer such races to the caller
+    // (resolveClaudeNativeSession returns 'projects-dir-missing' for an
+    // absent root, and an empty file list otherwise).
+    try {
+        return {kind: 'transcripts', paths: listJsonlFilesRecursive(env, projectsRoot)}
+    } catch {
+        return {kind: 'transcripts', paths: []}
+    }
 }
 
 function listJsonlFilesRecursive(env: RecoveryEnv, root: string): readonly string[] {
@@ -104,6 +111,11 @@ function listJsonlFilesRecursive(env: RecoveryEnv, root: string): readonly strin
     return results
 }
 
+function fileModifiedAt(env: RecoveryEnv, filePath: string): number {
+    const stat = env.fs.statSync(filePath)
+    return stat ? stat.mtimeMs : 0
+}
+
 function parseJsonlLines(raw: string): readonly ClaudeTranscriptRecord[] {
     const records: ClaudeTranscriptRecord[] = []
     for (const line of raw.split('\n')) {
@@ -116,28 +128,4 @@ function parseJsonlLines(raw: string): readonly ClaudeTranscriptRecord[] {
         }
     }
     return records
-}
-
-export function defaultResolveClaudeDeps(env: RecoveryEnv, projectsRoot: string): ResolveClaudeDeps {
-    return {
-        listProjectTranscripts: (): ClaudeTranscriptsList => {
-            if (!env.fs.existsSync(projectsRoot)) return {kind: 'projects-dir-missing'}
-            // env.fs.readdirSync may throw on the root if it disappears between
-            // the existsSync check and the walk; defer such races to the caller
-            // (resolveClaudeNativeSession returns 'projects-dir-missing' for an
-            // absent root, and an empty file list otherwise).
-            try {
-                return {kind: 'transcripts', paths: listJsonlFilesRecursive(env, projectsRoot)}
-            } catch {
-                return {kind: 'transcripts', paths: []}
-            }
-        },
-        fileModifiedAt: (filePath: string): number => {
-            const stat = env.fs.statSync(filePath)
-            return stat ? stat.mtimeMs : 0
-        },
-        readJsonlLines: (filePath: string): readonly ClaudeTranscriptRecord[] =>
-            parseJsonlLines(env.fs.readFileUtf8(filePath)),
-        now: env.now,
-    }
 }

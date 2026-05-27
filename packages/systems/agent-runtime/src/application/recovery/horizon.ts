@@ -1,7 +1,7 @@
 const MS_PER_DAY: number = 24 * 60 * 60 * 1000
 const DEFAULT_HORIZON_DAYS: number = 7
 
-export const RECOVERY_HORIZON_MS: number = DEFAULT_HORIZON_DAYS * MS_PER_DAY
+const RECOVERY_HORIZON_MS: number = DEFAULT_HORIZON_DAYS * MS_PER_DAY
 
 /**
  * Resolve the active recovery-horizon window in ms from a caller-supplied

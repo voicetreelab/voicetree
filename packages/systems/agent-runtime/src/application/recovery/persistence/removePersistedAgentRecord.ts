@@ -1,4 +1,4 @@
-import {getRecoveryEnv, getRuntimeEnv, type RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import {getRuntimeEnv, type RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime/terminals/terminal-registry/index.ts'
 import {getRecoveryMetadataDir} from '../paths'
 
@@ -59,7 +59,7 @@ const SIBLING_SUFFIXES: readonly string[] = ['.json', '.log', '-prompt.txt', '.e
  * `isInLiveRegistry` and provide an env whose `unlink` records the paths it
  * receives.
  */
-export async function removePersistedAgentRecordWithEnv(
+export async function removePersistedAgentRecord(
     env: RecoveryEnv,
     terminalId: string,
     deps?: Partial<RemovePersistedAgentRecordDeps>,
@@ -67,8 +67,8 @@ export async function removePersistedAgentRecordWithEnv(
     if (!SAFE_TERMINAL_ID_REGEX.test(terminalId)) return {kind: 'invalid-id'}
 
     const resolved: RemovePersistedAgentRecordDeps = {
-        ...defaultRemovePersistedAgentRecordDeps(),
-        ...deps,
+        getProjectRoot: deps?.getProjectRoot ?? defaultGetProjectRoot,
+        isInLiveRegistry: deps?.isInLiveRegistry ?? defaultIsInLiveRegistry,
     }
 
     if (resolved.isInLiveRegistry(terminalId)) {
@@ -102,36 +102,18 @@ export async function removePersistedAgentRecordWithEnv(
     return {kind: 'removed'}
 }
 
-/**
- * Convenience binding: pulls the recovery env from the configured runtime and
- * dispatches. Used by the api/agent-runtime-api.ts re-export surface so the
- * Electron + MCP boot paths don't need env threading yet.
- *
- * Callers that already hold a `RecoveryEnv` should call
- * `removePersistedAgentRecordWithEnv(env, terminalId, deps)` directly.
- */
-export async function removePersistedAgentRecord(
-    terminalId: string,
-    deps?: Partial<RemovePersistedAgentRecordDeps>,
-): Promise<RemovePersistedAgentRecordResult> {
-    return removePersistedAgentRecordWithEnv(getRecoveryEnv(), terminalId, deps)
+async function defaultGetProjectRoot(): Promise<string | null> {
+    const probe: (() => Promise<string | null>) | undefined = getRuntimeEnv().getProjectRoot
+    return probe ? probe() : null
+}
+
+function defaultIsInLiveRegistry(terminalId: string): boolean {
+    const records: readonly TerminalRecord[] = getTerminalRecords()
+    return records.some((record: TerminalRecord): boolean => record.terminalId === terminalId)
 }
 
 function isFileNotFoundError(error: unknown): boolean {
     if (typeof error !== 'object' || error === null) return false
     const code: unknown = (error as {code?: unknown}).code
     return code === 'ENOENT'
-}
-
-export function defaultRemovePersistedAgentRecordDeps(): RemovePersistedAgentRecordDeps {
-    return {
-        getProjectRoot: async (): Promise<string | null> => {
-            const probe: (() => Promise<string | null>) | undefined = getRuntimeEnv().getProjectRoot
-            return probe ? probe() : null
-        },
-        isInLiveRegistry: (terminalId: string): boolean => {
-            const records: readonly TerminalRecord[] = getTerminalRecords()
-            return records.some((record: TerminalRecord): boolean => record.terminalId === terminalId)
-        },
-    }
 }

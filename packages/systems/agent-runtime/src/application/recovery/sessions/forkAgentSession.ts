@@ -1,20 +1,17 @@
-import {
-    discoverRecoverableAgentSessions,
-    defaultDiscoverRecoveryDeps,
-    type DiscoverRecoveryDeps,
-} from './discovery'
-import {buildResumeCommand, type ResumeMode} from '../spawn/resumeCli'
-import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
-import {getExistingAgentNames} from '../terminals/terminal-registry'
+import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import {discoverRecoverableAgentSessions} from '../discovery'
+import {buildResumeCommand, type ResumeMode} from '@vt/agent-runtime/spawn/resumeCli.ts'
+import {spawnTmuxBackedTerminal} from '@vt/agent-runtime/headless/tmuxHeadlessRuntime.ts'
+import {getExistingAgentNames} from '@vt/agent-runtime/terminals/terminal-registry/index.ts'
 import {getUniqueAgentName} from '@vt/graph-model/settings'
 import {
-    defaultResolveNativeSession,
+    resolveNativeSession,
     type NativeSessionMissReason,
     type NativeSessionResult,
     type ResolveNativeSession,
-} from './resolvers/resolveNativeSession'
-import type {RecoverableAgentSession} from './types'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+} from '../resolvers/resolveNativeSession'
+import type {RecoverableAgentSession} from '../types'
+import type {TerminalData, TerminalId} from '@vt/agent-runtime/terminals/terminal-registry/types.ts'
 
 export type ForkAgentSessionDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>
@@ -62,8 +59,9 @@ function modeFor(terminalData: TerminalData): ResumeMode {
  * `resumePersistedAgentSession`.
  */
 export async function forkAgentSession(
+    env: RecoveryEnv,
     sourceTerminalId: TerminalId,
-    deps: ForkAgentSessionDeps = defaultForkAgentDeps(),
+    deps: ForkAgentSessionDeps = defaultForkAgentDeps(env),
 ): Promise<ForkAgentSessionResult> {
     const sessions: readonly RecoverableAgentSession[] = await deps.discover()
     const source: RecoverableAgentSession | undefined = sessions.find((s) => s.terminalId === sourceTerminalId)
@@ -99,7 +97,7 @@ export async function forkAgentSession(
 
     const forkedAgentName: string = deps.allocateForkAgentName(source.agentName)
     const forkedTerminalId: TerminalId = forkedAgentName as TerminalId
-    const env: Record<string, string> = {
+    const spawnEnvVars: Record<string, string> = {
         ...(source.terminalData.initialEnvVars ?? {}),
         VOICETREE_TERMINAL_ID: forkedTerminalId,
         AGENT_NAME: forkedAgentName,
@@ -110,7 +108,7 @@ export async function forkAgentSession(
         agentName: forkedAgentName,
         title: forkedAgentName,
         parentTerminalId: sourceTerminalId,
-        initialEnvVars: env,
+        initialEnvVars: spawnEnvVars,
         initialCommand,  // preserve the original command so future forks/resumes have the same base
     }
     const cwd: string | undefined = source.terminalData.initialSpawnDirectory
@@ -120,7 +118,7 @@ export async function forkAgentSession(
             forkedTerminalData,
             built.command,
             cwd,
-            env,
+            spawnEnvVars,
         )
         return {kind: 'spawned', forkedTerminalId, pid: result.pid, command: built.command, terminalData: forkedTerminalData}
     } catch (error) {
@@ -128,16 +126,13 @@ export async function forkAgentSession(
     }
 }
 
-export function defaultForkAgentDeps(
-    discoveryDeps: DiscoverRecoveryDeps = defaultDiscoverRecoveryDeps(),
-): ForkAgentSessionDeps {
+function defaultForkAgentDeps(env: RecoveryEnv): ForkAgentSessionDeps {
     return {
-        discover: () => discoverRecoverableAgentSessions(discoveryDeps),
-        resolveNativeSession: defaultResolveNativeSession,
-        allocateForkAgentName: (sourceAgentName: string): string => {
-            return getUniqueAgentName(sourceAgentName, getExistingAgentNames())
-        },
-        spawn: (terminalId, terminalData, command, cwd, env) =>
-            spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env),
+        discover: () => discoverRecoverableAgentSessions(env),
+        resolveNativeSession: (request) => resolveNativeSession(env, request),
+        allocateForkAgentName: (sourceAgentName: string): string =>
+            getUniqueAgentName(sourceAgentName, getExistingAgentNames()),
+        spawn: (terminalId, terminalData, command, cwd, spawnEnv) =>
+            spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, spawnEnv),
     }
 }

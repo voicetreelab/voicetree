@@ -1,18 +1,15 @@
+import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import {discoverRecoverableAgentSessions} from '../discovery'
+import {buildResumeCommand, type ResumeMode} from '@vt/agent-runtime/spawn/resumeCli.ts'
+import {spawnTmuxBackedTerminal} from '@vt/agent-runtime/headless/tmuxHeadlessRuntime.ts'
 import {
-    discoverRecoverableAgentSessions,
-    defaultDiscoverRecoveryDeps,
-    type DiscoverRecoveryDeps,
-} from './discovery'
-import {buildResumeCommand, type ResumeMode} from '../spawn/resumeCli'
-import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
-import {
-    defaultResolveNativeSession,
+    resolveNativeSession,
     type NativeSessionMissReason,
     type NativeSessionResult,
     type ResolveNativeSession,
-} from './resolvers/resolveNativeSession'
-import type {RecoverableAgentSession} from './types'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+} from '../resolvers/resolveNativeSession'
+import type {RecoverableAgentSession} from '../types'
+import type {TerminalData, TerminalId} from '@vt/agent-runtime/terminals/terminal-registry/types.ts'
 
 export type ResumePersistedDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>
@@ -60,8 +57,9 @@ function modeFor(terminalData: TerminalData): ResumeMode {
  * a clean message instead of a generic spawn failure.
  */
 export async function resumePersistedAgentSession(
+    env: RecoveryEnv,
     terminalId: TerminalId,
-    deps: ResumePersistedDeps = defaultResumePersistedDeps(),
+    deps: ResumePersistedDeps = defaultResumePersistedDeps(env),
 ): Promise<ResumePersistedResult> {
     const sessions: readonly RecoverableAgentSession[] = await deps.discover()
     const session: RecoverableAgentSession | undefined = sessions.find((s) => s.terminalId === terminalId)
@@ -96,7 +94,7 @@ export async function resumePersistedAgentSession(
     })
     if (built.kind === 'unsupported') return {kind: 'unsupported', reason: built.reason}
 
-    const env: Record<string, string> = session.terminalData.initialEnvVars ?? {}
+    const spawnEnvVars: Record<string, string> = session.terminalData.initialEnvVars ?? {}
     const cwd: string | undefined = session.terminalData.initialSpawnDirectory
     try {
         const result: {readonly pid: number} = await deps.spawn(
@@ -104,7 +102,7 @@ export async function resumePersistedAgentSession(
             session.terminalData,
             built.command,
             cwd,
-            env,
+            spawnEnvVars,
         )
         return {kind: 'spawned', pid: result.pid, command: built.command, terminalData: session.terminalData}
     } catch (error) {
@@ -112,13 +110,11 @@ export async function resumePersistedAgentSession(
     }
 }
 
-export function defaultResumePersistedDeps(
-    discoveryDeps: DiscoverRecoveryDeps = defaultDiscoverRecoveryDeps(),
-): ResumePersistedDeps {
+function defaultResumePersistedDeps(env: RecoveryEnv): ResumePersistedDeps {
     return {
-        discover: () => discoverRecoverableAgentSessions(discoveryDeps),
-        resolveNativeSession: defaultResolveNativeSession,
-        spawn: (terminalId, terminalData, command, cwd, env) =>
-            spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env),
+        discover: () => discoverRecoverableAgentSessions(env),
+        resolveNativeSession: (request) => resolveNativeSession(env, request),
+        spawn: (terminalId, terminalData, command, cwd, spawnEnv) =>
+            spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, spawnEnv),
     }
 }

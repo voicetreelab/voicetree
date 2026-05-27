@@ -2,13 +2,12 @@ import * as O from 'fp-ts/lib/Option.js'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
-import {detectCliType} from '../spawn/headlessCli'
 import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
 import {isoToMsOrZero} from './horizon'
 import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
-export type ClassifierInput = {
+type ClassifierInput = {
     /**
      * Raw parsed JSON objects (already JSON.parse'd) with their source file paths.
      * The classifier validates shape and drops malformed records.
@@ -214,15 +213,3 @@ export function classifyRecoveryCandidates(input: ClassifierInput): readonly Rec
     return input.metadataRecords.map((record) => classifyRecord(record, input))
 }
 
-/**
- * Convenience: which supported CLI does this metadata target (if any)?
- *
- * Used by discovery to decide whether to spend a resolver call on a record.
- * Returns null for unsupported CLIs, missing initialCommand, or invalid metadata.
- */
-export function detectSupportedCliFromMetadata(metadata: TmuxTerminalMetadata): 'claude' | 'codex' | null {
-    const initialCommand: string | undefined = metadata.terminalData?.initialCommand
-    if (!initialCommand) return null
-    const cliType = detectCliType(initialCommand)
-    return cliType === 'claude' || cliType === 'codex' ? cliType : null
-}

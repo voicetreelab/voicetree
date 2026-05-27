@@ -1,4 +1,4 @@
-import {getRecoveryEnv, type RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 
 import {getRecoveryMetadataDir} from '../paths'
 
@@ -58,7 +58,7 @@ function writeMigratedStub(env: RecoveryEnv, legacyDir: string, canonicalDir: st
  * or the legacy directory does not exist. Conflicts keep the canonical copy
  * and leave the legacy entry untouched.
  */
-export function migrateLegacyTerminalDirWithEnv(
+export function migrateLegacyTerminalDir(
     env: RecoveryEnv,
     args: MigrateLegacyTerminalDirArgs,
 ): MigrateLegacyTerminalDirResult {
@@ -104,16 +104,4 @@ export function migrateLegacyTerminalDirWithEnv(
     if (moved.length > 0) writeMigratedStub(env, legacyDir, canonicalDir)
 
     return {moved, conflicts, skipped}
-}
-
-/**
- * Convenience binding: pulls the recovery env from the configured runtime and
- * dispatches. Used by the api/agent-runtime-api.ts re-export surface so the
- * Electron + MCP boot paths don't need env threading yet.
- *
- * Callers that already hold a `RecoveryEnv` should call
- * `migrateLegacyTerminalDirWithEnv(env, args)` directly.
- */
-export function migrateLegacyTerminalDir(args: MigrateLegacyTerminalDirArgs): MigrateLegacyTerminalDirResult {
-    return migrateLegacyTerminalDirWithEnv(getRecoveryEnv(), args)
 }

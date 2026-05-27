@@ -1,4 +1,4 @@
-export type ClaudeContentBlock = {
+type ClaudeContentBlock = {
     readonly type?: string
     readonly text?: string
 }
@@ -12,7 +12,7 @@ export type ClaudeTranscriptRecord = {
     }
 }
 
-export type ClaudeMatchInput = {
+type ClaudeMatchInput = {
     readonly records: readonly ClaudeTranscriptRecord[]
     readonly terminalId: string
     readonly projectRoot: string

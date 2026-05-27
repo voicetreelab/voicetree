@@ -1,7 +1,7 @@
 import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {matchCodexThreadId, type CodexThreadRow} from './codex-thread-matcher'
 
-export type ResolveCodexRequest = {
+type ResolveCodexRequest = {
     readonly terminalId: string
     readonly projectRoot: string
     readonly taskNodePath: string
@@ -29,16 +29,10 @@ export type ResolveCodexResult =
     | {readonly kind: 'found'; readonly sessionId: string; readonly providerStorePath?: string}
     | {readonly kind: 'not-found'; readonly reason: CodexMissReason; readonly diagnosticSessionId?: string}
 
-export type CodexQueryResult =
+type CodexQueryResult =
     | {readonly kind: 'rows'; readonly rows: readonly CodexThreadRow[]}
     | {readonly kind: 'db-missing'}
     | {readonly kind: 'db-schema-mismatch'}
-
-export type ResolveCodexDeps = {
-    readonly listRecentThreads: (sinceMs: number, limit: number) => CodexQueryResult
-    readonly listAnyThreads: (limit: number) => CodexQueryResult
-    readonly now: () => number
-}
 
 const DEFAULT_RECENCY_WINDOW_MS = 24 * 60 * 60 * 1000
 const DEFAULT_ROW_LIMIT = 200
@@ -56,19 +50,20 @@ const DEFAULT_ROW_LIMIT = 200
  *    the UI can offer a manual `codex resume <id>` copy command.
  */
 export function resolveCodexNativeSession(
+    env: RecoveryEnv,
     request: ResolveCodexRequest,
-    deps: ResolveCodexDeps,
 ): ResolveCodexResult {
+    const dbPath: string = env.recoveryConfig.codexStateDb
     const recencyWindowMs: number = request.recencyWindowMs ?? DEFAULT_RECENCY_WINDOW_MS
     const rowLimit: number = request.rowLimit ?? DEFAULT_ROW_LIMIT
-    const sinceMs: number = deps.now() - recencyWindowMs
+    const sinceMs: number = env.now() - recencyWindowMs
 
-    const recent: CodexQueryResult = deps.listRecentThreads(sinceMs, rowLimit)
+    const recent: CodexQueryResult = queryRows(env, dbPath, {limit: rowLimit, sinceMs})
     if (recent.kind === 'db-missing') return {kind: 'not-found', reason: 'db-missing'}
     if (recent.kind === 'db-schema-mismatch') return {kind: 'not-found', reason: 'db-schema-mismatch'}
 
     if (recent.rows.length === 0) {
-        const any: CodexQueryResult = deps.listAnyThreads(rowLimit)
+        const any: CodexQueryResult = queryRows(env, dbPath, {limit: rowLimit})
         if (any.kind === 'db-missing') return {kind: 'not-found', reason: 'db-missing'}
         if (any.kind === 'db-schema-mismatch') return {kind: 'not-found', reason: 'db-schema-mismatch'}
         if (any.rows.length === 0) return {kind: 'not-found', reason: 'no-rows'}
@@ -97,6 +92,12 @@ export function resolveCodexNativeSession(
         : {kind: 'found', sessionId}
 }
 
+function queryRows(env: RecoveryEnv, dbPath: string, opts: {readonly limit: number; readonly sinceMs?: number}): CodexQueryResult {
+    const result = env.sqlite.queryCodexThreads(dbPath, opts)
+    if (result.kind !== 'rows') return result
+    return {kind: 'rows', rows: result.rows.map(toCodexThreadRow)}
+}
+
 function toCodexThreadRow(raw: Record<string, unknown>): CodexThreadRow {
     return {
         id: String(raw.id ?? ''),
@@ -105,18 +106,5 @@ function toCodexThreadRow(raw: Record<string, unknown>): CodexThreadRow {
         created_at_ms: typeof raw.created_at_ms === 'number' ? raw.created_at_ms : undefined,
         updated_at_ms: typeof raw.updated_at_ms === 'number' ? raw.updated_at_ms : undefined,
         rollout_path: typeof raw.rollout_path === 'string' ? raw.rollout_path : undefined,
-    }
-}
-
-export function defaultResolveCodexDeps(env: RecoveryEnv, dbPath: string): ResolveCodexDeps {
-    const queryRows = (opts: {limit: number; sinceMs?: number}): CodexQueryResult => {
-        const result = env.sqlite.queryCodexThreads(dbPath, opts)
-        if (result.kind !== 'rows') return result
-        return {kind: 'rows', rows: result.rows.map(toCodexThreadRow)}
-    }
-    return {
-        listRecentThreads: (sinceMs: number, limit: number): CodexQueryResult => queryRows({sinceMs, limit}),
-        listAnyThreads: (limit: number): CodexQueryResult => queryRows({limit}),
-        now: env.now,
     }
 }

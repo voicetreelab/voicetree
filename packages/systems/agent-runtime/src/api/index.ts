@@ -22,20 +22,15 @@ export * from '../application/terminals/tmux/tmux-server'
 export * from '../application/terminals/tmux/unclaimed-tmux'
 
 export * from '../application/recovery/types'
-export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'
-export {resumePersistedAgentSession, defaultResumePersistedDeps, type ResumePersistedDeps, type ResumePersistedResult} from '../application/recovery/resumePersistedAgentSession'
-export {forkAgentSession, defaultForkAgentDeps, type ForkAgentSessionDeps, type ForkAgentSessionResult} from '../application/recovery/forkAgentSession'
-export {
-    migrateLegacyTerminalDir,
-    type MigrateLegacyTerminalDirArgs,
-    type MigrateLegacyTerminalDirResult,
-} from '../application/recovery/migrate-legacy-terminal-dir'
-export {
-    removePersistedAgentRecord,
-    defaultRemovePersistedAgentRecordDeps,
-    type RemovePersistedAgentRecordDeps,
-    type RemovePersistedAgentRecordResult,
-} from '../application/recovery/removePersistedAgentRecord'
+export {createRecoveryAPI, type RecoveryAPI} from '../application/recovery'
+// Result-type re-exports for renderer-side `Extract<>` discrimination. These
+// stay here (api/ community, not application/) so the recovery community's
+// boundary-width stays narrow while consumers can still type-narrow the
+// facade's return values.
+export type {ResumePersistedResult} from '../application/recovery/sessions/resumePersistedAgentSession'
+export type {ForkAgentSessionResult} from '../application/recovery/sessions/forkAgentSession'
+export type {RemovePersistedAgentRecordResult} from '../application/recovery/persistence/removePersistedAgentRecord'
+export type {MigrateLegacyTerminalDirResult} from '../application/recovery/persistence/migrate-legacy-terminal-dir'
 
 export * from '../application/headless/headlessAgentManager'
 

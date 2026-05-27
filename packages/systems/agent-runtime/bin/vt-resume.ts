@@ -24,9 +24,8 @@ import {spawnSync} from 'node:child_process'
 import {DatabaseSync} from 'node:sqlite'
 
 import {
+    agentRuntime,
     configureAgentRuntime,
-    discoverRecoverableAgentSessions,
-    resumePersistedAgentSession,
     type RecoverableAgentSession,
     type CodexThreadsQuery,
     type CodexThreadsQueryResult,
@@ -267,7 +266,7 @@ function formatRow(row: RecoverableAgentSession): string {
 
 async function runList(paths: ResolvedPaths): Promise<void> {
     configureRuntime(paths)
-    const sessions: readonly RecoverableAgentSession[] = await discoverRecoverableAgentSessions()
+    const sessions: readonly RecoverableAgentSession[] = await agentRuntime.discoverRecoverableAgentSessions()
     process.stdout.write(`project_root: ${paths.projectRoot}\n`)
     process.stdout.write(`vault:        ${paths.vault}\n\n`)
     if (sessions.length === 0) {
@@ -282,7 +281,7 @@ async function runList(paths: ResolvedPaths): Promise<void> {
 
 async function runResume(paths: ResolvedPaths, terminalId: string, noAttach: boolean): Promise<void> {
     configureRuntime(paths)
-    const sessions: readonly RecoverableAgentSession[] = await discoverRecoverableAgentSessions()
+    const sessions: readonly RecoverableAgentSession[] = await agentRuntime.discoverRecoverableAgentSessions()
     const target: RecoverableAgentSession | undefined = sessions.find((s) => s.terminalId === terminalId)
     if (!target) die(`terminal '${terminalId}' is not in discovery for project_root ${paths.projectRoot}.`)
 
@@ -297,7 +296,7 @@ async function runResume(paths: ResolvedPaths, terminalId: string, noAttach: boo
     process.stdout.write(
         `resuming '${terminalId}' via ${target.resume.cliType} (native session id resolved lazily by resolveNativeSession)\n`,
     )
-    const result = await resumePersistedAgentSession(target.terminalId)
+    const result = await agentRuntime.resumePersistedAgentSession(target.terminalId)
     if (result.kind !== 'spawned') {
         die(`resume failed: ${JSON.stringify(result)}`)
     }

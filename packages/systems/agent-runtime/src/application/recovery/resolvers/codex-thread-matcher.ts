@@ -7,7 +7,7 @@ export type CodexThreadRow = {
     readonly rollout_path?: string
 }
 
-export type CodexMatchInput = {
+type CodexMatchInput = {
     readonly rows: readonly CodexThreadRow[]
     readonly terminalId: string
     readonly projectRoot: string
