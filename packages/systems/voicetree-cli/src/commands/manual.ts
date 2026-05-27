@@ -11,10 +11,9 @@
  *       `vt manual "vt agent spawn"`
  *       `vt manual "agent spawn"`
  *
- * The MCP / RPC tool name (e.g. `spawn_agent`) is intentionally NOT a valid
- * selector: the CLI surface is canonical and the manual no longer carries
- * underscored daemon names in its section headers. To discover the RPC
- * parameter shape from a CLI verb, run `vt <verb> --help` — every flag's
+ * The daemon-side RPC tool name (e.g. `spawn_agent`) is intentionally NOT a
+ * valid selector: the CLI surface is canonical. To discover the RPC parameter
+ * shape from a CLI verb, run `vt <verb> --help` — every flag's
  * `(RPC: <param>)` annotation makes the mapping explicit.
  *
  * The on-disk markdown file is the source of truth for client-facing
@@ -182,7 +181,8 @@ function renderTool(tool: ManualTool): string {
         lines.push('')
         for (const param of tool.params) {
             const descriptionLines: readonly string[] = param.description.split('\n')
-            lines.push(`- \`${param.name}\`: ${descriptionLines[0]}`)
+            const annotation: string = param.annotation ? ` (${param.annotation})` : ''
+            lines.push(`- \`${param.name}\`${annotation}: ${descriptionLines[0]}`)
             for (const continuation of descriptionLines.slice(1)) {
                 lines.push(`  ${continuation}`)
             }

@@ -11,19 +11,22 @@
  *   **Parameters:**
  *
  *   - `<paramName>`: <single-line description>
+ *   - `<paramName>` (<annotation>): <single-line description>
  *   - `<paramName>`: <first line>
  *     <continuation indented two spaces — joined back with \n>
  *
- * Tools with no parameters omit the `**Parameters:**` block entirely.
+ * The optional `(<annotation>)` between the backticked name and the colon
+ * carries the JSON-RPC parameter name (e.g. `(RPC: agentName)`), positional
+ * marker (e.g. `(positional)`), or a combination (e.g. `(positional, RPC: …)`).
+ * The CLI surface is canonical; the annotation makes the verb ↔ RPC mapping
+ * explicit without polluting the param name token.
  *
- * The header carries the CLI verb only. The MCP / RPC tool name is no longer
- * encoded here — the CLI surface is canonical and the mapping CLI verb ↔ RPC
- * name lives next to each subcommand spec (see `commands/runtime/agentSpecs.ts`
- * for the agent verbs, and the daemon's `tools/catalog.ts` for the full set).
+ * Tools with no parameters omit the `**Parameters:**` block entirely.
  */
 
 export type ManualParam = {
     readonly name: string
+    readonly annotation: string
     readonly description: string
 }
 
@@ -34,7 +37,7 @@ export type ManualTool = {
 }
 
 const TOOL_HEADER: RegExp = /^### `([^`]+)`$/
-const PARAM_BULLET: RegExp = /^- `([^`]+)`:(?: (.*))?$/
+const PARAM_BULLET: RegExp = /^- `([^`]+)`(?:\s+\(([^)]+)\))?:(?: (.*))?$/
 const SINGLE_LINE_HTML_COMMENT: RegExp = /^<!--.*-->$/
 const HTML_COMMENT_OPEN: RegExp = /^<!--/
 const HTML_COMMENT_CLOSE: RegExp = /-->\s*$/
@@ -139,12 +142,16 @@ function stripTrailingEmpty(lines: readonly string[]): string[] {
 
 function parseParamBullets(lines: readonly string[]): readonly ManualParam[] {
     const params: ManualParam[] = []
-    let current: {name: string; descriptionLines: string[]} | null = null
+    let current: {name: string; annotation: string; descriptionLines: string[]} | null = null
 
     const flush: () => void = (): void => {
         if (!current) return
         const trimmed: string[] = stripTrailingEmpty(current.descriptionLines)
-        params.push({name: current.name, description: trimmed.join('\n')})
+        params.push({
+            name: current.name,
+            annotation: current.annotation,
+            description: trimmed.join('\n'),
+        })
         current = null
     }
 
@@ -154,7 +161,8 @@ function parseParamBullets(lines: readonly string[]): readonly ManualParam[] {
             flush()
             current = {
                 name: bulletMatch[1],
-                descriptionLines: [bulletMatch[2] ?? ''],
+                annotation: bulletMatch[2] ?? '',
+                descriptionLines: [bulletMatch[3] ?? ''],
             }
             continue
         }

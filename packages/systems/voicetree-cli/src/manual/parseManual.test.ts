@@ -22,8 +22,31 @@ describe('parseManual', () => {
         expect(tools[0].cliVerb).toBe('vt foo')
         expect(tools[0].description).toBe('Does foo things.')
         expect(tools[0].params).toEqual([
-            {name: 'bar', description: 'a single-line param'},
-            {name: 'baz', description: 'first line\ncontinuation line joined back with newline'},
+            {name: 'bar', annotation: '', description: 'a single-line param'},
+            {name: 'baz', annotation: '', description: 'first line\ncontinuation line joined back with newline'},
+        ])
+    })
+
+    it('extracts annotated bullets such as `name` (RPC: …): description', () => {
+        const markdown: string = [
+            '### `vt foo`',
+            '',
+            'Does foo things.',
+            '',
+            '**Parameters:**',
+            '',
+            '- `--name VALUE` (RPC: agentName): the agent name',
+            '- `<terminalId>...` (positional, RPC: terminalIds): one or more ids',
+            '- `--bare`: still parses with no annotation',
+            '',
+        ].join('\n')
+
+        const tools: readonly ManualTool[] = parseManual(markdown)
+
+        expect(tools[0].params).toEqual([
+            {name: '--name VALUE', annotation: 'RPC: agentName', description: 'the agent name'},
+            {name: '<terminalId>...', annotation: 'positional, RPC: terminalIds', description: 'one or more ids'},
+            {name: '--bare', annotation: '', description: 'still parses with no annotation'},
         ])
     })
 
@@ -54,7 +77,7 @@ describe('parseManual', () => {
         expect(tools.map((tool: ManualTool): string => tool.cliVerb)).toEqual(['vt foo', 'vt qux'])
         const foo: ManualTool = tools[0]
         expect(foo.description).toBe('Does foo things.')
-        expect(foo.params).toEqual([{name: 'bar', description: 'a param'}])
+        expect(foo.params).toEqual([{name: 'bar', annotation: '', description: 'a param'}])
     })
 
     it('skips multi-line HTML comment blocks', () => {
@@ -77,7 +100,7 @@ describe('parseManual', () => {
 
         expect(tools).toHaveLength(1)
         expect(tools[0].description).toBe('Foo description.')
-        expect(tools[0].params).toEqual([{name: 'bar', description: 'a param'}])
+        expect(tools[0].params).toEqual([{name: 'bar', annotation: '', description: 'a param'}])
     })
 
     it('skips HTML comments that interrupt the parameter bullet list', () => {
@@ -96,8 +119,8 @@ describe('parseManual', () => {
 
         expect(tools).toHaveLength(1)
         expect(tools[0].params).toEqual([
-            {name: 'a', description: 'alpha'},
-            {name: 'b', description: 'beta'},
+            {name: 'a', annotation: '', description: 'alpha'},
+            {name: 'b', annotation: '', description: 'beta'},
         ])
     })
 })
