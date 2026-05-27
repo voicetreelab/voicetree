@@ -47,25 +47,98 @@ function findManualPath(startUrl: string): string | undefined {
 }
 
 export function runManualCommand(args: readonly string[]): void {
-    const markdown: string = readManualFile()
+    process.stdout.write(resolveManualCommand(readManualFile(), args))
+}
 
+/**
+ * Pure core of `vt manual` — given the raw manual markdown and CLI args,
+ * return the bytes that should be written to stdout, or throw CliError with
+ * the user-facing not-found message. All IO stays in `runManualCommand`.
+ */
+export function resolveManualCommand(markdown: string, args: readonly string[]): string {
     if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] === 'help') {
-        process.stdout.write(markdown)
-        if (!markdown.endsWith('\n')) process.stdout.write('\n')
-        return
+        return markdown.endsWith('\n') ? markdown : `${markdown}\n`
     }
 
     const selector: string = normalizeSelector(args)
     const tools: readonly ManualTool[] = parseManual(markdown)
     const match: ManualTool | undefined = findToolBySelector(tools, selector)
     if (!match) {
-        const known: string = tools
-            .map((tool: ManualTool): string => `  ${tool.cliVerb}`)
-            .join('\n')
-        error(`vt manual: no tool matches \`${selector}\`. Known tools:\n${known}`)
+        error(buildNotFoundMessage(tools, selector))
     }
 
-    renderTool(match)
+    return renderTool(match)
+}
+
+/**
+ * Compose the error body shown when no tool matches the user's selector.
+ *
+ * Two distinct cases:
+ *   - `tools.length === 0` — parseManual returned nothing. This is almost
+ *     always a parser bug (regression of the HTML-comment fix, or a new
+ *     markdown construct the parser doesn't understand). Surface that
+ *     hypothesis directly so the next operator can diagnose it instantly
+ *     instead of staring at an empty "Known tools:" list.
+ *   - `tools.length > 0` — the selector simply didn't hit. Compute a few
+ *     close cliVerb suggestions ("Did you mean: …") and still print the
+ *     full list as a fallback browsing aid.
+ */
+function buildNotFoundMessage(tools: readonly ManualTool[], selector: string): string {
+    if (tools.length === 0) {
+        return `vt manual: parser produced no tools (likely parseManual bug). Run \`vt manual\` for the full manual.`
+    }
+    const suggestions: readonly ManualTool[] = rankSuggestions(tools, selector)
+    const lines: string[] = [`vt manual: no tool matches \`${selector}\`.`, 'Did you mean:']
+    for (const suggestion of suggestions) lines.push(`  ${suggestion.cliVerb}`)
+    lines.push('Or pick from the full list:')
+    for (const tool of tools) lines.push(`  ${tool.cliVerb}`)
+    return lines.join('\n')
+}
+
+/**
+ * Pick up to three cliVerb candidates closest to the user's selector using
+ * Levenshtein distance over a normalized form (strip the leading `vt`,
+ * fold `.`/`_`/`-` to spaces, collapse whitespace). The normalization is
+ * what makes `agent.spawn` and `vt agent spawn` collapse to the same token.
+ */
+function rankSuggestions(tools: readonly ManualTool[], selector: string): readonly ManualTool[] {
+    const normalizedSelector: string = normalizeForFuzzy(selector)
+    const scored: Array<{tool: ManualTool; distance: number}> = tools.map((tool: ManualTool): {tool: ManualTool; distance: number} => ({
+        tool,
+        distance: levenshtein(normalizeForFuzzy(tool.cliVerb), normalizedSelector),
+    }))
+    scored.sort((a: {tool: ManualTool; distance: number}, b: {tool: ManualTool; distance: number}): number => a.distance - b.distance)
+    return scored.slice(0, 3).map((entry: {tool: ManualTool; distance: number}): ManualTool => entry.tool)
+}
+
+function normalizeForFuzzy(input: string): string {
+    return input
+        .toLowerCase()
+        .replace(/^vt\s+/, '')
+        .replace(/[._\-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+function levenshtein(a: string, b: string): number {
+    if (a === b) return 0
+    if (a.length === 0) return b.length
+    if (b.length === 0) return a.length
+    let previous: number[] = []
+    for (let column: number = 0; column <= b.length; column += 1) previous.push(column)
+    for (let row: number = 1; row <= a.length; row += 1) {
+        const current: number[] = [row]
+        for (let column: number = 1; column <= b.length; column += 1) {
+            const cost: number = a.charCodeAt(row - 1) === b.charCodeAt(column - 1) ? 0 : 1
+            current.push(Math.min(
+                previous[column] + 1,
+                current[column - 1] + 1,
+                previous[column - 1] + cost,
+            ))
+        }
+        previous = current
+    }
+    return previous[b.length]
 }
 
 function readManualFile(): string {
@@ -96,7 +169,7 @@ function findToolBySelector(tools: readonly ManualTool[], selector: string): Man
     return tools.find((tool: ManualTool): boolean => tool.cliVerb.toLowerCase() === withPrefix)
 }
 
-function renderTool(tool: ManualTool): void {
+function renderTool(tool: ManualTool): string {
     const lines: string[] = []
     lines.push(`### \`${tool.cliVerb}\``)
     lines.push('')
@@ -115,5 +188,5 @@ function renderTool(tool: ManualTool): void {
             }
         }
     }
-    process.stdout.write(`${lines.join('\n')}\n`)
+    return `${lines.join('\n')}\n`
 }
