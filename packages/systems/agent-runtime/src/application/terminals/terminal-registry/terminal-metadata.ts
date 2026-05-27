@@ -13,7 +13,7 @@ export type NativeRecoveryHandle = {
 
 export type TmuxTerminalMetadata = {
     readonly name: string
-    readonly status: 'running' | 'exited'
+    readonly status: 'running' | 'exited' | 'killed'
     readonly pid?: number
     readonly session?: string
     readonly startedAt?: string
@@ -21,6 +21,7 @@ export type TmuxTerminalMetadata = {
     readonly exitCode?: number | null
     readonly exitCodeFile?: string
     readonly logFile?: string
+    readonly killReason?: string
     readonly terminalData?: TerminalData
     readonly recovery?: {
         readonly native?: NativeRecoveryHandle
