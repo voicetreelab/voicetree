@@ -225,7 +225,7 @@ export function spawnTmuxHeadlessAgent(
 
 export async function killTmuxHeadlessAgent(
     terminalId: TerminalId,
-    deps: Pick<HeadlessAgentDeps, 'markTerminalExited'> = defaultHeadlessAgentDeps,
+    deps: Pick<HeadlessAgentDeps, 'markTerminalExited' | 'processPid'> = defaultHeadlessAgentDeps,
 ): Promise<boolean> {
     const tmuxSession: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!tmuxSession) return false
@@ -237,7 +237,7 @@ export async function killTmuxHeadlessAgent(
     // callers (RPC closeHeadlessAgent, closeAgentTool) could hand control back
     // to the client while the session was still alive.
     await killSession(tmuxSession.sessionName).catch(() => undefined)
-    markTmuxMetadataExited(terminalId, null)
+    markTmuxMetadataExited(terminalId, deps.processPid, null)
     deletePromptFileByPath(tmuxSession.promptFilePath)
     deps.markTerminalExited(terminalId, null)
     return true

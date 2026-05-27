@@ -64,7 +64,7 @@ export function spawnHeadlessAgent(
  */
 export async function killHeadlessAgent(
     terminalId: TerminalId,
-    deps: Pick<HeadlessAgentDeps, 'markTerminalExited'> = defaultHeadlessAgentDeps,
+    deps: Pick<HeadlessAgentDeps, 'markTerminalExited' | 'processPid'> = defaultHeadlessAgentDeps,
 ): Promise<boolean> {
     return killTmuxHeadlessAgent(terminalId, deps)
 }
@@ -77,7 +77,7 @@ export async function killHeadlessAgent(
  */
 export async function closeHeadlessAgent(
     terminalId: TerminalId,
-    deps: Pick<HeadlessAgentDeps, 'markTerminalExited' | 'removeTerminalFromRegistry' | 'getTerminalRecords'> = defaultHeadlessAgentDeps,
+    deps: Pick<HeadlessAgentDeps, 'markTerminalExited' | 'removeTerminalFromRegistry' | 'getTerminalRecords' | 'processPid'> = defaultHeadlessAgentDeps,
 ): Promise<{closed: true; wasRunning: boolean} | {closed: false}> {
     const record: TerminalRecord | undefined = deps.getTerminalRecords().find(
         (r: TerminalRecord) => r.terminalId === terminalId
