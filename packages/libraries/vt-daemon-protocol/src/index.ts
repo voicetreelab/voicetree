@@ -11,6 +11,7 @@
 //   - `rpc-contracts.ts`             — request/response shapes for the 19 RPC routes
 //   - `terminal-registry-events.ts`  — payload shapes for the `terminal-registry` SSE topic
 
+export * from './core-types.ts'
 export * from './terminal-types.ts'
 export * from './rpc-contracts.ts'
 export * from './terminal-registry-events.ts'

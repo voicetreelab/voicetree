@@ -29,10 +29,10 @@
  */
 
 import type {
-    NodeIdAndFilePath,
     Position,
     GraphDelta,
 } from '@vt/graph-model/graph'
+import type {NodeIdAndFilePath} from './core-types.ts'
 import type {UnseenNode} from '@vt/graph-db-protocol'
 import type {
     TerminalId,

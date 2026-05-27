@@ -36,7 +36,7 @@
  * vault-agnostic.
  */
 
-import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {NodeIdAndFilePath} from './core-types.ts'
 import type {
     TerminalData,
     TerminalId,

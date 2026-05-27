@@ -18,7 +18,7 @@
  */
 
 import type { Option } from 'fp-ts/lib/Option.js';
-import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
+import type { NodeIdAndFilePath } from './core-types.ts';
 
 // ---------------------------------------------------------------------------
 // Lifecycle vocabulary
