@@ -33,14 +33,14 @@ import {
 } from '@vt/vt-rpc'
 
 import {
-    buildDefaultToolCatalog,
-    setCurrentVault,
-    startHttpDaemonServer,
     startOtlpReceiver,
     stopOtlpReceiver,
-    type HttpDaemonServerHandle,
-} from '../src/agent-runtime/index.ts'
+} from '../src/observability/otlpReceiver.ts'
+import {buildDefaultToolCatalog} from '../src/transport/toolCatalog.ts'
+import {setCurrentVault} from '../src/state/currentVault.ts'
+import {startHttpDaemonServer, type HttpDaemonServerHandle} from '../src/transport/httpServer.ts'
 import {readOtlpPortFile} from '../src/lifecycle/otlpPortFile.ts'
+import {buildDisabledMcpBridges} from './__helpers__/disabledMcpBridges.ts'
 
 interface FullStack {
     readonly vault: string
@@ -110,7 +110,7 @@ async function startFullStack(): Promise<FullStack> {
     await writeAuthTokenFile(vault, token)
 
     const rpc: HttpDaemonServerHandle = await startHttpDaemonServer({
-        catalog: buildDefaultToolCatalog(),
+        catalog: buildDefaultToolCatalog(buildDisabledMcpBridges()),
         hookHandler: (): unknown => ({ok: true}),
         token,
         bindHost: '127.0.0.1',

@@ -29,13 +29,11 @@ import {startDaemon, type DaemonHandle} from '@vt/graph-db-server/server'
 import {createRpcClientForVault, generateAuthToken, writeAuthTokenFile, writeRpcPortFile, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
 import type {SerializedCommand} from '@vt/graph-state'
 
-import {
-    buildDefaultToolCatalog,
-    setCurrentVault,
-    startHttpDaemonServer,
-    type HttpDaemonServerHandle,
-} from '../src/agent-runtime/index.ts'
+import {buildDefaultToolCatalog} from '../src/transport/toolCatalog.ts'
+import {setCurrentVault} from '../src/state/currentVault.ts'
+import {startHttpDaemonServer, type HttpDaemonServerHandle} from '../src/transport/httpServer.ts'
 import {__resetSessionStateForTests} from '../src/state/sessionStateStore.ts'
+import {buildDisabledMcpBridges} from './__helpers__/disabledMcpBridges.ts'
 
 interface FullStack {
     readonly vault: string
@@ -72,7 +70,7 @@ async function startFullStack(): Promise<FullStack> {
     await writeAuthTokenFile(vault, token)
 
     const rpc: HttpDaemonServerHandle = await startHttpDaemonServer({
-        catalog: buildDefaultToolCatalog(),
+        catalog: buildDefaultToolCatalog(buildDisabledMcpBridges()),
         hookHandler: (): unknown => ({ok: true}),
         token,
         bindHost: '127.0.0.1',
