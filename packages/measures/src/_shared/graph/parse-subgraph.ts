@@ -100,6 +100,19 @@ type ParseSubgraphOptions = {
      * and the edge graph cannot disagree about file contents.
      */
     readonly loadContent?: (absolutePath: string) => Promise<string>
+    /**
+     * Optional repo-relative staged tree file set. When supplied, source
+     * enumeration is post-filtered against the staged index so peer-agent
+     * untracked files in the worktree cannot enter the subgraph.
+     */
+    readonly stagedTreeFiles?: ReadonlySet<string>
+    /**
+     * Optional repo-relative `package.json` set derived from the staged tree.
+     * When supplied, package discovery is post-filtered so packages that only
+     * exist as peer-agent worktree additions cannot affect npm import
+     * resolution.
+     */
+    readonly stagedTreePackages?: ReadonlySet<string>
 }
 
 /**
@@ -182,8 +195,14 @@ export async function parseSubgraph(
     const repoRoot = opts.repoRoot ?? DEFAULT_REPO_ROOT
     const loadContent = opts.loadContent ?? defaultDiskLoader
 
-    const packages = await discoverPackages(repoRoot)
-    const allFiles = await scanSourceFiles(packages, repoRoot)
+    const packages = filterPackagesForStagedTree(
+        await discoverPackages(repoRoot),
+        opts.stagedTreePackages,
+    )
+    const allFiles = filterFilesForStagedTree(
+        await scanSourceFiles(packages, repoRoot),
+        opts.stagedTreeFiles,
+    )
     const filesByPath = new Map<string, SourceFile>(allFiles.map(f => [f.absolutePath, f]))
     const knownPaths: ReadonlySet<string> = new Set(filesByPath.keys())
     const packagesByNpmName = new Map<string, PackageInfo>(packages.map(pkg => [pkg.name, pkg]))
@@ -291,6 +310,22 @@ export async function parseSubgraph(
 
 function defaultDiskLoader(absolutePath: string): Promise<string> {
     return readFile(absolutePath, 'utf8')
+}
+
+function filterPackagesForStagedTree(
+    packages: readonly PackageInfo[],
+    stagedTreePackages: ReadonlySet<string> | undefined,
+): readonly PackageInfo[] {
+    if (stagedTreePackages === undefined) return packages
+    return packages.filter(pkg => stagedTreePackages.has(pkg.packageJsonRelativePath))
+}
+
+function filterFilesForStagedTree(
+    files: readonly SourceFile[],
+    stagedTreeFiles: ReadonlySet<string> | undefined,
+): SourceFile[] {
+    if (stagedTreeFiles === undefined) return [...files]
+    return files.filter(file => stagedTreeFiles.has(file.relativePath))
 }
 
 function emptySubgraph(depth: number): ParsedSubgraph {
