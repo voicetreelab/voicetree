@@ -50,7 +50,7 @@ import {
 import { tracing } from '@vt/observability'
 import {
     buildDefaultToolCatalog,
-    configureMcpServer,
+    type McpToolBridges,
     handleHookEventRequest,
     registerChildIfMonitored,
     setCurrentVault,
@@ -235,7 +235,7 @@ async function main(): Promise<void> {
         )
     }
 
-    configureMcpServer({
+    const mcpBridges: McpToolBridges = {
         graph: {
             getGraph: async (): Promise<Graph> => {
                 const raw = await daemonClient.getGraph()
@@ -265,7 +265,7 @@ async function main(): Promise<void> {
                 })
             },
         },
-    })
+    }
 
     // Bearer auth token: ephemeral per-run. The fake-agent subprocess
     // discovers it from the temp vault's .voicetree/auth-token file via
@@ -283,7 +283,7 @@ async function main(): Promise<void> {
     let httpHandle: HttpDaemonServerHandle
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(),
+            catalog: buildDefaultToolCatalog(mcpBridges),
             hookHandler,
             token,
             bindHost: '127.0.0.1',

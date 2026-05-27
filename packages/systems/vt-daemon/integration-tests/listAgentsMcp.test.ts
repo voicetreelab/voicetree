@@ -30,7 +30,8 @@ import {
 } from '@vt/vt-daemon/terminals/terminal-registry'
 import {createTerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
-import {configureMcpServer, listAgentsTool} from '@vt/vt-daemon'
+import type {GraphBridge} from '@vt/vt-daemon'
+import {listAgentsTool} from '@vt/vt-daemon'
 
 type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>
@@ -64,6 +65,7 @@ const emptyGraph: Graph = {
 
 let appSupport: string
 let currentGraph: Graph
+let bridge: GraphBridge
 
 beforeEach(async () => {
     appSupport = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-list-agents-'))
@@ -76,15 +78,13 @@ beforeEach(async () => {
     )
     clearTerminalRecords()
     currentGraph = emptyGraph
-    configureMcpServer({
-        graph: {
-            getGraph: async () => currentGraph,
-            getVaultPaths: async () => [],
-            getWriteFolder: async () => null,
-            applyGraphDelta: async () => undefined,
-            getUnseenNodesAroundContextNode: async () => [],
-        },
-    })
+    bridge = {
+        getGraph: async () => currentGraph,
+        getVaultPaths: async () => [],
+        getWriteFolder: async () => null,
+        applyGraphDelta: async () => undefined,
+        getUnseenNodesAroundContextNode: async () => [],
+    }
 })
 
 afterEach(async () => {
@@ -134,7 +134,7 @@ describe('MCP list_agents tool', () => {
             unresolvedLinksIndex: new Map(),
         }
 
-        const response: McpToolResponse = await listAgentsTool()
+        const response: McpToolResponse = await listAgentsTool(bridge)
         const payload: {
             agents: Array<{
                 terminalId: string
@@ -160,7 +160,7 @@ describe('MCP list_agents tool', () => {
     })
 
     it('returns an empty list when no agents exist', async () => {
-        const response: McpToolResponse = await listAgentsTool()
+        const response: McpToolResponse = await listAgentsTool(bridge)
         const payload: {agents: unknown[]} = parsePayload(response) as {agents: unknown[]}
         expect(payload.agents).toEqual([])
     })
@@ -168,7 +168,7 @@ describe('MCP list_agents tool', () => {
     it('includes pending headless terminals as running agents', async () => {
         recordTerminalPending('pending-headless-1', true)
 
-        const response: McpToolResponse = await listAgentsTool()
+        const response: McpToolResponse = await listAgentsTool(bridge)
         const payload: {agents: Array<{terminalId: string; status: string; isHeadless: boolean}>} =
             parsePayload(response) as {agents: Array<{terminalId: string; status: string; isHeadless: boolean}>}
 
@@ -196,7 +196,7 @@ describe('MCP list_agents tool', () => {
         recordTerminalSpawn('idle-agent-terminal-0', terminalData)
         updateTerminalIsDone('idle-agent-terminal-0', true)
 
-        const response: McpToolResponse = await listAgentsTool()
+        const response: McpToolResponse = await listAgentsTool(bridge)
         const payload: {agents: Array<{status: string}>} = parsePayload(response) as {agents: Array<{status: string}>}
 
         expect(payload.agents).toHaveLength(1)

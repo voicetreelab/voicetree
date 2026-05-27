@@ -13,6 +13,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 import {createGraphTool} from '@vt/vt-daemon'
+import type {GraphBridge} from '@vt/vt-daemon'
 import {
     CALLER_TERMINAL_ID,
     READ_PATH,
@@ -30,9 +31,10 @@ import {
 
 let appSupport: string
 let state: BridgeState
+let bridge: GraphBridge
 
 beforeEach(async () => {
-    ({appSupport, state} = await setupRealDeps())
+    ({appSupport, state, bridge} = await setupRealDeps())
 })
 
 afterEach(async () => {
@@ -54,7 +56,7 @@ describe('MCP create_graph tool — node creation', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -65,14 +67,14 @@ describe('MCP create_graph tool — node creation', () => {
 
         it('uses agent color and name from caller terminal record', async () => {
             await cleanupAppSupport(appSupport)
-            ;({appSupport, state} = await setupRealDeps({
+            ;({appSupport, state, bridge} = await setupRealDeps({
                 callerOptions: {agentName: 'my-agent', color: 'green'},
             }))
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Colored Node', summary: 'Work.'}],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
             expect(payload.success).toBe(true)
 
@@ -87,7 +89,7 @@ describe('MCP create_graph tool — node creation', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: 'deliverables/progress',
                 nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -101,7 +103,7 @@ describe('MCP create_graph tool — node creation', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: `${READ_PATH}/deliverables`,
                 nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -118,7 +120,7 @@ describe('MCP create_graph tool — node creation', () => {
                     {filename: 'child1', title: 'Child One', summary: 'First child.', content: '- parent [[root]]'},
                     {filename: 'child2', title: 'Child Two', summary: 'Second child.', content: '- parent [[root]]'},
                 ],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -133,7 +135,7 @@ describe('MCP create_graph tool — node creation', () => {
                     {filename: 'child', title: 'Child', summary: 'Child.', content: '- parent [[parent]]'},
                     {filename: 'parent', title: 'Parent', summary: 'Parent.'},
                 ],
-            })
+            }, bridge)
 
             const firstDelta: GraphDelta = state.deltas[0]
             const firstUpsert: GraphNode | undefined = firstDelta.find(
@@ -150,7 +152,7 @@ describe('MCP create_graph tool — node creation', () => {
                     {filename: 'parent', title: 'Parent', summary: 'Parent.'},
                     {filename: 'child', title: 'Child', summary: 'Child.', content: '- parent [[parent|implements]]'},
                 ],
-            })
+            }, bridge)
 
             const creationDelta: GraphDelta = state.deltas[0]
             const childNode: GraphNode = findUpsert(
@@ -171,7 +173,7 @@ describe('MCP create_graph tool — node creation', () => {
                     {filename: 'b', title: 'Child One', summary: 'C1.', content: '- parent [[a]]'},
                     {filename: 'c', title: 'Child Two', summary: 'C2.', content: '- parent [[a]]'},
                 ],
-            })
+            }, bridge)
 
             const creationDelta: GraphDelta = state.deltas[0]
             expect(creationDelta).toHaveLength(3)
@@ -185,7 +187,7 @@ describe('MCP create_graph tool — node creation', () => {
                     {filename: 'a', title: 'Node A', summary: 'A.'},
                     {filename: 'b', title: 'Node B', summary: 'B.'},
                 ],
-            })
+            }, bridge)
 
             const lastDelta: GraphDelta = state.deltas[state.deltas.length - 1]
             const upserted: GraphNode | undefined = lastDelta[0]?.type === 'UpsertNode'
@@ -208,7 +210,7 @@ describe('MCP create_graph tool — node creation', () => {
                     summary: 'Testing.',
                     diagram: 'pie\ninvalid syntax that no parser accepts',
                 }],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -238,7 +240,7 @@ describe('MCP create_graph tool — node creation', () => {
                     summary: 'Testing.',
                     diagram: 'flowchart TD\nA --> B',
                 }],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -251,7 +253,7 @@ describe('MCP create_graph tool — node creation', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'My Progress Node Title!', title: 'Title', summary: 'Content.'}],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
@@ -267,7 +269,7 @@ describe('MCP create_graph tool — node creation', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'Colliding Title', title: 'Colliding Title', summary: 'Content.'}],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)

@@ -9,7 +9,8 @@
 
 import {buildCatalogDispatchMap} from '../tools/catalog'
 import type {ToolCatalog} from './httpServer'
+import type {McpToolBridges} from '../config/mcpBridges.ts'
 
-export function buildDefaultToolCatalog(): ToolCatalog {
-    return buildCatalogDispatchMap()
+export function buildDefaultToolCatalog(bridges: McpToolBridges): ToolCatalog {
+    return buildCatalogDispatchMap(bridges)
 }

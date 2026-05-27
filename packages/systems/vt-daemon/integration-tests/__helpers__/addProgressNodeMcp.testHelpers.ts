@@ -25,7 +25,7 @@ import {
     type TerminalData,
     type TerminalId,
 } from "@vt/vt-daemon"
-import {configureMcpServer} from '@vt/vt-daemon'
+import type {GraphBridge} from '@vt/vt-daemon'
 
 export type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>
@@ -92,7 +92,7 @@ export function buildGraph(extraNodes?: Record<string, GraphNode>): Graph {
 }
 
 /**
- * Live bridge state used by the GraphBridge passed to configureMcpServer.
+ * Live bridge state used by the GraphBridge passed to createGraphTool.
  * Tests mutate `current` to swap the underlying graph snapshot and read
  * `deltas` to inspect every delta the tool produced.
  */
@@ -124,20 +124,18 @@ export function applyDeltaInPlace(graph: Graph, delta: GraphDelta): Graph {
     return {...graph, nodes: nextNodes}
 }
 
-export function configureBridge(state: BridgeState): void {
-    configureMcpServer({
-        graph: {
-            getGraph: async () => state.current,
-            getVaultPaths: async () => state.vaultPaths,
-            getWriteFolder: async () => state.writeFolder,
-            getProjectRoot: async () => state.writeFolder,
-            getUnseenNodesAroundContextNode: async () => [],
-            applyGraphDelta: async (delta: GraphDelta): Promise<void> => {
-                state.deltas.push(delta)
-                state.current = applyDeltaInPlace(state.current, delta)
-            },
+export function buildBridge(state: BridgeState): GraphBridge {
+    return {
+        getGraph: async () => state.current,
+        getVaultPaths: async () => state.vaultPaths,
+        getWriteFolder: async () => state.writeFolder,
+        getProjectRoot: async () => state.writeFolder,
+        getUnseenNodesAroundContextNode: async () => [],
+        applyGraphDelta: async (delta: GraphDelta): Promise<void> => {
+            state.deltas.push(delta)
+            state.current = applyDeltaInPlace(state.current, delta)
         },
-    })
+    }
 }
 
 export function recordCaller(options?: {
@@ -183,7 +181,7 @@ export async function setupRealDeps(options?: {
     settings?: Partial<VTSettings>
     extraNodes?: Record<string, GraphNode>
     callerOptions?: Parameters<typeof recordCaller>[0]
-}): Promise<{appSupport: string; state: BridgeState}> {
+}): Promise<{appSupport: string; state: BridgeState; bridge: GraphBridge}> {
     const appSupport: string = await makeTempAppSupport()
     setAppSupportPath(appSupport)
     clearSettingsCache()
@@ -198,9 +196,9 @@ export async function setupRealDeps(options?: {
     if (options?.extraNodes) {
         state.current = buildGraph(options.extraNodes)
     }
-    configureBridge(state)
+    const bridge: GraphBridge = buildBridge(state)
     recordCaller(options?.callerOptions)
-    return {appSupport, state}
+    return {appSupport, state, bridge}
 }
 
 export async function cleanupAppSupport(appSupport: string): Promise<void> {

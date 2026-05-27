@@ -20,7 +20,7 @@ import type {ZodTypeAny, ZodRawShape} from 'zod'
 
 import type {McpToolResponse} from './toolResponse'
 import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
-import {spawnAgentTool} from './agent-control/spawnAgentTool'
+import {makeSpawnAgentDeps, spawnAgentTool} from './agent-control/spawnAgentTool'
 import {listAgentsTool} from './agent-control/listAgentsTool'
 import {waitForAgentsTool} from './agent-control/waitForAgentsTool'
 import {getUnseenNodesNearbyTool} from './agent-control/getUnseenNodesNearbyTool'
@@ -35,14 +35,21 @@ import {dispatchLiveCommandTool} from './dispatchLiveCommandTool'
 import {getLiveStateTool} from './getLiveStateTool'
 import {getSessionsTool} from './getSessionsTool'
 import {appendSessionTool, type AppendSessionParams} from './appendSessionTool'
+import type {McpToolBridges} from '../config/mcpBridges.ts'
 
 export type CatalogHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
+
+// Handlers declared on catalog entries take the bridges explicitly so
+// they can be constructed once at boot and bound into the dispatch map
+// without a hidden module-level cell. Tools that don't talk to the
+// graph or search bridges ignore the second arg.
+export type BridgedCatalogHandler = (args: Record<string, unknown>, bridges: McpToolBridges) => Promise<McpToolResponse>
 
 export interface CatalogEntry {
     readonly name: string
     readonly description: string
     readonly inputShape: ZodRawShape
-    readonly handler: CatalogHandler
+    readonly handler: BridgedCatalogHandler
 }
 
 const DISPATCH_LIVE_COMMAND_DESCRIPTION: string = [
@@ -57,8 +64,20 @@ const DISPATCH_LIVE_COMMAND_DESCRIPTION: string = [
     '- AddNode: {type, node} (full SerializedGraphNode)',
 ].join('\n')
 
-function adapt<P>(fn: (params: P) => Promise<McpToolResponse> | McpToolResponse): CatalogHandler {
+function adapt<P>(fn: (params: P) => Promise<McpToolResponse> | McpToolResponse): BridgedCatalogHandler {
     return async (args: Record<string, unknown>): Promise<McpToolResponse> => fn(args as P)
+}
+
+function adaptWithGraph<P>(
+    fn: (params: P, bridge: import('../config/mcpBridges.ts').GraphBridge) => Promise<McpToolResponse> | McpToolResponse,
+): BridgedCatalogHandler {
+    return async (args, bridges) => fn(args as P, bridges.graph)
+}
+
+function adaptWithBridges<P>(
+    fn: (params: P, bridges: McpToolBridges) => Promise<McpToolResponse>,
+): BridgedCatalogHandler {
+    return async (args, bridges) => fn(args as P, bridges)
 }
 
 // ─── Catalog entries ─────────────────────────────────────────────────────────
@@ -86,14 +105,15 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
         replaceSelf: z.boolean().optional().describe('When true, the successor inherits the caller\'s terminal ID and agent name. The caller\'s process is killed and replaced atomically. Use for context handover — the agent identity persists across context boundaries.'),
         depthBudget: z.number().optional().describe('Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller\'s DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).'),
     },
-    handler: adapt(spawnAgentTool),
+    handler: async (args, bridges) =>
+        spawnAgentTool(args as unknown as Parameters<typeof spawnAgentTool>[0], makeSpawnAgentDeps(bridges.graph)),
 }
 
 const LIST_AGENTS: CatalogEntry = {
     name: 'list_agents',
     description: 'List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass as `agentName` to spawn_agent.',
     inputShape: {},
-    handler: adapt(listAgentsTool),
+    handler: async (_args, bridges) => listAgentsTool(bridges.graph),
 }
 
 const WAIT_FOR_AGENTS: CatalogEntry = {
@@ -104,7 +124,7 @@ const WAIT_FOR_AGENTS: CatalogEntry = {
         callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
         pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 5000)'),
     },
-    handler: adapt(waitForAgentsTool),
+    handler: adaptWithGraph(waitForAgentsTool),
 }
 
 const GET_UNSEEN_NODES_NEARBY: CatalogEntry = {
@@ -114,7 +134,7 @@ const GET_UNSEEN_NODES_NEARBY: CatalogEntry = {
         callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
         search_from_node: z.string().optional().describe('Optional node ID to search from instead of your task node'),
     },
-    handler: adapt(getUnseenNodesNearbyTool),
+    handler: adaptWithGraph(getUnseenNodesNearbyTool),
 }
 
 const CLOSE_AGENT: CatalogEntry = {
@@ -125,7 +145,7 @@ const CLOSE_AGENT: CatalogEntry = {
         callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
         forceWithReason: z.string().optional().describe('Required to close a running (non-idle) agent. Explain why you are force-closing.'),
     },
-    handler: adapt(closeAgentTool),
+    handler: adaptWithGraph(closeAgentTool),
 }
 
 const SEND_MESSAGE: CatalogEntry = {
@@ -206,7 +226,7 @@ Task
             + 'Each entry must match a rule ID from the error response.',
         ),
     },
-    handler: adapt(createGraphTool),
+    handler: adaptWithGraph(createGraphTool),
 }
 
 const GRAPH_STRUCTURE: CatalogEntry = {
@@ -302,7 +322,7 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = [
  *
  * Pure: depends only on `TOOL_CATALOG` + `RPC_ROUTES` data, no I/O.
  */
-export function buildCatalogDispatchMap(): ReadonlyMap<string, CatalogHandler> {
+export function buildCatalogDispatchMap(bridges: McpToolBridges): ReadonlyMap<string, CatalogHandler> {
     const toolEntries: Array<[string, CatalogHandler]> = TOOL_CATALOG.map(
         (entry: CatalogEntry): [string, CatalogHandler] => {
             const schema: ZodTypeAny = z.object(entry.inputShape)
@@ -311,7 +331,7 @@ export function buildCatalogDispatchMap(): ReadonlyMap<string, CatalogHandler> {
                 if (!parsed.success) {
                     throw new CatalogValidationError(entry.name, parsed.error.issues)
                 }
-                return entry.handler(parsed.data as Record<string, unknown>)
+                return entry.handler(parsed.data as Record<string, unknown>, bridges)
             }
             return [entry.name, validating]
         },

@@ -19,6 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {clearAppSupportPathForTest, setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 import {appendCliManualToAgentPrompt} from '../cliManualInjection'
 
@@ -119,11 +120,13 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
 
     beforeEach(async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-cli-manual-spawn-'))
+        setAppSupportPath(tempDir)
     })
 
     afterEach(async () => {
         await fs.rm(tempDir, {recursive: true, force: true})
         configureAgentRuntime({})
+        clearAppSupportPathForTest()
     })
 
     it('injects the CLI manual content into AGENT_PROMPT', async () => {
@@ -133,7 +136,6 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
 
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
@@ -160,7 +162,6 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
     it('falls through unchanged when the manual file is missing', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
@@ -185,7 +186,6 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
     it('skips injection when getCliManualPath is not registered', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,

@@ -56,7 +56,6 @@ import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/dae
 import {tracing} from '@vt/observability'
 import {
     buildDefaultToolCatalog,
-    configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
     setCurrentVault,
@@ -65,6 +64,7 @@ import {
     stopOtlpReceiver,
     type HookHandler,
     type HttpDaemonServerHandle,
+    type McpToolBridges,
 } from '@vt/vt-daemon'
 import {terminalRuntimeSurface as agentRuntime, configureAgentRuntime} from "@vt/vt-daemon"
 import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
@@ -292,14 +292,15 @@ async function main(): Promise<void> {
         die(`failed to ensure vt-graphd sibling: ${(err as Error).message}`)
     }
 
-    // Step 2.5: wire the MCP graph bridge to the sibling vt-graphd over RPC.
-    // Every graph-touching tool in the catalog (`spawn_agent`, `list_agents`,
-    // `get_unseen_nodes_nearby`, `create_graph`, live state) resolves through
-    // `getMcpGraph` / `getMcpVaultPaths` / etc; without this wiring those
-    // tools throw "MCP graph bridge not configured" the first time they're
-    // invoked — the BF-376 regression. Must happen BEFORE the HTTP daemon
-    // is bound, otherwise an early RPC request can race the configuration.
-    configureMcpServer({graph: buildGdbGraphBridge(gdb.client, args.vault)})
+    // Step 2.5: construct the MCP tool bridges to the sibling vt-graphd over
+    // RPC. Every graph-touching tool in the catalog (`spawn_agent`,
+    // `list_agents`, `get_unseen_nodes_nearby`, `create_graph`, live state)
+    // resolves through these bridges. They are passed explicitly into
+    // `buildDefaultToolCatalog` below — no module-level cell — so the wiring
+    // contract is enforced by the type system. The BF-376 regression
+    // (missing wire-up) is now a compile-time error rather than a runtime
+    // "MCP graph bridge not configured" throw.
+    const mcpBridges: McpToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.vault)}
 
     // Step 3: bind in-process state to this vault, then tmux preflight.
     // setCurrentVault is the single source-of-truth for daemon-internal
@@ -326,7 +327,7 @@ async function main(): Promise<void> {
     let httpHandle: HttpDaemonServerHandle
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(),
+            catalog: buildDefaultToolCatalog(mcpBridges),
             hookHandler,
             token,
             // Default bind is loopback. VTD is a per-vault per-machine daemon;

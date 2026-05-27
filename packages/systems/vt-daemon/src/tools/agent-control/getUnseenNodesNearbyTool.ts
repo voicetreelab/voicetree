@@ -7,7 +7,8 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {type McpToolResponse, buildJsonResponse} from '../types'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '../mcpConfigDependencies'
+import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '../../config/graphBridge.ts'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 type UnseenNode = Awaited<ReturnType<typeof getMcpUnseenNodesAroundContextNode>>[number]
@@ -17,10 +18,13 @@ export interface GetUnseenNodesNearbyParams {
     search_from_node?: string
 }
 
-export async function getUnseenNodesNearbyTool({
-    callerTerminalId,
-    search_from_node
-}: GetUnseenNodesNearbyParams): Promise<McpToolResponse> {
+export async function getUnseenNodesNearbyTool(
+    {
+        callerTerminalId,
+        search_from_node
+    }: GetUnseenNodesNearbyParams,
+    bridge: GraphBridge,
+): Promise<McpToolResponse> {
     // 1. Find the caller's terminal record
     const terminalRecords: TerminalRecord[] = listTerminalRecords()
     const callerRecord: TerminalRecord | undefined = findTerminalRecord(callerTerminalId, terminalRecords)
@@ -36,9 +40,10 @@ export async function getUnseenNodesNearbyTool({
     const contextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
 
     // 3. Get unseen nodes (with optional search_from_node override)
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = await getMcpGraph(bridge)
     try {
         const unseenNodes: readonly UnseenNode[] = await getMcpUnseenNodesAroundContextNode(
+            bridge,
             contextNodeId,
             search_from_node as NodeIdAndFilePath | undefined
         )

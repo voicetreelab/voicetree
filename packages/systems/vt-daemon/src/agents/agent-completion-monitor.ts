@@ -27,7 +27,8 @@ import {
     type AgentNodeEntry,
 } from './completion/agentNodeIndex.ts'
 import {getNewNodesForAgent} from './completion/getNewNodesForAgent.ts'
-import {getMcpGraph} from '../config/mcp-graph-bridge'
+import {getMcpGraph} from '../config/graphBridge.ts'
+import type {GraphBridge} from '../config/mcpBridges.ts'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -70,6 +71,7 @@ const defaultAgentCompletionMonitorDeps: AgentCompletionMonitorDeps = {
 export function startMonitor(
     callerTerminalId: string,
     terminalIds: string[],
+    bridge: GraphBridge,
     pollIntervalMs: number = 5000,
     deps: AgentCompletionMonitorDeps = defaultAgentCompletionMonitorDeps
 ): string {
@@ -83,7 +85,7 @@ export function startMonitor(
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
-        const graph: Graph = await getMcpGraph()
+        const graph: Graph = await getMcpGraph(bridge)
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
@@ -153,7 +155,7 @@ export function startMonitor(
                 })
             }
 
-            const stillWaitingOn: string[] = await getPendingAgentNamesForCaller(callerTerminalId, monitorId)
+            const stillWaitingOn: string[] = await getPendingAgentNamesForCaller(callerTerminalId, monitorId, bridge)
             const message: string = buildCompletionMessage(results, stillWaitingOn)
             void sendTerminalText(callerTerminalId, message)
 
@@ -213,9 +215,9 @@ function findExistingDescendants(parentIds: string[]): string[] {
  * Returns agent names still being monitored for this caller, excluding the monitor that just fired.
  * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
  */
-export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): Promise<string[]> {
+export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string, bridge: GraphBridge): Promise<string[]> {
     const currentRecords: TerminalRecord[] = listTerminalRecordsSnapshot()
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = await getMcpGraph(bridge)
     const now: number = Date.now()
     const names: string[] = []
     for (const [monitorId, entry] of monitors) {

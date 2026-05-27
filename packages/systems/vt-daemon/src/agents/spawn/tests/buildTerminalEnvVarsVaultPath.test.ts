@@ -12,8 +12,9 @@
  * `buildTerminalEnvVars`, assert on the produced env vector.
  */
 
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {clearAppSupportPathForTest, setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 
 const CANONICAL_ROOT = '/Users/x/voicetree/brain/workflows/forecasting'
@@ -22,15 +23,19 @@ const CONTEXT_NODE_PATH = `${SUBFOLDER_WRITE_FOLDER}/ctx-nodes/task_rx33do_conte
 const TASK_NODE_PATH = `${SUBFOLDER_WRITE_FOLDER}/task_rx33do.md`
 
 describe('buildTerminalEnvVars — vault-path semantics', () => {
+    beforeEach(() => {
+        setAppSupportPath('/tmp/app-support')
+    })
+
     afterEach(() => {
         configureAgentRuntime({})
+        clearAppSupportPathForTest()
     })
 
     it('exports VOICETREE_VAULT_PATH as the canonical project root, not the writeFolder subfolder', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => '/tmp/app-support',
-                getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
+                getVaultPaths: async (): Promise<readonly string[]> =>[CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
                 getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_FOLDER,
                 getProjectRoot: async (): Promise<string | null> => CANONICAL_ROOT,
             },
@@ -51,8 +56,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
     it('keeps CONTEXT_NODE_PATH and TASK_NODE_PATH subfolder-scoped (they encode node identity, not the vault root)', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => '/tmp/app-support',
-                getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
+                getVaultPaths: async (): Promise<readonly string[]> =>[CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
                 getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_FOLDER,
                 getProjectRoot: async (): Promise<string | null> => CANONICAL_ROOT,
             },
@@ -73,8 +77,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
     it('exposes both canonical root and subfolder writeFolder under ALL_MARKDOWN_READ_PATHS', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => '/tmp/app-support',
-                getVaultPaths: async (): Promise<readonly string[]> => [CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
+                getVaultPaths: async (): Promise<readonly string[]> =>[CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
                 getWriteFolder: async (): Promise<string | null> => SUBFOLDER_WRITE_FOLDER,
                 getProjectRoot: async (): Promise<string | null> => CANONICAL_ROOT,
             },
@@ -95,8 +98,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
     it('falls back to empty string when no project root is configured (no daemon attached)', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => '/tmp/app-support',
-                getVaultPaths: async (): Promise<readonly string[]> => [],
+                getVaultPaths: async (): Promise<readonly string[]> =>[],
                 getProjectRoot: async (): Promise<string | null> => null,
             },
         })

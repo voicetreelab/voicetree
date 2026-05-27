@@ -3,14 +3,14 @@
 // functionality through this barrel or via the stable internal subpaths
 // declared in package.json#exports.
 
-export {configureMcpServer, getSearchBridge} from '../config/mcp-config'
 export type {
     AskQueryResponse,
     GraphBridge,
-    McpServerConfig,
+    McpToolBridges,
     SearchBridge,
     SearchSimilarResult,
-} from '../config/mcp-config'
+} from '../config/mcpBridges.ts'
+export {makeSpawnAgentDeps} from '../tools/agent-control/spawnAgentTool'
 
 export {startHttpDaemonServer, isAuthorized, buildAccessLogLine} from '../transport/httpServer'
 export type {

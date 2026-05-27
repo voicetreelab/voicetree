@@ -7,6 +7,7 @@ import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-mo
 import type {UnseenNode} from '@vt/graph-db-protocol'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {clearAppSupportPathForTest, setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {prepareTerminalDataInMain} from '../terminalData'
 
 function graphNode(nodeId: NodeIdAndFilePath, content: string): GraphNode {
@@ -44,6 +45,7 @@ const settings = {
 describe('prepareTerminalDataInMain', () => {
     afterEach(() => {
         configureAgentRuntime({})
+        clearAppSupportPathForTest()
     })
 
     it('does not fail when the freshly-created context node is not visible in the graph snapshot yet', async () => {
@@ -52,9 +54,9 @@ describe('prepareTerminalDataInMain', () => {
         const contextNodeId = '/vault/ctx-nodes/task-context.md' as NodeIdAndFilePath
 
         try {
+            setAppSupportPath(appSupportPath)
             configureAgentRuntime({
                 env: {
-                    getAppSupportPath: () => appSupportPath,
                     getProjectRoot: async () => '/project',
                     getWriteFolder: async () => '/project/voicetree-25-5',
                     getVaultPaths: async () => ['/project/voicetree-25-5'],

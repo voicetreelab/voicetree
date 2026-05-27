@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {clearAppSupportPathForTest, setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 
 const settings = {
@@ -12,6 +13,7 @@ const settings = {
 describe('buildTerminalEnvVars', () => {
     afterEach(() => {
         configureAgentRuntime({})
+        clearAppSupportPathForTest()
     })
 
     it('expands INJECT_ENV_VARS templates against the canonical project root and aggregates vault paths', async () => {
@@ -20,9 +22,9 @@ describe('buildTerminalEnvVars', () => {
         // buildTerminalEnvVarsVaultPath.test.ts for the dedicated regression test
         // covering that contract and the rationale (CLI auth-token up-walk, hook
         // script template, tmuxPromptFile, tmux namespace builder).
+        setAppSupportPath('/app-support')
         configureAgentRuntime({
             env: {
-                getAppSupportPath: () => '/app-support',
                 getProjectRoot: async () => '/watched-project',
                 getWriteFolder: async () => '/watched-project/voicetree-25-5',
                 getVaultPaths: async () => [

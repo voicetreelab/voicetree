@@ -41,8 +41,8 @@ vi.mock('../src/tools/agent-control/agentControlRuntime', async (importOriginal)
     }
 })
 
-import {spawnAgentTool} from '../src/tools/agent-control/spawnAgentTool'
-import {configureMcpServer, type GraphBridge} from '../src/config/mcp-config'
+import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/tools/agent-control/spawnAgentTool'
+import type {GraphBridge} from '../src/config/mcpBridges.ts'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)
 
@@ -72,8 +72,8 @@ function buildGraphWithParent(): Graph {
     }
 }
 
-function configureGraphBridge(writeFolder: string): void {
-    const bridge: GraphBridge = {
+function buildBridge(writeFolder: string): GraphBridge {
+    return {
         getGraph: vi.fn(async () => buildGraphWithParent()),
         getVaultPaths: vi.fn(async () => [writeFolder]),
         getWriteFolder: vi.fn(async () => writeFolder),
@@ -81,7 +81,6 @@ function configureGraphBridge(writeFolder: string): void {
         getUnseenNodesAroundContextNode: vi.fn(async () => []),
         applyGraphDelta: vi.fn(async () => undefined),
     }
-    configureMcpServer({graph: bridge})
 }
 
 async function writeSettingsFile(appSupportPath: string, settings: VTSettings): Promise<void> {
@@ -108,6 +107,7 @@ beforeAll(() => {
 
 describe('spawnAgentTool real-deps integration', () => {
     let testTmpDir: string
+    let deps: SpawnAgentDeps
 
     beforeEach(async () => {
         testTmpDir = path.join(TMP_ROOT, `t-${Date.now()}-${Math.random().toString(36).slice(2)}`)
@@ -117,7 +117,7 @@ describe('spawnAgentTool real-deps integration', () => {
         clearSettingsCache()
         clearTerminalRecords()
         clearAllBudgets()
-        configureGraphBridge(testTmpDir)
+        deps = makeSpawnAgentDeps(buildBridge(testTmpDir))
     })
 
     it('resolves a custom agent name from a written settings.json (catches settings cache/path regressions)', async () => {
@@ -136,7 +136,7 @@ describe('spawnAgentTool real-deps integration', () => {
             nodeId: PARENT_NODE_ID,
             callerTerminalId: CALLER_TERMINAL_ID,
             agentName: 'PhoenixAgent',
-        })
+        }, deps)
 
         const payload = JSON.parse(response.content[0].text) as {success: boolean; terminalId?: string; error?: string}
         expect(payload.error).toBeUndefined()
@@ -151,7 +151,7 @@ describe('spawnAgentTool real-deps integration', () => {
         const response = await spawnAgentTool({
             nodeId: PARENT_NODE_ID,
             callerTerminalId: CALLER_TERMINAL_ID,
-        })
+        }, deps)
 
         const payload = JSON.parse(response.content[0].text) as {success: boolean; depthBudget?: number; error?: string}
         expect(payload.error).toBeUndefined()
@@ -168,14 +168,14 @@ describe('spawnAgentTool real-deps integration', () => {
         const response1 = await spawnAgentTool({
             nodeId: PARENT_NODE_ID,
             callerTerminalId: CALLER_TERMINAL_ID,
-        })
+        }, deps)
         const payload1 = JSON.parse(response1.content[0].text) as {success: boolean; error?: string}
         expect(payload1.success).toBe(true)
 
         const response2 = await spawnAgentTool({
             nodeId: PARENT_NODE_ID,
             callerTerminalId: CALLER_TERMINAL_ID,
-        })
+        }, deps)
         const payload2 = JSON.parse(response2.content[0].text) as {success: boolean; error?: string}
         expect(payload2.success).toBe(false)
         expect(payload2.error).toMatch(/budget/i)

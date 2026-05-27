@@ -9,6 +9,7 @@ import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
 } from '../agentDependencies'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 export interface WaitForAgentsParams {
@@ -17,11 +18,14 @@ export interface WaitForAgentsParams {
     pollIntervalMs?: number
 }
 
-export function waitForAgentsTool({
-    terminalIds,
-    callerTerminalId,
-    pollIntervalMs = 5000,
-}: WaitForAgentsParams): McpToolResponse {
+export function waitForAgentsTool(
+    {
+        terminalIds,
+        callerTerminalId,
+        pollIntervalMs = 5000,
+    }: WaitForAgentsParams,
+    bridge: GraphBridge,
+): McpToolResponse {
     // 1. Validate caller terminal exists
     const records: TerminalRecord[] = listTerminalRecords()
     if (!records.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
@@ -57,7 +61,7 @@ export function waitForAgentsTool({
             : ''
 
     // 3. Start background monitor and return immediately
-    const monitorId: string = startMonitor(callerTerminalId, targetTerminalIds, pollIntervalMs)
+    const monitorId: string = startMonitor(callerTerminalId, targetTerminalIds, bridge, pollIntervalMs)
 
     return buildJsonResponse({
         monitorId,

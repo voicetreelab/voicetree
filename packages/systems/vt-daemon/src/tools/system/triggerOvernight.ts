@@ -7,7 +7,8 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../mcpConfigDependencies'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../../config/graphBridge.ts'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
 
 export interface TriggerOvernightParams {
@@ -43,15 +44,16 @@ const defaultTriggerOvernightDeps: TriggerOvernightDeps = {
  */
 export async function triggerOvernight(
     params: TriggerOvernightParams,
+    bridge: GraphBridge,
     deps: TriggerOvernightDeps = defaultTriggerOvernightDeps,
 ): Promise<TriggerOvernightResult> {
-    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder()
+    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder(bridge)
     if (O.isNone(vaultPathOpt)) {
         return {success: false, error: 'No vault loaded. Open a folder in VoiceTree first.'}
     }
     const writeFolder: string = vaultPathOpt.value
 
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = await getMcpGraph(bridge)
     const nodeIds: readonly string[] = Object.keys(graph.nodes)
     if (nodeIds.length === 0) {
         return {success: false, error: 'Graph is empty — no nodes to anchor overnight run.'}
@@ -78,7 +80,7 @@ export async function triggerOvernight(
         return {success: false, error: 'Failed to create task node'}
     }
 
-    await applyMcpGraphDelta(taskNodeDelta)
+    await applyMcpGraphDelta(bridge, taskNodeDelta)
 
     // Resolve Opus agent command (find "Claude" in settings.agents)
     const settings: VTSettings = await loadSettings(getAppSupportPath())

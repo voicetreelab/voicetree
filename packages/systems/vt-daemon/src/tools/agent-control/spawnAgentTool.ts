@@ -11,7 +11,8 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {startMonitor} from '../agentDependencies'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../mcpConfigDependencies'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../../config/graphBridge.ts'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {
     consumeSpawnBudget,
@@ -38,24 +39,27 @@ export interface SpawnAgentDeps {
     readonly listTerminalRecords: () => TerminalRecord[]
     readonly consumeBudget: typeof consumeSpawnBudget
     readonly loadAgentSettings: () => Promise<VTSettings>
-    readonly loadWriteFolder: typeof getMcpWriteFolder
-    readonly loadGraph: typeof getMcpGraph
-    readonly applyDelta: typeof applyMcpGraphDelta
+    readonly loadWriteFolder: () => Promise<O.Option<string>>
+    readonly loadGraph: () => Promise<Graph>
+    readonly applyDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>
     readonly spawnTerminal: typeof spawnContextTerminal
     readonly rememberChild: typeof rememberChildTerminal
-    readonly monitorChildren: typeof startMonitor
+    readonly monitorChildren: (callerTerminalId: string, terminalIds: string[], pollIntervalMs?: number) => string
 }
 
-const defaultSpawnAgentDeps: SpawnAgentDeps = {
-    listTerminalRecords,
-    consumeBudget: consumeSpawnBudget,
-    loadAgentSettings: () => loadSettings(getAppSupportPath()),
-    loadWriteFolder: getMcpWriteFolder,
-    loadGraph: getMcpGraph,
-    applyDelta: applyMcpGraphDelta,
-    spawnTerminal: spawnContextTerminal,
-    rememberChild: rememberChildTerminal,
-    monitorChildren: startMonitor,
+export function makeSpawnAgentDeps(bridge: GraphBridge): SpawnAgentDeps {
+    return {
+        listTerminalRecords,
+        consumeBudget: consumeSpawnBudget,
+        loadAgentSettings: () => loadSettings(getAppSupportPath()),
+        loadWriteFolder: () => getMcpWriteFolder(bridge),
+        loadGraph: () => getMcpGraph(bridge),
+        applyDelta: (delta, recordForUndo) => applyMcpGraphDelta(bridge, delta, recordForUndo),
+        spawnTerminal: spawnContextTerminal,
+        rememberChild: rememberChildTerminal,
+        monitorChildren: (callerTerminalId, terminalIds, pollIntervalMs) =>
+            startMonitor(callerTerminalId, terminalIds, bridge, pollIntervalMs),
+    }
 }
 
 type AgentSetting = { readonly name: string; readonly command: string }
@@ -358,7 +362,7 @@ async function spawnAgentForExistingNode(
 
 export async function spawnAgentTool(
     params: SpawnAgentParams,
-    deps: SpawnAgentDeps = defaultSpawnAgentDeps,
+    deps: SpawnAgentDeps,
 ): Promise<McpToolResponse> {
     const terminalRecords: TerminalRecord[] = deps.listTerminalRecords()
     const callerRecordResult: Result<TerminalRecord> = findCallerRecord(params.callerTerminalId, terminalRecords)

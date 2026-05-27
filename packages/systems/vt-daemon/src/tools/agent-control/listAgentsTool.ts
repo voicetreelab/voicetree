@@ -12,7 +12,8 @@ import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {type McpToolResponse, buildJsonResponse} from '../types'
 import {getAgentNodes, getNewNodesForAgentIdentities} from '../agentDependencies'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph} from '../mcpConfigDependencies'
+import {getMcpGraph} from '../../config/graphBridge.ts'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {listPendingTerminalStates, listTerminalRecords, type PendingTerminalRecord, type TerminalRecord} from './agentControlRuntime'
 
 function terminalRecordStatus(record: TerminalRecord): 'running' | 'idle' | 'exited' {
@@ -37,8 +38,8 @@ function containedNodesForTerminalContext(
     })
 }
 
-export async function listAgentsTool(): Promise<McpToolResponse> {
-    const graph: Graph = await getMcpGraph()
+export async function listAgentsTool(bridge: GraphBridge): Promise<McpToolResponse> {
+    const graph: Graph = await getMcpGraph(bridge)
     const agents: Array<{
         terminalId: string
         title: string

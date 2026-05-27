@@ -11,7 +11,7 @@ import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
-import {configureMcpServer} from '../../config/mcp-config'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {closeAgentTool} from './closeAgentTool'
 
 const tempDirs: Set<string> = new Set<string>()
@@ -71,7 +71,6 @@ async function cleanup(): Promise<void> {
     tempDirs.clear()
     clearTerminalRecords()
     configureAgentRuntime({})
-    configureMcpServer({})
 }
 
 describe('closeAgentTool', () => {
@@ -95,14 +94,12 @@ describe('closeAgentTool', () => {
                 events.push(event)
             },
         })
-        configureMcpServer({
-            graph: {
-                getGraph: async (): Promise<Graph> => makeGraph(progressNodeId, terminalId),
-                getVaultPaths: async (): Promise<readonly string[]> => [],
-                getWriteFolder: async (): Promise<string | null> => null,
-                applyGraphDelta: async (): Promise<void> => {},
-            },
-        })
+        const bridge: GraphBridge = {
+            getGraph: async (): Promise<Graph> => makeGraph(progressNodeId, terminalId),
+            getVaultPaths: async (): Promise<readonly string[]> => [],
+            getWriteFolder: async (): Promise<string | null> => null,
+            applyGraphDelta: async (): Promise<void> => {},
+        }
 
         const terminalData: TerminalData = createTerminalData({
             terminalId,
@@ -131,7 +128,7 @@ describe('closeAgentTool', () => {
             callerTerminalId: 'reviewer',
             terminalId,
             forceWithReason: 'test closes a running interactive agent',
-        })
+        }, bridge)
 
         expect(parsePayload(response)).toMatchObject({success: true, terminalId})
 

@@ -9,6 +9,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 import {createGraphTool} from '@vt/vt-daemon'
+import type {GraphBridge} from '@vt/vt-daemon'
 import {clearTerminalRecords} from "@vt/vt-daemon"
 import {
     CALLER_TERMINAL_ID,
@@ -25,9 +26,10 @@ import {
 
 let appSupport: string
 let state: BridgeState
+let bridge: GraphBridge
 
 beforeEach(async () => {
-    ({appSupport, state} = await setupRealDeps())
+    ({appSupport, state, bridge} = await setupRealDeps())
 })
 
 afterEach(async () => {
@@ -42,7 +44,7 @@ describe('MCP create_graph tool — validation + line length', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: 'unknown-terminal',
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -56,7 +58,7 @@ describe('MCP create_graph tool — validation + line length', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -69,7 +71,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: '../outside',
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -90,7 +92,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 parentNodeId: 'nonexistent-node.md',
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -102,7 +104,7 @@ describe('MCP create_graph tool — validation + line length', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -117,7 +119,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                     {filename: 'a', title: 'First', summary: 'Summary'},
                     {filename: 'a', title: 'Second', summary: 'Summary'},
                 ],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -132,7 +134,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                     {filename: 'a', title: 'A', summary: 'S', content: '- parent [[b]]'},
                     {filename: 'b', title: 'B', summary: 'S', content: '- parent [[a]]'},
                 ],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -144,7 +146,7 @@ describe('MCP create_graph tool — validation + line length', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary', codeDiffs: ['- old\n+ new']}],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -160,7 +162,7 @@ describe('MCP create_graph tool — validation + line length', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Long Node', summary: 'Summary.', content: longContent}],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
@@ -182,7 +184,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                     complexityScore: 'low',
                     complexityExplanation: 'Simple',
                 }],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
             expect(payload.success).toBe(true)
         })
@@ -198,7 +200,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                     summary: 'Short summary.',
                     diagram: `flowchart TD\n${largeDiagram}`,
                 }],
-            })
+            }, bridge)
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
             expect(payload.success).toBe(true)
         })
@@ -212,7 +214,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                     {filename: 'a', title: 'Short', summary: 'OK.'},
                     {filename: 'b', title: 'Long', summary: 'Summary.', content: `- parent [[a]]\n${longContent}`},
                 ],
-            })
+            }, bridge)
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)

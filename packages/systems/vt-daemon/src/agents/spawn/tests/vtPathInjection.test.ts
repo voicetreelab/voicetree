@@ -18,6 +18,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {clearAppSupportPathForTest, setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 import {prependVtBinToPath, resolveVtBinDir} from '../vtPathInjection'
 
@@ -123,11 +124,13 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
 
     beforeEach(async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-vtbin-spawn-'))
+        setAppSupportPath(tempDir)
     })
 
     afterEach(async () => {
         await fs.rm(tempDir, {recursive: true, force: true})
         configureAgentRuntime({})
+        clearAppSupportPathForTest()
     })
 
     it('prepends the configured vt-bin dir onto PATH', async () => {
@@ -136,7 +139,6 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
 
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
@@ -164,7 +166,6 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
     it('leaves PATH untouched when getVtBinDir is not registered', async () => {
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
@@ -193,7 +194,6 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
 
         configureAgentRuntime({
             env: {
-                getAppSupportPath: (): string => tempDir,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolder: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,

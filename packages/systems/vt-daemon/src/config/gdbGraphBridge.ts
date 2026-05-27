@@ -25,7 +25,7 @@ import {
     type GraphNode,
     type NodeIdAndFilePath,
 } from '@vt/graph-model/graph'
-import type {GraphBridge} from './mcp-config'
+import type {GraphBridge} from './mcpBridges.ts'
 
 export function normalizeDaemonGraph(raw: {nodes: Record<string, unknown>}): Graph {
     const normalizedNodes: Record<NodeIdAndFilePath, GraphNode> =

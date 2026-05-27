@@ -10,7 +10,8 @@
 import type {Graph} from '@vt/graph-model/graph'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {getAgentNodes, getAgentStatus, getNewNodesForAgentIdentities} from '../agentDependencies'
-import {getMcpGraph} from '../mcpConfigDependencies'
+import {getMcpGraph} from '../../config/graphBridge.ts'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 import {
     closeHeadlessTerminal,
     findTerminalRecord,
@@ -111,9 +112,12 @@ function closeEffectFor(terminalId: string, record: TerminalRecord | undefined, 
     return {kind: 'close-interactive', terminalId, record, nodes}
 }
 
-async function readCloseAgentState({terminalId, callerTerminalId, forceWithReason}: CloseAgentParams): Promise<CloseAgentState> {
+async function readCloseAgentState(
+    {terminalId, callerTerminalId, forceWithReason}: CloseAgentParams,
+    bridge: GraphBridge,
+): Promise<CloseAgentState> {
     if (callerTerminalId === terminalId) {
-        const graph: Graph = await getMcpGraph()
+        const graph: Graph = await getMcpGraph(bridge)
         const records: readonly TerminalRecord[] = listTerminalRecords()
         const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId, records)
         return {
@@ -134,7 +138,7 @@ async function readCloseAgentState({terminalId, callerTerminalId, forceWithReaso
     return {
         kind: 'cross-close',
         targetRecord,
-        progressNodes: progressNodesForAgent(await getMcpGraph(), targetRecord),
+        progressNodes: progressNodesForAgent(await getMcpGraph(bridge), targetRecord),
     }
 }
 
@@ -259,7 +263,7 @@ async function performCloseAction(action: CloseAction): Promise<McpToolResponse>
     }
 }
 
-export async function closeAgentTool(params: CloseAgentParams): Promise<McpToolResponse> {
-    const state: CloseAgentState = await readCloseAgentState(params)
+export async function closeAgentTool(params: CloseAgentParams, bridge: GraphBridge): Promise<McpToolResponse> {
+    const state: CloseAgentState = await readCloseAgentState(params, bridge)
     return performCloseAction(decideCloseAction(state, params))
 }
