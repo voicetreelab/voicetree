@@ -68,6 +68,7 @@ const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
     '.git',
     '.venv',
     'coverage',
+    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
     '.worktrees',
     '__tests__',
 ])

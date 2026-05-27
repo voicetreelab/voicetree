@@ -37,11 +37,15 @@ const test = base.extend<{
     appWindow: Page;
     tempGitRepoPath: string;
 }>({
-    // Create a temporary git repo for worktree testing
+    // Create a temporary git repo for worktree testing.
+    // Sibling-worktree layout: mkdtemp a unique parent so the sibling
+    // vt-wts/ dir created by production code is also unique per test.
     tempGitRepoPath: async ({}, use) => {
         // Resolve symlinks to avoid macOS /tmp -> /private/tmp mismatch
         // (git stores resolved paths, but mkdtemp returns the symlink path)
-        const tempDir = realpathSync(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-wt-e2e-')));
+        const tempParent = realpathSync(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-wt-e2e-')));
+        const tempDir = path.join(tempParent, 'voicetree-public');
+        await fs.mkdir(tempDir, { recursive: true });
 
         // Initialize git repo with initial commit (required for worktree creation)
         execSync('git init', { cwd: tempDir, stdio: 'pipe' });
@@ -65,7 +69,7 @@ const test = base.extend<{
 
         await use(tempDir);
 
-        // Cleanup: remove worktrees first, then temp directory
+        // Cleanup: remove worktrees first, then the whole parent (incl. sibling vt-wts/)
         try {
             const result = execSync('git worktree list --porcelain', {
                 cwd: tempDir, encoding: 'utf-8'
@@ -82,7 +86,7 @@ const test = base.extend<{
         } catch {
             console.log('[Cleanup] Could not clean up worktrees via git');
         }
-        await fs.rm(tempDir, { recursive: true, force: true });
+        await fs.rm(tempParent, { recursive: true, force: true });
     },
 
     electronApp: async ({ tempGitRepoPath }, use) => {
@@ -292,7 +296,7 @@ test.describe('Worktree Spawning E2E', () => {
 
         console.log('=== STEP 3: Create worktree via git (simulates "New Worktree" button) ===');
         const worktreeName = 'wt-test-create-e2e';
-        const worktreePath = path.join(tempGitRepoPath, '.worktrees', worktreeName);
+        const worktreePath = path.join(path.dirname(tempGitRepoPath), 'vt-wts', worktreeName);
         execSync(
             `git worktree add -b "${worktreeName}" "${worktreePath}"`,
             { cwd: tempGitRepoPath, stdio: 'pipe' }
@@ -324,7 +328,7 @@ test.describe('Worktree Spawning E2E', () => {
         const worktreeNames = ['wt-existing-alpha', 'wt-existing-beta'];
         const worktreePaths: string[] = [];
         for (const name of worktreeNames) {
-            const wtPath = path.join(tempGitRepoPath, '.worktrees', name);
+            const wtPath = path.join(path.dirname(tempGitRepoPath), 'vt-wts', name);
             execSync(
                 `git worktree add -b "${name}" "${wtPath}"`,
                 { cwd: tempGitRepoPath, stdio: 'pipe' }

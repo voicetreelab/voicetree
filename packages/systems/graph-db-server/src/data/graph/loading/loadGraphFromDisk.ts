@@ -222,8 +222,9 @@ const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
   '.tox',
   '.venv',
   'venv',
-  '.worktrees',
   'build',
+  // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
+  '.worktrees',
 ])
 
 // Directories that must never be loaded into the graph even when nested inside

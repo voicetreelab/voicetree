@@ -81,6 +81,31 @@ export function generateWorktreeName(nodeTitle: string): string {
 }
 
 /**
+ * Worktrees live as a SIBLING of the main checkout, not nested inside it.
+ * Layout:  <parent>/voicetree-public/   ← main repo
+ *          <parent>/vt-wts/<name>/      ← worktrees
+ *
+ * Reason for sibling layout: nested `.worktrees/` makes every code scanner
+ * (vitest, eslint, watch-folder, package discovery, architecture-drift,
+ * graph-db loader…) walk into peer worktrees by default. Each new scanner
+ * has to remember to exclude `.worktrees/`. Sibling layout sidesteps that
+ * entire class of bug — worktrees are outside the repo root, so scanners
+ * naturally never see them.
+ *
+ * The constant is duplicated (not imported) in:
+ *   - packages/systems/agent-runtime/src/application/spawn/terminalData.ts
+ *   - scripts/git/worktree/ensure-ready.mjs
+ *   - scripts/run-remote.mjs
+ * because these cross package + script boundaries. The string must stay
+ * in sync across all of them.
+ */
+const WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts';
+
+export function worktreeRootFor(repoRoot: string): string {
+    return path.resolve(repoRoot, '..', WORKTREE_SIBLING_DIR_NAME);
+}
+
+/**
  * Get the worktree directory path for a given worktree name.
  *
  * @param repoRoot - The root directory of the git repository
@@ -88,7 +113,7 @@ export function generateWorktreeName(nodeTitle: string): string {
  * @returns The absolute path to the worktree directory
  */
 export function getWorktreePath(repoRoot: string, worktreeName: string): string {
-    return path.join(repoRoot, '.worktrees', worktreeName);
+    return path.join(worktreeRootFor(repoRoot), worktreeName);
 }
 
 /**
@@ -155,16 +180,16 @@ export interface WorktreeInfo {
 }
 
 /**
- * List existing git worktrees under the `.worktrees/` directory.
+ * List existing git worktrees under the sibling `vt-wts/` directory.
  * Returns up to 5 most recently modified worktrees, sorted newest first.
  *
  * @param repoRoot - The root directory of the git repository
  * @returns Array of worktree info objects, empty if none exist
  */
 export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
-    const worktreesDir: string = path.join(repoRoot, '.worktrees');
+    const worktreesDir: string = worktreeRootFor(repoRoot);
 
-    // Gracefully handle missing .worktrees/ directory
+    // Gracefully handle missing sibling worktree dir
     if (!fs.existsSync(worktreesDir)) {
         return [];
     }
@@ -197,7 +222,7 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
         const head: string = headLine.slice('HEAD '.length);
         const branch: string = branchLine.slice('branch refs/heads/'.length);
 
-        // Filter: only include worktrees under .worktrees/
+        // Filter: only include worktrees under the sibling vt-wts/ dir
         // Normalize both sides for cross-platform comparison
         if (!toForwardSlashes(wtPath).startsWith(normalizedWorktreesDir)) continue;
 

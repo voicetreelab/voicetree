@@ -44,6 +44,9 @@ MUTAGEN_CONFIG="$SCRIPT_DIR/mutagen-vt-remote.yml"
 CSV_HISTORY_CONFIG="$SCRIPT_DIR/mutagen-vt-csv-history.yml"
 CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
 CSV_HISTORY_REMOTE="${REMOTE_DIR}/health-dashboard/reports/scores-history"
+VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts.yml"
+VT_WTS_LOCAL="$(cd "$REPO_ROOT/.." && pwd)/vt-wts"
+VT_WTS_REMOTE="/root/vt-wts"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/root/.voicetree/artifacts}"
 
 create_sync() {
@@ -62,6 +65,16 @@ create_csv_history_sync() {
     --configuration-file "$CSV_HISTORY_CONFIG" \
     "$CSV_HISTORY_LOCAL" \
     "${REMOTE}:${CSV_HISTORY_REMOTE}"
+}
+
+create_vt_wts_sync() {
+  ssh -o StrictHostKeyChecking=no "$REMOTE" "mkdir -p '$VT_WTS_REMOTE'"
+  mkdir -p "$VT_WTS_LOCAL"
+  exec mutagen sync create \
+    --name vt-wts \
+    --configuration-file "$VT_WTS_CONFIG" \
+    "$VT_WTS_LOCAL" \
+    "${REMOTE}:${VT_WTS_REMOTE}"
 }
 
 case "${1:-}" in
@@ -111,6 +124,31 @@ case "${1:-}" in
   csv-history-terminate)
     exec mutagen sync terminate vt-csv-history
     ;;
+  vt-wts-create)
+    create_vt_wts_sync
+    ;;
+  vt-wts-recreate)
+    mutagen sync terminate vt-wts >/dev/null 2>&1 || true
+    create_vt_wts_sync
+    ;;
+  vt-wts-status)
+    exec mutagen sync list vt-wts
+    ;;
+  vt-wts-flush)
+    exec mutagen sync flush vt-wts
+    ;;
+  vt-wts-pause)
+    exec mutagen sync pause vt-wts
+    ;;
+  vt-wts-resume)
+    exec mutagen sync resume vt-wts
+    ;;
+  vt-wts-monitor)
+    exec mutagen sync monitor vt-wts
+    ;;
+  vt-wts-terminate)
+    exec mutagen sync terminate vt-wts
+    ;;
   artifacts-list)
     exec ssh -o StrictHostKeyChecking=no "$REMOTE" \
       "find '$ARTIFACT_ROOT' -mindepth 1 -maxdepth 1 -type d -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort"
@@ -151,6 +189,14 @@ vt-remote.sh — remote dev box ($REMOTE)
   csv-history-status     mutagen sync list vt-csv-history
   csv-history-flush      force a sync now
   csv-history-terminate  stop the two-way sync session
+  vt-wts-create          create vt-wts one-way sync for sibling worktrees
+  vt-wts-recreate        terminate any existing vt-wts and recreate
+  vt-wts-status          mutagen sync list vt-wts
+  vt-wts-flush           force a sync now
+  vt-wts-pause           pause syncing
+  vt-wts-resume          resume syncing
+  vt-wts-monitor         live sync activity view
+  vt-wts-terminate       stop the vt-wts sync session
   artifacts-list     list explicit artifact directories on Onidel
   artifacts-pull ID  copy /root/.voicetree/artifacts/ID back to ./artifacts/ID
   htop               remote htop (use 'q' to quit)

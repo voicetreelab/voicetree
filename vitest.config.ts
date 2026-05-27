@@ -4,6 +4,9 @@ import { createRequire } from 'node:module'
 import path from 'path'
 
 const require = createRequire(import.meta.url)
+// TODO: drop the .worktrees handling below once migrate-worktrees-to-sibling.sh
+// has run and .worktrees/ is empty. Sibling vt-wts/ is outside the repo root,
+// so vitest never walks into it.
 const pathSegments = process.cwd().split(/[\\/]+/)
 const isRunningInsideWorktree = pathSegments.includes('.worktrees')
 const sharedExclude = [
@@ -25,11 +28,12 @@ const nestedGitRootExcludes = (root: string): string[] => {
   const excludedDirNames = new Set([
     'node_modules',
     '.git',
-    '.worktrees',
     'dist',
     'dist-electron',
     'out',
     'build',
+    // TODO: drop post-migration; see comment above.
+    '.worktrees',
   ])
   const found: string[] = []
   const readDirectories = (absDir: string) => {
