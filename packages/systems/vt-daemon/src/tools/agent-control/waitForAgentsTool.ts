@@ -9,7 +9,7 @@ import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
 } from '../agentDependencies'
-import type {GraphBridge} from '../../config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 export interface WaitForAgentsParams {

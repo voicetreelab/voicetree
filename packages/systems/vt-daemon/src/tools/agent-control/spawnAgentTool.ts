@@ -11,8 +11,8 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {startMonitor} from '../agentDependencies'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../../config/graphBridge.ts'
-import type {GraphBridge} from '../../config/mcpBridges.ts'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {
     consumeSpawnBudget,

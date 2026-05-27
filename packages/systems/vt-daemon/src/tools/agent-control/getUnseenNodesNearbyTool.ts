@@ -7,8 +7,8 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {type McpToolResponse, buildJsonResponse} from '../types'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '../../config/graphBridge.ts'
-import type {GraphBridge} from '../../config/mcpBridges.ts'
+import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 type UnseenNode = Awaited<ReturnType<typeof getMcpUnseenNodesAroundContextNode>>[number]

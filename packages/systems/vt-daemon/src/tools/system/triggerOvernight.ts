@@ -7,8 +7,8 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../../config/graphBridge.ts'
-import type {GraphBridge} from '../../config/mcpBridges.ts'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
 
 export interface TriggerOvernightParams {

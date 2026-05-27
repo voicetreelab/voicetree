@@ -10,8 +10,8 @@
 import type {Graph} from '@vt/graph-model/graph'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {getAgentNodes, getAgentStatus, getNewNodesForAgentIdentities} from '../agentDependencies'
-import {getMcpGraph} from '../../config/graphBridge.ts'
-import type {GraphBridge} from '../../config/mcpBridges.ts'
+import {getMcpGraph} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {
     closeHeadlessTerminal,
     findTerminalRecord,
