@@ -60,6 +60,12 @@ export const test = base.extend<{
         ENABLE_PLAYWRIGHT_DEBUG: '0',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // Pin the app-support path to the temp user-data dir so the daemon
+        // (a forked subprocess) reads the same settings.json the fixture
+        // pre-seeded. Without this override the parent shell's
+        // VOICETREE_APP_SUPPORT leaks into the test process and the daemon
+        // never sees the grep-probe agent.
+        VOICETREE_APP_SUPPORT: tempUserDataPath,
         // Fallback for runtime paths before the daemon has reported the
         // configured write folder.
         VOICETREE_VAULT_PATH: FIXTURE_VAULT_PATH,
