@@ -237,11 +237,13 @@ async function startRendererScreenshotCapture(
     runDir: string,
     intervalMs: number = 20_000,
 ): Promise<RendererScreenshotCapture> {
+    const cdp = await appWindow.context().newCDPSession(appWindow) as RendererCdpHandle
     const dir = path.join(runDir, 'screenshots')
     mkdirSync(dir, { recursive: true })
     let stopped = false
     let inFlight = false
     let index = 0
+    await cdp.send('Page.enable').catch(() => undefined)
 
     const capture = async (reason: 'sample' | 'final'): Promise<void> => {
         if (inFlight) return
@@ -250,14 +252,21 @@ async function startRendererScreenshotCapture(
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
         try {
-            await appWindow.screenshot({ path: screenshotPath })
+            const response = await cdp.send('Page.captureScreenshot', {
+                format: 'png',
+                fromSurface: true,
+            }) as { readonly data?: string }
+            if (typeof response.data !== 'string') throw new Error('Page.captureScreenshot returned no data')
+            writeFileSync(screenshotPath, Buffer.from(response.data, 'base64'))
             process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
         } finally {
             inFlight = false
         }
     }
 
-    await capture('sample')
+    await capture('sample').catch((error: unknown) => {
+        process.stderr.write(`[mvp] initial renderer screenshot failed: ${(error as Error).message}\n`)
+    })
     const interval = setInterval(() => {
         if (stopped) return
         void capture('sample').catch((error: unknown) => {
@@ -275,6 +284,7 @@ async function startRendererScreenshotCapture(
             await capture('final').catch((error: unknown) => {
                 process.stderr.write(`[mvp] final renderer screenshot failed: ${(error as Error).message}\n`)
             })
+            await cdp.detach().catch(() => undefined)
         },
     }
 }
