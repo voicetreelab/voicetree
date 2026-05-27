@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createTaskNode, type TaskNodeCreationParams } from './createTaskNode'
 import type { Graph, GraphNode, Edge, NodeIdAndFilePath, GraphDelta, UpsertNodeDelta } from '../..'
 import { buildIncomingEdgesIndex } from '../indexes/incomingEdgesIndex'
+import { buildNodeByBaseNameIndex } from '../indexes/linkResolutionIndexes'
 import * as O from 'fp-ts/lib/Option.js'
 
 const createTestNode: (id: string, edges?: readonly Edge[], content?: string) => GraphNode = (
@@ -26,7 +27,7 @@ const createGraphFromNodes: (nodes: Record<NodeIdAndFilePath, GraphNode>) => Gra
 ): Graph => ({
   nodes,
   incomingEdgesIndex: buildIncomingEdgesIndex(nodes),
-  nodeByBaseName: new Map(),
+  nodeByBaseName: buildNodeByBaseNameIndex(nodes),
   unresolvedLinksIndex: new Map()
 })
 
