@@ -121,11 +121,13 @@ local_prewarm_pnpm_worktree_sync() {
     return 0
   fi
 
-  local main_repo
-  main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
-  local ready_script="$main_repo/scripts/git/worktree/ensure-ready.mjs"
+  # Use the NEW worktree's own ensure-ready.mjs (the script that belongs to
+  # the branch being checked out). The main checkout may be on an older
+  # branch without pnpm awareness — using its script there would re-run the
+  # npm path against pnpm-only manifests (workspace:* etc.) and fail.
+  local ready_script="$wt_abs/scripts/git/worktree/ensure-ready.mjs"
   if [ ! -f "$ready_script" ]; then
-    echo "git-gate: warning: missing ensure-ready script: $ready_script" >&2
+    echo "git-gate: warning: missing ensure-ready script in worktree: $ready_script" >&2
     return 0
   fi
 
