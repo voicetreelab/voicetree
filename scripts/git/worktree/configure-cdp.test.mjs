@@ -15,19 +15,33 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const SCRIPT = join(__dirname, 'configure-cdp.sh')
 
 /**
- * Create a fake repo layout:
- *   <repoRoot>/
+ * Create a real git-worktree-shaped layout. Sibling layout:
+ *   <parent>/voicetree-public/         (initialised git repo with one commit)
  *     .mcp.json                       (template — copied by the script)
- *     .worktrees/<wtName>/
- *       webapp/                       (needed for .cdp-port write)
- * Returns paths used by assertions.
+ *   <parent>/vt-wts/<wtName>/         (linked git worktree)
+ *     webapp/                         (needed for .cdp-port write)
+ *
+ * configure-cdp.sh resolves the main repo via `git worktree list --porcelain`,
+ * so we need a real git repo (not just a fake directory) to test it end-to-end.
  */
 function makeRepo({mcpJsonTemplate}) {
-  const repoRoot = mkdtempSync(join(tmpdir(), 'vt-configure-cdp-'))
-  const wtName = 'wt-sample'
-  const wtPath = join(repoRoot, '.worktrees', wtName)
-  mkdirSync(join(wtPath, 'webapp'), {recursive: true})
+  const parent = mkdtempSync(join(tmpdir(), 'vt-configure-cdp-'))
+  const repoRoot = join(parent, 'voicetree-public')
+  mkdirSync(repoRoot, {recursive: true})
+
+  spawnSync('git', ['init', '-q', '-b', 'main'], {cwd: repoRoot})
+  spawnSync('git', ['config', 'user.email', 'test@example.com'], {cwd: repoRoot})
+  spawnSync('git', ['config', 'user.name', 'Test'], {cwd: repoRoot})
+  spawnSync('git', ['config', 'commit.gpgsign', 'false'], {cwd: repoRoot})
   writeFileSync(join(repoRoot, '.mcp.json'), mcpJsonTemplate, 'utf-8')
+  spawnSync('git', ['add', '.mcp.json'], {cwd: repoRoot})
+  spawnSync('git', ['commit', '-q', '-m', 'seed'], {cwd: repoRoot})
+
+  const wtName = 'wt-sample'
+  const wtPath = join(parent, 'vt-wts', wtName)
+  spawnSync('git', ['worktree', 'add', '-b', wtName, wtPath], {cwd: repoRoot})
+  mkdirSync(join(wtPath, 'webapp'), {recursive: true})
+
   return {
     repoRoot,
     wtName,

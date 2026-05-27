@@ -105,9 +105,9 @@ case "$sub" in
       target_branch="$(echo "$rest" | tr -s ' ' | cut -d' ' -f1)"
       current_branch="$(git -C "${GIT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || echo "unknown")"
       # Only gate merges performed in the MAIN worktree (primary checkout
-      # tied directly to .git/). Merges in linked worktrees (`.worktrees/*`,
-      # created via `git worktree add`) are cheap-to-revert local integration
-      # steps and pass through.
+      # tied directly to .git/). Merges in linked worktrees (sibling
+      # `vt-wts/*`, created via `git worktree add`) are cheap-to-revert
+      # local integration steps and pass through.
       # Detection: in the main worktree, --git-dir and --git-common-dir resolve
       # to the same path. In a linked worktree, --git-dir points inside
       # <repo>/.git/worktrees/<name>/ while --git-common-dir is the shared .git.

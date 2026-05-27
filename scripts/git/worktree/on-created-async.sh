@@ -18,7 +18,11 @@ fi
 echo "worktree async hook: starting dependency readiness for $WORKTREE_NAME at $WORKTREE_PATH"
 echo "worktree async hook: command-boundary readiness will retry later if this prewarm fails"
 
-REPO_ROOT="$(cd "$WORKTREE_PATH/../.." && pwd)"
+# Derive REPO_ROOT from git's main-worktree pointer rather than `cd ../..`,
+# because worktrees live as a SIBLING of the main checkout (<parent>/vt-wts/<name>/),
+# not nested inside it. The first entry in `git worktree list --porcelain` is
+# always the main worktree.
+REPO_ROOT="$(git -C "$WORKTREE_PATH" worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
 REMOTE_RUNNER="$REPO_ROOT/scripts/run-remote.mjs"
 
 if [ ! -f "$REMOTE_RUNNER" ]; then

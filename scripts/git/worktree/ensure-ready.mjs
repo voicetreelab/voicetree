@@ -26,6 +26,13 @@ const SCRIPT_PATH = fileURLToPath(import.meta.url)
 const SOURCE_REPO_ROOT = resolve(dirname(SCRIPT_PATH), '../../..')
 const MARKER_RELATIVE_PATH = join('node_modules', '.voicetree-worktree-ready.json')
 
+// Worktrees live as a sibling of the main checkout (e.g. /repos/voicetree-public
+// + /repos/vt-wts/<name>/). The directory name must stay in sync with the
+// duplicated constant in webapp gitWorktreeCommands.ts and agent-runtime
+// terminalData.ts. See those files for the rationale.
+const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
+const MAIN_REPO_DIR_NAME = 'voicetree-public'
+
 function pathExists(path) {
   return existsSync(path)
 }
@@ -140,10 +147,13 @@ function mainWorktreeFromGit(inputPath) {
 
 function mainRepoFromPath(path) {
   const parts = resolve(path).split(sep)
-  const index = parts.lastIndexOf('.worktrees')
+  const index = parts.lastIndexOf(WORKTREE_SIBLING_DIR_NAME)
   if (index <= 0) return null
-  const prefix = parts.slice(0, index).join(sep)
-  return prefix === '' ? sep : prefix
+  // Sibling layout: <parent>/vt-wts/<name>/  →  main repo at <parent>/voicetree-public
+  const parentParts = parts.slice(0, index)
+  const parentPrefix = parentParts.join(sep)
+  const parent = parentPrefix === '' ? sep : parentPrefix
+  return join(parent, MAIN_REPO_DIR_NAME)
 }
 
 function resolveWorktreeRoot(inputPath) {

@@ -13,14 +13,23 @@ import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeGraph, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
- * Extract worktree directory name from a spawn path, if it's inside a .worktrees/ directory.
- * Returns undefined if the path is not a worktree path.
+ * Extract worktree directory name from a spawn path, if it's inside the
+ * sibling `vt-wts/` directory.
  *
- * Example: "/repo/.worktrees/wt-fix-auth-bug-a3k" -> "wt-fix-auth-bug-a3k"
+ * Layout: worktrees live alongside the main checkout, not nested inside it.
+ *   /Users/x/repos/voicetree-public/      ← main
+ *   /Users/x/repos/vt-wts/<name>/         ← worktree
+ *
+ * The directory-name constant `vt-wts` is duplicated (not imported) in
+ * webapp/.../gitWorktreeCommands.ts and scripts/git/worktree/ensure-ready.mjs.
+ * Keep all three in sync.
+ *
+ * Example: "/Users/x/repos/vt-wts/wt-fix-auth-bug-a3k" -> "wt-fix-auth-bug-a3k"
  */
 function extractWorktreeNameFromPath(spawnDirectory: string | undefined): string | undefined {
     if (!spawnDirectory) return undefined
-    const marker: string = '.worktrees/'
+    // Anchor on path-segment boundaries so substrings like "my-vt-wts" don't match.
+    const marker: string = '/vt-wts/'
     const markerIndex: number = spawnDirectory.indexOf(marker)
     if (markerIndex === -1) return undefined
     const afterMarker: string = spawnDirectory.slice(markerIndex + marker.length)

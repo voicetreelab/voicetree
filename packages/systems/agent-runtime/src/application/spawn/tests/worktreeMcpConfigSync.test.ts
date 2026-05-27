@@ -6,7 +6,7 @@
  * Outputs (asserted): the contents of the `.mcp.json` / `.codex/config.toml`
  *   files captured by the in-memory fs.
  *
- * Background: when an agent spawns in a worktree (e.g. `.worktrees/<branch>`),
+ * Background: when an agent spawns in a worktree (e.g. `vt-wts/<branch>`),
  * the worktree's `.mcp.json` and `.codex/config.toml` were checked in or
  * inherited with a stale port. Claude Code / Codex CLIs read those files
  * from cwd, so unless we refresh them at spawn time, the agent attaches to

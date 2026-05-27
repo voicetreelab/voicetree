@@ -2,7 +2,7 @@
  * Edge helper: sync MCP client config files inside a spawn directory so the
  * agent launched there connects to the live VoiceTree MCP port.
  *
- * Background: when an agent spawns in a worktree (e.g. `.worktrees/<branch>`),
+ * Background: when an agent spawns in a worktree (e.g. `vt-wts/<branch>`),
  * the worktree's `.mcp.json` / `.codex/config.toml` are inherited from a
  * previous checkout or a previous VoiceTree instance and can carry a stale
  * port. Both Claude Code and Codex read those files relative to cwd, so the

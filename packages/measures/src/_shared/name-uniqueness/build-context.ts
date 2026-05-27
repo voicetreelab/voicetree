@@ -30,7 +30,9 @@ const SOURCE_EXTS: ReadonlySet<string> = new Set(['.ts', '.tsx'])
 const IGNORED_DIR_NAMES: ReadonlySet<string> = new Set([
     'node_modules', 'dist', 'dist-electron', 'dist-test', 'out',
     'build', 'coverage', '.git', '__tests__', '__mocks__', '__generated__',
-    'generated', '.worktrees',
+    'generated',
+    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
+    '.worktrees',
 ])
 
 type DeclarationKind =

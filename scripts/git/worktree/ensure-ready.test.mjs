@@ -40,16 +40,18 @@ function seedSourceNodeModules(sourceRoot) {
   symlinkSync('../../packages/local-pkg', join(sourceRoot, 'node_modules', '@vt', 'local-pkg'))
 }
 
-test('resolves the main repo from a .worktrees path without git metadata', () => {
+test('resolves the main repo from a sibling vt-wts path without git metadata', () => {
   assert.equal(
-    mainRepoFromPath('/tmp/example/.worktrees/wt-one'),
-    '/tmp/example',
+    mainRepoFromPath('/tmp/example/vt-wts/wt-one'),
+    '/tmp/example/voicetree-public',
   )
 })
 
 test('copies main node_modules into a matching worktree and keeps @vt links local', () => {
-  const repoRoot = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
-  const worktreeRoot = join(repoRoot, '.worktrees', 'wt-one')
+  const parent = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
+  const repoRoot = join(parent, 'voicetree-public')
+  mkdirSync(repoRoot, {recursive: true})
+  const worktreeRoot = join(parent, 'vt-wts', 'wt-one')
 
   writeDependencyFiles(repoRoot)
   writeDependencyFiles(worktreeRoot)
@@ -77,8 +79,10 @@ test('copies main node_modules into a matching worktree and keeps @vt links loca
 })
 
 test('copies first and runs npm install when dependency fingerprints differ', () => {
-  const repoRoot = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
-  const worktreeRoot = join(repoRoot, '.worktrees', 'wt-two')
+  const parent = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
+  const repoRoot = join(parent, 'voicetree-public')
+  mkdirSync(repoRoot, {recursive: true})
+  const worktreeRoot = join(parent, 'vt-wts', 'wt-two')
 
   writeDependencyFiles(repoRoot, 'main-lock')
   writeDependencyFiles(worktreeRoot, 'worktree-lock')
@@ -103,8 +107,10 @@ test('copies first and runs npm install when dependency fingerprints differ', ()
 })
 
 test('explains why source node_modules cannot seed a worktree', () => {
-  const repoRoot = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
-  const worktreeRoot = join(repoRoot, '.worktrees', 'wt-three')
+  const parent = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
+  const repoRoot = join(parent, 'voicetree-public')
+  mkdirSync(repoRoot, {recursive: true})
+  const worktreeRoot = join(parent, 'vt-wts', 'wt-three')
 
   writeDependencyFiles(repoRoot, 'main-lock')
   writeDependencyFiles(worktreeRoot, 'worktree-lock')
