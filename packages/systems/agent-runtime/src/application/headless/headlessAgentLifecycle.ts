@@ -1,10 +1,10 @@
 import type {ChildProcess} from 'child_process'
 import type {Graph} from '@vt/graph-model/graph'
 import type {SupportedHeadlessCli} from '../spawn/cli/headlessCli'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
 import type {StopHookResult} from '../hooks/stopGateHookRunner'
 import type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentDeps'
-import type {TerminalRecord} from '../terminals/terminal-registry'
+import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
 
 export type HeadlessLifecycleState = {
     readonly headlessProcesses: Map<TerminalId, ChildProcess>

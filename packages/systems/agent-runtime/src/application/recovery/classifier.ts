@@ -1,9 +1,9 @@
-import type {TerminalId} from '../terminals/terminal-registry/types'
-import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
-import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
+import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TmuxTerminalMetadata} from '@vt/vt-daemon/terminals/terminal-registry/terminal-metadata'
+import type {UnclaimedTmuxSession} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
 import {detectCliType} from '../spawn/cli/headlessCli'
-import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
-import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
+import {buildTmuxSessionName} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
+import {parseVoicetreeTmuxSessionName} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
 import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type ClassifierInput = {

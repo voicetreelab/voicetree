@@ -5,7 +5,7 @@ import {
 } from './discovery'
 import {buildResumeCommand, type ResumeMode} from '../spawn/cli/resumeCli'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
-import {getExistingAgentNames} from '../terminals/terminal-registry'
+import {getExistingAgentNames} from '@vt/vt-daemon/terminals/terminal-registry'
 import {getUniqueAgentName} from '@vt/graph-model/settings'
 import {
     defaultResolveNativeSession,
@@ -13,7 +13,7 @@ import {
     type ResolveNativeSession,
 } from './resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from './types'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
 
 export type ForkAgentSessionDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>

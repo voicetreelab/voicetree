@@ -11,10 +11,10 @@ import {
     spawnHeadlessAgent,
     spawnTmuxBackedTerminal,
 } from '../headlessAgentManager'
-import {createTerminalData, type TerminalData, type TerminalId} from '../../terminals/terminal-registry/types'
-import {clearTerminalRecords, getTerminalRecords} from '../../terminals/terminal-registry'
-import {hasSession, killSession} from '../../terminals/tmux/tmux-session-manager'
-import {TerminalManager} from '../../terminals/terminal-manager'
+import {createTerminalData, type TerminalData, type TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import {clearTerminalRecords, getTerminalRecords} from '@vt/vt-daemon/terminals/terminal-registry'
+import {hasSession, killSession} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
+import {TerminalManager} from '@vt/vt-daemon/terminals/manager/terminal-manager'
 
 type TmuxMetadata = {
     readonly status: 'running' | 'exited'

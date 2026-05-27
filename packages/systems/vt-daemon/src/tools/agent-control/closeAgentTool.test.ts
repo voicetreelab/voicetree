@@ -13,7 +13,7 @@ import {
     type TerminalData,
     type TerminalId,
 } from '@vt/agent-runtime'
-import {hasSession, killSession} from '@vt/agent-runtime/terminals/tmux/tmux-session-manager'
+import {hasSession, killSession} from '../../terminals/tmux/tmux-session-manager'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import {configureMcpServer} from '../../config/mcp-config'
 import {closeAgentTool} from './closeAgentTool'

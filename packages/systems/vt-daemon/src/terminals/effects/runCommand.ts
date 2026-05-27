@@ -4,8 +4,8 @@ import {
     idleSinceByTerminal,
     pendingNotificationTimeouts,
     terminalRecords,
-} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
-import {notifyRegistrySubscribers} from '@vt/agent-runtime/terminals/terminal-registry/subscribers.ts'
+} from '../terminal-registry-state.ts'
+import {notifyRegistrySubscribers} from '../terminal-registry/subscribers.ts'
 
 export type RunCommandDeps = {
     timers: TerminalRegistryTimers

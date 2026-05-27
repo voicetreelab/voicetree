@@ -12,7 +12,7 @@ import {
     type TerminalRegistryClock,
     type TerminalRegistryLogger,
     type UnseenNodesNotificationState,
-} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
+} from '../terminal-registry-state.ts'
 
 type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
 

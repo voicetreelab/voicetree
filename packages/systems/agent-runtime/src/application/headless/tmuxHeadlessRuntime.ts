@@ -1,12 +1,12 @@
 import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
-import type {TmuxReconciliationResult} from '../terminals/terminal-registry'
-import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TmuxReconciliationResult} from '@vt/vt-daemon/terminals/terminal-registry'
+import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '@vt/vt-daemon/terminals/terminal-registry/terminal-metadata'
 import {
     captureOutput,
     getOutput,
-} from '../terminals/terminal-output-buffer'
+} from '@vt/vt-daemon/terminals/terminal-output-buffer'
 import {
     createSession,
     getPanePid,
@@ -16,9 +16,9 @@ import {
     buildTmuxSessionName,
     registerTmuxSessionAlias,
     sendKeys,
-} from '../terminals/tmux/tmux-session-manager'
-import {reconcileTmuxTerminalRegistry} from '../terminals/terminal-registry'
-import {shellQuote} from '../util/shellQuote.ts'
+} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
+import {reconcileTmuxTerminalRegistry} from '@vt/vt-daemon/terminals/terminal-registry'
+import {shellQuote} from '@vt/vt-daemon/terminals/util/shellQuote.ts'
 import {applyPromptFileToHeadlessSpawn, deletePromptFile, deletePromptFileByPath} from './tmuxPromptFile'
 import {
     defaultHeadlessAgentDeps,

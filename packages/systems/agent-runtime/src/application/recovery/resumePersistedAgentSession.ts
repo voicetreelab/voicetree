@@ -11,7 +11,7 @@ import {
     type ResolveNativeSession,
 } from './resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from './types'
-import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
 
 export type ResumePersistedDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>

@@ -16,15 +16,15 @@ import { installJsonlTelemetrySink } from '../application/lifecycle/tierTelemetr
 import { configureAgentRuntime, getRuntimeEnv } from '../application/runtime/runtime-config'
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
-import { getOutput } from '../application/terminals/terminal-output-buffer'
-import { ensureTmuxAvailable } from '../application/terminals/tmux/tmux-preflight'
-import { ensureTmuxServer, shutdownTmuxServer } from '../application/terminals/tmux/tmux-server'
-import { getTerminalManager } from '../application/terminals/terminal-manager-instance'
+import { getOutput } from '@vt/vt-daemon/terminals/terminal-output-buffer'
+import { ensureTmuxAvailable } from '@vt/vt-daemon/terminals/tmux/tmux-preflight'
+import { ensureTmuxServer, shutdownTmuxServer } from '@vt/vt-daemon/terminals/tmux/tmux-server'
+import { getTerminalManager } from '@vt/vt-daemon/terminals/manager/terminal-manager-instance'
 import {
     attachUnclaimedTmuxSession,
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
-} from '../application/terminals/tmux/unclaimed-tmux'
+} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
 import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
 import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
 import { forkAgentSession } from '../application/recovery/forkAgentSession'
@@ -43,11 +43,11 @@ import {
     updateTerminalIsDone,
     updateTerminalMinimized,
     updateTerminalPinned,
-} from '../application/terminals/terminal-registry'
+} from '@vt/vt-daemon/terminals/terminal-registry'
 import {
     registerChild,
     tryConsumeAndSplitBudget,
-} from '../application/terminals/global-budget-registry'
+} from '@vt/vt-daemon/terminals/global-budget-registry'
 
 const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
 

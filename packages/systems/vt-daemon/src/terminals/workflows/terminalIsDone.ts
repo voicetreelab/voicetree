@@ -7,8 +7,8 @@ import {
     terminalRecords,
     type TerminalRecord,
     type TerminalRegistryRuntime,
-} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
-import {publishTerminalRegistryEvent} from '../terminals/terminal-registry/terminal-registry-publisher.ts'
+} from '../terminal-registry-state.ts'
+import {publishTerminalRegistryEvent} from '../terminal-registry/terminal-registry-publisher.ts'
 import {handleTerminalIsDone} from '../core/handleTerminalIsDone.ts'
 import {notifyAgentOfUnseenNodes} from '../effects/notifyAgentOfUnseenNodes.ts'
 import {runIdleStopGateAudit} from '../effects/runIdleStopGateAudit.ts'

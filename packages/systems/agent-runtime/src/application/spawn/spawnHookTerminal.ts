@@ -8,14 +8,14 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode} from '@vt/graph-model/graph'
 import {createNewNodeNoParent} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
-import type {TerminalData} from '../terminals/terminal-registry/types'
-import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
+import {createTerminalData, type TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
 import {sendTextToTerminal} from '../inject/send-text-to-terminal'
 import {loadSettings} from '@vt/app-config/settings'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge'
-import {publishTerminalRegistryEvent} from '../terminals/terminal-registry/terminal-registry-publisher'
+import {publishTerminalRegistryEvent} from '@vt/vt-daemon/terminals/terminal-registry/terminal-registry-publisher'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
 const TERMINAL_READY_POLL_MS: number = 100

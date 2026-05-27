@@ -4,8 +4,8 @@ import type {AddressInfo} from 'node:net'
 import type {Duplex} from 'node:stream'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {WebSocket, WebSocketServer} from 'ws'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux/tmux-server.ts'
-import {buildTmuxSessionName, killSession, createSession, hasSession} from '../../terminals/tmux/tmux-session-manager.ts'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../tmux/tmux-server.ts'
+import {buildTmuxSessionName, killSession, createSession, hasSession} from '../../tmux/tmux-session-manager.ts'
 import {attachTmuxSessionToWebSocket, type TmuxAttachRelayOptions} from '../tmux-attach-relay.ts'
 
 // Bridge-level black-box test. The daemon-side wiring lives in

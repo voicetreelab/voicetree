@@ -1,7 +1,7 @@
 import {execFileSync} from 'child_process'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import type {TerminalData} from './terminal-registry/types'
+import type {TerminalData} from '../terminal-registry/types'
 
 export type TerminalManagerLogger = {
   error(message?: unknown, ...optionalParams: unknown[]): void;

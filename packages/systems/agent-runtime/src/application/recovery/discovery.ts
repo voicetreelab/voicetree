@@ -1,16 +1,16 @@
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import path from 'node:path'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
-import {readMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
-import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
+import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
+import {readMetadata, type TmuxTerminalMetadata} from '@vt/vt-daemon/terminals/terminal-registry/terminal-metadata'
+import {createTerminalData, type TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
 import {
     getCurrentTmuxNamespaceHash,
     listUnclaimedTmuxSessions,
     parseVoicetreeTmuxSessionName,
     type UnclaimedTmuxSession,
-} from '../terminals/tmux/unclaimed-tmux'
-import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
+} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
+import {buildTmuxSessionName} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
 import {
     classifyRecoveryCandidates,
     detectSupportedCliFromMetadata,

@@ -20,7 +20,7 @@
  * arg, so `ps` cannot leak it (§3.3, §4.4).
  */
 
-import {shellQuote} from '../util/shellQuote'
+import {shellQuote} from '@vt/vt-daemon/terminals/util/shellQuote'
 
 export type AgentCli = 'claude' | 'codex' | 'other'
 

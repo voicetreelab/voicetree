@@ -5,7 +5,7 @@ import {
     markTerminalExited,
     recordTerminalSpawn,
     removeTerminalFromRegistry,
-} from '../terminals/terminal-registry'
+} from '@vt/vt-daemon/terminals/terminal-registry'
 import {runStopHooks} from '../hooks/stopGateHookRunner'
 import {getRuntimeGraph} from '../runtime/graph-bridge'
 import {detectCliType} from '../spawn/cli/headlessCli'
