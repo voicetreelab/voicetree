@@ -1,6 +1,6 @@
-import type { NodeIdAndFilePath, GraphNode, Edge } from '../..'
-import { getBaseName } from '../../graph-operations/indexes/linkResolutionIndexes'
-import type { NodeByBaseNameIndex } from '../../graph-operations/indexes/linkResolutionIndexes'
+import type { NodeIdAndFilePath, GraphNode, Edge } from '..'
+import { getBaseName } from '../graph-operations/indexes/linkResolutionIndexes'
+import type { NodeByBaseNameIndex } from '../graph-operations/indexes/linkResolutionIndexes'
 
 /**
  * Extracts path components, normalizing for comparison.

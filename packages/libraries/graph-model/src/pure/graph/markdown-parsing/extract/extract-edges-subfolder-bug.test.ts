@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractEdges, findBestMatchingNode, getPathComponents } from './extract-edges'
+import { extractEdges, findBestMatchingNode, getPathComponents } from '../extract-edges'
 import type { GraphNode, Edge } from '../..'
 
 describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', () => {

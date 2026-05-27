@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { resolveDaemonRuntimeCommand } from '../autoLaunch.ts'
-import { resolveDefaultDaemonArgs } from '../autoLaunch/spawn/runtime.ts'
+import { resolveDefaultDaemonArgs } from '../autoLaunch/runtime.ts'
 
 describe('resolveDaemonRuntimeCommand', () => {
   test('uses the current Node executable outside Electron', () => {

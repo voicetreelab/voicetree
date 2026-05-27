@@ -7,8 +7,8 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./autoLaunch/spawn/spawnCoordinator": "./src/autoLaunch/spawn/spawnCoordinator.ts",
-    "./autoLaunch/spawn/runtime": "./src/autoLaunch/spawn/runtime.ts"
+    "./autoLaunch/spawnCoordinator": "./src/autoLaunch/spawnCoordinator.ts",
+    "./autoLaunch/runtime": "./src/autoLaunch/runtime.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

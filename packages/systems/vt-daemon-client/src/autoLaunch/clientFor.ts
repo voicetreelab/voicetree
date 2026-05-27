@@ -19,7 +19,7 @@
 
 import { readFileSync } from 'node:fs'
 import { authTokenFilePath } from '@vt/vt-rpc'
-import { VtDaemonClient } from '../../VtDaemonClient.ts'
+import { VtDaemonClient } from '../VtDaemonClient.ts'
 
 export function vtClientFor(port: number, vault: string): VtDaemonClient {
   const token = readVtdAuthTokenSync(vault)

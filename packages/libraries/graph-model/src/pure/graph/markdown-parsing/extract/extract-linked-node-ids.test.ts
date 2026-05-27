@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractEdges } from './extract-edges'
+import { extractEdges } from '../extract-edges'
 import type { GraphNode, Edge } from '../..'
 
 describe('extractLinkedNodeIds', () => {

@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { GraphDbClient } from '../../GraphDbClient.ts'
+import { GraphDbClient } from '../GraphDbClient.ts'
 import { resolveDaemonRuntimeCommand } from './runtime.ts'
 
 const requireFromHere = createRequire(import.meta.url)

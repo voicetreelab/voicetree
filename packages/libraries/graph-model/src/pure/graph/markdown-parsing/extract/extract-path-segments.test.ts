@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getPathComponents, linkMatchScore } from './extract-edges'
+import { getPathComponents, linkMatchScore } from '../extract-edges'
 
 describe('getPathComponents', () => {
   it('should return empty array for empty path', () => {

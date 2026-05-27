@@ -47,10 +47,10 @@ import {
   attemptSpawnAndWait,
   gatherEvidence,
   reclaimStaleOwner,
-} from '@vt/graph-db-client/autoLaunch/spawn/spawnCoordinator'
+} from '@vt/graph-db-client/autoLaunch/spawnCoordinator'
 import { VtDaemonClient } from '../VtDaemonClient.ts'
-import { vtClientFor } from './spawn/clientFor.ts'
-import { resolveCommand } from './spawn/runtime.ts'
+import { vtClientFor } from './clientFor.ts'
+import { resolveCommand } from './runtime.ts'
 
 export type EnsureVtDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */

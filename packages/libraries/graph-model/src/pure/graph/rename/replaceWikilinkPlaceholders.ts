@@ -1,5 +1,5 @@
 import type { NodeIdAndFilePath } from '..'
-import { linkMatchScore } from '../markdown-parsing/extract/extract-edges'
+import { linkMatchScore } from '../markdown-parsing/extract-edges'
 
 /**
  * Extracts the basename (filename without extension) from a node ID path.

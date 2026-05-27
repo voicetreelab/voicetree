@@ -4,7 +4,7 @@ import {
   type EnsureGraphDaemonResult,
 } from './autoLaunch/ensureGraphDaemon.ts'
 import { type EnsureDaemonResult } from './autoLaunch/types.ts'
-import { resolveDaemonRuntimeCommand } from './autoLaunch/spawn/runtime.ts'
+import { resolveDaemonRuntimeCommand } from './autoLaunch/runtime.ts'
 
 export type { EnsureDaemonResult } from './autoLaunch/types.ts'
 export type {

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
 import { SpanStatusCode, type Span } from '@opentelemetry/api'
-import { DaemonLaunchTimeout, DaemonLockHeldError } from '../../errors.ts'
+import { DaemonLaunchTimeout, DaemonLockHeldError } from '../errors.ts'
 import {
   createSpawnPollTimings,
   recordLastSpawnPollSleep,
@@ -15,15 +15,15 @@ import {
   sleep,
   unrefIfSupported,
   waitForHealthyPort,
-} from '../probes/probes.ts'
+} from './probes.ts'
 import { type CommandSpec } from './runtime.ts'
 import {
   boundedAppend,
   launchTimeoutMessage,
   parseAlreadyRunningPid,
 } from './spawnOutput.ts'
-import { type EnsureDaemonResult } from '../types.ts'
-import { readPortFile } from '../../portDiscovery.ts'
+import { type EnsureDaemonResult } from './types.ts'
+import { readPortFile } from '../portDiscovery.ts'
 
 type SpawnState = { error: NodeJS.ErrnoException | null }
 type SpawnOutputState = {

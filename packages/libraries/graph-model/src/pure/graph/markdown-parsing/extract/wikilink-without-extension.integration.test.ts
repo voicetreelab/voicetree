@@ -14,7 +14,7 @@ import {
   findBestMatchingNode,
   linkMatchScore,
   getPathComponents
-} from './extract-edges'
+} from '../extract-edges'
 import {
   getBaseName,
   buildNodeByBaseNameIndex

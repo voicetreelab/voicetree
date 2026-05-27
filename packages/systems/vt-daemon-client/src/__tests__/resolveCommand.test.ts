@@ -12,7 +12,7 @@
 
 import { existsSync, statSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { resolveCommand } from '../autoLaunch/spawn/runtime.ts'
+import { resolveCommand } from '../autoLaunch/runtime.ts'
 
 describe('resolveCommand — production-path resolution', () => {
   const originalEnv = process.env.VT_DAEMON_BIN

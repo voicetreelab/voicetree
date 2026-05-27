@@ -44,8 +44,8 @@ import {
   gatherEvidence,
   reclaimStaleOwner,
   type SpawnAttemptResult,
-} from './spawn/spawnCoordinator.ts'
-import { resolveCommand } from './spawn/runtime.ts'
+} from './spawnCoordinator.ts'
+import { resolveCommand } from './runtime.ts'
 
 export type EnsureGraphDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */

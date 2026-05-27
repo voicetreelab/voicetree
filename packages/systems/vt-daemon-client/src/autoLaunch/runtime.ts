@@ -35,7 +35,7 @@ import { createRequire } from 'node:module'
 import {
   resolveDaemonRuntimeCommand,
   type CommandSpec,
-} from '@vt/graph-db-client/autoLaunch/spawn/runtime'
+} from '@vt/graph-db-client/autoLaunch/runtime'
 
 const requireFromHere = createRequire(import.meta.url)
 
