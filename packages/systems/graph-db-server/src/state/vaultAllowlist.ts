@@ -43,7 +43,7 @@ import {
     applyGraphDeltaToMemState,
     refreshGraphChangeSideEffects
 } from "../data/graph/mutations/applyGraphDelta";
-import { loadPositions } from "@vt/app-config/positions";
+import { defaultPositionsAsyncDeps, loadPositions } from "@vt/app-config/positions";
 import {
     getVaultConfigForDirectory,
     saveVaultConfigForDirectory,
@@ -123,7 +123,7 @@ export async function setWriteFolder(
     const [config, positions]: [VaultConfig | undefined, ReadonlyMap<string, Position>] = await Promise.all([
         traceGraphdSpan('daemon.set-write-folder.get-vault-config', async () => await getVaultConfigForDirectory(watchedDir)),
         traceGraphdSpan('daemon.set-write-folder.load-positions', async (span) => {
-            const loadedPositions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
+            const loadedPositions: ReadonlyMap<string, Position> = await loadPositions(watchedDir, defaultPositionsAsyncDeps);
             span.setAttribute('positions.count', loadedPositions.size);
             return loadedPositions;
         }),
@@ -210,7 +210,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
+    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedDir, defaultPositionsAsyncDeps);
 
     // Load and merge handles everything: graph state, UI broadcast
     // Note: isWriteFolder: false means no starter node and no backend notification

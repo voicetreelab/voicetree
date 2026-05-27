@@ -10,8 +10,8 @@
  * the case where re-parsed nodes lack YAML positions.
  */
 
-import * as fs from 'fs'
-import { promises as fsAsync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { readFile } from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '@vt/graph-model/graph'
@@ -19,6 +19,36 @@ export { mergePositionsIntoGraph } from '@vt/graph-model/spatial'
 
 interface PositionsFile {
     readonly [nodeId: string]: { readonly x: number; readonly y: number }
+}
+
+/**
+ * Shell-injected dependencies for positions IO. Threading these in keeps
+ * `loadPositions` / `savePositionsSync` (and every transitive caller in
+ * the graph-db-server / electron-main / web-share trees) free of the
+ * `node:fs` namespace import, so the transitive-purity gate doesn't drag
+ * the whole graph-loading pipeline through this leaf.
+ */
+export interface PositionsAsyncDeps {
+    readonly readFile: (filePath: string, encoding: 'utf-8') => Promise<string>
+}
+
+export interface PositionsSyncDeps {
+    readonly readFileSync: (filePath: string, encoding: 'utf-8') => string
+    readonly writeFileSync: (filePath: string, data: string, encoding: 'utf-8') => void
+    readonly existsSync: (filePath: string) => boolean
+    readonly mkdirSync: (dir: string, opts: { recursive: true }) => void
+}
+
+/** Default real-IO deps — module-level so call sites don't re-import fs. */
+export const defaultPositionsAsyncDeps: PositionsAsyncDeps = {
+    readFile: (filePath, encoding) => readFile(filePath, encoding),
+}
+
+export const defaultPositionsSyncDeps: PositionsSyncDeps = {
+    readFileSync,
+    writeFileSync,
+    existsSync,
+    mkdirSync,
 }
 
 function positionsFilePath(projectRoot: string): string {
@@ -51,10 +81,13 @@ function projectGraphPositions(graph: Graph): PositionsFile {
  * Load positions from .voicetree/positions.json.
  * Returns empty map if file doesn't exist or is invalid.
  */
-export async function loadPositions(projectRoot: string): Promise<ReadonlyMap<NodeIdAndFilePath, Position>> {
+export async function loadPositions(
+    projectRoot: string,
+    deps: PositionsAsyncDeps,
+): Promise<ReadonlyMap<NodeIdAndFilePath, Position>> {
     const filePath: string = positionsFilePath(projectRoot)
     try {
-        const data: string = await fsAsync.readFile(filePath, 'utf-8')
+        const data: string = await deps.readFile(filePath, 'utf-8')
         return new Map(entriesFromPositions(decodePositions(data)))
     } catch {
         return new Map()
@@ -69,7 +102,11 @@ export async function loadPositions(projectRoot: string): Promise<ReadonlyMap<No
  * existing on-disk file does — this guards against wiping persisted
  * positions during early-exit before the graph has loaded.
  */
-export function savePositionsSync(graph: Graph, projectRoot: string): void {
+export function savePositionsSync(
+    graph: Graph,
+    projectRoot: string,
+    deps: PositionsSyncDeps,
+): void {
     const positions: PositionsFile = projectGraphPositions(graph)
     const filePath: string = positionsFilePath(projectRoot)
     const dir: string = path.dirname(filePath)
@@ -77,7 +114,7 @@ export function savePositionsSync(graph: Graph, projectRoot: string): void {
     if (Object.keys(positions).length === 0) {
         let existing: string | null = null
         try {
-            existing = fs.readFileSync(filePath, 'utf-8')
+            existing = deps.readFileSync(filePath, 'utf-8')
         } catch {
             existing = null
         }
@@ -93,8 +130,8 @@ export function savePositionsSync(graph: Graph, projectRoot: string): void {
         }
     }
 
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
+    if (!deps.existsSync(dir)) {
+        deps.mkdirSync(dir, { recursive: true })
     }
-    fs.writeFileSync(filePath, JSON.stringify(positions, null, 2), 'utf-8')
+    deps.writeFileSync(filePath, JSON.stringify(positions, null, 2), 'utf-8')
 }
