@@ -13,7 +13,7 @@ import * as os from 'node:os'
 
 import { generateVaultOnDisk, type VaultLayout } from '@vt/perf-fixtures'
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
-import { terminalRuntimeSurface as agentRuntime } from "@vt/vt-daemon"
+import { terminalRuntimeSurface as agentRuntime } from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 
 import {
     parseStormArgs,

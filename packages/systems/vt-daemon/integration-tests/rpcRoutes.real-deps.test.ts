@@ -25,13 +25,15 @@ import {join} from 'node:path'
 
 import {
     clearTerminalRecords,
-    configureAgentRuntime,
-    createTerminalData,
     getTerminalRecords,
     recordTerminalSpawn,
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
+import {
+    createTerminalData,
     type TerminalData,
     type TerminalId,
-} from "@vt/vt-daemon"
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {spawnTmuxBackedTerminal} from '../src/agent-runtime/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager'
 import {

@@ -4,13 +4,12 @@
   "private": true,
   "type": "module",
   "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Also ships the standalone vtd binary — a per-vault per-machine daemon that talks to vt-graphd over RPC as a sibling process.",
-  "main": "src/agent-runtime/index.ts",
+  "main": "src/index.ts",
   "bin": {
     "vtd": "bin/vtd.ts"
   },
   "exports": {
-    ".": "./src/agent-runtime/index.ts",
-    "./agent-runtime": "./src/agent-runtime/index.ts",
+    ".": "./src/index.ts",
     "./agent-runtime/terminals/terminal-registry": "./src/agent-runtime/terminals/terminal-registry/index.ts",
     "./agent-runtime/lifecycle": "./src/agent-runtime/lifecycle/index.ts",
     "./agent-runtime/*": "./src/agent-runtime/*",

@@ -50,12 +50,13 @@ import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
-import { terminalRuntimeSurface as agentRuntime, configureAgentRuntime } from "@vt/vt-daemon"
+import { terminalRuntimeSurface as agentRuntime } from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import {

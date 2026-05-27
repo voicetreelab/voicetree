@@ -8,9 +8,9 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
-import {createGraphTool} from '@vt/vt-daemon'
-import type {GraphBridge} from '@vt/vt-daemon'
-import {clearTerminalRecords} from "@vt/vt-daemon"
+import {createGraphTool} from '@vt/vt-daemon/create-graph/createGraphTool.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {clearTerminalRecords} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {
     CALLER_TERMINAL_ID,
     WRITE_FOLDER,

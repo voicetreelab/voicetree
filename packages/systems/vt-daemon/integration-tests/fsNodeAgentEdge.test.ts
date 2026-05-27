@@ -15,16 +15,18 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import type {Graph} from '@vt/graph-model/graph'
 import {
     clearTerminalRecords,
-    createTerminalData,
     getIdleSince,
     getTerminalRecords,
     recordTerminalSpawn,
     resetAuditRetryCount,
     updateTerminalIsDone,
+    type TerminalRecord,
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
+import {
+    createTerminalData,
     type TerminalData,
     type TerminalId,
-    type TerminalRecord,
-} from "@vt/vt-daemon"
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {
     clearAgentNodes,
     getAgentNodes,

@@ -55,18 +55,18 @@ import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/dae
 import {tracing} from '@vt/observability'
 import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
-    buildDefaultToolCatalog,
-    handleHookEventRequest,
-    registerChildIfMonitored,
-    setCurrentVault,
     startHttpDaemonServer,
-    startOtlpReceiver,
-    stopOtlpReceiver,
     type HookHandler,
     type HttpDaemonServerHandle,
-    type McpToolBridges,
-} from '@vt/vt-daemon'
-import {terminalRuntimeSurface as agentRuntime, configureAgentRuntime} from "@vt/vt-daemon"
+} from '@vt/vt-daemon/transport/httpServer.ts'
+import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {setCurrentVault} from '@vt/vt-daemon/state/currentVault.ts'
+import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
+import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
+import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
+import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
+import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/vtPathInjection.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'

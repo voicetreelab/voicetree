@@ -29,8 +29,8 @@ import {
 } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {createTerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
-import type {GraphBridge} from '@vt/vt-daemon'
-import {listAgentsTool} from '@vt/vt-daemon'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {listAgentsTool} from '@vt/vt-daemon/agent-runtime/agent-control/listAgentsTool.ts'
 
 type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>

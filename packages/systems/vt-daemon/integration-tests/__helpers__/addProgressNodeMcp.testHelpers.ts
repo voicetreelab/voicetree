@@ -18,13 +18,12 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {clearSettingsCache} from '@vt/app-config/settings'
 import {
-    clearTerminalRecords,
     createTerminalData,
-    recordTerminalSpawn,
     type TerminalData,
     type TerminalId,
-} from "@vt/vt-daemon"
-import type {GraphBridge} from '@vt/vt-daemon'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+import {clearTerminalRecords, recordTerminalSpawn} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 
 export type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>

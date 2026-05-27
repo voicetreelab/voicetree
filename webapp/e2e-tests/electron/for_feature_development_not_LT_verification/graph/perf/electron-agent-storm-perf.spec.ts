@@ -94,7 +94,8 @@ import * as os from 'node:os'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
-import { terminalRuntimeSurface as agentRuntime, configureAgentRuntime } from "@vt/vt-daemon"
+import { terminalRuntimeSurface as agentRuntime } from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
     createTerminalData,
     type TerminalData,

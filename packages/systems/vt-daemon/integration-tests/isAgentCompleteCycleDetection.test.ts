@@ -15,8 +15,8 @@ import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-    type TerminalRecord,
-} from "@vt/vt-daemon"
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+import type {TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {
     isAgentComplete,
     type IsAgentCompleteDeps,

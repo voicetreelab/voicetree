@@ -8,7 +8,7 @@
 // shape of `AgentMetricsData` is preserved end-to-end.
 
 import {createRpcClientForVault, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
-import type {AgentMetricsData, SessionMetric} from '@vt/vt-daemon'
+import type {AgentMetricsData, SessionMetric} from '@vt/vt-daemon/observability/agentMetricsStore.ts'
 
 import {getActiveVault} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 

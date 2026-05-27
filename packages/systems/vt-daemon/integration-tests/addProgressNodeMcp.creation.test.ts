@@ -12,8 +12,8 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 
-import {createGraphTool} from '@vt/vt-daemon'
-import type {GraphBridge} from '@vt/vt-daemon'
+import {createGraphTool} from '@vt/vt-daemon/create-graph/createGraphTool.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {
     CALLER_TERMINAL_ID,
     READ_PATH,
