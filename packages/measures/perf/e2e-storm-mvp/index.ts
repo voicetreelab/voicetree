@@ -21,8 +21,7 @@ import * as path from 'node:path'
 import * as os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { finished } from 'node:stream/promises'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { inflateSync } from 'node:zlib'
 import type { Page } from '@playwright/test'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
@@ -41,7 +40,6 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const execFileAsync = promisify(execFile)
 
 // measures/perf/e2e-storm-mvp -> measures/perf -> measures -> packages -> repo root
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
@@ -173,6 +171,81 @@ function rendererMetricValue(metrics: readonly RendererMetric[], name: string): 
     return metrics.find(metric => metric.name === name)?.value
 }
 
+function pngLooksNonBlank(buffer: Buffer): boolean {
+    if (buffer.subarray(0, 8).compare(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) !== 0) return false
+    let offset = 8
+    let width = 0
+    let height = 0
+    let colorType = 0
+    const idat: Buffer[] = []
+
+    while (offset + 12 <= buffer.length) {
+        const length = buffer.readUInt32BE(offset)
+        const type = buffer.subarray(offset + 4, offset + 8).toString('ascii')
+        const data = buffer.subarray(offset + 8, offset + 8 + length)
+        offset += 12 + length
+
+        if (type === 'IHDR') {
+            width = data.readUInt32BE(0)
+            height = data.readUInt32BE(4)
+            const bitDepth = data[8]
+            colorType = data[9] ?? 0
+            if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) return false
+        } else if (type === 'IDAT') {
+            idat.push(data)
+        } else if (type === 'IEND') {
+            break
+        }
+    }
+
+    const bytesPerPixel = colorType === 6 ? 4 : 3
+    const rowBytes = width * bytesPerPixel
+    const inflated = inflateSync(Buffer.concat(idat))
+    let read = 0
+    let previous = Buffer.alloc(rowBytes)
+    let darkest = 255
+    let brightest = 0
+    let sampled = 0
+
+    for (let y = 0; y < height; y++) {
+        const filter = inflated[read++] ?? 0
+        const row = Buffer.from(inflated.subarray(read, read + rowBytes))
+        read += rowBytes
+
+        for (let x = 0; x < rowBytes; x++) {
+            const left = x >= bytesPerPixel ? row[x - bytesPerPixel] ?? 0 : 0
+            const up = previous[x] ?? 0
+            const upLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] ?? 0 : 0
+            const paeth = (() => {
+                const p = left + up - upLeft
+                const pa = Math.abs(p - left)
+                const pb = Math.abs(p - up)
+                const pc = Math.abs(p - upLeft)
+                return pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft
+            })()
+            const predictor =
+                filter === 1 ? left
+                    : filter === 2 ? up
+                        : filter === 3 ? Math.floor((left + up) / 2)
+                            : filter === 4 ? paeth
+                                : 0
+            row[x] = (row[x]! + predictor) & 0xff
+        }
+
+        const stride = Math.max(1, Math.floor(width / 32))
+        for (let x = 0; x < width; x += stride) {
+            const i = x * bytesPerPixel
+            const luminance = Math.round(((row[i] ?? 0) * 0.2126) + ((row[i + 1] ?? 0) * 0.7152) + ((row[i + 2] ?? 0) * 0.0722))
+            darkest = Math.min(darkest, luminance)
+            brightest = Math.max(brightest, luminance)
+            sampled += 1
+        }
+        previous = row
+    }
+
+    return sampled > 0 && brightest > 20 && (brightest - darkest) > 10
+}
+
 async function startRendererProfileCapture(
     appWindow: Page,
     runDir: string,
@@ -253,12 +326,8 @@ async function startRendererScreenshotCapture(
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
         try {
-            try {
-                await execFileAsync('scrot', [screenshotPath], { timeout: 3_000 })
-            } catch (scrotError) {
-                await appWindow.screenshot({ path: screenshotPath, timeout: 3_000 })
-                process.stderr.write(`[mvp] renderer screenshot used Playwright fallback after scrot failed: ${(scrotError as Error).message}\n`)
-            }
+            const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5_000 })
+            if (!pngLooksNonBlank(Buffer.from(bytes))) throw new Error(`blank renderer screenshot: ${screenshotPath}`)
             process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
         } finally {
             inFlight = false
