@@ -111,7 +111,7 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
 
 const LIST_AGENTS: CatalogEntry = {
     name: 'list_agents',
-    description: 'List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass as `agentName` to spawn_agent.',
+    description: 'List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass to `--name` when spawning.',
     inputShape: {},
     handler: async (_args, bridges) => listAgentsTool(bridges.graph),
 }

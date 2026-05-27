@@ -1,10 +1,10 @@
 # vt CLI Manual
 
-This is the canonical reference for the `vt` CLI surface. Every tool description
-below mirrors the tool catalog's zod schema descriptions in
+This is the canonical reference for the `vt` CLI surface. Each tool section's
+opening description sentence mirrors the matching entry in
 `packages/systems/vt-daemon/src/tools/catalog.ts`. A lightweight drift test
 (`packages/systems/vt-daemon/src/transport/tests/catalogManualDrift.test.ts`)
-asserts each catalog description substring is present in this file. If you
+asserts that each catalog description leader is present in this file. If you
 change one, change the other or the test will fail.
 
 ## Format
@@ -13,12 +13,11 @@ Each tool section starts with an H3 header of the shape:
 
     ### `<vt cli verb>`
 
-The text between the header and `**Parameters:**` is the tool description
-(verbatim). The bullet list under `**Parameters:**` enumerates each parameter
-name and its single-line description. Nested object/array parameters use
-dotted paths: `nodes[].filename`, `override_with_rationale[].ruleId`, etc.
-
-Tools with no parameters omit the `**Parameters:**` block.
+The text between the header and `**Parameters:**` is the tool description.
+The bullet list under `**Parameters:**` enumerates each CLI flag (or
+positional argument) and — where it dispatches to a daemon tool — the JSON
+RPC parameter name it maps to in the form `(RPC: rpcParam)`. Tools with no
+parameters omit the `**Parameters:**` block.
 
 <!-- BEGIN_ESSENTIALS -->
 ## Essentials
@@ -31,24 +30,24 @@ Spawn an agent in the Voicetree graph. Prefer this over built-in subagents—use
 
 **When to use:** Complex tasks, parallelizable subtasks, any work where user visibility matters.
 
-**Pattern:** Decompose into nodes → spawn agents → (auto-monitored, you'll be notified on completion) → review with get_unseen_nodes_nearby.
+**Pattern:** Decompose into nodes → spawn agents → (auto-monitored, you'll be notified on completion) → review with `vt graph unseen`.
 
-**Prefer `nodeId` over `task+parentNodeId` when a node already describes the work.** Don't recreate what's already written — spawn directly on the existing node.
+**Prefer `--node` over `--task`+`--parent` when a node already describes the work.** Don't recreate what's already written — spawn directly on the existing node.
 
-If no node exists yet, use task+parentNodeId to create a new task node first.
+If no node exists yet, use `--task`+`--parent` to create a new task node first.
 
 **Parameters:**
 
-- `nodeId`: Target node ID to attach the spawned agent (use this OR task+parentNodeId)
-- `callerTerminalId`: Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.
-- `task`: Task description for creating a new task node. The first line becomes the node title, the rest becomes the body. Requires parentNodeId.
-- `parentNodeId`: Parent node ID under which to create the new task node (required when task is provided)
-- `spawnDirectory`: Absolute path to spawn the agent in. By default, inherits the parent terminal's directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree
-- `promptTemplate`: Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.
-- `agentName`: Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, inherits the caller's agent type. Falls back to default agent from settings if caller has no type.
-- `headless`: When true, agent runs as background process with no PTY/terminal UI. Output is via MCP tools (create_graph). Status shown as badge on task node.
-- `replaceSelf`: When true, the successor inherits the caller's terminal ID and agent name. The caller's process is killed and replaced atomically. Use for context handover — the agent identity persists across context boundaries.
-- `depthBudget`: Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller's DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb.
+- `--node VALUE` (RPC: nodeId): Target node ID to attach the spawned agent (use this OR --task+--parent).
+- `--task VALUE` (RPC: task): Task description for creating a new task node. First line becomes the title; remaining lines become the body.
+- `--parent VALUE` (RPC: parentNodeId): Parent node ID under which to create the new task node (required with --task).
+- `--name VALUE` (RPC: agentName): Agent name from settings.agents (e.g. "Claude Sonnet"). Defaults to caller's agent.
+- `--depth VALUE` (RPC: depthBudget): Explicit depth budget for the child. Auto-decrements from caller when omitted. Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent.
+- `--spawn-dir VALUE` (RPC: spawnDirectory): Absolute path to spawn the agent in. Defaults to parent terminal's directory (worktree-safe).
+- `--prompt-template VALUE` (RPC: promptTemplate): INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default.
+- `--headless` (RPC: headless): Run the agent as a background process with no PTY/terminal UI. Status shown as a badge on the task node.
+- `--replace-self` (RPC: replaceSelf): Successor inherits the caller's terminal ID and agent name; caller is killed atomically. Use for context handover.
 
 ### `vt agent wait`
 
@@ -56,17 +55,17 @@ Wait for specified agent terminals to complete. Returns immediately with a monit
 
 IMPORTANT: This tool is non-blocking. After calling it, you should continue with other work or inform the user you are waiting. Do NOT manually poll agent status — a "[WaitForAgents] Agent(s) completed." message will be automatically injected into your terminal when all agents finish their work. You will see this message appear as if the user sent it.
 
-NOTE: spawn_agent now auto-starts a monitor, so you only need wait_for_agents for explicit multi-agent waits or custom polling intervals.
+NOTE: `vt agent spawn` now auto-starts a monitor, so you only need `vt agent wait` for explicit multi-agent waits or custom polling intervals.
 
 **Parameters:**
 
-- `terminalIds`: Array of terminal IDs to wait for
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `pollIntervalMs`: Poll interval in ms (default: 5000)
+- `<terminalId>...` (positional, RPC: terminalIds): One or more terminal IDs to wait for.
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb.
+- `--poll-interval VALUE` (RPC: pollIntervalMs): Poll interval in milliseconds (default 5000).
 
 ### `vt agent list`
 
-List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass as `agentName` to spawn_agent.
+List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass to `--name` when spawning.
 
 ### `vt graph create`
 
@@ -99,25 +98,22 @@ Task
 
 **Schema validation (optional):** If the folder containing the new node has a folder note declaring `## Type: <kind>`, `vt graph create` runs a schema validator (from `.voicetree/schemas.cjs`) before writing. On rejection it exits non-zero with the violating rules. If no upstream Type is declared, validation is silent and the node is created normally.
 
+**Modes:**
+
+- *Filesystem mode* — pass one or more `<file.md>` positional paths. The CLI parses frontmatter and `[[wikilinks]]` to build the create payload locally.
+- *Live mode* — pass `--node "title::summary[::content]"` (repeatable) and/or `--nodes-file FILE`, or pipe a JSON `{nodes, overrides?}` payload to stdin. The CLI forwards the payload to the daemon's `create_graph` RPC.
+
 **Parameters:**
 
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `parentNodeId`: Existing graph node ID to attach root nodes to. Defaults to your task node.
-- `outputPath`: Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write path. The resolved path must stay inside the loaded vault paths (writePath or readPaths).
-- `nodes`: Array of nodes to create. At least 1 required. Each node needs filename + title + summary at minimum.
-- `nodes[].filename`: Filename for this node (with or without .md extension). Other nodes can reference this one via `- parent [[filename|edge-label]]` lines inside their `content`.
-- `nodes[].title`: Node title — one concept per node, concise and descriptive
-- `nodes[].summary`: Concise summary (1-3 lines) of what was accomplished. Always shown first.
-- `nodes[].content`: Complete work output as markdown. MUST contain all artifacts produced (diagrams, ASCII mockups, code snippets, analysis, tables, proposals). Embed artifacts verbatim — do not summarize what you created. The node must be self-contained: a reader should never need to look elsewhere to see what was produced. Declare parent edges with `- parent [[other-filename|edge-label]]` lines (label optional). Pass empty string if no artifacts were produced.
-- `nodes[].color`: Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color. Convention: use green for progress nodes that complete a task; use blue (default) for planning and in-progress work.
-- `nodes[].diagram`: Mermaid diagram source (without ```mermaid fences — tool adds them). Validated but non-blocking.
-- `nodes[].notes`: Array of notes: architecture impact, gotchas, tech debt, difficulties. Rendered as bulleted ### NOTES section.
-- `nodes[].codeDiffs`: Array of code diff strings. Each diff is rendered in a code block under ## DIFF. When provided, complexityScore and complexityExplanation are required.
-- `nodes[].filesChanged`: Array of file paths you modified
-- `nodes[].complexityScore`: Required when codeDiffs provided. Complexity of the area worked in.
-- `nodes[].complexityExplanation`: Required when codeDiffs provided. Brief explanation of the complexity score.
-- `nodes[].linkedArtifacts`: Array of node basenames to render as markdown links in a ## Related section. Use for specs, proposals, or openspec artifacts without creating graph edges.
-- `override_with_rationale`: Override validation rules that would otherwise block. Each entry must match a rule ID from the error response.
+- `<file.md>...` (positional, filesystem mode): Markdown inputs to author into the graph. Frontmatter populates node metadata; `- parent [[basename]]` lines in the body wire parent edges.
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb. Required in live mode.
+- `--parent VALUE` (RPC: parentNodeId): Existing graph node ID to attach root nodes to. Defaults to your task node. In filesystem mode this is a peer markdown filename outside the input set.
+- `--color VALUE`: Default color for nodes that do not declare their own color. Convention: `green` for completed work, `blue` for planning/in-progress.
+- `--nodes-file VALUE` (live mode): JSON file containing `{nodes, overrides?}` payload to send to the daemon.
+- `--node VALUE` (live mode, repeatable): Inline node spec in the form `"title::summary"` or `"title::summary::content"`.
+- `--manifest VALUE` (filesystem mode): ASCII or Mermaid layout manifest used to position the filesystem inputs.
+- `--validate-only` (filesystem mode): Parse and run the schema gate without writing files or calling the daemon.
+- `--override VALUE` (repeatable, RPC: override_with_rationale[]): Override a blocking validation rule, formatted `<ruleId>:<rationale>`.
 
 ### `vt graph unseen`
 
@@ -125,8 +121,8 @@ Get nodes near your context that were created after your context was generated. 
 
 **Parameters:**
 
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `search_from_node`: Optional node ID to search from instead of your task node
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb.
+- `--from VALUE` (RPC: search_from_node): Optional node ID to search from instead of your task node.
 <!-- END_ESSENTIALS -->
 
 ## Reference
@@ -137,9 +133,9 @@ Close an agent terminal. After waiting for an agent to finish, review its work. 
 
 **Parameters:**
 
-- `terminalId`: The terminal ID of the agent to close
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `forceWithReason`: Required to close a running (non-idle) agent. Explain why you are force-closing.
+- `<terminalId>` (positional, RPC: terminalId): The terminal ID of the agent to close.
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb.
+- `--force VALUE` (RPC: forceWithReason): Required to close a running (non-idle) agent. Provide a reason string.
 
 ### `vt agent send`
 
@@ -147,9 +143,9 @@ Send a message directly to an agent terminal. The message is injected into the t
 
 **Parameters:**
 
-- `terminalId`: The terminal ID of the agent to send the message to
-- `message`: The message/command to send to the terminal
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
+- `<terminalId>` (positional, RPC: terminalId): The terminal ID of the agent to send the message to.
+- `<message>...` (positional, RPC: message): The message/command to send to the terminal. All remaining tokens are joined with spaces.
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb.
 
 ### `vt agent output`
 
@@ -157,18 +153,30 @@ Read the last N characters of output from an agent terminal. Output has ANSI esc
 
 **Parameters:**
 
-- `terminalId`: The terminal ID of the agent to read output from
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `nChars`: Number of characters to return (default: 10000)
+- `<terminalId>` (positional, RPC: terminalId): The terminal ID of the agent to read output from.
+- `--terminal / -t` (RPC: callerTerminalId): Caller terminal ID; defaults to $VOICETREE_TERMINAL_ID. Global flag — set before the verb.
+- `--chars VALUE` (RPC: nChars): Number of characters to return (default 10000).
 
 ### `vt graph structure`
 
 Read .md files from a folder on disk and render the graph structure as ASCII. Small folders default to a context-style view with a tree plus `## Node Contents`; larger folders default to compact topology only. Excludes ctx-nodes/ folders.
 
+**Modes:**
+
+- *Auto* (default when no explicit-render flag is set) — asks the local graph daemon for the auto context view, falling back to local rendering when the daemon is unreachable. `--budget` and `--expand` only apply here.
+- *Explicit render* — triggered by `--ascii`, `--mermaid`, `--format`, `--collapse`, `--select`, or `--no-cross-edges`. Bypasses the daemon and renders locally.
+
 **Parameters:**
 
-- `folderPath`: Absolute path to folder containing .md files
-- `withSummaries`: Tri-state summary control: `true` forces the context-style tree plus `## Node Contents`, `false` forces topology-only output, and omitting it auto-enables summaries only for folders with 30 or fewer nodes.
+- `<folder-path>` (positional): Absolute or relative folder containing .md files. Defaults to the current working directory.
+- `--auto | --no-auto`: Force or disable the auto context-style summaries view.
+- `--budget VALUE`: Auto-view node budget (default 30). Auto mode only.
+- `--expand VALUE` (repeatable): Force-expand a folder id that auto-collapse would otherwise suppress. Auto mode only.
+- `--mermaid | --ascii`: Shorthand for `--format mermaid` or `--format ascii`. Explicit-render mode.
+- `--format VALUE`: Render format (`ascii` or `mermaid`). Explicit-render mode.
+- `--no-cross-edges`: Hide cross-folder edges. Explicit-render mode.
+- `--collapse VALUE` (repeatable): Collapse the listed folder in the rendered view. Explicit-render mode.
+- `--select VALUE` (repeatable): Highlight the listed node id in the rendered view. Explicit-render mode.
 
 ### `vt search`
 
@@ -176,42 +184,55 @@ Semantic search across the active vault. Returns matching node paths ranked by r
 
 **Parameters:**
 
-- `query`: Natural-language search query
-- `top_k`: Maximum number of results to return (default: 10)
+- `<query>...` (positional, RPC: query): Natural-language query. All remaining positional tokens are joined with spaces.
+- `--top-k VALUE` (RPC: top_k): Maximum number of results to return (default 10).
 
-### `vt graph live state`
+### `vt graph live state dump`
 
 Return a SerializedState snapshot of the daemon-owned session: graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.
 
-### `vt graph live dispatch`
-
-Apply a SerializedCommand to the running app. Returns {delta, revision}.
+Implemented locally by the CLI; the same surface is exposed over JSON-RPC as the `vt_get_live_state` daemon tool.
 
 **Parameters:**
 
-- `command`: SerializedCommand payload. Shape per command.type:
-  - SetFolderState: {type, viewId, path, state}
-  - Select: {type, ids[], additive?}
-  - Deselect: {type, ids[]}
-  - Move: {type, id, to:{x,y}}
-  - AddEdge: {type, source, edge:{targetId,label}}
-  - RemoveEdge: {type, source, targetId}
-  - RemoveNode: {type, id}
-  - AddNode: {type, node} (full SerializedGraphNode)
+- `--pretty | --no-pretty`: Pretty-print the JSON output (default: pretty).
+- `--vault VALUE`: Override the resolved vault path. Defaults to the active vault for the current working directory.
+
+### `vt graph live apply`
+
+Apply a SerializedCommand to the running app. Returns {delta, revision}.
+
+Implemented locally by the CLI; the same surface is exposed over JSON-RPC as the `vt_dispatch_live_command` daemon tool.
+
+**Parameters:**
+
+- `<json-cmd>` (positional): SerializedCommand JSON. Shape per `command.type`:
+  - `SetFolderState`: `{type, viewId, path, state}`
+  - `Select`: `{type, ids[], additive?}`
+  - `Deselect`: `{type, ids[]}`
+  - `Move`: `{type, id, to:{x,y}}`
+  - `AddEdge`: `{type, source, edge:{targetId,label}}`
+  - `RemoveEdge`: `{type, source, targetId}`
+  - `RemoveNode`: `{type, id}`
+  - `AddNode`: `{type, node}` (full SerializedGraphNode)
+- `--vault VALUE`: Override the resolved vault path. Defaults to the active vault for the current working directory.
 
 ### `vt agent metrics sessions`
 
 Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <vault>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.
 
+Exposed over JSON-RPC as the `metrics.getSessions` daemon tool; no `vt` CLI wrapper is wired yet. Invoke via the daemon HTTP transport.
+
 ### `vt agent metrics append`
 
 Append (or upsert by sessionId) a single session's token/cost telemetry into <vault>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.
 
+Exposed over JSON-RPC as the `metrics.appendSession` daemon tool; no `vt` CLI wrapper is wired yet. Invoke via the daemon HTTP transport.
+
 **Parameters:**
 
-- `sessionId`: Session identifier (Claude Code session.id or Voicetree terminal id)
-- `tokens`: Token usage for this session
-  - `input`: Input tokens
-  - `output`: Output tokens
-  - `cacheRead`: Cache-read tokens (optional)
-- `costUsd`: Cost in USD
+- `sessionId` (RPC: sessionId): Session identifier (Claude Code session.id or Voicetree terminal id).
+- `tokens.input` (RPC: tokens.input): Input tokens.
+- `tokens.output` (RPC: tokens.output): Output tokens.
+- `tokens.cacheRead` (RPC: tokens.cacheRead): Cache-read tokens (optional).
+- `costUsd` (RPC: costUsd): Cost in USD.

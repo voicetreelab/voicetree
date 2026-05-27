@@ -41,8 +41,8 @@ const CLI_VERBS: Readonly<Record<string, string>> = {
     create_graph: 'vt graph create',
     graph_structure: 'vt graph structure',
     search_nodes: 'vt search',
-    vt_get_live_state: 'vt graph live state',
-    vt_dispatch_live_command: 'vt graph live dispatch',
+    vt_get_live_state: 'vt graph live state dump',
+    vt_dispatch_live_command: 'vt graph live apply',
     'metrics.getSessions': 'vt agent metrics sessions',
     'metrics.appendSession': 'vt agent metrics append',
 }
