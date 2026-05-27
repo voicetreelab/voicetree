@@ -24,9 +24,12 @@ export interface ResolvedDaemonEndpoint {
     readonly source: 'env_url' | 'cwd_up_walk' | 'env_vault_path'
 }
 
+// `cwd` and `env` are required inputs. The transitive-purity gate flags
+// `process.*` access inside any function body — including parameter
+// defaults — so callers thread the shell values in from the boundary.
 export interface DiscoveryOptions {
-    readonly cwd?: string
-    readonly env?: Record<string, string | undefined>
+    readonly cwd: string
+    readonly env: Record<string, string | undefined>
 }
 
 const LOOPBACK_HOST: string = '127.0.0.1'
@@ -61,10 +64,9 @@ function urlForLocalhostPort(port: number): string {
 }
 
 export async function discoverDaemonEndpoint(
-    options: DiscoveryOptions = {},
+    options: DiscoveryOptions,
 ): Promise<ResolvedDaemonEndpoint | null> {
-    const env: Record<string, string | undefined> = options.env ?? process.env
-    const cwd: string = options.cwd ?? process.cwd()
+    const {env, cwd} = options
 
     const explicit: string | undefined = envOr(env, 'VOICETREE_DAEMON_URL')
     if (explicit) {
@@ -95,7 +97,7 @@ export async function discoverDaemonEndpoint(
 }
 
 export interface VaultDiscoveryOptions {
-    readonly env?: Record<string, string | undefined>
+    readonly env: Record<string, string | undefined>
 }
 
 // Explicit-vault resolution. Used when the caller already knows which vault
@@ -106,10 +108,10 @@ export interface VaultDiscoveryOptions {
 // `discoverDaemonEndpoint({cwd: '/'})` trick 9d used.
 export async function discoverDaemonEndpointForVault(
     vaultPath: string,
-    options: VaultDiscoveryOptions = {},
+    options: VaultDiscoveryOptions,
 ): Promise<ResolvedDaemonEndpoint | null> {
     if (vaultPath.length === 0) return null
-    const env: Record<string, string | undefined> = options.env ?? process.env
+    const {env} = options
     const resolvedVault: string = resolve(vaultPath)
 
     const explicit: string | undefined = envOr(env, 'VOICETREE_DAEMON_URL')

@@ -59,8 +59,11 @@ interface ResolvedClient {
     readonly token: string
 }
 
-async function buildResolvedClient(env: Record<string, string | undefined>): Promise<ResolvedClient> {
-    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({env})
+async function buildResolvedClient(
+    env: Record<string, string | undefined>,
+    cwd: string,
+): Promise<ResolvedClient> {
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({env, cwd})
     if (!endpoint) {
         throw new DaemonUnreachable(
             'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, run inside a vault containing `.voicetree/rpc.port`, or set $VOICETREE_VAULT_PATH.',
@@ -179,8 +182,9 @@ export async function callDaemon(
     args: Record<string, unknown>,
 ): Promise<unknown> {
     const env: Record<string, string | undefined> = process.env
+    const cwd: string = process.cwd()
     const timeoutMs: number = getTimeoutMs(env)
-    const client: ResolvedClient = await buildResolvedClient(env)
+    const client: ResolvedClient = await buildResolvedClient(env, cwd)
 
     let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
 
