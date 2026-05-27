@@ -1,12 +1,7 @@
 {
   "name": "voicetree-public",
   "private": true,
-  "workspaces": [
-    "webapp",
-    "packages/measures",
-    "packages/libraries/*",
-    "packages/systems/*"
-  ],
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "test": "node scripts/run-remote.mjs npm run test:local",
     "install:devbox": "node scripts/run-remote.mjs npm install",
@@ -68,6 +63,7 @@
     "vt-resume": "node --no-warnings=ExperimentalWarning --import tsx packages/systems/agent-runtime/bin/vt-resume.ts"
   },
   "devDependencies": {
+    "@vt/measures": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-metrics-otlp-grpc": "^0.218.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.218.0",
@@ -90,5 +86,15 @@
     "@esbuild/linux-x64": "^0.27.7",
     "@rolldown/binding-linux-x64-gnu": "^1.0.1",
     "@rollup/rollup-linux-x64-gnu": "^4.60.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-trackpad-detect",
+      "node-pty",
+      "esbuild",
+      "@swc/core",
+      "msw"
+    ]
   }
 }

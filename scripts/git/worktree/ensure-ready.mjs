@@ -61,11 +61,18 @@ function dependencyInputPaths(root) {
   return sortedExistingPaths(root, [
     'package.json',
     'package-lock.json',
+    'pnpm-workspace.yaml',
+    'pnpm-lock.yaml',
+    '.npmrc',
     'webapp/package.json',
     ...childPackageJsonPaths(root, join('packages', 'libraries')),
     ...childPackageJsonPaths(root, join('packages', 'systems')),
     join('packages', 'measures', 'package.json'),
   ])
+}
+
+function isPnpmWorkspace(root) {
+  return pathExists(join(root, 'pnpm-workspace.yaml'))
 }
 
 function dependencyFingerprint(root) {
@@ -209,6 +216,22 @@ function runNpmInstall(targetRoot) {
   }
 }
 
+function runPnpmInstall(targetRoot) {
+  const lockfilePresent = pathExists(join(targetRoot, 'pnpm-lock.yaml'))
+  const commandArgs = lockfilePresent
+    ? ['install', '--prefer-offline', '--frozen-lockfile']
+    : ['install', '--prefer-offline']
+  const result = spawnSync('pnpm', commandArgs, {cwd: targetRoot, stdio: 'inherit'})
+  if (result.status !== 0) {
+    throw new Error(`pnpm ${commandArgs.join(' ')} failed in ${targetRoot}`)
+  }
+}
+
+function defaultInstallDependencies(targetRoot) {
+  if (isPnpmWorkspace(targetRoot)) runPnpmInstall(targetRoot)
+  else runNpmInstall(targetRoot)
+}
+
 function ensureEnvSymlink({sourceRoot, targetRoot}) {
   if (sourceRoot === targetRoot) return 'same-root'
   const sourceEnv = join(sourceRoot, '.env')
@@ -255,13 +278,15 @@ function sourceDependencyCopyBlockReason({sourceRoot, targetRoot}) {
   return null
 }
 
-function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, log = console.error} = {}) {
+function ensureWorktreeReady(inputPath, {installDependencies = defaultInstallDependencies, log = console.error} = {}) {
   const targetRoot = resolveWorktreeRoot(inputPath)
   const sourceRoot = resolveMainRepoRoot(targetRoot)
   const fingerprint = dependencyFingerprint(targetRoot)
+  const pnpm = isPnpmWorkspace(targetRoot)
 
   log(`[worktree-ready] target: ${targetRoot}`)
   log(`[worktree-ready] source: ${sourceRoot}`)
+  if (pnpm) log('[worktree-ready] pnpm-workspace.yaml detected; using pnpm install (skipping cp-seed)')
 
   const envStatus = ensureEnvSymlink({sourceRoot, targetRoot})
   if (envStatus === 'linked') log('[worktree-ready] linked .env from source checkout')
@@ -272,6 +297,17 @@ function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, lo
     log(`[worktree-ready] already ready: ${targetRoot}`)
     verifyWorkspaceLinksStayInsideTarget(targetRoot)
     return {status: 'ready', sourceRoot, targetRoot}
+  }
+
+  // pnpm path: don't cp-seed. The content-addressable store provides better
+  // cross-worktree sharing (hardlinks/clonefile) than copy-on-create. A fresh
+  // `pnpm install` with the store warm typically completes in <15s.
+  if (pnpm) {
+    log(`[worktree-ready] running pnpm install to populate dependencies in ${targetRoot}`)
+    installDependencies(targetRoot)
+    verifyWorkspaceLinksStayInsideTarget(targetRoot)
+    writeReadyMarker(targetRoot, dependencyFingerprint(targetRoot))
+    return {status: 'installed', sourceRoot, targetRoot}
   }
 
   const seedBlockReason = sourceSeedBlockReason({sourceRoot, targetRoot, targetFingerprint: fingerprint})

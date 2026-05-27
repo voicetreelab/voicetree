@@ -106,6 +106,37 @@ test('copies first and runs npm install when dependency fingerprints differ', ()
   assert.ok(existsSync(markerPath(worktreeRoot)))
 })
 
+test('skips cp-seed and runs pnpm install when pnpm-workspace.yaml is present', () => {
+  const parent = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
+  const repoRoot = join(parent, 'voicetree-public')
+  mkdirSync(repoRoot, {recursive: true})
+  const worktreeRoot = join(parent, 'vt-wts', 'wt-pnpm')
+
+  writeDependencyFiles(repoRoot)
+  writeDependencyFiles(worktreeRoot)
+  // Mark BOTH as pnpm so the source-matches branch is not even consulted.
+  writeFileSync(join(repoRoot, 'pnpm-workspace.yaml'), "packages:\n  - 'webapp'\n")
+  writeFileSync(join(worktreeRoot, 'pnpm-workspace.yaml'), "packages:\n  - 'webapp'\n")
+  const realWorktreeRoot = realpathSync(worktreeRoot)
+  seedSourceNodeModules(repoRoot)
+
+  let installedAt = ''
+  const result = ensureWorktreeReady(worktreeRoot, {
+    installDependencies(targetRoot) {
+      installedAt = targetRoot
+      mkdirSync(join(targetRoot, 'node_modules'), {recursive: true})
+      mkdirSync(join(targetRoot, 'webapp', 'node_modules'), {recursive: true})
+    },
+    log() {},
+  })
+
+  assert.equal(result.status, 'installed')
+  assert.equal(installedAt, realWorktreeRoot)
+  // cp-seed bypassed: source's vite/index.js should NOT have been copied over.
+  assert.ok(!existsSync(join(worktreeRoot, 'webapp', 'node_modules', 'vite', 'index.js')))
+  assert.ok(existsSync(markerPath(worktreeRoot)))
+})
+
 test('explains why source node_modules cannot seed a worktree', () => {
   const parent = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
   const repoRoot = join(parent, 'voicetree-public')

@@ -1,4 +1,4 @@
-import {existsSync} from 'node:fs'
+import {existsSync, realpathSync} from 'node:fs'
 import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {Project, ts, type ExportDeclaration, type ImportDeclaration, type SourceFile} from 'ts-morph'
@@ -41,12 +41,20 @@ type ImportEdge = {
     readonly runtimeSymbols: readonly string[]
 }
 
+// Canonicalize through symlinks so package-manager layouts that resolve
+// workspace deps via per-package symlinks (pnpm) report the same canonical
+// path as direct hoisting (npm). Without this, `webapp/node_modules/@vt/X/...`
+// paths leak into edge data and confuse the cross-package boundary check.
+function canonical(absPath: string): string {
+    try { return realpathSync(absPath) } catch { return absPath }
+}
+
 function repoRel(absPath: string): string {
-    return relative(REPO_ROOT, absPath).replaceAll('\\', '/')
+    return relative(REPO_ROOT, canonical(absPath)).replaceAll('\\', '/')
 }
 
 function findPackageRoot(filePath: string): string {
-    let dir = dirname(filePath)
+    let dir = dirname(canonical(filePath))
     while (dir !== REPO_ROOT && dir !== dirname(dir)) {
         if (existsSync(join(dir, 'package.json'))) return repoRel(dir) || '.'
         dir = dirname(dir)
