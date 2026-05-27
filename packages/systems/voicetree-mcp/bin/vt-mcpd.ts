@@ -157,6 +157,10 @@ async function main(): Promise<void> {
         die(`failed to start MCP server: ${(err as Error).message}`)
     }
 
+    // `args.vault` is treated as projectRoot here. Headless callers
+    // (vt-mcpd / vt serve) MUST pass projectRoot — the directory that
+    // contains `.voicetree/` — not a vault sub-directory used as writeFolder.
+    // See openspec/changes/fix-resume-recovery-and-surviving-agents-ux.
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(

@@ -16,6 +16,8 @@ import {
     detectSupportedCliFromMetadata,
     type MetadataRecord,
 } from './classifier'
+import {getRecoveryHorizonMs, isoToMsOrZero} from './horizon'
+import {getRecoveryMetadataDir} from './paths'
 import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type DiscoverRecoveryDeps = {
@@ -25,16 +27,61 @@ export type DiscoverRecoveryDeps = {
     readonly getCurrentNamespaceHash: () => Promise<string | null>
 }
 
+/**
+ * Optional knobs for `discoverRecoverableAgentSessions`. Tests pass
+ * `now` to make horizon assertions deterministic; the renderer's "show
+ * older" link passes `horizonMs: null` to disable the cutoff entirely.
+ */
+export type DiscoverRecoveryOptions = {
+    readonly horizonMs?: number | null
+    readonly now?: () => number
+}
+
+/**
+ * Group ordering on the Surviving Agents list. Lower tier renders first.
+ *
+ * - 0: live tmux attachable — Attach is the lowest-friction action.
+ * - 1: resume-only (no attach, still running on disk) — dead pane that the
+ *   CLI may be able to resume via its native session id.
+ * - 2: recently closed (status exited or killed) — Resume may still work but
+ *   the agent is no longer live; sorts last so live work stays at the top.
+ */
+function rowTier(row: RecoverableAgentSession): 0 | 1 | 2 {
+    if (row.attach) return 0
+    if (row.status === 'running') return 1
+    return 2
+}
+
+function recencyKey(row: RecoverableAgentSession): number {
+    return row.closedAt ?? isoToMsOrZero(row.startedAt)
+}
+
 function sortRecords(records: readonly RecoverableAgentSession[]): readonly RecoverableAgentSession[] {
     return [...records].sort((a, b) => {
-        // Claimed rows (rendered as fork-on-hover on live tabs) come last so
-        // the Surviving Agents section, which filters !isClaimed, shows
-        // orphans first.
+        // Claimed rows go to the live tab strip; keep them last so the
+        // Surviving Agents view (which filters !isClaimed) sees orphans first.
         if (a.isClaimed !== b.isClaimed) return a.isClaimed ? 1 : -1
-        // Orphans with a live tmux pane (Attach available) come before
-        // dead-pane resume-only rows — Attach is the lower-friction action.
-        if (Boolean(a.attach) !== Boolean(b.attach)) return a.attach ? -1 : 1
+        const tierDelta: number = rowTier(a) - rowTier(b)
+        if (tierDelta !== 0) return tierDelta
+        const recencyDelta: number = recencyKey(b) - recencyKey(a)
+        if (recencyDelta !== 0) return recencyDelta
         return a.terminalId.localeCompare(b.terminalId)
+    })
+}
+
+function applyHorizon(
+    records: readonly RecoverableAgentSession[],
+    horizonMs: number | null,
+    now: number,
+): readonly RecoverableAgentSession[] {
+    if (horizonMs === null || horizonMs <= 0) return records
+    const cutoff: number = now - horizonMs
+    return records.filter((row: RecoverableAgentSession): boolean => {
+        // Still-running rows are never time-gated; only closed rows expire.
+        if (row.status === 'running') return true
+        const key: number = recencyKey(row)
+        if (key === 0) return true  // unknown age — surface rather than silently hide
+        return key >= cutoff
     })
 }
 
@@ -60,6 +107,7 @@ function sortRecords(records: readonly RecoverableAgentSession[]): readonly Reco
  */
 export async function discoverRecoverableAgentSessions(
     deps?: DiscoverRecoveryDeps,
+    opts: DiscoverRecoveryOptions = {},
 ): Promise<readonly RecoverableAgentSession[]> {
     const resolvedDeps: DiscoverRecoveryDeps = deps ?? defaultDiscoverRecoveryDeps()
     const [metadataRecords, liveUnclaimed, currentNamespaceHash] = await Promise.all([
@@ -86,8 +134,10 @@ export async function discoverRecoverableAgentSessions(
         if (classification.kind !== 'recoverable') continue
         const row: RecoverableAgentSession = classification.record
         // Surface only rows the UI can act on. Claimed rows always surface
-        // (fork-on-hover applies). Unclaimed rows need at least one capability.
-        if (!row.isClaimed && !row.attach && !row.resume) continue
+        // (fork-on-hover applies). Unclaimed rows need at least one capability
+        // OR a closed lifecycle (exited/killed records are surfaced for their
+        // history value — the user can review or delete them).
+        if (!row.isClaimed && !row.attach && !row.resume && row.status === 'running') continue
         recoverable.push(row)
         surfacedTerminalIds.add(row.terminalId)
     }
@@ -101,22 +151,26 @@ export async function discoverRecoverableAgentSessions(
         if (surfacedTerminalIds.has(session.terminalId)) continue
         recoverable.push(metadataLessAttachableRow(session))
     }
-    return sortRecords(recoverable)
+    const horizonMs: number | null = opts.horizonMs === undefined ? getRecoveryHorizonMs() : opts.horizonMs
+    const now: number = (opts.now ?? Date.now)()
+    const withinHorizon: readonly RecoverableAgentSession[] = applyHorizon(recoverable, horizonMs, now)
+    return sortRecords(withinHorizon)
 }
 
 function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAgentSession {
     const terminalId: TerminalId = session.terminalId as TerminalId
     const attachedToNodeId: string = session.contextNodePath ?? `tmux-session:${session.sessionName}`
+    const title: string = session.agentName ?? session.terminalId
     return {
         terminalId,
-        agentName: session.agentName ?? session.terminalId,
+        agentName: title,
         metadataPath: '',
         terminalData: createTerminalData({
             terminalId,
             attachedToNodeId,
             terminalCount: 0,
-            title: session.agentName ?? session.terminalId,
-            agentName: session.agentName ?? session.terminalId,
+            title,
+            agentName: title,
             initialEnvVars: {
                 ...(session.projectRoot ? {VOICETREE_VAULT_PATH: session.projectRoot} : {}),
                 ...(session.contextNodePath ? {CONTEXT_NODE_PATH: session.contextNodePath} : {}),
@@ -124,6 +178,7 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
             },
         }),
         isClaimed: false,
+        status: 'running',
         attach: {session},
     }
 }
@@ -151,7 +206,7 @@ function detectResumeCapabilitiesFromMetadata(
         if (typeof data !== 'object' || data === null) continue
         const obj = data as Record<string, unknown>
         if (typeof obj.name !== 'string' || !obj.name) continue
-        if (obj.status !== 'running' && obj.status !== 'exited') continue
+        if (obj.status !== 'running' && obj.status !== 'exited' && obj.status !== 'killed') continue
         const metadata = data as TmuxTerminalMetadata
         // Skip foreign vaults early — won't be surfaced anyway.
         if (currentNamespaceHash !== null) {
@@ -170,11 +225,12 @@ function detectResumeCapabilitiesFromMetadata(
 }
 
 async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
-    const runtimeEnv = getRuntimeEnv()
-    const projectRoot: string | null = await (runtimeEnv.getProjectRoot?.() ?? Promise.resolve(null))
-    if (projectRoot) return path.join(projectRoot, '.voicetree', 'terminals')
-    const writeFolder: string | null = await (runtimeEnv.getWriteFolder?.() ?? Promise.resolve(null))
-    return writeFolder ? path.join(writeFolder, 'terminals') : null
+    // Canonical location is always `<projectRoot>/.voicetree/terminals/`.
+    // `writeFolder` is intentionally NOT consulted: the historical
+    // writeFolder-based fallback wrote to the wrong place (no `.voicetree`
+    // prefix) and masked the projectRoot/writeFolder divergence bug.
+    const projectRoot: string | null = await (getRuntimeEnv().getProjectRoot?.() ?? Promise.resolve(null))
+    return projectRoot ? getRecoveryMetadataDir(projectRoot) : null
 }
 
 function readMetadataDir(dir: string): readonly MetadataRecord[] {

@@ -1,5 +1,6 @@
 import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
+import {getRecoveryMetadataDir} from '../recovery/paths'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxReconciliationResult} from '../terminals/terminal-registry'
 import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
@@ -58,7 +59,7 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
     if (!projectRoot) {
         throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_VAULT_PATH is missing`)
     }
-    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
+    const terminalDir: string = getRecoveryMetadataDir(projectRoot)
     mkdirSync(terminalDir, {recursive: true})
     return {
         logPath: join(terminalDir, `${terminalId}.log`),
@@ -306,14 +307,20 @@ export async function reconcileTmuxHeadlessAgents(
             if (tmuxHeadlessState.sessions.has(terminalId)) return
             const sessionName: string = metadata.session ?? terminalId
             registerTmuxSessionAlias(terminalId, sessionName)
+            const terminalDir: string = getRecoveryMetadataDir(projectRoot)
+            // metadata.terminalData is optional on the persisted schema; the
+            // reconciler's importRunningRecord falls back to a headless-shaped
+            // synthetic value when it's absent. Mirror that default here so
+            // poll-state stays consistent with the registry record.
+            const isHeadless: boolean = metadata.terminalData?.isHeadless ?? true
             tmuxHeadlessState.sessions.set(terminalId, {
                 sessionName,
-                logPath: metadata.logFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.log`),
+                logPath: metadata.logFile ?? join(terminalDir, `${terminalId}.log`),
                 metadataPath,
-                exitCodePath: metadata.exitCodeFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.exitcode`),
-                exitCodeDriven: metadata.terminalData.isHeadless,
-                promptFilePath: join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
-                pollTimer: startTmuxExitPoll(terminalId, sessionName, metadata.terminalData.isHeadless, deps),
+                exitCodePath: metadata.exitCodeFile ?? join(terminalDir, `${terminalId}.exitcode`),
+                exitCodeDriven: isHeadless,
+                promptFilePath: join(terminalDir, `${terminalId}-prompt.txt`),
+                pollTimer: startTmuxExitPoll(terminalId, sessionName, isHeadless, deps),
             })
         },
     })

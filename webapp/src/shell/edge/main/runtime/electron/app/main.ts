@@ -259,12 +259,12 @@ void app.whenReady().then(async () => {
     }
     mcpHandle = await startMcpServer();
 
-    if (process.env.VOICETREE_VAULT_PATH) {
-        const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
-        if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
-            log.info('[Startup] Reconciled tmux terminals', reconciliation);
-        }
-    }
+    // Reconciliation runs on every vault open via `onVaultOpened` in
+    // graph-model-init. Eagerly reconciling here from
+    // `process.env.VOICETREE_VAULT_PATH` was redundant and used the wrong
+    // signal (the env var historically pointed at `writeFolder`, not
+    // `projectRoot`, which is precisely the divergence the recovery path-bug
+    // fix removes).
 
     // Register this instance for vt-debug discovery
     await registerInstance();

@@ -28,6 +28,8 @@ import {
 import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
 import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
 import { forkAgentSession } from '../application/recovery/forkAgentSession'
+import { migrateLegacyTerminalDir } from '../application/recovery/migrate-legacy-terminal-dir'
+import { removePersistedAgentRecord } from '../application/recovery/removePersistedAgentRecord'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -79,6 +81,8 @@ export const agentRuntime = {
     discoverRecoverableAgentSessions,
     resumePersistedAgentSession,
     forkAgentSession,
+    migrateLegacyTerminalDir,
+    removePersistedAgentRecord,
     registerChild,
     reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,

@@ -5,6 +5,7 @@ import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
 import {detectCliType} from '../spawn/headlessCli'
 import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
+import {isoToMsOrZero} from './horizon'
 import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type ClassifierInput = {
@@ -46,7 +47,7 @@ function validateMetadata(data: unknown): TmuxTerminalMetadata | null {
     if (typeof data !== 'object' || data === null) return null
     const obj = data as Record<string, unknown>
     if (typeof obj.name !== 'string' || !obj.name) return null
-    if (obj.status !== 'running' && obj.status !== 'exited') return null
+    if (obj.status !== 'running' && obj.status !== 'exited' && obj.status !== 'killed') return null
     return data as TmuxTerminalMetadata
 }
 
@@ -168,14 +169,28 @@ function classifyRecord(record: MetadataRecord, input: ClassifierInput): Recover
     const attach: AttachCapability | undefined = liveSession ? {session: liveSession} : undefined
     const resume: ResumeCapability | undefined = input.resumeHandleByTerminalId.get(terminalId)
 
+    const worktreeName: string | undefined = terminalData.worktreeName
+    const title: string | undefined = terminalData.title && terminalData.title.length > 0 ? terminalData.title : undefined
+    const agentTypeName: string | undefined = terminalData.agentTypeName && terminalData.agentTypeName.length > 0 ? terminalData.agentTypeName : undefined
+    const killReason: string | undefined = typeof metadata.killReason === 'string' && metadata.killReason.length > 0 ? metadata.killReason : undefined
+    const endedAtMs: number = isoToMsOrZero(metadata.endedAt)
+
     const recoverable: RecoverableAgentSession = {
         terminalId,
         agentName: terminalData.agentName ?? metadata.name,
         metadataPath: record.path,
         terminalData,
         isClaimed: input.registryTerminalIds.has(metadata.name),
+        status: metadata.status,
         ...(attach ? {attach} : {}),
         ...(resume ? {resume} : {}),
+        ...(worktreeName ? {worktreeName} : {}),
+        ...(title ? {title} : {}),
+        ...(agentTypeName ? {agentTypeName} : {}),
+        ...(metadata.startedAt ? {startedAt: metadata.startedAt} : {}),
+        ...(metadata.endedAt ? {endedAt: metadata.endedAt} : {}),
+        ...(endedAtMs > 0 ? {closedAt: endedAtMs} : {}),
+        ...(killReason ? {killReason} : {}),
     }
 
     return {kind: 'recoverable', record: recoverable}

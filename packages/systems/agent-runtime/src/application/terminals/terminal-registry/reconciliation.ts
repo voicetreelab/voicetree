@@ -1,6 +1,13 @@
 import {readdirSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from './types'
+
+// Local clone of recovery/paths.ts:getRecoveryMetadataDir — importing that
+// helper from here would cross the relative-import-depth budget (../../).
+// Must stay byte-identical to the canonical helper.
+function recoveryMetadataDir(projectRoot: string): string {
+    return join(projectRoot, '.voicetree', 'terminals')
+}
 import {createTerminalData} from './types'
 import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from './terminal-metadata'
 import {
@@ -35,7 +42,7 @@ function fallbackTerminalData(metadata: TmuxTerminalMetadata, projectRoot: strin
     const terminalId: TerminalId = metadata.name as TerminalId
     return createTerminalData({
         terminalId,
-        attachedToNodeId: `${projectRoot}/.voicetree/terminals/${metadata.name}.json`,
+        attachedToNodeId: join(recoveryMetadataDir(projectRoot), `${metadata.name}.json`),
         terminalCount: 0,
         title: metadata.name,
         agentName: metadata.name,
@@ -71,11 +78,21 @@ function importRunningRecord(metadata: TmuxTerminalMetadata, projectRoot: string
     return terminalId
 }
 
+/**
+ * Reconcile the in-memory terminal registry against on-disk tmux metadata.
+ *
+ * `projectRoot` MUST be the value returned by `graph.getProjectRoot()` (i.e.
+ * the canonical `.voicetree/` parent), NOT `writeFolder` or
+ * `process.env.VOICETREE_VAULT_PATH`. The two diverge whenever a vault is
+ * loaded as a sub-directory of a project that already has its own
+ * `.voicetree/` config — passing writeFolder used to cause this reconciler
+ * to write to a directory that discovery never read from.
+ */
 export async function reconcileTmuxTerminalRegistry(
     projectRoot: string,
     deps: TmuxReconciliationDeps = {},
 ): Promise<TmuxReconciliationResult> {
-    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
+    const terminalDir: string = recoveryMetadataDir(projectRoot)
     const hasSession: (name: string) => Promise<boolean> = deps.hasSession ?? defaultHasSession
     const now: () => number = deps.now ?? defaultClock.now
     const result: TmuxReconciliationResult = {imported: [], markedExited: [], skipped: []}

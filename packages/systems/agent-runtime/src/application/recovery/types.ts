@@ -24,6 +24,18 @@ import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
  *
  * Records with neither capability and no in-memory presence are filtered out
  * upstream by discovery (nothing the UI could do with them).
+ *
+ * Row context fields (`worktreeName`, `title`, `agentTypeName`) mirror what
+ * live terminal tiles render — surfacing them on Surviving Agents rows lets
+ * users identify a recoverable agent at a glance instead of seeing only the
+ * raw terminal id.
+ *
+ * Lifecycle fields (`status`, `startedAt`, `endedAt`, `closedAt`, `killReason`)
+ * carry the on-disk lifecycle state. `status` is `'running'` for a still-live
+ * record (whether or not the tmux pane is alive — that's the `attach`
+ * capability's job), and `'exited'` / `'killed'` once the agent has stopped.
+ * `closedAt` is the parsed ms epoch of `endedAt` and exists to keep sorting
+ * and the recency-horizon filter O(1) without re-parsing on every comparison.
  */
 export type RecoverableAgentSession = {
     readonly terminalId: TerminalId
@@ -33,6 +45,14 @@ export type RecoverableAgentSession = {
     readonly isClaimed: boolean
     readonly attach?: AttachCapability
     readonly resume?: ResumeCapability
+    readonly status: 'running' | 'exited' | 'killed'
+    readonly worktreeName?: string
+    readonly title?: string
+    readonly agentTypeName?: string
+    readonly startedAt?: string
+    readonly endedAt?: string
+    readonly closedAt?: number
+    readonly killReason?: string
 }
 
 export type AttachCapability = {

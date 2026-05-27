@@ -24,6 +24,7 @@ import {chmodSync, mkdirSync, rmSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import {join} from 'node:path'
 import type {TerminalId} from '../terminals/terminal-registry/types'
+import {getRecoveryMetadataDir} from '../recovery/paths'
 import {detectCliType, type SupportedHeadlessCli} from '../spawn/headlessCli'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
 import {resolveTmuxSessionName, sendKeys} from '../terminals/tmux/tmux-session-manager'
@@ -41,12 +42,12 @@ function tmuxOk(args: string[]): Promise<boolean> {
 }
 
 export function promptFilePath(projectRoot: string, terminalId: TerminalId): string {
-    return join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`)
+    return join(getRecoveryMetadataDir(projectRoot), `${terminalId}-prompt.txt`)
 }
 
 export function writePromptFile(projectRoot: string, terminalId: TerminalId, prompt: string): string {
     const target: string = promptFilePath(projectRoot, terminalId)
-    mkdirSync(join(projectRoot, '.voicetree', 'terminals'), {recursive: true})
+    mkdirSync(getRecoveryMetadataDir(projectRoot), {recursive: true})
     writeFileSync(target, prompt, {encoding: 'utf8', mode: 0o600})
     // belt-and-braces: writeFileSync mode is masked by umask on some systems
     chmodSync(target, 0o600)

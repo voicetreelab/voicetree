@@ -23,6 +23,7 @@ import {
 import {
   forkRecoverySession,
   refreshRecoverySessions,
+  removeRecoverySession,
   resumeRecoverySession,
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync'
 import {askQuery} from './backend-api';
@@ -206,6 +207,7 @@ export const mainAPI = {
   refreshRecoverySessions,
   resumeRecoverySession,
   forkRecoverySession,
+  removeRecoverySession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,

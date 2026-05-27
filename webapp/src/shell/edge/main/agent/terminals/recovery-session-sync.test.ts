@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     discoverRecoverableAgentSessions: vi.fn(),
     forkAgentSession: vi.fn(),
     resumePersistedAgentSession: vi.fn(),
+    removePersistedAgentRecord: vi.fn(),
     syncRecoverySessions: vi.fn(),
     uiLaunches: [] as Array<{
         readonly nodeId: string
@@ -20,6 +21,7 @@ vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
         discoverRecoverableAgentSessions: mocks.discoverRecoverableAgentSessions,
         forkAgentSession: mocks.forkAgentSession,
         resumePersistedAgentSession: mocks.resumePersistedAgentSession,
+        removePersistedAgentRecord: mocks.removePersistedAgentRecord,
     },
 }))
 
@@ -36,7 +38,7 @@ vi.mock('@/shell/edge/main/runtime/ui-api-proxy', () => ({
     },
 }))
 
-import {forkRecoverySession, resumeRecoverySession} from './recovery-session-sync'
+import {forkRecoverySession, removeRecoverySession, resumeRecoverySession} from './recovery-session-sync'
 
 function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
     return {
@@ -102,6 +104,62 @@ describe('recovery-session-sync', () => {
 
         expect(result).toEqual({success: false, terminalId: 'Mira', error: 'tmux refused spawn'})
         expect(mocks.uiLaunches).toEqual([])
+    })
+
+    it('propagates a structured no-native-session failure (with diagnosticSessionId) to the renderer', async () => {
+        const missed: ResumePersistedResult = {
+            kind: 'no-native-session',
+            cliType: 'codex',
+            reason: 'outside-recency-window',
+            diagnosticSessionId: '019e651e-b53e-79a0-815a-f6247aca3724',
+        }
+        mocks.resumePersistedAgentSession.mockResolvedValue(missed)
+
+        const result = await resumeRecoverySession('Mira')
+
+        expect(result.success).toBe(false)
+        expect(result.terminalId).toBe('Mira')
+        expect(result.failure).toEqual({
+            reason: 'outside-recency-window',
+            cliType: 'codex',
+            diagnosticSessionId: '019e651e-b53e-79a0-815a-f6247aca3724',
+        })
+        expect(mocks.uiLaunches).toEqual([])
+    })
+
+    it('propagates a no-native-session miss without diagnosticSessionId (e.g. db-missing)', async () => {
+        const missed: ResumePersistedResult = {
+            kind: 'no-native-session',
+            cliType: 'codex',
+            reason: 'db-missing',
+        }
+        mocks.resumePersistedAgentSession.mockResolvedValue(missed)
+
+        const result = await resumeRecoverySession('Mira')
+
+        expect(result.success).toBe(false)
+        expect(result.failure).toEqual({reason: 'db-missing', cliType: 'codex'})
+    })
+
+    it('translates a successful removePersistedAgentRecord into {success: true} and refreshes', async () => {
+        mocks.removePersistedAgentRecord.mockResolvedValue({kind: 'removed'})
+        const result = await removeRecoverySession('Iris')
+        expect(result).toEqual({success: true, terminalId: 'Iris'})
+        expect(mocks.removePersistedAgentRecord).toHaveBeenCalledWith('Iris')
+    })
+
+    it('reports a live-registry refusal as a structured error string', async () => {
+        mocks.removePersistedAgentRecord.mockResolvedValue({kind: 'refused', reason: 'live-registry-entry'})
+        const result = await removeRecoverySession('Ama')
+        expect(result.success).toBe(false)
+        expect(result.error).toContain('live')
+    })
+
+    it('reports invalid-id with a generic message rather than leaking the input', async () => {
+        mocks.removePersistedAgentRecord.mockResolvedValue({kind: 'invalid-id'})
+        const result = await removeRecoverySession('../etc/passwd')
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('Invalid terminal id')
     })
 
     it('launches a forked recovered terminal onto the source graph node', async () => {

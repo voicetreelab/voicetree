@@ -27,10 +27,28 @@ import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/start
 import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
 
-async function reconcileTmuxTerminalsForVault(writeFolder: string): Promise<void> {
-    const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(writeFolder)
+async function reconcileTmuxTerminalsForVault(projectRoot: string): Promise<void> {
+    const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(projectRoot)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         log.info('[Vault] Reconciled tmux terminals', reconciliation)
+    }
+}
+
+function migrateLegacyTerminalRecords(projectRoot: string, writeFolder: string): void {
+    // Synchronous, BEFORE reconciliation: reconciliation must see the post-move
+    // state, and any agent spawn the reconciler imports would otherwise race
+    // the rename. Idempotent — a no-op when paths match or the legacy dir is
+    // empty.
+    const result = terminalRuntimeSurface.migrateLegacyTerminalDir({
+        projectRoot,
+        writeFolder,
+        logger: {
+            info: (message: string): void => log.info(message),
+            warn: (message: string): void => log.warn(message),
+        },
+    })
+    if (result.moved.length > 0 || result.conflicts.length > 0) {
+        log.info('[Vault] Migrated legacy terminal metadata', result)
     }
 }
 
@@ -72,7 +90,11 @@ export function initializeGraphModel(): void {
             terminalRuntimeSurface.getTerminalManager().cleanup()
         },
         async onVaultOpened(info): Promise<void> {
-            await reconcileTmuxTerminalsForVault(info.writeFolder)
+            // Migration MUST precede reconciliation: reconciliation reads the
+            // post-move state and any new spawn the reconciler triggers would
+            // otherwise race a half-applied rename.
+            migrateLegacyTerminalRecords(info.projectRoot, info.writeFolder)
+            await reconcileTmuxTerminalsForVault(info.projectRoot)
         },
         onWatchingStarted(info): void {
             const mainWindow: Electron.BrowserWindow | null = getMainWindow()

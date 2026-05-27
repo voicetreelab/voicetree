@@ -53,6 +53,7 @@ function makeResumable(): RecoverableAgentSession {
         metadataPath: '/vault/.voicetree/terminals/Bob.json',
         terminalData,
         isClaimed: false,
+        status: 'running',
         resume: {cliType: 'claude'},
     }
 }

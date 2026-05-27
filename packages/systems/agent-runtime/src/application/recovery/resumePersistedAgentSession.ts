@@ -7,6 +7,7 @@ import {buildResumeCommand, type ResumeMode} from '../spawn/resumeCli'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
 import {
     defaultResolveNativeSession,
+    type NativeSessionMissReason,
     type NativeSessionResult,
     type ResolveNativeSession,
 } from './resolvers/resolveNativeSession'
@@ -28,7 +29,12 @@ export type ResumePersistedDeps = {
 export type ResumePersistedResult =
     | {readonly kind: 'spawned'; readonly pid: number; readonly command: string; readonly terminalData: TerminalData}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'already-claimed' | 'no-resume-handle'}
-    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
+    | {
+        readonly kind: 'no-native-session'
+        readonly cliType: 'claude' | 'codex'
+        readonly reason: NativeSessionMissReason
+        readonly diagnosticSessionId?: string
+    }
     | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
     | {readonly kind: 'spawn-failed'; readonly error: string}
 
@@ -76,7 +82,11 @@ export async function resumePersistedAgentSession(
         projectRoot,
         taskNodePath,
     })
-    if (native.kind !== 'found') return {kind: 'no-native-session', cliType: session.resume.cliType}
+    if (native.kind !== 'found') {
+        return native.diagnosticSessionId !== undefined
+            ? {kind: 'no-native-session', cliType: session.resume.cliType, reason: native.reason, diagnosticSessionId: native.diagnosticSessionId}
+            : {kind: 'no-native-session', cliType: session.resume.cliType, reason: native.reason}
+    }
 
     const built = buildResumeCommand({
         cliType: session.resume.cliType,
