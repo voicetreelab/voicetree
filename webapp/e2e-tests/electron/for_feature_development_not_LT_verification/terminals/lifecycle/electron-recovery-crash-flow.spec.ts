@@ -197,10 +197,14 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
             expect(byId.get(agentB.terminalId), `agent ${agentB.terminalId} should be discovered`).toBeDefined();
             expect(byId.get(agentC.terminalId), `agent ${agentC.terminalId} should be discovered`).toBeDefined();
 
-            // Agent A — Claude transcript fixture resolves → row carries Resume.
+            // Agent A — metadata-only `resume.cliType` surfaces. BF-329's
+            // lazy-resolver split moved the native-session lookup out of
+            // discovery and into resumePersistedAgentSession (the
+            // ~/.claude/projects scan is too expensive for the 10s poll). The
+            // Resume-click → resolved `claude --resume <id>` argv gate lives in
+            // ./electron-resume-persisted-byte-roundtrip.spec.ts.
             const irisRow = byId.get(agentA.terminalId);
             expect(irisRow?.resume?.cliType).toBe('claude');
-            expect(irisRow?.resume?.nativeSessionId).toBe(agentANativeSessionId);
 
             // Agent C — live tmux session seeded → row carries Attach handle.
             const liveRow = byId.get(agentC.terminalId);
