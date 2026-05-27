@@ -27,6 +27,58 @@ export type RuntimeEnvProvider = {
         readonly writeFolder: string | null;
     }>;
     readonly getWriteFolder?: () => Promise<string | null>;
+    readonly recovery?: RecoveryEnv;
+};
+
+// ---------------------------------------------------------------------------
+// Recovery community Reader-env (FP Pattern 3).
+//
+// The recovery resolvers/discovery/persistence functions used to reach for
+// `node:fs`, `node:path`, `node:sqlite`, and `process.env.X` directly. That
+// made their dependencies invisible in their signatures and inflated the
+// implicit-globals subgraph measure on the `agent-runtime/application`
+// community.
+//
+// Every recovery function now takes a `RecoveryEnv` argument carrying just
+// the capabilities it needs (fs / path / sqlite / clock / config). The shell
+// (Electron main, vt-mcpd, vt-resume) wires real `node:*` implementations
+// at boot via `configureAgentRuntime({env: {..., recovery: ...}})`.
+// ---------------------------------------------------------------------------
+
+export type CodexThreadsQuery = {
+    readonly limit: number;
+    readonly sinceMs?: number;
+};
+
+export type CodexThreadsQueryResult =
+    | {readonly kind: 'rows'; readonly rows: readonly Record<string, unknown>[]}
+    | {readonly kind: 'db-missing'}
+    | {readonly kind: 'db-schema-mismatch'};
+
+export type RecoveryEnv = {
+    readonly fs: {
+        readonly existsSync: (path: string) => boolean;
+        readonly readdirSync: (path: string) => readonly string[];
+        /** Returns the file's contents as utf8, or '' if the file cannot be read. */
+        readonly readFileUtf8: (path: string) => string;
+        /** Returns `null` if the path does not exist or is otherwise unstattable. */
+        readonly statSync: (path: string) => {
+            readonly mtimeMs: number;
+            readonly isDirectory: () => boolean;
+            readonly isFile: () => boolean;
+        } | null;
+    };
+    readonly path: {
+        readonly join: (...parts: readonly string[]) => string;
+    };
+    readonly sqlite: {
+        readonly queryCodexThreads: (dbPath: string, opts: CodexThreadsQuery) => CodexThreadsQueryResult;
+    };
+    readonly now: () => number;
+    readonly recoveryConfig: {
+        readonly claudeProjectsDir: string;
+        readonly codexStateDb: string;
+    };
 };
 
 export type WatchStatus = {
@@ -81,6 +133,17 @@ export function getRuntimeEnv(): RuntimeEnvProvider {
         throw new Error('Agent runtime env provider not configured. Call configureAgentRuntime({ env: ... }) at boot.');
     }
     return config.env;
+}
+
+export function getRecoveryEnv(): RecoveryEnv {
+    const recovery: RecoveryEnv | undefined = getRuntimeEnv().recovery;
+    if (!recovery) {
+        throw new Error(
+            'Agent runtime recovery env not configured. '
+            + 'Call configureAgentRuntime({ env: { ..., recovery: { fs, path, sqlite, now, recoveryConfig } } }) at boot.',
+        );
+    }
+    return recovery;
 }
 
 export function getGraphBridge(): GraphStateBridge | undefined {

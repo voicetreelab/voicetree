@@ -16,15 +16,20 @@
 // The discovery + resume code paths are the same ones the Electron main
 // process uses; only the UI launch step is replaced with `tmux attach`.
 
-import {existsSync} from 'node:fs'
+import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs'
+import {homedir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
+import {DatabaseSync} from 'node:sqlite'
 
 import {
     configureAgentRuntime,
     discoverRecoverableAgentSessions,
     resumePersistedAgentSession,
     type RecoverableAgentSession,
+    type CodexThreadsQuery,
+    type CodexThreadsQueryResult,
+    type RecoveryEnv,
 } from '../src/api/index.ts'
 import {buildTmuxSessionName} from '../src/application/terminals/tmux/tmux-session-manager.ts'
 
@@ -158,8 +163,77 @@ function configureRuntime(paths: ResolvedPaths): void {
                 writeFolder: paths.vault,
             }),
             getWriteFolder: async (): Promise<string> => paths.vault,
+            recovery: buildNodeRecoveryEnv(),
         },
     })
+}
+
+function buildNodeRecoveryEnv(): RecoveryEnv {
+    return {
+        fs: {
+            existsSync,
+            readdirSync: (p) => readdirSync(p),
+            readFileUtf8: (p) => {
+                try {
+                    return readFileSync(p, 'utf8')
+                } catch {
+                    return ''
+                }
+            },
+            statSync: (p) => {
+                try {
+                    const s = statSync(p)
+                    return {
+                        mtimeMs: s.mtimeMs,
+                        isDirectory: () => s.isDirectory(),
+                        isFile: () => s.isFile(),
+                    }
+                } catch {
+                    return null
+                }
+            },
+        },
+        path: {join},
+        sqlite: {queryCodexThreads: queryCodexThreadsNode},
+        now: () => Date.now(),
+        recoveryConfig: {
+            claudeProjectsDir: process.env.VOICETREE_CLAUDE_PROJECTS_DIR
+                ?? join(homedir(), '.claude', 'projects'),
+            codexStateDb: process.env.VOICETREE_CODEX_STATE_DB
+                ?? join(homedir(), '.codex', 'state_5.sqlite'),
+        },
+    }
+}
+
+function queryCodexThreadsNode(dbPath: string, opts: CodexThreadsQuery): CodexThreadsQueryResult {
+    let db: DatabaseSync
+    try {
+        db = new DatabaseSync(dbPath, {readOnly: true})
+    } catch {
+        return {kind: 'db-missing'}
+    }
+    try {
+        const baseColumns = 'id, first_user_message, cwd, created_at_ms, updated_at_ms, rollout_path'
+        const sql: string = opts.sinceMs !== undefined
+            ? `SELECT ${baseColumns} FROM threads WHERE updated_at_ms >= ? ORDER BY updated_at_ms DESC LIMIT ?`
+            : `SELECT ${baseColumns} FROM threads ORDER BY updated_at_ms DESC LIMIT ?`
+        let rows: readonly Record<string, unknown>[]
+        try {
+            const stmt = db.prepare(sql)
+            rows = (opts.sinceMs !== undefined
+                ? stmt.all(opts.sinceMs, opts.limit)
+                : stmt.all(opts.limit)) as readonly Record<string, unknown>[]
+        } catch {
+            return {kind: 'db-schema-mismatch'}
+        }
+        return {kind: 'rows', rows}
+    } finally {
+        try {
+            db.close()
+        } catch {
+            // ignore
+        }
+    }
 }
 
 function formatRow(row: RecoverableAgentSession): string {

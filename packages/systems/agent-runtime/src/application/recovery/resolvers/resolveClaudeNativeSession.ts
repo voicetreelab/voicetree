@@ -1,6 +1,4 @@
-import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs'
-import path from 'node:path'
-import os from 'node:os'
+import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {matchClaudeSessionId, type ClaudeTranscriptRecord} from './claude-transcript-matcher'
 
 export type ResolveClaudeRequest = {
@@ -57,7 +55,7 @@ const DEFAULT_SCAN_TIMEOUT_MS = 10 * 1000
  */
 export async function resolveClaudeNativeSession(
     request: ResolveClaudeRequest,
-    deps: ResolveClaudeDeps = defaultResolveClaudeDeps(),
+    deps: ResolveClaudeDeps,
 ): Promise<ResolveClaudeResult> {
     const recencyWindowMs: number = request.recencyWindowMs ?? DEFAULT_RECENCY_WINDOW_MS
     const scanTimeoutMs: number = request.scanTimeoutMs ?? DEFAULT_SCAN_TIMEOUT_MS
@@ -90,24 +88,15 @@ export async function resolveClaudeNativeSession(
     return {kind: 'not-found', reason: 'marker-mismatch'}
 }
 
-function listJsonlFilesRecursive(root: string): readonly string[] {
+function listJsonlFilesRecursive(env: RecoveryEnv, root: string): readonly string[] {
     const results: string[] = []
-    let entries: readonly string[]
-    try {
-        entries = readdirSync(root)
-    } catch {
-        return []
-    }
+    const entries: readonly string[] = env.fs.readdirSync(root)
     for (const entry of entries) {
-        const full: string = path.join(root, entry)
-        let stat
-        try {
-            stat = statSync(full)
-        } catch {
-            continue
-        }
+        const full: string = env.path.join(root, entry)
+        const stat = env.fs.statSync(full)
+        if (!stat) continue
         if (stat.isDirectory()) {
-            results.push(...listJsonlFilesRecursive(full))
+            results.push(...listJsonlFilesRecursive(env, full))
         } else if (stat.isFile() && entry.endsWith('.jsonl')) {
             results.push(full)
         }
@@ -115,21 +104,7 @@ function listJsonlFilesRecursive(root: string): readonly string[] {
     return results
 }
 
-function safeFileModifiedAt(filePath: string): number {
-    try {
-        return statSync(filePath).mtimeMs
-    } catch {
-        return 0
-    }
-}
-
-function safeReadJsonlLines(filePath: string): readonly ClaudeTranscriptRecord[] {
-    let raw: string
-    try {
-        raw = readFileSync(filePath, 'utf8')
-    } catch {
-        return []
-    }
+function parseJsonlLines(raw: string): readonly ClaudeTranscriptRecord[] {
     const records: ClaudeTranscriptRecord[] = []
     for (const line of raw.split('\n')) {
         const trimmed: string = line.trim()
@@ -143,16 +118,26 @@ function safeReadJsonlLines(filePath: string): readonly ClaudeTranscriptRecord[]
     return records
 }
 
-export function defaultResolveClaudeDeps(
-    projectsRoot: string = path.join(os.homedir(), '.claude', 'projects'),
-): ResolveClaudeDeps {
+export function defaultResolveClaudeDeps(env: RecoveryEnv, projectsRoot: string): ResolveClaudeDeps {
     return {
         listProjectTranscripts: (): ClaudeTranscriptsList => {
-            if (!existsSync(projectsRoot)) return {kind: 'projects-dir-missing'}
-            return {kind: 'transcripts', paths: listJsonlFilesRecursive(projectsRoot)}
+            if (!env.fs.existsSync(projectsRoot)) return {kind: 'projects-dir-missing'}
+            // env.fs.readdirSync may throw on the root if it disappears between
+            // the existsSync check and the walk; defer such races to the caller
+            // (resolveClaudeNativeSession returns 'projects-dir-missing' for an
+            // absent root, and an empty file list otherwise).
+            try {
+                return {kind: 'transcripts', paths: listJsonlFilesRecursive(env, projectsRoot)}
+            } catch {
+                return {kind: 'transcripts', paths: []}
+            }
         },
-        fileModifiedAt: safeFileModifiedAt,
-        readJsonlLines: safeReadJsonlLines,
-        now: () => Date.now(),
+        fileModifiedAt: (filePath: string): number => {
+            const stat = env.fs.statSync(filePath)
+            return stat ? stat.mtimeMs : 0
+        },
+        readJsonlLines: (filePath: string): readonly ClaudeTranscriptRecord[] =>
+            parseJsonlLines(env.fs.readFileUtf8(filePath)),
+        now: env.now,
     }
 }

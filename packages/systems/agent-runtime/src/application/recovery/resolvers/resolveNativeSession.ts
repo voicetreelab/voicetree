@@ -1,5 +1,4 @@
-import path from 'node:path'
-import os from 'node:os'
+import {getRecoveryEnv, type RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {
     resolveClaudeNativeSession,
     defaultResolveClaudeDeps,
@@ -45,32 +44,27 @@ export type ResolveNativeSession = (request: NativeSessionRequest) => Promise<Na
  * codex outside-recency-window, the diagnostic session id) so the UI can
  * render an actionable toast plus a copy-manual-command escape hatch.
  *
- * Resolver roots can be overridden via env vars (useful for tests and for
- * users with non-default config locations):
- *
- * - `VOICETREE_CLAUDE_PROJECTS_DIR`  → defaults to `~/.claude/projects`
- * - `VOICETREE_CODEX_STATE_DB`       → defaults to `~/.codex/state_5.sqlite`
+ * Resolver roots come from `env.recoveryConfig`. The shell decides their
+ * defaults (typically `~/.claude/projects` and `~/.codex/state_5.sqlite`,
+ * overridable by `VOICETREE_CLAUDE_PROJECTS_DIR` / `VOICETREE_CODEX_STATE_DB`).
  */
-export async function defaultResolveNativeSession(
+export async function resolveNativeSessionWithEnv(
+    env: RecoveryEnv,
     request: NativeSessionRequest,
 ): Promise<NativeSessionResult> {
     if (request.cliType === 'claude') {
-        const root: string = process.env.VOICETREE_CLAUDE_PROJECTS_DIR
-            ?? path.join(os.homedir(), '.claude', 'projects')
         const result: ResolveClaudeResult = await resolveClaudeNativeSession(
             {terminalId: request.terminalId, projectRoot: request.projectRoot, taskNodePath: request.taskNodePath},
-            defaultResolveClaudeDeps(root),
+            defaultResolveClaudeDeps(env, env.recoveryConfig.claudeProjectsDir),
         )
         if (result.kind === 'found') {
             return {kind: 'found', sessionId: result.sessionId, providerStorePath: result.providerStorePath}
         }
         return {kind: 'not-found', reason: result.reason}
     }
-    const dbPath: string = process.env.VOICETREE_CODEX_STATE_DB
-        ?? path.join(os.homedir(), '.codex', 'state_5.sqlite')
     const result: ResolveCodexResult = resolveCodexNativeSession(
         {terminalId: request.terminalId, projectRoot: request.projectRoot, taskNodePath: request.taskNodePath},
-        defaultResolveCodexDeps(dbPath),
+        defaultResolveCodexDeps(env, env.recoveryConfig.codexStateDb),
     )
     if (result.kind === 'found') {
         return {kind: 'found', sessionId: result.sessionId, providerStorePath: result.providerStorePath}
@@ -78,4 +72,19 @@ export async function defaultResolveNativeSession(
     return result.diagnosticSessionId !== undefined
         ? {kind: 'not-found', reason: result.reason, diagnosticSessionId: result.diagnosticSessionId}
         : {kind: 'not-found', reason: result.reason}
+}
+
+/**
+ * Convenience binding: reads the recovery env from the configured runtime
+ * registry and dispatches. Preserves the `ResolveNativeSession` shape
+ * consumed by sessions/* default deps so those callers don't need env
+ * threading.
+ *
+ * The dependency is still visible — calls `getRecoveryEnv()` which throws
+ * unambiguously at the shell boundary when the runtime hasn't been wired
+ * with a `RecoveryEnv`. Callers that already hold an env should call
+ * `resolveNativeSessionWithEnv(env, request)` directly.
+ */
+export async function defaultResolveNativeSession(request: NativeSessionRequest): Promise<NativeSessionResult> {
+    return resolveNativeSessionWithEnv(getRecoveryEnv(), request)
 }

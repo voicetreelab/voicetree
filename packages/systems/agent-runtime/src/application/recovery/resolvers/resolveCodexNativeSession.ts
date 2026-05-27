@@ -1,6 +1,4 @@
-import {DatabaseSync} from 'node:sqlite'
-import path from 'node:path'
-import os from 'node:os'
+import type {RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {matchCodexThreadId, type CodexThreadRow} from './codex-thread-matcher'
 
 export type ResolveCodexRequest = {
@@ -59,7 +57,7 @@ const DEFAULT_ROW_LIMIT = 200
  */
 export function resolveCodexNativeSession(
     request: ResolveCodexRequest,
-    deps: ResolveCodexDeps = defaultResolveCodexDeps(),
+    deps: ResolveCodexDeps,
 ): ResolveCodexResult {
     const recencyWindowMs: number = request.recencyWindowMs ?? DEFAULT_RECENCY_WINDOW_MS
     const rowLimit: number = request.rowLimit ?? DEFAULT_ROW_LIMIT
@@ -99,49 +97,6 @@ export function resolveCodexNativeSession(
         : {kind: 'found', sessionId}
 }
 
-function queryCodexThreads(dbPath: string, opts: {limit: number; sinceMs?: number}): CodexQueryResult {
-    let db: DatabaseSync
-    try {
-        db = new DatabaseSync(dbPath, {readOnly: true})
-    } catch {
-        return {kind: 'db-missing'}
-    }
-    try {
-        const baseColumns = 'id, first_user_message, cwd, created_at_ms, updated_at_ms, rollout_path'
-        const sql: string = opts.sinceMs !== undefined
-            ? `SELECT ${baseColumns} FROM threads WHERE updated_at_ms >= ? ORDER BY updated_at_ms DESC LIMIT ?`
-            : `SELECT ${baseColumns} FROM threads ORDER BY updated_at_ms DESC LIMIT ?`
-        let raw: readonly Record<string, unknown>[]
-        try {
-            const stmt = db.prepare(sql)
-            raw = (opts.sinceMs !== undefined
-                ? stmt.all(opts.sinceMs, opts.limit)
-                : stmt.all(opts.limit)) as readonly Record<string, unknown>[]
-        } catch {
-            return {kind: 'db-schema-mismatch'}
-        }
-        return {kind: 'rows', rows: raw.map(toCodexThreadRow)}
-    } finally {
-        try {
-            db.close()
-        } catch {
-            // ignore
-        }
-    }
-}
-
-export function defaultResolveCodexDeps(
-    dbPath: string = path.join(os.homedir(), '.codex', 'state_5.sqlite'),
-): ResolveCodexDeps {
-    return {
-        listRecentThreads: (sinceMs: number, limit: number): CodexQueryResult =>
-            queryCodexThreads(dbPath, {sinceMs, limit}),
-        listAnyThreads: (limit: number): CodexQueryResult =>
-            queryCodexThreads(dbPath, {limit}),
-        now: () => Date.now(),
-    }
-}
-
 function toCodexThreadRow(raw: Record<string, unknown>): CodexThreadRow {
     return {
         id: String(raw.id ?? ''),
@@ -150,5 +105,18 @@ function toCodexThreadRow(raw: Record<string, unknown>): CodexThreadRow {
         created_at_ms: typeof raw.created_at_ms === 'number' ? raw.created_at_ms : undefined,
         updated_at_ms: typeof raw.updated_at_ms === 'number' ? raw.updated_at_ms : undefined,
         rollout_path: typeof raw.rollout_path === 'string' ? raw.rollout_path : undefined,
+    }
+}
+
+export function defaultResolveCodexDeps(env: RecoveryEnv, dbPath: string): ResolveCodexDeps {
+    const queryRows = (opts: {limit: number; sinceMs?: number}): CodexQueryResult => {
+        const result = env.sqlite.queryCodexThreads(dbPath, opts)
+        if (result.kind !== 'rows') return result
+        return {kind: 'rows', rows: result.rows.map(toCodexThreadRow)}
+    }
+    return {
+        listRecentThreads: (sinceMs: number, limit: number): CodexQueryResult => queryRows({sinceMs, limit}),
+        listAnyThreads: (limit: number): CodexQueryResult => queryRows({limit}),
+        now: env.now,
     }
 }
