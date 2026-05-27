@@ -30,7 +30,7 @@ export type SpawnDaemonInput = {
   readonly daemonKind: DaemonKind
   readonly cmd: string
   readonly args: readonly string[]
-  readonly env?: SpawnEnvVarShape
+  readonly env: SpawnEnvVarShape
   readonly caller: CallerKind
 }
 
@@ -39,12 +39,15 @@ export type SpawnedDaemonHandle = {
   readonly process: ChildProcess
 }
 
+// `env` is required (no `?? process.env` fallback): the transitive-purity
+// gate flags any `process.*` read in a function body, so callers thread
+// the env in from the shell boundary.
 export function spawnDaemon(input: SpawnDaemonInput): SpawnedDaemonHandle {
   const callerEnvName = envVarNameFor(input.daemonKind)
   const child = spawn(input.cmd, [...input.args], {
     detached: true,
     env: {
-      ...(input.env ?? process.env),
+      ...input.env,
       [callerEnvName]: input.caller,
     },
     stdio: ['ignore', 'ignore', 'ignore'],

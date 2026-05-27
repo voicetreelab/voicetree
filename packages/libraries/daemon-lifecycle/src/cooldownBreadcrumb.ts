@@ -93,15 +93,19 @@ export async function readCooldownBreadcrumb(
 /**
  * Atomic-write a cooldown breadcrumb. Uses tmp + rename so a partial
  * write cannot leave a half-formed JSON file other readers would treat
- * as corrupt.
+ * as corrupt. `writerPid` is threaded in (rather than read from
+ * process.pid) so the function stays free of the transitive-purity gate
+ * — the breadcrumb's own writerPid field is already the canonical
+ * record of who wrote it.
  */
 export async function writeCooldownBreadcrumb(
   vaultDir: string,
   daemonKind: DaemonKind,
   breadcrumb: CooldownBreadcrumb,
+  writerPid: number,
 ): Promise<void> {
   const target = cooldownBreadcrumbPathFor(vaultDir, daemonKind)
-  const tmp = `${target}.tmp.${process.pid}.${randomUUID().slice(0, 8)}`
+  const tmp = `${target}.tmp.${writerPid}.${randomUUID().slice(0, 8)}`
   await writeFile(tmp, `${JSON.stringify(breadcrumb, null, 2)}\n`, 'utf8')
   try {
     await rename(tmp, target)
