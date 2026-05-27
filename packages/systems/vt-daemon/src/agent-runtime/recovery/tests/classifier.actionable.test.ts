@@ -1,12 +1,7 @@
 import {describe, expect, it} from 'vitest'
-<<<<<<<< HEAD:packages/systems/vt-daemon/src/agent-runtime/recovery/classifier/classifier.actionable.test.ts
 import * as O from 'fp-ts/lib/Option.js'
-import {classifyRecoveryCandidates} from './classifier'
-import type {ResumeCapability} from './types'
-========
 import {classifyRecoveryCandidates} from '../classifier'
 import type {ResumeCapability} from '../types'
->>>>>>>> origin/dev:packages/systems/vt-daemon/src/agent-runtime/recovery/tests/classifier.actionable.test.ts
 import {
     baseInput,
     makeLiveSession,
