@@ -35,9 +35,12 @@ export type ManualTool = {
 
 const TOOL_HEADER: RegExp = /^### `([^`]+)`$/
 const PARAM_BULLET: RegExp = /^- `([^`]+)`:(?: (.*))?$/
+const SINGLE_LINE_HTML_COMMENT: RegExp = /^<!--.*-->$/
+const HTML_COMMENT_OPEN: RegExp = /^<!--/
+const HTML_COMMENT_CLOSE: RegExp = /-->\s*$/
 
 export function parseManual(markdown: string): readonly ManualTool[] {
-    const lines: string[] = markdown.split('\n')
+    const lines: string[] = stripHtmlCommentLines(markdown.split('\n'))
     const tools: ManualTool[] = []
 
     let cursor: number = 0
@@ -63,6 +66,32 @@ export function parseManual(markdown: string): readonly ManualTool[] {
     }
 
     return tools
+}
+
+/**
+ * Drop CommonMark HTML comments that occupy whole lines. Both the
+ * single-line form (`<!-- foo -->`) and the multi-line block form
+ * (`<!--\n foo\n-->`) are removed entirely so the section/parameter walkers
+ * never see them. Inline comments embedded inside a content line are left
+ * untouched — only lines whose trimmed form is purely a comment are dropped.
+ */
+function stripHtmlCommentLines(lines: readonly string[]): string[] {
+    const kept: string[] = []
+    let insideBlockComment: boolean = false
+    for (const line of lines) {
+        const trimmed: string = line.trim()
+        if (insideBlockComment) {
+            if (HTML_COMMENT_CLOSE.test(trimmed)) insideBlockComment = false
+            continue
+        }
+        if (SINGLE_LINE_HTML_COMMENT.test(trimmed)) continue
+        if (HTML_COMMENT_OPEN.test(trimmed) && !HTML_COMMENT_CLOSE.test(trimmed)) {
+            insideBlockComment = true
+            continue
+        }
+        kept.push(line)
+    }
+    return kept
 }
 
 function findNextHeader(lines: readonly string[], from: number): number {
