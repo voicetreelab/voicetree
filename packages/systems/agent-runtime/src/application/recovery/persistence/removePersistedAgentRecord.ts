@@ -1,9 +1,6 @@
-import {unlink} from 'node:fs/promises'
-import path from 'node:path'
-
-import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
-import {getRecoveryMetadataDir} from './paths'
+import {getRecoveryEnv, getRuntimeEnv, type RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime/terminals/terminal-registry/index.ts'
+import {getRecoveryMetadataDir} from '../paths'
 
 /**
  * Discriminated result for `removePersistedAgentRecord`.
@@ -30,13 +27,12 @@ export type RemovePersistedAgentRecordResult =
 export type RemovePersistedAgentRecordDeps = {
     readonly getProjectRoot: () => Promise<string | null>
     readonly isInLiveRegistry: (terminalId: string) => boolean
-    readonly unlinkPath: (filePath: string) => Promise<void>
 }
 
 /**
  * Strict allowlist matching the design-doc requirement. Any character outside
  * this set is rejected outright — including `/`, `\`, `.`, whitespace, and any
- * non-ASCII letter. The downstream path is built by `path.join` over a
+ * non-ASCII letter. The downstream path is built by `env.path.join` over a
  * validated id; an id like `../foo` would escape the metadata dir, so the
  * regex is the only place this is allowed to fail.
  */
@@ -58,11 +54,13 @@ const SIBLING_SUFFIXES: readonly string[] = ['.json', '.log', '-prompt.txt', '.e
  *      dir — defence in depth against any future regex slip.
  *   5. Best-effort unlink each sibling, swallowing ENOENT (idempotent).
  *
- * Side-effect surface: only `unlinkPath` (filesystem) is impure. The deps
- * shape keeps tests black-box: callers pass an in-memory unlink and assert on
- * the recorded paths.
+ * Side-effect surface: `env.fs.unlink` is the only impure call. The deps
+ * shape keeps tests black-box: callers stub `getProjectRoot` and
+ * `isInLiveRegistry` and provide an env whose `unlink` records the paths it
+ * receives.
  */
-export async function removePersistedAgentRecord(
+export async function removePersistedAgentRecordWithEnv(
+    env: RecoveryEnv,
     terminalId: string,
     deps?: Partial<RemovePersistedAgentRecordDeps>,
 ): Promise<RemovePersistedAgentRecordResult> {
@@ -83,25 +81,40 @@ export async function removePersistedAgentRecord(
     }
 
     const metadataDir: string = getRecoveryMetadataDir(projectRoot)
-    const canonicalDir: string = path.resolve(metadataDir)
+    const canonicalDir: string = env.path.resolve(metadataDir)
 
     for (const suffix of SIBLING_SUFFIXES) {
-        const candidate: string = path.join(metadataDir, `${terminalId}${suffix}`)
-        const canonical: string = path.resolve(candidate)
+        const candidate: string = env.path.join(metadataDir, `${terminalId}${suffix}`)
+        const canonical: string = env.path.resolve(candidate)
         // Belt-and-braces: even though the regex already excludes `/`, `\`,
         // and `..`, verify the resolved path is inside the metadata dir.
         // Anything outside is silently skipped (never thrown — refusal should
         // be surfaced by the regex check, this is just defence in depth).
-        const withinDir: boolean = canonical === path.join(canonicalDir, `${terminalId}${suffix}`)
+        const withinDir: boolean = canonical === env.path.join(canonicalDir, `${terminalId}${suffix}`)
         if (!withinDir) continue
         try {
-            await resolved.unlinkPath(canonical)
+            await env.fs.unlink(canonical)
         } catch (error) {
             if (!isFileNotFoundError(error)) throw error
         }
     }
 
     return {kind: 'removed'}
+}
+
+/**
+ * Convenience binding: pulls the recovery env from the configured runtime and
+ * dispatches. Used by the api/agent-runtime-api.ts re-export surface so the
+ * Electron + MCP boot paths don't need env threading yet.
+ *
+ * Callers that already hold a `RecoveryEnv` should call
+ * `removePersistedAgentRecordWithEnv(env, terminalId, deps)` directly.
+ */
+export async function removePersistedAgentRecord(
+    terminalId: string,
+    deps?: Partial<RemovePersistedAgentRecordDeps>,
+): Promise<RemovePersistedAgentRecordResult> {
+    return removePersistedAgentRecordWithEnv(getRecoveryEnv(), terminalId, deps)
 }
 
 function isFileNotFoundError(error: unknown): boolean {
@@ -120,6 +133,5 @@ export function defaultRemovePersistedAgentRecordDeps(): RemovePersistedAgentRec
             const records: readonly TerminalRecord[] = getTerminalRecords()
             return records.some((record: TerminalRecord): boolean => record.terminalId === terminalId)
         },
-        unlinkPath: (filePath: string): Promise<void> => unlink(filePath),
     }
 }

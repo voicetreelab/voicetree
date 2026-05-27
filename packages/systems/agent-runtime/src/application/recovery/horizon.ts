@@ -4,19 +4,18 @@ const DEFAULT_HORIZON_DAYS: number = 7
 export const RECOVERY_HORIZON_MS: number = DEFAULT_HORIZON_DAYS * MS_PER_DAY
 
 /**
- * Resolve the active recovery-horizon window in ms.
+ * Resolve the active recovery-horizon window in ms from a caller-supplied
+ * `horizonDays` override (typically threaded through `RecoveryEnv.recoveryConfig`
+ * after the shell reads `process.env.VOICETREE_RECOVERY_HORIZON_DAYS`).
  *
- * Default is 7 days. `process.env.VOICETREE_RECOVERY_HORIZON_DAYS` overrides at
- * read time so test fixtures (and the user's $VOICETREE_RECOVERY_HORIZON_DAYS
- * shell override) take effect without rebuilding. Non-finite or non-positive
- * values fall back to the default.
+ * Returns the 7-day default when the input is undefined, non-finite, or
+ * non-positive — those treat malformed config as "no override" rather than
+ * propagating bad data.
  */
-export function getRecoveryHorizonMs(): number {
-    const raw: string | undefined = process.env.VOICETREE_RECOVERY_HORIZON_DAYS
-    if (!raw) return RECOVERY_HORIZON_MS
-    const days: number = Number(raw)
-    if (!Number.isFinite(days) || days <= 0) return RECOVERY_HORIZON_MS
-    return days * MS_PER_DAY
+export function resolveRecoveryHorizonMs(horizonDays: number | undefined): number {
+    if (horizonDays === undefined) return RECOVERY_HORIZON_MS
+    if (!Number.isFinite(horizonDays) || horizonDays <= 0) return RECOVERY_HORIZON_MS
+    return horizonDays * MS_PER_DAY
 }
 
 /**

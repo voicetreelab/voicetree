@@ -16,7 +16,8 @@
 // The discovery + resume code paths are the same ones the Electron main
 // process uses; only the UI launch step is replaced with `tmux attach`.
 
-import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs'
+import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs'
+import {unlink} from 'node:fs/promises'
 import {homedir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
@@ -192,8 +193,20 @@ function buildNodeRecoveryEnv(): RecoveryEnv {
                     return null
                 }
             },
+            mkdirSync: (p, opts) => {
+                mkdirSync(p, opts)
+            },
+            renameSync,
+            writeFileUtf8: (p, contents) => {
+                try {
+                    writeFileSync(p, contents, 'utf8')
+                } catch {
+                    // mirror readFileUtf8: best-effort, swallow errors
+                }
+            },
+            unlink: (p) => unlink(p),
         },
-        path: {join},
+        path: {join, resolve},
         sqlite: {queryCodexThreads: queryCodexThreadsNode},
         now: () => Date.now(),
         recoveryConfig: {
@@ -201,8 +214,15 @@ function buildNodeRecoveryEnv(): RecoveryEnv {
                 ?? join(homedir(), '.claude', 'projects'),
             codexStateDb: process.env.VOICETREE_CODEX_STATE_DB
                 ?? join(homedir(), '.codex', 'state_5.sqlite'),
+            horizonDays: parseHorizonDays(process.env.VOICETREE_RECOVERY_HORIZON_DAYS),
         },
     }
+}
+
+function parseHorizonDays(raw: string | undefined): number | undefined {
+    if (!raw) return undefined
+    const n: number = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
 function queryCodexThreadsNode(dbPath: string, opts: CodexThreadsQuery): CodexThreadsQueryResult {

@@ -1,6 +1,4 @@
-import {readdirSync, readFileSync, statSync} from 'node:fs'
-import path from 'node:path'
-import {getRuntimeEnv} from '../runtime/runtime-config'
+import {getRecoveryEnv, getRuntimeEnv, type RecoveryEnv} from '../runtime/runtime-config'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
 import {readMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
@@ -15,8 +13,8 @@ import {
     classifyRecoveryCandidates,
     detectSupportedCliFromMetadata,
     type MetadataRecord,
-} from './classifier'
-import {getRecoveryHorizonMs, isoToMsOrZero} from './horizon'
+} from './classifier/classifier'
+import {isoToMsOrZero, resolveRecoveryHorizonMs} from './horizon'
 import {getRecoveryMetadataDir} from './paths'
 import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
@@ -28,13 +26,13 @@ export type DiscoverRecoveryDeps = {
 }
 
 /**
- * Optional knobs for `discoverRecoverableAgentSessions`. Tests pass
- * `now` to make horizon assertions deterministic; the renderer's "show
- * older" link passes `horizonMs: null` to disable the cutoff entirely.
+ * Optional knobs for `discoverRecoverableAgentSessions`. The renderer's
+ * "show older" link passes `horizonMs: null` to disable the cutoff entirely.
+ * The clock and horizon-config defaults come from the `RecoveryEnv`; tests
+ * thread a stubbed env to make assertions deterministic.
  */
 export type DiscoverRecoveryOptions = {
     readonly horizonMs?: number | null
-    readonly now?: () => number
 }
 
 /**
@@ -105,11 +103,12 @@ function applyHorizon(
  * agent that never wrote a transcript) are dropped — there's nothing the UI
  * could do with them.
  */
-export async function discoverRecoverableAgentSessions(
+export async function discoverRecoverableAgentSessionsWithEnv(
+    env: RecoveryEnv,
     deps?: DiscoverRecoveryDeps,
     opts: DiscoverRecoveryOptions = {},
 ): Promise<readonly RecoverableAgentSession[]> {
-    const resolvedDeps: DiscoverRecoveryDeps = deps ?? defaultDiscoverRecoveryDeps()
+    const resolvedDeps: DiscoverRecoveryDeps = deps ?? defaultDiscoverRecoveryDepsWithEnv(env)
     const [metadataRecords, liveUnclaimed, currentNamespaceHash] = await Promise.all([
         resolvedDeps.readVaultMetadataDir(),
         resolvedDeps.listLiveUnclaimedTmuxSessions(),
@@ -151,10 +150,27 @@ export async function discoverRecoverableAgentSessions(
         if (surfacedTerminalIds.has(session.terminalId)) continue
         recoverable.push(metadataLessAttachableRow(session))
     }
-    const horizonMs: number | null = opts.horizonMs === undefined ? getRecoveryHorizonMs() : opts.horizonMs
-    const now: number = (opts.now ?? Date.now)()
-    const withinHorizon: readonly RecoverableAgentSession[] = applyHorizon(recoverable, horizonMs, now)
+    const horizonMs: number | null = opts.horizonMs === undefined
+        ? resolveRecoveryHorizonMs(env.recoveryConfig.horizonDays)
+        : opts.horizonMs
+    const withinHorizon: readonly RecoverableAgentSession[] = applyHorizon(recoverable, horizonMs, env.now())
     return sortRecords(withinHorizon)
+}
+
+/**
+ * Convenience binding: reads the recovery env from the configured runtime
+ * registry and dispatches. Preserves the legacy zero-arg call shape consumed
+ * by the api/agent-runtime-api.ts re-export surface and the sessions/* default
+ * deps factories, so those callers don't need env threading yet.
+ *
+ * Callers that already hold a `RecoveryEnv` should call
+ * `discoverRecoverableAgentSessionsWithEnv(env, ...)` directly.
+ */
+export async function discoverRecoverableAgentSessions(
+    deps?: DiscoverRecoveryDeps,
+    opts: DiscoverRecoveryOptions = {},
+): Promise<readonly RecoverableAgentSession[]> {
+    return discoverRecoverableAgentSessionsWithEnv(getRecoveryEnv(), deps, opts)
 }
 
 function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAgentSession {
@@ -233,34 +249,35 @@ async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
     return projectRoot ? getRecoveryMetadataDir(projectRoot) : null
 }
 
-function readMetadataDir(dir: string): readonly MetadataRecord[] {
+function readMetadataDir(env: RecoveryEnv, dir: string): readonly MetadataRecord[] {
     let entries: readonly string[]
     try {
-        entries = readdirSync(dir)
+        entries = env.fs.readdirSync(dir)
     } catch {
         return []
     }
     const records: MetadataRecord[] = []
     for (const entry of entries) {
         if (!entry.endsWith('.json')) continue
-        const filePath: string = path.join(dir, entry)
+        const filePath: string = env.path.join(dir, entry)
+        const stat = env.fs.statSync(filePath)
+        if (!stat || !stat.isFile()) continue
+        const raw: string = env.fs.readFileUtf8(filePath)
+        if (raw === '') continue  // env.fs.readFileUtf8 swallows read errors as ''
         try {
-            const stat = statSync(filePath)
-            if (!stat.isFile()) continue
-            const raw: string = readFileSync(filePath, 'utf8')
             records.push({path: filePath, data: JSON.parse(raw) as unknown})
         } catch {
-            // Skip files that fail to read or parse; classifier handles invalid shapes too.
+            // Skip files that fail to parse; classifier handles invalid shapes too.
         }
     }
     return records
 }
 
-export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
+export function defaultDiscoverRecoveryDepsWithEnv(env: RecoveryEnv): DiscoverRecoveryDeps {
     return {
         readVaultMetadataDir: async (): Promise<readonly MetadataRecord[]> => {
             const dir: string | null = await resolveCurrentVaultMetadataDir()
-            return dir ? readMetadataDir(dir) : []
+            return dir ? readMetadataDir(env, dir) : []
         },
         listLiveUnclaimedTmuxSessions: (): Promise<readonly UnclaimedTmuxSession[]> => listUnclaimedTmuxSessions(),
         getRegistryTerminalIds: (): ReadonlySet<string> => {
@@ -269,6 +286,16 @@ export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
         },
         getCurrentNamespaceHash: (): Promise<string | null> => getCurrentTmuxNamespaceHash(),
     }
+}
+
+/**
+ * Convenience binding for the sessions/* default deps factories: pulls the
+ * recovery env from the configured runtime and dispatches. Preserves the
+ * pre-Pattern-3 zero-arg call shape, so callers that haven't been env-threaded
+ * yet keep compiling.
+ */
+export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
+    return defaultDiscoverRecoveryDepsWithEnv(getRecoveryEnv())
 }
 
 // Re-export for convenience: callers building custom deps that still want to

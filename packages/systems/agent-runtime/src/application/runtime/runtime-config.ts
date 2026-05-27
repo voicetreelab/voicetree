@@ -67,9 +67,16 @@ export type RecoveryEnv = {
             readonly isDirectory: () => boolean;
             readonly isFile: () => boolean;
         } | null;
+        readonly mkdirSync: (path: string, opts?: {readonly recursive?: boolean}) => void;
+        readonly renameSync: (oldPath: string, newPath: string) => void;
+        /** Writes utf8 contents; swallows errors (mirror readFileUtf8). */
+        readonly writeFileUtf8: (path: string, contents: string) => void;
+        /** Async unlink. ENOENT must propagate as an Error with `code: 'ENOENT'`. */
+        readonly unlink: (path: string) => Promise<void>;
     };
     readonly path: {
         readonly join: (...parts: readonly string[]) => string;
+        readonly resolve: (...parts: readonly string[]) => string;
     };
     readonly sqlite: {
         readonly queryCodexThreads: (dbPath: string, opts: CodexThreadsQuery) => CodexThreadsQueryResult;
@@ -78,6 +85,13 @@ export type RecoveryEnv = {
     readonly recoveryConfig: {
         readonly claudeProjectsDir: string;
         readonly codexStateDb: string;
+        /**
+         * Override for the recovery horizon window (in days). Undefined falls
+         * back to `RECOVERY_HORIZON_MS` (7 days). The shell reads
+         * `VOICETREE_RECOVERY_HORIZON_DAYS` and propagates it here so the
+         * discovery community doesn't reach for `process` directly.
+         */
+        readonly horizonDays?: number;
     };
 };
 

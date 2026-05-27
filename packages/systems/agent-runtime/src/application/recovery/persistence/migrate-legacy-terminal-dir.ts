@@ -1,7 +1,6 @@
-import {existsSync, mkdirSync, readdirSync, renameSync, writeFileSync} from 'node:fs'
-import {join} from 'node:path'
+import {getRecoveryEnv, type RecoveryEnv} from '@vt/agent-runtime/runtime/runtime-config'
 
-import {getRecoveryMetadataDir} from './paths'
+import {getRecoveryMetadataDir} from '../paths'
 
 type Logger = {
     readonly warn?: (message: string) => void
@@ -27,28 +26,26 @@ function siblingNamesFor(jsonEntry: string): readonly string[] {
     return SIBLING_SUFFIXES.map((suffix: string) => `${base}${suffix}`)
 }
 
-function moveOne(legacyDir: string, canonicalDir: string, jsonEntry: string): void {
-    renameSync(join(legacyDir, jsonEntry), join(canonicalDir, jsonEntry))
+function moveOne(env: RecoveryEnv, legacyDir: string, canonicalDir: string, jsonEntry: string): void {
+    env.fs.renameSync(env.path.join(legacyDir, jsonEntry), env.path.join(canonicalDir, jsonEntry))
     for (const sibling of siblingNamesFor(jsonEntry)) {
-        const legacySibling: string = join(legacyDir, sibling)
-        if (!existsSync(legacySibling)) continue
+        const legacySibling: string = env.path.join(legacyDir, sibling)
+        if (!env.fs.existsSync(legacySibling)) continue
         try {
-            renameSync(legacySibling, join(canonicalDir, sibling))
+            env.fs.renameSync(legacySibling, env.path.join(canonicalDir, sibling))
         } catch {
             // best-effort sibling move; absence is non-fatal per spec
         }
     }
 }
 
-function writeMigratedStub(legacyDir: string, canonicalDir: string): void {
-    try {
-        writeFileSync(
-            join(legacyDir, MIGRATED_STUB_NAME),
-            `Recovery metadata moved to ${canonicalDir}.\nWriters now use <projectRoot>/.voicetree/terminals/ exclusively.\n`,
-        )
-    } catch {
-        // best-effort: failure to write the stub never blocks the migration
-    }
+function writeMigratedStub(env: RecoveryEnv, legacyDir: string, canonicalDir: string): void {
+    // env.fs.writeFileUtf8 already swallows errors per its contract; failure
+    // to write the stub never blocks the migration.
+    env.fs.writeFileUtf8(
+        env.path.join(legacyDir, MIGRATED_STUB_NAME),
+        `Recovery metadata moved to ${canonicalDir}.\nWriters now use <projectRoot>/.voicetree/terminals/ exclusively.\n`,
+    )
 }
 
 /**
@@ -61,7 +58,10 @@ function writeMigratedStub(legacyDir: string, canonicalDir: string): void {
  * or the legacy directory does not exist. Conflicts keep the canonical copy
  * and leave the legacy entry untouched.
  */
-export function migrateLegacyTerminalDir(args: MigrateLegacyTerminalDirArgs): MigrateLegacyTerminalDirResult {
+export function migrateLegacyTerminalDirWithEnv(
+    env: RecoveryEnv,
+    args: MigrateLegacyTerminalDirArgs,
+): MigrateLegacyTerminalDirResult {
     const moved: string[] = []
     const conflicts: string[] = []
     const skipped: string[] = []
@@ -71,22 +71,22 @@ export function migrateLegacyTerminalDir(args: MigrateLegacyTerminalDirArgs): Mi
     const legacyDir: string = getRecoveryMetadataDir(args.writeFolder)
     const canonicalDir: string = getRecoveryMetadataDir(args.projectRoot)
 
-    if (!existsSync(legacyDir)) return {moved, conflicts, skipped}
+    if (!env.fs.existsSync(legacyDir)) return {moved, conflicts, skipped}
 
     let entries: readonly string[]
     try {
-        entries = readdirSync(legacyDir).filter((entry: string) => entry.endsWith('.json'))
+        entries = env.fs.readdirSync(legacyDir).filter((entry: string) => entry.endsWith('.json'))
     } catch {
         return {moved, conflicts, skipped}
     }
 
     if (entries.length === 0) return {moved, conflicts, skipped}
 
-    mkdirSync(canonicalDir, {recursive: true})
+    env.fs.mkdirSync(canonicalDir, {recursive: true})
 
     for (const entry of entries) {
-        const canonicalTarget: string = join(canonicalDir, entry)
-        if (existsSync(canonicalTarget)) {
+        const canonicalTarget: string = env.path.join(canonicalDir, entry)
+        if (env.fs.existsSync(canonicalTarget)) {
             conflicts.push(entry)
             args.logger?.warn?.(
                 `[migrate-legacy-terminal-dir] Conflict for ${entry}: canonical copy at ${canonicalTarget} kept; legacy copy at ${legacyDir} left in place.`,
@@ -94,14 +94,26 @@ export function migrateLegacyTerminalDir(args: MigrateLegacyTerminalDirArgs): Mi
             continue
         }
         try {
-            moveOne(legacyDir, canonicalDir, entry)
+            moveOne(env, legacyDir, canonicalDir, entry)
             moved.push(entry)
         } catch {
             skipped.push(entry)
         }
     }
 
-    if (moved.length > 0) writeMigratedStub(legacyDir, canonicalDir)
+    if (moved.length > 0) writeMigratedStub(env, legacyDir, canonicalDir)
 
     return {moved, conflicts, skipped}
+}
+
+/**
+ * Convenience binding: pulls the recovery env from the configured runtime and
+ * dispatches. Used by the api/agent-runtime-api.ts re-export surface so the
+ * Electron + MCP boot paths don't need env threading yet.
+ *
+ * Callers that already hold a `RecoveryEnv` should call
+ * `migrateLegacyTerminalDirWithEnv(env, args)` directly.
+ */
+export function migrateLegacyTerminalDir(args: MigrateLegacyTerminalDirArgs): MigrateLegacyTerminalDirResult {
+    return migrateLegacyTerminalDirWithEnv(getRecoveryEnv(), args)
 }
