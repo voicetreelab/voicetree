@@ -53,9 +53,11 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
+import {initGraphModel} from '@vt/graph-model'
 import {tracing} from '@vt/observability'
 import {
     buildDefaultToolCatalog,
+    configureMcpServer,
     handleHookEventRequest,
     registerChildIfMonitored,
     setCurrentVault,
@@ -68,6 +70,7 @@ import {
 import {terminalRuntimeSurface as agentRuntime, configureAgentRuntime} from "@vt/vt-daemon"
 import {resolveVtBinDir} from '@vt/vt-daemon/spawn/vtPathInjection.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
+import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {
     TERMINAL_REGISTRY_TOPIC,
     type TerminalRegistryEvent,
@@ -243,6 +246,16 @@ async function main(): Promise<void> {
     const args: Args = parseArgs(process.argv.slice(2))
     const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
 
+    // Initialize @vt/graph-model's module-level DI for THIS process. Every
+    // Node process that uses @vt/graph-model (electron-main, vt-graphd, vtd)
+    // must call initGraphModel separately because the config is per-process.
+    // app-config's `loadSettings`, `voicetree-config-io`, and `project-store`
+    // resolve their on-disk paths through `getConfig().appSupportPath` —
+    // without this call those throw "GraphModel not initialized" the first
+    // time any tool handler hits app-config. Headless: no UI callbacks are
+    // wired (Electron is the only caller that needs them).
+    initGraphModel({appSupportPath})
+
     // Step 1: claim the owner record FIRST, before any HTTP / GDB / tmux work.
     // On conflict (another VTD already owns this vault) die loudly with the
     // contending pid + nonce — BF-371 §Gotcha #2: never wrap this in a retry
@@ -282,6 +295,15 @@ async function main(): Promise<void> {
         await ownerHandle.release().catch(() => undefined)
         die(`failed to ensure vt-graphd sibling: ${(err as Error).message}`)
     }
+
+    // Step 2.5: wire the MCP graph bridge to the sibling vt-graphd over RPC.
+    // Every graph-touching tool in the catalog (`spawn_agent`, `list_agents`,
+    // `get_unseen_nodes_nearby`, `create_graph`, live state) resolves through
+    // `getMcpGraph` / `getMcpVaultPaths` / etc; without this wiring those
+    // tools throw "MCP graph bridge not configured" the first time they're
+    // invoked — the BF-376 regression. Must happen BEFORE the HTTP daemon
+    // is bound, otherwise an early RPC request can race the configuration.
+    configureMcpServer({graph: buildGdbGraphBridge(gdb.client, args.vault)})
 
     // Step 3: bind in-process state to this vault, then tmux preflight.
     // setCurrentVault is the single source-of-truth for daemon-internal
