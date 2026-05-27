@@ -15,10 +15,10 @@ import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {type McpToolResponse, buildJsonResponse} from '../tools/toolResponse'
+import {type McpToolResponse, buildJsonResponse} from '../agent-runtime/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
-import type {VTSettings} from '@vt/graph-model/settings'
 import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
     ALL_RULES,
@@ -27,7 +27,7 @@ import {
     formatViolationError,
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
-import {registerAgentNodes} from '../agent-runtime/completion/agentNodeIndex.ts'
+import {registerAgentNodes} from '../agent-runtime/agent-control/completion/agentNodeIndex.ts'
 import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolder} from '../config/graphBridge.ts'
 import type {GraphBridge} from '../config/mcpBridges.ts'
 import {

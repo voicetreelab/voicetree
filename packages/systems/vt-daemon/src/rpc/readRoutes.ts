@@ -3,8 +3,8 @@
 
 import {z} from 'zod'
 
-import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/tools/agent-control/terminalRuntimeSurface.ts"
-import {getUnseenNodesForTerminal} from '../agents/inject/get-unseen-nodes-for-terminal.ts'
+import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts"
+import {getUnseenNodesForTerminal} from '../agent-runtime/inject/get-unseen-nodes-for-terminal.ts'
 import type {
     GetTerminalRecords,
     GetUnseenNodesForTerminal,
@@ -12,7 +12,7 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
 
 const getTerminalRecordsRoute: RpcRoute = {
     name: 'getTerminalRecords',

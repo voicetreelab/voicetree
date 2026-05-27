@@ -17,8 +17,8 @@ import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import { applyCommandToSessionState } from '../state/sessionStateStore'
 import { getCurrentVault } from '../state/currentVault'
 
-import { buildJsonResponse } from './toolResponse'
-import type { McpToolResponse } from './toolResponse'
+import { buildJsonResponse } from '../agent-runtime/_shared/toolResponse.ts'
+import type { McpToolResponse } from '../agent-runtime/_shared/toolResponse.ts'
 
 export interface DispatchLiveCommandParams {
     readonly command: SerializedCommand

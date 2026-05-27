@@ -9,10 +9,10 @@
 
 import {z} from 'zod'
 
-import type {TerminalId} from "@vt/vt-daemon/terminals/terminal-registry/types.ts"
-import {discoverRecoverableAgentSessions} from '../agents/recovery/discovery.ts'
-import {resumePersistedAgentSession} from '../agents/recovery/resumePersistedAgentSession.ts'
-import {forkAgentSession} from '../agents/recovery/forkAgentSession.ts'
+import type {TerminalId} from "@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts"
+import {discoverRecoverableAgentSessions} from '../agent-runtime/recovery/discovery.ts'
+import {resumePersistedAgentSession} from '../agent-runtime/recovery/resumePersistedAgentSession.ts'
+import {forkAgentSession} from '../agent-runtime/recovery/forkAgentSession.ts'
 import type {
     DiscoverRecoverableAgentSessions,
     ResumePersistedAgentSession,
@@ -21,7 +21,7 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
 
 const discoverRecoverableAgentSessionsRoute: RpcRoute = {
     name: 'discoverRecoverableAgentSessions',

@@ -25,7 +25,7 @@ import type {UnseenNode} from '@vt/graph-db-protocol'
 import type {
     GraphStateBridge,
     WatchStatus,
-} from '../agents/runtime/runtime-config.ts'
+} from '../agent-runtime/runtime/runtime-config.ts'
 import {normalizeDaemonGraph} from './gdbGraphBridge.ts'
 
 export function buildGdbAgentRuntimeGraphBridge(

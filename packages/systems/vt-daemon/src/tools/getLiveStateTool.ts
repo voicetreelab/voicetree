@@ -12,8 +12,8 @@ import { getCurrentSessionState } from '../state/sessionStateStore'
 import { serializeState } from '../state/serializeState'
 import { getCurrentVault } from '../state/currentVault'
 
-import { buildJsonResponse } from './toolResponse'
-import type { McpToolResponse } from './toolResponse'
+import { buildJsonResponse } from '../agent-runtime/_shared/toolResponse.ts'
+import type { McpToolResponse } from '../agent-runtime/_shared/toolResponse.ts'
 
 export async function getLiveState(): Promise<SerializedState> {
     return serializeState(await getCurrentSessionState(getCurrentVault()))

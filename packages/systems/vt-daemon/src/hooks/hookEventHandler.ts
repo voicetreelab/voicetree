@@ -7,7 +7,7 @@
  * `{ok: false, reason}` so the hook subprocess sees a 200 and continues.
  */
 
-import type {AgentEventKind} from '@vt/vt-daemon/agent-lifecycle'
+import type {AgentEventKind} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import {mapHookEvent, type HookSource} from './hookEventMapping'
 
 export type HookHandlerInput = {

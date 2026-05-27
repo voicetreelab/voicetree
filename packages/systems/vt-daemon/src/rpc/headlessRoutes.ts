@@ -2,15 +2,15 @@
 
 import {z} from 'zod'
 
-import type {TerminalId} from "@vt/vt-daemon/terminals/terminal-registry/types.ts"
-import {closeHeadlessAgent, getHeadlessAgentOutput} from '../agents/headless/headlessAgentManager.ts'
+import type {TerminalId} from "@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts"
+import {closeHeadlessAgent, getHeadlessAgentOutput} from '../agent-runtime/headless/headlessAgentManager.ts'
 import type {
     CloseHeadlessAgent,
     GetHeadlessAgentOutput,
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
 
 const closeHeadlessAgentRoute: RpcRoute = {
     name: 'closeHeadlessAgent',

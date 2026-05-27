@@ -8,7 +8,7 @@
  * Unknown / uninteresting event names map to null — the endpoint skips them.
  */
 
-import type {AgentEventKind} from '@vt/vt-daemon/agent-lifecycle'
+import type {AgentEventKind} from '@vt/vt-daemon/agent-runtime/lifecycle'
 
 export type HookSource = 'claude-code' | 'codex'
 

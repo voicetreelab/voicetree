@@ -48,12 +48,12 @@
 
 import {existsSync} from 'node:fs'
 import {unlink} from 'node:fs/promises'
-import {homedir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
     buildDefaultToolCatalog,
     handleHookEventRequest,
@@ -67,9 +67,8 @@ import {
     type McpToolBridges,
 } from '@vt/vt-daemon'
 import {terminalRuntimeSurface as agentRuntime, configureAgentRuntime} from "@vt/vt-daemon"
-import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
-import {resolveVtBinDir} from '@vt/vt-daemon/spawn/vtPathInjection.ts'
-import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
+import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/vtPathInjection.ts'
+import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import type {GraphStateBridge} from '@vt/vt-daemon/runtime/runtime-config.ts'
@@ -140,22 +139,6 @@ function parseArgs(argv: readonly string[]): Args {
     }
     if (!vault) die('missing required --vault <path>')
     return {vault: resolve(vault!), port, logLevel}
-}
-
-function defaultAppSupportPath(): string {
-    if (process.platform === 'darwin') {
-        return join(homedir(), 'Library', 'Application Support', 'Voicetree')
-    }
-    if (process.platform === 'win32') {
-        return join(
-            process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),
-            'Voicetree',
-        )
-    }
-    return join(
-        process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
-        'Voicetree',
-    )
 }
 
 // Caller-kind resolution. `VT_DAEMON_CALLER_KIND` is set by
@@ -246,15 +229,10 @@ function buildPublishTerminalRegistryEvent(
 async function main(): Promise<void> {
     tracing.init('vtd')
     const args: Args = parseArgs(process.argv.slice(2))
-    const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
-
-    // Bind this process's appSupportPath cell before any tool handler runs.
-    // Every Node process (electron-main, vt-graphd, vtd) keeps its own
-    // process-local cell — see `packages/systems/vt-daemon/src/state/app-support.ts`.
-    // Without this call, `loadSettings()` / `loadConfig()` / `loadProjects()`
-    // throw "vt-daemon appSupportPath not set" the first time any tool handler
-    // hits @vt/app-config.
-    setAppSupportPath(appSupportPath)
+    // Normalize VOICETREE_APP_SUPPORT so every leaf in this process and every
+    // child it spawns reads the same resolved path via resolveAppSupportPath().
+    const appSupportPath: string = resolveAppSupportPath()
+    process.env.VOICETREE_APP_SUPPORT = appSupportPath
 
     // Step 1: claim the owner record FIRST, before any HTTP / GDB / tmux work.
     // On conflict (another VTD already owns this vault) die loudly with the

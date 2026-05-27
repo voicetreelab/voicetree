@@ -13,7 +13,7 @@
 
 import {z} from 'zod'
 
-import {createOnNewNodeHookDispatcher} from '../agents/hooks/onNewNodeHook.ts'
+import {createOnNewNodeHookDispatcher} from '../agent-runtime/hooks/onNewNodeHook.ts'
 import type {DispatchOnNewNodeHooks} from '@vt/vt-daemon-protocol'
 import type {GraphDelta} from '@vt/graph-model/graph'
 

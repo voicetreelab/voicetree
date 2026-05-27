@@ -1,0 +1,296 @@
+/**
+ * Stop Gate Audit — BF-024 enforcement, redesigned in BF-042
+ *
+ * Public API:
+ * - auditAgent(terminalId, graph, records) → ComplianceResult | null
+ * - buildDeficiencyPrompt(result) → string
+ *
+ * Internal pipeline (pure except SKILL.md file read):
+ * deriveSkillPaths → parseObligations → collectEvidence → checkCompliance
+ */
+
+import * as fs from 'fs'
+import * as O from 'fp-ts/lib/Option.js'
+import type {Graph, GraphNode} from '@vt/graph-model/graph'
+import {getNodesByAgentName} from '@vt/graph-model/graph'
+import type {TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
+
+// ─── Types (pipeline seams — not stored on any record) ──────────────────────
+
+export type Obligation = {
+    type: 'hard' | 'soft'
+    workflowPath: string
+    workflowName: string
+}
+
+type WorkEvidence = {
+    progressNodes: readonly GraphNode[]
+    childSkillPaths: readonly string[]
+}
+
+export type ComplianceResult = {
+    passed: boolean
+    violations: readonly Violation[]
+}
+
+export type Violation = {
+    obligation: Obligation
+    reason: string
+}
+
+export type StopGateAuditDeps = {
+    readonly homeDir: string
+    readonly canAccess: (path: string) => boolean
+    readonly readTextFile: (path: string) => string
+}
+
+const defaultStopGateAuditDeps: StopGateAuditDeps = {
+    homeDir: process.env.HOME ?? '',
+    canAccess: (path: string): boolean => {
+        try {
+            fs.accessSync(path)
+            return true
+        } catch {
+            return false
+        }
+    },
+    readTextFile: (path: string): string => fs.readFileSync(path, 'utf-8')
+}
+
+// ─── Internal pipeline ─────────────────────────────────────────────────────
+
+/**
+ * Resolve ALL SKILL.md paths from task node path + content.
+ * Two resolution paths:
+ * 1. Task node IS a SKILL.md — filepath ends with /SKILL.md
+ * 2. Task node content references SKILL.md paths — parse for ALL ~/brain/.../SKILL.md paths
+ *
+ * Exported for testing only — callers should use auditAgent.
+ */
+export function resolveSkillPathsFromContent(taskNodePath: string, taskNodeContent: string): string[] {
+    // Case 1: task node itself is a SKILL.md
+    if (/\/SKILL\.md$/i.test(taskNodePath)) {
+        const brainDir: string = (process.env.HOME ?? '') + '/brain/'
+        if (taskNodePath.includes(brainDir)) {
+            return ['~/brain/' + taskNodePath.split(brainDir)[1]]
+        }
+        return [taskNodePath]
+    }
+
+    // Case 2: task node content references SKILL.md paths — find ALL matches, deduplicated
+    const results: string[] = []
+    const seen: Set<string> = new Set()
+    const pattern: RegExp = /(?:~|\/)[^\s\])}>]*\/SKILL\.md/gi
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(taskNodeContent)) !== null) {
+        const path: string = match[0]
+        if (!seen.has(path)) {
+            seen.add(path)
+            results.push(path)
+        }
+    }
+    return results
+}
+
+/**
+ * Derive all SKILL.md paths an agent is running from graph + registry.
+ * record → anchoredToNodeId (task node) → graph node → resolveSkillPathsFromContent
+ */
+function deriveSkillPaths(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): string[] {
+    const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
+    if (!record) return []
+
+    const anchoredOpt: O.Option<string> = record.terminalData.anchoredToNodeId
+    if (!O.isSome(anchoredOpt)) return []
+
+    const taskNodeId: string = anchoredOpt.value
+    const taskNode: GraphNode | undefined = graph.nodes[taskNodeId]
+    if (!taskNode) return []
+
+    return resolveSkillPathsFromContent(taskNode.absoluteFilePathIsID, taskNode.contentWithoutYamlOrLinks)
+}
+
+/**
+ * Parse ## Outgoing Workflows section from SKILL.md content.
+ * Hard edges: [[path]] — double brackets
+ * Soft edges: [path] — single brackets (but not [[]])
+ *
+ * Exported for testing only — callers should use auditAgent.
+ */
+export function parseObligations(skillContent: string): Obligation[] {
+    const obligations: Obligation[] = []
+    const sectionMatch: RegExpMatchArray | null = skillContent.match(/## Outgoing Workflows\n([\s\S]*?)(?=\n## |\n---|$)/)
+    if (!sectionMatch) return obligations
+
+    const section: string = sectionMatch[1]
+
+    // Hard edges: [[path]]
+    const hardPattern: RegExp = /\[\[([^\]]+\/SKILL\.md)\]\]/g
+    let match: RegExpExecArray | null
+    while ((match = hardPattern.exec(section)) !== null) {
+        const path: string = match[1]
+        obligations.push({ type: 'hard', workflowPath: path, workflowName: extractWorkflowName(path) })
+    }
+
+    // Soft edges: [path] but NOT [[path]]
+    const softPattern: RegExp = /(?<!\[)\[([^[\]]+\/SKILL\.md)\](?!\])/g
+    while ((match = softPattern.exec(section)) !== null) {
+        const path: string = match[1]
+        obligations.push({ type: 'soft', workflowPath: path, workflowName: extractWorkflowName(path) })
+    }
+
+    return obligations
+}
+
+function resolveToAbsolute(skillPath: string, homeDir: string = process.env.HOME ?? ''): string {
+    return skillPath.replace(/^~\/brain\//, homeDir + '/brain/')
+}
+
+function extractWorkflowName(skillPath: string): string {
+    const parts: string[] = skillPath.split('/')
+    const skillIndex: number = parts.indexOf('SKILL.md')
+    return skillIndex > 0 ? parts[skillIndex - 1] : skillPath
+}
+
+/**
+ * Normalize a workflow SKILL.md path for comparison.
+ * Strips everything before /workflows/ and removes .md extension,
+ * so ~/brain/workflows/meta/foo/SKILL.md and /Users/.../brain/workflows/meta/foo/SKILL.md
+ * both become /workflows/meta/foo/SKILL
+ */
+function normalizeWorkflowPath(p: string): string {
+    const match: RegExpMatchArray | null = p.match(/\/workflows\/.*$/)
+    const suffix: string = match ? match[0] : p
+    return suffix.replace(/\.md$/i, '').toLowerCase()
+}
+
+/**
+ * Collect evidence of agent work: progress nodes + children's derived skill paths.
+ */
+function collectEvidence(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): WorkEvidence {
+    const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
+    if (!record) return { progressNodes: [], childSkillPaths: [] }
+
+    // Progress nodes: nodes created by this agent (via agent_name YAML matching)
+    const progressNodes: readonly GraphNode[] = getNodesByAgentName(graph, record.terminalData.agentName)
+
+    // Child skill paths: derive each child agent's skill paths from their task nodes
+    const children: readonly TerminalRecord[] = records.filter(r => r.terminalData.parentTerminalId === terminalId)
+    const childSkillPaths: string[] = children
+        .flatMap(child => deriveSkillPaths(child.terminalId, graph, records))
+
+    return { progressNodes, childSkillPaths }
+}
+
+/**
+ * Check obligations against evidence. Pure function.
+ */
+function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvidence): ComplianceResult {
+    const violations: Violation[] = []
+
+    for (const obligation of obligations) {
+        if (obligation.type === 'hard') {
+            // Hard: check if a child is running this specific workflow (normalized to handle ~/brain vs absolute paths)
+            const normalizedObligation: string = normalizeWorkflowPath(obligation.workflowPath)
+            const satisfied: boolean = evidence.childSkillPaths.some(
+                childPath => normalizeWorkflowPath(childPath) === normalizedObligation
+            )
+            if (!satisfied) {
+                const absPath: string = resolveToAbsolute(obligation.workflowPath)
+                violations.push({
+                    obligation,
+                    reason: `You have not spawned an agent on "${absPath}". Hard edges require spawning a child agent on this workflow.`
+                })
+            }
+        } else {
+            // Soft: check if workflow path OR name mentioned in any progress node content
+            const resolvedPath: string = resolveToAbsolute(obligation.workflowPath)
+            const mentioned: boolean = evidence.progressNodes.some(node => {
+                const content: string = node.contentWithoutYamlOrLinks.toLowerCase()
+                return content.includes(resolvedPath.toLowerCase())
+                    || content.includes(obligation.workflowPath.toLowerCase())
+                    || content.includes(obligation.workflowName.toLowerCase())
+            })
+            if (!mentioned) {
+                violations.push({
+                    obligation,
+                    reason: `You have not addressed "${resolvedPath}". Either spawn an agent on it, or read it yourself and address each point in a progress node.`
+                })
+            }
+        }
+    }
+
+    // Check progress nodes exist
+    if (evidence.progressNodes.length === 0) {
+        violations.push({
+            obligation: { type: 'hard', workflowPath: '', workflowName: 'progress-nodes' },
+            reason: 'No progress nodes created — agent produced no visible work'
+        })
+    }
+
+    return { passed: violations.length === 0, violations }
+}
+
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+/**
+ * Run the stop gate audit for an agent.
+ * Derives everything at audit time from graph + registry — no stored skill binding.
+ * Returns null if the agent has no associated SKILL.md (nothing to audit).
+ */
+export function auditAgent(
+    terminalId: string,
+    graph: Graph,
+    records: readonly TerminalRecord[],
+    deps: StopGateAuditDeps = defaultStopGateAuditDeps
+): ComplianceResult | null {
+    const skillPaths: string[] = deriveSkillPaths(terminalId, graph, records)
+
+    // No explicit SKILL.md — single soft obligation to read ~/brain/SKILL.md
+    if (skillPaths.length === 0) {
+        const brainSkillPath: string = '~/brain/SKILL.md'
+        const resolved: string = deps.homeDir + '/brain/SKILL.md'
+        if (!deps.canAccess(resolved)) return null
+
+        const rootObligations: Obligation[] = [
+            { type: 'soft', workflowPath: brainSkillPath, workflowName: 'SKILL.md' }
+        ]
+        const evidence: WorkEvidence = collectEvidence(terminalId, graph, records)
+        return checkCompliance(rootObligations, evidence)
+    }
+
+    // Aggregate obligations from ALL skill paths
+    const allObligations: Obligation[] = []
+    for (const skillPath of skillPaths) {
+        let skillContent: string
+        try {
+            const resolvedPath: string = resolveToAbsolute(skillPath, deps.homeDir)
+            skillContent = deps.readTextFile(resolvedPath)
+        } catch {
+            continue // unreadable SKILL.md — skip this one
+        }
+
+        const obligations: Obligation[] = parseObligations(skillContent)
+        // Always add a soft obligation for each SKILL.md itself — agent must reason about it
+        const selfName: string = extractWorkflowName(skillPath)
+        obligations.push({ type: 'soft', workflowPath: skillPath, workflowName: selfName })
+        allObligations.push(...obligations)
+    }
+
+    if (allObligations.length === 0) return null
+
+    const evidence: WorkEvidence = collectEvidence(terminalId, graph, records)
+    return checkCompliance(allObligations, evidence)
+}
+
+/**
+ * Build a deficiency prompt for a failed audit.
+ */
+export function buildDeficiencyPrompt(result: ComplianceResult): string {
+    const lines: string[] = ['STOP GATE AUDIT FAILED. For each obligation below, either spawn an agent on it OR read the SKILL.md yourself and address each point in a progress node:\n']
+    for (const v of result.violations) {
+        lines.push(`- ${v.reason}`)
+    }
+    lines.push('\nAddress each violation, then exit normally.')
+    return lines.join('\n')
+}
