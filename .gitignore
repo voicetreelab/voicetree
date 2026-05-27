@@ -263,6 +263,7 @@ test_output/*
 !/health-dashboard/reports/scores-history/
 !/health-dashboard/reports/scores-history/.gitkeep
 **/.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.json
 /test-results/
 /VoiceTree/
 .codeql/
