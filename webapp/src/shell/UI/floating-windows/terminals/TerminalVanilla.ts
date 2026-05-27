@@ -93,13 +93,21 @@ export class TerminalVanilla {
     // Open terminal in the DOM
     term.open(this.container);
 
-    // Suppress xterm's alt-screen wheel→arrow-key translation.
-    // tmux always occupies the alternate screen, so without this the mouse
-    // wheel gets translated into ↑/↓ which TUIs (e.g. codex) interpret as
-    // prompt-history navigation. Returning false drops xterm's default wheel
-    // handling on the alt buffer entirely.
-    term.attachCustomWheelEventHandler((_event: WheelEvent): boolean => {
-      return term.buffer.active.type !== 'alternate';
+    // Wheel routing on the alt buffer (which tmux always occupies):
+    //   • xterm's default wheel→arrow translation corrupts TUIs that read ↑/↓
+    //     as prompt-history navigation (e.g. codex).
+    //   • tmux's own mouse-mode scrolling would force users to hold Shift to
+    //     select text in the browser.
+    // Instead, forward wheel deltas to the relay as an explicit scroll RPC, which
+    // drives tmux copy-mode without enabling mouse mode. Return false so xterm
+    // stays out of it. On the normal buffer (rare for tmux but possible if tmux
+    // ever drops the alt screen), return true so xterm's local scrollback works.
+    term.attachCustomWheelEventHandler((event: WheelEvent): boolean => {
+      if (term.buffer.active.type !== 'alternate') return true;
+      const lines: number = Math.max(1, Math.round(Math.abs(event.deltaY) / 40));
+      const direction: 'up' | 'down' = event.deltaY < 0 ? 'up' : 'down';
+      this.relayClient?.sendScroll(direction, lines);
+      return false;
     });
 
     // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)

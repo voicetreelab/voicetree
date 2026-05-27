@@ -89,6 +89,10 @@ export class TerminalRelayClient {
     return this.send({ type: 'resize', cols, rows });
   }
 
+  sendScroll(direction: 'up' | 'down', lines: number): boolean {
+    return this.send({ type: 'scroll', direction, lines });
+  }
+
   dispose(): void {
     this.disposed = true;
     this.clearReconnectTimer();

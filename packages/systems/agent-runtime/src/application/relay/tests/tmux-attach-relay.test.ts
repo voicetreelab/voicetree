@@ -129,6 +129,16 @@ async function waitForTmuxMouseOption(sessionName: string, expected: string, tim
     throw new Error(`timed out waiting for tmux mouse=${expected}`)
 }
 
+async function waitForTmuxPaneInMode(sessionName: string, expected: '1' | '0', timeoutMs: number = 2000): Promise<void> {
+    const start: number = Date.now()
+    while (Date.now() - start < timeoutMs) {
+        const value: string = tmuxOutput(['display-message', '-p', '-t', sessionName, '#{pane_in_mode}']).trim()
+        if (value === expected) return
+        await delay(10)
+    }
+    throw new Error(`timed out waiting for tmux pane_in_mode=${expected}`)
+}
+
 describe('tmux attach relay', () => {
     let server: Server | undefined
     let relay: TmuxAttachRelayHandle | undefined
@@ -227,6 +237,34 @@ describe('tmux attach relay', () => {
         try {
             await waitForOutput(output, 'BF312_READY')
             await waitForTmuxMouseOption(sessionName, 'on')
+        } finally {
+            ws.close()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('scroll RPC drives tmux copy-mode without enabling mouse mode', async () => {
+        const sessionName: string = makeSessionName('scroll')
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {ws, output} = await connect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach?cols=120&rows=40`
+        )
+
+        try {
+            await waitForOutput(output, 'BF312_READY')
+            await waitForTmuxMouseOption(sessionName, 'off')
+            await waitForTmuxPaneInMode(sessionName, '0')
+
+            ws.send(JSON.stringify({type: 'scroll', direction: 'up', lines: 3}))
+            await waitForTmuxPaneInMode(sessionName, '1')
+
+            // scroll-down past the bottom exits copy-mode (`copy-mode -e`).
+            ws.send(JSON.stringify({type: 'scroll', direction: 'down', lines: 100}))
+            await waitForTmuxPaneInMode(sessionName, '0')
         } finally {
             ws.close()
         }

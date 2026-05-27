@@ -1,4 +1,4 @@
-import {execFileSync} from 'node:child_process'
+import {execFile, execFileSync} from 'node:child_process'
 import type {IncomingMessage, Server} from 'node:http'
 import type {Duplex} from 'node:stream'
 import type {IPty} from 'node-pty'
@@ -80,6 +80,19 @@ function configureTmuxSession(sessionName: string, tmuxMouseMode: boolean): void
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'status', 'off']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', tmuxMouseMode ? 'on' : 'off']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'history-limit', '9999']), {stdio: 'ignore'})
+}
+
+function execTmuxScroll(sessionName: string, direction: 'up' | 'down', lines: number): void {
+    // Drive tmux's scrollback without requiring `mouse on` (which would force users to
+    // hold Shift for browser text selection). copy-mode -e enters copy-mode and exits
+    // automatically when scroll-down reaches the live view, so the user is never left
+    // stranded in copy-mode.
+    const action: 'scroll-up' | 'scroll-down' = direction === 'up' ? 'scroll-up' : 'scroll-down'
+    execFile(getTmuxBinaryPath(), getTmuxCommandArgs([
+        'copy-mode', '-e', '-t', sessionName,
+        ';',
+        'send-keys', '-t', sessionName, '-X', '-N', String(lines), action,
+    ]), () => {})
 }
 
 function sendData(ws: WebSocket, payload: string): void {
@@ -279,6 +292,15 @@ export async function attachTmuxSessionToWebSocket(
                 // no fresh `tmux resize-pane` exec is required, which is critical for surviving
                 // the macOS jetsam orphan-daemon split-brain scenario.
                 term.resize(cols, rows)
+            }
+            return
+        }
+
+        if (record.type === 'scroll') {
+            const lines: number = Number(record.lines)
+            const direction: unknown = record.direction
+            if (Number.isFinite(lines) && lines > 0 && (direction === 'up' || direction === 'down')) {
+                execTmuxScroll(sessionName, direction, lines)
             }
         }
     })
