@@ -3,7 +3,6 @@ import { getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/dae
 import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state';
 import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { SavedProject } from '@vt/graph-model/project';
 import * as path from 'path';

@@ -97,7 +97,6 @@ function ancestorsUpTo(start: string, stopAtAncestor: string): readonly string[]
 
     const dirs: string[] = []
     let current: string = startAbs
-    // eslint-disable-next-line no-constant-condition
     while (true) {
         dirs.push(current)
         if (current === boundaryAbs) break

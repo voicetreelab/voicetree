@@ -10,7 +10,6 @@ import {
     saveLastDirectory,
     saveVaultConfigForDirectory,
 } from '@vt/app-config/vault-config'
-import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { OpenVaultResponse } from '@vt/graph-db-client'
 

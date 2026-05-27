@@ -4,7 +4,6 @@ import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@vt/graph-mo
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
-import { getAppSupportPath } from '@/shell/edge/main/runtime/state/app-electron-state'
 import type { VTSettings } from '@vt/graph-model/settings'
 import path from 'path'
 
