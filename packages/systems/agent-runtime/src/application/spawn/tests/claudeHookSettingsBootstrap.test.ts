@@ -7,8 +7,8 @@
  */
 
 import {describe, it, expect, beforeEach} from 'vitest'
-import {ensureClaudeHookSettingsFile, type ClaudeHookBootstrapDeps} from '../injection/claudeHookSettingsBootstrap'
-import {buildClaudeHookSettingsJson} from '../injection/agentHookInjection'
+import {ensureClaudeHookSettingsFile, type ClaudeHookBootstrapDeps} from '../claudeHookSettingsBootstrap'
+import {buildClaudeHookSettingsJson} from '../agentHookInjection'
 
 function makeInMemoryFs(initial: Record<string, string> = {}): {
     deps: ClaudeHookBootstrapDeps

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {dropPromptTemplateVariants} from '../env/buildTerminalEnvVars';
+import {dropPromptTemplateVariants} from '../buildTerminalEnvVars';
 
 describe('dropPromptTemplateVariants', () => {
     it('drops AGENT_PROMPT_<variant> template keys that fed $VAR expansion', () => {

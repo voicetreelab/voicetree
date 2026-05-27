@@ -19,7 +19,7 @@
  */
 
 import {promises as fs} from 'node:fs'
-import {getRuntimeEnv} from '../../runtime/runtime-config'
+import {getRuntimeEnv} from '../runtime/runtime-config'
 
 const SECTION_HEADER: string = '<vt_cli_manual>'
 const SECTION_FOOTER: string = '</vt_cli_manual>'

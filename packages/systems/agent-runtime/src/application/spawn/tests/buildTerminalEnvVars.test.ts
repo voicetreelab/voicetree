@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {configureAgentRuntime} from '../../runtime/runtime-config'
-import {buildTerminalEnvVars} from '../env/buildTerminalEnvVars'
+import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 
 const settings = {
     INJECT_ENV_VARS: {

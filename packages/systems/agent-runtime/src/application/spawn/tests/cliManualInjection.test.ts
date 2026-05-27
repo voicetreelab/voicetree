@@ -19,8 +19,8 @@ import os from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '../../runtime/runtime-config'
-import {buildTerminalEnvVars} from '../env/buildTerminalEnvVars'
-import {appendCliManualToAgentPrompt} from '../injection/cliManualInjection'
+import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
+import {appendCliManualToAgentPrompt} from '../cliManualInjection'
 
 describe('appendCliManualToAgentPrompt (pure)', () => {
     it('appends the manual inside <vt_cli_manual> sentinels', () => {

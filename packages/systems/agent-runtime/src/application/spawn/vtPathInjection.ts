@@ -33,7 +33,7 @@
  */
 
 import {delimiter, isAbsolute, join} from 'node:path'
-import {getRuntimeEnv} from '../../runtime/runtime-config'
+import {getRuntimeEnv} from '../runtime/runtime-config'
 
 /**
  * Pure: returns a new env-var map with `vtBinDir` prepended to `PATH`.

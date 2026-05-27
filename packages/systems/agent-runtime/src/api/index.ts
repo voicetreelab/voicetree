@@ -28,10 +28,10 @@ export {forkAgentSession, defaultForkAgentDeps, type ForkAgentSessionDeps, type 
 
 export * from '../application/headless/headlessAgentManager'
 
-export * from '../application/spawn/launch/spawnHookTerminal'
-export * from '../application/spawn/launch/spawnPlainTerminal'
-export * from '../application/spawn/launch/spawnTerminalWithContextNode'
-export * from '../application/spawn/env/buildTerminalEnvVars'
+export * from '../application/spawn/spawnHookTerminal'
+export * from '../application/spawn/spawnPlainTerminal'
+export * from '../application/spawn/spawnTerminalWithContextNode'
+export * from '../application/spawn/buildTerminalEnvVars'
 
 export * from '../application/hooks/stopGateAudit'
 export * from '../application/hooks/stopGateHookRunner'

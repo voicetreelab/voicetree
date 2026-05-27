@@ -1,6 +1,6 @@
 import type {TerminalId} from '@vt/vt-daemon-protocol'
 import type {TerminalData} from './types'
-import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
+import {publishTerminalRegistryEvent} from './terminal-registry-publisher'
 import {
     terminalRecords,
     type TerminalRecord,

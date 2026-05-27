@@ -9,14 +9,14 @@ import {createNewNodeNoParent} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings';
-import {createTerminalData, type TerminalId} from '../../terminals/terminal-registry/types';
-import {getExistingAgentNames} from '../../terminals/terminal-registry';
+import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types';
+import {getExistingAgentNames} from '../terminals/terminal-registry';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
-import type {TerminalData} from '../../terminals/terminal-registry/types';
-import {buildTerminalEnvVars} from '../env/buildTerminalEnvVars';
-import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../../runtime/graph-bridge';
-import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher';
+import type {TerminalData} from '../terminals/terminal-registry/types';
+import {buildTerminalEnvVars} from './buildTerminalEnvVars';
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge';
+import {publishTerminalRegistryEvent} from '../terminals/terminal-registry/terminal-registry-publisher';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();

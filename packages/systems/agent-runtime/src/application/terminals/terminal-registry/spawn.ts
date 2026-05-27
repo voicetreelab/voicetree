@@ -1,6 +1,6 @@
 import type {TerminalData} from './types'
 import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
-import {publishTerminalRegistryEvent} from '../../events/terminal-registry-publisher'
+import {publishTerminalRegistryEvent} from './terminal-registry-publisher'
 import {
     notificationStateByTerminal,
     pendingTerminals,

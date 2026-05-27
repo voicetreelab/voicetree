@@ -1,5 +1,5 @@
 import {agentRuntime} from '@vt/agent-runtime'
-import {resolveVtBinDir} from '@vt/agent-runtime/spawn/injection/vtPathInjection.ts'
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
 
 export type {TerminalRecord, TerminalSpawnResult} from '@vt/agent-runtime'
 export type TerminalManager = ReturnType<typeof agentRuntime.getTerminalManager>

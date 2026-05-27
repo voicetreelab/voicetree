@@ -19,7 +19,7 @@ import {
     buildClaudeHookSettingsJson,
     buildCodexHookFlags,
     injectCodexHookFlags,
-} from '../injection/agentHookInjection'
+} from '../agentHookInjection'
 
 const DAEMON_URL: string = 'http://127.0.0.1:51337'
 
