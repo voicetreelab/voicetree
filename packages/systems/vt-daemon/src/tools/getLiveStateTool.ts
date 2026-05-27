@@ -8,12 +8,12 @@
  */
 import type { SerializedState } from '@vt/graph-state'
 
-import { getCurrentSessionState } from '../../state/sessionStateStore'
-import { serializeState } from '../../state/serializeState'
-import { getCurrentVault } from '../../state/currentVault'
+import { getCurrentSessionState } from '../state/sessionStateStore'
+import { serializeState } from '../state/serializeState'
+import { getCurrentVault } from '../state/currentVault'
 
-import { buildJsonResponse } from '../toolResponse'
-import type { McpToolResponse } from '../toolResponse'
+import { buildJsonResponse } from './toolResponse'
+import type { McpToolResponse } from './toolResponse'
 
 export async function getLiveState(): Promise<SerializedState> {
     return serializeState(await getCurrentSessionState(getCurrentVault()))

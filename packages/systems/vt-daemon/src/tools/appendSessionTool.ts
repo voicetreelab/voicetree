@@ -6,11 +6,11 @@
 // upsert semantics as `appendTokenMetrics`: a second call with the same
 // `sessionId` updates the existing entry rather than pushing a duplicate.
 
-import {appendTokenMetrics, type TokenMetrics} from '../../observability/agentMetricsStore.ts'
-import {getCurrentVault} from '../../state/currentVault.ts'
+import {appendTokenMetrics, type TokenMetrics} from '../observability/agentMetricsStore.ts'
+import {getCurrentVault} from '../state/currentVault.ts'
 
-import {buildJsonResponse} from '../toolResponse.ts'
-import type {McpToolResponse} from '../toolResponse.ts'
+import {buildJsonResponse} from './toolResponse.ts'
+import type {McpToolResponse} from './toolResponse.ts'
 
 export interface AppendSessionParams {
     readonly sessionId: string

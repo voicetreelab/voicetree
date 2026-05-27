@@ -5,11 +5,11 @@
 // CLI peer reach the same per-vault file via this call — the daemon is the
 // single authority, no Main-side `getMetrics()` re-export is involved.
 
-import {getSessions, type SessionMetric} from '../../observability/agentMetricsStore.ts'
-import {getCurrentVault} from '../../state/currentVault.ts'
+import {getSessions, type SessionMetric} from '../observability/agentMetricsStore.ts'
+import {getCurrentVault} from '../state/currentVault.ts'
 
-import {buildJsonResponse} from '../toolResponse.ts'
-import type {McpToolResponse} from '../toolResponse.ts'
+import {buildJsonResponse} from './toolResponse.ts'
+import type {McpToolResponse} from './toolResponse.ts'
 
 export interface GetSessionsResult {
     readonly sessions: readonly SessionMetric[]

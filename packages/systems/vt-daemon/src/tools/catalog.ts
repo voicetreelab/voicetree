@@ -31,10 +31,10 @@ import {createGraphTool} from '../create-graph/createGraphTool'
 import {OVERRIDABLE_RULE_IDS} from '@vt/graph-validation'
 import {graphStructureTool} from './graph/graphStructureTool'
 import {searchNodesTool} from './graph/searchNodesTool'
-import {dispatchLiveCommandTool} from './live/dispatchLiveCommandTool'
-import {getLiveStateTool} from './live/getLiveStateTool'
-import {getSessionsTool} from './metrics/getSessionsTool'
-import {appendSessionTool, type AppendSessionParams} from './metrics/appendSessionTool'
+import {dispatchLiveCommandTool} from './dispatchLiveCommandTool'
+import {getLiveStateTool} from './getLiveStateTool'
+import {getSessionsTool} from './getSessionsTool'
+import {appendSessionTool, type AppendSessionParams} from './appendSessionTool'
 
 export type CatalogHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 

@@ -14,11 +14,11 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
-import { applyCommandToSessionState } from '../../state/sessionStateStore'
-import { getCurrentVault } from '../../state/currentVault'
+import { applyCommandToSessionState } from '../state/sessionStateStore'
+import { getCurrentVault } from '../state/currentVault'
 
-import { buildJsonResponse } from '../toolResponse'
-import type { McpToolResponse } from '../toolResponse'
+import { buildJsonResponse } from './toolResponse'
+import type { McpToolResponse } from './toolResponse'
 
 export interface DispatchLiveCommandParams {
     readonly command: SerializedCommand

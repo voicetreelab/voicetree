@@ -82,8 +82,8 @@ export {
     dispatchLiveCommandTool,
     type DispatchLiveCommandParams,
     type DispatchLiveCommandResult,
-} from '../tools/live/dispatchLiveCommandTool'
-export {getLiveStateTool, getLiveState} from '../tools/live/getLiveStateTool'
+} from '../tools/dispatchLiveCommandTool'
+export {getLiveStateTool, getLiveState} from '../tools/getLiveStateTool'
 
 export {setCurrentVault, getCurrentVault, peekCurrentVault} from '../state/currentVault'
 export {
