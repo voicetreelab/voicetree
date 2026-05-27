@@ -2,24 +2,28 @@
 // Both Electron (webapp) and vt-mcpd consume runtime functionality through this barrel
 // (or via the stable deep paths declared in package.json#exports).
 
-export * from '../application/terminals/terminal-registry/types'
 export * from '../application/runtime/runtime-config'
 export * from './agent-runtime-api'
 export * from '../application/lifecycle'
 
-export { TerminalManager } from '../application/terminals/terminal-manager'
+// Slice A absorption: terminals / relay / util implementations moved into
+// @vt/vt-daemon. Re-export the public symbols transiently so existing barrel
+// consumers keep compiling. This creates an agent-runtime -> vt-daemon edge
+// that disappears when Slice D retires @vt/agent-runtime entirely.
+export * from '@vt/vt-daemon/terminals/terminal-registry/types'
+export {TerminalManager} from '@vt/vt-daemon/terminals/manager/terminal-manager'
 export type {
     TerminalSpawnResult,
     TerminalOperationResult,
     TerminalSpawnOpts,
-} from '../application/terminals/terminal-manager'
-export * from '../application/terminals/terminal-manager-instance'
-export * from '../application/terminals/terminal-registry'
-export * from '../application/terminals/terminal-output-buffer'
-export * from '../application/terminals/global-budget-registry'
-export * from '../application/terminals/tmux/tmux-preflight'
-export * from '../application/terminals/tmux/tmux-server'
-export * from '../application/terminals/tmux/unclaimed-tmux'
+} from '@vt/vt-daemon/terminals/manager/terminal-manager'
+export * from '@vt/vt-daemon/terminals/manager/terminal-manager-instance'
+export * from '@vt/vt-daemon/terminals/terminal-registry'
+export * from '@vt/vt-daemon/terminals/terminal-output-buffer'
+export * from '@vt/vt-daemon/terminals/global-budget-registry'
+export * from '@vt/vt-daemon/terminals/tmux/tmux-preflight'
+export * from '@vt/vt-daemon/terminals/tmux/tmux-server'
+export * from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
 
 export * from '../application/recovery/types'
 export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'

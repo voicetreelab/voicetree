@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {appendFileSync, statSync} from 'node:fs'
-import {shellQuote} from '@vt/agent-runtime/util/shellQuote.ts'
+import {shellQuote} from '../util/shellQuote.ts'
 import {
     ensureTmuxServer,
     getTmuxBinaryPath,

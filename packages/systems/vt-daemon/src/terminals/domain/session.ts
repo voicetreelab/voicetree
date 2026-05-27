@@ -5,7 +5,7 @@ import type {
     TerminalRegistryLogger,
     TerminalRegistryRuntime,
     TerminalRegistryTimers,
-} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
+} from '../terminal-registry-state.ts'
 
 export type {
     TerminalLifecycle,

@@ -14,6 +14,8 @@
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",
     "./mcp-config": "./src/config/mcp-config-public.ts",
+    "./terminals/terminal-registry": "./src/terminals/terminal-registry/index.ts",
+    "./terminals/*": "./src/terminals/*",
     "./transport/eventTypes": "./src/transport/eventTypes.ts",
     "./bin/vtd.ts": "./bin/vtd.ts"
   },
@@ -38,6 +40,7 @@
     "chokidar": "^3.6.0",
     "express": "^4.21.2",
     "fp-ts": "^2.16.9",
+    "node-pty": "^1.1.0",
     "normalize-path": "^3.0.0",
     "ws": "^8.20.0",
     "zod": "^4.3.6"

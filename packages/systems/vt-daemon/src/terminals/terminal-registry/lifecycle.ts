@@ -1,7 +1,7 @@
 import {classifyExit} from '@vt/agent-runtime/lifecycle'
 import {recordTierEvent} from '@vt/agent-runtime/lifecycle'
 import type {AgentEventKind, TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
-import {updateTerminalIsDoneWorkflow} from '@vt/agent-runtime/terminals/terminalIsDoneWorkflow.ts'
+import {updateTerminalIsDoneWorkflow} from '../workflows/terminalIsDone.ts'
 import {
     hasActiveChildren,
     pendingNotificationTimeouts,

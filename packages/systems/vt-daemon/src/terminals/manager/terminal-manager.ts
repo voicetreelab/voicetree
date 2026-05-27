@@ -1,16 +1,16 @@
 import { promises as fs } from 'fs';
-import {clearTerminalRecords} from './terminal-registry';
-import type {TerminalData, TerminalId} from './terminal-registry/types';
-import {getTerminalId as readTerminalId} from './terminal-registry/types';
-import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
+import {clearTerminalRecords} from '../terminal-registry';
+import type {TerminalData, TerminalId} from '../terminal-registry/types';
+import {getTerminalId as readTerminalId} from '../terminal-registry/types';
+import {clearBuffer, clearAllBuffers} from '../terminal-output-buffer';
 import {
   cleanupHeadlessAgentsAndWait,
   cleanupHeadlessAgents,
   TERMINATE_TMUX_SESSIONS,
   type HeadlessAgentCleanupPolicy,
   spawnTmuxBackedTerminal,
-} from '../headless/headlessAgentManager';
-import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
+} from '@vt/agent-runtime/headless/headlessAgentManager.ts';
+import {injectAgentCommandHeadful, writePromptFile} from '@vt/agent-runtime/headless/tmuxPromptFile.ts';
 import {
   getWindowsShell,
   resolveTerminalCwd,
@@ -25,8 +25,8 @@ import {
   withResolvedTmuxVaultPath,
   type HeadfulPromptInjectionRequest,
   type PromptFileWriteRequest,
-} from './tmux/tmuxSpawnPlanning';
-import {getRuntimeEnv} from '../runtime/runtime-config';
+} from '../tmux/tmuxSpawnPlanning';
+import {getRuntimeEnv} from '@vt/agent-runtime/runtime/runtime-config';
 import type {TerminalSpawnResult} from '@vt/vt-daemon-protocol'
 
 // `TerminalSpawnResult` / `TerminalOperationResult` are canonically owned by

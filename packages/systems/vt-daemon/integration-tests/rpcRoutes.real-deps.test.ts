@@ -33,7 +33,7 @@ import {
     type TerminalData,
     type TerminalId,
 } from '@vt/agent-runtime'
-import {hasSession, killSession} from '@vt/agent-runtime/terminals/tmux/tmux-session-manager'
+import {hasSession, killSession} from '../src/terminals/tmux/tmux-session-manager'
 import {
     TERMINAL_RPC_METHODS,
     type TerminalRegistryEvent,

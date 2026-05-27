@@ -36,8 +36,8 @@
  * code worked around are still present.
  */
 
-import {sendKeysLiteral} from '../terminals/tmux/tmux-session-manager'
-import type {TerminalOperationResult} from '../terminals/terminal-manager'
+import {sendKeysLiteral} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
+import type {TerminalOperationResult} from '@vt/vt-daemon/terminals/manager/terminal-manager'
 
 const CHAR_DELAY_MS: number = 200
 const ESC_DELAY_MS: number = 100

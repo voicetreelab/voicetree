@@ -16,12 +16,12 @@
  */
 
 import { loadSettings } from '@vt/app-config/settings';
-import {type TerminalId } from '../terminals/terminal-registry/types';
+import {type TerminalId } from '@vt/vt-daemon/terminals/terminal-registry/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';
 import { getNextAgentName, getUniqueAgentName } from '@vt/graph-model/settings';
-import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '../terminals/terminal-registry';
+import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '@vt/vt-daemon/terminals/terminal-registry';
 import {
     getRuntimeGraph,
     runtimeCreateContextNode,

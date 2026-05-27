@@ -22,11 +22,11 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {initGraphModel} from '@vt/graph-model'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {recordTerminalSpawn} from '@vt/agent-runtime/terminals/terminal-registry/spawn.ts'
-import {clearTerminalRecords} from '@vt/agent-runtime/terminals/terminal-registry/queries.ts'
-import {clearAllBudgets, setTerminalBudget} from '@vt/agent-runtime/terminals/global-budget-registry.ts'
-import type {TerminalData, TerminalId} from '@vt/agent-runtime'
-import {createTerminalData} from '@vt/agent-runtime/types'
+import {recordTerminalSpawn} from '../src/terminals/terminal-registry/spawn.ts'
+import {clearTerminalRecords} from '../src/terminals/terminal-registry/queries.ts'
+import {clearAllBudgets, setTerminalBudget} from '../src/terminals/global-budget-registry.ts'
+import type {TerminalData, TerminalId} from '../src/terminals/terminal-registry/types.ts'
+import {createTerminalData} from '../src/terminals/terminal-registry/types.ts'
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()

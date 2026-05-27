@@ -2,8 +2,8 @@ import {execFileSync} from 'node:child_process'
 import type {IncomingMessage} from 'node:http'
 import type {IPty} from 'node-pty'
 import {WebSocket} from 'ws'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
-import {hasSession, resolveTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
+import {hasSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40

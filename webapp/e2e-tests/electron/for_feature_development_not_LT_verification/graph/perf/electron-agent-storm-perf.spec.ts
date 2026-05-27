@@ -99,7 +99,7 @@ import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/agent-runtime/types'
+} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 
 import {
     startMainProcessProfile,

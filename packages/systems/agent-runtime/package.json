@@ -7,20 +7,16 @@
   "main": "src/api/index.ts",
   "exports": {
     ".": "./src/api/index.ts",
-    "./types": "./src/application/terminals/terminal-registry/types.ts",
     "./lifecycle": "./src/application/lifecycle/index.ts",
     "./lifecycle/output-transition": "./src/application/lifecycle/output-transition.ts",
     "./runtime/agent-runtime-api": "./src/api/agent-runtime-api.ts",
     "./runtime/graph-bridge": "./src/application/runtime/graph-bridge.ts",
     "./runtime/runtime-config": "./src/application/runtime/runtime-config.ts",
     "./api/*": "./src/api/*",
-    "./terminals/*": "./src/application/terminals/*",
     "./headless/*": "./src/application/headless/*",
-    "./relay/*": "./src/application/relay/*",
     "./spawn/*": "./src/application/spawn/*",
     "./hooks/*": "./src/application/hooks/*",
-    "./inject/*": "./src/application/inject/*",
-    "./util/*": "./src/application/util/*"
+    "./inject/*": "./src/application/inject/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -31,6 +27,7 @@
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
+    "@vt/vt-daemon": "*",
     "@vt/vt-daemon-protocol": "*",
     "fp-ts": "^2.16.9",
     "node-pty": "^1.1.0",

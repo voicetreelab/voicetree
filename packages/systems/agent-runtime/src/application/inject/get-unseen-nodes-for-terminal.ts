@@ -7,7 +7,7 @@
 
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
-import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
+import { getTerminalRecords, type TerminalRecord } from '@vt/vt-daemon/terminals/terminal-registry'
 import { getRuntimeGraph, getRuntimeUnseenNodesAroundContextNode } from '../runtime/graph-bridge'
 
 type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
