@@ -4,6 +4,7 @@
  */
 
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const { projectRoot, config, log, ESLint, prettier, ts } = require('./config.cjs');
 
@@ -11,10 +12,75 @@ function findNearestTsConfig(filePath) {
   let dir = path.dirname(filePath);
   while (dir !== path.dirname(dir)) {
     const candidate = path.join(dir, 'tsconfig.json');
-    if (require('fs').existsSync(candidate)) return candidate;
+    if (fsSync.existsSync(candidate)) return candidate;
     dir = path.dirname(dir);
   }
   return null;
+}
+
+// Parses a tsconfig (any path, any name) and returns the populated config or null.
+function parseTsConfig(configPath) {
+  if (!ts) return null;
+  try {
+    const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+    if (configFile.error) return null;
+    return ts.parseJsonConfigFileContent(
+      configFile.config,
+      ts.sys,
+      path.dirname(configPath),
+      undefined,
+      configPath,
+    );
+  } catch {
+    return null;
+  }
+}
+
+// Picks the tsconfig that actually owns `filePath`.
+//
+// `webapp/tsconfig.json` is a "solution" file — empty `files`, just
+// references to `tsconfig.app.json` / `tsconfig.node.json`. Parsing it
+// directly yields no useful compilerOptions (no jsx, no moduleResolution,
+// no module, no lib), so a program created from it falsely flags valid
+// .tsx / `import.meta.env` / subpath-import code.
+//
+// Strategy:
+//   1. Start at the nearest tsconfig.json walking up from the file.
+//   2. If that config declares project references, recurse into each
+//      referenced config and check whether the file is in its parsed
+//      fileNames. Return the first reference that claims the file.
+//   3. Otherwise return the nearest config as-is.
+function resolveTsConfigForFile(filePath) {
+  const nearest = findNearestTsConfig(filePath);
+  if (!nearest) return null;
+  const resolved = pickOwningConfig(nearest, path.resolve(filePath));
+  return resolved || nearest;
+}
+
+function pickOwningConfig(configPath, absFilePath) {
+  const parsed = parseTsConfig(configPath);
+  if (!parsed) return null;
+
+  const ownsDirectly = parsed.fileNames.some(
+    (f) => path.resolve(f) === absFilePath,
+  );
+  if (ownsDirectly) return configPath;
+
+  const refs = parsed.projectReferences || [];
+  for (const ref of refs) {
+    const refPath = ts.resolveProjectReferencePath(ref);
+    if (!refPath || !fsSync.existsSync(refPath)) continue;
+    const owning = pickOwningConfig(refPath, absFilePath);
+    if (owning) return owning;
+  }
+
+  // No reference claims the file. If this config has no references and
+  // includes the file via its own `include`, treat it as the owner. The
+  // `fileNames` check above already covered `include`-resolved files, so
+  // reaching here with refs means "solution file w/ no claimant" — return
+  // null so caller falls back to the nearest config.
+  if (refs.length > 0) return null;
+  return configPath;
 }
 
 class QualityChecker {
@@ -64,23 +130,39 @@ class QualityChecker {
     log.info('Running TypeScript compilation check...');
 
     try {
-      const configPath = findNearestTsConfig(this.filePath);
+      const configPath = resolveTsConfigForFile(this.filePath);
       if (!configPath) {
         log.debug('Skipping TypeScript check — no tsconfig.json found above edited file');
         return;
       }
 
-      log.debug(`Using TypeScript config: ${path.basename(configPath)}`);
+      log.debug(`Using TypeScript config: ${path.relative(projectRoot, configPath)}`);
 
-      const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
-      const parsedConfig = ts.parseJsonConfigFileContent(
-        configFile.config,
-        ts.sys,
-        path.dirname(configPath),
-      );
+      const parsedConfig = parseTsConfig(configPath);
+      if (!parsedConfig) {
+        log.debug(`Failed to parse tsconfig at ${configPath}, skipping TypeScript check`);
+        return;
+      }
 
-      const program = ts.createProgram([this.filePath], parsedConfig.options);
-      const diagnostics = ts.getPreEmitDiagnostics(program);
+      // Pass the project's full file set so ambient .d.ts files (CSS module
+      // shims, `ImportMeta.env`, Window augmentations) are loaded — a
+      // single-file program would otherwise miss them and emit false
+      // positives. We still only surface diagnostics for the edited file.
+      const absoluteFilePath = path.resolve(this.filePath);
+      const programFiles = parsedConfig.fileNames.some(
+        (f) => path.resolve(f) === absoluteFilePath,
+      )
+        ? parsedConfig.fileNames
+        : [...parsedConfig.fileNames, this.filePath];
+
+      const program = ts.createProgram(programFiles, parsedConfig.options);
+      const sourceFile = program.getSourceFile(this.filePath);
+      const diagnostics = sourceFile
+        ? [
+            ...program.getSyntacticDiagnostics(sourceFile),
+            ...program.getSemanticDiagnostics(sourceFile),
+          ]
+        : ts.getPreEmitDiagnostics(program);
 
       const diagnosticsByFile = new Map();
       diagnostics.forEach((d) => {
