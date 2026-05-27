@@ -135,17 +135,13 @@ const test = base.extend<{
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
-    // Use startFileWatching directly (more reliable than clicking project button)
-    try {
-      await window.waitForSelector('text=Recent Projects', { timeout: 5_000 });
-      await window.locator('button:has-text("child-title-test")').first().click();
-    } catch {
-      await window.evaluate(async (vault: string) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
-        await api.main.startFileWatching(vault);
-      }, projectRoot);
-    }
+    const openResult = await window.evaluate(async (vault: string) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const response = await api.main.openVault(vault);
+      return { writeFolder: response.writeFolder };
+    }, projectRoot);
+    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
 
     await pollForCytoscape(window, 15_000);
 
