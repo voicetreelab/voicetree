@@ -32,7 +32,7 @@ import {
     type TerminalData,
     type TerminalId,
 } from "@vt/vt-daemon"
-import {spawnTmuxBackedTerminal} from '../src/agents/headless/headlessAgentManager.ts'
+import {spawnTmuxBackedTerminal} from '../src/agent-runtime/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager'
 import {
     TERMINAL_RPC_METHODS,
@@ -49,7 +49,7 @@ import {
 } from '@vt/vt-daemon-protocol'
 
 import {buildCatalogDispatchMap, type CatalogHandler} from '../src/tools/catalog'
-import type {McpToolResponse} from '../src/tools/toolResponse'
+import type {McpToolResponse} from '../src/_shared/toolResponse.ts'
 
 // ─── Test scaffold ───────────────────────────────────────────────────────────
 

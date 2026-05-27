@@ -12,7 +12,7 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../_shared/toolResponse.ts'
 
 const getTerminalRecordsRoute: RpcRoute = {
     name: 'getTerminalRecords',

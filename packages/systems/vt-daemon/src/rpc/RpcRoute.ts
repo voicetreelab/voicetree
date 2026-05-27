@@ -12,7 +12,7 @@
 
 import type {ZodRawShape} from 'zod'
 
-import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../_shared/toolResponse.ts'
 
 export type RpcHandler = (args: Record<string, unknown>) => Promise<McpToolResponse> | McpToolResponse
 

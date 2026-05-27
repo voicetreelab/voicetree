@@ -21,14 +21,14 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {recordTerminalSpawn} from '../src/terminals/terminal-registry/spawn.ts'
-import {clearTerminalRecords} from '../src/terminals/terminal-registry/queries.ts'
-import {clearAllBudgets, setTerminalBudget} from '../src/terminals/global-budget-registry.ts'
-import type {TerminalData, TerminalId} from '../src/terminals/terminal-registry/types.ts'
-import {createTerminalData} from '../src/terminals/terminal-registry/types.ts'
+import {recordTerminalSpawn} from '../src/agent-runtime/terminals/terminal-registry/spawn.ts'
+import {clearTerminalRecords} from '../src/agent-runtime/terminals/terminal-registry/queries.ts'
+import {clearAllBudgets, setTerminalBudget} from '../src/agent-runtime/terminals/global-budget-registry.ts'
+import type {TerminalData, TerminalId} from '../src/agent-runtime/terminals/terminal-registry/types.ts'
+import {createTerminalData} from '../src/agent-runtime/terminals/terminal-registry/types.ts'
 
-vi.mock('../src/tools/agent-control/agentControlRuntime', async (importOriginal) => {
-    const actual: typeof import('../src/tools/agent-control/agentControlRuntime')
+vi.mock('../src/agent-runtime/agent-control/agentControlRuntime', async (importOriginal) => {
+    const actual: typeof import('../src/agent-runtime/agent-control/agentControlRuntime')
         = await importOriginal()
     let spawnCounter: number = 0
     return {
@@ -40,7 +40,7 @@ vi.mock('../src/tools/agent-control/agentControlRuntime', async (importOriginal)
     }
 })
 
-import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/tools/agent-control/spawnAgentTool'
+import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/agent-runtime/agent-control/spawnAgentTool'
 import type {GraphBridge} from '../src/config/mcpBridges.ts'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)

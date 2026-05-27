@@ -13,7 +13,7 @@ import {
     readHeadlessTerminalOutput,
     sendTerminalText,
     type TerminalRecord,
-} from './agentCompletionRuntime'
+} from '../agentCompletionRuntime.ts'
 import {
     isAgentComplete,
     getAgentStatus,
@@ -27,8 +27,8 @@ import {
     type AgentNodeEntry,
 } from './completion/agentNodeIndex.ts'
 import {getNewNodesForAgent} from './completion/getNewNodesForAgent.ts'
-import {getMcpGraph} from '../config/graphBridge.ts'
-import type {GraphBridge} from '../config/mcpBridges.ts'
+import {getMcpGraph} from '../../config/graphBridge.ts'
+import type {GraphBridge} from '../../config/mcpBridges.ts'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>

@@ -39,7 +39,7 @@ import {
     startOtlpReceiver,
     stopOtlpReceiver,
     type HttpDaemonServerHandle,
-} from '../src/agents/index.ts'
+} from '../src/agent-runtime/index.ts'
 import {readOtlpPortFile} from '../src/lifecycle/otlpPortFile.ts'
 
 interface FullStack {

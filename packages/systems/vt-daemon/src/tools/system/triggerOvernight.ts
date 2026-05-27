@@ -8,7 +8,7 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
-import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
+import {spawnContextTerminal} from '../../agent-runtime/agent-control/agentControlRuntime.ts'
 
 export interface TriggerOvernightParams {
     maxTasks?: number

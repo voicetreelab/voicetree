@@ -7,7 +7,7 @@ import {afterEach, describe, expect, it} from 'vitest'
 
 import {generateAuthToken} from '@vt/vt-rpc'
 
-import {buildJsonResponse, type McpToolResponse} from '../../agent-runtime/_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../../_shared/toolResponse.ts'
 import {
     startHttpDaemonServer,
     type HookHandler,

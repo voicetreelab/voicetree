@@ -20,7 +20,7 @@ import {
 import {
     isAgentComplete,
     type IsAgentCompleteDeps,
-} from '../src/agents/completion/isAgentComplete.ts'
+} from '../src/agent-runtime/agent-control/completion/isAgentComplete.ts'
 
 function buildGraphNode(nodeId: string, title: string, agentName: string, isContextNode: boolean = false): GraphNode {
     return {

@@ -11,7 +11,7 @@ import type {IncomingMessage, ServerResponse} from 'node:http'
 
 import {ERROR_CODES} from '@vt/vt-rpc'
 import {CatalogValidationError} from '../tools/catalog.ts'
-import type {McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
+import type {McpToolResponse} from '../_shared/toolResponse.ts'
 import type {AccessLogger, ToolCatalog, ToolHandler} from './httpServerTypes.ts'
 import {readBodyWithCap} from './bodyReader.ts'
 import {buildAccessLogLine} from './accessLog.ts'

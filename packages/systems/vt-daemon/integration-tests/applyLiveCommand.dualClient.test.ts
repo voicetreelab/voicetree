@@ -34,7 +34,7 @@ import {
     setCurrentVault,
     startHttpDaemonServer,
     type HttpDaemonServerHandle,
-} from '../src/agents/index.ts'
+} from '../src/agent-runtime/index.ts'
 import {__resetSessionStateForTests} from '../src/state/sessionStateStore.ts'
 
 interface FullStack {

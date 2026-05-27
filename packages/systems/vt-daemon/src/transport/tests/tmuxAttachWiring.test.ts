@@ -25,7 +25,7 @@ import {
     createSession,
     hasSession,
     killSession,
-} from '../../terminals/tmux/tmux-session-manager.ts'
+} from '../../agent-runtime/terminals/tmux/tmux-session-manager.ts'
 
 import {startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 

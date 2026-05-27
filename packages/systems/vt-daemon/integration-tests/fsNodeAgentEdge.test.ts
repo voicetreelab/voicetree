@@ -29,8 +29,8 @@ import {
     clearAgentNodes,
     getAgentNodes,
     registerAgentNodes,
-} from '../src/agents/completion/agentNodeIndex.ts'
-import {isAgentComplete} from '../src/agents/completion/isAgentComplete.ts'
+} from '../src/agent-runtime/agent-control/completion/agentNodeIndex.ts'
+import {isAgentComplete} from '../src/agent-runtime/agent-control/completion/isAgentComplete.ts'
 
 /**
  * Production callback reproduced from `graph-model-init.ts` (Electron-only).

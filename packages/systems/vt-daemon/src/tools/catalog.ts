@@ -18,7 +18,7 @@
 import {z} from 'zod'
 import type {ZodTypeAny, ZodRawShape} from 'zod'
 
-import type {McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
+import type {McpToolResponse} from '../_shared/toolResponse.ts'
 import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
 import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/spawnAgentTool'
 import {listAgentsTool} from '../agent-runtime/agent-control/listAgentsTool'

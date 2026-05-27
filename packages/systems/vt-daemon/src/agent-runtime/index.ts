@@ -53,8 +53,8 @@ export type {
 } from './agent-control/terminalRuntimeSurface'
 export {findAvailablePort, isPortAvailable} from '../tools/findAvailablePort'
 
-export type {McpToolResponse} from './_shared/toolResponse.ts'
-export {buildJsonResponse} from './_shared/toolResponse.ts'
+export type {McpToolResponse} from '../_shared/toolResponse.ts'
+export {buildJsonResponse} from '../_shared/toolResponse.ts'
 
 export {
     startMonitor,
@@ -62,7 +62,7 @@ export {
     registerChildIfMonitored,
     isTerminalIdAlreadyMonitoredForCaller,
     getPendingAgentNamesForCaller,
-} from './agent-completion-monitor'
+} from './agent-control/agent-completion-monitor.ts'
 
 export {spawnAgentTool, type SpawnAgentParams} from './agent-control/spawnAgentTool'
 export {listAgentsTool} from './agent-control/listAgentsTool'

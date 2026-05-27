@@ -71,7 +71,7 @@ import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/vtPathInjection
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
-import type {GraphStateBridge} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import type {GraphStateBridge} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
     TERMINAL_REGISTRY_TOPIC,
     type TerminalRegistryEvent,

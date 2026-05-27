@@ -17,7 +17,7 @@ import {
 
 const asTerminalId = (id: string): TerminalId => id as TerminalId
 
-import {buildJsonResponse, type McpToolResponse} from '../../agent-runtime/_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../../_shared/toolResponse.ts'
 import {
     startHttpDaemonServer,
     type HookHandler,

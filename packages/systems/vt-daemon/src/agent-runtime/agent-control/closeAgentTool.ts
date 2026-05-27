@@ -8,7 +8,7 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {type McpToolResponse, buildJsonResponse} from '../_shared/toolResponse'
+import {type McpToolResponse, buildJsonResponse} from '../../_shared/toolResponse.ts'
 import {getAgentNodes} from './completion/agentNodeIndex.ts'
 import {getAgentStatus} from './completion/isAgentComplete.ts'
 import {getNewNodesForAgentIdentities} from './completion/getNewNodesForAgent.ts'
