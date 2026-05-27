@@ -19,6 +19,14 @@ export async function getRuntimeWriteFolder(): Promise<O.Option<FilePath>> {
     return await requireGraphBridge().getWriteFolder()
 }
 
+export async function getRuntimeProjectRoot(): Promise<FilePath | null> {
+    return await requireGraphBridge().getProjectRoot()
+}
+
+export async function getRuntimeVaultPaths(): Promise<readonly FilePath[]> {
+    return await requireGraphBridge().getVaultPaths()
+}
+
 export async function applyRuntimeGraphDelta(
     delta: GraphDelta,
     recordForUndo: boolean = true,

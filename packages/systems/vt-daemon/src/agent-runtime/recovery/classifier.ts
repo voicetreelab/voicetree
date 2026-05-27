@@ -1,20 +1,11 @@
-<<<<<<<< HEAD:packages/systems/vt-daemon/src/agent-runtime/recovery/classifier/classifier.ts
 import * as O from 'fp-ts/lib/Option.js'
-import {createTerminalData, type TerminalData, type TerminalId} from '../terminals/terminal-registry/types'
-import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
-import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
-import {detectCliType} from '../spawn/headlessCli'
-import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
-import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
-import {isoToMsOrZero} from './horizon'
-========
-import type {TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+import {createTerminalData, type TerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TmuxTerminalMetadata} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-metadata.ts'
 import type {UnclaimedTmuxSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/unclaimed-tmux.ts'
 import {detectCliType} from '@vt/vt-daemon/agent-runtime/spawn/cli/headlessCli.ts'
 import {buildTmuxSessionName} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager.ts'
 import {parseVoicetreeTmuxSessionName} from '@vt/vt-daemon/agent-runtime/terminals/tmux/unclaimed-tmux.ts'
->>>>>>>> origin/dev:packages/systems/vt-daemon/src/agent-runtime/recovery/classifier.ts
+import {isoToMsOrZero} from './horizon'
 import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type ClassifierInput = {
