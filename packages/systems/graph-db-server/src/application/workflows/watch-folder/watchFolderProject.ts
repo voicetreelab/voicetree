@@ -1,7 +1,6 @@
 import type { FilePath } from '@vt/graph-model/graph';
 import * as O from "fp-ts/lib/Option.js";
 import { getLastDirectory } from "@vt/app-config/vault-config";
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
     getProjectRoot,
 } from "@vt/graph-db-server/state/watch-folder-store";
@@ -54,7 +53,7 @@ export async function openProject(
         return { success: true, directory: getProjectRoot() ?? undefined };
     }
 
-    const lastDirectory: O.Option<string> = await getLastDirectory(resolveAppSupportPath());
+    const lastDirectory: O.Option<string> = await getLastDirectory();
     if (O.isSome(lastDirectory)) {
         const outcome = await loadFolder(lastDirectory.value, options);
         return outcome.success

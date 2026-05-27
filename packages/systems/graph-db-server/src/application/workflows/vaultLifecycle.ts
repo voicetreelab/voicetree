@@ -15,7 +15,6 @@ import {
 } from '@vt/graph-db-server/contract'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import {
@@ -166,7 +165,7 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
   await mkdir(join(targetProjectRoot, '.voicetree'), { recursive: true })
   setProjectRoot(targetProjectRoot)
 
-  const savedConfig = await getVaultConfigForDirectory(resolveAppSupportPath(), targetProjectRoot)
+  const savedConfig = await getVaultConfigForDirectory(targetProjectRoot)
   const configuredWriteFolder = input.writeFolder ?? savedConfig?.writeFolder
   const targetWriteFolder = configuredWriteFolder
     ? resolveWriteFolder(targetProjectRoot, configuredWriteFolder)

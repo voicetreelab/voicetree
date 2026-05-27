@@ -7,7 +7,6 @@ import {
     findExistingVoicetreeDir,
 } from "@vt/app-config/project";
 import { loadSettings } from "@vt/app-config/settings";
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import { getCallbacks } from "@vt/graph-model";
 import type { GraphModelCallbacks } from "@vt/graph-model";
 import type { VTSettings } from "@vt/graph-model/settings";
@@ -46,7 +45,7 @@ export const defaultWatchFolderEnv: WatchFolderEnv = {
     },
     clock: { nowIso: () => new Date().toISOString() },
     callbacks: getCallbacks,
-    settings: () => loadSettings(resolveAppSupportPath()),
+    settings: () => loadSettings(),
     project: {
         copyMarkdownFiles,
         createDatedSubfolder,

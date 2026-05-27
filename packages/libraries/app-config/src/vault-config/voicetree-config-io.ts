@@ -11,6 +11,7 @@ import { promises as fs } from "fs";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath } from '@vt/graph-model/graph';
 import type { VaultConfig } from '@vt/graph-model/settings';
+import {resolveAppSupportPath} from '../app-support-path.ts';
 
 type PersistedVaultConfig = VaultConfig & {
     readonly readPaths?: unknown;
@@ -45,15 +46,15 @@ function preserveVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfig 
     return cleaned;
 }
 
-export function getConfigPath(appSupportPath: string): string {
-    return path.join(appSupportPath, 'voicetree-config.json');
+export function getConfigPath(): string {
+    return path.join(resolveAppSupportPath(), 'voicetree-config.json');
 }
 
 const CONFIG_CACHE_TTL_MS: number = 5000;
 const configCacheByPath: Map<string, { readonly loadedAt: number; readonly config: VoiceTreeConfig }> = new Map();
 
 async function loadPersistedConfig(appSupportPath: string): Promise<PersistedVoiceTreeConfig> {
-    const configPath: string = getConfigPath(appSupportPath);
+    const configPath: string = path.join(appSupportPath, 'voicetree-config.json');
     try {
         const data: string = await fs.readFile(configPath, 'utf8');
         return JSON.parse(data) as PersistedVoiceTreeConfig;
@@ -62,7 +63,8 @@ async function loadPersistedConfig(appSupportPath: string): Promise<PersistedVoi
     }
 }
 
-export async function loadConfig(appSupportPath: string): Promise<VoiceTreeConfig> {
+export async function loadConfig(): Promise<VoiceTreeConfig> {
+    const appSupportPath: string = resolveAppSupportPath();
     const now: number = Date.now();
     const cached: { readonly loadedAt: number; readonly config: VoiceTreeConfig } | undefined = configCacheByPath.get(appSupportPath);
     if (cached && now - cached.loadedAt < CONFIG_CACHE_TTL_MS) {
@@ -73,8 +75,9 @@ export async function loadConfig(appSupportPath: string): Promise<VoiceTreeConfi
     return config;
 }
 
-export async function saveConfig(appSupportPath: string, config: VoiceTreeConfig): Promise<void> {
-    const configPath: string = getConfigPath(appSupportPath);
+export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
+    const appSupportPath: string = resolveAppSupportPath();
+    const configPath: string = path.join(appSupportPath, 'voicetree-config.json');
     try {
         const cleanConfig: VoiceTreeConfig = preserveVaultConfig(config as PersistedVoiceTreeConfig);
         // Ensure parent directory exists (needed on first run or in tests)
@@ -87,8 +90,8 @@ export async function saveConfig(appSupportPath: string, config: VoiceTreeConfig
     }
 }
 
-export async function getLastDirectory(appSupportPath: string): Promise<O.Option<FilePath>> {
-    const configPath: string = getConfigPath(appSupportPath);
+export async function getLastDirectory(): Promise<O.Option<FilePath>> {
+    const configPath: string = path.join(resolveAppSupportPath(), 'voicetree-config.json');
     return fs.readFile(configPath, 'utf8')
         .then(data => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,31 +105,31 @@ export async function getLastDirectory(appSupportPath: string): Promise<O.Option
         });
 }
 
-export async function saveLastDirectory(appSupportPath: string, directoryPath: string): Promise<void> {
-    const config: VoiceTreeConfig = await loadConfig(appSupportPath);
+export async function saveLastDirectory(directoryPath: string): Promise<void> {
+    const config: VoiceTreeConfig = await loadConfig();
     config.lastDirectory = directoryPath;
-    await saveConfig(appSupportPath, config);
+    await saveConfig(config);
 }
 
-export async function getVaultConfigForDirectory(appSupportPath: string, directoryPath: string): Promise<VaultConfig | undefined> {
-    const config: VoiceTreeConfig = await loadConfig(appSupportPath);
+export async function getVaultConfigForDirectory(directoryPath: string): Promise<VaultConfig | undefined> {
+    const config: VoiceTreeConfig = await loadConfig();
     return config.vaultConfig?.[directoryPath];
 }
 
-export async function hasLegacyReadPathsForDirectory(appSupportPath: string, directoryPath: string): Promise<boolean> {
-    const config: PersistedVoiceTreeConfig = await loadPersistedConfig(appSupportPath);
+export async function hasLegacyReadPathsForDirectory(directoryPath: string): Promise<boolean> {
+    const config: PersistedVoiceTreeConfig = await loadPersistedConfig(resolveAppSupportPath());
     const vaultConfig: PersistedVaultConfig | undefined = config.vaultConfig?.[directoryPath];
     return vaultConfig !== undefined &&
         Object.prototype.hasOwnProperty.call(vaultConfig, 'readPaths');
 }
 
-export async function saveVaultConfigForDirectory(appSupportPath: string, directoryPath: string, vaultConfig: VaultConfig): Promise<void> {
-    const config: VoiceTreeConfig = await loadConfig(appSupportPath);
+export async function saveVaultConfigForDirectory(directoryPath: string, vaultConfig: VaultConfig): Promise<void> {
+    const config: VoiceTreeConfig = await loadConfig();
     config.vaultConfig ??= {};
     const existingConfig: VaultConfig | undefined = config.vaultConfig[directoryPath];
     config.vaultConfig[directoryPath] = {
         writeFolder: vaultConfig.writeFolder,
         readPaths: vaultConfig.readPaths ?? existingConfig?.readPaths ?? [],
     };
-    await saveConfig(appSupportPath, config);
+    await saveConfig(config);
 }

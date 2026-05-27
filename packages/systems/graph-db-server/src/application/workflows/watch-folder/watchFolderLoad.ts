@@ -23,7 +23,6 @@ import {
     saveLastDirectory,
     saveVaultConfigForDirectory,
 } from "@vt/app-config/vault-config";
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
     resolveAllowlistForProject,
     loadAndMergeVaultPath,
@@ -106,7 +105,7 @@ export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise
         return;
     }
 
-    const lastDirectory: O.Option<string> = await getLastDirectory(resolveAppSupportPath());
+    const lastDirectory: O.Option<string> = await getLastDirectory();
     if (getProjectRoot() !== null) return;
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value, options);
@@ -136,7 +135,7 @@ async function resolveOrCreateConfig(
 
     const plan = decideVaultConfig(null, subfolderPath, allowlist);
     if (plan.shouldPersist) {
-        await saveVaultConfigForDirectory(resolveAppSupportPath(), watchedFolderPath, { writeFolder: plan.config.writeFolder });
+        await saveVaultConfigForDirectory(watchedFolderPath, { writeFolder: plan.config.writeFolder });
     }
     return plan.config;
 }
@@ -314,7 +313,7 @@ async function mountWatcherAndFinalize(
         await setupStateChangeSubscriptions(watchedFolderPath);
     }
 
-    await saveLastDirectory(resolveAppSupportPath(), watchedFolderPath);
+    await saveLastDirectory(watchedFolderPath);
 
     env.callbacks().onWatchingStarted?.(buildWatchingStartedPayload(
         getWatchingStartedDirectory(watchedFolderPath),
@@ -360,7 +359,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
         `Previous workspace has ${fileLimitDetails.fileCount} markdown files (limit: ${fileLimitDetails.maxFiles}).\n\nCreated new workspace:\n${newSubfolderPath}`
     );
 
-    await saveVaultConfigForDirectory(resolveAppSupportPath(), watchedFolderPath, {
+    await saveVaultConfigForDirectory(watchedFolderPath, {
         writeFolder: newSubfolderPath,
     });
 
@@ -377,7 +376,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
         await setupWatcher(newAllowlist, watchedFolderPath, watcherOptions);
     }
 
-    await saveLastDirectory(resolveAppSupportPath(), watchedFolderPath);
+    await saveLastDirectory(watchedFolderPath);
 
     env.callbacks().onWatchingStarted?.(buildWatchingStartedPayload(
         getProjectRoot() ?? watchedFolderPath,

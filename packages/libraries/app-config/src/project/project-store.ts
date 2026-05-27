@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { SavedProject } from '@vt/graph-model/project';
+import {resolveAppSupportPath} from '../app-support-path.ts';
 
 function getProjectsFilePath(appSupportPath: string): string {
     return path.join(appSupportPath, 'projects.json');
@@ -56,7 +57,8 @@ async function writeProjectsFile(appSupportPath: string, projects: SavedProject[
  * Loads saved projects from disk.
  * Filters out projects whose paths no longer exist.
  */
-export async function loadProjects(appSupportPath: string): Promise<SavedProject[]> {
+export async function loadProjects(): Promise<SavedProject[]> {
+    const appSupportPath: string = resolveAppSupportPath();
     const projects: SavedProject[] = await readProjectsFile(appSupportPath);
 
     // Filter out projects with missing paths
@@ -70,7 +72,8 @@ export async function loadProjects(appSupportPath: string): Promise<SavedProject
  * Saves or updates a project in the store.
  * If a project with the same ID exists, it will be updated.
  */
-export async function saveProject(appSupportPath: string, project: SavedProject): Promise<void> {
+export async function saveProject(project: SavedProject): Promise<void> {
+    const appSupportPath: string = resolveAppSupportPath();
     const projects: SavedProject[] = await readProjectsFile(appSupportPath);
 
     const existingIndex: number = projects.findIndex((p) => p.id === project.id);
@@ -87,7 +90,8 @@ export async function saveProject(appSupportPath: string, project: SavedProject)
 /**
  * Removes a project from the store by ID.
  */
-export async function removeProject(appSupportPath: string, id: string): Promise<void> {
+export async function removeProject(id: string): Promise<void> {
+    const appSupportPath: string = resolveAppSupportPath();
     const projects: SavedProject[] = await readProjectsFile(appSupportPath);
     const filtered: SavedProject[] = projects.filter((p) => p.id !== id);
     await writeProjectsFile(appSupportPath, filtered);
