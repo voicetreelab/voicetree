@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {ForkAgentSessionResult, ResumePersistedResult, TerminalData, TerminalId} from '@vt/agent-runtime'
+import type {ForkAgentSessionResult, ResumePersistedResult, TerminalData, TerminalId} from '@vt/vt-daemon-client'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 const mocks = vi.hoisted(() => ({
@@ -16,13 +16,19 @@ const mocks = vi.hoisted(() => ({
     }>,
 }))
 
-vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
-    terminalRuntimeSurface: {
+vi.mock('@vt/vt-daemon-client', async (importOriginal) => {
+    const original = await importOriginal() as Record<string, unknown>
+    return {
+        ...original,
         discoverRecoverableAgentSessions: mocks.discoverRecoverableAgentSessions,
         forkAgentSession: mocks.forkAgentSession,
         resumePersistedAgentSession: mocks.resumePersistedAgentSession,
         removePersistedAgentRecord: mocks.removePersistedAgentRecord,
-    },
+    }
+})
+
+vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-url-binding', () => ({
+    getVtDaemonClient: vi.fn(() => ({} as never)),
 }))
 
 vi.mock('@/shell/edge/main/runtime/ui-api-proxy', () => ({
@@ -145,7 +151,7 @@ describe('recovery-session-sync', () => {
         mocks.removePersistedAgentRecord.mockResolvedValue({kind: 'removed'})
         const result = await removeRecoverySession('Iris')
         expect(result).toEqual({success: true, terminalId: 'Iris'})
-        expect(mocks.removePersistedAgentRecord).toHaveBeenCalledWith('Iris')
+        expect(mocks.removePersistedAgentRecord).toHaveBeenCalledWith(expect.anything(), {terminalId: 'Iris'})
     })
 
     it('reports a live-registry refusal as a structured error string', async () => {
