@@ -33,7 +33,7 @@ import {
   OwnerSpawnCooldownError,
   readCooldownBreadcrumb,
 } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from '../index.ts'
+import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
 import {
   FAKE_BIN_COMMAND,
   countDaemonProcessesForVault,

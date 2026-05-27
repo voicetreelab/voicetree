@@ -16,7 +16,6 @@ vi.mock('electron', () => ({
 // Import after mocks are set up
 import { getVaultPaths, loadAndMergeVaultPath, type VaultLoadOutcome, addReadPath, setWriteFolder } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { setProjectRoot, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
@@ -35,7 +34,7 @@ const FILE_COUNT_ABOVE_RAISED_LIMIT = 1001
 
 function resetGraphModel(): void {
   notifyWriteDirectory = vi.fn()
-  setAppSupportPath(mockUserDataPath)
+  process.env.VOICETREE_APP_SUPPORT = mockUserDataPath
   initGraphModel({
     notifyWriteDirectory,
     fitViewport: vi.fn(),

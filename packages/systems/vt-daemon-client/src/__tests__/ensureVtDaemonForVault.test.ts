@@ -29,7 +29,7 @@ import {
   UnsafeOwnerError,
   type OwnerRecord,
 } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from '../index.ts'
+import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
 
 const FIXTURE_DIR = join(
   dirname(fileURLToPath(import.meta.url)),

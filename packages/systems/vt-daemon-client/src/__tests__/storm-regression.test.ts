@@ -26,7 +26,7 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { ensureVtDaemonForVault } from '../index.ts'
+import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
 import {
   FAKE_BIN_COMMAND,
   countDaemonProcessesForVault,

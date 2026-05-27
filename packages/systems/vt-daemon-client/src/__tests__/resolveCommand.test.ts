@@ -11,23 +11,24 @@
  */
 
 import { existsSync, statSync } from 'node:fs'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { resolveCommand } from '../autoLaunch/runtime.ts'
+import { createRequire } from 'node:module'
+import { describe, expect, test } from 'vitest'
+import { resolveCommand, type ResolveVtDaemonCommandDeps } from '../autoLaunch/runtime.ts'
+
+const requireFromHere = createRequire(import.meta.url)
+
+function deps(env: NodeJS.ProcessEnv = {}): ResolveVtDaemonCommandDeps {
+  return {
+    env,
+    runtimeCommand: () => process.execPath,
+    tsxLoaderPath: requireFromHere.resolve('tsx'),
+    vtdBinPath: requireFromHere.resolve('@vt/vt-daemon/bin/vtd.ts'),
+  }
+}
 
 describe('resolveCommand — production-path resolution', () => {
-  const originalEnv = process.env.VT_DAEMON_BIN
-
-  beforeEach(() => {
-    delete process.env.VT_DAEMON_BIN
-  })
-
-  afterEach(() => {
-    if (originalEnv === undefined) delete process.env.VT_DAEMON_BIN
-    else process.env.VT_DAEMON_BIN = originalEnv
-  })
-
   test('resolves @vt/vt-daemon/bin/vtd.ts via the package exports field', () => {
-    const spec = resolveCommand('/tmp/some-vault')
+    const spec = resolveCommand('/tmp/some-vault', undefined, deps())
 
     expect(spec.cmd).toBe(process.execPath)
 
@@ -39,5 +40,15 @@ describe('resolveCommand — production-path resolution', () => {
     expect(binPath, 'resolver must include vtd.ts path in args').toBeDefined()
     expect(existsSync(binPath as string)).toBe(true)
     expect(statSync(binPath as string).isFile()).toBe(true)
+  })
+
+  test('preserves explicit environment when resolving an override command', () => {
+    const spec = resolveCommand('/tmp/some-vault', '/bin/echo fake-vtd', deps({
+      PATH: '/tmp/vt-daemon-client-test-path',
+    }))
+
+    expect(spec.cmd).toBe('/bin/echo')
+    expect(spec.args).toEqual(['fake-vtd', '--vault', '/tmp/some-vault'])
+    expect(spec.env.PATH).toBe('/tmp/vt-daemon-client-test-path')
   })
 })

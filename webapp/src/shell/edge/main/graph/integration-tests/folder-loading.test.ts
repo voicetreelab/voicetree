@@ -35,7 +35,6 @@ import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store
 import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
@@ -134,7 +133,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
     // Initialize graph model with test callbacks that mirror Electron IPC channels.
     const appSupport = path.join(tempFixtureRoot, 'app-support')
-    setAppSupportPath(appSupport)
+    process.env.VOICETREE_APP_SUPPORT = appSupport
     initGraphModel({
       onGraphCleared: (): void => {
         broadcastCalls.push({ channel: 'graph:clear', delta: [] })

@@ -31,52 +31,40 @@
  * than silently routing to the wrong daemon.
  */
 
-import { createRequire } from 'node:module'
-import {
-  resolveDaemonRuntimeCommand,
-  type CommandSpec,
-} from '@vt/graph-db-client/autoLaunch/runtime'
-
-const requireFromHere = createRequire(import.meta.url)
+import type { CommandSpec } from '@vt/graph-db-client/autoLaunch/runtime'
 
 const VTD_BIN_ENV_VAR = 'VT_DAEMON_BIN'
 
-// Lazy: `vt --help` style commands never spawn VTD; we don't want
-// module-init to fail when the workspace package isn't installed.
-let cachedVtdBinPath: string | undefined
-let cachedTsxPath: string | undefined
-
-function resolveVtdBinPath(): string {
-  if (cachedVtdBinPath !== undefined) return cachedVtdBinPath
-  cachedVtdBinPath = requireFromHere.resolve('@vt/vt-daemon/bin/vtd.ts')
-  return cachedVtdBinPath
-}
-
-function resolveTsxLoader(): string {
-  if (cachedTsxPath !== undefined) return cachedTsxPath
-  cachedTsxPath = requireFromHere.resolve('tsx')
-  return cachedTsxPath
+export type ResolveVtDaemonCommandDeps = {
+  readonly env: NodeJS.ProcessEnv
+  readonly runtimeCommand: () => string
+  readonly tsxLoaderPath: string
+  readonly vtdBinPath: string
 }
 
 export function resolveCommand(
   vault: string,
   override?: string,
+  deps?: ResolveVtDaemonCommandDeps,
 ): CommandSpec {
+  if (deps === undefined) {
+    throw new Error('resolveCommand requires explicit deps')
+  }
   const explicit = override?.trim()
-  if (explicit) return parseOverride(explicit, vault)
+  if (explicit) return parseOverride(explicit, vault, deps.env)
 
-  const fromEnv = process.env[VTD_BIN_ENV_VAR]?.trim()
-  if (fromEnv) return parseOverride(fromEnv, vault)
+  const fromEnv = deps.env[VTD_BIN_ENV_VAR]?.trim()
+  if (fromEnv) return parseOverride(fromEnv, vault, deps.env)
 
   return {
-    cmd: resolveDaemonRuntimeCommand(),
-    args: ['--import', resolveTsxLoader(), resolveVtdBinPath(), '--vault', vault],
-    env: { ...process.env },
+    cmd: deps.runtimeCommand(),
+    args: ['--import', deps.tsxLoaderPath, deps.vtdBinPath, '--vault', vault],
+    env: { ...deps.env },
   }
 }
 
-function parseOverride(override: string, vault: string): CommandSpec {
+function parseOverride(override: string, vault: string, env: NodeJS.ProcessEnv): CommandSpec {
   const parts = override.split(/\s+/).filter((p) => p.length > 0)
   const [cmd, ...rest] = parts
-  return { cmd, args: [...rest, '--vault', vault] }
+  return { cmd, args: [...rest, '--vault', vault], env: { ...env } }
 }

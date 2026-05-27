@@ -32,11 +32,11 @@
 
 import {
     bindVtDaemonClient,
-    ensureVtDaemonForVault,
     type EnsureVtDaemonResult,
     type VtDaemonClient,
     type VtDaemonClientFacade,
 } from '@vt/vt-daemon-client'
+import { ensureVtDaemonForVault } from './vt-daemon-ensure'
 
 interface ActiveVtDaemon {
     readonly vaultPath: string
@@ -48,6 +48,8 @@ interface ActiveVtDaemon {
     readonly facade: VtDaemonClientFacade
 }
 
+type ActiveEnsureResult = EnsureVtDaemonResult<VtDaemonClient>
+
 let active: ActiveVtDaemon | null = null
 let pending: Promise<void> = Promise.resolve()
 
@@ -57,7 +59,7 @@ function chain<T>(work: () => Promise<T>): Promise<T> {
     return next
 }
 
-function snapshotFromEnsure(vaultPath: string, result: EnsureVtDaemonResult): ActiveVtDaemon {
+function snapshotFromEnsure(vaultPath: string, result: ActiveEnsureResult): ActiveVtDaemon {
     return {
         vaultPath,
         url: result.client.baseUrl,
@@ -85,7 +87,7 @@ export function bindVtDaemonForVault(vaultPath: string): Promise<ActiveVtDaemon>
         // cleanup is VTD's parent-pid watchdog (BF-369) plus
         // killOrphanVt*Daemons on next startup.
         active = null
-        const result: EnsureVtDaemonResult = await ensureVtDaemonForVault(vaultPath, 'electron')
+        const result: ActiveEnsureResult = await ensureVtDaemonForVault(vaultPath, 'electron')
         const next: ActiveVtDaemon = snapshotFromEnsure(vaultPath, result)
         active = next
         return next
@@ -189,7 +191,7 @@ export function __setBoundVaultForTests(vaultPath: string | null): void {
 async function refreshActive(): Promise<ActiveVtDaemon> {
     const current: ActiveVtDaemon | null = active
     if (!current) throw new Error('daemon_unreachable: no active vt-daemon binding')
-    const result: EnsureVtDaemonResult = await ensureVtDaemonForVault(current.vaultPath, 'electron')
+    const result: ActiveEnsureResult = await ensureVtDaemonForVault(current.vaultPath, 'electron')
     if (result.pid === current.pid && result.ownerNonce === current.ownerNonce) {
         // Hot-path: same owner. Avoid rebuilding the snapshot.
         return current

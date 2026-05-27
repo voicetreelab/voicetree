@@ -31,7 +31,6 @@ import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
-import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { createGraph } from '@vt/graph-model/graph'
 import type { GraphDelta } from '@vt/graph-model/graph'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
@@ -58,6 +57,7 @@ vi.mock('electron', () => ({
 
 let tempFixtureRoot: string | null = null
 let projectRoot: string
+let originalAppSupportPath: string | undefined
 
 async function copyFixture(): Promise<string> {
     if (!tempFixtureRoot) throw new Error('tempFixtureRoot not initialized')
@@ -106,9 +106,10 @@ async function waitForDaemonNodeCount(vault: string): Promise<number> {
 
 describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
     beforeAll(async () => {
+        originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
         tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'parallel-load-folder-'))
         const appSupport = path.join(tempFixtureRoot, 'app-support')
-        setAppSupportPath(appSupport)
+        process.env.VOICETREE_APP_SUPPORT = appSupport
         initGraphModel({
             onGraphDelta: (): void => undefined,
             onGraphCleared: (): void => undefined,
@@ -133,7 +134,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
             onGraphCleared: (): void => undefined,
             onWatchingStarted: (): void => undefined,
         }
-        setAppSupportPath(path.join(tempFixtureRoot!, 'app-support'))
+        process.env.VOICETREE_APP_SUPPORT = path.join(tempFixtureRoot!, 'app-support')
         initGraphModel(noopBroadcasts)
 
         setGraph(createGraph({}))
@@ -153,6 +154,8 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
             await fs.rm(tempFixtureRoot, { recursive: true, force: true })
             tempFixtureRoot = null
         }
+        if (originalAppSupportPath === undefined) delete process.env.VOICETREE_APP_SUPPORT
+        else process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
     }, TIMEOUT_MS)
 
     it('5 concurrent openVault callers spawn ≤1 vt-graphd and leave graph populated', async () => {

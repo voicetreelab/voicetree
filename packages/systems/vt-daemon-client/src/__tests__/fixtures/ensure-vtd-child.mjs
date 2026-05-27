@@ -28,7 +28,7 @@
  * it as a test file.
  */
 
-import { ensureVtDaemonForVault } from '@vt/vt-daemon-client'
+import { ensureVtDaemonForVault } from '../harness/nodeEnsureVtDaemonForVault.ts'
 
 function arg(flag) {
   const i = process.argv.indexOf(flag)

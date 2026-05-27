@@ -26,79 +26,29 @@
  * coverage.
  */
 
-import { randomUUID } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import {
   boundedDelay,
   DaemonLaunchTimeout,
   decideOwnerAction,
-  emitOwnerDiagnostic,
   nextBackoff,
   OwnerSpawnCooldownError,
   OwnerWaitTimeoutError,
-  readOwnerRecord,
-  sleep,
   UnsafeOwnerError,
   type CallerKind,
   type OwnerDecision,
 } from '@vt/daemon-lifecycle'
-import {
-  attemptSpawnAndWait,
-  gatherEvidence,
-  reclaimStaleOwner,
-} from '@vt/graph-db-client/autoLaunch/spawnCoordinator'
-import { VtDaemonClient } from '../VtDaemonClient.ts'
-import { vtClientFor } from './clientFor.ts'
-import { resolveCommand } from './runtime.ts'
+import type {
+  EnsureVtDaemonClient,
+  EnsureVtDaemonDeps,
+  EnsureVtDaemonOptions,
+  EnsureVtDaemonResult,
+  EnsureVtDaemonState,
+} from './ensureVtDaemonTypes.ts'
 
-export type EnsureVtDaemonOptions = {
-  /** Hard deadline for the whole ensure call. Default 5000ms. */
-  readonly timeoutMs?: number
-  /**
-   * Optional override of the daemon command (`<bin> [args] --vault <path>`).
-   * Primarily for tests that point at a fake VTD entrypoint. Also honored
-   * via `VT_DAEMON_BIN` env var inside the runtime resolver.
-   */
-  readonly bin?: string
-  /**
-   * Maximum heartbeat age tolerated before stale-reclaim becomes possible.
-   * Default 15s (matches graphd's heartbeats-every-2s cadence).
-   */
-  readonly staleHeartbeatMs?: number
-  /** Initial poll backoff. Default 50ms. */
-  readonly initialBackoffMs?: number
-  /** Maximum poll backoff. Default 400ms. */
-  readonly maxBackoffMs?: number
-  /**
-   * Cooldown window persisted to `<vault>/.voicetree/vtd.cooldown.json`
-   * after a spawn fails. Subsequent ensure calls within this window
-   * short-circuit with {@link OwnerSpawnCooldownError} before re-spawning.
-   * Default 5000ms.
-   */
-  readonly spawnCooldownMs?: number
-}
-
-export type EnsureVtDaemonResult = {
-  readonly client: VtDaemonClient
-  readonly port: number
-  readonly pid: number
-  readonly ownerNonce: string
-  /**
-   * Bearer auth token the daemon published to
-   * `<vault>/.voicetree/auth-token` on startup. The same value is closed
-   * over inside `client` for `rpc()` calls; surfaced here so Phase 2
-   * consumers (Electron Main → renderer IPC, voicetree-cli serve) can
-   * pass it across a process boundary without re-reading the file.
-   */
-  readonly authToken: string
-  /**
-   * True when this call spawned the daemon child that won ownership.
-   * False when an existing healthy owner was reused or a waited-on
-   * in-flight owner finalised before our spawn attempt.
-   */
-  readonly launched: boolean
-}
+export type {
+  EnsureVtDaemonOptions,
+  EnsureVtDaemonResult,
+} from './ensureVtDaemonTypes.ts'
 
 const DEFAULT_TIMEOUT_MS = 5_000
 const DEFAULT_STALE_HEARTBEAT_MS = 15_000
@@ -106,27 +56,31 @@ const DEFAULT_INITIAL_BACKOFF_MS = 50
 const DEFAULT_MAX_BACKOFF_MS = 400
 const DEFAULT_SPAWN_COOLDOWN_MS = 5_000
 
-// Per-process single-flight. Distinct from graphd's `inflightByVault` map
-// — VTD-keyed, so a concurrent graphd ensure + vtd ensure for the same
-// vault do not block each other. This layer plus the cross-process
-// `vtd.spawn.lock` (acquired inside `attemptSpawnAndWait`) are BOTH
-// required for BF-348 fork-storm prevention; removing either breaks
-// BF-374's storm tests.
-const inflightByVault = new Map<string, Promise<EnsureVtDaemonResult>>()
+export function createEnsureVtDaemonState<TClient extends EnsureVtDaemonClient = EnsureVtDaemonClient>(): EnsureVtDaemonState<TClient> {
+  // Per-process single-flight. Distinct from graphd's `inflightByVault` map
+  // — VTD-keyed, so a concurrent graphd ensure + vtd ensure for the same
+  // vault do not block each other. This layer plus the cross-process
+  // `vtd.spawn.lock` (acquired inside `attemptSpawnAndWait`) are BOTH
+  // required for BF-348 fork-storm prevention; removing either breaks
+  // BF-374's storm tests.
+  return { inflightByVault: new Map() }
+}
 
-export async function ensureVtDaemonForVault(
+export async function ensureVtDaemonForVault<TClient extends EnsureVtDaemonClient = EnsureVtDaemonClient>(
+  state: EnsureVtDaemonState<TClient>,
+  deps: EnsureVtDaemonDeps<TClient>,
   vault: string,
   caller: CallerKind,
   options: EnsureVtDaemonOptions = {},
-): Promise<EnsureVtDaemonResult> {
-  const canonicalVault = resolve(vault)
-  const existing = inflightByVault.get(canonicalVault)
+): Promise<EnsureVtDaemonResult<TClient>> {
+  const canonicalVault = deps.resolvePath(vault)
+  const existing = state.inflightByVault.get(canonicalVault)
   if (existing) return existing
 
-  const work = runEnsure(canonicalVault, caller, options).finally(() => {
-    inflightByVault.delete(canonicalVault)
+  const work = runEnsure(canonicalVault, caller, options, deps).finally(() => {
+    state.inflightByVault.delete(canonicalVault)
   })
-  inflightByVault.set(canonicalVault, work)
+  state.inflightByVault.set(canonicalVault, work)
   return work
 }
 
@@ -147,44 +101,46 @@ type EnsureContext = {
   readonly spawnCooldownMs: number
 }
 
-type LoopOutcome =
-  | { readonly kind: 'done'; readonly result: EnsureVtDaemonResult }
+type LoopOutcome<TClient extends EnsureVtDaemonClient> =
+  | { readonly kind: 'done'; readonly result: EnsureVtDaemonResult<TClient> }
   | { readonly kind: 'continue'; readonly nextBackoff: number }
 
-async function runEnsure(
+async function runEnsure<TClient extends EnsureVtDaemonClient>(
   canonicalVault: string,
   caller: CallerKind,
   options: EnsureVtDaemonOptions,
-): Promise<EnsureVtDaemonResult> {
-  await mkdir(`${canonicalVault}/.voicetree`, { recursive: true })
-  const ctx = makeEnsureContext(canonicalVault, caller, options)
+  deps: EnsureVtDaemonDeps<TClient>,
+): Promise<EnsureVtDaemonResult<TClient>> {
+  await deps.mkdir(`${canonicalVault}/.voicetree`, { recursive: true })
+  const ctx = makeEnsureContext(canonicalVault, caller, options, deps)
   let backoff = ctx.initialBackoffMs
 
-  while (Date.now() < ctx.deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVault, 'vtd')
+  while (deps.now() < ctx.deadlineMs) {
+    const evidence = await deps.gatherEvidence(canonicalVault, 'vtd')
     const decision = decideOwnerAction(evidence, {
-      nowMs: Date.now(),
+      nowMs: deps.now(),
       staleHeartbeatMs: ctx.staleHeartbeatMs,
     })
-    const outcome = await handleDecision(decision, ctx, backoff)
+    const outcome = await handleDecision(decision, ctx, backoff, deps)
     if (outcome.kind === 'done') return outcome.result
     backoff = outcome.nextBackoff
   }
 
-  throw await timeoutError(canonicalVault)
+  throw await timeoutError(canonicalVault, deps)
 }
 
 function makeEnsureContext(
   canonicalVault: string,
   caller: CallerKind,
   options: EnsureVtDaemonOptions,
+  deps: EnsureVtDaemonDeps,
 ): EnsureContext {
   return {
     canonicalVault,
     caller,
-    attemptId: randomUUID(),
+    attemptId: deps.newAttemptId(),
     options,
-    deadlineMs: Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    deadlineMs: deps.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     staleHeartbeatMs:
       options.staleHeartbeatMs ?? DEFAULT_STALE_HEARTBEAT_MS,
     initialBackoffMs:
@@ -202,19 +158,20 @@ function makeEnsureContext(
  * dispatch out of {@link runEnsure} keeps the orchestrator a flat
  * while-loop and the per-branch effects each readable on their own.
  */
-async function handleDecision(
+async function handleDecision<TClient extends EnsureVtDaemonClient>(
   decision: OwnerDecision,
   ctx: EnsureContext,
   backoff: number,
-): Promise<LoopOutcome> {
+  deps: EnsureVtDaemonDeps<TClient>,
+): Promise<LoopOutcome<TClient>> {
   switch (decision.kind) {
     case 'reuse': {
-      emitOwnerDiagnostic({
+      deps.emitOwnerDiagnostic({
         kind: 'reuse',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
         canonicalVault: ctx.canonicalVault,
-        nowMs: Date.now(),
+        nowMs: deps.now(),
         pid: decision.pid,
         port: decision.port,
         ownerNonce: decision.ownerNonce,
@@ -226,40 +183,41 @@ async function handleDecision(
           decision.port,
           decision.pid,
           decision.ownerNonce,
+          deps,
         ),
       }
     }
     case 'wait': {
-      emitOwnerDiagnostic({
+      deps.emitOwnerDiagnostic({
         kind: 'wait',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
         canonicalVault: ctx.canonicalVault,
-        nowMs: Date.now(),
+        nowMs: deps.now(),
         reason: decision.reason,
         recordedPid: decision.recordedPid,
         recordedPort: decision.recordedPort,
       })
-      return waitAndContinue(ctx, backoff)
+      return waitAndContinue(ctx, backoff, deps)
     }
     case 'claim': {
-      emitOwnerDiagnostic({
+      deps.emitOwnerDiagnostic({
         kind: 'claim-attempt',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
         canonicalVault: ctx.canonicalVault,
-        nowMs: Date.now(),
+        nowMs: deps.now(),
         reason: 'no-owner',
       })
-      const spawnResult = await attemptSpawnAndWait<VtDaemonClient>(
+      const spawnResult = await deps.attemptSpawnAndWait<TClient>(
         ctx.canonicalVault,
         ctx.caller,
         ctx.attemptId,
         {
           bin: ctx.options.bin,
           daemonKind: 'vtd',
-          clientFor: (port) => vtClientFor(port, ctx.canonicalVault),
-          resolveCommand,
+          clientFor: (port) => deps.clientFor(port, ctx.canonicalVault),
+          resolveCommand: deps.resolveCommand,
           initialBackoffMs: ctx.initialBackoffMs,
           maxBackoffMs: ctx.maxBackoffMs,
         },
@@ -268,12 +226,12 @@ async function handleDecision(
         ctx.spawnCooldownMs,
       )
       if (spawnResult !== null) {
-        emitOwnerDiagnostic({
+        deps.emitOwnerDiagnostic({
           kind: 'acquired',
           attemptId: ctx.attemptId,
           callerKind: ctx.caller,
           canonicalVault: ctx.canonicalVault,
-          nowMs: Date.now(),
+          nowMs: deps.now(),
           pid: spawnResult.pid,
           port: spawnResult.port,
           ownerNonce: spawnResult.ownerNonce,
@@ -292,24 +250,24 @@ async function handleDecision(
       }
       // Lost the spawn lock or another caller's claim raced ahead; loop
       // back to discovery and reuse/wait on their owner.
-      return waitAndContinue(ctx, backoff)
+      return waitAndContinue(ctx, backoff, deps)
     }
     case 'stale-reclaim': {
-      emitOwnerDiagnostic({
+      deps.emitOwnerDiagnostic({
         kind: 'claim-attempt',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
         canonicalVault: ctx.canonicalVault,
-        nowMs: Date.now(),
+        nowMs: deps.now(),
         reason: 'stale-reclaim',
       })
-      await reclaimStaleOwner(ctx.canonicalVault, 'vtd', decision.staleRecord)
-      emitOwnerDiagnostic({
+      await deps.reclaimStaleOwner(ctx.canonicalVault, 'vtd', decision.staleRecord)
+      deps.emitOwnerDiagnostic({
         kind: 'stale-reclaimed',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
         canonicalVault: ctx.canonicalVault,
-        nowMs: Date.now(),
+        nowMs: deps.now(),
         reason: decision.reason,
         recordedPid: decision.staleRecord.pid,
       })
@@ -322,12 +280,12 @@ async function handleDecision(
         decision.reason,
       )
     case 'cooldown-suppressed': {
-      emitOwnerDiagnostic({
+      deps.emitOwnerDiagnostic({
         kind: 'cooldown-suppressed',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
         canonicalVault: ctx.canonicalVault,
-        nowMs: Date.now(),
+        nowMs: deps.now(),
         untilMs: decision.untilMs,
         reason: decision.reason,
       })
@@ -340,11 +298,12 @@ async function handleDecision(
   }
 }
 
-async function waitAndContinue(
+async function waitAndContinue<TClient extends EnsureVtDaemonClient>(
   ctx: EnsureContext,
   backoff: number,
-): Promise<LoopOutcome> {
-  await sleep(boundedDelay(backoff, ctx.deadlineMs))
+  deps: EnsureVtDaemonDeps<TClient>,
+): Promise<LoopOutcome<TClient>> {
+  await deps.sleep(boundedDelay(backoff, ctx.deadlineMs))
   return {
     kind: 'continue',
     nextBackoff: nextBackoff(backoff, ctx.maxBackoffMs),
@@ -356,8 +315,8 @@ async function waitAndContinue(
  * Distinguishes "we were waiting on an in-flight owner" (record on disk)
  * from "we never even got a record" (no owner ever materialised).
  */
-async function timeoutError(canonicalVault: string): Promise<Error> {
-  const finalRecord = await readOwnerRecord(canonicalVault, 'vtd')
+async function timeoutError(canonicalVault: string, deps: EnsureVtDaemonDeps): Promise<Error> {
+  const finalRecord = await deps.readOwnerRecord(canonicalVault, 'vtd')
   if (finalRecord !== null) {
     return new OwnerWaitTimeoutError(canonicalVault, finalRecord.pid)
   }
@@ -366,13 +325,14 @@ async function timeoutError(canonicalVault: string): Promise<Error> {
   )
 }
 
-function finaliseReuse(
+function finaliseReuse<TClient extends EnsureVtDaemonClient>(
   canonicalVault: string,
   port: number,
   pid: number,
   ownerNonce: string,
-): EnsureVtDaemonResult {
-  const client = vtClientFor(port, canonicalVault)
+  deps: EnsureVtDaemonDeps<TClient>,
+): EnsureVtDaemonResult<TClient> {
+  const client = deps.clientFor(port, canonicalVault)
   return {
     client,
     port,

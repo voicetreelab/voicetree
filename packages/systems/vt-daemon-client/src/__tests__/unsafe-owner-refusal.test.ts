@@ -36,7 +36,7 @@ import { createServer, type Server } from 'node:http'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { UnsafeOwnerError } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from '../index.ts'
+import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
 import {
   FAKE_BIN,
   FAKE_BIN_COMMAND,

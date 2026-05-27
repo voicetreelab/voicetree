@@ -37,7 +37,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import {
   ownerRecordFile,
 } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from '../index.ts'
+import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
 import {
   FAKE_BIN_COMMAND,
   countDaemonProcessesForVault,
@@ -256,4 +256,3 @@ function listGraphdPidsForVault(vault: string): number[] {
   }
   return pids
 }
-
