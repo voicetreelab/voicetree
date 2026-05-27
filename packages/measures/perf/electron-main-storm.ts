@@ -55,8 +55,7 @@ import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
-import { setAppSupportPath } from '@vt/vt-daemon/state/app-support.ts'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import {
@@ -100,10 +99,9 @@ async function runStorm(args: {
     const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
     const tsxImportPath = resolveTsxImportPath()
 
-    // Bind this process's appSupportPath cell before any in-process agent-runtime
-    // tool runs. vt-daemon's `state/app-support.ts` is the canonical store
-    // (see DI-eliminate refactor); `loadSettings()` calls reach for it.
-    setAppSupportPath(args.appSupport)
+    // Set VOICETREE_APP_SUPPORT so every leaf in this process resolves the
+    // perf-test app-support dir via resolveAppSupportPath().
+    process.env.VOICETREE_APP_SUPPORT = args.appSupport
 
     configureAgentRuntime({
         env: {},

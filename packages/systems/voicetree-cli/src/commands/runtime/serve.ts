@@ -33,7 +33,7 @@ import {
 } from '@vt/vt-daemon-client'
 import {error} from '../output'
 import {emitInvocationStart} from '../telemetry/recordCliInvocation'
-import {resolveAppSupportPath} from '../util/appSupportPath'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 
 type ServeArgs = {
     readonly vault: string

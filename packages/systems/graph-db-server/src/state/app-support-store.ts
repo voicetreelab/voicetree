@@ -1,27 +1,15 @@
-// Per-process appSupportPath cell for vt-graphd. Set once at boot by
-// startDaemon.ts after resolveDaemonAppSupportPath; read by every leaf
-// that touches @vt/app-config (loadSettings, loadConfig, project-store).
-//
-// Replaces @vt/graph-model's deleted `_config` cell. Lifting the cell
-// into a process-local module makes the boot-time dependency explicit
-// and prevents the dual-state failure mode (one cell per process, no
-// cross-process aliasing possible).
-
-let appSupportPath: string | undefined
+// Compatibility shim. The per-process appSupportPath cell that used to
+// live here has been removed — every caller resolves the path on demand
+// from $VOICETREE_APP_SUPPORT via @vt/app-config/app-support-path.
+// New callers should import resolveAppSupportPath directly; these
+// re-exports keep getAppSupportPath / setAppSupportPath working until the
+// last existing call site migrates.
+export {resolveAppSupportPath as getAppSupportPath} from '@vt/app-config/app-support-path'
 
 export function setAppSupportPath(path: string): void {
-    appSupportPath = path
-}
-
-export function getAppSupportPath(): string {
-    if (appSupportPath === undefined) {
-        throw new Error(
-            'vt-graphd appSupportPath not set. Call setAppSupportPath() at boot before any RPC handler runs.',
-        )
-    }
-    return appSupportPath
+    process.env.VOICETREE_APP_SUPPORT = path
 }
 
 export function clearAppSupportPathForTest(): void {
-    appSupportPath = undefined
+    delete process.env.VOICETREE_APP_SUPPORT
 }

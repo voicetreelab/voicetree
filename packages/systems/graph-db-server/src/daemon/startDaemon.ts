@@ -44,7 +44,6 @@ import {
   getFolderTreeReadModel,
   resetFolderTreeReadModel,
 } from '../state/folder-tree-read-model-store.ts'
-import { setAppSupportPath } from '../state/app-support-store.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -116,8 +115,11 @@ async function startOwnedDaemon(
     resetVaultLifecycle()
     resetFolderTreeReadModel()
     installFolderTreeReadModel(opts.folderTreeScanner)
-    const daemonAppSupportPath: string = resolveDaemonAppSupportPath(opts)
-    setAppSupportPath(daemonAppSupportPath)
+    // Normalize VOICETREE_APP_SUPPORT so every leaf in this process reads
+    // the same resolved path via resolveAppSupportPath(). Tests pass an
+    // explicit opts.appSupportPath; production reads from the env var that
+    // the launching CLI/Electron set.
+    process.env.VOICETREE_APP_SUPPORT = resolveDaemonAppSupportPath(opts)
     initDaemonGraphModel()
 
     const startMs = clock()

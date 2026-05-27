@@ -15,7 +15,6 @@ import {
     createEmptyGraph,
 } from '@vt/graph-model'
 import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
-import {setAppSupportPath} from '@vt/graph-db-server/state/app-support-store'
 import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
 import {main} from '../../../voicetree-cli.ts'
@@ -140,7 +139,7 @@ describe('graph daemon migration', () => {
         stdoutIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
         setStdoutIsTTY(true)
 
-        setAppSupportPath(harness.appSupportPath)
+        process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
         clearWatchFolderState()
         setGraph(createEmptyGraph())
 

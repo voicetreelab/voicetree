@@ -21,7 +21,6 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {recordTerminalSpawn} from '../src/terminals/terminal-registry/spawn.ts'
 import {clearTerminalRecords} from '../src/terminals/terminal-registry/queries.ts'
 import {clearAllBudgets, setTerminalBudget} from '../src/terminals/global-budget-registry.ts'
@@ -102,7 +101,7 @@ function recordCaller(envVars?: Record<string, string>): void {
 }
 
 beforeAll(() => {
-    setAppSupportPath(TMP_ROOT)
+    process.env.VOICETREE_APP_SUPPORT = TMP_ROOT
 })
 
 describe('spawnAgentTool real-deps integration', () => {
@@ -112,7 +111,7 @@ describe('spawnAgentTool real-deps integration', () => {
     beforeEach(async () => {
         testTmpDir = path.join(TMP_ROOT, `t-${Date.now()}-${Math.random().toString(36).slice(2)}`)
         await fs.mkdir(testTmpDir, {recursive: true})
-        setAppSupportPath(testTmpDir)
+        process.env.VOICETREE_APP_SUPPORT = testTmpDir
 
         clearSettingsCache()
         clearTerminalRecords()

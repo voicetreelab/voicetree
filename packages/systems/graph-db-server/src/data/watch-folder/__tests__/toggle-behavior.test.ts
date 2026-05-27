@@ -73,7 +73,6 @@ import {
     createDatedVoiceTreeFolder,
 } from '../../../state/vaultAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
-import { setAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 
 // ── Bug 1: removeReadPath toggle — broadcast must complete before return ─
@@ -92,7 +91,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         syncVaultStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        setAppSupportPath(appSupportDir)
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
         initGraphModel({
             syncVaultState: syncVaultStateSpy,
             syncFolderTree: syncFolderTreeSpy,
@@ -215,7 +214,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolder should also complete 
         syncVaultStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        setAppSupportPath(appSupportDir)
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
         initGraphModel({
             syncVaultState: syncVaultStateSpy,
             syncFolderTree: syncFolderTreeSpy,
@@ -304,7 +303,7 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
 
         syncFolderTreeSpy = vi.fn()
 
-        setAppSupportPath(appSupportDir)
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
         initGraphModel({
             syncVaultState: vi.fn(),
             syncFolderTree: syncFolderTreeSpy,
@@ -371,7 +370,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
 
         syncVaultStateSpy = vi.fn()
 
-        setAppSupportPath(appSupportDir)
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
         initGraphModel({
             syncVaultState: syncVaultStateSpy,
             syncFolderTree: vi.fn(),

@@ -2,7 +2,7 @@ import type { Graph, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/graph'
 import { getSubgraphByDistance } from '@vt/graph-model/graph'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
-import { getAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import { type VTSettings } from '@vt/graph-model/settings'
 
 /**
@@ -24,7 +24,7 @@ export async function getPreviewContainedNodeIds(
         return []
     }
 
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings(resolveAppSupportPath())
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,
         nodeId,

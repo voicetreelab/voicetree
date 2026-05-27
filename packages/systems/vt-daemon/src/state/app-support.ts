@@ -1,28 +1,15 @@
-// Per-process appSupportPath cell. vt-daemon's bin/vtd.ts is the sole
-// production writer (boot-time, before any tool handler runs). Tests set
-// the value before exercising any code path that calls loadSettings /
-// loadProjects / loadConfig.
-//
-// Replaces @vt/graph-model's deleted `_config` cell, which was a hidden
-// per-process singleton invisible to the import graph. Lifting it into a
-// process-local module makes the boot-time dependency explicit and
-// localises it to the process that actually needs it.
-
-let appSupportPath: string | undefined
+// Compatibility shim. The per-process appSupportPath cell that used to
+// live here has been removed — every caller resolves the path on demand
+// from $VOICETREE_APP_SUPPORT via @vt/app-config/app-support-path.
+// New callers should import resolveAppSupportPath directly; these
+// re-exports keep getAppSupportPath / setAppSupportPath working until the
+// last existing call site migrates.
+export {resolveAppSupportPath as getAppSupportPath} from '@vt/app-config/app-support-path'
 
 export function setAppSupportPath(path: string): void {
-    appSupportPath = path
-}
-
-export function getAppSupportPath(): string {
-    if (appSupportPath === undefined) {
-        throw new Error(
-            'vt-daemon appSupportPath not set. Call setAppSupportPath() at boot before any tool handler runs.',
-        )
-    }
-    return appSupportPath
+    process.env.VOICETREE_APP_SUPPORT = path
 }
 
 export function clearAppSupportPathForTest(): void {
-    appSupportPath = undefined
+    delete process.env.VOICETREE_APP_SUPPORT
 }

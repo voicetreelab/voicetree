@@ -1,13 +1,9 @@
 import {homedir} from 'node:os'
 import {join} from 'node:path'
 
-/**
- * Resolve the platform-default Voicetree application-support directory used
- * as the fallback for `$VOICETREE_APP_SUPPORT`. Extracted out of `serve.ts`
- * so both `runServeCommand` and the telemetry sink installer can share a
- * single source of truth for this path.
- */
-export function defaultAppSupportPath(): string {
+// Platform-default Voicetree application-support directory. Used as the
+// fallback when $VOICETREE_APP_SUPPORT is unset.
+function defaultAppSupportPath(): string {
     if (process.platform === 'darwin') {
         return join(homedir(), 'Library', 'Application Support', 'Voicetree')
     }
@@ -25,6 +21,10 @@ export function defaultAppSupportPath(): string {
     )
 }
 
+// Resolve the per-process Voicetree application-support directory. Reads
+// $VOICETREE_APP_SUPPORT on every call so there is no module-level cache —
+// the env var is the single source of truth, set once at boot by the
+// launching process (CLI / Electron) and inherited by all children.
 export function resolveAppSupportPath(): string {
     return process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
 }

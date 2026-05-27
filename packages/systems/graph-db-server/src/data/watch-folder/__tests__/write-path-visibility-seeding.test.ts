@@ -64,7 +64,6 @@ import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setActiveViewFolderState } from '../folder-visibility-active-view'
 import { setWriteFolder, getReadPaths } from '../../../state/vaultAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
-import { setAppSupportPath } from '../../../state/app-support-store'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 import { getFolderStateForActiveView } from '../../views/folderStateOps'
 
@@ -77,7 +76,7 @@ describe('write path folder visibility seeding', () => {
         appSupportDir = path.join(testTmpDir, 'app-support')
         await fs.mkdir(appSupportDir, { recursive: true })
 
-        setAppSupportPath(appSupportDir)
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
         initGraphModel({
             syncVaultState: vi.fn(),
             syncFolderTree: vi.fn(),

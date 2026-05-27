@@ -2,7 +2,7 @@ import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-mo
 import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder} from '@vt/graph-model/graph'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
-import { getAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {type VTSettings} from '@vt/graph-model/settings'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {fromCreateChildToUpsertNode} from '@vt/graph-model/graph'
@@ -46,7 +46,7 @@ export async function createContextNodeFromQuestion(
     dependencies: CreateContextNodeFromQuestionDependencies = defaultCreateContextNodeFromQuestionDependencies
 ): Promise<NodeIdAndFilePath> {
     const currentGraph: Graph = getGraph()
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings(resolveAppSupportPath())
     const maxDistance: number = settings.askModeContextDistance
 
     const validNodeIds: readonly NodeIdAndFilePath[] = [...new Set([

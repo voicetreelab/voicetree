@@ -3,7 +3,7 @@ import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBid
 import {getNodeTitle, parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
-import { getAppSupportPath } from '@vt/graph-db-server/state/app-support-store'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import {type VTSettings} from '@vt/graph-model/settings'
@@ -87,7 +87,7 @@ export async function createContextNode(
     )
 
     // 2. PURE: Extract subgraph within distance
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings(resolveAppSupportPath())
     const maxDistance: number = settings.contextNodeMaxDistance
 
     const parentNode: GraphNode = currentGraph.nodes[resolvedParentNodeId]

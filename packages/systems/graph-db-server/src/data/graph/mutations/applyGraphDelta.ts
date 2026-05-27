@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, rebaseStaleEdgeAdditionDeltas, type Env, type Graph, type GraphDelta} from '@vt/graph-model/graph'
 import {resolveInitialPositionsForDelta} from '@vt/graph-model/spatial'
-import {savePositionsSync} from '@vt/app-config/positions'
+import {savePositionsSync} from '../positions-io'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
@@ -11,7 +11,7 @@ import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
 import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
 import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
-import { getAppSupportPath } from "@vt/graph-db-server/state/app-support-store";
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {getCallbacks} from '@vt/graph-model'
 import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultNotOpen'
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
@@ -62,7 +62,7 @@ function commitGraphDeltaMemState(prepared: PreparedMemState): GraphDelta {
     // Fire onNewNode hook (fire-and-forget). Runs for both UI and FS-event paths.
     // dispatchOnNewNodeHooks filters for UpsertNode with previousNode=None, so
     // delete-only deltas (e.g. removeReadPath) are no-ops.
-    void loadSettings(getAppSupportPath()).then(settings => {
+    void loadSettings(resolveAppSupportPath()).then(settings => {
         const hookPath: string | undefined = settings.hooks?.onNewNode
         if (hookPath && !hookPath.startsWith('#')) {
             const callbacks = getCallbacks()

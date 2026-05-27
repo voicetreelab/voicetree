@@ -50,12 +50,10 @@ export interface GraphModelCallbacks {
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 
-// Module-level callbacks. The appSupportPath cell that previously lived here
-// has moved out to per-process state modules so the boot-time dependency is
-// visible in the import graph (see Eli's BF-377 / DI-eliminate refactor:
-// `packages/systems/vt-daemon/src/state/app-support.ts`,
-// `packages/systems/graph-db-server/src/state/app-support-store.ts`,
-// `webapp/src/shell/edge/main/runtime/state/app-electron-state.ts`).
+// Module-level callbacks. The appSupportPath that previously lived here is
+// now resolved per-call from $VOICETREE_APP_SUPPORT via
+// @vt/app-config/app-support-path (see resolveAppSupportPath); each
+// launching process normalises the env var at boot.
 let _callbacks: GraphModelCallbacks = {}
 
 export function initGraphModel(callbacks?: GraphModelCallbacks): void {

@@ -17,7 +17,6 @@ import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-mo
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {
     clearTerminalRecords,
     createTerminalData,
@@ -183,7 +182,7 @@ export async function setupRealDeps(options?: {
     callerOptions?: Parameters<typeof recordCaller>[0]
 }): Promise<{appSupport: string; state: BridgeState; bridge: GraphBridge}> {
     const appSupport: string = await makeTempAppSupport()
-    setAppSupportPath(appSupport)
+    process.env.VOICETREE_APP_SUPPORT = appSupport
     clearSettingsCache()
     await writeSettings(appSupport, {
         ...DEFAULT_SETTINGS,

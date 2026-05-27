@@ -23,7 +23,7 @@ import {
     saveLastDirectory,
     saveVaultConfigForDirectory,
 } from "@vt/app-config/vault-config";
-import { getAppSupportPath } from "@vt/graph-db-server/state/app-support-store";
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
     resolveAllowlistForProject,
     loadAndMergeVaultPath,
@@ -40,7 +40,7 @@ import { broadcastVaultState } from "@vt/graph-db-server/watch-folder/broadcast/
 import {
     loadPositions,
     savePositionsSync,
-} from "@vt/app-config/positions";
+} from "@vt/graph-db-server/graph/positions-io";
 import {
     decideVaultConfig,
     type WatchFolderConfig,
@@ -109,7 +109,7 @@ export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise
         return;
     }
 
-    const lastDirectory: O.Option<string> = await getLastDirectory(getAppSupportPath());
+    const lastDirectory: O.Option<string> = await getLastDirectory(resolveAppSupportPath());
     if (getProjectRoot() !== null) return;
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value, options);
@@ -139,7 +139,7 @@ async function resolveOrCreateConfig(
 
     const plan = decideVaultConfig(null, subfolderPath, allowlist);
     if (plan.shouldPersist) {
-        await saveVaultConfigForDirectory(getAppSupportPath(), watchedFolderPath, { writeFolder: plan.config.writeFolder });
+        await saveVaultConfigForDirectory(resolveAppSupportPath(), watchedFolderPath, { writeFolder: plan.config.writeFolder });
     }
     return plan.config;
 }
@@ -317,7 +317,7 @@ async function mountWatcherAndFinalize(
         await setupStateChangeSubscriptions(watchedFolderPath);
     }
 
-    await saveLastDirectory(getAppSupportPath(), watchedFolderPath);
+    await saveLastDirectory(resolveAppSupportPath(), watchedFolderPath);
 
     env.callbacks().onWatchingStarted?.(buildWatchingStartedPayload(
         getWatchingStartedDirectory(watchedFolderPath),
@@ -363,7 +363,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
         `Previous workspace has ${fileLimitDetails.fileCount} markdown files (limit: ${fileLimitDetails.maxFiles}).\n\nCreated new workspace:\n${newSubfolderPath}`
     );
 
-    await saveVaultConfigForDirectory(getAppSupportPath(), watchedFolderPath, {
+    await saveVaultConfigForDirectory(resolveAppSupportPath(), watchedFolderPath, {
         writeFolder: newSubfolderPath,
     });
 
@@ -380,7 +380,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
         await setupWatcher(newAllowlist, watchedFolderPath, watcherOptions);
     }
 
-    await saveLastDirectory(getAppSupportPath(), watchedFolderPath);
+    await saveLastDirectory(resolveAppSupportPath(), watchedFolderPath);
 
     env.callbacks().onWatchingStarted?.(buildWatchingStartedPayload(
         getProjectRoot() ?? watchedFolderPath,

@@ -64,12 +64,11 @@ import {
     writeRpcPortFile,
 } from '@vt/vt-rpc'
 import { terminalRuntimeSurface as agentRuntime, configureAgentRuntime } from "@vt/vt-daemon"
-import { setAppSupportPath } from '@vt/vt-daemon/state/app-support.ts'
 import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { GraphDbClient } from '@vt/graph-db-client'
 import {
     applyGraphDeltaToGraph,
@@ -156,7 +155,7 @@ async function main(): Promise<void> {
     const graphdOffset = ndjsonFileSize(graphdNdjson)
     const electronOffset = ndjsonFileSize(electronNdjson)
 
-    setAppSupportPath(tempAppSupport)
+    process.env.VOICETREE_APP_SUPPORT = tempAppSupport
     configureAgentRuntime({
         env: {},
     })

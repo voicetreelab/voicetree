@@ -18,7 +18,7 @@ import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {type McpToolResponse, buildJsonResponse} from '../tools/toolResponse'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 import {
     type ValidationResult,
     ALL_RULES,
@@ -27,7 +27,7 @@ import {
     formatViolationError,
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
-import {registerAgentNodes} from '../agents/completion/agentNodeIndex.ts'
+import {registerAgentNodes} from '../agent-runtime/completion/agentNodeIndex.ts'
 import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolder} from '../config/graphBridge.ts'
 import type {GraphBridge} from '../config/mcpBridges.ts'
 import {
@@ -180,7 +180,7 @@ async function validateOverridableRules(
 ): Promise<string | null> {
     const callerTaskNodeId: NodeIdAndFilePath | null =
         O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
-    const settings: VTSettings = await loadSettings(getAppSupportPath())
+    const settings: VTSettings = await loadSettings(resolveAppSupportPath())
     const validationResult: ValidationResult = runValidations(ALL_RULES, {
         nodes,
         resolvedParentNodeId,
