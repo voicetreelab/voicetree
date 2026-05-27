@@ -30,6 +30,19 @@ export const test = base.extend<{
       }
     }, null, 2), 'utf8');
 
+    // Pre-seed settings.json with the grep-probe agent registered so the
+    // daemon-side `resolveAgentCommand` accepts the spec's spawn command at
+    // first boot. A renderer-side `saveSettings` from the spec cannot reach
+    // the daemon's in-process settings cache (5 s TTL, separate process),
+    // so the agent registration must be on-disk before the daemon loads.
+    const settingsPath = path.join(tempUserDataPath, 'settings.json');
+    const grepAgentCommand = 'grep -o "SECRET_E2E_NEEDLE: [^ ]*" "$CONTEXT_NODE_PATH" | head -1';
+    await fs.writeFile(settingsPath, JSON.stringify({
+      agents: [{ name: 'E2E Context Probe', command: grepAgentCommand }],
+      defaultAgent: 'E2E Context Probe',
+      terminalSpawnPathRelativeToWatchedDirectory: '../',
+    }, null, 2), 'utf8');
+
     const ciFlags = process.env.CI
       ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
       : [];
