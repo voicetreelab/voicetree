@@ -24,7 +24,7 @@ import {
     type TerminalData,
     type TerminalId,
     type TerminalRecord,
-} from '@vt/agent-runtime'
+} from "@vt/vt-daemon"
 import {
     clearAgentNodes,
     getAgentNodes,

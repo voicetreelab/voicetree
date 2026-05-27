@@ -65,7 +65,7 @@ import {
     type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon'
-import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
+import {terminalRuntimeSurface as agentRuntime, configureAgentRuntime} from "@vt/vt-daemon"
 import {resolveVtBinDir} from '@vt/vt-daemon/spawn/vtPathInjection.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {

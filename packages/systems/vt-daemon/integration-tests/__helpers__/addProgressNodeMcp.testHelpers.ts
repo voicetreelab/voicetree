@@ -24,7 +24,7 @@ import {
     recordTerminalSpawn,
     type TerminalData,
     type TerminalId,
-} from '@vt/agent-runtime'
+} from "@vt/vt-daemon"
 import {configureMcpServer} from '@vt/vt-daemon'
 
 export type McpToolResponse = {

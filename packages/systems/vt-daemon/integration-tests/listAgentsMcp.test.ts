@@ -23,14 +23,13 @@ import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {
     clearPendingTerminal,
     clearTerminalRecords,
-    createTerminalData,
     markTerminalExited,
     recordTerminalPending,
     recordTerminalSpawn,
     updateTerminalIsDone,
-    type TerminalData,
-    type TerminalId,
-} from '@vt/agent-runtime'
+} from '@vt/vt-daemon/terminals/terminal-registry'
+import {createTerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import {configureMcpServer, listAgentsTool} from '@vt/vt-daemon'
 
 type McpToolResponse = {

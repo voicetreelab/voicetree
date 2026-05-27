@@ -50,7 +50,7 @@ import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
-import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
+import { terminalRuntimeSurface as agentRuntime, configureAgentRuntime } from "@vt/vt-daemon"
 import {
     createTerminalData,
     type TerminalData,

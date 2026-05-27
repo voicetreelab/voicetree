@@ -1,4 +1,3 @@
-import {agentRuntime} from '@vt/agent-runtime'
 import {resolveVtBinDir} from '@vt/vt-daemon/spawn/vtPathInjection.ts'
 import {
     closeHeadlessAgent,
@@ -12,53 +11,96 @@ import {sendTextToTerminal} from '@vt/vt-daemon/agents/inject/send-text-to-termi
 import {discoverRecoverableAgentSessions} from '@vt/vt-daemon/agents/recovery/discovery.ts'
 import {resumePersistedAgentSession} from '@vt/vt-daemon/agents/recovery/resumePersistedAgentSession.ts'
 import {forkAgentSession} from '@vt/vt-daemon/agents/recovery/forkAgentSession.ts'
+import {
+    attachUnclaimedTmuxSession,
+    killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions,
+} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {ensureTmuxAvailable} from '@vt/vt-daemon/terminals/tmux/tmux-preflight.ts'
+import {ensureTmuxServer, shutdownTmuxServer} from '@vt/vt-daemon/terminals/tmux/tmux-server.ts'
+import {
+    enqueuePendingMessage,
+    getExistingAgentNames,
+    getIdleSince,
+    getPendingTerminal,
+    getPendingTerminals,
+    getTerminalRecords,
+    removeTerminalFromRegistry,
+    resetAuditRetryCount,
+    subscribeToRegistry,
+    updateTerminalActivityState,
+    updateTerminalAgentEvent,
+    updateTerminalIsDone,
+    updateTerminalMinimized,
+    updateTerminalPinned,
+} from '@vt/vt-daemon/terminals/terminal-registry'
+import {getTerminalManager} from '@vt/vt-daemon/terminals/manager/terminal-manager-instance.ts'
+import {installJsonlTelemetrySink} from '@vt/vt-daemon/agent-lifecycle/tierTelemetryJsonlSink.ts'
+import {registerChild, tryConsumeAndSplitBudget} from '@vt/vt-daemon/terminals/global-budget-registry.ts'
+import {getOutput} from '@vt/vt-daemon/terminals/terminal-output-buffer.ts'
+import {getTierTelemetrySnapshot} from '@vt/vt-daemon/agent-lifecycle/tierTelemetry.ts'
+import {shouldFlipToActiveOnOutput} from '@vt/vt-daemon/agent-lifecycle/output-transition.ts'
+import {runStopHooks} from '@vt/vt-daemon/agents/hooks/stopGateHookRunner.ts'
+import {getRuntimeEnv} from '@vt/vt-daemon/runtime/runtime-config.ts'
+import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/vt-daemon/spawn/spawnPlainTerminal.ts'
+import {spawnTerminalWithContextNode} from '@vt/vt-daemon/spawn/spawnTerminalWithContextNode.ts'
 
-export type {TerminalRecord, TerminalSpawnResult} from '@vt/agent-runtime'
-export type TerminalManager = ReturnType<typeof agentRuntime.getTerminalManager>
-export type AgentRuntimeConfig = Parameters<typeof agentRuntime.configureAgentRuntime>[0]
+export type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
+export type {TerminalSpawnResult} from '@vt/vt-daemon-protocol'
+export type TerminalManager = ReturnType<typeof getTerminalManager>
+export type AgentRuntimeConfig = Parameters<typeof configureAgentRuntime>[0]
 
 const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
 
-// Daemon-owned surface mixing the agent-runtime facade (slice A/B: terminals,
-// spawn, runtime, lifecycle) with locally-absorbed slice-C primitives
-// (completion/recovery/headless/hooks/inject). The webapp (Electron main) and
-// any other non-launcher shell must reach the agent runtime via this surface
-// so terminal/agent operations all funnel through the daemon-owned package.
-// Only daemon launchers (the vtd binary, vt serve, and the FS-watcher bridge) may
-// import @vt/agent-runtime directly — see the boundary test in
-// packages/measures/src/health/coupling/system-package-coupling.test.ts.
+// Daemon-owned surface aggregating the absorbed agent-runtime primitives.
+// Slices A/B/C all live inside @vt/vt-daemon now; this is the single in-tree
+// entry point that the daemon's own RPC routes, tools, and bin/vtd consume.
+// External shells (webapp, perf measures, e2e tests) also reach the runtime
+// via this surface, re-exported from @vt/vt-daemon's main barrel.
 export const terminalRuntimeSurface = {
-    attachUnclaimedTmuxSession: agentRuntime.attachUnclaimedTmuxSession,
+    attachUnclaimedTmuxSession,
     closeHeadlessAgent,
-    configureAgentRuntime: agentRuntime.configureAgentRuntime,
+    configureAgentRuntime,
     dispatchOnNewNodeHooks,
-    ensureTmuxAvailable: agentRuntime.ensureTmuxAvailable,
-    ensureTmuxServer: agentRuntime.ensureTmuxServer,
-    getExistingAgentNames: agentRuntime.getExistingAgentNames,
+    enqueuePendingMessage,
+    ensureTmuxAvailable,
+    ensureTmuxServer,
+    getExistingAgentNames,
     getHeadlessAgentOutput,
-    getTerminalManager: agentRuntime.getTerminalManager,
-    getTerminalRecords: agentRuntime.getTerminalRecords,
+    getIdleSince,
+    getOutput,
+    getPendingTerminal,
+    getPendingTerminals,
+    getRuntimeEnv,
+    getTerminalManager,
+    getTerminalRecords,
+    getTierTelemetrySnapshot,
     getUnseenNodesForTerminal,
     injectNodesIntoTerminal,
-    installJsonlTelemetrySink: agentRuntime.installJsonlTelemetrySink,
-    killUnclaimedTmuxSession: agentRuntime.killUnclaimedTmuxSession,
-    listUnclaimedTmuxSessions: agentRuntime.listUnclaimedTmuxSessions,
+    installJsonlTelemetrySink,
+    killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions,
     discoverRecoverableAgentSessions,
     resumePersistedAgentSession,
     forkAgentSession,
     reconcileTmuxHeadlessAgents,
-    removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
-    resetAuditRetryCount: agentRuntime.resetAuditRetryCount,
+    registerChild,
+    removeTerminalFromRegistry,
+    resetAuditRetryCount,
     resolveVtBinDir,
+    runStopHooks,
     sendTextToTerminal,
-    shutdownTmuxServer: agentRuntime.shutdownTmuxServer,
-    spawnPlainTerminal: agentRuntime.spawnPlainTerminal,
-    spawnPlainTerminalWithNode: agentRuntime.spawnPlainTerminalWithNode,
-    spawnTerminalWithContextNode: agentRuntime.spawnTerminalWithContextNode,
-    subscribeToRegistry: agentRuntime.subscribeToRegistry,
-    updateTerminalActivityState: agentRuntime.updateTerminalActivityState,
-    updateTerminalAgentEvent: agentRuntime.updateTerminalAgentEvent,
-    updateTerminalIsDone: agentRuntime.updateTerminalIsDone,
-    updateTerminalMinimized: agentRuntime.updateTerminalMinimized,
-    updateTerminalPinned: agentRuntime.updateTerminalPinned,
+    shouldFlipToActiveOnOutput,
+    shutdownTmuxServer,
+    spawnPlainTerminal,
+    spawnPlainTerminalWithNode,
+    spawnTerminalWithContextNode,
+    subscribeToRegistry,
+    tryConsumeAndSplitBudget,
+    updateTerminalActivityState,
+    updateTerminalAgentEvent,
+    updateTerminalIsDone,
+    updateTerminalMinimized,
+    updateTerminalPinned,
 }

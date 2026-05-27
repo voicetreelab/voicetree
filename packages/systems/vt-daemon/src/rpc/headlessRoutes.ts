@@ -2,7 +2,7 @@
 
 import {z} from 'zod'
 
-import type {TerminalId} from '@vt/agent-runtime'
+import type {TerminalId} from "@vt/vt-daemon/terminals/terminal-registry/types.ts"
 import {closeHeadlessAgent, getHeadlessAgentOutput} from '../agents/headless/headlessAgentManager.ts'
 import type {
     CloseHeadlessAgent,

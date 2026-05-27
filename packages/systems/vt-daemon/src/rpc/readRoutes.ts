@@ -3,7 +3,7 @@
 
 import {z} from 'zod'
 
-import {agentRuntime} from '@vt/agent-runtime'
+import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/tools/agent-control/terminalRuntimeSurface.ts"
 import {getUnseenNodesForTerminal} from '../agents/inject/get-unseen-nodes-for-terminal.ts'
 import type {
     GetTerminalRecords,

@@ -4,14 +4,10 @@ import {join} from 'node:path'
 import {afterEach, describe, expect, it} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {
-    clearTerminalRecords,
-    configureAgentRuntime,
-    createTerminalData,
-    getTerminalRecords,
-    type TerminalData,
-    type TerminalId,
-} from '@vt/agent-runtime'
+import {clearTerminalRecords, getTerminalRecords} from '@vt/vt-daemon/terminals/terminal-registry'
+import {createTerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'

@@ -63,7 +63,7 @@ import {
     writeAuthTokenFile,
     writeRpcPortFile,
 } from '@vt/vt-rpc'
-import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
+import { terminalRuntimeSurface as agentRuntime, configureAgentRuntime } from "@vt/vt-daemon"
 import {
     createTerminalData,
     type TerminalData,

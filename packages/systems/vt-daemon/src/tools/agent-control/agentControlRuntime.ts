@@ -1,8 +1,6 @@
-import {
-    agentRuntime,
-    type TerminalId,
-    type TerminalRecord,
-} from '@vt/agent-runtime'
+import {terminalRuntimeSurface as agentRuntime} from './terminalRuntimeSurface.ts'
+import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
 import {
     closeHeadlessAgent,
     getHeadlessAgentOutput,

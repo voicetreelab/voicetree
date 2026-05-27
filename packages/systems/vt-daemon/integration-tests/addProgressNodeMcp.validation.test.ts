@@ -9,7 +9,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 import {createGraphTool} from '@vt/vt-daemon'
-import {clearTerminalRecords} from '@vt/agent-runtime'
+import {clearTerminalRecords} from "@vt/vt-daemon"
 import {
     CALLER_TERMINAL_ID,
     WRITE_FOLDER,

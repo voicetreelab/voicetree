@@ -31,7 +31,7 @@ import {
     recordTerminalSpawn,
     type TerminalData,
     type TerminalId,
-} from '@vt/agent-runtime'
+} from "@vt/vt-daemon"
 import {spawnTmuxBackedTerminal} from '../src/agents/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
 import {

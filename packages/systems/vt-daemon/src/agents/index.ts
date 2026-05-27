@@ -115,3 +115,20 @@ export {
     otlpPortFilePath,
     OTLP_PORT_FILENAME,
 } from '../lifecycle/otlpPortFile'
+
+// Re-export agent-runtime API surface that internal vt-daemon RPC routes,
+// the vtd binary, integration tests, and external shells (webapp main,
+// perf measures, e2e tests) consume. Slice D consolidation: @vt/agent-runtime
+// has been retired — all symbols live in @vt/vt-daemon.
+export {
+    clearTerminalRecords,
+    getIdleSince,
+    getTerminalRecords,
+    recordTerminalSpawn,
+    resetAuditRetryCount,
+    updateTerminalIsDone,
+} from '../terminals/terminal-registry'
+export {createTerminalData} from '../terminals/terminal-registry/types'
+export type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+export {configureAgentRuntime} from './runtime/runtime-config'
+export {terminalRuntimeSurface as agentRuntime} from '../tools/agent-control/terminalRuntimeSurface'

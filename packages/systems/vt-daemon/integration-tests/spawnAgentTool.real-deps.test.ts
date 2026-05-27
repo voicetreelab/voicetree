@@ -28,18 +28,16 @@ import {clearAllBudgets, setTerminalBudget} from '../src/terminals/global-budget
 import type {TerminalData, TerminalId} from '../src/terminals/terminal-registry/types.ts'
 import {createTerminalData} from '../src/terminals/terminal-registry/types.ts'
 
-vi.mock('@vt/agent-runtime', async (importOriginal) => {
-    const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+vi.mock('../src/tools/agent-control/agentControlRuntime', async (importOriginal) => {
+    const actual: typeof import('../src/tools/agent-control/agentControlRuntime')
+        = await importOriginal()
     let spawnCounter: number = 0
     return {
         ...actual,
-        agentRuntime: {
-            ...actual.agentRuntime,
-            spawnTerminalWithContextNode: vi.fn().mockImplementation(async () => {
-                spawnCounter += 1
-                return {terminalId: `child-${spawnCounter}`, contextNodeId: `/ctx/child-${spawnCounter}.md`}
-            }),
-        },
+        spawnContextTerminal: vi.fn().mockImplementation(async () => {
+            spawnCounter += 1
+            return {terminalId: `child-${spawnCounter}`, contextNodeId: `/ctx/child-${spawnCounter}.md`}
+        }),
     }
 })
 

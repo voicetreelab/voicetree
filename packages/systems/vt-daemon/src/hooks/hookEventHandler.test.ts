@@ -7,15 +7,10 @@
  */
 
 import {describe, it, expect, beforeEach} from 'vitest'
-import {
-    agentRuntime,
-    clearTerminalRecords,
-    createTerminalData,
-    getTerminalRecords,
-    recordTerminalSpawn,
-    type TerminalData,
-    type TerminalId,
-} from '@vt/agent-runtime'
+import {terminalRuntimeSurface as agentRuntime} from '../tools/agent-control/terminalRuntimeSurface.ts'
+import {clearTerminalRecords, getTerminalRecords, recordTerminalSpawn} from '@vt/vt-daemon/terminals/terminal-registry'
+import {createTerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {handleHookEventRequest, resolveHookEventName} from './hookEventHandler'
 

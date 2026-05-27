@@ -2,7 +2,7 @@
 
 import {z} from 'zod'
 
-import {agentRuntime} from '@vt/agent-runtime'
+import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/tools/agent-control/terminalRuntimeSurface.ts"
 import type {
     AttachUnclaimedTmuxSession,
     ListUnclaimedTmuxSessions,

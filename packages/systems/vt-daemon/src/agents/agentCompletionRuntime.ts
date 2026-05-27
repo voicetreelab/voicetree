@@ -1,7 +1,5 @@
-import {
-    agentRuntime,
-    type TerminalRecord,
-} from '@vt/agent-runtime'
+import {terminalRuntimeSurface as agentRuntime} from '../tools/agent-control/terminalRuntimeSurface.ts'
+import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
 import {getHeadlessAgentOutput} from './headless/headlessAgentManager.ts'
 import {sendTextToTerminal} from './inject/send-text-to-terminal.ts'
 

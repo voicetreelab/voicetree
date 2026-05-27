@@ -9,7 +9,7 @@
 
 import {z} from 'zod'
 
-import type {TerminalId} from '@vt/agent-runtime'
+import type {TerminalId} from "@vt/vt-daemon/terminals/terminal-registry/types.ts"
 import {discoverRecoverableAgentSessions} from '../agents/recovery/discovery.ts'
 import {resumePersistedAgentSession} from '../agents/recovery/resumePersistedAgentSession.ts'
 import {forkAgentSession} from '../agents/recovery/forkAgentSession.ts'

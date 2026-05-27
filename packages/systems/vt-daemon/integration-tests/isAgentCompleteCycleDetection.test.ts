@@ -1,6 +1,6 @@
 /**
  * Pure-function integration test for `isAgentComplete` cycle detection and
- * progress-node gate. The function is exported from `@vt/agent-runtime`;
+ * progress-node gate. The function is exported from "@vt/vt-daemon";
  * tests inject deterministic deps so this needs neither a vt-daemon nor a
  * live registry. Moved out of webapp's MCP integration folder because it
  * doesn't actually exercise the MCP server — it's a leaf test of an
@@ -16,7 +16,7 @@ import {
     type TerminalData,
     type TerminalId,
     type TerminalRecord,
-} from '@vt/agent-runtime'
+} from "@vt/vt-daemon"
 import {
     isAgentComplete,
     type IsAgentCompleteDeps,
