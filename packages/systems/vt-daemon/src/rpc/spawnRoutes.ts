@@ -7,7 +7,7 @@
 
 import {z} from 'zod'
 
-import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/tools/agent-control/terminalRuntimeSurface.ts"
+import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts"
 import type {
     SpawnPlainTerminal as SpawnPlain,
     SpawnPlainTerminalWithNode as SpawnPlainWithNode,
@@ -16,7 +16,7 @@ import type {
 import type {NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
 
 import {voidRoute, type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
 
 const positionShape = z.object({x: z.number(), y: z.number()}).passthrough()
 

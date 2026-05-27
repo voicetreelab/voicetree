@@ -4,26 +4,28 @@
   "private": true,
   "type": "module",
   "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Also ships the standalone vtd binary — a per-vault per-machine daemon that talks to vt-graphd over RPC as a sibling process.",
-  "main": "src/agents/index.ts",
+  "main": "src/agent-runtime/index.ts",
   "bin": {
     "vtd": "bin/vtd.ts"
   },
   "exports": {
-    ".": "./src/agents/index.ts",
+    ".": "./src/agent-runtime/index.ts",
+    "./agent-runtime": "./src/agent-runtime/index.ts",
+    "./agent-runtime/terminals/terminal-registry": "./src/agent-runtime/terminals/terminal-registry/index.ts",
+    "./agent-runtime/lifecycle": "./src/agent-runtime/lifecycle/index.ts",
+    "./agent-runtime/*": "./src/agent-runtime/*",
     "./tools/*": "./src/tools/*",
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",
-    "./agents/*": "./src/agents/*",
     "./config/*": "./src/config/*",
     "./state/*": "./src/state/*",
-    "./terminals/terminal-registry": "./src/terminals/terminal-registry/index.ts",
-    "./terminals/*": "./src/terminals/*",
     "./transport/eventTypes": "./src/transport/eventTypes.ts",
-    "./bin/vtd.ts": "./bin/vtd.ts",
-    "./spawn/*": "./src/agents/spawn/*",
-    "./runtime/*": "./src/agents/runtime/*",
-    "./agent-lifecycle": "./src/agents/lifecycle/index.ts",
-    "./agent-lifecycle/*": "./src/agents/lifecycle/*"
+    "./transport/*": "./src/transport/*",
+    "./observability/*": "./src/observability/*",
+    "./create-graph/*": "./src/create-graph/*",
+    "./hooks/*": "./src/hooks/*",
+    "./lifecycle/*": "./src/lifecycle/*",
+    "./bin/vtd.ts": "./bin/vtd.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

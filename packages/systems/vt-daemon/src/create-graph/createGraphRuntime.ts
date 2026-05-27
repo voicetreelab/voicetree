@@ -1,5 +1,5 @@
-import {terminalRuntimeSurface as agentRuntime} from '../tools/agent-control/terminalRuntimeSurface.ts'
-import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
+import {terminalRuntimeSurface as agentRuntime} from '../agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import type {TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 
 export type {TerminalRecord}
 

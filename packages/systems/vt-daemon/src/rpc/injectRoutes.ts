@@ -2,15 +2,15 @@
 
 import {z} from 'zod'
 
-import {sendTextToTerminal} from '../agents/inject/send-text-to-terminal.ts'
-import {injectNodesIntoTerminal} from '../agents/inject/inject-nodes-into-terminal.ts'
+import {sendTextToTerminal} from '../agent-runtime/inject/send-text-to-terminal.ts'
+import {injectNodesIntoTerminal} from '../agent-runtime/inject/inject-nodes-into-terminal.ts'
 import type {
     SendTextToTerminal,
     InjectNodesIntoTerminal,
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
 
 const sendTextToTerminalRoute: RpcRoute = {
     name: 'sendTextToTerminal',

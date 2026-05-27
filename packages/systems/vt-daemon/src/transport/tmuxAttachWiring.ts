@@ -21,7 +21,7 @@ import type {IncomingMessage} from 'node:http'
 import type {Duplex} from 'node:stream'
 import {WebSocket, WebSocketServer} from 'ws'
 
-import {attachTmuxSessionToWebSocket} from '../terminals/relay/tmux-attach-relay.ts'
+import {attachTmuxSessionToWebSocket} from '../agent-runtime/terminals/relay/tmux-attach-relay.ts'
 
 import {VT_BEARER_SUBPROTOCOL} from './wsUpgradeAuth.ts'
 

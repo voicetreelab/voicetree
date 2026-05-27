@@ -83,10 +83,10 @@ describe('resolveWorkspaceBasePath', () => {
             name: '@vt/vt-daemon',
             absDir: '/repo/vt-daemon',
             srcRoot: '/repo/vt-daemon/src',
-            exports: {'.': './src/agents/index.ts'},
+            exports: {'.': './src/agent-runtime/index.ts'},
         })
         expect(resolveWorkspaceBasePath(pkg, '@vt/vt-daemon'))
-            .toBe('/repo/vt-daemon/src/agents/index.ts')
+            .toBe('/repo/vt-daemon/src/agent-runtime/index.ts')
     })
 
     it('falls back to main for root imports when exports["."] is missing', () => {

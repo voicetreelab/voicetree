@@ -10,7 +10,7 @@
 
 import {z} from 'zod'
 
-import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/tools/agent-control/terminalRuntimeSurface.ts"
+import {terminalRuntimeSurface as agentRuntime} from "@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts"
 import type {
     RemoveTerminalFromRegistry,
     PatchTerminalRecord,

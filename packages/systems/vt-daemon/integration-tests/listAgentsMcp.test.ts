@@ -17,7 +17,6 @@ import os from 'node:os'
 
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 
 import {
@@ -27,9 +26,9 @@ import {
     recordTerminalPending,
     recordTerminalSpawn,
     updateTerminalIsDone,
-} from '@vt/vt-daemon/terminals/terminal-registry'
-import {createTerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
-import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
+import {createTerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {GraphBridge} from '@vt/vt-daemon'
 import {listAgentsTool} from '@vt/vt-daemon'
 
@@ -69,7 +68,7 @@ let bridge: GraphBridge
 
 beforeEach(async () => {
     appSupport = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-list-agents-'))
-    setAppSupportPath(appSupport)
+    process.env.VOICETREE_APP_SUPPORT = appSupport
     clearSettingsCache()
     await fs.writeFile(
         path.join(appSupport, 'settings.json'),

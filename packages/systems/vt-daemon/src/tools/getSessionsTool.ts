@@ -8,8 +8,8 @@
 import {getSessions, type SessionMetric} from '../observability/agentMetricsStore.ts'
 import {getCurrentVault} from '../state/currentVault.ts'
 
-import {buildJsonResponse} from './toolResponse.ts'
-import type {McpToolResponse} from './toolResponse.ts'
+import {buildJsonResponse} from '../agent-runtime/_shared/toolResponse.ts'
+import type {McpToolResponse} from '../agent-runtime/_shared/toolResponse.ts'
 
 export interface GetSessionsResult {
     readonly sessions: readonly SessionMetric[]
