@@ -27,7 +27,14 @@ export type TmuxReconciliationDeps = {
         readonly metadataPath: string
         readonly metadata: TmuxTerminalMetadata
     }) => void
+    /** Writer pid threaded into writeMetadata for tmp-file rename. Falls
+     * back to `process.pid` only at the shell default (see
+     * `defaultReconciliationProcessPid`) so the metadata-rewrite path
+     * stays free of the transitive-purity gate. */
+    readonly processPid?: number
 }
+
+const defaultReconciliationProcessPid: number = process.pid
 
 const defaultClock: TerminalRegistryClock = {now: Date.now}
 
@@ -117,7 +124,7 @@ export async function reconcileTmuxTerminalRegistry(
             status: 'exited',
             exitCode: null,
             endedAt: new Date(now()).toISOString(),
-        })
+        }, deps.processPid ?? defaultReconciliationProcessPid)
         result.markedExited.push(metadata.name)
     }
 

@@ -35,8 +35,12 @@ export function readMetadata(path: string): TmuxTerminalMetadata | null {
     }
 }
 
-export function writeMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    const tempPath = `${path}.${process.pid}.${randomUUID()}.tmp`
+// `writerPid` is threaded in (rather than read from `process.pid`) so the
+// function stays free of the transitive-purity gate — the tmp filename's
+// embedded pid is purely about avoiding cross-writer collisions, so the
+// caller can supply any unique pid-like int it has on hand.
+export function writeMetadata(path: string, metadata: TmuxTerminalMetadata, writerPid: number): void {
+    const tempPath = `${path}.${writerPid}.${randomUUID()}.tmp`
     writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
     renameSync(tempPath, path)
 }

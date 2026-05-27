@@ -22,6 +22,11 @@ export type HeadlessAgentDeps = {
     readonly getHomeDir: () => string | undefined
     readonly getCurrentDirectory: () => string
     readonly getProcessEnv: () => NodeJS.ProcessEnv
+    /** Shell-supplied writer pid used as a unique-suffix for tmp-file
+     * atomic renames. Threaded in (rather than read from `process.pid`)
+     * so writeMetadata + its callers stay free of the transitive-purity
+     * gate; the value only needs to be unique-per-writer. */
+    readonly processPid: number
     readonly spawnProcess: typeof spawn
     readonly writeLog: (entry: HeadlessLogEntry) => void
     readonly recordTerminalSpawn: typeof recordTerminalSpawn
@@ -50,6 +55,7 @@ export const defaultHeadlessAgentDeps: HeadlessAgentDeps = {
     getHomeDir: (): string | undefined => process.env.HOME,
     getCurrentDirectory: (): string => process.cwd(),
     getProcessEnv: (): NodeJS.ProcessEnv => process.env,
+    processPid: process.pid,
     spawnProcess: spawn,
     writeLog: writeHeadlessLog,
     recordTerminalSpawn,
