@@ -9,8 +9,10 @@
  *  - `detached: true` + `child.unref()` so the daemon's lifetime is
  *    decoupled from the launcher's. The launcher exiting must not kill
  *    the daemon (the parent-pid watchdog handles the inverse case).
- *  - `stdio: ['ignore', 'ignore', 'ignore']` so the daemon is not
- *    talking to a pipe the launcher could close.
+ *  - `stdio: ['ignore', <log fd>, <log fd>]` when `logPath` is provided,
+ *    else `['ignore', 'ignore', 'ignore']`. File descriptors are used
+ *    rather than pipes so the launcher closing does not signal EPIPE
+ *    into the daemon.
  *  - `child.on('error', …)` swallows spawn-time errors; the
  *    wait-for-health loop times out and surfaces the failure as a single
  *    `DaemonLaunchTimeout` shape, so we don't have two failure modes for
@@ -22,6 +24,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { openSync } from 'node:fs'
 import type { CallerKind, DaemonKind } from '@vt/graph-db-protocol'
 
 export type SpawnEnvVarShape = NodeJS.ProcessEnv
@@ -32,6 +35,16 @@ export type SpawnDaemonInput = {
   readonly args: readonly string[]
   readonly env: SpawnEnvVarShape
   readonly caller: CallerKind
+  /**
+   * Optional path the daemon's stdout and stderr are appended to. When
+   * omitted, both streams are discarded — preserves the original silent
+   * behavior for callers that don't supply a log location.
+   *
+   * Open in append mode so multiple daemon generations (re-spawns after
+   * a crash) accumulate rather than truncate. The fd is closed by the
+   * OS when the child exits.
+   */
+  readonly logPath?: string
 }
 
 export type SpawnedDaemonHandle = {
@@ -44,13 +57,16 @@ export type SpawnedDaemonHandle = {
 // the env in from the shell boundary.
 export function spawnDaemon(input: SpawnDaemonInput): SpawnedDaemonHandle {
   const callerEnvName = envVarNameFor(input.daemonKind)
+  const stdio: ('ignore' | number)[] = input.logPath
+    ? ['ignore', openSync(input.logPath, 'a'), openSync(input.logPath, 'a')]
+    : ['ignore', 'ignore', 'ignore']
   const child = spawn(input.cmd, [...input.args], {
     detached: true,
     env: {
       ...input.env,
       [callerEnvName]: input.caller,
     },
-    stdio: ['ignore', 'ignore', 'ignore'],
+    stdio,
   })
   child.unref()
   child.on('error', () => {

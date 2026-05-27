@@ -21,6 +21,8 @@
  * HTTP-client constructor.
  */
 
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   acquireSpawnLock,
   boundedDelay,
@@ -47,6 +49,20 @@ import {
   type OwnerRecord,
 } from '@vt/daemon-lifecycle'
 import type { CommandSpec } from './runtime.ts'
+
+/**
+ * Resolve the per-vault daemon log path and ensure its parent directory
+ * exists so `openSync(..., 'a')` inside `spawnDaemon` cannot ENOENT.
+ *
+ * The daemon would itself create `.voicetree/` on first owner-record
+ * write, but the launcher opens the log fd BEFORE the daemon starts —
+ * so the launcher has to ensure the directory.
+ */
+function daemonLogPath(canonicalVault: string, daemonKind: DaemonKind): string {
+  const dir = join(canonicalVault, '.voicetree')
+  mkdirSync(dir, { recursive: true })
+  return join(dir, `${daemonKind}.log`)
+}
 
 /**
  * Resolves the daemon spawn command for `(vault, override?)`. Lives in
@@ -166,6 +182,7 @@ export async function attemptSpawnAndWait<TClient>(
       args: command.args,
       env: command.env,
       caller,
+      logPath: daemonLogPath(canonicalVault, options.daemonKind),
     })
     emitOwnerDiagnostic({
       kind: 'spawn-started',
