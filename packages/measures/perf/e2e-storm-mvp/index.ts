@@ -526,8 +526,8 @@ async function main(): Promise<void> {
         agentsTimedOut = agentResults.filter(result => result.timedOut).length
 
         for (const [agentIndex, result] of agentResults.entries()) {
-            if (result.headlessOutput) {
-                process.stdout.write(`[mvp] agent ${agentIndex} headless output:\n${result.headlessOutput}\n`)
+            if (result.terminalOutput) {
+                process.stdout.write(`[mvp] agent ${agentIndex} terminal output:\n${result.terminalOutput}\n`)
             }
         }
 

@@ -54,7 +54,7 @@ export interface FakeAgentResult {
     readonly spawnWallMs: number
     readonly wallMs: number
     readonly timedOut: boolean
-    readonly headlessOutput: string
+    readonly terminalOutput: string
 }
 
 function buildAgentPrompt(script: FakeAgentScript): string {
@@ -104,7 +104,8 @@ function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
         terminalCount: 0,
         title: inputs.terminalId,
         agentName: inputs.terminalId,
-        isHeadless: true,
+        isHeadless: false,
+        isMinimized: false,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: inputs.terminalId,
             VOICETREE_MCP_PORT: String(inputs.mcpPort),
@@ -119,8 +120,8 @@ function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
 }
 
 /**
- * Wait for the fake-agent to reach its `exit` action via the ring-buffered
- * headless output. The executor emits `[fake-agent] Executing: <type>` for
+ * Wait for the fake-agent to reach its `exit` action via the tmux-backed
+ * output buffer. The executor emits `[fake-agent] Executing: <type>` for
  * every action BEFORE running it (vt-fake-agent/src/executor.ts:39); the
  * `exit` action then calls `process.exit(0)` so no further line is ever
  * printed. So `Executing: exit` is the last-line-emitted completion marker
@@ -182,7 +183,7 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
             spawnWallMs,
             wallMs: Date.now() - wallStart,
             timedOut: false,
-            headlessOutput: '',
+            terminalOutput: '',
         }
     }
 
@@ -194,6 +195,6 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
         spawnWallMs,
         wallMs: Date.now() - wallStart,
         timedOut: !exit.scriptCompleted,
-        headlessOutput: exit.output,
+        terminalOutput: exit.output,
     }
 }
