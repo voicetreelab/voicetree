@@ -25,17 +25,26 @@ function positionsFilePath(projectRoot: string): string {
     return path.join(projectRoot, '.voicetree', 'positions.json')
 }
 
-function hasPersistedPositions(filePath: string): boolean {
-    try {
-        const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-        return (
-            typeof parsed === 'object'
-            && parsed !== null
-            && Object.keys(parsed).length > 0
-        )
-    } catch {
-        return false
-    }
+function decodePositions(raw: string): PositionsFile {
+    return JSON.parse(raw) as PositionsFile
+}
+
+function entriesFromPositions(parsed: PositionsFile): readonly [NodeIdAndFilePath, Position][] {
+    return Object.entries(parsed)
+        .filter(([, pos]) => typeof pos.x === 'number' && typeof pos.y === 'number')
+        .map(([nodeId, pos]) => [nodeId, { x: pos.x, y: pos.y }] as [NodeIdAndFilePath, Position])
+}
+
+function projectGraphPositions(graph: Graph): PositionsFile {
+    return Object.entries(graph.nodes).reduce(
+        (acc: PositionsFile, [nodeId, node]: [string, GraphNode]) => {
+            if (O.isSome(node.nodeUIMetadata.position)) {
+                return { ...acc, [nodeId]: { x: Math.round(node.nodeUIMetadata.position.value.x), y: Math.round(node.nodeUIMetadata.position.value.y) } }
+            }
+            return acc
+        },
+        {}
+    )
 }
 
 /**
@@ -46,11 +55,7 @@ export async function loadPositions(projectRoot: string): Promise<ReadonlyMap<No
     const filePath: string = positionsFilePath(projectRoot)
     try {
         const data: string = await fsAsync.readFile(filePath, 'utf-8')
-        const parsed: PositionsFile = JSON.parse(data) as PositionsFile
-        const entries: [NodeIdAndFilePath, Position][] = Object.entries(parsed)
-            .filter(([, pos]) => typeof pos.x === 'number' && typeof pos.y === 'number')
-            .map(([nodeId, pos]) => [nodeId, { x: pos.x, y: pos.y }])
-        return new Map(entries)
+        return new Map(entriesFromPositions(decodePositions(data)))
     } catch {
         return new Map()
     }
@@ -59,23 +64,33 @@ export async function loadPositions(projectRoot: string): Promise<ReadonlyMap<No
 /**
  * Save all node positions from graph to .voicetree/positions.json.
  * Synchronous variant for use on app exit.
+ *
+ * Skips the write when the projected graph has no positions but the
+ * existing on-disk file does — this guards against wiping persisted
+ * positions during early-exit before the graph has loaded.
  */
 export function savePositionsSync(graph: Graph, projectRoot: string): void {
-    const positions: PositionsFile = Object.entries(graph.nodes).reduce(
-        (acc: PositionsFile, [nodeId, node]: [string, GraphNode]) => {
-            if (O.isSome(node.nodeUIMetadata.position)) {
-                return { ...acc, [nodeId]: { x: Math.round(node.nodeUIMetadata.position.value.x), y: Math.round(node.nodeUIMetadata.position.value.y) } }
-            }
-            return acc
-        },
-        {}
-    )
-
+    const positions: PositionsFile = projectGraphPositions(graph)
     const filePath: string = positionsFilePath(projectRoot)
     const dir: string = path.dirname(filePath)
 
-    if (Object.keys(positions).length === 0 && hasPersistedPositions(filePath)) {
-        return
+    if (Object.keys(positions).length === 0) {
+        let existing: string | null = null
+        try {
+            existing = fs.readFileSync(filePath, 'utf-8')
+        } catch {
+            existing = null
+        }
+        if (existing !== null) {
+            try {
+                const parsed: unknown = JSON.parse(existing)
+                if (typeof parsed === 'object' && parsed !== null && Object.keys(parsed).length > 0) {
+                    return
+                }
+            } catch {
+                // corrupt file — fall through and overwrite
+            }
+        }
     }
 
     if (!fs.existsSync(dir)) {
