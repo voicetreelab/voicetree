@@ -1,0 +1,174 @@
+/* ============================================================================
+ * Surviving agents section — live tmux sessions not present in this registry.
+ * ============================================================================ */
+.surviving-agents-section {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding: 6px 0 8px;
+    background: color-mix(in srgb, var(--background) 92%, var(--muted-foreground) 8%);
+}
+
+.surviving-agents-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    opacity: 0.78;
+}
+
+.surviving-agents-refresh {
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    border-radius: 4px;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.surviving-agents-refresh:hover:not(:disabled) {
+    color: var(--foreground);
+    border-color: var(--accent);
+}
+
+.surviving-agents-refresh:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.surviving-agents-error {
+    margin: 0 6px 6px;
+    border: 1px solid rgba(185, 28, 28, 0.35);
+    border-radius: 6px;
+    padding: 5px 7px;
+    color: var(--destructive);
+    background: rgba(185, 28, 28, 0.08);
+    font-size: 10px;
+    line-height: 1.25;
+}
+
+.surviving-agents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 210px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 6px;
+}
+
+.surviving-agent-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 7px;
+    border: 1px dashed var(--border);
+    border-radius: 7px;
+    background: var(--card);
+}
+
+.surviving-agent-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.surviving-agent-title-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.surviving-agent-title {
+    min-width: 0;
+    flex: 1;
+    color: var(--foreground);
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.surviving-agent-meta {
+    color: var(--muted-foreground);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.75;
+}
+
+.surviving-agent-badge {
+    flex-shrink: 0;
+    max-width: 86px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    padding: 1px 4px;
+    color: var(--muted-foreground);
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.surviving-agent-badge.this-vault {
+    border-color: rgba(34, 197, 94, 0.35);
+    color: #22c55e;
+}
+
+.surviving-agent-badge.foreign-vault {
+    opacity: 0.72;
+}
+
+.surviving-agent-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.surviving-agent-action {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--foreground);
+    border-radius: 4px;
+    min-height: 22px;
+    padding: 2px 5px;
+    font-size: 10px;
+    line-height: 1.1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+}
+
+.surviving-agent-action:hover:not(:disabled) {
+    background: var(--accent);
+}
+
+.surviving-agent-action:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.surviving-agent-action.kill {
+    width: 24px;
+    padding: 0;
+    color: var(--muted-foreground);
+}
+
+.surviving-agent-action.kill:hover:not(:disabled) {
+    color: var(--destructive);
+}

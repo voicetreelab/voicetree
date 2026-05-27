@@ -17,6 +17,7 @@ export async function spawnCheck(check, env, repoRoot) {
     const startedAt = Date.now()
     const childEnv = {
         ...env,
+        VT_REMOTE_EXEC: '1',
         ...(playwrightJson ? {PLAYWRIGHT_JSON_OUTPUT_FILE: playwrightJson} : {}),
     }
 

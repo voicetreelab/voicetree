@@ -1,0 +1,133 @@
+/*
+ * Terminal Tree Sidebar Styles
+ *
+ * Vertical tree-style tabs for terminal navigation.
+ */
+
+/* ============================================================================
+ * Terminal Tree Sidebar - Vertical tree-style tabs for terminal navigation
+ * ============================================================================ */
+
+.terminal-tree-sidebar {
+    height: 100%;
+    width: 220px;  /* Initial width */
+    min-width: 60px;
+    max-width: 360px;
+    min-height: 0;
+    background: var(--background);
+    border-right: 1px solid var(--border);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Sidebar header */
+.terminal-tree-header {
+    padding: 7px 10px 5px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.terminal-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+    min-height: 0;
+}
+
+/* Resize handle */
+.terminal-tree-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+    background: transparent;
+}
+
+.terminal-tree-resize-handle:hover,
+.terminal-tree-resize-handle.dragging {
+    background: var(--ring);
+}
+
+/* Tree node */
+.terminal-tree-node {
+    position: relative;  /* For absolute positioned tooltip */
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    margin: 3px 6px;
+    cursor: pointer;
+    border-radius: 7px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+.terminal-tree-node:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.terminal-tree-node.active {
+    background: rgba(255, 200, 80, 0.15);
+    border-color: rgba(255, 200, 80, 0.4);
+    box-shadow: inset 2px 0 0 rgba(255, 200, 80, 0.7);
+}
+
+/* Awaiting-user-input row tint. Blue, less harsh than red — red is reserved
+   for actual crashes. The blue accent flags "click here, agent needs you". */
+.terminal-tree-node.attn {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: rgba(59, 130, 246, 0.55);
+    box-shadow: inset 2px 0 0 rgba(59, 130, 246, 0.95);
+}
+.terminal-tree-node.attn:hover {
+    background: rgba(59, 130, 246, 0.22);
+    border-color: rgba(59, 130, 246, 0.7);
+}
+/* When a row is BOTH active and awaiting, awaiting wins (it's more urgent). */
+.terminal-tree-node.active.attn {
+    background: rgba(59, 130, 246, 0.32);
+    border-color: rgba(59, 130, 246, 0.75);
+    box-shadow: inset 2px 0 0 rgba(59, 130, 246, 1);
+}
+
+/* Headless agent styling - background agents: smaller, less emphasis, dashed */
+.terminal-tree-node.headless {
+    border-style: dashed;
+    opacity: 0.65;
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
+.terminal-tree-node.headless .terminal-tree-title-text {
+    font-size: 11px;
+}
+
+.terminal-tree-node.headless:hover {
+    opacity: 0.85;
+}
+
+.terminal-tree-node.headless.active {
+    opacity: 0.8;
+}
+
+/* Depth indentation — clearly nested sub-agents under their orchestrator.
+   Each level adds 18px so the hierarchy is obvious even on narrow sidebars.
+   Default left margin is 6px (set on .terminal-tree-node). */
+.terminal-tree-node[data-depth="1"] { margin-left: 24px; }
+.terminal-tree-node[data-depth="2"] { margin-left: 42px; }
+.terminal-tree-node[data-depth="3"] { margin-left: 60px; }
+.terminal-tree-node[data-depth="4"] { margin-left: 78px; }
+.terminal-tree-node[data-depth="5"] { margin-left: 96px; }
+.terminal-tree-node[data-depth="6"] { margin-left: 114px; }
+.terminal-tree-node[data-depth="7"] { margin-left: 132px; }
+.terminal-tree-node[data-depth="8"] { margin-left: 150px; }

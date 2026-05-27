@@ -42,6 +42,30 @@ const METRIC_EXPLANATIONS = {
   'martin-instability':
     "Robert Martin’s stable-dependencies metric: instability I = Ce / (Ca + Ce), where Ca is afferent (incoming) coupling and Ce is efferent (outgoing). A package with many dependents and few dependencies is stable (I≈0); a package that depends on many others and has few dependents is unstable (I≈1). The reported number counts imports that violate the rule — directions where a more-stable package depends on a less-stable one, which inverts the right flow of change.",
 
+  'runtime-fan-in':
+    "For each package, counts the number of distinct named runtime symbols imported from it by all other discovered packages (type-only imports excluded). The reported number is the worst-incoming package. High fan-in means many call sites bind to specific symbols of one module — a wide, sticky public surface that becomes expensive to rename, narrow, or split. Lower is better.",
+
+  'cross-package-relative-imports':
+    "Counts production imports whose `./` or `../` specifier resolves outside the importer’s own package root (resolved via ts-morph against the actual on-disk source). Bypassing a package’s declared public surface via deep-relative paths defeats workspace boundaries entirely — it works at compile time but makes the dependency invisible to coupling/cycle gates. Budget is zero.",
+
+  'relative-import-depth':
+    "Counts banned relative-import sites: any `./` or `../` import that crosses a package boundary plus any same-package import that uses `../../` or deeper. Same-package depth is capped because deep `../../../` paths are a leading indicator that the file should live closer to what it imports, or that a public alias should exist. AST-scanned, scope is whole-repo production sources. Budget is zero.",
+
+  'relative-path-depth':
+    "Same `../../+` ban as `relative-import-depth`, but applied to non-import string and template literals — `fs.readFileSync('../../foo')`, `path.join('..','..','config')` and friends. Catches deep relative paths the import-graph gates can’t see because they’re plain strings. Budget is zero.",
+
+  'daemon-owned-mutations-graph-boundary-runtime-edges':
+    "ts-morph resolved import edges from {webapp, agent-runtime, voicetree-mcp} into graph-db-server that carry at least one runtime binding and are NOT on the launcher allowlist. Counts every back-channel uniformly: package-spec imports, deep-relative reaches, and barrel re-exports all show up. Encodes the rule that graph-db-server owns its own mutations — consumers must go through the daemon, not import its internals. Budget is zero.",
+
+  'daemon-owned-mutations-non-launcher-graph-db-server-runtime-imports':
+    "Same daemon-ownership invariant, scoped to `@vt/graph-db-server` package-name imports from webapp/agent-runtime/voicetree-mcp outside the launcher/search/parity entrypoints. Pairs with the ts-morph edge variant to provide redundant coverage of the boundary at both the package-spec and resolved-file levels. Budget is zero.",
+
+  'semantic-coupling-max-pair-ts-canary':
+    "Built on the ts-morph call graph. For every ordered pair of communities (package, then per-depth subdirectory partition), counts the union of (a) distinct called function names crossing the pair and (b) distinct named-import bindings between them. The reported number is the worst single pair. Captures real *usage* coupling — calls plus name-bindings — not just whether an import line exists. A self-baseline gate: rejects drifts >18% from the captured baseline.",
+
+  'semantic-coupling-max-out-ts-canary':
+    "Same semantic-coupling computation, but the reported number is the worst community’s *total outbound* coupling summed across every partner it talks to. Where the max-pair metric finds the worst single edge, max-out finds the most overconnected source community — the one whose change blast-radius is widest. Also gated at ±18% against a captured baseline.",
+
   'boundary-width-ratio':
     "For each package, the share of its files that participate in any cross-package import (as importer or importee). A low ratio means a narrow facade — most files are internal, only a few touch the boundary. A high ratio means the package leaks across its boundary from many files, exposing implementation to neighbors. The metric is per-package; the dashboard surfaces the worst.",
 
@@ -76,6 +100,67 @@ const METRIC_EXPLANATIONS = {
   'purity-ast-p90-function-loc':
     "P90 of function body line-count, measured by AST (not lexer heuristics). The 90th percentile means 10% of functions are at least this long. Long functions are the leading indicator of accreted complexity — they hide branching depth, mutable locals, and tangled responsibilities. A drifting p90 means the worst-but-not-rarest functions are getting longer.",
 
+  'function-cyclomatic-complexity':
+    "Maximum cyclomatic complexity across every function in production packages, computed from the TypeScript AST. Cyclomatic complexity counts the number of independent execution paths: +1 for each `if`, loop, `case`, `catch`, ternary, or boolean operator. Equivalent to the number of test cases needed to cover every branch. The metric reports only the single worst function — runaway cyclomatic complexity in one function is more dangerous than a thousand mid-complex ones.",
+
+  'function-crap0-risk':
+    "CRAP (Change Risk Anti-Pattern) score assuming zero test coverage: complexity² + complexity, evaluated per function from the cyclomatic AST measurement. Translates a complexity number into a worst-case maintenance-risk score that scales quadratically — small complexity differences become large CRAP differences. Reports the maximum across all functions. Lower is better.",
+
+  'function-maintainability-index':
+    "Minimum Halstead-based maintainability index across production source files. Computed per file as 171 − 5.2·ln(volume) − 0.23·cyclomatic, scaled to 0..100. Volume comes from token counts (distinct/total operators and operands). The SLOC term is deliberately dropped — file size is gated separately by the file-lines axis. Higher is better; a `gte` budget acts as a floor.",
+
+  'transitive-complexity-max-ts-canary':
+    "Direct cognitive complexity of a function plus the cognitive complexity of every function reachable from it via the ts-morph call graph. Reports the maximum across all packaged functions. Captures the *whole-program* difficulty of executing a function — a thin wrapper that calls into a deep tangle scores high. Self-baselined: budget is the captured value plus headroom; new entries to the call-reachable set show up immediately.",
+
+  'transitive-complexity-folder-mean-max-ts-canary':
+    "Same transitive cognitive-complexity score, aggregated per folder (mean across the folder’s ≥4 functions) and reported as the worst folder. Surfaces concentration: where the per-function metric flags a single offender, this flags whole directories whose typical function is reaching deep into the call graph.",
+
+  // ── Pressure axes (RSCD rollup + per-axis aspirational targets) ───────────
+  //
+  // pressure-axes.test.ts computes 11 orthogonal complexity-pressure axes and
+  // rolls them into a single Relative Squared Composite Debt (RSCD) score. The
+  // ratchet `budget` per axis sits at ≈0.75 of today's worst observation, so a
+  // fresh worst-offender breaks the build. Each axis ALSO emits a sidecar with
+  // suffix `-target` against an aspirational `targetBudget` — these are
+  // warning-only (never gate CI) and surface refactor pressure on the
+  // dashboard. The headline `pressure-axes` card reports the RSCD rollup.
+
+  'pressure-axes':
+    "Consolidated 10-axis complexity-pressure rollup. Each axis (cognitive, cyclomatic, maintainability, CRAP0, file-lines, boundary-ratio, subdir-cross-ratio, aggregate-BCI, runtime-fan-in, file-turbulence, package-turbulence-avg) is normalized to a 0..1+ debt ratio against its CI-gating ratchet; RSCD = (worst-debt-ratio) + 0.25 × (mean of top-5). Budget is 1.0 — a clean repo sits comfortably below; a fresh worst-offender on any axis pushes the rollup over.",
+
+  'complexity-pressure-cognitive-max-target':
+    "Aspirational sidecar for max cognitive complexity (SonarSource scoring of nesting + flow-break + recursion, per function). Reports today’s worst function against the long-term *target* budget rather than the CI-gating ratchet. Warning-only — visible on the dashboard, never blocks CI.",
+
+  'complexity-pressure-cyclomatic-max-target':
+    "Aspirational sidecar for max cyclomatic complexity (count of independent execution paths per function). Reports the worst function against the long-term target. Warning-only, never blocks CI.",
+
+  'complexity-pressure-maintainability-min-target':
+    "Aspirational sidecar for min Halstead maintainability index (per-file; SLOC term dropped, gated separately). Reports the lowest-MI file against the long-term floor. `gte` comparison; warning-only.",
+
+  'complexity-pressure-crap0-max-target':
+    "Aspirational sidecar for max CRAP0 score (complexity² + complexity, the change-risk score assuming zero coverage). Reports the worst function against the long-term target. Warning-only.",
+
+  'complexity-pressure-file-lines-max-target':
+    "Aspirational sidecar for max source-file line count. Reports the largest file against the long-term target. Warning-only.",
+
+  'complexity-pressure-boundary-ratio-max-target':
+    "Aspirational sidecar for max per-package boundary-width ratio — the share of a package’s files that participate in any cross-package import. High ratio = the package leaks across its facade from many files. Warning-only.",
+
+  'complexity-pressure-subdir-cross-ratio-max-target':
+    "Aspirational sidecar for max subdirectory-cross-edge ratio: per package, the share of internal edges that jump between top-level subdirectories. High ratio = the package’s internal partitioning is fictitious. Ratio axis (semantic ceiling 1.0), warning-only.",
+
+  'complexity-pressure-boundary-complexity-aggregate-target':
+    "Aspirational sidecar for aggregate Boundary Complexity Index — summed over every directed package pair, BCI per pair = (treeWidth + 1) × log2(edgeCount + 1). Captures the *total shape* of cross-package coupling, not just its volume. Warning-only.",
+
+  'complexity-pressure-runtime-fan-in-max-target':
+    "Aspirational sidecar for max runtime fan-in (distinct named symbols imported from one package by all others; type-only excluded). Reports the most-imported-from package against the long-term target. Warning-only.",
+
+  'complexity-pressure-file-turbulence-max-target':
+    "Aspirational sidecar for max file turbulence (6-month git commit count × current AST complexity). The worst-turbulence file is the highest-ROI refactor candidate. Warning-only.",
+
+  'complexity-pressure-package-turbulence-avg-max-target':
+    "Aspirational sidecar for max per-package average file-turbulence. Where the per-file metric finds the single worst file, this finds the package whose typical file is in churn × complexity hotspot. Warning-only.",
+
   // ── Purity / Behavioral ────────────────────────────────────────────────────
   'purity-ratio':
     "Lexical purity ratio: share of total function line-count classified as pure by a regex-driven side-effect detector (no fs/net/timers/console/mutation in the body, all dependencies are themselves pure). Fast to compute but tolerates false positives — functions that look pure but call into impurity. Reading the AST variant in tandem is the right way to interpret movement.",
@@ -97,6 +182,12 @@ const METRIC_EXPLANATIONS = {
 
   'default-value-detection':
     "Spots functions whose bodies look pure to a syntactic scanner but whose parameter defaults contain side effects — `function f(now = Date.now()) {…}` is impure even if the body is. This is a known false-negative class for both lexical and AST purity detectors. The count is functions where this hidden impurity was caught; budget is zero.",
+
+  'transitive-impurity-functions-ts-canary':
+    "Uses the ts-morph call graph to count every function under `packages/` that *reaches* a filesystem, network, or process sink — directly or transitively — through any call edge. Sinks are the well-known impure modules (`fs`, `node:http`, `child_process`, `axios`, `undici`, …) plus `fetch`/`XMLHttpRequest` globals. Catches impurity that local-only purity scanners miss because it lives behind two hops of clean-looking wrappers.",
+
+  'transitive-impurity-ratio-ts-canary':
+    "Same transitive-impurity computation, but reports the worst per-folder ratio (impure-reaching functions / total functions) across folders with ≥4 functions. Surfaces folders where most of the code touches the world — those are the impurity hot zones the architecture should isolate.",
 
   // ── Globals (side-effect classes) ──────────────────────────────────────────
   'globals-console':
@@ -146,6 +237,12 @@ const METRIC_EXPLANATIONS = {
   'codebase-file-lines':
     "The single largest source file by line count. Large files are an early warning: they tend to accrete unrelated responsibilities and resist refactoring. The metric tracks only the worst file — a runaway file is more dangerous than a thousand mid-size ones.",
 
+  'readme-line-budget':
+    "The largest git-tracked `README.md` in the repo, by line count. Budget is 149 lines (limit exclusive 150). README sprawl is a process smell: long READMEs go stale faster than they update, and they signal that the package’s public surface or onboarding is doing too much. Split or trim above the limit.",
+
+  'agent-instructions-line-budget':
+    "The largest git-tracked `CLAUDE.md` / `AGENTS.md` in the repo, by line count. Budget is 49 lines (limit exclusive 50). Instruction files compete for limited model context — long instructions push out task context and lower follow-through. Hard cap forces discipline about what really has to live there.",
+
   // ── Turbulence / Churn ─────────────────────────────────────────────────────
   'turbulence':
     "Coverage of churn-times-complexity scoring: how many production files have been scored on (commit count × current complexity). High-turbulence files — frequently changed and complex — are the highest-ROI targets for refactoring. The metric is reported as coverage (files scored) so you know the diagnostic ran broadly; the details payload contains the ranking.",
@@ -162,36 +259,39 @@ const METRIC_EXPLANATIONS = {
 
   'gate-files-exist':
     "Counts gate-test files that should be present but aren’t — orange gate, complexity gates, ratchet gates. A missing gate file means the gate isn’t running, which is invisible failure. Budget is zero.",
+
+  'measures-support-files-exist':
+    "Counts required `_shared` and `_runners` files under `packages/measures/` that aren’t on disk. These are the load-bearing utilities the gate tests import — discovery, report writers, runner glue. A missing one would either crash the gate or silently neuter it. Budget is zero.",
+
+  'script-naming-guard':
+    "Counts files under `scripts/` matching `^check-*.mjs` or `^measure-*.mjs` — the pre-migration naming convention. After the workspace migration these scripts moved into `packages/measures`; any reappearance here means someone reintroduced a parallel runner outside the canonical writer. Budget is zero.",
+
+  'script-tamper-guard':
+    "Counts unauthorized modifications visible to the working tree: (a) changes to `package.json` `test`/`test:measures` scripts vs HEAD beyond the known migration carve-out, (b) deletions of test files tracked at HEAD, (c) missing canonical gate test files. Catches the classic “make the gate pass by deleting the test or rewiring `npm test`” reward-hack. Budget is zero.",
+
+  'source-of-truth-guard':
+    "Greps all git-tracked source for definitions or exports of `recordCheckReport` / `recordHealthReport`, and counts every site that isn’t the canonical writer under `packages/measures/src/_shared/writers`. Prevents parallel writers from emerging that might write reports the gates don’t see. Budget is zero.",
 }
 
-// Category-level fallback for any metricId we haven't authored an explanation
-// for. Lets us keep the dashboard useful as new metrics are added.
-const CATEGORY_FALLBACKS = {
-  Coupling:
-    "A coupling measure: how strongly packages, files, or commits depend on each other. The dashboard wants these to stay narrow — a high or rising value means tighter coupling and a heavier refactor cost.",
-  Complexity:
-    "A complexity measure: structural or per-function difficulty of the code under review. Tracked against a budget so growth is intentional rather than accidental.",
-  Structure:
-    "A structural measure of the import graph or directory shape: layering, fanout, file size. These don’t catch logic bugs but flag the architectural drift that makes future change harder.",
-  Purity:
-    "A purity measure: how much of the codebase is referentially-transparent (pure) versus side-effecting (impure). Higher purity is easier to test, easier to reason about, and concentrates risk at the edges.",
-  Behavioral:
-    "A behavioral measure: side effects, mutation, hidden state — coupling the import graph can’t see. False-negative class is pure functions inside a god-controller.",
-  Shape:
-    "A shape measure: function size and public-API surface width. Catches the drift from “deep and narrow” into “many medium-sized functions exposed broadly,” which is the typical failure mode of accreted functional codebases.",
-  Churn:
-    "A churn-based diagnostic combining git history with current complexity to find the highest-ROI refactoring targets. Diagnostic, not a gate.",
-  Other:
-    "A meta-measure or ratchet that keeps a budget honest over time. Usually a binary gate with budget zero.",
+// Fallback when a metric has no authored explanation. We intentionally do NOT
+// dress this up as a real explanation — the dashboard previously used
+// category-prose fallbacks, which made every un-authored metric look like it
+// was being explained when it wasn't. Now the fallback is honest: it cites
+// the metric's own `description` field (the headline that lives in the
+// recordHealthMetric call) and points at metricExplanations.js so the next
+// reader can author a real one.
+function fallbackExplanation(report) {
+  const description = report?.description?.trim()
+  const id = report?.metricId
+  const lead = description
+    ? `${description.replace(/\.?$/, '.')}`
+    : `No headline description was recorded for this measure.`
+  return `${lead} No extended explanation has been authored for \`${id ?? 'this metric'}\` yet — add one to health-dashboard/metricExplanations.js (the source measure lives under packages/measures/src/health/).`
 }
-
-const GENERIC_FALLBACK =
-  "A codebase-health measure tracked against a committed budget. Hover the card’s description and current/budget values for the headline reading."
 
 export function getMetricExplanation(report) {
-  if (!report) return GENERIC_FALLBACK
+  if (!report) return fallbackExplanation(report)
   const direct = METRIC_EXPLANATIONS[report.metricId]
   if (direct) return direct
-  const byCategory = CATEGORY_FALLBACKS[report.category]
-  return byCategory ?? GENERIC_FALLBACK
+  return fallbackExplanation(report)
 }

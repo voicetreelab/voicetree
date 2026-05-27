@@ -19,13 +19,9 @@
  * - Trace output: webapp/e2e-tests/perf-traces/<operation>-<timestamp>.json
  */
 
-import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import * as os from 'os';
-import type { Core as CytoscapeCore } from 'cytoscape';
-import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
 import { generateClusteredGraph, generateUpdateElements } from './perf-helpers/generateClusteredGraph';
 import type { GraphElement } from './perf-helpers/generateClusteredGraph';
@@ -45,173 +41,26 @@ import {
 } from './perf-helpers/mainProcessProfile';
 import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
 import { getOverlapDiagnosticString, savePostUpdateOverlapReport } from './perf-helpers/overlapCheck';
-import { describePerfTestConfig, loadPerfTestConfig } from './perf-helpers/perfConfig';
-
-const PROJECT_ROOT = path.resolve(process.cwd());
-const PERF_CONFIG = loadPerfTestConfig(PROJECT_ROOT);
-const PERF_TRACES_DIR = PERF_CONFIG.outputDir;
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
-
-interface ExtendedWindow {
-  cytoscapeInstance?: CytoscapeCore;
-}
-
-// ============================================================================
-// Fixtures — based on electron-smoke-test.spec.ts pattern
-// Needs projects.json so the app shows a project to click into graph view
-// ============================================================================
-
-// Shared between fixtures — set during electronApp launch, read by test
-let mainInspectPort = 0;
-
-const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-}>({
-  electronApp: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'voicetree-500node-perf-test-')
-    );
-
-    // Seed projects.json so app shows a clickable project on the selection screen
-    const projectsPath = path.join(tempUserDataPath, 'projects.json');
-    await fs.writeFile(
-      projectsPath,
-      JSON.stringify([{
-        id: 'perf-test-project',
-        path: FIXTURE_VAULT_PATH,
-        name: 'example_small',
-        type: 'folder',
-        lastOpened: Date.now(),
-        voicetreeInitialized: true,
-      }], null, 2),
-      'utf8'
-    );
-
-    const electronApp = await electron.launch({
-      args: [
-        `--inspect=${PERF_CONFIG.inspectPort}`,
-        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`,
-      ],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1',
-      },
-      timeout: 15000,
-    });
-    mainInspectPort = PERF_CONFIG.inspectPort;
-
-    const mainStdout = electronApp.process().stdout;
-    if (mainStdout) {
-      mainStdout.on('data', (chunk: Buffer) => {
-        const text = chunk.toString();
-        for (const line of text.split('\n')) {
-          if (line.startsWith('[load-timing]')) {
-            console.log(line);
-          }
-        }
-      });
-    }
-
-    await use(electronApp);
-
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (
-          window as unknown as {
-            electronAPI?: { main?: { stopFileWatching?: () => Promise<void> } };
-          }
-        ).electronAPI;
-        if (api?.main?.stopFileWatching) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      // Ignore shutdown errors
-    }
-
-    await electronApp.close();
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
-
-    const reaped = killOrphanVtGraphdDaemons();
-    if (reaped.killed.length > 0) {
-      console.log('[Perf Test] Reaped orphan vt-graphd daemons', reaped.killed);
-    }
-  },
-
-  appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 15000 });
-
-    window.on('console', (msg) => {
-      const type = msg.type();
-      const text = msg.text();
-      if (type === 'warning' || type === 'error') {
-        console.log(`BROWSER [${type}]:`, text);
-      } else if (text.startsWith('[load-timing]')) {
-        console.log(text);
-      }
-    });
-    window.on('pageerror', (error) => {
-      console.error('PAGE ERROR:', error.message);
-    });
-
-    await window.waitForLoadState('domcontentloaded');
-
-    // Click the seeded project to navigate from project picker → graph view
-    await window.waitForSelector('text=Voicetree', { timeout: 10000 });
-    const projectButton = window.locator('button:has-text("example_small")').first();
-    await projectButton.click();
-    console.log('[Perf Test] Clicked project to enter graph view');
-
-    // Wait for Cytoscape instance to become available
-    await window.waitForFunction(
-      () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-      { timeout: 15000 }
-    );
-    await window.waitForTimeout(1000);
-
-    await use(window);
-  },
-});
+import { describePerfTestConfig } from './perf-helpers/perfConfig';
+import { PERF_CONFIG, PERF_TRACES_DIR } from './electron-500-node-cdp-perf/config';
+import { test } from './electron-500-node-cdp-perf/fixtures';
+import { simulateSettledGraphPanZoom } from './electron-500-node-cdp-perf/panZoomScenario';
+import { createRendererProfiler, saveJsonProfile } from './electron-500-node-cdp-perf/rendererProfiler';
+import type { ExtendedWindow } from './electron-500-node-cdp-perf/types';
 
 // ============================================================================
 // Test
 // ============================================================================
 
 test.describe('CDP Performance Trace', () => {
-  test('CREATE → UPDATE → DELETE with CDP tracing', async ({ electronApp: _electronApp, appWindow }) => {
+  test('CREATE → UPDATE → DELETE with CDP tracing', async ({ appWindow, mainInspectPort }) => {
     test.setTimeout(300000); // 5 min total
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const cdp = await appWindow.context().newCDPSession(appWindow);
     const nodeLabel = String(PERF_CONFIG.nodeCount);
     const updateLabel = String(PERF_CONFIG.updateNodeCount);
-    let rendererProfilerActive = false;
-
-    const startRendererProfiler = async (): Promise<void> => {
-      await cdp.send('Profiler.setSamplingInterval', { interval: 100 });
-      await cdp.send('Profiler.start');
-      rendererProfilerActive = true;
-    };
-
-    const stopRendererProfiler = async (
-      options?: { suppressErrors?: boolean }
-    ): Promise<{ profile?: unknown } | undefined> => {
-      if (!rendererProfilerActive) return undefined;
-      rendererProfilerActive = false;
-      try {
-        return await cdp.send('Profiler.stop') as { profile?: unknown };
-      } catch (error) {
-        if (options?.suppressErrors) return undefined;
-        throw error;
-      }
-    };
+    const rendererProfiler = createRendererProfiler(cdp);
 
     // Start main process profiling — captures everything for the entire test duration
     await startMainProcessProfile(mainInspectPort);
@@ -219,7 +68,7 @@ test.describe('CDP Performance Trace', () => {
 
     // Start renderer process CPU profiling via the same CDP session used for tracing
     await cdp.send('Profiler.enable');
-    await startRendererProfiler();
+    await rendererProfiler.start();
     console.log('[Perf Test] Renderer process CPU profiler started');
 
     try {
@@ -273,12 +122,11 @@ test.describe('CDP Performance Trace', () => {
     // ======================================================================
 
     // Stop the whole-test renderer profiler — save CREATE-phase profile separately
-    const phase1Profile = (await stopRendererProfiler())?.profile;
+    const phase1Profile = (await rendererProfiler.stop())?.profile;
     if (phase1Profile) {
-      const phase1Json = JSON.stringify(phase1Profile, null, 2);
-      await fs.writeFile(
+      await saveJsonProfile(
         path.join(PERF_TRACES_DIR, `renderer-create-phase-${timestamp}.cpuprofile`),
-        phase1Json, 'utf8'
+        phase1Profile,
       );
       console.log('  CREATE-phase renderer profile saved');
     }
@@ -287,7 +135,7 @@ test.describe('CDP Performance Trace', () => {
     await appWindow.waitForTimeout(2000);
 
     // Start FRESH renderer profiler for pan/zoom ONLY (100μs sampling)
-    await startRendererProfiler();
+    await rendererProfiler.start();
 
     const panZoomMetrics = await test.step('PHASE 2: PAN/ZOOM on settled graph', async () => {
       console.log('\n=== PHASE 2: PAN/ZOOM ===');
@@ -295,62 +143,7 @@ test.describe('CDP Performance Trace', () => {
       // Use the heavier pan/zoom categories only for this investigation path.
       await startCDPTrace(cdp, CDP_PAN_ZOOM_CATEGORIES);
 
-      // Simulate realistic pan/zoom on settled 500-node graph
-      await appWindow.evaluate(async () => {
-        interface CyPanZoom { panBy(p: {x: number; y: number}): void; zoom(o: {level: number; renderedPosition: {x: number; y: number}}): void; zoom(): number; width(): number; height(): number; nodes(): { length: number }; edges(): { length: number } }
-        interface ExtWindow { cytoscapeInstance?: CyPanZoom }
-        const cy = (window as unknown as ExtWindow).cytoscapeInstance;
-        if (!cy) throw new Error('cytoscapeInstance not available');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const renderer = (cy as unknown as { renderer: () => Record<string, any> }).renderer();
-
-        // Replicate signalViewportManipulation from largegraphPerformance.ts
-        const signalVpManip = () => {
-          if (!renderer?.hideEdgesOnViewport) return;
-          renderer.data.wheelZooming = true;
-          if (renderer.data.wheelTimeout) clearTimeout(renderer.data.wheelTimeout);
-          renderer.data.wheelTimeout = setTimeout(() => {
-            renderer.data.wheelZooming = false;
-            renderer.redrawHint('eles', true);
-            renderer.redraw();
-          }, 150);
-        };
-
-        const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-        console.log(`[PanZoom] hideEdgesOnViewport: ${renderer?.hideEdgesOnViewport}`);
-        console.log(`[PanZoom] Nodes: ${cy.nodes().length}, Edges: ${cy.edges().length}`);
-
-        // 30 pan operations with varying magnitudes
-        for (let i = 0; i < 30; i++) {
-          signalVpManip();
-          cy.panBy({ x: 150 * Math.sin(i * 0.4), y: 150 * Math.cos(i * 0.4) });
-          await delay(50);
-        }
-
-        // 10 zoom in/out cycles around viewport center
-        const center = { x: cy.width() / 2, y: cy.height() / 2 };
-        for (let i = 0; i < 10; i++) {
-          signalVpManip();
-          cy.zoom({ level: (cy.zoom as () => number)() * 1.3, renderedPosition: center });
-          await delay(50);
-          signalVpManip();
-          cy.zoom({ level: (cy.zoom as () => number)() / 1.3, renderedPosition: center });
-          await delay(50);
-        }
-
-        // 10 combined pan+zoom operations
-        for (let i = 0; i < 10; i++) {
-          signalVpManip();
-          cy.panBy({ x: 100 * Math.cos(i * 0.7), y: -100 * Math.sin(i * 0.7) });
-          cy.zoom({ level: (cy.zoom as () => number)() * (i % 2 === 0 ? 1.1 : 0.9), renderedPosition: center });
-          await delay(50);
-        }
-
-        // Wait for final render frames + edge-show timeout to complete
-        await delay(300);
-        console.log(`[PanZoom] Final zoom level: ${(cy.zoom as () => number)().toFixed(3)}`);
-      });
+      await simulateSettledGraphPanZoom(appWindow);
 
       await appWindow.evaluate(() => performance.mark('panzoom-end'));
 
@@ -361,12 +154,10 @@ test.describe('CDP Performance Trace', () => {
     });
 
     // Stop pan/zoom-only renderer profiler and analyze
-    const panZoomProfile = (await stopRendererProfiler())?.profile;
+    const panZoomProfile = (await rendererProfiler.stop())?.profile;
     if (panZoomProfile) {
-      const pzJson = JSON.stringify(panZoomProfile, null, 2);
       const pzPath = path.join(PERF_TRACES_DIR, `panzoom-renderer-${timestamp}.cpuprofile`);
-      await fs.writeFile(pzPath, pzJson, 'utf8');
-      const sizeKB = (Buffer.byteLength(pzJson) / 1024).toFixed(0);
+      const { json: pzJson, sizeKB } = await saveJsonProfile(pzPath, panZoomProfile);
       console.log(`  Pan/Zoom renderer profile: ${pzPath} (${sizeKB} KB)`);
       const pzMetrics = analyzeMainProcessProfile(pzJson);
       console.log('\n  PAN/ZOOM RENDERER CPU PROFILE (isolated — pan/zoom only):');
@@ -397,7 +188,7 @@ test.describe('CDP Performance Trace', () => {
     }
 
     // Restart renderer profiler for remaining phases (UPDATE + DELETE)
-    await startRendererProfiler();
+    await rendererProfiler.start();
 
     // Diagnostic: check for pre-existing overlaps BEFORE UPDATE
     const preUpdateOverlapInfo = await getOverlapDiagnosticString(appWindow);
@@ -499,12 +290,10 @@ test.describe('CDP Performance Trace', () => {
     } finally {
       // Stop renderer profiler for remaining phases (UPDATE+DELETE) — pan/zoom profile saved separately
       await test.step('Renderer process CPU profile (UPDATE+DELETE phases)', async () => {
-        const profile = (await stopRendererProfiler({ suppressErrors: true }))?.profile;
+        const profile = (await rendererProfiler.stop({ suppressErrors: true }))?.profile;
         if (profile) {
-          const profileJson = JSON.stringify(profile, null, 2);
           const filepath = path.join(PERF_TRACES_DIR, `renderer-update-delete-${timestamp}.cpuprofile`);
-          await fs.writeFile(filepath, profileJson, 'utf8');
-          const sizeKB = (Buffer.byteLength(profileJson) / 1024).toFixed(0);
+          const { json: profileJson, sizeKB } = await saveJsonProfile(filepath, profile);
           console.log(`  Renderer UPDATE+DELETE profile saved: ${filepath} (${sizeKB} KB)`);
           const metrics = analyzeMainProcessProfile(profileJson);
           console.log('\n  (Renderer UPDATE+DELETE profile)');

@@ -1,0 +1,15 @@
+/* Activity dots (blue node creation indicators) */
+.terminal-tree-activity-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3b82f6;
+    margin-left: 4px;
+    flex-shrink: 0;
+    animation: activity-dot-pulse 1s ease-in-out infinite;
+}
+
+@keyframes activity-dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+}

@@ -1,0 +1,17 @@
+/* Shortcut hint tooltip - appears inline at end of tab on hover */
+.terminal-tab-shortcut-hint {
+    display: none;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    pointer-events: none;
+    padding: 1px 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.terminal-tree-node:hover .terminal-tab-shortcut-hint {
+    display: inline;
+}

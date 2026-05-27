@@ -1,0 +1,99 @@
+/* ============================================================================
+ * Lifecycle status indicator
+ *
+ * One channel: lifecycle drives color + glyph + animation. Headless agents
+ * are already distinguished by row chrome (.terminal-tree-node.headless adds
+ * a dashed border + smaller text), so the indicator itself is shape-stable
+ * across agent types.
+ *
+ * States (matching .lifecycle-{name} from TerminalTreeSidebar.tsx):
+ *   spawning        → muted gray dot         (just-created, no output yet)
+ *   active          → amber rotating ring    (output flowing)
+ *   idle            → amber solid (no spin)  (orchestrator standby — quietly
+ *                                             waiting on sub-agents, NOT done)
+ *   awaiting_input  → amber static dashed    (paired with .node.attn blue row)
+ *   completed       → green ✓                (exit 0 / agent self-reported done)
+ *   errored         → red ✕                  (crash / non-zero exit)
+ *
+ * Plus minimized — viewport hint, not lifecycle. Solid purple, dimmed.
+ * ============================================================================ */
+.terminal-tree-status {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    box-sizing: border-box;
+}
+
+/* spawning — just-spawned, no output yet. Muted gray. */
+.terminal-tree-status.lifecycle-spawning {
+    background: #6b7280;
+    opacity: 0.7;
+}
+
+/* active — output flowing. Amber rotating ring. */
+.terminal-tree-status.lifecycle-active {
+    background: transparent;
+    border: 2px solid #f59e0b;
+    border-top-color: transparent;
+    animation: terminal-spinner 0.9s linear infinite;
+}
+:root:not(.dark) .terminal-tree-status.lifecycle-active {
+    border-color: #d97706;
+    border-top-color: transparent;
+}
+
+/* idle — orchestrator standby. The agent is alive but quietly waiting on
+   sub-agents (or on a similar non-user signal). Distinct from 'completed'
+   (green ✓) so green stays reserved for genuine task completion, and distinct
+   from 'awaiting_input' (dashed + blue row) so the user can tell at a glance
+   that no input is requested. Solid amber, no spin. */
+.terminal-tree-status.lifecycle-idle {
+    background: #f59e0b;
+}
+:root:not(.dark) .terminal-tree-status.lifecycle-idle {
+    background: #d97706;
+}
+
+/* awaiting_input — agent blocked on user. Amber static dashed (paused, not
+   crashed). Row gets a blue tint via .node.attn — that's the actual signal. */
+.terminal-tree-status.lifecycle-awaiting_input {
+    background: transparent;
+    border: 2px dashed #f59e0b;
+}
+
+/* completed — exit code 0 OR agent self-reported done. Green check. */
+.terminal-tree-status.lifecycle-completed {
+    background: #22c55e;
+}
+.terminal-tree-status.lifecycle-completed::after {
+    content: "\2713"; /* ✓ */
+    font-size: 10px;
+    font-weight: 800;
+}
+
+/* errored — crash / non-zero exit. Red ×. */
+.terminal-tree-status.lifecycle-errored {
+    background: #b91c1c;
+}
+.terminal-tree-status.lifecycle-errored::after {
+    content: "\00d7"; /* × */
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* minimized — viewport hint, takes precedence over lifecycle for the icon
+   (whole node also gets dimmed via existing .node.minimized opacity). */
+.terminal-tree-status.minimized {
+    background: #a78bfa;
+    opacity: 0.6;
+}

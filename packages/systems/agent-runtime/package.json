@@ -5,6 +5,9 @@
   "type": "module",
   "description": "Headless agent + terminal runtime: PTY orchestration, terminal registry, headless agent manager, hook dispatch, node injection. Embedded in Electron and consumed by vt-mcpd.",
   "main": "src/api/index.ts",
+  "bin": {
+    "vt-resume": "bin/vt-resume.ts"
+  },
   "exports": {
     ".": "./src/api/index.ts",
     "./types": "./src/application/terminals/terminal-registry/types.ts",
