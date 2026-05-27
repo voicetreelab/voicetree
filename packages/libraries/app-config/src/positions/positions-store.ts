@@ -10,8 +10,8 @@
  * the case where re-parsed nodes lack YAML positions.
  */
 
-import * as fs from 'fs'
-import { promises as fsAsync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { readFile } from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '@vt/graph-model/graph'
@@ -21,47 +21,52 @@ interface PositionsFile {
     readonly [nodeId: string]: { readonly x: number; readonly y: number }
 }
 
+/**
+ * Shell-injected dependencies for positions IO. Threading these in keeps
+ * `loadPositions` / `savePositionsSync` (and every transitive caller in
+ * the graph-db-server / electron-main / web-share trees) free of the
+ * `node:fs` namespace import, so the transitive-purity gate doesn't drag
+ * the whole graph-loading pipeline through this leaf.
+ */
+export interface PositionsAsyncDeps {
+    readonly readFile: (filePath: string, encoding: 'utf-8') => Promise<string>
+}
+
+export interface PositionsSyncDeps {
+    readonly readFileSync: (filePath: string, encoding: 'utf-8') => string
+    readonly writeFileSync: (filePath: string, data: string, encoding: 'utf-8') => void
+    readonly existsSync: (filePath: string) => boolean
+    readonly mkdirSync: (dir: string, opts: { recursive: true }) => void
+}
+
+/** Default real-IO deps — module-level so call sites don't re-import fs. */
+export const defaultPositionsAsyncDeps: PositionsAsyncDeps = {
+    readFile: (filePath, encoding) => readFile(filePath, encoding),
+}
+
+export const defaultPositionsSyncDeps: PositionsSyncDeps = {
+    readFileSync,
+    writeFileSync,
+    existsSync,
+    mkdirSync,
+}
+
 function positionsFilePath(projectRoot: string): string {
     return path.join(projectRoot, '.voicetree', 'positions.json')
 }
 
-function hasPersistedPositions(filePath: string): boolean {
-    try {
-        const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-        return (
-            typeof parsed === 'object'
-            && parsed !== null
-            && Object.keys(parsed).length > 0
-        )
-    } catch {
-        return false
-    }
+function decodePositions(raw: string): PositionsFile {
+    return JSON.parse(raw) as PositionsFile
 }
 
-/**
- * Load positions from .voicetree/positions.json.
- * Returns empty map if file doesn't exist or is invalid.
- */
-export async function loadPositions(projectRoot: string): Promise<ReadonlyMap<NodeIdAndFilePath, Position>> {
-    const filePath: string = positionsFilePath(projectRoot)
-    try {
-        const data: string = await fsAsync.readFile(filePath, 'utf-8')
-        const parsed: PositionsFile = JSON.parse(data) as PositionsFile
-        const entries: [NodeIdAndFilePath, Position][] = Object.entries(parsed)
-            .filter(([, pos]) => typeof pos.x === 'number' && typeof pos.y === 'number')
-            .map(([nodeId, pos]) => [nodeId, { x: pos.x, y: pos.y }])
-        return new Map(entries)
-    } catch {
-        return new Map()
-    }
+function entriesFromPositions(parsed: PositionsFile): readonly [NodeIdAndFilePath, Position][] {
+    return Object.entries(parsed)
+        .filter(([, pos]) => typeof pos.x === 'number' && typeof pos.y === 'number')
+        .map(([nodeId, pos]) => [nodeId, { x: pos.x, y: pos.y }] as [NodeIdAndFilePath, Position])
 }
 
-/**
- * Save all node positions from graph to .voicetree/positions.json.
- * Synchronous variant for use on app exit.
- */
-export function savePositionsSync(graph: Graph, projectRoot: string): void {
-    const positions: PositionsFile = Object.entries(graph.nodes).reduce(
+function projectGraphPositions(graph: Graph): PositionsFile {
+    return Object.entries(graph.nodes).reduce(
         (acc: PositionsFile, [nodeId, node]: [string, GraphNode]) => {
             if (O.isSome(node.nodeUIMetadata.position)) {
                 return { ...acc, [nodeId]: { x: Math.round(node.nodeUIMetadata.position.value.x), y: Math.round(node.nodeUIMetadata.position.value.y) } }
@@ -70,16 +75,63 @@ export function savePositionsSync(graph: Graph, projectRoot: string): void {
         },
         {}
     )
+}
 
+/**
+ * Load positions from .voicetree/positions.json.
+ * Returns empty map if file doesn't exist or is invalid.
+ */
+export async function loadPositions(
+    projectRoot: string,
+    deps: PositionsAsyncDeps,
+): Promise<ReadonlyMap<NodeIdAndFilePath, Position>> {
+    const filePath: string = positionsFilePath(projectRoot)
+    try {
+        const data: string = await deps.readFile(filePath, 'utf-8')
+        return new Map(entriesFromPositions(decodePositions(data)))
+    } catch {
+        return new Map()
+    }
+}
+
+/**
+ * Save all node positions from graph to .voicetree/positions.json.
+ * Synchronous variant for use on app exit.
+ *
+ * Skips the write when the projected graph has no positions but the
+ * existing on-disk file does — this guards against wiping persisted
+ * positions during early-exit before the graph has loaded.
+ */
+export function savePositionsSync(
+    graph: Graph,
+    projectRoot: string,
+    deps: PositionsSyncDeps,
+): void {
+    const positions: PositionsFile = projectGraphPositions(graph)
     const filePath: string = positionsFilePath(projectRoot)
     const dir: string = path.dirname(filePath)
 
-    if (Object.keys(positions).length === 0 && hasPersistedPositions(filePath)) {
-        return
+    if (Object.keys(positions).length === 0) {
+        let existing: string | null = null
+        try {
+            existing = deps.readFileSync(filePath, 'utf-8')
+        } catch {
+            existing = null
+        }
+        if (existing !== null) {
+            try {
+                const parsed: unknown = JSON.parse(existing)
+                if (typeof parsed === 'object' && parsed !== null && Object.keys(parsed).length > 0) {
+                    return
+                }
+            } catch {
+                // corrupt file — fall through and overwrite
+            }
+        }
     }
 
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
+    if (!deps.existsSync(dir)) {
+        deps.mkdirSync(dir, { recursive: true })
     }
-    fs.writeFileSync(filePath, JSON.stringify(positions, null, 2), 'utf-8')
+    deps.writeFileSync(filePath, JSON.stringify(positions, null, 2), 'utf-8')
 }

@@ -33,7 +33,10 @@ import type { HealthProbeResult } from './ownerDecision.ts'
 
 export type ProbeHealthOptions = {
   readonly timeoutMs?: number
-  readonly fetchImpl?: typeof fetch
+  /** Required; pass the global `fetch` from the shell boundary. The
+   * transitive-purity gate flags any reference to the `fetch` global
+   * inside a function body. */
+  readonly fetchImpl: typeof fetch
   /**
    * Which daemon-kind's wire schema to validate against. Defaults to
    * `'graphd'` so all pre-BF-372 callers (spawnCoordinator.ts) continue
@@ -70,9 +73,9 @@ function parseOwnerProjection(
 
 export async function probeOwnerHealth(
   port: number,
-  options: ProbeHealthOptions = {},
+  options: ProbeHealthOptions,
 ): Promise<HealthProbeResult> {
-  const fetchImpl = options.fetchImpl ?? fetch
+  const fetchImpl = options.fetchImpl
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const daemonKind: DaemonKind = options.daemonKind ?? 'graphd'
   const controller = new AbortController()

@@ -110,7 +110,7 @@ export async function gatherEvidence(
   const health =
     record.port === null
       ? { kind: 'unprobed' as const }
-      : await probeOwnerHealth(record.port, { daemonKind })
+      : await probeOwnerHealth(record.port, { daemonKind, fetchImpl: fetch })
   return {
     record,
     recordedPidLiveness,
@@ -239,6 +239,7 @@ async function onSpawnFailure(
   // write a cooldown for it.
   if (cause instanceof DaemonLaunchTimeout) {
     const now = Date.now()
+    const writerPid: number = process.pid
     await writeCooldownBreadcrumb(canonicalVault, daemonKind, {
       schemaVersion: 1,
       canonicalVault,
@@ -246,10 +247,10 @@ async function onSpawnFailure(
       untilMs: now + spawnCooldownMs,
       reason: 'spawn-failed',
       writerCallerKind: caller,
-      writerPid: process.pid,
+      writerPid,
       lastErrorName: err.name,
       lastErrorMessage: err.message,
-    })
+    }, writerPid)
   }
 }
 
@@ -262,7 +263,7 @@ async function tryReuseExistingOwner<TClient>(
   // Threading `daemonKind` is load-bearing for vtd — see the comment on
   // gatherEvidence above. A graphd-shaped probe would reject every vtd
   // body as a parse failure and surface as `unreachable`, never `verified`.
-  const probe = await probeOwnerHealth(record.port, { daemonKind })
+  const probe = await probeOwnerHealth(record.port, { daemonKind, fetchImpl: fetch })
   if (probe.kind !== 'verified') return null
   if (probe.canonicalVault !== record.canonicalVault) return null
   if (probe.ownerNonce !== record.ownerNonce) return null

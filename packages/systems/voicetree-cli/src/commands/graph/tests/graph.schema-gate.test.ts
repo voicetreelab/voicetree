@@ -4,6 +4,7 @@ import {join} from 'node:path'
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {graphCreate} from '../core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '../core/loadSchemaPlugin'
+import {CliError} from '../../output'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) {
@@ -54,6 +55,9 @@ async function captureGraphCreate(
     } catch (err) {
         if (err instanceof ExitCalled) {
             exitCode = err.code
+        } else if (err instanceof CliError) {
+            stderrChunks.push(`error: ${err.message}\n`)
+            exitCode = 1
         } else {
             throw err
         }

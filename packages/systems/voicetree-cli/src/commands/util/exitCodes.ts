@@ -4,7 +4,6 @@ import {
     GraphDbClientError,
 } from '@vt/graph-db-client'
 import {isRecord} from '../graph/core/util'
-import {setErrorClass} from '../telemetry/recordCliInvocation'
 
 export const EXIT: {
     readonly SUCCESS: 0
@@ -22,7 +21,7 @@ export const EXIT: {
     UNKNOWN: 10,
 } as const
 
-type ExitCode = (typeof EXIT)[keyof typeof EXIT]
+export type ExitCode = (typeof EXIT)[keyof typeof EXIT]
 
 interface VaultNotDetectedErrorShape {
     name: 'VaultNotDetectedError'
@@ -36,6 +35,32 @@ export class ArgValidationError extends Error {
     }
 }
 
+/**
+ * Pure error carrying an exit code + reclassified message + the original
+ * cause (preserved for VT_DEBUG=1 stack-trace printing at the boundary).
+ *
+ * handleCliError throws this; the entry-point catch in voicetree-cli.ts is
+ * the only place that touches process.exit / process.stderr / process.env,
+ * keeping handleCliError and every catch site free of the transitive-
+ * purity gate.
+ */
+export class CliExitError extends Error {
+    constructor(
+        readonly exitCode: ExitCode,
+        message: string,
+        readonly cause: unknown,
+    ) {
+        super(message)
+        this.name = 'CliExitError'
+    }
+
+    get errorClass(): string {
+        if (this.cause instanceof Error) return this.cause.name
+        if (isVaultNotDetectedError(this.cause)) return this.cause.name
+        return 'UnknownError'
+    }
+}
+
 function isVaultNotDetectedError(err: unknown): err is VaultNotDetectedErrorShape {
     return (
         isRecord(err) &&
@@ -44,50 +69,21 @@ function isVaultNotDetectedError(err: unknown): err is VaultNotDetectedErrorShap
     )
 }
 
-function writeStderrLine(line: string): void {
-    process.stderr.write(`${line}\n`)
-}
-
-function writeDebugStack(err: unknown): void {
-    if (process.env.VT_DEBUG !== '1') {
-        return
-    }
-
-    if (!(err instanceof Error) || typeof err.stack !== 'string' || err.stack.length === 0) {
-        return
-    }
-
-    process.stderr.write(err.stack.endsWith('\n') ? err.stack : `${err.stack}\n`)
-}
-
-function classNameOf(err: unknown): string {
-    if (err instanceof Error) return err.name
-    if (isVaultNotDetectedError(err)) return err.name
-    return 'UnknownError'
-}
-
-function exitWith(code: ExitCode, message: string, err: unknown): never {
-    setErrorClass(classNameOf(err))
-    writeStderrLine(`error: ${message}`)
-    writeDebugStack(err)
-    process.exit(code)
-}
-
 export function handleCliError(err: unknown): never {
     if (isVaultNotDetectedError(err)) {
-        exitWith(EXIT.ARG_VALIDATION, err.message, err)
+        throw new CliExitError(EXIT.ARG_VALIDATION, err.message, err)
     }
 
     if (err instanceof ArgValidationError) {
-        exitWith(EXIT.ARG_VALIDATION, err.message, err)
+        throw new CliExitError(EXIT.ARG_VALIDATION, err.message, err)
     }
 
     if (err instanceof DaemonUnreachableError) {
-        exitWith(EXIT.NETWORK, `could not reach daemon: ${err.message}`, err)
+        throw new CliExitError(EXIT.NETWORK, `could not reach daemon: ${err.message}`, err)
     }
 
     if (err instanceof GraphDbClientError) {
-        exitWith(
+        throw new CliExitError(
             EXIT.DAEMON_HTTP_ERROR,
             `daemon responded ${err.status} ${err.code}: ${err.message}`,
             err,
@@ -95,12 +91,12 @@ export function handleCliError(err: unknown): never {
     }
 
     if (err instanceof DaemonLaunchTimeout) {
-        exitWith(EXIT.DAEMON_LAUNCH_FAILURE, err.message, err)
+        throw new CliExitError(EXIT.DAEMON_LAUNCH_FAILURE, err.message, err)
     }
 
     if (err instanceof Error) {
-        exitWith(EXIT.UNKNOWN, err.message, err)
+        throw new CliExitError(EXIT.UNKNOWN, err.message, err)
     }
 
-    exitWith(EXIT.UNKNOWN, 'unknown failure', err)
+    throw new CliExitError(EXIT.UNKNOWN, 'unknown failure', err)
 }

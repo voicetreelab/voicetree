@@ -3,6 +3,7 @@ import {parseGraphCreateArgs} from '../core/args'
 import {mergeOverrideSpecs, parseOverrideEntry} from '../core/overrideSpec'
 import {rewriteOverrideHintForCli} from '../actions/batchEmit'
 import type {OverrideSpec, ParsedLiveCreateArgs} from '../core/types'
+import {CliError} from '../../output'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) { super(`process.exit(${code})`) }
@@ -18,6 +19,10 @@ function captureParse(args: string[]): {parsed?: unknown; stderr: string; exitCo
         return {parsed: parseGraphCreateArgs(args), stderr: msgs.join('\n'), exitCode: null}
     } catch (err) {
         if (err instanceof ExitCalled) return {exitCode: err.code, stderr: msgs.join('\n')}
+        if (err instanceof CliError) {
+            msgs.push(`error: ${err.message}`)
+            return {exitCode: 1, stderr: msgs.join('\n')}
+        }
         throw err
     } finally {
         errSpy.mockRestore()
@@ -68,6 +73,10 @@ function captureParseEntry(raw: unknown, locator: string): {value?: OverrideSpec
         return {value: parseOverrideEntry(raw, locator), stderr: msgs.join('\n'), exitCode: null}
     } catch (err) {
         if (err instanceof ExitCalled) return {exitCode: err.code, stderr: msgs.join('\n')}
+        if (err instanceof CliError) {
+            msgs.push(`error: ${err.message}`)
+            return {exitCode: 1, stderr: msgs.join('\n')}
+        }
         throw err
     } finally {
         errSpy.mockRestore()

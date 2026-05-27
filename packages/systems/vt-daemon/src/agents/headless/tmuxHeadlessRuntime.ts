@@ -91,7 +91,11 @@ function clearTmuxPoll(terminalId: TerminalId): void {
     }
 }
 
-function markTmuxMetadataExited(terminalId: TerminalId, exitCode: number | null = null): void {
+function markTmuxMetadataExited(
+    terminalId: TerminalId,
+    writerPid: number,
+    exitCode: number | null = null,
+): void {
     const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!session) return
     const existing: TmuxTerminalMetadata | null = readMetadata(session.metadataPath)
@@ -101,7 +105,7 @@ function markTmuxMetadataExited(terminalId: TerminalId, exitCode: number | null 
         status: 'exited',
         exitCode,
         endedAt: new Date().toISOString(),
-    })
+    }, writerPid)
 }
 
 function startTmuxExitPoll(terminalId: TerminalId, sessionName: string, deps: HeadlessAgentDeps): ReturnType<typeof setInterval> {
@@ -112,7 +116,7 @@ function startTmuxExitPoll(terminalId: TerminalId, sessionName: string, deps: He
                 clearTmuxPoll(terminalId)
                 const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
                 const exitCode: number | null = session ? readExitCode(session.exitCodePath) : null
-                markTmuxMetadataExited(terminalId, exitCode)
+                markTmuxMetadataExited(terminalId, deps.processPid, exitCode)
                 deps.markTerminalExited(terminalId, exitCode)
             } catch (error) {
                 deps.writeLog({level: 'error', message: `[headlessAgentManager] tmux exit poll failed for ${terminalId}:`, error})
@@ -155,7 +159,7 @@ export async function spawnTmuxBackedTerminal(
         logFile: paths.logPath,
         exitCodeFile: paths.exitCodePath,
         terminalData,
-    })
+    }, deps.processPid)
 
     clearTmuxPoll(terminalId)
     const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, deps)
@@ -190,7 +194,7 @@ export async function attachExistingTmuxBackedTerminal(
         logFile: paths.logPath,
         exitCodeFile: paths.exitCodePath,
         terminalData,
-    })
+    }, deps.processPid)
 
     clearTmuxPoll(terminalId)
     const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, deps)

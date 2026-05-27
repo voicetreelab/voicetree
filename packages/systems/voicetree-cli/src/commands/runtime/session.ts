@@ -162,7 +162,7 @@ export async function runSessionCommand(argv: string[]): Promise<void> {
         const parsed: ParsedSessionCommand = parseSessionCommand(argv)
         const showSessionId: string | undefined =
             parsed.subcommand === 'show' ? resolveShowSessionId(parsed.sessionId) : undefined
-        const vault: string = resolveVault({flag: parsed.vaultFlag})
+        const vault: string = resolveVault({flag: parsed.vaultFlag, cwd: process.cwd()})
         const {port}: {port: number} = await ensureDaemon(vault)
         const client = new GraphDbClient({
             baseUrl: `http://127.0.0.1:${port}`,

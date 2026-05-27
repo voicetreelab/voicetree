@@ -134,7 +134,7 @@ export async function collectLiveGateVerdicts(
     parentNodeId: string | undefined,
     defaultColor: string | undefined,
 ): Promise<readonly GatedInput[]> {
-    const vaultRoot: string | null = detectVaultFromCwd()
+    const vaultRoot: string | null = detectVaultFromCwd(process.cwd())
     const verdicts: GatedInput[] = []
 
     for (const node of nodes) {

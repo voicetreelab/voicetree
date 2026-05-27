@@ -6,6 +6,7 @@ import {vi, type MockInstance} from 'vitest'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {graphCreate} from '../core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '../core/loadSchemaPlugin'
+import {CliError} from '../../output'
 
 export class ExitCalled extends Error {
     constructor(public readonly code: number) {
@@ -56,6 +57,9 @@ export async function captureGraphCreate(
     } catch (err) {
         if (err instanceof ExitCalled) {
             exitCode = err.code
+        } else if (err instanceof CliError) {
+            stderrChunks.push(`error: ${err.message}\n`)
+            exitCode = 1
         } else {
             throw err
         }

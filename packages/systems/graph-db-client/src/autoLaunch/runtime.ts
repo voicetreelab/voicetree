@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
 
-export type CommandSpec = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
+export type CommandSpec = { cmd: string; args: string[]; env: NodeJS.ProcessEnv }
 type DaemonEntrypointDeps = {
   exists: (path: string) => boolean
   resolveTsx: () => string
@@ -126,15 +126,16 @@ export function resolveCommand(
   override: string | undefined,
 ): CommandSpec {
   const trimmed = override?.trim()
+  const env: NodeJS.ProcessEnv = { ...process.env }
   if (trimmed) {
     const parts = trimmed.split(/\s+/)
     const [cmd, ...rest] = parts
-    return { cmd, args: [...rest, '--project-root', vault] }
+    return { cmd, args: [...rest, '--project-root', vault], env }
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
     args: resolveDefaultDaemonArgs(vault),
-    env: { ...process.env },
+    env,
   }
 }
 

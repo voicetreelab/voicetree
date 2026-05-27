@@ -67,20 +67,21 @@ export interface DaemonRpcClient {
     readonly token: string
 }
 
+// Reader env (Pattern 3) for the RPC layer: `cwd` and `env` are required
+// inputs. The discovery + auth chain reads VOICETREE_* env vars and the
+// cwd up-walk; callers thread those values in from the shell boundary so
+// the layer stays free of the transitive-purity gate.
 export interface CreateRpcClientOptions {
-    readonly cwd?: string
-    readonly env?: Record<string, string | undefined>
+    readonly cwd: string
+    readonly env: Record<string, string | undefined>
 }
 
 // Resolve daemon URL + token via the discovery chain. Throws
 // `DaemonUnreachable` when no endpoint resolves or the token file is missing
 // at the resolved vault.
-export async function createRpcClient(options: CreateRpcClientOptions = {}): Promise<DaemonRpcClient> {
-    const env: Record<string, string | undefined> = options.env ?? process.env
-    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({
-        cwd: options.cwd,
-        env,
-    })
+export async function createRpcClient(options: CreateRpcClientOptions): Promise<DaemonRpcClient> {
+    const {env, cwd} = options
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({cwd, env})
     if (!endpoint) {
         throw new DaemonUnreachable(
             'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, open a vault, or set $VOICETREE_VAULT_PATH.',
@@ -90,7 +91,7 @@ export async function createRpcClient(options: CreateRpcClientOptions = {}): Pro
 }
 
 export interface CreateRpcClientForVaultOptions {
-    readonly env?: Record<string, string | undefined>
+    readonly env: Record<string, string | undefined>
 }
 
 // Explicit-vault client construction. Skips the cwd up-walk and reads
@@ -100,12 +101,12 @@ export interface CreateRpcClientForVaultOptions {
 // replaces the 9d `createRpcClient({cwd: '/'})` workaround.
 export async function createRpcClientForVault(
     vaultPath: string,
-    options: CreateRpcClientForVaultOptions = {},
+    options: CreateRpcClientForVaultOptions,
 ): Promise<DaemonRpcClient> {
     if (vaultPath.length === 0) {
         throw new DaemonUnreachable('createRpcClientForVault: vaultPath must be a non-empty path.')
     }
-    const env: Record<string, string | undefined> = options.env ?? process.env
+    const {env} = options
     const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpointForVault(vaultPath, {env})
     if (!endpoint) {
         throw new DaemonUnreachable(
