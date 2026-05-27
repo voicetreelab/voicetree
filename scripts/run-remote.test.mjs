@@ -6,7 +6,6 @@ import {
   ensureRemoteWorktreeReadyScript,
   localWorktreeRoot,
   repairRemoteWorktreeMetadataScript,
-  refreshRemoteGitIndexScript,
   remoteWorktreeRoot,
   synchronizationMode,
 } from './run-remote.mjs'
@@ -30,10 +29,6 @@ test('rejects bidirectional mutagen modes before remote execution', () => {
     () => assertOneWayReplica('Synchronization mode: Default (Two Way Safe)\n'),
     /must be one-way-replica/,
   )
-})
-
-test('refreshes the remote git index without touching the working tree', () => {
-  assert.match(refreshRemoteGitIndexScript(), /git reset --mixed -q HEAD/)
 })
 
 test('detects remote worktree roots from nested remote cwd', () => {

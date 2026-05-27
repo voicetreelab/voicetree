@@ -13,6 +13,10 @@
 // maps the local main repo to /root/voicetree-public on the remote. Linked
 // worktrees under `.worktrees/` are mapped to the matching remote worktree path.
 // Blocks on the sync reaching `Status: Watching for changes` before invoking ssh.
+//
+// The remote .git/index IS synced (see mutagen-vt-remote.yml), so commands run
+// here see the same staged tree as local git. This is what lets pre-commit
+// route to the devbox without re-running checks against HEAD.
 
 import {readFileSync, existsSync} from 'node:fs'
 import {spawn, execFile, execFileSync} from 'node:child_process'
@@ -136,16 +140,6 @@ function assertOneWayReplica(mutagenListOutput) {
   )
 }
 
-function refreshRemoteGitIndexScript() {
-  return [
-    'if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then',
-    // The remote .git/index is intentionally not synced. Refresh it from HEAD
-    // before tests so Git-dependent checks don't run against stale Beta state.
-    'git reset --mixed -q HEAD;',
-    'fi',
-  ].join(' ')
-}
-
 function remoteWorktreeRoot(remoteCwd, remoteRoot = REMOTE_ROOT) {
   const rel = ppath.relative(remoteRoot, remoteCwd)
   const parts = rel.split('/')
@@ -191,7 +185,6 @@ function runRemote(host, cmd, args) {
   const remoteScript = [
     repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
-    refreshRemoteGitIndexScript(),
     ensureRemoteWorktreeReadyScript(remoteCwd),
     `export ${RECURSION_GUARD}=1`,
     `exec ${quotedCmd}`,
@@ -248,7 +241,6 @@ export {
   ensureRemoteWorktreeReadyScript,
   repairRemoteWorktreeMetadataScript,
   repairLocalWorktreeMetadataIfNeeded,
-  refreshRemoteGitIndexScript,
   remoteHostFromEnvironment,
   localWorktreeRoot,
   remoteWorktreeRoot,

@@ -32,9 +32,10 @@ sync:
         - ".codeql"
         - "brain/workflows/evaluation"
         - "webapp/workers"
-        - ".git/index"
+        # .git/index IS synced so pre-commit can read the locally-staged tree
+        # from the devbox. The matching .lock paths stay ignored — they're
+        # atomic-write tempfiles, and syncing them would race with local git.
         - ".git/index.lock"
-        - ".git/worktrees/*/index"
         - ".git/worktrees/*/index.lock"
         - ".git/*.lock"
         - ".git/refs/**/*.lock"
@@ -44,9 +45,4 @@ sync:
         - ".git/COMMIT_EDITMSG"
         - ".git/FETCH_HEAD"
         - ".git/ORIG_HEAD"
-        - ".git/MERGE_HEAD"
-        - ".git/MERGE_MSG"
-        - ".git/AUTO_MERGE"
-        - ".git/CHERRY_PICK_HEAD"
-        - ".git/REVERT_HEAD"
         - "**/.voicetree/graphd.owner.json"

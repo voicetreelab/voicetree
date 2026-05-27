@@ -2,23 +2,13 @@
 # Pre-commit gate. Two hard checks, in order:
 #   1. tier-0 static checks (typecheck/lint/etc) via npm run test:t0
 #   2. subgraph-scoped codebase-health gate via npm run health:subgraph-gate
-# Both are forced LOCAL via VT_REMOTE_EXEC=1: they read the local staged
-# index, and Onidel's replica index is refreshed from HEAD before remote
-# execution so a remote run would see nothing staged.
+# Both route through scripts/run-remote.mjs (via the bin/npm shim). When
+# VT_REMOTE_HOST is set, they execute on the devbox — the local .git/index is
+# mutagen-synced (see scripts/dev-setup/remote/mutagen-vt-remote.yml) so the
+# devbox sees the same staged tree as local git.
 set -e
 repo_root="$(git rev-parse --show-toplevel)"
 export PATH="$repo_root/bin:$PATH"
-
-# Linked worktrees are created without local node_modules (see
-# scripts/git/worktree/on-created-async.sh). Since the checks below are forced
-# local (VT_REMOTE_EXEC=1), they need local deps. Reconcile them here. The
-# fast path (marker matches package*.json fingerprint) is ~100ms; the slow
-# path (first commit in a fresh worktree, or after package*.json changes)
-# seeds from main and runs `npm install --prefer-offline`. Skipped in the
-# main checkout, which is managed manually.
-if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
-    node "$repo_root/scripts/git/worktree/ensure-ready.mjs" "$repo_root"
-fi
 
 merge_conflict_files() {
     merge_msg="$(git rev-parse --git-path MERGE_MSG)"
@@ -49,13 +39,12 @@ if printf '%s\n' "$staged_files" | grep -qE '^(packages/measures/src/checks/.*\.
     fi
 fi
 
-VT_REMOTE_EXEC=1 npm run test:t0
+npm run test:t0
 
-# Subgraph health gate. This must run locally because it reads the local staged
-# index; Onidel's replica index is refreshed from HEAD before remote execution.
-# For merge commits, only conflict resolutions are authored in this commit.
-# Upstream TS/TSX changes carried by the merge were already gated on their
-# source branch, so do not re-score them just because this branch caught up.
+# Subgraph health gate. For merge commits, only conflict resolutions are
+# authored in this commit. Upstream TS/TSX changes carried by the merge were
+# already gated on their source branch, so do not re-score them just because
+# this branch caught up.
 subgraph_files="$staged_files"
 if is_merge_commit; then
     subgraph_files="$(merge_conflict_files)"
@@ -64,5 +53,5 @@ fi
 # Skip cheaply if no authored TS/TSX path is staged — those commits have
 # nothing for the AST-based measures to score.
 if printf '%s\n' "$subgraph_files" | grep -qE '\.(ts|tsx)$'; then
-    VT_REMOTE_EXEC=1 npm run health:subgraph-gate
+    npm run health:subgraph-gate
 fi
