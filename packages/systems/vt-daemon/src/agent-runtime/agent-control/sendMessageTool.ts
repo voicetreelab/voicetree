@@ -20,7 +20,7 @@ import {
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 function buildPrefixedMessage(callerTerminalId: string, message: string): string {
-    return `[From: ${callerTerminalId}] ${message}\n\nIf needed, you can reply directly with the voicetree mcp send_message tool to ${callerTerminalId}. mcp__voicetree__send_message (DO NOT USE SendMessage or other messaging tools you may have, they won't work)`
+    return `[From: ${callerTerminalId}] ${message}\n\nIf you need to reply use the cli tool 'vt agent send' to ${callerTerminalId}. (DO NOT USE SendMessage or other messaging tools you may have, they won't work)`
 }
 
 function buildErrorResponse(error: string): McpToolResponse {
