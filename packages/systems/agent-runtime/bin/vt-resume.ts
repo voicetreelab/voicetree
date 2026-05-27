@@ -260,7 +260,7 @@ function formatRow(row: RecoverableAgentSession): string {
     const status: string = row.isClaimed ? 'CLAIMED' : 'unclaimed'
     const capabilities: string[] = []
     if (row.attach) capabilities.push(`attach=${row.attach.session.sessionName}`)
-    if (row.resume) capabilities.push(`resume=${row.resume.cliType}:${row.resume.nativeSessionId}`)
+    if (row.resume) capabilities.push(`resume=${row.resume.cliType}`)
     if (capabilities.length === 0) capabilities.push('-')
     return `${row.terminalId.padEnd(24)}  ${(row.agentName ?? '').padEnd(20)}  ${status.padEnd(10)}  ${capabilities.join('  ')}`
 }
@@ -295,7 +295,7 @@ async function runResume(paths: ResolvedPaths, terminalId: string, noAttach: boo
     if (!target.resume) die(`terminal '${terminalId}' has neither attach nor resume capability.`)
 
     process.stdout.write(
-        `resuming '${terminalId}' via ${target.resume.cliType} (native session ${target.resume.nativeSessionId})\n`,
+        `resuming '${terminalId}' via ${target.resume.cliType} (native session id resolved lazily by resolveNativeSession)\n`,
     )
     const result = await resumePersistedAgentSession(target.terminalId)
     if (result.kind !== 'spawned') {
