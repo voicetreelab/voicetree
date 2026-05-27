@@ -38,7 +38,7 @@ import {
 } from '@vt/graph-model'
 import {
   postDeltaThroughDaemonWithEditors,
-} from '../daemon-ipc-proxy'
+} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
 function makeNode(
   id: NodeIdAndFilePath,
