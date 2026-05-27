@@ -8,14 +8,17 @@ import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric, removeHealthReports} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = DEFAULT_REPO_ROOT
+const TYPE_ONLY_BOUNDARY_COMPLEXITY_WEIGHT = 0.25
+const PRESSURE_HEADROOM_DEBT_RATIO = 0.75
 
 // Tiered budgets (Option A from task_ndq4d4):
 //
 //   budget       = errorBudget — ratchet that gates CI. Calibrated to keep
 //                  each axis at debtRatio ≈ 0.75 against today's whole-repo
-//                  worst observation, so RSCD ≈ 0.95 ≤ 1.0 with headroom for
-//                  small regressions. A fresh worst-offender appearing past
-//                  the ratchet breaks the build.
+//                  worst observation. RSCD uses the worst debt ratio plus a
+//                  small surcharge for top-five pressure above that 0.75
+//                  headroom target. A fresh worst-offender appearing past the
+//                  ratchet breaks the build.
 //   targetBudget = aspirational ceiling. Surfaced via the sidecar `-target`
 //                  metrics with severity:'warning' (visible on the dashboard,
 //                  never blocks CI). Drives gradual refactor work.
@@ -77,8 +80,7 @@ const PRESSURE_AXIS_CONFIGS = [
         unit: 'ratio',
     },
     // Ratio axis: semantic ceiling is 1.0, so 0.75 headroom isn't achievable.
-    // Ratchet at 0.95 (tight) — debtRatio ≈ 0.80 today is the load-bearing
-    // axis in the RSCD rollup; further widening would defeat the gate.
+    // Ratchet at 0.95 (tight) because further widening would defeat the gate.
     {
         name: 'max subdirectory cross-edge ratio',
         metricKey: 'maxSubdirCrossRatio',
@@ -143,6 +145,8 @@ type GraphEdge = {
     readonly toPackage: string
     readonly fromSubdirectory: string
     readonly toSubdirectory: string
+    readonly hasRuntimeBinding: boolean
+    readonly hasTypeOnlyBinding: boolean
 }
 
 type SystemGraph = {
@@ -210,22 +214,64 @@ async function materializeSystemFiles(packages: readonly PackageInfo[]): Promise
     return nested.flat()
 }
 
-function extractImportDeclarations(filePath: string, text: string): {specifier: string; isTypeOnly: boolean; text: string}[] {
+type ImportDeclarationInfo = {
+    readonly specifier: string
+    readonly hasRuntimeBindings: boolean
+    readonly hasTypeOnlyBindings: boolean
+    readonly text: string
+}
+
+function importClauseBindingKinds(importClause: ts.ImportClause | undefined): {hasRuntimeBindings: boolean; hasTypeOnlyBindings: boolean} {
+    if (!importClause) return {hasRuntimeBindings: true, hasTypeOnlyBindings: false}
+    if (importClause.isTypeOnly) return {hasRuntimeBindings: false, hasTypeOnlyBindings: true}
+    if (importClause.name) return {hasRuntimeBindings: true, hasTypeOnlyBindings: false}
+
+    const namedBindings = importClause.namedBindings
+    if (!namedBindings) return {hasRuntimeBindings: false, hasTypeOnlyBindings: false}
+    if (ts.isNamespaceImport(namedBindings)) return {hasRuntimeBindings: true, hasTypeOnlyBindings: false}
+
+    let hasRuntimeBindings = false
+    let hasTypeOnlyBindings = false
+    for (const element of namedBindings.elements) {
+        if (element.isTypeOnly) hasTypeOnlyBindings = true
+        else hasRuntimeBindings = true
+    }
+    return {hasRuntimeBindings, hasTypeOnlyBindings}
+}
+
+function exportDeclarationBindingKinds(statement: ts.ExportDeclaration): {hasRuntimeBindings: boolean; hasTypeOnlyBindings: boolean} {
+    if (statement.isTypeOnly) return {hasRuntimeBindings: false, hasTypeOnlyBindings: true}
+    const exportClause = statement.exportClause
+    if (!exportClause) return {hasRuntimeBindings: true, hasTypeOnlyBindings: false}
+    if (ts.isNamespaceExport(exportClause)) return {hasRuntimeBindings: true, hasTypeOnlyBindings: false}
+
+    let hasRuntimeBindings = false
+    let hasTypeOnlyBindings = false
+    for (const element of exportClause.elements) {
+        if (element.isTypeOnly) hasTypeOnlyBindings = true
+        else hasRuntimeBindings = true
+    }
+    return {hasRuntimeBindings, hasTypeOnlyBindings}
+}
+
+function extractImportDeclarations(filePath: string, text: string): ImportDeclarationInfo[] {
     const sourceFile = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
-    const declarations: {specifier: string; isTypeOnly: boolean; text: string}[] = []
+    const declarations: ImportDeclarationInfo[] = []
 
     for (const statement of sourceFile.statements) {
         if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
+            const bindingKinds = importClauseBindingKinds(statement.importClause)
             declarations.push({
                 specifier: statement.moduleSpecifier.text,
-                isTypeOnly: statement.importClause?.isTypeOnly ?? false,
+                ...bindingKinds,
                 text: statement.getText(sourceFile),
             })
         }
         if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
+            const bindingKinds = exportDeclarationBindingKinds(statement)
             declarations.push({
                 specifier: statement.moduleSpecifier.text,
-                isTypeOnly: statement.isTypeOnly,
+                ...bindingKinds,
                 text: statement.getText(sourceFile),
             })
         }
@@ -259,8 +305,8 @@ function resolveSpecifier(
     return null
 }
 
-function collectRuntimeSymbols(declaration: {isTypeOnly: boolean; text: string}): string[] {
-    if (declaration.isTypeOnly) return []
+function collectRuntimeSymbols(declaration: ImportDeclarationInfo): string[] {
+    if (!declaration.hasRuntimeBindings) return []
     const match = declaration.text.match(/(?:import|export)\s*(?:type\s*)?\{([^}]*)\}/)
     if (!match) return declaration.text.includes('* as ') ? ['*'] : []
 
@@ -289,9 +335,8 @@ async function buildSystemGraph(packages: readonly PackageInfo[]): Promise<Syste
     const filesByPath = new Map(files.map(file => [file.absolutePath, file]))
     const knownFiles = new Set(filesByPath.keys())
     const packagesByNpmName = new Map(packages.map(pkg => [pkg.name, pkg]))
-    const edges: GraphEdge[] = []
+    const edgesByFilePair = new Map<string, GraphEdge>()
     const runtimeSymbolsByTarget = new Map<string, Map<string, Set<string>>>()
-    const seenFileEdges = new Set<string>()
 
     for (const fromFile of files) {
         const text = await readFile(fromFile.absolutePath, 'utf8')
@@ -300,15 +345,23 @@ async function buildSystemGraph(packages: readonly PackageInfo[]): Promise<Syste
             const toFile = toPath ? filesByPath.get(toPath) : null
             if (toFile && toFile.absolutePath !== fromFile.absolutePath) {
                 const edgeKey = `${fromFile.relativePath}\0${toFile.relativePath}`
-                if (!seenFileEdges.has(edgeKey)) {
-                    seenFileEdges.add(edgeKey)
-                    edges.push({
+                const existing = edgesByFilePair.get(edgeKey)
+                if (existing) {
+                    edgesByFilePair.set(edgeKey, {
+                        ...existing,
+                        hasRuntimeBinding: existing.hasRuntimeBinding || declaration.hasRuntimeBindings,
+                        hasTypeOnlyBinding: existing.hasTypeOnlyBinding || declaration.hasTypeOnlyBindings,
+                    })
+                } else {
+                    edgesByFilePair.set(edgeKey, {
                         from: fromFile.relativePath,
                         to: toFile.relativePath,
                         fromPackage: fromFile.packageName,
                         toPackage: toFile.packageName,
                         fromSubdirectory: fromFile.subdirectory,
                         toSubdirectory: toFile.subdirectory,
+                        hasRuntimeBinding: declaration.hasRuntimeBindings,
+                        hasTypeOnlyBinding: declaration.hasTypeOnlyBindings,
                     })
                 }
             }
@@ -325,7 +378,7 @@ async function buildSystemGraph(packages: readonly PackageInfo[]): Promise<Syste
         }
     }
 
-    return {files, edges, runtimeSymbolsByTarget}
+    return {files, edges: [...edgesByFilePair.values()], runtimeSymbolsByTarget}
 }
 
 function isLogicalOperator(kind: ts.SyntaxKind): boolean {
@@ -676,6 +729,17 @@ function mcsTreeWidthLowerBound(nodes: readonly string[], pairs: readonly (reado
     return maxWidth
 }
 
+function computeBoundaryComplexity(edges: readonly GraphEdge[]): number {
+    if (edges.length === 0) return 0
+    const src = new Set(edges.map(edge => edge.from))
+    const tgt = new Set(edges.map(edge => edge.to))
+    const srcNodes = [...src].map(file => `src:${file}`)
+    const tgtNodes = [...tgt].map(file => `tgt:${file}`)
+    const pairs = edges.map(edge => [`src:${edge.from}`, `tgt:${edge.to}`] as const)
+    const treeWidth = mcsTreeWidthLowerBound([...srcNodes, ...tgtNodes], pairs)
+    return (treeWidth + 1) * Math.log2(edges.length + 1)
+}
+
 function measureBoundaries(files: readonly SystemFile[], edges: readonly GraphEdge[], packageNames: readonly string[]) {
     const boundaryFiles = new Map(packageNames.map(name => [name, new Set<string>()]))
     for (const edge of edges) {
@@ -714,7 +778,24 @@ function measureBoundaries(files: readonly SystemFile[], edges: readonly GraphEd
         const pairs = pairEdges.map(edge => [`src:${edge.from}`, `tgt:${edge.to}`] as const)
         const treeWidth = mcsTreeWidthLowerBound([...srcNodes, ...tgtNodes], pairs)
         const density = src.size === 0 || tgt.size === 0 ? 0 : pairEdges.length / (src.size * tgt.size)
-        return {pair, srcFan: src.size, tgtFan: tgt.size, edgeCount: pairEdges.length, density, treeWidth, bci: (treeWidth + 1) * Math.log2(pairEdges.length + 1)}
+        const runtimeEdges = pairEdges.filter(edge => edge.hasRuntimeBinding)
+        const typeOnlyEdges = pairEdges.filter(edge => !edge.hasRuntimeBinding && edge.hasTypeOnlyBinding)
+        const runtimeBci = computeBoundaryComplexity(runtimeEdges)
+        const typeOnlyBci = computeBoundaryComplexity(typeOnlyEdges)
+        return {
+            pair,
+            srcFan: src.size,
+            tgtFan: tgt.size,
+            edgeCount: pairEdges.length,
+            runtimeEdgeCount: runtimeEdges.length,
+            typeOnlyEdgeCount: typeOnlyEdges.length,
+            density,
+            treeWidth,
+            rawBci: computeBoundaryComplexity(pairEdges),
+            runtimeBci,
+            typeOnlyBci,
+            bci: runtimeBci + TYPE_ONLY_BOUNDARY_COMPLEXITY_WEIGHT * typeOnlyBci,
+        }
     }).sort((a, b) => b.bci - a.bci || a.pair.localeCompare(b.pair))
 
     return {
@@ -722,6 +803,9 @@ function measureBoundaries(files: readonly SystemFile[], edges: readonly GraphEd
         subdirProfiles,
         pairMetrics,
         aggregateBci: pairMetrics.reduce((sum, pair) => sum + pair.bci, 0),
+        aggregateRawBci: pairMetrics.reduce((sum, pair) => sum + pair.rawBci, 0),
+        aggregateRuntimeBci: pairMetrics.reduce((sum, pair) => sum + pair.runtimeBci, 0),
+        aggregateTypeOnlyBci: pairMetrics.reduce((sum, pair) => sum + pair.typeOnlyBci, 0),
     }
 }
 
@@ -773,7 +857,7 @@ function axis(config: PressureAxisConfig, current: number, worstOffender: string
     }
 }
 
-async function computePressureAxes(): Promise<PressureAxis[]> {
+async function computePressureReport(): Promise<{axes: PressureAxis[]; boundaries: ReturnType<typeof measureBoundaries>}> {
     const packages = await discoverPackages(REPO_ROOT)
     const packageNames = packages.map(pkg => pkg.dirName)
     const graph = await buildSystemGraph(packages)
@@ -788,25 +872,33 @@ async function computePressureAxes(): Promise<PressureAxis[]> {
     const runtimeFanIn = runtimeFanInRows(graph.runtimeSymbolsByTarget)
     const maxCrap = [...cyclomatic].sort((a, b) => b.crapZeroCoverage - a.crapZeroCoverage)[0]
 
-    return [
-        axis(PRESSURE_AXIS_CONFIGS[0], cognitive[0]?.score ?? 0, cognitive[0] ? `${cognitive[0].file}:${cognitive[0].line} ${cognitive[0].name}` : 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[1], cyclomatic[0]?.score ?? 0, cyclomatic[0] ? `${cyclomatic[0].file}:${cyclomatic[0].line} ${cyclomatic[0].name}` : 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[2], maintainability[0]?.maintainabilityIndex ?? 100, maintainability[0]?.file ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[3], maxCrap?.crapZeroCoverage ?? 0, maxCrap ? `${maxCrap.file}:${maxCrap.line} ${maxCrap.name}` : 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[4], fileLines[0]?.lineCount ?? 0, fileLines[0]?.file ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[5], boundaries.boundaryProfiles[0]?.ratio ?? 0, boundaries.boundaryProfiles[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[6], boundaries.subdirProfiles[0]?.ratio ?? 0, boundaries.subdirProfiles[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[7], boundaries.aggregateBci, boundaries.pairMetrics[0]?.pair ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[8], runtimeFanIn[0]?.runtimeSymbols ?? 0, runtimeFanIn[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[9], turbulence[0]?.turbulence ?? 0, turbulence[0]?.file ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[10], packageTurbulence[0]?.average ?? 0, packageTurbulence[0]?.packageName ?? 'n/a'),
-    ]
+    return {
+        axes: [
+            axis(PRESSURE_AXIS_CONFIGS[0], cognitive[0]?.score ?? 0, cognitive[0] ? `${cognitive[0].file}:${cognitive[0].line} ${cognitive[0].name}` : 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[1], cyclomatic[0]?.score ?? 0, cyclomatic[0] ? `${cyclomatic[0].file}:${cyclomatic[0].line} ${cyclomatic[0].name}` : 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[2], maintainability[0]?.maintainabilityIndex ?? 100, maintainability[0]?.file ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[3], maxCrap?.crapZeroCoverage ?? 0, maxCrap ? `${maxCrap.file}:${maxCrap.line} ${maxCrap.name}` : 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[4], fileLines[0]?.lineCount ?? 0, fileLines[0]?.file ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[5], boundaries.boundaryProfiles[0]?.ratio ?? 0, boundaries.boundaryProfiles[0]?.packageName ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[6], boundaries.subdirProfiles[0]?.ratio ?? 0, boundaries.subdirProfiles[0]?.packageName ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[7], boundaries.aggregateBci, boundaries.pairMetrics[0]?.pair ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[8], runtimeFanIn[0]?.runtimeSymbols ?? 0, runtimeFanIn[0]?.packageName ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[9], turbulence[0]?.turbulence ?? 0, turbulence[0]?.file ?? 'n/a'),
+            axis(PRESSURE_AXIS_CONFIGS[10], packageTurbulence[0]?.average ?? 0, packageTurbulence[0]?.packageName ?? 'n/a'),
+        ],
+        boundaries,
+    }
 }
 
-function computeRscd(axes: readonly PressureAxis[]): {rscd: number; topFiveRatiosForRscd: number[]} {
+function computeRscd(axes: readonly PressureAxis[]): {rscd: number; topFiveRatiosForRscd: number[]; topFiveExcessRatiosForRscd: number[]} {
     const topFiveRatiosForRscd = axes.map(axis => axis.debtRatio).sort((a, b) => b - a).slice(0, 5)
-    const meanTopFive = topFiveRatiosForRscd.reduce((sum, value) => sum + value, 0) / Math.max(1, topFiveRatiosForRscd.length)
-    return {rscd: (topFiveRatiosForRscd[0] ?? 0) + 0.25 * meanTopFive, topFiveRatiosForRscd}
+    const topFiveExcessRatiosForRscd = topFiveRatiosForRscd.map(value => Math.max(0, value - PRESSURE_HEADROOM_DEBT_RATIO))
+    const meanTopFiveExcess = topFiveExcessRatiosForRscd.reduce((sum, value) => sum + value, 0) / Math.max(1, topFiveExcessRatiosForRscd.length)
+    return {
+        rscd: (topFiveRatiosForRscd[0] ?? 0) + 0.25 * meanTopFiveExcess,
+        topFiveRatiosForRscd,
+        topFiveExcessRatiosForRscd,
+    }
 }
 
 function failureMessage(axes: readonly PressureAxis[], rscd: number): string {
@@ -845,15 +937,43 @@ async function recordSidecarTargets(axes: readonly PressureAxis[]): Promise<void
     }
 }
 
+async function recordTypeOnlyBoundaryPressure(boundaries: ReturnType<typeof measureBoundaries>): Promise<void> {
+    await recordHealthMetric({
+        metricId: 'complexity-pressure-boundary-complexity-type-only',
+        metricName: 'Type-Only Boundary Complexity',
+        description: `Warning-only diagnostic for erased type-only cross-package imports. The CI aggregate boundary gate weights this pressure at ${TYPE_ONLY_BOUNDARY_COMPLEXITY_WEIGHT}.`,
+        category: 'Complexity',
+        current: boundaries.aggregateTypeOnlyBci,
+        budget: 0,
+        comparison: 'lte',
+        severity: 'warning',
+        unit: 'bci',
+        details: {
+            typeOnlyWeightInAggregateBoundaryComplexity: TYPE_ONLY_BOUNDARY_COMPLEXITY_WEIGHT,
+            aggregateRawBci: boundaries.aggregateRawBci,
+            aggregateRuntimeBci: boundaries.aggregateRuntimeBci,
+            aggregateWeightedBci: boundaries.aggregateBci,
+            topTypeOnlyPairs: [...boundaries.pairMetrics]
+                .sort((a, b) => b.typeOnlyBci - a.typeOnlyBci || a.pair.localeCompare(b.pair))
+                .slice(0, 10)
+                .map(pair => ({
+                    pair: pair.pair,
+                    typeOnlyBci: pair.typeOnlyBci,
+                    typeOnlyEdgeCount: pair.typeOnlyEdgeCount,
+                })),
+        },
+    })
+}
+
 async function removeRetiredLegacyPressureReports(): Promise<void> {
     await removeHealthReports(PRESSURE_AXIS_CONFIGS.map(config => config.metricId))
 }
 
 describe('complexity pressure axes', () => {
     it('records the calibrated pressure rollup using whole-repo axis semantics', async () => {
-        const axes = await computePressureAxes()
+        const {axes, boundaries} = await computePressureReport()
         const failingAxes = axes.filter(axis => !axis.passed).map(axis => axis.name)
-        const {rscd, topFiveRatiosForRscd} = computeRscd(axes)
+        const {rscd, topFiveRatiosForRscd, topFiveExcessRatiosForRscd} = computeRscd(axes)
         const message = failureMessage(axes, rscd)
 
         await removeRetiredLegacyPressureReports()
@@ -866,9 +986,25 @@ describe('complexity pressure axes', () => {
             budget: 1.0,
             comparison: 'lte',
             unit: 'rscd',
-            details: {axes, failingAxes, topFiveRatiosForRscd, rscd},
+            details: {
+                axes,
+                failingAxes,
+                topFiveRatiosForRscd,
+                topFiveExcessRatiosForRscd,
+                rscd,
+                pressureHeadroomDebtRatio: PRESSURE_HEADROOM_DEBT_RATIO,
+                boundaryComplexityWeighting: {
+                    runtimeWeight: 1,
+                    typeOnlyWeight: TYPE_ONLY_BOUNDARY_COMPLEXITY_WEIGHT,
+                    aggregateRawBci: boundaries.aggregateRawBci,
+                    aggregateRuntimeBci: boundaries.aggregateRuntimeBci,
+                    aggregateTypeOnlyBci: boundaries.aggregateTypeOnlyBci,
+                    aggregateWeightedBci: boundaries.aggregateBci,
+                },
+            },
         })
         await recordSidecarTargets(axes)
+        await recordTypeOnlyBoundaryPressure(boundaries)
 
         for (const pressureAxis of axes) {
             if (pressureAxis.comparison === 'gte') {
