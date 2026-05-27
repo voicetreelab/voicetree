@@ -1,6 +1,13 @@
 import type { FakeAgentScript, Action } from './types.js'
 import type { McpClient } from './mcp-client.js'
 
+type CreateNodeInput = {
+  readonly title: string
+  readonly summary: string
+  readonly content?: string
+  readonly color?: string
+}
+
 export interface ExecutorEnv {
   terminalId: string
   taskNodePath: string
@@ -25,6 +32,25 @@ function interruptibleDelay(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
+function buildCreateGraphNode(env: ExecutorEnv, node: CreateNodeInput): {
+  readonly filename: string
+  readonly title: string
+  readonly summary: string
+  readonly content?: string
+  readonly color?: string
+} {
+  // Include terminalId + a monotonic counter so concurrent fake-agents do not
+  // produce colliding filenames when create actions land in the same millisecond.
+  const filename = `fake-agent-${env.terminalId}-${Date.now()}-${createNodeCounter++}.md`
+  return {
+    filename,
+    title: node.title,
+    summary: node.summary,
+    content: node.content,
+    color: node.color,
+  }
+}
+
 export async function executeScript(
   script: FakeAgentScript,
   mcpClient: McpClient,
@@ -44,18 +70,12 @@ export async function executeScript(
         break
       }
 
-      case 'create_node': {
-        // Include terminalId + a monotonic counter so concurrent fake-agents
-        // do not produce colliding filenames when their create_node actions
-        // land in the same millisecond.
-        const filename = `fake-agent-${env.terminalId}-${Date.now()}-${createNodeCounter++}.md`
-        await mcpClient.createGraph(env.terminalId, [{
-          filename,
-          title: action.title,
-          summary: action.summary,
-          content: action.content,
-          color: action.color,
-        }], env.outputDir)
+      case 'create_nodes': {
+        await mcpClient.createGraph(
+          env.terminalId,
+          action.nodes.map((node) => buildCreateGraphNode(env, node)),
+          env.outputDir,
+        )
         break
       }
 

@@ -53,6 +53,37 @@ function resolveGraphDaemonNodeBin(): string {
   return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
 }
 
+function builtAppEnvironment(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  delete env.ELECTRON_RENDERER_URL;
+  return env;
+}
+
+async function closeElectronAppWithTimeout(electronApp: ElectronApplication): Promise<void> {
+  const closeTimeoutMs = 10000;
+  const closedGracefully: boolean = await Promise.race([
+    electronApp.close().then(() => true).catch(() => true),
+    new Promise<false>(resolve => setTimeout(() => resolve(false), closeTimeoutMs)),
+  ]);
+  if (closedGracefully) return;
+
+  const childProcess = electronApp.process();
+  if (childProcess.exitCode !== null) return;
+
+  childProcess.kill('SIGTERM');
+  await new Promise<void>(resolve => {
+    const timeout = setTimeout(resolve, 5000);
+    childProcess.once('exit', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+
+  if (childProcess.exitCode === null) {
+    childProcess.kill('SIGKILL');
+  }
+}
+
 export function getMainInspectPort(): number {
   return mainInspectPort;
 }
@@ -164,7 +195,7 @@ export const test = base.extend<{
         `--user-data-dir=${tempUserDataPath}`,
       ],
       env: {
-        ...process.env,
+        ...builtAppEnvironment(),
         NODE_ENV: 'test',
         HEADLESS_TEST: '0',
         MINIMIZE_TEST: '0',
@@ -211,7 +242,7 @@ export const test = base.extend<{
       // Ignore shutdown errors
     }
 
-    await electronApp.close();
+    await closeElectronAppWithTimeout(electronApp);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
 
     // After the temp vault is gone, any leftover vt-graphd daemons spawned by

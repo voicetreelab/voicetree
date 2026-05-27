@@ -187,14 +187,20 @@ test('vt-fake-agent runs an orchestration script through its CLI and MCP boundar
           task: 'Worker child task',
           childScript: {
             actions: [
-              {type: 'create_node', title: 'Worker Output', summary: 'Worker finished.'},
+              {
+                type: 'create_nodes',
+                nodes: [{title: 'Worker Output', summary: 'Worker finished.'}],
+              },
               {type: 'exit', code: 0},
             ],
           },
           headless: true,
         },
         {type: 'wait_for_children'},
-        {type: 'create_node', title: 'Orchestration Complete', summary: 'Parent observed child completion.'},
+        {
+          type: 'create_nodes',
+          nodes: [{title: 'Orchestration Complete', summary: 'Parent observed child completion.'}],
+        },
         {type: 'exit', code: 0},
       ],
     }

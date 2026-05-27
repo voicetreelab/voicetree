@@ -3,17 +3,42 @@
  * Eliminates duplication across spawnPlainTerminal, spawnHookTerminal, and prepareTerminalDataInMain.
  */
 
-import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWriteFolder} from '../runtime/graph-bridge'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
+type VaultSnapshot = {
+    readonly projectRoot: string | null
+    readonly readPaths: readonly string[]
+    readonly writeFolder: string | null
+}
+
+type VaultEnv = {
+    readonly allVaultPaths: readonly string[]
+    readonly projectRoot: string | null
+    readonly writeFolder: string
+}
 
 function selectRandomEnvVarValueIndex(values: readonly string[]): number {
     return Math.floor(Math.random() * values.length)
+}
+
+function vaultPathsFromSnapshot(snapshot: VaultSnapshot): readonly string[] {
+    return [
+        ...(snapshot.writeFolder ? [snapshot.writeFolder] : []),
+        ...snapshot.readPaths.filter(path => path !== snapshot.writeFolder),
+    ]
+}
+
+async function resolveVaultEnv(env: ReturnType<typeof getRuntimeEnv>): Promise<VaultEnv> {
+    const snapshot: VaultSnapshot = await env.getVaultSnapshot()
+    return {
+        allVaultPaths: vaultPathsFromSnapshot(snapshot),
+        projectRoot: snapshot.projectRoot,
+        writeFolder: snapshot.writeFolder ?? '',
+    }
 }
 
 export async function buildTerminalEnvVars(params: {
@@ -35,17 +60,8 @@ export async function buildTerminalEnvVars(params: {
     }
     const env = getRuntimeEnv()
     const appSupportPath: string = env.getAppSupportPath()
-    const allVaultPaths: readonly string[] = env.getVaultPaths
-        ? await env.getVaultPaths()
-        : await getRuntimeVaultPaths()
+    const {allVaultPaths, projectRoot, writeFolder}: VaultEnv = await resolveVaultEnv(env)
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
-    const writeFolder: string = env.getWriteFolder
-        ? (await env.getWriteFolder()) ?? ''
-        : O.getOrElse(() => '')(await getRuntimeWriteFolder())
-
-    const projectRoot: string | null = env.getProjectRoot
-        ? await env.getProjectRoot()
-        : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
     const vaultPath: string = writeFolder || projectRoot || ''
 

@@ -13,11 +13,17 @@
     "perf:main-storm": "node --import tsx perf/electron-main-storm.ts"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.218.0",
+    "@opentelemetry/resources": "^2.7.1",
+    "@opentelemetry/sdk-metrics": "^2.7.1",
+    "@opentelemetry/semantic-conventions": "^1.41.1",
     "@vt/agent-runtime": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/observability": "*",
+    "@vt/perf-analysis": "*",
     "@vt/perf-fixtures": "*",
     "@vt/voicetree-mcp": "*",
     "ws": "^8.18.0"

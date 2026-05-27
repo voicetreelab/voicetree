@@ -146,14 +146,18 @@ function resolvePaths(args: Args): ResolvedPaths {
 function configureRuntime(paths: ResolvedPaths): void {
     configureAgentRuntime({
         env: {
-            // Discovery and tmux-namespace resolution only read project-root
-            // and write-path. Other env getters can return safe defaults — they
-            // are not exercised by the read-only/spawn paths this CLI uses.
+            // Discovery and tmux-namespace resolution read project-root and
+            // write-path; the snapshot keeps spawned terminal env assembly on
+            // the same resolved vault metadata if this CLI launches one.
             getAppSupportPath: (): string => '',
             getMcpPort: (): number => 0,
-            getProjectRootWatchedDirectory: async (): Promise<string> => paths.projectRoot,
-            getWritePath: async (): Promise<string> => paths.vault,
-            getVaultPaths: async (): Promise<readonly string[]> => [paths.vault],
+            getProjectRoot: async (): Promise<string> => paths.projectRoot,
+            getVaultSnapshot: async () => ({
+                projectRoot: paths.projectRoot,
+                readPaths: [paths.vault],
+                writeFolder: paths.vault,
+            }),
+            getWriteFolder: async (): Promise<string> => paths.vault,
         },
     })
 }

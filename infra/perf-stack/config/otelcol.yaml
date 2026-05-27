@@ -1,0 +1,105 @@
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+    path: /healthz
+  file_storage/filelog:
+    directory: "${env:VOICETREE_PERF_OTELCOL_STATE_DIR}"
+    create_directory: true
+
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 127.0.0.1:2994 }
+      http: { endpoint: 127.0.0.1:2993 }
+  filelog:
+    include: [ "${env:HOME}/.voicetree/perf/*/logs/*.log" ]
+    include_file_path: true
+    start_at: beginning
+    storage: file_storage/filelog
+    operators:
+      - type: regex_parser
+        regex: '^.*/\.voicetree/perf/(?P<service_instance_id>[^/]+)/logs/(?P<service_name>[^/]+)\.log$'
+        parse_from: attributes["log.file.path"]
+        parse_to: resource
+      - type: move
+        from: resource.service_name
+        to: resource["service.name"]
+      - type: move
+        from: resource.service_instance_id
+        to: resource["service.instance.id"]
+      - type: regex_parser
+        regex: '^(?P<time>\S+)\s+(?P<level>\S+)\s+(?P<message>.*)$'
+        timestamp:
+          parse_from: attributes.time
+          layout_type: strptime
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+        severity:
+          parse_from: attributes.level
+      - type: move
+        from: attributes.message
+        to: body
+
+connectors:
+  routing/metrics_file_mirror:
+    default_pipelines: []
+    table:
+      - context: resource
+        condition: attributes["service.instance.id"] != nil and attributes["service.instance.id"] != ""
+        pipelines: [metrics/file_mirror]
+  routing/traces_file_mirror:
+    default_pipelines: []
+    table:
+      - context: resource
+        condition: attributes["service.instance.id"] != nil and attributes["service.instance.id"] != ""
+        pipelines: [traces/file_mirror]
+
+exporters:
+  debug:
+    verbosity: basic
+  otlphttp/loki:
+    endpoint: http://localhost:2998/otlp
+  prometheusremotewrite:
+    endpoint: http://localhost:2996/api/v1/write
+    add_metric_suffixes: false
+    resource_to_telemetry_conversion:
+      enabled: true
+  file/metrics:
+    path: "${env:HOME}/.voicetree/perf/*/metrics/vt-test.metrics.ndjson"
+    append: true
+    create_directory: true
+    group_by:
+      enabled: true
+      resource_attribute: service.instance.id
+  otlp/tempo:
+    endpoint: 127.0.0.1:4327
+    tls:
+      insecure: true
+  file/traces:
+    path: "${env:HOME}/.voicetree/perf/*/traces/vt-test.spans.ndjson"
+    append: true
+    create_directory: true
+    group_by:
+      enabled: true
+      resource_attribute: service.instance.id
+
+service:
+  extensions: [health_check, file_storage/filelog]
+  pipelines:
+    traces/smoke:
+      receivers: [otlp]
+      exporters: [debug]
+    logs:
+      receivers: [filelog]
+      exporters: [otlphttp/loki]
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheusremotewrite, routing/metrics_file_mirror]
+    metrics/file_mirror:
+      receivers: [routing/metrics_file_mirror]
+      exporters: [file/metrics]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/tempo, routing/traces_file_mirror]
+    traces/file_mirror:
+      receivers: [routing/traces_file_mirror]
+      exporters: [file/traces]

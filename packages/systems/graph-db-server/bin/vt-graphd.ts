@@ -68,7 +68,10 @@ function die(msg: string): never {
 }
 
 async function main() {
-  tracing.init('vt-graphd')
+  tracing.init('vt-graphd', {
+    otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
+    instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
+  })
   const stopPerfProbe = await perfProbeFromEnv('vt-graphd')
   const args = parseArgs(process.argv.slice(2))
 

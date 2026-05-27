@@ -297,6 +297,22 @@ describe('MCP create_graph tool', () => {
             expect(calls.length).toBeGreaterThanOrEqual(2)
         })
 
+        it('reads graph, vault paths, and write folder once through the per-call snapshot', async () => {
+            setupStandardMocks()
+
+            await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {filename:'a', title: 'Node A', summary: 'A.'},
+                    {filename:'b', title: 'Node B', summary: 'B.'},
+                ]
+            })
+
+            expect(getGraph).toHaveBeenCalledTimes(1)
+            expect(getVaultPaths).toHaveBeenCalledTimes(1)
+            expect(getWriteFolder).toHaveBeenCalledTimes(1)
+        })
+
         it('updates context node with all new node IDs', async () => {
             setupStandardMocks()
 

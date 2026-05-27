@@ -1,16 +1,16 @@
 /**
- * Auto Layout: Automatically run Cola layout on graph changes
+ * Auto Layout: Automatically run the selected layout engine on graph changes
  *
  * Layout strategy:
  * - Initial load / tidy button / large removal (>7 nodes): "Full Ultimate Layout" chain:
- *   R-tree pack (component separation) → Cola (positioning + refinement) → animated cy.fit()
+ *   R-tree pack (component separation) → layout backend (positioning + refinement) → animated cy.fit()
  * - Small removal (≤7 nodes): skip layout (positions already stable)
  * - Incremental (batch-added nodes <30% of graph):
- *   Local Cola on 10-hop capped-50 neighborhood → R-tree pack only if components overlap
+ *   Local layout on 10-hop capped-50 neighborhood → R-tree pack only if components overlap
  * - Batch (>30% new): skip (too many nodes for local Cola)
  *
- * Cola handles all layout. Our R-tree packComponents() handles disconnected component
- * separation before Cola runs.
+ * The configured backend handles node placement. Our R-tree packComponents()
+ * handles disconnected component separation before the backend runs.
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
  * constraint iterations (no unconstrained) for fast global stabilization, then Phase 2 ran
@@ -21,7 +21,6 @@
  */
 
 import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, EventObject} from 'cytoscape';
-import ColaLayout from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/cola-engine/cola';
 import { packComponents } from '@vt/graph-model/spatial';
 import type { ComponentSubgraph } from '@vt/graph-model/spatial';
 import { runLocalCola } from './autoLayoutLocalCola';
@@ -40,6 +39,7 @@ import type { AutoLayoutOptions, LayoutConfig } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS } from './autoLayoutTypes';
 import { parseLayoutConfig } from './autoLayoutConfig';
 import { registerAutoLayoutTriggers, unregisterAutoLayoutTriggers } from './autoLayoutTriggers';
+import { runLayoutAdapter } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/runLayoutAdapter';
 
 // Re-export public API from sibling modules
 export type { AutoLayoutOptions } from './autoLayoutTypes';
@@ -57,7 +57,7 @@ export { triggerColaLayout, markNodeDirty, triggerFullLayout } from './autoLayou
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
   // Mutable config that gets updated when settings change
-  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options } };
+  let currentConfig: LayoutConfig = { engine: 'forceatlas2', cola: { ...DEFAULT_OPTIONS, ...options } };
 
   // Load initial config from settings
   void window.electronAPI?.main.loadSettings().then(settings => {
@@ -149,41 +149,23 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   const getLayoutParticipantElements: () => CollectionReturnValue = () => participantSet.getCollection();
 
-  const runColaLayout: (onComplete?: () => void) => void = (onComplete) => {
-    const colaOpts: AutoLayoutOptions = currentConfig.cola;
+  const runConfiguredLayout: (participants: CollectionReturnValue, onComplete?: () => void) => void = (participants, onComplete) => {
     const layoutParticipants: CollectionReturnValue = getLayoutParticipantElements();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const layout: any = new (ColaLayout as any)({
-      cy: cy,
+    void runLayoutAdapter({
+      cy,
       // Exclude non-participating compounds; collapsed folder proxies stay in the layout.
-      eles: layoutParticipants,
-      animate: colaOpts.animate,
-      randomize: false, // Don't randomize - preserve existing positions
-      avoidOverlap: colaOpts.avoidOverlap,
-      handleDisconnected: colaOpts.handleDisconnected,
-      convergenceThreshold: colaOpts.convergenceThreshold,
-      maxSimulationTime: colaOpts.maxSimulationTime,
-      unconstrIter: colaOpts.unconstrIter,
-      userConstIter: colaOpts.userConstIter,
-      allConstIter: colaOpts.allConstIter,
-      nodeSpacing: colaOpts.nodeSpacing,
-      edgeLength: colaOpts.edgeLength,
-      edgeSymDiffLength: colaOpts.edgeSymDiffLength,
-      edgeJaccardLength: colaOpts.edgeJaccardLength,
-      centerGraph: false,
-      fit: false,
-      nodeDimensionsIncludeLabels: true,
-    });
-
-    layout.one('layoutstop', () => {
-      // panToTrackedNode(cy);
+      eles: participants.intersection(layoutParticipants),
+      config: currentConfig,
+      mode: 'full',
+    }).then(() => {
+      (onComplete ?? onLayoutComplete)();
+    }).catch((error: unknown) => {
+      console.error('[AutoLayout] Layout backend failed:', error);
       (onComplete ?? onLayoutComplete)();
     });
-    layout.run();
   };
 
-  /** Full ultimate layout chain: R-tree pack → Cola → animated cy.fit() */
+  /** Full ultimate layout chain: R-tree pack → selected backend → animated cy.fit() */
   const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
     // Element membership cannot change between component packing and the post-Cola
     // fit (Cola only mutates positions; no cy.add/cy.remove in between), so compute
@@ -219,7 +201,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       });
     }
 
-    runColaLayout(() => {
+    runConfiguredLayout(participants, () => {
       const padding: number = getResponsivePadding(cy, 15);
       cyFitIntoVisibleViewport(cy, participants, padding, {
         duration: 300,
@@ -269,9 +251,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         hasRunInitialLayout = true;
         onInitialHydrationComplete();
       } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
-        // Incremental: local Cola positions new nodes, then component separation +
+        // Incremental: local backend positions new nodes, then component separation +
         // push loop runs inside runLocalCola (coarse-then-fine overlap resolution).
-        runLocalCola(cy, newNodeIds, currentConfig.cola, () => {
+        runLocalCola(cy, newNodeIds, currentConfig, () => {
           onLayoutComplete();
         });
       } else if (newNodeIds.size === 0) {

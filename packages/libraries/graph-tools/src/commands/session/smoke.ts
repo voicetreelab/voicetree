@@ -117,13 +117,15 @@ async function smokeHandler(argv: string[]): Promise<Response<unknown>> {
       )
     }
 
-    // Step 4: Send create_node action
+    // Step 4: Send create_nodes action
     const nodeTitle = `smoke-test-${Date.now()}`
     const action = JSON.stringify({
-      type: 'create_node',
-      title: nodeTitle,
-      summary: 'Automated smoke test: fake agent creates a node via MCP.',
-      color: 'green',
+      type: 'create_nodes',
+      nodes: [{
+        title: nodeTitle,
+        summary: 'Automated smoke test: fake agent creates a node via MCP.',
+        color: 'green',
+      }],
     })
 
     await mcpClient.callTool({

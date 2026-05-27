@@ -306,6 +306,7 @@ export async function reconcileTmuxHeadlessAgents(
         onRunningSession: ({terminalId, metadataPath, metadata}) => {
             if (tmuxHeadlessState.sessions.has(terminalId)) return
             const sessionName: string = metadata.session ?? terminalId
+            const isHeadless: boolean = metadata.terminalData?.isHeadless ?? true
             registerTmuxSessionAlias(terminalId, sessionName)
             const terminalDir: string = getRecoveryMetadataDir(projectRoot)
             // metadata.terminalData is optional on the persisted schema; the

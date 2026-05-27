@@ -61,12 +61,14 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics, type VaultState} from '@vt/graph-db-client';
 import {tracing} from '@vt/observability';
 import {
     getDaemonClient,
+    callDaemon,
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
+import {buildElectronGraphSnapshot} from './graph-snapshot';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 import {installQuitLifecycleHandlers} from './quit-lifecycle';
@@ -89,9 +91,6 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
-tracing.init('vt-electron-main');
-tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
-validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
@@ -100,15 +99,11 @@ initializeGraphModel();
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
     graph: {
-        getGraph: async () => getGraphFromDaemon(),
-        getVaultPaths,
-        getWriteFolder: async () => {
-            const writeFolder: O.Option<string> = await getWriteFolder();
-            return O.isSome(writeFolder) ? writeFolder.value : null;
+        getSnapshot: async () => {
+            return await callDaemon((client) => buildElectronGraphSnapshot(client));
         },
         applyGraphDelta: (delta, recordForUndo) =>
-            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRoot,
+            postDeltaThroughDaemonWithEditors(delta, { recordForUndo }),
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,
@@ -132,7 +127,14 @@ terminalRuntimeSurface.configureAgentRuntime({
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
         getProjectRoot,
-        getVaultPaths,
+        getVaultSnapshot: async () => {
+            const vaultState: VaultState = await callDaemon((client) => client.getVault());
+            return {
+                projectRoot: vaultState.projectRoot,
+                readPaths: vaultState.readPaths,
+                writeFolder: vaultState.writeFolder,
+            };
+        },
         getWriteFolder: async () => {
             const writeFolder: O.Option<string> = await getWriteFolder();
             return O.isSome(writeFolder) ? writeFolder.value : null;
@@ -145,7 +147,7 @@ terminalRuntimeSurface.configureAgentRuntime({
         getProjectRoot,
         getWatchStatus,
         applyGraphDelta: (delta, recordForUndo) =>
-            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
+            postDeltaThroughDaemonWithEditors(delta, { recordForUndo }),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
             const result = await getActiveGraphDbClient().createContextNode(
                 parentNodeId,
@@ -191,8 +193,14 @@ function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
 }
 
-function pinProcessAppSupportPath(): void {
-    process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+function pinProcessAppSupportPath(
+    env: NodeJS.ProcessEnv = process.env,
+): { readonly otlpEndpoint?: string; readonly instanceId?: string } {
+    env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+    return {
+        otlpEndpoint: env.VOICETREE_OTLP_ENDPOINT,
+        instanceId: env.VOICETREE_RUN_INSTANCE_ID,
+    };
 }
 
 async function getProjectRoot(): Promise<string | null> {
@@ -202,7 +210,9 @@ async function getProjectRoot(): Promise<string | null> {
 }
 
 configureEnvironment();
-pinProcessAppSupportPath();
+tracing.init('vt-electron-main', pinProcessAppSupportPath());
+tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
+validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
 // Global manager instances

@@ -20,6 +20,10 @@ await esbuild.build({
     // @vscode/ripgrep uses __dirname to locate its native binary, which
     // breaks when bundled into ESM. Keep it external so it resolves at runtime.
     '@vscode/ripgrep',
+    // @pyroscope/nodejs loads @datadog/pprof native bindings via __dirname.
+    // Bundling it into ESM breaks that lookup; leave the package boundary
+    // intact so Node's CommonJS loader provides the expected runtime globals.
+    '@pyroscope/nodejs',
   ],
   plugins: [
     {

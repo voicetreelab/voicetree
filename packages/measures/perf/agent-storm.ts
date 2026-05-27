@@ -4,7 +4,7 @@
  * Boots an in-process headless VoiceTree (graph-db-server + voicetree-mcp +
  * agent-runtime, no Electron) against a fresh temp vault, then spawns N
  * tmux-backed `vt-fake-agent` terminals in parallel. Each fake-agent runs a
- * deterministic script of `create_node` actions, which exercise the real MCP
+ * deterministic script of `create_nodes` actions, which exercise the real MCP
  * `create_graph` tool and the daemon-routed vault write path end-to-end.
  *
  * Why this exists: the existing perf tests measure Cytoscape layout, SSE
@@ -26,7 +26,7 @@
  *   removes the temp vault and tmux sessions on exit.
  */
 
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import {
     mkdirSync,
@@ -124,6 +124,13 @@ async function main(): Promise<void> {
         env: {
             getAppSupportPath: (): string => tempAppSupport,
             getMcpPort,
+            getProjectRoot: async (): Promise<string> => tempVault,
+            getVaultSnapshot: async () => ({
+                projectRoot: tempVault,
+                readPaths: [tempVault],
+                writeFolder: tempVault,
+            }),
+            getWriteFolder: async (): Promise<string> => tempVault,
         },
         ui: { registerChildIfMonitored },
     })
@@ -153,31 +160,37 @@ async function main(): Promise<void> {
     // webapp's `main.ts` wiring.
     const daemonBaseUrl = `http://127.0.0.1:${daemonHandle.port}`
     const daemonClient = new GraphDbClient({ baseUrl: daemonBaseUrl })
-    const openResult = await daemonClient.openVault(tempVault, { writePath: tempVault })
+    const openResult = await daemonClient.openVault(tempVault, { writeFolder: tempVault })
+    const graphFromDaemon = async (): Promise<Graph> => {
+        const raw = await daemonClient.getGraph()
+        const nodes = (typeof raw === 'object' && raw !== null && 'nodes' in raw)
+            ? (raw as { nodes: Record<string, unknown> }).nodes
+            : {}
+        return normalizeDaemonGraph({ nodes })
+    }
+    const vaultPathsFromState = (vs: { readonly readPaths: readonly string[]; readonly writeFolder: string }): readonly string[] => {
+        const seen = new Set<string>()
+        const out: string[] = []
+        for (const p of [vs.writeFolder, ...vs.readPaths]) {
+            if (!seen.has(p)) { seen.add(p); out.push(p) }
+        }
+        return out
+    }
 
     configureMcpServer({
         graph: {
-            getGraph: async (): Promise<Graph> => {
-                const raw = await daemonClient.getGraph()
-                const nodes = (typeof raw === 'object' && raw !== null && 'nodes' in raw)
-                    ? (raw as { nodes: Record<string, unknown> }).nodes
-                    : {}
-                return normalizeDaemonGraph({ nodes })
-            },
-            getVaultPaths: async () => {
-                // VaultState has {vaultPath, readPaths, writePath}. Match the
-                // webapp's getVaultPaths: writePath first, then any extra
-                // readPaths. createGraph compares against this list to gate
-                // outputPath placement.
-                const vs = await daemonClient.getVault()
-                const seen = new Set<string>()
-                const out: string[] = []
-                for (const p of [vs.writePath, ...vs.readPaths]) {
-                    if (!seen.has(p)) { seen.add(p); out.push(p) }
+            getSnapshot: async () => {
+                const [graph, vaultState] = await Promise.all([
+                    graphFromDaemon(),
+                    daemonClient.getVault(),
+                ])
+                return {
+                    graph,
+                    projectRoot: vaultState.projectRoot,
+                    vaultPaths: vaultPathsFromState(vaultState),
+                    writeFolder: vaultState.writeFolder,
                 }
-                return out
             },
-            getWritePath: async () => (await daemonClient.getVault()).writePath ?? null,
             applyGraphDelta: async (delta, recordForUndo) => {
                 await daemonClient.applyGraphDelta(delta as unknown as unknown[], {
                     recordForUndo: recordForUndo ?? true,

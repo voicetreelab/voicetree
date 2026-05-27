@@ -25,6 +25,9 @@ import {
 } from '@vt/graph-db-server/state/events/projectedGraphEventBus'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
+import { getProject } from './projectState.ts'
+import { sessionProjectionCache } from '../session/sessionProjectionCache.ts'
+import { readDaemonStateSnapshot } from '../session/buildDaemonState.ts'
 
 export type SessionEventTimers = {
   readonly setInterval: (
@@ -38,6 +41,11 @@ export type SessionEventStream = {
   readonly write: (chunk: string) => Promise<void>
   readonly onAbort: (callback: () => void) => void
 }
+
+type ProjectionCache = ReturnType<typeof sessionProjectionCache.create>
+type ProjectionCacheLease = ReturnType<ReturnType<typeof sessionProjectionCache.createRegistry>['acquire']>
+
+const projectionCacheRegistry = sessionProjectionCache.createRegistry()
 
 export function sessionExistsWorkflow(
   registry: WorkflowSessionRegistry,
@@ -81,20 +89,34 @@ export async function runSessionEventsWorkflow(input: {
     })
   }
 
-  const projectDeltaForSession = async (
-    event: ProjectDeltaEventInput,
-  ): Promise<ProjectedGraph | null> => {
-    const freshSession: Session | null = registry.get(sessionId)
-    if (!freshSession) return null
+  const projectionCache: ProjectionCacheLease = projectionCacheRegistry.acquire(sessionId)
 
-    const state = await traceGraphdSpan('session.events.build-daemon-state', async (span) => {
+  const buildFreshState = async (
+    freshSession: Session,
+    event: ProjectDeltaEventInput,
+  ) => {
+    return await traceGraphdSpan('session.events.build-daemon-state', async (span) => {
       span.setAttribute('session.id', sessionId)
       span.setAttribute('graph.delta.seq', event.seq)
       span.setAttribute('graph.delta.actions', event.delta.length)
-      return await buildDaemonState(freshSession)
+      const snapshot = await readDaemonStateSnapshot(freshSession)
+      const cache = sessionProjectionCache.create(snapshot, event.seq)
+      return {
+        cache,
+        state: sessionProjectionCache.project(cache),
+      }
     })
+  }
 
-    return await traceGraphdSpan('session.events.project-delta', async (span) => {
+  const projectDeltaFresh = async (
+    event: ProjectDeltaEventInput,
+  ): Promise<{ readonly cache: ProjectionCache; readonly graph: ProjectedGraph } | null> => {
+    const freshSession: Session | null = registry.get(sessionId)
+    if (!freshSession) return null
+
+    const { cache, state } = await buildFreshState(freshSession, event)
+
+    const graph = await traceGraphdSpan('session.events.project-delta', async (span) => {
       span.setAttribute('session.id', sessionId)
       span.setAttribute('graph.delta.seq', event.seq)
       span.setAttribute('graph.delta.actions', event.delta.length)
@@ -104,12 +126,58 @@ export async function runSessionEventsWorkflow(input: {
       span.setAttribute('graph.recent_nodes', graph.recentNodeIds?.length ?? 0)
       return graph
     })
+    return { cache, graph }
   }
 
-  const sendDeltaProjection = async (event: ProjectDeltaEventInput): Promise<void> => {
-    const graph = await projectDeltaForSession(event)
-    if (!graph) return
+  const projectDeltaCached = async (
+    event: ProjectDeltaEventInput,
+  ): Promise<ProjectedGraph | null> => {
+    const currentCache: ProjectionCache | null = projectionCache.current()
+    if (currentCache === null) return null
+
+    const nextCache = sessionProjectionCache.advance(currentCache, event)
+    projectionCache.replace(nextCache)
+    const state = sessionProjectionCache.project(nextCache)
+
+    return await traceGraphdSpan('session.events.project-delta', async (span) => {
+      span.setAttribute('session.id', sessionId)
+      span.setAttribute('graph.delta.seq', event.seq)
+      span.setAttribute('graph.delta.actions', event.delta.length)
+      span.setAttribute('session.events.projection_cache', true)
+      const graph = handleProjectDeltaEvent(state, event).graph
+      span.setAttribute('graph.nodes', graph.nodes.length)
+      span.setAttribute('graph.edges', graph.edges.length)
+      span.setAttribute('graph.recent_nodes', graph.recentNodeIds?.length ?? 0)
+      return graph
+    })
+  }
+
+  const canUseProjectionCache = (): boolean => {
+    const freshSession: Session | null = registry.get(sessionId)
+    if (!freshSession) return false
+    return !sessionProjectionCache.shouldRebuild({
+      cache: projectionCache.current(),
+      session: freshSession,
+      vaultVersion: getProject()?.vaultVersion ?? 0,
+    })
+  }
+
+  const sendDeltaProjection = async (
+    event: ProjectDeltaEventInput,
+    mode: 'cached' | 'fresh',
+  ): Promise<ProjectionCache | null> => {
+    const result = mode === 'cached'
+      ? {
+          cache: projectionCache.current(),
+          graph: await projectDeltaCached(event),
+        }
+      : await projectDeltaFresh(event)
+    const cache = mode === 'cached' ? projectionCache.current() : result?.cache ?? null
+    if (result === null || result.graph === null || cache === null) return null
+    const graph = result.graph
     await sendGraph(graph)
+    projectionCache.replace(cache)
+    return cache
   }
 
   let pendingLiveEvents: SequencedDeltaEvent[] = []
@@ -118,9 +186,13 @@ export async function runSessionEventsWorkflow(input: {
     liveFlushScheduled = false
     const events = pendingLiveEvents
     pendingLiveEvents = []
+    const useCache = canUseProjectionCache()
+    let freshCache: ProjectionCache | null = null
     for (const batched of batchProjectDeltaEvents(events)) {
-      await sendDeltaProjection(batched)
+      const cache = await sendDeltaProjection(batched, useCache ? 'cached' : 'fresh')
+      if (!useCache && cache) freshCache = cache
     }
+    if (!useCache && freshCache) projectionCache.replace(freshCache)
     if (pendingLiveEvents.length > 0 && !liveFlushScheduled) {
       liveFlushScheduled = true
       queueMicrotask(() => void flushLiveDeltaProjection())
@@ -143,6 +215,7 @@ export async function runSessionEventsWorkflow(input: {
     if (!freshSession) return snapshotSeq
 
     const state = await buildDaemonState(freshSession)
+    projectionCache.clear()
     await sendGraph(handleReplayResetSnapshot(
       state,
       requestedSince,
@@ -185,14 +258,14 @@ export async function runSessionEventsWorkflow(input: {
     )
   } else {
     for (const event of replayEvents) {
-      await sendDeltaProjection(event)
+      await sendDeltaProjection(event, 'fresh')
     }
   }
 
   replayComplete = true
   for (const event of queuedLiveEvents) {
     if (event.seq > highWaterSeq) {
-      enqueueLiveDeltaProjection(event)
+      await sendDeltaProjection(event, 'fresh')
     }
   }
 
@@ -202,6 +275,7 @@ export async function runSessionEventsWorkflow(input: {
     unsubscribeDelta?.()
     unsubscribeProjected = null
     unsubscribeDelta = null
+    projectionCache.release()
   })
 
   await new Promise<void>((resolve) => {

@@ -10,7 +10,7 @@
         "actions": [
           { "type": "log", "message": "Fast child working..." },
           { "type": "delay", "ms": 2000 },
-          { "type": "create_node", "title": "Fast child done", "summary": "Completed in 2s" },
+          { "type": "create_nodes", "nodes": [{ "title": "Fast child done", "summary": "Completed in 2s" }] },
           { "type": "delay", "ms": 500 },
           { "type": "exit", "code": 0 }
         ]
@@ -23,7 +23,7 @@
         "actions": [
           { "type": "log", "message": "Medium child working..." },
           { "type": "delay", "ms": 5000 },
-          { "type": "create_node", "title": "Medium child done", "summary": "Completed in 5s" },
+          { "type": "create_nodes", "nodes": [{ "title": "Medium child done", "summary": "Completed in 5s" }] },
           { "type": "delay", "ms": 500 },
           { "type": "exit", "code": 0 }
         ]
@@ -36,7 +36,7 @@
         "actions": [
           { "type": "log", "message": "Slow child working..." },
           { "type": "delay", "ms": 8000 },
-          { "type": "create_node", "title": "Slow child done", "summary": "Completed in 8s" },
+          { "type": "create_nodes", "nodes": [{ "title": "Slow child done", "summary": "Completed in 8s" }] },
           { "type": "delay", "ms": 500 },
           { "type": "exit", "code": 0 }
         ]
@@ -44,7 +44,7 @@
     },
     { "type": "wait_for_children" },
     { "type": "log", "message": "All 3 children completed" },
-    { "type": "create_node", "title": "Fan-out parent done", "summary": "Parent completed after all 3 children (2s, 5s, 8s) finished" },
+    { "type": "create_nodes", "nodes": [{ "title": "Fan-out parent done", "summary": "Parent completed after all 3 children (2s, 5s, 8s) finished" }] },
     { "type": "delay", "ms": 500 },
     { "type": "exit", "code": 0 }
   ]

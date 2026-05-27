@@ -80,25 +80,31 @@ const test = base.extend<{
     const fakeAgentScript = {
       actions: [
         {
-          type: 'create_node',
-          title: 'Smoke Fake Agent Progress Node',
-          summary: 'Created by the Electron smoke test through vt-fake-agent.',
-          content: 'Fake-agent Electron smoke coverage marker.',
-          color: 'green'
+          type: 'create_nodes',
+          nodes: [{
+            title: 'Smoke Fake Agent Progress Node',
+            summary: 'Created by the Electron smoke test through vt-fake-agent.',
+            content: 'Fake-agent Electron smoke coverage marker.',
+            color: 'green'
+          }]
         },
         {
-          type: 'create_node',
-          title: 'Smoke Node Two',
-          summary: 'Second node verifying SSE delta rendering.',
-          content: 'Second smoke node content.',
-          color: 'blue'
+          type: 'create_nodes',
+          nodes: [{
+            title: 'Smoke Node Two',
+            summary: 'Second node verifying SSE delta rendering.',
+            content: 'Second smoke node content.',
+            color: 'blue'
+          }]
         },
         {
-          type: 'create_node',
-          title: 'Smoke Node Three',
-          summary: 'Third node verifying SSE delta rendering.',
-          content: 'Third smoke node content.',
-          color: 'blue'
+          type: 'create_nodes',
+          nodes: [{
+            title: 'Smoke Node Three',
+            summary: 'Third node verifying SSE delta rendering.',
+            content: 'Third smoke node content.',
+            color: 'blue'
+          }]
         },
         { type: 'exit', code: 0 }
       ]

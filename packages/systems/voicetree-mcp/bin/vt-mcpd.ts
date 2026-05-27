@@ -88,7 +88,7 @@ function defaultAppSupportPath(): string {
     )
 }
 
-function configureHeadlessBridges(appSupportPath: string): void {
+function configureHeadlessBridges(appSupportPath: string, vault: string): void {
     // Live-state tools require an Electron renderer; fail with a clear MCP error
     // rather than crashing the daemon.
     configureMcpServer({
@@ -109,6 +109,13 @@ function configureHeadlessBridges(appSupportPath: string): void {
         env: {
             getAppSupportPath: (): string => appSupportPath,
             getMcpPort,
+            getProjectRoot: async (): Promise<string> => vault,
+            getVaultSnapshot: async () => ({
+                projectRoot: vault,
+                readPaths: [vault],
+                writeFolder: vault,
+            }),
+            getWriteFolder: async (): Promise<string> => vault,
         },
         // No interactive terminals in headless mode; only registerChildIfMonitored
         // is reachable (used by the spawn path even for headless agents).
@@ -128,7 +135,7 @@ async function main(): Promise<void> {
     // diagnostics runs against vt-mcpd.
     tracing.init('vt-graphd')
 
-    configureHeadlessBridges(appSupportPath)
+    configureHeadlessBridges(appSupportPath, args.vault)
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 

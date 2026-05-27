@@ -1,0 +1,749 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "VT Runs",
+      "tooltip": "Open the run index dashboard",
+      "type": "link",
+      "url": "/d/vt-runs/vt-runs"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Node Runtime",
+      "tooltip": "Open the Node runtime drill-down",
+      "type": "link",
+      "url": "/d/node-runtime-vt/node-runtime"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": null,
+      "description": "One-stop view of a single perf run. Sections: vt-graphd (Node, full perfProbe), vt-electron-main (CDP sampler), vt-renderer (CDP + V8 cpuprofile), vt-devbox-vm (/proc sampler), cross-cutting traces/logs/files. Pick a run_id above. Time range defaults to 7d to cover historical runs.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+        "content": "# Storm Run Overview\n\nOne row per producer service. Select a `run_id` above. Backends: VictoriaMetrics (metrics), Loki (logs), Tempo (traces), Pyroscope (profiles). Canonical per-run files live under `~/.voicetree/perf/$run_id/`.\n\n`vt-mcpd` is intentionally not shown — producer is not OTEL-wired in this checkout.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.0.1",
+      "title": "Storm Run Overview",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Services that emitted any metric for the selected run.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 3 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "count by (service_name) ({__name__=~\".+\", service_instance_id=\"$run_id\", service_name!=\"\"})",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Services present",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Total metric series ingested for this run.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 3 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "count({__name__=~\".+\", service_instance_id=\"$run_id\"})",
+          "instant": false,
+          "legendFormat": "metric series",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Metric series",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Total lines matching ERROR in any service for this run.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 3 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({service_instance_id=\"$run_id\"} |= \"ERROR\" [$__range]))",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Log error count",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 10,
+      "panels": [],
+      "title": "vt-graphd — Node service (perfProbeFromEnv)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "CPU seconds consumed per wall-clock second, split by user/system.",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "rate(process_cpu_time{service_instance_id=\"$run_id\", service_name=\"vt-graphd\"}[1m])",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CPU time rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "process.memoryUsage(): rss, heap_used, heap_total, external, array_buffers.",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "process_memory_usage{service_instance_id=\"$run_id\", service_name=\"vt-graphd\"}",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Memory usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "p50 and p99 event-loop delay from perf_hooks.monitorEventLoopDelay() (ms).",
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 18 },
+      "id": 13,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "nodejs_eventloop_delay{service_instance_id=\"$run_id\", service_name=\"vt-graphd\", quantile=~\"0.5|0.99\"}",
+          "legendFormat": "p{{quantile}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Event loop delay",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "V8 garbage-collection events per second.",
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 18 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "rate(runtime_gc_count{service_instance_id=\"$run_id\", service_name=\"vt-graphd\"}[1m])",
+          "legendFormat": "gc/s",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "GC event rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "p99 V8 GC pause derived from runtime_gc_pause_bucket (ms).",
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 18 },
+      "id": 15,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(runtime_gc_pause_bucket{service_instance_id=\"$run_id\", service_name=\"vt-graphd\"}[1m])))",
+          "legendFormat": "p99",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "GC pause p99",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Loki log lines for vt-graphd in this run.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 24 },
+      "id": 16,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "{service_name=\"vt-graphd\", service_instance_id=\"$run_id\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Top traces for vt-graphd in this run, sorted by trace duration. Click a trace to drill in. (TraceQL metrics aggregation requires Tempo metrics-generator, which is not enabled in this stack.)",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 24 },
+      "id": 17,
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "query": "{resource.service.name=\"vt-graphd\" && resource.service.instance.id=\"$run_id\"}",
+          "limit": 30,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "title": "Top traces (Tempo, vt-graphd)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "description": "Pyroscope wall-CPU flame graph for vt-graphd (Node SDK).",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 34 },
+      "id": 18,
+      "options": {},
+      "targets": [
+        {
+          "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+          "labelSelector": "{service_name=\"vt-graphd\",service_instance_id=\"$run_id\"}",
+          "profileTypeId": "wall:cpu:nanoseconds:wall:nanoseconds",
+          "groupBy": [],
+          "queryType": "profile",
+          "refId": "A"
+        }
+      ],
+      "title": "Pyroscope flame (wall:cpu)",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 },
+      "id": 20,
+      "panels": [],
+      "title": "vt-electron-main — Electron main (CDP sampler)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Electron main process CPU seconds per wall-clock second (CDP sampler over process.cpuUsage()).",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
+      "id": 21,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "rate(process_cpu_time{service_instance_id=\"$run_id\", service_name=\"vt-electron-main\"}[1m])",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CPU time rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Electron main process.memoryUsage() — rss, heap_used, heap_total, external, array_buffers.",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
+      "id": 22,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "process_memory_usage{service_instance_id=\"$run_id\", service_name=\"vt-electron-main\"}",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Memory usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Loki log lines for vt-electron-main in this run.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 57 },
+      "id": 23,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "{service_name=\"vt-electron-main\", service_instance_id=\"$run_id\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Top traces for vt-electron-main in this run, sorted by trace duration. Click a trace to drill in. (TraceQL metrics aggregation requires Tempo metrics-generator, which is not enabled in this stack.)",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 57 },
+      "id": 24,
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "query": "{resource.service.name=\"vt-electron-main\" && resource.service.instance.id=\"$run_id\"}",
+          "limit": 30,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "title": "Top traces (Tempo, vt-electron-main)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "description": "Pyroscope CPU flame graph for vt-electron-main (V8 cpuprofile via CDP, uploaded as pprof).",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 67 },
+      "id": 25,
+      "options": {},
+      "targets": [
+        {
+          "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+          "labelSelector": "{service_name=\"vt-electron-main\",service_instance_id=\"$run_id\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "groupBy": [],
+          "queryType": "profile",
+          "refId": "A"
+        }
+      ],
+      "title": "Pyroscope flame (process_cpu)",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 81 },
+      "id": 30,
+      "panels": [],
+      "title": "vt-renderer — Chromium renderer (CDP sampler)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Renderer V8 heap (CDP Performance.getMetrics JSHeap*): heap_used and heap_total.",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 82 },
+      "id": 31,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "process_memory_usage{service_instance_id=\"$run_id\", service_name=\"vt-renderer\"}",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Memory usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Renderer scalar metrics from CDP Performance.getMetrics — nodes, documents, layout/recalc counts and durations, script/task durations.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 82 },
+      "id": 32,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "browser_renderer_metric{service_instance_id=\"$run_id\", service_name=\"vt-renderer\"}",
+          "legendFormat": "{{metric}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Renderer metrics (CDP)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": null,
+      "description": "vt-renderer has no Loki log lines wired in this checkout. The renderer emits CDP-sourced metrics + an uploaded V8 cpuprofile only.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 90 },
+      "id": 33,
+      "options": {
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+        "content": "_No Loki logs panel for vt-renderer — there is no producer-side log emitter on that side in this branch. See `perf-metrics-per-proc-explainer.md`._",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.0.1",
+      "title": "Logs — N/A for vt-renderer",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "description": "Pyroscope CPU flame graph for vt-renderer (V8 cpuprofile via CDP, uploaded as pprof).",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 94 },
+      "id": 34,
+      "options": {},
+      "targets": [
+        {
+          "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+          "labelSelector": "{service_name=\"vt-renderer\",service_instance_id=\"$run_id\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "groupBy": [],
+          "queryType": "profile",
+          "refId": "A"
+        }
+      ],
+      "title": "Pyroscope flame (process_cpu)",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 108 },
+      "id": 40,
+      "panels": [],
+      "title": "vt-devbox-vm — host (/proc sampler)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Host CPU percentage split by type: used / idle / iowait / steal.",
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 109 },
+      "id": 41,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "host_cpu_usage{service_instance_id=\"$run_id\"}",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Host CPU usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "1-minute load average: raw value and per-CPU percent.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 109 },
+      "id": 42,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "host_load_1m{service_instance_id=\"$run_id\"}",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Host load 1m",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Host memory bytes: total / available / used.",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 117 },
+      "id": 43,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "host_memory_usage{service_instance_id=\"$run_id\"}",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Host memory bytes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Host memory used as a percent of total.",
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 117 },
+      "id": 44,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "host_memory_usage_pct{service_instance_id=\"$run_id\"}",
+          "legendFormat": "used %",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Host memory percent",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 125 },
+      "id": 50,
+      "panels": [],
+      "title": "Cross-cutting",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Longest traces for this run across all services. Sort by duration desc.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 126 },
+      "id": 51,
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "query": "{resource.service.instance.id=\"$run_id\"}",
+          "limit": 50,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "title": "Longest traces (Tempo)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "ERROR log line count over the panel range, broken down by service.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 136 },
+      "id": 52,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (count_over_time({service_instance_id=\"$run_id\"} |= \"ERROR\" [$__auto]))",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Errors by service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": null,
+      "description": "Heap snapshots intentionally stay on disk; Grafana does not ingest 100MB+ V8 object graphs.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 136 },
+      "id": 53,
+      "options": {
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+        "content": "## Heap snapshots & raw artifacts\n\nPath for selected run:\n\n`~/.voicetree/perf/$run_id/`\n\n- `heap-snapshots/` — V8 heap snapshots at t=0s, 5s, 10s per Node service. Load in Chrome DevTools → Memory → Load.\n- `logs/` — durable plain-text log per service.\n- `metrics/vt-test.metrics.ndjson` — full OTLP metrics mirror (every batch, dotted names). Survives VM wipes.\n- `profiles/renderer.cpuprofile` — V8 cpuprofile (also in Pyroscope).\n- `e2e-storm-mvp-report.json` — harness summary.\n\nPlain files survive backend wipes — if PromQL panels show \"No data\" but a UUID directory exists, the metrics NDJSON is the source of truth.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.0.1",
+      "title": "Heap snapshots & raw artifacts",
+      "type": "text"
+    },
+    {
+      "datasource": null,
+      "description": "vt-mcpd is not OTEL-wired in this checkout (calls tracing.init('vt-graphd') without OTLP env). No section is shown for it.",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 144 },
+      "id": 54,
+      "options": {
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+        "content": "_`vt-mcpd` is intentionally omitted — producer is not OTEL-wired in this branch. Wiring is tracked in [`next-steps-wt-perf-profiling-60z-2026-05-27_4`]._",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.0.1",
+      "title": "vt-mcpd not wired",
+      "type": "text"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["voicetree", "perf-stack", "storm", "overview"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "79FA25F6-682B-42F2-80E0-501539D1B6E3",
+          "value": "79FA25F6-682B-42F2-80E0-501539D1B6E3"
+        },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values({__name__=~\".+\"}, service_instance_id)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "run_id",
+        "multi": false,
+        "name": "run_id",
+        "options": [],
+        "query": {
+          "query": "label_values({__name__=~\".+\"}, service_instance_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Storm Run Overview",
+  "uid": "storm-run-overview",
+  "version": 1,
+  "weekStart": ""
+}
