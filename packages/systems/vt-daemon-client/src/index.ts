@@ -60,6 +60,7 @@ export {
   getUnseenNodesForTerminal,
   injectNodesIntoTerminal,
   patchTerminalRecord,
+  removePersistedAgentRecord,
   removeTerminalFromRegistry,
   resumePersistedAgentSession,
   sendTextToTerminal,
