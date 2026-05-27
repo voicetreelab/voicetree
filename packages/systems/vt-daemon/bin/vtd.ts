@@ -71,6 +71,8 @@ import {setAppSupportPath} from '@vt/vt-daemon/state/app-support.ts'
 import {resolveVtBinDir} from '@vt/vt-daemon/spawn/vtPathInjection.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
+import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
+import type {GraphStateBridge} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {
     TERMINAL_REGISTRY_TOPIC,
     type TerminalRegistryEvent,
@@ -184,6 +186,7 @@ function callerKindFromEnv(): CallerKind {
 
 function configureAgentRuntimeForVtd(
     publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
+    graph: GraphStateBridge,
 ): void {
     // The CLI manual and `vt` binary are both shipped inside @voicetree/cli.
     // vtd lives next to it on disk (packages/systems/vt-daemon →
@@ -207,6 +210,7 @@ function configureAgentRuntimeForVtd(
             getVtBinDir: (): string | null => vtBinDir,
         },
         publishTerminalRegistryEvent,
+        graph,
     })
 }
 
@@ -366,11 +370,18 @@ async function main(): Promise<void> {
     // Step 4.5: now that the SSE hub is ready, configure agent-runtime with
     // the publish sink that routes terminal-registry events onto the new
     // topic + the in-process completion-monitor side channel.
+    //
+    // The agent-runtime graph bridge is wired here too: `spawnTerminalWithContextNode`
+    // and friends read graph state through the agent-runtime module-level cell, which
+    // is a SEPARATE slot from `mcpBridges.graph` despite the contracts overlapping.
+    // Both must be wired or the spawn pipeline throws "graph bridge not configured"
+    // on the first Run-Agent click.
     configureAgentRuntimeForVtd(
         buildPublishTerminalRegistryEvent(
             (event: string, data: unknown): void =>
                 httpHandle.hub.publish(TERMINAL_REGISTRY_TOPIC, event, data),
         ),
+        buildGdbAgentRuntimeGraphBridge(gdb.client, args.vault),
     )
 
     // OTLP receiver — receives metrics from Claude-Code-style agents on
