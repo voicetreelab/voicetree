@@ -24,7 +24,15 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
 // cache, needed to preserve external SSE appends across focused-editor autosaves
 // (tier2-editor-typing-order-regression-fixed.md). Same architectural reason as
 // BF-267 — full DI would re-thread through every HTTP route.
-const MODULE_MUTABLE_STATE_BASELINE = 48
+// 2026-05-28 [PR #135 merge]: Bumped 48 → 49 for `SIBLING_SUFFIXES` — the
+// top-level `readonly string[]` lookup table inside
+// vt-daemon/.../recovery/removePersistedAgentRecord.ts (the deletion helper
+// that backs the webapp "Show older" RPC, preserved from dev-manu through the
+// dev-manu → dev integration). It's an immutable lookup constant by intent;
+// the scanner still counts it because it's a top-level binding. Same
+// architectural rationale as the prior bumps — folding it into a passed-in
+// parameter would touch every recovery call site for no behavioral gain.
+const MODULE_MUTABLE_STATE_BASELINE = 49
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),

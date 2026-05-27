@@ -274,7 +274,11 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     // a hard CI failure — webapp is supposed to reach vt-daemon over the
     // HTTP boundary via `@vt/vt-daemon-client`, not in-process.
     'webapp -> vt-daemon': 0,
-    'webapp -> vt-daemon-client': 13,
+    // 2026-05-28 [PR #135 merge]: +1 — `removePersistedAgentRecord` added as the
+    // RPC verb backing the webapp "Show older" UX that lets users delete
+    // historical agent records (dev-manu UX preserved through the dev-manu→dev
+    // integration). Single new symbol on the canonical HTTP boundary.
+    'webapp -> vt-daemon-client': 14,
     'webapp -> vt-rpc': 3,
 }
 
