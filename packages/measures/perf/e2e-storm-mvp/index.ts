@@ -21,6 +21,7 @@ import * as path from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
+import { inflateSync } from 'node:zlib'
 import type { Page } from '@playwright/test'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
@@ -185,8 +186,89 @@ type RendererProfileCapture = {
     readonly stop: () => Promise<void>
 }
 
+type RendererScreenshotCapture = {
+    readonly dir: string
+    readonly stop: () => Promise<void>
+}
+
 function rendererMetricValue(metrics: readonly RendererMetric[], name: string): number | undefined {
     return metrics.find(metric => metric.name === name)?.value
+}
+
+function pngLooksNonBlank(buffer: Buffer): boolean {
+    if (buffer.subarray(0, 8).compare(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) !== 0) return false
+    let offset = 8
+    let width = 0
+    let height = 0
+    let colorType = 0
+    const idat: Buffer[] = []
+
+    while (offset + 12 <= buffer.length) {
+        const length = buffer.readUInt32BE(offset)
+        const type = buffer.subarray(offset + 4, offset + 8).toString('ascii')
+        const data = buffer.subarray(offset + 8, offset + 8 + length)
+        offset += 12 + length
+
+        if (type === 'IHDR') {
+            width = data.readUInt32BE(0)
+            height = data.readUInt32BE(4)
+            const bitDepth = data[8]
+            colorType = data[9] ?? 0
+            if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) return false
+        } else if (type === 'IDAT') {
+            idat.push(data)
+        } else if (type === 'IEND') {
+            break
+        }
+    }
+
+    if (width === 0 || height === 0 || idat.length === 0) return false
+    const bytesPerPixel = colorType === 6 ? 4 : 3
+    const rowBytes = width * bytesPerPixel
+    const inflated = inflateSync(Buffer.concat(idat))
+    let read = 0
+    let previous = Buffer.alloc(rowBytes)
+    let darkest = 255
+    let brightest = 0
+    let sampled = 0
+
+    for (let y = 0; y < height; y++) {
+        const filter = inflated[read++] ?? 0
+        const row = Buffer.from(inflated.subarray(read, read + rowBytes))
+        read += rowBytes
+
+        for (let x = 0; x < rowBytes; x++) {
+            const left = x >= bytesPerPixel ? row[x - bytesPerPixel] ?? 0 : 0
+            const up = previous[x] ?? 0
+            const upLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] ?? 0 : 0
+            const p = left + up - upLeft
+            const pa = Math.abs(p - left)
+            const pb = Math.abs(p - up)
+            const pc = Math.abs(p - upLeft)
+            const paeth = pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft
+            const predictor =
+                filter === 1 ? left
+                    : filter === 2 ? up
+                        : filter === 3 ? Math.floor((left + up) / 2)
+                            : filter === 4 ? paeth
+                                : 0
+            row[x] = ((row[x] ?? 0) + predictor) & 0xff
+        }
+
+        const stride = Math.max(1, Math.floor(width / 32))
+        for (let x = 0; x < width; x += stride) {
+            const i = x * bytesPerPixel
+            const luminance = Math.round(
+                ((row[i] ?? 0) * 0.2126) + ((row[i + 1] ?? 0) * 0.7152) + ((row[i + 2] ?? 0) * 0.0722),
+            )
+            darkest = Math.min(darkest, luminance)
+            brightest = Math.max(brightest, luminance)
+            sampled += 1
+        }
+        previous = row
+    }
+
+    return sampled > 0 && brightest > 20 && (brightest - darkest) > 10
 }
 
 async function startRendererProfileCapture(
@@ -265,6 +347,56 @@ async function startRendererProfileCapture(
                 stoppedAtMs: Date.now(),
             })
             process.stdout.write(`[mvp] uploaded renderer profile to Pyroscope: ${upload.renderQuery}\n`)
+        },
+    }
+}
+
+async function startRendererScreenshotCapture(
+    appWindow: Page,
+    runDir: string,
+    intervalMs: number = 5_000,
+): Promise<RendererScreenshotCapture> {
+    const dir = path.join(runDir, 'screenshots')
+    mkdirSync(dir, { recursive: true })
+    let stopped = false
+    let inFlight = false
+    let index = 0
+
+    const capture = async (reason: 'sample' | 'final'): Promise<void> => {
+        if (inFlight) return
+        inFlight = true
+        const paddedIndex = String(index++).padStart(3, '0')
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
+        try {
+            const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5_000 })
+            if (!pngLooksNonBlank(Buffer.from(bytes))) throw new Error(`blank renderer screenshot: ${screenshotPath}`)
+            process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
+        } finally {
+            inFlight = false
+        }
+    }
+
+    void capture('sample').catch((error: unknown) => {
+        process.stderr.write(`[mvp] initial renderer screenshot failed: ${(error as Error).message}\n`)
+    })
+    const interval = setInterval(() => {
+        if (stopped) return
+        void capture('sample').catch((error: unknown) => {
+            process.stderr.write(`[mvp] renderer screenshot failed: ${(error as Error).message}\n`)
+        })
+    }, intervalMs)
+    interval.unref()
+
+    return {
+        dir,
+        stop: async () => {
+            if (stopped) return
+            stopped = true
+            clearInterval(interval)
+            await capture('final').catch((error: unknown) => {
+                process.stderr.write(`[mvp] final renderer screenshot failed: ${(error as Error).message}\n`)
+            })
         },
     }
 }
@@ -378,6 +510,7 @@ async function main(): Promise<void> {
     let electronMainProfile: MainProcessCdpHandle | null = null
     let stopElectronMainMetrics: (() => Promise<void>) | null = null
     let rendererProfile: RendererProfileCapture | null = null
+    let rendererScreenshots: RendererScreenshotCapture | null = null
     let hostVmMetrics: HostVmMetricsSampler | null = null
     let hostVmMetricsSummary: HostVmMetricsSummary | null = null
 
@@ -425,6 +558,8 @@ async function main(): Promise<void> {
         await appWindow.waitForLoadState('domcontentloaded')
         rendererProfile = await startRendererProfileCapture(appWindow, runContext)
         process.stdout.write('[mvp] started renderer CDP profile + metrics sampler\n')
+        rendererScreenshots = await startRendererScreenshotCapture(appWindow, runContext.runDir)
+        process.stdout.write(`[mvp] started renderer screenshot sampler: ${rendererScreenshots.dir}\n`)
 
         const agentResults = await Promise.all(Array.from({ length: args.agentCount }, (_, agentIndex) => (
             runFakeAgent({
@@ -450,8 +585,8 @@ async function main(): Promise<void> {
         agentsTimedOut = agentResults.filter(result => result.timedOut).length
 
         for (const [agentIndex, result] of agentResults.entries()) {
-            if (result.headlessOutput) {
-                process.stdout.write(`[mvp] agent ${agentIndex} headless output:\n${result.headlessOutput}\n`)
+            if (result.terminalOutput) {
+                process.stdout.write(`[mvp] agent ${agentIndex} terminal output:\n${result.terminalOutput}\n`)
             }
         }
 
@@ -494,6 +629,18 @@ async function main(): Promise<void> {
         }
 
         if (app) {
+            if (rendererScreenshots !== null) {
+                try {
+                    await rendererScreenshots.stop()
+                    process.stdout.write(`[mvp] saved renderer screenshots: ${rendererScreenshots.dir}\n`)
+                    rendererScreenshots = null
+                } catch (e) {
+                    process.stderr.write(`[mvp] renderer screenshot save failed: ${(e as Error).message}\n`)
+                    failureReason ??= `renderer screenshot save failed: ${(e as Error).message}`
+                    pass = false
+                }
+            }
+
             if (rendererProfile !== null) {
                 try {
                     await rendererProfile.stop()
@@ -603,6 +750,7 @@ async function main(): Promise<void> {
         appSupportPath,
         electronLogPath,
         perfRunDir: runContext.runDir,
+        screenshotDir: path.join(runContext.runDir, 'screenshots'),
         hostVmMetrics: hostVmMetricsSummary,
         outPath,
         totalWallMs: Date.now() - overallStart,

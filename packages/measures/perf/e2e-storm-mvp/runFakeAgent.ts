@@ -54,7 +54,7 @@ export interface FakeAgentResult {
     readonly spawnWallMs: number
     readonly wallMs: number
     readonly timedOut: boolean
-    readonly headlessOutput: string
+    readonly terminalOutput: string
 }
 
 function buildAgentPrompt(script: FakeAgentScript): string {
@@ -92,18 +92,39 @@ export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number
 /** Mark `__dirname` as referenced so noUnusedLocals stays happy under tsx. */
 export const __sourceDir = __dirname
 
+function shellSingleQuote(value: string): string {
+    return `'${value.replace(/'/g, `'\\''`)}'`
+}
+
+function commandWithLifecycleExitCode(inputs: FakeAgentInputs, command: string): string {
+    const terminalDir = path.join(inputs.vaultDir, '.voicetree', 'terminals')
+    const exitCodePath = path.join(terminalDir, `${inputs.terminalId}.exitcode`)
+    const script = [
+        `mkdir -p ${shellSingleQuote(terminalDir)}`,
+        `rm -f ${shellSingleQuote(exitCodePath)}`,
+        command,
+        'code=$?',
+        `printf '%s' "$code" > ${shellSingleQuote(exitCodePath)}`,
+        'exit "$code"',
+    ].join('; ')
+    return `bash -lc ${shellSingleQuote(script)}`
+}
+
 function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
     const fakeAgentEntry = resolveFakeAgentEntrypoint(inputs.repoRoot)
     const fakeAgentDir = path.dirname(fakeAgentEntry)
     const tsxImportPath = resolveTsxImportPath()
+    const command = `${JSON.stringify(process.execPath)} --import ${JSON.stringify(tsxImportPath)} ${JSON.stringify(fakeAgentEntry)}`
 
     return createTerminalData({
         terminalId: inputs.terminalId as TerminalId,
         attachedToNodeId: inputs.seedNodeAbsolutePath,
+        anchoredToNodeId: inputs.seedNodeAbsolutePath,
         terminalCount: 0,
         title: inputs.terminalId,
         agentName: inputs.terminalId,
-        isHeadless: true,
+        isHeadless: false,
+        isMinimized: false,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: inputs.terminalId,
             VOICETREE_MCP_PORT: String(inputs.mcpPort),
@@ -111,15 +132,15 @@ function buildTerminalData(inputs: FakeAgentInputs): TerminalData {
             TASK_NODE_PATH: path.join(inputs.vaultDir, `${inputs.terminalId}-task.md`),
             AGENT_PROMPT: buildAgentPrompt(inputs.script),
         },
-        initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(tsxImportPath)} ${JSON.stringify(fakeAgentEntry)}; exit`,
+        initialCommand: commandWithLifecycleExitCode(inputs, command),
         executeCommand: true,
         initialSpawnDirectory: fakeAgentDir,
     })
 }
 
 /**
- * Wait for the fake-agent to reach its `exit` action via the ring-buffered
- * headless output. The executor emits `[fake-agent] Executing: <type>` for
+ * Wait for the fake-agent to reach its `exit` action via the tmux-backed
+ * output buffer. The executor emits `[fake-agent] Executing: <type>` for
  * every action BEFORE running it (vt-fake-agent/src/executor.ts:39); the
  * `exit` action then calls `process.exit(0)` so no further line is ever
  * printed. So `Executing: exit` is the last-line-emitted completion marker
@@ -181,7 +202,7 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
             spawnWallMs,
             wallMs: Date.now() - wallStart,
             timedOut: false,
-            headlessOutput: '',
+            terminalOutput: '',
         }
     }
 
@@ -193,6 +214,6 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
         spawnWallMs,
         wallMs: Date.now() - wallStart,
         timedOut: !exit.scriptCompleted,
-        headlessOutput: exit.output,
+        terminalOutput: exit.output,
     }
 }
