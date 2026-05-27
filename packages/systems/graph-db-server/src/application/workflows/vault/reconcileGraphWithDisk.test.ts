@@ -46,14 +46,11 @@ describe('reconcileGraphWithDisk', () => {
     tempRoot = await mkdtemp(join(tmpdir(), 'reconcile-disk-'))
     publishedDeltas = []
     editorUpdates = []
-    initGraphModel(
-      { appSupportPath: tempRoot },
-      {
-        onFloatingEditorUpdate(delta: GraphDelta): void {
-          editorUpdates.push(delta)
-        },
+    initGraphModel({
+      onFloatingEditorUpdate(delta: GraphDelta): void {
+        editorUpdates.push(delta)
       },
-    )
+    })
     unsubscribe = subscribe((event: SequencedDeltaEvent): void => {
       if (event.source === 'reconcile:disk') publishedDeltas.push(event.delta)
     })
@@ -62,7 +59,7 @@ describe('reconcileGraphWithDisk', () => {
   afterEach(async () => {
     unsubscribe()
     setGraph(createEmptyGraph())
-    initGraphModel({ appSupportPath: tempRoot }, {})
+    initGraphModel({})
     await rm(tempRoot, { recursive: true, force: true })
   })
 
