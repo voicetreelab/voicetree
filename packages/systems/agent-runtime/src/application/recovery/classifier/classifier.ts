@@ -5,7 +5,7 @@ import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
 import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
 import {isoToMsOrZero} from './horizon'
-import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
+import type {AttachCapability, DroppedReason, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 type ClassifierInput = {
     /**
@@ -143,56 +143,86 @@ function extractNamespaceHash(sessionName: string): string | null {
     return parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
 }
 
-function classifyRecord(record: MetadataRecord, input: ClassifierInput): RecoveryClassification {
+function nonEmptyString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+// Strips keys whose value is `undefined` so optional fields stay absent rather
+// than present-but-undefined on the resulting record.
+function compactDefined<T extends object>(input: T): T {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(input)) {
+        if (value !== undefined) result[key] = value
+    }
+    return result as T
+}
+
+type ExtractResult =
+    | {
+        readonly kind: 'extracted'
+        readonly metadata: TmuxTerminalMetadata
+        readonly terminalData: TerminalData
+        readonly sessionName: string
+        readonly terminalId: TerminalId
+    }
+    | {readonly kind: 'dropped'; readonly reason: DroppedReason}
+
+function extractValidRecord(record: MetadataRecord, currentNamespaceHash: string | null): ExtractResult {
     const metadata = validateMetadata(record.data)
-    if (!metadata) return {kind: 'dropped', reason: 'invalid', metadataPath: record.path}
+    if (!metadata) return {kind: 'dropped', reason: 'invalid'}
 
-    const terminalId = metadata.name as TerminalId
     const sessionName: string = resolveSessionName(metadata)
-
-    if (input.currentNamespaceHash !== null) {
+    if (currentNamespaceHash !== null) {
         const metadataHash: string | null = extractNamespaceHash(sessionName)
-        if (metadataHash !== null && metadataHash !== input.currentNamespaceHash) {
-            return {kind: 'dropped', reason: 'foreign-vault', metadataPath: record.path}
+        if (metadataHash !== null && metadataHash !== currentNamespaceHash) {
+            return {kind: 'dropped', reason: 'foreign-vault'}
         }
     }
 
     const terminalData: TerminalData | null = normalizeMetadataTerminalData(metadata)
-    if (!terminalData) {
-        // Without terminalData we can't surface a useful row — the UI needs it
-        // for context node, env vars, and initial command. Treat as invalid.
-        return {kind: 'dropped', reason: 'invalid', metadataPath: record.path}
-    }
+    // Without terminalData we can't surface a useful row — the UI needs it
+    // for context node, env vars, and initial command. Treat as invalid.
+    if (!terminalData) return {kind: 'dropped', reason: 'invalid'}
 
+    return {kind: 'extracted', metadata, terminalData, sessionName, terminalId: metadata.name as TerminalId}
+}
+
+function buildRecoverable(
+    extracted: Extract<ExtractResult, {kind: 'extracted'}>,
+    record: MetadataRecord,
+    input: ClassifierInput,
+): RecoverableAgentSession {
+    const {metadata, terminalData, sessionName, terminalId} = extracted
     const liveSession: UnclaimedTmuxSession | undefined = input.liveTmuxSessionsByName.get(sessionName)
     const attach: AttachCapability | undefined = liveSession ? {session: liveSession} : undefined
     const resume: ResumeCapability | undefined = input.resumeHandleByTerminalId.get(terminalId)
-
-    const worktreeName: string | undefined = terminalData.worktreeName
-    const title: string | undefined = terminalData.title && terminalData.title.length > 0 ? terminalData.title : undefined
-    const agentTypeName: string | undefined = terminalData.agentTypeName && terminalData.agentTypeName.length > 0 ? terminalData.agentTypeName : undefined
-    const killReason: string | undefined = typeof metadata.killReason === 'string' && metadata.killReason.length > 0 ? metadata.killReason : undefined
     const endedAtMs: number = isoToMsOrZero(metadata.endedAt)
 
-    const recoverable: RecoverableAgentSession = {
+    return compactDefined<RecoverableAgentSession>({
         terminalId,
         agentName: terminalData.agentName ?? metadata.name,
         metadataPath: record.path,
         terminalData,
         isClaimed: input.registryTerminalIds.has(metadata.name),
         status: metadata.status,
-        ...(attach ? {attach} : {}),
-        ...(resume ? {resume} : {}),
-        ...(worktreeName ? {worktreeName} : {}),
-        ...(title ? {title} : {}),
-        ...(agentTypeName ? {agentTypeName} : {}),
-        ...(metadata.startedAt ? {startedAt: metadata.startedAt} : {}),
-        ...(metadata.endedAt ? {endedAt: metadata.endedAt} : {}),
-        ...(endedAtMs > 0 ? {closedAt: endedAtMs} : {}),
-        ...(killReason ? {killReason} : {}),
-    }
+        attach,
+        resume,
+        worktreeName: nonEmptyString(terminalData.worktreeName),
+        title: nonEmptyString(terminalData.title),
+        agentTypeName: nonEmptyString(terminalData.agentTypeName),
+        startedAt: nonEmptyString(metadata.startedAt),
+        endedAt: nonEmptyString(metadata.endedAt),
+        closedAt: endedAtMs > 0 ? endedAtMs : undefined,
+        killReason: nonEmptyString(metadata.killReason),
+    })
+}
 
-    return {kind: 'recoverable', record: recoverable}
+function classifyRecord(record: MetadataRecord, input: ClassifierInput): RecoveryClassification {
+    const extracted = extractValidRecord(record, input.currentNamespaceHash)
+    if (extracted.kind === 'dropped') {
+        return {kind: 'dropped', reason: extracted.reason, metadataPath: record.path}
+    }
+    return {kind: 'recoverable', record: buildRecoverable(extracted, record, input)}
 }
 
 /**

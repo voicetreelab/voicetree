@@ -182,6 +182,42 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
     }
 }
 
+function toValidatedMetadata(data: unknown): TmuxTerminalMetadata | null {
+    if (typeof data !== 'object' || data === null) return null
+    const obj = data as Record<string, unknown>
+    if (typeof obj.name !== 'string' || !obj.name) return null
+    if (obj.status !== 'running' && obj.status !== 'exited' && obj.status !== 'killed') return null
+    return data as TmuxTerminalMetadata
+}
+
+function isInCurrentNamespace(metadata: TmuxTerminalMetadata, currentNamespaceHash: string | null): boolean {
+    if (currentNamespaceHash === null) return true
+    const sessionName: string = metadata.session
+        ?? buildTmuxSessionName(metadata.name, metadata.terminalData?.initialEnvVars ?? {})
+    const namespaceHash: string | null = parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
+    return namespaceHash === null || namespaceHash === currentNamespaceHash
+}
+
+/**
+ * Which supported CLI does this metadata target (if any)? Used to gate the
+ * resolver work — only records pointing at `claude` or `codex` get a native
+ * session id at click time.
+ */
+function detectSupportedCliFromMetadata(metadata: TmuxTerminalMetadata): 'claude' | 'codex' | null {
+    const initialCommand: string | undefined = metadata.terminalData?.initialCommand
+    if (!initialCommand) return null
+    const cliType = detectCliType(initialCommand)
+    return cliType === 'claude' || cliType === 'codex' ? cliType : null
+}
+
+function toResumeEntry(metadata: TmuxTerminalMetadata): readonly [string, ResumeCapability] | null {
+    const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
+    if (!cliType) return null
+    const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
+    if (!projectRoot) return null
+    return [metadata.name, {cliType}]
+}
+
 /**
  * Decide resume capability for each metadata record from metadata shape alone.
  *
@@ -199,40 +235,13 @@ function detectResumeCapabilitiesFromMetadata(
     metadataRecords: readonly MetadataRecord[],
     currentNamespaceHash: string | null,
 ): ReadonlyMap<string, ResumeCapability> {
-    const out: Map<string, ResumeCapability> = new Map()
-    for (const record of metadataRecords) {
-        const data: unknown = record.data
-        if (typeof data !== 'object' || data === null) continue
-        const obj = data as Record<string, unknown>
-        if (typeof obj.name !== 'string' || !obj.name) continue
-        if (obj.status !== 'running' && obj.status !== 'exited' && obj.status !== 'killed') continue
-        const metadata = data as TmuxTerminalMetadata
-        // Skip foreign vaults early — won't be surfaced anyway.
-        if (currentNamespaceHash !== null) {
-            const sessionName: string = metadata.session
-                ?? buildTmuxSessionName(metadata.name, metadata.terminalData?.initialEnvVars ?? {})
-            const namespaceHash: string | null = parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
-            if (namespaceHash !== null && namespaceHash !== currentNamespaceHash) continue
-        }
-        const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
-        if (!cliType) continue
-        const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
-        if (!projectRoot) continue
-        out.set(metadata.name, {cliType})
-    }
-    return out
-}
-
-/**
- * Which supported CLI does this metadata target (if any)? Used to gate the
- * resolver work — only records pointing at `claude` or `codex` get a native
- * session id at click time.
- */
-function detectSupportedCliFromMetadata(metadata: TmuxTerminalMetadata): 'claude' | 'codex' | null {
-    const initialCommand: string | undefined = metadata.terminalData?.initialCommand
-    if (!initialCommand) return null
-    const cliType = detectCliType(initialCommand)
-    return cliType === 'claude' || cliType === 'codex' ? cliType : null
+    const entries: readonly (readonly [string, ResumeCapability])[] = metadataRecords
+        .map((record): TmuxTerminalMetadata | null => toValidatedMetadata(record.data))
+        .filter((metadata): metadata is TmuxTerminalMetadata => metadata !== null)
+        .filter((metadata): boolean => isInCurrentNamespace(metadata, currentNamespaceHash))
+        .map(toResumeEntry)
+        .filter((entry): entry is readonly [string, ResumeCapability] => entry !== null)
+    return new Map(entries)
 }
 
 async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
