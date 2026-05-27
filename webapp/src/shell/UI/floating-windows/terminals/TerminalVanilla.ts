@@ -93,6 +93,15 @@ export class TerminalVanilla {
     // Open terminal in the DOM
     term.open(this.container);
 
+    // Suppress xterm's alt-screen wheel→arrow-key translation.
+    // tmux always occupies the alternate screen, so without this the mouse
+    // wheel gets translated into ↑/↓ which TUIs (e.g. codex) interpret as
+    // prompt-history navigation. Returning false drops xterm's default wheel
+    // handling on the alt buffer entirely.
+    term.attachCustomWheelEventHandler((_event: WheelEvent): boolean => {
+      return term.buffer.active.type !== 'alternate';
+    });
+
     // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)
     this.attachWebGL();
     this.resetWebGLIdleTimer();
