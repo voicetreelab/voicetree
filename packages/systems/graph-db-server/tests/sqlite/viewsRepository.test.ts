@@ -11,6 +11,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {
     closeFolderVisibilityDb,
+    defaultFolderVisibilityDbDeps,
     openFolderVisibilityDb,
     type FolderVisibilityDatabase,
 } from '../../src/data/views/folderVisibilitySqlite'
@@ -36,7 +37,7 @@ function makeVault(): string {
 }
 
 function openTestDb(): FolderVisibilityDatabase {
-    const db = openFolderVisibilityDb(makeVault())
+    const db = openFolderVisibilityDb(makeVault(), defaultFolderVisibilityDbDeps)
     openDbs.push(db)
     return db
 }

@@ -9,6 +9,7 @@ import type { FolderState } from '@vt/graph-db-server/contract'
 import type { FilePath } from '@vt/graph-model/graph'
 import {
   closeFolderVisibilityDb,
+  defaultFolderVisibilityDbDeps,
   openFolderVisibilityDb,
   type FolderVisibilityDatabase,
 } from './folderVisibilitySqlite'
@@ -42,7 +43,7 @@ function readDb(): FolderVisibilityDatabase | null {
 
 export async function openFolderVisibilityForVault(vaultPath: string): Promise<void> {
   await closeFolderVisibilityForVault()
-  const db = openFolderVisibilityDb(vaultPath)
+  const db = openFolderVisibilityDb(vaultPath, defaultFolderVisibilityDbDeps)
   ensureDefaultView(db)
   configureFolderVisibilityStore(db as never)
   updateProject((prev: ProjectState | null): ProjectState => {
