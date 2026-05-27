@@ -2,7 +2,7 @@ import type {TerminalData, TerminalId} from '../terminals/terminal-registry/type
 import {getTerminalId} from '../terminals/terminal-registry/types'
 import {clearPendingTerminal, recordTerminalPending, removeTerminalFromRegistry} from '../terminals/terminal-registry'
 import {setTerminalBudget} from '../terminals/global-budget-registry'
-import {spawnHeadlessAgent, killHeadlessAgent} from '../headless/headlessAgentManager'
+import {spawnHeadlessAgent, killHeadlessAgent} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {publishTerminalRegistryEvent} from '../terminals/terminal-registry/terminal-registry-publisher'
 import {buildHeadlessCommand} from './cli/headlessCli'
 import {prepareTerminalDataInMain} from './terminalData'

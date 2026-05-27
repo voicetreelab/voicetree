@@ -21,43 +21,11 @@ export * from '../application/terminals/tmux/tmux-preflight'
 export * from '../application/terminals/tmux/tmux-server'
 export * from '../application/terminals/tmux/unclaimed-tmux'
 
-export * from '../application/recovery/types'
-export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'
-export {resumePersistedAgentSession, defaultResumePersistedDeps, type ResumePersistedDeps, type ResumePersistedResult} from '../application/recovery/resumePersistedAgentSession'
-export {forkAgentSession, defaultForkAgentDeps, type ForkAgentSessionDeps, type ForkAgentSessionResult} from '../application/recovery/forkAgentSession'
-
-export * from '../application/headless/headlessAgentManager'
+// Slice C absorbed into @vt/vt-daemon (2026-05-27):
+//   completion, recovery, headless, hooks, inject → @vt/vt-daemon/agents/...
+// Consumers must import those symbols directly from the daemon's deep paths.
 
 export * from '../application/spawn/spawnHookTerminal'
 export * from '../application/spawn/spawnPlainTerminal'
 export * from '../application/spawn/spawnTerminalWithContextNode'
 export * from '../application/spawn/buildTerminalEnvVars'
-
-export * from '../application/hooks/stopGateAudit'
-export * from '../application/hooks/stopGateHookRunner'
-export * from '../application/hooks/onNewNodeHook'
-
-export * from '../application/inject/get-unseen-nodes-for-terminal'
-export * from '../application/inject/inject-nodes-into-terminal'
-export * from '../application/inject/send-text-to-terminal'
-
-export {
-    registerAgentNodes,
-    getAgentNodes,
-    clearAgentNodes,
-    type AgentNodeEntry,
-} from '../application/completion/agentNodeIndex'
-export {
-    isAgentComplete,
-    getAgentStatus,
-    NO_PROGRESS_TIMEOUT_MS,
-    type AgentStatus,
-} from '../application/completion/isAgentComplete'
-export {
-    buildCompletionMessage,
-    type AgentResult,
-} from '../application/completion/buildCompletionMessage'
-export {
-    getNewNodesForAgent,
-    getNewNodesForAgentIdentities,
-} from '../application/completion/getNewNodesForAgent'

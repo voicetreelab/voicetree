@@ -2,6 +2,8 @@ import {
     agentRuntime,
     type TerminalRecord,
 } from '@vt/agent-runtime'
+import {getHeadlessAgentOutput} from './headless/headlessAgentManager.ts'
+import {sendTextToTerminal} from './inject/send-text-to-terminal.ts'
 
 export type {TerminalRecord}
 
@@ -23,9 +25,9 @@ export function listTerminalRecordsSnapshot(): TerminalRecord[] {
 }
 
 export function readHeadlessTerminalOutput(terminalId: string): string {
-    return agentRuntime.getHeadlessAgentOutput(terminalId)
+    return getHeadlessAgentOutput(terminalId)
 }
 
-export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof agentRuntime.sendTextToTerminal> {
-    return agentRuntime.sendTextToTerminal(terminalId, message)
+export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof sendTextToTerminal> {
+    return sendTextToTerminal(terminalId, message)
 }

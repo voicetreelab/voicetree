@@ -4,6 +4,7 @@
 import {z} from 'zod'
 
 import {agentRuntime} from '@vt/agent-runtime'
+import {getUnseenNodesForTerminal} from '../agents/inject/get-unseen-nodes-for-terminal.ts'
 import type {
     GetTerminalRecords,
     GetUnseenNodesForTerminal,
@@ -28,9 +29,10 @@ const getUnseenNodesForTerminalRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: GetUnseenNodesForTerminal.Request = args as unknown as GetUnseenNodesForTerminal.Request
-        // agent-runtime returns the legacy UnseenNode shape; the wire contract
-        // narrows to {nodeId,title,contentPreview}. Project before send.
-        const raw = await agentRuntime.getUnseenNodesForTerminal(req.terminalId)
+        // The local helper returns the legacy UnseenNode shape; the wire
+        // contract narrows to {nodeId,title,contentPreview}. Project before
+        // send.
+        const raw = await getUnseenNodesForTerminal(req.terminalId)
         const projected: GetUnseenNodesForTerminal.Response = raw.map((n) => ({
             nodeId: n.nodeId,
             title: n.title,

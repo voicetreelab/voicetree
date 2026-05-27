@@ -26,7 +26,7 @@ import {
     formatViolationError,
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
-import {registerAgentNodes} from '@vt/agent-runtime'
+import {registerAgentNodes} from '../agents/completion/agentNodeIndex.ts'
 import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolder} from '../config/mcp-graph-bridge'
 import {
     hasCycle,

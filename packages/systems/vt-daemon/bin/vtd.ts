@@ -67,6 +67,7 @@ import {
 } from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
+import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
 import {
     TERMINAL_REGISTRY_TOPIC,
     type TerminalRegistryEvent,
@@ -376,7 +377,7 @@ async function main(): Promise<void> {
         )
     }
 
-    const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
+    const reconciliation = await reconcileTmuxHeadlessAgents(args.vault)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(
             `vtd: reconciled tmux terminals imported=${reconciliation.imported.length} `

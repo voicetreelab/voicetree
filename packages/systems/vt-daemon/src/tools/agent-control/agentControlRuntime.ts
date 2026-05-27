@@ -1,9 +1,15 @@
 import {
     agentRuntime,
-    type StopHookResult,
     type TerminalId,
     type TerminalRecord,
 } from '@vt/agent-runtime'
+import {
+    closeHeadlessAgent,
+    getHeadlessAgentOutput,
+    isTmuxHeadlessAgent,
+} from '@vt/vt-daemon/agents/headless/headlessAgentManager.ts'
+import {runStopHooks, type StopHookResult} from '@vt/vt-daemon/agents/hooks/stopGateHookRunner.ts'
+import {sendTextToTerminal} from '@vt/vt-daemon/agents/inject/send-text-to-terminal.ts'
 
 export type {StopHookResult, TerminalId, TerminalRecord}
 
@@ -43,19 +49,19 @@ export function enqueuePendingTerminalMessage(terminalId: string, message: strin
 }
 
 export function readHeadlessTerminalOutput(terminalId: string): string {
-    return agentRuntime.getHeadlessAgentOutput(terminalId)
+    return getHeadlessAgentOutput(terminalId)
 }
 
 export function isTmuxHeadlessTerminal(terminalId: string): boolean {
-    return agentRuntime.isTmuxHeadlessAgent(terminalId)
+    return isTmuxHeadlessAgent(terminalId)
 }
 
 export function readInteractiveTerminalOutput(terminalId: string, nChars: number): string | undefined {
     return agentRuntime.getOutput(terminalId, nChars)
 }
 
-export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof agentRuntime.sendTextToTerminal> {
-    return agentRuntime.sendTextToTerminal(terminalId, message)
+export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof sendTextToTerminal> {
+    return sendTextToTerminal(terminalId, message)
 }
 
 export const consumeSpawnBudget = agentRuntime.tryConsumeAndSplitBudget
@@ -63,13 +69,13 @@ export const rememberChildTerminal = agentRuntime.registerChild
 export const spawnContextTerminal = agentRuntime.spawnTerminalWithContextNode
 
 export async function closeHeadlessTerminal(terminalId: TerminalId): Promise<{closed: true; wasRunning: boolean} | {closed: false}> {
-    return agentRuntime.closeHeadlessAgent(terminalId)
+    return closeHeadlessAgent(terminalId)
 }
 
 export function runTerminalStopHooks(
     terminalId: string,
-    graph: Parameters<typeof agentRuntime.runStopHooks>[1],
+    graph: Parameters<typeof runStopHooks>[1],
     records: readonly TerminalRecord[],
 ): Promise<StopHookResult> {
-    return agentRuntime.runStopHooks(terminalId, graph, records)
+    return runStopHooks(terminalId, graph, records)
 }

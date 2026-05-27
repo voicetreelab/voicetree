@@ -9,7 +9,10 @@
 
 import {z} from 'zod'
 
-import {agentRuntime, type TerminalId} from '@vt/agent-runtime'
+import type {TerminalId} from '@vt/agent-runtime'
+import {discoverRecoverableAgentSessions} from '../agents/recovery/discovery.ts'
+import {resumePersistedAgentSession} from '../agents/recovery/resumePersistedAgentSession.ts'
+import {forkAgentSession} from '../agents/recovery/forkAgentSession.ts'
 import type {
     DiscoverRecoverableAgentSessions,
     ResumePersistedAgentSession,
@@ -23,7 +26,7 @@ import {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse.ts'
 const discoverRecoverableAgentSessionsRoute: RpcRoute = {
     name: 'discoverRecoverableAgentSessions',
     handler: async (): Promise<McpToolResponse> => {
-        const sessions = await agentRuntime.discoverRecoverableAgentSessions()
+        const sessions = await discoverRecoverableAgentSessions()
         const projected: DiscoverRecoverableAgentSessions.Response = sessions.map((s): WireRecoverableAgentSession => ({
             terminalId: s.terminalId,
             agentName: s.agentName,
@@ -44,7 +47,7 @@ const resumePersistedAgentSessionRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: ResumePersistedAgentSession.Request = args as unknown as ResumePersistedAgentSession.Request
-        const result: ResumePersistedAgentSession.Response = await agentRuntime.resumePersistedAgentSession(req.terminalId as TerminalId)
+        const result: ResumePersistedAgentSession.Response = await resumePersistedAgentSession(req.terminalId as TerminalId)
         return buildJsonResponse(result)
     },
 }
@@ -56,7 +59,7 @@ const forkAgentSessionRoute: RpcRoute = {
     },
     handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
         const req: ForkAgentSession.Request = args as unknown as ForkAgentSession.Request
-        const result: ForkAgentSession.Response = await agentRuntime.forkAgentSession(req.sourceTerminalId as TerminalId)
+        const result: ForkAgentSession.Response = await forkAgentSession(req.sourceTerminalId as TerminalId)
         return buildJsonResponse(result)
     },
 }

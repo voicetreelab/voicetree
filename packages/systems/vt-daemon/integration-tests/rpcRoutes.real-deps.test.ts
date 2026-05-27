@@ -29,10 +29,10 @@ import {
     createTerminalData,
     getTerminalRecords,
     recordTerminalSpawn,
-    spawnTmuxBackedTerminal,
     type TerminalData,
     type TerminalId,
 } from '@vt/agent-runtime'
+import {spawnTmuxBackedTerminal} from '../src/agents/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/agent-runtime/terminals/tmux/tmux-session-manager'
 import {
     TERMINAL_RPC_METHODS,

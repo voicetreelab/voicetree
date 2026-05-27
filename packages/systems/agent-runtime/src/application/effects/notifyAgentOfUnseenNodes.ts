@@ -1,6 +1,6 @@
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
-import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
+import {sendTextToTerminal} from '@vt/vt-daemon/agents/inject/send-text-to-terminal.ts'
 import {
     getRuntimeGraph,
     getRuntimeUnseenNodesAroundContextNode,

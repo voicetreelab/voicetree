@@ -1,9 +1,9 @@
+export {getAgentStatus} from '../agents/completion/isAgentComplete.ts'
+export {getAgentNodes} from '../agents/completion/agentNodeIndex.ts'
 export {
-    getAgentNodes,
     getNewNodesForAgent,
     getNewNodesForAgentIdentities,
-    getAgentStatus,
-} from '@vt/agent-runtime'
+} from '../agents/completion/getNewNodesForAgent.ts'
 export {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
