@@ -223,10 +223,10 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
       console.log(parsed.text)
       return
     }
-    const beforeNodes = await getLiveGraphNodes(parsed.port)
+    const beforeNodes = await getLiveGraphNodes(parsed.vaultPath)
     const resolvedParsed = resolveCommandNodeIds(parsed, beforeNodes)
-    const result = await liveApply(JSON.stringify(resolvedParsed.command), {port: resolvedParsed.port})
-    const afterNodes = await getLiveGraphNodes(resolvedParsed.port)
+    const result = await liveApply(JSON.stringify(resolvedParsed.command), {vaultPath: resolvedParsed.vaultPath})
+    const afterNodes = await getLiveGraphNodes(resolvedParsed.vaultPath)
     await persistLiveCrudCommand(resolvedParsed, result.delta, beforeNodes, afterNodes)
     process.stdout.write(result.output)
     return
