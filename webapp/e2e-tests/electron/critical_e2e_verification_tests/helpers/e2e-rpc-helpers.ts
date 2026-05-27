@@ -23,7 +23,7 @@ type DaemonAccess = {
 
 type RpcResponse = {
   result?: unknown;
-  error?: { code?: number; message: string };
+  error?: { code?: number; message: string; data?: unknown };
 };
 
 export type RpcToolResult = {
@@ -119,6 +119,15 @@ export async function rpcCallTool(
   args: Record<string, unknown>
 ): Promise<RpcToolResult> {
   const response: RpcResponse = await rpc(rpcUrl, token, toolName, args);
-  if (response.error) throw new Error(`JSON-RPC error: ${response.error.message}`);
+  if (response.error) {
+    // The dispatcher returns `tool_handler_failed` with the unwrapped payload
+    // in `error.data` when the tool ran but reported an error. Surface that
+    // payload so callers see the actual cause (not just the generic envelope
+    // message). See packages/systems/vt-daemon/src/transport/rpcDispatch.ts.
+    const detail: string = response.error.data !== undefined
+      ? `: ${JSON.stringify(response.error.data)}`
+      : '';
+    throw new Error(`JSON-RPC error (${toolName}): ${response.error.message}${detail}`);
+  }
   return normaliseRpcResult(response.result);
 }
