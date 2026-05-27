@@ -23,6 +23,7 @@ import {
     setErrorClass,
     setInvocationContext,
 } from './commands/telemetry/recordCliInvocation.ts'
+import {CliExitError} from './commands/util/exitCodes.ts'
 import {resolveAppSupportPath} from './commands/util/appSupportPath.ts'
 
 type GlobalOptions = {
@@ -362,8 +363,20 @@ function isDirectExecution(): boolean {
     return invokedRealPath === fileURLToPath(import.meta.url)
 }
 
+function writeDebugStack(err: unknown): void {
+    if (process.env.VT_DEBUG !== '1') return
+    if (!(err instanceof Error) || typeof err.stack !== 'string' || err.stack.length === 0) return
+    process.stderr.write(err.stack.endsWith('\n') ? err.stack : `${err.stack}\n`)
+}
+
 if (isDirectExecution()) {
     void main().catch((cause: unknown) => {
+        if (cause instanceof CliExitError) {
+            setErrorClass(cause.errorClass)
+            process.stderr.write(`error: ${cause.message}\n`)
+            writeDebugStack(cause.cause)
+            process.exit(cause.exitCode)
+        }
         const errorClass: string = cause instanceof CliError
             ? 'CliError'
             : cause instanceof Error ? cause.name : 'UnknownError'

@@ -1,5 +1,5 @@
 import {describe, expect, it, vi, type MockInstance} from 'vitest'
-import {EXIT} from './util/exitCodes'
+import {CliExitError, EXIT} from './util/exitCodes'
 import {runViewCommand} from './node/view.ts'
 import {runVaultCommand} from './runtime/vault.ts'
 
@@ -32,6 +32,9 @@ async function captureCommand(invoke: () => Promise<void>): Promise<CommandResul
     } catch (err) {
         if (err instanceof ExitCalled) {
             exitCode = err.code
+        } else if (err instanceof CliExitError) {
+            stderrChunks.push(`error: ${err.message}\n`)
+            exitCode = err.exitCode
         } else {
             throw err
         }
