@@ -4,7 +4,7 @@
  * The monitor polls agent completion and notifies the caller terminal when all agents are done.
  */
 
-import {type McpToolResponse, buildJsonResponse} from '../../_shared/toolResponse.ts'
+import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,

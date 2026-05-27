@@ -3,7 +3,7 @@
 // health probe handler) can reference them without forcing the route
 // surface back through the router file.
 
-import type {McpToolResponse} from '../_shared/toolResponse.ts'
+import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {EventSubscriptionHub} from './eventSubscriptionHub.ts'
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>

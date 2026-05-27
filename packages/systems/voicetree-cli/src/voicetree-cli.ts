@@ -24,7 +24,7 @@ import {
     setInvocationContext,
 } from './commands/telemetry/recordCliInvocation.ts'
 import {CliExitError} from './commands/util/exitCodes.ts'
-import {resolveAppSupportPath} from './commands/util/appSupportPath.ts'
+import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 
 type GlobalOptions = {
     terminalId: string | undefined

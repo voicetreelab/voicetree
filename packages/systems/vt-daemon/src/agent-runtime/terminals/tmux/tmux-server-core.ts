@@ -8,7 +8,6 @@ import {
 import {homedir, tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
 
 type ExecFileCallback = (error: Error | null, stdout: string | Buffer, stderr: string | Buffer) => void
 
@@ -100,13 +99,6 @@ function isTestRuntime(env: NodeJS.ProcessEnv): boolean {
 }
 
 function defaultAppSupportPath(deps: TmuxServerDeps): string {
-    try {
-        const fromState: string | undefined = resolveAppSupportPath()?.trim()
-        if (fromState) return fromState
-    } catch {
-        // Process-local cell is not configured in low-level tests and direct package use.
-    }
-
     const fromEnv: string | undefined = deps.env.VOICETREE_APP_SUPPORT?.trim()
     if (fromEnv) return fromEnv
 
@@ -114,14 +106,7 @@ function defaultAppSupportPath(deps: TmuxServerDeps): string {
         return join(tmpdir(), `voicetree-agent-runtime-tmux-${process.pid}`)
     }
 
-    const home: string = deps.homedir()
-    if (deps.platform === 'darwin') {
-        return join(home, 'Library', 'Application Support', 'Voicetree')
-    }
-    if (deps.platform === 'win32') {
-        return join(deps.env.APPDATA ?? join(home, 'AppData', 'Roaming'), 'Voicetree')
-    }
-    return join(deps.env.XDG_CONFIG_HOME ?? join(home, '.config'), 'Voicetree')
+    return join(deps.homedir(), '.voicetree')
 }
 
 function commandError(file: string, args: readonly string[], stdout: string, stderr: string, error: Error): TmuxCommandError {

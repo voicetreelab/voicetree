@@ -1,5 +1,5 @@
-import { buildJsonResponse } from '../../_shared/toolResponse.ts'
-import type { McpToolResponse } from '../../_shared/toolResponse.ts'
+import { buildJsonResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type { McpToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {
     buildUniqueBasenameMap,
     deriveTitle,

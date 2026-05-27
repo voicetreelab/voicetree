@@ -15,7 +15,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {type McpToolResponse, buildJsonResponse} from '../_shared/toolResponse.ts'
+import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {

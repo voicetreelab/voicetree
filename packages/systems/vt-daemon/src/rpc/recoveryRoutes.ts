@@ -21,7 +21,7 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '../_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const discoverRecoverableAgentSessionsRoute: RpcRoute = {
     name: 'discoverRecoverableAgentSessions',

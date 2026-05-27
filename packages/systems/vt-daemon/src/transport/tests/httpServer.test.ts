@@ -18,7 +18,7 @@ import {WebSocket} from 'ws'
 
 import {generateAuthToken} from '@vt/vt-rpc'
 
-import {buildJsonResponse, type McpToolResponse} from '../../_shared/toolResponse.ts'
+import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {buildAccessLogLine, startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
 const noopHook: HookHandler = (): unknown => ({ok: true})

@@ -11,7 +11,7 @@ import {
     terminalExists,
     type TerminalRecord,
 } from './agentControlRuntime'
-import {type McpToolResponse, buildJsonResponse} from '../../_shared/toolResponse.ts'
+import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface ReadTerminalOutputParams {
     terminalId: string
