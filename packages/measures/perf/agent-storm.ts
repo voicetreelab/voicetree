@@ -68,7 +68,7 @@ import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import { GraphDbClient } from '@vt/graph-db-client'
 import {
     applyGraphDeltaToGraph,
