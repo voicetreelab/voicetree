@@ -3,11 +3,13 @@ import test from 'node:test'
 
 import {
   assertOneWayReplica,
+  assertSessionAlive,
   buildReconcileCleanupScript,
   computeStaleWorktreeNames,
   ensureRemoteWorktreeReadyScript,
   localWorktreeRoot,
   parseRemoteWorktreeListing,
+  parseSessionConnectivity,
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
@@ -226,4 +228,78 @@ test('reconciler soft-fails when ssh cleanup throws after a successful listing',
   assert.equal(result.status, 'skipped')
   assert.equal(result.reason, 'ssh-cleanup-failed')
   assert.deepEqual(result.staleGit, ['wt-stale'])
+})
+
+// --- Session-alive gating (replaces waitMutagenIdle) ---------------------
+//
+// We no longer block on `Watching for changes`. Under multi-agent load that
+// quiet window may never come, and `mutagen sync flush` drives the current
+// pending cycle to completion regardless. The session-alive check now only
+// asserts the session is usable: not paused, both endpoints connected.
+
+const SAMPLE_HEALTHY_SESSION = `--------------------------------------------------------------------------------
+Name: vt-remote
+Configuration:
+\tSynchronization mode: One Way Replica
+Alpha:
+\tURL: /Users/x/repo
+\tConnected: Yes
+\tSynchronizable contents:
+\t\t100 directories
+Beta:
+\tURL: root@host:/root/repo
+\tConnected: Yes
+\tSynchronizable contents:
+\t\t100 directories
+Status: Staging files on beta
+--------------------------------------------------------------------------------
+`
+
+const SAMPLE_PAUSED_SESSION = `Name: vt-remote
+Alpha:
+\tURL: /Users/x/repo
+\tConnected: No
+Beta:
+\tURL: root@host:/root/repo
+\tConnected: No
+Status: [Paused]
+`
+
+const SAMPLE_BETA_DOWN_SESSION = `Name: vt-remote
+Alpha:
+\tURL: /Users/x/repo
+\tConnected: Yes
+Beta:
+\tURL: root@host:/root/repo
+\tConnected: No
+Status: Connecting to beta
+`
+
+test('parses alpha/beta connectivity and status from session output', () => {
+  const result = parseSessionConnectivity(SAMPLE_HEALTHY_SESSION)
+  assert.equal(result.alpha, true)
+  assert.equal(result.beta, true)
+  assert.equal(result.status, 'Staging files on beta')
+})
+
+test('parses a paused session as disconnected', () => {
+  const result = parseSessionConnectivity(SAMPLE_PAUSED_SESSION)
+  assert.equal(result.alpha, false)
+  assert.equal(result.beta, false)
+  assert.equal(result.status, '[Paused]')
+})
+
+test('accepts a busy-but-connected session — does NOT require idle', () => {
+  // The whole point of this change: `Staging files on beta` is fine. We do
+  // not require `Watching for changes` because peer agents may keep it busy
+  // indefinitely.
+  assert.doesNotThrow(() => assertSessionAlive(SAMPLE_HEALTHY_SESSION))
+})
+
+test('rejects a paused session', () => {
+  assert.throws(() => assertSessionAlive(SAMPLE_PAUSED_SESSION), /is paused/)
+})
+
+test('rejects a session with beta disconnected', () => {
+  assert.throws(() => assertSessionAlive(SAMPLE_BETA_DOWN_SESSION), /endpoint\(s\) disconnected/)
 })

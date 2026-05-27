@@ -97,28 +97,54 @@ function runLocal(cmd, args) {
   })
 }
 
-async function waitMutagenIdle({timeoutMs = 60_000} = {}) {
-  const deadline = Date.now() + timeoutMs
-  let lastStatus = 'unknown'
-  while (Date.now() < deadline) {
-    let stdout
-    try {
-      ;({stdout} = await execFileAsync('mutagen', ['sync', 'list', '-l', MUTAGEN_SESSION]))
-    } catch (e) {
-      const msg = (e.stderr || e.message || '').toString().trim()
-      throw new Error(
-        `mutagen sync list ${MUTAGEN_SESSION} failed: ${msg}\n` +
-          `Hint: create the sync session before using VT_REMOTE_HOST.`,
-      )
-    }
-    const m = stdout.match(/^Status:\s*(.+)$/m)
-    lastStatus = m ? m[1].trim() : 'unknown'
-    if (lastStatus === 'Watching for changes') return stdout
-    await new Promise(r => setTimeout(r, 1000))
+// Read the session details with a single `mutagen sync list -l` call. Pure
+// wrapper around the impure command; returns stdout or throws if the session
+// doesn't exist / mutagen isn't installed.
+async function readMutagenSession({session = MUTAGEN_SESSION} = {}) {
+  try {
+    const {stdout} = await execFileAsync('mutagen', ['sync', 'list', '-l', session])
+    return stdout
+  } catch (e) {
+    const msg = (e.stderr || e.message || '').toString().trim()
+    throw new Error(
+      `mutagen sync list ${session} failed: ${msg}\n` +
+        `Hint: create the sync session before using VT_REMOTE_HOST.`,
+    )
   }
-  throw new Error(
-    `mutagen '${MUTAGEN_SESSION}' did not reach idle within ${timeoutMs}ms (last status: ${lastStatus})`,
-  )
+}
+
+// Parse alpha/beta connection state. Pure: returns {alpha, beta, status}.
+function parseSessionConnectivity(mutagenListOutput) {
+  const alphaSection = mutagenListOutput.match(/^Alpha:[\s\S]*?(?=^Beta:|\Z)/m)
+  const betaSection = mutagenListOutput.match(/^Beta:[\s\S]*?(?=^Conflicts:|^Status:|\Z)/m)
+  const isConnected = section => /^\s*Connected:\s*Yes\s*$/m.test(section ?? '')
+  const status = (mutagenListOutput.match(/^Status:\s*(.+)$/m)?.[1] || '').trim()
+  return {
+    alpha: isConnected(alphaSection?.[0]),
+    beta: isConnected(betaSection?.[0]),
+    status,
+  }
+}
+
+// Reject sessions that can't move data right now. We do NOT require `Watching
+// for changes` — under multi-agent load that quiet window may never come, and
+// `mutagen sync flush` will drive the cycle to completion regardless. We only
+// require the session is alive and both endpoints are connected.
+function assertSessionAlive(mutagenListOutput) {
+  const {alpha, beta, status} = parseSessionConnectivity(mutagenListOutput)
+  if (/^\[?Paused\]?$/i.test(status)) {
+    throw new Error(
+      `mutagen '${MUTAGEN_SESSION}' is paused.\n` +
+        `Hint: run 'mutagen sync resume ${MUTAGEN_SESSION}'.`,
+    )
+  }
+  if (!alpha || !beta) {
+    throw new Error(
+      `mutagen '${MUTAGEN_SESSION}' endpoint(s) disconnected ` +
+        `(alpha=${alpha ? 'connected' : 'down'}, beta=${beta ? 'connected' : 'down'}, status=${status || 'unknown'}).\n` +
+        `Hint: check network / recreate session from scripts/dev-setup/remote/mutagen-vt-remote.yml.`,
+    )
+  }
 }
 
 function synchronizationMode(mutagenListOutput) {
@@ -134,6 +160,19 @@ function assertOneWayReplica(mutagenListOutput) {
       (mode === null ? '' : ` (current mode: ${mode})`) +
       `.\nHint: recreate vt-remote from scripts/dev-setup/remote/mutagen-vt-remote.yml.`,
   )
+}
+
+// Force a single synchronization cycle and block until it completes. Unlike
+// waiting for `Watching for changes`, this is bounded by the size of the
+// CURRENT pending delta — peer agents adding more changes during/after the
+// flush land in the NEXT cycle and do not delay this one.
+async function flushMutagenSession({session = MUTAGEN_SESSION} = {}) {
+  try {
+    await execFileAsync('mutagen', ['sync', 'flush', session])
+  } catch (e) {
+    const msg = (e.stderr || e.message || '').toString().trim()
+    throw new Error(`mutagen sync flush ${session} failed: ${msg}`)
+  }
 }
 
 function refreshRemoteGitIndexScript() {
@@ -347,11 +386,12 @@ async function main() {
 
   process.stderr.write(`[run-remote] routing to ${host} (reconciling worktrees…)\n`)
   await reconcileRemoteWorktrees({host})
-  process.stderr.write(`[run-remote] routing to ${host} (waiting for mutagen idle…)\n`)
   repairLocalWorktreeMetadataIfNeeded()
-  const mutagenListOutput = await waitMutagenIdle()
+  const mutagenListOutput = await readMutagenSession()
+  assertSessionAlive(mutagenListOutput)
   assertOneWayReplica(mutagenListOutput)
-  process.stderr.write(`[run-remote] mutagen idle + one-way replica; ssh ${host}\n`)
+  process.stderr.write(`[run-remote] flushing mutagen '${MUTAGEN_SESSION}' before ssh ${host}…\n`)
+  await flushMutagenSession()
   runRemote(host, cmd, args)
 }
 
@@ -366,10 +406,14 @@ if (isDirectRun) {
 
 export {
   assertOneWayReplica,
+  assertSessionAlive,
   buildReconcileCleanupScript,
   computeStaleWorktreeNames,
   ensureRemoteWorktreeReadyScript,
+  flushMutagenSession,
   parseRemoteWorktreeListing,
+  parseSessionConnectivity,
+  readMutagenSession,
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
