@@ -14,7 +14,7 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {startMonitor} from '../agentDependencies'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../mcpConfigDependencies'
+import {applyMcpGraphDelta, getMcpGraphSnapshot} from '../mcpConfigDependencies'
 import {
     consumeSpawnBudget,
     listTerminalRecords,
@@ -40,8 +40,7 @@ export interface SpawnAgentDeps {
     readonly listTerminalRecords: () => TerminalRecord[]
     readonly consumeBudget: typeof consumeSpawnBudget
     readonly loadAgentSettings: typeof loadSettings
-    readonly loadWriteFolder: typeof getMcpWriteFolder
-    readonly loadGraph: typeof getMcpGraph
+    readonly loadSnapshot: typeof getMcpGraphSnapshot
     readonly applyDelta: typeof applyMcpGraphDelta
     readonly spawnTerminal: typeof spawnContextTerminal
     readonly rememberChild: typeof rememberChildTerminal
@@ -52,8 +51,7 @@ const defaultSpawnAgentDeps: SpawnAgentDeps = {
     listTerminalRecords,
     consumeBudget: consumeSpawnBudget,
     loadAgentSettings: loadSettings,
-    loadWriteFolder: getMcpWriteFolder,
-    loadGraph: getMcpGraph,
+    loadSnapshot: getMcpGraphSnapshot,
     applyDelta: applyMcpGraphDelta,
     spawnTerminal: spawnContextTerminal,
     rememberChild: rememberChildTerminal,
@@ -177,12 +175,18 @@ async function prepareSpawnRuntime(
     }
 }
 
-async function loadWriteFolder(deps: SpawnAgentDeps): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await deps.loadWriteFolder()
-    if (O.isNone(vaultPathOpt)) {
+async function loadGraphContext(deps: SpawnAgentDeps): Promise<Result<GraphContext>> {
+    const snapshot = await deps.loadSnapshot()
+    if (!snapshot.writeFolder) {
         return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
     }
-    return {ok: true, value: vaultPathOpt.value}
+    return {
+        ok: true,
+        value: {
+            graph: snapshot.graph,
+            writeFolder: snapshot.writeFolder,
+        },
+    }
 }
 
 function resolveNodeId(graph: Graph, nodeId: string): NodeIdAndFilePath | undefined {
@@ -377,14 +381,9 @@ export async function spawnAgentTool(
     const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(params, deps, callerRecordResult.value)
     if (!runtimeResult.ok) return errorResponse(runtimeResult.error)
 
-    const writeFolderResult: Result<string> = await loadWriteFolder(deps)
-    if (!writeFolderResult.ok) return errorResponse(writeFolderResult.error)
+    const graphContextResult: Result<GraphContext> = await loadGraphContext(deps)
+    if (!graphContextResult.ok) return errorResponse(graphContextResult.error)
 
-    const graphContext: GraphContext = {
-        graph: await deps.loadGraph(),
-        writeFolder: writeFolderResult.value,
-    }
-
-    if (params.task) return spawnAgentForTask(params, params.task, deps, runtimeResult.value, graphContext)
-    return spawnAgentForExistingNode(params, deps, runtimeResult.value, graphContext)
+    if (params.task) return spawnAgentForTask(params, params.task, deps, runtimeResult.value, graphContextResult.value)
+    return spawnAgentForExistingNode(params, deps, runtimeResult.value, graphContextResult.value)
 }

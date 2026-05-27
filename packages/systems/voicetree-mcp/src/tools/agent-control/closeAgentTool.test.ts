@@ -98,9 +98,12 @@ describe('closeAgentTool', () => {
         })
         configureMcpServer({
             graph: {
-                getGraph: async (): Promise<Graph> => makeGraph(progressNodeId, terminalId),
-                getVaultPaths: async (): Promise<readonly string[]> => [],
-                getWriteFolder: async (): Promise<string | null> => null,
+                getSnapshot: async () => ({
+                    graph: makeGraph(progressNodeId, terminalId),
+                    projectRoot: null,
+                    vaultPaths: [],
+                    writeFolder: null,
+                }),
                 applyGraphDelta: async (): Promise<void> => {},
             },
         })

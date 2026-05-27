@@ -1,24 +1,26 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import * as O from 'fp-ts/lib/Option.js'
-import {createEmptyGraph} from '@vt/graph-model/graph'
-import type {GraphBridge} from './mcp-config'
+import {createEmptyGraph, type GraphDelta} from '@vt/graph-model/graph'
+import type {GraphBridge, McpGraphSnapshot} from './mcp-config'
 import {configureMcpServer} from './mcp-config'
 import {
     applyMcpGraphDelta,
-    getMcpGraph,
-    getMcpProjectRoot,
+    getMcpGraphSnapshot,
     getMcpUnseenNodesAroundContextNode,
-    getMcpVaultPaths,
-    getMcpWriteFolder,
 } from './mcp-graph-bridge'
 
-function makeBridge(overrides: Partial<GraphBridge> = {}): GraphBridge {
-    const graph = createEmptyGraph()
+function makeSnapshot(overrides: Partial<McpGraphSnapshot> = {}): McpGraphSnapshot {
     return {
-        getGraph: vi.fn(async () => graph),
-        getVaultPaths: vi.fn(async () => ['/vault']),
-        getWriteFolder: vi.fn(async () => '/vault'),
-        getProjectRoot: vi.fn(async () => '/vault'),
+        graph: createEmptyGraph(),
+        projectRoot: '/vault',
+        vaultPaths: ['/vault'],
+        writeFolder: '/vault',
+        ...overrides,
+    }
+}
+
+function makeBridge(overrides: Partial<GraphBridge> = {}): GraphBridge {
+    return {
+        getSnapshot: vi.fn(async () => makeSnapshot()),
         getUnseenNodesAroundContextNode: vi.fn(async () => [{nodeId: 'n.md', content: 'body'}]),
         applyGraphDelta: vi.fn(async () => undefined),
         ...overrides,
@@ -31,38 +33,38 @@ describe('mcp-graph-bridge', () => {
     })
 
     it('throws a clear error when graph access is used before bridge configuration', async () => {
-        await expect(getMcpGraph()).rejects.toThrow(
-            'MCP graph bridge not configured. Call configureMcpServer({ graph: ... }) at boot before getMcpGraph.',
-        )
-        await expect(getMcpProjectRoot()).rejects.toThrow(
-            'MCP graph bridge not configured. Call configureMcpServer({ graph: ... }) at boot before getMcpProjectRoot.',
+        await expect(getMcpGraphSnapshot()).rejects.toThrow(
+            'MCP graph bridge not configured. Call configureMcpServer({ graph: ... }) at boot before getMcpGraphSnapshot.',
         )
     })
 
-    it('delegates graph reads and writes to the configured bridge', async () => {
-        const bridge: GraphBridge = makeBridge()
+    it('reads the configured graph snapshot as the single graph read surface', async () => {
+        const snapshot: McpGraphSnapshot = makeSnapshot()
+        const bridge: GraphBridge = makeBridge({
+            getSnapshot: async () => snapshot,
+        })
         configureMcpServer({graph: bridge})
 
-        await expect(getMcpGraph()).resolves.toBe(await bridge.getGraph())
-        await expect(getMcpVaultPaths()).resolves.toEqual(['/vault'])
-        await expect(getMcpWriteFolder()).resolves.toEqual(O.some('/vault'))
-        await expect(getMcpProjectRoot()).resolves.toBe('/vault')
+        await expect(getMcpGraphSnapshot()).resolves.toBe(snapshot)
+    })
+
+    it('delegates graph writes and unseen-node lookups to the configured bridge', async () => {
+        const appliedDeltas: Array<{delta: GraphDelta; recordForUndo: boolean | undefined}> = []
+        const bridge: GraphBridge = makeBridge({
+            applyGraphDelta: async (delta, recordForUndo) => {
+                appliedDeltas.push({delta, recordForUndo})
+            },
+            getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => [
+                {nodeId: `${contextNodeId}:${searchFromNode}`, content: 'body'},
+            ],
+        })
+        configureMcpServer({graph: bridge})
+
         await expect(getMcpUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
-            {nodeId: 'n.md', content: 'body'},
+            {nodeId: 'ctx.md:task.md', content: 'body'},
         ])
         await applyMcpGraphDelta([], false)
 
-        expect(bridge.getUnseenNodesAroundContextNode).toHaveBeenCalledWith('ctx.md', 'task.md')
-        expect(bridge.applyGraphDelta).toHaveBeenCalledWith([], false)
-    })
-
-    it('returns none for a configured bridge with no write path', async () => {
-        configureMcpServer({
-            graph: makeBridge({
-                getWriteFolder: vi.fn(async () => null),
-            }),
-        })
-
-        await expect(getMcpWriteFolder()).resolves.toEqual(O.none)
+        expect(appliedDeltas).toEqual([{delta: [], recordForUndo: false}])
     })
 })

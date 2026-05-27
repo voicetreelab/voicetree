@@ -76,10 +76,12 @@ function buildGraphWithParent(): Graph {
 
 function configureGraphBridge(writeFolder: string): void {
     const bridge: GraphBridge = {
-        getGraph: vi.fn(async () => buildGraphWithParent()),
-        getVaultPaths: vi.fn(async () => [writeFolder]),
-        getWriteFolder: vi.fn(async () => writeFolder),
-        getProjectRoot: vi.fn(async () => writeFolder),
+        getSnapshot: vi.fn(async () => ({
+            graph: buildGraphWithParent(),
+            projectRoot: writeFolder,
+            vaultPaths: [writeFolder],
+            writeFolder,
+        })),
         getUnseenNodesAroundContextNode: vi.fn(async () => []),
         applyGraphDelta: vi.fn(async () => undefined),
     }

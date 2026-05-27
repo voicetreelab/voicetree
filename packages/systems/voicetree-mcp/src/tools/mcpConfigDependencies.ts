@@ -2,7 +2,6 @@ export {enableMcpClientIntegrations} from '../config/mcp-client-config'
 export {getLiveStateBridge} from '../config/mcp-config'
 export {
     applyMcpGraphDelta,
-    getMcpGraph,
+    getMcpGraphSnapshot,
     getMcpUnseenNodesAroundContextNode,
-    getMcpWriteFolder,
 } from '../config/mcp-graph-bridge'

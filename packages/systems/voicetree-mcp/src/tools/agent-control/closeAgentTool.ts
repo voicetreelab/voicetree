@@ -10,7 +10,7 @@
 import type {Graph} from '@vt/graph-model/graph'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {getAgentNodes, getAgentStatus, getNewNodesForAgentIdentities} from '../agentDependencies'
-import {getMcpGraph} from '../mcpConfigDependencies'
+import {getMcpGraphSnapshot} from '../mcpConfigDependencies'
 import {
     closeHeadlessTerminal,
     closeInteractiveTerminal,
@@ -114,7 +114,7 @@ function closeEffectFor(terminalId: string, record: TerminalRecord | undefined, 
 
 async function readCloseAgentState({terminalId, callerTerminalId, forceWithReason}: CloseAgentParams): Promise<CloseAgentState> {
     if (callerTerminalId === terminalId) {
-        const graph: Graph = await getMcpGraph()
+        const graph: Graph = (await getMcpGraphSnapshot()).graph
         const records: readonly TerminalRecord[] = listTerminalRecords()
         const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId, records)
         return {
@@ -135,7 +135,7 @@ async function readCloseAgentState({terminalId, callerTerminalId, forceWithReaso
     return {
         kind: 'cross-close',
         targetRecord,
-        progressNodes: progressNodesForAgent(await getMcpGraph(), targetRecord),
+        progressNodes: progressNodesForAgent((await getMcpGraphSnapshot()).graph, targetRecord),
     }
 }
 

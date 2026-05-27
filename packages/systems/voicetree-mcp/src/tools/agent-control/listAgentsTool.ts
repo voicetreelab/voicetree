@@ -11,7 +11,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../types'
 import {getAgentNodes, getNewNodesForAgentIdentities} from '../agentDependencies'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph} from '../mcpConfigDependencies'
+import {getMcpGraphSnapshot} from '../mcpConfigDependencies'
 import {listPendingTerminalStates, listTerminalRecords, type PendingTerminalRecord, type TerminalRecord} from './agentControlRuntime'
 
 function terminalRecordStatus(record: TerminalRecord): 'running' | 'idle' | 'exited' {
@@ -37,7 +37,7 @@ function containedNodesForTerminalContext(
 }
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = (await getMcpGraphSnapshot()).graph
     const agents: Array<{
         terminalId: string
         title: string

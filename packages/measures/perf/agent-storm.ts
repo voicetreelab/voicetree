@@ -184,15 +184,6 @@ async function main(): Promise<void> {
                     writeFolder: vaultState.writeFolder,
                 }
             },
-            getGraph: graphFromDaemon,
-            getVaultPaths: async () => {
-                // Match the webapp's getVaultPaths: write folder first, then any extra
-                // readPaths. createGraph compares against this list to gate
-                // outputPath placement.
-                const vs = await daemonClient.getVault()
-                return vaultPathsFromState(vs)
-            },
-            getWriteFolder: async () => (await daemonClient.getVault()).writeFolder ?? null,
             applyGraphDelta: async (delta, recordForUndo) => {
                 await daemonClient.applyGraphDelta(delta as unknown as unknown[], {
                     recordForUndo: recordForUndo ?? true,

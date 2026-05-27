@@ -102,15 +102,8 @@ configureMcpServer({
         getSnapshot: async () => {
             return await callDaemon((client) => buildElectronGraphSnapshot(client));
         },
-        getGraph: async () => getGraphFromDaemon(),
-        getVaultPaths,
-        getWriteFolder: async () => {
-            const writeFolder: O.Option<string> = await getWriteFolder();
-            return O.isSome(writeFolder) ? writeFolder.value : null;
-        },
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, { recordForUndo }),
-        getProjectRoot,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,

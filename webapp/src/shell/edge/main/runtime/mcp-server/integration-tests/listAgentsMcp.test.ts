@@ -75,9 +75,12 @@ describe('MCP list_agents tool', () => {
         vi.mocked(agentRuntime.getPendingTerminals).mockReturnValue([])
         configureMcpServer({
             graph: {
-                getGraph: async () => getGraph(),
-                getVaultPaths: async () => [],
-                getWriteFolder: async () => null,
+                getSnapshot: async () => ({
+                    graph: getGraph(),
+                    projectRoot: null,
+                    vaultPaths: [],
+                    writeFolder: null,
+                }),
                 applyGraphDelta: async () => {},
                 getUnseenNodesAroundContextNode,
             }

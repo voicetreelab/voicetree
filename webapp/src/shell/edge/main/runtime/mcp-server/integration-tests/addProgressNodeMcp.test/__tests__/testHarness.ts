@@ -151,9 +151,6 @@ function configureCreateGraphToolTestServer(): void {
                 vaultPaths: await getVaultPaths(),
                 writeFolder: O.toNullable(await getWriteFolder()),
             }),
-            getGraph: async () => getGraph(),
-            getVaultPaths: async () => getVaultPaths(),
-            getWriteFolder: async () => O.toNullable(await getWriteFolder()),
             applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                 await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
             },
