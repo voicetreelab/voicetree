@@ -8,6 +8,15 @@ import {vitestFailureDetailsForCommand} from './vitest-failure-detail-reader.ts'
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 const SUPPORTS_PROCESS_GROUP_KILL = process.platform !== 'win32'
 
+// Per-stream cap on the captured tail. Bounded so a runaway check cannot
+// balloon memory, but generous enough that a structured failure report
+// (e.g. the BAR-bracketed "Refused: …" block emitted by the directory-fanout
+// and name-uniqueness gates, ~30-200 lines depending on violation count)
+// survives intact for the failure summary.
+const MAX_TAIL_BYTES = 64 * 1024
+const MAX_TAIL_LINES = 200
+const MAX_TAIL_CHARS = 16_000
+
 function killCheckProcess(child: ChildProcess, signal: NodeJS.Signals) {
     if (!SUPPORTS_PROCESS_GROUP_KILL || child.pid === undefined) {
         child.kill(signal)
@@ -39,6 +48,9 @@ export async function spawnCheck(check, env, repoRoot) {
     let stderrBuf = ''
     let timedOut = false
 
+    const appendTail = (current: string, chunk: string): string =>
+        (current + chunk).slice(-MAX_TAIL_BYTES)
+
     const result = await new Promise(resolve => {
         const child = spawn(cmd, rest, {
             cwd: repoRoot,
@@ -53,11 +65,11 @@ export async function spawnCheck(check, env, repoRoot) {
             setTimeout(() => killCheckProcess(child, 'SIGKILL'), 5_000).unref()
         }, timeoutMs)
         child.stdout.on('data', chunk => {
-            stdoutBuf += chunk.toString('utf8')
+            stdoutBuf = appendTail(stdoutBuf, chunk.toString('utf8'))
             process.stdout.write(chunk)
         })
         child.stderr.on('data', chunk => {
-            stderrBuf += chunk.toString('utf8')
+            stderrBuf = appendTail(stderrBuf, chunk.toString('utf8'))
             process.stderr.write(chunk)
         })
         child.on('error', err => {
@@ -89,20 +101,27 @@ export async function spawnCheck(check, env, repoRoot) {
         signal: result.signal,
         timedOut,
         spawnError: result.spawnError,
-        stdoutTail: summarizeStderr(stdoutBuf),
-        stderrTail: summarizeStderr(stderrBuf),
+        stdoutTail: tailForFailureSummary(stdoutBuf),
+        stderrTail: tailForFailureSummary(stderrBuf),
         status,
         failureDetails,
         ...counts,
     }
 }
 
-function summarizeStderr(text, maxLines = 4) {
+// Sized so a structured failure report (BAR-bracketed "Refused: …" block from
+// the directory-fanout and name-uniqueness gates) survives intact, letting the
+// failure summary name the offending dirs / declarations rather than just
+// the trailing remediation lines.
+function tailForFailureSummary(text, maxLines = MAX_TAIL_LINES, maxChars = MAX_TAIL_CHARS) {
     if (!text) return undefined
-    const lines = text.split('\n').map(l => l.replace(/\s+$/, '')).filter(Boolean)
-    if (lines.length === 0) return undefined
-    const tail = lines.slice(-maxLines)
-    return tail.join('\n').slice(0, 800)
+    const lines = text.split('\n').map(l => l.replace(/\s+$/, ''))
+    let end = lines.length
+    while (end > 0 && lines[end - 1] === '') end -= 1
+    if (end === 0) return undefined
+    const start = Math.max(0, end - maxLines)
+    const joined = lines.slice(start, end).join('\n')
+    return joined.length <= maxChars ? joined : joined.slice(-maxChars)
 }
 
 async function readJsonIfExists(path) {

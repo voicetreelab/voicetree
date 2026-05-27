@@ -54,7 +54,7 @@ async function runChild(cmd) {
     const startedAt = new Date(startedAtMs).toISOString()
     let stdoutBuf = ''
     let stderrBuf = ''
-    const appendTail = (current, chunk) => `${current}${chunk}`.slice(-8_000)
+    const appendTail = (current, chunk) => `${current}${chunk}`.slice(-64_000)
     const result = await new Promise(resolve => {
         const child = spawn(bin, rest, {cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'], shell: false})
         child.stdout.on('data', chunk => {
@@ -80,11 +80,18 @@ function statusFor(exitCode, spawnError) {
     return exitCode === 0 ? 'pass' : 'fail'
 }
 
-function summarizeTail(text, maxLines = 4) {
+// Sized so a structured failure report (e.g. the BAR-bracketed "Refused: …"
+// block emitted by the tier-0 gates) survives intact in the report's
+// errorSummary instead of being clipped to just the trailing remediation lines.
+function summarizeTail(text, maxLines = 200, maxChars = 16_000) {
     if (!text) return undefined
-    const lines = text.split('\n').map(l => l.replace(/\s+$/, '')).filter(Boolean)
-    if (lines.length === 0) return undefined
-    return lines.slice(-maxLines).join('\n').slice(0, 800)
+    const lines = text.split('\n').map(l => l.replace(/\s+$/, ''))
+    let end = lines.length
+    while (end > 0 && lines[end - 1] === '') end -= 1
+    if (end === 0) return undefined
+    const start = Math.max(0, end - maxLines)
+    const joined = lines.slice(start, end).join('\n')
+    return joined.length <= maxChars ? joined : joined.slice(-maxChars)
 }
 
 const {opts, cmd} = parseArgs(process.argv.slice(2))
