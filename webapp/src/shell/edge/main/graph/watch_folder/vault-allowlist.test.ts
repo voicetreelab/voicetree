@@ -34,14 +34,12 @@ const FILE_COUNT_ABOVE_RAISED_LIMIT = 1001
 
 function resetGraphModel(): void {
   notifyWriteDirectory = vi.fn()
-  initGraphModel(
-    { appSupportPath: mockUserDataPath },
-    {
-      notifyWriteDirectory,
-      fitViewport: vi.fn(),
-      syncVaultState: vi.fn()
-    }
-  )
+  process.env.VOICETREE_APP_SUPPORT = mockUserDataPath
+  initGraphModel({
+    notifyWriteDirectory,
+    fitViewport: vi.fn(),
+    syncVaultState: vi.fn()
+  })
 }
 
 async function seedMarkdownFiles(dir: string, count: number): Promise<void> {

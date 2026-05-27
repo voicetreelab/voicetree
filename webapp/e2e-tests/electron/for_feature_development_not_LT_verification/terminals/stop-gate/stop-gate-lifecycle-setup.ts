@@ -9,6 +9,12 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import {
+    getBearerToken,
+    getDaemonRpcUrl,
+} from '../../../critical_e2e_verification_tests/helpers/e2e-rpc-helpers';
+
+export { rpcCallTool } from '../../../critical_e2e_verification_tests/helpers/e2e-rpc-helpers';
 
 export const PROJECT_ROOT: string = path.resolve(process.cwd());
 
@@ -49,7 +55,6 @@ export interface ExtendedWindow {
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
             saveSettings: (settings: Record<string, unknown>) => Promise<boolean>;
-            getMcpPort: () => Promise<number>;
         };
         terminal: {
             spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
@@ -231,106 +236,14 @@ export const test = base.extend<{
     }
 });
 
-// ─── MCP HTTP Helpers ────────────────────────────────────────────────────────
-
-export async function waitForMcpServer(mcpUrl: string, maxRetries = 20, delayMs = 1000): Promise<boolean> {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response: Response = await fetch(mcpUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/event-stream'
-                },
-                body: JSON.stringify({
-                    jsonrpc: '2.0', id: 0, method: 'initialize',
-                    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'healthcheck', version: '1.0.0' } }
-                })
-            });
-            if (response.ok) {
-                console.log(`[Stop Gate Lifecycle] MCP server available after ${i + 1} attempts`);
-                return true;
-            }
-        } catch {
-            if (i % 5 === 0) console.log(`[Stop Gate Lifecycle] MCP server not ready, attempt ${i + 1}/${maxRetries}`);
-        }
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-    return false;
-}
-
-export async function mcpRequest(mcpUrl: string, method: string, params: Record<string, unknown> = {}, id = 1): Promise<unknown> {
-    const response: Response = await fetch(mcpUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({ jsonrpc: '2.0', id, method, params })
-    });
-    const text: string = await response.text();
-    return JSON.parse(text);
-}
-
-export async function mcpCallTool(
-    mcpUrl: string,
-    toolName: string,
-    args: Record<string, unknown>
-): Promise<{
-    success: boolean;
-    content?: Array<{ type: string; text: string }>;
-    isError?: boolean;
-    parsed?: Record<string, unknown>;
-}> {
-    const response = await mcpRequest(mcpUrl, 'tools/call', {
-        name: toolName,
-        arguments: args
-    }) as {
-        result?: { content?: Array<{ type: string; text: string }>; isError?: boolean };
-        error?: { message: string };
-    };
-
-    if (response.error) {
-        throw new Error(`MCP error: ${response.error.message}`);
-    }
-
-    const content = response.result?.content;
-    if (content && content[0]?.text) {
-        const parsed = JSON.parse(content[0].text) as Record<string, unknown>;
-        return {
-            success: parsed.success as boolean,
-            content,
-            isError: response.result?.isError,
-            parsed
-        };
-    }
-
-    return { success: false };
-}
-
 // ─── Shared setup helpers ────────────────────────────────────────────────────
 
-/** Bootstrap MCP connection + wait for graph. Returns mcpUrl and parentNodeId.
+/** Bootstrap daemon /rpc + wait for graph. Returns rpcUrl, bearer token, and parentNodeId.
  *  nodeNameFilter selects the task node by substring match (default: 'stop-gate-lifecycle-task'). */
-export async function setupMcpAndGraph(appWindow: Page, nodeNameFilter = 'stop-gate-lifecycle-task'): Promise<{ mcpUrl: string; parentNodeId: string }> {
-    // Discover MCP port
-    const mcpPort: number = await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
-        return await api.main.getMcpPort();
-    });
-    const mcpUrl: string = `http://127.0.0.1:${mcpPort}/mcp`;
-    console.log(`[Stop Gate Lifecycle] MCP port: ${mcpPort}`);
-
-    // Wait for MCP server
-    const serverReady: boolean = await waitForMcpServer(mcpUrl, 20, 1000);
-    if (!serverReady) throw new Error('MCP server not available');
-
-    await mcpRequest(mcpUrl, 'initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'stop-gate-lifecycle-e2e', version: '1.0.0' }
-    });
+export async function setupRpcAndGraph(appWindow: Page, nodeNameFilter = 'stop-gate-lifecycle-task'): Promise<{ rpcUrl: string; token: string; parentNodeId: string }> {
+    const rpcUrl: string = await getDaemonRpcUrl(appWindow);
+    const token: string = await getBearerToken(appWindow);
+    console.log(`[Stop Gate Lifecycle] Daemon: ${rpcUrl}`);
 
     // Wait for graph to load
     await expect.poll(async () => {
@@ -359,7 +272,7 @@ export async function setupMcpAndGraph(appWindow: Page, nodeNameFilter = 'stop-g
     const parentNodeId: string = nodeIds.find(id => id.includes(nodeNameFilter)) ?? nodeIds[0];
     console.log(`[Stop Gate Lifecycle] Using task node: ${parentNodeId.split('/').pop()}`);
 
-    return { mcpUrl, parentNodeId };
+    return { rpcUrl, token, parentNodeId };
 }
 
 /** Register a caller terminal so spawn_agent has a valid callerTerminalId. */

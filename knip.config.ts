@@ -32,7 +32,6 @@ const config: KnipConfig = {
                 'src/web-main.tsx',
                 'src/shell/edge/main/runtime/electron/app/main.ts',
                 'src/shell/edge/main/runtime/electron/app/preload.ts',
-                'src/shell/edge/main/cli/**/*.ts',
                 'src/shell/edge/main/runtime/mcp-server/**/*.ts',
                 'src/**/*.test.{ts,tsx}',
             ],

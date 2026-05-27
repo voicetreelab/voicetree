@@ -13,7 +13,7 @@ describe('graphToSpanningTree', () => {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })
@@ -382,7 +382,7 @@ describe('graphToSpanningTree', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }

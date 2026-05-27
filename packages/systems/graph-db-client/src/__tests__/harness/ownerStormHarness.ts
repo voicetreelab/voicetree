@@ -97,11 +97,12 @@ export async function writeOwnerRecord(
   vault: string,
   partial: Partial<OwnerRecord> & { pid: number; ownerNonce: string },
 ): Promise<OwnerRecord> {
-  const canonicalProjectRoot = resolve(vault)
+  const canonicalVault = resolve(vault)
   const now = Date.now()
   const record: OwnerRecord = {
     schemaVersion: 1,
-    canonicalProjectRoot,
+    daemonKind: 'graphd',
+    canonicalVault,
     pid: partial.pid,
     ppid: partial.ppid ?? 0,
     port: partial.port ?? null,

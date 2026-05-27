@@ -93,7 +93,7 @@ function notifyAgentNodesFromDelta(delta: GraphDelta): void {
 
     for (const d of delta) {
         if (d.type !== 'UpsertNode' || O.isSome(d.previousNode)) continue
-        const agentName: string | undefined = d.nodeToUpsert.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+        const agentName: string | undefined = d.nodeToUpsert.nodeUIMetadata.additionalYAMLProps['agent_name']
         if (!agentName) continue
         const title: string = getNodeTitle(d.nodeToUpsert)
         callback(agentName, d.nodeToUpsert.absoluteFilePathIsID, title)

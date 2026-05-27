@@ -55,6 +55,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@vscode/ripgrep": "^1.15.9",
     "@vt/app-config": "*",
+    "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-protocol": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",

@@ -402,7 +402,6 @@ export async function runGraphMove(args: string[], options: GraphMoveOptions): P
 }
 
 export async function graphMove(
-    _port: number,
     _terminalId: string | undefined,
     args: string[]
 ): Promise<void> {

@@ -1,5 +1,4 @@
 import { Stats } from 'node:fs'
-import { extname } from 'node:path'
 import chokidar from 'chokidar'
 import type { FSWatcher } from 'chokidar'
 import {
@@ -56,17 +55,43 @@ function waitForReady(watcher: FSWatcher): Promise<void> {
 }
 
 function buildWatcherOptions() {
+  // fsevents on macOS silently drops 'add' events for some vault paths
+  // (reproduced deterministically: chokidar 3.6.0 + fsevents 2.3.3, dir under
+  // ~/Voicetree/voicetree-…/voicetree-…/). Polling is the only reliable
+  // backend in dev where this matters most for agent progress nodes.
   const usePolling =
-    process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test'
+    process.env.HEADLESS_TEST === '1' ||
+    process.env.NODE_ENV === 'test' ||
+    process.env.NODE_ENV === 'development'
 
   return {
-    // KEEP IN SYNC WITH packages/libraries/graph-model/src/watch-folder/file-watcher-setup.ts
+    // KEEP IN SYNC WITH packages/systems/graph-db-server/src/data/watch-folder/watching/file-watcher-setup.ts
+    //
+    // When chokidar invokes this predicate WITHOUT stats (notably from
+    // FsEventsHandler._watchWithFsEvents at chokidar/lib/fsevents-handler.js
+    // line 305 — the gate that decides whether to set up the macOS fsevents
+    // listener at all), it must NOT use `path.extname()` as a "this is a file"
+    // heuristic: `path.extname()` returns a non-empty string for any directory
+    // whose basename contains a dot (e.g. `mktemp -d /tmp/vt-vault.XXXX`,
+    // user vaults like `My Vault.notes`, …). Treating such a directory as a
+    // file and ignoring it causes chokidar to skip the fsevents subscription
+    // — which leaves `_readyCount` half-decremented, so `watcher.ready`
+    // never resolves and any caller that awaits it (e.g. startDaemonWatcher)
+    // hangs forever. The pre-existing `setupWatcher` path in
+    // file-watcher-setup.ts has the same shape but did not surface the bug
+    // because it never awaits `ready`.
+    //
+    // The safe default when stats are unavailable is "don't ignore" —
+    // chokidar will reinvoke the predicate during the directory scan with
+    // stats populated, where the real file/dir filtering happens. Files
+    // that slip through are then filtered by extension in the `add` /
+    // `change` event handlers below.
     ignored: [
       (filePath: string, stats?: Stats) => {
-        if (stats?.isDirectory()) {
+        if (!stats) {
           return false
         }
-        if (!stats && !extname(filePath)) {
+        if (stats.isDirectory()) {
           return false
         }
         return !filePath.endsWith('.md') && !isImageNode(filePath)

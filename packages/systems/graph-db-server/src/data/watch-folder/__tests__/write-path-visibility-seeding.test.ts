@@ -76,16 +76,14 @@ describe('write path folder visibility seeding', () => {
         appSupportDir = path.join(testTmpDir, 'app-support')
         await fs.mkdir(appSupportDir, { recursive: true })
 
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: vi.fn(),
-                syncFolderTree: vi.fn(),
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        initGraphModel({
+            syncVaultState: vi.fn(),
+            syncFolderTree: vi.fn(),
+            syncStarredFolderTrees: vi.fn(),
+            syncExternalFolderTrees: vi.fn(),
+            fitViewport: vi.fn(),
+        })
 
         setGraph(createEmptyGraph())
         clearWatchFolderState()

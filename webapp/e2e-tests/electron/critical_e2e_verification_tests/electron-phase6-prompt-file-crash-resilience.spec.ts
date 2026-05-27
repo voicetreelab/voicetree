@@ -6,7 +6,7 @@
  *   1. Headless agent spawn under ptyBackend='tmux' writes the prompt to
  *      `{vault}/.voicetree/terminals/{name}-prompt.txt` (mode 0600) and the
  *      prompt is actually visible to the agent process — proved by fake-agent
- *      reading AGENT_PROMPT_FILE and executing a create_nodes action whose
+ *      reading AGENT_PROMPT_FILE and executing a create_node action whose
  *      title carries a sentinel derived from the prompt.
  *   2. The tmux session survives `kill -9` of the Electron main process.
  *   3. The prompt file persists across the crash.
@@ -15,33 +15,85 @@
  *   5. close_agent tears the session down + deletes the prompt file.
  */
 
+import { test as base, expect } from "@playwright/test";
 import type { ElectronApplication } from "@playwright/test";
 import type { GraphNode } from "@vt/graph-model/graph";
+import { getNodeTitle } from "@vt/graph-model/markdown";
+import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
+import { statSync } from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import {
-  mcpCallTool,
-  mcpRequest,
-  waitForMcpServer,
+  FAKE_AGENT_ENTRYPOINT,
   type ExtendedWindow,
 } from "./electron-smoke-helpers";
 import {
-  bootstrapCallerTerminal,
+  getBearerToken,
+  getDaemonRpcUrl,
+  rpcCallTool,
+} from "./helpers/e2e-rpc-helpers";
+import {
+  bootstrapPhase6CallerTerminal,
+  buildFakeAgentPromptWithSentinel,
   cleanupLiveElectronApp,
-  discoverMcpUrl,
-  expect,
-  firstLoadedWindow,
-  graphIncludesTitle,
+  firstLoadedPhase6Window,
   killProcessGroup,
   killTmuxSession,
-  launchElectronApp,
-  promptFileMode,
+  launchPhase6ElectronApp,
   reapStaleTestTmuxSessions,
   resolveVaultWriteFolder,
-  test,
   tmuxPanePid,
   tmuxSessionExists,
-} from "./electron-phase6-prompt-file-crash-resilience/helpers";
+  writePhase6Settings,
+} from "./helpers/phase6-helpers";
+
+function graphIncludesTitle(
+  graph: { nodes: Record<string, GraphNode> },
+  title: string,
+): boolean {
+  return Object.values(graph.nodes).some((node) => getNodeTitle(node) === title);
+}
+
+// ─── Fixture ─────────────────────────────────────────────────────────────────
+
+type PhaseSixPrompt = {
+  readonly sentinelTitle: string;
+  readonly agentPrompt: string;
+};
+
+type PhaseSixFixtures = {
+  projectRoot: string;
+  phaseSixPrompt: PhaseSixPrompt;
+  userDataDir: string;
+};
+
+const test = base.extend<PhaseSixFixtures>({
+  projectRoot: async ({}, use) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vt-phase6-vault-"));
+    const vault = path.join(root, "vault");
+    await fs.mkdir(vault, { recursive: true });
+    await fs.writeFile(path.join(vault, "task.md"), "# Phase 6 prompt-file e2e\n", "utf8");
+    await use(vault);
+    await fs.rm(root, { recursive: true, force: true });
+  },
+
+  phaseSixPrompt: async ({}, use) => {
+    const promptHash = createHash("sha1")
+      .update(`phase6-${Date.now()}-${Math.random()}`)
+      .digest("hex")
+      .slice(0, 12);
+    const sentinelTitle = `PROMPT_RECEIVED_${promptHash}`;
+    await use({ sentinelTitle, agentPrompt: buildFakeAgentPromptWithSentinel(sentinelTitle) });
+  },
+
+  userDataDir: async ({ projectRoot, phaseSixPrompt }, use) => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vt-phase6-udata-"));
+    await writePhase6Settings(dir, projectRoot, phaseSixPrompt.agentPrompt, FAKE_AGENT_ENTRYPOINT);
+    await use(dir);
+    await fs.rm(dir, { recursive: true, force: true });
+  },
+});
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
 
@@ -65,18 +117,12 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
     let killedMainPid: number | null = null;
 
     try {
-      app1 = await launchElectronApp(userDataDir, projectRoot);
-      const appWindow = await firstLoadedWindow(app1);
+      app1 = await launchPhase6ElectronApp(userDataDir, projectRoot);
+      const appWindow = await firstLoadedPhase6Window(app1);
 
-      // ── STEP 1: MCP ready ──
-      const mcpUrl = await discoverMcpUrl(appWindow);
-      const ready = await waitForMcpServer(mcpUrl, 30, 1000);
-      expect(ready, `MCP server never came up at ${mcpUrl}`).toBe(true);
-      await mcpRequest(mcpUrl, "initialize", {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "phase6-e2e", version: "1.0.0" },
-      });
+      // ── STEP 1: daemon /rpc reachable ──
+      const rpcUrl = await getDaemonRpcUrl(appWindow);
+      const token = await getBearerToken(appWindow);
 
       // ── STEP 2: vault graph loaded — `--open-folder` doesn't reliably attach
       //           the watcher in the test harness, so trigger explicitly. ──
@@ -90,20 +136,6 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
         ).startFileWatching(vp);
       }, projectRoot);
       expect(watchResult.success, "startFileWatching failed").toBe(true);
-
-      // Also write `.mcp.json` so any agent that reads vault-local MCP config
-      // finds the in-process server (mirrors the real-agent-spawn pattern).
-      await fs.writeFile(
-        path.join(projectRoot, ".mcp.json"),
-        JSON.stringify(
-          {
-            mcpServers: { voicetree: { type: "http", url: mcpUrl } },
-          },
-          null,
-          2,
-        ),
-        "utf8",
-      );
 
       await expect
         .poll(
@@ -134,19 +166,17 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
 
       // ── STEP 3: caller terminal + spawn HEADLESS fake-agent with sentinel prompt ──
       const callerId = "phase6-caller";
-      await bootstrapCallerTerminal(appWindow, parentNodeId, callerId);
+      const callerSpawn = await bootstrapPhase6CallerTerminal(appWindow, parentNodeId, callerId);
+      expect(callerSpawn.success, `caller terminal spawn failed: ${JSON.stringify(callerSpawn)}`).toBe(true);
 
       const { sentinelTitle, agentPrompt } = phaseSixPrompt;
 
-      const spawnRes = await mcpCallTool(mcpUrl, "spawn_agent", {
+      const spawnRes = await rpcCallTool(rpcUrl, token, "spawn_agent", {
         nodeId: parentNodeId,
         callerTerminalId: callerId,
         headless: true,
       });
-      expect(
-        spawnRes.success,
-        `spawn_agent failed: ${JSON.stringify(spawnRes.parsed)}`,
-      ).toBe(true);
+      expect(spawnRes.success, `spawn_agent failed: ${JSON.stringify(spawnRes.parsed)}`).toBe(true);
       terminalId = (spawnRes.parsed as { terminalId: string }).terminalId;
       expect(terminalId).toBeTruthy();
 
@@ -154,12 +184,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       // `projectRoot` is the watched parent; production writes prompt files
       // into the voicetree-N-M subfolder it created during init.
       const writeFolder = await resolveVaultWriteFolder(projectRoot);
-      promptFile = path.join(
-        writeFolder,
-        ".voicetree",
-        "terminals",
-        `${terminalId}-prompt.txt`,
-      );
+      promptFile = path.join(writeFolder, ".voicetree", "terminals", `${terminalId}-prompt.txt`);
       await expect
         .poll(
           async () => {
@@ -170,18 +195,13 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
               return false;
             }
           },
-          {
-            timeout: 10_000,
-            message: `prompt file ${promptFile} never appeared`,
-          },
+          { timeout: 10_000, message: `prompt file ${promptFile} never appeared` },
         )
         .toBe(true);
-      const fileMode = promptFileMode(promptFile);
+      const fileMode = statSync(promptFile).mode & 0o777;
       expect(fileMode, "prompt file must be mode 0600").toBe(0o600);
       const fileContents = await fs.readFile(promptFile, "utf8");
-      expect(fileContents, "prompt file must equal AGENT_PROMPT").toBe(
-        agentPrompt,
-      );
+      expect(fileContents, "prompt file must equal AGENT_PROMPT").toBe(agentPrompt);
 
       // ── STEP 5: tmux session backs the agent ──
       await expect
@@ -232,10 +252,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
               return false;
             }
           },
-          {
-            timeout: 10_000,
-            message: "electron main never exited after SIGKILL",
-          },
+          { timeout: 10_000, message: "electron main never exited after SIGKILL" },
         )
         .toBe(false);
 
@@ -257,36 +274,25 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       }
 
       // ── STEP 9: relaunch — reconciliation imports the surviving session ──
-      app2 = await launchElectronApp(userDataDir, projectRoot);
-      const win2 = await firstLoadedWindow(app2, 60_000);
-      const mcpUrl2 = await discoverMcpUrl(win2);
-      const ready2 = await waitForMcpServer(mcpUrl2, 30, 1000);
-      expect(
-        ready2,
-        `MCP server never came up post-relaunch at ${mcpUrl2}`,
-      ).toBe(true);
-      await mcpRequest(mcpUrl2, "initialize", {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "phase6-e2e-relaunch", version: "1.0.0" },
-      });
+      app2 = await launchPhase6ElectronApp(userDataDir, projectRoot);
+      const win2 = await firstLoadedPhase6Window(app2, 60_000);
+      const rpcUrl2 = await getDaemonRpcUrl(win2);
+      const token2 = await getBearerToken(win2);
 
       await expect
         .poll(
           async () => {
             try {
-              const watchResult = await win2.evaluate(async (vp) => {
+              const wr = await win2.evaluate(async (vp) => {
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 if (!api) throw new Error("electronAPI not available");
                 return await (
                   api.main as unknown as {
-                    startFileWatching: (
-                      p: string,
-                    ) => Promise<{ success: boolean }>;
+                    startFileWatching: (p: string) => Promise<{ success: boolean }>;
                   }
                 ).startFileWatching(vp);
               }, projectRoot);
-              return watchResult.success;
+              return wr.success;
             } catch {
               return false;
             }
@@ -332,9 +338,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 return await (
                   api?.main as unknown as {
-                    getGraph: () => Promise<{
-                      nodes: Record<string, GraphNode>;
-                    }>;
+                    getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;
                   }
                 ).getGraph();
               });
@@ -358,21 +362,20 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       ).toBe(prePanePid);
 
       // ── STEP 10: close_agent cleans up tmux + prompt file ──
-      const closeRes = await mcpCallTool(mcpUrl2, "close_agent", {
+      const closeRes = await rpcCallTool(rpcUrl2, token2, "close_agent", {
         terminalId,
         callerTerminalId: callerId,
         forceWithReason:
           "Phase 6 e2e cleanup after verifying crash-resilient tmux session rebind.",
       });
-      const closeAgentSucceeded =
-        closeRes.success || closeRes.parsed?.success === true;
+      const closeAgentSucceeded = closeRes.success || closeRes.parsed?.success === true;
       if (!closeAgentSucceeded) {
         killTmuxSession(userDataDir, terminalId);
         await fs.rm(promptFile, { force: true });
       }
 
       await expect
-        .poll(() => tmuxSessionExists(userDataDir, terminalId), {
+        .poll(() => tmuxSessionExists(userDataDir, terminalId as string), {
           timeout: 10_000,
           message: `tmux session ${terminalId} not torn down by close_agent`,
         })
@@ -388,10 +391,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
                 return false;
               }
             },
-            {
-              timeout: 5_000,
-              message: "prompt file not deleted by close_agent",
-            },
+            { timeout: 5_000, message: "prompt file not deleted by close_agent" },
           )
           .toBe(false);
       }

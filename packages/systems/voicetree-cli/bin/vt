@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# When installed from npm (or `npm pack`'d), the published tarball ships
+# `dist/voicetree-cli.js` alongside this script — exec it directly.
+# When run from a monorepo checkout, `dist/` is gitignored and absent;
+# fall back to running the TS sources via tsx.
+set -euo pipefail
+
+# Resolve symlinks to find the real location of this script
+_script="${BASH_SOURCE[0]}"
+while [ -L "$_script" ]; do
+    _target="$(readlink "$_script")"
+    case "$_target" in
+        /*) _script="$_target" ;;
+        *)  _script="$(dirname "$_script")/$_target" ;;
+    esac
+done
+PACKAGE_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
+
+# Bundled path (published tarball): a single self-contained ESM bundle.
+# `VT_FORCE_SOURCE=1` skips the bundle and uses the tsx source path so
+# in-monorepo tests don't run against a stale or unrelated dist build.
+BUNDLE="$PACKAGE_DIR/dist/voicetree-cli.js"
+if [ -z "${VT_FORCE_SOURCE:-}" ] && [ -f "$BUNDLE" ]; then
+    exec node "$BUNDLE" "$@"
+fi
+
+# Source path (in-monorepo dev): run the TS entry directly through tsx.
+REPO_ROOT="$(cd "$PACKAGE_DIR/../../.." && pwd)"
+
+if [ -x "$PACKAGE_DIR/node_modules/.bin/tsx" ]; then
+    TSX_BIN="$PACKAGE_DIR/node_modules/.bin/tsx"
+elif [ -x "$REPO_ROOT/node_modules/.bin/tsx" ]; then
+    TSX_BIN="$REPO_ROOT/node_modules/.bin/tsx"
+elif command -v tsx >/dev/null 2>&1; then
+    TSX_BIN="$(command -v tsx)"
+else
+    echo "vt: cannot find tsx (checked $PACKAGE_DIR/node_modules/.bin/tsx, $REPO_ROOT/node_modules/.bin/tsx, and PATH)" >&2
+    exit 127
+fi
+
+# tsx auto-discovers tsconfig.json from CWD, but vt runs from vault dirs —
+# pin it to this package's tsconfig so module resolution stays consistent.
+exec env TSX_TSCONFIG_PATH="$PACKAGE_DIR/tsconfig.json" "$TSX_BIN" \
+    "$PACKAGE_DIR/src/voicetree-cli.ts" "$@"

@@ -34,14 +34,14 @@ import {parseMarkdownToGraphNode} from "@vt/graph-model/markdown";
  * Merges new metadata with old metadata, preferring new values when they are "present".
  * - For Option types: use new if Some, otherwise keep old
  * - For optional fields (undefined): use new if defined, otherwise keep old
- * - For Map: use new if non-empty, otherwise keep old
+ * - For additionalYAMLProps: use new if non-empty, otherwise keep old
  * NOTE: title is NOT stored in metadata - it's derived via getNodeTitle(node) when needed
  */
 export function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMetadata): NodeUIMetadata {
     return {
         color: O.isSome(newMeta.color) ? newMeta.color : oldMeta.color,
         position: O.isSome(newMeta.position) ? newMeta.position : oldMeta.position,
-        additionalYAMLProps: (newMeta.additionalYAMLProps instanceof Map ? newMeta.additionalYAMLProps.size : Object.keys(newMeta.additionalYAMLProps).length) > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,
+        additionalYAMLProps: Object.keys(newMeta.additionalYAMLProps).length > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,
         isContextNode: newMeta.isContextNode ?? oldMeta.isContextNode,
         containedNodeIds: newMeta.containedNodeIds ?? oldMeta.containedNodeIds,
     };

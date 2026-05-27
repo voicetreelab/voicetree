@@ -9,7 +9,8 @@
 import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import { getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@vt/graph-model/graph'
-import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import { spawnTerminalWithContextNode } from '@vt/vt-daemon-client'
+import { getVtDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -69,14 +70,12 @@ export async function runAgentOnSelectedNodes(
   // 2. Spawn terminal with task node and selected nodes
   // spawnTerminalWithContextNode creates the context node internally
   const result: { terminalId: string; contextNodeId: NodeIdAndFilePath } =
-    await terminalRuntimeSurface.spawnTerminalWithContextNode(
+    await spawnTerminalWithContextNode(getVtDaemonClient(), {
       taskNodeId,
-      undefined, // Use default agent command
-      undefined, // Auto-assign terminal count
-      false,     // Don't skip fit animation
-      false,     // Start pinned
-      selectedNodeIds
-    )
+      skipFitAnimation: false,
+      startUnpinned: false,
+      selectedNodeIds,
+    })
 
   return {
     taskNodeId,

@@ -23,8 +23,8 @@ import { expect } from '@playwright/test';
 import {
     test,
     hasCliTool,
-    mcpCallTool,
-    setupMcpAndGraph,
+    rpcCallTool,
+    setupRpcAndGraph,
     registerCallerTerminal
 } from './stop-gate-lifecycle-setup';
 
@@ -39,7 +39,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         console.log('=== TEST 1: Claude headless — audit fires on exit ===');
 
-        const { mcpUrl, parentNodeId } = await setupMcpAndGraph(appWindow);
+        const { rpcUrl, token, parentNodeId } = await setupRpcAndGraph(appWindow);
         const callerTerminalId: string = 'e2e-stop-gate-claude-headless-caller';
         await registerCallerTerminal(appWindow, parentNodeId, callerTerminalId);
 
@@ -48,7 +48,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // so resolveSkillPath will set skillPath on the terminal record.
         // The agent gets a trivial prompt and should exit quickly.
         console.log('=== Spawning headless Claude agent ===');
-        const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId,
             agentName: 'Claude Sonnet',
@@ -68,7 +68,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // Allow generous timeout for up to 2 resume cycles with real Claude.
         console.log('=== Waiting for agent to complete audit cycle (up to 2 retries) ===');
         await expect.poll(async () => {
-            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
             const agents = (result.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -85,7 +85,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         // ── Read terminal output for diagnostics ──
         console.log('=== Reading terminal output ===');
-        const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+        const readResult = await rpcCallTool(rpcUrl, token,'read_terminal_output', {
             terminalId: agentTerminalId,
             callerTerminalId
         });
@@ -100,7 +100,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // and resumed the agent with a deficiency prompt at least once.
         // This is behavioral evidence vs. fragile string-matching of Claude's output.
         console.log('=== Verifying audit fired via list_agents ===');
-        const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const listResult = await rpcCallTool(rpcUrl, token,'list_agents', {});
         expect(listResult.success).toBe(true);
         const finalAgents = (listResult.parsed as {
             agents: Array<{ terminalId: string; status: string; auditRetryCount: number }>
@@ -128,13 +128,13 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         console.log('=== TEST 2: Claude non-headless — audit fires on self-close ===');
 
-        const { mcpUrl, parentNodeId } = await setupMcpAndGraph(appWindow);
+        const { rpcUrl, token, parentNodeId } = await setupRpcAndGraph(appWindow);
         const callerTerminalId: string = 'e2e-stop-gate-claude-interactive-caller';
         await registerCallerTerminal(appWindow, parentNodeId, callerTerminalId);
 
         // ── Spawn interactive Claude agent ──
         console.log('=== Spawning interactive Claude agent ===');
-        const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId,
             agentName: 'Claude Sonnet',
@@ -153,7 +153,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // list_agents reports status: 'idle' when isDone is true.
         console.log('=== Waiting for interactive agent to become idle ===');
         await expect.poll(async () => {
-            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
             const agents = (result.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -172,7 +172,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // Simulates the agent calling close_agent on itself.
         // closeAgentTool.ts:29-43 runs stop gate audit on self-close when skillPath is set.
         console.log('=== Calling close_agent (self-close) ===');
-        const closeResult = await mcpCallTool(mcpUrl, 'close_agent', {
+        const closeResult = await rpcCallTool(rpcUrl, token,'close_agent', {
             terminalId: agentTerminalId,
             callerTerminalId: agentTerminalId  // self-close: caller === target
         });
@@ -197,7 +197,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         console.log('=== TEST 3: Codex headless — audit fires on exit ===');
 
-        const { mcpUrl, parentNodeId } = await setupMcpAndGraph(appWindow);
+        const { rpcUrl, token, parentNodeId } = await setupRpcAndGraph(appWindow);
         const callerTerminalId: string = 'e2e-stop-gate-codex-headless-caller';
         await registerCallerTerminal(appWindow, parentNodeId, callerTerminalId);
 
@@ -205,7 +205,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // Codex doesn't require sessionId for shouldRunAudit (only Claude does).
         // shouldRunAudit returns true for codex with just skillPath + cliType.
         console.log('=== Spawning headless Codex agent ===');
-        const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId,
             agentName: 'Codex',
@@ -224,7 +224,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // Codex resume command: codex exec resume --last -p "$RESUME_PROMPT" --full-auto
         console.log('=== Waiting for agent to complete audit cycle ===');
         await expect.poll(async () => {
-            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
             const agents = (result.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -241,7 +241,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         // ── Read terminal output ──
         console.log('=== Reading terminal output ===');
-        const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+        const readResult = await rpcCallTool(rpcUrl, token,'read_terminal_output', {
             terminalId: agentTerminalId,
             callerTerminalId
         });
@@ -256,7 +256,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // and resumed the agent with a deficiency prompt at least once.
         // This is behavioral evidence vs. fragile string-matching of Codex's output.
         console.log('=== Verifying audit fired via list_agents ===');
-        const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const listResult = await rpcCallTool(rpcUrl, token,'list_agents', {});
         expect(listResult.success).toBe(true);
         const finalAgents = (listResult.parsed as {
             agents: Array<{ terminalId: string; status: string; auditRetryCount: number }>
@@ -280,13 +280,13 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         console.log('=== TEST 4: Codex non-headless — audit fires on self-close ===');
 
-        const { mcpUrl, parentNodeId } = await setupMcpAndGraph(appWindow);
+        const { rpcUrl, token, parentNodeId } = await setupRpcAndGraph(appWindow);
         const callerTerminalId: string = 'e2e-stop-gate-codex-interactive-caller';
         await registerCallerTerminal(appWindow, parentNodeId, callerTerminalId);
 
         // ── Spawn interactive Codex agent ──
         console.log('=== Spawning interactive Codex agent ===');
-        const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId,
             agentName: 'Codex',
@@ -303,7 +303,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // ── Wait for agent to become idle ──
         console.log('=== Waiting for interactive agent to become idle ===');
         await expect.poll(async () => {
-            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
             const agents = (result.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -320,7 +320,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         // ── Call close_agent with self-close semantics ──
         console.log('=== Calling close_agent (self-close) ===');
-        const closeResult = await mcpCallTool(mcpUrl, 'close_agent', {
+        const closeResult = await rpcCallTool(rpcUrl, token,'close_agent', {
             terminalId: agentTerminalId,
             callerTerminalId: agentTerminalId  // self-close: caller === target
         });
@@ -352,14 +352,14 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         console.log('=== TEST 5: Claude headless — virtual root fallback (no SKILL.md in task) ===');
 
         // Use the no-skill task node (content has no ~/brain/.../SKILL.md reference)
-        const { mcpUrl, parentNodeId } = await setupMcpAndGraph(appWindow, 'stop-gate-lifecycle-no-skill-task');
+        const { rpcUrl, token, parentNodeId } = await setupRpcAndGraph(appWindow, 'stop-gate-lifecycle-no-skill-task');
         const callerTerminalId: string = 'e2e-stop-gate-virtual-root-caller';
         await registerCallerTerminal(appWindow, parentNodeId, callerTerminalId);
 
         // ── Spawn headless Claude agent on the no-SKILL task node ──
         // deriveSkillPath will return null → auditAgent falls through to virtual root path.
         console.log('=== Spawning headless Claude agent on no-SKILL task node ===');
-        const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId,
             agentName: 'Claude Sonnet',
@@ -379,7 +379,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // nodes mentioning "brain" → violation → resume with deficiency prompt.
         console.log('=== Waiting for agent to complete virtual root audit cycle ===');
         await expect.poll(async () => {
-            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
             const agents = (result.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -396,7 +396,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         // ── Read terminal output for diagnostics ──
         console.log('=== Reading terminal output ===');
-        const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+        const readResult = await rpcCallTool(rpcUrl, token,'read_terminal_output', {
             terminalId: agentTerminalId,
             callerTerminalId
         });
@@ -410,7 +410,7 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
         // ran on exit via the virtual root fallback path (deriveSkillPath → null →
         // soft obligation for ~/brain/SKILL.md), detected the violation, and resumed.
         console.log('=== Verifying virtual root audit fired via list_agents ===');
-        const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const listResult = await rpcCallTool(rpcUrl, token,'list_agents', {});
         expect(listResult.success).toBe(true);
         const finalAgents = (listResult.parsed as {
             agents: Array<{ terminalId: string; status: string; auditRetryCount: number }>

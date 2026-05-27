@@ -1,6 +1,6 @@
 import { getGraphThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
-import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
-import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import { getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
+import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
@@ -121,13 +121,14 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         await saveProject(project);
         console.log('[DebugSetup] Saved project:', project.id);
 
-        const result = await startFileWatching(testProjectPath);
-        if (!result.success) {
-            console.error('[DebugSetup] Failed to load test project:', result.error);
+        try {
+            await openVault(testProjectPath);
+        } catch (err: unknown) {
+            console.error('[DebugSetup] Failed to load test project:', err);
             return { terminalsSpawned: [], nodeCount: 0 };
         }
 
-        projectLoaded = result.directory;
+        projectLoaded = testProjectPath;
 
         // Wait a moment for graph to populate
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -154,34 +155,37 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
     }
 
     try {
+        const facade = getVtDaemonFacade();
+
         // 1. Spawn parent terminal (fake agent by default; real agents require explicit opt-in)
-        const { terminalId: parentTerminalId } = await terminalRuntimeSurface.spawnTerminalWithContextNode(
-            candidates[0],
+        const { terminalId: parentTerminalId } = await facade.terminals.spawnTerminalWithContextNode({
+            taskNodeId: candidates[0],
             agentCommand,
-            undefined, true, false
-        );
+            skipFitAnimation: true,
+            startUnpinned: false,
+        });
         terminalIds.push(parentTerminalId);
 
         // 2. Spawn child terminal (mocks MCP spawn_agent)
         if (candidates.length > 1) {
-            const { terminalId: childTerminalId } = await terminalRuntimeSurface.spawnTerminalWithContextNode(
-                candidates[1],
+            const { terminalId: childTerminalId } = await facade.terminals.spawnTerminalWithContextNode({
+                taskNodeId: candidates[1],
                 agentCommand,
-                undefined, true, false,
-                undefined,  // selectedNodeIds
-                undefined,  // spawnDirectory
-                parentTerminalId  // parentTerminalId for tree indentation
-            );
+                skipFitAnimation: true,
+                startUnpinned: false,
+                parentTerminalId,
+            });
             terminalIds.push(childTerminalId);
         }
 
         // 3. Spawn sibling terminal (another root)
         if (candidates.length > 2) {
-            const { terminalId } = await terminalRuntimeSurface.spawnTerminalWithContextNode(
-                candidates[2],
+            const { terminalId } = await facade.terminals.spawnTerminalWithContextNode({
+                taskNodeId: candidates[2],
                 agentCommand,
-                undefined, true, false
-            );
+                skipFitAnimation: true,
+                startUnpinned: false,
+            });
             terminalIds.push(terminalId);
         }
     } catch (err) {

@@ -22,9 +22,18 @@
  * Scope honesty:
  *   - Only the main process is profiled. Renderer is out of scope (would need
  *     CDP Tracing + a renderer page handle — Playwright territory).
- *   - The fake-agent script is the same `create_nodes` × N flow agent-storm.ts
+ *   - The fake-agent script is the same `create_node` × N flow agent-storm.ts
  *     uses; only the *fake-agent* is mocked, the daemon + MCP + watch-folder
  *     are real.
+ *
+ * Pre-existing damage (out of scope for the getMcpPort → /rpc migration):
+ *   The MCP→CLI cutover (commits 2651ade78, fab76e7d4, 15595a854) removed
+ *   the in-process MCP server and replaced its `.mcp.json` handshake with
+ *   `.voicetree/daemon-url` + `.voicetree/auth-token`. This harness still
+ *   discovers via `waitForMcpPort` (`.mcp.json` poll) and will time out
+ *   against a post-cutover app. The env-var swap below makes the
+ *   *spawned-fake-agent* contract correct; fixing the boot-path handshake
+ *   is a follow-up.
  *
  * Run:
  *   npm run perf:main-storm:local -- --agents 5 --nodes-per-agent 5
@@ -41,7 +50,13 @@ import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
-import { agentRuntime } from '@vt/agent-runtime'
+import { terminalRuntimeSurface as agentRuntime } from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
+import {
+    createTerminalData,
+    type TerminalData,
+    type TerminalId,
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 import {
@@ -51,13 +66,122 @@ import {
     stopMainProcessProfileAndSave,
     type MainProcessCdpHandle,
 } from './_shared/main-process-cdp.ts'
-import { parseArgs } from './electron-main-storm/args.ts'
-import { spawnElectron, stopElectron, waitForMcpPort } from './electron-main-storm/electron.ts'
-import { resolveElectronBinary, resolveMainBundleEntry } from './electron-main-storm/paths.ts'
-import { runStorm } from './electron-main-storm/storm.ts'
+
+import {
+    buildAgentPrompt,
+    buildFakeAgentScript,
+    resolveFakeAgentEntrypoint,
+    resolveTsxImportPath,
+} from './agent-storm-helpers.ts'
+
+import {
+    parseElectronMainStormArgs,
+    resolveElectronBinary,
+    resolveMainBundleEntry,
+    spawnElectron,
+    stopElectron,
+    waitForExitOrTimeout,
+    waitForMcpPort,
+    type AgentResult,
+} from './electron-main-storm-helpers.ts'
+
+// ---------------------------------------------------------------------------
+// Fake-agent storm
+// ---------------------------------------------------------------------------
+
+async function runStorm(args: {
+    daemonUrl: string
+    vault: string
+    appSupport: string
+    agents: number
+    nodesPerAgent: number
+    perAgentTimeoutMs: number
+}): Promise<readonly AgentResult[]> {
+    const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
+    const tsxImportPath = resolveTsxImportPath()
+
+    // Set VOICETREE_APP_SUPPORT so every leaf in this process resolves the
+    // perf-test app-support dir via resolveAppSupportPath().
+    process.env.VOICETREE_APP_SUPPORT = args.appSupport
+
+    configureAgentRuntime({
+        env: {},
+    })
+
+    await agentRuntime.ensureTmuxAvailable()
+    await agentRuntime.ensureTmuxServer()
+
+    const script = buildFakeAgentScript(args.nodesPerAgent)
+    const agentPrompt = buildAgentPrompt(script)
+
+    const exitedTerminals = new Map<string, { code: number; atMs: number }>()
+    const onData = (_id: string, _data: string): void => { /* drop; profile is the artifact */ }
+    const onExit = (id: string, exitCode: number): void => {
+        if (!exitedTerminals.has(id)) exitedTerminals.set(id, { code: exitCode, atMs: Date.now() })
+    }
+
+    const launches: Promise<AgentResult>[] = []
+    for (let i = 0; i < args.agents; i++) {
+        const terminalId = `perf-agent-${i}` as TerminalId
+        const initialEnvVars: Record<string, string> = {
+            VOICETREE_TERMINAL_ID: terminalId,
+            VOICETREE_DAEMON_URL: args.daemonUrl,
+            VOICETREE_VAULT_PATH: args.vault,
+            TASK_NODE_PATH: `${args.vault}/${terminalId}-task.md`,
+            AGENT_PROMPT: agentPrompt,
+        }
+        const td: TerminalData = createTerminalData({
+            terminalId,
+            attachedToNodeId: args.vault,
+            terminalCount: i,
+            title: terminalId,
+            agentName: terminalId,
+            isHeadless: true,
+            initialEnvVars,
+            initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(tsxImportPath)} ${JSON.stringify(fakeAgentEntrypoint)}; exit`,
+            executeCommand: true,
+            initialSpawnDirectory: fakeAgentDir,
+        })
+
+        launches.push((async (): Promise<AgentResult> => {
+            const spawnRes = await agentRuntime.getTerminalManager().spawnTmuxBacked({
+                terminalData: td,
+                getToolsDirectory: () => fakeAgentDir,
+                onData,
+                onExit,
+            })
+            if (!spawnRes.success) {
+                return {
+                    terminalId,
+                    spawnSuccess: false,
+                    exitCode: -1,
+                    exitedAtMs: Date.now(),
+                    errorMessage: spawnRes.error ?? 'spawn failed',
+                }
+            }
+            const exit = await waitForExitOrTimeout(
+                () => exitedTerminals.get(terminalId),
+                () => agentRuntime.getTerminalRecords().find((r) => r.terminalId === terminalId)?.status === 'exited',
+                args.perAgentTimeoutMs,
+            )
+            return {
+                terminalId,
+                spawnSuccess: true,
+                exitCode: exit?.code ?? null,
+                exitedAtMs: exit?.atMs ?? null,
+            }
+        })())
+    }
+
+    return Promise.all(launches)
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-    const args = parseArgs(process.argv.slice(2))
+    const args = parseElectronMainStormArgs(process.argv.slice(2))
 
     const electronBinary = resolveElectronBinary()
     const mainEntry = resolveMainBundleEntry()
@@ -84,8 +208,15 @@ async function main(): Promise<void> {
         const inspectPort = spawned.inspectPort
         process.stdout.write(`[main-storm] electron pid=${electronProc.pid} inspect=${inspectPort}\n`)
 
+        // NOTE: waitForMcpPort still polls `.mcp.json`, which the post-cutover
+        // Electron app no longer writes — discovery will time out against
+        // current main. Replacing the discovery primitive (poll
+        // `.voicetree/rpc.port` + `.voicetree/auth-token` via @vt/vt-rpc) is
+        // tracked as follow-up. This harness only carries the field rename;
+        // the boot-path handshake fix is a separate scope.
         const mcpPort = await waitForMcpPort(tempVault, args.bootTimeoutMs)
-        process.stdout.write(`[main-storm] discovered MCP port=${mcpPort}\n`)
+        const daemonUrl = `http://127.0.0.1:${mcpPort}`
+        process.stdout.write(`[main-storm] discovered daemon at ${daemonUrl}\n`)
 
         // Start the CPU profiler *before* the storm so all spawn-time cost is
         // captured. The first inspector connection can race with the daemon's
@@ -96,7 +227,7 @@ async function main(): Promise<void> {
 
         const stormStart = Date.now()
         const results = await runStorm({
-            mcpPort,
+            daemonUrl,
             vault: tempVault,
             appSupport: tempAppSupport,
             agents: args.agents,

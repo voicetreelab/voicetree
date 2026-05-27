@@ -45,7 +45,7 @@ export const defaultWatchFolderEnv: WatchFolderEnv = {
     },
     clock: { nowIso: () => new Date().toISOString() },
     callbacks: getCallbacks,
-    settings: loadSettings,
+    settings: () => loadSettings(),
     project: {
         copyMarkdownFiles,
         createDatedSubfolder,

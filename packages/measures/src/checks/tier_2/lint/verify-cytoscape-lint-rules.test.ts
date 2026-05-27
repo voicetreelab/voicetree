@@ -49,7 +49,7 @@ type LinterRunner = {
 }
 
 type LinterConstructor = new (
-    options: {readonly configType: 'flat'},
+    options: {readonly configType: 'flat', readonly cwd: string},
 ) => LinterRunner
 
 const {ESLint, Linter} = requireFromWebapp('eslint') as {
@@ -129,7 +129,7 @@ function getNoRestrictedSyntaxRule(config: EslintConfig): unknown {
 }
 
 function lintTextWithRestrictedSyntaxRule(content: string, relativePath: string, rule: unknown): readonly LinterMessage[] {
-    const linter = new Linter({configType: 'flat'})
+    const linter = new Linter({configType: 'flat', cwd: REPO_ROOT})
     return linter.verify(content, [{
         files: ['**/*.ts'],
         rules: {

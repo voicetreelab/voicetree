@@ -22,7 +22,7 @@
   "dependencies": {
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
-    "@modelcontextprotocol/sdk": "*"
+    "@vt/vt-rpc": "*"
   },
   "scripts": {
     "test": "vitest run",

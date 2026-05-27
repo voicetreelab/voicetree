@@ -51,7 +51,7 @@ describe('graph move commands', () => {
         writeFileSync(path.join(tempDir, 'index.md'), '# Index\n\n[[alpha]]\n')
 
         const result = await captureJsonOutput(() =>
-            graphRename(0, undefined, [
+            graphRename(undefined, [
                 path.join(tempDir, 'alpha.md'),
                 path.join(tempDir, 'beta.md'),
                 '--vault',
@@ -100,7 +100,7 @@ describe('graph move commands', () => {
         )
 
         const result = await captureJsonOutput(() =>
-            graphMove(0, undefined, [sourceRoot, destinationRoot, '--vault', tempDir])
+            graphMove(undefined, [sourceRoot, destinationRoot, '--vault', tempDir])
         )
 
         expect(result.kind).toBe('folder')
@@ -142,7 +142,7 @@ describe('graph move commands', () => {
         writeFileSync(path.join(tempDir, 'index.md'), '# Index\n\n[[topics/source/a]]\n')
 
         const output = await captureHumanOutput(() =>
-            graphMove(0, undefined, [sourceRoot, destinationRoot, '--dry-run', '--vault', tempDir])
+            graphMove(undefined, [sourceRoot, destinationRoot, '--dry-run', '--vault', tempDir])
         )
 
         expect(output).toContain('Would move folder (2 files, 1 reference updated):')
@@ -174,7 +174,7 @@ describe('graph move commands', () => {
         )
 
         const result = await captureJsonOutput(() =>
-            graphGroup(0, undefined, [
+            graphGroup(undefined, [
                 archivePath,
                 deepPath,
                 otherPath,
@@ -210,7 +210,7 @@ describe('graph move commands', () => {
         writeFileSync(path.join(tempDir, 'b.md'), '# B\n')
 
         const output = await captureHumanOutput(() =>
-            graphGroup(0, undefined, [
+            graphGroup(undefined, [
                 path.join(tempDir, 'folder'),
                 path.join(tempDir, 'a.md'),
                 path.join(tempDir, 'b.md'),

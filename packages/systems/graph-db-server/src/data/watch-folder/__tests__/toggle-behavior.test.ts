@@ -91,16 +91,14 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         syncVaultStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: syncVaultStateSpy,
-                syncFolderTree: syncFolderTreeSpy,
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        initGraphModel({
+            syncVaultState: syncVaultStateSpy,
+            syncFolderTree: syncFolderTreeSpy,
+            syncStarredFolderTrees: vi.fn(),
+            syncExternalFolderTrees: vi.fn(),
+            fitViewport: vi.fn(),
+        })
 
         setGraph(createEmptyGraph())
         clearWatchFolderState()
@@ -216,16 +214,14 @@ describe('Bug 1 additional: addReadPath and setWriteFolder should also complete 
         syncVaultStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: syncVaultStateSpy,
-                syncFolderTree: syncFolderTreeSpy,
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        initGraphModel({
+            syncVaultState: syncVaultStateSpy,
+            syncFolderTree: syncFolderTreeSpy,
+            syncStarredFolderTrees: vi.fn(),
+            syncExternalFolderTrees: vi.fn(),
+            fitViewport: vi.fn(),
+        })
 
         setGraph(createEmptyGraph())
         clearWatchFolderState()
@@ -307,16 +303,14 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
 
         syncFolderTreeSpy = vi.fn()
 
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: vi.fn(),
-                syncFolderTree: syncFolderTreeSpy,
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        initGraphModel({
+            syncVaultState: vi.fn(),
+            syncFolderTree: syncFolderTreeSpy,
+            syncStarredFolderTrees: vi.fn(),
+            syncExternalFolderTrees: vi.fn(),
+            fitViewport: vi.fn(),
+        })
 
         setGraph(createEmptyGraph())
         clearWatchFolderState()
@@ -376,16 +370,14 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
 
         syncVaultStateSpy = vi.fn()
 
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: syncVaultStateSpy,
-                syncFolderTree: vi.fn(),
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
+        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        initGraphModel({
+            syncVaultState: syncVaultStateSpy,
+            syncFolderTree: vi.fn(),
+            syncStarredFolderTrees: vi.fn(),
+            syncExternalFolderTrees: vi.fn(),
+            fitViewport: vi.fn(),
+        })
 
         setGraph(createEmptyGraph())
         clearWatchFolderState()

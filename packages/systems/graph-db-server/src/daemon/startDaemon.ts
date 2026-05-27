@@ -22,7 +22,7 @@ import {
   initDaemonGraphModel,
   resetDaemonGraphState,
 } from './lifecycle/daemonGraphLifecycle.ts'
-import { startParentWatch, type ParentWatchHandle } from './lifecycle/daemonParentWatch.ts'
+import { startParentWatch, type ParentWatchHandle } from '@vt/daemon-lifecycle'
 import { startDaemonWatcher } from './lifecycle/daemonWatcherLifecycle.ts'
 import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'
@@ -115,7 +115,12 @@ async function startOwnedDaemon(
     resetVaultLifecycle()
     resetFolderTreeReadModel()
     installFolderTreeReadModel(opts.folderTreeScanner)
-    initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
+    // Normalize VOICETREE_APP_SUPPORT so every leaf in this process reads
+    // the same resolved path via resolveAppSupportPath(). Tests pass an
+    // explicit opts.appSupportPath; production reads from the env var that
+    // the launching CLI/Electron set.
+    process.env.VOICETREE_APP_SUPPORT = resolveDaemonAppSupportPath(opts)
+    initDaemonGraphModel()
 
     const startMs = clock()
     const registry = new SessionRegistry()
@@ -278,7 +283,7 @@ export async function startDaemon(
 
       const ownerHandle = startupVault
         ? await claimDaemonOwner({
-            canonicalProjectRoot: startupVault,
+            canonicalVault: startupVault,
             callerKind: 'cli',
             contractVersion: CONTRACT_VERSION,
             commandFingerprint: commandFingerprintForProcess(),

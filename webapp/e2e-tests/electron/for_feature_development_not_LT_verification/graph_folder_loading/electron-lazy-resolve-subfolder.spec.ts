@@ -36,7 +36,7 @@ const test = base.extend<{
   },
 
   electronApp: async ({ tempDir }, use) => {
-    const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-subfolder-userdata-'));
+    const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-lazysubf-userdata-'));
 
     // Setup:
     // - writeFolder: tempDir/sun

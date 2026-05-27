@@ -18,7 +18,7 @@ function makeLeafNode(nodeId: string, contentWithoutYamlOrLinks: string) {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
         },
     }
 }
@@ -103,7 +103,7 @@ describe('project()', () => {
                         nodeUIMetadata: {
                             color: O.none,
                             position: O.none,
-                            additionalYAMLProps: new Map(),
+                            additionalYAMLProps: {},
                         },
                     },
                 },

@@ -1,33 +1,28 @@
 /**
- * E2E: renderer-keystroke → relay WS → tmux pane round-trip.
+ * E2E: renderer-keystroke → IPC bridge → Main /terminals/:id/attach WS → tmux pane.
  *
- * Gates the BF-313 (xterm.js → relay WS) + M1-fix2 (renderer calls IPC spawn
- * before WS attach) keystroke contract end-to-end against the BUNDLED Electron
- * main process — so a regression in webapp/electron.vite.config.ts that breaks
- * `ws` inbound frame parsing (e.g. an empty bufferutil shim where ws assumes
- * the native accelerator exists, producing `bufferUtil$1.unmask is not a
- * function`) crashes Electron main on the first user keystroke and fails this
- * gate. The renderer-side relay client + the package-level relay→tmux flow
- * have direct unit/integration tests; this spec is specifically the bundled
- * WS server piece that those cannot reach.
+ * Gates the BF-313 (xterm.js → relay) + M1-fix2 (renderer calls IPC spawn
+ * before attach) + BF-368 (renderer attaches via Main IPC, not direct WS)
+ * keystroke contract end-to-end against the BUNDLED Electron main process —
+ * so a regression in webapp/electron.vite.config.ts or the Main-owned
+ * `vtTerminalAttachBridge` crashes Electron main on the first user keystroke
+ * and fails this gate.
  *
  *   1. Spawn an interactive tmux-backed terminal via IPC (ptyBackend='tmux').
- *   2. Open a WebSocket to the relay route the renderer uses
- *      (`/terminals/{terminalId}/attach`) on the MCP port.
- *   3. Send `{type: 'data', payload: 'echo <sentinel>\r'}` — the same JSON the
- *      renderer's TerminalRelayClient sends.
+ *   2. Call `electronAPI.terminal.attach(terminalId)` to obtain an opaque
+ *      handle id; subscribe to `terminal:data` over the same surface.
+ *   3. Send `electronAPI.terminal.write(handle, char)` per character — same
+ *      surface TerminalVanilla.ts uses.
  *   4. Assert the sentinel appears in `tmux capture-pane`.
  */
 
 import { expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { WebSocket } from 'ws';
 import {
   type ExtendedWindow,
   resolveTmuxSessionNameForTest,
   tmuxCommandArgsForTest,
-  waitForMcpServer,
 } from './electron-smoke-helpers';
 import { test } from './electron-anchor-test-fixtures';
 
@@ -79,19 +74,20 @@ function killTmuxSession(sessionName: string, appSupportPath?: string): void {
   }
 }
 
-async function openRelay(url: string): Promise<WebSocket> {
-  const ws: WebSocket = new WebSocket(url);
-  await new Promise<void>((resolve, reject) => {
-    ws.once('open', () => resolve());
-    ws.once('error', err => reject(err));
-  });
-  return ws;
+declare global {
+  interface Window {
+    __e2eKeystrokeRelay?: {
+      readonly handle: string;
+      readonly received: { value: string };
+      readonly detach: () => Promise<void>;
+    };
+  }
 }
 
-test.describe('renderer keystroke → relay WS → tmux pane', () => {
+test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → tmux pane', () => {
   test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
-  test('typing in a tmux-backed terminal reaches the pane via the bundled WS relay', async ({ appWindow, fixtureVaultPath }) => {
+  test('typing in a tmux-backed terminal reaches the pane via the Main-owned IPC bridge', async ({ appWindow, fixtureVaultPath }) => {
     test.setTimeout(240_000);
 
     // Hermetic terminalId so successive runs / parallel tests don't collide.
@@ -99,24 +95,22 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
     let appSupportPath: string | undefined;
 
     try {
-      const runtimeInfo: { appSupportPath: string; mcpPort: number } = await appWindow.evaluate(async () => {
+      appSupportPath = await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return {
-          appSupportPath: await api.main.getAppSupportPath(),
-          mcpPort: await api.main.getMcpPort(),
-        };
+        return api.main.getAppSupportPath();
       });
-      appSupportPath = runtimeInfo.appSupportPath;
-      const mcpPort: number = runtimeInfo.mcpPort;
-      expect(await waitForMcpServer(`http://127.0.0.1:${mcpPort}/mcp`)).toBe(true);
 
-      const watchResult = await appWindow.evaluate(async (projectRoot) => {
+      // Resolve the vault. openVault throws on a non-directory and resolves
+      // with the bound vault state on success; we only need the side effect
+      // of the unified daemon binding to this vault so the relay route works.
+      const openResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return await api.main.startFileWatching(projectRoot);
+        const response = await api.main.openVault(projectRoot);
+        return { writeFolder: response.writeFolder };
       }, fixtureVaultPath);
-      expect(watchResult.success, 'startFileWatching failed').toBe(true);
+      expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
 
       await expect.poll(async () => appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
@@ -169,34 +163,26 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
         message: `tmux session ${terminalId} never came up`,
       }).toBe(true);
 
-      // ── Connect to the SAME relay endpoint the renderer uses. ──
-      const relayUrl: string = `ws://127.0.0.1:${mcpPort}/terminals/${encodeURIComponent(terminalId)}/attach?cols=120&rows=40`;
-      const ws: WebSocket = await openRelay(relayUrl);
+      // ── Attach via the SAME IPC bridge the renderer uses. ──
+      await appWindow.evaluate(async (tid: string) => {
+        const api = (window as ExtendedWindow).electronAPI;
+        if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+        const handle: string = await api.terminal.attach(tid);
+        const received: { value: string } = { value: '' };
+        const offData = api.terminal.onData(handle, (data: string): void => {
+          received.value += data;
+        });
+        window.__e2eKeystrokeRelay = {
+          handle,
+          received,
+          detach: async (): Promise<void> => {
+            offData();
+            await api.terminal.detach(handle);
+          },
+        };
+      }, terminalId);
 
       try {
-        // Buffer all inbound `data` payloads so we can prove the relay's
-        // OUTBOUND path works (server → client → echoed keystrokes).
-        let received: string = '';
-        let wsClosed: boolean = false;
-        let wsError: string | null = null;
-        ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
-          const text: string = Buffer.isBuffer(raw)
-            ? raw.toString()
-            : Array.isArray(raw)
-              ? Buffer.concat(raw).toString()
-              : Buffer.from(raw).toString();
-          try {
-            const parsed = JSON.parse(text) as { type?: string; payload?: string };
-            if (parsed.type === 'data' && typeof parsed.payload === 'string') {
-              received += parsed.payload;
-            }
-          } catch {
-            // ignore non-JSON frames
-          }
-        });
-        ws.on('close', () => { wsClosed = true; });
-        ws.on('error', (err: Error) => { wsError = err.message; });
-
         // Give tmux's `attach` time to repaint the pane buffer to the client.
         // User shells (zsh + plugins) can take ~1s before they render a
         // prompt; without this settle the test races shell startup, not the
@@ -204,30 +190,37 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
         await new Promise<void>(r => setTimeout(r, 1500));
 
         const sentinel: string = `KEYSTROKE_E2E_${randomBytes(3).toString('hex').toUpperCase()}`;
+        const line: string = `echo ${sentinel}\r`;
 
         // Send each character separately to faithfully simulate keystroke
-        // pacing — exactly the inbound-frame pattern bufferutil's `.unmask`
-        // crash used to trigger on.
-        const line: string = `echo ${sentinel}\r`;
-        for (const ch of line) {
-          ws.send(JSON.stringify({ type: 'data', payload: ch }));
-        }
+        // pacing — same shape TerminalVanilla.ts uses on real user input.
+        await appWindow.evaluate(async ({ line: typed }) => {
+          const api = (window as ExtendedWindow).electronAPI;
+          const bridge = window.__e2eKeystrokeRelay;
+          if (!api?.terminal || !bridge) throw new Error('relay bridge not installed');
+          for (const ch of typed) {
+            await api.terminal.write(bridge.handle, ch);
+          }
+        }, { line });
 
-        // Both (a) the pane echoes our keystrokes back over the WS (inbound
-        // frame parsed → forwarded to pty → pty output → outbound frame),
-        // AND (b) the shell executes `echo` so the sentinel appears in the
-        // pane buffer.
-        await expect.poll(() => received.includes(sentinel) && tmuxCapturePane(terminalId, appSupportPath).includes(sentinel), {
+        await expect.poll(async () => {
+          const received: string = await appWindow.evaluate(() => window.__e2eKeystrokeRelay?.received.value ?? '');
+          const onPane: string = tmuxCapturePane(terminalId, appSupportPath);
+          return received.includes(sentinel) && onPane.includes(sentinel);
+        }, {
           timeout: KEYSTROKE_SETTLE_TIMEOUT_MS,
           intervals: [200, 500, 1000],
-          message: `keystrokes never produced "${sentinel}" — relay WS inbound path is broken. wsClosed=${wsClosed} wsError=${wsError}. capture-pane:\n${tmuxCapturePane(terminalId, appSupportPath)}\nReceived from relay (${received.length} bytes):\n${received}`,
+          message: `keystrokes never produced "${sentinel}" via IPC relay. capture-pane:\n${tmuxCapturePane(terminalId, appSupportPath)}`,
         }).toBe(true);
       } finally {
-        ws.close();
+        await appWindow.evaluate(async () => {
+          await window.__e2eKeystrokeRelay?.detach();
+          delete window.__e2eKeystrokeRelay;
+        });
       }
     } finally {
       // Defensive cleanup — the tmux session is detached from the relay's
-      // pty, so closing the WS alone won't kill it.
+      // pty, so closing the IPC handle alone won't kill it.
       if (tmuxSessionExists(terminalId, appSupportPath)) killTmuxSession(terminalId, appSupportPath);
     }
   });

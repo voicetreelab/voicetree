@@ -1,5 +1,5 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
-import { createEmptyGraph, initGraphModel } from '@vt/graph-model'
+import { createEmptyGraph } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner'
@@ -13,10 +13,9 @@ export function resetDaemonGraphState(): void {
   setGraph(createEmptyGraph())
 }
 
-export function initDaemonGraphModel(appSupportPath: string): void {
+export function initDaemonGraphModel(): void {
   const span = tracer.startSpan('daemon.init-graph-model')
   try {
-    initGraphModel({ appSupportPath })
     configureRootIO({
       getDirectoryTree,
       loadGraphFromDisk,

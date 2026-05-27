@@ -21,36 +21,85 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
-import { loadFolder, isWatching, setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
-import type { Graph, GraphNode, Edge } from '@vt/graph-model/graph'
+import { openVault, stopFileWatching, isWatching, getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
+import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
+import os from 'os'
 import path from 'path'
-import {
-  type BroadcastCall,
-  type FixtureEnvironment,
-  type MockMainWindow,
-  INTEGRATION_TEST_TIMEOUT_MS,
-  MIN_LARGE_NODE_COUNT,
-  MIN_SMALL_NODE_COUNT,
-  cleanupFolderLoadingTest,
-  createFixtureEnvironment,
-  disposeFixtureEnvironment,
-  expectLinkedFileAddDeleteViaFSEvent,
-  expectLoadBroadcastSequence,
-  expectSimpleFileAddDeleteViaFSEvent,
-  expectWatchedDirectory,
-  getGraphBroadcasts,
-  loadFixtureFolder,
-  prepareFolderLoadingTest
-} from './folder-loading.test/__tests__/test-support'
+import { promises as fs } from 'fs'
+import type { BrowserWindow } from 'electron'
+import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
+import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
+import { waitForCondition } from '@/utils/test-utils/waitForCondition'
+import { initGraphModel } from '@vt/graph-model'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
+import { GraphDbClient } from '@vt/graph-db-client'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+
+// Track IPC broadcasts
+interface BroadcastCall {
+  readonly channel: string
+  readonly delta: GraphDelta
+}
+
+// Minimum fixture counts for the configured write paths. The loader can also
+// resolve linked nodes that live outside the write path, so exact totals depend
+// on the observable graph state after loading.
+const MIN_SMALL_NODE_COUNT: 10 = 10 as const
+const MIN_LARGE_NODE_COUNT: 75 = 75 as const
+const INTEGRATION_TEST_TIMEOUT_MS: 30000 = 30000 as const
+
+async function loadFixtureFolder(folderPath: string): Promise<void> {
+  await openVault(folderPath)
+  await waitForCondition(
+    () => Object.keys(getGraph().nodes).some(nodePath => nodePath.startsWith(`${folderPath}${path.sep}`)),
+    { maxWaitMs: 10000, errorMessage: `Graph did not populate for loaded fixture folder: ${folderPath}` }
+  )
+}
+
+async function expectWatchedDirectory(expected: string): Promise<void> {
+  const status = await getWatchStatus()
+  expect(status.isWatching).toBe(true)
+  expect(status.directory).toBe(expected)
+}
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
-let mockMainWindow: MockMainWindow
-let fixtureEnvironment: FixtureEnvironment | null = null
+let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }
+let tempFixtureRoot: string | null = null
 let exampleSmallPath: string
 let exampleLargePath: string
+
+async function copyFixtureToTemp(sourcePath: string, destinationName: string): Promise<string> {
+  if (!tempFixtureRoot) {
+    throw new Error('tempFixtureRoot must be initialized before copying fixtures')
+  }
+
+  const destinationPath: string = path.join(tempFixtureRoot, destinationName)
+  await fs.cp(sourcePath, destinationPath, { recursive: true })
+  await Promise.all([
+    fs.rm(path.join(destinationPath, '.voicetree', 'graphd.port'), { force: true }),
+    fs.rm(path.join(destinationPath, '.voicetree', 'graphd.lock'), { force: true })
+  ])
+  return destinationPath
+}
+
+async function shutdownDaemonForVault(projectRoot: string | undefined): Promise<void> {
+  if (!projectRoot) return
+  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: projectRoot }).catch(() => null)
+  await client?.shutdown().catch(() => undefined)
+}
+
+async function shutdownFixtureDaemons(): Promise<void> {
+  await Promise.all([
+    shutdownDaemonForVault(exampleSmallPath),
+    shutdownDaemonForVault(exampleLargePath)
+  ])
+  clearDaemonClientCache()
+}
 
 // Mock app-electron-state
 vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
@@ -69,29 +118,118 @@ vi.mock('electron', () => ({
 // TODO: flaky under parallel test load — daemon TCP contention causes ECONNREFUSED / timeouts
 describe.skip('Folder Loading - Integration Tests', () => {
   beforeAll(async () => {
-    const environment = await createFixtureEnvironment()
-    fixtureEnvironment = environment
-    exampleSmallPath = environment.exampleSmallPath
-    exampleLargePath = environment.exampleLargePath
+    tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'folder-loading-fixtures-'))
+    exampleSmallPath = await copyFixtureToTemp(EXAMPLE_SMALL_PATH, 'example_small')
+    exampleLargePath = await copyFixtureToTemp(EXAMPLE_LARGE_PATH, 'example_real_large')
   }, INTEGRATION_TEST_TIMEOUT_MS)
 
   beforeEach(async () => {
-    if (!fixtureEnvironment) throw new Error('fixtureEnvironment must be initialized before tests run')
+    // Drain fire-and-forget async operations from previous test (e.g. void applyAndBroadcast
+    // which does async wikilink resolution before publishing projected graph updates)
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Reset broadcast tracking before wiring graph-model callbacks.
     broadcastCalls = []
-    mockMainWindow = await prepareFolderLoadingTest(fixtureEnvironment, call => {
-      broadcastCalls.push(call)
+
+    // Initialize graph model with test callbacks that mirror Electron IPC channels.
+    const appSupport = path.join(tempFixtureRoot, 'app-support')
+    process.env.VOICETREE_APP_SUPPORT = appSupport
+    initGraphModel({
+      onGraphCleared: (): void => {
+        broadcastCalls.push({ channel: 'graph:clear', delta: [] })
+      },
+      onWatchingStarted: (): void => {
+        broadcastCalls.push({ channel: 'watching-started', delta: [] })
+      }
     })
+
+    // Reset graph state
+    setGraph(createGraph({}))
+
+    await saveVaultConfigForDirectory(exampleSmallPath, {
+      writeFolder: path.join(exampleSmallPath, 'voicetree')
+    })
+    await saveVaultConfigForDirectory(exampleLargePath, {
+      writeFolder: path.join(exampleLargePath, 'voicetree')
+    })
+
+    for (const testFilePath of [
+      path.join(exampleSmallPath, 'test-new-file.md'),
+      path.join(exampleSmallPath, 'test-new-file-simple.md'),
+      path.join(exampleSmallPath, 'voicetree', 'test-new-file.md'),
+      path.join(exampleSmallPath, 'voicetree', 'test-new-file-simple.md')
+    ]) {
+      await fs.unlink(testFilePath).catch(() => undefined)
+    }
+
+    // Clear recent writes to ensure fresh state for file watching tests
+    clearRecentDeltas()
+
+    // Create mock BrowserWindow
+    mockMainWindow = {
+      webContents: {
+        send: vi.fn((channel: string, data: GraphDelta) => {
+          broadcastCalls.push({ channel, delta: data })
+        }),
+        isDestroyed: vi.fn(() => false)
+      },
+      isDestroyed: vi.fn(() => false)
+    }
+
+    // Clean up ctx-nodes directories before tests (may exist from previous test runs)
+    const ctxNodesPath: string = path.join(exampleSmallPath, 'ctx-nodes')
+    const ctxNodesDirExists: boolean = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
+    if (ctxNodesDirExists) {
+      await fs.rm(ctxNodesPath, { recursive: true, force: true })
+    }
+
+    // Also clean up voicetree/ctx-nodes since that's what gets loaded (with DEFAULT_VAULT_SUFFIX)
+    const voicetreeCtxNodesPath: string = path.join(exampleSmallPath, 'voicetree', 'ctx-nodes')
+    const voicetreeCtxNodesDirExists: boolean = await fs.access(voicetreeCtxNodesPath).then(() => true).catch(() => false)
+    if (voicetreeCtxNodesDirExists) {
+      await fs.rm(voicetreeCtxNodesPath, { recursive: true, force: true })
+    }
   })
 
   afterEach(async () => {
-    if (!fixtureEnvironment) return
-    await cleanupFolderLoadingTest(fixtureEnvironment)
+    await stopFileWatching()
+
+    // Clean up test file if it exists - functional approach without try-catch
+    for (const testFilePath of [
+      path.join(exampleSmallPath, 'test-new-file.md'),
+      path.join(exampleSmallPath, 'test-new-file-simple.md'),
+      path.join(exampleSmallPath, 'voicetree', 'test-new-file.md'),
+      path.join(exampleSmallPath, 'voicetree', 'test-new-file-simple.md')
+    ]) {
+      const fileExists: boolean = await fs.access(testFilePath).then(() => true).catch(() => false)
+      if (fileExists) {
+        await fs.unlink(testFilePath)
+      }
+    }
+
+    // Clean up ctx-nodes directories if they exist (created by terminal tests)
+    const ctxNodesPath: string = path.join(exampleSmallPath, 'ctx-nodes')
+    const ctxNodesDirExists: boolean = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
+    if (ctxNodesDirExists) {
+      await fs.rm(ctxNodesPath, { recursive: true, force: true })
+    }
+
+    // Also clean up voicetree/ctx-nodes
+    const voicetreeCtxNodesPath: string = path.join(exampleSmallPath, 'voicetree', 'ctx-nodes')
+    const voicetreeCtxNodesDirExists: boolean = await fs.access(voicetreeCtxNodesPath).then(() => true).catch(() => false)
+    if (voicetreeCtxNodesDirExists) {
+      await fs.rm(voicetreeCtxNodesPath, { recursive: true, force: true })
+    }
+
+    vi.clearAllMocks()
   })
 
   afterAll(async () => {
-    if (!fixtureEnvironment) return
-    await disposeFixtureEnvironment(fixtureEnvironment)
-    fixtureEnvironment = null
+    await shutdownFixtureDaemons()
+    if (tempFixtureRoot) {
+      await fs.rm(tempFixtureRoot, { recursive: true, force: true })
+      tempFixtureRoot = null
+    }
   }, INTEGRATION_TEST_TIMEOUT_MS)
 
   describe('BEHAVIOR: Load directory and populate graph state', () => {
@@ -116,7 +254,14 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
       // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
-      expectLoadBroadcastSequence(getGraphBroadcasts(broadcastCalls))
+      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
+      )
+      expect(graphBroadcasts.length).toBe(3)
+      expect(graphBroadcasts[0].channel).toBe('graph:clear')
+      expect(graphBroadcasts[1].channel).toBe('graph:projectedGraphUpdate')
+      expect(graphBroadcasts[1].delta).toBeDefined()
+      expect(graphBroadcasts[2].channel).toBe('watching-started')
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should load example_real_large and populate graph with correct node count', async () => {
@@ -139,7 +284,13 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
       // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
-      expectLoadBroadcastSequence(getGraphBroadcasts(broadcastCalls))
+      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
+      )
+      expect(graphBroadcasts.length).toBe(3)
+      expect(graphBroadcasts[0].channel).toBe('graph:clear')
+      expect(graphBroadcasts[1].channel).toBe('graph:projectedGraphUpdate')
+      expect(graphBroadcasts[2].channel).toBe('watching-started')
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 
@@ -193,10 +344,99 @@ describe.skip('Folder Loading - Integration Tests', () => {
       expect(firstBroadcastCount).toBeGreaterThan(0)
 
       // Verify that file watcher was set up after loading
-      expect(isWatching()).toBe(true)
+      expect(await isWatching()).toBe(true)
 
       // STEP 1b: Test file addition and deletion by simulating FS events
-      await expectLinkedFileAddDeleteViaFSEvent(exampleSmallPath, mockMainWindow, broadcastCalls, smallNodeCount)
+      // Clear broadcasts from initial load
+      broadcastCalls.length = 0
+
+      // Clear recent writes to ensure file watching will detect the new file
+      clearRecentDeltas()
+
+      // Import handler to simulate FS events
+      const testFilePath: string = path.join(exampleSmallPath, 'test-new-file.md')
+      const testFileContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]'
+      // Expected content after wikilink replacement
+      const expectedContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*'
+
+      // Create the file on disk
+      await fs.writeFile(testFilePath, testFileContent, 'utf-8')
+
+      // Simulate the FS event for file addition
+      const addEvent: { absolutePath: string; content: string; eventType: "Added"; } = {
+        absolutePath: testFilePath,
+        content: testFileContent,
+        eventType: 'Added' as const
+      }
+
+      handleFSEventWithStateAndUISides(addEvent, exampleSmallPath, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
+      await waitForCondition(
+        () => !!getGraph().nodes[testFilePath],
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
+      )
+
+      // Verify the node was added to the graph - node IDs are now absolute paths
+      const graphAfterAdd: Graph = getGraph()
+      expect(graphAfterAdd.nodes[testFilePath]).toBeDefined()
+      expect(graphAfterAdd.nodes[testFilePath].contentWithoutYamlOrLinks).toBe(expectedContent)
+      expect(Object.keys(graphAfterAdd.nodes).length).toBeGreaterThanOrEqual(smallNodeCount)
+
+      // Verify edge was created from test-new-file to 5_Immediate_Test_Observation_No_Output
+      const testNode: GraphNode = graphAfterAdd.nodes[testFilePath]
+      expect(testNode.outgoingEdges).toBeDefined()
+      expect(Array.isArray(testNode.outgoingEdges)).toBe(true)
+      // Node IDs now include .md extension
+      expect(testNode.outgoingEdges.some((e: Edge) => e.targetId.includes('5_Immediate_Test_Observation_No_Output'))).toBe(true)
+
+      // Verify broadcast was sent (graph:projectedGraphUpdate)
+      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
+      // 1. graph:projectedGraphUpdate (for cytoscape UI)
+      // 2. ui:call (for floating editors)
+      const graphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
+      if (graphStateChangedBroadcasts.length > 0) {
+        const addBroadcast: BroadcastCall | undefined = graphStateChangedBroadcasts.find(call =>
+          call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === testFilePath)
+        )
+        expect(addBroadcast).toBeDefined()
+      }
+
+      // Reset broadcast tracking
+      broadcastCalls.length = 0
+
+      // Delete the file from disk
+      await fs.unlink(testFilePath)
+
+      // Simulate the FS event for file deletion
+      const deleteEvent: { type: "Delete"; absolutePath: string; } = {
+        type: 'Delete' as const,
+        absolutePath: testFilePath
+      }
+
+      handleFSEventWithStateAndUISides(deleteEvent, exampleSmallPath, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async applyAndBroadcast to complete
+      await waitForCondition(
+        () => !getGraph().nodes[testFilePath],
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
+      )
+
+      // Verify the node was removed from the graph - node IDs are absolute paths
+      const graphAfterDelete: Graph = getGraph()
+      expect(graphAfterDelete.nodes[testFilePath]).toBeUndefined()
+
+      // Verify broadcast was sent (graph:projectedGraphUpdate)
+      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
+      // 1. graph:projectedGraphUpdate (for cytoscape UI)
+      // 2. ui:call (for floating editors)
+      const deleteGraphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
+      if (deleteGraphStateChangedBroadcasts.length > 0) {
+        const deleteBroadcast: BroadcastCall | undefined = deleteGraphStateChangedBroadcasts.find(call =>
+          call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === testFilePath)
+        )
+        expect(deleteBroadcast).toBeDefined()
+      }
 
       // Reset broadcasts for next steps
       broadcastCalls.length = 0
@@ -244,7 +484,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       })
 
       // Verify that file watcher was set up after loading
-      expect(isWatching()).toBe(true)
+      expect(await isWatching()).toBe(true)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should not throw when switching vaults while a previous load is not connected to the daemon', async () => {
@@ -254,19 +494,17 @@ describe.skip('Folder Loading - Integration Tests', () => {
       //
       // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
       // second load seeing stale state from the first (daemon not yet connected).
-      setProjectRoot(exampleSmallPath)
       // The old load implementation attempted writeCurrentPositionsThroughDaemon and
       // had to avoid propagating that error.
 
-      const result = await loadFolder(exampleLargePath)
-      expect(result.success).toBe(true)
-      expectWatchedDirectory(exampleLargePath)
+      await openVault(exampleLargePath)
+      await expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should detect file addition and deletion after folder is loaded', async () => {
       // GIVEN: Load a folder and wait for watcher to be ready
       await loadFixtureFolder(exampleSmallPath)
-      expect(isWatching()).toBe(true)
+      expect(await isWatching()).toBe(true)
 
       // Clear broadcasts from initial load
       broadcastCalls.length = 0
@@ -274,7 +512,73 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // Wait for watcher to fully initialize
       await new Promise(resolve => setTimeout(resolve, 300))
 
-      await expectSimpleFileAddDeleteViaFSEvent(exampleSmallPath, mockMainWindow, broadcastCalls)
+      // WHEN: Add a new file using the file watching handler module's approach
+      // Since chokidar doesn't reliably detect files in test env, we simulate the FS event
+      const newFilePath: string = path.join(exampleSmallPath, 'test-new-file-simple.md')
+      const newFileContent: "# Test New File\n\nThis is a test." = '# Test New File\n\nThis is a test.'
+
+      await fs.writeFile(newFilePath, newFileContent, 'utf-8')
+
+      // Import and call the FS event handler directly to simulate watcher detection
+      const addEvent: { absolutePath: string; content: string; eventType: "Added"; } = {
+        absolutePath: newFilePath,
+        content: newFileContent,
+        eventType: 'Added' as const
+      }
+
+
+      handleFSEventWithStateAndUISides(addEvent, exampleSmallPath, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
+      // Must wait for both graph state AND broadcast since the broadcast fires after async wikilink resolution
+      await waitForCondition(
+        () => !!getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:projectedGraphUpdate'),
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
+      )
+
+      // THEN: Graph should contain the new node - node IDs are absolute paths
+      const graph: Graph = getGraph()
+      expect(graph.nodes[newFilePath]).toBeDefined()
+      expect(graph.nodes[newFilePath].contentWithoutYamlOrLinks).toBe(newFileContent)
+
+      // AND: Broadcast should have been sent (graph:projectedGraphUpdate)
+      const stateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
+      expect(stateChangedBroadcasts.length).toBeGreaterThanOrEqual(1)
+      expect(stateChangedBroadcasts[0].channel).toBe('graph:projectedGraphUpdate')
+
+      // Verify the delta contains UpsertNode action
+      const addDelta: UpsertNodeDelta | undefined = stateChangedBroadcasts[0].delta.find(d => d.type === 'UpsertNode')
+      expect(addDelta).toBeDefined()
+
+      // WHEN: Delete the file
+      broadcastCalls.length = 0
+      await fs.unlink(newFilePath)
+
+      const deleteEvent: { type: "Delete"; absolutePath: string; } = {
+        type: 'Delete' as const,
+        absolutePath: newFilePath
+      }
+
+
+      handleFSEventWithStateAndUISides(deleteEvent, exampleSmallPath, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async applyAndBroadcast to complete (wait for both graph state and broadcast)
+      await waitForCondition(
+        () => !getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:projectedGraphUpdate'),
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
+      )
+
+      // THEN: GraphNode should be removed from graph - node IDs are absolute paths
+      const graphAfterDelete: Graph = getGraph()
+      expect(graphAfterDelete.nodes[newFilePath]).toBeUndefined()
+
+      // AND: Broadcast should have been sent (graph:projectedGraphUpdate)
+      const deleteStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
+      expect(deleteStateChangedBroadcasts.length).toBeGreaterThanOrEqual(1)
+      expect(deleteStateChangedBroadcasts[0].channel).toBe('graph:projectedGraphUpdate')
+
+      const deleteDelta: DeleteNode | undefined = deleteStateChangedBroadcasts[0].delta.find(d => d.type === 'DeleteNode')
+      expect(deleteDelta).toBeDefined()
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 
@@ -285,8 +589,10 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // THEN: Should have broadcast graph-specific channels (clear + stateChanged + watching-started)
       // Additional ui:call broadcasts may come from settings/vault state updates
-      const graphBroadcasts: BroadcastCall[] = getGraphBroadcasts(broadcastCalls)
-      expectLoadBroadcastSequence(graphBroadcasts)
+      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
+      )
+      expect(graphBroadcasts.length).toBe(3)
 
       const clearBroadcast: BroadcastCall = graphBroadcasts[0]
       const stateChangedBroadcast: BroadcastCall = graphBroadcasts[1]
@@ -320,14 +626,18 @@ describe.skip('Folder Loading - Integration Tests', () => {
     it('should broadcast delta when switching directories', async () => {
       // GIVEN: Load first directory
       await loadFixtureFolder(exampleSmallPath)
-      const firstGraphBroadcasts: BroadcastCall[] = getGraphBroadcasts(broadcastCalls)
+      const firstGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
+      )
       expect(firstGraphBroadcasts.length).toBe(3) // clear + stateChanged + watching-started
 
       // WHEN: Load second directory
       await loadFixtureFolder(exampleLargePath)
 
       // THEN: Should have 6 graph-specific broadcasts total (3 for each load)
-      const allGraphBroadcasts: BroadcastCall[] = getGraphBroadcasts(broadcastCalls)
+      const allGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
+      )
       expect(allGraphBroadcasts.length).toBe(6)
 
       // Verify second load broadcasts
@@ -402,27 +712,27 @@ describe.skip('Folder Loading - Integration Tests', () => {
     it('should update projectRoot immediately when loadFolder is called', async () => {
       // GIVEN: Load the first folder
       await loadFixtureFolder(exampleSmallPath)
-      expectWatchedDirectory(exampleSmallPath)
+      await expectWatchedDirectory(exampleSmallPath)
 
       // WHEN: Load a different folder
       await loadFixtureFolder(exampleLargePath)
 
-      // THEN: projectRoot should be updated to the new folder
-      expectWatchedDirectory(exampleLargePath)
+      // THEN: projectRootWatchedDirectory should be updated to the new folder
+      await expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should maintain projectRoot even after switching folders multiple times', async () => {
       // Load folder A
       await loadFixtureFolder(exampleSmallPath)
-      expectWatchedDirectory(exampleSmallPath)
+      await expectWatchedDirectory(exampleSmallPath)
 
       // Load folder B
       await loadFixtureFolder(exampleLargePath)
-      expectWatchedDirectory(exampleLargePath)
+      await expectWatchedDirectory(exampleLargePath)
 
       // Load folder A again
       await loadFixtureFolder(exampleSmallPath)
-      expectWatchedDirectory(exampleSmallPath)
+      await expectWatchedDirectory(exampleSmallPath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 })

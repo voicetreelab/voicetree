@@ -2,6 +2,23 @@ import {readFile, readdir, stat} from 'node:fs/promises'
 import {basename, dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
+// A node_modules-style conditional-exports value: either a literal file path
+// or an object mapping conditions (import/default/require/types) to file paths.
+export type ConditionalExport =
+    | string
+    | {
+        readonly import?: string
+        readonly default?: string
+        readonly require?: string
+        readonly types?: string
+    }
+
+// The shape of a package.json `exports` field. Either the string-shorthand for the root export,
+// a single conditional object for the root, or a subpath map keyed by "./..." entries.
+export type PackageExports =
+    | string
+    | {readonly [subpath: string]: ConditionalExport}
+
 export type PackageInfo = {
     readonly name: string
     readonly dirName: string
@@ -15,6 +32,8 @@ export type PackageInfo = {
      * has no exports field or none resolve to a .ts/.tsx file.
      */
     readonly facadeRelativePaths: readonly string[]
+    readonly main: string | undefined
+    readonly exports: PackageExports | undefined
 }
 
 const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
@@ -50,7 +69,13 @@ async function pathExists(path: string): Promise<boolean> {
     }
 }
 
-async function readdirOrEmpty(absDir: string) {
+type ParsedPackageJson = {
+    readonly name?: unknown
+    readonly main?: unknown
+    readonly exports?: unknown
+}
+
+async function readdirOrEmpty(absDir: string): Promise<Awaited<ReturnType<typeof readdir>>> {
     try {
         return await readdir(absDir, {withFileTypes: true})
     } catch (err) {
@@ -59,7 +84,7 @@ async function readdirOrEmpty(absDir: string) {
     }
 }
 
-async function readPackageJson(absDir: string): Promise<{name?: unknown, exports?: unknown} | null> {
+async function readPackageJson(absDir: string): Promise<ParsedPackageJson | null> {
     const pkgJsonPath = join(absDir, 'package.json')
     if (!(await pathExists(pkgJsonPath))) return null
     try {
@@ -102,6 +127,12 @@ function resolveFacadeRelativePaths(
     return [...seen].sort()
 }
 
+function validateExports(raw: unknown): PackageExports | undefined {
+    if (typeof raw === 'string') return raw
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+    return raw as PackageExports
+}
+
 async function isNestedGitRoot(absDir: string, repoRoot: string): Promise<boolean> {
     return absDir !== repoRoot && await pathExists(join(absDir, '.git'))
 }
@@ -124,6 +155,8 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
                         srcRoot: srcDir,
                         absDir,
                         facadeRelativePaths: resolveFacadeRelativePaths(absDir, repoRoot, pkgJson.exports),
+                        main: typeof pkgJson.main === 'string' ? pkgJson.main : undefined,
+                        exports: validateExports(pkgJson.exports),
                     })
                 }
             }

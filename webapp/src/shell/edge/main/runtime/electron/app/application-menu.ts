@@ -5,7 +5,7 @@
 import path from 'node:path'
 import { app, Menu, dialog } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
-import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 
 export function setupApplicationMenu(): void {
     const template: MenuItemConstructorOptions[] = [
@@ -24,7 +24,19 @@ export function setupApplicationMenu(): void {
                     label: 'Open Folder...',
                     accelerator: 'CmdOrCtrl+O',
                     click: () => {
-                        void startFileWatching()
+                        void (async () => {
+                            const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
+                                properties: ['openDirectory', 'createDirectory'],
+                                title: 'Select Folder to Open',
+                                buttonLabel: 'Open',
+                            })
+                            if (result.canceled || result.filePaths.length === 0) return
+                            try {
+                                await openVault(result.filePaths[0])
+                            } catch (err: unknown) {
+                                console.error('[application-menu] openVault failed:', err)
+                            }
+                        })()
                     }
                 },
                 {

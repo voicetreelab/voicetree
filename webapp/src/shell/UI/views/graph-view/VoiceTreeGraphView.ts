@@ -113,25 +113,37 @@ const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCal
     updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),
 });
 
+type StartupVaultHint = {readonly kind: 'none'} | {readonly kind: 'last' | 'cli'; readonly path: string};
+
 type StartGraphUpdateSubscriptionInput = {
     hasInitialProjectedGraph: boolean;
     isDisposed: () => boolean;
-    markFrontendReady: (() => Promise<void>) | undefined;
+    getStartupVaultHint: (() => Promise<StartupVaultHint>) | undefined;
+    openVault: ((path: string) => Promise<unknown>) | undefined;
     subscribeToGraphUpdates: () => void;
 };
 
 const startGraphUpdateSubscription = ({
     hasInitialProjectedGraph,
     isDisposed,
-    markFrontendReady,
+    getStartupVaultHint,
+    openVault,
     subscribeToGraphUpdates,
 }: StartGraphUpdateSubscriptionInput): void => {
+    // Initial graph hydration races against daemon startup only on the
+    // cold-boot path. When App already supplied an initial projected
+    // graph, the vault is already open — calling openVault again would
+    // tear down the daemon/SSE subscription path during graph view
+    // startup.
     void (async (): Promise<void> => {
         if (!hasInitialProjectedGraph) {
             try {
-                await markFrontendReady?.();
+                const hint = await getStartupVaultHint?.();
+                if (hint && hint.kind !== 'none') {
+                    await openVault?.(hint.path);
+                }
             } catch (err: unknown) {
-                console.error('[VoiceTreeGraphView] markFrontendReady failed:', err);
+                console.error('[VoiceTreeGraphView] startup vault open failed:', err);
             }
         }
         if (isDisposed()) return;
@@ -363,7 +375,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         startGraphUpdateSubscription({
             hasInitialProjectedGraph: Boolean(this.options.initialProjectedGraph),
             isDisposed: () => this.isDisposed,
-            markFrontendReady: window.electronAPI?.main?.markFrontendReady,
+            getStartupVaultHint: window.electronAPI?.main?.getStartupVaultHint,
+            openVault: window.electronAPI?.main?.openVault,
             subscribeToGraphUpdates: () => this.subscribeToGraphUpdates(),
         });
     }

@@ -1,6 +1,6 @@
 import { access } from 'node:fs/promises'
 import * as O from 'fp-ts/lib/Option.js'
-import { getCallbacks, initGraphModel, type DeleteNode } from '@vt/graph-model'
+import { getCallbacks, type DeleteNode } from '@vt/graph-model'
 import {
   applyGraphDeltaToDBThroughMemAndUI,
   applyGraphDeltaToMemState,
@@ -126,9 +126,6 @@ const commandHandlers = {
     command.searchFromNode,
   ),
   GetWatchedDirectory: () => getProjectRoot(),
-  InitializeGraphModel: command => {
-    initGraphModel({ appSupportPath: command.appSupportPath })
-  },
   PerformRedo: () => performRedo(),
   PerformUndo: () => performUndo(),
   ProjectAndBroadcast: async command => {

@@ -1,4 +1,4 @@
-import type {UnclaimedTmuxSession} from '@vt/agent-runtime'
+import type {UnclaimedTmuxSession} from '@vt/vt-daemon-client'
 
 type UnclaimedTmuxCallback = (sessions: readonly UnclaimedTmuxSession[]) => void
 

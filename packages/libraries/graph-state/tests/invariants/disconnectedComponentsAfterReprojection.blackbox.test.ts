@@ -47,7 +47,7 @@ function leaf(id: NodeIdAndFilePath, edges: readonly NodeIdAndFilePath[]): Graph
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
         },
     } as GraphNode

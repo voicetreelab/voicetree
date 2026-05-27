@@ -162,7 +162,7 @@ async function setupMergeFilesystemTest(vaultPrefix: string): Promise<void> {
 
 async function setupFilesystemTest(vaultPrefix: string): Promise<void> {
     state.currentGraph = null
-    initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
+    initGraphModel({})
     await ensureHandlersImported()
     state.tempVault = path.join('/tmp', `${vaultPrefix}-${Date.now()}`)
     await fs.mkdir(state.tempVault, { recursive: true })

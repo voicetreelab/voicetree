@@ -152,6 +152,13 @@ export function findBestMatchingNode(
  * Extracts all wikilinks ([[link]]) from content and resolves them to edges.
  * For each wikilink, the label is the text from the start of the line to the [[.
  *
+ * Parent-declaration lines (`- parent [[...]]`) get special treatment: the
+ * wikilink target may carry an inline edge label via `[[name|label]]`, in
+ * which case the edge label is the pipe suffix (not the literal "parent").
+ * Outside parent lines, the pipe is part of the target text unchanged — in-prose
+ * `[[a|b]]` does not become an edge declaration. A pipe is always a separator
+ * inside `[[...]]` on parent lines; there is no escape syntax.
+ *
  * @param content - Markdown content with wikilinks
  * @param nodes - Record of all available nodes to resolve links against
  * @param nodeByBaseName - Optional index for O(1) link resolution. When provided,
@@ -160,13 +167,8 @@ export function findBestMatchingNode(
  *
  * @example
  * ```typescript
- * const content = "- references [[node-a]]\n- extends [[node-b]]"
- * const nodes = {
- *   "node-a": { relativeFilePathIsID: "node-a", ... },
- *   "node-b": { relativeFilePathIsID: "node-b", ... }
- * }
- *
- * extractLinkedNodeIds(content, nodes)
+ * const content = "- references [[node-a]]\n- parent [[node-b|extends]]"
+ * extractEdges(content, nodes)
  * // => [{ targetId: "node-a", label: "references" }, { targetId: "node-b", label: "extends" }]
  * ```
  */
@@ -190,14 +192,21 @@ export function extractEdges(
       const labelText: string = content.substring(lineStart, matchIndex).trim()
 
       // Remove list markers (-, *, +) from start
-      const label: string = labelText.replace(/^[-*+]\s+/, '')
+      const lineLabel: string = labelText.replace(/^[-*+]\s+/, '')
 
+      const isParentLine: boolean = lineLabel === 'parent'
+      const pipeIndex: number = rawLinkText.indexOf('|')
+      const [linkTextForResolution, edgeLabel]: readonly [string, string] = isParentLine && pipeIndex >= 0
+        ? [rawLinkText.slice(0, pipeIndex).trim(), rawLinkText.slice(pipeIndex + 1).trim()]
+        : [rawLinkText, lineLabel]
 
       // Find best matching node, preferring longer path matches
       // If no match found, use raw link text to preserve for future node creation
-      const targetId: string = nodes ? findBestMatchingNode(rawLinkText, nodes, nodeByBaseName) ?? rawLinkText : rawLinkText
+      const targetId: string = nodes
+        ? findBestMatchingNode(linkTextForResolution, nodes, nodeByBaseName) ?? linkTextForResolution
+        : linkTextForResolution
 
-      return { targetId, label }
+      return { targetId, label: edgeLabel }
     })
     // Filter out invalid edges from empty/malformed wikilinks like [[]], [.], [ ]
     .filter(edge => edge.targetId.trim() !== '' && edge.targetId !== '.')

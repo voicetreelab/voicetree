@@ -1,7 +1,7 @@
 import {useCallback, useState} from 'react';
 import type {JSX, ReactNode} from 'react';
 import {ClipboardCopy, GitBranch, Link2, Play, RefreshCw, X} from 'lucide-react';
-import type {RecoverableAgentSession, ResumePersistedResult} from '@vt/agent-runtime';
+import type {RecoverableAgentSession, ResumePersistedResult} from '@vt/vt-daemon-client';
 
 type SurvivingAgentActionResult = {
     readonly success: boolean;

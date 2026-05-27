@@ -342,7 +342,7 @@ async function executeFlowAttempt(
   await fs.mkdir(runDir, { recursive: true })
 
   try {
-    const transport = createLiveTransport(instance.mcpPort)
+    const transport = createLiveTransport(instance.projectRoot)
     const state = await waitForLiveStateWithRoots(transport)
     const context = deriveFlowRuntimeContext(state)
     const resolved = resolveFlowDefinition(definition, context)

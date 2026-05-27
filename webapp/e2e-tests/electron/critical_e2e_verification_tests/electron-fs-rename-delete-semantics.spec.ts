@@ -78,7 +78,7 @@ const test = base.extend<{
   }, { timeout: 45000 }],
 
   electronApp: [async ({ tempVaultPath }, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-fs-semantics-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-fssem-userdata-'));
     const tempProjectPath = path.dirname(tempVaultPath);
     const tempProjectName = path.basename(tempProjectPath);
 
