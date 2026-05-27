@@ -12,14 +12,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 DROPLET_IP="${DROPLET_IP:-216.176.239.155}"
 REMOTE_USER="${REMOTE_USER:-root}"
 REMOTE_DIR="${REMOTE_DIR:-/root/voicetree-public}"
 REMOTE="${REMOTE_USER}@${DROPLET_IP}"
-MUTAGEN_CONFIG="$REPO_ROOT/get_dev_healthy/mutagen-vt-remote.yml"
-CSV_HISTORY_CONFIG="$REPO_ROOT/get_dev_healthy/mutagen-vt-csv-history.yml"
+MUTAGEN_CONFIG="$SCRIPT_DIR/mutagen-vt-remote.yml"
+CSV_HISTORY_CONFIG="$SCRIPT_DIR/mutagen-vt-csv-history.yml"
 CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
 CSV_HISTORY_REMOTE="${REMOTE_DIR}/health-dashboard/reports/scores-history"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/root/.voicetree/artifacts}"
@@ -118,7 +118,7 @@ vt-remote.sh — DigitalOcean syd1 dev box ($DROPLET_IP)
   ssh                interactive shell, cwd = $REMOTE_DIR
   run <cmd...>       run a command remotely (e.g. ./vt-remote.sh run npm run test:brain)
   sync-status        mutagen sync list vt-remote
-  sync-create        create vt-remote from get_dev_healthy/mutagen-vt-remote.yml
+  sync-create        create vt-remote from scripts/dev-setup/remote/mutagen-vt-remote.yml
   sync-recreate      terminate any existing vt-remote and recreate it from repo config
   sync-flush         force a sync now (mutagen flushes on its own, but useful)
   sync-pause         pause syncing

@@ -132,7 +132,7 @@ function assertOneWayReplica(mutagenListOutput) {
   throw new Error(
     `mutagen '${MUTAGEN_SESSION}' must be one-way-replica before remote execution` +
       (mode === null ? '' : ` (current mode: ${mode})`) +
-      `.\nHint: recreate vt-remote from get_dev_healthy/mutagen-vt-remote.yml.`,
+      `.\nHint: recreate vt-remote from scripts/dev-setup/remote/mutagen-vt-remote.yml.`,
   )
 }
 
