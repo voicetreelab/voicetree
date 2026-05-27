@@ -50,6 +50,7 @@ const CALLER_TERMINAL_ID: string = 'caller-real-deps'
 
 function buildParentGraphNode(): GraphNode {
     return {
+        kind: 'leaf',
         outgoingEdges: [],
         absoluteFilePathIsID: PARENT_NODE_ID,
         contentWithoutYamlOrLinks: 'Parent content',
