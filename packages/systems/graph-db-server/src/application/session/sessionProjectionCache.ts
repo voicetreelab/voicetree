@@ -52,12 +52,12 @@ function createSessionProjectionCache(
 
 function shouldRebuildSessionProjectionCache(input: {
   readonly cache: SessionProjectionCache | null
-  readonly projectVersion: number
   readonly session: Session
+  readonly vaultVersion: number
 }): boolean {
   if (input.cache === null) return true
   if (input.cache.snapshot.session.id !== input.session.id) return true
-  if (input.cache.snapshot.projectVersion !== input.projectVersion) return true
+  if (input.cache.snapshot.vaultVersion !== input.vaultVersion) return true
   return input.cache.folderStateSignature !== folderStateSignature(input.session)
 }
 

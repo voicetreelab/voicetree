@@ -43,6 +43,7 @@ function snapshotFor(input: {
   readonly session: Session
   readonly vault: VaultState
   readonly vaultPaths: readonly string[]
+  readonly vaultVersion?: number
 }): DaemonStateSnapshot {
   return {
     folderTree: folderTreeFor(input.graph, input.vault, input.vaultPaths),
@@ -53,6 +54,7 @@ function snapshotFor(input: {
     session: input.session,
     vault: input.vault,
     vaultPaths: input.vaultPaths,
+    vaultVersion: input.vaultVersion ?? 1,
     writeFolder: input.vault.writeFolder,
   }
 }
@@ -104,6 +106,7 @@ type FuzzModel = {
   session: Session
   vault: VaultState
   vaultPaths: readonly string[]
+  vaultVersion: number
 }
 
 type Rng = { seed: number }
@@ -122,6 +125,7 @@ function rebuildCache(model: FuzzModel): FuzzModel {
       session: model.session,
       vault: model.vault,
       vaultPaths: model.vaultPaths,
+      vaultVersion: model.vaultVersion,
     })),
   }
 }
@@ -133,6 +137,7 @@ function rebuiltStateFor(model: FuzzModel) {
     session: model.session,
     vault: model.vault,
     vaultPaths: model.vaultPaths,
+    vaultVersion: model.vaultVersion,
   })
   return projectSessionState({
     graph: snapshot.graph,
@@ -219,8 +224,8 @@ function mutateFolderState(model: FuzzModel, rng: Rng): FuzzModel {
   model.session.folderState.set(path, nextState)
   expect(sessionProjectionCache.shouldRebuild({
     cache: model.cache,
-    projectVersion: model.projectVersion,
     session: model.session,
+    vaultVersion: model.vaultVersion,
   })).toBe(true)
   return rebuildCache(model)
 }
@@ -243,12 +248,13 @@ function mutateVaultPaths(model: FuzzModel, rng: Rng): FuzzModel {
     projectVersion: model.projectVersion + 1,
     vault,
     vaultPaths: [vault.writeFolder, ...vault.readPaths],
+    vaultVersion: model.vaultVersion + 1,
   }
 
   expect(sessionProjectionCache.shouldRebuild({
     cache: nextModel.cache,
-    projectVersion: nextModel.projectVersion,
     session: nextModel.session,
+    vaultVersion: nextModel.vaultVersion,
   })).toBe(true)
   return rebuildCache(nextModel)
 }
@@ -264,8 +270,8 @@ function mutateSelectionAndLayout(model: FuzzModel, rng: Rng, step: number): Fuz
 
   expect(sessionProjectionCache.shouldRebuild({
     cache: model.cache,
-    projectVersion: model.projectVersion,
     session: model.session,
+    vaultVersion: model.vaultVersion,
   })).toBe(false)
   return model
 }
@@ -306,7 +312,48 @@ describe('session projection cache', () => {
     }
   })
 
-  test('rebuilds on folder-state and project-root/vault-root changes, not selection or layout', () => {
+  test('survives graph deltas even when project version advances', () => {
+    const fixtures = makeProjectSessionStateFixtures()
+    const session = fixtures.makeSession({
+      folderState: new Map([
+        ['/vault/public', 'expanded'],
+        ['/vault/secret', 'expanded'],
+      ]),
+    })
+    const vault = fixtures.makeVault()
+    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    let graph = fixtures.makeVisibilityGraph()
+    let projectVersion = 10
+    const vaultVersion = 4
+    let cache = sessionProjectionCache.create(snapshotFor({
+      graph,
+      projectVersion,
+      session,
+      vault,
+      vaultPaths,
+      vaultVersion,
+    }))
+
+    for (const [index, delta] of makeDeltaSequence(graph).entries()) {
+      projectVersion += 1
+      expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion })).toBe(false)
+
+      const event: ProjectDeltaEventInput = { delta, seq: index + 1 }
+      graph = applyGraphDeltaToGraph(graph, delta)
+      cache = sessionProjectionCache.advance(cache, event)
+
+      const model: FuzzModel = { cache, graph, projectVersion, session, vault, vaultPaths, vaultVersion }
+      expectCachedStateToMatchRebuild(model)
+    }
+
+    expect(sessionProjectionCache.shouldRebuild({
+      cache,
+      session,
+      vaultVersion: vaultVersion + 1,
+    })).toBe(true)
+  })
+
+  test('rebuilds on folder-state and vault-version changes, not selection, layout, or project-version changes', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession()
     const vault = fixtures.makeVault()
@@ -317,18 +364,20 @@ describe('session projection cache', () => {
       session,
       vault,
       vaultPaths,
+      vaultVersion: 4,
     }))
 
     session.selection.add('/vault/public/target.md')
     session.layout.pan = { x: 10, y: 20 }
     session.layout.zoom = 2
-    expect(sessionProjectionCache.shouldRebuild({ cache, projectVersion: 10, session })).toBe(false)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 4 })).toBe(false)
 
     session.folderState.set('/vault/public', 'collapsed')
-    expect(sessionProjectionCache.shouldRebuild({ cache, projectVersion: 10, session })).toBe(true)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 4 })).toBe(true)
 
     session.folderState.clear()
-    expect(sessionProjectionCache.shouldRebuild({ cache, projectVersion: 11, session })).toBe(true)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 4 })).toBe(false)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 5 })).toBe(true)
   })
 
   test('fuzzes graph, session, and vault mutations against rebuild-from-scratch projection', () => {
@@ -352,6 +401,7 @@ describe('session projection cache', () => {
       session,
       vault,
       vaultPaths: [vault.writeFolder, ...vault.readPaths],
+      vaultVersion: 1,
     })
     const rng: Rng = { seed: 0xC0FFEE }
 
@@ -360,8 +410,8 @@ describe('session projection cache', () => {
       if (operation <= 2) {
         expect(sessionProjectionCache.shouldRebuild({
           cache: model.cache,
-          projectVersion: model.projectVersion,
           session: model.session,
+          vaultVersion: model.vaultVersion,
         })).toBe(false)
 
         const delta = makeFuzzDelta(model, rng, step)
@@ -369,6 +419,7 @@ describe('session projection cache', () => {
         model = {
           ...model,
           graph: applyGraphDeltaToGraph(model.graph, delta),
+          projectVersion: model.projectVersion + 1,
           cache: sessionProjectionCache.advance(model.cache, event),
         }
         expectCachedProjectionToMatchRebuild(model, event)

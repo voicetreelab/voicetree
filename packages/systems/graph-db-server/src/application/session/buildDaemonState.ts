@@ -19,6 +19,7 @@ type DaemonStateSnapshot = {
   readonly session: Session
   readonly vault: VaultState
   readonly vaultPaths: readonly string[]
+  readonly vaultVersion: number
   readonly writeFolder: string | null
 }
 
@@ -33,10 +34,15 @@ function getProjectVersion(): number {
   return getProject()?.version ?? 0
 }
 
+function getVaultVersion(): number {
+  return getProject()?.vaultVersion ?? 0
+}
+
 export async function readDaemonStateSnapshot(session: Session): Promise<DaemonStateSnapshot> {
   const graph = getGraph()
   const projectRoot = getProjectRoot()
   const projectVersion = getProjectVersion()
+  const vaultVersion = getVaultVersion()
   const writeFolder = resolveWriteFolder(await getWriteFolder())
   const readPaths = [...(await getReadPaths())]
   const vaultPaths = await getVaultPaths()
@@ -64,6 +70,7 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
     session,
     vault,
     vaultPaths,
+    vaultVersion,
     writeFolder,
   }
 }

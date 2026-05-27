@@ -157,8 +157,8 @@ export async function runSessionEventsWorkflow(input: {
     if (!freshSession) return false
     return !sessionProjectionCache.shouldRebuild({
       cache: projectionCache.current(),
-      projectVersion: getProject()?.version ?? 0,
       session: freshSession,
+      vaultVersion: getProject()?.vaultVersion ?? 0,
     })
   }
 

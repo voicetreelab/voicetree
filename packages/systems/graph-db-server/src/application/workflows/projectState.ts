@@ -53,6 +53,7 @@ export interface ProjectState {
     readonly root: FilePath | null;
     readonly writeFolder: FilePath | null;
     readonly version: number;
+    readonly vaultVersion: number;
     readonly folders: ReadonlyMap<FilePath, FolderTreeState>;
     readonly watcher: FSWatcher | null;
     readonly cleanups: readonly (() => void)[];
@@ -120,6 +121,7 @@ export function freshProject(root: FilePath | null = null): ProjectState {
         root,
         writeFolder: null,
         version: 0,
+        vaultVersion: 0,
         folders: new Map(),
         watcher: null,
         cleanups: [],
