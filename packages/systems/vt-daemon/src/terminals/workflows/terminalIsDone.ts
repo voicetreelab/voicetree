@@ -1,7 +1,7 @@
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {TerminalId} from '@vt/vt-daemon-protocol'
-import {getRuntimeGraph} from '@vt/agent-runtime/runtime/graph-bridge'
+import {getRuntimeGraph} from '@vt/vt-daemon/runtime/graph-bridge.ts'
 import {
     STOP_HOOK_DELAY_MS,
     terminalRecords,

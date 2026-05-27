@@ -4,7 +4,7 @@ import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal
 import {
     getRuntimeGraph,
     getRuntimeUnseenNodesAroundContextNode,
-} from '@vt/agent-runtime/runtime/graph-bridge'
+} from '@vt/vt-daemon/runtime/graph-bridge.ts'
 import {
     NOTIFICATION_COOLDOWN_MS,
     notificationStateByTerminal,

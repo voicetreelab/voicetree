@@ -13,8 +13,8 @@
 import type {Graph} from '@vt/graph-model/graph'
 import {getAgentNodes as defaultGetAgentNodes} from './agentNodeIndex'
 import {getNewNodesForAgent as defaultGetNewNodesForAgent} from './getNewNodesForAgent'
-import {getIdleSince as defaultGetIdleSince} from '@vt/vt-daemon/terminals/terminal-registry/queries'
-import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry-state'
+import {getIdleSince as defaultGetIdleSince} from '@vt/vt-daemon/terminals/terminal-registry/queries.ts'
+import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry-state.ts'
 
 const SUSTAINED_IDLE_MS: number = 7_000 // 7 seconds — agent must be idle this long before considered done
 export const NO_PROGRESS_TIMEOUT_MS: number = 30 * 60 * 1000 // 30 minutes — max time to wait for agent without progress nodes

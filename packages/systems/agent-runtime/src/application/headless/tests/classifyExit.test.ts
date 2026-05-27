@@ -6,7 +6,7 @@
  *   clean exit with output but no spawned children → "missed handover" warn
  */
 import {describe, it, expect} from 'vitest'
-import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import type {HeadlessLogEntry} from '../headlessAgentManager'
 import {classifyExit, type ExitFacts} from '../headlessAgentLifecycle'
 

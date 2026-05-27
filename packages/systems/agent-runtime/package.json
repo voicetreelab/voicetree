@@ -7,14 +7,9 @@
   "main": "src/api/index.ts",
   "exports": {
     ".": "./src/api/index.ts",
-    "./lifecycle": "./src/application/lifecycle/index.ts",
-    "./lifecycle/output-transition": "./src/application/lifecycle/output-transition.ts",
     "./runtime/agent-runtime-api": "./src/api/agent-runtime-api.ts",
-    "./runtime/graph-bridge": "./src/application/runtime/graph-bridge.ts",
-    "./runtime/runtime-config": "./src/application/runtime/runtime-config.ts",
     "./api/*": "./src/api/*",
     "./headless/*": "./src/application/headless/*",
-    "./spawn/*": "./src/application/spawn/*",
     "./hooks/*": "./src/application/hooks/*",
     "./inject/*": "./src/application/inject/*"
   },

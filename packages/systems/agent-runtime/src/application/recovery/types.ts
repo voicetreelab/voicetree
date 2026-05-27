@@ -1,5 +1,5 @@
-import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
-import type {UnclaimedTmuxSession} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import type {UnclaimedTmuxSession} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
 
 /**
  * Capability struct for a single known terminal record.

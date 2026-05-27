@@ -6,7 +6,7 @@
  * modules; impure tmux and registry details stay at the shell.
  */
 
-import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import type {TerminalRecord} from '@vt/vt-daemon/terminals/terminal-registry'
 import {
     cleanupTmuxHeadlessAgentsAndWait,

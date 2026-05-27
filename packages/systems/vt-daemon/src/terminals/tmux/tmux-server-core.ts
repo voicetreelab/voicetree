@@ -8,7 +8,7 @@ import {
 import {homedir, tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
-import {getRuntimeEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import {getRuntimeEnv} from '@vt/vt-daemon/runtime/runtime-config.ts'
 
 type ExecFileCallback = (error: Error | null, stdout: string | Buffer, stderr: string | Buffer) => void
 

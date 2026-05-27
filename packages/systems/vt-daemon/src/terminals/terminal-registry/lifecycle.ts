@@ -1,6 +1,6 @@
-import {classifyExit} from '@vt/agent-runtime/lifecycle'
-import {recordTierEvent} from '@vt/agent-runtime/lifecycle'
-import type {AgentEventKind, TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
+import {classifyExit} from '@vt/vt-daemon/agent-lifecycle'
+import {recordTierEvent} from '@vt/vt-daemon/agent-lifecycle'
+import type {AgentEventKind, TerminalLifecycle, TerminalKillReason} from '@vt/vt-daemon/agent-lifecycle'
 import {updateTerminalIsDoneWorkflow} from '../workflows/terminalIsDone.ts'
 import {
     hasActiveChildren,

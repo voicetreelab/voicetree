@@ -7,7 +7,7 @@ import {existsSync, mkdtempSync, readFileSync, rmSync, statSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {describe, expect, it, beforeEach, afterEach} from 'vitest'
-import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 import {
     applyPromptFileToHeadlessSpawn,
     applyPromptFileToTmuxSpawn,

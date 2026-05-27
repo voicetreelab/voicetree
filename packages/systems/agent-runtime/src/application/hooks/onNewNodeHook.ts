@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphDelta} from '@vt/graph-model/graph'
-import {ensureHookTerminal, writeToHookTerminal} from '../spawn/spawnHookTerminal'
-import {shellQuote} from '@vt/vt-daemon/terminals/util/shellQuote'
+import {ensureHookTerminal, writeToHookTerminal} from '@vt/vt-daemon/spawn/spawnHookTerminal.ts'
+import {shellQuote} from '@vt/vt-daemon/terminals/util/shellQuote.ts'
 
 export type HookResultLogger = (message: string) => void
 type TimerHandle = ReturnType<typeof setTimeout>

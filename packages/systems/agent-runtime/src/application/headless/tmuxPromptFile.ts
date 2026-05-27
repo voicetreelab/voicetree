@@ -23,10 +23,10 @@
 import {chmodSync, mkdirSync, rmSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import {join} from 'node:path'
-import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
-import {detectCliType, type SupportedHeadlessCli} from '../spawn/cli/headlessCli'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '@vt/vt-daemon/terminals/tmux/tmux-server'
-import {resolveTmuxSessionName, sendKeys} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
+import type {TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import {detectCliType, type SupportedHeadlessCli} from '@vt/vt-daemon/spawn/cli/headlessCli.ts'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '@vt/vt-daemon/terminals/tmux/tmux-server.ts'
+import {resolveTmuxSessionName, sendKeys} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager.ts'
 
 function tmuxOk(args: string[]): Promise<boolean> {
     return new Promise((resolve) => {

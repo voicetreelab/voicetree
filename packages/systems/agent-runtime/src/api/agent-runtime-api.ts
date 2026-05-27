@@ -10,21 +10,21 @@ import { runStopHooks } from '../application/hooks/stopGateHookRunner'
 import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-nodes-for-terminal'
 import { injectNodesIntoTerminal } from '../application/inject/inject-nodes-into-terminal'
 import { sendTextToTerminal } from '../application/inject/send-text-to-terminal'
-import { shouldFlipToActiveOnOutput } from '../application/lifecycle/output-transition'
-import { getTierTelemetrySnapshot } from '../application/lifecycle/tierTelemetry'
-import { installJsonlTelemetrySink } from '../application/lifecycle/tierTelemetryJsonlSink'
-import { configureAgentRuntime, getRuntimeEnv } from '../application/runtime/runtime-config'
-import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/spawnPlainTerminal'
-import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
-import { getOutput } from '@vt/vt-daemon/terminals/terminal-output-buffer'
-import { ensureTmuxAvailable } from '@vt/vt-daemon/terminals/tmux/tmux-preflight'
-import { ensureTmuxServer, shutdownTmuxServer } from '@vt/vt-daemon/terminals/tmux/tmux-server'
-import { getTerminalManager } from '@vt/vt-daemon/terminals/manager/terminal-manager-instance'
+import { shouldFlipToActiveOnOutput } from '@vt/vt-daemon/agent-lifecycle/output-transition.ts'
+import { getTierTelemetrySnapshot } from '@vt/vt-daemon/agent-lifecycle/tierTelemetry.ts'
+import { installJsonlTelemetrySink } from '@vt/vt-daemon/agent-lifecycle/tierTelemetryJsonlSink.ts'
+import { configureAgentRuntime, getRuntimeEnv } from '@vt/vt-daemon/runtime/runtime-config.ts'
+import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '@vt/vt-daemon/spawn/spawnPlainTerminal.ts'
+import { spawnTerminalWithContextNode } from '@vt/vt-daemon/spawn/spawnTerminalWithContextNode.ts'
+import { getOutput } from '@vt/vt-daemon/terminals/terminal-output-buffer.ts'
+import { ensureTmuxAvailable } from '@vt/vt-daemon/terminals/tmux/tmux-preflight.ts'
+import { ensureTmuxServer, shutdownTmuxServer } from '@vt/vt-daemon/terminals/tmux/tmux-server.ts'
+import { getTerminalManager } from '@vt/vt-daemon/terminals/manager/terminal-manager-instance.ts'
 import {
     attachUnclaimedTmuxSession,
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
-} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
+} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
 import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
 import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
 import { forkAgentSession } from '../application/recovery/forkAgentSession'
@@ -47,7 +47,7 @@ import {
 import {
     registerChild,
     tryConsumeAndSplitBudget,
-} from '@vt/vt-daemon/terminals/global-budget-registry'
+} from '@vt/vt-daemon/terminals/global-budget-registry.ts'
 
 const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
 

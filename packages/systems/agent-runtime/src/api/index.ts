@@ -2,28 +2,28 @@
 // Both Electron (webapp) and vt-mcpd consume runtime functionality through this barrel
 // (or via the stable deep paths declared in package.json#exports).
 
-export * from '../application/runtime/runtime-config'
+export * from '@vt/vt-daemon/runtime/runtime-config.ts'
 export * from './agent-runtime-api'
-export * from '../application/lifecycle'
+export * from '@vt/vt-daemon/agent-lifecycle'
 
 // Slice A absorption: terminals / relay / util implementations moved into
 // @vt/vt-daemon. Re-export the public symbols transiently so existing barrel
 // consumers keep compiling. This creates an agent-runtime -> vt-daemon edge
 // that disappears when Slice D retires @vt/agent-runtime entirely.
-export * from '@vt/vt-daemon/terminals/terminal-registry/types'
-export {TerminalManager} from '@vt/vt-daemon/terminals/manager/terminal-manager'
+export * from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+export {TerminalManager} from '@vt/vt-daemon/terminals/manager/terminal-manager.ts'
 export type {
     TerminalSpawnResult,
     TerminalOperationResult,
     TerminalSpawnOpts,
-} from '@vt/vt-daemon/terminals/manager/terminal-manager'
-export * from '@vt/vt-daemon/terminals/manager/terminal-manager-instance'
+} from '@vt/vt-daemon/terminals/manager/terminal-manager.ts'
+export * from '@vt/vt-daemon/terminals/manager/terminal-manager-instance.ts'
 export * from '@vt/vt-daemon/terminals/terminal-registry'
-export * from '@vt/vt-daemon/terminals/terminal-output-buffer'
-export * from '@vt/vt-daemon/terminals/global-budget-registry'
-export * from '@vt/vt-daemon/terminals/tmux/tmux-preflight'
-export * from '@vt/vt-daemon/terminals/tmux/tmux-server'
-export * from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
+export * from '@vt/vt-daemon/terminals/terminal-output-buffer.ts'
+export * from '@vt/vt-daemon/terminals/global-budget-registry.ts'
+export * from '@vt/vt-daemon/terminals/tmux/tmux-preflight.ts'
+export * from '@vt/vt-daemon/terminals/tmux/tmux-server.ts'
+export * from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
 
 export * from '../application/recovery/types'
 export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'
@@ -32,10 +32,10 @@ export {forkAgentSession, defaultForkAgentDeps, type ForkAgentSessionDeps, type 
 
 export * from '../application/headless/headlessAgentManager'
 
-export * from '../application/spawn/spawnHookTerminal'
-export * from '../application/spawn/spawnPlainTerminal'
-export * from '../application/spawn/spawnTerminalWithContextNode'
-export * from '../application/spawn/buildTerminalEnvVars'
+export * from '@vt/vt-daemon/spawn/spawnHookTerminal.ts'
+export * from '@vt/vt-daemon/spawn/spawnPlainTerminal.ts'
+export * from '@vt/vt-daemon/spawn/spawnTerminalWithContextNode.ts'
+export * from '@vt/vt-daemon/spawn/buildTerminalEnvVars.ts'
 
 export * from '../application/hooks/stopGateAudit'
 export * from '../application/hooks/stopGateHookRunner'

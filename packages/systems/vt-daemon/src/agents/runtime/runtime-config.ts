@@ -9,7 +9,7 @@ import type { UnseenNode } from '@vt/graph-db-protocol';
 import {
     setPublishTerminalRegistryEvent,
     type PublishTerminalRegistryEvent,
-} from '@vt/vt-daemon/terminals/terminal-registry/terminal-registry-publisher';
+} from '@vt/vt-daemon/terminals/terminal-registry/terminal-registry-publisher.ts';
 
 export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
 

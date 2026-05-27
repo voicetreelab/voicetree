@@ -1,7 +1,7 @@
 import type {ClassifierInput, MetadataRecord} from './classifier'
-import type {TerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types'
-import {buildTmuxNamespaceHash} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager'
-import type {UnclaimedTmuxSession} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux'
+import type {TerminalData} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
+import {buildTmuxNamespaceHash} from '@vt/vt-daemon/terminals/tmux/tmux-session-manager.ts'
+import type {UnclaimedTmuxSession} from '@vt/vt-daemon/terminals/tmux/unclaimed-tmux.ts'
 import type {ResumeCapability} from './types'
 import * as O from 'fp-ts/lib/Option.js'
 

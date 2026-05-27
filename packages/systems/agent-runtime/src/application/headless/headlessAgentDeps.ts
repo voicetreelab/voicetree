@@ -7,8 +7,8 @@ import {
     removeTerminalFromRegistry,
 } from '@vt/vt-daemon/terminals/terminal-registry'
 import {runStopHooks} from '../hooks/stopGateHookRunner'
-import {getRuntimeGraph} from '../runtime/graph-bridge'
-import {detectCliType} from '../spawn/cli/headlessCli'
+import {getRuntimeGraph} from '@vt/vt-daemon/runtime/graph-bridge.ts'
+import {detectCliType} from '@vt/vt-daemon/spawn/cli/headlessCli.ts'
 
 export type HeadlessLogEntry = {
     readonly level: 'info' | 'warn' | 'error'

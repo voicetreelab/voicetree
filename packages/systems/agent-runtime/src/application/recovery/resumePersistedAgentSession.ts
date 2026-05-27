@@ -3,7 +3,7 @@ import {
     defaultDiscoverRecoveryDeps,
     type DiscoverRecoveryDeps,
 } from './discovery'
-import {buildResumeCommand, type ResumeMode} from '../spawn/cli/resumeCli'
+import {buildResumeCommand, type ResumeMode} from '@vt/vt-daemon/spawn/cli/resumeCli.ts'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
 import {
     defaultResolveNativeSession,
@@ -11,7 +11,7 @@ import {
     type ResolveNativeSession,
 } from './resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from './types'
-import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types'
+import type {TerminalData, TerminalId} from '@vt/vt-daemon/terminals/terminal-registry/types.ts'
 
 export type ResumePersistedDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>

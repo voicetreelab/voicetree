@@ -13,7 +13,7 @@
  */
 
 import {afterEach, describe, expect, it} from 'vitest'
-import {configureAgentRuntime} from '../../runtime/runtime-config'
+import {configureAgentRuntime} from '@vt/vt-daemon/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
 
 const CANONICAL_ROOT = '/Users/x/voicetree/brain/workflows/forecasting'
