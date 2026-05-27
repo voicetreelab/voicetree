@@ -109,7 +109,7 @@ configureMcpServer({
             return O.isSome(writeFolder) ? writeFolder.value : null;
         },
         applyGraphDelta: (delta, recordForUndo) =>
-            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
+            postDeltaThroughDaemonWithEditors(delta, { recordForUndo }),
         getProjectRoot,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
@@ -155,7 +155,7 @@ terminalRuntimeSurface.configureAgentRuntime({
         getProjectRoot,
         getWatchStatus,
         applyGraphDelta: (delta, recordForUndo) =>
-            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
+            postDeltaThroughDaemonWithEditors(delta, { recordForUndo }),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
             const result = await getActiveGraphDbClient().createContextNode(
                 parentNodeId,

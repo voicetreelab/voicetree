@@ -61,25 +61,34 @@ function subscribeRendererSessionToDaemon(client: GraphDbClient, sessionId: stri
   subscribeToDaemonSSE(sessionId, client.baseUrl, mainWindow)
 }
 
-let currentRendererSession: {
+type RendererSession = {
   readonly baseUrl: string
   readonly sessionId: string
-} | null = null
+}
 
-export async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
+type RendererSessionStore = {
+  current: RendererSession | null
+}
+
+const rendererSessionStore: RendererSessionStore = { current: null }
+
+export async function getOrCreateRendererSession(
+  client: GraphDbClient,
+  sessionStore: RendererSessionStore = rendererSessionStore,
+): Promise<string> {
   return await tracing.span('electron.renderer-session.ensure', async (span) => {
     span.setAttribute('daemon.base_url', client.baseUrl)
-    if (currentRendererSession?.baseUrl === client.baseUrl) {
+    if (sessionStore.current?.baseUrl === client.baseUrl) {
       span.setAttribute('renderer_session.cached', true)
-      subscribeRendererSessionToDaemon(client, currentRendererSession.sessionId)
+      subscribeRendererSessionToDaemon(client, sessionStore.current.sessionId)
       span.addEvent('electron.renderer-session.sse-subscribed')
-      return currentRendererSession.sessionId
+      return sessionStore.current.sessionId
     }
 
     span.setAttribute('renderer_session.cached', false)
     span.addEvent('electron.renderer-session.create.start')
     const created: { sessionId: string } = await client.createSession()
-    currentRendererSession = {
+    sessionStore.current = {
       baseUrl: client.baseUrl,
       sessionId: created.sessionId,
     }
@@ -89,11 +98,6 @@ export async function getOrCreateRendererSession(client: GraphDbClient): Promise
     span.addEvent('electron.renderer-session.sse-subscribed')
     return created.sessionId
   })
-}
-
-/** Test-only: clear the cached renderer session between test cases. */
-export function __resetRendererSessionForTests(): void {
-  currentRendererSession = null
 }
 
 async function syncRendererFromDaemon(
@@ -148,12 +152,13 @@ async function syncMainGraphFromDaemonClient(client: GraphDbClient): Promise<voi
 export async function syncRendererSessionState(
   client: GraphDbClient,
   localState: State,
+  sessionStore: RendererSessionStore = rendererSessionStore,
 ): Promise<string> {
   return await tracing.span('electron.renderer-session.sync-state', async (span) => {
     span.setAttribute('state.selection.count', localState.selection.size)
     span.setAttribute('state.layout.has_pan', localState.layout.pan !== undefined)
     span.setAttribute('state.layout.has_zoom', localState.layout.zoom !== undefined)
-    const sessionId: string = await getOrCreateRendererSession(client)
+    const sessionId: string = await getOrCreateRendererSession(client, sessionStore)
     span.setAttribute('renderer_session.id', sessionId)
 
     if (localState.selection.size > 0) {
@@ -273,16 +278,22 @@ export async function getCurrentProjectedGraphFromDaemon(): Promise<ProjectedGra
   })
 }
 
+type PostDeltaThroughDaemonOptions = {
+  readonly recordForUndo?: boolean
+  readonly rendererSessionStore?: RendererSessionStore
+}
+
 export async function postDeltaThroughDaemon(
   delta: GraphDelta,
-  recordForUndo: boolean = true,
+  options: PostDeltaThroughDaemonOptions = {},
 ): Promise<void> {
   await tracing.span('electron.graph.post-delta', async (span) => {
+    const recordForUndo: boolean = options.recordForUndo ?? true
     span.setAttribute('graph.delta.count', delta.length)
     span.setAttribute('graph.record_for_undo', recordForUndo)
     await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      const sessionId: string = await getOrCreateRendererSession(client)
+      const sessionId: string = await getOrCreateRendererSession(client, options.rendererSessionStore)
       span.setAttribute('renderer_session.id', sessionId)
       span.addEvent('electron.graph.apply-delta.start')
       await client.applyGraphDelta(delta as unknown[], { recordForUndo, sessionId })
@@ -295,12 +306,13 @@ function mergeFloatingEditorDeltas(deltas: readonly GraphDelta[]): GraphDelta {
   return deltas.flatMap((delta) => delta)
 }
 
+type FloatingEditorDeltaQueue = {
+  readonly enqueue: (delta: GraphDelta) => void
+}
+
 function createFloatingEditorDeltaQueue(
   onFlush: (delta: GraphDelta) => void,
-): {
-  readonly enqueue: (delta: GraphDelta) => void
-  readonly reset: () => void
-} {
+): FloatingEditorDeltaQueue {
   const state: {
     pendingDeltas: GraphDelta[]
     flushScheduled: boolean
@@ -320,37 +332,33 @@ function createFloatingEditorDeltaQueue(
 
   return {
     enqueue(delta: GraphDelta): void {
-      state.pendingDeltas = [...state.pendingDeltas, delta]
+      state.pendingDeltas.push(delta)
       if (state.flushScheduled) return
 
       state.flushScheduled = true
       queueMicrotask(flush)
     },
-    reset(): void {
-      state.pendingDeltas = []
-      state.flushScheduled = false
-    },
   }
 }
 
-const floatingEditorDeltaQueue = createFloatingEditorDeltaQueue((delta) => {
+const floatingEditorDeltaQueue: FloatingEditorDeltaQueue = createFloatingEditorDeltaQueue((delta) => {
   getCallbacks().onFloatingEditorUpdate?.(delta)
 })
 
-/** Test-only: clear the microtask coalescer state between test cases. */
-export function __resetFloatingEditorDeltaQueueForTests(): void {
-  floatingEditorDeltaQueue.reset()
+type PostDeltaThroughDaemonWithEditorsOptions = PostDeltaThroughDaemonOptions & {
+  readonly editorDeltaQueue?: FloatingEditorDeltaQueue
 }
 
 export async function postDeltaThroughDaemonWithEditors(
   delta: GraphDelta,
-  recordForUndo: boolean = true,
+  options: PostDeltaThroughDaemonWithEditorsOptions = {},
 ): Promise<void> {
   await tracing.span('electron.graph.post-delta-with-editors', async (span) => {
     span.setAttribute('graph.delta.count', delta.length)
-    await postDeltaThroughDaemon(delta, recordForUndo)
+    await postDeltaThroughDaemon(delta, options)
     span.addEvent('electron.graph.floating-editor-update.queued')
-    floatingEditorDeltaQueue.enqueue(delta)
+    const editorDeltaQueue: FloatingEditorDeltaQueue = options.editorDeltaQueue ?? floatingEditorDeltaQueue
+    editorDeltaQueue.enqueue(delta)
   })
 }
 

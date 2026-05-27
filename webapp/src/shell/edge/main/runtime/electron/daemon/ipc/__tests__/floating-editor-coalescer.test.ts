@@ -37,8 +37,6 @@ import {
   type NodeIdAndFilePath,
 } from '@vt/graph-model'
 import {
-  __resetFloatingEditorDeltaQueueForTests,
-  __resetRendererSessionForTests,
   postDeltaThroughDaemonWithEditors,
 } from '../daemon-ipc-proxy'
 
@@ -142,8 +140,6 @@ async function drainMicrotasks(): Promise<void> {
 
 describe('floating editor delta coalescing', () => {
   afterEach(() => {
-    __resetFloatingEditorDeltaQueueForTests()
-    __resetRendererSessionForTests()
     daemonMock.appliedDeltaLengths.splice(0)
     initGraphModel({ appSupportPath: '/tmp/floating-editor-coalescer-test' }, {})
   })
@@ -162,9 +158,12 @@ describe('floating editor delta coalescing', () => {
         },
       },
     )
+    const rendererSessionStore = { current: null }
 
     await Promise.all(
-      scenario.deltas.map((delta) => postDeltaThroughDaemonWithEditors(delta)),
+      scenario.deltas.map((delta) => postDeltaThroughDaemonWithEditors(delta, {
+        rendererSessionStore,
+      })),
     )
     await drainMicrotasks()
 
