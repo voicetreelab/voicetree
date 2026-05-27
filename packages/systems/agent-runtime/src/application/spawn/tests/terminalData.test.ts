@@ -56,9 +56,13 @@ describe('prepareTerminalDataInMain', () => {
                 env: {
                     getAppSupportPath: () => appSupportPath,
                     getMcpPort: () => 4242,
+                    getVaultSnapshot: async () => ({
+                        projectRoot: '/project',
+                        readPaths: ['/project/voicetree-25-5'],
+                        writeFolder: '/project/voicetree-25-5',
+                    }),
                     getProjectRoot: async () => '/project',
                     getWriteFolder: async () => '/project/voicetree-25-5',
-                    getVaultPaths: async () => ['/project/voicetree-25-5'],
                 },
                 graph: {
                     getGraph: async () => graphWithOnlyTask(taskNodeId),

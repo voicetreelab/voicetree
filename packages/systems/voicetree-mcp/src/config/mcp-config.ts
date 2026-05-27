@@ -26,11 +26,15 @@ export type SearchBridge = {
     readonly askQuery: (query: string, topK?: number) => Promise<AskQueryResponse>
 }
 
+export type McpGraphSnapshot = {
+    readonly graph: Graph
+    readonly projectRoot: string | null
+    readonly vaultPaths: readonly string[]
+    readonly writeFolder: string | null
+}
+
 export type GraphBridge = {
-    readonly getGraph: () => Promise<Graph>
-    readonly getVaultPaths: () => Promise<readonly string[]>
-    readonly getWriteFolder: () => Promise<string | null>
-    readonly getProjectRoot?: () => Promise<string | null>
+    readonly getSnapshot: () => Promise<McpGraphSnapshot>
     readonly getUnseenNodesAroundContextNode?: (
         contextNodeId: NodeIdAndFilePath,
         searchFromNode?: NodeIdAndFilePath,

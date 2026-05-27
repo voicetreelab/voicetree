@@ -42,7 +42,7 @@ export function parseArgs(argv: readonly string[]): Args {
                 process.stdout.write(
                     'agent-storm.ts: spawn N vt-fake-agents and measure daemon-side OTel signals.\n'
                     + '  --agents N                    parallel fake-agents (default 5)\n'
-                    + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
+                    + '  --nodes-per-agent N           create_nodes actions per agent (default 5)\n'
                     + '  --vault-seed-nodes N          existing nodes to seed the vault with (default 200)\n'
                     + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
                     + '  --global-timeout-ms MS        overall run deadline (default 300000)\n'

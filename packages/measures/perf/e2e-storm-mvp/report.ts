@@ -32,8 +32,9 @@ export interface ReportInput {
     readonly projectDir: string
     readonly appSupportPath: string
     readonly electronLogPath: string
-    /** Per-run dir where perfProbeFromEnv writes ndjson + cpuprofile. */
+    /** Per-run dir for OTEL-scraped logs, heap snapshots, and local profile artifacts. */
     readonly perfRunDir: string
+    readonly screenshotDir: string
     readonly hostVmMetrics: HostVmMetricsSummary | null
     readonly outPath: string
     readonly totalWallMs: number
@@ -92,6 +93,7 @@ export function writeReportAndSummary(input: ReportInput): void {
             appSupportPath: input.appSupportPath,
             electronLogPath: input.electronLogPath,
             perfRunDir: input.perfRunDir,
+            screenshotDir: input.screenshotDir,
         },
         hostVm: input.hostVmMetrics,
     }
@@ -112,6 +114,7 @@ export function writeReportAndSummary(input: ReportInput): void {
         + `  files:         ${input.filesBefore} → ${input.filesAfter} (Δ=${input.filesAfter - input.filesBefore})\n`
         + `  total:         ${input.totalWallMs}ms   report: ${input.outPath}\n`
         + `  perf run dir:  ${input.perfRunDir}\n`
+        + `  screenshots:   ${input.screenshotDir}\n`
         + `${sep}\n`,
     )
 }

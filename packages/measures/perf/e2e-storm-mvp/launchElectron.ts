@@ -153,7 +153,7 @@ export async function launchElectronAndDiscoverMcp(
             ...process.env,
             NODE_ENV: 'test',
             HEADLESS_TEST: process.env.HEADLESS_TEST ?? '1',
-            MINIMIZE_TEST: process.env.MINIMIZE_TEST ?? '1',
+            MINIMIZE_TEST: process.env.MINIMIZE_TEST ?? '0',
             VOICETREE_PERSIST_STATE: '1',
             VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
             VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(inputs.repoRoot),

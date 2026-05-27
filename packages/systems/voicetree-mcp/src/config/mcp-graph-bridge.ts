@@ -1,9 +1,6 @@
-import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import type { UnseenNode } from '@vt/graph-db-protocol'
-import { getGraphBridge, type GraphBridge } from './mcp-config'
-
-export type {UnseenNode}
+import { getGraphBridge, type GraphBridge, type McpGraphSnapshot } from './mcp-config'
 
 function requireGraphBridge(operation: string): GraphBridge {
     const bridge: GraphBridge | undefined = getGraphBridge()
@@ -15,21 +12,8 @@ function requireGraphBridge(operation: string): GraphBridge {
     return bridge
 }
 
-export async function getMcpGraph(): Promise<Graph> {
-    return await requireGraphBridge('getMcpGraph').getGraph()
-}
-
-export async function getMcpWriteFolder(): Promise<O.Option<string>> {
-    return O.fromNullable(await requireGraphBridge('getMcpWriteFolder').getWriteFolder())
-}
-
-export async function getMcpVaultPaths(): Promise<readonly string[]> {
-    return await requireGraphBridge('getMcpVaultPaths').getVaultPaths()
-}
-
-export async function getMcpProjectRoot(): Promise<string | null> {
-    const bridge: GraphBridge = requireGraphBridge('getMcpProjectRoot')
-    return bridge.getProjectRoot ? await bridge.getProjectRoot() : null
+export async function getMcpGraphSnapshot(): Promise<McpGraphSnapshot> {
+    return await requireGraphBridge('getMcpGraphSnapshot').getSnapshot()
 }
 
 export async function getMcpUnseenNodesAroundContextNode(

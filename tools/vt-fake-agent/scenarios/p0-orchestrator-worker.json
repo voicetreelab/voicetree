@@ -9,7 +9,7 @@
         "actions": [
           { "type": "log", "message": "Worker child starting..." },
           { "type": "delay", "ms": 3000 },
-          { "type": "create_node", "title": "Worker Output", "summary": "Worker completed its assigned task." },
+          { "type": "create_nodes", "nodes": [{ "title": "Worker Output", "summary": "Worker completed its assigned task." }] },
           { "type": "exit", "code": 0 }
         ]
       }
@@ -17,7 +17,7 @@
     { "type": "log", "message": "Orchestrator waiting for worker child to complete..." },
     { "type": "wait_for_children" },
     { "type": "log", "message": "Orchestrator received child completion, creating summary node." },
-    { "type": "create_node", "title": "Orchestration Complete", "summary": "Orchestrator successfully spawned worker, waited for completion, and reviewed results." },
+    { "type": "create_nodes", "nodes": [{ "title": "Orchestration Complete", "summary": "Orchestrator successfully spawned worker, waited for completion, and reviewed results." }] },
     { "type": "exit", "code": 0 }
   ]
 }

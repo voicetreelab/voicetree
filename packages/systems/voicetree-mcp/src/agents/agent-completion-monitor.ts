@@ -18,7 +18,7 @@ import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getMcpGraph} from '../config/mcp-graph-bridge'
+import {getMcpGraphSnapshot} from '../config/mcp-graph-bridge'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -74,7 +74,7 @@ export function startMonitor(
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
-        const graph: Graph = await getMcpGraph()
+        const graph: Graph = (await getMcpGraphSnapshot()).graph
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
@@ -206,7 +206,7 @@ function findExistingDescendants(parentIds: string[]): string[] {
  */
 export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): Promise<string[]> {
     const currentRecords: TerminalRecord[] = listTerminalRecordsSnapshot()
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = (await getMcpGraphSnapshot()).graph
     const now: number = Date.now()
     const names: string[] = []
     for (const [monitorId, entry] of monitors) {

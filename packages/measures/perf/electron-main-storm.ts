@@ -22,7 +22,7 @@
  * Scope honesty:
  *   - Only the main process is profiled. Renderer is out of scope (would need
  *     CDP Tracing + a renderer page handle — Playwright territory).
- *   - The fake-agent script is the same `create_node` × N flow agent-storm.ts
+ *   - The fake-agent script is the same `create_nodes` × N flow agent-storm.ts
  *     uses; only the *fake-agent* is mocked, the daemon + MCP + watch-folder
  *     are real.
  *

@@ -112,7 +112,7 @@ function defaultAppSupportPath(): string {
     )
 }
 
-function configureHeadlessBridges(appSupportPath: string): void {
+function configureHeadlessBridges(appSupportPath: string, vault: string): void {
     configureMcpServer({
         liveState: {
             applyLiveCommand: (): Promise<never> =>
@@ -130,6 +130,13 @@ function configureHeadlessBridges(appSupportPath: string): void {
         env: {
             getAppSupportPath: (): string => appSupportPath,
             getMcpPort,
+            getProjectRoot: async (): Promise<string> => vault,
+            getVaultSnapshot: async () => ({
+                projectRoot: vault,
+                readPaths: [vault],
+                writeFolder: vault,
+            }),
+            getWriteFolder: async (): Promise<string> => vault,
         },
         ui: {
             registerChildIfMonitored,
@@ -147,7 +154,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
     // not set the env var themselves.
     process.env.VOICETREE_APP_SUPPORT = appSupportPath
 
-    configureHeadlessBridges(appSupportPath)
+    configureHeadlessBridges(appSupportPath, args.vault)
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 

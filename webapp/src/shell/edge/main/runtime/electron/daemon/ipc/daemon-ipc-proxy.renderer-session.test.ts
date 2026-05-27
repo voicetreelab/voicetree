@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import type { GraphDbClient } from '@vt/graph-db-client'
 import type { State } from '@vt/graph-state'
 
 import {
-  __resetRendererSessionForTests,
   getOrCreateRendererSession,
   syncRendererSessionState,
 } from './daemon-ipc-proxy'
@@ -92,15 +91,12 @@ function makeLocalState(partial: {
 }
 
 describe('renderer session reuse (BF-340)', () => {
-  afterEach(() => {
-    __resetRendererSessionForTests()
-  })
-
   test('two consecutive getOrCreateRendererSession calls with the same baseUrl create exactly one session', async () => {
     const client: FakeClient = makeFakeClient('http://daemon.test:9999')
+    const sessionStore = { current: null }
 
-    const first: string = await getOrCreateRendererSession(client)
-    const second: string = await getOrCreateRendererSession(client)
+    const first: string = await getOrCreateRendererSession(client, sessionStore)
+    const second: string = await getOrCreateRendererSession(client, sessionStore)
 
     expect(client.__record.createSessionCount).toBe(1)
     expect(second).toBe(first)
@@ -109,10 +105,11 @@ describe('renderer session reuse (BF-340)', () => {
   test('changing the client baseUrl forces a fresh session', async () => {
     const clientA: FakeClient = makeFakeClient('http://daemon-a.test:9999')
     const clientB: FakeClient = makeFakeClient('http://daemon-b.test:9999')
+    const sessionStore = { current: null }
 
-    const idA1: string = await getOrCreateRendererSession(clientA)
-    const idB: string = await getOrCreateRendererSession(clientB)
-    const idA2: string = await getOrCreateRendererSession(clientA)
+    const idA1: string = await getOrCreateRendererSession(clientA, sessionStore)
+    const idB: string = await getOrCreateRendererSession(clientB, sessionStore)
+    const idA2: string = await getOrCreateRendererSession(clientA, sessionStore)
 
     expect(clientA.__record.createSessionCount).toBe(2)
     expect(clientB.__record.createSessionCount).toBe(1)
@@ -124,15 +121,18 @@ describe('renderer session reuse (BF-340)', () => {
 
   test('syncRendererSessionState propagates selection and layout on the reused session', async () => {
     const client: FakeClient = makeFakeClient('http://daemon.test:9999')
+    const sessionStore = { current: null }
 
     const firstSync: string = await syncRendererSessionState(
       client,
       makeLocalState({ selection: ['node-a', 'node-b'], pan: { x: 10, y: 20 }, zoom: 1.5 }),
+      sessionStore,
     )
 
     const secondSync: string = await syncRendererSessionState(
       client,
       makeLocalState({ selection: ['node-c'], pan: { x: 11, y: 21 }, zoom: 2.0 }),
+      sessionStore,
     )
 
     // Session is reused: one createSession total.

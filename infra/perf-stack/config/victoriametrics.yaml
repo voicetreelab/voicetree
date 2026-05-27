@@ -1,0 +1,5 @@
+# VictoriaMetrics is configured by CLI flags in scripts/lifecycle.mjs.
+#
+# Storage: infra/perf-stack/storage/victoriametrics/
+# HTTP listen: 127.0.0.1:2996
+# Prometheus remote-write ingest: http://127.0.0.1:2996/api/v1/write

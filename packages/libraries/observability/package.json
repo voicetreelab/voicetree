@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared tracing facade. Owns process-startup tracing init and span helpers used by webapp, vt-graphd, and client. P2 deep-function package.",
+  "description": "Shared OpenTelemetry facade (tracing + metrics). Owns process-startup OTel init and span/metric helpers used by webapp, vt-graphd, and client.",
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -15,8 +15,13 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/core": "^2.7.1",
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.218.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.218.0",
+    "@opentelemetry/resources": "^2.7.1",
+    "@opentelemetry/sdk-metrics": "^2.7.1",
     "@opentelemetry/sdk-trace-base": "^2.7.1",
-    "@opentelemetry/sdk-trace-node": "^2.7.1"
+    "@opentelemetry/sdk-trace-node": "^2.7.1",
+    "@opentelemetry/semantic-conventions": "^1.41.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

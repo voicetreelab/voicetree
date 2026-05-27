@@ -7,7 +7,7 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {type McpToolResponse, buildJsonResponse} from '../types'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '../mcpConfigDependencies'
+import {getMcpGraphSnapshot, getMcpUnseenNodesAroundContextNode} from '../mcpConfigDependencies'
 import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 type UnseenNode = Awaited<ReturnType<typeof getMcpUnseenNodesAroundContextNode>>[number]
@@ -36,7 +36,7 @@ export async function getUnseenNodesNearbyTool({
     const contextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
 
     // 3. Get unseen nodes (with optional search_from_node override)
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = (await getMcpGraphSnapshot()).graph
     try {
         const unseenNodes: readonly UnseenNode[] = await getMcpUnseenNodesAroundContextNode(
             contextNodeId,

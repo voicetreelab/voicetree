@@ -129,9 +129,12 @@ describe('MCP spawn_agent tool', () => {
         vi.clearAllMocks()
         configureMcpServer({
             graph: {
-                getGraph: async () => getGraph(),
-                getVaultPaths: async () => [],
-                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
+                getSnapshot: async () => ({
+                    graph: getGraph(),
+                    projectRoot: null,
+                    vaultPaths: [],
+                    writeFolder: O.toNullable(await getWriteFolder()),
+                }),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
@@ -273,9 +276,12 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
         vi.clearAllMocks()
         configureMcpServer({
             graph: {
-                getGraph: async () => getGraph(),
-                getVaultPaths: async () => [],
-                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
+                getSnapshot: async () => ({
+                    graph: getGraph(),
+                    projectRoot: null,
+                    vaultPaths: [],
+                    writeFolder: O.toNullable(await getWriteFolder()),
+                }),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
