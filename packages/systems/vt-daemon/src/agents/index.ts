@@ -5,9 +5,10 @@
 
 export {configureMcpServer, getSearchBridge} from '../config/mcp-config'
 export type {
+    AskQueryResponse,
+    GraphBridge,
     McpServerConfig,
     SearchBridge,
-    AskQueryResponse,
     SearchSimilarResult,
 } from '../config/mcp-config'
 
