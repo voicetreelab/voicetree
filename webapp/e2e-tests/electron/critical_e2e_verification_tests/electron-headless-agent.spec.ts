@@ -107,7 +107,10 @@ const test = base.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
-        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+                VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+                // Pin the daemon's app-support path so its tmux socket lives
+                // under the same user-data dir the test queries.
+                VOICETREE_APP_SUPPORT: tempUserDataPath,
             },
             timeout: 15000
         });
