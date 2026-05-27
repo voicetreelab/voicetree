@@ -90,9 +90,8 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
   test('typing in a tmux-backed terminal reaches the pane via the Main-owned IPC bridge', async ({ appWindow, fixtureVaultPath }) => {
     test.setTimeout(240_000);
 
-    // Hermetic terminalId so successive runs / parallel tests don't collide.
-    const terminalId: string = `e2e-keystroke-${randomBytes(4).toString('hex')}`;
     let appSupportPath: string | undefined;
+    let terminalId: string | undefined;
 
     try {
       appSupportPath = await appWindow.evaluate(async () => {
@@ -130,37 +129,34 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
         return Object.keys(graph.nodes)[0];
       });
 
-      // ── Spawn interactive tmux-backed terminal (no agent — just a shell). ──
-      const spawnResult = await appWindow.evaluate(async ({ tid, parentNodeId: nodeId }) => {
+      // ── Spawn an interactive tmux-backed plain shell on the parent node. ──
+      // `spawnPlainTerminal` opens a vanilla pty without running an agent
+      // command — exactly the shape we need to prove typed bytes reach the
+      // pane. The daemon assigns the terminalId, surfaced to the renderer via
+      // the `terminal-registry` SSE topic; we observe the resulting floating
+      // window in the DOM to learn that id.
+      await appWindow.evaluate(async ({ parentNodeId: nodeId }) => {
         const api = (window as ExtendedWindow).electronAPI;
-        if (!api?.terminal) throw new Error('electronAPI.terminal not available');
-        return await api.terminal.spawn({
-          type: 'Terminal',
-          terminalId: tid,
-          attachedToContextNodeId: nodeId,
-          terminalCount: 0,
-          title: 'E2E Keystroke Relay',
-          anchoredToNodeId: { _tag: 'None' },
-          shadowNodeDimensions: { width: 600, height: 400 },
-          resizable: true,
-          // No initialCommand — leave the pane at a vanilla shell prompt so
-          // we can prove our typed bytes (and only our typed bytes) reached it.
-          executeCommand: false,
-          isPinned: true,
-          isDone: false,
-          lastOutputTime: Date.now(),
-          activityCount: 0,
-          parentTerminalId: null,
-          agentName: tid,
-          worktreeName: undefined,
-          isHeadless: false,
-        });
-      }, { tid: terminalId, parentNodeId });
-      expect(spawnResult.success, `terminal:spawn failed: ${JSON.stringify(spawnResult)}`).toBe(true);
+        if (!api) throw new Error('electronAPI not available');
+        await api.main.spawnPlainTerminal({ nodeId, terminalCount: 0 });
+      }, { parentNodeId });
 
-      await expect.poll(() => tmuxSessionExists(terminalId, appSupportPath), {
+      terminalId = await appWindow.evaluate(async () => {
+        const deadline = Date.now() + 15_000;
+        while (Date.now() < deadline) {
+          const elem = document.querySelector('.cy-floating-window-terminal');
+          const id = elem?.getAttribute('data-floating-window-id');
+          if (id) return id;
+          await new Promise(r => setTimeout(r, 250));
+        }
+        throw new Error('Spawned terminal never appeared in the DOM');
+      });
+
+      const liveTerminalId: string = terminalId;
+
+      await expect.poll(() => tmuxSessionExists(liveTerminalId, appSupportPath), {
         timeout: 10_000,
-        message: `tmux session ${terminalId} never came up`,
+        message: `tmux session ${liveTerminalId} never came up`,
       }).toBe(true);
 
       // ── Attach via the SAME IPC bridge the renderer uses. ──
@@ -180,7 +176,7 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
             await api.terminal.detach(handle);
           },
         };
-      }, terminalId);
+      }, liveTerminalId);
 
       try {
         // Give tmux's `attach` time to repaint the pane buffer to the client.
@@ -205,12 +201,12 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
 
         await expect.poll(async () => {
           const received: string = await appWindow.evaluate(() => window.__e2eKeystrokeRelay?.received.value ?? '');
-          const onPane: string = tmuxCapturePane(terminalId, appSupportPath);
+          const onPane: string = tmuxCapturePane(liveTerminalId, appSupportPath);
           return received.includes(sentinel) && onPane.includes(sentinel);
         }, {
           timeout: KEYSTROKE_SETTLE_TIMEOUT_MS,
           intervals: [200, 500, 1000],
-          message: `keystrokes never produced "${sentinel}" via IPC relay. capture-pane:\n${tmuxCapturePane(terminalId, appSupportPath)}`,
+          message: `keystrokes never produced "${sentinel}" via IPC relay. capture-pane:\n${tmuxCapturePane(liveTerminalId, appSupportPath)}`,
         }).toBe(true);
       } finally {
         await appWindow.evaluate(async () => {
@@ -221,7 +217,9 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
     } finally {
       // Defensive cleanup — the tmux session is detached from the relay's
       // pty, so closing the IPC handle alone won't kill it.
-      if (tmuxSessionExists(terminalId, appSupportPath)) killTmuxSession(terminalId, appSupportPath);
+      if (terminalId && tmuxSessionExists(terminalId, appSupportPath)) {
+        killTmuxSession(terminalId, appSupportPath);
+      }
     }
   });
 });
