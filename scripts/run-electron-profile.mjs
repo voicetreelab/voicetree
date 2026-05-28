@@ -2,8 +2,11 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const PERF_LIFECYCLE = join(REPO_ROOT, 'infra/perf-stack/scripts/lifecycle.mjs')
 
 const DEFAULT_OTLP_ENDPOINT = 'http://localhost:2994'
 const GRAFANA_RUNS_DASHBOARD = 'http://localhost:2999/d/vt-runs/vt-runs'
@@ -61,7 +64,7 @@ function profileEnv({ baseEnv = process.env, runUuid, otlpEnabled }) {
 
 function printHelp() {
   process.stdout.write([
-    'Usage: npm run electron:profile -- [e2e-storm-mvp args]',
+    'Usage: pnpm --filter voicetree-webapp run electron:profile -- [e2e-storm-mvp args]',
     '',
     'Profiles the Electron e2e-storm MVP harness with VOICETREE_PERF_PROFILE=1.',
     'By default it verifies the local perf stack, stamps VOICETREE_RUN_INSTANCE_ID,',
@@ -100,10 +103,10 @@ function runCommand(command, args, options = {}) {
 }
 
 async function assertPerfStackUp(env) {
-  const result = await runCommand('npm', ['run', 'perf:check'], { env })
+  const result = await runCommand('node', [PERF_LIFECYCLE, 'check'], { env })
   if (result.code !== 0) {
     throw new Error([
-      'perf stack is not ready; run `npm run perf:up` first, then retry `npm run electron:profile`',
+      'perf stack is not ready; run `node infra/perf-stack/scripts/lifecycle.mjs up` first, then retry `pnpm --filter voicetree-webapp run electron:profile`',
       result.stdout.trim(),
       result.stderr.trim(),
     ].filter(Boolean).join('\n'))
@@ -122,7 +125,7 @@ function printRunHeader({ runUuid, otlpEnabled, env }) {
 }
 
 async function runElectronProfile({ passthrough, env }) {
-  return await runCommand('npm', ['run', 'test:perf:e2e-mvp:local', '--', ...passthrough], {
+  return await runCommand('pnpm', ['--filter', '@vt/measures', 'run', 'test:perf:e2e-mvp:local', '--', ...passthrough], {
     env,
     stdio: 'inherit',
   })

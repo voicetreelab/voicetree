@@ -1,7 +1,7 @@
 #!/bin/bash
 # Pre-commit gate. Two hard checks, in order:
-#   1. tier-0 static checks (typecheck/lint/etc) via npm run test:t0
-#   2. subgraph-scoped codebase-health gate via npm run health:subgraph-gate
+#   1. tier-0 static checks (typecheck/lint/etc) via pnpm run test:t0
+#   2. subgraph-scoped codebase-health gate via pnpm --filter @vt/measures run health:subgraph-gate
 # Both route through scripts/run-remote.mjs (via the bin/npm shim). When
 # VT_REMOTE_HOST is set, they execute on the devbox — the local .git/index is
 # mutagen-synced (see scripts/dev-setup/remote/mutagen-vt-remote.yml) so the
@@ -44,7 +44,7 @@ if [ -f pnpm-workspace.yaml ] && printf '%s\n' "$staged_files" | grep -qE '(^|/)
 fi
 
 if printf '%s\n' "$staged_files" | grep -qE '^(packages/measures/src/checks/.*\.ts|packages/measures/scripts/gen-workflows\.ts|packages/measures/src/checks/_workflow-types\.ts)$'; then
-    npm run gen:workflows
+    node scripts/run-remote.mjs pnpm --filter @vt/measures run gen:workflows
     if ! git diff --quiet -- .github/workflows/measures-budget-gate.yml; then
         echo "measures-budget-gate.yml regenerated — stage it and retry:"
         echo "  git add .github/workflows/measures-budget-gate.yml"
