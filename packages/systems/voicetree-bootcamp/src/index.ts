@@ -1,5 +1,6 @@
 export type {
     CellResult,
+    CheckpointResult,
     CommandAttempt,
     CommandPattern,
     Coverage,

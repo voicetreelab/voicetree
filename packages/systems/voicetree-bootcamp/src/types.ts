@@ -83,9 +83,28 @@ export type ScenarioSpec = {
     readonly teardown?: (vaultDir: string) => Promise<void>
 }
 
+/**
+ * Per-checkpoint result for scenarios that grade independent sub-tasks with
+ * partial credit. B7 (knowledge gardening) is the first such scenario: its
+ * three ordered checkpoints (bulk-create / regroup / folder-note) are each
+ * scored, and the scenario's `passed` is the conjunction.
+ */
+export type CheckpointResult = {
+    readonly name: string
+    readonly passed: boolean
+    readonly detail: string
+}
+
+/**
+ * Post-state verification result. `passed`/`detail` remain the binding gate
+ * (scoring.ts collapses fitness to 0 on a failing gate). `checkpoints`, when
+ * present, surfaces partial-credit detail for multi-stage scenarios — single-
+ * gate scenarios (B1–B6) omit it.
+ */
 export type SuccessResult = {
     readonly passed: boolean
     readonly detail: string
+    readonly checkpoints?: readonly CheckpointResult[]
 }
 
 /**
