@@ -125,15 +125,14 @@ describe('vt-bootcamp CLI', () => {
         expect(plan.driver).toBe('codex')
     }, 30_000)
 
-    it('--dry-run carries through --effort, --mode, --reps overrides', async () => {
+    it('--dry-run carries through --effort, --mode, --reps, --workspace-root overrides', async () => {
         const r = await runCli([
             'B7', '--model', 'opus',
             '--effort', 'high',
             '--mode', 'headful',
             '--reps', '3',
-            '--headful-parent', '/tmp/some-node.md',
             '--workspace-root', '/tmp/b7-run',
-            '--headful-caller-terminal', 'term-abc',
+            '--headful-daemon-timeout-ms', '90000',
             '--dry-run',
         ])
         expect(r.exitCode).toBe(0)
@@ -142,82 +141,34 @@ describe('vt-bootcamp CLI', () => {
             effort: 'high',
             mode: 'headful',
             reps: 3,
-            headfulParentNodeId: '/tmp/some-node.md',
             workspaceRoot: '/tmp/b7-run',
-            headfulCallerTerminalId: 'term-abc',
+            headfulDaemonReadyTimeoutMs: 90000,
         })
     }, 30_000)
 
-    it('--mode headful without --headful-parent exits non-zero', async () => {
+    it('--mode headful needs no extra required flags', async () => {
+        // Headful no longer requires a parent node id or a caller terminal id:
+        // it launches VT pointing at the vault and the agent runs externally,
+        // same as headless. Asserting this with a dry-run so we don't actually
+        // try to open Voicetree.app.
         const r = await runCli([
             'B7', '--model', 'opus',
             '--mode', 'headful',
-            '--workspace-root', '/tmp/b7-run',
             '--dry-run',
         ])
-        expect(r.exitCode).not.toBe(0)
-        expect(r.stderr).toMatch(/headful-parent/)
-    }, 30_000)
-
-    it('--mode headful without --workspace-root exits non-zero', async () => {
-        const r = await runCli([
-            'B7', '--model', 'opus',
-            '--mode', 'headful',
-            '--headful-parent', '/tmp/some-node.md',
-            '--dry-run',
-        ])
-        expect(r.exitCode).not.toBe(0)
-        expect(r.stderr).toMatch(/workspace-root/)
-    }, 30_000)
-
-    it('--mode headful without caller terminal id (flag or env) exits non-zero', async () => {
-        // Strip $VOICETREE_TERMINAL_ID so the env-var fallback can't satisfy the check.
-        const env = {...process.env}
-        delete env.VOICETREE_TERMINAL_ID
-        const child = spawn(
-            'npx',
-            ['--no-install', 'tsx', BIN_PATH,
-                'B7', '--model', 'opus',
-                '--mode', 'headful',
-                '--headful-parent', '/tmp/some-node.md',
-                '--workspace-root', '/tmp/b7-run',
-                '--dry-run',
-            ],
-            {stdio: ['ignore', 'pipe', 'pipe'], env},
-        )
-        let stderr = ''
-        child.stderr.on('data', (d: Buffer) => {
-            stderr += d.toString()
-        })
-        const exitCode = await new Promise<number | null>((resolve) => {
-            child.on('close', (code) => resolve(code))
-        })
-        expect(exitCode).not.toBe(0)
-        expect(stderr).toMatch(/headful-caller-terminal/)
-    }, 30_000)
-
-    it('--mode headful accepts $VOICETREE_TERMINAL_ID in lieu of the flag', async () => {
-        const env = {...process.env, VOICETREE_TERMINAL_ID: 'term-from-env'}
-        const child = spawn(
-            'npx',
-            ['--no-install', 'tsx', BIN_PATH,
-                'B7', '--model', 'opus',
-                '--mode', 'headful',
-                '--headful-parent', '/tmp/some-node.md',
-                '--workspace-root', '/tmp/b7-run',
-                '--dry-run',
-            ],
-            {stdio: ['ignore', 'pipe', 'pipe'], env},
-        )
-        let stdout = ''
-        child.stdout.on('data', (d: Buffer) => {
-            stdout += d.toString()
-        })
-        const exitCode = await new Promise<number | null>((resolve) => {
-            child.on('close', (code) => resolve(code))
-        })
-        expect(exitCode).toBe(0)
-        const plan = JSON.parse(stdout) as Record<string, unknown>
+        expect(r.exitCode).toBe(0)
+        const plan = JSON.parse(r.stdout) as Record<string, unknown>
         expect(plan.mode).toBe('headful')
+    }, 30_000)
+
+    it('--headful-daemon-timeout-ms must be a positive integer', async () => {
+        const r = await runCli([
+            'B7', '--model', 'opus',
+            '--mode', 'headful',
+            '--headful-daemon-timeout-ms', 'abc',
+            '--dry-run',
+        ])
+        expect(r.exitCode).not.toBe(0)
+        expect(r.stderr).toMatch(/headful-daemon-timeout-ms/)
     }, 30_000)
 })

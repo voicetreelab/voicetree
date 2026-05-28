@@ -3,21 +3,25 @@
  * a CellResult.
  *
  * One deep impure function (`runScenario`) wraps the full pipeline:
- *   1. mkdtemp workspace (vault/, shim/, shim-log/, transcript)
+ *   1. mkdtemp workspace (vault/, shim/, shim-log/)
  *   2. symlink the PATH shim so the agent's `vt` flows through the logger
- *   3. scenario.setup(vaultDir) materialises fixtures
- *   4. invoke the agent (headless: driver.runScenario | headful: vt agent spawn)
- *   5. merge per-call shim-log files, score, compute coverage + fitness
- *   6. scenario.teardown(vaultDir) in finally{} so it always runs
+ *   3. headful only: launch VoiceTree pointing at vaultDir + wait for daemon
+ *   4. scenario.setup(vaultDir) materialises fixtures (VT watcher fires if open)
+ *   5. driver.runScenario — same path for headless and headful; the diff is
+ *      whether VT is open and watching
+ *   6. merge per-call shim-log files, score, compute coverage + fitness
+ *   7. scenario.teardown(vaultDir) in finally{} so it always runs
  *
  * All scoring lives in pure functions (scoring.ts) — the runner just plumbs
  * the data. The driver interface absorbs harness-specific churn; the runner
  * stays harness-agnostic.
  *
- * Headful mode is best-effort: it spawns the inner agent INSIDE the running
- * VoiceTree app via `vt agent spawn` so the user can WATCH the graph populate
- * live. Telemetry from VT-spawned agents is partial — see runHeadful() for
- * the documented gaps.
+ * Headful is "headless + a VT window watching the vault". The agent process
+ * is identical (external claude-code, same PATH-shim, same env); VT picks up
+ * the file writes through its normal watcher. This means full telemetry is
+ * preserved (driver returns real token counts) and there are no caller-
+ * terminal / parent-node ergonomic gaps. The user just sees the graph
+ * populate in real time.
  */
 import {spawn} from 'node:child_process'
 import {promises as fs} from 'node:fs'
@@ -50,11 +54,6 @@ export type RunMode = 'headless' | 'headful'
 
 export type RunOptions = {
     readonly scenario: ScenarioSpec
-    /**
-     * Harness driver. Used in headless mode. In headful mode the runner
-     * spawns the agent via `vt agent spawn` and ignores the driver, but the
-     * field is still required so the call site is mode-symmetric.
-     */
     readonly driver: HarnessDriver
     readonly model: string
     readonly effort: Effort
@@ -67,48 +66,58 @@ export type RunOptions = {
     readonly mode?: RunMode
     /**
      * Optional pre-created workspace dir. When omitted a fresh mkdtemp dir is
-     * created. Passing one is mostly for tests that want to inspect artefacts.
+     * created. Passing one is mostly for tests that want to inspect artefacts,
+     * or for headful runs where the user wants a stable path.
      */
     readonly workspaceRoot?: string
     /** Hard cap on the inner agent invocation. Defaults to 10 minutes. */
     readonly timeoutMs?: number
     /**
-     * Headful only — VT node id to spawn the inner agent under. Required for
-     * headful mode (no clean way to spawn under a fresh vault root from CLI).
+     * Headful only — how long to wait for the per-vault VTD to write its
+     * rpc.port discovery file before giving up. Defaults to 60s; raise if
+     * the machine is slow to launch Electron.
      */
-    readonly headfulParentNodeId?: string
+    readonly headfulDaemonReadyTimeoutMs?: number
     /**
-     * Headful only — `vt agent spawn`'s `--terminal` (caller terminal id).
-     * The CLI requires this to attribute the spawn to a caller; when the
-     * bootcamp is launched from a non-VT shell there is no caller terminal,
-     * so the user must supply one (the id of any open VT terminal).
-     * Falls back to `$VOICETREE_TERMINAL_ID` when omitted.
+     * Headful only — overrides for the two impure helpers, so tests can
+     * exercise the orchestration without actually launching Electron or
+     * polling the filesystem. Production callers should leave these unset
+     * and get the real implementations.
      */
-    readonly headfulCallerTerminalId?: string
-    /**
-     * Headful only — attempt `open -a Voicetree` before spawning so the user
-     * sees the app come up. Best-effort; no-op if Voicetree.app is missing.
-     */
-    readonly launchApp?: boolean
+    readonly launchVoicetreeApp?: (vaultDir: string) => Promise<void>
+    readonly waitForDaemonReady?: (vaultDir: string, timeoutMs: number) => Promise<void>
 }
 
 export async function runScenario(opts: RunOptions): Promise<CellResult> {
     const mode: RunMode = opts.mode ?? 'headless'
     const rep = opts.rep ?? 0
     const timeoutMs = opts.timeoutMs ?? 10 * 60_000
+    const daemonReadyTimeoutMs = opts.headfulDaemonReadyTimeoutMs ?? 60_000
     const realVtBin = opts.realVtBin ?? DEFAULT_REAL_VT_BIN
+    const launchApp = opts.launchVoicetreeApp ?? launchVoicetreeAppDefault
+    const waitDaemon = opts.waitForDaemonReady ?? waitForDaemonReadyDefault
 
     const workspaceRoot =
         opts.workspaceRoot ?? (await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bootcamp-')))
     const vaultDir = path.join(workspaceRoot, 'vault')
     const shimDir = path.join(workspaceRoot, 'shim')
     const shimLogDir = path.join(workspaceRoot, 'shim-log')
-    const transcriptDefaultPath = path.join(workspaceRoot, 'transcript.txt')
 
     await fs.mkdir(vaultDir, {recursive: true})
     await fs.mkdir(shimDir, {recursive: true})
     await fs.mkdir(shimLogDir, {recursive: true})
     await fs.symlink(SHIM_BIN, path.join(shimDir, 'vt'))
+
+    // Headful: open VT pointing at the empty vault BEFORE we copy fixtures so
+    // the user sees them appear in the graph in real time. Wait for the
+    // per-vault VTD to write rpc.port — that's the daemon-ready signal that
+    // the app's watcher is wired up. Both the bootcamp's shim'd `vt` calls
+    // and the Electron app converge on this one daemon (BF-348 single-flight),
+    // so the agent's graph mutations reach VT's renderer through the same RPC.
+    if (mode === 'headful') {
+        await launchApp(vaultDir)
+        await waitDaemon(vaultDir, daemonReadyTimeoutMs)
+    }
 
     await opts.scenario.setup(vaultDir)
 
@@ -120,28 +129,15 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
             VT_REAL_BIN: realVtBin,
         }
 
-        const driverResult =
-            mode === 'headless'
-                ? await opts.driver.runScenario({
-                      model: opts.model,
-                      effort: opts.effort,
-                      prompt: opts.scenario.taskPrompt,
-                      cwd: vaultDir,
-                      env,
-                      timeoutMs,
-                      artifactDir: workspaceRoot,
-                  })
-                : await runHeadful({
-                      prompt: opts.scenario.taskPrompt,
-                      cwd: vaultDir,
-                      env,
-                      timeoutMs,
-                      transcriptPath: transcriptDefaultPath,
-                      realVtBin,
-                      parentNodeId: opts.headfulParentNodeId,
-                      callerTerminalId: opts.headfulCallerTerminalId,
-                      launchApp: opts.launchApp ?? false,
-                  })
+        const driverResult = await opts.driver.runScenario({
+            model: opts.model,
+            effort: opts.effort,
+            prompt: opts.scenario.taskPrompt,
+            cwd: vaultDir,
+            env,
+            timeoutMs,
+            artifactDir: workspaceRoot,
+        })
 
         const shimEntries = await loadShimEntries(shimLogDir)
         const {attempts} = scoreScenario(opts.scenario.expectedCommands, shimEntries)
@@ -204,238 +200,58 @@ function currentEnvAsStrings(): Record<string, string> {
     return out
 }
 
-type HeadfulOpts = {
-    readonly prompt: string
-    readonly cwd: string
-    readonly env: Readonly<Record<string, string>>
-    readonly timeoutMs: number
-    readonly transcriptPath: string
-    readonly realVtBin: string
-    readonly parentNodeId: string | undefined
-    readonly callerTerminalId: string | undefined
-    readonly launchApp: boolean
-}
-
-type DriverShape = {
-    readonly transcriptPath: string
-    readonly telemetry: Omit<RunTelemetry, 'vtInvocationCount'>
-    readonly exitInfo: {readonly code: number | null; readonly signal: NodeJS.Signals | null}
-}
-
 /**
- * Headful invocation — spawn the inner agent INSIDE the running VoiceTree app
- * via `vt agent spawn` so the user can watch the graph populate live.
- *
- * KNOWN GAPS (this branch's `vt` CLI; surfaced honestly rather than papered over):
- *   1. No `vt vault open <path>` / `vt app launch` verb. Best we can do is
- *      `open -a Voicetree` — the app picks up its last-opened vault, not the
- *      one we just mkdtemp'd. Caller is expected to point the app at vaultDir
- *      manually (or run headless if that's untenable).
- *   2. `vt agent spawn` has no `--env` flag, so the inner agent's PATH cannot
- *      be guaranteed to include our shim dir. The runner sets PATH on its OWN
- *      env when invoking `vt agent spawn`, but whether the daemon-owned PTY
- *      inherits that depends on daemon internals — likely brittle.
- *   3. `vt agent spawn --task ... --parent <id>` requires an existing parent
- *      node id. There is no convention for "vault root id" exposed at the
- *      CLI, so the caller must supply one (`headfulParentNodeId`).
- *   4. Token-level telemetry from VT-spawned agents is not surfaced by
- *      `vt agent output` — only the last N chars of the terminal buffer.
- *      Returned telemetry has inputTokens/outputTokens/toolCallCount = 0.
- *      wallClockMs is measured by the runner.
- *
- * Headful's PRIMARY value is WATCHING, not benchmarking (per the task brief).
+ * Launch the Voicetree Electron app pointed at vaultDir, using the documented
+ * `--open-folder <path>` argv handler. Always opens a fresh instance (`-na`)
+ * so we don't fight an already-open vault: the `--open-folder` flag is read
+ * once at app startup, so reusing a running instance silently drops the
+ * argument and lands the user in their previous vault.
  */
-async function runHeadful(opts: HeadfulOpts): Promise<DriverShape> {
-    if (!opts.parentNodeId) {
-        throw new Error(
-            'runHeadful: headfulParentNodeId is required — `vt agent spawn` ' +
-                "cannot attach to a fresh vault without a parent node id. " +
-                "Pass headfulParentNodeId, or use mode='headless'.",
+async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+        const child = spawn(
+            'open',
+            ['-na', 'Voicetree', '--args', '--open-folder', vaultDir],
+            {stdio: 'ignore'},
         )
-    }
-
-    const callerTerminalId = opts.callerTerminalId ?? opts.env.VOICETREE_TERMINAL_ID
-    if (!callerTerminalId) {
-        throw new Error(
-            'runHeadful: a caller terminal id is required — `vt agent spawn` ' +
-                'attributes spawns to a caller. Pass headfulCallerTerminalId ' +
-                '(the id of any open VT terminal), or set $VOICETREE_TERMINAL_ID ' +
-                "before running, or use mode='headless'.",
-        )
-    }
-
-    if (opts.launchApp) {
-        await bestEffortLaunchApp()
-    }
-
-    const start = Date.now()
-    const spawnRes = await execCapture(
-        opts.realVtBin,
-        [
-            'agent', 'spawn',
-            '--terminal', callerTerminalId,
-            '--task', opts.prompt,
-            '--parent', opts.parentNodeId,
-        ],
-        {cwd: opts.cwd, env: opts.env, timeoutMs: 30_000},
-    )
-    if (spawnRes.exitCode !== 0) {
-        throw new Error(
-            `runHeadful: \`vt agent spawn\` exited ${spawnRes.exitCode}: ` +
-                `${spawnRes.stderr.trim() || spawnRes.stdout.trim()}`,
-        )
-    }
-    const terminalId = extractTerminalId(spawnRes.stdout)
-    if (!terminalId) {
-        throw new Error(
-            `runHeadful: could not parse terminal id from \`vt agent spawn\` ` +
-                `output: ${spawnRes.stdout}`,
-        )
-    }
-
-    await pollUntilAgentDone({
-        realVtBin: opts.realVtBin,
-        cwd: opts.cwd,
-        env: opts.env,
-        terminalId,
-        deadlineMs: start + opts.timeoutMs,
-    })
-    const wallClockMs = Date.now() - start
-
-    const outputRes = await execCapture(
-        opts.realVtBin,
-        ['agent', 'output', terminalId, '--chars', '200000'],
-        {cwd: opts.cwd, env: opts.env, timeoutMs: 30_000},
-    )
-    await fs.writeFile(opts.transcriptPath, outputRes.stdout)
-
-    return {
-        transcriptPath: opts.transcriptPath,
-        telemetry: {inputTokens: 0, outputTokens: 0, toolCallCount: 0, wallClockMs},
-        exitInfo: {code: 0, signal: null},
-    }
-}
-
-async function bestEffortLaunchApp(): Promise<void> {
-    await new Promise<void>((resolve) => {
-        const child = spawn('open', ['-a', 'Voicetree'], {stdio: 'ignore'})
-        child.on('close', () => resolve())
-        child.on('error', () => resolve())
-    })
-}
-
-/**
- * Extract the spawned agent's terminal id from `vt agent spawn` stdout. The
- * CLI prints a human-readable line containing the id; we look for the first
- * token that matches the conventional id shape and fall back to undefined if
- * none is found (the caller surfaces the raw output in the error).
- */
-function extractTerminalId(stdout: string): string | undefined {
-    const jsonMatch = stdout.match(/"terminalId"\s*:\s*"([^"]+)"/)
-    if (jsonMatch) return jsonMatch[1]
-    const labelMatch = stdout.match(/terminal(?:Id)?\s*[:=]\s*([A-Za-z0-9._-]+)/i)
-    if (labelMatch) return labelMatch[1]
-    return undefined
-}
-
-async function pollUntilAgentDone(opts: {
-    readonly realVtBin: string
-    readonly cwd: string
-    readonly env: Readonly<Record<string, string>>
-    readonly terminalId: string
-    readonly deadlineMs: number
-}): Promise<void> {
-    while (Date.now() < opts.deadlineMs) {
-        const list = await execCapture(opts.realVtBin, ['agent', 'list', '--json'], {
-            cwd: opts.cwd,
-            env: opts.env,
-            timeoutMs: 10_000,
+        child.on('error', reject)
+        child.on('exit', (code) => {
+            if (code === 0) return resolve()
+            reject(
+                new Error(
+                    'launchVoicetreeApp: `open -na Voicetree` exited ' +
+                        `${code}. Is /Applications/Voicetree.app installed?`,
+                ),
+            )
         })
-        if (agentFinishedInListJson(list.stdout, opts.terminalId)) return
-        await sleep(5_000)
-    }
-    throw new Error(`runHeadful: agent ${opts.terminalId} did not finish before timeout`)
+    })
 }
 
 /**
- * Parse `vt agent list --json` output to decide whether a given terminal has
- * finished. Treats "running"/"pending" as still-active; anything else (or
- * absent from the list) as done.
+ * Poll for the per-vault VTD's discovery file at `<vault>/.voicetree/rpc.port`.
+ * The Electron app spawns one VTD per opened vault; the daemon writes rpc.port
+ * once it's accepting connections. Appearance of that file is the canonical
+ * "daemon ready" signal — the same signal the CLI's daemon-url-binding uses
+ * to discover a running peer.
  */
-export function agentFinishedInListJson(json: string, terminalId: string): boolean {
-    let parsed: unknown
-    try {
-        parsed = JSON.parse(json)
-    } catch {
-        return false
+async function waitForDaemonReadyDefault(vaultDir: string, timeoutMs: number): Promise<void> {
+    const rpcPortPath = path.join(vaultDir, '.voicetree', 'rpc.port')
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+        try {
+            await fs.stat(rpcPortPath)
+            return
+        } catch {
+            // not yet — fallthrough to sleep
+        }
+        await sleep(500)
     }
-    const agents = extractAgentEntries(parsed)
-    if (agents.length === 0) return true
-    const match = agents.find((a) => a.terminalId === terminalId)
-    if (!match) return true
-    const status = (match.status ?? '').toLowerCase()
-    return status !== 'running' && status !== 'pending' && status !== 'active'
-}
-
-function extractAgentEntries(
-    value: unknown,
-): readonly {readonly terminalId?: string; readonly status?: string}[] {
-    if (Array.isArray(value)) {
-        return value.filter(isAgentLike)
-    }
-    if (typeof value === 'object' && value !== null) {
-        const v = value as Record<string, unknown>
-        if (Array.isArray(v.agents)) return v.agents.filter(isAgentLike)
-        if (Array.isArray(v.terminals)) return v.terminals.filter(isAgentLike)
-    }
-    return []
-}
-
-function isAgentLike(v: unknown): v is {terminalId?: string; status?: string} {
-    return typeof v === 'object' && v !== null
+    throw new Error(
+        `waitForDaemonReady: ${rpcPortPath} did not appear within ${timeoutMs}ms. ` +
+            'Is the Voicetree app installed and able to open this vault path?',
+    )
 }
 
 async function sleep(ms: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-type ExecResult = {
-    readonly stdout: string
-    readonly stderr: string
-    readonly exitCode: number | null
-}
-
-async function execCapture(
-    bin: string,
-    args: readonly string[],
-    opts: {
-        readonly cwd: string
-        readonly env: Readonly<Record<string, string>>
-        readonly timeoutMs: number
-    },
-): Promise<ExecResult> {
-    return new Promise((resolve, reject) => {
-        const child = spawn(bin, [...args], {
-            cwd: opts.cwd,
-            env: opts.env as NodeJS.ProcessEnv,
-            stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        const stdoutChunks: Buffer[] = []
-        const stderrChunks: Buffer[] = []
-        child.stdout.on('data', (c) => stdoutChunks.push(c))
-        child.stderr.on('data', (c) => stderrChunks.push(c))
-        const timer = setTimeout(() => child.kill('SIGKILL'), opts.timeoutMs)
-        child.on('error', (err) => {
-            clearTimeout(timer)
-            reject(err)
-        })
-        child.on('close', (code) => {
-            clearTimeout(timer)
-            resolve({
-                stdout: Buffer.concat(stdoutChunks).toString('utf8'),
-                stderr: Buffer.concat(stderrChunks).toString('utf8'),
-                exitCode: code,
-            })
-        })
-    })
 }

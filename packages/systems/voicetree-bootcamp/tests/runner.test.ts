@@ -14,7 +14,6 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {runScenario} from '../src/runner.ts'
-import {agentFinishedInListJson} from '../src/runner.ts'
 import type {HarnessDriver, ScenarioSpec, ShimLogEntry} from '../src/types.ts'
 
 const FIXED_WALL_MS = 12_345
@@ -327,57 +326,91 @@ describe('runScenario — headful', () => {
         await fs.rm(workspaceRoot, {recursive: true, force: true})
     })
 
-    it("errors clearly when mode='headful' is used without headfulParentNodeId", async () => {
-        // The driver in headful mode is unused but still required by the
-        // shape — pass a stub that will throw if it ever gets called.
-        const stubDriver: HarnessDriver = {
-            name: 'claude',
-            models: ['fake'],
-            runScenario: async () => {
-                throw new Error('driver should not be invoked in headful mode')
-            },
+    it('launches the VT app + waits for the daemon before invoking the driver', async () => {
+        const driverEntries: readonly Partial<ShimLogEntry>[] = [
+            {argv: ['graph', 'create', '-f', 'note.md']},
+        ]
+        const driver = makeFakeDriver({
+            entries: driverEntries,
+            telemetry: {inputTokens: 1, outputTokens: 1, toolCallCount: 1},
+        })
+
+        const callSequence: string[] = []
+        const launchVoicetreeApp = async (vault: string): Promise<void> => {
+            callSequence.push(`launch:${vault}`)
         }
+        const waitForDaemonReady = async (vault: string, timeoutMs: number): Promise<void> => {
+            callSequence.push(`wait:${vault}:${timeoutMs}`)
+        }
+
+        const result = await runScenario({
+            scenario: makeScenario(),
+            driver,
+            model: 'fake',
+            effort: 'low',
+            mode: 'headful',
+            workspaceRoot,
+            headfulDaemonReadyTimeoutMs: 5_000,
+            launchVoicetreeApp,
+            waitForDaemonReady,
+        })
+
+        const expectedVault = path.join(workspaceRoot, 'vault')
+        expect(callSequence).toEqual([
+            `launch:${expectedVault}`,
+            `wait:${expectedVault}:5000`,
+        ])
+        // Driver was actually invoked (headful uses the same driver path as headless).
+        expect(result.telemetry.vtInvocationCount).toBe(1)
+    })
+
+    it('skips launchApp + waitDaemon entirely in headless mode', async () => {
+        const driver = makeFakeDriver({
+            entries: [{argv: ['graph', 'create', '-f', 'a.md']}],
+            telemetry: {inputTokens: 0, outputTokens: 0, toolCallCount: 0},
+        })
+
+        let launchCalls = 0
+        let waitCalls = 0
+        await runScenario({
+            scenario: makeScenario(),
+            driver,
+            model: 'fake',
+            effort: 'low',
+            // mode omitted → defaults to 'headless'
+            workspaceRoot,
+            launchVoicetreeApp: async () => {
+                launchCalls++
+            },
+            waitForDaemonReady: async () => {
+                waitCalls++
+            },
+        })
+
+        expect(launchCalls).toBe(0)
+        expect(waitCalls).toBe(0)
+    })
+
+    it('propagates a waitForDaemonReady failure as a runScenario error', async () => {
+        const driver = makeFakeDriver({
+            entries: [],
+            telemetry: {inputTokens: 0, outputTokens: 0, toolCallCount: 0},
+        })
         await expect(
             runScenario({
                 scenario: makeScenario(),
-                driver: stubDriver,
+                driver,
                 model: 'fake',
                 effort: 'low',
                 mode: 'headful',
                 workspaceRoot,
+                launchVoicetreeApp: async () => {
+                    // succeeds
+                },
+                waitForDaemonReady: async () => {
+                    throw new Error('rpc.port did not appear within Xms')
+                },
             }),
-        ).rejects.toThrow(/headfulParentNodeId is required/)
-    })
-})
-
-describe('agentFinishedInListJson', () => {
-    it('treats "running" as not finished', () => {
-        const json = JSON.stringify({
-            agents: [{terminalId: 'T1', status: 'running'}],
-        })
-        expect(agentFinishedInListJson(json, 'T1')).toBe(false)
-    })
-
-    it('treats "completed" as finished', () => {
-        const json = JSON.stringify({
-            agents: [{terminalId: 'T1', status: 'completed'}],
-        })
-        expect(agentFinishedInListJson(json, 'T1')).toBe(true)
-    })
-
-    it('treats agent absent from the list as finished', () => {
-        const json = JSON.stringify({
-            agents: [{terminalId: 'OTHER', status: 'running'}],
-        })
-        expect(agentFinishedInListJson(json, 'T1')).toBe(true)
-    })
-
-    it('returns false on malformed JSON (so we keep polling rather than declare done)', () => {
-        expect(agentFinishedInListJson('not json', 'T1')).toBe(false)
-    })
-
-    it('accepts top-level array shape too', () => {
-        const json = JSON.stringify([{terminalId: 'T1', status: 'running'}])
-        expect(agentFinishedInListJson(json, 'T1')).toBe(false)
+        ).rejects.toThrow(/rpc\.port did not appear/)
     })
 })

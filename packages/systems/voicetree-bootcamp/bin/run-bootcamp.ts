@@ -31,22 +31,19 @@ Options:
   --model <name>            Model to test (e.g. opus, sonnet, haiku, codex-1). Required.
   --effort <low|med|high>   Effort level. Default: medium.
   --mode <headless|headful> Run mode. Default: headless.
+                            Headful launches VoiceTree pointing at the vault and
+                            waits for the per-vault daemon before running the agent,
+                            so you can watch the graph populate live.
   --reps <N>                Number of repetitions. Default: 1.
+  --workspace-root <path>   Stable workspace dir (vault is created at <path>/vault).
+                            Optional — defaults to a fresh mkdtemp dir. Useful in
+                            headful mode if you want a deterministic path to revisit.
+  --headful-daemon-timeout-ms <N>
+                            How long to wait for VoiceTree's per-vault daemon to
+                            come up (rpc.port appears) before failing. Default: 60000.
   --json                    Emit raw CellResult[] as JSON (for piping).
   --dry-run                 Print resolved plan as JSON and exit without invoking the runner.
   --help, -h                Show this help.
-
-Headful-only options (required when --mode headful):
-  --headful-parent <id>     VT node id to spawn the inner bootcamp agent under.
-                            Find one in your open VT graph (e.g. an existing task node).
-  --workspace-root <path>   Fixed workspace dir. Vault is created at <path>/vault.
-                            REQUIRED for headful so you can point VT at the vault before the run.
-  --headful-caller-terminal <id>
-                            VT terminal id to attribute the spawn to (\`vt agent spawn --terminal\`).
-                            Required unless \$VOICETREE_TERMINAL_ID is set in the environment.
-                            Find one via \`vt agent list --json\` inside the vault, or
-                            \`echo \$VOICETREE_TERMINAL_ID\` from any open VT terminal.
-  --launch-app              Best-effort \`open -a Voicetree\` before spawning the inner agent.
 `
 
 const DRIVERS: readonly HarnessDriver[] = [claudeCodeDriver, codexDriver]
@@ -62,10 +59,8 @@ type Config = {
     readonly reps: number
     readonly json: boolean
     readonly dryRun: boolean
-    readonly headfulParentNodeId: string | undefined
     readonly workspaceRoot: string | undefined
-    readonly headfulCallerTerminalId: string | undefined
-    readonly launchApp: boolean
+    readonly headfulDaemonReadyTimeoutMs: number | undefined
 }
 
 function die(msg: string, exitCode = 2): never {
@@ -86,6 +81,12 @@ function parseMode(s: string): Mode {
 function parseReps(s: string): number {
     const n = Number(s)
     if (!Number.isInteger(n) || n < 1) die(`--reps must be a positive integer (got: ${s})`)
+    return n
+}
+
+function parsePositiveInt(flag: string, s: string): number {
+    const n = Number(s)
+    if (!Number.isInteger(n) || n < 1) die(`${flag} must be a positive integer (got: ${s})`)
     return n
 }
 
@@ -121,10 +122,8 @@ function parseConfig(argv: readonly string[]): Config {
                 json: {type: 'boolean'},
                 'dry-run': {type: 'boolean'},
                 help: {type: 'boolean', short: 'h'},
-                'headful-parent': {type: 'string'},
                 'workspace-root': {type: 'string'},
-                'headful-caller-terminal': {type: 'string'},
-                'launch-app': {type: 'boolean'},
+                'headful-daemon-timeout-ms': {type: 'string'},
             },
         })
     } catch (err) {
@@ -158,34 +157,16 @@ function parseConfig(argv: readonly string[]): Config {
         ? parseReps(parsed.values.reps)
         : 1
 
-    const headfulParentNodeId = typeof parsed.values['headful-parent'] === 'string'
-        ? parsed.values['headful-parent']
-        : undefined
     const workspaceRoot = typeof parsed.values['workspace-root'] === 'string'
         ? parsed.values['workspace-root']
         : undefined
-    const headfulCallerTerminalId = typeof parsed.values['headful-caller-terminal'] === 'string'
-        ? parsed.values['headful-caller-terminal']
-        : undefined
-    const launchApp = parsed.values['launch-app'] === true
-
-    if (mode === 'headful' && !headfulParentNodeId) {
-        die('--headful-parent <id> is required when --mode headful')
-    }
-    if (mode === 'headful' && !workspaceRoot) {
-        die('--workspace-root <path> is required when --mode headful (so you can point VoiceTree at it before the run)')
-    }
-    if (
-        mode === 'headful'
-        && !headfulCallerTerminalId
-        && typeof process.env.VOICETREE_TERMINAL_ID !== 'string'
-    ) {
-        die(
-            '--headful-caller-terminal <id> is required when --mode headful ' +
-                '(unless $VOICETREE_TERMINAL_ID is set in the environment). ' +
-                '`vt agent spawn` needs a caller terminal id to attribute the spawn to.',
-        )
-    }
+    const headfulDaemonReadyTimeoutMs =
+        typeof parsed.values['headful-daemon-timeout-ms'] === 'string'
+            ? parsePositiveInt(
+                  '--headful-daemon-timeout-ms',
+                  parsed.values['headful-daemon-timeout-ms'],
+              )
+            : undefined
 
     return {
         scenario,
@@ -196,10 +177,8 @@ function parseConfig(argv: readonly string[]): Config {
         reps,
         json: parsed.values.json === true,
         dryRun: parsed.values['dry-run'] === true,
-        headfulParentNodeId,
         workspaceRoot,
-        headfulCallerTerminalId,
-        launchApp,
+        headfulDaemonReadyTimeoutMs,
     }
 }
 
@@ -213,10 +192,8 @@ function dryRunPlan(cfg: Config): string {
         mode: cfg.mode,
         reps: cfg.reps,
         json: cfg.json,
-        headfulParentNodeId: cfg.headfulParentNodeId,
         workspaceRoot: cfg.workspaceRoot,
-        headfulCallerTerminalId: cfg.headfulCallerTerminalId,
-        launchApp: cfg.launchApp,
+        headfulDaemonReadyTimeoutMs: cfg.headfulDaemonReadyTimeoutMs,
     }
     return JSON.stringify(plan, null, 2)
 }
@@ -243,10 +220,8 @@ async function main(): Promise<void> {
             effort: cfg.effort,
             mode: cfg.mode,
             rep,
-            headfulParentNodeId: cfg.headfulParentNodeId,
             workspaceRoot: cfg.workspaceRoot,
-            headfulCallerTerminalId: cfg.headfulCallerTerminalId,
-            launchApp: cfg.launchApp,
+            headfulDaemonReadyTimeoutMs: cfg.headfulDaemonReadyTimeoutMs,
         })
         results.push(result)
     }
