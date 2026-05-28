@@ -134,7 +134,13 @@ function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd()} = {}) {
 }
 
 function runLocal(cmd, args) {
-  const child = spawn(cmd, args, {stdio: 'inherit'})
+  const child = spawn(cmd, args, {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      [RECURSION_GUARD]: '1',
+    },
+  })
   child.on('exit', (code, signal) => {
     if (signal) process.kill(process.pid, signal)
     else process.exit(code ?? 1)
