@@ -174,7 +174,7 @@ function createTestNode(
         nodeUIMetadata: {
             color: O.none,
             position: position ? O.some(position) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode
         }
     }
