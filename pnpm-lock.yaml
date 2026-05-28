@@ -487,9 +487,6 @@ importers:
       '@types/normalize-path':
         specifier: ^3.0.2
         version: 3.0.2
-      '@vt/graph-db-client':
-        specifier: '*'
-        version: link:../graph-db-client
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
