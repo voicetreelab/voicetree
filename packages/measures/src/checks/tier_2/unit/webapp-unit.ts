@@ -8,4 +8,8 @@ export const check: CheckDef = {
     display: 'npm --workspace webapp exec -- vitest run',
     args: (jsonOut) => checkArgs.npmWorkspaceExec('webapp', 'vitest', 'run', ...checkArgs.vitestJsonArgs(jsonOut)),
     parser: 'vitest',
+    // The webapp suite contains tmux-backed fake-agent and daemon/CLI tests.
+    // Running it inside the tier-1 parallel pool contends with other tmux-heavy
+    // checks and causes real agent panes to time out under load.
+    exclusive: true,
 }
