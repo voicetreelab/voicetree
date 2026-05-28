@@ -487,6 +487,9 @@ importers:
       '@types/normalize-path':
         specifier: ^3.0.2
         version: 3.0.2
+      '@vt/graph-db-client':
+        specifier: '*'
+        version: link:../graph-db-client
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
@@ -602,6 +605,9 @@ importers:
       '@vt/graph-db-protocol':
         specifier: '*'
         version: link:../../libraries/graph-db-protocol
+      '@vt/graph-db-server':
+        specifier: '*'
+        version: link:../graph-db-server
       '@vt/graph-model':
         specifier: '*'
         version: link:../../libraries/graph-model

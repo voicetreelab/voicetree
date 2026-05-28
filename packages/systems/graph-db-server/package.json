@@ -69,6 +69,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/normalize-path": "^3.0.2",
+    "@vt/graph-db-client": "*",
     "esbuild": "^0.25.0",
     "tsx": "^4.19.2",
     "typescript": "~5.8.3",

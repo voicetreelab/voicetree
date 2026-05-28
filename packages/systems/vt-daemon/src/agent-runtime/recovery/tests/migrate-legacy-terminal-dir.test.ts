@@ -4,7 +4,7 @@ import {join} from 'node:path'
 
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
-import {migrateLegacyTerminalDir} from '../persistence/migrate-legacy-terminal-dir'
+import {migrateLegacyTerminalDir} from '../migrate-legacy-terminal-dir'
 import {getRecoveryMetadataDir} from '../paths'
 
 function makeFixtureRoot(): string {

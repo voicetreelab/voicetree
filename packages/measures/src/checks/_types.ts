@@ -44,6 +44,9 @@ const npmWorkspaceExec = (ws: string, ...args: string[]): string[] =>
 const vitestJsonArgs = (jsonOut: string | null): string[] =>
     jsonOut === null ? ['--reporter=json'] : ['--reporter=json', `--outputFile=${jsonOut}`]
 
+const fuzzVitestArgs = (jsonOut: string | null, file: string): string[] =>
+    npmExec('vitest', 'run', '--config', 'vitest.config.fuzz.ts', file, ...vitestJsonArgs(jsonOut))
+
 const playwrightJsonArgs = (): string[] => ['--reporter=json']
 
 export const checkArgs = {
@@ -55,5 +58,6 @@ export const checkArgs = {
     npmWorkspaceRun,
     npmWorkspaceExec,
     vitestJsonArgs,
+    fuzzVitestArgs,
     playwrightJsonArgs,
 } as const
