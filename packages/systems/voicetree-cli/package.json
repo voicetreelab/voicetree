@@ -42,6 +42,7 @@
     "@vt/graph-tools": "*",
     "@vt/graph-validation": "*",
     "@vt/vt-daemon-client": "*",
+    "@vt/vt-daemon-protocol": "*",
     "@vt/vt-rpc": "*",
     "esbuild": "^0.25.0",
     "fp-ts": "^2.16.9",
