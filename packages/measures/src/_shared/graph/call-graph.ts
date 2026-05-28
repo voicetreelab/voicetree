@@ -1,9 +1,9 @@
 import { dirname, relative, resolve } from 'node:path'
+import { readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import {
     Node,
     SyntaxKind,
-    ts,
     type FunctionDeclaration,
     type MethodDeclaration,
     type Node as MorphNode,
@@ -22,8 +22,6 @@ export type FunctionNode = {
     readonly isExported: boolean
     readonly loc: number
     readonly folderAncestors: readonly string[]
-    readonly __compilerNode: ts.Node
-    readonly __sourceFile: SourceFile
 }
 
 export type CallGraph = {
@@ -76,29 +74,55 @@ function createCallGraphFromSourceFiles(
 
 async function buildRepoCallGraph(repoRoot: string, packages?: readonly PackageInfo[]): Promise<CallGraph> {
     const project = createRepoTsMorphProject(repoRoot, packages ?? await discoverPackages(repoRoot))
-    const sourceFiles = project.addSourceFilesAtPaths([
-        `${repoRoot}/packages/libraries/**/*.{ts,tsx}`,
-        `${repoRoot}/packages/systems/**/*.{ts,tsx}`,
-        `${repoRoot}/webapp/src/**/*.{ts,tsx}`,
-        `!${repoRoot}/**/*.test.ts`,
-        `!${repoRoot}/**/*.test.tsx`,
-        `!${repoRoot}/**/*.spec.ts`,
-        `!${repoRoot}/**/*.spec.tsx`,
-        `!${repoRoot}/**/*.d.ts`,
-        `!${repoRoot}/**/__tests__/**`,
-        `!${repoRoot}/**/tests/**`,
-        `!${repoRoot}/**/__generated__/**`,
-        `!${repoRoot}/**/integration-tests/**`,
-        `!${repoRoot}/**/node_modules/**`,
-        `!${repoRoot}/**/dist/**`,
-        `!${repoRoot}/**/build/**`,
-        `!${repoRoot}/**/*.config.ts`,
-    ]).filter(sourceFile => isProductionSourcePath(sourceFile.getFilePath()))
+    const sourcePaths = await discoverProductionSourcePaths(repoRoot)
+    const sourceFiles = project.addSourceFilesAtPaths(sourcePaths)
     if (sourceFiles.length === 0) {
         throw new Error('buildCallGraph found 0 production source files; check for concurrent package moves before changing globs')
     }
     return createCallGraphFromSourceFiles(sourceFiles, repoRoot)
 }
+
+async function discoverProductionSourcePaths(repoRoot: string): Promise<string[]> {
+    const roots = [
+        resolve(repoRoot, 'packages', 'libraries'),
+        resolve(repoRoot, 'packages', 'systems'),
+        resolve(repoRoot, 'webapp', 'src'),
+    ]
+    const nested = await Promise.all(roots.map(root => walkSourcePaths(root)))
+    return nested.flat().filter(isProductionSourcePath).sort()
+}
+
+async function walkSourcePaths(dir: string): Promise<string[]> {
+    let entries: Awaited<ReturnType<typeof readdir>>
+    try {
+        entries = await readdir(dir, {withFileTypes: true})
+    } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+        throw err
+    }
+    const nested = await Promise.all(entries.map(async entry => {
+        const path = resolve(dir, entry.name)
+        if (entry.isDirectory()) {
+            if (IGNORED_SOURCE_DIR_NAMES.has(entry.name)) return []
+            return walkSourcePaths(path)
+        }
+        if (!entry.isFile() || (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx'))) return []
+        return [path]
+    }))
+    return nested.flat()
+}
+
+const IGNORED_SOURCE_DIR_NAMES: ReadonlySet<string> = new Set([
+    'node_modules',
+    'dist',
+    'build',
+    '__tests__',
+    '__generated__',
+    'integration-tests',
+    'tests',
+    'scripts',
+    'bin',
+])
 
 function collectFunctionNodes(
     sourceFiles: readonly SourceFile[],
@@ -149,26 +173,14 @@ function assembleGraph(
     calleeIdsByFnId: ReadonlyMap<string, ReadonlySet<string>>,
     callerIdsByFnId: ReadonlyMap<string, ReadonlySet<string>>,
 ): CallGraph {
-    const reachableMemo = new Map<string, ReadonlySet<string>>()
     const graph: CallGraph = {
         nodes,
         sourceFiles,
         callees: (fnId: string): ReadonlySet<string> => calleeIdsByFnId.get(fnId) ?? new Set<string>(),
         callers: (fnId: string): ReadonlySet<string> => callerIdsByFnId.get(fnId) ?? new Set<string>(),
-        reachableFrom: (fnId: string): ReadonlySet<string> => {
-            const cached = reachableMemo.get(fnId)
-            if (cached) return cached
-            const reachable = collectReachable(fnId, calleeIdsByFnId)
-            reachable.delete(fnId)
-            reachableMemo.set(fnId, reachable)
-            return reachable
-        },
+        reachableFrom: (fnId: string): ReadonlySet<string> => collectReachable(fnId, calleeIdsByFnId),
         reachesAny: (fnId: string, predicate: (n: FunctionNode) => boolean): boolean => {
-            for (const reachableId of graph.reachableFrom(fnId)) {
-                const node = nodes.get(reachableId)
-                if (node && predicate(node)) return true
-            }
-            return false
+            return reachesAny(fnId, calleeIdsByFnId, nodes, predicate)
         },
         nodesInFolder: (folder: string): readonly FunctionNode[] => {
             const normalizedFolder = normalizePath(folder).replace(/\/$/, '')
@@ -276,8 +288,6 @@ function createFunctionNode(
         isExported,
         loc: node.getEndLineNumber() - node.getStartLineNumber() + 1,
         folderAncestors: folderAncestors(file),
-        __compilerNode: node.compilerNode,
-        __sourceFile: sourceFile,
     }
 }
 
@@ -340,7 +350,27 @@ function collectReachable(fnId: string, calleeIdsByFnId: ReadonlyMap<string, Rea
         }
     }
     visit(fnId)
+    visited.delete(fnId)
     return visited
+}
+
+function reachesAny(
+    fnId: string,
+    calleeIdsByFnId: ReadonlyMap<string, ReadonlySet<string>>,
+    nodes: ReadonlyMap<string, FunctionNode>,
+    predicate: (n: FunctionNode) => boolean,
+): boolean {
+    const visited = new Set<string>()
+    const stack = [...(calleeIdsByFnId.get(fnId) ?? [])]
+    while (stack.length > 0) {
+        const current = stack.pop()
+        if (!current || current === fnId || visited.has(current)) continue
+        visited.add(current)
+        const node = nodes.get(current)
+        if (node && predicate(node)) return true
+        for (const callee of calleeIdsByFnId.get(current) ?? []) stack.push(callee)
+    }
+    return false
 }
 
 function normalizePath(path: string): string {

@@ -4,13 +4,11 @@ export const check = {
     category: 'Unit',
     display: 'pnpm --filter @vt/measures run test',
     args: (jsonOut: string | null) => [
-        'pnpm',
-        '--filter',
-        '@vt/measures',
-        'run',
-        'test',
-        '--',
-        ...(jsonOut === null ? ['--reporter=json'] : ['--reporter=json', `--outputFile=${jsonOut}`]),
+        'node',
+        '--no-warnings=ExperimentalWarning',
+        '--experimental-strip-types',
+        'packages/measures/src/_runners/run-systems-health.ts',
+        ...(jsonOut === null ? [] : [`--outputFile=${jsonOut}`]),
     ],
     parser: 'vitest',
 } as const
