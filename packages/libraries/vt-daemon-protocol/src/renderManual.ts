@@ -20,6 +20,7 @@
  */
 
 import type {ToolSpec, ToolInputSpec, ToolTier} from './tool-spec-types'
+import {TOOL_SPECS} from './tool-specs'
 
 export type RenderTier = 'essentials' | 'all'
 
@@ -78,6 +79,20 @@ export function renderManual(
         renderTierBlock(specs, 'reference'),
     ]
     return body.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
+}
+
+/**
+ * No-argument convenience for callers that render the canonical
+ * `TOOL_SPECS` set (the common case — spawn-time injection, webapp
+ * vault-bootstrap, default `vt manual` output). Exists so sibling
+ * packages don't need to import `TOOL_SPECS` as a separate symbol
+ * alongside the renderer.
+ *
+ * Tests that need a different spec set call `renderManual(specs, opts)`
+ * directly; the no-arg form deliberately doesn't expose injection.
+ */
+export function renderFullManual(opts: RenderManualOptions = {}): string {
+    return renderManual(TOOL_SPECS, opts)
 }
 
 /**

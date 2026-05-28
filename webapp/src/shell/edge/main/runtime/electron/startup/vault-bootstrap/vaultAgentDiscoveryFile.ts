@@ -18,14 +18,14 @@
  *     OpenCode) pick it up on session start.
  *
  * The manual content is rendered live from `@vt/vt-daemon-protocol`'s
- * `TOOL_SPECS` — no on-disk manual file, no filesystem read. Whatever
- * the canonical spec data says becomes the contents written into
+ * canonical spec data — no on-disk manual file, no filesystem read.
+ * Whatever the protocol package says becomes the contents written into
  * CLAUDE.md / AGENTS.md the next time the vault is opened.
  */
 
 import {promises as fs} from 'fs'
 import path from 'path'
-import {renderManual, TOOL_SPECS} from '@vt/vt-daemon-protocol'
+import {renderFullManual} from '@vt/vt-daemon-protocol'
 
 const SECTION_START: string = '<!-- VOICETREE_AGENT_DISCOVERY_START -->'
 const SECTION_END: string = '<!-- VOICETREE_AGENT_DISCOVERY_END -->'
@@ -86,16 +86,17 @@ async function readFileOrNull(filePath: string): Promise<string | null> {
  *     section as its body (creating the `.voicetree/` directory if
  *     needed).
  *
- * The manual content is rendered from `TOOL_SPECS`; pass `specs` to
- * inject a different (e.g. test) spec set. Errors writing the target
- * file are swallowed — vault open must not depend on this side effect
- * succeeding.
+ * The manual content defaults to `renderFullManual()` (the canonical
+ * `TOOL_SPECS` rendered live). Tests pass a literal string to exercise
+ * splice / idempotency behavior without depending on the canonical
+ * payload. Errors writing the target file are swallowed — vault open
+ * must not depend on this side effect succeeding.
  */
 export async function writeVaultAgentDiscoveryFile(
     vaultDir: string,
-    specs: typeof TOOL_SPECS = TOOL_SPECS,
+    manualBody: string = renderFullManual(),
 ): Promise<void> {
-    const manualContent: string = renderManual(specs).trimEnd()
+    const manualContent: string = manualBody.trimEnd()
     if (manualContent.length === 0) return
 
     const claudeMdPath: string = path.join(vaultDir, 'CLAUDE.md')

@@ -7,41 +7,22 @@
  * find out about the `vt` CLI. Tests use a real temp directory and
  * assert on file contents; no internal mocks.
  *
- * The manual content is rendered from a tiny synthetic spec set so the
- * assertions stay focused on splice / idempotency behavior rather than
- * coupling to the canonical TOOL_SPECS payload.
+ * Tests pass a literal manual-body string so assertions stay focused
+ * on splice / idempotency behavior rather than coupling to the
+ * canonical TOOL_SPECS payload. The end-to-end render is verified in
+ * `@vt/vt-daemon-protocol/renderManual.test.ts`.
  */
 
 import {promises as fs} from 'fs'
 import os from 'os'
 import path from 'path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import type {ToolSpec} from '@vt/vt-daemon-protocol'
 import {
     spliceVoicetreeDiscoverySection,
     writeVaultAgentDiscoveryFile,
 } from './vaultAgentDiscoveryFile'
 
 const MANUAL_BODY: string = '# vt CLI Manual\n\nAvailable verbs: `vt agent spawn`, `vt graph create`.\n'
-
-const FIXTURE_SPECS: readonly [ToolSpec, ToolSpec] = [
-    {
-        rpcName: 'spawn_thing',
-        cliVerb: 'vt agent spawn',
-        tier: 'essentials',
-        summary: 'Spawn an agent.',
-        description: 'Spawn an agent.',
-        inputs: [],
-    },
-    {
-        rpcName: 'create_graph_thing',
-        cliVerb: 'vt graph create',
-        tier: 'essentials',
-        summary: 'Create a node.',
-        description: 'Create a node.',
-        inputs: [],
-    },
-]
 
 let vaultDir: string
 
@@ -90,7 +71,7 @@ describe('writeVaultAgentDiscoveryFile — CLAUDE.md exists', () => {
         const claudeMdPath: string = path.join(vaultDir, 'CLAUDE.md')
         await fs.writeFile(claudeMdPath, '# My CLAUDE.md\n\nProject notes.\n', 'utf-8')
 
-        await writeVaultAgentDiscoveryFile(vaultDir, FIXTURE_SPECS)
+        await writeVaultAgentDiscoveryFile(vaultDir, MANUAL_BODY)
 
         const result: string = await fs.readFile(claudeMdPath, 'utf-8')
         expect(result).toMatch(/^# My CLAUDE\.md/)
@@ -104,8 +85,8 @@ describe('writeVaultAgentDiscoveryFile — CLAUDE.md exists', () => {
         const claudeMdPath: string = path.join(vaultDir, 'CLAUDE.md')
         await fs.writeFile(claudeMdPath, '# header\n', 'utf-8')
 
-        await writeVaultAgentDiscoveryFile(vaultDir, FIXTURE_SPECS)
-        await writeVaultAgentDiscoveryFile(vaultDir, FIXTURE_SPECS)
+        await writeVaultAgentDiscoveryFile(vaultDir, MANUAL_BODY)
+        await writeVaultAgentDiscoveryFile(vaultDir, MANUAL_BODY)
 
         const result: string = await fs.readFile(claudeMdPath, 'utf-8')
         const matches: number = (result.match(/VOICETREE_AGENT_DISCOVERY_START/g) ?? []).length
@@ -116,7 +97,7 @@ describe('writeVaultAgentDiscoveryFile — CLAUDE.md exists', () => {
         const claudeMdPath: string = path.join(vaultDir, 'CLAUDE.md')
         await fs.writeFile(claudeMdPath, '# header\n', 'utf-8')
 
-        await writeVaultAgentDiscoveryFile(vaultDir, FIXTURE_SPECS)
+        await writeVaultAgentDiscoveryFile(vaultDir, MANUAL_BODY)
 
         const agentsExists: boolean = await fs.stat(path.join(vaultDir, '.voicetree', 'AGENTS.md'))
             .then(() => true, () => false)
@@ -126,7 +107,7 @@ describe('writeVaultAgentDiscoveryFile — CLAUDE.md exists', () => {
 
 describe('writeVaultAgentDiscoveryFile — no CLAUDE.md', () => {
     it('creates .voicetree/AGENTS.md with the discovery section', async () => {
-        await writeVaultAgentDiscoveryFile(vaultDir, FIXTURE_SPECS)
+        await writeVaultAgentDiscoveryFile(vaultDir, MANUAL_BODY)
 
         const agentsMdPath: string = path.join(vaultDir, '.voicetree', 'AGENTS.md')
         const result: string = await fs.readFile(agentsMdPath, 'utf-8')
@@ -136,7 +117,7 @@ describe('writeVaultAgentDiscoveryFile — no CLAUDE.md', () => {
     })
 
     it('does not touch CLAUDE.md if it does not exist', async () => {
-        await writeVaultAgentDiscoveryFile(vaultDir, FIXTURE_SPECS)
+        await writeVaultAgentDiscoveryFile(vaultDir, MANUAL_BODY)
 
         const claudeExists: boolean = await fs.stat(path.join(vaultDir, 'CLAUDE.md'))
             .then(() => true, () => false)
