@@ -19,11 +19,10 @@ import {
 } from './terminalActivityPolling';
 import { syncFromMain, clearTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import { resetAgentTabsStore } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
-import { createTerminalData } from '@vt/agent-runtime';
-import type { TerminalRecord } from '@vt/agent-runtime';
+import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import type { TerminalLifecycle, TerminalRecord } from '@vt/vt-daemon-client';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
-import type { TerminalLifecycle } from '@vt/agent-runtime';
 
 interface TestHarness {
     isDoneCalls: ReadonlyArray<{ readonly id: string; readonly isDone: boolean }>;

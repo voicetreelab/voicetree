@@ -1,0 +1,20 @@
+{
+  "name": "@vt/graph-validation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Soft, overridable validation rules shared between the create_graph daemon tool and the CLI --override parser. Pure functions and types — no runtime dependencies on hosts.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

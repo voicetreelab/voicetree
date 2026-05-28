@@ -30,6 +30,7 @@ interface ExtendedWindow {
       } | undefined>;
       getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+      openVault: (projectRoot: string) => Promise<{ writeFolder: string }>;
     };
   };
 }
@@ -78,7 +79,7 @@ const test = base.extend<{
   }, { timeout: 45000 }],
 
   electronApp: [async ({ tempVaultPath }, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-fs-semantics-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-fssem-userdata-'));
     const tempProjectPath = path.dirname(tempVaultPath);
     const tempProjectName = path.basename(tempProjectPath);
 
@@ -134,7 +135,6 @@ const test = base.extend<{
 
   appWindow: [async ({ electronApp, tempVaultPath }, use) => {
     const page = await electronApp.firstWindow();
-    const tempProjectName = path.basename(path.dirname(tempVaultPath));
     const tempProjectPath = path.dirname(tempVaultPath);
     page.on('console', (msg) => {
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
@@ -144,16 +144,13 @@ const test = base.extend<{
     });
 
     await page.waitForLoadState('domcontentloaded');
-    // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
-    // before the project selection screen is visible. Detect auto-load first.
-    try {
-      await pollForCytoscape(page, 3000);
-    } catch {
-      await page.waitForSelector('text=Recent Projects', { timeout: 10000 });
-      const projectButton = page.locator('button', { hasText: tempProjectName }).first();
-      await projectButton.waitFor({ timeout: 10000 });
-      await projectButton.click();
-    }
+    const openResult = await page.evaluate(async (dir) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const response = await api.main.openVault(dir);
+      return { writeFolder: response.writeFolder };
+    }, tempProjectPath);
+    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
     await pollForCytoscape(page, 15000);
     await expect.poll(async () => {
       return page.evaluate(({ sourceFilePath, targetFilePath, projectRoot }) => {

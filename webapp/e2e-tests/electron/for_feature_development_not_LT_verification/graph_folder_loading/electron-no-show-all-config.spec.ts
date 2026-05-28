@@ -35,7 +35,7 @@ const test = base.extend<{
   },
 
   electronApp: async ({ testDir }, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-no-show-all-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-noshowall-userdata-'));
 
     // Write config WITHOUT showAllPaths field
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');

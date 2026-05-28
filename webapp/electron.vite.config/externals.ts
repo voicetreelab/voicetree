@@ -18,7 +18,7 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'fsevents',
   'bufferutil',
   'utf-8-validate',
-  // Express + middleware tree. Reachable from main.ts via @vt/voicetree-mcp +
+  // Express + middleware tree. Reachable from main.ts via @vt/vt-daemon +
   // @vt/graph-tools/node, both of which are in webapp devDependencies (not
   // dependencies), so electron-vite's externalizeDepsPlugin doesn't externalize
   // them and pulls express inline. Express is Node-only; main runs in Node so
@@ -64,7 +64,7 @@ export const externalNativePlugin = {
   }
 }
 
-// Express + middleware tree is reachable from main.ts via @vt/voicetree-mcp +
+// Express + middleware tree is reachable from main.ts via @vt/vt-daemon +
 // @vt/graph-tools/node. Both are in webapp devDependencies (not deps), so
 // electron-vite's externalizeDepsPlugin doesn't externalize them and pulls
 // express inline. Marking via rollupOptions.external is too late — @rollup/plugin-commonjs

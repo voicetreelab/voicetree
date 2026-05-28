@@ -49,7 +49,7 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   electronApp: [async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-table-rendering-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-table-userdata-'));
     const watchedFolder = path.join(tempUserDataPath, 'table-rendering-project');
     const projectRoot = path.join(watchedFolder, 'voicetree');
 

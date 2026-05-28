@@ -118,10 +118,22 @@ describe('resolveDaemonRuntimeCommand', () => {
 })
 
 describe('resolveDefaultDaemonArgs', () => {
-  test('uses the bundled daemon when the built entrypoint exists', () => {
+  test('prefers the sibling-bundle daemon when one is present (published-tarball layout)', () => {
+    const sibling = '/install/lib/node_modules/@voicetree/cli/dist/vt-graphd.mjs'
+    const args = resolveDefaultDaemonArgs('/tmp/vault', {
+      exists: (path) => path === sibling,
+      resolveTsx: () => '/tmp/tsx',
+      siblingDaemonPath: () => sibling,
+    })
+
+    expect(args).toEqual([sibling, '--project-root', '/tmp/vault'])
+  })
+
+  test('falls back to the @vt/graph-db-server dist build when no sibling daemon ships alongside', () => {
     const args = resolveDefaultDaemonArgs('/tmp/vault', {
       exists: (path) => path.endsWith('/dist/vt-graphd.mjs'),
       resolveTsx: () => '/tmp/tsx',
+      siblingDaemonPath: () => undefined,
     })
 
     expect(args).toEqual([
@@ -131,10 +143,11 @@ describe('resolveDefaultDaemonArgs', () => {
     ])
   })
 
-  test('uses the source daemon through tsx in a clean source checkout', () => {
+  test('falls back to the source daemon through tsx in a clean source checkout', () => {
     const args = resolveDefaultDaemonArgs('/tmp/vault', {
       exists: (path) => path.endsWith('/bin/vt-graphd.ts'),
       resolveTsx: () => '/tmp/tsx',
+      siblingDaemonPath: () => undefined,
     })
 
     expect(args).toEqual([
@@ -144,6 +157,16 @@ describe('resolveDefaultDaemonArgs', () => {
       '--project-root',
       '/tmp/vault',
     ])
+  })
+
+  test('throws a clear error when no daemon entrypoint can be located', () => {
+    expect(() =>
+      resolveDefaultDaemonArgs('/tmp/vault', {
+        exists: () => false,
+        resolveTsx: () => '/tmp/tsx',
+        siblingDaemonPath: () => '/missing/sibling/vt-graphd.mjs',
+      }),
+    ).toThrow(/Could not locate vt-graphd entrypoint/)
   })
 })
 

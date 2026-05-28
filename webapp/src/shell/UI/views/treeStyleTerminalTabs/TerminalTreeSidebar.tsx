@@ -56,7 +56,7 @@ import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
 import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
 import { SurvivingAgentsSection } from './SurvivingAgentsSection';
-import type { RecoverableAgentSession } from '@vt/agent-runtime';
+import type { RecoverableAgentSession } from '@vt/vt-daemon-client';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';

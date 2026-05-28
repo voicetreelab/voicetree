@@ -44,7 +44,16 @@ const SEVERITY_THRESHOLD: number = 20
 //   the intervening commits between original baseline and current dev-manu
 //   tip grew the corpus by 17 LOC of legitimate pairs. Not caused by this
 //   work — the duplication primitives themselves are unchanged.
-const MAX_RECOVERABLE_LOC: number = 2542
+// Re-anchored 2026-05-28 [PR #135 merge: dev-manu → dev]:
+//   merging origin/dev's vt-daemon migration into dev-manu raised the
+//   recoverable LOC by 44 (2542 → 2586). The new offenders are mostly already-
+//   known pairs from origin/dev's vt-daemon split (forkAgentSession ↔
+//   resumePersistedAgentSession ~52 LOC, otlpReceiver ↔ bodyReader ~27/25 LOC,
+//   agentEventsSse ↔ terminalRegistrySse ~54 LOC) — all genuine extraction
+//   opportunities, not mistakes introduced by the merge itself. Tracked
+//   separately for refactor; ratchet to the post-merge baseline so the gate
+//   remains active against further regressions.
+const MAX_RECOVERABLE_LOC: number = 2586
 
 // High-severity warning tier. Picks the dominant tail of the severity
 // distribution (the cumulative curve at sev>=50 was 23 pairs / 884 LOC on

@@ -5,7 +5,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEBAPP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BIN_VT="$WEBAPP_DIR/bin/vt"
+REPO_ROOT="$(cd "$WEBAPP_DIR/.." && pwd)"
+BIN_VT="$REPO_ROOT/packages/systems/voicetree-cli/bin/vt"
 
 # Ensure the wrapper is executable
 chmod +x "$BIN_VT"

@@ -39,7 +39,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }
@@ -81,7 +81,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 absoluteFilePathIsID: id,
                 contentWithoutYamlOrLinks: `# ${id}`,
                 outgoingEdges: edges,
-                nodeUIMetadata: { color: O.none, position: O.some({ x: 0, y: 0 }), additionalYAMLProps: new Map(), isContextNode: false }
+                nodeUIMetadata: { color: O.none, position: O.some({ x: 0, y: 0 }), additionalYAMLProps: {}, isContextNode: false }
             })
 
             // CASE 1: Edge created when child arrives in same delta as parent update (race condition fix)

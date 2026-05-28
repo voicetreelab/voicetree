@@ -5,7 +5,8 @@
     "webapp",
     "packages/measures",
     "packages/libraries/*",
-    "packages/systems/*"
+    "packages/systems/*",
+    "tools/vt-fake-agent"
   ],
   "scripts": {
     "test": "node scripts/run-remote.mjs npm run test:local",

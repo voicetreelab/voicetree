@@ -14,7 +14,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -25,7 +25,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -48,7 +48,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -59,7 +59,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -84,7 +84,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -95,7 +95,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -106,7 +106,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -129,7 +129,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.some('#ff0000'),
                     position: O.some({ x: 50, y: 75 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -157,7 +157,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -168,7 +168,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -192,7 +192,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -203,7 +203,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -228,7 +228,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -239,7 +239,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -262,7 +262,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -273,7 +273,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -296,7 +296,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -316,7 +316,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.some('#ff0000'),
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             },
             {
@@ -327,7 +327,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.some('#00ff00'),
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -350,7 +350,7 @@ describe('createRepresentativeNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: {}
                 }
             }
         ]
@@ -372,7 +372,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 0, y: 0 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 },
                 {
@@ -383,7 +383,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 }
             ]
@@ -403,7 +403,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 0, y: 0 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 },
                 {
@@ -414,7 +414,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 },
                 {
@@ -425,7 +425,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 200, y: 200 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 }
             ]
@@ -448,7 +448,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 0, y: 0 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 },
                 {
@@ -459,7 +459,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 }
             ]
@@ -483,7 +483,7 @@ describe('createRepresentativeNode', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.some({ x: 0, y: 0 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: {}
                     }
                 }
             ]

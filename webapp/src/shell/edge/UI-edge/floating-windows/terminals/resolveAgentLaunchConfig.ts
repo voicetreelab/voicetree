@@ -6,7 +6,6 @@ export interface AgentLaunchConfig {
     popupWasShown: boolean;
     updatedAgents: readonly AgentConfig[];
     updatedAgentPrompt: string;
-    mcpIntegrationEnabled: boolean;
     useDocker: boolean;
 }
 
@@ -25,7 +24,7 @@ export async function resolveAgentLaunchConfig(
     if (settings.agentPermissionModeChosen || !isClaudeAgent) {
         return {
             finalCommand: command, popupWasShown: false, updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, useDocker: false,
+            updatedAgentPrompt: currentAgentPrompt, useDocker: false,
         };
     }
 
@@ -36,7 +35,7 @@ export async function resolveAgentLaunchConfig(
     if (result === null) {
         return {
             finalCommand: command, popupWasShown: true, updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, useDocker: false,
+            updatedAgentPrompt: currentAgentPrompt, useDocker: false,
         };
     }
 
@@ -60,7 +59,6 @@ export async function resolveAgentLaunchConfig(
 
     return {
         finalCommand: result.command, popupWasShown: true, updatedAgents,
-        updatedAgentPrompt: result.agentPrompt, mcpIntegrationEnabled: result.mcpIntegrationEnabled,
-        useDocker: result.useDocker,
+        updatedAgentPrompt: result.agentPrompt, useDocker: result.useDocker,
     };
 }

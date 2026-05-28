@@ -21,10 +21,12 @@ import {
   robustElectronTeardown,
   safeStopFileWatching,
   stopSmokeGraphDaemonForVault,
-  waitForMcpServer,
-  mcpRequest,
-  mcpCallTool,
-} from './electron-smoke-helpers';
+} from '../../critical_e2e_verification_tests/electron-smoke-helpers';
+import {
+  getBearerToken,
+  getDaemonRpcUrl,
+  rpcCallTool,
+} from '../../critical_e2e_verification_tests/helpers/e2e-rpc-helpers';
 
 const SCREENSHOT_DIR = path.join(WEBAPP_ROOT, 'test-results', 'real-agent-spawn');
 
@@ -86,7 +88,7 @@ const test = base.extend<{
       defaultAgent: 'Claude Sonnet',
       terminalSpawnPathRelativeToWatchedDirectory: '/',
       INJECT_ENV_VARS: {
-        AGENT_PROMPT: 'Read the task at $CONTEXT_NODE_PATH and execute it exactly. You have VoiceTree MCP tools available as mcp__voicetree__spawn_agent, mcp__voicetree__create_graph, mcp__voicetree__list_agents, and mcp__voicetree__read_terminal_output. When calling spawn_agent, use callerTerminalId=$VOICETREE_TERMINAL_ID and parentNodeId=$TASK_NODE_PATH unless the task says otherwise. MCP port: $VOICETREE_MCP_PORT. DEPTH_BUDGET=$DEPTH_BUDGET. Do not ask for clarification.',
+        AGENT_PROMPT: 'Read the task at $CONTEXT_NODE_PATH and execute it exactly. You have VoiceTree MCP tools available as mcp__voicetree__spawn_agent, mcp__voicetree__create_graph, mcp__voicetree__list_agents, and mcp__voicetree__read_terminal_output. When calling spawn_agent, use callerTerminalId=$VOICETREE_TERMINAL_ID and parentNodeId=$TASK_NODE_PATH unless the task says otherwise. Daemon URL: $VOICETREE_DAEMON_URL. DEPTH_BUDGET=$DEPTH_BUDGET. Do not ask for clarification.',
       },
     }, null, 2), 'utf8');
 
@@ -156,42 +158,14 @@ test.describe('Real agent spawn E2E', () => {
   test('sonnet agent spawns sonnet + codex sub-agents that create hello-world nodes', async ({ appWindow, fixtureVaultPath }) => {
     test.setTimeout(600_000); // 10 min — real agents need time
 
-    // --- MCP setup ---
-    // The production `setMcpIntegration` / `openVault` path is responsible for writing
-    // `.mcp.json` into the vault so spawned external agents (Claude, Codex) discover MCP.
-    // This test depends on that path: if the writer is broken (DOVL-3 class regression),
-    // the file won't exist or its URL won't match the live MCP server and the test fails.
-    const mcpPort: number = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.getMcpPort();
-    });
-    const expectedMcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-
-    const mcpJsonPath = path.join(fixtureVaultPath, '.mcp.json');
-    await expect.poll(async () => {
-      try { await fs.access(mcpJsonPath); return true; } catch { return false; }
-    }, {
-      message: `Waiting for production writer to emit ${mcpJsonPath}`,
-      timeout: 30_000,
-      intervals: [500, 1000, 2000],
-    }).toBe(true);
-
-    const mcpJsonText = await fs.readFile(mcpJsonPath, 'utf8');
-    const mcpJson = JSON.parse(mcpJsonText) as { mcpServers?: { voicetree?: { url?: string } } };
-    const urlFromMcpJson = mcpJson.mcpServers?.voicetree?.url;
-    expect(urlFromMcpJson, `.mcp.json missing mcpServers.voicetree.url:\n${mcpJsonText}`).toBe(expectedMcpUrl);
-    console.log(`.mcp.json verified at ${mcpJsonPath}: ${urlFromMcpJson}`);
-
-    // Use the URL FROM .mcp.json for all subsequent HTTP MCP calls. If the file's
-    // URL doesn't actually serve MCP, the test fails here, not 10 minutes later.
-    const mcpUrl: string = expectedMcpUrl;
-    expect(await waitForMcpServer(mcpUrl)).toBe(true);
-    await mcpRequest(mcpUrl, 'initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {},
-      clientInfo: { name: 'real-agent-e2e', version: '1.0.0' },
-    });
+    // --- Daemon /rpc discovery ---
+    // After the MCP→CLI cutover (2651ade78/fab76e7d4) the unified HTTP daemon
+    // serves tool calls as JSON-RPC over POST /rpc, authorised by a bearer
+    // token. Renderer accessors mainAPI.getDaemonUrl + mainAPI.getAuthToken are
+    // the canonical discovery path; spawned subprocesses use
+    // $VOICETREE_DAEMON_URL + $VOICETREE_VAULT_PATH/.voicetree/auth-token.
+    const rpcUrl: string = await getDaemonRpcUrl(appWindow);
+    const token: string = await getBearerToken(appWindow);
 
     // --- Start file watching explicitly ---
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
@@ -252,7 +226,7 @@ test.describe('Real agent spawn E2E', () => {
     expect(callerSpawn.success).toBe(true);
 
     await expect.poll(async () => {
-      const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+      const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
       const agents = (result.parsed as { agents: Array<{ terminalId: string }> }).agents;
       return agents.some(a => a.terminalId === callerTerminalId);
     }, { message: 'Waiting for caller terminal', timeout: 10_000, intervals: [500, 1000] }).toBe(true);
@@ -261,7 +235,7 @@ test.describe('Real agent spawn E2E', () => {
     //     real progress node ourselves. This is the same call path the spawned
     //     external agents will take, exercised explicitly before we burn API credits. ---
     const probeNodeFilename = `e2e-mcp-http-probe-${Date.now()}`;
-    const probeResult = await mcpCallTool(mcpUrl, 'create_graph', {
+    const probeResult = await rpcCallTool(rpcUrl, token,'create_graph', {
       callerTerminalId,
       nodes: [{
         filename: probeNodeFilename,
@@ -283,7 +257,7 @@ test.describe('Real agent spawn E2E', () => {
 
     // --- Spawn real Sonnet agent on task.md ---
     console.log('Spawning real Sonnet agent on task.md...');
-    const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+    const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
       nodeId: path.join(fixtureVaultPath, 'task.md'),
       callerTerminalId,
       agentName: 'Claude Sonnet',
@@ -298,7 +272,7 @@ test.describe('Real agent spawn E2E', () => {
 
     // --- Assert: at least 3 agents spawn (caller + root + sub-agents) ---
     await expect.poll(async () => {
-      const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+      const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
       return (result.parsed as { agents: Array<{ terminalId: string }> }).agents.length;
     }, {
       message: 'Waiting for 3+ agents (root + sub-agents)',
@@ -310,7 +284,7 @@ test.describe('Real agent spawn E2E', () => {
     const diagFile = path.join(SCREENSHOT_DIR, 'root-agent-output.txt');
     await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
     try {
-      const termOut = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+      const termOut = await rpcCallTool(rpcUrl, token,'read_terminal_output', {
         terminalId: rootAgentId,
         callerTerminalId,
       });
@@ -319,7 +293,7 @@ test.describe('Real agent spawn E2E', () => {
     } catch (err) {
       await fs.writeFile(diagFile, `read_terminal_output failed: ${err}`, 'utf8');
     }
-    const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+    const listResult = await rpcCallTool(rpcUrl, token,'list_agents', {});
     await fs.writeFile(path.join(SCREENSHOT_DIR, 'agents-dump.json'), JSON.stringify(listResult.parsed, null, 2), 'utf8');
 
     screenshots.push(await screenshot(appWindow, '03-agents-spawned'));
@@ -361,7 +335,7 @@ test.describe('Real agent spawn E2E', () => {
     // Codex can be slow, so only require root + 1 sub-agent to exit (proves full pipeline)
     console.log('Polling for root agent + at least 1 sub-agent to exit...');
     await expect.poll(async () => {
-      const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+      const result = await rpcCallTool(rpcUrl, token,'list_agents', {});
       const agents = (result.parsed as { agents: Array<{ terminalId: string; status: string; exitCode: number | null }> }).agents;
       const nonCaller = agents.filter(a => a.terminalId !== callerTerminalId);
       const exitedAgents = nonCaller.filter(a => a.status === 'exited');
@@ -373,7 +347,7 @@ test.describe('Real agent spawn E2E', () => {
       intervals: [10_000, 15_000, 15_000, 15_000],
     }).toBeGreaterThanOrEqual(2);
 
-    const finalResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+    const finalResult = await rpcCallTool(rpcUrl, token,'list_agents', {});
     const finalAgents = (finalResult.parsed as { agents: Array<{ terminalId: string; exitCode: number | null; status: string }> }).agents;
     const exitedAgents = finalAgents.filter(a => a.terminalId !== callerTerminalId && a.status === 'exited');
     for (const agent of exitedAgents) {

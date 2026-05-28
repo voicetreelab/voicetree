@@ -1,5 +1,6 @@
 import {readFile} from 'node:fs/promises'
 
+import {messageOf} from '../_shared/messageOf.ts'
 import {extractVitestFailureDetails, vitestOutputFileFromArgs} from '../_shared/writers/vitest-failure-details.ts'
 
 type WarningSink = (message: string) => void
@@ -28,12 +29,4 @@ export async function vitestFailureDetailsForCommand(args: readonly string[], wa
     }
 
     return extractVitestFailureDetails(parsed) ?? {}
-}
-
-function messageOf(value: unknown): string {
-    if (value instanceof Error) return value.message || value.stack || String(value)
-    if (typeof value === 'object' && value !== null && 'message' in value) {
-        return String((value as {message?: unknown}).message ?? value)
-    }
-    return String(value)
 }

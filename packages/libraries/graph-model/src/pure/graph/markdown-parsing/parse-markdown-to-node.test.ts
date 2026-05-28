@@ -209,10 +209,10 @@ custom_field: "some value"
 
       // color has an explicit typed field, so NOT in additionalYAMLProps
       // author and custom_field don't have explicit fields, so they ARE in additionalYAMLProps
-      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(2)
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('John Doe')
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('custom_field')).toBe('some value')
-      expect(result.nodeUIMetadata.additionalYAMLProps.has('color')).toBe(false)
+      expect(Object.keys(result.nodeUIMetadata.additionalYAMLProps).length).toBe(2)
+      expect(result.nodeUIMetadata.additionalYAMLProps['author']).toBe('John Doe')
+      expect(result.nodeUIMetadata.additionalYAMLProps['custom_field']).toBe('some value')
+      expect('color' in result.nodeUIMetadata.additionalYAMLProps).toBe(false)
     })
 
     it('should convert number properties to strings', () => {
@@ -224,8 +224,8 @@ version: 2.1
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('version')).toBe('2.1')
+      expect(result.nodeUIMetadata.additionalYAMLProps['priority']).toBe('5')
+      expect(result.nodeUIMetadata.additionalYAMLProps['version']).toBe('2.1')
     })
 
     it('should convert boolean properties to strings', () => {
@@ -237,8 +237,8 @@ archived: false
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('archived')).toBe('false')
+      expect(result.nodeUIMetadata.additionalYAMLProps['published']).toBe('true')
+      expect(result.nodeUIMetadata.additionalYAMLProps['archived']).toBe('false')
     })
 
     it('should convert array properties to JSON strings', () => {
@@ -255,8 +255,8 @@ numbers:
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('tags')).toBe('["important","draft"]')
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('numbers')).toBe('[1,2,3]')
+      expect(result.nodeUIMetadata.additionalYAMLProps['tags']).toBe('["important","draft"]')
+      expect(result.nodeUIMetadata.additionalYAMLProps['numbers']).toBe('[1,2,3]')
     })
 
     it('should convert object properties to JSON strings', () => {
@@ -269,7 +269,7 @@ metadata:
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-      const metadata: string | undefined = result.nodeUIMetadata.additionalYAMLProps.get('metadata')
+      const metadata: string | undefined = result.nodeUIMetadata.additionalYAMLProps['metadata']
       expect(metadata).toBeDefined()
       const parsed: { readonly created: string; readonly version: number; } = JSON.parse(metadata!)
       expect(parsed.created).toBe('2024-01-15')
@@ -293,13 +293,13 @@ custom_prop: "should be included"
 
       // color, position, isContextNode, title have explicit typed fields → NOT in additionalYAMLProps
       // summary, node_id, custom_prop don't → ARE in additionalYAMLProps
-      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(3)
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('custom_prop')).toBe('should be included')
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('summary')).toBe('My Summary')
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('node_id')).toBe('legacy-id')
-      expect(result.nodeUIMetadata.additionalYAMLProps.has('color')).toBe(false)
-      expect(result.nodeUIMetadata.additionalYAMLProps.has('position')).toBe(false)
-      expect(result.nodeUIMetadata.additionalYAMLProps.has('title')).toBe(false)
+      expect(Object.keys(result.nodeUIMetadata.additionalYAMLProps).length).toBe(3)
+      expect(result.nodeUIMetadata.additionalYAMLProps['custom_prop']).toBe('should be included')
+      expect(result.nodeUIMetadata.additionalYAMLProps['summary']).toBe('My Summary')
+      expect(result.nodeUIMetadata.additionalYAMLProps['node_id']).toBe('legacy-id')
+      expect('color' in result.nodeUIMetadata.additionalYAMLProps).toBe(false)
+      expect('position' in result.nodeUIMetadata.additionalYAMLProps).toBe(false)
+      expect('title' in result.nodeUIMetadata.additionalYAMLProps).toBe(false)
     })
 
     it('should have empty additionalYAMLProps when only color/position exist (they have explicit fields)', () => {
@@ -314,7 +314,7 @@ position:
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       // color and position have explicit typed fields, so NOT in additionalYAMLProps
-      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
+      expect(Object.keys(result.nodeUIMetadata.additionalYAMLProps).length).toBe(0)
       // But they ARE in the explicit fields
       expect(result.nodeUIMetadata.color._tag).toBe('Some')
       expect(result.nodeUIMetadata.position._tag).toBe('Some')
@@ -327,7 +327,7 @@ Content without frontmatter`
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
+      expect(Object.keys(result.nodeUIMetadata.additionalYAMLProps).length).toBe(0)
     })
   })
 
@@ -426,9 +426,9 @@ containedNodeIds: []
       expect(result.nodeUIMetadata.isContextNode).toBe(false)
 
       // Check agent_name is in additionalYAMLProps (not an explicit field)
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('Victor')
+      expect(result.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe('Victor')
       // node_id should also be in additionalYAMLProps (legacy field, not an explicit typed field)
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('node_id')).toBe('141')
+      expect(result.nodeUIMetadata.additionalYAMLProps['node_id']).toBe('141')
 
       // Check wikilinks are replaced with [link]* notation
       expect(result.contentWithoutYamlOrLinks).toContain('[27_Two_Streams_of_Work]*')
@@ -459,7 +459,7 @@ containedNodeIds: []
       expect(O.isNone(result.nodeUIMetadata.color)).toBe(true)
 
       // Check node_id is in additionalYAMLProps
-      expect(result.nodeUIMetadata.additionalYAMLProps.get('node_id')).toBe('5')
+      expect(result.nodeUIMetadata.additionalYAMLProps['node_id']).toBe('5')
 
       // Check edges are extracted
       expect(result.outgoingEdges.length).toBe(2)

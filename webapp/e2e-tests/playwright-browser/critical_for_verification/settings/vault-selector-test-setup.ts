@@ -131,6 +131,22 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       }]));
     };
 
+    // Mirror the real openVault → main → syncFolderTree path so that
+    // `folderState.tree` is populated and `watchDirectory` resolves to
+    // a real path. Without this, the Enter-key handler in
+    // FolderTreeSidebar short-circuits because it requires
+    // `watchDirectory` to be truthy.
+    const broadcastFolderTree = (): void => {
+      const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
+      listeners.forEach(cb => cb(null, 'syncFolderTree', [{
+        name: 'directory',
+        absolutePath: '/mock/watched/directory',
+        children: [],
+        loadState: 'loaded',
+        isWriteTarget: true,
+      }]));
+    };
+
     const mockElectronAPI = {
       main: {
         applyGraphDeltaToDBAndMem: async () => ({ success: true }),
@@ -157,6 +173,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
           const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
           setTimeout(() => {
             broadcastVaultState();
+            broadcastFolderTree();
             mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
           }, 10);
 
@@ -272,12 +289,17 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       onViewSwitched: () => () => {},
       removeAllListeners: () => {},
       terminal: {
-        spawn: async () => ({ success: false }),
-        write: async () => {},
-        resize: async () => {},
-        kill: async () => {},
-        onData: () => {},
-        onExit: () => {}
+        attach: async () => 'mock-handle',
+        onData: () => () => {},
+        onStatus: () => () => {},
+        write: async () => true,
+        resize: async () => true,
+        detach: async () => true,
+      },
+      events: {
+        on: () => () => {},
+        onConnectionState: () => () => {},
+        resnapshot: async () => {},
       },
       positions: {
         save: async () => ({ success: true }),

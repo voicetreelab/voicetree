@@ -1,5 +1,14 @@
-import type {RecoverableAgentSession, ResumePersistedResult, TerminalId} from '@vt/agent-runtime'
-import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import {
+    discoverRecoverableAgentSessions,
+    forkAgentSession,
+    removePersistedAgentRecord,
+    resumePersistedAgentSession,
+    type RecoverableAgentSession,
+    type ResumePersistedResult,
+    type TerminalId,
+    type VtDaemonClient,
+} from '@vt/vt-daemon-client'
+import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy'
 
 const RECOVERY_POLL_INTERVAL_MS: number = 10_000
@@ -48,10 +57,11 @@ export async function refreshRecoverySessions(
         const horizonMs: number | null | undefined = horizonDays === null
             ? null
             : (typeof horizonDays === 'number' ? horizonDays * 24 * 60 * 60 * 1000 : undefined)
-        const opts = horizonMs === undefined ? undefined : {horizonMs}
-        const sessions: readonly RecoverableAgentSession[] = opts
-            ? await terminalRuntimeSurface.discoverRecoverableAgentSessions(undefined, opts)
-            : await terminalRuntimeSurface.discoverRecoverableAgentSessions()
+        const client: VtDaemonClient = getVtDaemonClient()
+        const sessions: readonly RecoverableAgentSession[] = await discoverRecoverableAgentSessions(
+            client,
+            horizonMs === undefined ? {} : {horizonMs},
+        )
         publishRecoverySessions(sessions)
         return sessions
     } catch (error) {
@@ -75,7 +85,8 @@ export function stopRecoverySessionPolling(): void {
 }
 
 export async function resumeRecoverySession(terminalId: string): Promise<RendererRecoveryResumeResult> {
-    const result = await terminalRuntimeSurface.resumePersistedAgentSession(terminalId as TerminalId)
+    const client: VtDaemonClient = getVtDaemonClient()
+    const result = await resumePersistedAgentSession(client, {terminalId: terminalId as TerminalId})
     void refreshRecoverySessions().catch(() => undefined)
     if (result.kind === 'spawned') {
         void uiAPI.launchTerminalOntoUI(
@@ -105,7 +116,8 @@ export async function resumeRecoverySession(terminalId: string): Promise<Rendere
  * a generic exception so the toast can explain why nothing changed.
  */
 export async function removeRecoverySession(terminalId: string): Promise<RendererRecoveryActionResult> {
-    const result = await terminalRuntimeSurface.removePersistedAgentRecord(terminalId)
+    const client: VtDaemonClient = getVtDaemonClient()
+    const result = await removePersistedAgentRecord(client, {terminalId})
     if (result.kind === 'removed') {
         void refreshRecoverySessions().catch(() => undefined)
         return {success: true, terminalId}
@@ -120,7 +132,8 @@ export async function removeRecoverySession(terminalId: string): Promise<Rendere
 }
 
 export async function forkRecoverySession(sourceTerminalId: string): Promise<RendererRecoveryActionResult> {
-    const result = await terminalRuntimeSurface.forkAgentSession(sourceTerminalId as TerminalId)
+    const client: VtDaemonClient = getVtDaemonClient()
+    const result = await forkAgentSession(client, {sourceTerminalId: sourceTerminalId as TerminalId})
     void refreshRecoverySessions().catch(() => undefined)
     if (result.kind === 'spawned') {
         void uiAPI.launchTerminalOntoUI(

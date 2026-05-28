@@ -2,6 +2,7 @@ import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {DEFAULT_REPO_ROOT, type PackageInfo} from '../discovery/discover-packages.ts'
+import {resolveWorkspaceBasePath} from '../discovery/package-exports.ts'
 
 const SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx']
 
@@ -130,8 +131,7 @@ function resolveImportTarget(
     }
     for (const [npmName, pkg] of packagesByNpmName) {
         if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
-        const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
-        return resolveFileCandidate(join(pkg.srcRoot, subPath), knownPaths)
+        return resolveFileCandidate(resolveWorkspaceBasePath(pkg, specifier), knownPaths)
     }
     return null
 }

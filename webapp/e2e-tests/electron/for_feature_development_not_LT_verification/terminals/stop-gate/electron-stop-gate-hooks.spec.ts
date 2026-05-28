@@ -10,42 +10,288 @@
  * references for each run. Projects are loaded from a temporary fixture vault.
  */
 
-import { expect } from '@playwright/test';
+import { test as base, expect, _electron as electron } from '@playwright/test';
+import type { ElectronApplication, Page } from '@playwright/test';
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 import {
-  CALLER_TERMINAL_ID,
-  HOOK_AGENT_NAME,
-  NO_PROGRESS_CALLER_ID,
-  NO_PROGRESS_TASK_NODE_ID,
-  PASS_CALLER_ID,
-  PASS_PROGRESS_NODE_ID,
-  PASS_TASK_NODE_ID,
-  SOFT_WORKFLOW_PATH,
-  TARGET_NODE_ID,
-  TASK_SKILL_PATH,
   createProgressNode,
-  getMcpPort,
+  getDaemonPort,
   registerCallerTerminal,
   resolveNodeId,
-  runCliCommand,
-  test,
-  waitForCliReady,
-  waitForGraphNodes,
-} from './electron-stop-gate-hooks/setup';
+  runCliCommand as runCliCommandRaw,
+  waitForCliReady as waitForCliReadyRaw,
+} from './stop-gate-hooks-helpers';
+import type { CliPayload, CliResult } from './stop-gate-hooks-helpers';
+
+function runCliCommand<T = CliPayload>(daemonPort: number, args: string[], terminalId?: string): CliResult<T> {
+  return runCliCommandRaw<T>(VOICETREE_CLI_PATH, PROJECT_ROOT, daemonPort, args, terminalId);
+}
+
+async function waitForCliReady(daemonPort: number, terminalId?: string): Promise<void> {
+  return waitForCliReadyRaw(VOICETREE_CLI_PATH, PROJECT_ROOT, daemonPort, terminalId);
+}
+
+const PROJECT_ROOT = path.resolve(process.cwd());
+const REPO_ROOT = path.resolve(PROJECT_ROOT, '..');
+const VOICETREE_CLI_PATH = path.join(PROJECT_ROOT, 'src', 'shell', 'edge', 'main', 'cli', 'voicetree-cli.ts');
+const STOP_GATE_SCRIPT_SOURCE = path.join(REPO_ROOT, 'brain', 'automation', 'stop-gate-audit.ts');
+const TARGET_NODE_ID = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md';
+const NO_PROGRESS_TASK_NODE_ID = 'e2e-stop-gate-cli-no-progress-task.md';
+const PASS_TASK_NODE_ID = 'e2e-stop-gate-cli-pass-task.md';
+const PASS_PROGRESS_NODE_ID = 'e2e-stop-gate-cli-progress.md';
+const CALLER_TERMINAL_ID = 'e2e-hooks-test-caller';
+const NO_PROGRESS_CALLER_ID = 'e2e-hooks-cli-no-progress-caller';
+const PASS_CALLER_ID = 'e2e-hooks-cli-pass-caller';
+const HOOK_AGENT_NAME = 'Hook Test Agent';
+const TASK_SKILL_PATH = '~/brain/workflows/e2e-stop-gate-cli/SKILL.md';
+const SOFT_WORKFLOW_PATH = '~/brain/workflows/e2e-stop-gate-cli-inline/SKILL.md';
+const TASK_SKILL_MARKDOWN = `---
+name: e2e-stop-gate-cli
+description: "Fixture skill for CLI stop-gate test."
+---
+
+# e2e-stop-gate-cli
+
+## Outgoing Workflows
+[${SOFT_WORKFLOW_PATH}]
+`;
+
+const SOFT_WORKFLOW_MARKDOWN = `---
+name: e2e-stop-gate-cli-inline
+description: "Fixture inline skill for CLI stop-gate test."
+---
+
+# e2e-stop-gate-cli-inline
+`;
+
+const TASK_NODE_CONTENT = `---
+isContextNode: false
+node_id: 100
+status: claimed
+---
+
+### E2E stop-gate CLI task
+
+This task requires reviewing ${TASK_SKILL_PATH} before stopping.
+`;
+
+interface ExtendedWindow {
+  cytoscapeInstance?: {
+    nodes: () => { length: number };
+  };
+  electronAPI?: {
+    main: {
+      stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+      getDaemonUrl: () => Promise<string>;
+      getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
+    };
+    terminal: {
+      spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
+    };
+  };
+}
+
+const test = base.extend<{
+  electronApp: ElectronApplication;
+  appWindow: Page;
+  tempUserDataPath: string;
+  tempHome: string;
+  fixtureVaultPath: string;
+}>({
+  tempHome: async ({}, use) => {
+    const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-home-'));
+
+    // HOME-mounted automation stack for this app instance:
+    // - stop-gate-audit.ts command hook
+    // - command hooks config (Stop: [{ type: 'command', ... }])
+    // - workflow SKILL.md fixtures used by the audit
+    const automationDir = path.join(tempHome, 'brain', 'automation');
+    const workflowsDir = path.join(tempHome, 'brain', 'workflows');
+    const taskSkillDir = path.join(workflowsDir, 'e2e-stop-gate-cli');
+    const softSkillDir = path.join(workflowsDir, 'e2e-stop-gate-cli-inline');
+
+    await fs.mkdir(automationDir, { recursive: true });
+    await fs.mkdir(taskSkillDir, { recursive: true });
+    await fs.mkdir(softSkillDir, { recursive: true });
+
+    await fs.copyFile(
+      STOP_GATE_SCRIPT_SOURCE,
+      path.join(automationDir, 'stop-gate-audit.ts')
+    );
+    await fs.writeFile(
+      path.join(automationDir, 'hooks.json'),
+      JSON.stringify({
+        Stop: [
+          { type: 'command', command: 'node --experimental-strip-types ~/brain/automation/stop-gate-audit.ts' },
+        ],
+      }, null, 2)
+    );
+
+    await fs.writeFile(path.join(taskSkillDir, 'SKILL.md'), TASK_SKILL_MARKDOWN);
+    await fs.writeFile(path.join(softSkillDir, 'SKILL.md'), SOFT_WORKFLOW_MARKDOWN);
+
+    await use(tempHome);
+    await fs.rm(tempHome, { recursive: true, force: true });
+  },
+
+  fixtureVaultPath: async ({}, use) => {
+    const tempVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-vault-'));
+    const voicetreeDir = path.join(tempVaultPath, 'voicetree');
+
+    await fs.mkdir(voicetreeDir, { recursive: true });
+    await fs.writeFile(path.join(voicetreeDir, TARGET_NODE_ID), TASK_NODE_CONTENT);
+    await fs.writeFile(path.join(voicetreeDir, NO_PROGRESS_TASK_NODE_ID), TASK_NODE_CONTENT);
+    await fs.writeFile(path.join(voicetreeDir, PASS_TASK_NODE_ID), TASK_NODE_CONTENT);
+
+    await use(tempVaultPath);
+    await fs.rm(tempVaultPath, { recursive: true, force: true });
+  },
+
+  tempUserDataPath: async ({fixtureVaultPath}, use) => {
+    const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-data-'));
+
+    const savedProject = {
+      id: 'hooks-test-project',
+      path: fixtureVaultPath,
+      name: 'hooks-cli-vault',
+      type: 'folder',
+      lastOpened: Date.now(),
+      voicetreeInitialized: true,
+    };
+    await fs.writeFile(
+      path.join(tempPath, 'projects.json'),
+      JSON.stringify([savedProject], null, 2)
+    );
+
+    await fs.writeFile(
+      path.join(tempPath, 'voicetree-config.json'),
+      JSON.stringify({ lastDirectory: fixtureVaultPath }, null, 2)
+    );
+
+    await fs.writeFile(
+      path.join(tempPath, 'settings.json'),
+      JSON.stringify({
+        agents: [{ name: HOOK_AGENT_NAME, command: 'echo done' }],
+        terminalSpawnPathRelativeToWatchedDirectory: '/',
+      }, null, 2)
+    );
+
+    await use(tempPath);
+    await fs.rm(tempPath, { recursive: true, force: true });
+  },
+
+  electronApp: async ({ tempUserDataPath, tempHome }, use) => {
+    const electronApp = await electron.launch({
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}`
+      ],
+      env: {
+        ...process.env,
+        HOME: tempHome,
+        NODE_ENV: 'test',
+        HEADLESS_TEST: '1',
+        MINIMIZE_TEST: '1',
+        VOICETREE_PERSIST_STATE: '1'
+      },
+      timeout: 15000
+    });
+
+    const electronProcess = electronApp.process();
+    if (electronProcess?.stdout) {
+      electronProcess.stdout.on('data', (chunk: Buffer) => {
+        console.log(`[MAIN STDOUT] ${chunk.toString().trim()}`);
+      });
+    }
+    if (electronProcess?.stderr) {
+      electronProcess.stderr.on('data', (chunk: Buffer) => {
+        console.error(`[MAIN STDERR] ${chunk.toString().trim()}`);
+      });
+    }
+
+    await use(electronApp);
+
+    try {
+      const window = await electronApp.firstWindow();
+      await window.evaluate(async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (api) {
+          await api.main.stopFileWatching();
+        }
+      });
+      await window.waitForTimeout(300);
+    } catch {
+      console.log('Note: Could not stop file watching during cleanup');
+    }
+
+    await electronApp.close();
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  },
+
+  appWindow: async ({ electronApp }, use) => {
+    const window = await electronApp.firstWindow({ timeout: 60000 });
+
+    window.on('console', msg => {
+      if (!msg.text().includes('Electron Security Warning')) {
+        console.log(`BROWSER [${msg.type()}]:`, msg.text());
+      }
+    });
+
+    window.on('pageerror', error => {
+      console.error('PAGE ERROR:', error.message);
+    });
+
+    await window.waitForLoadState('domcontentloaded');
+
+    // Wait for Cytoscape (graph loaded via auto-project-load)
+    try {
+      await window.waitForFunction(
+        () => (window as unknown as ExtendedWindow).cytoscapeInstance,
+        { timeout: 5000 }
+      );
+      console.log('[Hooks Test] Cytoscape initialized via auto-load');
+    } catch {
+      console.log('[Hooks Test] Auto-load timed out, clicking project...');
+      const projectButton = window.locator('button').filter({ hasText: 'hooks-cli-vault' });
+      await expect(projectButton.first()).toBeVisible({ timeout: 10000 });
+      await projectButton.first().click();
+      await window.waitForFunction(
+        () => (window as unknown as ExtendedWindow).cytoscapeInstance,
+        { timeout: 30000 }
+      );
+      console.log('[Hooks Test] Cytoscape initialized after project selection');
+    }
+
+    await window.waitForTimeout(1000);
+    await use(window);
+  }
+});
 
 test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
   test.describe.configure({ mode: 'serial', timeout: 120000 });
 
   test('CLI self-close blocks when no progress node exists', async ({ appWindow }) => {
-    const mcpPort = await getMcpPort(appWindow);
-    await waitForCliReady(mcpPort);
+    const daemonPort = await getDaemonPort(appWindow);
+    await waitForCliReady(daemonPort);
 
-    await waitForGraphNodes(appWindow);
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 15000,
+      intervals: [500, 1000, 1000],
+    }).toBeGreaterThan(0);
 
     const taskNodeId = await resolveNodeId(appWindow, NO_PROGRESS_TASK_NODE_ID);
     await registerCallerTerminal(appWindow, taskNodeId, NO_PROGRESS_CALLER_ID);
 
     const spawnResult = runCliCommand<{ success: boolean; terminalId: string; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'spawn', '--task', 'CLI no-progress stop-gate audit test', '--parent', taskNodeId],
       NO_PROGRESS_CALLER_ID
     );
@@ -57,7 +303,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     expect(spawnedAgentId, 'spawn payload should include terminalId').toBeTruthy();
 
     const closeResult = runCliCommand<{ success: boolean; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'close', spawnedAgentId],
       spawnedAgentId
     );
@@ -69,16 +315,25 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
   });
 
   test('CLI self-close passes when stop-gate obligations are satisfied', async ({ appWindow, fixtureVaultPath }) => {
-    const mcpPort = await getMcpPort(appWindow);
-    await waitForCliReady(mcpPort);
+    const daemonPort = await getDaemonPort(appWindow);
+    await waitForCliReady(daemonPort);
 
-    await waitForGraphNodes(appWindow);
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 15000,
+      intervals: [500, 1000, 1000],
+    }).toBeGreaterThan(0);
 
     const taskNodeId = await resolveNodeId(appWindow, PASS_TASK_NODE_ID);
     await registerCallerTerminal(appWindow, taskNodeId, PASS_CALLER_ID);
 
     const spawnResult = runCliCommand<{ success: boolean; terminalId: string; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'spawn', '--task', 'CLI pass stop-gate audit test', '--parent', taskNodeId],
       PASS_CALLER_ID
     );
@@ -99,7 +354,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     );
 
     const closeResult = runCliCommand<{ success: boolean; message?: string; error?: string }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'close', spawnedAgentId],
       spawnedAgentId
     );
@@ -109,16 +364,25 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
   });
 
   test('list_agents exposes parentTerminalId and taskNodePath', async ({ appWindow }) => {
-    const mcpPort = await getMcpPort(appWindow);
-    await waitForCliReady(mcpPort);
+    const daemonPort = await getDaemonPort(appWindow);
+    await waitForCliReady(daemonPort);
 
-    await waitForGraphNodes(appWindow);
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 15000,
+      intervals: [500, 1000, 1000],
+    }).toBeGreaterThan(0);
 
     const targetNodeId = await resolveNodeId(appWindow, TARGET_NODE_ID);
     await registerCallerTerminal(appWindow, targetNodeId, CALLER_TERMINAL_ID);
 
     const spawnResult = runCliCommand<{ success: boolean; terminalId: string; error?: string; }>(
-      mcpPort,
+      daemonPort,
       ['agent', 'spawn', '--node', targetNodeId],
       CALLER_TERMINAL_ID
     );
@@ -143,7 +407,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
           taskNodePath: string | null;
           status: string;
         }>;
-      }>(mcpPort, ['agent', 'list']);
+      }>(daemonPort, ['agent', 'list']);
       const agents = listResult.payload?.agents;
       if (!agents) {
         return undefined;

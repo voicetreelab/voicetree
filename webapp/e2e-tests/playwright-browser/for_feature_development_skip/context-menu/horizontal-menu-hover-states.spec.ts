@@ -83,7 +83,7 @@ test.describe('Horizontal Menu Hover States', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 300 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },

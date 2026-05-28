@@ -61,7 +61,7 @@ export async function spawnTerminalWithCommandEditor(
         : '';
 
     // Always show the popup (user explicitly requested edit)
-    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean; useDocker: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: { command: string; agentPrompt: string; useDocker: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled
     if (result === null) {
@@ -101,17 +101,14 @@ export async function spawnTerminalWithCommandEditor(
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
 
-    // Update MCP config files based on user's toggle choice and agent type
-    await window.electronAPI?.main.setMcpIntegration(result.mcpIntegrationEnabled, result.command);
-
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Spawn terminal with the (possibly modified) command
-    await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId,
-        result.command,
-        terminalCount
-    );
+    await window.electronAPI?.main.spawnTerminalWithContextNode({
+        taskNodeId: parentNodeId,
+        agentCommand: result.command,
+        terminalCount,
+    });
 }
 
 /**
@@ -177,15 +174,15 @@ export async function spawnTerminalWithNewContextNode(
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
 
-    // Update MCP config files based on user's toggle choice and agent type
-    await window.electronAPI?.main.setMcpIntegration(launchConfig.mcpIntegrationEnabled, command);
-
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
-    await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId, command, terminalCount, undefined, undefined, undefined, spawnDirectory
-    );
+    await window.electronAPI?.main.spawnTerminalWithContextNode({
+        taskNodeId: parentNodeId,
+        agentCommand: command,
+        terminalCount,
+        spawnDirectory,
+    });
 }
 
 /**

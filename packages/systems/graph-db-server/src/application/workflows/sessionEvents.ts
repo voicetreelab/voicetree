@@ -25,7 +25,7 @@ import {
 } from '@vt/graph-db-server/state/events/projectedGraphEventBus'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
-import { getProject } from './projectState.ts'
+import { getProject } from './state/projectState.ts'
 import { sessionProjectionCache } from '../session/sessionProjectionCache.ts'
 import { readDaemonStateSnapshot } from '../session/buildDaemonState.ts'
 

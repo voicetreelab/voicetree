@@ -175,19 +175,19 @@ function findLoadedRootForFile(loadedRoots: readonly string[], filePath: string)
       - Math.max(...left.rootCandidates.map((candidate) => candidate.length)))[0]?.root
 }
 
-async function getLoadedRoots(port?: number): Promise<readonly string[]> {
+async function getLoadedRoots(vaultPath?: string): Promise<readonly string[]> {
   // BF-266a: derive loaded roots via hydrateState. Post-UFV the wire shape no longer
   // includes `roots.loaded` — that set is derived from `folderState` rows or the legacy
   // `roots.loaded` fallback by hydrateState. Reading `parsed.roots.loaded` directly
   // returned [] under the new wire shape, which made mv-node a no-op for positions.
-  const result = await liveStateDump({pretty: false, ...(port !== undefined ? {port} : {})})
+  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
   const serialized = JSON.parse(result.json) as SerializedState
   const state = hydrateState(serialized)
   return [...state.roots.loaded]
 }
 
-async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, port?: number): Promise<void> {
-  const root = findLoadedRootForFile(await getLoadedRoots(port), filePath)
+async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, vaultPath?: string): Promise<void> {
+  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
   if (!root) return
 
   const positionsPath = path.join(root, '.voicetree', 'positions.json')
@@ -197,8 +197,8 @@ async function writePositionForFile(filePath: string, position: {readonly x: num
   fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
 }
 
-async function removePositionForFile(filePath: string, port?: number): Promise<void> {
-  const root = findLoadedRootForFile(await getLoadedRoots(port), filePath)
+async function removePositionForFile(filePath: string, vaultPath?: string): Promise<void> {
+  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
   if (!root) return
 
   const positionsPath = path.join(root, '.voicetree', 'positions.json')
@@ -208,8 +208,8 @@ async function removePositionForFile(filePath: string, port?: number): Promise<v
   fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
 }
 
-export async function getLiveGraphNodes(port?: number): Promise<LiveGraphNodesSnapshot> {
-  const result = await liveStateDump({pretty: false, ...(port !== undefined ? {port} : {})})
+export async function getLiveGraphNodes(vaultPath?: string): Promise<LiveGraphNodesSnapshot> {
+  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
   const parsed = JSON.parse(result.json) as {
     graph?: {nodes?: Record<string, LiveGraphNodeSnapshot | undefined>}
   }
@@ -320,14 +320,14 @@ export async function persistLiveCrudCommand(
       fs.mkdirSync(path.dirname(file), {recursive: true})
       fs.writeFileSync(file, withTrailingNewline(command.node.contentWithoutYamlOrLinks), 'utf8')
       if (command.node.nodeUIMetadata.position._tag === 'Some') {
-        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.port)
+        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.vaultPath)
       }
       return
     }
     case 'RemoveNode': {
       if (!hasLiveNode(beforeNodes, command.id) || hasLiveNode(afterNodes, command.id)) return
       if (fs.existsSync(command.id)) fs.rmSync(command.id, {force: true})
-      await removePositionForFile(command.id, parsed.port)
+      await removePositionForFile(command.id, parsed.vaultPath)
       return
     }
     case 'AddEdge': {
@@ -373,7 +373,7 @@ export async function persistLiveCrudCommand(
     }
     case 'Move': {
       if (!deltaMovedPosition(delta, command.id) && !nodeHasLivePosition(afterNodes, command.id, command.to)) return
-      await writePositionForFile(command.id, command.to, parsed.port)
+      await writePositionForFile(command.id, command.to, parsed.vaultPath)
       return
     }
     default:

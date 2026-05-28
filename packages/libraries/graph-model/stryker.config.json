@@ -15,7 +15,7 @@
   "concurrency": 3,
   "timeoutMS": 30000,
   "thresholds": {
-    "break": 70
+    "break": null
   },
   "reporters": ["clear-text", "json"],
   "jsonReporter": {

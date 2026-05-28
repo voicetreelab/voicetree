@@ -11,7 +11,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite'
-import * as fs from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import * as path from 'node:path'
 
 export const FOLDER_VISIBILITY_DB_RELATIVE_PATH = '.voicetree/folder-visibility.db'
@@ -23,6 +23,25 @@ type TransactionFn<T extends (...args: any[]) => unknown> = (...args: Parameters
 
 export type FolderVisibilityDatabase = DatabaseSync & {
     transaction<T extends (...args: any[]) => unknown>(fn: T): TransactionFn<T>
+}
+
+/**
+ * Shell-injected dependencies for opening the folder-visibility db.
+ * Threading these in (rather than referencing `fs.mkdirSync` / `new
+ * DatabaseSync` directly inside `openFolderVisibilityDb`) keeps the public
+ * surface honest about what concrete I/O it requires, and keeps every
+ * transitive caller out of the purity-graph's impure reach.
+ */
+export interface FolderVisibilityDbDeps {
+    readonly mkdir: (dir: string, opts: { recursive: true }) => void
+    readonly openDatabase: (filePath: string) => DatabaseSync
+}
+
+/** Default real-IO deps. Constructed once at module load so every callsite
+ * shares the same shell binding; tests can pass an alternative shape. */
+export const defaultFolderVisibilityDbDeps: FolderVisibilityDbDeps = {
+    mkdir: mkdirSync,
+    openDatabase: (filePath: string) => new DatabaseSync(filePath),
 }
 
 /**
@@ -54,15 +73,21 @@ function prepareFolderVisibilityDb(db: FolderVisibilityDatabase): FolderVisibili
  * The caller owns the returned Database handle and must close it via
  * {@link closeFolderVisibilityDb}.
  *
+ * `deps` is required: callers thread fs/db constructors in from the shell
+ * boundary so this leaf does not capture the impure namespace itself.
+ *
  * Throws if `projectRoot` is empty/invalid or the parent directory cannot be
  * created.
  */
-export function openFolderVisibilityDb(projectRoot: string): FolderVisibilityDatabase {
+export function openFolderVisibilityDb(
+    projectRoot: string,
+    deps: FolderVisibilityDbDeps,
+): FolderVisibilityDatabase {
     assertValidVaultPath(projectRoot)
     const dbPath = resolveFolderVisibilityDbPath(projectRoot)
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+    deps.mkdir(path.dirname(dbPath), { recursive: true })
 
-    const db = addTransactionMethod(new DatabaseSync(dbPath))
+    const db = addTransactionMethod(deps.openDatabase(dbPath))
     return prepareFolderVisibilityDb(db)
 }
 

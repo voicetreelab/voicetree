@@ -85,7 +85,7 @@ const test = base.extend<{
 
   electronApp: async ({ testVaultPath }, use) => {
     // Create a temporary userData directory for this test
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-multi-vault-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-multivault-userdata-'));
 
     // Write the config file to auto-load the test vault on startup
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
@@ -276,7 +276,7 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     );
 
     // Create separate userData for this subtest
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-single-vault-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-singlevault-userdata-'));
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: tempDir }, null, 2), 'utf8');
 

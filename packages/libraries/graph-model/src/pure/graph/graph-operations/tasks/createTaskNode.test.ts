@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { createTaskNode, type TaskNodeCreationParams } from './createTaskNode'
-import type { Graph, GraphNode, Edge, NodeIdAndFilePath, GraphDelta, Position, UpsertNodeDelta } from '../..'
+import type { Graph, GraphNode, Edge, NodeIdAndFilePath, GraphDelta, UpsertNodeDelta } from '../..'
 import { buildIncomingEdgesIndex } from '../indexes/incomingEdgesIndex'
+import { buildNodeByBaseNameIndex } from '../indexes/linkResolutionIndexes'
 import * as O from 'fp-ts/lib/Option.js'
 
 const createTestNode: (id: string, edges?: readonly Edge[], content?: string) => GraphNode = (
@@ -16,7 +17,7 @@ const createTestNode: (id: string, edges?: readonly Edge[], content?: string) =>
   nodeUIMetadata: {
     color: O.none,
     position: O.some({ x: 0, y: 0 }),
-    additionalYAMLProps: new Map(),
+    additionalYAMLProps: {},
     isContextNode: false
   }
 })
@@ -26,7 +27,7 @@ const createGraphFromNodes: (nodes: Record<NodeIdAndFilePath, GraphNode>) => Gra
 ): Graph => ({
   nodes,
   incomingEdgesIndex: buildIncomingEdgesIndex(nodes),
-  nodeByBaseName: new Map(),
+  nodeByBaseName: buildNodeByBaseNameIndex(nodes),
   unresolvedLinksIndex: new Map()
 })
 
@@ -44,7 +45,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 100, y: 100 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -55,28 +55,23 @@ describe('createTaskNode', () => {
       expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).toContain('# Implement feature X')
     })
 
-    it('should create node with position from params', () => {
+    it('should create node with position O.none (resolver fills in at delta-apply time)', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/vault/a.md': createTestNode('/vault/a.md', [])
       }
       const graph: Graph = createGraphFromNodes(nodes)
 
-      const position: Position = { x: 200, y: 300 }
       const params: TaskNodeCreationParams = {
         taskDescription: 'Test task',
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position
       }
 
       const result: GraphDelta = createTaskNode(params)
 
       const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
-      expect(O.isSome(delta.nodeToUpsert.nodeUIMetadata.position)).toBe(true)
-      if (O.isSome(delta.nodeToUpsert.nodeUIMetadata.position)) {
-        expect(delta.nodeToUpsert.nodeUIMetadata.position.value).toEqual(position)
-      }
+      expect(O.isNone(delta.nodeToUpsert.nodeUIMetadata.position)).toBe(true)
     })
   })
 
@@ -94,7 +89,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/c.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -115,7 +109,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/single.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -147,7 +140,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/hub.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -171,7 +163,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -195,7 +186,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/first.md', '/vault/second.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -205,6 +195,80 @@ describe('createTaskNode', () => {
       const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
       expect(targetIds).toEqual(['/vault/first.md'])
     })
+  })
+
+  describe('parent wikilink uses basename form, not absolute path', () => {
+    it('should write parent wikilink as basename without .md extension', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/vault/subdir/parent-node.md': createTestNode('/vault/subdir/parent-node.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const params: TaskNodeCreationParams = {
+        taskDescription: 'A task',
+        selectedNodeIds: ['/vault/subdir/parent-node.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolder: '/vault'
+      }
+
+      const result: GraphDelta = createTaskNode(params)
+      const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
+
+      // Parent reference should be the basename, not the absolute path.
+      // contentWithoutYamlOrLinks has wikilinks rewritten as [name]*, so we
+      // assert on that stripped form to match the public observable contract.
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).toContain('[parent-node]*')
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).not.toContain('/vault/subdir/parent-node.md')
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).not.toContain('parent-node.md')
+    })
+
+    it('should mark the parent line with a system-managed HTML comment so spawned children do not mimic it', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/vault/a.md': createTestNode('/vault/a.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const params: TaskNodeCreationParams = {
+        taskDescription: 'A task',
+        selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolder: '/vault'
+      }
+
+      const result: GraphDelta = createTaskNode(params)
+      const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
+
+      // Spawned children read this content embedded in their context node.
+      // The comment differentiates the daemon-written parent line from a
+      // pattern children should imitate when authoring their own progress
+      // nodes. Without it, children mimic `- parent [[X]]` and attach to
+      // the grandparent.
+      expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).toContain(
+        '<!-- system-managed parent edge — do not mimic this pattern in your own progress nodes -->'
+      )
+    })
+
+    it('should still resolve the parent edge to the full node id', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/vault/subdir/parent-node.md': createTestNode('/vault/subdir/parent-node.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const params: TaskNodeCreationParams = {
+        taskDescription: 'A task',
+        selectedNodeIds: ['/vault/subdir/parent-node.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolder: '/vault'
+      }
+
+      const result: GraphDelta = createTaskNode(params)
+      const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
+      const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
+      // Edge resolution still finds the absolute-path-keyed node via basename
+      // suffix match, so the graph wiring is unchanged.
+      expect(targetIds).toEqual(['/vault/subdir/parent-node.md'])
+    })
+
   })
 
   describe('node ID generation', () => {
@@ -219,7 +283,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault/tasks',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -240,7 +303,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writeFolder: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)

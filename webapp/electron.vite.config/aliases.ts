@@ -7,7 +7,6 @@ export const mainAliases = (webappDir: string) => [
   { find: '@vt/app-config/settings', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
   { find: '@vt/app-config/vault-config', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
   { find: '@vt/app-config/project', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/project/index.ts') },
-  { find: '@vt/app-config/positions', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/positions/positions-store.ts') },
   { find: '@', replacement: path.resolve(webappDir, './src') }
 ]
 

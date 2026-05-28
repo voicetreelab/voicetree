@@ -15,7 +15,7 @@ interface FlagSpec {
 
 export interface ParsedLiveCrudCommand {
   readonly command: SerializedCommand
-  readonly port?: number
+  readonly vaultPath?: string
 }
 
 export type ParsedLiveCrudResult =
@@ -28,28 +28,28 @@ const LIVE_CRUD_FLAGS: Record<LiveCrudVerb, readonly FlagSpec[]> = {
     {name: '--label', hint: '<text>', kind: 'string', required: false},
     {name: '--x', hint: '<num>', kind: 'number', required: false},
     {name: '--y', hint: '<num>', kind: 'number', required: false},
-    {name: '--port', hint: '<num>', kind: 'number', required: false},
+    {name: '--vault', hint: '<path>', kind: 'string', required: false},
   ],
   'rm-node': [
     {name: '--file', hint: '<file-path>', kind: 'string', required: true},
-    {name: '--port', hint: '<num>', kind: 'number', required: false},
+    {name: '--vault', hint: '<path>', kind: 'string', required: false},
   ],
   'add-edge': [
     {name: '--src-file', hint: '<path>', kind: 'string', required: true},
     {name: '--tgt-file', hint: '<path>', kind: 'string', required: true},
     {name: '--label', hint: '<text>', kind: 'string', required: false},
-    {name: '--port', hint: '<num>', kind: 'number', required: false},
+    {name: '--vault', hint: '<path>', kind: 'string', required: false},
   ],
   'rm-edge': [
     {name: '--src-file', hint: '<path>', kind: 'string', required: true},
     {name: '--tgt-file', hint: '<path>', kind: 'string', required: true},
-    {name: '--port', hint: '<num>', kind: 'number', required: false},
+    {name: '--vault', hint: '<path>', kind: 'string', required: false},
   ],
   'mv-node': [
     {name: '--file', hint: '<file-path>', kind: 'string', required: true},
     {name: '--x', hint: '<num>', kind: 'number', required: true},
     {name: '--y', hint: '<num>', kind: 'number', required: true},
-    {name: '--port', hint: '<num>', kind: 'number', required: false},
+    {name: '--vault', hint: '<path>', kind: 'string', required: false},
   ],
 }
 
@@ -177,7 +177,7 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
   }
 
   const values = parseLiveCrudFlagValues(verb, argsForVerb)
-  const port = optionalNumber(values, '--port')
+  const vaultPath = optionalString(values, '--vault')
 
   switch (verb) {
     case 'add-node': {
@@ -202,11 +202,11 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
           },
         },
       }
-      return {type: 'command', command, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command, ...(vaultPath !== undefined ? {vaultPath} : {})}
     }
     case 'rm-node': {
       const file = resolvedRequiredPath(values, '--file')
-      return {type: 'command', command: {type: 'RemoveNode', id: file}, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command: {type: 'RemoveNode', id: file}, ...(vaultPath !== undefined ? {vaultPath} : {})}
     }
     case 'add-edge': {
       const source = resolvedRequiredPath(values, '--src-file')
@@ -215,19 +215,19 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
       return {
         type: 'command',
         command: {type: 'AddEdge', source, edge: {targetId, label}},
-        ...(port !== undefined ? {port} : {}),
+        ...(vaultPath !== undefined ? {vaultPath} : {}),
       }
     }
     case 'rm-edge': {
       const source = resolvedRequiredPath(values, '--src-file')
       const targetId = resolvedRequiredPath(values, '--tgt-file')
-      return {type: 'command', command: {type: 'RemoveEdge', source, targetId}, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command: {type: 'RemoveEdge', source, targetId}, ...(vaultPath !== undefined ? {vaultPath} : {})}
     }
     case 'mv-node': {
       const file = resolvedRequiredPath(values, '--file')
       const x = requiredNumber(values, '--x')
       const y = requiredNumber(values, '--y')
-      return {type: 'command', command: {type: 'Move', id: file, to: {x, y}}, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command: {type: 'Move', id: file, to: {x, y}}, ...(vaultPath !== undefined ? {vaultPath} : {})}
     }
   }
 }

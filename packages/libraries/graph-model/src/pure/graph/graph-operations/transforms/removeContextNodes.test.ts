@@ -13,7 +13,7 @@ function createNode(id: string, edges: readonly string[] = []): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }
@@ -28,7 +28,7 @@ function createContextNode(id: string, edges: readonly string[] = []): GraphNode
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: true
         }
     }

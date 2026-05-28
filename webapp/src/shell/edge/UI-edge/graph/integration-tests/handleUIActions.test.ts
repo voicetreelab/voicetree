@@ -76,7 +76,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             },
@@ -87,7 +87,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }

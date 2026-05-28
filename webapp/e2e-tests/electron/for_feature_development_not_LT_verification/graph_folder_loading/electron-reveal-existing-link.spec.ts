@@ -55,7 +55,7 @@ const test = base.extend<{
   },
 
   electronApp: async ({ tempDir, writeFolder, readPath }, use) => {
-    const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-reveal-existing-link-userdata-'));
+    const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-reveal-link-userdata-'));
 
     // Create the node files BEFORE launching the app
     // Main node in writeFolder with an EXISTING link to read-vault

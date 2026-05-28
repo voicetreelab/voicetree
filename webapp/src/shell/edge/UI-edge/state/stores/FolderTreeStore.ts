@@ -1,11 +1,13 @@
 /**
  * Push-based folder tree state store.
- * Main process pushes tree updates via syncFolderTreeFromMain().
- * Renderer subscribes via useSyncExternalStore.
+ *
+ * Tree data is sourced exclusively from main's daemon-graph-sync loop:
+ * daemon-watch-sync.ts → refreshMainGraphFromDaemon → syncRendererFromDaemon
+ * → uiAPI.syncFolderTree → syncFolderTreeFromMain. Renderer subscribes via
+ * useSyncExternalStore; no renderer-initiated pull path exists.
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/folders';
-import type { LiveStateSnapshot } from '@vt/graph-db-client';
 
 export interface FolderTreeState {
     readonly tree: FolderTreeNode | null;
@@ -86,8 +88,6 @@ const INITIAL_STATE: FolderTreeState = {
 };
 
 let currentState: FolderTreeState = INITIAL_STATE;
-let isFetchingFolderTreeFromMain: boolean = false;
-let shouldRefetchFolderTreeFromMain: boolean = false;
 
 type FolderTreeCallback = (state: FolderTreeState) => void;
 const subscribers: Set<FolderTreeCallback> = new Set();
@@ -116,18 +116,6 @@ export function subscribeFolderTree(callback: FolderTreeCallback): () => void {
  */
 export function getFolderTreeState(): FolderTreeState {
     return currentState;
-}
-
-function getLiveStateSnapshotFromMain():
-    | (() => Promise<LiveStateSnapshot | null>)
-    | undefined {
-    if (typeof window === 'undefined') return undefined;
-    return window.electronAPI?.main?.getLiveStateSnapshot as (() => Promise<LiveStateSnapshot | null>) | undefined;
-}
-
-function coerceFolderTreeFromMain(snapshot: LiveStateSnapshot): FolderTreeNode | null {
-    const root: unknown = snapshot.roots.folderTree[0];
-    return root ? root as FolderTreeNode : null;
 }
 
 // --- Action dispatchers (thin wrappers over dispatch) ---
@@ -160,40 +148,6 @@ export function setSidebarWidth(width: number): void {
     dispatch({ type: 'SET_WIDTH', width });
 }
 
-export async function initializeFromMainIfEmpty(): Promise<void> {
-    if (currentState.tree !== null) return;
-
-    const getLiveStateSnapshot: (() => Promise<LiveStateSnapshot | null>) | undefined =
-        getLiveStateSnapshotFromMain();
-    if (typeof getLiveStateSnapshot !== 'function') return;
-
-    if (isFetchingFolderTreeFromMain) {
-        shouldRefetchFolderTreeFromMain = true;
-        return;
-    }
-
-    isFetchingFolderTreeFromMain = true;
-
-    try {
-        const snapshot: LiveStateSnapshot | null = await getLiveStateSnapshot();
-        if (snapshot === null) return;
-        const tree: FolderTreeNode | null = coerceFolderTreeFromMain(snapshot);
-        if (tree) {
-            syncFolderTreeFromMain(tree);
-        }
-    } catch {
-        // Leave the store empty outside Electron or if the snapshot fetch fails.
-    } finally {
-        isFetchingFolderTreeFromMain = false;
-        if (shouldRefetchFolderTreeFromMain) {
-            shouldRefetchFolderTreeFromMain = false;
-            if (currentState.tree === null) {
-                void initializeFromMainIfEmpty();
-            }
-        }
-    }
-}
-
 // --- Persistence subscriber (side effect isolated from reducer) ---
 
 subscribeFolderTree((state: FolderTreeState) => {
@@ -204,5 +158,3 @@ subscribeFolderTree((state: FolderTreeState) => {
         // localStorage unavailable
     }
 });
-
-void initializeFromMainIfEmpty();

@@ -17,6 +17,7 @@ from backend.sse.event_emitter import SSEEventEmitter, SSEEventType
 from backend.sse.context import set_emitter
 
 from backend.logging_config import setup_logging
+from backend.parent_pid_watchdog import start_watchdog_from_env
 from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
     TreeToMarkdownConverter,
 )
@@ -440,5 +441,7 @@ if __name__ == "__main__":
             port = int(sys.argv[1])
         except ValueError:
             pass
+
+    start_watchdog_from_env()
 
     uvicorn.run(app, host="127.0.0.1", port=port)

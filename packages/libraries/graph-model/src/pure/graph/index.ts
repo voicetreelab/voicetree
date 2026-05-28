@@ -61,34 +61,17 @@ export interface NodeUIMetadata {
     // NOTE: title is NOT stored here - it's derived via getNodeTitle(node) from Markdown content
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
-    // todo,ReadonlyMap doesn't serialize over IPC? must be record?
-    readonly additionalYAMLProps: ReadonlyMap<string,string> // todo support this at both read and write paths for Node <-> Markdown
+    readonly additionalYAMLProps: Record<string, string>
     readonly isContextNode?: boolean // undefined means false
     readonly containedNodeIds?: readonly NodeIdAndFilePath[] // Node IDs whose content is contained in this context node
     // width/height is derived from node degree
 }
 
-// {}.entries() throws an error:
-//     Error: emptyObj.entries is not a function
-//
-// So after IPC:
-//     1. additionalYAMLProps: Map(...) becomes {}
-// 2. buildFrontmatterFromMetadata calls metadata.additionalYAMLProps.entries()
-// 3. This throws an error!
-// 4. The error is probably caught somewhere, returning incomplete data
-//
-// The Map type doesn't survive Electron IPC serialization. You need to either:
-//
-// 1. Convert Map to Array/Object before IPC (and back after)
-// 2. Use Object instead of Map for additionalYAMLProps
-//     3. Add serialization handling in the IPC layer
-
-
 // Example object used to derive YAML keys at runtime (types are erased, but object keys remain)
 const _exampleNodeUIMetadata: NodeUIMetadata = {
     color: O.some('purple'),
     position: O.some({ x: 100, y: 200 }),
-    additionalYAMLProps: new Map([['agent_name', 'Wendy']]),
+    additionalYAMLProps: { agent_name: 'Wendy' },
     isContextNode: false
 }
 
@@ -131,8 +114,6 @@ export interface Env {
 }
 export type FilePath = string // todo enforce only / and chars
 
-/** Folder where context nodes are stored - used to exclude from child node ID generation */
-export const CONTEXT_NODES_FOLDER: "ctx-nodes" = 'ctx-nodes'
 
 export type NodeIdAndFilePath = FilePath
 

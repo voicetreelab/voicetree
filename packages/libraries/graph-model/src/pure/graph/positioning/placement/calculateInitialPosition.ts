@@ -229,3 +229,25 @@ export function calculateNodePosition(
     const centroid: Position = computeGraphCentroid(graph);
     return O.some(findFreeSlotNearPosition(spatialIndex, centroid));
 }
+
+/**
+ * Resolve an initial position for a newly authored node by inspecting its
+ * outgoing edges. The "parent" of an authored node is the target of its
+ * first parent-labelled outgoing edge (or the first outgoing edge as a
+ * fallback). If the resolved parent has a position in `graph`, returns the
+ * collision-aware child position; otherwise returns the centroid free-slot.
+ *
+ * Pure: depends only on its arguments. The caller is responsible for
+ * supplying a fresh `spatialIndex` if the graph has changed.
+ */
+export function resolveInitialPositionForNewNode(
+    graph: Graph,
+    node: GraphNode,
+    spatialIndex: SpatialIndex,
+): O.Option<Position> {
+    const parentEdge: { readonly targetId: NodeIdAndFilePath; readonly label: string } | undefined =
+        node.outgoingEdges.find(edge => edge.label === 'parent') ?? node.outgoingEdges[0];
+    if (!parentEdge) return calculateNodePosition(graph, spatialIndex);
+    const fromParent: O.Option<Position> = calculateNodePosition(graph, spatialIndex, parentEdge.targetId);
+    return O.isSome(fromParent) ? fromParent : calculateNodePosition(graph, spatialIndex);
+}

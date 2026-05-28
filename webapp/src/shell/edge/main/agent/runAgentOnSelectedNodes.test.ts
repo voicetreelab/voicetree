@@ -11,10 +11,12 @@ const mocks = vi.hoisted(() => ({
   spawnTerminalWithContextNode: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
-  terminalRuntimeSurface: {
-    spawnTerminalWithContextNode: mocks.spawnTerminalWithContextNode
-  }
+vi.mock('@vt/vt-daemon-client', () => ({
+  spawnTerminalWithContextNode: mocks.spawnTerminalWithContextNode
+}))
+
+vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-url-binding', () => ({
+  getVtDaemonClient: vi.fn().mockReturnValue({} as unknown),
 }))
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => ({
@@ -35,7 +37,7 @@ function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   }
@@ -83,14 +85,12 @@ describe('runAgentOnSelectedNodes', () => {
     expect(result.taskNodeId).toMatch(/\.md$/)
     expect(postDeltaThroughDaemonWithEditors).toHaveBeenCalledTimes(1)
 
-    const taskNodeId: NodeIdAndFilePath = result.taskNodeId
-    expect(mocks.spawnTerminalWithContextNode).toHaveBeenCalledWith(
-      taskNodeId,
-      undefined,
-      undefined,
-      false,
-      false,
-      selectedNodeIds
-    )
+    const [, request] = mocks.spawnTerminalWithContextNode.mock.calls[0]
+    expect(request).toEqual({
+      taskNodeId: result.taskNodeId,
+      skipFitAnimation: false,
+      startUnpinned: false,
+      selectedNodeIds,
+    })
   })
 })

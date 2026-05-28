@@ -37,7 +37,7 @@ const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md
 
 describe('applyGraphDeltaToDB - Integration Tests', () => {
   beforeEach(() => {
-    initGraphModel({ appSupportPath: '/tmp/test-userdata-apply-graph-delta' })
+    initGraphModel({})
     // Initialize state with empty graph and example_small vault path
     setGraph(createEmptyGraph())
     setProjectRoot(EXAMPLE_SMALL_PATH)
@@ -61,7 +61,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -103,7 +103,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
           color: O.some('#FF5733'),
           position: O.some({ x: 100, y: 200 }),
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -141,7 +141,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -190,7 +190,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -212,7 +212,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -256,7 +256,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },

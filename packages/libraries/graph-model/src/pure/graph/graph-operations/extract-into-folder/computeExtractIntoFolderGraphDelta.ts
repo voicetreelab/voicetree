@@ -357,7 +357,7 @@ export function computeExtractIntoFolderGraphDelta(
         nodeUIMetadata: {
             color: O.none,
             position: computeFolderIndexPosition(movedNodes.map(({ oldNode }) => oldNode)),
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }

@@ -25,10 +25,12 @@ vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => 
     postDeltaThroughDaemon: mocks.postDeltaThroughDaemon,
 }))
 
-vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
-    terminalRuntimeSurface: {
-        getTerminalRecords: mocks.getTerminalRecords,
-    },
+vi.mock('@vt/vt-daemon-client', () => ({
+    getTerminalRecords: mocks.getTerminalRecords,
+}))
+
+vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-url-binding', () => ({
+    getVtDaemonClient: vi.fn().mockReturnValue({} as unknown),
 }))
 
 import { cleanupOrphanedContextNodes, saveNodePositions } from '@/shell/edge/main/workspace/saveNodePositions'
@@ -42,7 +44,7 @@ describe('saveNodePositions', () => {
             return { written: Object.keys(positions).length }
         })
         mocks.postDeltaThroughDaemon.mockResolvedValue(undefined)
-        mocks.getTerminalRecords.mockReturnValue([])
+        mocks.getTerminalRecords.mockResolvedValue([])
     })
 
     it('writes Cytoscape node positions through the daemon', async () => {
@@ -104,7 +106,7 @@ describe('cleanupOrphanedContextNodes', () => {
             'regular.md': regularNode,
         })
         mocks.getGraphFromDaemon.mockResolvedValue(graph)
-        mocks.getTerminalRecords.mockReturnValue([
+        mocks.getTerminalRecords.mockResolvedValue([
             { terminalData: { attachedToContextNodeId: 'active.md' } },
         ])
 
@@ -125,7 +127,7 @@ function createNode(isContextNode: boolean): GraphNode {
         contentWithoutYamlOrLinks: '# Node',
         outgoingEdges: [],
         nodeUIMetadata: {
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             color: O.none,
             isContextNode,
             position: O.none,

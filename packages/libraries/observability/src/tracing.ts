@@ -36,7 +36,7 @@ type OwnerDiagnosticEvent = {
   readonly kind: string
   readonly attemptId: string
   readonly callerKind: string
-  readonly canonicalProjectRoot: string
+  readonly canonicalVault: string
   readonly nowMs: number
   readonly [key: string]: unknown
 }
@@ -213,10 +213,10 @@ function flattenOwnerEvent(event: OwnerDiagnosticEvent): Record<string, string |
     'owner.kind': event.kind,
     'owner.attemptId': event.attemptId,
     'owner.callerKind': event.callerKind,
-    'owner.canonicalProjectRoot': event.canonicalProjectRoot,
+    'owner.canonicalVault': event.canonicalVault,
   }
   for (const [key, value] of Object.entries(event)) {
-    if (key === 'kind' || key === 'attemptId' || key === 'callerKind' || key === 'canonicalProjectRoot' || key === 'nowMs') continue
+    if (key === 'kind' || key === 'attemptId' || key === 'callerKind' || key === 'canonicalVault' || key === 'nowMs') continue
     if (typeof value === 'string' || typeof value === 'number') {
       base[`owner.${key}`] = value
     } else if (value !== undefined && value !== null) {

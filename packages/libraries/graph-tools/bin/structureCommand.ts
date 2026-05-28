@@ -2,7 +2,6 @@ import * as path from 'node:path'
 import {
   renderGraphView,
   createLiveTransport,
-  DEFAULT_MCP_PORT,
   type ViewFormat,
 } from '../src/node'
 import {buildAutoViewGraph, renderTreeCover} from '../src/view/autoView'
@@ -19,20 +18,15 @@ function getRequiredValue(parsedArgs: string[], index: number, flag: string): st
   return value
 }
 
-function resolveMcpPort(portOverride: number | undefined, envPort: string | undefined): number {
-  if (portOverride !== undefined) return portOverride
-  return envPort ? parseInt(envPort, 10) : DEFAULT_MCP_PORT
-}
-
 interface DaemonOverlay {
   readonly collapsed: ReadonlySet<string>
   readonly selected: ReadonlySet<string>
   readonly defaultRoot: string | undefined
 }
 
-async function tryGetDaemonOverlay(port: number): Promise<DaemonOverlay | undefined> {
+async function tryGetDaemonOverlay(vaultPath?: string): Promise<DaemonOverlay | undefined> {
   try {
-    const transport = createLiveTransport(port)
+    const transport = createLiveTransport(vaultPath)
     const state = await transport.getLiveState()
     const defaultRoot = state.roots.loaded.size > 0
       ? [...state.roots.loaded][0]
@@ -57,7 +51,7 @@ export async function runStructureCommand(args: string[]): Promise<void> {
   let explicitRender = false
   let budget = 30
   let budgetExplicit = false
-  let port: number | undefined
+  let vaultPath: string | undefined
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -123,16 +117,16 @@ export async function runStructureCommand(args: string[]): Promise<void> {
       explicitRender = true
       continue
     }
-    if (arg === '--port') {
+    if (arg === '--vault') {
       const next: string | undefined = args[++i]
       if (!next || next.startsWith('--')) {
-        fail('--port requires a value')
+        fail('--vault requires a value')
       }
-      port = parseInt(next, 10)
+      vaultPath = next
       continue
     }
-    if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
+    if (arg.startsWith('--vault=')) {
+      vaultPath = arg.slice('--vault='.length)
       continue
     }
     if (arg.startsWith('--')) {
@@ -150,7 +144,7 @@ export async function runStructureCommand(args: string[]): Promise<void> {
     if (explicitRender) {
       fail('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
     }
-    const overlay = await tryGetDaemonOverlay(resolveMcpPort(port, process.env.VOICETREE_MCP_PORT))
+    const overlay = await tryGetDaemonOverlay(vaultPath)
     const resolvedFolder = folderPath
       ? path.resolve(folderPath)
       : (overlay?.defaultRoot ?? process.cwd())

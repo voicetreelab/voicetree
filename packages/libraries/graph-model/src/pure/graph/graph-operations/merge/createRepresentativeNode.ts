@@ -168,7 +168,7 @@ ${allContent}`
         nodeUIMetadata: {
             color: firstNodeColor,
             position,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
             containedNodeIds: undefined
         }

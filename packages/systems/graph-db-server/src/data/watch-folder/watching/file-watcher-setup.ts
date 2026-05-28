@@ -7,7 +7,6 @@
  * - Retry logic for transient file system issues
  */
 
-import path from "path";
 import { promises as fs } from "fs";
 import type { Stats } from "fs";
 import chokidar from "chokidar";
@@ -99,18 +98,29 @@ export async function setupWatcher(
 
     // Create new watcher - chokidar supports array of paths natively
     const newWatcher: FSWatcher = chokidar.watch([...vaultPaths], {
+        // Only watch .md and image files (directories must pass through for traversal).
+        // KEEP IN SYNC WITH packages/systems/graph-db-server/src/data/graph/watching/daemonWatcher.ts.
+        //
+        // When chokidar invokes this predicate WITHOUT stats (notably from
+        // FsEventsHandler._watchWithFsEvents — the gate that decides whether
+        // to set up the macOS fsevents listener), it must NOT use
+        // `path.extname()` as a "this is a file" heuristic: extname returns
+        // a non-empty string for any directory whose basename contains a
+        // dot (`My Vault.notes`, `mktemp -d /tmp/vault.XXXX`, …). Treating
+        // such a directory as a file and ignoring it causes chokidar to
+        // skip the fsevents subscription — which leaves _readyCount
+        // half-decremented, so the watcher's `ready` promise never resolves.
+        // The safe default when stats are unavailable is "don't ignore";
+        // chokidar reinvokes the predicate during the readdirp scan with
+        // stats populated, where the real file/dir filtering happens.
         ignored: [
-            // Only watch .md and image files (directories must pass through for traversal)
             (filePath: string, stats?: Stats) => {
-                // If stats available, use it to detect directories
-                if (stats?.isDirectory()) {
+                if (!stats) {
                     return false;
                 }
-                // If stats unavailable and no extension, assume it's a directory
-                if (!stats && !path.extname(filePath)) {
+                if (stats.isDirectory()) {
                     return false;
                 }
-                // Allow markdown and image files
                 return !filePath.endsWith('.md') && !isImageNode(filePath);
             },
         ],

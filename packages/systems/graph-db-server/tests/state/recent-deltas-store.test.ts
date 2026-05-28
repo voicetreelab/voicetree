@@ -17,7 +17,7 @@ const makeNode: (nodeId: string, content: string) => GraphNode = (nodeId, conten
     nodeUIMetadata: {
         color: O.none,
         position: O.none,
-        additionalYAMLProps: new Map()
+        additionalYAMLProps: {}
     } as NodeUIMetadata
 })
 

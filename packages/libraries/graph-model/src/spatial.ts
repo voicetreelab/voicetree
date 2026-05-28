@@ -1,6 +1,7 @@
 export * from './pure/graph/spatial'
 export * from './pure/graph/positioning'
-export { calculateInitialPositionForChild, calculateCollisionAwareChildPosition, computeGraphCentroid, findFreeSlotNearPosition, calculateNodePosition } from './pure/graph/positioning/placement/calculateInitialPosition'
+export { calculateInitialPositionForChild, calculateCollisionAwareChildPosition, computeGraphCentroid, findFreeSlotNearPosition, calculateNodePosition, resolveInitialPositionForNewNode } from './pure/graph/positioning/placement/calculateInitialPosition'
+export { resolveInitialPositionsForDelta } from './pure/graph/positioning/placement/resolveInitialPositionsForDelta'
 export { buildSpatialIndexFromGraph, nodeEntryToObstacle, obstacleToRect, edgeEntryToSegment, buildSearchRect, expandRect, queryObstaclesFromIndex, queryEdgeSegmentsFromIndex, extractFromSpatialIndex } from './pure/graph/positioning/placement/spatialAdapters'
 export { type ObstacleBBox, type TargetDimensions, type DirectionalDistanceConfig, type Obstacle, boxObstacle, segmentObstacle, findBestPosition } from './pure/graph/positioning/placement/findBestPosition'
 export { type ComponentSubgraph, type PackResult, componentsOverlap, computeComponentBBox, packComponents, separateOverlappingComponents } from './pure/graph/positioning/layout/packComponents'

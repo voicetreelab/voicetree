@@ -4,10 +4,6 @@ import {getNodesByAgentName} from './getNodesByAgentName'
 import type {Graph, GraphNode} from '..'
 
 function createMockNode(nodeId: string, agentName?: string): GraphNode {
-    const additionalYAMLProps: Map<string, string> = new Map()
-    if (agentName) {
-        additionalYAMLProps.set('agent_name', agentName)
-    }
     return {
         kind: 'leaf',
         absoluteFilePathIsID: nodeId,
@@ -16,7 +12,7 @@ function createMockNode(nodeId: string, agentName?: string): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps
+            additionalYAMLProps: agentName ? { agent_name: agentName } : {}
         }
     }
 }
