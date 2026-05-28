@@ -1,24 +1,38 @@
-// Tool catalog — pure data. Single source of truth for tool descriptions,
-// input schemas, and handler bindings. Consumed by the unified HTTP daemon
-// (`transport/httpServer.ts`) for input validation + dispatch, and by
-// `transport/toolCatalog.ts` for the dispatcher map shape. The CLI manual
-// (`packages/systems/voicetree-cli/prompts/cli-manual.md`) is the user-facing
-// description surface; `transport/tests/catalogManualDrift.test.ts` asserts
-// each description substring is present in that manual.
+// Tool catalog — data + thin adapters. Each entry pairs a `ToolSpec`
+// (the user-facing single source of truth, owned by `@vt/vt-daemon-protocol`)
+// with the daemon-internal pieces it needs to dispatch RPCs: a zod input
+// schema and a bridged handler.
 //
 // Functional design: this file is data + thin adapters that delegate to the
 // existing pure tool functions under `src/tools/`, `src/create-graph/`. No
 // transport concerns live here — the catalog is transport-agnostic data, and
 // each transport reads it.
 //
-// Twelve catalog entries match the spec set (design doc §4.1): the eleven
-// from the former `registerAllTools` plus the formerly-unregistered
-// `search_nodes` (design doc §2.2).
+// Description text and per-input documentation come from the matching
+// `ToolSpec`. `vt manual <verb>`, spawn-prompt injection, and the daemon's
+// zod `.describe()` strings all source from the same spec, so changes to
+// docs land in one place.
 
 import {z} from 'zod'
 import type {ZodTypeAny, ZodRawShape} from 'zod'
 
 import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {
+    AGENT_LIST_SPEC,
+    AGENT_WAIT_SPEC,
+    CLOSE_AGENT_SPEC,
+    CREATE_GRAPH_SPEC,
+    GET_UNSEEN_NODES_NEARBY_SPEC,
+    GRAPH_STRUCTURE_SPEC,
+    METRICS_APPEND_SESSION_SPEC,
+    METRICS_GET_SESSIONS_SPEC,
+    READ_TERMINAL_OUTPUT_SPEC,
+    SEARCH_NODES_SPEC,
+    SEND_MESSAGE_SPEC,
+    SPAWN_AGENT_SPEC,
+    VT_DISPATCH_LIVE_COMMAND_SPEC,
+    VT_GET_LIVE_STATE_SPEC,
+} from '@vt/vt-daemon-protocol'
 import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
 import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/spawnAgentTool'
 import {listAgentsTool} from '../agent-runtime/agent-control/listAgentsTool'
@@ -35,6 +49,7 @@ import {dispatchLiveCommandTool} from './dispatchLiveCommandTool'
 import {getLiveStateTool} from './getLiveStateTool'
 import {getSessionsTool} from './getSessionsTool'
 import {appendSessionTool, type AppendSessionParams} from './appendSessionTool'
+import {buildCatalogEntry, specDescribe} from './tool-spec-binding'
 import type {McpToolBridges} from '../config/mcpBridges.ts'
 
 export type CatalogHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
@@ -52,18 +67,6 @@ export interface CatalogEntry {
     readonly handler: BridgedCatalogHandler
 }
 
-const DISPATCH_LIVE_COMMAND_DESCRIPTION: string = [
-    'SerializedCommand payload. Shape per command.type:',
-    '- SetFolderState: {type, viewId, path, state}',
-    '- Select: {type, ids[], additive?}',
-    '- Deselect: {type, ids[]}',
-    '- Move: {type, id, to:{x,y}}',
-    '- AddEdge: {type, source, edge:{targetId,label}}',
-    '- RemoveEdge: {type, source, targetId}',
-    '- RemoveNode: {type, id}',
-    '- AddNode: {type, node} (full SerializedGraphNode)',
-].join('\n')
-
 function adapt<P>(fn: (params: P) => Promise<McpToolResponse> | McpToolResponse): BridgedCatalogHandler {
     return async (args: Record<string, unknown>): Promise<McpToolResponse> => fn(args as P)
 }
@@ -74,136 +77,102 @@ function adaptWithGraph<P>(
     return async (args, bridges) => fn(args as P, bridges.graph)
 }
 
-function adaptWithBridges<P>(
-    fn: (params: P, bridges: McpToolBridges) => Promise<McpToolResponse>,
-): BridgedCatalogHandler {
-    return async (args, bridges) => fn(args as P, bridges)
-}
-
 // ─── Catalog entries ─────────────────────────────────────────────────────────
 
-const SPAWN_AGENT: CatalogEntry = {
-    name: 'spawn_agent',
-    description: `Spawn an agent in the Voicetree graph. Prefer this over built-in subagents—users get visibility and control over the work.
-
-**When to use:** Complex tasks, parallelizable subtasks, any work where user visibility matters.
-
-**Pattern:** Decompose into nodes → spawn agents → (auto-monitored, you'll be notified on completion) → review with get_unseen_nodes_nearby.
-
-**Prefer \`nodeId\` over \`task+parentNodeId\` when a node already describes the work.** Don't recreate what's already written — spawn directly on the existing node.
-
-If no node exists yet, use task+parentNodeId to create a new task node first.`,
-    inputShape: {
-        nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
-        callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
-        task: z.string().optional().describe('Task description for creating a new task node. The first line becomes the node title, the rest becomes the body. Requires parentNodeId.'),
-        parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
-        spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree'),
-        promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.'),
-        agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, inherits the caller\'s agent type. Falls back to default agent from settings if caller has no type.'),
-        headless: z.boolean().optional().describe('When true, agent runs as background process with no PTY/terminal UI. Output is via MCP tools (create_graph). Status shown as badge on task node.'),
-        replaceSelf: z.boolean().optional().describe('When true, the successor inherits the caller\'s terminal ID and agent name. The caller\'s process is killed and replaced atomically. Use for context handover — the agent identity persists across context boundaries.'),
-        depthBudget: z.number().optional().describe('Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller\'s DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).'),
+const spawnDescribe: (rpcPath: string) => string = specDescribe(SPAWN_AGENT_SPEC)
+const SPAWN_AGENT: CatalogEntry = buildCatalogEntry(
+    SPAWN_AGENT_SPEC,
+    {
+        nodeId: z.string().optional().describe(spawnDescribe('nodeId')),
+        callerTerminalId: z.string().describe(spawnDescribe('callerTerminalId')),
+        task: z.string().optional().describe(spawnDescribe('task')),
+        parentNodeId: z.string().optional().describe(spawnDescribe('parentNodeId')),
+        spawnDirectory: z.string().optional().describe(spawnDescribe('spawnDirectory')),
+        promptTemplate: z.string().optional().describe(spawnDescribe('promptTemplate')),
+        agentName: z.string().optional().describe(spawnDescribe('agentName')),
+        headless: z.boolean().optional().describe(spawnDescribe('headless')),
+        replaceSelf: z.boolean().optional().describe(spawnDescribe('replaceSelf')),
+        depthBudget: z.number().optional().describe(spawnDescribe('depthBudget')),
     },
-    handler: async (args, bridges) =>
+    async (args, bridges) =>
         spawnAgentTool(args as unknown as Parameters<typeof spawnAgentTool>[0], makeSpawnAgentDeps(bridges.graph)),
-}
+)
 
-const LIST_AGENTS: CatalogEntry = {
-    name: 'list_agents',
-    description: 'List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass to `--name` when spawning.',
-    inputShape: {},
-    handler: async (_args, bridges) => listAgentsTool(bridges.graph),
-}
+const LIST_AGENTS: CatalogEntry = buildCatalogEntry(
+    AGENT_LIST_SPEC,
+    {},
+    async (_args, bridges) => listAgentsTool(bridges.graph),
+)
 
-const WAIT_FOR_AGENTS: CatalogEntry = {
-    name: 'wait_for_agents',
-    description: 'Wait for specified agent terminals to complete. Returns immediately with a monitorId. The monitor polls in the background and sends a completion message to your terminal when all agents are done.\n\nIMPORTANT: This tool is non-blocking. After calling it, you should continue with other work or inform the user you are waiting. Do NOT manually poll agent status — a "[WaitForAgents] Agent(s) completed." message will be automatically injected into your terminal when all agents finish their work. You will see this message appear as if the user sent it.\n\nNOTE: spawn_agent now auto-starts a monitor, so you only need wait_for_agents for explicit multi-agent waits or custom polling intervals.',
-    inputShape: {
-        terminalIds: z.array(z.string()).describe('Array of terminal IDs to wait for'),
-        callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-        pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 5000)'),
+const waitDescribe: (rpcPath: string) => string = specDescribe(AGENT_WAIT_SPEC)
+const WAIT_FOR_AGENTS: CatalogEntry = buildCatalogEntry(
+    AGENT_WAIT_SPEC,
+    {
+        terminalIds: z.array(z.string()).describe(waitDescribe('terminalIds')),
+        callerTerminalId: z.string().describe(waitDescribe('callerTerminalId')),
+        pollIntervalMs: z.number().optional().describe(waitDescribe('pollIntervalMs')),
     },
-    handler: adaptWithGraph(waitForAgentsTool),
-}
+    adaptWithGraph(waitForAgentsTool),
+)
 
-const GET_UNSEEN_NODES_NEARBY: CatalogEntry = {
-    name: 'get_unseen_nodes_nearby',
-    description: 'Get nodes near your context that were created after your context was generated. The user or other agents may have added nodes for you to read. Call this to check for new relevant information.',
-    inputShape: {
-        callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-        search_from_node: z.string().optional().describe('Optional node ID to search from instead of your task node'),
+const unseenDescribe: (rpcPath: string) => string = specDescribe(GET_UNSEEN_NODES_NEARBY_SPEC)
+const GET_UNSEEN_NODES_NEARBY: CatalogEntry = buildCatalogEntry(
+    GET_UNSEEN_NODES_NEARBY_SPEC,
+    {
+        callerTerminalId: z.string().describe(unseenDescribe('callerTerminalId')),
+        search_from_node: z.string().optional().describe(unseenDescribe('search_from_node')),
     },
-    handler: adaptWithGraph(getUnseenNodesNearbyTool),
-}
+    adaptWithGraph(getUnseenNodesNearbyTool),
+)
 
-const CLOSE_AGENT: CatalogEntry = {
-    name: 'close_agent',
-    description: 'Close an agent terminal. After waiting for an agent to finish, review its work. Close the agent if satisfied with its output. Leave the agent open if any tech debt was introduced or if human review would be beneficial - open terminals signal to the user that attention is needed. Will error if the agent is still running — you must send them a message first to check remaining work, then override with forceWithReason if needed.',
-    inputShape: {
-        terminalId: z.string().describe('The terminal ID of the agent to close'),
-        callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-        forceWithReason: z.string().optional().describe('Required to close a running (non-idle) agent. Explain why you are force-closing.'),
+const closeDescribe: (rpcPath: string) => string = specDescribe(CLOSE_AGENT_SPEC)
+const CLOSE_AGENT: CatalogEntry = buildCatalogEntry(
+    CLOSE_AGENT_SPEC,
+    {
+        terminalId: z.string().describe(closeDescribe('terminalId')),
+        callerTerminalId: z.string().describe(closeDescribe('callerTerminalId')),
+        forceWithReason: z.string().optional().describe(closeDescribe('forceWithReason')),
     },
-    handler: adaptWithGraph(closeAgentTool),
-}
+    adaptWithGraph(closeAgentTool),
+)
 
-const SEND_MESSAGE: CatalogEntry = {
-    name: 'send_message',
-    description: 'Send a message directly to an agent terminal. The message is injected into the terminal and executed (carriage return appended). Use this to provide follow-up instructions, answer prompts, or inject commands into a running agent.',
-    inputShape: {
-        terminalId: z.string().describe('The terminal ID of the agent to send the message to'),
-        message: z.string().describe('The message/command to send to the terminal'),
-        callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+const sendDescribe: (rpcPath: string) => string = specDescribe(SEND_MESSAGE_SPEC)
+const SEND_MESSAGE: CatalogEntry = buildCatalogEntry(
+    SEND_MESSAGE_SPEC,
+    {
+        terminalId: z.string().describe(sendDescribe('terminalId')),
+        message: z.string().describe(sendDescribe('message')),
+        callerTerminalId: z.string().describe(sendDescribe('callerTerminalId')),
     },
-    handler: adapt(sendMessageTool),
-}
+    adapt(sendMessageTool),
+)
 
-const READ_TERMINAL_OUTPUT: CatalogEntry = {
-    name: 'read_terminal_output',
-    description: 'Read the last N characters of output from an agent terminal. Output has ANSI escape codes stripped for readability. Use this to check what an agent has printed, debug issues, or verify agent progress without waiting for completion.',
-    inputShape: {
-        terminalId: z.string().describe('The terminal ID of the agent to read output from'),
-        callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-        nChars: z.number().optional().describe('Number of characters to return (default: 10000)'),
+const readOutputDescribe: (rpcPath: string) => string = specDescribe(READ_TERMINAL_OUTPUT_SPEC)
+const READ_TERMINAL_OUTPUT: CatalogEntry = buildCatalogEntry(
+    READ_TERMINAL_OUTPUT_SPEC,
+    {
+        terminalId: z.string().describe(readOutputDescribe('terminalId')),
+        callerTerminalId: z.string().describe(readOutputDescribe('callerTerminalId')),
+        nChars: z.number().optional().describe(readOutputDescribe('nChars')),
     },
-    handler: adapt(readTerminalOutputTool),
-}
+    adapt(readTerminalOutputTool),
+)
 
-const CREATE_GRAPH: CatalogEntry = {
-    name: 'create_graph',
-    description: `Create a graph of progress nodes in a single call. Supports trees, chains, fan-out, fan-in, and diamond dependencies (multiple parents per node). Automatically handles frontmatter, parent linking, file paths, graph positioning, and mermaid validation.
-
-**When to use:** After completing any non-trivial work — document what you did, files changed, and key decisions.
-
-One node = one concept. If your work covers multiple independent concerns, create multiple nodes in one call using parent references.
-
-**Self-containment:** Nodes must embed all artifacts produced (diagrams, ASCII mockups, code, analysis). Never summarize an artifact — include it verbatim.
-
-**Required when codeDiffs provided:** complexityScore and complexityExplanation must be included.
-
-**Composition guidance:** Read addProgressTree.md before your first progress node for scope rules, when to split, and embedding standards.
-
-**Node wiring:** Each node has a \`filename\` (with or without .md extension). Declare parents inside \`content\` using \`- parent [[other-filename|edge-label]]\` lines (one per line). The pipe-separated edge label is optional — use \`- parent [[other-filename]]\` for a generic parent link. All in-batch parents (filenames declared in this call) are created before children. Nodes with no \`- parent\` line attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: emit multiple \`- parent [[…]]\` lines.
-
-Split by concern:
-Task: Review git diff
-├── Review: Collision-aware positioning refactor
-└── Review: Prompt template cleanup
-
-Split by phase + option:
-Task
-├── High-level architecture
-│   ├── Option A: Event-driven
-│   └── Option B: Request-response
-├── Data types
-└── Pure functions
-
-**Schema validation (optional):** If the folder containing the new node has a folder note declaring \`## Type: <kind>\`, \`vt graph create\` runs a schema validator (from \`.voicetree/schemas.cjs\`) before writing. On rejection it exits non-zero with the violating rules. If no upstream Type is declared, validation is silent and the node is created normally.`,
-    inputShape: {
-        callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-        parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
-        outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write folder. The resolved path must stay inside the loaded vault paths (writeFolder or readPaths).'),
+// The create_graph entry has a nested `nodes[]` shape with its own
+// per-field documentation. The top-level inputs (callerTerminalId,
+// parentNodeId, outputPath, nodes, override_with_rationale) are
+// sourced from the spec; the per-node-field descriptions stay local
+// to this declaration because the spec models tools at the top level
+// and not arbitrary nested object shapes.
+const createGraphDescribe: (rpcPath: string) => string = specDescribe(CREATE_GRAPH_SPEC)
+const CREATE_GRAPH: CatalogEntry = buildCatalogEntry(
+    CREATE_GRAPH_SPEC,
+    {
+        callerTerminalId: z.string().describe(createGraphDescribe('callerTerminalId')),
+        parentNodeId: z.string().optional().describe(createGraphDescribe('parentNodeId')),
+        outputPath: z.string().optional().describe(
+            'Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write folder. The resolved path must stay inside the loaded vault paths (writeFolder or readPaths).',
+        ),
         nodes: z.array(z.object({
             filename: z.string().describe('Filename for this node (with or without .md extension). Other nodes can reference this one via `- parent [[filename|edge-label]]` lines inside their `content`.'),
             title: z.string().describe('Node title — one concept per node, concise and descriptive'),
@@ -222,72 +191,69 @@ Task
             ruleId: z.enum(OVERRIDABLE_RULE_IDS),
             rationale: z.string(),
         })).optional().describe(
-            'Override validation rules that would otherwise block. '
-            + 'Each entry must match a rule ID from the error response.',
+            'Override validation rules that would otherwise block. Each entry must match a rule ID from the error response.',
         ),
     },
-    handler: adaptWithGraph(createGraphTool),
-}
+    adaptWithGraph(createGraphTool),
+)
 
-const GRAPH_STRUCTURE: CatalogEntry = {
-    name: 'graph_structure',
-    description: 'Read .md files from a folder on disk and render the graph structure as ASCII. Small folders default to a context-style view with a tree plus `## Node Contents`; larger folders default to compact topology only. Excludes ctx-nodes/ folders.',
-    inputShape: {
-        folderPath: z.string().describe('Absolute path to folder containing .md files'),
-        withSummaries: z.boolean().optional().describe('Tri-state summary control: `true` forces the context-style tree plus `## Node Contents`, `false` forces topology-only output, and omitting it auto-enables summaries only for folders with 30 or fewer nodes.'),
+const structureDescribe: (rpcPath: string) => string = specDescribe(GRAPH_STRUCTURE_SPEC)
+const GRAPH_STRUCTURE: CatalogEntry = buildCatalogEntry(
+    GRAPH_STRUCTURE_SPEC,
+    {
+        folderPath: z.string().describe(structureDescribe('folderPath')),
+        withSummaries: z.boolean().optional().describe(structureDescribe('withSummaries')),
     },
-    handler: adapt(graphStructureTool),
-}
+    adapt(graphStructureTool),
+)
 
-const SEARCH_NODES: CatalogEntry = {
-    name: 'search_nodes',
-    description: 'Semantic search across the active vault. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.',
-    inputShape: {
-        query: z.string().describe('Natural-language search query'),
-        top_k: z.number().optional().describe('Maximum number of results to return (default: 10)'),
+const searchDescribe: (rpcPath: string) => string = specDescribe(SEARCH_NODES_SPEC)
+const SEARCH_NODES: CatalogEntry = buildCatalogEntry(
+    SEARCH_NODES_SPEC,
+    {
+        query: z.string().describe(searchDescribe('query')),
+        top_k: z.number().optional().describe(searchDescribe('top_k')),
     },
-    handler: adapt(searchNodesTool),
-}
+    adapt(searchNodesTool),
+)
 
-const VT_GET_LIVE_STATE: CatalogEntry = {
-    name: 'vt_get_live_state',
-    description: 'Return a SerializedState snapshot of the daemon-owned session: graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
-    inputShape: {},
-    handler: async (): Promise<McpToolResponse> => getLiveStateTool(),
-}
+const VT_GET_LIVE_STATE: CatalogEntry = buildCatalogEntry(
+    VT_GET_LIVE_STATE_SPEC,
+    {},
+    async (): Promise<McpToolResponse> => getLiveStateTool(),
+)
 
-const VT_DISPATCH_LIVE_COMMAND: CatalogEntry = {
-    name: 'vt_dispatch_live_command',
-    description: 'Apply a SerializedCommand to the running app. Returns {delta, revision}.',
-    inputShape: {
-        command: z.record(z.string(), z.unknown()).describe(DISPATCH_LIVE_COMMAND_DESCRIPTION),
+const dispatchDescribe: (rpcPath: string) => string = specDescribe(VT_DISPATCH_LIVE_COMMAND_SPEC)
+const VT_DISPATCH_LIVE_COMMAND: CatalogEntry = buildCatalogEntry(
+    VT_DISPATCH_LIVE_COMMAND_SPEC,
+    {
+        command: z.record(z.string(), z.unknown()).describe(dispatchDescribe('command')),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+    async (args: Record<string, unknown>): Promise<McpToolResponse> =>
         dispatchLiveCommandTool({command: args.command as never}),
-}
+)
 
-const METRICS_GET_SESSIONS: CatalogEntry = {
-    name: 'metrics.getSessions',
-    description: 'Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <vault>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.',
-    inputShape: {},
-    handler: async (): Promise<McpToolResponse> => getSessionsTool(),
-}
+const METRICS_GET_SESSIONS: CatalogEntry = buildCatalogEntry(
+    METRICS_GET_SESSIONS_SPEC,
+    {},
+    async (): Promise<McpToolResponse> => getSessionsTool(),
+)
 
-const METRICS_APPEND_SESSION: CatalogEntry = {
-    name: 'metrics.appendSession',
-    description: 'Append (or upsert by sessionId) a single session\'s token/cost telemetry into <vault>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.',
-    inputShape: {
-        sessionId: z.string().describe('Session identifier (Claude Code session.id or Voicetree terminal id)'),
+const metricsAppendDescribe: (rpcPath: string) => string = specDescribe(METRICS_APPEND_SESSION_SPEC)
+const METRICS_APPEND_SESSION: CatalogEntry = buildCatalogEntry(
+    METRICS_APPEND_SESSION_SPEC,
+    {
+        sessionId: z.string().describe(metricsAppendDescribe('sessionId')),
         tokens: z.object({
-            input: z.number().describe('Input tokens'),
-            output: z.number().describe('Output tokens'),
-            cacheRead: z.number().optional().describe('Cache-read tokens'),
+            input: z.number().describe(metricsAppendDescribe('tokens.input')),
+            output: z.number().describe(metricsAppendDescribe('tokens.output')),
+            cacheRead: z.number().optional().describe(metricsAppendDescribe('tokens.cacheRead')),
         }).describe('Token usage for this session'),
-        costUsd: z.number().describe('Cost in USD'),
+        costUsd: z.number().describe(metricsAppendDescribe('costUsd')),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+    async (args: Record<string, unknown>): Promise<McpToolResponse> =>
         appendSessionTool(args as unknown as AppendSessionParams),
-}
+)
 
 export const TOOL_CATALOG: readonly CatalogEntry[] = [
     SPAWN_AGENT,
