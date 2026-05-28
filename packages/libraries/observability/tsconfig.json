@@ -6,9 +6,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "declaration": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "rootDir": ".",
-    "outDir": "dist",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"]

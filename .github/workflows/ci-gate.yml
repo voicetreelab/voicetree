@@ -23,7 +23,7 @@ jobs:
         with:
           script: |
             const REQUIRED_WORKFLOWS = [
-              'PR CI',
+              'Measures (generated)',
             ];
             const SELF = 'CI Gate';
             const POLL_MS = 30_000;

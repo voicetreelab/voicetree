@@ -11,6 +11,8 @@ import {sendTextToTerminal} from '@vt/vt-daemon/agent-runtime/inject/send-text-t
 import {discoverRecoverableAgentSessions} from '@vt/vt-daemon/agent-runtime/recovery/discovery.ts'
 import {resumePersistedAgentSession} from '@vt/vt-daemon/agent-runtime/recovery/resumePersistedAgentSession.ts'
 import {forkAgentSession} from '@vt/vt-daemon/agent-runtime/recovery/forkAgentSession.ts'
+import {migrateLegacyTerminalDir} from '@vt/vt-daemon/agent-runtime/recovery/migrate-legacy-terminal-dir.ts'
+import {removePersistedAgentRecord} from '@vt/vt-daemon/agent-runtime/recovery/removePersistedAgentRecord.ts'
 import {
     attachUnclaimedTmuxSession,
     killUnclaimedTmuxSession,
@@ -84,6 +86,8 @@ export const terminalRuntimeSurface = {
     discoverRecoverableAgentSessions,
     resumePersistedAgentSession,
     forkAgentSession,
+    migrateLegacyTerminalDir,
+    removePersistedAgentRecord,
     reconcileTmuxHeadlessAgents,
     registerChild,
     removeTerminalFromRegistry,

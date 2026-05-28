@@ -96,8 +96,6 @@ const NON_MAC_HOTKEYS: HotkeySettings = {
     voiceRecording: { key: 'r', modifiers: ['Alt'] },
 };
 
-export const DEFAULT_HOTKEYS: HotkeySettings = defaultHotkeysForPlatform(undefined);
-
 // ============================================================================
 // Schema — single source of truth for all settings metadata + defaults
 // ============================================================================
@@ -116,6 +114,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     notifyOnAgentCompletion:   { default: true,  section: 'general', label: 'Notify on Agent Completion' },
     zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
     terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
+    terminalTmuxMouseMode:     { default: false, section: 'general', label: 'Terminal tmux Mouse Mode' },
     shell:                     { section: 'general', label: 'Shell Override' },
     emptyFolderTemplate:       { default: `# {{DATE}}\n\nHighest priority task: `, section: 'general', label: 'Empty Folder Template' },
 
@@ -199,8 +198,8 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     // ── Hooks ────────────────────────────────────────────────────────────
     hooks: {
         default: {
-            onWorktreeCreatedBlocking: './.voicetree/hooks/on-worktree-created-blocking.sh',
-            postWorktreeCreatedAsync: './.voicetree/hooks/on-worktree-created-async.sh',
+            onWorktreeCreatedBlocking: './scripts/git/worktree/on-created-blocking.sh',
+            postWorktreeCreatedAsync: './scripts/git/worktree/on-created-async.sh',
             onNewNode: '# node .voicetree/hooks/on-new-node.cjs',
         } as HookSettings,
         section: 'hooks',
@@ -228,8 +227,6 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     };
 }
 
-export const SETTINGS_SCHEMA: SettingsSchema = createSettingsSchema();
-
 // ============================================================================
 // Derived exports
 // ============================================================================
@@ -242,9 +239,3 @@ export function createDefaultSettings(runtime: SettingsRuntime = {}): VTSettings
             .map(([k, v]) => [k, v.default])
     ) as unknown as VTSettings;
 }
-
-export const DEFAULT_SETTINGS: VTSettings = Object.fromEntries(
-    Object.entries(createSettingsSchema())
-        .filter(([, v]) => 'default' in v)
-        .map(([k, v]) => [k, v.default])
-) as unknown as VTSettings;

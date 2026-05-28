@@ -35,10 +35,17 @@ function toForwardSlashes(p: string): string {
 export async function runHook(
     command: string,
     args: string[],
-    cwd: string
+    cwd: string,
+    extraEnv?: Record<string, string>,
 ): Promise<{ success: boolean; error?: string; stdout?: string; stderr?: string }> {
     const quotedArgs: string = args.map(shellQuote).join(' ')
-    const fullCommand: string = quotedArgs ? `${command} ${quotedArgs}` : command
+    // Inject extra env vars via a shell prefix instead of mutating env-object —
+    // keeps the parent's env intact (exec inherits when `env` is unset) and
+    // avoids reading process.env here.
+    const envPrefix: string = extraEnv
+        ? Object.entries(extraEnv).map(([k, v]) => `${k}=${shellQuote(v)}`).join(' ') + ' '
+        : ''
+    const fullCommand: string = envPrefix + (quotedArgs ? `${command} ${quotedArgs}` : command)
     return new Promise((resolve) => {
         exec(fullCommand, { cwd, timeout: 30000 }, (error: Error | null, stdout: string, stderr: string) => {
             if (error) {
@@ -74,6 +81,31 @@ export function generateWorktreeName(nodeTitle: string): string {
 }
 
 /**
+ * Worktrees live as a SIBLING of the main checkout, not nested inside it.
+ * Layout:  <parent>/voicetree-public/   ← main repo
+ *          <parent>/vt-wts/<name>/      ← worktrees
+ *
+ * Reason for sibling layout: nested `.worktrees/` makes every code scanner
+ * (vitest, eslint, watch-folder, package discovery, architecture-drift,
+ * graph-db loader…) walk into peer worktrees by default. Each new scanner
+ * has to remember to exclude `.worktrees/`. Sibling layout sidesteps that
+ * entire class of bug — worktrees are outside the repo root, so scanners
+ * naturally never see them.
+ *
+ * The constant is duplicated (not imported) in:
+ *   - packages/systems/agent-runtime/src/application/spawn/terminalData.ts
+ *   - scripts/git/worktree/ensure-ready.mjs
+ *   - scripts/run-remote.mjs
+ * because these cross package + script boundaries. The string must stay
+ * in sync across all of them.
+ */
+const WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts';
+
+export function worktreeRootFor(repoRoot: string): string {
+    return path.resolve(repoRoot, '..', WORKTREE_SIBLING_DIR_NAME);
+}
+
+/**
  * Get the worktree directory path for a given worktree name.
  *
  * @param repoRoot - The root directory of the git repository
@@ -81,7 +113,7 @@ export function generateWorktreeName(nodeTitle: string): string {
  * @returns The absolute path to the worktree directory
  */
 export function getWorktreePath(repoRoot: string, worktreeName: string): string {
-    return path.join(repoRoot, '.worktrees', worktreeName);
+    return path.join(worktreeRootFor(repoRoot), worktreeName);
 }
 
 /**
@@ -99,13 +131,18 @@ export async function createWorktree(
     worktreeName: string,
     blockingHookCommand?: string,
     asyncHookCommand?: string,
+    hookEnv?: Record<string, string>,
 ): Promise<string> {
     const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
 
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
     try {
-        await execFileAsync('git', ['worktree', 'add', '-b', worktreeName, worktreePath], { cwd: repoRoot });
+        await execFileAsync(
+            'env',
+            ['VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1', 'git', 'worktree', 'add', '-b', worktreeName, worktreePath],
+            { cwd: repoRoot },
+        );
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
@@ -113,7 +150,7 @@ export async function createWorktree(
 
     // Blocking hook: awaited after creation, before returning worktreePath to caller
     if (blockingHookCommand) {
-        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot);
+        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot, hookEnv);
         if (result.success) {
             console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
         } else {
@@ -123,7 +160,7 @@ export async function createWorktree(
 
     // Async hook: fire-and-forget after creation, does not block terminal spawn
     if (asyncHookCommand) {
-        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot).then(result => {
+        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot, hookEnv).then(result => {
             if (result.success) {
                 console.log(`[createWorktree] Async hook succeeded for ${worktreeName}`);
             } else {
@@ -143,16 +180,16 @@ export interface WorktreeInfo {
 }
 
 /**
- * List existing git worktrees under the `.worktrees/` directory.
+ * List existing git worktrees under the sibling `vt-wts/` directory.
  * Returns up to 5 most recently modified worktrees, sorted newest first.
  *
  * @param repoRoot - The root directory of the git repository
  * @returns Array of worktree info objects, empty if none exist
  */
 export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
-    const worktreesDir: string = path.join(repoRoot, '.worktrees');
+    const worktreesDir: string = worktreeRootFor(repoRoot);
 
-    // Gracefully handle missing .worktrees/ directory
+    // Gracefully handle missing sibling worktree dir
     if (!fs.existsSync(worktreesDir)) {
         return [];
     }
@@ -185,7 +222,7 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
         const head: string = headLine.slice('HEAD '.length);
         const branch: string = branchLine.slice('branch refs/heads/'.length);
 
-        // Filter: only include worktrees under .worktrees/
+        // Filter: only include worktrees under the sibling vt-wts/ dir
         // Normalize both sides for cross-platform comparison
         if (!toForwardSlashes(wtPath).startsWith(normalizedWorktreesDir)) continue;
 

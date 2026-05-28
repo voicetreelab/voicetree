@@ -1,0 +1,9 @@
+#!/bin/bash
+# Refuses a pure baseline-bump commit that lacks a `Baseline-bump-rationale:`
+# trailer. Pass-through for any other commit (the impure edge checks the
+# staged diff before scrutinizing the message).
+set -e
+export PATH="$(git rev-parse --show-toplevel)/bin:$PATH"
+
+node --no-warnings=ExperimentalWarning --experimental-strip-types \
+    packages/measures/scripts/check-baseline-rationale-trailer.ts "$1"

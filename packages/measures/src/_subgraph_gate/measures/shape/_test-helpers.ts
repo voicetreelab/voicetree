@@ -75,6 +75,11 @@ export async function buildSyntheticSubgraph(
         return project
     }
 
+    // Falls back to the disk content the helper just wrote (so any measure
+    // that uses getContent picks up the same fixture text the test set up).
+    const fileTexts = new Map(files.map((f, i) => [sourceFiles[i].absolutePath, f.text]))
+    const getContent = (absPath: string): string | null => fileTexts.get(absPath) ?? null
+
     const subgraph: ParsedSubgraph = {
         files: sourceFiles,
         communityMap,
@@ -82,6 +87,7 @@ export async function buildSyntheticSubgraph(
         touchedCommunities: [...touched].sort(),
         depth,
         getProject,
+        getContent,
     }
 
     return {

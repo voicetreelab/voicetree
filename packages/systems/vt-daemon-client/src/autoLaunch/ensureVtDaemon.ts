@@ -50,7 +50,11 @@ export type {
   EnsureVtDaemonResult,
 } from './ensureVtDaemonTypes.ts'
 
-const DEFAULT_TIMEOUT_MS = 5_000
+// Cold-start budget. Hot path settles well under 1s; the 30s ceiling absorbs
+// CI cold starts where the VTD child brings up tmux, binds HTTP, and persists
+// rpc.port before its first health probe answers. Mirrors the request-scope
+// default in VtDaemonClient.ts.
+const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_STALE_HEARTBEAT_MS = 15_000
 const DEFAULT_INITIAL_BACKOFF_MS = 50
 const DEFAULT_MAX_BACKOFF_MS = 400

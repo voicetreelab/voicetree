@@ -12,6 +12,7 @@
  *   server→client: { type: 'exit' }
  *   client→server: { type: 'data', payload }
  *   client→server: { type: 'resize', cols, rows }
+ *   client→server: { type: 'scroll', direction: 'up'|'down', lines }
  *
  * Reconnect: exponential doubling 200ms → 5s ceiling.
  */
@@ -34,6 +35,7 @@ export interface VtTerminalAttachClientDeps {
 export interface VtTerminalAttachClient {
     readonly sendData: (data: string) => boolean
     readonly sendResize: (cols: number, rows: number) => boolean
+    readonly sendScroll: (direction: 'up' | 'down', lines: number) => boolean
     readonly dispose: () => void
 }
 
@@ -165,6 +167,7 @@ export function createVtTerminalAttachClient(deps: VtTerminalAttachClientDeps): 
     return {
         sendData: (payload: string): boolean => send({type: 'data', payload}),
         sendResize: (cols: number, rows: number): boolean => send({type: 'resize', cols, rows}),
+        sendScroll: (direction: 'up' | 'down', lines: number): boolean => send({type: 'scroll', direction, lines}),
         dispose: (): void => {
             disposed = true
             clearReconnectTimer()

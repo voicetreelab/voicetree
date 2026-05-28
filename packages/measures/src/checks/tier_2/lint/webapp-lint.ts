@@ -1,4 +1,4 @@
-import {type CheckDef, npmWorkspaceRun} from '../../../_types.ts'
+import {checkArgs, type CheckDef} from '../../_types.ts'
 
 export const check: CheckDef = {
     id: 'webapp-lint',
@@ -6,6 +6,6 @@ export const check: CheckDef = {
     name: 'Webapp ESLint',
     category: 'Lint',
     display: 'npm --workspace webapp run lint',
-    args: () => npmWorkspaceRun('webapp', 'lint'),
+    args: () => checkArgs.npmWorkspaceRun('webapp', 'lint'),
     parser: 'none',
 }

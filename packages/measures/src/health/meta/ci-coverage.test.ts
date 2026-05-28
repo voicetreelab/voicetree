@@ -41,9 +41,29 @@ async function discoverCheckFiles(dir: string): Promise<readonly string[]> {
     return nested.flat()
 }
 
+// Mirrors _runners/capture-ci-checks.ts: only `tier_N/` and `tier_N_pre_commit/`
+// are scheduled. Non-scheduled siblings like `tier_N_post_edit/` (agent-hook
+// runtime, not capture-ci) are excluded so they aren't imported expecting a
+// `check` export.
+const SCHEDULED_TIER_SUFFIXES = ['', '_pre_commit'] as const
+
+async function discoverScheduledCheckFiles(): Promise<readonly string[]> {
+    const tierDirs = Array.from({length: MAX_TIER + 1}, (_, tier) => tier)
+        .flatMap(tier => SCHEDULED_TIER_SUFFIXES.map(suffix => join(CHECKS_DIR, `tier_${tier}${suffix}`)))
+    const lists = await Promise.all(tierDirs.map(async dir => {
+        try {
+            return await discoverCheckFiles(dir)
+        } catch (err) {
+            if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+            throw err
+        }
+    }))
+    return lists.flat()
+}
+
 function tierFor(relPath: string): number {
-    const match = /^tier_(\d+)\//.exec(relPath)
-    if (!match) throw new Error(`scheduled check must live under checks/tier_N/: ${relPath}`)
+    const match = /^tier_(\d+)(?:_pre_commit)?\//.exec(relPath)
+    if (!match) throw new Error(`scheduled check must live under checks/tier_N(_pre_commit)?/: ${relPath}`)
     const tier = Number(match[1])
     if (!Number.isInteger(tier) || tier < 0 || tier > MAX_TIER) {
         throw new Error(`scheduled check tier must be 0 through ${MAX_TIER}: ${relPath}`)
@@ -52,7 +72,7 @@ function tierFor(relPath: string): number {
 }
 
 async function loadScheduledChecks(): Promise<readonly ScheduledCheck[]> {
-    const files = await discoverCheckFiles(CHECKS_DIR)
+    const files = await discoverScheduledCheckFiles()
     const checks: ScheduledCheck[] = []
     for (const file of files) {
         const relPath = relative(CHECKS_DIR, file).split(sep).join('/')

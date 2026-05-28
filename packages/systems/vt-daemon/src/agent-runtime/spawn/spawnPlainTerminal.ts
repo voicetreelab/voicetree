@@ -11,6 +11,9 @@ import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts';
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
+import {getTerminalManager} from '@vt/vt-daemon/agent-runtime/terminals/manager/terminal-manager-instance.ts';
+import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts';
+import type {TerminalSpawnResult} from '@vt/vt-daemon-protocol';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
 import type {TerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts';
@@ -61,6 +64,21 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     initialEnvVars: expandedEnvVars,
     agentName: agentName,
   });
+
+  // The renderer's xterm attaches via WebSocket to /terminals/:id/attach, which
+  // expects an EXISTING tmux session — the relay does not create one. Create
+  // the tmux session here BEFORE publishing terminal-ui-launch so the WS
+  // attach lands on a live session. Symmetrical with launchPreparedTerminal()
+  // on the spawnTerminalWithContextNode path.
+  const spawnResult: TerminalSpawnResult = await getTerminalManager().spawnTmuxBacked({
+    terminalData,
+    getToolsDirectory: () => getRuntimeEnv().getVtBinDir?.() ?? '',
+    onData: () => {},
+    onExit: () => {},
+  });
+  if (!spawnResult.success) {
+    throw new Error(`Failed to spawn tmux session for ${spawnResult.terminalId}: ${spawnResult.error}`);
+  }
 
   publishTerminalRegistryEvent({
     type: 'terminal-ui-launch',

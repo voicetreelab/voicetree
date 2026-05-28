@@ -4,9 +4,7 @@ import {configureAgentRuntime} from '../runtime-config'
 import {
     applyRuntimeGraphDelta,
     getRuntimeGraph,
-    getRuntimeProjectRoot,
     getRuntimeUnseenNodesAroundContextNode,
-    getRuntimeVaultPaths,
     getRuntimeWatchStatus,
     getRuntimeWriteFolder,
     runtimeCreateContextNode,
@@ -27,9 +25,7 @@ describe('graph bridge runtime accessors', () => {
 
         await expect(getRuntimeGraph()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(getRuntimeWriteFolder()).rejects.toThrow(MISSING_BRIDGE_ERROR)
-        await expect(getRuntimeVaultPaths()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(applyRuntimeGraphDelta({} as GraphDelta)).rejects.toThrow(MISSING_BRIDGE_ERROR)
-        await expect(getRuntimeProjectRoot()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(getRuntimeWatchStatus()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(runtimeCreateContextNode('parent.md' as NodeIdAndFilePath)).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(runtimeCreateContextNodeFromSelectedNodes(

@@ -24,6 +24,7 @@
     "test": "vitest run",
     "test:mutation": "stryker run stryker.config.json",
     "test:mutation:smoke": "stryker run stryker.smoke.config.json",
+    "test:mutation:incremental": "node --no-warnings=ExperimentalWarning --experimental-strip-types ../../measures/scripts/run-mutation-incremental.ts @vt/graph-state",
     "bench": "node --import tsx scripts/project-bench.ts"
   },
   "dependencies": {

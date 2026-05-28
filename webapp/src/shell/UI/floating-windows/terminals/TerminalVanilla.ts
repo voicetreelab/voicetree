@@ -16,6 +16,20 @@ import type {RelayConnectionStatus} from '@/shell/edge/main/runtime/electron/dae
 import {notifyTerminalOutput} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
+// __vtDebug__'s terminal-buffer reader registry. Defined in main.tsx so this
+// hook adds no new module exports to the webapp/shell boundary surface; the
+// only thing exposed is a runtime window property.
+type TerminalBufferDebug = {
+  readonly setTerminalBufferReader?: (terminalId: string, reader: () => string) => void;
+  readonly clearTerminalBufferReader?: (terminalId: string) => void;
+};
+
+function vtTerminalBufferDebug(): TerminalBufferDebug | null {
+  if (typeof window === 'undefined') return null;
+  const debug = (window as unknown as {__vtDebug__?: TerminalBufferDebug}).__vtDebug__;
+  return debug ?? null;
+}
+
 // Chromium caps at ~16 WebGL contexts total; stay well under to leave headroom for
 // cytoscape minimap, extensions, etc. Terminals beyond this cap use the DOM renderer.
 let activeWebGLContextCount: number = 0;
@@ -24,6 +38,21 @@ const MAX_WEBGL_CONTEXTS: number = 8;
 // Dispose WebGL addon after 10 minutes of no terminal output or user focus,
 // reclaiming GPU-side framebuffers and glyph atlas textures (~20-50MB each).
 const WEBGL_IDLE_TIMEOUT_MS: number = 10 * 60 * 1000;
+
+// Reads the rendered active-buffer text (viewport + scrollback) for e2e
+// introspection via window.__vtDebug__.readTerminalBuffer(id). xterm's WebGL
+// renderer paints to canvas, so the DOM has no scrapable textContent — the
+// buffer is the source of truth for "what xterm has rendered."
+function readActiveBufferText(term: XTerm | null): string {
+  if (!term) return '';
+  const buffer = term.buffer.active;
+  const lines: string[] = [];
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer.getLine(i);
+    if (line) lines.push(line.translateToString(true));
+  }
+  return lines.join('\n');
+}
 
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
@@ -93,6 +122,25 @@ export class TerminalVanilla {
 
     // Open terminal in the DOM
     term.open(this.container);
+
+    // Wheel routing on the alt buffer (which tmux always occupies):
+    //   • xterm's default wheel→arrow translation corrupts TUIs that read ↑/↓
+    //     as prompt-history navigation (e.g. codex).
+    //   • tmux's own mouse-mode scrolling would force users to hold Shift to
+    //     select text in the browser.
+    // Instead, forward wheel deltas to the relay as an explicit scroll RPC, which
+    // drives tmux copy-mode without enabling mouse mode. Return false so xterm
+    // stays out of it. On the normal buffer (rare for tmux but possible if tmux
+    // ever drops the alt screen), return true so xterm's local scrollback works.
+    term.attachCustomWheelEventHandler((event: WheelEvent): boolean => {
+      if (term.buffer.active.type !== 'alternate') return true;
+      const lines: number = Math.max(1, Math.round(Math.abs(event.deltaY) / 40));
+      const direction: 'up' | 'down' = event.deltaY < 0 ? 'up' : 'down';
+      if (this.relayHandle) {
+        void window.electronAPI?.terminal.scroll(this.relayHandle, direction, lines);
+      }
+      return false;
+    });
 
     // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)
     this.attachWebGL();
@@ -262,6 +310,7 @@ export class TerminalVanilla {
     // already attached on the daemon's tmux server when this WebSocket
     // connects. No lazy spawn from the renderer.
     this.terminalId = this.terminalData.terminalId;
+    vtTerminalBufferDebug()?.setTerminalBufferReader?.(this.terminalId, () => readActiveBufferText(this.term));
     this.createRelayStatusIndicator();
 
     // Main owns the /terminals/:id/attach WebSocket; we receive PTY bytes
@@ -380,6 +429,10 @@ export class TerminalVanilla {
    * Cleanup and destroy the terminal
    */
   dispose(): void {
+    if (this.terminalId) {
+      vtTerminalBufferDebug()?.clearTerminalBufferReader?.(this.terminalId);
+    }
+
     if (this.onVisibilityChange) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);
       this.onVisibilityChange = null;

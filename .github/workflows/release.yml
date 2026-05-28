@@ -28,11 +28,10 @@ on:
         default: true
 
 jobs:
-  # Release is deploy-only. Verification happens pre-merge in `PR CI`
-  # (stage1-checks.yml) plus the conditional `Tier 4 (Conditional Pre-merge)`
-  # job. The post-merge nightly `Main CI / Full` provides the drift signal
-  # and staleness denominator. Re-running `test:full` here before deploy is
-  # therefore redundant.
+  # Release is deploy-only. Verification happens pre-merge in
+  # `Measures (generated)`, including conditional Tier 4. The post-merge
+  # nightly `Main CI / Full` provides the drift signal and staleness
+  # denominator. Re-running `test:full` here before deploy is redundant.
   check-version:
     runs-on: ubuntu-latest
     outputs:

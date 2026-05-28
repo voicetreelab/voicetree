@@ -1,7 +1,17 @@
 import type { GraphDelta } from '../graph'
 import type { FolderTreeNode } from '../folders/types'
 
-type WatchingStartedInfo = { directory: string; writeFolder: string; timestamp: string }
+// `projectRoot` is the canonical root for per-project `.voicetree/` data
+// (terminal metadata, hooks, positions). `directory` is the legacy alias for
+// the same value, retained on the renderer-bound `'watching-started'` channel
+// payload until renderer code migrates. New consumers should read
+// `projectRoot`. `writeFolder` is for markdown / vault content only.
+type WatchingStartedInfo = {
+  directory: string
+  projectRoot: string
+  writeFolder: string
+  timestamp: string
+}
 
 export interface GraphModelCallbacks {
   // Core graph broadcasting

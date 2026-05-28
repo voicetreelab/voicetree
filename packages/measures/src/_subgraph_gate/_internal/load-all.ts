@@ -21,6 +21,7 @@ import '../measures/structural/tree-width-approx.ts'
 import '../measures/structural/dsm-upper-triangular.ts'
 import '../measures/structural/cycles.ts'
 import '../measures/structural/boundary-width.ts'
+import '../measures/structural/relative-import-depth.ts'
 // martin-distance deferred from the active gate: same scope-drift class as
 // modularity-q. I and A depend on the inbound/outbound edge counts visible
 // in the current subgraph window; baseline captured over the full graph

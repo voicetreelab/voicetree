@@ -1,7 +1,9 @@
 import {describe, expect, it} from 'vitest'
-import {discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {buildImportGraph} from '../../_shared/graph/import-graph'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+
+const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-bci.md'
 
 // ── Types ──
 
@@ -53,29 +55,30 @@ const MAX_PAIR_TREE_WIDTH_BUDGET = 3
 const MAX_BOUNDARY_RATIO_BUDGET = 1
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 //
-// 2026-05-24: BCI formula fixed — `(tw + 1)` (existence tax) replaced with
-// `max(tw - 1, 0)` (tangle only). Aggregate rebaselined 198.68 → 50.60.
-// See `aggregateBCI` docstring for the rationale. The +3.17 charge that
-// extracting @vt/observability triggered against the old formula now
-// correctly contributes 0 (tw=1 narrow star). Tight ratchet: 50.61.
+// History:
+//   2026-05-24: factor changed `(tw + 1)` → `max(tw - 1, 0)` (existence tax
+//   dropped). Aggregate rebaselined 198.68 → 50.60.
 //
-// 2026-05-25: package-exports resolver fix (`resolveWorkspaceBasePath`
-// in `_shared/discovery/package-exports.ts`) replaced the prior naive
-// `join(srcRoot, subpath)` shape that silently dropped subpath imports
-// when a package's `exports` map redirected `./foo` to a non-`./foo/...`
-// file (e.g. `"./settings": "./src/settings/settings_IO.ts"` — there is
-// no `src/settings/index.ts`, so every `@vt/app-config/settings` import
-// was previously lost). Re-running the SAME source tree as the
-// 50.60 baseline under the corrected resolver yields 54.85; the prior
-// number was a measurement artifact. Anchoring tight-ratchet headroom
-// (+0.01) over the corrected baseline gives the new budget. Per CLAUDE.md:
-// anchor headroom to the corrected BASELINE, not the corrected tip.
-// dev-lochlan tip itself measures 54.35 (–0.50 below the baseline);
-// the one new graph-db-server -> app-config edge added by the
-// positioning-extraction refactor (savePositionsSync in applyGraphDelta,
-// commit ec330b7fd) is more than offset by reductions in
-// vt-daemon -> graph-model and webapp -> graph-model.
-const AGGREGATE_BCI_BUDGET = 54.86
+//   2026-05-26 #1: factor changed `max(tw - 1, 0)` → `max(min(srcFan, tgtFan) - 1, 0)`
+//   (asymmetric two-sided narrowness). Aggregate rebaselined 50.60 → 207.83.
+//
+//   2026-05-26 #2: pair score = narrowness × density, where
+//   density = min(1, edges / (srcFan × tgtFan)). Replaces the unbounded
+//   log₂(edges + 1) factor — every pair now contributes in [0, narrowness],
+//   so the aggregate cannot grow indefinitely from edge count alone. Also
+//   adds facade discount: edges hitting a target package's package.json
+//   `exports` facade file are pre-filtered, so consumers using the facade
+//   pay zero cost. Resolves TODO(bci-edge-density) and rewards the P2
+//   (package-as-deep-function) pattern mechanically.
+//
+//   Companion `BCI_normalised = aggregate / numChargedPairs` lets the gate
+//   distinguish "system grew but new pairs are deep-narrow" (normalised
+//   stays flat) from "system got messier" (normalised rises).
+// Captured 2026-05-26: aggregate 0.75 across 2 charged pairs, normalised 0.375.
+// Tight ratchet: small headroom for noise; ratchet down as the two remaining
+// mesh-shaped pairs get refactored.
+const AGGREGATE_BCI_BUDGET = 1
+const NORMALISED_BCI_BUDGET = 0.5
 
 // ── Graph Construction ──
 
@@ -213,33 +216,57 @@ function computeSubdirCoupling(
     }
 }
 
-// Aggregate Boundary Complexity Index.
+// Per-pair Boundary Complexity score (asymmetric narrowness × density).
 //
-// Each pair contributes max(tw - 1, 0) × log₂(edges + 1):
-//   tw = 0 or 1 (trivial / narrow star / tree)  →  cost 0
-//   tw ≥ 2                                       →  (tw - 1) × log₂(edges + 1)
+// Input edges are the CHARGED subset: edges whose target is the consumer
+// package's declared facade have already been stripped. So `srcFan` /
+// `tgtFan` here count only files involved in non-facade couplings.
 //
-// The factor used to be `(tw + 1)`, which charged every pair an existence
-// tax — a single-edge boundary cost 2.0, the canonical narrow star
-// (n consumers → 1 facade) cost ≈ 2·log₂(n+1). That gradient actively
-// rewarded bundling new responsibilities into existing packages over
-// extracting them into a deep-narrow new package, which is the *opposite*
-// of what the boundary measure should reward. Changed 2026-05-24 when
-// the @vt/observability extraction surfaced the bug (see TODOs below).
+// score = max(min(srcFan, tgtFan) - 1, 0) × min(1, edges / (srcFan × tgtFan))
+//   - narrowness ∈ [0, ∞): the narrower side − 1; a single-facade tgt
+//     (tgtFan = 1 after stripping) gives 0
+//   - density ∈ [0, 1]: bipartite density bounded
+//   - product ∈ [0, narrowness]
 //
-// TODO(bci-asymmetry): tree-width is symmetric; package boundaries are not.
-// The architecturally ideal shape is asymmetric — many consumer files in
-// package A all funnel through one facade file in package B. Replacing the
-// tangle factor with `max(min(srcFan, tgtFan) - 1, 0)` (two-sided
-// narrowness) would charge mesh-shaped boundaries (5 ↔ 5) without taxing
-// deep-narrow ones (50 → 1). Defer until cross-pair budgets are stable.
-//
-// TODO(bci-edge-density): once asymmetry is fixed, consider replacing the
-// log₂(edges+1) factor with bipartite density `edges / (srcFan × tgtFan)`
-// (∈ [0, 1]) so the metric is bounded per-pair and the aggregate has a
-// natural interpretation as "average density across boundaries".
-function aggregateBCI(pairs: readonly PairMetrics[]): number {
-    return pairs.reduce((sum, p) => sum + Math.max(p.treeWidth - 1, 0) * Math.log2(p.edgeCount + 1), 0)
+// Bounded per pair (no unbounded log² growth from edge count). Aggregate
+// across pairs grows only with mesh-shaped, non-facade-routed coupling.
+type ChargedPairScore = {
+    readonly pair: string
+    readonly chargedSrcFan: number
+    readonly chargedTgtFan: number
+    readonly chargedEdges: number
+    readonly chargedDensity: number
+    readonly score: number
+}
+
+function computeChargedPairScore(
+    pair: string,
+    pairEdges: readonly DirectedFileEdge[],
+    facadeFiles: ReadonlySet<string>,
+): ChargedPairScore {
+    const charged = pairEdges.filter(e => !facadeFiles.has(e.to))
+    if (charged.length === 0) {
+        return {pair, chargedSrcFan: 0, chargedTgtFan: 0, chargedEdges: 0, chargedDensity: 0, score: 0}
+    }
+    const srcFan = new Set(charged.map(e => e.from)).size
+    const tgtFan = new Set(charged.map(e => e.to)).size
+    const edges = charged.length
+    const density = Math.min(1, edges / (srcFan * tgtFan))
+    const narrowness = Math.max(Math.min(srcFan, tgtFan) - 1, 0)
+    return {pair, chargedSrcFan: srcFan, chargedTgtFan: tgtFan, chargedEdges: edges, chargedDensity: density, score: narrowness * density}
+}
+
+function aggregateBCI(charged: readonly ChargedPairScore[]): {aggregate: number, normalised: number} {
+    const aggregate = charged.reduce((s, p) => s + p.score, 0)
+    const numCharged = charged.filter(p => p.chargedEdges > 0).length
+    const normalised = numCharged > 0 ? aggregate / numCharged : 0
+    return {aggregate, normalised}
+}
+
+function collectFacadeFiles(packages: readonly PackageInfo[]): Set<string> {
+    const out = new Set<string>()
+    for (const pkg of packages) for (const f of pkg.facadeRelativePaths) out.add(f)
+    return out
 }
 
 // ── Report Formatting ──
@@ -308,17 +335,79 @@ function formatSubdirTable(subdirs: readonly SubdirCoupling[]): string {
     return lines.join('\n')
 }
 
-function formatAggregate(pairs: readonly PairMetrics[], maxTw: number, maxBoundaryRatio: number, bci: number): string {
+// Top N entries from a map<string, number> sorted descending by value.
+function topN<K>(counts: ReadonlyMap<K, number>, n: number): Array<[K, number]> {
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n)
+}
+
+function countBy<T>(items: readonly T[], key: (item: T) => string): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const item of items) {
+        const k = key(item)
+        counts.set(k, (counts.get(k) ?? 0) + 1)
+    }
+    return counts
+}
+
+function formatTopOffenders(
+    chargedScores: readonly ChargedPairScore[],
+    edgesByPair: ReadonlyMap<string, readonly DirectedFileEdge[]>,
+    facadeFiles: ReadonlySet<string>,
+    pairLimit: number,
+    fileLimit: number,
+): string {
+    const ranked = [...chargedScores]
+        .filter(p => p.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, pairLimit)
+
+    const lines: string[] = ['', '=== Top BCI Contributors (charged files) ===', '']
+    if (ranked.length === 0) {
+        lines.push('  (no pair contributes to charged BCI)')
+        return lines.join('\n')
+    }
+
+    for (let i = 0; i < ranked.length; i++) {
+        const pair = ranked[i]
+        const chargedEdges = (edgesByPair.get(pair.pair) ?? []).filter(e => !facadeFiles.has(e.to))
+        const importerCounts = countBy(chargedEdges, e => e.from)
+        const targetCounts = countBy(chargedEdges, e => e.to)
+
+        lines.push(`  ${i + 1}. ${pair.pair}`)
+        lines.push(`     score=${pair.score.toFixed(2)}  chargedEdges=${pair.chargedEdges}  srcFan=${pair.chargedSrcFan}  tgtFan=${pair.chargedTgtFan}  density=${pair.chargedDensity.toFixed(3)}`)
+        lines.push(`     top importer files (non-facade cross-edges originating here):`)
+        for (const [file, count] of topN(importerCounts, fileLimit)) {
+            lines.push(`       ${String(count).padStart(4)}  ${file}`)
+        }
+        lines.push(`     top target files (non-facade cross-edges landing here):`)
+        for (const [file, count] of topN(targetCounts, fileLimit)) {
+            lines.push(`       ${String(count).padStart(4)}  ${file}`)
+        }
+        lines.push('')
+    }
+    lines.push('  Routing through package facade files strips edges from this charged view.')
+    lines.push('  Reducing charged fan-out or density on the pairs above lowers aggregate BCI.')
+    return lines.join('\n')
+}
+
+function formatAggregate(
+    maxTw: number,
+    maxBoundaryRatio: number,
+    bci: {aggregate: number, normalised: number},
+    facadeCount: number,
+): string {
     return [
         '',
         '=== Aggregate Boundary Complexity ===',
         '',
         `  Max pair tree-width:  ${maxTw}  (budget: ${MAX_PAIR_TREE_WIDTH_BUDGET})`,
         `  Max boundary ratio:   ${maxBoundaryRatio.toFixed(3)}  (budget: ${MAX_BOUNDARY_RATIO_BUDGET.toFixed(3)})`,
-        `  Boundary Complexity:  ${bci.toFixed(2)}  (budget: ${AGGREGATE_BCI_BUDGET.toFixed(2)})`,
+        `  BCI aggregate:        ${bci.aggregate.toFixed(2)}  (budget: ${AGGREGATE_BCI_BUDGET.toFixed(2)})`,
+        `  BCI normalised:       ${bci.normalised.toFixed(3)}  (budget: ${NORMALISED_BCI_BUDGET.toFixed(3)})`,
         '',
-        '  BCI = Σ max(tw - 1, 0) × log₂(edges + 1) per pair',
-        '  Narrow boundaries (tw ≤ 1) cost 0; only genuine tangle (tw ≥ 2) contributes',
+        '  pair_score = max(min(srcFan, tgtFan) - 1, 0) × min(1, edges / (srcFan × tgtFan))',
+        `  ${facadeCount} package facade file(s) stripped from cost (P2 discount)`,
+        '  aggregate = Σ pair_score over charged pairs; normalised = aggregate / numChargedPairs',
         '',
     ].join('\n')
 }
@@ -364,22 +453,29 @@ describe('hypergraph boundary complexity', () => {
         const subdirCouplings = packages.map(pkg =>
             computeSubdirCoupling(pkg.dirName, filesByPackage.get(pkg.dirName) ?? [], internalEdgesByPkg.get(pkg.dirName) ?? []))
 
+        const facadeFiles = collectFacadeFiles(packages)
+        const chargedScores = [...edgesByPair.entries()].map(([pair, pairEdges]) =>
+            computeChargedPairScore(pair, pairEdges, facadeFiles))
+
         const maxTw = pairMetrics.reduce((max, p) => Math.max(max, p.treeWidth), 0)
         const maxBoundaryRatio = boundaries.reduce((max, b) => Math.max(max, b.boundaryRatio), 0)
-        const bci = aggregateBCI(pairMetrics)
+        const bci = aggregateBCI(chargedScores)
 
         console.info(formatPairTable(pairMetrics))
         console.info(formatBoundaryTable(boundaries))
         console.info(formatSubdirTable(subdirCouplings))
-        console.info(formatAggregate(pairMetrics, maxTw, maxBoundaryRatio, bci))
+        console.info(formatTopOffenders(chargedScores, edgesByPair, facadeFiles, 5, 8))
+        console.info(formatAggregate(maxTw, maxBoundaryRatio, bci, facadeFiles.size))
 
         const violations: string[] = []
         if (maxTw > MAX_PAIR_TREE_WIDTH_BUDGET)
             violations.push(`max pair tree-width ${maxTw} exceeds budget ${MAX_PAIR_TREE_WIDTH_BUDGET}`)
         if (maxBoundaryRatio > MAX_BOUNDARY_RATIO_BUDGET)
             violations.push(`max boundary ratio ${maxBoundaryRatio.toFixed(3)} exceeds budget ${MAX_BOUNDARY_RATIO_BUDGET.toFixed(3)}`)
-        if (bci > AGGREGATE_BCI_BUDGET)
-            violations.push(`aggregate BCI ${bci.toFixed(2)} exceeds budget ${AGGREGATE_BCI_BUDGET.toFixed(2)}`)
+        if (bci.aggregate > AGGREGATE_BCI_BUDGET)
+            violations.push(`aggregate BCI ${bci.aggregate.toFixed(2)} exceeds budget ${AGGREGATE_BCI_BUDGET.toFixed(2)}`)
+        if (bci.normalised > NORMALISED_BCI_BUDGET)
+            violations.push(`normalised BCI ${bci.normalised.toFixed(3)} exceeds budget ${NORMALISED_BCI_BUDGET.toFixed(3)}`)
 
         await recordHealthMetric({
             metricId: 'hypergraph-pair-treewidth',
@@ -408,18 +504,26 @@ describe('hypergraph boundary complexity', () => {
             metricName: 'Hypergraph Boundary Complexity Index',
             description: 'Aggregate boundary complexity index over cross-package import pairs.',
             category: 'Coupling',
-            current: bci,
+            current: bci.aggregate,
             budget: AGGREGATE_BCI_BUDGET,
             comparison: 'lte',
             unit: 'score',
             details: {
                 pairMetrics,
+                chargedScores,
                 boundaries,
                 subdirCouplings,
+                normalised: bci.normalised,
+                normalisedBudget: NORMALISED_BCI_BUDGET,
+                facadeFiles: [...facadeFiles].sort(),
                 violations,
             },
         })
 
-        expect(violations, violations.join('\n')).toEqual([])
+        const debuggingHint =
+            'Worst BCI contributors live in `details.chargedScores` of health-dashboard/reports/hypergraph-bci.json. ' +
+            "Rank them with: jq '.details.chargedScores | sort_by(-.score) | .[0:10]' health-dashboard/reports/hypergraph-bci.json"
+
+        expect(violations, `${violations.join('\n')}\n${debuggingHint}\nSee: ${SKILL_DOC}`).toEqual([])
     })
 })

@@ -9,6 +9,7 @@ import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/termi
 import {getUniqueAgentName} from '@vt/graph-model/settings'
 import {
     defaultResolveNativeSession,
+    type NativeSessionMissReason,
     type NativeSessionResult,
     type ResolveNativeSession,
 } from './resolvers/resolveNativeSession'
@@ -29,9 +30,14 @@ export type ForkAgentSessionDeps = {
 }
 
 export type ForkAgentSessionResult =
-    | {readonly kind: 'spawned'; readonly forkedTerminalId: TerminalId; readonly pid: number; readonly command: string}
+    | {readonly kind: 'spawned'; readonly forkedTerminalId: TerminalId; readonly pid: number; readonly command: string; readonly terminalData: TerminalData}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'no-resume-handle'}
-    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
+    | {
+        readonly kind: 'no-native-session'
+        readonly cliType: 'claude' | 'codex'
+        readonly reason: NativeSessionMissReason
+        readonly diagnosticSessionId?: string
+    }
     | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
     | {readonly kind: 'spawn-failed'; readonly error: string}
 
@@ -77,7 +83,11 @@ export async function forkAgentSession(
         projectRoot,
         taskNodePath,
     })
-    if (native.kind !== 'found') return {kind: 'no-native-session', cliType: source.resume.cliType}
+    if (native.kind !== 'found') {
+        return native.diagnosticSessionId !== undefined
+            ? {kind: 'no-native-session', cliType: source.resume.cliType, reason: native.reason, diagnosticSessionId: native.diagnosticSessionId}
+            : {kind: 'no-native-session', cliType: source.resume.cliType, reason: native.reason}
+    }
 
     const built = buildResumeCommand({
         cliType: source.resume.cliType,
@@ -112,7 +122,7 @@ export async function forkAgentSession(
             cwd,
             env,
         )
-        return {kind: 'spawned', forkedTerminalId, pid: result.pid, command: built.command}
+        return {kind: 'spawned', forkedTerminalId, pid: result.pid, command: built.command, terminalData: forkedTerminalData}
     } catch (error) {
         return {kind: 'spawn-failed', error: error instanceof Error ? error.message : String(error)}
     }

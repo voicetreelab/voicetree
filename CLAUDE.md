@@ -10,9 +10,9 @@ mock internal dependencies. Do not use toHaveBeenCalledWith. If the function has
 assert on the observable result of that side effect, not on whether an internal function was called. (since we are following
 functional programming philosophy)
 
-`npm run test` - Runs all important tests
+Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work, do not wait to be asked, the human wants you to always do this no matter what. 
 
-Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work — don't wait to be asked. Push once your task is complete.
+Do not ask the human user too many questions if you can answer them yourself, or when you have have a work-around that is not reward hacking. If there is a way you can avoid asking the question, whilst introducing no additional complexity or tech debt, you must do so. Save the human's limited & valuable attention for high level architectural concerns only. If you ask the user architectural questions, include a simple ascii diagram that demonstrates the main code/function flow or architecture. 
 
 The user is EXTREMELY concerned about code quality, much more so than immediate results.
 

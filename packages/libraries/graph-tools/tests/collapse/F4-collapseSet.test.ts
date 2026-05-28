@@ -7,13 +7,15 @@ import {
   type NodeElement,
 } from '@vt/graph-state'
 
-import {
+import { runImplementation } from '../../src/commands/capture/run/index'
+import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../../src/debug/flow/flows/index'
+import type { CyDump } from '../../src/debug/state/cyStateShape'
+
+const {
   applyDeltaToStateCaptureOverlay,
   buildCapturedSerializedState,
   createStateCaptureOverlay,
-} from '../../src/commands/capture/run'
-import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../../src/debug/flow/flows/index'
-import type { CyDump } from '../../src/debug/state/cyStateShape'
+} = runImplementation
 
 function renderProjectedElements(): CyDump
 function renderProjectedElements(elements: readonly (NodeElement | EdgeElement)[]): CyDump

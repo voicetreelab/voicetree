@@ -13,6 +13,7 @@ import type {ElectronApplication, Page} from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import {fileURLToPath} from 'url';
 import {createHash} from 'crypto';
 import {spawnSync} from 'child_process';
 import type {Core as CytoscapeCore} from 'cytoscape';
@@ -21,12 +22,34 @@ import {
     waitForGraphLoaded,
 } from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder/folder-test-helpers';
 
-export const PROJECT_ROOT: string = path.resolve(process.cwd());
+export const PROJECT_ROOT: string = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../../../../..',
+);
 export const SCREENSHOT_DIR: string = path.join(PROJECT_ROOT, 'e2e-tests', 'test-results', 'surviving-agents');
 
-export const TMUX_BIN: string = '/opt/homebrew/bin/tmux';
+export const TMUX_BIN: string = process.env.VT_TMUX_BIN
+    ?? (process.platform === 'darwin' ? '/opt/homebrew/bin/tmux' : 'tmux');
 export const SEEDED_TERMINAL_ID: string = 'Survivor';
 export const PROJECT_ID: string = 'surviving-agents-e2e';
+
+function pathEntryForCommand(command: string): string | null {
+    return command.includes(path.sep) ? path.dirname(command) : null;
+}
+
+export function buildElectronTestPath(extraBinDirs: readonly string[] = []): string {
+    return [
+        ...extraBinDirs,
+        pathEntryForCommand(TMUX_BIN),
+        process.env.PATH ?? '',
+    ].filter((entry): entry is string => typeof entry === 'string' && entry.length > 0).join(path.delimiter);
+}
+
+export function electronLinuxLaunchFlags(): readonly string[] {
+    return process.platform === 'linux'
+        ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+        : [];
+}
 
 export type UnclaimedTmuxSessionShape = {
     readonly sessionName: string;
@@ -45,7 +68,6 @@ export type RecoverableAgentSessionShape = {
     };
     readonly resume?: {
         readonly cliType: 'claude' | 'codex';
-        readonly nativeSessionId: string;
     };
 };
 
@@ -78,9 +100,22 @@ export interface SurvivingAgentsVault {
     readonly projectRoot: string;
     readonly contextNodePath: string;
     readonly claudeProjectsRoot: string;
+    readonly appSupportPath: string;
 }
 
-export function tmuxSocketPath(): string {
+function shortTempRoot(): string {
+    return process.platform === 'darwin' ? '/tmp' : os.tmpdir();
+}
+
+export function createShortTempDir(prefix: string): Promise<string> {
+    return fs.mkdtemp(path.join(shortTempRoot(), prefix));
+}
+
+export function tmuxSocketPath(appSupportPathOverride?: string): string {
+    if (appSupportPathOverride && appSupportPathOverride.trim().length > 0) {
+        return path.join(appSupportPathOverride, 'tmux.sock');
+    }
+
     // Must match the LaunchAgent-managed socket used by agent-runtime's tmux-session-manager.
     const appSupportFromEnv: string | undefined = process.env.VOICETREE_APP_SUPPORT;
     const appSupport: string = appSupportFromEnv && appSupportFromEnv.trim().length > 0
@@ -90,12 +125,14 @@ export function tmuxSocketPath(): string {
 }
 
 export async function createSurvivingAgentsVault(): Promise<SurvivingAgentsVault> {
-    const tempRoot: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-surviving-agents-vault-'));
+    const tempRoot: string = await createShortTempDir('vt-sa-vault-');
     const projectRoot: string = await createFolderTestVault(tempRoot);
     const contextNodePath: string = path.join(projectRoot, 'readme.md');
     const claudeProjectsRoot: string = path.join(tempRoot, 'claude-projects');
+    const appSupportPath: string = path.join(tempRoot, 'app');
     await fs.mkdir(claudeProjectsRoot, {recursive: true});
-    return {tempRoot, projectRoot, contextNodePath, claudeProjectsRoot};
+    await fs.mkdir(appSupportPath, {recursive: true});
+    return {tempRoot, projectRoot, contextNodePath, claudeProjectsRoot, appSupportPath};
 }
 
 export function buildNamespaceHash(projectRoot: string): string {
@@ -107,11 +144,15 @@ export function buildSessionName(projectRoot: string, terminalId: string): strin
     return `vt-${buildNamespaceHash(projectRoot)}-${terminalId}`;
 }
 
-export function spawnSeededTmuxSession(sessionName: string, env: Record<string, string>): void {
+export function spawnSeededTmuxSession(
+    sessionName: string,
+    env: Record<string, string>,
+    socketPath: string = tmuxSocketPath(),
+): void {
     const envArgs: string[] = Object.entries(env).flatMap(([k, v]): string[] => ['-e', `${k}=${v}`]);
     const result = spawnSync(
         TMUX_BIN,
-        ['-S', tmuxSocketPath(), 'new-session', '-d', '-s', sessionName, ...envArgs, 'sleep 600'],
+        ['-S', socketPath, 'new-session', '-d', '-s', sessionName, ...envArgs, 'sleep 600'],
         {encoding: 'utf8'},
     );
     if (result.status !== 0) {
@@ -119,92 +160,12 @@ export function spawnSeededTmuxSession(sessionName: string, env: Record<string, 
     }
 }
 
-export function killSeededTmuxSession(sessionName: string): void {
-    spawnSync(TMUX_BIN, ['-S', tmuxSocketPath(), 'kill-session', '-t', sessionName], {encoding: 'utf8'});
+export function killSeededTmuxSession(sessionName: string, socketPath: string = tmuxSocketPath()): void {
+    spawnSync(TMUX_BIN, ['-S', socketPath, 'kill-session', '-t', sessionName], {encoding: 'utf8'});
 }
 
 export async function ensureScreenshotDir(): Promise<void> {
     await fs.mkdir(SCREENSHOT_DIR, {recursive: true});
-}
-
-export type FakeClaudeInstall = {
-    readonly binDir: string;
-    readonly invocationLogPath: string;
-};
-
-/**
- * Materialize a fake `claude` binary that records its argv to a log file
- * and then sleeps, so spawning `claude --resume <id>` in tests works without
- * depending on the real Claude CLI being installed.
- *
- * The argv-log lets the e2e assert on the EXACT command the runtime spawned
- * (e.g. that resume produced `--resume <expected-session-id>`, not `--continue`
- * or some other variant). Each invocation appends a JSON line:
- *   {"argv":["--resume","sess-..."],"pid":12345,"env_terminalId":"Mira"}
- *
- * Returns the bin dir to prepend to PATH and the absolute path of the
- * invocation log.
- */
-export async function installFakeClaudeOnPath(tempRoot: string): Promise<FakeClaudeInstall> {
-    const binDir: string = path.join(tempRoot, 'bin');
-    await fs.mkdir(binDir, {recursive: true});
-    const fakeClaudePath: string = path.join(binDir, 'claude');
-    const invocationLogPath: string = path.join(tempRoot, 'fake-claude-invocations.log');
-    // Use Node (not sh) for the fake binary: JSON-serialising argv from a
-    // shell script means double-escaping backslashes and quotes through three
-    // layers (JS template → shell script literal → sed pattern), which is
-    // fragile and was producing argv:["",""] in the first attempt. Node's
-    // process.argv + JSON.stringify is unambiguous.
-    const script: string = [
-        '#!/usr/bin/env node',
-        '// fake-claude for e2e — records argv to a log and sleeps so the tmux pane stays alive.',
-        "const fs = require('fs');",
-        `const LOG = ${JSON.stringify(invocationLogPath)};`,
-        'const argv = process.argv.slice(2);',
-        'const entry = {',
-        '    argv,',
-        '    pid: process.pid,',
-        "    env_terminalId: process.env.VOICETREE_TERMINAL_ID ?? '',",
-        "    env_agent: process.env.AGENT_NAME ?? '',",
-        '};',
-        "fs.appendFileSync(LOG, JSON.stringify(entry) + '\\n');",
-        "console.log('[fake-claude] argv:', argv.join(' '));",
-        '// Keep the pane alive so the runtime sees a live tmux session after spawn.',
-        '// Polling sleep instead of setTimeout(..., 600_000) so SIGTERM is responsive.',
-        'setInterval(() => {}, 1000);',
-        '',
-    ].join('\n');
-    await fs.writeFile(fakeClaudePath, script, {mode: 0o755});
-    return {binDir, invocationLogPath};
-}
-
-export type FakeClaudeInvocation = {
-    readonly argv: readonly string[];
-    readonly pid: number;
-    readonly env_terminalId: string;
-    readonly env_agent: string;
-};
-
-/**
- * Read back every invocation of the fake `claude` binary recorded by
- * installFakeClaudeOnPath. Returns [] if the log doesn't exist yet.
- */
-export async function readFakeClaudeInvocations(invocationLogPath: string): Promise<readonly FakeClaudeInvocation[]> {
-    let raw: string;
-    try {
-        raw = await fs.readFile(invocationLogPath, 'utf8');
-    } catch {
-        return [];
-    }
-    const out: FakeClaudeInvocation[] = [];
-    for (const line of raw.split('\n')) {
-        const trimmed: string = line.trim();
-        if (!trimmed) continue;
-        try {
-            out.push(JSON.parse(trimmed) as FakeClaudeInvocation);
-        } catch { /* skip malformed */ }
-    }
-    return out;
 }
 
 export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void> {
@@ -320,7 +281,8 @@ export const test = base.extend<{
     }, {timeout: 10000}],
 
     electronApp: [async ({vault}, use) => {
-        const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-surviving-agents-test-'));
+        const tempUserDataPath: string = vault.appSupportPath;
+        await fs.mkdir(tempUserDataPath, {recursive: true});
 
         await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: vault.projectRoot,
@@ -343,11 +305,13 @@ export const test = base.extend<{
 
         const electronApp = await electron.launch({
             args: [
+                ...electronLinuxLaunchFlags(),
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserDataPath}`,
             ],
             env: {
                 ...process.env,
+                PATH: buildElectronTestPath(),
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
@@ -391,7 +355,6 @@ export const test = base.extend<{
                 new Promise<void>((resolve) => setTimeout(resolve, 2000)),
             ]);
         }
-        await fs.rm(tempUserDataPath, {recursive: true, force: true});
     }, {timeout: 30000}],
 
     appWindow: [async ({electronApp}, use) => {
@@ -421,7 +384,7 @@ export const test = base.extend<{
         try {
             await use(name);
         } finally {
-            killSeededTmuxSession(name);
+            killSeededTmuxSession(name, tmuxSocketPath(vault.appSupportPath));
         }
     }, {timeout: 10000}],
 });

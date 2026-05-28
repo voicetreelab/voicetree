@@ -1,7 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { z } from 'zod'
-import type { Graph, GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
-import { GraphStateSchema } from '@vt/graph-db-server/contract'
+import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
 
 const GraphDeltaRequestSchema = z.array(
   z.discriminatedUnion('type', [
@@ -124,11 +123,4 @@ export function buildDeleteNodeDelta(
       deletedNode: O.some(existingNode),
     },
   ]
-}
-
-export function composeApplyDeltaResponse(delta: GraphDelta, graph: Graph): {
-  readonly delta: GraphDelta
-  readonly graph: unknown
-} {
-  return { delta, graph: GraphStateSchema.parse(graph) }
 }

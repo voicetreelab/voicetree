@@ -10,6 +10,7 @@ import { TextField } from './fields/TextField';
 import { HotkeyField } from './fields/HotkeyField';
 import { AgentListField } from './fields/AgentListField';
 import { StringListField } from './fields/StringListField';
+import { LayoutConfigField } from './fields/LayoutConfigField';
 
 interface SettingsSectionProps {
     settings: VTSettings;
@@ -161,6 +162,16 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                                 label={label}
                                 value={value as string ?? ''}
                                 multiline
+                                onChange={v => onUpdate(key, v)}
+                            />
+                        );
+
+                    case 'layout-config':
+                        return (
+                            <LayoutConfigField
+                                key={key}
+                                label={label}
+                                value={value as string ?? ''}
                                 onChange={v => onUpdate(key, v)}
                             />
                         );

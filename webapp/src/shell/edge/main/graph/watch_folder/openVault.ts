@@ -201,6 +201,7 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
 
         const watchingStartedInfo = {
             directory: projectRoot,
+            projectRoot,
             writeFolder: response.writeFolder,
             timestamp: new Date().toISOString(),
         }

@@ -2,9 +2,13 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "baseUrl": "..",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "strictNullChecks": true,
     "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
     "noEmit": true,
     "paths": {
       "@/*": ["./src/*"],

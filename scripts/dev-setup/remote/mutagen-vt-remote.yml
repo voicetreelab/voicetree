@@ -1,0 +1,83 @@
+sync:
+  defaults:
+    mode: "one-way-replica"
+    symlink:
+      mode: "posix-raw"
+    ignore:
+      vcs: false
+      paths:
+        - "**/node_modules"
+        - "**/.node_modules-*"
+        - "**/.stryker-tmp"
+        - "**/dist"
+        - "**/dist-electron"
+        - "**/dist-web"
+        - "**/playwright-report*"
+        - "**/test-results"
+        - "**/.next"
+        - "**/.turbo"
+        - "**/.cache"
+        - "**/.DS_Store"
+        - "**/*.log"
+        - "**/*.db"
+        - "**/*.db-*"
+        - "**/*.sqlite"
+        - "**/*.sqlite-*"
+        - "**/*.sqlite3"
+        - "**/*.sqlite3-*"
+        - "**/*.wal"
+        - "**/*.shm"
+        - "**/*.parquet"
+        - "**/*.pprof"
+        - "**/*.heapprofile"
+        - "**/*.heapsnapshot"
+        - "**/*.trace"
+        - "**/*.har"
+        - "**/*.ndjson"
+        - "**/*.prom"
+        - "**/*.tsdb"
+        - "**/folder-visibility.db*"
+        - "infra/perf-stack/bin"
+        - "infra/perf-stack/bin/**"
+        - "infra/perf-stack/storage"
+        - "infra/perf-stack/storage/**"
+        - "out"
+        - "/meta"
+        - "voicetree-evals"
+        - "vt-website-quartz"
+        - "old"
+        - "webapp/e2e-tests/perf-traces"
+        - "webapp/e2e-tests/perf-traces/**"
+        - "webapp/e2e-tests/screenshots"
+        - "webapp/e2e-tests/screenshots/**"
+        - "**/.voicetree/devbox-outputs"
+        - "**/.voicetree/devbox-outputs/**"
+        # Legacy nested worktrees: migrated to sibling <parent>/vt-wts/ layout,
+        # synced by the separate vt-wts mutagen session. Excluding here prevents
+        # any straggler `.worktrees/<name>` (e.g. a worktree blocked from
+        # migration by uncommitted changes) from re-introducing the
+        # double-sync + scanner-exclude class of bug the migration killed.
+        - ".worktrees"
+        - ".worktrees/**"
+        # Agent-spawned nested worktree mirrors (also gitignored locally).
+        - ".claude/worktrees"
+        - ".claude/worktrees/**"
+        - ".venv"
+        - ".venv-server"
+        - ".codeql"
+        - "brain/workflows/evaluation"
+        - "webapp/workers"
+        # .git/index IS synced so pre-commit can read the locally-staged tree
+        # from the devbox. The matching .lock paths stay ignored — they're
+        # atomic-write tempfiles, and syncing them would race with local git.
+        - ".git/index.lock"
+        - ".git/worktrees/*/index.lock"
+        - ".git/*.lock"
+        - ".git/refs/**/*.lock"
+        - ".git/hooks"
+        - ".git/config"
+        - ".git/logs"
+        - ".git/COMMIT_EDITMSG"
+        - ".git/FETCH_HEAD"
+        - ".git/ORIG_HEAD"
+        - "**/.voicetree/graphd.owner.json"

@@ -22,8 +22,8 @@ type DaemonAccess = {
 };
 
 type RpcResponse = {
-  result?: { content?: Array<{ type: string; text: string }>; isError?: boolean };
-  error?: { code?: number; message: string };
+  result?: unknown;
+  error?: { code?: number; message: string; data?: unknown };
 };
 
 export type RpcToolResult = {
@@ -79,10 +79,37 @@ async function rpc(rpcUrl: string, token: string, method: string, params: Record
   return await response.json() as RpcResponse;
 }
 
-export async function rpcListTools(rpcUrl: string, token: string): Promise<unknown> {
-  const result: RpcResponse = await rpc(rpcUrl, token, 'tools/list', {});
-  if (result.error) throw new Error(`JSON-RPC error: ${result.error.message}`);
-  return result.result;
+// Post-BF-376, the unified HTTP daemon's RPC catalog dispatches by tool name
+// directly (see packages/systems/vt-daemon/src/transport/rpcDispatch.ts —
+// `catalog.get(method)`), without the MCP `tools/call` wrapping. The catalog
+// handler returns either the MCP-style `{ content: [{ type, text }] }` shape
+// (when the tool is reused for an MCP transport) or a plain JSON object. We
+// normalise both shapes to `{ success, parsed, isError }`.
+type McpStyleResult = {
+  readonly content?: ReadonlyArray<{ readonly type: string; readonly text: string }>;
+  readonly isError?: boolean;
+};
+
+function normaliseRpcResult(raw: unknown): RpcToolResult {
+  if (raw && typeof raw === 'object' && 'content' in raw) {
+    const mcp: McpStyleResult = raw as McpStyleResult;
+    const text: string | undefined = mcp.content?.[0]?.text;
+    const parsed: Record<string, unknown> | undefined = text
+      ? JSON.parse(text) as Record<string, unknown>
+      : undefined;
+    return {
+      success: parsed?.success === true || (mcp.isError !== true && parsed === undefined),
+      parsed,
+      isError: mcp.isError,
+    };
+  }
+  const parsed: Record<string, unknown> | undefined = raw && typeof raw === 'object'
+    ? raw as Record<string, unknown>
+    : undefined;
+  return {
+    success: parsed?.success === true || (parsed !== undefined && !('success' in parsed)),
+    parsed,
+  };
 }
 
 export async function rpcCallTool(
@@ -91,18 +118,16 @@ export async function rpcCallTool(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<RpcToolResult> {
-  const response: RpcResponse = await rpc(rpcUrl, token, 'tools/call', {
-    name: toolName,
-    arguments: args,
-  });
-  if (response.error) throw new Error(`JSON-RPC error: ${response.error.message}`);
-  const text: string | undefined = response.result?.content?.[0]?.text;
-  const parsed: Record<string, unknown> | undefined = text
-    ? JSON.parse(text) as Record<string, unknown>
-    : undefined;
-  return {
-    success: parsed?.success === true,
-    parsed,
-    isError: response.result?.isError,
-  };
+  const response: RpcResponse = await rpc(rpcUrl, token, toolName, args);
+  if (response.error) {
+    // The dispatcher returns `tool_handler_failed` with the unwrapped payload
+    // in `error.data` when the tool ran but reported an error. Surface that
+    // payload so callers see the actual cause (not just the generic envelope
+    // message). See packages/systems/vt-daemon/src/transport/rpcDispatch.ts.
+    const detail: string = response.error.data !== undefined
+      ? `: ${JSON.stringify(response.error.data)}`
+      : '';
+    throw new Error(`JSON-RPC error (${toolName}): ${response.error.message}${detail}`);
+  }
+  return normaliseRpcResult(response.result);
 }

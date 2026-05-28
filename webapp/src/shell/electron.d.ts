@@ -51,6 +51,7 @@ export interface ElectronAPI {
     onStatus: (handle: string, listener: (status: RelayConnectionStatus) => void) => () => void;
     write: (handle: string, data: string) => Promise<boolean>;
     resize: (handle: string, cols: number, rows: number) => Promise<boolean>;
+    scroll: (handle: string, direction: 'up' | 'down', lines: number) => Promise<boolean>;
     detach: (handle: string) => Promise<boolean>;
   };
 

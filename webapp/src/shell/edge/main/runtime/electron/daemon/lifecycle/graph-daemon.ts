@@ -74,32 +74,13 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
       span.setAttribute('vault', activeVault)
       if (activeOwner !== null) {
         // Capture locally: the module-scope `activeOwner` can be cleared during
-        // any `await` below by a concurrent `shutdownActiveDaemonConnection()`
-        // (fires from `will-quit` while cleanup tasks scheduled in `before-quit`
-        // are still running). Without the capture, `return activeOwner` could
-        // resolve to `null` and callers would dereference `null.client`.
+        // a concurrent `shutdownActiveDaemonConnection()`. Without the capture,
+        // `return activeOwner` could resolve to `null` and callers would
+        // dereference `null.client`.
         const current: DaemonHandle = activeOwner
         span.setAttribute('cachedOwnerPid', current.pid)
-        try {
-          await current.client.health()
-          span.setAttribute('outcome', 'cached-healthy')
-          return current
-        } catch (error) {
-          if (!isConnectionFailure(error)) {
-            span.setAttribute('outcome', 'health-non-connection-error')
-            throw error
-          }
-          span.setAttribute('outcome', 'cached-lost-recovering')
-          markDaemonLost(error)
-          const recovered = await attemptOwnerMediatedRecovery(
-            activeVault,
-            'electron-main',
-            { stopLoops: stopOwnerRecoveryLoops },
-          )
-          activeOwner = recovered
-          span.setAttribute('recoveredOwnerPid', recovered.pid)
-          return recovered
-        }
+        span.setAttribute('outcome', 'cached-owner')
+        return current
       }
       span.setAttribute('outcome', 'first-time-ensure')
       const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
@@ -141,6 +122,21 @@ export function getActiveDaemonClient(): GraphDbClient | null {
   return activeOwner?.client ?? null
 }
 
+async function recoverActiveDaemonAfterConnectionFailure(error: unknown): Promise<DaemonHandle> {
+  if (activeVault === null) {
+    throw error
+  }
+
+  markDaemonLost(error)
+  const recovered = await attemptOwnerMediatedRecovery(
+    activeVault,
+    'electron-main',
+    { stopLoops: stopOwnerRecoveryLoops },
+  )
+  activeOwner = recovered
+  return recovered
+}
+
 export async function callDaemon<T>(
   fn: (client: GraphDbClient) => Promise<T>,
 ): Promise<T> {
@@ -150,11 +146,16 @@ export async function callDaemon<T>(
       try {
         return await fn(owner.client)
       } catch (error) {
-        if (isConnectionFailure(error)) {
-          span.setAttribute('connectionFailure', true)
-          markDaemonLost(error)
+        if (!isConnectionFailure(error)) {
+          throw error
         }
-        throw error
+        span.setAttribute('connectionFailure', true)
+        span.addEvent('daemon.call.recover-retry.start')
+        const recovered = await recoverActiveDaemonAfterConnectionFailure(error)
+        span.setAttribute('recoveredOwnerPid', recovered.pid)
+        const result = await fn(recovered.client)
+        span.addEvent('daemon.call.recover-retry.complete')
+        return result
       }
     } catch (error) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) })

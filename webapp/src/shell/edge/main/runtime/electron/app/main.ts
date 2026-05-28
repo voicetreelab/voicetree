@@ -67,9 +67,6 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
-tracing.init('vt-electron-main');
-tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
-validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
@@ -84,6 +81,15 @@ initializeGraphModel();
 const {autoUpdater} = electronUpdater;
 
 function pinProcessAppSupportPath(): void {
+    // Respect an explicit override from the parent process (test fixtures pin
+    // VOICETREE_APP_SUPPORT to their temp user-data dir before launching
+    // Electron). Without this guard, the unconditional overwrite below
+    // shadows the override with `app.getPath('userData')`, which on a fresh
+    // Electron launch may return the OS default before --user-data-dir is
+    // observable to `app.getPath`. The override path is where the test
+    // pre-seeds settings.json / talks to tmux, so silently clobbering it
+    // strands the daemon on a different socket from the test.
+    if (process.env.VOICETREE_APP_SUPPORT) return;
     process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
 }
 
@@ -110,7 +116,9 @@ if (electronVtBinDir !== null) {
 }
 
 configureEnvironment();
-pinProcessAppSupportPath();
+tracing.init('vt-electron-main', pinProcessAppSupportPath());
+tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
+validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
 // Global manager instances

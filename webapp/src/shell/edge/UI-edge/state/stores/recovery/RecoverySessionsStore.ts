@@ -1,6 +1,27 @@
-import type {RecoverableAgentSession} from '@vt/vt-daemon-client'
+import type {RecoverableAgentSession, ResumePersistedResult} from '@vt/vt-daemon-client'
 
 type RecoveryCallback = (sessions: readonly RecoverableAgentSession[]) => void
+
+type NoNativeSessionResult = Extract<ResumePersistedResult, {readonly kind: 'no-native-session'}>
+
+/**
+ * Structured failure detail propagated from the main process when a resume
+ * action misses on the native session resolver. When present, the UI renders a
+ * plain-language one-liner mapped from `reason` instead of a generic error,
+ * and (for `outside-recency-window` with `diagnosticSessionId`) a "Copy manual
+ * resume command" button.
+ */
+export type RecoveryResumeFailure = {
+    readonly reason: NoNativeSessionResult['reason']
+    readonly cliType: NoNativeSessionResult['cliType']
+    readonly diagnosticSessionId?: string
+}
+
+export type RecoveryResumeResult = {
+    readonly success: boolean
+    readonly error?: string
+    readonly failure?: RecoveryResumeFailure
+}
 
 const RECOVERY_EVENT = 'vt:recovery-sessions'
 const RECOVERY_STATE_KEY = '__vtRecoverySessions'
@@ -32,10 +53,16 @@ export function subscribeToRecoverySessions(callback: RecoveryCallback): () => v
     }
 }
 
-export async function refreshRecoverySessions(): Promise<void> {
+/**
+ * `horizonDays` plumbs through to the main process discovery:
+ * - undefined → server-side default (7 days).
+ * - null → disable horizon entirely ("Show older" link).
+ * - number → custom day window.
+ */
+export async function refreshRecoverySessions(horizonDays?: number | null): Promise<void> {
     try {
         const next: readonly RecoverableAgentSession[] = await (
-            window.electronAPI?.main.refreshRecoverySessions?.()
+            window.electronAPI?.main.refreshRecoverySessions?.(horizonDays)
             ?? Promise.resolve([])
         )
         syncRecoverySessionsFromMain(next)
@@ -82,9 +109,20 @@ export async function killRecoverySession(
 
 export async function resumeRecoverySession(
     terminalId: string,
+): Promise<RecoveryResumeResult> {
+    const result: RecoveryResumeResult = await (
+        window.electronAPI?.main.resumeRecoverySession?.(terminalId)
+        ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
+    )
+    void refreshRecoverySessions()
+    return result
+}
+
+export async function removeRecoverySession(
+    terminalId: string,
 ): Promise<{readonly success: boolean; readonly error?: string}> {
     const result: {readonly success: boolean; readonly error?: string} = await (
-        window.electronAPI?.main.resumeRecoverySession?.(terminalId)
+        window.electronAPI?.main.removeRecoverySession?.(terminalId)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     void refreshRecoverySessions()

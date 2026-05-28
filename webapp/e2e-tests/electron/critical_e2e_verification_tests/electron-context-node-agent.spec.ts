@@ -43,19 +43,23 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     const terminalShell = process.env.SHELL ?? (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash');
 
-    await appWindow.evaluate(async (shell) => {
+    // The daemon-side `resolveAgentCommand` validates that the spawn request's
+    // agentCommand is one of `settings.agents[].command`. Register the grep
+    // probe as a named agent so the test's command is accepted.
+    await appWindow.evaluate(async ({ shell, command }) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
-      // Get current settings and update them
       const currentSettings = await api.main.loadSettings();
       const updatedSettings = {
         ...currentSettings,
         terminalSpawnPathRelativeToWatchedDirectory: '../', // Launch from parent of watched directory
-        shell
+        shell,
+        agents: [{ name: 'E2E Context Probe', command }],
+        defaultAgent: 'E2E Context Probe',
       };
       await api.main.saveSettings(updatedSettings);
-    }, terminalShell);
+    }, { shell: terminalShell, command: agentCommand });
     console.log('✓ Agent command configured:', agentCommand);
 
     console.log('=== STEP 2: Wait for auto-load to complete (test vault: example_small) ===');
@@ -168,26 +172,20 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`Context node absolute path: ${contextNodePath}`);
     console.log(`Initial spawn directory: ${initialSpawnDir}`);
 
-    const terminalId = `context-node-agent-e2e-${process.pid}-${Date.now()}`;
-
-    const spawnResult = await appWindow.evaluate(async ({ ctxNodeId, ctxNodePath, spawnDir, command, tId }) => {
+    // `spawnTerminalWithContextNode` reuses the context node when `taskNodeId`
+    // already references one, runs the registered agent command, and returns
+    // the daemon-assigned `terminalId` we use to locate the pipe-pane log.
+    const spawnResponse = await appWindow.evaluate(async ({ ctxNodeId, ctxNodePath, spawnDir, command }) => {
       const w = (window as ExtendedWindow);
       const api = w.electronAPI;
-      if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+      if (!api) throw new Error('electronAPI not available');
 
-      return api.terminal.spawn({
-        type: 'Terminal' as const,
-        terminalId: tId,
-        attachedToContextNodeId: ctxNodeId,
+      return api.main.spawnTerminalWithContextNode({
+        taskNodeId: ctxNodeId,
+        agentCommand: command,
         terminalCount: 0,
-        title: 'Agent Terminal',
-        anchoredToNodeId: { _tag: 'None' } as { _tag: 'None' }, // fp-ts Option.none
-        shadowNodeDimensions: { width: 600, height: 400 },
-        resizable: true,
-        initialCommand: command,
-        executeCommand: true,
-        initialSpawnDirectory: spawnDir,
-        initialEnvVars: {
+        spawnDirectory: spawnDir,
+        envOverrides: {
           CONTEXT_NODE_PATH: ctxNodePath,
           CLAUDE_CODE_ENABLE_TELEMETRY: '1',
           OTEL_METRICS_EXPORTER: 'otlp',
@@ -195,23 +193,11 @@ test.describe('Context Node Agent Terminal E2E', () => {
           OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
           OTEL_METRIC_EXPORT_INTERVAL: '1000',
         },
-        isPinned: true,
-        isDone: false,
-        lifecycle: 'spawning' as const,
-        lastOutputTime: Date.now(),
-        activityCount: 0,
-        parentTerminalId: null,
-        agentName: tId,
-        isHeadless: false,
-        isMinimized: false,
-        contextContent: '',
-        agentTypeName: 'Claude',
       });
-    }, { ctxNodeId: contextNodeId, ctxNodePath: contextNodePath, spawnDir: initialSpawnDir, command: agentCommand, tId: terminalId });
+    }, { ctxNodeId: contextNodeId, ctxNodePath: contextNodePath, spawnDir: initialSpawnDir, command: agentCommand });
 
-    if (!spawnResult.success) {
-      throw new Error('Failed to spawn terminal: ' + (spawnResult.error ?? 'unknown'));
-    }
+    const terminalId = spawnResponse.terminalId;
+    expect(terminalId, 'spawnTerminalWithContextNode returned no terminalId').toBeTruthy();
 
     console.log('=== STEP 6: Poll tmux log file for Claude output ===');
     // tmux-backed terminals stream their pane output to

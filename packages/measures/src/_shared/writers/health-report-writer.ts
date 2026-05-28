@@ -3,6 +3,8 @@ import {randomBytes} from 'node:crypto'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
+import {appendScore} from './scores-history-writer.ts'
+
 const CI_REPORTING_SRC_ROOT: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(CI_REPORTING_SRC_ROOT, '..', '..', '..', '..', '..')
 const REPORTS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports')
@@ -112,6 +114,7 @@ export async function recordHealthReport(report: HealthReport): Promise<void> {
     assertHealthReport(report)
     await mkdir(REPORTS_DIR, {recursive: true})
     await writeJsonAtomic(metricReportPath(report.metricId), report)
+    await appendScore({measure: report.metricId, score: report.current, status: report.passed ? 'pass' : 'fail'})
     await writeLatestReport()
 }
 

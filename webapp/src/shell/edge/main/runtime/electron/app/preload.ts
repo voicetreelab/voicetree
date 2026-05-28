@@ -138,6 +138,8 @@ async function exposeElectronAPI(): Promise<void> {
                 ipcRenderer.invoke('terminal:write', handle, data) as Promise<boolean>,
             resize: (handle: string, cols: number, rows: number): Promise<boolean> =>
                 ipcRenderer.invoke('terminal:resize', handle, cols, rows) as Promise<boolean>,
+            scroll: (handle: string, direction: 'up' | 'down', lines: number): Promise<boolean> =>
+                ipcRenderer.invoke('terminal:scroll', handle, direction, lines) as Promise<boolean>,
             detach: (handle: string): Promise<boolean> =>
                 ipcRenderer.invoke('terminal:detach', handle) as Promise<boolean>,
         },
@@ -200,6 +202,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:attach',
                 'terminal:write',
                 'terminal:resize',
+                'terminal:scroll',
                 'terminal:detach',
                 'vt:events:resnapshot',
             ]);

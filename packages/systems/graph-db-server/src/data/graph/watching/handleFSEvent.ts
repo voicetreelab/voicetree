@@ -1,5 +1,5 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/graph';
+import type {FSEvent, GraphDelta, Graph} from '@vt/graph-model/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {toAbsolutePath} from '@vt/graph-model/folders';
@@ -52,7 +52,10 @@ export function handleFSEventWithStateAndUISides(
 
     // 4. Apply delta to memory state and resolve any new wikilinks
     // Uses void since this is fire-and-forget from FS event handler
-    void applyAndBroadcast(delta, suppressBroadcastTo)
+    void (async () => {
+        const merged = await applyDeltaToMemAndBroadcast(delta, suppressBroadcastTo)
+        notifyAgentNodesFromDelta(merged)
+    })()
 }
 
 function invalidateFolderTreeForFSEvent(fsEvent: FSEvent): void {
@@ -67,31 +70,21 @@ function invalidateFolderTreeForFSEvent(fsEvent: FSEvent): void {
 }
 
 /**
- * Apply delta to memory, broadcast to UI, and handle editor updates.
- * Extracted to allow async/await while keeping the main handler sync.
+ * Apply a delta to in-memory graph state, then broadcast the merged delta
+ * (including lazy wikilink resolutions) to SSE subscribers and floating editors.
  */
-async function applyAndBroadcast(
+async function applyDeltaToMemAndBroadcast(
     delta: GraphDelta,
-    suppressBroadcastTo: ReadonlySet<string>,
-): Promise<void> {
-    // Apply to memory and resolve any new wikilinks (returns merged delta)
+    suppressBroadcastTo: ReadonlySet<string> = new Set(),
+): Promise<GraphDelta> {
     const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
-
     refreshGraphChangeSideEffects()
 
-    // Publish to SSE event bus for daemon clients
-    publish({
-        delta: mergedDelta,
-        source: 'fs:external',
-        suppressForSubscribers: [...suppressBroadcastTo],
-    })
+    const suppressList: string[] = [...suppressBroadcastTo]
+    publish({delta: mergedDelta, source: 'fs:external', suppressForSubscribers: suppressList})
+    getCallbacks().onFloatingEditorUpdate?.(mergedDelta, suppressList)
 
-    // Broadcast to floating editor state via callback
-    getCallbacks().onFloatingEditorUpdate?.(mergedDelta, [...suppressBroadcastTo])
-
-    // Register filesystem-written nodes that have agent_name frontmatter,
-    // so wait_for_agents recognises them as agent progress.
-    notifyAgentNodesFromDelta(mergedDelta)
+    return mergedDelta
 }
 
 function notifyAgentNodesFromDelta(delta: GraphDelta): void {
@@ -106,3 +99,4 @@ function notifyAgentNodesFromDelta(delta: GraphDelta): void {
         callback(agentName, d.nodeToUpsert.absoluteFilePathIsID, title)
     }
 }
+

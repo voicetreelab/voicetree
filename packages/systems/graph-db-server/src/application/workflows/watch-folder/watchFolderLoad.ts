@@ -61,8 +61,17 @@ function buildWatchingStartedPayload(
     directory: string,
     writeFolder: string,
     timestamp: string,
-): { readonly directory: string; readonly writeFolder: string; readonly timestamp: string } {
-    return { directory, writeFolder, timestamp };
+): {
+    readonly directory: string;
+    readonly projectRoot: string;
+    readonly writeFolder: string;
+    readonly timestamp: string;
+} {
+    // `directory` and `projectRoot` carry the same value here — see
+    // `getWatchingStartedDirectory` (returns `getProjectRoot() ?? watchedFolderPath`).
+    // Emitting both lets runtime code prefer the explicit `projectRoot` name
+    // while renderer code that still reads `directory` keeps working.
+    return { directory, projectRoot: directory, writeFolder, timestamp };
 }
 
 function getWatchingStartedDirectory(watchedFolderPath: FilePath): string {

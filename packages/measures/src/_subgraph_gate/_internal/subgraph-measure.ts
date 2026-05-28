@@ -41,9 +41,9 @@ export type SubgraphMeasureResult = {
     readonly violations: readonly Violation[]
 }
 
-export type MeasureAxis = 'behavioral' | 'structural' | 'shape'
+type MeasureAxis = 'behavioral' | 'structural' | 'shape'
 
-export type MeasureScope = 'file' | 'community' | 'global'
+type MeasureScope = 'file' | 'community' | 'global'
 
 export type SubgraphMeasureInput = {
     /** Repo-relative or absolute paths of files changed in the staged diff. */

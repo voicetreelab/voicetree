@@ -54,6 +54,7 @@ import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
 import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import {loadSettings} from '@vt/app-config/settings'
 import {
     startHttpDaemonServer,
     type HookHandler,
@@ -322,6 +323,13 @@ async function main(): Promise<void> {
             // can apply the vault-switch fence (BF-376 / main-host-purity
             // spec §"Vault-switch fence drops stale events").
             canonicalVault: args.vault,
+            // Resolved per attach so a `terminalTmuxMouseMode` flip in vault
+            // settings takes effect on the next tmux connection without
+            // restarting the daemon. The tmux-attach wiring forwards this
+            // into `attachTmuxSessionToWebSocket`, which sets `tmux set mouse
+            // on/off` after `configureTmuxSession`. Default false keeps
+            // browser-style text selection working without holding Shift.
+            getTmuxMouseMode: async (): Promise<boolean> => (await loadSettings()).terminalTmuxMouseMode ?? false,
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats
