@@ -30,6 +30,19 @@ export const test = base.extend<{
       }
     }, null, 2), 'utf8');
 
+    // Pre-seed settings.json with the grep-probe agent registered so the
+    // daemon-side `resolveAgentCommand` accepts the spec's spawn command at
+    // first boot. A renderer-side `saveSettings` from the spec cannot reach
+    // the daemon's in-process settings cache (5 s TTL, separate process),
+    // so the agent registration must be on-disk before the daemon loads.
+    const settingsPath = path.join(tempUserDataPath, 'settings.json');
+    const grepAgentCommand = 'grep -o "SECRET_E2E_NEEDLE: [^ ]*" "$CONTEXT_NODE_PATH" | head -1';
+    await fs.writeFile(settingsPath, JSON.stringify({
+      agents: [{ name: 'E2E Context Probe', command: grepAgentCommand }],
+      defaultAgent: 'E2E Context Probe',
+      terminalSpawnPathRelativeToWatchedDirectory: '../',
+    }, null, 2), 'utf8');
+
     const ciFlags = process.env.CI
       ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
       : [];
@@ -47,6 +60,12 @@ export const test = base.extend<{
         ENABLE_PLAYWRIGHT_DEBUG: '0',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // Pin the app-support path to the temp user-data dir so the daemon
+        // (a forked subprocess) reads the same settings.json the fixture
+        // pre-seeded. Without this override the parent shell's
+        // VOICETREE_APP_SUPPORT leaks into the test process and the daemon
+        // never sees the grep-probe agent.
+        VOICETREE_APP_SUPPORT: tempUserDataPath,
         // Fallback for runtime paths before the daemon has reported the
         // configured write folder.
         VOICETREE_VAULT_PATH: FIXTURE_VAULT_PATH,

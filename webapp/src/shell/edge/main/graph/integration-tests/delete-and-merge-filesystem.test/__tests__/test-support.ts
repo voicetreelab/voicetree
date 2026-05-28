@@ -141,14 +141,11 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
 })
 
 async function ensureHandlersImported(): Promise<void> {
-    if (!state.handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
-        registerTerminalIpcHandlers(
-            {} as any,
-            () => ''
-        )
-        state.handlersImported = true
-    }
+    // Post-vt-daemon migration: terminal IPC handlers moved into the vt-daemon
+    // process. The webapp main side no longer registers Electron-side IPC
+    // handlers for terminals — vt-daemon's RPC routes own that surface now.
+    // Kept as a no-op so the rest of the test setup chain is unchanged.
+    state.handlersImported = true
 }
 
 async function setupDeleteFilesystemTest(): Promise<void> {

@@ -93,11 +93,15 @@ describe('vt-graphd binary shutdown', () => {
 
       child.kill('SIGTERM')
 
-      const portRemovedAt = await waitForFileMissing(portFile, 3_000)
-      const lockRemovedAt = await waitForFileMissing(lockFile, 3_000)
+      // CI runners are slower than local dev; the daemon settles its cleanup
+      // in ~1s locally but has been observed to take >3s under GitHub Actions
+      // contention. waitForFileMissing exits the moment the file disappears,
+      // so generous ceilings here don't slow the happy path.
+      const portRemovedAt = await waitForFileMissing(portFile, 15_000)
+      const lockRemovedAt = await waitForFileMissing(lockFile, 15_000)
       const exited = await Promise.race([
         exitedPromise,
-        sleep(3_000).then(() => null),
+        sleep(15_000).then(() => null),
       ])
 
       if (exited === null) {
@@ -113,6 +117,6 @@ describe('vt-graphd binary shutdown', () => {
       expect(exited, 'daemon process should exit cleanly after SIGTERM').not.toBeNull()
       expect(exited?.code).toBe(0)
     },
-    20_000,
+    60_000,
   )
 })
