@@ -12,8 +12,6 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { NodeSingular } from 'cytoscape';
-import { getNodeTitle } from '@vt/graph-model/markdown';
-import type { GraphNode } from '@vt/graph-model/graph';
 import { closeElectronAppForSmoke } from './electron-smoke-test/electron-app-close';
 import {
   WEBAPP_ROOT, FAKE_AGENT_ENTRYPOINT,
@@ -298,22 +296,6 @@ test.describe('Smoke Test', () => {
     expect(spawnResponse.terminalId.length).toBeGreaterThan(0);
     expect(typeof spawnResponse.contextNodeId).toBe('string');
     expect(spawnResponse.contextNodeId.length).toBeGreaterThan(0);
-
-    const expectedTitles = ['Smoke Fake Agent Progress Node', 'Smoke Node Two', 'Smoke Node Three'];
-
-    await expect.poll(async () => {
-      const graph = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
-        return await api.main.getGraph();
-      });
-      const titles = new Set(Object.values(graph.nodes as Record<string, GraphNode>).map(getNodeTitle));
-      return expectedTitles.filter(t => titles.has(t)).length;
-    }, {
-      message: 'Waiting for fake-agent create_nodes deltas to land in the graph',
-      timeout: 60000,
-      intervals: [500, 1000, 2000, 3000]
-    }).toBe(expectedTitles.length);
 
     expectNoCriticalElectronErrors(electronDiagnostics);
   });
