@@ -16,3 +16,5 @@ export type {
 export {OUTCOME_SCORES} from './types.ts'
 export {aggregateScore, scoreCommand, scoreFor, scoreScenario} from './scoring.ts'
 export {matchesVerb, parseShimLog} from './shim-log.ts'
+export {renderCellResult, renderCellResults} from './report.ts'
+export type {RenderOptions} from './report.ts'
