@@ -5,10 +5,11 @@
   "private": true,
   "exports": {
     "./vitest-reporter": "./src/_shared/writers/vitest-ci-check-reporter.ts",
-    "./check-report-writer": "./src/_shared/writers/check-report-writer.ts"
+    "./check-report-writer": "./src/_shared/writers/check-report-writer.ts",
+    "./graph/call-graph": "./src/_shared/graph/call-graph.ts"
   },
   "scripts": {
-    "test": "vitest run src/health/**/*.test.ts src/checks/**/*.test.ts src/_subgraph_gate/**/*.test.ts",
+    "test": "vitest run src/health/ src/checks/ src/_subgraph_gate/",
     "test:perf:agents": "node --import tsx perf/agent-storm.ts",
     "perf:main-storm": "node --import tsx perf/electron-main-storm.ts"
   },
@@ -18,14 +19,14 @@
     "@opentelemetry/resources": "^2.7.1",
     "@opentelemetry/sdk-metrics": "^2.7.1",
     "@opentelemetry/semantic-conventions": "^1.41.1",
-    "@vt/agent-runtime": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/observability": "*",
     "@vt/perf-analysis": "*",
     "@vt/perf-fixtures": "*",
-    "@vt/voicetree-mcp": "*",
+    "@vt/vt-daemon": "*",
+    "@vt/vt-rpc": "*",
     "ws": "^8.18.0"
   },
   "devDependencies": {
