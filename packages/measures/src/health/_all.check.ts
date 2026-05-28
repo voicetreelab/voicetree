@@ -2,10 +2,10 @@ export const check = {
     id: 'systems-health',
     name: 'Systems Health Suite',
     category: 'Unit',
-    display: 'npm --workspace @vt/measures run test',
+    display: 'pnpm --filter @vt/measures run test',
     args: (jsonOut: string | null) => [
-        'npm',
-        '--workspace',
+        'pnpm',
+        '--filter',
         '@vt/measures',
         'run',
         'test',
