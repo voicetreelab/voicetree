@@ -131,6 +131,8 @@ describe('vt-bootcamp CLI', () => {
             '--effort', 'high',
             '--mode', 'headful',
             '--reps', '3',
+            '--headful-parent', '/tmp/some-node.md',
+            '--workspace-root', '/tmp/b7-run',
             '--dry-run',
         ])
         expect(r.exitCode).toBe(0)
@@ -139,6 +141,30 @@ describe('vt-bootcamp CLI', () => {
             effort: 'high',
             mode: 'headful',
             reps: 3,
+            headfulParentNodeId: '/tmp/some-node.md',
+            workspaceRoot: '/tmp/b7-run',
         })
+    }, 30_000)
+
+    it('--mode headful without --headful-parent exits non-zero', async () => {
+        const r = await runCli([
+            'B7', '--model', 'opus',
+            '--mode', 'headful',
+            '--workspace-root', '/tmp/b7-run',
+            '--dry-run',
+        ])
+        expect(r.exitCode).not.toBe(0)
+        expect(r.stderr).toMatch(/headful-parent/)
+    }, 30_000)
+
+    it('--mode headful without --workspace-root exits non-zero', async () => {
+        const r = await runCli([
+            'B7', '--model', 'opus',
+            '--mode', 'headful',
+            '--headful-parent', '/tmp/some-node.md',
+            '--dry-run',
+        ])
+        expect(r.exitCode).not.toBe(0)
+        expect(r.stderr).toMatch(/workspace-root/)
     }, 30_000)
 })

@@ -35,6 +35,13 @@ Options:
   --json                    Emit raw CellResult[] as JSON (for piping).
   --dry-run                 Print resolved plan as JSON and exit without invoking the runner.
   --help, -h                Show this help.
+
+Headful-only options (required when --mode headful):
+  --headful-parent <id>     VT node id to spawn the inner bootcamp agent under.
+                            Find one in your open VT graph (e.g. an existing task node).
+  --workspace-root <path>   Fixed workspace dir. Vault is created at <path>/vault.
+                            REQUIRED for headful so you can point VT at the vault before the run.
+  --launch-app              Best-effort \`open -a Voicetree\` before spawning the inner agent.
 `
 
 const DRIVERS: readonly HarnessDriver[] = [claudeCodeDriver, codexDriver]
@@ -50,6 +57,9 @@ type Config = {
     readonly reps: number
     readonly json: boolean
     readonly dryRun: boolean
+    readonly headfulParentNodeId: string | undefined
+    readonly workspaceRoot: string | undefined
+    readonly launchApp: boolean
 }
 
 function die(msg: string, exitCode = 2): never {
@@ -105,6 +115,9 @@ function parseConfig(argv: readonly string[]): Config {
                 json: {type: 'boolean'},
                 'dry-run': {type: 'boolean'},
                 help: {type: 'boolean', short: 'h'},
+                'headful-parent': {type: 'string'},
+                'workspace-root': {type: 'string'},
+                'launch-app': {type: 'boolean'},
             },
         })
     } catch (err) {
@@ -138,6 +151,21 @@ function parseConfig(argv: readonly string[]): Config {
         ? parseReps(parsed.values.reps)
         : 1
 
+    const headfulParentNodeId = typeof parsed.values['headful-parent'] === 'string'
+        ? parsed.values['headful-parent']
+        : undefined
+    const workspaceRoot = typeof parsed.values['workspace-root'] === 'string'
+        ? parsed.values['workspace-root']
+        : undefined
+    const launchApp = parsed.values['launch-app'] === true
+
+    if (mode === 'headful' && !headfulParentNodeId) {
+        die('--headful-parent <id> is required when --mode headful')
+    }
+    if (mode === 'headful' && !workspaceRoot) {
+        die('--workspace-root <path> is required when --mode headful (so you can point VoiceTree at it before the run)')
+    }
+
     return {
         scenario,
         driver,
@@ -147,6 +175,9 @@ function parseConfig(argv: readonly string[]): Config {
         reps,
         json: parsed.values.json === true,
         dryRun: parsed.values['dry-run'] === true,
+        headfulParentNodeId,
+        workspaceRoot,
+        launchApp,
     }
 }
 
@@ -160,6 +191,9 @@ function dryRunPlan(cfg: Config): string {
         mode: cfg.mode,
         reps: cfg.reps,
         json: cfg.json,
+        headfulParentNodeId: cfg.headfulParentNodeId,
+        workspaceRoot: cfg.workspaceRoot,
+        launchApp: cfg.launchApp,
     }
     return JSON.stringify(plan, null, 2)
 }
@@ -186,6 +220,9 @@ async function main(): Promise<void> {
             effort: cfg.effort,
             mode: cfg.mode,
             rep,
+            headfulParentNodeId: cfg.headfulParentNodeId,
+            workspaceRoot: cfg.workspaceRoot,
+            launchApp: cfg.launchApp,
         })
         results.push(result)
     }
