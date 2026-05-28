@@ -31,8 +31,14 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   Observed 632 + 5 headroom = 637; ratchet DOWN as graph-bridge.ts is
 //   restructured (the wrappers are intentionally minimal — each provides
 //   a stable public name over the GraphStateBridge interface).
+// Re-anchored 2026-05-28 [PR #139 cgcli addition]:
+//   @vt/code-graph-cli's six command files (callers/callees/reachable/
+//   imports/find-symbol/hotspots) share a thin JSON-emitting shape over
+//   the call-graph primitives — same intentional thin-wrapper pattern as
+//   graph-bridge.ts. Observed 640 + 5 headroom = 645; ratchet DOWN as
+//   the command bodies grow past their current 1–2 call shape.
 // Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 637
+const MAX_DUPLICATE_PAIRS: number = 645
 
 const SCORE_THRESHOLD: number = 0.7
 
