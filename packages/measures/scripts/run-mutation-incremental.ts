@@ -8,13 +8,22 @@
 
 import {execFile, spawn} from 'node:child_process'
 import {readFile, readdir} from 'node:fs/promises'
+import {createRequire} from 'node:module'
 import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
 import {promisify} from 'node:util'
 
-import {minimatch} from 'minimatch'
-
 const execFileAsync = promisify(execFile)
+const require = createRequire(import.meta.url)
+const minimatchModule = require('minimatch') as
+    | ((file: string, pattern: string) => boolean)
+    | {readonly minimatch?: (file: string, pattern: string) => boolean}
+const minimatch = typeof minimatchModule === 'function'
+    ? minimatchModule
+    : minimatchModule.minimatch
+if (minimatch === undefined) {
+    throw new Error('minimatch module did not expose a matcher function')
+}
 
 const SCRIPT_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(SCRIPT_DIR, '..', '..', '..')
