@@ -275,13 +275,15 @@ function ifExprFor(conc: ConcernSpec): string | null {
     return parts.length === 0 ? null : parts.join(' && ')
 }
 
-// 6 GiB heap per vitest worker covers the heaviest health checks
+// 4 GiB heap per vitest worker covers the heaviest health checks
 // (systems-health's semantic-duplication clusters all 4906 repo functions
-// through the call-graph builder; default Node 22 heap (~4 GiB) OOMs on
-// ubuntu-latest after the 2026-05-28 pnpm migration changed worker
-// scheduling). Applied to every captureCi step rather than scoped to
+// through the call-graph builder; the default ~2.6 GiB Node 22 heap on
+// ubuntu-latest OOMs after the 2026-05-28 pnpm migration changed worker
+// scheduling). Sized to stay under the runner's 7 GiB total when vitest
+// runs 2 forks in parallel — 6 GiB tripped swap-thrash on the previous
+// attempt. Applied to every captureCi step rather than scoped to
 // tier-1-health alone so future tiers don't hit the same wall silently.
-const CAPTURE_CI_NODE_OPTIONS = '--max-old-space-size=6144'
+const CAPTURE_CI_NODE_OPTIONS = '--max-old-space-size=4096'
 
 function captureCiStep(conc: ConcernSpec): Step {
     const cmd = captureCiCommand(conc.tierNumber, conc.checkIds.join(','), conc.spec.sequential)
