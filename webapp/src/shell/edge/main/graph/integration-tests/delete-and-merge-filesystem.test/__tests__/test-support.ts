@@ -119,24 +119,9 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
     const actual: typeof import('@/shell/edge/main/graph/watch_folder/watchFolder') = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
     return {
         ...actual,
-        getProjectRoot: () => {
-            return state.tempVault ? O.of(state.tempVault) : O.none
-        },
-        setProjectRoot: (path: string) => {
-            state.tempVault = path
-        },
-        clearProjectRoot: () => {
-            state.tempVault = ''
-        },
-        startFileWatching: vi.fn().mockResolvedValue({ success: true }),
         stopFileWatching: vi.fn().mockResolvedValue({ success: true }),
-        initialLoad: vi.fn().mockResolvedValue(undefined),
         getWatchStatus: vi.fn(() => ({ isWatching: false, directory: undefined })),
-        loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
         isWatching: vi.fn(() => false),
-        getWatchedDirectory: () => state.tempVault || null,
-        loadFolder: vi.fn().mockResolvedValue(undefined),
-        markFrontendReady: vi.fn().mockResolvedValue(undefined)
     }
 })
 
