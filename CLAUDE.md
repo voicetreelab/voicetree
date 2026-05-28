@@ -37,3 +37,8 @@ Core values:
 Never reward hack or verification hack. Think about what the underlying measurement is trying to achieve, and work towards that, with the verifier as your feedback loop.
 
 After every change you make, provide a clear, honest report on ANY change that you are not confident about and that could be considered a fragile hack, or could be considered reward hacking, or verification hacking.
+
+Code search & navigation tools (use over grep when applicable):
+- `ast-grep` — AST-precise search/rewrite. Use over grep when matching by syntactic shape (type of a parameter, call pattern, read vs write) — eliminates substring false positives that grep produces on TS.
+- `ck --sem` — semantic search; finds code by concept when you can't recall the keyword (e.g. "graceful shutdown" returns `cleanupOwnedDaemon` even though the word never appears in source). Tune `.ckignore` per repo to avoid indexing PDFs / build artifacts.
+- `cgcli` (`@vt/code-graph-cli`) — symbol-resolved call graph (`callers` / `callees` / `reachable` / `hotspots`). Use over grep when navigating by structure (grep can't follow barrel re-exports) and to surface the codebase's worst-coupled functions.
