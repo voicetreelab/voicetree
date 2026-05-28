@@ -5,7 +5,8 @@ import {b3} from './b3.ts'
 import {b4} from './b4.ts'
 import {b5} from './b5.ts'
 import {b6} from './b6.ts'
+import {b7} from './b7.ts'
 
-export {b1, b2, b3, b4, b5, b6}
+export {b1, b2, b3, b4, b5, b6, b7}
 
-export const SCENARIOS: readonly ScenarioSpec[] = [b1, b2, b3, b4, b5, b6]
+export const SCENARIOS: readonly ScenarioSpec[] = [b1, b2, b3, b4, b5, b6, b7]
