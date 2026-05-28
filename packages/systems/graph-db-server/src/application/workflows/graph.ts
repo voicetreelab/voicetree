@@ -64,11 +64,6 @@ type ApplyDeltaOptions = {
   readonly recordForUndo?: boolean
 }
 
-type DeleteGraphNodeRequest = {
-  readonly ok: true
-  readonly delta: GraphDelta
-}
-
 type WritePositionsRequest = Extract<
   ReturnType<typeof parseWritePositionsRequest>,
   WorkflowParsed
@@ -160,22 +155,6 @@ async function applyGraphDeltaAndPublish(
   })
 }
 
-async function prepareDeleteGraphNode(
-  nodeId: string,
-): Promise<ParseOutcome<DeleteGraphNodeRequest>> {
-  const existingNode = await executeCommand({ type: 'ReadGraphNode', nodeId })
-  if (!existingNode) {
-    return {
-      ok: false,
-      error: `Node not found: ${nodeId}`,
-      code: 'NODE_NOT_FOUND',
-      status: 404,
-    }
-  }
-
-  return { ok: true, delta: buildDeleteNodeDelta(nodeId, existingNode) }
-}
-
 async function parseWritePositionsInOpenVault(
   rawBody: unknown,
 ): Promise<ParseOutcome<WritePositionsInOpenVault>> {
@@ -262,15 +241,21 @@ export async function applyGraphDeltaWithOptionsWorkflow(
   })
 }
 
+// Idempotent per RFC 7231: a repeated DELETE produces the same observable
+// state. If the node is already absent from the graph the post-condition is
+// already satisfied, so we return success with `alreadyAbsent: true` instead
+// of 404 — callers driving cleanup loops (test fixtures, watcher reconcile,
+// retry-on-network-flake) no longer have to special-case "first call killed
+// it".
 export async function deleteGraphNodeWorkflow(
   nodeId: string,
   sessionId: string,
 ): Promise<HttpResult> {
-  const parsed = await prepareDeleteGraphNode(nodeId)
-  if (!parsed.ok) return parseRejectionResult(parsed)
+  const existingNode = await executeCommand({ type: 'ReadGraphNode', nodeId })
+  if (!existingNode) return jsonResult({ ok: true, alreadyAbsent: true })
 
   return await tracedApplyDeltaAndAck(
-    parsed.delta,
+    buildDeleteNodeDelta(nodeId, existingNode),
     sessionId,
     undefined,
     'GRAPH_NODE_DELETE_FAILED',

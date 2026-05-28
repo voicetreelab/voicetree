@@ -2,7 +2,6 @@ import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
     Node,
-    Project,
     SyntaxKind,
     ts,
     type FunctionDeclaration,
@@ -11,6 +10,8 @@ import {
     type SourceFile,
     type VariableDeclaration,
 } from 'ts-morph'
+import { discoverPackages, type PackageInfo } from '../discovery/discover-packages'
+import { createRepoTsMorphProject } from './repo-ts-morph-project'
 
 export type FunctionNode = {
     readonly id: string
@@ -36,25 +37,31 @@ export type CallGraph = {
 }
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
+const DEFAULT_REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
 
 let graphPromise: Promise<CallGraph> | undefined
 
 /**
  * Build a CallGraph.
  *
- * Zero-arg form scans the whole repo and caches the result (module-scope
- * promise). Pass `{sourceFiles, rootDir}` to build a graph over an
- * arbitrary, caller-supplied set of ts-morph SourceFiles — used by tools
- * (the cgcli `loadGraph` path, tests) that need to point the same
- * algorithm at a fixture tree. Custom-input form is uncached and creates
- * a fresh graph each call.
+ * - `buildCallGraph()` — whole-repo, cached (module-scope promise).
+ * - `buildCallGraph(repoRoot, packages?)` — whole-repo at an explicit root
+ *   (used by health tests that need to control workspace resolution).
+ *   Uncached.
+ * - `buildCallGraph({sourceFiles, rootDir})` — custom set of ts-morph
+ *   SourceFiles (used by the cgcli `loadGraph` path and its fixture
+ *   tests). Uncached.
  */
+export async function buildCallGraph(): Promise<CallGraph>
+export async function buildCallGraph(repoRoot: string, packages?: readonly PackageInfo[]): Promise<CallGraph>
+export async function buildCallGraph(opts: {readonly sourceFiles: readonly SourceFile[]; readonly rootDir: string}): Promise<CallGraph>
 export async function buildCallGraph(
-    opts?: {readonly sourceFiles: readonly SourceFile[]; readonly rootDir: string},
+    arg?: string | {readonly sourceFiles: readonly SourceFile[]; readonly rootDir: string},
+    packages?: readonly PackageInfo[],
 ): Promise<CallGraph> {
-    if (opts) return createCallGraphFromSourceFiles(opts.sourceFiles, opts.rootDir)
-    graphPromise ??= Promise.resolve(buildRepoCallGraph())
+    if (typeof arg === 'object') return createCallGraphFromSourceFiles(arg.sourceFiles, arg.rootDir)
+    if (typeof arg === 'string') return buildRepoCallGraph(arg, packages)
+    graphPromise ??= buildRepoCallGraph(DEFAULT_REPO_ROOT)
     return graphPromise
 }
 
@@ -67,39 +74,30 @@ function createCallGraphFromSourceFiles(
     return assembleGraph(nodes, sourceFiles, calleeIdsByFnId, callerIdsByFnId)
 }
 
-function buildRepoCallGraph(): CallGraph {
-    const project = new Project({
-        compilerOptions: {
-            moduleResolution: ts.ModuleResolutionKind.Bundler,
-            module: ts.ModuleKind.ESNext,
-            target: ts.ScriptTarget.ES2022,
-            allowJs: false,
-            skipLibCheck: true,
-            jsx: ts.JsxEmit.Preserve,
-        },
-    })
+async function buildRepoCallGraph(repoRoot: string, packages?: readonly PackageInfo[]): Promise<CallGraph> {
+    const project = createRepoTsMorphProject(repoRoot, packages ?? await discoverPackages(repoRoot))
     const sourceFiles = project.addSourceFilesAtPaths([
-        `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.test.ts`,
-        `!${REPO_ROOT}/**/*.test.tsx`,
-        `!${REPO_ROOT}/**/*.spec.ts`,
-        `!${REPO_ROOT}/**/*.spec.tsx`,
-        `!${REPO_ROOT}/**/*.d.ts`,
-        `!${REPO_ROOT}/**/__tests__/**`,
-        `!${REPO_ROOT}/**/tests/**`,
-        `!${REPO_ROOT}/**/__generated__/**`,
-        `!${REPO_ROOT}/**/integration-tests/**`,
-        `!${REPO_ROOT}/**/node_modules/**`,
-        `!${REPO_ROOT}/**/dist/**`,
-        `!${REPO_ROOT}/**/build/**`,
-        `!${REPO_ROOT}/**/*.config.ts`,
+        `${repoRoot}/packages/libraries/**/*.{ts,tsx}`,
+        `${repoRoot}/packages/systems/**/*.{ts,tsx}`,
+        `${repoRoot}/webapp/src/**/*.{ts,tsx}`,
+        `!${repoRoot}/**/*.test.ts`,
+        `!${repoRoot}/**/*.test.tsx`,
+        `!${repoRoot}/**/*.spec.ts`,
+        `!${repoRoot}/**/*.spec.tsx`,
+        `!${repoRoot}/**/*.d.ts`,
+        `!${repoRoot}/**/__tests__/**`,
+        `!${repoRoot}/**/tests/**`,
+        `!${repoRoot}/**/__generated__/**`,
+        `!${repoRoot}/**/integration-tests/**`,
+        `!${repoRoot}/**/node_modules/**`,
+        `!${repoRoot}/**/dist/**`,
+        `!${repoRoot}/**/build/**`,
+        `!${repoRoot}/**/*.config.ts`,
     ]).filter(sourceFile => isProductionSourcePath(sourceFile.getFilePath()))
     if (sourceFiles.length === 0) {
         throw new Error('buildCallGraph found 0 production source files; check for concurrent package moves before changing globs')
     }
-    return createCallGraphFromSourceFiles(sourceFiles, REPO_ROOT)
+    return createCallGraphFromSourceFiles(sourceFiles, repoRoot)
 }
 
 function collectFunctionNodes(

@@ -203,16 +203,20 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     )
 }
 
-/**
- * Delete a node file from filesystem
- */
+// Delete a node file from filesystem. ENOENT is treated as success: the
+// post-condition (file absent) already holds, so a concurrent unlink (watcher,
+// external editor, second DELETE) does not turn a node-removal into a 500.
 function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
             const plan: FileDeletePlan = createFileDeletePlan(nodeId, env.projectRoot)
 
             markPendingDelete(plan.fullPath)
-            await fs.unlink(plan.fullPath)
+            try {
+                await fs.unlink(plan.fullPath)
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+            }
             await pruneEmptyParentDirectories(plan.fullPath, env.projectRoot)
         },
         toError

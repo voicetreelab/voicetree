@@ -396,15 +396,7 @@ describe('@vt/graph-db-server system contract', () => {
       expect(body.error).toMatch(/Invalid/i)
     })
 
-    it('returns 404 NODE_NOT_FOUND when DELETEing an unknown node', async () => {
-      const res = await fetch(
-        `${baseUrl}/graph/node/${encodeURIComponent(path.join(vault, 'ghost.md'))}`,
-        { method: 'DELETE' },
-      )
-      expect(res.status).toBe(404)
-      const body = (await res.json()) as { code: string }
-      expect(body.code).toBe('NODE_NOT_FOUND')
-    })
+    // Idempotency cases covered in delete-node-idempotent.test.ts.
 
     it('returns 404 on session-scoped routes when the session does not exist', async () => {
       const folderId = `${vault}/`
