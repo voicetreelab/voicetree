@@ -40,17 +40,17 @@ describe('parseSearchQuery — absolute path support', () => {
     });
 
     it('deep absolute path splits correctly', () => {
-        const result: ParsedQuery = parseSearchQuery('/Users/bobbobby/repos/knowledge/VT-Theory/viability/');
+        const result: ParsedQuery = parseSearchQuery('/Users/example/repos/knowledge/VT-Theory/viability/');
         expect(result.isAbsolute).toBe(true);
-        expect(result.basePath).toBe('/Users/bobbobby/repos/knowledge/VT-Theory/viability');
+        expect(result.basePath).toBe('/Users/example/repos/knowledge/VT-Theory/viability');
         expect(result.filterText).toBe('');
         expect(result.endsWithSlash).toBe(true);
     });
 
     it('absolute path with partial filter text', () => {
-        const result: ParsedQuery = parseSearchQuery('/Users/bobbobby/repos/knowledge/VT-');
+        const result: ParsedQuery = parseSearchQuery('/Users/example/repos/knowledge/VT-');
         expect(result.isAbsolute).toBe(true);
-        expect(result.basePath).toBe('/Users/bobbobby/repos/knowledge');
+        expect(result.basePath).toBe('/Users/example/repos/knowledge');
         expect(result.filterText).toBe('VT-');
     });
 });

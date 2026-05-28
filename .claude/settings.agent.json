@@ -21,7 +21,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+          "command": "python tools/hooks/tree_update_reminder.py"
         }
       ]
     }
@@ -32,7 +32,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+          "command": "python tools/hooks/tree_update_reminder.py"
         }
       ]
     }

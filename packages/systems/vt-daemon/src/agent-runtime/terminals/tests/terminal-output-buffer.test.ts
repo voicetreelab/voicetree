@@ -139,7 +139,7 @@ describe('terminal-output-buffer', () => {
             '\x1B[38;5;1m-\x1B[0m            expect(getOutput(\'t1\', 10)).toBe(\'hello world\')\n' +
             '\x1B[38;5;2m+\x1B[0m            expect(getOutput(\'t1\', 1000)).toBe(\'hello world\\n\')\n' +
             '\x1B]133;A\x07\x1B[32m$ \x1B[0mnpx vitest run src/shell/edge/main/terminals/terminal-output-buffer.test.ts\n' +
-            '\x1B]133;B\x07 RUN  v3.2.4 /Users/bobbobby/repos/voicetree-public/webapp\n' +
+            '\x1B]133;B\x07 RUN  v3.2.4 /Users/example/repos/voicetree-public/webapp\n' +
             ' \x1B[32m\u2713\x1B[0m src/shell/edge/main/terminals/terminal-output-buffer.test.ts (21 tests) 5ms\n' +
             '\n' +
             ' Test Files  \x1B[1m\x1B[32m1 passed\x1B[0m (1)\n' +
@@ -156,7 +156,7 @@ describe('terminal-output-buffer', () => {
             '-            expect(getOutput(\'t1\', 10)).toBe(\'hello world\')\n' +
             '+            expect(getOutput(\'t1\', 1000)).toBe(\'hello world\\n\')\n' +
             '$ npx vitest run src/shell/edge/main/terminals/terminal-output-buffer.test.ts\n' +
-            ' RUN  v3.2.4 /Users/bobbobby/repos/voicetree-public/webapp\n' +
+            ' RUN  v3.2.4 /Users/example/repos/voicetree-public/webapp\n' +
             '  src/shell/edge/main/terminals/terminal-output-buffer.test.ts (21 tests) 5ms\n' +
             '\n' +
             ' Test Files  1 passed (1)\n' +

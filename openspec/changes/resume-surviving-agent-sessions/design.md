@@ -96,7 +96,7 @@ Write the result under the existing project-local record:
       "sessionId": "605904d4-8881-4261-adc8-212891622ed2",
       "capturedAt": "2026-05-22T04:55:00.000Z",
       "source": "claude-project-transcript",
-      "providerStorePath": "/Users/bobbobby/.claude/projects/.../605904d4-8881-4261-adc8-212891622ed2.jsonl"
+      "providerStorePath": "/Users/example/.claude/projects/.../605904d4-8881-4261-adc8-212891622ed2.jsonl"
     }
   }
 }

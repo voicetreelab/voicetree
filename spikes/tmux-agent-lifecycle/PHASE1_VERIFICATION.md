@@ -20,14 +20,14 @@ PASS spikes/tmux-agent-lifecycle/spawn-agent.sh
 
 ```text
 total 56
--rw-r--r--@ 1 bobbobby  staff  1125 May 15 14:37 PHASE1_VERIFICATION.md
--rw-r--r--@ 1 bobbobby  staff  1556 May 15 14:37 README.md
--rwxr-xr-x@ 1 bobbobby  staff  1417 May 15 14:37 kill-agent.sh
--rwxr-xr-x@ 1 bobbobby  staff  1000 May 15 14:37 list-agents.sh
--rwxr-xr-x@ 1 bobbobby  staff   507 May 15 14:37 read-output.sh
--rwxr-xr-x@ 1 bobbobby  staff   406 May 15 14:37 send-message.sh
--rwxr-xr-x@ 1 bobbobby  staff  1511 May 15 14:37 spawn-agent.sh
-drwxr-xr-x@ 4 bobbobby  staff   128 May 15 14:37 test-vault
+-rw-r--r--@ 1 example  staff  1125 May 15 14:37 PHASE1_VERIFICATION.md
+-rw-r--r--@ 1 example  staff  1556 May 15 14:37 README.md
+-rwxr-xr-x@ 1 example  staff  1417 May 15 14:37 kill-agent.sh
+-rwxr-xr-x@ 1 example  staff  1000 May 15 14:37 list-agents.sh
+-rwxr-xr-x@ 1 example  staff   507 May 15 14:37 read-output.sh
+-rwxr-xr-x@ 1 example  staff   406 May 15 14:37 send-message.sh
+-rwxr-xr-x@ 1 example  staff  1511 May 15 14:37 spawn-agent.sh
+drwxr-xr-x@ 4 example  staff   128 May 15 14:37 test-vault
 ```
 
 ## Test Vault Terminals Directory Listing

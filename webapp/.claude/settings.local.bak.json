@@ -10,9 +10,9 @@
       "Bash(python tools/add_new_node.py:*)",
       "Bash(python*/tools/add_new_node.py:*)",
       "Bash(claude mcp:*)",
-      "Read(//Users/bobbobby/repos/VoiceTree/frontend/juggl/src/viz/**)",
-      "Read(//Users/bobbobby/repos/VoiceTree/frontend/juggl/**)",
-      "Read(//Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/**)",
+      "Read(//Users/example/repos/VoiceTree/frontend/juggl/src/viz/**)",
+      "Read(//Users/example/repos/VoiceTree/frontend/juggl/**)",
+      "Read(//Users/example/repos/VoiceTree/frontend/tests/example_small/**)",
       "Bash(npm install:*)",
       "Bash(npm run test:*)",
       "Bash(npm test:*)",
@@ -25,7 +25,7 @@
       "mcp__playwright__browser_snapshot",
       "Bash(npx playwright test:*)",
       "mcp__playwright__browser_evaluate",
-      "Read(//Users/bobbobby/repos/VoiceTree/backend/markdown_tree_manager/markdown_to_tree/**)",
+      "Read(//Users/example/repos/VoiceTree/backend/markdown_tree_manager/markdown_to_tree/**)",
       "mcp__playwright__browser_console_messages",
       "Bash(HEADLESS_TEST=0 npx playwright test electron-real-folder.spec.ts --project=chromium --reporter=list)"
     ]

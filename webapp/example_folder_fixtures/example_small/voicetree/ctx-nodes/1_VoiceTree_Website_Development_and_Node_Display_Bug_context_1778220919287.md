@@ -1,15 +1,15 @@
 ---
 isContextNode: true
 containedNodeIds:
-  - /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md
-  - /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/2_VoiceTree_Node_ID_Duplication_Bug.md
-  - /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/7_Bad_YAML_Frontmatter_Test.md
-  - /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/2_VoiceTree_Node_ID_Duplication_Bug.md
-  - /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/7_Bad_YAML_Frontmatter_Test.md
-  - /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/test_pipeline_unseen_1771543520407.md
+  - /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md
+  - /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/2_VoiceTree_Node_ID_Duplication_Bug.md
+  - /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/7_Bad_YAML_Frontmatter_Test.md
+  - /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/2_VoiceTree_Node_ID_Duplication_Bug.md
+  - /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/7_Bad_YAML_Frontmatter_Test.md
+  - /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/test_pipeline_unseen_1771543520407.md
 ---
 # ctx
-Nearby nodes to: /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md
+Nearby nodes to: /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md
 ```
 Ongoing development for the VoiceTree website.
 ├── A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.
@@ -20,7 +20,7 @@ Ongoing development for the VoiceTree website.
 ```
 
 ## Node Contents
-- **A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.** (/Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/2_VoiceTree_Node_ID_Duplication_Bug.md)
+- **A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.** (/Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/2_VoiceTree_Node_ID_Duplication_Bug.md)
   ### A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.
 Nodes show their nodeId or number, their ID being duplicated, if I recall correctly. So it'd be nice to just quickly fix it up while we're working on the website in parallel.
 -----------------
@@ -29,7 +29,7 @@ Parent:
 - is_a_bug_identified_during [\[1_VoiceTree_Website_Development_and_Node_Display_Bug.md]\]
 [\[ctx-nodes/2_VoiceTree_Node_ID_Duplication_Bug_context_1767922292782.md]\]
 [\[ctx-nodes/2_VoiceTree_Node_ID_Duplication_Bug_context_1768120804771.md]\]
-- **Bad YAML Frontmatter Test** (/Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/7_Bad_YAML_Frontmatter_Test.md)
+- **Bad YAML Frontmatter Test** (/Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/7_Bad_YAML_Frontmatter_Test.md)
   ---
 title: (Sam) Proposed Fix: Expose VoiceTreeGraphView (55)
 ---
@@ -39,14 +39,14 @@ The title value starts with a parenthesis which confuses the YAML parser.
 This should still load successfully by falling back to the heading or filename.
 Related: [\[1_VoiceTree_Website_Development_and_Node_Display_Bug]\]
 [\[1_VoiceTree_Website_Development_and_Node_Display_Bug.md]\]
-- **A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.** (/Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/2_VoiceTree_Node_ID_Duplication_Bug.md)
+- **A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.** (/Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/2_VoiceTree_Node_ID_Duplication_Bug.md)
   ### A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.
 Nodes show their nodeId or number, their ID being duplicated, if I recall correctly. So it'd be nice to just quickly fix it up while we're working on the website in parallel.
 -----------------
 _Links:_
 Parent:
 - is_a_bug_identified_during [\[1_VoiceTree_Website_Development_and_Node_Display_Bug.md]\]
-- **Bad YAML Frontmatter Test** (/Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/7_Bad_YAML_Frontmatter_Test.md)
+- **Bad YAML Frontmatter Test** (/Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/7_Bad_YAML_Frontmatter_Test.md)
   ---
 title: (Sam) Proposed Fix: Expose VoiceTreeGraphView (55)
 ---
@@ -56,7 +56,7 @@ The title value starts with a parenthesis which confuses the YAML parser.
 This should still load successfully by falling back to the heading or filename.
 Related: [\[1_VoiceTree_Website_Development_and_Node_Display_Bug]\]
 [\[1_VoiceTree_Website_Development_and_Node_Display_Bug.md]\]
-- **Pipeline Test Unseen Node** (/Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/test_pipeline_unseen_1771543520407.md)
+- **Pipeline Test Unseen Node** (/Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/voicetree/test_pipeline_unseen_1771543520407.md)
   # Pipeline Test Unseen Node
 This node was created during the E2E pipeline test to verify inject badge visibility.
 -----------------
@@ -64,7 +64,7 @@ _Links:_
 Parent:
 - test_link [\[1_VoiceTree_Website_Development_and_Node_Display_Bug.md]\]
 <TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
-        /Users/bobbobby/repos/voicetree-public/webapp/example_folder_fixtures/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md: ### Ongoing development for the VoiceTree website.
+        /Users/example/repos/voicetree-public/webapp/example_folder_fixtures/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md: ### Ongoing development for the VoiceTree website.
 
 We're working on the website right now for VoiceTree.
 
