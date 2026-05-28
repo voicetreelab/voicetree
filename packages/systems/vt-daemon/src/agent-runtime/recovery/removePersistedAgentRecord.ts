@@ -1,9 +1,9 @@
 import {unlink} from 'node:fs/promises'
 import path from 'node:path'
 
-import {getRuntimeEnv} from '@vt/agent-runtime/runtime/runtime-config'
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime/terminals/terminal-registry/index.ts'
-import {getRecoveryMetadataDir} from '../paths'
+import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
+import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
+import {getRecoveryMetadataDir} from './paths'
 
 /**
  * Discriminated result for `removePersistedAgentRecord`.

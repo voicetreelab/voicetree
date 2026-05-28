@@ -15,7 +15,7 @@ import {
     classifyRecoveryCandidates,
     detectSupportedCliFromMetadata,
     type MetadataRecord,
-} from './classifier/classifier'
+} from './classifier'
 import {getRecoveryHorizonMs, isoToMsOrZero} from './horizon'
 import {getRecoveryMetadataDir} from './paths'
 import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
