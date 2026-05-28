@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { GraphDelta, GraphNode } from '@vt/graph-model'
+import type { GraphDelta } from '@vt/graph-model'
 
 import {
   HealthResponseSchema,
@@ -19,39 +19,7 @@ import {
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 import { setGraph } from '../src/state/graph-store.ts'
 import { createEmptyGraph } from '@vt/graph-model'
-
-async function waitFor<T>(read: () => Promise<T | null>): Promise<T> {
-  const deadline = Date.now() + 3000
-  while (Date.now() < deadline) {
-    const value = await read()
-    if (value !== null) return value
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  }
-  throw new Error('condition not met before timeout')
-}
-
-function makeNode(absolutePath: string, content: string, agentName = 'e2e'): GraphNode {
-  return {
-    kind: 'leaf',
-    outgoingEdges: [],
-    absoluteFilePathIsID: absolutePath,
-    contentWithoutYamlOrLinks: content,
-    nodeUIMetadata: {
-      color: O.none,
-      position: O.none,
-      additionalYAMLProps: { agent_name: agentName },
-    },
-  }
-}
-
-function upsertDelta(node: GraphNode): GraphDelta {
-  return [{ type: 'UpsertNode', nodeToUpsert: node, previousNode: O.none }]
-}
-
-async function addReadPath(baseUrl: string, p: string): Promise<void> {
-  void baseUrl
-  void p
-}
+import { addReadPath, makeNode, upsertDelta, waitFor } from './e2e-system-helpers.ts'
 
 describe('@vt/graph-db-server system contract', () => {
   let root: string
