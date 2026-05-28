@@ -8,5 +8,5 @@ exec node --no-warnings=ExperimentalWarning --experimental-strip-types \
   --id=git-pre-push \
   --name="Git pre-push (tier <=1)" \
   --category=Hook \
-  --display=".githooks/pre-push" \
-  -- bash .githooks/pre-push.impl.sh "$@"
+  --display="scripts/hooks/pre-push" \
+  -- bash scripts/hooks/pre-push.impl.sh "$@"
