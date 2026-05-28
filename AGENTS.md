@@ -40,7 +40,7 @@ After every change you make, provide a clear, honest report on ANY change that y
 
 Code search & navigation tools (use over grep when applicable):
 - `ast-grep` — AST-precise search/rewrite. Use over grep when matching by syntactic shape (type of a parameter, call pattern, read vs write) — eliminates substring false positives that grep produces on TS.
-- `ck --sem` — semantic search; finds code by concept when you can't recall the keyword (e.g. "graceful shutdown" returns `cleanupOwnedDaemon` even though the word never appears in source). Tune `.ckignore` per repo to avoid indexing PDFs / build artifacts.
+- `ck --sem` — semantic search for when you can't guess any keyword (e.g. "graceful shutdown" → `cleanupOwnedDaemon`). Run `ck --index .` to completion once per repo (10-30min) before relying on it; otherwise indexing is hidden in query latency.
 - `cgcli` (`@vt/code-graph-cli`) — symbol-resolved call graph (`callers` / `callees` / `reachable` / `hotspots`). Use over grep when navigating by structure (grep can't follow barrel re-exports) and to surface the codebase's worst-coupled functions.
 
 <!-- VOICETREE_AGENT_DISCOVERY_START -->
