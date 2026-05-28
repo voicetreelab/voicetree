@@ -41,7 +41,21 @@ const TASK_PROMPT = `You have a fresh VoiceTree vault containing 135 Gen-3 Poké
 root (one markdown file per Pokémon, named like \`252-treecko.md\`). Each note
 has frontmatter (\`types\`, stats, etc.) and a short body.
 
-Work through these three ordered sub-tasks. They are graded independently —
+Your job is to organise these 135 leaves into a CONNECTED graph: every node
+must be reachable from a single root via wikilinks. The leaves currently
+have no edges between them — that's the starting condition. At the end the
+graph must look like:
+
+    index (root)
+       ├── grass/grass         ← folder note
+       │     ├── 252-treecko   ← leaves wikilinked from folder note
+       │     ├── 253-grovyle
+       │     └── ...
+       ├── fire/fire
+       │     └── ...
+       └── ...
+
+Work through these four ordered sub-tasks. They are graded independently —
 finish each before moving on.
 
 --- SUB-TASK 1: register every leaf ---
@@ -59,7 +73,7 @@ etc., reading the \`types:\` frontmatter — but you may pick another theme if
 you prefer). Use \`vt graph group <folder> <node1> <node2>...\` — it moves
 the nodes and updates references atomically. Do NOT delete any leaves.
 
---- SUB-TASK 3: write a folder note for each folder ---
+--- SUB-TASK 3: write AND REGISTER a folder note for each folder ---
 
 For each folder you created in sub-task 2, write a folder note at
 \`<folder>/<folder>.md\` (e.g. \`grass/grass.md\`). Each folder note must:
@@ -68,8 +82,24 @@ For each folder you created in sub-task 2, write a folder note at
   - include a \`## Contents\` section that wikilinks EVERY leaf inside the
     folder (e.g. \`- [[252-treecko]]\`).
 
-Every leaf must be reachable from exactly one folder note. Folder notes
-themselves do not need to be wikilinked from anywhere.
+After writing each folder note, register it with
+\`vt graph create -f <folder>/<folder>.md\` so it appears as a graph node.
+Do NOT rely on the file watcher — explicit registration is required.
+
+Every leaf must be reachable from exactly one folder note.
+
+--- SUB-TASK 4: write AND REGISTER a root index that ties the folders together ---
+
+Write \`index.md\` at the vault root. It must:
+  - have frontmatter \`type: index\`,
+  - contain a \`## Folders\` section that wikilinks every folder note from
+    sub-task 3 (e.g. \`- [[grass/grass]]\`, \`- [[fire/fire]]\`, ...).
+
+Then register it: \`vt graph create -f index.md\`.
+
+This is the root of the graph — every folder note must be one wikilink away
+from \`index\`, and every leaf must be one wikilink away from its folder
+note. The whole graph must be connected, with index as the entry point.
 
 Use \`vt --help\`, \`vt graph --help\`, and \`vt manual\` whenever you need to
 discover a subcommand. Report the folder list and leaf counts at the end.`
@@ -83,8 +113,12 @@ export const b7: ScenarioSpec = {
     },
     taskPrompt: TASK_PROMPT,
     expectedCommands: [
-        {verb: 'graph create', minCount: 135},
-        {verb: 'graph group', minCount: 5},
+        // Coverage is "did the agent reach for this verb at all" — outcome
+        // gates live in successCriteria. Don't penalise batching: a single
+        // `vt graph create` against the directory is preferable to 135
+        // separate invocations, and either should clear coverage.
+        {verb: 'graph create'},
+        {verb: 'graph group', minCount: MIN_FOLDERS},
         {verb: 'graph structure'},
     ],
     async successCriteria(vaultDir): Promise<SuccessResult> {
@@ -92,10 +126,11 @@ export const b7: ScenarioSpec = {
             await checkAllLeavesRegistered(vaultDir),
             await checkRegroupedIntoFolders(vaultDir),
             await checkFolderNoteCoverage(vaultDir),
+            await checkRootIndexConnectsFolders(vaultDir),
         ]
         const allPassed = checkpoints.every((c) => c.passed)
         const passedCount = checkpoints.filter((c) => c.passed).length
-        const detail = `${passedCount}/3 checkpoints passed — ${checkpoints
+        const detail = `${passedCount}/${checkpoints.length} checkpoints passed — ${checkpoints
             .map((c) => `[${c.name}: ${c.passed ? 'OK' : 'FAIL'} — ${c.detail}]`)
             .join(' ')}`
         return {passed: allPassed, detail, checkpoints}
@@ -247,6 +282,72 @@ async function checkFolderNoteCoverage(vaultDir: string): Promise<CheckpointResu
         name: 'C3-folder-notes',
         passed: true,
         detail: `${wikilinksPerLeaf.size} leaves each wikilinked from exactly one folder note`,
+    }
+}
+
+/**
+ * C4 — every folder note is wikilinked from a single root `index.md` at the
+ * vault root. This is the "graph is connected" gate: after C3 confirms each
+ * leaf has an edge to its folder note, C4 confirms each folder note has an
+ * edge back to a common root, so every node in the graph is reachable from
+ * `index`.
+ *
+ * We resolve folder-note targets relative to the index's directory (the
+ * vault root), so links written as `grass/grass`, `grass/grass.md`,
+ * or `[[grass/grass|Grass]]` all match. Anchors and aliases are already
+ * stripped by `parseWikilinks`.
+ */
+async function checkRootIndexConnectsFolders(vaultDir: string): Promise<CheckpointResult> {
+    const indexPath = path.join(vaultDir, 'index.md')
+    let raw: string
+    try {
+        raw = await fs.readFile(indexPath, 'utf8')
+    } catch {
+        return {
+            name: 'C4-root-index',
+            passed: false,
+            detail: 'index.md is missing at the vault root',
+        }
+    }
+
+    const leafLocations = await collectLeafLocations(vaultDir)
+    const leafDirs = new Set(leafLocations.map(({relDir}) => relDir).filter((d) => d.length > 0))
+    if (leafDirs.size === 0) {
+        return {
+            name: 'C4-root-index',
+            passed: false,
+            detail: 'no leaf folders to connect (sub-task 2 incomplete)',
+        }
+    }
+
+    const expectedTargets = new Set<string>()
+    for (const relDir of leafDirs) {
+        const base = path.basename(relDir)
+        expectedTargets.add(path.posix.join(relDir, base))
+    }
+
+    const linkedTargets = new Set<string>()
+    for (const link of parseWikilinks(raw)) {
+        linkedTargets.add(stripMdExt(link))
+    }
+
+    const missing: string[] = []
+    for (const target of expectedTargets) {
+        if (!linkedTargets.has(target)) missing.push(target)
+    }
+
+    if (missing.length > 0) {
+        return {
+            name: 'C4-root-index',
+            passed: false,
+            detail: `index.md missing wikilinks to ${missing.length}/${expectedTargets.size} folder note(s) (first 3: ${missing.slice(0, 3).join(', ')})`,
+        }
+    }
+
+    return {
+        name: 'C4-root-index',
+        passed: true,
+        detail: `index.md wikilinks all ${expectedTargets.size} folder notes`,
     }
 }
 
