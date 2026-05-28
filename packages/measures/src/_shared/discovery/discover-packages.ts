@@ -23,6 +23,7 @@ export type PackageInfo = {
     readonly name: string
     readonly dirName: string
     readonly packageJsonRelativePath: string
+    readonly relDir: string
     readonly srcRoot: string
     readonly absDir: string
     /**
@@ -152,6 +153,7 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
                         name: pkgJson.name,
                         dirName: basename(absDir),
                         packageJsonRelativePath: relative(repoRoot, join(absDir, 'package.json')).replaceAll('\\', '/'),
+                        relDir: normalizePath(relDir),
                         srcRoot: srcDir,
                         absDir,
                         facadeRelativePaths: resolveFacadeRelativePaths(absDir, repoRoot, pkgJson.exports),
@@ -174,4 +176,8 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
 
     await walk(repoRoot, '')
     return found.sort((a, b) => a.dirName.localeCompare(b.dirName))
+}
+
+function normalizePath(path: string): string {
+    return path.replaceAll('\\', '/')
 }
