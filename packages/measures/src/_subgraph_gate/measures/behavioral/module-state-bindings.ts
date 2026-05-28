@@ -29,7 +29,6 @@
  */
 import {Node, type SourceFile as MorphSourceFile} from 'ts-morph'
 import {communityForFile} from '../../../_shared/community/community-at-depth.ts'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
@@ -100,25 +99,17 @@ function collectIdentifierNames(node: Node): readonly string[] {
     return out
 }
 
-function classifySeverity(
-    score: number,
-    baseline: number | null,
-): 'pass' | 'warn' | 'fail' {
-    // Strict precondition: any module-level mutable binding is a fail.
-    // Baseline is informational only here — we never amnesty an existing
-    // binding by saying "well it was there before"; this is the visibility
-    // floor every other measure stands on.
-    if (score === 0) return 'pass'
-    if (baseline !== null && score <= baseline) return 'warn'
-    return 'fail'
-}
+/**
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Set to the historical per-community max (71) so existing
+ * grandfathered communities can still be touched. Ratchet down as
+ * top-level `let`/`var` is replaced with state-threading (FP pattern 2).
+ */
+export const MODULE_STATE_BINDINGS_THRESHOLD = 71
 
-function buildMessage(score: number, baseline: number | null): string {
-    const baselineFragment = baseline === null
-        ? '(no baseline)'
-        : `baseline=${baseline}`
+function buildMessage(score: number): string {
     return (
-        `${score} module-level mutable binding(s) ${baselineFragment}. `
+        `${score} module-level mutable binding(s) > threshold ${MODULE_STATE_BINDINGS_THRESHOLD}. `
         + 'Top-level `let`/`var` is a hidden cell the import graph cannot see — '
         + 'thread state through arguments (FP pattern 2: state-threading) '
         + 'rather than mutating a module-scoped cell.'
@@ -142,18 +133,16 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         perCommunity[community] = (perCommunity[community] ?? 0) + bindings.length
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of touched) {
         const score = perCommunity[community] ?? 0
-        if (score === 0) continue
-        const baselineScore = community in baseline ? baseline[community] : null
+        if (score <= MODULE_STATE_BINDINGS_THRESHOLD) continue
         violations.push({
             community,
             score,
-            baseline: baselineScore,
-            severity: classifySeverity(score, baselineScore),
-            message: buildMessage(score, baselineScore),
+            baseline: null,
+            severity: 'fail',
+            message: buildMessage(score),
         })
     }
 

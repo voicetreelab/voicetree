@@ -244,15 +244,10 @@ describe('implicit-globals measure', () => {
         const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
         // perCommunity is the strict-tier sum: fs import + readFileSync usage = 2
         expect(result.perCommunity['pkg/shell']).toBeGreaterThan(0)
-        expect(result.violations).toHaveLength(1)
-        const v = result.violations[0]
-        // No baseline → new strict surface → fail
-        expect(v.severity).toBe('fail')
-        // Message tiers: fs in strict, time in advisory, console dropped
-        expect(v.message).toMatch(/strict\[.*fs=/)
-        expect(v.message).toMatch(/advisory\[.*time=/)
-        expect(v.message).not.toMatch(/console=/)
-        expect(v.message).toMatch(/FP pattern 3/)
+        // 2 is well below the threshold (854, set to the historical
+        // per-community max). No violation at this score; gate fires
+        // only when strict > 854.
+        expect(result.violations).toEqual([])
     })
 
     it('does NOT count console (report tier) in perCommunity', async () => {
@@ -286,7 +281,7 @@ describe('implicit-globals measure', () => {
         expect(result.perCommunity['pkg/shell']).toBe(4)
     })
 
-    it('emits a warn (not fail) when only advisory categories are present', async () => {
+    it('does not gate on advisory-only communities (strict=0)', async () => {
         const subgraph = buildSubgraph(
             [{
                 path: '/virtual/pkg/src/util/a.ts', community: 'pkg/util',
@@ -295,11 +290,10 @@ describe('implicit-globals measure', () => {
             ['pkg/util'],
         )
         const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
-        // perCommunity = 0 (no strict). Advisory > 0 ⇒ one warn violation.
+        // perCommunity = 0 (no strict). Under the threshold-only model
+        // advisory is informational; no violation is emitted.
         expect(result.perCommunity['pkg/util']).toBe(0)
-        expect(result.violations).toHaveLength(1)
-        expect(result.violations[0].severity).toBe('warn')
-        expect(result.violations[0].message).toMatch(/advisory\[.*time=/)
+        expect(result.violations).toEqual([])
     })
 
     it('skips files in untouched neighbor communities', async () => {

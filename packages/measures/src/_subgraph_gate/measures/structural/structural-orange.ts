@@ -33,7 +33,6 @@ import {
     computePriorityScoresAtDepth,
     type CommunityPriority,
 } from '../../../_shared/complexity/orange-priority.ts'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
@@ -45,11 +44,17 @@ import type {
 export const MEASURE_ID = 'structural-orange'
 
 /**
- * Hard fail-safe: if a community lands above this score the gate fails
- * even when the baseline is missing or higher. Matches the long-standing
- * tier_1 hierarchical-complexity budget (258 → ratchet down).
+ * Single per-measure threshold. Aligned with tier-1's `ORANGE_PRIORITY_BUDGET`
+ * in `packages/measures/src/health/complexity/hierarchical-complexity.test.ts`
+ * — same formula (`outEdges × max(1, fanOut)`), same number.
+ *
+ * Replaces the old per-community ratchet (`budgets/subgraph/structural-orange.json`
+ * byCommunity map). Drift between per-community baselines and reality was
+ * causing high-friction commits with no real signal (see commit history for
+ * the rationale). Single threshold ⇒ no baseline file to refresh, no
+ * silent-onboarding hole for new communities.
  */
-export const STRUCTURAL_ORANGE_ABSOLUTE_BUDGET = 258
+export const STRUCTURAL_ORANGE_THRESHOLD = 340
 
 function scoreByCommunity(priorities: readonly CommunityPriority[]): ReadonlyMap<string, CommunityPriority> {
     return new Map(priorities.map(p => [p.community, p]))
@@ -69,36 +74,21 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         perCommunity[community] = byCommunity.get(community)?.score ?? 0
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
-
     const violations: Violation[] = []
     for (const community of parsedSubgraph.touchedCommunities) {
         const current = perCommunity[community]
-        const baselineScore = community in baseline ? baseline[community] : null
+        if (current <= STRUCTURAL_ORANGE_THRESHOLD) continue
         const priority = byCommunity.get(community)
         const detail = priority
             ? `outEdges=${priority.outEdges} fanOut=${priority.fanOut}`
             : 'outEdges=0 fanOut=0'
-
-        if (current > STRUCTURAL_ORANGE_ABSOLUTE_BUDGET) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `structural-orange score ${current} > absolute budget ${STRUCTURAL_ORANGE_ABSOLUTE_BUDGET} (${detail})`,
-            })
-            continue
-        }
-        if (baselineScore !== null && current > baselineScore) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `structural-orange regressed: ${baselineScore} -> ${current} (${detail})`,
-            })
-        }
+        violations.push({
+            community,
+            score: current,
+            baseline: null,
+            severity: 'fail',
+            message: `structural-orange score ${current} > threshold ${STRUCTURAL_ORANGE_THRESHOLD} (${detail})`,
+        })
     }
 
     return {measureId: MEASURE_ID, perCommunity, violations}

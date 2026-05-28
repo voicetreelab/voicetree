@@ -11,7 +11,7 @@ import {describe, expect, it} from 'vitest'
 import {
     dsmForSiblingGroup,
     dsmUpperTriangularMeasure,
-    DSM_BACKEDGE_BUDGET,
+    DSM_BACKEDGE_THRESHOLD,
     orderCommunitiesTopologically,
 } from './dsm-upper-triangular.ts'
 import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
@@ -104,7 +104,7 @@ describe('dsm-upper-triangular (subgraph measure)', () => {
         const totalBackEdges = result.perCommunity[`${pkg}/a`]
             + result.perCommunity[`${pkg}/b`]
             + result.perCommunity[`${pkg}/c`]
-        expect(totalBackEdges).toBeGreaterThan(DSM_BACKEDGE_BUDGET)
+        expect(totalBackEdges).toBeGreaterThan(DSM_BACKEDGE_THRESHOLD)
         const fails = result.violations.filter(v => v.severity === 'fail')
         expect(fails.length).toBeGreaterThanOrEqual(1)
         expect(fails[0].message).toContain('cycle in tier order')
