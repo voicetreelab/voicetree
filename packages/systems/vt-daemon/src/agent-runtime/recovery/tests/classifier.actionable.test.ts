@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest'
+import * as O from 'fp-ts/lib/Option.js'
 import {classifyRecoveryCandidates} from '../classifier'
 import type {ResumeCapability} from '../types'
 import {
@@ -89,6 +90,38 @@ describe('resume capability — Claude', () => {
         expect(result.kind).toBe('recoverable')
         if (result.kind === 'recoverable') {
             expect(result.record.terminalData.initialCommand).toBe('claude')
+        }
+    })
+
+    it('normalizes sparse disk metadata into renderable terminal data', () => {
+        const [result] = classifyRecoveryCandidates(baseInput({
+            metadataRecords: [record({
+                name: 'Mira',
+                status: 'running',
+                terminalData: {
+                    type: 'Terminal',
+                    terminalId: 'Mira',
+                    agentName: 'Mira',
+                    attachedToContextNodeId: '/vault/readme.md',
+                    initialCommand: 'claude',
+                    initialEnvVars: {
+                        VOICETREE_TERMINAL_ID: 'Mira',
+                        VOICETREE_VAULT_PATH: VAULT_PATH,
+                        TASK_NODE_PATH: '/vault/task.md',
+                    },
+                    isHeadless: false,
+                },
+            }, '/vault/.voicetree/terminals/Mira.json')],
+            resumeHandleByTerminalId: new Map([['Mira', {cliType: 'claude'}]]),
+        }))
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.terminalData.title).toBe('Mira')
+            expect(result.record.terminalData.shadowNodeDimensions).toEqual({width: 395, height: 380})
+            expect(O.isSome(result.record.terminalData.anchoredToNodeId)).toBe(true)
+            if (O.isSome(result.record.terminalData.anchoredToNodeId)) {
+                expect(result.record.terminalData.anchoredToNodeId.value).toBe('/vault/task.md')
+            }
         }
     })
 

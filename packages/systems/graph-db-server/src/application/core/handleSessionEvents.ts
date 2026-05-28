@@ -30,6 +30,61 @@ export function stringifyGraphForSSE(graph: ProjectedGraph): string {
   })
 }
 
+function sameSuppressSet(
+  a: readonly string[] | undefined,
+  b: readonly string[] | undefined,
+): boolean {
+  const aSet = new Set(a ?? [])
+  const bSet = new Set(b ?? [])
+  if (aSet.size !== bSet.size) return false
+  for (const value of aSet) if (!bSet.has(value)) return false
+  return true
+}
+
+function coalesceHomogeneousBatch(
+  events: readonly ProjectDeltaEventInput[],
+): ProjectDeltaEventInput {
+  const suppressForSubscribers = events[0]!.suppressForSubscribers ?? []
+  return {
+    delta: events.flatMap(event => event.delta),
+    seq: events[events.length - 1]!.seq,
+    ...(suppressForSubscribers.length > 0 ? { suppressForSubscribers } : {}),
+  }
+}
+
+/**
+ * Reduce a burst of buffered delta events into the minimal sequence of
+ * projections the SSE wire needs to deliver.
+ *
+ * Events that share the same `suppressForSubscribers` set are coalesced
+ * into one combined event (deltas concatenated, latest seq, shared
+ * suppress preserved). Events with different suppress sets must NOT be
+ * coalesced — the SSE renderer applies the projection's suppress set to
+ * every nodeDelta in the batch, so unioning heterogeneous suppress sets
+ * would cause editor-X to be skipped for updates that did not originate
+ * from editor-X (e.g. a user's typing-echo suppression bleeding onto a
+ * subsequent external write to the same node). Contiguous events with
+ * matching suppress collapse; runs are split at every suppress-set
+ * boundary.
+ */
+export function batchProjectDeltaEvents(
+  events: readonly ProjectDeltaEventInput[],
+): readonly ProjectDeltaEventInput[] {
+  if (events.length === 0) return []
+  const batches: ProjectDeltaEventInput[][] = [[events[0]!]]
+  for (let i = 1; i < events.length; i++) {
+    const current = events[i]!
+    const lastBatch = batches[batches.length - 1]!
+    const lastEvent = lastBatch[lastBatch.length - 1]!
+    if (sameSuppressSet(lastEvent.suppressForSubscribers, current.suppressForSubscribers)) {
+      lastBatch.push(current)
+    } else {
+      batches.push([current])
+    }
+  }
+  return batches.map(coalesceHomogeneousBatch)
+}
+
 export function parseSince(rawSince: string | undefined, currentSeq: number): number {
   if (rawSince === undefined) return currentSeq
 

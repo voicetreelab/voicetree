@@ -19,6 +19,7 @@ SRC="$SCRIPT_DIR/git-gate.sh"
 DEST_DIR="$HOME/bin"
 DEST="$DEST_DIR/git"
 ZSHRC="$HOME/.zshrc"
+ZPROFILE="$HOME/.zprofile"
 SKIP_PASSWORD=0
 
 for arg in "$@"; do
@@ -39,21 +40,28 @@ mkdir -p "$DEST_DIR"
 cp "$SRC" "$DEST"
 chmod 755 "$DEST"
 
-# Ensure $HOME/bin is on PATH ahead of /opt/homebrew/bin in ~/.zshrc.
-# Matches a path-export line that already routes via $HOME/bin first.
-PATH_MARKER='\$HOME/bin'
+# Ensure $HOME/bin is on PATH ahead of /opt/homebrew/bin. Interactive zsh reads
+# ~/.zshrc, while login non-interactive shells such as agent command runners may
+# read ~/.zprofile without reading ~/.zshrc.
 PATH_LINE='export PATH="$HOME/bin:/opt/homebrew/bin:$PATH:$HOME/.claude/local"'
 
-if [ -f "$ZSHRC" ] && grep -qE "^export PATH=.*${PATH_MARKER}" "$ZSHRC"; then
-  echo "→ install.sh: PATH already routes through \$HOME/bin in $ZSHRC (skip)"
-else
-  echo "→ install.sh: appending PATH line to $ZSHRC"
+ensure_git_gate_path() {
+  local shell_file="$1"
+  if [ -f "$shell_file" ] && grep -qE '^export PATH="?[$]HOME/bin:' "$shell_file"; then
+    echo "→ install.sh: PATH already routes through \$HOME/bin first in $shell_file (skip)"
+    return 0
+  fi
+
+  echo "→ install.sh: appending PATH line to $shell_file"
   {
     echo ""
     echo "# git-gate shim: \$HOME/bin must precede /opt/homebrew/bin so git resolves to the wrapper"
     echo "$PATH_LINE"
-  } >> "$ZSHRC"
-fi
+  } >> "$shell_file"
+}
+
+ensure_git_gate_path "$ZSHRC"
+ensure_git_gate_path "$ZPROFILE"
 
 # Password setup (macOS keychain).
 if [ "$SKIP_PASSWORD" -eq 1 ]; then

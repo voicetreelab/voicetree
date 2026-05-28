@@ -61,6 +61,7 @@ export {
 export {
     discoverRecoverableAgentSessions,
     forkAgentSession,
+    removePersistedAgentRecord,
     resumePersistedAgentSession,
 } from './recovery.ts'
 export {

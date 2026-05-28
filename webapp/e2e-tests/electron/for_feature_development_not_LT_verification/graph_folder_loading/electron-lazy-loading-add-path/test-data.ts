@@ -1,0 +1,102 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+export async function writeInitialLinkedVault(writeFolder: string): Promise<void> {
+  await fs.writeFile(
+    path.join(writeFolder, 'linking-node.md'),
+    `# Linking Node
+
+This node links to a node in the readPath:
+
+- references [[linked-node]]
+`
+  );
+}
+
+export async function writeLinkedReadVault(readPath: string): Promise<void> {
+  await fs.writeFile(
+    path.join(readPath, 'linked-node.md'),
+    `# Linked Node
+
+This node is linked from the writeFolder and should be lazy-loaded.
+`
+  );
+
+  await fs.writeFile(
+    path.join(readPath, 'unlinked-node.md'),
+    `# Unlinked Node
+
+This node has NO links pointing to it.
+It should NOT be loaded when lazy loading is working correctly.
+`
+  );
+}
+
+export async function writeInitialFileChangeVault(writeFolder: string): Promise<void> {
+  await fs.writeFile(
+    path.join(writeFolder, 'source-node.md'),
+    `# Source Node
+
+This node starts with NO links to readPath.
+`
+  );
+}
+
+export async function writeFileChangeReadVault(readPath: string): Promise<void> {
+  await fs.writeFile(
+    path.join(readPath, 'target-node.md'),
+    `# Target Node
+
+This should be lazy loaded when source-node links to it.
+`
+  );
+}
+
+export async function createTransitiveReadVault(testDir: string, writeFolder: string): Promise<string> {
+  const readPath = path.join(testDir, 'transitive-vault');
+  await fs.mkdir(readPath, { recursive: true });
+
+  await fs.writeFile(
+    path.join(writeFolder, 'linking-node.md'),
+    `# Node A
+
+Links to [[b]] in readPath.
+`
+  );
+
+  await fs.writeFile(
+    path.join(readPath, 'b.md'),
+    `# Node B
+
+This links to [[c]] transitively.
+`
+  );
+
+  await fs.writeFile(
+    path.join(readPath, 'c.md'),
+    `# Node C
+
+End of transitive chain.
+`
+  );
+
+  await fs.writeFile(
+    path.join(readPath, 'orphan.md'),
+    `# Orphan Node
+
+Nobody links to this node.
+`
+  );
+
+  return readPath;
+}
+
+export async function linkSourceNodeToTarget(writeFolder: string): Promise<void> {
+  await fs.writeFile(
+    path.join(writeFolder, 'source-node.md'),
+    `# Source Node
+
+This node now links to [[target-node]] in readPath!
+`
+  );
+}

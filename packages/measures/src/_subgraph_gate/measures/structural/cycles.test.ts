@@ -15,7 +15,7 @@ import {
     CYCLES_BUDGET,
     findNonTrivialSccs,
 } from './cycles.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 describe('findNonTrivialSccs (pure)', () => {
     it('DAG → no non-trivial SCCs', () => {

@@ -1,6 +1,7 @@
 import type {File, Task, Test} from '@vitest/runner'
 import type {Reporter} from 'vitest/reporters'
 
+import {messageOf} from '../messageOf.ts'
 import {recordCheckReport, type CheckReport} from './check-report-writer.ts'
 
 type ReporterOptions = {
@@ -65,14 +66,6 @@ function flattenTests(task: Task): Test[] {
     return task.tasks.flatMap(flattenTests)
 }
 
-function messageOf(value: unknown): string {
-    if (value instanceof Error) return value.message || value.stack || String(value)
-    if (typeof value === 'object' && value !== null && 'message' in value) {
-        return String((value as {message?: unknown}).message ?? value)
-    }
-    return String(value)
-}
-
 function summarizeError(value: unknown): string {
     return messageOf(value)
         .split('\n')
@@ -105,12 +98,12 @@ function requireOption(options: ReporterOptions, key: keyof ReporterOptions): st
 }
 
 export default class VitestCiCheckReporter implements Reporter {
-    private startedAt = Date.now()
+    private startedAtMs = Date.now()
 
     constructor(private readonly options: ReporterOptions = {}) {}
 
     onInit(): void {
-        this.startedAt = Date.now()
+        this.startedAtMs = Date.now()
     }
 
     async onFinished(files: File[] = [], errors: unknown[] = []): Promise<void> {
@@ -118,6 +111,7 @@ export default class VitestCiCheckReporter implements Reporter {
             const counts = countFiles(files)
             const status = statusFor(counts, errors)
             const failure = status === 'fail' ? firstFailure(files, errors) : undefined
+            const endedAtMs = Date.now()
 
             await recordCheckReport({
                 checkId: requireOption(this.options, 'checkId'),
@@ -125,7 +119,9 @@ export default class VitestCiCheckReporter implements Reporter {
                 category: 'Unit',
                 command: requireOption(this.options, 'command'),
                 status,
-                durationMs: Date.now() - this.startedAt,
+                durationMs: endedAtMs - this.startedAtMs,
+                startedAt: new Date(this.startedAtMs).toISOString(),
+                endedAt: new Date(endedAtMs).toISOString(),
                 testsTotal: counts.testsTotal,
                 testsPassed: counts.testsPassed,
                 testsFailed: counts.testsFailed,

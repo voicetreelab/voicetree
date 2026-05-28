@@ -1,0 +1,99 @@
+/*
+ * Folder Tree Sidebar Styles
+ *
+ * Hierarchical file tree sidebar with folder load states,
+ * starred section, search, and hover actions.
+ * Follows terminal-tree.css patterns.
+ */
+
+/* ============================================================================
+ * Sidebar Container
+ * ============================================================================ */
+
+.folder-tree-sidebar {
+    height: 100%;
+    width: 220px;
+    min-width: 120px;
+    max-width: 400px;
+    min-height: 0;
+    background: var(--background);
+    border-right: 1px solid var(--border);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================================================
+ * Header
+ * ============================================================================ */
+
+.folder-tree-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 4px;
+    flex-shrink: 0;
+}
+
+.folder-tree-header-title {
+    font-size: 10px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.folder-tree-close-btn {
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.5;
+}
+
+.folder-tree-close-btn:hover {
+    opacity: 1;
+    color: var(--destructive);
+}
+
+/* ============================================================================
+ * Search
+ * ============================================================================ */
+
+.folder-tree-search {
+    padding: 2px 6px 4px;
+    flex-shrink: 0;
+}
+
+.folder-tree-search-input {
+    width: 100%;
+    padding: 3px 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card);
+    color: var(--foreground);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.folder-tree-search-input:focus {
+    border-color: var(--ring);
+}
+
+.folder-tree-search-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+}

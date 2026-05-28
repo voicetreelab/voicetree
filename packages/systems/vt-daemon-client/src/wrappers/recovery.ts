@@ -1,13 +1,14 @@
 /**
- * Typed RPC wrappers for the "recovery" domain — the three routes the
- * recovery picker uses to discover, resume, and fork persisted agent
- * sessions. Mirrors design.md §1 Recovery group.
+ * Typed RPC wrappers for the "recovery" domain — the four routes the
+ * recovery picker uses to discover, resume, fork, and permanently delete
+ * persisted agent sessions. Mirrors design.md §1 Recovery group.
  */
 
 import type {
     DiscoverRecoverableAgentSessions,
     ForkAgentSession,
     RecoverableAgentSession,
+    RemovePersistedAgentRecord,
     ResumePersistedAgentSession,
 } from '@vt/vt-daemon-protocol'
 
@@ -41,6 +42,16 @@ export async function forkAgentSession(
     return client.rpc<ForkAgentSession.Response>('forkAgentSession', asParams(request))
 }
 
+export async function removePersistedAgentRecord(
+    client: VtDaemonClient,
+    request: RemovePersistedAgentRecord.Request,
+): Promise<RemovePersistedAgentRecord.Response> {
+    return client.rpc<RemovePersistedAgentRecord.Response>(
+        'removePersistedAgentRecord',
+        asParams(request),
+    )
+}
+
 export interface RecoveryFacade {
     readonly discoverRecoverableAgentSessions: (
         request?: DiscoverRecoverableAgentSessions.Request,
@@ -51,6 +62,9 @@ export interface RecoveryFacade {
     readonly forkAgentSession: (
         request: ForkAgentSession.Request,
     ) => Promise<ForkAgentSession.Response>
+    readonly removePersistedAgentRecord: (
+        request: RemovePersistedAgentRecord.Request,
+    ) => Promise<RemovePersistedAgentRecord.Response>
 }
 
 export function bindRecoveryFacade(client: VtDaemonClient): RecoveryFacade {
@@ -60,5 +74,7 @@ export function bindRecoveryFacade(client: VtDaemonClient): RecoveryFacade {
         resumePersistedAgentSession: (request) =>
             resumePersistedAgentSession(client, request),
         forkAgentSession: (request) => forkAgentSession(client, request),
+        removePersistedAgentRecord: (request) =>
+            removePersistedAgentRecord(client, request),
     }
 }

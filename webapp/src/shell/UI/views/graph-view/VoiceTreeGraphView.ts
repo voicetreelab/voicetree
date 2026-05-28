@@ -13,6 +13,12 @@
  * - GraphNavigationService: User-triggered navigation actions (fit, cycle, search)
  * - HotkeyManager: Keyboard shortcut handling
  * - SearchService: Command palette integration
+ *
+ * This file lives over the 500-line per-edit hint by design: the prior
+ * decomposition extracted five tiny helpers (each with one caller) into
+ * a sibling `VoiceTreeGraphView/` folder, which inflated the webapp/shell
+ * boundary-width by ten exports. Per FP-rearchitecting, helpers with one
+ * caller belong inline. The single public surface is the class itself.
  */
 
 // TODO, WE REALLY WANT TO AVOID ADDING ANYTHING EVER TO THIS FILE
@@ -38,36 +44,43 @@ import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registrat
 // Register cytoscape extensions
 cytoscape.use(navigator);
 cytoscape.use(layoutUtilities);
-import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/styles/StyleService';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/animation/BreathingAnimationService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/menus/VerticalMenuService';
 import {setupCommandHover} from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor';
 import {setupFolderHandles} from '@/shell/UI/cytoscape-graph-ui/services/folder-handle/FolderHandleService';
 import {HotkeyManager} from '@/shell/UI/views/infra/HotkeyManager';
 import {SearchService} from './SearchService';
-// V2 recent node tabs - tracks recently added/modified nodes (not visited)
-import {createRecentNodeTabsBar} from '@/shell/UI/views/ui-controls/RecentNodeTabsBar';
-// Terminal tree sidebar - shows open terminals as vertical tree on LHS
-import {createTerminalTreeSidebar} from '@/shell/UI/views/treeStyleTerminalTabs/TerminalTreeSidebar';
-// Folder tree sidebar - shows project file hierarchy on LHS
-import {createFolderTreeSidebar} from '@/shell/UI/views/folderTree/FolderTreeSidebar';
-import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/stores/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@vt/graph-model/graph';
 import {cyFitIntoVisibleViewport, getResponsivePadding} from '@/utils/responsivePadding';
-import {updateSpeedDialDarkMode} from '@/shell/UI/views/ui-controls/SpeedDialMenu';
-import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 import type {Graph} from '@vt/graph-model/graph';
 import {createEmptyGraph} from '@vt/graph-model/graph';
-import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from '@/shell/UI/views/VoiceTreeGraphViewHelpers';
+import {
+    setupBasicCytoscapeEventListeners,
+    initializeCytoscapeInstance,
+    setupGraphViewDOM,
+    initializeNavigatorMinimap,
+    guardCytoscapeResize,
+    setupCytoscape as setupCytoscapeHelper,
+    type NavigatorMinimapResult,
+} from '@/shell/UI/views/VoiceTreeGraphViewHelpers';
 import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/view/setupViewSubscriptions';
-import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/view/subscribeToGraphUpdates';
+import {subscribeToGraphUpdates as subscribeToGraphUpdatesFn} from '@/shell/edge/UI-edge/graph/view/subscribeToGraphUpdates';
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI';
-import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
+import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/styles/StyleService';
+import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
+import {collectFeedback} from '@/shell/edge/UI-edge/graph/popups/userEngagementPrompts';
+import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
+import {createSettingsEditor} from '@/shell/edge/UI-edge/settings/createSettingsEditor';
+import {mountLayoutProjection} from '@/shell/edge/UI-edge/graph/layout/layoutProjection';
+import {getLayoutStoreSingleton} from '@vt/graph-state/state/layoutStore';
+import {updateSpeedDialDarkMode} from '@/shell/UI/views/ui-controls/SpeedDialMenu';
+import {createRecentNodeTabsBar} from '@/shell/UI/views/ui-controls/RecentNodeTabsBar';
+import {createTerminalTreeSidebar} from '@/shell/UI/views/treeStyleTerminalTabs/TerminalTreeSidebar';
+import {createFolderTreeSidebar} from '@/shell/UI/views/folderTree/FolderTreeSidebar';
 
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
-import {collectFeedback} from "@/shell/edge/UI-edge/graph/popups/userEngagementPrompts";
 import {
     initializeDarkMode,
     toggleDarkMode as toggleDarkModeAction,
@@ -76,8 +89,181 @@ import {
 import {disposeGraphView} from './disposeGraphView';
 import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
 import {setupGraphViewEventListeners} from './setupGraphViewEventListeners';
-import {mountLayoutProjection} from '@/shell/edge/UI-edge/graph/layout/layoutProjection';
-import {getLayoutStoreSingleton} from '@vt/graph-state/state/layoutStore';
+
+// ────────────────────────────────────────────────────────────────────────
+// Internal helpers (formerly under ./VoiceTreeGraphView/). Each has one
+// caller — the class below — so they are module-private functions, not
+// exported helpers.
+// ────────────────────────────────────────────────────────────────────────
+
+type DarkModeCallbackInputs = {
+    updateGraphStyles: () => void;
+    searchService: () => SearchService | undefined;
+};
+
+type DarkModeCallbacks = {
+    updateGraphStyles: () => void;
+    updateSpeedDialMenu: (isDark: boolean) => void;
+    updateSearchTheme: (isDark: boolean) => void;
+};
+
+const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCallbackInputs): DarkModeCallbacks => ({
+    updateGraphStyles,
+    updateSpeedDialMenu: (isDark: boolean) => updateSpeedDialDarkMode(isDark),
+    updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),
+});
+
+type StartupVaultHint = {readonly kind: 'none'} | {readonly kind: 'last' | 'cli'; readonly path: string};
+
+type StartGraphUpdateSubscriptionInput = {
+    hasInitialProjectedGraph: boolean;
+    isDisposed: () => boolean;
+    getStartupVaultHint: (() => Promise<StartupVaultHint>) | undefined;
+    openVault: ((path: string) => Promise<unknown>) | undefined;
+    subscribeToGraphUpdates: () => void;
+};
+
+const startGraphUpdateSubscription = ({
+    hasInitialProjectedGraph,
+    isDisposed,
+    getStartupVaultHint,
+    openVault,
+    subscribeToGraphUpdates,
+}: StartGraphUpdateSubscriptionInput): void => {
+    // Initial graph hydration races against daemon startup only on the
+    // cold-boot path. When App already supplied an initial projected
+    // graph, the vault is already open — calling openVault again would
+    // tear down the daemon/SSE subscription path during graph view
+    // startup.
+    void (async (): Promise<void> => {
+        if (!hasInitialProjectedGraph) {
+            try {
+                const hint = await getStartupVaultHint?.();
+                if (hint && hint.kind !== 'none') {
+                    await openVault?.(hint.path);
+                }
+            } catch (err: unknown) {
+                console.error('[VoiceTreeGraphView] startup vault open failed:', err);
+            }
+        }
+        if (isDisposed()) return;
+        subscribeToGraphUpdates();
+    })();
+};
+
+type RenderGraphViewInput = {
+    container: HTMLElement;
+    uiContainer: HTMLElement;
+    isDarkMode: boolean;
+    showFps: boolean | undefined;
+    graphView: unknown;
+    getCy: () => Core | undefined;
+    onToggleDarkMode: () => void;
+};
+
+type RenderGraphViewResult = {
+    cy: Core;
+    navigator: { destroy: () => void } | null;
+    updateNavigatorVisibility: () => void;
+    layoutProjectionUnmount: () => void;
+};
+
+const renderGraphView = ({
+    container,
+    uiContainer,
+    isDarkMode,
+    showFps,
+    graphView,
+    getCy,
+    onToggleDarkMode,
+}: RenderGraphViewInput): RenderGraphViewResult => {
+    setupGraphViewDOM({
+        container,
+        uiContainer,
+        isDarkMode,
+        speedDialCallbacks: {
+            onToggleDarkMode,
+            onColaLayout: () => {
+                const cy: Core | undefined = getCy();
+                if (cy) triggerColaLayout(cy);
+            },
+            onSettings: () => {
+                const cy: Core | undefined = getCy();
+                if (cy) void createSettingsEditor(cy);
+            },
+            onAbout: () => window.open('https://voicetree.io', '_blank'),
+            onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
+            onFeedback: () => void collectFeedback(),
+            onFolderTree: () => toggleFolderTreeSidebar()
+        }
+    });
+
+    container.style.opacity = '0.3';
+    container.style.transition = 'opacity 0.3s ease-in-out';
+
+    const styleService: StyleService = new StyleService();
+    const {cy} = initializeCytoscapeInstance({
+        container,
+        stylesheet: styleService.getCombinedStylesheet(),
+        showFps
+    });
+    const projection = mountLayoutProjection(cy, getLayoutStoreSingleton());
+
+    guardCytoscapeResize(cy);
+
+    (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = cy;
+    (window as unknown as { voiceTreeGraphView: unknown }).voiceTreeGraphView = graphView;
+
+    const navigatorResult: NavigatorMinimapResult = initializeNavigatorMinimap(cy);
+
+    cy.nodes().forEach(node => {
+        node.data('degree', node.degree());
+    });
+    styleService.updateNodeSizes(cy);
+    setupBasicCytoscapeEventListeners(cy, styleService, container);
+
+    container.style.opacity = '1';
+
+    return {
+        cy,
+        navigator: navigatorResult.navigator,
+        updateNavigatorVisibility: navigatorResult.updateVisibility,
+        layoutProjectionUnmount: projection.unmount,
+    };
+};
+
+type CreateGraphViewSidebarsInput = {
+    uiContainer: HTMLElement;
+    cy: Core;
+    navigationService: GraphNavigationService;
+};
+
+const createGraphViewSidebars = ({uiContainer, cy, navigationService}: CreateGraphViewSidebarsInput): void => {
+    createRecentNodeTabsBar(
+        uiContainer,
+        (nodeId: string) => navigationService.handleSearchSelect(nodeId),
+        (nodeId: string) => cy.getElementById(nodeId).data('label') as string | undefined
+    );
+
+    const sidebarWrapper: HTMLDivElement = document.createElement('div');
+    sidebarWrapper.className = 'sidebar-wrapper';
+    uiContainer.appendChild(sidebarWrapper);
+
+    createTerminalTreeSidebar(sidebarWrapper, (terminal) => {
+        navigationService.fitToTerminal(terminal);
+    });
+
+    createFolderTreeSidebar(sidebarWrapper, {
+        onFileSelect: (path) => navigationService.handleSearchSelect(path),
+    });
+};
+
+const updateGraphStylesForCy = (cy: Core | undefined): void => {
+    if (!cy) return;
+    const styleService: StyleService = new StyleService();
+    const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
+    cy.style().clear().fromJson(newStyles).update();
+};
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -92,7 +278,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private options: VoiceTreeGraphViewOptions;
 
     // Services
-    private styleService!: StyleService; // Initialized in render()
     private animationService?: BreathingAnimationService; // Disabled for performance - see ama_cpu_profile_root_cause_analysis.md
     private verticalMenuService?: VerticalMenuService; // Initialized in setupCytoscape()
 
@@ -138,11 +323,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.options = options;
 
         // Initialize dark mode via DarkModeManager (handles async settings load)
-        void initializeDarkMode(this.options.initialDarkMode, {
+        void initializeDarkMode(this.options.initialDarkMode, createDarkModeCallbacks({
             updateGraphStyles: () => this.updateGraphStyles(),
-            updateSpeedDialMenu: (isDark) => updateSpeedDialDarkMode(isDark),
-            updateSearchTheme: (isDark) => this.searchService?.updateTheme(isDark)
-        });
+            searchService: () => this.searchService
+        }));
 
         // Render DOM structure
         this.render();
@@ -156,27 +340,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             (nodeId) => this.navigateToNodeAndTrack(nodeId)
         );
 
-        // Initialize recent tabs bar V2 in title bar area
-        // V2 tracks recently added/modified nodes (not visited nodes)
-        createRecentNodeTabsBar(
-            this.uiContainer,
-            (nodeId: string) => this.navigationService.handleSearchSelect(nodeId),
-            (nodeId: string) => this.cy.getElementById(nodeId).data('label') as string | undefined
-        );
-
-        // Shared sidebar wrapper — flex row so folder tree shifts left when terminal sidebar hides
-        const sidebarWrapper: HTMLDivElement = document.createElement('div');
-        sidebarWrapper.className = 'sidebar-wrapper';
-        this.uiContainer.appendChild(sidebarWrapper);
-
-        // Initialize terminal tree sidebar (left side, React component)
-        createTerminalTreeSidebar(sidebarWrapper, (terminal) => {
-            this.navigationService.fitToTerminal(terminal);
-        });
-
-        // Initialize folder tree sidebar (right of terminal sidebar, React component)
-        createFolderTreeSidebar(sidebarWrapper, {
-            onFileSelect: (path) => this.navigationService.handleSearchSelect(path),
+        createGraphViewSidebars({
+            uiContainer: this.uiContainer,
+            cy: this.cy,
+            navigationService: this.navigationService,
         });
 
         // Setup view subscriptions (terminals, navigation, pinned editors)
@@ -205,25 +372,13 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // painted as a cytoscape background-image (see defaultNodeStyles.ts).
         setupFolderHandles(this.cy);
 
-        // Initial graph hydration races against daemon startup only on the
-        // cold-boot path. When App already supplied an initial projected
-        // graph, the vault is already open — calling openVault again would
-        // tear down the daemon/SSE subscription path during graph view
-        // startup.
-        void (async (): Promise<void> => {
-            if (!this.options.initialProjectedGraph) {
-                try {
-                    const hint = await window.electronAPI?.main?.getStartupVaultHint?.();
-                    if (hint && hint.kind !== 'none') {
-                        await window.electronAPI?.main?.openVault?.(hint.path);
-                    }
-                } catch (err: unknown) {
-                    console.error('[VoiceTreeGraphView] startup vault open failed:', err);
-                }
-            }
-            if (this.isDisposed) return;
-            this.subscribeToGraphUpdates();
-        })();
+        startGraphUpdateSubscription({
+            hasInitialProjectedGraph: Boolean(this.options.initialProjectedGraph),
+            isDisposed: () => this.isDisposed,
+            getStartupVaultHint: window.electronAPI?.main?.getStartupVaultHint,
+            openVault: window.electronAPI?.main?.openVault,
+            subscribeToGraphUpdates: () => this.subscribeToGraphUpdates(),
+        });
     }
 
     /**
@@ -231,7 +386,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Delegates to GraphUpdateHandler module for the actual subscription logic
      */
     private subscribeToGraphUpdates(): void {
-        this.cleanupGraphSubscription = subscribeToGraphUpdates(
+        this.cleanupGraphSubscription = subscribeToGraphUpdatesFn(
             this.navigationService,
             this.searchService,
             this.updateNavigatorVisibility
@@ -246,105 +401,32 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Update graph styles (called by DarkModeManager on mode change)
      */
     private updateGraphStyles(): void {
-        if (!this.cy) return;
-        const styleService: StyleService = new StyleService();
-        const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
-        this.cy.style().clear().fromJson(newStyles).update();
+        updateGraphStylesForCy(this.cy);
     }
 
     private render(): void {
-        // Setup DOM structure using extracted function
-        // Note: speedDialCallbacks reference this.cy which isn't initialized yet,
-        // so we pass callbacks that will access cy at call time
-        setupGraphViewDOM({
+        const rendered = renderGraphView({
             container: this.container,
             uiContainer: this.uiContainer,
             isDarkMode: isDarkModeState(),
-            speedDialCallbacks: {
-                onToggleDarkMode: () => this.toggleDarkMode(),
-                onColaLayout: () => { if (this.cy) triggerColaLayout(this.cy); },
-                onSettings: () => void createSettingsEditor(this.cy),
-                onAbout: () => window.open('https://voicetree.io', '_blank'),
-                onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
-                onFeedback: () => void collectFeedback(),
-                onFolderTree: () => toggleFolderTreeSidebar()
-            }
+            showFps: this.options.showFps,
+            graphView: this,
+            getCy: () => this.cy,
+            onToggleDarkMode: () => this.toggleDarkMode(),
         });
-
-        // Initialize Cytoscape directly on container (userZoomingEnabled: false)
-        // All zoom handled by NavigationGestureService.zoomAtCursor() for unified behavior
-        this.container.style.opacity = '0.3';
-        this.container.style.transition = 'opacity 0.3s ease-in-out';
-
-        // Initialize StyleService
-        this.styleService = new StyleService();
-
-        // Initialize cytoscape directly on container
-        const {cy} = initializeCytoscapeInstance({
-            container: this.container,
-            stylesheet: this.styleService.getCombinedStylesheet(),
-            showFps: this.options.showFps
-        });
-        this.cy = cy;
-        const projection = mountLayoutProjection(this.cy, getLayoutStoreSingleton());
-        this.layoutProjectionUnmount = projection.unmount;
-
-        // Guard against canvas shrinking during layout instability (e.g. WebGL context loss cascade)
-        guardCytoscapeResize(this.cy);
-
-        // Expose cytoscape instance to window for testing
-        (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = this.cy;
-
-        // Expose voiceTreeGraphView to window for testing
-        (window as unknown as { voiceTreeGraphView: VoiceTreeGraphView }).voiceTreeGraphView = this;
 
         // DISABLED: Breathing animation causes 10s UI freeze with 60+ nodes
         // See: sat/ama_cpu_profile_root_cause_analysis.md
         // this.animationService = new BreathingAnimationService(this.cy);
 
-        // Initialize navigator minimap (bottom-right corner, performance-optimized)
-        const navigatorResult: NavigatorMinimapResult = initializeNavigatorMinimap(this.cy);
-        this.navigator = navigatorResult.navigator;
-        this.updateNavigatorVisibility = navigatorResult.updateVisibility;
-
-        // Update node degrees after initial elements are added
-        this.updateNodeDegrees();
-
-        // Update node sizes based on initial degrees
-        this.styleService.updateNodeSizes(this.cy);
-
-        // Setup basic cytoscape event listeners (hover, focus, etc.)
-        this.setupBasicCytoscapeEventListeners();
-
-        // Update opacity after Cytoscape is ready
-        this.container.style.opacity = '1';
-    }
-
-    /**
-     * Update the degree data attribute for all nodes based on their connections.
-     * This is used by the StyleService to apply degree-based sizing and styling.
-     */
-    private updateNodeDegrees(): void {
-        if (!this.cy) return;
-        this.cy.nodes().forEach(node => {
-            node.data('degree', node.degree());
-        });
-    }
-
-    /**
-     * Setup basic cytoscape event listeners for hover, focus, box selection, etc.
-     * These were previously in CytoscapeCore.setupEventListeners()
-     */
-    private setupBasicCytoscapeEventListeners(): void {
-        setupBasicCytoscapeEventListeners(
-            this.cy,
-            this.styleService,
-            this.container
-        );
+        this.cy = rendered.cy;
+        this.navigator = rendered.navigator;
+        this.updateNavigatorVisibility = rendered.updateNavigatorVisibility;
+        this.layoutProjectionUnmount = rendered.layoutProjectionUnmount;
     }
 
     private setupCytoscape(): void {
-        const menuServices: { verticalMenuService: VerticalMenuService; } = setupCytoscape({
+        const menuServices: { verticalMenuService: VerticalMenuService; } = setupCytoscapeHelper({
             cy: this.cy,
             savePositionsTimeout: {current: this.savePositionsTimeout},
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
@@ -452,11 +534,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     toggleDarkMode(): void {
-        toggleDarkModeAction({
+        toggleDarkModeAction(createDarkModeCallbacks({
             updateGraphStyles: () => this.updateGraphStyles(),
-            updateSpeedDialMenu: (isDark) => updateSpeedDialDarkMode(isDark),
-            updateSearchTheme: (isDark) => this.searchService.updateTheme(isDark)
-        });
+            searchService: () => this.searchService
+        }));
     }
 
     isDarkMode(): boolean {

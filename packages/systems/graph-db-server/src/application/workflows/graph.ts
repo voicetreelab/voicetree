@@ -1,7 +1,6 @@
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import {
   buildDeleteNodeDelta,
-  composeApplyDeltaResponse,
   parseApplyDeltaRequest,
   parseGraphDeltaRequest,
   composeContainedIdsUpdateResponse,
@@ -26,6 +25,7 @@ import { executeCommand } from './dispatch.ts'
 import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
+import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
 
 type WorkflowParsed = { readonly ok: true }
 
@@ -62,11 +62,6 @@ type ApplyDeltaRequest = {
 
 type ApplyDeltaOptions = {
   readonly recordForUndo?: boolean
-}
-
-type DeleteGraphNodeRequest = {
-  readonly ok: true
-  readonly delta: GraphDelta
 }
 
 type WritePositionsRequest = Extract<
@@ -132,12 +127,12 @@ function wrapWorkflow<Raw, Outcome extends AnyParseOutcome, R>(
   }
 }
 
-async function applyGraphDeltaAndReadGraph(
+async function applyGraphDeltaAndPublish(
   parsed: ApplyDeltaRequest,
   sessionId: string,
   options: ApplyDeltaOptions,
-): Promise<Graph> {
-  return await traceGraphdSpan('graph.apply-delta-and-read', async (span) => {
+): Promise<void> {
+  await traceGraphdSpan('graph.apply-delta-and-publish', async (span) => {
     span.setAttribute('graph.delta.count', parsed.delta.length)
     span.setAttribute('graph.session.id', sessionId)
     span.setAttribute('graph.record_for_undo', options.recordForUndo ?? false)
@@ -157,29 +152,7 @@ async function applyGraphDeltaAndReadGraph(
       source: `session:${sessionId}`,
     })
     span.addEvent('graph.publish-delta.complete')
-
-    span.addEvent('graph.read-after-delta.start')
-    const graph = await executeCommand({ type: 'ReadGraph' })
-    span.setAttribute('graph.node.count', Object.keys(graph.nodes).length)
-    span.addEvent('graph.read-after-delta.complete')
-    return graph
   })
-}
-
-async function prepareDeleteGraphNode(
-  nodeId: string,
-): Promise<ParseOutcome<DeleteGraphNodeRequest>> {
-  const existingNode = await executeCommand({ type: 'ReadGraphNode', nodeId })
-  if (!existingNode) {
-    return {
-      ok: false,
-      error: `Node not found: ${nodeId}`,
-      code: 'NODE_NOT_FOUND',
-      status: 404,
-    }
-  }
-
-  return { ok: true, delta: buildDeleteNodeDelta(nodeId, existingNode) }
 }
 
 async function parseWritePositionsInOpenVault(
@@ -207,27 +180,31 @@ export async function readGraphWorkflow(): Promise<HttpResult> {
   return jsonResult(composeGraphResponse(await executeCommand({ type: 'ReadGraph' })))
 }
 
-async function tracedApplyDeltaAndCompose(
+export async function reconcileGraphWithDiskWorkflow(): Promise<HttpResult> {
+  try {
+    const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
+    if (!projectRoot) return vaultNotOpenResult().result
+    return jsonResult({ delta: await reconcileGraphWithDisk() })
+  } catch (error) {
+    return vaultAwareWorkflowErrorResult(error, 'GRAPH_DISK_RECONCILE_FAILED')
+  }
+}
+
+async function tracedApplyDeltaAndAck(
   delta: GraphDelta,
   sessionId: string,
   recordForUndo: boolean | undefined,
+  errorCode = 'GRAPH_DELTA_APPLY_FAILED',
 ): Promise<HttpResult> {
   try {
-    const graph = await applyGraphDeltaAndReadGraph(
+    await applyGraphDeltaAndPublish(
       { ok: true, delta },
       sessionId,
       { recordForUndo },
     )
-    const composed = await traceGraphdSpan(
-      'daemon.apply-delta.compose-response',
-      async span => {
-        span.setAttribute('vt.graph.nodes', Object.keys((graph as { nodes?: object }).nodes ?? {}).length)
-        return composeApplyDeltaResponse(delta, graph)
-      },
-    )
-    return jsonResult(composed)
+    return jsonResult({ ok: true })
   } catch (error) {
-    return vaultAwareWorkflowErrorResult(error, 'GRAPH_DELTA_APPLY_FAILED')
+    return vaultAwareWorkflowErrorResult(error, errorCode)
   }
 }
 
@@ -240,7 +217,7 @@ export async function applyGraphDeltaWorkflow(
     const parsed = parseGraphDeltaRequest(rawBody)
     if (!parsed.ok) return parseRejectionResult(parsed)
     span.setAttribute('vt.delta.size', parsed.delta.length)
-    return await tracedApplyDeltaAndCompose(
+    return await tracedApplyDeltaAndAck(
       parsed.delta,
       sessionId,
       options.recordForUndo,
@@ -256,7 +233,7 @@ export async function applyGraphDeltaWithOptionsWorkflow(
     const parsed = parseApplyDeltaRequest(rawBody)
     if (!parsed.ok) return parseRejectionResult(parsed)
     span.setAttribute('vt.delta.size', parsed.delta.length)
-    return await tracedApplyDeltaAndCompose(
+    return await tracedApplyDeltaAndAck(
       parsed.delta,
       sessionId,
       parsed.recordForUndo,
@@ -264,16 +241,25 @@ export async function applyGraphDeltaWithOptionsWorkflow(
   })
 }
 
-export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResult> {
-  return await wrapWorkflow(
-    prepareDeleteGraphNode,
-    async parsed => {
-      await executeCommand({ type: 'ApplyGraphDeltaToDB', delta: parsed.delta })
-      return await executeCommand({ type: 'ReadGraph' })
-    },
-    (graph, parsed) => composeApplyDeltaResponse(parsed.delta, graph),
+// Idempotent per RFC 7231: a repeated DELETE produces the same observable
+// state. If the node is already absent from the graph the post-condition is
+// already satisfied, so we return success with `alreadyAbsent: true` instead
+// of 404 — callers driving cleanup loops (test fixtures, watcher reconcile,
+// retry-on-network-flake) no longer have to special-case "first call killed
+// it".
+export async function deleteGraphNodeWorkflow(
+  nodeId: string,
+  sessionId: string,
+): Promise<HttpResult> {
+  const existingNode = await executeCommand({ type: 'ReadGraphNode', nodeId })
+  if (!existingNode) return jsonResult({ ok: true, alreadyAbsent: true })
+
+  return await tracedApplyDeltaAndAck(
+    buildDeleteNodeDelta(nodeId, existingNode),
+    sessionId,
+    undefined,
     'GRAPH_NODE_DELETE_FAILED',
-  )(nodeId)
+  )
 }
 
 export async function findFileWorkflow(name: string | undefined): Promise<HttpResult> {

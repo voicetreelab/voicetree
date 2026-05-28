@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { startDaemon } from '../src/daemon/server.ts'
 import { startParentPidWatchdog } from '@vt/daemon-lifecycle'
 import { tracing } from '@vt/observability'
+import { perfProbeFromEnv } from '@vt/perf-analysis/perf-probe'
 
 // The daemon is spawned detached by ensureDaemon with stderr piped to its
 // parent. When the parent exits, writes to that pipe error with EPIPE. Without
@@ -68,7 +69,11 @@ function die(msg: string): never {
 }
 
 async function main() {
-  tracing.init('vt-graphd')
+  tracing.init('vt-graphd', {
+    otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
+    instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
+  })
+  const stopPerfProbe = await perfProbeFromEnv('vt-graphd')
   const args = parseArgs(process.argv.slice(2))
 
   // A competing owner for the same vault now causes startDaemon to throw
@@ -81,7 +86,10 @@ async function main() {
       vault: args.projectRoot,
       logLevel: args.logLevel,
       idleTimeoutMs: args.idleTimeoutMs,
-      onShutdownComplete: () => process.exit(0),
+      onShutdownComplete: async () => {
+        await stopPerfProbe?.()
+        process.exit(0)
+      },
     })
   } catch (err) {
     process.stderr.write(`vt-graphd: fatal: ${(err as Error).message}\n`)
@@ -99,6 +107,7 @@ async function main() {
     process.stderr.write(`vt-graphd: ${signal} received, shutting down\n`)
     try {
       await handle.stop()
+      await stopPerfProbe?.()
       process.exit(0)
     } catch (err) {
       process.stderr.write(`vt-graphd: shutdown error: ${(err as Error).message}\n`)

@@ -73,6 +73,32 @@ export function makeRunningCodexMetadata(overrides: Record<string, unknown> = {}
     }
 }
 
+export function makeExitedClaudeMetadata(overrides: Record<string, unknown> = {}): unknown {
+    return {
+        name: TERMINAL_A,
+        status: 'exited',
+        session: SESSION_A,
+        startedAt: '2026-05-20T10:00:00.000Z',
+        endedAt: '2026-05-25T12:00:00.000Z',
+        exitCode: 0,
+        terminalData: makeTerminalData({initialCommand: 'claude'}),
+        ...overrides,
+    }
+}
+
+export function makeKilledClaudeMetadata(overrides: Record<string, unknown> = {}): unknown {
+    return {
+        name: TERMINAL_A,
+        status: 'killed',
+        session: SESSION_A,
+        startedAt: '2026-05-20T10:00:00.000Z',
+        endedAt: '2026-05-25T12:00:00.000Z',
+        killReason: 'user',
+        terminalData: makeTerminalData({initialCommand: 'claude'}),
+        ...overrides,
+    }
+}
+
 export function makeLiveSession(sessionName: string, overrides: Partial<UnclaimedTmuxSession> = {}): UnclaimedTmuxSession {
     return {
         sessionName,

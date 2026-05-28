@@ -195,9 +195,14 @@ webapp/workers/share-worker/.wrangler/**
 !packages/measures/README.md
 !packages/systems/voicetree-cli/README.md
 !packages/measures/perf/*.md
+!packages/measures/budgets/BASELINE_BUMP_LOG.md
+!packages/measures/budgets/HOW_TO_BUMP_BASELINES.md
 !packages/measures/src/health/coupling/__tests__/**/*.md
+!infra/perf-stack/*.md
 !packages/systems/agent-runtime/src/application/terminals/tmux/README.md
+!webapp/e2e-tests/electron/README.md
 !scripts/agent-debugging/README.md
+!scripts/dev-setup/remote/AGENT_PROMPT.md
 !scripts/agent-debugging/REFERENCE.md
 !openspec/**/*.md
 !/architecture.md
@@ -208,6 +213,9 @@ webapp/workers/share-worker/.wrangler/**
 # Codex config (machine-local)
 **/.codex/config.toml
 
+# Agent-created nested worktree mirrors
+.claude/worktrees/
+
 # Gemini settings (machine-local)
 **/.gemini/settings.json
 
@@ -216,6 +224,9 @@ webapp/workers/share-worker/.wrangler/**
 
 # Node modules
 **/node_modules/**
+
+# TypeScript build state
+*.tsbuildinfo
 
 # npm pack tarballs (generated locally for publish verification)
 **/*.tgz
@@ -253,9 +264,13 @@ test_output/*
 /health-dashboard/reports/*.json
 /health-dashboard/reports/*.json.tmp.*
 /health-dashboard/reports/checks/*.json
+/health-dashboard/reports/scores-history/*.local.csv
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
+!/health-dashboard/reports/scores-history/
+!/health-dashboard/reports/scores-history/.gitkeep
 **/.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.json
 /test-results/
 /VoiceTree/
 .codeql/

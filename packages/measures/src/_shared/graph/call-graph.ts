@@ -2,7 +2,6 @@ import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
     Node,
-    Project,
     SyntaxKind,
     ts,
     type FunctionDeclaration,
@@ -11,6 +10,8 @@ import {
     type SourceFile,
     type VariableDeclaration,
 } from 'ts-morph'
+import { discoverPackages, type PackageInfo } from '../discovery/discover-packages'
+import { createRepoTsMorphProject } from './repo-ts-morph-project'
 
 export type FunctionNode = {
     readonly id: string
@@ -36,43 +37,34 @@ export type CallGraph = {
 }
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
+const DEFAULT_REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
 
-let graphPromise: Promise<CallGraph> | undefined
-
-export async function buildCallGraph(): Promise<CallGraph> {
-    graphPromise ??= Promise.resolve(createCallGraph())
-    return graphPromise
+export async function buildCallGraph(
+    repoRoot: string = DEFAULT_REPO_ROOT,
+    packages?: readonly PackageInfo[],
+): Promise<CallGraph> {
+    return createCallGraph(repoRoot, packages ?? await discoverPackages(repoRoot))
 }
 
-function createCallGraph(): CallGraph {
-    const project = new Project({
-        compilerOptions: {
-            moduleResolution: ts.ModuleResolutionKind.Bundler,
-            module: ts.ModuleKind.ESNext,
-            target: ts.ScriptTarget.ES2022,
-            allowJs: false,
-            skipLibCheck: true,
-            jsx: ts.JsxEmit.Preserve,
-        },
-    })
+function createCallGraph(repoRoot: string, packages: readonly PackageInfo[]): CallGraph {
+    const project = createRepoTsMorphProject(repoRoot, packages)
     const sourceFiles = project.addSourceFilesAtPaths([
-        `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.test.ts`,
-        `!${REPO_ROOT}/**/*.test.tsx`,
-        `!${REPO_ROOT}/**/*.spec.ts`,
-        `!${REPO_ROOT}/**/*.spec.tsx`,
-        `!${REPO_ROOT}/**/*.d.ts`,
-        `!${REPO_ROOT}/**/__tests__/**`,
-        `!${REPO_ROOT}/**/tests/**`,
-        `!${REPO_ROOT}/**/__generated__/**`,
-        `!${REPO_ROOT}/**/integration-tests/**`,
-        `!${REPO_ROOT}/**/node_modules/**`,
-        `!${REPO_ROOT}/**/dist/**`,
-        `!${REPO_ROOT}/**/build/**`,
-        `!${REPO_ROOT}/**/*.config.ts`,
+        `${repoRoot}/packages/libraries/**/*.{ts,tsx}`,
+        `${repoRoot}/packages/systems/**/*.{ts,tsx}`,
+        `${repoRoot}/webapp/src/**/*.{ts,tsx}`,
+        `!${repoRoot}/**/*.test.ts`,
+        `!${repoRoot}/**/*.test.tsx`,
+        `!${repoRoot}/**/*.spec.ts`,
+        `!${repoRoot}/**/*.spec.tsx`,
+        `!${repoRoot}/**/*.d.ts`,
+        `!${repoRoot}/**/__tests__/**`,
+        `!${repoRoot}/**/tests/**`,
+        `!${repoRoot}/**/__generated__/**`,
+        `!${repoRoot}/**/integration-tests/**`,
+        `!${repoRoot}/**/node_modules/**`,
+        `!${repoRoot}/**/dist/**`,
+        `!${repoRoot}/**/build/**`,
+        `!${repoRoot}/**/*.config.ts`,
     ]).filter(sourceFile => isProductionSourcePath(sourceFile.getFilePath()))
     if (sourceFiles.length === 0) {
         throw new Error('buildCallGraph found 0 production source files; check for concurrent package moves before changing globs')
@@ -83,13 +75,13 @@ function createCallGraph(): CallGraph {
 
     for (const sourceFile of sourceFiles) {
         for (const fn of sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) {
-            addFunctionDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, fn)
+            addFunctionDeclaration(repoRoot, nodes, functionIdsBySyntaxNode, sourceFile, fn)
         }
         for (const method of sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration)) {
-            addMethodDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, method)
+            addMethodDeclaration(repoRoot, nodes, functionIdsBySyntaxNode, sourceFile, method)
         }
         for (const variable of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-            addVariableFunction(nodes, functionIdsBySyntaxNode, sourceFile, variable)
+            addVariableFunction(repoRoot, nodes, functionIdsBySyntaxNode, sourceFile, variable)
         }
     }
 
@@ -164,6 +156,7 @@ function isProductionSourcePath(path: string): boolean {
 }
 
 function addFunctionDeclaration(
+    repoRoot: string,
     nodes: Map<string, FunctionNode>,
     functionIdsBySyntaxNode: Map<MorphNode, string>,
     sourceFile: SourceFile,
@@ -171,12 +164,13 @@ function addFunctionDeclaration(
 ): void {
     if (!fn.getBody()) return
     const name = fn.getName() ?? 'default'
-    const node = createFunctionNode(sourceFile, fn.getNameNode() ?? fn, fn, name, 'function', fn.isExported())
+    const node = createFunctionNode(repoRoot, sourceFile, fn.getNameNode() ?? fn, fn, name, 'function', fn.isExported())
     nodes.set(node.id, node)
     functionIdsBySyntaxNode.set(fn, node.id)
 }
 
 function addMethodDeclaration(
+    repoRoot: string,
     nodes: Map<string, FunctionNode>,
     functionIdsBySyntaxNode: Map<MorphNode, string>,
     sourceFile: SourceFile,
@@ -185,12 +179,13 @@ function addMethodDeclaration(
     if (!method.getBody()) return
     const classDecl = method.getParentIfKind(SyntaxKind.ClassDeclaration)
     const name = method.getName()
-    const node = createFunctionNode(sourceFile, method.getNameNode(), method, name, 'method', classDecl?.isExported() ?? false)
+    const node = createFunctionNode(repoRoot, sourceFile, method.getNameNode(), method, name, 'method', classDecl?.isExported() ?? false)
     nodes.set(node.id, node)
     functionIdsBySyntaxNode.set(method, node.id)
 }
 
 function addVariableFunction(
+    repoRoot: string,
     nodes: Map<string, FunctionNode>,
     functionIdsBySyntaxNode: Map<MorphNode, string>,
     sourceFile: SourceFile,
@@ -202,6 +197,7 @@ function addVariableFunction(
     const name = variable.getName()
     const variableStatement = variable.getVariableStatement()
     const node = createFunctionNode(
+        repoRoot,
         sourceFile,
         variable.getNameNode(),
         initializer,
@@ -215,6 +211,7 @@ function addVariableFunction(
 }
 
 function createFunctionNode(
+    repoRoot: string,
     sourceFile: SourceFile,
     locationNode: MorphNode,
     node: MorphNode,
@@ -222,7 +219,7 @@ function createFunctionNode(
     kind: FunctionNode['kind'],
     isExported: boolean,
 ): FunctionNode {
-    const file = normalizePath(relative(REPO_ROOT, sourceFile.getFilePath()))
+    const file = normalizePath(relative(repoRoot, sourceFile.getFilePath()))
     const line = sourceFile.getLineAndColumnAtPos(locationNode.getStart()).line
     return {
         id: `${file}:${line}:${name}`,

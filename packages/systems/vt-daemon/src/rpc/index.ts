@@ -1,4 +1,5 @@
-// Aggregate index of the 19 BF-376 outbound RPC routes (design.md §1).
+// Aggregate index of the 20 BF-376 outbound RPC routes (19 design.md §1 + 1
+// post-merge `removePersistedAgentRecord` for renderer-side on-disk delete).
 //
 // Consumers:
 //   - `tools/catalog.ts`'s dispatch builder merges these into the

@@ -4,6 +4,8 @@ const config: KnipConfig = {
     workspaces: {
         '.': {
             entry: [
+                '.claude/hooks/**/*.cjs',
+                '.codex/hooks/**/*.cjs',
                 'scripts/*.mjs',
                 'scripts/*.cjs',
                 'packages/measures/**/*.ts',

@@ -33,7 +33,14 @@ export interface TmuxAttachWiring {
     readonly close: () => Promise<void>
 }
 
-export function createTmuxAttachWiring(): TmuxAttachWiring {
+export interface TmuxAttachWiringOptions {
+    // Resolved at attach time so each new connection picks up the current
+    // vault setting without restarting the daemon. Defaults to `false` (mouse
+    // off, browser-style text selection without Shift) when omitted.
+    readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
+}
+
+export function createTmuxAttachWiring(options: TmuxAttachWiringOptions = {}): TmuxAttachWiring {
     const wss: WebSocketServer = new WebSocketServer({
         noServer: true,
         // R2 (Lochlan): no inbound frame cap on this route — see header.
@@ -49,7 +56,7 @@ export function createTmuxAttachWiring(): TmuxAttachWiring {
         acceptUpgrade: (req: IncomingMessage, socket: Duplex, head: Buffer, onAccepted: () => void): void => {
             wss.handleUpgrade(req, socket, head, (ws: WebSocket): void => {
                 onAccepted()
-                void attachTmuxSessionToWebSocket(ws, req)
+                void attachTmuxSessionToWebSocket(ws, req, {getTmuxMouseMode: options.getTmuxMouseMode})
             })
         },
         close: (): Promise<void> => new Promise<void>((resolveClose): void => {

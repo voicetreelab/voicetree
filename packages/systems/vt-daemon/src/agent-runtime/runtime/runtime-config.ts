@@ -15,7 +15,11 @@ export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
 
 export type RuntimeEnvProvider = {
     readonly getProjectRoot?: () => Promise<string | null>;
-    readonly getVaultPaths?: () => Promise<readonly string[]>;
+    readonly getVaultSnapshot: () => Promise<{
+        readonly projectRoot: string | null;
+        readonly readPaths: readonly string[];
+        readonly writeFolder: string | null;
+    }>;
     readonly getWriteFolder?: () => Promise<string | null>;
     /**
      * Absolute path to the directory containing the `vt` CLI executable

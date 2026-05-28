@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveEnvVars, expandEnvVarsInValues } from './resolve-environment-variable';
-import { DEFAULT_SETTINGS } from './DEFAULT_SETTINGS';
+import { DEFAULT_SETTINGS } from './settingsRuntime';
 import type { EnvVarValue } from './types';
 
 // ── Realistic test data ─────────────────────────────────────────────────────

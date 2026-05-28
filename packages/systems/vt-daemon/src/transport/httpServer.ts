@@ -99,6 +99,15 @@ export interface StartHttpDaemonOptions {
      * vault.
      */
     readonly canonicalVault?: string
+    /**
+     * Resolved per attach so a settings flip takes effect on the next
+     * connection without restarting the daemon. Defaults to mouse off
+     * (browser-style text selection without Shift) when omitted. The
+     * tmux-attach wiring forwards this through to
+     * `attachTmuxSessionToWebSocket` which applies it to the tmux session
+     * just after `configureTmuxSession`.
+     */
+    readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
 }
 
 const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
@@ -398,7 +407,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
             protocols.has(VT_BEARER_SUBPROTOCOL) ? VT_BEARER_SUBPROTOCOL : false,
     })
 
-    const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring()
+    const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring({getTmuxMouseMode: options.getTmuxMouseMode})
 
     const server: Server = http.createServer(buildRequestHandler(
         options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth, options.canonicalVault,

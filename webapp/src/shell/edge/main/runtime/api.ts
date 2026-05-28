@@ -40,6 +40,7 @@ import {
 import {
   forkRecoverySession,
   refreshRecoverySessions,
+  removeRecoverySession,
   resumeRecoverySession,
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync'
 import {askQuery} from './backend-api';
@@ -75,6 +76,7 @@ import {
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
+  reconcileGraphWithDiskThroughDaemon,
   postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
@@ -115,7 +117,8 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
     const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
     const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
     const effectiveAsync: string | undefined = asyncHook?.startsWith('#') ? undefined : asyncHook ?? undefined;
-    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
+    const hookEnv: Record<string, string> = { VOICETREE_MCP_PORT: String(getMcpPort()) };
+    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync, hookEnv);
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +215,8 @@ export const mainAPI = {
 
   getNode,
 
+  reconcileGraphWithDisk: reconcileGraphWithDiskThroughDaemon,
+
   // Collapse/expand through daemon RPC
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
@@ -294,6 +299,7 @@ export const mainAPI = {
   refreshRecoverySessions,
   resumeRecoverySession,
   forkRecoverySession,
+  removeRecoverySession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: getUnseenNodesForTerminal,

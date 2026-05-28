@@ -29,6 +29,10 @@ interface CytoscapeRenderer {
         lblTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
         slbTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
         tlbTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
+        // VoiceTree extension: flushers installed by installTextureCacheSkip,
+        // replayed when wheelZooming clears so invalidations deferred during
+        // pan/zoom actually reach the texture caches.
+        _vtTxrFlushers?: Array<() => void>;
     };
     pinching: boolean;
     hoverData: { dragging: boolean; draggingEles: boolean };
@@ -87,6 +91,11 @@ function applyViewportManipulationSignal(renderer: CytoscapeRenderer): void {
     renderer.data.wheelTimeout = setTimeout(() => {
         renderer.data.wheelZooming = false;
         collectionCache?.clear();
+        // Replay label/element texture invalidations that were deferred during pan/zoom.
+        // Without this, data changes that landed inside the wheelZooming window leave
+        // stale textures (blank or clipped labels) until something else forces a refresh.
+        const flushers: Array<() => void> = renderer.data._vtTxrFlushers ?? [];
+        for (const flush of flushers) flush();
         renderer.redrawHint('eles', true);
         renderer.redraw();
     }, 150);
@@ -194,8 +203,7 @@ export function installTextureCacheSkip(cy: Core): void {
         const boundCache: TxrCache = cache;
 
         boundCache.invalidateElement = function (ele: unknown): void {
-            if (renderer.data.wheelZooming) return;
-            if (cyWithBatching.batching()) {
+            if (renderer.data.wheelZooming || cyWithBatching.batching()) {
                 deferred.add(ele);
                 return;
             }
@@ -204,10 +212,15 @@ export function installTextureCacheSkip(cy: Core): void {
 
         flushers.push((): void => {
             if (deferred.size === 0) return;
+            // Don't flush while still wheelZooming — defer until the pan/zoom debounce
+            // timeout fires, then this same flusher runs from renderer.data._vtTxrFlushers.
+            if (renderer.data.wheelZooming) return;
             for (const ele of deferred) originalInvalidate(ele);
             deferred.clear();
         });
     }
+
+    renderer.data._vtTxrFlushers = flushers;
 
     const originalEndBatch: () => Core = cy.endBatch.bind(cy) as () => Core;
     (cy as unknown as { endBatch: () => Core }).endBatch = function (): Core {

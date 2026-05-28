@@ -137,6 +137,18 @@ describe('tmux-session-manager', () => {
         expect(env.VOICETREE_TERMINAL_ID).toBe('BF310_TEST_VAL')
     })
 
+    it('reuses an existing tmux session without probing first when requested', async () => {
+        const name: string = sessionName()
+        sessions.add(name)
+
+        const first: {pid: number; created: boolean} = await createSession(name, 'sleep 5', {}, {reuseExisting: true})
+        const second: {pid: number; created: boolean} = await createSession(name, 'sleep 5', {}, {reuseExisting: true})
+
+        expect(first.created).toBe(true)
+        expect(first.pid).toBeGreaterThan(0)
+        expect(second).toEqual({pid: first.pid, created: false})
+    })
+
     it('scopes tmux session names by vault so parallel runtimes can reuse terminal IDs', async () => {
         const name: string = 'bf310-shared-terminal'
         const firstDir: string = await makeTempDir()

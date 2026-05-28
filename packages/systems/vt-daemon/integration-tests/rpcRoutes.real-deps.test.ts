@@ -153,9 +153,13 @@ describe('rpc routes — coverage', () => {
         for (const method of TERMINAL_RPC_METHODS) {
             expect(map.has(method), `missing handler for ${method}`).toBe(true)
         }
-        // And we registered exactly 19 RPC routes (catalog also has the 12 MCP
-        // tools, but those don't appear in TERMINAL_RPC_METHODS).
-        expect(TERMINAL_RPC_METHODS).toHaveLength(19)
+        // And we registered exactly 20 RPC routes (catalog also has the 12 MCP
+        // tools, but those don't appear in TERMINAL_RPC_METHODS). The 20th is
+        // `removePersistedAgentRecord` — added so the renderer's Surviving
+        // Agents "delete record" UX can reach the on-disk metadata cleanup
+        // through the daemon (the in-memory `removeTerminalFromRegistry`
+        // route covers live rows only).
+        expect(TERMINAL_RPC_METHODS).toHaveLength(20)
     })
 })
 

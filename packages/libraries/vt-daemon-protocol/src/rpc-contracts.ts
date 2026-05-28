@@ -1,5 +1,8 @@
 /**
- * RPC contract shapes for the 19 BF-376 outbound routes.
+ * RPC contract shapes for the 20 BF-376 outbound routes (19 in the original
+ * design + `removePersistedAgentRecord`, added to give the renderer's
+ * Surviving Agents picker an on-disk delete path that `removeTerminalFromRegistry`
+ * — live-registry only — does not cover).
  *
  * Each route has a Request and Response interface (`Foo.Request`,
  * `Foo.Response`) so generated JSON-RPC dispatchers, the typed client
@@ -11,7 +14,8 @@
  * contract owns its own vocabulary.
  *
  * Route ordering and route count are pinned by
- * `bf376-rpc-route-justification.md`: 19 routes — kept because each one
+ * `bf376-rpc-route-justification.md`: 19 routes from the original design + 1
+ * post-merge addition (`removePersistedAgentRecord`) — kept because each one
  * has a real Main call site post-cutover. The spawn family is kept as
  * three separate routes (not collapsed) because the parameter shapes
  * are genuinely different (`spawnPlainTerminal` operates on an existing
@@ -154,7 +158,7 @@ export type CloseHeadlessAgentResponse =
     | {readonly closed: false}
 
 // ---------------------------------------------------------------------------
-// Route catalogue — 19 routes, grouped by domain
+// Route catalogue — 20 routes, grouped by domain
 // ---------------------------------------------------------------------------
 
 // --- Spawn family (3) ------------------------------------------------------
@@ -298,11 +302,30 @@ export namespace GetHeadlessAgentOutput {
     export type Response = string
 }
 
-// --- Recovery (3) ---------------------------------------------------------
+// --- Recovery (4) ---------------------------------------------------------
 
-/** List every recoverable agent session on disk + their attach/resume capability. */
+/**
+ * Result shape for `removePersistedAgentRecord`. Mirrors the in-process
+ * discriminated result so the renderer can show a targeted error string
+ * (e.g. "still running — close it first") without re-classifying.
+ */
+export type RemovePersistedAgentRecordResult =
+    | {readonly kind: 'removed'}
+    | {readonly kind: 'refused'; readonly reason: 'live-registry-entry' | 'no-project-root'}
+    | {readonly kind: 'invalid-id'}
+
+/**
+ * List every recoverable agent session on disk + their attach/resume capability.
+ *
+ * `horizonMs` controls the recency cutoff for closed records: omitted ⇒ use
+ * the daemon's default horizon; `null` ⇒ no cutoff (renderer's "show older"
+ * link); a positive number ⇒ override the horizon for this call. The daemon
+ * passes it through to the in-process `discoverRecoverableAgentSessions(deps, opts)`.
+ */
 export namespace DiscoverRecoverableAgentSessions {
-    export type Request = Record<string, never>
+    export interface Request {
+        readonly horizonMs?: number | null
+    }
     export type Response = readonly RecoverableAgentSession[]
 }
 
@@ -325,6 +348,19 @@ export namespace ForkAgentSession {
         readonly sourceTerminalId: TerminalId
     }
     export type Response = ForkAgentSessionResult
+}
+
+/**
+ * Permanently delete a persisted recovery record from disk. Refuses when
+ * the terminal is still live in the registry (would orphan a running
+ * agent's view of its own metadata) and returns `invalid-id` for path-
+ * traversal attempts. Idempotent: a missing JSON returns `removed`.
+ */
+export namespace RemovePersistedAgentRecord {
+    export interface Request {
+        readonly terminalId: string
+    }
+    export type Response = RemovePersistedAgentRecordResult
 }
 
 // --- Registry management (2) ----------------------------------------------
@@ -380,7 +416,7 @@ export namespace DispatchOnNewNodeHooks {
 // ---------------------------------------------------------------------------
 
 /**
- * Canonical wire method names for the 19 routes. Generated dispatchers
+ * Canonical wire method names for the 20 routes. Generated dispatchers
  * and tests can iterate this to assert "every method has a handler" or
  * "every method has a client wrapper" without listing the strings
  * twice.
@@ -408,6 +444,7 @@ export const TERMINAL_RPC_METHODS = [
     'discoverRecoverableAgentSessions',
     'resumePersistedAgentSession',
     'forkAgentSession',
+    'removePersistedAgentRecord',
     // Registry management
     'removeTerminalFromRegistry',
     'patchTerminalRecord',

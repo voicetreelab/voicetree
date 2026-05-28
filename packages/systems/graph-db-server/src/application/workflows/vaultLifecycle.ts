@@ -17,6 +17,7 @@ import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderSta
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
+import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
 import {
   getReadPaths,
   getWriteFolder,
@@ -177,6 +178,7 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
   if (!result.success) {
     throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetProjectRoot}`)
   }
+  await reconcileGraphWithDisk()
 }
 
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {

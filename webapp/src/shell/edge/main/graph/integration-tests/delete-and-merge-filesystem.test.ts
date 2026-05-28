@@ -14,223 +14,41 @@
  * - Read filesystem to verify changes
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-function-type */
-
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
-import * as O from 'fp-ts/lib/Option.js'
-import * as E from 'fp-ts/lib/Either.js'
+import { createDeleteAndMergeFilesystemTestSupport } from './delete-and-merge-filesystem.test/__tests__/test-support'
 import { deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/actions/handleUIActions'
 import { mergeSelectedNodesFromUI } from '@/shell/edge/UI-edge/graph/actions/mergeSelectedNodesFromUI'
-import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/graph'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
+import type { Graph } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
-import * as fs from 'fs/promises'
-import * as path from 'path'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
-import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
-import { initGraphModel } from '@vt/graph-model'
-import { setProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
-import { apply_graph_deltas_to_db } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 
-// State managed by mocked globals
-let currentGraph: Graph | null = null
-let tempVault: string = ''
-
-function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
-    return applyGraphDeltaToUI(cy, projectDelta(delta))
-}
-
-async function applyDeltaToFilesystemAndState(cy: Core, delta: GraphDelta): Promise<void> {
-    const result: E.Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)({
-        projectRoot: tempVault
-    })()
-    if (E.isLeft(result)) {
-        throw result.left
-    }
-    if (currentGraph) {
-        currentGraph = applyGraphDeltaToGraph(currentGraph, delta)
-    }
-    applyDeltaToUI(cy, delta)
-}
-
-function createTestWindow(cy: Core, includeWriteFolder: boolean): Window {
-    return {
-        electronAPI: {
-            main: {
-                getGraph: async () => currentGraph,
-                getNode: async (nodeId: string) => currentGraph?.nodes[nodeId],
-                ...(includeWriteFolder
-                    ? {
-                        getWriteFolder: () => Promise.resolve(O.some(tempVault)),
-                        getWatchStatus: () => ({ isWatching: false, directory: tempVault })
-                    }
-                    : {}),
-                applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                    await applyDeltaToFilesystemAndState(cy, delta)
-                }
-            }
-        }
-    } as unknown as Window
-}
-
-// Mock Electron's ipcMain - use vi.hoisted to avoid "Cannot access before initialization" error
-const { ipcMain } = vi.hoisted(() => {
-    const ipcMain: { _handlers: Map<string, Function>; handle(channel: string, handler: Function): void; removeHandler(channel: string): void } = {
-        _handlers: new Map<string, Function>(),
-        handle(channel: string, handler: Function) {
-            this._handlers.set(channel, handler)
-        },
-        removeHandler(channel: string) {
-            this._handlers.delete(channel)
-        }
-    }
-    return { ipcMain }
-})
-
-// Mock electron module
-vi.mock('electron', () => ({
-    ipcMain,
-    dialog: {
-        showOpenDialog: vi.fn()
-    },
-    app: {
-        whenReady: () => Promise.resolve(),
-        on: vi.fn(),
-        quit: vi.fn(),
-        getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
-    }
-}))
-
-// Mock posthog
-vi.mock('posthog-js', () => ({
-    default: {
-        capture: vi.fn(),
-        get_distinct_id: vi.fn(() => 'test-user-id')
-    }
-}))
-
-// Mock agentTabsActivity
-vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async () => {
-    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity') = await vi.importActual('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')
-    return {
-        ...actual,
-        markTerminalActivityForContextNode: vi.fn()
-    }
-})
-
-// Mock watchFolder for vault path functions
-vi.mock('@/shell/edge/main/graph/watchFolder', () => {
-    return {
-        getProjectRoot: () => {
-            return tempVault ? O.of(tempVault) : O.none
-        },
-        setProjectRoot: (path: string) => {
-            tempVault = path
-        },
-        clearProjectRoot: () => {
-            tempVault = ''
-        },
-        startFileWatching: vi.fn().mockResolvedValue({ success: true }),
-        stopFileWatching: vi.fn().mockResolvedValue({ success: true }),
-        initialLoad: vi.fn().mockResolvedValue(undefined),
-        getWatchStatus: vi.fn(() => ({ isWatching: false, directory: undefined })),
-        loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
-        isWatching: vi.fn(() => false),
-        getWatchedDirectory: () => tempVault || null,
-        loadFolder: vi.fn().mockResolvedValue(undefined)
-    }
-})
-
-
-// Helper to create a minimal GraphNode
-function createTestNode(
-    id: string,
-    content: string,
-    outgoingEdges: readonly { targetId: string; label: string }[] = [],
-    position?: { x: number; y: number },
-    isContextNode: boolean = false
-): GraphNode {
-    return {
-        absoluteFilePathIsID: id,
-        outgoingEdges,
-        contentWithoutYamlOrLinks: content,
-        nodeUIMetadata: {
-            color: O.none,
-            position: position ? O.some(position) : O.none,
-            additionalYAMLProps: {},
-            isContextNode
-        }
-    }
-}
-
-// Helper to write a markdown file with optional wikilinks
-async function writeMarkdownFile(
-    projectRoot: string,
-    filename: string,
-    content: string,
-    wikilinks: string[] = [],
-    position?: { x: number; y: number }
-): Promise<void> {
-    const frontmatter: string = position
-        ? `---\nposition:\n  x: ${position.x}\n  y: ${position.y}\n---\n`
-        : ''
-    const linksSection: string = wikilinks.length > 0
-        ? `\n\n_Links:_\n${wikilinks.map(link => `- [[${link}]]`).join('\n')}`
-        : ''
-    const fullContent: string = `${frontmatter}${content}${linksSection}`
-    await fs.writeFile(path.join(projectRoot, filename), fullContent)
-}
-
-// Helper to read wikilinks from a markdown file
-async function readWikilinksFromFile(filePath: string): Promise<string[]> {
-    const content: string = await fs.readFile(filePath, 'utf-8')
-    const wikiLinkRegex: RegExp = /\[\[([^\]]+)\]\]/g
-    const matches: string[] = []
-    let match: RegExpExecArray | null
-    while ((match = wikiLinkRegex.exec(content)) !== null) {
-        matches.push(match[1])
-    }
-    return matches
-}
-
-// Helper to check if file exists
-async function fileExists(filePath: string): Promise<boolean> {
-    return fs.access(filePath).then(() => true).catch(() => false)
-}
+const filesystemTest = createDeleteAndMergeFilesystemTestSupport()
 
 describe('Delete with Edge Preservation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        resetTestProjectionState()
-        initGraphModel({})
-        tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
-        await fs.mkdir(tempVault, { recursive: true })
-        setProjectRoot(tempVault)
+        await filesystemTest.setupDeleteFilesystemTest()
     })
 
     afterEach(async () => {
-        cy?.destroy()
-        await fs.rm(tempVault, { recursive: true, force: true })
-        setProjectRoot(null)
-        vi.clearAllMocks()
+        await filesystemTest.cleanupFilesystemTest(cy)
     })
 
     it('should delete middle node and remove the parent edge without transitive healing', async () => {
         // GIVEN: Chain A → B → C on filesystem
-        await writeMarkdownFile(tempVault, 'A.md', '# Node A', ['B.md'], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'B.md', '# Node B', ['C.md'], { x: 100, y: 0 })
-        await writeMarkdownFile(tempVault, 'C.md', '# Node C', [], { x: 200, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'A.md', '# Node A', ['B.md'], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'B.md', '# Node B', ['C.md'], { x: 100, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'C.md', '# Node C', [], { x: 200, y: 0 })
 
         // Setup graph state
         const mockGraph: Graph = createGraph({
-            'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 0 }),
-            'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 100, y: 0 }),
-            'C.md': createTestNode('C.md', '# Node C', [], { x: 200, y: 0 })
+            'A.md': filesystemTest.createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 0 }),
+            'B.md': filesystemTest.createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 100, y: 0 }),
+            'C.md': filesystemTest.createTestNode('C.md', '# Node C', [], { x: 200, y: 0 })
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         // Setup cytoscape
         cy = cytoscape({
@@ -245,43 +63,43 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         })
 
         // Setup window.electronAPI
-        global.window = createTestWindow(cy, false)
+        global.window = filesystemTest.createTestWindow(cy, false)
 
         // WHEN: Delete node B
         await deleteNodesFromUI(['B.md'], cy)
 
         // THEN: B.md should be deleted from filesystem
-        expect(await fileExists(path.join(tempVault, 'B.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('B.md'))).toBe(false)
 
         // AND: A.md should still exist, but its link to the deleted node should be removed.
-        expect(await fileExists(path.join(tempVault, 'A.md'))).toBe(true)
-        const aLinks: string[] = await readWikilinksFromFile(path.join(tempVault, 'A.md'))
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('A.md'))).toBe(true)
+        const aLinks: string[] = await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('A.md'))
         expect(aLinks).not.toContain('B.md')
         expect(aLinks).toEqual([])
 
         // AND: C.md should still exist
-        expect(await fileExists(path.join(tempVault, 'C.md'))).toBe(true)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('C.md'))).toBe(true)
     })
 
     it('should delete multiple nodes from separate subtrees and clean parent edges', async () => {
         // GIVEN: Two separate branches: Parent1 → A → C and Parent2 → B → D
         // Deleting A and B should remove the direct parent links in each subtree independently.
-        await writeMarkdownFile(tempVault, 'Parent1.md', '# Parent 1', ['A.md'], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'A.md', '# Node A', ['C.md'], { x: 0, y: 100 })
-        await writeMarkdownFile(tempVault, 'C.md', '# Node C', [], { x: 0, y: 200 })
-        await writeMarkdownFile(tempVault, 'Parent2.md', '# Parent 2', ['B.md'], { x: 200, y: 0 })
-        await writeMarkdownFile(tempVault, 'B.md', '# Node B', ['D.md'], { x: 200, y: 100 })
-        await writeMarkdownFile(tempVault, 'D.md', '# Node D', [], { x: 200, y: 200 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Parent1.md', '# Parent 1', ['A.md'], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'A.md', '# Node A', ['C.md'], { x: 0, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'C.md', '# Node C', [], { x: 0, y: 200 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Parent2.md', '# Parent 2', ['B.md'], { x: 200, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'B.md', '# Node B', ['D.md'], { x: 200, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'D.md', '# Node D', [], { x: 200, y: 200 })
 
         const mockGraph: Graph = createGraph({
-            'Parent1.md': createTestNode('Parent1.md', '# Parent 1', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
-            'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'C.md', label: '' }], { x: 0, y: 100 }),
-            'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 200 }),
-            'Parent2.md': createTestNode('Parent2.md', '# Parent 2', [{ targetId: 'B.md', label: '' }], { x: 200, y: 0 }),
-            'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'D.md', label: '' }], { x: 200, y: 100 }),
-            'D.md': createTestNode('D.md', '# Node D', [], { x: 200, y: 200 })
+            'Parent1.md': filesystemTest.createTestNode('Parent1.md', '# Parent 1', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
+            'A.md': filesystemTest.createTestNode('A.md', '# Node A', [{ targetId: 'C.md', label: '' }], { x: 0, y: 100 }),
+            'C.md': filesystemTest.createTestNode('C.md', '# Node C', [], { x: 0, y: 200 }),
+            'Parent2.md': filesystemTest.createTestNode('Parent2.md', '# Parent 2', [{ targetId: 'B.md', label: '' }], { x: 200, y: 0 }),
+            'B.md': filesystemTest.createTestNode('B.md', '# Node B', [{ targetId: 'D.md', label: '' }], { x: 200, y: 100 }),
+            'D.md': filesystemTest.createTestNode('D.md', '# Node D', [], { x: 200, y: 200 })
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -299,28 +117,28 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             ]
         })
 
-        global.window = createTestWindow(cy, false)
+        global.window = filesystemTest.createTestWindow(cy, false)
 
         // WHEN: Delete both A and B (from separate subtrees)
         await deleteNodesFromUI(['A.md', 'B.md'], cy)
 
         // THEN: Both A.md and B.md should be deleted
-        expect(await fileExists(path.join(tempVault, 'A.md'))).toBe(false)
-        expect(await fileExists(path.join(tempVault, 'B.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('A.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('B.md'))).toBe(false)
 
         // AND: Parent1.md should no longer link to the deleted child.
-        const parent1Links: string[] = await readWikilinksFromFile(path.join(tempVault, 'Parent1.md'))
+        const parent1Links: string[] = await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('Parent1.md'))
         expect(parent1Links).not.toContain('A.md')
         expect(parent1Links).toEqual([])
 
         // AND: Parent2.md should no longer link to the deleted child.
-        const parent2Links: string[] = await readWikilinksFromFile(path.join(tempVault, 'Parent2.md'))
+        const parent2Links: string[] = await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('Parent2.md'))
         expect(parent2Links).not.toContain('B.md')
         expect(parent2Links).toEqual([])
 
         // AND: C.md and D.md should still exist
-        expect(await fileExists(path.join(tempVault, 'C.md'))).toBe(true)
-        expect(await fileExists(path.join(tempVault, 'D.md'))).toBe(true)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('C.md'))).toBe(true)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('D.md'))).toBe(true)
     })
 
     it('should delete multiple CONNECTED nodes in a chain and remove stale parent edges', async () => {
@@ -331,18 +149,18 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         // being deleted.
         //
         // GIVEN: Chain Parent → A → B → C
-        await writeMarkdownFile(tempVault, 'Parent.md', '# Parent', ['A.md'], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'A.md', '# Node A', ['B.md'], { x: 0, y: 100 })
-        await writeMarkdownFile(tempVault, 'B.md', '# Node B', ['C.md'], { x: 0, y: 200 })
-        await writeMarkdownFile(tempVault, 'C.md', '# Node C', [], { x: 0, y: 300 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Parent.md', '# Parent', ['A.md'], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'A.md', '# Node A', ['B.md'], { x: 0, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'B.md', '# Node B', ['C.md'], { x: 0, y: 200 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'C.md', '# Node C', [], { x: 0, y: 300 })
 
         const mockGraph: Graph = createGraph({
-            'Parent.md': createTestNode('Parent.md', '# Parent', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
-            'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 100 }),
-            'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 0, y: 200 }),
-            'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 300 })
+            'Parent.md': filesystemTest.createTestNode('Parent.md', '# Parent', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
+            'A.md': filesystemTest.createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 100 }),
+            'B.md': filesystemTest.createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 0, y: 200 }),
+            'C.md': filesystemTest.createTestNode('C.md', '# Node C', [], { x: 0, y: 300 })
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -357,23 +175,23 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             ]
         })
 
-        global.window = createTestWindow(cy, false)
+        global.window = filesystemTest.createTestWindow(cy, false)
 
         // WHEN: Delete A and B together (connected nodes in the chain)
         await deleteNodesFromUI(['A.md', 'B.md'], cy)
 
         // THEN: Both A.md and B.md should be deleted
-        expect(await fileExists(path.join(tempVault, 'A.md'))).toBe(false)
-        expect(await fileExists(path.join(tempVault, 'B.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('A.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('B.md'))).toBe(false)
 
         // AND: Parent.md should simply lose its edge to the deleted chain.
-        const parentLinks: string[] = await readWikilinksFromFile(path.join(tempVault, 'Parent.md'))
+        const parentLinks: string[] = await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('Parent.md'))
         expect(parentLinks).not.toContain('A.md')
         expect(parentLinks).not.toContain('B.md')
         expect(parentLinks).toEqual([])
 
         // AND: C.md should still exist
-        expect(await fileExists(path.join(tempVault, 'C.md'))).toBe(true)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('C.md'))).toBe(true)
     })
 })
 
@@ -381,31 +199,25 @@ describe('Merge Operation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        initGraphModel({})
-        tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
-        await fs.mkdir(tempVault, { recursive: true })
-        setProjectRoot(tempVault)
+        await filesystemTest.setupMergeFilesystemTest('test-vault-merge')
     })
 
     afterEach(async () => {
-        cy?.destroy()
-        await fs.rm(tempVault, { recursive: true, force: true })
-        setProjectRoot(null)
-        vi.clearAllMocks()
+        await filesystemTest.cleanupFilesystemTest(cy)
     })
 
     it('should merge nodes and redirect external incomer edges on filesystem', async () => {
         // GIVEN: External → Internal1 → Internal2
-        await writeMarkdownFile(tempVault, 'External.md', '# External', ['Internal1.md'], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'Internal1.md', '# Internal 1', ['Internal2.md'], { x: 100, y: 100 })
-        await writeMarkdownFile(tempVault, 'Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'External.md', '# External', ['Internal1.md'], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Internal1.md', '# Internal 1', ['Internal2.md'], { x: 100, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
 
         const mockGraph: Graph = createGraph({
-            'External.md': createTestNode('External.md', '# External', [{ targetId: 'Internal1.md', label: '' }], { x: 0, y: 0 }),
-            'Internal1.md': createTestNode('Internal1.md', '# Internal 1', [{ targetId: 'Internal2.md', label: '' }], { x: 100, y: 100 }),
-            'Internal2.md': createTestNode('Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
+            'External.md': filesystemTest.createTestNode('External.md', '# External', [{ targetId: 'Internal1.md', label: '' }], { x: 0, y: 0 }),
+            'Internal1.md': filesystemTest.createTestNode('Internal1.md', '# Internal 1', [{ targetId: 'Internal2.md', label: '' }], { x: 100, y: 100 }),
+            'Internal2.md': filesystemTest.createTestNode('Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -418,47 +230,47 @@ describe('Merge Operation - Filesystem Integration', () => {
             ]
         })
 
-        global.window = createTestWindow(cy, true)
+        global.window = filesystemTest.createTestWindow(cy, true)
 
         // WHEN: Merge Internal1 and Internal2
         await mergeSelectedNodesFromUI(['Internal1.md', 'Internal2.md'], cy)
 
         // THEN: Original nodes should be deleted
-        expect(await fileExists(path.join(tempVault, 'Internal1.md'))).toBe(false)
-        expect(await fileExists(path.join(tempVault, 'Internal2.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Internal1.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Internal2.md'))).toBe(false)
 
         // AND: A merged node file should be created (starts with 'merged_')
-        const files: string[] = await fs.readdir(tempVault)
+        const files: string[] = await filesystemTest.readVaultDirectory()
         const mergedFiles: string[] = files.filter(f => f.startsWith('merged_'))
         expect(mergedFiles).toHaveLength(1)
         const mergedFileName: string = mergedFiles[0]
 
         // AND: Merged file should contain combined content
-        const mergedContent: string = await fs.readFile(path.join(tempVault, mergedFileName), 'utf-8')
+        const mergedContent: string = await filesystemTest.readVaultFile(mergedFileName)
         expect(mergedContent).toContain('Internal 1')
         expect(mergedContent).toContain('Internal 2')
 
         // AND: External.md should now link to merged node
         // Note: wikilinks may contain absolute paths since merge generates absolute node IDs
-        const externalLinks: string[] = (await readWikilinksFromFile(path.join(tempVault, 'External.md'))).map(l => path.basename(l))
+        const externalLinks: string[] = (await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('External.md'))).map(l => filesystemTest.basename(l))
         expect(externalLinks).toContain(mergedFileName)
         expect(externalLinks).not.toContain('Internal1.md')
     })
 
     it('should merge and redirect multiple external incomers', async () => {
         // GIVEN: Ext1 → Leaf1, Ext2 → Leaf2
-        await writeMarkdownFile(tempVault, 'Ext1.md', '# Ext 1', ['Leaf1.md'], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'Ext2.md', '# Ext 2', ['Leaf2.md'], { x: 200, y: 0 })
-        await writeMarkdownFile(tempVault, 'Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 })
-        await writeMarkdownFile(tempVault, 'Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Ext1.md', '# Ext 1', ['Leaf1.md'], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Ext2.md', '# Ext 2', ['Leaf2.md'], { x: 200, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
 
         const mockGraph: Graph = createGraph({
-            'Ext1.md': createTestNode('Ext1.md', '# Ext 1', [{ targetId: 'Leaf1.md', label: '' }], { x: 0, y: 0 }),
-            'Ext2.md': createTestNode('Ext2.md', '# Ext 2', [{ targetId: 'Leaf2.md', label: '' }], { x: 200, y: 0 }),
-            'Leaf1.md': createTestNode('Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 }),
-            'Leaf2.md': createTestNode('Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
+            'Ext1.md': filesystemTest.createTestNode('Ext1.md', '# Ext 1', [{ targetId: 'Leaf1.md', label: '' }], { x: 0, y: 0 }),
+            'Ext2.md': filesystemTest.createTestNode('Ext2.md', '# Ext 2', [{ targetId: 'Leaf2.md', label: '' }], { x: 200, y: 0 }),
+            'Leaf1.md': filesystemTest.createTestNode('Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 }),
+            'Leaf2.md': filesystemTest.createTestNode('Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -472,24 +284,24 @@ describe('Merge Operation - Filesystem Integration', () => {
             ]
         })
 
-        global.window = createTestWindow(cy, true)
+        global.window = filesystemTest.createTestWindow(cy, true)
 
         // WHEN: Merge Leaf1 and Leaf2
         await mergeSelectedNodesFromUI(['Leaf1.md', 'Leaf2.md'], cy)
 
         // THEN: Original leaf nodes should be deleted
-        expect(await fileExists(path.join(tempVault, 'Leaf1.md'))).toBe(false)
-        expect(await fileExists(path.join(tempVault, 'Leaf2.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Leaf1.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Leaf2.md'))).toBe(false)
 
         // AND: Find the merged node
-        const files: string[] = await fs.readdir(tempVault)
+        const files: string[] = await filesystemTest.readVaultDirectory()
         const mergedFileName: string = files.find(f => f.startsWith('merged_'))!
         expect(mergedFileName).toBeDefined()
 
         // AND: Both Ext1 and Ext2 should now link to the merged node
         // Note: wikilinks may contain absolute paths since merge generates absolute node IDs
-        const ext1Links: string[] = (await readWikilinksFromFile(path.join(tempVault, 'Ext1.md'))).map(l => path.basename(l))
-        const ext2Links: string[] = (await readWikilinksFromFile(path.join(tempVault, 'Ext2.md'))).map(l => path.basename(l))
+        const ext1Links: string[] = (await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('Ext1.md'))).map(l => filesystemTest.basename(l))
+        const ext2Links: string[] = (await filesystemTest.readWikilinksFromFile(filesystemTest.vaultFilePath('Ext2.md'))).map(l => filesystemTest.basename(l))
 
         expect(ext1Links).toContain(mergedFileName)
         expect(ext2Links).toContain(mergedFileName)
@@ -502,31 +314,25 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        initGraphModel({})
-        tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
-        await fs.mkdir(tempVault, { recursive: true })
-        setProjectRoot(tempVault)
+        await filesystemTest.setupMergeFilesystemTest('test-vault-merge-ctx')
     })
 
     afterEach(async () => {
-        cy?.destroy()
-        await fs.rm(tempVault, { recursive: true, force: true })
-        setProjectRoot(null)
-        vi.clearAllMocks()
+        await filesystemTest.cleanupFilesystemTest(cy)
     })
 
     it('should delete context nodes and merge only regular nodes', async () => {
         // GIVEN: Two regular nodes and one context node
-        await writeMarkdownFile(tempVault, 'Regular1.md', '# Regular 1', [], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'Regular2.md', '# Regular 2', [], { x: 100, y: 0 })
-        await writeMarkdownFile(tempVault, 'Context1.md', '# Context 1', [], { x: 50, y: 100 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Regular1.md', '# Regular 1', [], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Regular2.md', '# Regular 2', [], { x: 100, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Context1.md', '# Context 1', [], { x: 50, y: 100 })
 
         const mockGraph: Graph = createGraph({
-            'Regular1.md': createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
-            'Regular2.md': createTestNode('Regular2.md', '# Regular 2', [], { x: 100, y: 0 }, false),
-            'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 50, y: 100 }, true) // isContextNode
+            'Regular1.md': filesystemTest.createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
+            'Regular2.md': filesystemTest.createTestNode('Regular2.md', '# Regular 2', [], { x: 100, y: 0 }, false),
+            'Context1.md': filesystemTest.createTestNode('Context1.md', '# Context 1', [], { x: 50, y: 100 }, true) // isContextNode
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -537,22 +343,22 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
             ]
         })
 
-        global.window = createTestWindow(cy, true)
+        global.window = filesystemTest.createTestWindow(cy, true)
 
         // WHEN: Merge all three nodes (2 regular + 1 context)
         await mergeSelectedNodesFromUI(['Regular1.md', 'Regular2.md', 'Context1.md'], cy)
 
         // THEN: All original nodes should be deleted
-        expect(await fileExists(path.join(tempVault, 'Regular1.md'))).toBe(false)
-        expect(await fileExists(path.join(tempVault, 'Regular2.md'))).toBe(false)
-        expect(await fileExists(path.join(tempVault, 'Context1.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Regular1.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Regular2.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Context1.md'))).toBe(false)
 
         // AND: A merged node should be created containing only regular nodes' content
-        const files: string[] = await fs.readdir(tempVault)
+        const files: string[] = await filesystemTest.readVaultDirectory()
         const mergedFiles: string[] = files.filter(f => f.startsWith('merged_'))
         expect(mergedFiles).toHaveLength(1)
 
-        const mergedContent: string = await fs.readFile(path.join(tempVault, mergedFiles[0]), 'utf-8')
+        const mergedContent: string = await filesystemTest.readVaultFile(mergedFiles[0])
         expect(mergedContent).toContain('Regular 1')
         expect(mergedContent).toContain('Regular 2')
         // Context node content should NOT be in merged content
@@ -561,14 +367,14 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
 
     it('should only delete context nodes if fewer than 2 regular nodes selected', async () => {
         // GIVEN: One regular node and one context node
-        await writeMarkdownFile(tempVault, 'Regular1.md', '# Regular 1', [], { x: 0, y: 0 })
-        await writeMarkdownFile(tempVault, 'Context1.md', '# Context 1', [], { x: 100, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Regular1.md', '# Regular 1', [], { x: 0, y: 0 })
+        await filesystemTest.writeMarkdownFile(filesystemTest.tempVault(), 'Context1.md', '# Context 1', [], { x: 100, y: 0 })
 
         const mockGraph: Graph = createGraph({
-            'Regular1.md': createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
-            'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 100, y: 0 }, true)
+            'Regular1.md': filesystemTest.createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
+            'Context1.md': filesystemTest.createTestNode('Context1.md', '# Context 1', [], { x: 100, y: 0 }, true)
         })
-        currentGraph = mockGraph
+        filesystemTest.setCurrentGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -578,19 +384,19 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
             ]
         })
 
-        global.window = createTestWindow(cy, true)
+        global.window = filesystemTest.createTestWindow(cy, true)
 
         // WHEN: Try to merge 1 regular + 1 context node (not enough regular nodes to merge)
         await mergeSelectedNodesFromUI(['Regular1.md', 'Context1.md'], cy)
 
         // THEN: Context node should be deleted (always deleted when selected)
-        expect(await fileExists(path.join(tempVault, 'Context1.md'))).toBe(false)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Context1.md'))).toBe(false)
 
         // AND: Regular node should remain (not enough to merge)
-        expect(await fileExists(path.join(tempVault, 'Regular1.md'))).toBe(true)
+        expect(await filesystemTest.fileExists(filesystemTest.vaultFilePath('Regular1.md'))).toBe(true)
 
         // AND: No merged node should be created
-        const files: string[] = await fs.readdir(tempVault)
+        const files: string[] = await filesystemTest.readVaultDirectory()
         const mergedFiles: string[] = files.filter(f => f.startsWith('merged_'))
         expect(mergedFiles).toHaveLength(0)
     })

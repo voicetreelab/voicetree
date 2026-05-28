@@ -3,8 +3,11 @@ import * as O from 'fp-ts/lib/Option.js'
 import { parseMarkdownToGraphNode, getNodeTitle } from '.'
 import type { Graph, GraphNode } from '..'
 import { createGraph } from '../construction/createGraph'
+import {
+  appendAgentExtractionAnalysisContent,
+  immediateTestObservationContent,
+} from './__tests__/parse-markdown-to-node-fixtures'
 
-// Helper to create an empty graph for testing
 const emptyGraph: Graph = createGraph({})
 
 describe('parseMarkdownToGraphNode', () => {
@@ -403,33 +406,11 @@ containedNodeIds: []
 
   describe('real example file parsing', () => {
     it('should parse real example file with color, position (scientific notation), isContextNode, and agent_name', () => {
-      // Content from example_folder_fixtures/example_real_large/2025-09-30/14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md
-      const content: string = `---
-color: orange
-position:
-  x: -9.184850993605149e-14
-  y: -500
-isContextNode: false
-node_id: 141
-agent_name: Victor
----
-part of [[27_Two_Streams_of_Work]]
-
-** Summary**
-Analyzed the AppendToRelevantNodeAgent for Cloud Run Function extraction. The agent is **already stateless and well-architected** for serverless deployment - no refactoring required, only packaging needed.
-
-** Technical Details**
-
-** Files Analyzed**
-- **Workflow File**: \`backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py:198\`
-
------------------
-_Links:_
-Parent:
-- is_progress_of [[2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md]]
-[[27_Two_Streams_of_Work.md]]`
-
-      const result: GraphNode = parseMarkdownToGraphNode(content, '14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(
+        appendAgentExtractionAnalysisContent,
+        '14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md',
+        emptyGraph
+      )
 
       // Check color is parsed correctly
       expect(O.isSome(result.nodeUIMetadata.color)).toBe(true)
@@ -459,26 +440,11 @@ Parent:
     })
 
     it('should parse real example file with position in scientific notation and isContextNode', () => {
-      // Content from example_folder_fixtures/example_small/5_Immediate_Test_Observation_No_Output.md
-      const content: string = `---
-position:
-  x: 3.061616997868383e-14
-  y: 500
-isContextNode: false
-node_id: 5
----
-### Speaker observes no output despite repeated speech input during an immediate test.
-
-All right, so I'm testing 'one, two, three'. I don't see anything.
-
------------------
-_Links:_
-Parent:
-- is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]
-
-[[ctx-nodes/5_Immediate_Test_Observation_No_Output.md_context_1764570013191.md]]`
-
-      const result: GraphNode = parseMarkdownToGraphNode(content, '5_Immediate_Test_Observation_No_Output.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(
+        immediateTestObservationContent,
+        '5_Immediate_Test_Observation_No_Output.md',
+        emptyGraph
+      )
 
       // Check position with small scientific notation is parsed correctly
       expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)

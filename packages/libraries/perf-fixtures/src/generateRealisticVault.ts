@@ -9,7 +9,7 @@
  *
  * This file is the single source of truth, consumed by:
  *   - `packages/measures/perf/agent-storm.ts`  (daemon-only storm harness)
- *   - `webapp/e2e-tests/.../electron-agent-storm-perf.spec.ts` (e2e storm)
+ *   - `packages/measures/perf/e2e-storm-mvp/index.ts` (headful electron + fake-agent MVP)
  *   - `webapp/e2e-tests/.../electron-500-node-realistic-perf.spec.ts` (LOAD/PAN-ZOOM/UPDATE)
  *
  * Pure data + sync fs writes. No async, no logging, no console output —

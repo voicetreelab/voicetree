@@ -8,6 +8,9 @@ const SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx']
 
 export type SourceFile = {
     readonly absolutePath: string
+    /**
+     * Repo-relative path in Git's slash-separated path format.
+     */
     readonly relativePath: string
     readonly relToSrc: string
     readonly packageName: string
@@ -18,7 +21,7 @@ export type Edge = {
     readonly to: SourceFile
 }
 
-export type ImportGraph = {
+type ImportGraph = {
     readonly files: readonly SourceFile[]
     readonly edges: readonly Edge[]
 }
@@ -78,7 +81,7 @@ export async function scanSourceFiles(packages: readonly PackageInfo[], repoRoot
         const files = await listProductionSources(pkg.srcRoot)
         return files.map(file => ({
             absolutePath: resolve(file),
-            relativePath: relative(repoRoot, file),
+            relativePath: relative(repoRoot, file).replaceAll('\\', '/'),
             relToSrc: relative(pkg.srcRoot, file),
             packageName: pkg.dirName,
         }))

@@ -1,5 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  beforeAll,
+} from "vitest";
 
 // Mock window event listeners before importing CodeMirrorEditorView
 // This prevents mermaid from failing during module initialization
@@ -12,7 +20,9 @@ beforeAll(() => {
   }
 });
 
-import { CodeMirrorEditorView, hasFrontmatter } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
+import { CodeMirrorEditorView } from "@/shell/UI/floating-windows/editors/CodeMirrorEditorView";
+import { describeHasFrontmatterTests } from "./CodeMirrorEditorView.test/__tests__/hasFrontmatter";
+import { describeImagePasteHandlerTests } from "./CodeMirrorEditorView.test/__tests__/imagePasteHandler";
 
 interface CodeMirrorElement extends HTMLElement {
   cmView?: {
@@ -26,14 +36,14 @@ type CMEditorView = {
     doc: { length: number; toString: () => string };
     selection: { main: { head: number } };
   };
-}
+};
 
-describe('Frontmatter Parsing', () => {
+describe("Frontmatter Parsing", () => {
   let container: HTMLElement;
   let editor: CodeMirrorEditorView;
 
   beforeEach(() => {
-    container = document.createElement('div');
+    container = document.createElement("div");
     document.body.appendChild(container);
   });
 
@@ -46,7 +56,7 @@ describe('Frontmatter Parsing', () => {
     }
   });
 
-  it('should display both opening and closing --- delimiters', async () => {
+  it("should display both opening and closing --- delimiters", async () => {
     const frontmatterContent: "---\nnode_id: 123\ntitle: Test Node\ncolor: blue\n---\n\n# Main content here" = `---
 node_id: 123
 title: Test Node
@@ -58,7 +68,7 @@ color: blue
     editor = new CodeMirrorEditorView(container, frontmatterContent);
 
     // Wait for CodeMirror to render
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Get the text content from the editor
     const content: string = editor.getValue();
@@ -71,17 +81,17 @@ color: blue
     expect(closingDelim).not.toBeNull();
 
     // Check that content is preserved correctly
-    expect(content).toContain('node_id: 123');
-    expect(content).toContain('title: Test Node');
-    expect(content).toContain('# Main content here');
+    expect(content).toContain("node_id: 123");
+    expect(content).toContain("title: Test Node");
+    expect(content).toContain("# Main content here");
 
     // Verify the structure: opening ---, content, closing ---,main content
-    const lines: string[] = content.split('\n');
-    expect(lines[0]).toBe('---');
-    expect(lines[4]).toBe('---'); // After 3 lines of frontmatter
+    const lines: string[] = content.split("\n");
+    expect(lines[0]).toBe("---");
+    expect(lines[4]).toBe("---"); // After 3 lines of frontmatter
   });
 
-  it('should parse frontmatter with yamlFrontmatter language support', async () => {
+  it("should parse frontmatter with yamlFrontmatter language support", async () => {
     const frontmatterContent: "---\nnode_id: 456\n---\nContent" = `---
 node_id: 456
 ---
@@ -89,32 +99,32 @@ Content`;
 
     editor = new CodeMirrorEditorView(container, frontmatterContent);
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Check that the editor recognizes the structure
     const content: string = editor.getValue();
 
     // Split and verify structure
-    const lines: string[] = content.split('\n');
+    const lines: string[] = content.split("\n");
 
     // First line should be opening ---
-    expect(lines[0]).toBe('---');
+    expect(lines[0]).toBe("---");
 
     // Middle should be YAML content
-    expect(lines[1]).toContain('node_id:');
+    expect(lines[1]).toContain("node_id:");
 
     // Should have closing ---
-    expect(lines[2]).toBe('---');
+    expect(lines[2]).toBe("---");
 
     // Content should follow
-    expect(lines[3]).toBe('Content');
+    expect(lines[3]).toBe("Content");
   });
 
-  it('should auto-collapse frontmatter when setValue loads NEW frontmatter', async () => {
+  it("should auto-collapse frontmatter when setValue loads NEW frontmatter", async () => {
     // Start with empty content (no frontmatter)
-    editor = new CodeMirrorEditorView(container, '# Initial content');
+    editor = new CodeMirrorEditorView(container, "# Initial content");
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Now set content WITH frontmatter (simulates optimistic UI → actual content)
     const contentWithFrontmatter: "---\nposition:\n  x: 100\n  y: 200\n---\n# New content" = `---
@@ -127,18 +137,18 @@ position:
     editor.setValue(contentWithFrontmatter);
 
     // Wait for requestAnimationFrame to complete
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const value: string = editor.getValue();
 
     // Should still contain frontmatter (folding doesn't remove it)
-    expect(value).toContain('---');
-    expect(value).toContain('position:');
-    expect(value).toContain('# New content');
+    expect(value).toContain("---");
+    expect(value).toContain("position:");
+    expect(value).toContain("# New content");
   });
 
-  it('should NOT auto-collapse when setValue updates existing frontmatter', async () => {
+  it("should NOT auto-collapse when setValue updates existing frontmatter", async () => {
     // Start with content that already has frontmatter
     const initialContent: "---\nposition:\n  x: 50\n  y: 50\n---\n# Original" = `---
 position:
@@ -149,7 +159,7 @@ position:
 
     editor = new CodeMirrorEditorView(container, initialContent);
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Update with different frontmatter
     const updatedContent: "---\nposition:\n  x: 100\n  y: 100\n---\n# Updated" = `---
@@ -161,69 +171,70 @@ position:
 
     editor.setValue(updatedContent);
 
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const value: string = editor.getValue();
 
     // Should contain updated content
-    expect(value).toContain('x: 100');
-    expect(value).toContain('# Updated');
+    expect(value).toContain("x: 100");
+    expect(value).toContain("# Updated");
   });
 
-  it('should NOT auto-collapse when setValue updates content without frontmatter', async () => {
+  it("should NOT auto-collapse when setValue updates content without frontmatter", async () => {
     // Start with content without frontmatter
-    editor = new CodeMirrorEditorView(container, '# First heading');
+    editor = new CodeMirrorEditorView(container, "# First heading");
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Update with different content (still no frontmatter)
-    editor.setValue('# Second heading');
+    editor.setValue("# Second heading");
 
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const value: string = editor.getValue();
 
     // Should contain updated content
-    expect(value).toContain('# Second heading');
-    expect(value).not.toContain('# First heading');
+    expect(value).toContain("# Second heading");
+    expect(value).not.toContain("# First heading");
   });
 
   // TODO: flaky — jsdom can't lay out CodeMirror, so `cmView` is undefined here. Same
   // root cause as the skipped 'Image paste handler' describe below. Re-enable when the
   // CodeMirror suite is moved to a real-DOM runner.
-  it.skip('keeps the cursor at the new end when setValue appends to an end cursor', async () => {
-    editor = new CodeMirrorEditorView(container, 'r');
+  it.skip("keeps the cursor at the new end when setValue appends to an end cursor", async () => {
+    editor = new CodeMirrorEditorView(container, "r");
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const contentElement: CodeMirrorElement | null = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const contentElement: CodeMirrorElement | null = container.querySelector(
+      ".cm-content",
+    ) as CodeMirrorElement | null;
     const cmView: CMEditorView | undefined = contentElement?.cmView?.view;
     expect(cmView).toBeDefined();
 
     cmView!.dispatch({ selection: { anchor: cmView!.state.doc.length } });
-    editor.setValue('ra');
+    editor.setValue("ra");
 
-    expect(editor.getValue()).toBe('ra');
+    expect(editor.getValue()).toBe("ra");
     expect(cmView!.state.selection.main.head).toBe(2);
 
     cmView!.dispatch({
-      changes: { from: cmView!.state.selection.main.head, insert: 'n' },
+      changes: { from: cmView!.state.selection.main.head, insert: "n" },
       selection: { anchor: cmView!.state.selection.main.head + 1 },
-      userEvent: 'input.type',
+      userEvent: "input.type",
     });
 
-    expect(editor.getValue()).toBe('ran');
+    expect(editor.getValue()).toBe("ran");
   });
 });
-
-describe('Autosave debounce', () => {
+describe("Autosave debounce", () => {
   let container: HTMLElement;
   let editor: CodeMirrorEditorView;
 
   beforeEach(() => {
-    container = document.createElement('div');
+    container = document.createElement("div");
     document.body.appendChild(container);
   });
 
@@ -239,42 +250,52 @@ describe('Autosave debounce', () => {
 
   // TODO: flaky — jsdom can't lay out CodeMirror, so `cmView` is undefined here. Same
   // root cause as the skipped 'Image paste handler' describe below.
-  it.skip('emits autosave changes during continuous typing instead of starving until typing stops', async () => {
+  it.skip("emits autosave changes during continuous typing instead of starving until typing stops", async () => {
     const autosaveDelayMs: number = 150;
     const maxAutosaveWaitMs: number = 300;
     const burstDurationMs: number = 1000;
     const inputCadenceMs: number = 50;
     const emissions: string[] = [];
 
-    editor = new CodeMirrorEditorView(container, '', { autosaveDelay: autosaveDelayMs });
+    editor = new CodeMirrorEditorView(container, "", {
+      autosaveDelay: autosaveDelayMs,
+    });
     editor.onChange((content: string) => emissions.push(content));
 
-    const contentElement: CodeMirrorElement | null = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const contentElement: CodeMirrorElement | null = container.querySelector(
+      ".cm-content",
+    ) as CodeMirrorElement | null;
     const cmView: CMEditorView | undefined = contentElement?.cmView?.view;
     expect(cmView).toBeDefined();
 
     vi.useFakeTimers();
 
-    for (let elapsedMs: number = 0; elapsedMs < burstDurationMs; elapsedMs += inputCadenceMs) {
+    for (
+      let elapsedMs: number = 0;
+      elapsedMs < burstDurationMs;
+      elapsedMs += inputCadenceMs
+    ) {
       const docLength: number = cmView!.state.doc.length;
       cmView!.dispatch({
-        changes: { from: docLength, insert: 'x' },
+        changes: { from: docLength, insert: "x" },
         selection: { anchor: docLength + 1 },
-        userEvent: 'input.type',
+        userEvent: "input.type",
       });
       await vi.advanceTimersByTimeAsync(inputCadenceMs);
     }
 
-    expect(emissions.length).toBeGreaterThanOrEqual(Math.floor(burstDurationMs / maxAutosaveWaitMs) - 1);
+    expect(emissions.length).toBeGreaterThanOrEqual(
+      Math.floor(burstDurationMs / maxAutosaveWaitMs) - 1,
+    );
   });
 });
 
-describe('Markdown Table Rendering', () => {
+describe("Markdown Table Rendering", () => {
   let container: HTMLElement;
   let editor: CodeMirrorEditorView;
 
   beforeEach(() => {
-    container = document.createElement('div');
+    container = document.createElement("div");
     document.body.appendChild(container);
   });
 
@@ -287,7 +308,7 @@ describe('Markdown Table Rendering', () => {
     }
   });
 
-  it('renders markdown tables as HTML widgets while preserving other render blocks', async () => {
+  it("renders markdown tables as HTML widgets while preserving other render blocks", async () => {
     const content: "# Table Fixture\n\n| Name | Value |\n| --- | --- |\n| Alpha | Beta |\n\n> Existing blockquote rendering should still work." = `# Table Fixture
 
 | Name | Value |
@@ -298,21 +319,27 @@ describe('Markdown Table Rendering', () => {
 
     editor = new CodeMirrorEditorView(container, content);
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const renderedTable: Element | null = container.querySelector('.cm-markdoc-renderBlock table');
-    const renderedQuote: Element | null = container.querySelector('.cm-markdoc-renderBlock blockquote');
+    const renderedTable: Element | null = container.querySelector(
+      ".cm-markdoc-renderBlock table",
+    );
+    const renderedQuote: Element | null = container.querySelector(
+      ".cm-markdoc-renderBlock blockquote",
+    );
 
     expect(renderedTable).not.toBeNull();
-    expect(renderedTable?.textContent).toContain('Alpha');
-    expect(renderedTable?.querySelectorAll('th')).toHaveLength(2);
+    expect(renderedTable?.textContent).toContain("Alpha");
+    expect(renderedTable?.querySelectorAll("th")).toHaveLength(2);
     expect(renderedQuote).not.toBeNull();
-    expect(renderedQuote?.textContent).toContain('Existing blockquote rendering should still work.');
+    expect(renderedQuote?.textContent).toContain(
+      "Existing blockquote rendering should still work.",
+    );
   });
 
   // TODO: flaky — jsdom can't lay out CodeMirror, so `cmView` is undefined here. Same
   // root cause as the skipped 'Image paste handler' describe below.
-  it.skip('shows raw table markdown when the cursor moves into the table block', async () => {
+  it.skip("shows raw table markdown when the cursor moves into the table block", async () => {
     const content: "# Table Fixture\n\n| Name | Value |\n| --- | --- |\n| Alpha | Beta |" = `# Table Fixture
 
 | Name | Value |
@@ -321,356 +348,44 @@ describe('Markdown Table Rendering', () => {
 
     editor = new CodeMirrorEditorView(container, content);
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const contentElement: CodeMirrorElement | null = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const contentElement: CodeMirrorElement | null = container.querySelector(
+      ".cm-content",
+    ) as CodeMirrorElement | null;
     const cmView: CMEditorView | undefined = contentElement?.cmView?.view;
 
     expect(cmView).toBeDefined();
-    expect(container.querySelector('.cm-markdoc-renderBlock table')).not.toBeNull();
+    expect(
+      container.querySelector(".cm-markdoc-renderBlock table"),
+    ).not.toBeNull();
 
     const doc: string = cmView!.state.doc.toString();
-    const tableStart: number = doc.indexOf('| Name | Value |');
+    const tableStart: number = doc.indexOf("| Name | Value |");
     expect(tableStart).toBeGreaterThanOrEqual(0);
 
     cmView!.dispatch({
       selection: {
-        anchor: tableStart + 2
-      }
+        anchor: tableStart + 2,
+      },
     });
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(container.querySelector('.cm-markdoc-renderBlock table')).toBeNull();
-    expect(container.textContent).toContain('| Name | Value |');
-    expect(container.textContent).toContain('| Alpha | Beta |');
+    expect(container.querySelector(".cm-markdoc-renderBlock table")).toBeNull();
+    expect(container.textContent).toContain("| Name | Value |");
+    expect(container.textContent).toContain("| Alpha | Beta |");
   });
 });
 
-describe('hasFrontmatter method', () => {
-  let container: HTMLElement;
+describeHasFrontmatterTests();
 
-  beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-  });
-
-  afterEach(() => {
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
-  });
-
-  // hasFrontmatter is imported as a standalone function from the module
-
-  describe('standard YAML frontmatter - SHOULD work', () => {
-    it('should detect standard frontmatter starting on line 0', () => {
-      const content: "---\ntitle: Test\n---\n# Content" = `---
-title: Test
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should detect frontmatter with multiple properties', () => {
-      const content: "---\nnode_id: 123\ntitle: Test Node\ncolor: blue\nposition:\n  x: 100\n  y: 200\n---\n# Main content" = `---
-node_id: 123
-title: Test Node
-color: blue
-position:
-  x: 100
-  y: 200
----
-# Main content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should detect minimal frontmatter (just delimiters)', () => {
-      const content: "---\n---\n# Content" = `---
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should detect frontmatter at document start with content after', () => {
-      const content: "---\nauthor: Me\ndate: 2024-01-01\n---\n\n# Heading\nContent here" = `---
-author: Me
-date: 2024-01-01
----
-
-# Heading
-Content here`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-  });
-
-  describe('invalid/no frontmatter cases', () => {
-    it('should return false for content without frontmatter', () => {
-      const content: "# Heading\nThis is just regular markdown content." = `# Heading
-This is just regular markdown content.`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should return false for empty string', () => {
-      expect(hasFrontmatter('')).toBe(false);
-    });
-
-    it('should return false for only opening --- without closing', () => {
-      const content: "---\ntitle: Test\n# Content without closing delimiter" = `---
-title: Test
-# Content without closing delimiter`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should return false for single --- delimiter in middle', () => {
-      const content: "# Content\n---\nMore content" = `# Content
----
-More content`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should return false when --- appears only in content (not at start)', () => {
-      const content: "# Heading\nSome content\n---\nMore content" = `# Heading
-Some content
----
-More content`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should return false for --- with extra characters on same line', () => {
-      const content: "--- title: Test\ncontent: value\n--- end\n# Content" = `--- title: Test
-content: value
---- end
-# Content`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should be permissive - allows content before first ---', () => {
-      // Note: Implementation doesn't require line 0 to be ---, just needs 2+ delimiters
-      const content: "Some text first\n---\ntitle: Test\n---\n# Content" = `Some text first
----
-title: Test
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-  });
-
-  describe('edge cases', () => {
-    it('should handle content with only whitespace', () => {
-      const content: "\n\n\t" = `
-
-\t`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should return false for single line with ---', () => {
-      const content: "---" = '---';
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should return false for only opening --- (no closing)', () => {
-      const content: "---\ntitle: Test" = `---
-title: Test`;
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should handle multiple consecutive --- lines at start', () => {
-      const content: "---\n---\n---\n# Content" = `---
----
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should trim whitespace when checking for ---', () => {
-      const content: "   ---\ntitle: Test\n   ---\n# Content" = `   ---
-title: Test
-   ---
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle tabs around --- delimiters', () => {
-      const content: "\t---\t\ntitle: Test\n\t---\n# Content" = `\t---\t
-title: Test
-\t---
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should check up to 1000 lines maximum', () => {
-      // Create content with --- at line 0 and beyond line 1000
-      const lines: string[] = ['---'];
-      for (let i: number = 0; i < 1005; i++) {
-        lines.push(`line ${i}`);
-      }
-      lines[1001] = '---'; // Beyond 1000 line limit
-
-      const content: string = lines.join('\n');
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should find --- delimiters within first 1000 lines', () => {
-      const lines: string[] = ['---'];
-      for (let i: number = 0; i < 1005; i++) {
-        lines.push(`line ${i}`);
-      }
-      lines[500] = '---'; // Within 1000 line limit
-
-      const content: string = lines.join('\n');
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle CRLF line endings', () => {
-      const content: "---\r\ntitle: Test\r\n---\r\n# Content" = `---\r\ntitle: Test\r\n---\r\n# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle mixed LF and CRLF line endings', () => {
-      const content: "---\r\ntitle: Test\n---\r\n# Content" = `---\r\ntitle: Test\n---\r\n# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle empty lines within frontmatter', () => {
-      const content: "---\ntitle: Test\n\nauthor: Me\n\n---\n# Content" = `---
-title: Test
-
-author: Me
-
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should return false if frontmatter has 3+ --- on consecutive lines', () => {
-      // Only needs 2 delimiters - if there are 3+ consecutive at start, still valid
-      const content: "---\n---\n---\nContent" = `---
----
----
-Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle frontmatter followed immediately by content (no blank line)', () => {
-      const content: "---\ntitle: Test\n---\n# Immediate content" = `---
-title: Test
----
-# Immediate content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle very long frontmatter section', () => {
-      const frontmatterLines: string[] = ['---'];
-      for (let i: number = 0; i < 100; i++) {
-        frontmatterLines.push(`property${i}: value${i}`);
-      }
-      frontmatterLines.push('---');
-      frontmatterLines.push('# Content');
-
-      const content: string = frontmatterLines.join('\n');
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should allow indented --- because of trim()', () => {
-      // Implementation uses .trim(), so indented --- is accepted
-      const content: "  ---\ntitle: Test\n---\n# Content" = `  ---
-title: Test
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should return true when closing --- has leading whitespace (gets trimmed)', () => {
-      const content: "---\ntitle: Test\n  ---\n# Content" = `---
-title: Test
-  ---
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle empty frontmatter between delimiters', () => {
-      const content: "---\n\n---\n# Content" = `---
-
----
-# Content`;
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should NOT check line 0 - this test documents the bug', () => {
-      // This documents the current buggy behavior: line 0 is skipped
-      // When the opening --- is on line 0 and closing on line 2,
-      // only the closing delimiter is counted (yamlTagCount = 1)
-      const content: "---\ntitle: Test\n---" = `---
-title: Test
----`;
-      // Should be true, but implementation returns false
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should be permissive - finds 2+ delimiters anywhere in first 1000 lines', () => {
-      // Implementation doesn't require line 0 to be ---
-      const content: "# Title\n---\nfrontmatter: value\n---\nContent" = `# Title
----
-frontmatter: value
----
-Content`;
-      // This returns true because it finds 2 delimiters
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should require opening --- at very start of document', () => {
-      // Frontmatter MUST start on line 0, column 0 (after trim)
-      const content: "\n---\ntitle: Test\n---\nContent" = `
----
-title: Test
----
-Content`;
-      // Empty line before opening --- should make this invalid
-      // But with current implementation, the empty line is line 0,
-      // so lines 1 and 3 have ---, making yamlTagCount = 2
-      // This is arguably okay - empty first line then valid frontmatter
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should handle line 0 being exactly --- with no other content', () => {
-      const content: "---\n---" = `---
----`;
-      // Two delimiters, no content between or after - minimal valid frontmatter
-      // But line 0 is skipped, so only sees 1 delimiter
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-
-    it('should correctly validate that both delimiters must be standalone lines', () => {
-      const content: "---title: inline\ncontent: value\n---end\n# Content" = `---title: inline
-content: value
----end
-# Content`;
-      // Delimiters with non-whitespace on same line should be invalid
-      expect(hasFrontmatter(content)).toBe(false);
-    });
-
-    it('should detect 2+ delimiters even in middle of document', () => {
-      const content: "# Heading\nSome content here\n\n---\nThis looks like frontmatter\n---\n\nBut it is not at the start" = `# Heading
-Some content here
-
----
-This looks like frontmatter
----
-
-But it is not at the start`;
-      // Implementation is permissive - finds 2 delimiters anywhere
-      expect(hasFrontmatter(content)).toBe(true);
-    });
-  });
-});
-
-describe('JSON language mode', () => {
+describe("JSON language mode", () => {
   let container: HTMLElement;
   let editor: CodeMirrorEditorView;
 
   beforeEach(() => {
-    container = document.createElement('div');
+    container = document.createElement("div");
     document.body.appendChild(container);
   });
 
@@ -683,12 +398,14 @@ describe('JSON language mode', () => {
     }
   });
 
-  it('should create editor in JSON mode and handle content correctly', async () => {
+  it("should create editor in JSON mode and handle content correctly", async () => {
     const jsonContent: string = '{"key": "value", "number": 42}';
 
-    editor = new CodeMirrorEditorView(container, jsonContent, { language: 'json' });
+    editor = new CodeMirrorEditorView(container, jsonContent, {
+      language: "json",
+    });
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(editor.getValue()).toBe(jsonContent);
 
@@ -699,211 +416,4 @@ describe('JSON language mode', () => {
   });
 });
 
-// TODO: flaky — jsdom CodeMirror DOM measurement throws unhandled errors after test completion
-describe.skip('Image paste handler', () => {
-  let container: HTMLElement;
-  let editor: CodeMirrorEditorView;
-  let mockSaveClipboardImage: ReturnType<typeof vi.fn>;
-
-  // Polyfill ClipboardEvent for JSDOM (which doesn't have it natively)
-  beforeAll(() => {
-    if (typeof ClipboardEvent === 'undefined') {
-       
-      (global as Record<string, unknown>).ClipboardEvent = class ClipboardEvent extends Event {
-        public clipboardData: DataTransfer | null;
-        constructor(type: string, options?: { clipboardData?: DataTransfer; bubbles?: boolean; cancelable?: boolean }) {
-          super(type, { bubbles: options?.bubbles, cancelable: options?.cancelable });
-          this.clipboardData = options?.clipboardData ?? null;
-        }
-      };
-    }
-  });
-
-  beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-
-    // Setup mock for electronAPI.main.saveClipboardImage
-    mockSaveClipboardImage = vi.fn();
-    window.electronAPI = {
-      main: {
-        saveClipboardImage: mockSaveClipboardImage,
-      },
-    } as unknown as typeof window.electronAPI;
-  });
-
-  afterEach(() => {
-    if (editor && !editor.isDisposed) {
-      editor.dispose();
-    }
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
-    // Cleanup mock
-    window.electronAPI = undefined;
-  });
-
-  /**
-   * Helper to create a mock FileList-like object (JSDOM doesn't allow new FileList())
-   */
-  function createEmptyFileList(): FileList {
-    const fileList: { length: number; item: () => null } = {
-      length: 0,
-      item: () => null,
-    };
-    return fileList as unknown as FileList;
-  }
-
-  /**
-   * Helper to create a mock ClipboardEvent with image data
-   */
-  function createImagePasteEvent(): ClipboardEvent {
-    const dataTransferItem: DataTransferItem = {
-      kind: 'file',
-      type: 'image/png',
-      getAsFile: () => new File([], 'image.png', { type: 'image/png' }),
-      getAsString: () => {},
-      webkitGetAsEntry: () => null,
-    };
-
-    const clipboardData: DataTransfer = {
-      items: [dataTransferItem] as unknown as DataTransferItemList,
-      types: ['Files'],
-      getData: () => '',
-      setData: () => {},
-      clearData: () => {},
-      files: createEmptyFileList(),
-      dropEffect: 'none',
-      effectAllowed: 'none',
-      setDragImage: () => {},
-    };
-
-    return new ClipboardEvent('paste', {
-      clipboardData,
-      bubbles: true,
-      cancelable: true,
-    });
-  }
-
-  /**
-   * Helper to create a mock ClipboardEvent with text data only (no image)
-   */
-  function createTextPasteEvent(): ClipboardEvent {
-    const dataTransferItem: DataTransferItem = {
-      kind: 'string',
-      type: 'text/plain',
-      getAsFile: () => null,
-      getAsString: (callback) => callback?.('pasted text'),
-      webkitGetAsEntry: () => null,
-    };
-
-    const clipboardData: DataTransfer = {
-      items: [dataTransferItem] as unknown as DataTransferItemList,
-      types: ['text/plain'],
-      getData: () => 'pasted text',
-      setData: () => {},
-      clearData: () => {},
-      files: createEmptyFileList(),
-      dropEffect: 'none',
-      effectAllowed: 'none',
-      setDragImage: () => {},
-    };
-
-    return new ClipboardEvent('paste', {
-      clipboardData,
-      bubbles: true,
-      cancelable: true,
-    });
-  }
-
-  it('should call saveClipboardImage and insert wikilink when pasting image', async () => {
-    const nodeId: string = '/path/to/notes/my-note.md';
-    editor = new CodeMirrorEditorView(container, '# Test content', { nodeId });
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Mock successful image save
-    mockSaveClipboardImage.mockResolvedValue('pasted-1705123456789.png');
-
-    // Get the CodeMirror content element to dispatch paste event
-    const cmContent: Element | null = container.querySelector('.cm-content');
-    expect(cmContent).not.toBeNull();
-
-    // Dispatch paste event with image
-    const pasteEvent: ClipboardEvent = createImagePasteEvent();
-    cmContent!.dispatchEvent(pasteEvent);
-
-    // Wait for async IPC call to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Verify IPC was called with correct nodeId
-    expect(mockSaveClipboardImage).toHaveBeenCalledWith(nodeId);
-
-    // Verify wikilink was inserted
-    const content: string = editor.getValue();
-    expect(content).toContain('![[pasted-1705123456789.png]]');
-  });
-
-  it('should not call saveClipboardImage when pasting without nodeId configured', async () => {
-    // Create editor WITHOUT nodeId
-    editor = new CodeMirrorEditorView(container, '# Test content');
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    const cmContent: Element | null = container.querySelector('.cm-content');
-    expect(cmContent).not.toBeNull();
-
-    // Dispatch paste event with image
-    const pasteEvent: ClipboardEvent = createImagePasteEvent();
-    cmContent!.dispatchEvent(pasteEvent);
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Verify IPC was NOT called
-    expect(mockSaveClipboardImage).not.toHaveBeenCalled();
-  });
-
-  it('should not call saveClipboardImage when pasting text (no image)', async () => {
-    const nodeId: string = '/path/to/notes/my-note.md';
-    editor = new CodeMirrorEditorView(container, '# Test content', { nodeId });
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    const cmContent: Element | null = container.querySelector('.cm-content');
-    expect(cmContent).not.toBeNull();
-
-    // Dispatch paste event with text only
-    const pasteEvent: ClipboardEvent = createTextPasteEvent();
-    cmContent!.dispatchEvent(pasteEvent);
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Verify IPC was NOT called for text paste
-    expect(mockSaveClipboardImage).not.toHaveBeenCalled();
-  });
-
-  it('should not insert wikilink when saveClipboardImage returns null', async () => {
-    const nodeId: string = '/path/to/notes/my-note.md';
-    const initialContent: string = '# Test content';
-    editor = new CodeMirrorEditorView(container, initialContent, { nodeId });
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Mock no image in clipboard (returns null)
-    mockSaveClipboardImage.mockResolvedValue(null);
-
-    const cmContent: Element | null = container.querySelector('.cm-content');
-    expect(cmContent).not.toBeNull();
-
-    // Dispatch paste event
-    const pasteEvent: ClipboardEvent = createImagePasteEvent();
-    cmContent!.dispatchEvent(pasteEvent);
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Verify content unchanged (no wikilink inserted)
-    const content: string = editor.getValue();
-    expect(content).toBe(initialContent);
-    expect(content).not.toContain('![[');
-  });
-});
+describeImagePasteHandlerTests();

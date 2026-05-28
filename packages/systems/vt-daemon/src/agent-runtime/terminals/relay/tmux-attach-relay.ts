@@ -1,4 +1,4 @@
-import {execFileSync} from 'node:child_process'
+import {execFile, execFileSync} from 'node:child_process'
 import type {IncomingMessage} from 'node:http'
 import type {IPty} from 'node-pty'
 import {WebSocket} from 'ws'
@@ -27,6 +27,7 @@ export interface TmuxAttachRelayOptions {
     readonly env?: NodeJS.ProcessEnv
     readonly loadPty?: () => Promise<NodePtyModule>
     readonly logger?: TmuxRelayLogger
+    readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
 }
 
 type ParsedAttachRequest = {
@@ -65,15 +66,31 @@ function parseAttachRequest(request: IncomingMessage): ParsedAttachRequest {
     }
 }
 
-function configureTmuxSession(sessionName: string): void {
+function configureTmuxSession(sessionName: string, tmuxMouseMode: boolean): void {
     // window-size=latest lets the most recently active client drive the window/pane size.
     // The relay's pty (via node-pty's TIOCSWINSZ → SIGWINCH → tmux client → server) is then
     // sufficient to resize panes: no explicit `tmux resize-pane` exec is needed at runtime.
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'window-size', 'latest']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'escape-time', '0']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'status', 'off']), {stdio: 'ignore'})
-    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', 'on']), {stdio: 'ignore'})
+    // Mouse mode is user-configurable: off lets the user select terminal text with the
+    // mouse for browser-style copy without holding Shift; on lets tmux capture wheel
+    // and click events natively. The wheel-scroll RPC below works in both modes.
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', tmuxMouseMode ? 'on' : 'off']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'history-limit', '9999']), {stdio: 'ignore'})
+}
+
+function execTmuxScroll(sessionName: string, direction: 'up' | 'down', lines: number): void {
+    // Drive tmux's scrollback without requiring `mouse on` (which would force users to
+    // hold Shift for browser text selection). copy-mode -e enters copy-mode and exits
+    // automatically when scroll-down reaches the live view, so the user is never left
+    // stranded in copy-mode.
+    const action: 'scroll-up' | 'scroll-down' = direction === 'up' ? 'scroll-up' : 'scroll-down'
+    execFile(getTmuxBinaryPath(), getTmuxCommandArgs([
+        'copy-mode', '-e', '-t', sessionName,
+        ';',
+        'send-keys', '-t', sessionName, '-X', '-N', String(lines), action,
+    ]), () => {})
 }
 
 function sendData(ws: WebSocket, payload: string): void {
@@ -148,9 +165,15 @@ async function prepareExistingTmuxSession(
     }
 }
 
-function configureSessionForRelay(ws: WebSocket, logger: TmuxRelayLogger, sessionName: string): boolean {
+async function configureSessionForRelay(
+    ws: WebSocket,
+    logger: TmuxRelayLogger,
+    sessionName: string,
+    options: TmuxAttachRelayOptions,
+): Promise<boolean> {
     try {
-        configureTmuxSession(sessionName)
+        const tmuxMouseMode: boolean = options.getTmuxMouseMode ? await options.getTmuxMouseMode() : false
+        configureTmuxSession(sessionName, tmuxMouseMode)
         return true
     } catch (error) {
         const message: string = errorMessage(error)
@@ -224,7 +247,7 @@ export async function attachTmuxSessionToWebSocket(
     const sessionName: string = resolveTmuxSessionName(parsed.sessionName)
 
     if (!(await prepareExistingTmuxSession(ws, logger, sessionName))) return
-    if (!configureSessionForRelay(ws, logger, sessionName)) return
+    if (!(await configureSessionForRelay(ws, logger, sessionName, options))) return
     logger.info(`[tmux-relay] ${sessionName}: attached cols=${parsed.cols} rows=${parsed.rows}`)
 
     const pty: NodePtyModule | null = await loadPtyForRelay(ws, logger, sessionName, options.loadPty ?? loadNodePty)
@@ -267,6 +290,15 @@ export async function attachTmuxSessionToWebSocket(
                 // no fresh `tmux resize-pane` exec is required, which is critical for surviving
                 // the macOS jetsam orphan-daemon split-brain scenario.
                 term.resize(cols, rows)
+            }
+            return
+        }
+
+        if (record.type === 'scroll') {
+            const lines: number = Number(record.lines)
+            const direction: unknown = record.direction
+            if (Number.isFinite(lines) && lines > 0 && (direction === 'up' || direction === 'down')) {
+                execTmuxScroll(sessionName, direction, lines)
             }
         }
     })

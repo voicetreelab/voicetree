@@ -20,6 +20,7 @@
     "vt-debug": "bin/vt-debug.ts"
   },
   "dependencies": {
+    "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/vt-rpc": "*"
   },

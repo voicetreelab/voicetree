@@ -23,6 +23,7 @@ const STATUS_CHANNEL: string = 'terminal:status'
 const ATTACH_INVOKE: string = 'terminal:attach'
 const WRITE_INVOKE: string = 'terminal:write'
 const RESIZE_INVOKE: string = 'terminal:resize'
+const SCROLL_INVOKE: string = 'terminal:scroll'
 const DETACH_INVOKE: string = 'terminal:detach'
 
 export interface VtTerminalAttachBridgeDeps {
@@ -68,6 +69,10 @@ export function installVtTerminalAttachBridge(deps: VtTerminalAttachBridgeDeps):
         return clients.get(handle)?.sendResize(cols, rows) ?? false
     })
 
+    ipcMain.handle(SCROLL_INVOKE, (_event, handle: string, direction: 'up' | 'down', lines: number): boolean => {
+        return clients.get(handle)?.sendScroll(direction, lines) ?? false
+    })
+
     // Idempotent: a second detach on an already-released handle is a no-op
     // (TerminalVanilla.dispose() can fire twice on rapid unmount — see BF-368
     // gotcha "Reconnect on terminal dispose race").
@@ -83,6 +88,7 @@ export function installVtTerminalAttachBridge(deps: VtTerminalAttachBridgeDeps):
         ipcMain.removeHandler(ATTACH_INVOKE)
         ipcMain.removeHandler(WRITE_INVOKE)
         ipcMain.removeHandler(RESIZE_INVOKE)
+        ipcMain.removeHandler(SCROLL_INVOKE)
         ipcMain.removeHandler(DETACH_INVOKE)
         for (const client of clients.values()) client.dispose()
         clients.clear()
@@ -95,5 +101,6 @@ export const __vtTerminalAttachChannels = {
     attach: ATTACH_INVOKE,
     write: WRITE_INVOKE,
     resize: RESIZE_INVOKE,
+    scroll: SCROLL_INVOKE,
     detach: DETACH_INVOKE,
 } as const

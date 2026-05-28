@@ -26,6 +26,7 @@ function buildSubgraph(files: readonly FixtureFile[], touched: readonly string[]
         packageName: f.path.match(/^\/virtual\/([^/]+)\/src\//)?.[1] ?? 'unknown',
     }))
     const communityMap = new Map<string, string>(files.map(f => [f.path, f.community]))
+    const contents = new Map(files.map(f => [f.path, f.content]))
     return {
         files: subgraphFiles,
         communityMap,
@@ -33,6 +34,7 @@ function buildSubgraph(files: readonly FixtureFile[], touched: readonly string[]
         touchedCommunities: [...touched].sort(),
         depth: 1,
         getProject: () => project,
+        getContent: (p) => contents.get(p) ?? null,
     }
 }
 

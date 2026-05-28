@@ -3,7 +3,7 @@
 `@vt/measures` is the repository's single home for codebase measurement,
 health-gate tests, CI dashboard CheckDefs, metric report writers, and the
 measurement runner CLIs. Health metrics live as Vitest tests under
-`src/health/`; CI dashboard CheckDefs live under `src/checks/tier_{0..3}/`;
+`src/health/`; CI dashboard CheckDefs live under `src/checks/tier_N/`;
 shared discovery, graph, complexity, purity, and writer primitives live
 under `src/_shared/`.
 
@@ -24,29 +24,43 @@ hook + CI compose them):
 | Package and source discovery | `src/_shared/discover-packages.ts` |
 | Metric formula, budget, and report ID | `src/health/<group>/<metric>.test.ts` |
 | Health report writer | `src/_shared/report-writer.ts` |
-| CI dashboard CheckDefs | `src/checks/tier_{0..3}/<concern>/<id>.ts` |
+| CI dashboard CheckDefs | `src/checks/tier_N/<concern>/<id>.ts` |
 | Runner CLIs | `src/_runners/` |
 | Generated dashboard reports | `health-dashboard/reports/` |
 
-## Schedule (4-tier)
+## Schedule
 
-A check's tier is its folder location — `src/checks/tier_N/...`. There is no
-`tier` field on `CheckDef`; the scheduler reads the path. Subfolders under
-each tier (`lint/`, `unit/`, `e2e/`, `static/`, `coverage/`, `structure/`,
-`health/`, `contract/`, `fuzz/`, `analyzers/`) are organisational only — they
-do not affect scheduling.
+**The tier folder is the source of truth.** A check's tier is its directory
+location under `src/checks/`. Drop a file exporting `check: CheckDef` into
+`tier_N/<anything>/<id>.ts` and it auto-runs at tier N — no registration,
+no manifest, no workflow edit. The scheduler walks the path; there is no
+`tier` field on `CheckDef`. Subfolders inside each tier (`lint/`, `unit/`,
+`e2e/`, `static/`, `typecheck/`, `coverage/`, `structure/`, `health/`,
+`contract/`, `fuzz/`, `analyzers/`) are organisational only — they do not
+affect scheduling.
 
-| Tier | Verb | Where it runs | Budget |
+| Tier | Where it runs | Verb | Budget |
 |---|---|---|---|
-| `tier_0` | `npm run test:t0` | pre-commit | <30s — instant lint/static |
-| `tier_1` | `npm run test:t1` | pre-push (via `test:local`) | <3min — unit + push-gate E2E smoke + health |
-| `tier_2` | `npm run test:t2` | stage1 CI (every PR) | <15min — full unit + contract + browser E2E + fuzz |
-| `tier_3` | `npm run test:t3` | merge to main + nightly | <60min — electron E2E + dead-code + duplication + mutation |
-| all | `npm run test:full` | release / nightly | union of every tier |
+| `tier_0_pre_commit` | pre-commit hook | `npm run test:t0` | <30s |
+| `tier_1` | pre-push hook (`test:local`) | `npm run test:t1` | <3min |
+| `tier_2` | generated PR CI on every PR | `npm run test:t2` | <15min |
+| `tier_3` | generated PR CI into `main` + nightly (`main.yml`) | `npm run test:t3` | <60min |
+| `tier_4` | generated PR CI conditional into `main` + nightly drift | `npm run test:t4` | informational |
+| all | release / nightly | `npm run test:full` | union of every tier |
 
-`capture-ci-checks.ts` accepts `--tier<=N` (or `--tier-max=N` /
-`--max-tier=N`) to walk only `checks/tier_0/` through `checks/tier_N/`.
-Without that flag, every tier is discovered.
+`test:tN` walks `tier_0_pre_commit/` through `tier_N/` (via `--tier<=N` /
+`--tier-max=N` / `--max-tier=N`). Higher tiers always include lower tiers.
+
+### Tier-0 has two invocation contexts
+
+`tier_0_pre_commit/` is discovered by `capture-ci-checks.ts` and runs on
+pre-commit (and bundled into `test:t1` / `test:local`). A sibling
+`tier_0_post_edit/` exists for agent hooks (`.claude/`, `.codex/`
+`PostToolUse` on every Write/Edit/MultiEdit, single-file input, sub-100ms,
+blocks on violation) and is NOT discovered by `capture-ci-checks.ts`.
+Predicates shared between the two layers live in `src/checks/_shared/`
+(pure, no I/O). Tiers 1–4 have only the scheduled context, so they keep
+their bare `tier_N/` names.
 
 ## CheckDef `phase`
 
@@ -55,19 +69,6 @@ runner schedules these into a bounded pool. `'isolated'` checks execute
 serially after the parallel pool drains, one at a time. Reserve `'isolated'`
 for checks that need a clean CPU (Vite dev server + 5 chromium workers,
 Electron startup spikes, etc.); explain the reason inline at the CheckDef.
-
-## Trigger composition
-
-Local commands compose the CI matrix; CI workflows compose the same verbs.
-There is no separate `--folder=`, `--quick`, or `slow` axis — tier folder
-location IS the schedule axis.
-
-| Trigger | Composition |
-|---|---|
-| `pre-commit` | `test:t0` |
-| `pre-push` (`test:local`) | `test:t1` (includes tier_0) |
-| `stage1-checks.yml` (PR) | `test:t2` |
-| `main.yml` (merge / nightly) | `test:full` |
 
 ## Constraints
 

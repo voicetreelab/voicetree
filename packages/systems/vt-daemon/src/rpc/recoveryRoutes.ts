@@ -1,5 +1,5 @@
-// Recovery RPC routes (3): discoverRecoverableAgentSessions,
-// resumePersistedAgentSession, forkAgentSession.
+// Recovery RPC routes (4): discoverRecoverableAgentSessions,
+// resumePersistedAgentSession, forkAgentSession, removePersistedAgentRecord.
 //
 // Note on `attach` projection: agent-runtime's `AttachCapability` carries the
 // full `UnclaimedTmuxSession` object (`{session}`), but the wire contract
@@ -13,10 +13,12 @@ import type {TerminalId} from "@vt/vt-daemon/agent-runtime/terminals/terminal-re
 import {discoverRecoverableAgentSessions} from '../agent-runtime/recovery/discovery.ts'
 import {resumePersistedAgentSession} from '../agent-runtime/recovery/resumePersistedAgentSession.ts'
 import {forkAgentSession} from '../agent-runtime/recovery/forkAgentSession.ts'
+import {removePersistedAgentRecord} from '../agent-runtime/recovery/removePersistedAgentRecord.ts'
 import type {
     DiscoverRecoverableAgentSessions,
     ResumePersistedAgentSession,
     ForkAgentSession,
+    RemovePersistedAgentRecord,
     RecoverableAgentSession as WireRecoverableAgentSession,
 } from '@vt/vt-daemon-protocol'
 
@@ -25,8 +27,14 @@ import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/too
 
 const discoverRecoverableAgentSessionsRoute: RpcRoute = {
     name: 'discoverRecoverableAgentSessions',
-    handler: async (): Promise<McpToolResponse> => {
-        const sessions = await discoverRecoverableAgentSessions()
+    inputShape: {
+        // `null` ⇒ disable cutoff (renderer's "show older"); `undefined` ⇒ daemon default;
+        // a positive finite number ⇒ override the horizon for this call.
+        horizonMs: z.union([z.number(), z.null()]).optional(),
+    },
+    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+        const req: DiscoverRecoverableAgentSessions.Request = args as unknown as DiscoverRecoverableAgentSessions.Request
+        const sessions = await discoverRecoverableAgentSessions(undefined, {horizonMs: req.horizonMs})
         const projected: DiscoverRecoverableAgentSessions.Response = sessions.map((s): WireRecoverableAgentSession => ({
             terminalId: s.terminalId,
             agentName: s.agentName,
@@ -64,8 +72,21 @@ const forkAgentSessionRoute: RpcRoute = {
     },
 }
 
+const removePersistedAgentRecordRoute: RpcRoute = {
+    name: 'removePersistedAgentRecord',
+    inputShape: {
+        terminalId: z.string(),
+    },
+    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+        const req: RemovePersistedAgentRecord.Request = args as unknown as RemovePersistedAgentRecord.Request
+        const result: RemovePersistedAgentRecord.Response = await removePersistedAgentRecord(req.terminalId)
+        return buildJsonResponse(result)
+    },
+}
+
 export const RECOVERY_ROUTES: readonly RpcRoute[] = [
     discoverRecoverableAgentSessionsRoute,
     resumePersistedAgentSessionRoute,
     forkAgentSessionRoute,
+    removePersistedAgentRecordRoute,
 ] as const
