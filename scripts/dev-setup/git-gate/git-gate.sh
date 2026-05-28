@@ -60,12 +60,13 @@ worktree_add_path_arg() {
   done
 }
 
-prewarm_remote_added_worktree_ready_async() {
+# Bootstrap a freshly-added worktree: link .env from the main checkout
+# (secrets) and run `pnpm install` so node_modules is populated. Mutagen
+# then replicates the resulting tree to the devbox; no remote-side
+# install is needed. Under pnpm, install on a warm store is sub-second.
+bootstrap_added_worktree() {
   local wt_path="$1"
-  if [ -z "$wt_path" ]; then
-    echo "git-gate: worktree add path not detected; skipping async dependency prewarm" >&2
-    return 0
-  fi
+  [ -n "$wt_path" ] || return 0
 
   local wt_abs
   case "$wt_path" in
@@ -77,63 +78,19 @@ prewarm_remote_added_worktree_ready_async() {
 
   local main_repo
   main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
-  if [ -z "$main_repo" ]; then
-    echo "git-gate: warning: could not detect main worktree; command-boundary readiness will retry" >&2
-    return 0
+
+  if [ -n "$main_repo" ] && [ -f "$main_repo/.env" ] && [ ! -e "$wt_abs/.env" ]; then
+    ln -snf "$main_repo/.env" "$wt_abs/.env"
+    echo "git-gate: linked .env from main checkout" >&2
   fi
-
-  local remote_runner="$main_repo/scripts/run-remote.mjs"
-  if [ ! -f "$remote_runner" ]; then
-    echo "git-gate: warning: missing remote runner: $remote_runner" >&2
-    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
-    return 0
-  fi
-
-  local log_name
-  log_name="$(basename "$wt_abs" | tr -c 'A-Za-z0-9_.-' '_')"
-  local log_file="${TMPDIR:-/tmp}/voicetree-worktree-prewarm-${log_name}.log"
-
-  echo "git-gate: prewarming remote worktree dependencies asynchronously" >&2
-  echo "git-gate: dependency prewarm log: $log_file" >&2
-  nohup sh -c 'cd "$1" && exec node "$2" true' sh "$wt_abs" "$remote_runner" >"$log_file" 2>&1 &
-}
-
-# Local prewarm for pnpm worktrees. The remote prewarm above only makes the
-# devbox ready; agents running tests locally still need node_modules. pnpm's
-# content-addressable store keeps this cheap (~10s on a warm store), so we
-# do it inline in the foreground for pnpm — without it, `pnpm test` in the
-# new worktree would fail with missing modules. npm worktrees keep the old
-# behavior: cp -a from the main checkout is the existing fast path there.
-local_prewarm_pnpm_worktree_sync() {
-  local wt_path="$1"
-  if [ -z "$wt_path" ]; then
-    return 0
-  fi
-
-  local wt_abs
-  case "$wt_path" in
-    /*) wt_abs="$wt_path" ;;
-    *)  wt_abs="$(pwd -P)/$wt_path" ;;
-  esac
-  wt_abs="$(cd "$wt_abs" 2>/dev/null && pwd -P || printf '%s' "$wt_abs")"
 
   if [ ! -f "$wt_abs/pnpm-workspace.yaml" ]; then
     return 0
   fi
 
-  # Use the NEW worktree's own ensure-ready.mjs (the script that belongs to
-  # the branch being checked out). The main checkout may be on an older
-  # branch without pnpm awareness — using its script there would re-run the
-  # npm path against pnpm-only manifests (workspace:* etc.) and fail.
-  local ready_script="$wt_abs/scripts/git/worktree/ensure-ready.mjs"
-  if [ ! -f "$ready_script" ]; then
-    echo "git-gate: warning: missing ensure-ready script in worktree: $ready_script" >&2
-    return 0
-  fi
-
-  echo "git-gate: pnpm worktree detected; running local pnpm install via ensure-ready" >&2
-  if ! ( cd "$wt_abs" && node "$ready_script" "$wt_abs" ); then
-    echo "git-gate: warning: local pnpm prewarm failed for $wt_abs" >&2
+  echo "git-gate: pnpm worktree detected; running pnpm install" >&2
+  if ! ( cd "$wt_abs" && pnpm install --prefer-offline ); then
+    echo "git-gate: warning: pnpm install failed for $wt_abs" >&2
     echo "git-gate: re-run 'pnpm install' in the worktree before running tests" >&2
   fi
 }
@@ -215,8 +172,7 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
     if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
       echo "git-gate: skipping dependency prewarm; caller owns worktree hooks" >&2
     else
-      local_prewarm_pnpm_worktree_sync "$wt_path"
-      prewarm_remote_added_worktree_ready_async "$wt_path"
+      bootstrap_added_worktree "$wt_path"
     fi
     echo "git-gate: worktree add post-setup complete" >&2
   else

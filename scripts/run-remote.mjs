@@ -221,20 +221,13 @@ async function flushMutagenSession(session) {
 
 // On remote, cwd is either `/root/voicetree-public/...` (main) or
 // `/root/vt-wts/<name>/...` (worktree). The latter is the only case the
-// worktree-ready / metadata-repair helpers care about.
+// metadata-repair helper cares about.
 function remoteWorktreeRoot(remoteCwd) {
   const rel = ppath.relative(REMOTE_WTS_ROOT, remoteCwd)
   if (rel.startsWith('..')) return null
   const parts = rel.split('/')
   if (!parts[0]) return null
   return ppath.join(REMOTE_WTS_ROOT, parts[0])
-}
-
-function ensureRemoteWorktreeReadyScript(remoteCwd) {
-  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
-  if (worktreeRoot === null) return ':'
-  const readyScript = ppath.join(REMOTE_ROOT, 'scripts/git/worktree/ensure-ready.mjs')
-  return `node ${shq(readyScript)} ${shq(worktreeRoot)}`
 }
 
 function repairRemoteWorktreeMetadataScript(remoteCwd) {
@@ -400,7 +393,6 @@ function runRemote(host, cmd, args, syncContext) {
   const remoteScript = [
     repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
-    ensureRemoteWorktreeReadyScript(remoteCwd),
     `export ${RECURSION_GUARD}=1`,
     `exec ${quotedCmd}`,
   ].join(' && ')
@@ -465,7 +457,6 @@ export {
   assertSessionAlive,
   buildReconcileCleanupScript,
   computeStaleWorktreeNames,
-  ensureRemoteWorktreeReadyScript,
   flushMutagenSession,
   parseRemoteWorktreeListing,
   parseSessionConnectivity,

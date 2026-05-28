@@ -93,6 +93,25 @@ else
   ok "devbox at $BRANCH with submodules initialised"
 fi
 
+step "provisioning pnpm on $VT_REMOTE_HOST via corepack"
+# corepack ships with Node 16.10+. `prepare --activate` reads the version
+# from the cloned repo's package.json `packageManager` field, so the
+# devbox ends up on the exact same pnpm as the laptop. Gated on
+# pnpm-workspace.yaml so this is a no-op on npm-only branches.
+ssh "$VT_REMOTE_HOST" "
+  set -e
+  cd $REMOTE_DIR
+  if [ ! -f pnpm-workspace.yaml ]; then
+    echo '  (branch is not on pnpm — skipping)'
+    exit 0
+  fi
+  command -v corepack >/dev/null || { echo 'corepack missing on devbox (need Node 16.10+)'; exit 1; }
+  corepack enable
+  corepack prepare pnpm --activate
+  pnpm --version
+" || fail "pnpm provisioning failed"
+ok "pnpm available on devbox"
+
 step "creating mutagen vt-remote session"
 if mutagen sync list vt-remote >/dev/null 2>&1; then
   ok "session already exists (skip create)"
