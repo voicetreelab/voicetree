@@ -30,6 +30,19 @@ is_merge_commit() {
 }
 
 staged_files="$(git diff --cached --name-only --diff-filter=ACM)"
+
+# Keep pnpm-lock.yaml in sync with every package.json edit. Only runs when
+# the repo is on pnpm (pnpm-workspace.yaml present) — no-op on npm branches.
+# --lockfile-only skips node_modules so this stays sub-second on a warm store.
+if [ -f pnpm-workspace.yaml ] && printf '%s\n' "$staged_files" | grep -qE '(^|/)package\.json$'; then
+    pnpm install --lockfile-only --prefer-offline
+    if ! git diff --quiet -- pnpm-lock.yaml; then
+        echo "pnpm-lock.yaml regenerated — stage it and retry:"
+        echo "  git add pnpm-lock.yaml"
+        exit 1
+    fi
+fi
+
 if printf '%s\n' "$staged_files" | grep -qE '^(packages/measures/src/checks/.*\.ts|packages/measures/scripts/gen-workflows\.ts|packages/measures/src/checks/_workflow-types\.ts)$'; then
     npm run gen:workflows
     if ! git diff --quiet -- .github/workflows/measures-budget-gate.yml; then
