@@ -112,6 +112,22 @@ ssh "$VT_REMOTE_HOST" "
 " || fail "pnpm provisioning failed"
 ok "pnpm available on devbox"
 
+step "installing earlyoom on $VT_REMOTE_HOST"
+# Userspace OOM daemon. When memory pressure climbs it kills the fattest
+# user process *before* the kernel goes nuclear and starts reaping systemd.
+# Without this, a runaway test pool can take the box down (see incident:
+# 14 vitest workers × 1.3GB on a 15GB-RAM, 0-swap box → systemd OOM cascade).
+ssh "$VT_REMOTE_HOST" "
+  set -e
+  if ! command -v earlyoom >/dev/null; then
+    DEBIAN_FRONTEND=noninteractive apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq earlyoom
+  fi
+  systemctl enable --now earlyoom
+  systemctl is-active earlyoom >/dev/null
+" || fail "earlyoom install failed"
+ok "earlyoom active (kills heaviest user proc before kernel-OOM)"
+
 step "creating mutagen vt-remote session"
 if mutagen sync list vt-remote >/dev/null 2>&1; then
   ok "session already exists (skip create)"

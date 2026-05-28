@@ -97,6 +97,14 @@ export default defineConfig({
       'default',
       [ciCheckReporter, ciCheck],
     ],
+    // Cap concurrency: vitest defaults to availableParallelism(), which on the
+    // 14-core devbox + 15 GB RAM with no swap = ~14 workers × ~1.3 GB each =
+    // OOM cascade that reaps systemd. 4 is the safe ceiling (~6 GB peak).
+    pool: 'forks',
+    poolOptions: {
+      forks: { maxForks: 4 },
+      threads: { maxThreads: 4 },
+    },
     // Codebase-health tests parse the whole repo and can exceed the default 5s
     // budget under parallel-worker CPU contention.
     testTimeout: 30_000,
