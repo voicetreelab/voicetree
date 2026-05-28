@@ -18,7 +18,7 @@ describe('graph-edge-operations', () => {
       color: O.none,
       position: O.none,
 
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })

@@ -1,6 +1,7 @@
 import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
-import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
+import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon-client';
+import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {writePositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
@@ -39,8 +40,9 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
     }
 
     // Get all node IDs attached to active terminals
+    const terminalRecords: readonly TerminalRecord[] = await getTerminalRecords(getVtDaemonClient());
     const activeTerminalNodeIds: Set<string> = new Set(
-        terminalRuntimeSurface.getTerminalRecords().map(record => record.terminalData.attachedToContextNodeId)
+        terminalRecords.map(record => record.terminalData.attachedToContextNodeId)
     );
 
     // Find orphaned context nodes (not attached to any terminal)

@@ -29,7 +29,7 @@ function graphNodeFixture(id = NODE_ID): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }

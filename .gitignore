@@ -151,6 +151,7 @@ tools/state/*
 /webapp/playwright-report-electron-dev/**/*
 /webapp/test-results/**/*
 /webapp/playwright-report-electron/**/*
+/webapp/playwright-report-tier1-system/**/*
 /webapp/e2e-tests/screenshots/**/*
 /webapp/dist-electron/**/*
 /webapp/native-modules/electron-trackpad-detect/build/
@@ -190,7 +191,9 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-model/tests/**/*.md
 !packages/graph-state/**/*.md
 !docker/**/*.md
+!docs/**/*.md
 !packages/measures/README.md
+!packages/systems/voicetree-cli/README.md
 !packages/measures/perf/*.md
 !packages/measures/budgets/BASELINE_BUMP_LOG.md
 !packages/measures/budgets/HOW_TO_BUMP_BASELINES.md
@@ -224,6 +227,9 @@ webapp/workers/share-worker/.wrangler/**
 
 # TypeScript build state
 *.tsbuildinfo
+
+# npm pack tarballs (generated locally for publish verification)
+**/*.tgz
 
 # Web dist
 **/dist-web/**
@@ -267,3 +273,6 @@ test_output/*
 /test-results/
 /VoiceTree/
 .codeql/
+
+# Voicetree per-version vault dirs at repo root (runtime app state from past sessions, not source)
+/voicetree-*-*/

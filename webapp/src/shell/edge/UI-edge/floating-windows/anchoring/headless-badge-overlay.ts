@@ -14,7 +14,7 @@
 import type {Core, CollectionReturnValue} from 'cytoscape';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type {TerminalStatus} from '@vt/agent-runtime';
+import type {TerminalStatus} from '@vt/vt-daemon-client';
 import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
@@ -279,7 +279,7 @@ async function showOutputPopover(terminalId: TerminalId, badge: HTMLElement): Pr
     // Dismiss any existing popover first
     dismissPopover();
 
-    const output: string = await window.electronAPI?.main.getHeadlessAgentOutput(terminalId) as string;
+    const output: string = await window.electronAPI?.main.getHeadlessAgentOutput({ terminalId }) as string;
 
     // Check if mouse has already left (race condition with async IPC)
     if (badgeOverlayState.hoverDebounceTimer === null && badgeOverlayState.activePopoverTerminalId !== terminalId) {

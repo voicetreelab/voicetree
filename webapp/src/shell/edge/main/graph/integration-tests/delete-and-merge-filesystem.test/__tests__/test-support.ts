@@ -141,14 +141,11 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
 })
 
 async function ensureHandlersImported(): Promise<void> {
-    if (!state.handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
-        registerTerminalIpcHandlers(
-            {} as any,
-            () => ''
-        )
-        state.handlersImported = true
-    }
+    // Post-vt-daemon migration: terminal IPC handlers moved into the vt-daemon
+    // process. The webapp main side no longer registers Electron-side IPC
+    // handlers for terminals — vt-daemon's RPC routes own that surface now.
+    // Kept as a no-op so the rest of the test setup chain is unchanged.
+    state.handlersImported = true
 }
 
 async function setupDeleteFilesystemTest(): Promise<void> {
@@ -162,7 +159,7 @@ async function setupMergeFilesystemTest(vaultPrefix: string): Promise<void> {
 
 async function setupFilesystemTest(vaultPrefix: string): Promise<void> {
     state.currentGraph = null
-    initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
+    initGraphModel({})
     await ensureHandlersImported()
     state.tempVault = path.join('/tmp', `${vaultPrefix}-${Date.now()}`)
     await fs.mkdir(state.tempVault, { recursive: true })

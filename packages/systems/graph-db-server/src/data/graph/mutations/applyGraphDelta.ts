@@ -2,6 +2,8 @@ import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, rebaseStaleEdgeAdditionDeltas, type Env, type Graph, type GraphDelta} from '@vt/graph-model/graph'
+import {resolveInitialPositionsForDelta} from '@vt/graph-model/spatial'
+import {positionsIO} from '@vt/app-config/positions-io'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
@@ -90,9 +92,20 @@ function commitGraphDeltaMemState(prepared: PreparedMemState): GraphDelta {
 export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<GraphDelta> {
     const currentGraph: Graph = getGraph();
     delta = rebaseStaleEdgeAdditionDeltas(currentGraph, delta);
-    return commitGraphDeltaMemState(
-        await prepareGraphDeltaMemState(currentGraph, delta, getProjectRoot()),
-    );
+    const {delta: resolvedDelta, anyResolved} = resolveInitialPositionsForDelta(currentGraph, delta);
+    const prepared = await prepareGraphDeltaMemState(currentGraph, resolvedDelta, getProjectRoot());
+    const appliedDelta = commitGraphDeltaMemState(prepared);
+
+    // Persist newly-computed positions synchronously so they survive a daemon
+    // crash (without this, positions live only in memory until vault-switch /
+    // app-exit). Only fires when the resolver actually filled in at least one
+    // position; user drags and unrelated updates take the no-op path.
+    if (anyResolved) {
+        const projectRoot: string | null = getProjectRoot();
+        if (projectRoot) positionsIO.save(prepared.graph, projectRoot);
+    }
+
+    return appliedDelta;
 }
 
 export function refreshGraphChangeSideEffects(): void {

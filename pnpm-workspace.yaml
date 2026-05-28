@@ -3,3 +3,4 @@ packages:
   - 'packages/measures'
   - 'packages/libraries/*'
   - 'packages/systems/*'
+  - 'tools/vt-fake-agent'

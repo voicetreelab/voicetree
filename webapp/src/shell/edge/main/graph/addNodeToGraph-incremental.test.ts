@@ -45,7 +45,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
           absoluteFilePathIsID: 'target.md',
           contentWithoutYamlOrLinks: '# Target',
           outgoingEdges: [],
-          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: {}, isContextNode: false }
         }
       })
 
@@ -105,7 +105,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
           absoluteFilePathIsID: 'felix/1.md',
           contentWithoutYamlOrLinks: '# Node 1',
           outgoingEdges: [],
-          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: {}, isContextNode: false }
         }
       })
 
@@ -129,7 +129,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
           absoluteFilePathIsID: 'parent.md',
           contentWithoutYamlOrLinks: '# Parent',
           outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
-          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: {}, isContextNode: false }
         }
       })
 
@@ -152,7 +152,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
           absoluteFilePathIsID: 'source.md',
           contentWithoutYamlOrLinks: '# Source',
           outgoingEdges: [{ targetId: 'target.md', label: 'links to' }],
-          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: {}, isContextNode: false }
         }
       })
 
@@ -174,13 +174,13 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
           absoluteFilePathIsID: 'parent.md',
           contentWithoutYamlOrLinks: '# Parent',
           outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
-          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: {}, isContextNode: false }
         },
         'child.md': {
           absoluteFilePathIsID: 'child.md',
           contentWithoutYamlOrLinks: '# Child',
           outgoingEdges: [],
-          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: {}, isContextNode: false }
         }
       })
 

@@ -12,7 +12,7 @@ const SYSTEMS_ROOT: string = resolve(REPO_ROOT, 'packages/systems')
 const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'graph-db-server',
     'agent-runtime',
-    'voicetree-mcp',
+    'vt-daemon',
 ] as const
 // BF-267: Bumped 44 → 47 to absorb the net +3 module-state vars introduced by the
 // DOVL+UFV epic (vaultLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
@@ -24,27 +24,37 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
 // cache, needed to preserve external SSE appends across focused-editor autosaves
 // (tier2-editor-typing-order-regression-fixed.md). Same architectural reason as
 // BF-267 — full DI would re-thread through every HTTP route.
-const MODULE_MUTABLE_STATE_BASELINE = 48
+// 2026-05-28 [PR #135 merge]: Bumped 48 → 49 for `SIBLING_SUFFIXES` — the
+// top-level `readonly string[]` lookup table inside
+// vt-daemon/.../recovery/removePersistedAgentRecord.ts (the deletion helper
+// that backs the webapp "Show older" RPC, preserved from dev-manu through the
+// dev-manu → dev integration). It's an immutable lookup constant by intent;
+// the scanner still counts it because it's a top-level binding. Same
+// architectural rationale as the prior bumps — folding it into a passed-in
+// parameter would touch every recovery call site for no behavioral gain.
+const MODULE_MUTABLE_STATE_BASELINE = 49
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
     join(SYSTEMS_ROOT, 'agent-runtime/src'),
-    join(SYSTEMS_ROOT, 'voicetree-mcp/bin'),
-    join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
+    join(SYSTEMS_ROOT, 'vt-daemon/bin'),
+    join(SYSTEMS_ROOT, 'vt-daemon/src'),
+    join(SYSTEMS_ROOT, 'voicetree-cli/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
     // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
-    'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
-    // CLI serve command is the intentional webapp entrypoint for starting the daemon.
-    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    'packages/systems/graph-db-client/src/autoLaunch/spawn/vaultlessSpawn.ts',
+    // CLI serve command is the intentional entrypoint for starting the daemon.
+    'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
     // Route-parity command imports daemon route types for CLI/API consistency checks.
-    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
     // Graph CLI index command intentionally reaches the daemon search backend.
-    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
-    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
-    // vt-mcpd is the MCP-side daemon launcher entrypoint.
-    'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
+    // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer imports
+    // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
+    // SIBLING process. No allowlist entry required.
 ] as const
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET = 0
 
@@ -399,9 +409,9 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         ])
     })
 
-    it('allows intentional webapp CLI launcher/search/parity imports', () => {
+    it('allows intentional @voicetree/cli launcher/search/parity imports', () => {
         const violations = findGraphDbServerImportViolations(
-            join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts'),
+            join(REPO_ROOT, 'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts'),
             `
                 import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
                 import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
@@ -414,7 +424,7 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         expect(violations).toEqual([])
     })
 
-    it('keeps webapp, agent-runtime, and voicetree-mcp production sources off graph-db-server outside allowlisted entrypoints', async () => {
+    it('keeps webapp, agent-runtime, and vt-daemon production sources off graph-db-server outside allowlisted entrypoints', async () => {
         const report = await scanGraphDbServerConsumerImports()
 
         console.info(
@@ -428,7 +438,7 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         await recordHealthMetric({
             metricId: 'daemon-owned-mutations-non-launcher-graph-db-server-runtime-imports',
             metricName: 'Daemon-Owned Mutations Non-Launcher GraphDbServer Runtime Imports',
-            description: 'Production webapp, agent-runtime, and voicetree-mcp runtime imports from @vt/graph-db-server outside launcher/search/parity entrypoints.',
+            description: 'Production webapp, agent-runtime, and vt-daemon runtime imports from @vt/graph-db-server outside launcher/search/parity entrypoints.',
             category: 'Coupling',
             current: report.nonLauncherRuntimeImports.length,
             budget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET,

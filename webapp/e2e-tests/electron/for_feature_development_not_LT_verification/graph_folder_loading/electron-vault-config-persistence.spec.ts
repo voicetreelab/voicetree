@@ -96,7 +96,7 @@ It should NOT be loaded with lazy loading.
   },
 
   tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-config-persist-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-cfgpersist-userdata-'));
     await use(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
@@ -357,7 +357,7 @@ This is a spec document in the openspec folder.
   },
 
   tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-default-config-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-defaultcfg-userdata-'));
     await use(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },

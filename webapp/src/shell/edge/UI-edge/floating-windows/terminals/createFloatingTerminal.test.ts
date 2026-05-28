@@ -11,9 +11,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
-import type { TerminalId, FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
-import type { TerminalData } from '@vt/agent-runtime/types'
-import { createTerminalData } from '@vt/agent-runtime/types'
+import type { TerminalId, FloatingWindowUIData, TerminalData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
+import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 
 // Mock heavy renderer dependencies before importing the module under test
 vi.mock('@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows', () => ({

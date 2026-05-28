@@ -68,7 +68,6 @@ export type FolderMaterializeResult = {
   indexPath: string
   marker: string
   materializedNow: boolean
-  mcpPort: number
   pid: number
   savedContentLength: number
   savedContentPreview: string
@@ -185,7 +184,6 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
     return ok('folder-materialize', {
       ...response.result,
       cdpPort: pick.instance.cdpPort,
-      mcpPort: pick.instance.mcpPort,
       pid: pick.instance.pid,
       projectRoot: path.resolve(selectedVaultPath || response.result.projectRoot),
     })

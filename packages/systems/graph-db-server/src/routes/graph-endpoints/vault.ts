@@ -1,6 +1,5 @@
 import type { Hono } from 'hono'
 import {
-  ensureVaultWorkflowInitialized,
   readVaultWorkflow,
   setWriteFolderWorkflow,
 } from '@vt/graph-db-server/application/workflows/vault'
@@ -20,8 +19,6 @@ import { sendHttpResult } from '../httpResult.ts'
 import { errorResult, emptyResult } from '@vt/graph-db-server/application/workflows/httpResult'
 
 export function mountVaultRoutes(app: Hono): void {
-  ensureVaultWorkflowInitialized()
-
   // Same-backend-fn invariant: keep these daemon routes on the same
   // @vt/graph-model exports the IPC surface exposes via
   // webapp/src/shell/edge/main/api.ts:120-122.

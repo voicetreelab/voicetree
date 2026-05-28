@@ -67,7 +67,6 @@ function formatGroupResult(result: GraphGroupResult): string {
 }
 
 export async function graphGroup(
-    _port: number,
     _terminalId: string | undefined,
     args: string[]
 ): Promise<void> {

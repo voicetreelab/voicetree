@@ -121,7 +121,7 @@ test.describe('Agent node creation should not auto-pin', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: { x: 100 * i, y: 100 } } as const,
-              additionalYAMLProps: new Map()
+              additionalYAMLProps: {}
             }
           },
           previousNode: { _tag: 'None' } as const

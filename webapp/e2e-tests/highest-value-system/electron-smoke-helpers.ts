@@ -16,12 +16,6 @@ export type ElectronDiagnostics = {
   rendererErrors: string[];
 };
 
-export type McpToolResult = {
-  success: boolean;
-  parsed?: Record<string, unknown>;
-  isError?: boolean;
-};
-
 export type SmokeElectronAPI = Omit<ElectronAPI, 'terminal'> & {
   terminal: {
     spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
@@ -114,69 +108,6 @@ export function stopSmokeTmuxServer(appSupportPath: string): void {
   }
 
   killProcessesMatching(command => command.includes(socketPath));
-}
-
-export async function waitForMcpServer(mcpUrl: string, maxRetries = 20, delayMs = 1000): Promise<boolean> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(mcpUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 0,
-          method: 'initialize',
-          params: {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: { name: 'smoke-healthcheck', version: '1.0.0' }
-          }
-        })
-      });
-      if (response.ok) return true;
-    } catch {
-      // Retry until the MCP server finishes startup.
-    }
-    await new Promise(resolve => setTimeout(resolve, delayMs));
-  }
-  return false;
-}
-
-export async function mcpRequest(mcpUrl: string, method: string, params: Record<string, unknown> = {}, id = 1): Promise<unknown> {
-  const response = await fetch(mcpUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream'
-    },
-    body: JSON.stringify({ jsonrpc: '2.0', id, method, params })
-  });
-  return JSON.parse(await response.text());
-}
-
-export async function mcpCallTool(mcpUrl: string, toolName: string, args: Record<string, unknown>): Promise<McpToolResult> {
-  const response = await mcpRequest(mcpUrl, 'tools/call', {
-    name: toolName,
-    arguments: args
-  }) as {
-    result?: { content?: Array<{ type: string; text: string }>; isError?: boolean };
-    error?: { message: string };
-  };
-
-  if (response.error) {
-    throw new Error(`MCP error: ${response.error.message}`);
-  }
-
-  const text = response.result?.content?.[0]?.text;
-  const parsed = text ? JSON.parse(text) as Record<string, unknown> : undefined;
-  return {
-    success: parsed?.success === true,
-    parsed,
-    isError: response.result?.isError
-  };
 }
 
 export function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics): void {

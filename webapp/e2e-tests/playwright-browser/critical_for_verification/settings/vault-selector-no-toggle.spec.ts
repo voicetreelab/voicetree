@@ -255,12 +255,19 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
       // Terminal API
       terminal: {
-        spawn: async () => ({ success: false }),
-        write: async () => {},
-        resize: async () => {},
-        kill: async () => {},
-        onData: () => {},
-        onExit: () => {}
+        attach: async () => 'mock-handle',
+        onData: () => () => {},
+        onStatus: () => () => {},
+        write: async () => true,
+        resize: async () => true,
+        detach: async () => true,
+      },
+
+      // VTD /events stream (Phase 0 / BF-367). No-op for tests that don't drive frames.
+      events: {
+        on: () => () => {},
+        onConnectionState: () => () => {},
+        resnapshot: async () => {},
       },
 
       // Position management API

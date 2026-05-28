@@ -1,13 +1,15 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
 
-export type CommandSpec = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
+export type CommandSpec = { cmd: string; args: string[]; env: NodeJS.ProcessEnv }
 type DaemonEntrypointDeps = {
   exists: (path: string) => boolean
   resolveTsx: () => string
+  siblingDaemonPath: () => string | undefined
 }
 type RuntimeVersions = NodeJS.ProcessVersions & { electron?: string }
 type RuntimeCommandInput = {
@@ -20,15 +22,53 @@ type RuntimeValidation = { ok: true } | { ok: false; reason: string }
 const tracer = trace.getTracer('vt-daemon-client')
 
 const requireFromHere = createRequire(import.meta.url)
-const GRAPH_DB_SERVER_PKG_JSON = requireFromHere.resolve(
-  '@vt/graph-db-server/package.json',
-)
-const GRAPH_DB_SERVER_ROOT = dirname(GRAPH_DB_SERVER_PKG_JSON)
 
-// Resolve from the installed workspace package root, not from import.meta.url.
-// In the bundled Electron main process, import.meta.url points into dist output.
-const FALLBACK_BIN_PATH = resolve(GRAPH_DB_SERVER_ROOT, 'dist', 'vt-graphd.mjs')
-const SOURCE_BIN_PATH = resolve(GRAPH_DB_SERVER_ROOT, 'bin', 'vt-graphd.ts')
+// Two distribution shapes ship the daemon, and the resolver has to handle both:
+//
+//   1. Published @voicetree/cli tarball — `dist/vt-graphd.mjs` sits next to the
+//      consuming CLI bundle. `@vt/graph-db-server` is *not* installed as a
+//      separate package (it's a private workspace dep). We locate the daemon
+//      via `import.meta.url` of this module, which esbuild rewrites to point
+//      into the bundled CLI's `dist/` directory.
+//   2. Workspace dev / Electron — `@vt/graph-db-server` *is* installed (as a
+//      workspace dep or bundled into Electron's node_modules). We locate the
+//      daemon by resolving the package.
+//
+// Both lookups are lazy: commands like `vt --help` / `vt manual` never spawn
+// the daemon, and we don't want module-init to fail for them when the workspace
+// package isn't installed.
+let cachedGraphDbServerRoot: string | undefined
+
+function resolveGraphDbServerRoot(): string | undefined {
+  if (cachedGraphDbServerRoot !== undefined) return cachedGraphDbServerRoot
+  try {
+    const pkgJsonPath = requireFromHere.resolve(
+      '@vt/graph-db-server/package.json',
+    )
+    cachedGraphDbServerRoot = dirname(pkgJsonPath)
+    return cachedGraphDbServerRoot
+  } catch {
+    return undefined
+  }
+}
+
+function fallbackBinPath(): string | undefined {
+  const root = resolveGraphDbServerRoot()
+  return root === undefined ? undefined : resolve(root, 'dist', 'vt-graphd.mjs')
+}
+
+function sourceBinPath(): string | undefined {
+  const root = resolveGraphDbServerRoot()
+  return root === undefined ? undefined : resolve(root, 'bin', 'vt-graphd.ts')
+}
+
+function defaultSiblingDaemonPath(): string | undefined {
+  try {
+    return resolve(dirname(fileURLToPath(import.meta.url)), 'vt-graphd.mjs')
+  } catch {
+    return undefined
+  }
+}
 
 const runtimeValidationCache = new Map<string, RuntimeValidation>()
 const runtimeCommandCache = new Map<string, string>()
@@ -86,15 +126,16 @@ export function resolveCommand(
   override: string | undefined,
 ): CommandSpec {
   const trimmed = override?.trim()
+  const env: NodeJS.ProcessEnv = { ...process.env }
   if (trimmed) {
     const parts = trimmed.split(/\s+/)
     const [cmd, ...rest] = parts
-    return { cmd, args: [...rest, '--project-root', vault] }
+    return { cmd, args: [...rest, '--project-root', vault], env }
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
     args: resolveDefaultDaemonArgs(vault),
-    env: { ...process.env },
+    env,
   }
 }
 
@@ -103,23 +144,53 @@ export function resolveDefaultDaemonArgs(
   deps: DaemonEntrypointDeps = {
     exists: existsSync,
     resolveTsx: () => requireFromHere.resolve('tsx'),
+    siblingDaemonPath: defaultSiblingDaemonPath,
   },
 ): string[] {
-  if (deps.exists(FALLBACK_BIN_PATH)) {
-    return [FALLBACK_BIN_PATH, '--project-root', vault]
+  // Published CLI tarball: vt-graphd.mjs sits next to the consuming bundle.
+  // Checked first because @vt/graph-db-server isn't installed in this layout,
+  // so the workspace-package paths would all return undefined.
+  const sibling = deps.siblingDaemonPath()
+  if (sibling !== undefined && deps.exists(sibling)) {
+    return [sibling, '--project-root', vault]
   }
 
-  if (deps.exists(SOURCE_BIN_PATH)) {
-    return [
-      '--import',
-      deps.resolveTsx(),
-      SOURCE_BIN_PATH,
-      '--project-root',
-      vault,
-    ]
+  const fallback = fallbackBinPath()
+  const source = sourceBinPath()
+  const fallbackExists = fallback !== undefined && deps.exists(fallback)
+  const sourceExists = source !== undefined && deps.exists(source)
+
+  // Workspace dev: if dist is stale relative to source (source mtime > dist mtime),
+  // running dist will execute an outdated build — exactly how the May-15 dist
+  // running `--vault` argv kept getting picked over a source that now parses
+  // `--project-root`. Prefer source whenever it's newer; otherwise prefer dist
+  // for the no-tsx-overhead path.
+  if (fallbackExists && sourceExists && sourceIsNewerThan(source!, fallback!)) {
+    return ['--import', deps.resolveTsx(), source!, '--project-root', vault]
   }
 
-  return [FALLBACK_BIN_PATH, '--project-root', vault]
+  if (fallbackExists) {
+    return [fallback!, '--project-root', vault]
+  }
+
+  if (sourceExists) {
+    return ['--import', deps.resolveTsx(), source!, '--project-root', vault]
+  }
+
+  throw new Error(
+    'Could not locate vt-graphd entrypoint. Looked for a sibling bundle ' +
+      `(${sibling ?? '<unavailable>'}), the @vt/graph-db-server dist build ` +
+      `(${fallback ?? '<package not resolvable>'}), and its TS source ` +
+      `(${source ?? '<package not resolvable>'}).`,
+  )
+}
+
+function sourceIsNewerThan(sourcePath: string, distPath: string): boolean {
+  try {
+    return statSync(sourcePath).mtimeMs > statSync(distPath).mtimeMs
+  } catch {
+    return false
+  }
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {

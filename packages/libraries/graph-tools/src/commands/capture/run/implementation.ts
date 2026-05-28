@@ -300,10 +300,10 @@ async function executeTapNodeStep(page: PageLike, nodeId: string): Promise<void>
 async function executeStep(
   page: PageLike,
   step: StepSpec,
-  instance: Pick<DebugInstance, 'mcpPort'>,
+  instance: Pick<DebugInstance, 'projectRoot'>,
 ): Promise<Delta | null> {
   if ('dispatch' in step) {
-    const transport = createLiveTransport(instance.mcpPort)
+    const transport = createLiveTransport(instance.projectRoot)
     return transport.dispatchLiveCommand(hydrateCommand(step.dispatch))
   }
 
@@ -368,7 +368,7 @@ async function runSteps(
 
   if (options.stateEach) {
     try {
-      const transport = createLiveTransport(instance.mcpPort)
+      const transport = createLiveTransport(instance.projectRoot)
       captureOverlay = runObservations.createStateCaptureOverlay(await transport.getLiveState())
     } catch {
       captureOverlay = null
@@ -394,7 +394,7 @@ async function runSteps(
       page,
       baseName: path.join(options.outDir, stepBaseName(i)),
       captureOverlay,
-      getLiveState: () => createLiveTransport(instance.mcpPort).getLiveState(),
+      getLiveState: () => createLiveTransport(instance.projectRoot).getLiveState(),
       options,
     }))
 

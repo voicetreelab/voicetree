@@ -184,7 +184,7 @@ function projectedNodeToSyntheticGraphNode(
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map<string, string>(),
+            additionalYAMLProps: {},
             ...(node.isContextNode === true ? { isContextNode: true } : {}),
         },
     };

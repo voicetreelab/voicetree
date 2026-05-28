@@ -60,7 +60,7 @@ const { chromium } = require(path.join(__dirname, '../../../node_modules/playwri
         nodeUIMetadata: {
           color: { _tag: 'None' },
           position: { _tag: 'Some', value: { x: -10000, y: -10000 } },
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       },

@@ -5,13 +5,12 @@ import os from 'os';
 export type DebugInstance = {
     pid: number;
     projectRoot: string;
-    mcpPort: number;
     cdpPort: number;
     startedAt: string;
 };
 
 export type PickOpts = {
-    port?: number;   // match cdpPort or mcpPort
+    port?: number;   // match cdpPort (legacy CLI flag historically accepted MCP port too — that port is gone in 7f)
     pid?: number;
     vault?: string;  // match resolved projectRoot prefix
     forceNew?: boolean;  // --new: skip existing instances, always launch fresh
@@ -30,9 +29,7 @@ export function filterInstancesBySelector(
     opts: PickOpts = {},
 ): DebugInstance[] {
     if (opts.port !== undefined) {
-        return liveFiles.filter(
-            i => i.cdpPort === opts.port || i.mcpPort === opts.port,
-        );
+        return liveFiles.filter(i => i.cdpPort === opts.port);
     }
 
     if (opts.pid !== undefined) {
@@ -68,7 +65,7 @@ export function pickInstance(liveFiles: DebugInstance[], opts: PickOpts = {}): P
 
     // >1 candidate — ambiguous
     const list = candidates
-        .map(i => `  pid=${i.pid}  vault=${i.projectRoot}  cdp=${i.cdpPort}  mcp=${i.mcpPort}`)
+        .map(i => `  pid=${i.pid}  vault=${i.projectRoot}  cdp=${i.cdpPort}`)
         .join('\n');
     return {
         ok: false,
@@ -112,8 +109,7 @@ export async function readInstancesDir(dir?: string): Promise<DebugInstance[]> {
             const parsed = JSON.parse(raw) as DebugInstance;
             if (
                 typeof parsed.pid === 'number' &&
-                typeof parsed.cdpPort === 'number' &&
-                typeof parsed.mcpPort === 'number'
+                typeof parsed.cdpPort === 'number'
             ) {
                 instances.push(parsed);
             }

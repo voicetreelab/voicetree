@@ -40,7 +40,7 @@ export {
     type LivePathOptions,
 } from './live/live'
 
-export {createLiveTransport, DEFAULT_MCP_PORT, type LiveTransport} from './live/liveTransport'
+export {createLiveTransport, DaemonUnreachable, type LiveTransport} from './live/liveTransport'
 
 export {
     lintGraph,
@@ -119,3 +119,4 @@ export {
     type FilesystemAuthoringReportEntry,
     type FilesystemAuthoringPlanResult,
 } from './authoring/filesystemAuthoring'
+

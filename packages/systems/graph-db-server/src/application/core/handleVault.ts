@@ -1,5 +1,3 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import { z } from 'zod'
 import {
   VaultStateSchema,
@@ -32,26 +30,6 @@ export type VaultMutationError = {
     | 'REMOVE_READ_PATH_FAILED'
     | 'SET_WRITE_PATH_FAILED'
   readonly status: 400 | 500
-}
-
-export function resolveAppSupportPath(): string {
-  const fromEnv = process.env.VOICETREE_APP_SUPPORT?.trim()
-  if (fromEnv) return fromEnv
-
-  const home = homedir()
-  if (process.platform === 'darwin') {
-    return join(home, 'Library', 'Application Support', 'Voicetree')
-  }
-  if (process.platform === 'win32') {
-    return join(
-      process.env.APPDATA ?? join(home, 'AppData', 'Roaming'),
-      'Voicetree',
-    )
-  }
-  return join(
-    process.env.XDG_CONFIG_HOME ?? join(home, '.config'),
-    'Voicetree',
-  )
 }
 
 export function decodeVaultPath(encodedPath: string):

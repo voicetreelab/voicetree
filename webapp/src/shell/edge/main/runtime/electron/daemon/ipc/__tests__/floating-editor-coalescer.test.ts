@@ -141,7 +141,7 @@ async function drainMicrotasks(): Promise<void> {
 describe('floating editor delta coalescing', () => {
   afterEach(() => {
     daemonMock.appliedDeltaLengths.splice(0)
-    initGraphModel({ appSupportPath: '/tmp/floating-editor-coalescer-test' }, {})
+    initGraphModel({})
   })
 
   test('merged microtask callback produces the same floating-editor state as individual callbacks', async () => {
@@ -149,15 +149,12 @@ describe('floating editor delta coalescing', () => {
     let observedGraph: Graph = createEmptyGraph()
     const callbackDeltas: GraphDelta[] = []
 
-    initGraphModel(
-      { appSupportPath: '/tmp/floating-editor-coalescer-test' },
-      {
-        onFloatingEditorUpdate(delta: GraphDelta): void {
-          callbackDeltas.push(delta)
-          observedGraph = applyGraphDeltaToGraph(observedGraph, delta)
-        },
+    initGraphModel({
+      onFloatingEditorUpdate(delta: GraphDelta): void {
+        callbackDeltas.push(delta)
+        observedGraph = applyGraphDeltaToGraph(observedGraph, delta)
       },
-    )
+    })
     const rendererSessionStore = { current: null }
 
     await Promise.all(

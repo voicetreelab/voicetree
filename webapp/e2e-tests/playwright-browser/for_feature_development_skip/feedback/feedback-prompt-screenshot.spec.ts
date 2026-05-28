@@ -29,7 +29,7 @@ function createBatchGraphDelta(startIndex: number, count: number): GraphDelta {
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 100 + index * 50, y: 100 + index * 30 } } as const,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       },

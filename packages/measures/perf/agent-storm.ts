@@ -1,11 +1,13 @@
 /**
  * Perf harness: agent-storm.
  *
- * Boots an in-process headless VoiceTree (graph-db-server + voicetree-mcp +
- * agent-runtime, no Electron) against a fresh temp vault, then spawns N
- * tmux-backed `vt-fake-agent` terminals in parallel. Each fake-agent runs a
- * deterministic script of `create_nodes` actions, which exercise the real MCP
- * `create_graph` tool and the daemon-routed vault write path end-to-end.
+ * Boots an in-process headless VoiceTree (graph-db-server + the unified
+ * @vt/vt-daemon HTTP server + agent-runtime, no Electron) against a fresh
+ * temp vault, then spawns N tmux-backed `vt-fake-agent` terminals in
+ * parallel. Each fake-agent runs a deterministic script of `create_node`
+ * actions, which exercise the real `create_graph` tool over the daemon's
+ * `/rpc` JSON-RPC endpoint and the daemon-routed vault write path
+ * end-to-end.
  *
  * Why this exists: the existing perf tests measure Cytoscape layout, SSE
  * round-trip, and daemon-spawn serialization — none of them drive realistic
@@ -16,24 +18,30 @@
  * latency histograms rather than guesswork.
  *
  * Honest scope:
- * - This exercises the *daemon side* of the stack (vt-graphd + MCP +
- *   agent-runtime + fake-agent → real `.md` files in the vault). The new
- *   webapp electron-main observability (`vt-electron-daemon.ndjson`) is
- *   NOT exercised because there is no Electron process in this harness.
+ * - This exercises the *daemon side* of the stack (vt-graphd + unified HTTP
+ *   daemon + agent-runtime + fake-agent → real `.md` files in the vault).
+ *   The new webapp electron-main observability (`vt-electron-daemon.ndjson`)
+ *   is NOT exercised because there is no Electron process in this harness.
  *   If a regression survives this harness, it is electron-main-specific and
  *   needs a Playwright-driven Electron variant.
  * - Real `.md` files are written. Real tmux sessions are spawned. Cleanup
  *   removes the temp vault and tmux sessions on exit.
  */
 
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import {
+    existsSync,
     mkdirSync,
     mkdtempSync,
+    readFileSync,
+    readdirSync,
     rmSync,
+    statSync,
     writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 
 import {
     startDaemon,
@@ -41,32 +49,60 @@ import {
 } from '@vt/graph-db-server'
 import { tracing } from '@vt/observability'
 import {
-    configureMcpServer,
-    getMcpPort,
-    registerChildIfMonitored,
-    startMcpServer,
-    type McpServerHandle,
-} from '@vt/voicetree-mcp'
-import { agentRuntime, configureAgentRuntime } from '@vt/agent-runtime'
+    startHttpDaemonServer,
+    type HookHandler,
+    type HttpDaemonServerHandle,
+} from '@vt/vt-daemon/transport/httpServer.ts'
+import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {setCurrentVault} from '@vt/vt-daemon/state/currentVault.ts'
+import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
+import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
+import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
+import {
+    generateAuthToken,
+    writeAuthTokenFile,
+    writeRpcPortFile,
+} from '@vt/vt-rpc'
+import { terminalRuntimeSurface as agentRuntime } from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
+import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
     createTerminalData,
     type TerminalData,
     type TerminalId,
-} from '@vt/agent-runtime/types'
+} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { GraphDbClient } from '@vt/graph-db-client'
-import type { Graph } from '@vt/graph-model/graph'
-import { generateVaultOnDisk } from '@vt/perf-fixtures'
-import { parseArgs } from './agent-storm/args'
-import { normalizeDaemonGraph } from './agent-storm/daemon-graph'
 import {
+    applyGraphDeltaToGraph,
+    createEmptyGraph,
+    mapNewGraphToDelta,
+    type Graph,
+    type GraphNode,
+    type NodeIdAndFilePath,
+} from '@vt/graph-model/graph'
+import { generateVaultOnDisk } from '@vt/perf-fixtures'
+import {
+    type AgentStormArgs,
+    type SpanRecord,
     buildAgentPrompt,
     buildFakeAgentScript,
+    countMarkdownFiles,
+    ndjsonFileSize,
+    parseAgentStormArgs,
+    readNdjsonTail,
     resolveFakeAgentEntrypoint,
     resolveTsxImportPath,
-} from './agent-storm/fake-agent'
-import { countMarkdownFiles } from './agent-storm/filesystem'
-import { ndjsonFileSize, readNdjsonTail, summarizeSpans } from './agent-storm/spans'
-import type { AgentResult } from './agent-storm/types'
+    summarizeSpans,
+} from './agent-storm-helpers'
+
+interface AgentResult {
+    readonly terminalId: string
+    readonly spawnSuccess: boolean
+    readonly startedAtMs: number
+    readonly exitedAtMs: number | null
+    readonly exitCode: number | null
+    readonly stdoutSnippet: string
+    readonly errorMessage?: string
+}
 
 async function waitForExit(
     terminalId: string,
@@ -92,7 +128,7 @@ async function waitForExit(
 }
 
 async function main(): Promise<void> {
-    const args = parseArgs(process.argv.slice(2))
+    const args: AgentStormArgs = parseAgentStormArgs(process.argv.slice(2))
 
     // Bootstrap tracing BEFORE any graph-db-server / agent-runtime imports
     // create spans we want recorded.
@@ -120,19 +156,9 @@ async function main(): Promise<void> {
     const graphdOffset = ndjsonFileSize(graphdNdjson)
     const electronOffset = ndjsonFileSize(electronNdjson)
 
+    process.env.VOICETREE_APP_SUPPORT = tempAppSupport
     configureAgentRuntime({
-        env: {
-            getAppSupportPath: (): string => tempAppSupport,
-            getMcpPort,
-            getProjectRoot: async (): Promise<string> => tempVault,
-            getVaultSnapshot: async () => ({
-                projectRoot: tempVault,
-                readPaths: [tempVault],
-                writeFolder: tempVault,
-            }),
-            getWriteFolder: async (): Promise<string> => tempVault,
-        },
-        ui: { registerChildIfMonitored },
+        env: {},
     })
 
     await agentRuntime.ensureTmuxAvailable()
@@ -153,44 +179,85 @@ async function main(): Promise<void> {
 
     // Wire MCP graph bridge to talk to the in-process daemon via HTTP. In
     // production (Electron) this bridge points at the GraphDbClient bound to
-    // the active vault; vt-mcpd headless leaves it unconfigured by design
-    // (CLI agents write via raw FS instead of create_graph). The perf harness
+    // the active vault; the standalone vtd binary headless leaves it
+    // unconfigured by design (CLI agents write via raw FS instead of
+    // create_graph). The perf harness
     // EXPLICITLY exercises create_graph because that is the path we suspect
     // creates load — so we configure the bridge here, identical in shape to
     // webapp's `main.ts` wiring.
     const daemonBaseUrl = `http://127.0.0.1:${daemonHandle.port}`
     const daemonClient = new GraphDbClient({ baseUrl: daemonBaseUrl })
     const openResult = await daemonClient.openVault(tempVault, { writeFolder: tempVault })
-    const graphFromDaemon = async (): Promise<Graph> => {
-        const raw = await daemonClient.getGraph()
-        const nodes = (typeof raw === 'object' && raw !== null && 'nodes' in raw)
-            ? (raw as { nodes: Record<string, unknown> }).nodes
-            : {}
-        return normalizeDaemonGraph({ nodes })
-    }
-    const vaultPathsFromState = (vs: { readonly readPaths: readonly string[]; readonly writeFolder: string }): readonly string[] => {
-        const seen = new Set<string>()
-        const out: string[] = []
-        for (const p of [vs.writeFolder, ...vs.readPaths]) {
-            if (!seen.has(p)) { seen.add(p); out.push(p) }
+    setCurrentVault(tempVault)
+
+    // The daemon serializes Graph over JSON, which collapses Maps (e.g.
+    // nodeByBaseName, additionalYAMLProps) into plain objects. createGraphTool
+    // assumes Map types on those fields. The webapp's getNormalizedDaemonGraph
+    // helper rehydrates by applying a delta-from-graph onto an empty graph,
+    // which rebuilds the Map indexes. We replicate that logic here to keep
+    // the perf harness honest about exercising the production createGraph
+    // path.
+    const normalizeDaemonGraph = (raw: { nodes: Record<string, unknown> }): Graph => {
+        type SerializableGraphNode = GraphNode & {
+            nodeUIMetadata?: GraphNode['nodeUIMetadata'] & {
+                additionalYAMLProps?: unknown
+            }
         }
-        return out
+        const normalizedNodes = Object.fromEntries(
+            Object.entries(raw.nodes).map(([nodeId, rawNode]) => {
+                const node = rawNode as SerializableGraphNode
+                const additional = node.nodeUIMetadata?.additionalYAMLProps
+                const revived: ReadonlyMap<string, string> = additional instanceof Map
+                    ? additional
+                    : new Map(
+                        Object.entries(
+                            typeof additional === 'object' && additional !== null
+                                ? (additional as Record<string, string>)
+                                : {},
+                        ),
+                    )
+                return [
+                    nodeId,
+                    {
+                        ...node,
+                        nodeUIMetadata: {
+                            ...node.nodeUIMetadata,
+                            additionalYAMLProps: revived,
+                        },
+                    },
+                ]
+            }),
+        ) as Record<NodeIdAndFilePath, GraphNode>
+        const emptyGraph: Graph = createEmptyGraph()
+        return applyGraphDeltaToGraph(
+            emptyGraph,
+            mapNewGraphToDelta({ ...emptyGraph, nodes: normalizedNodes }),
+        )
     }
 
-    configureMcpServer({
+    const mcpBridges: McpToolBridges = {
         graph: {
-            getSnapshot: async () => {
-                const [graph, vaultState] = await Promise.all([
-                    graphFromDaemon(),
-                    daemonClient.getVault(),
-                ])
-                return {
-                    graph,
-                    projectRoot: vaultState.projectRoot,
-                    vaultPaths: vaultPathsFromState(vaultState),
-                    writeFolder: vaultState.writeFolder,
-                }
+            getGraph: async (): Promise<Graph> => {
+                const raw = await daemonClient.getGraph()
+                const nodes = (typeof raw === 'object' && raw !== null && 'nodes' in raw)
+                    ? (raw as { nodes: Record<string, unknown> }).nodes
+                    : {}
+                return normalizeDaemonGraph({ nodes })
             },
+            getVaultPaths: async () => {
+                // VaultState has {projectRoot, readPaths, writeFolder}. Match the
+                // webapp's getVaultPaths: writeFolder first, then any extra
+                // readPaths. createGraph compares against this list to gate
+                // outputPath placement.
+                const vs = await daemonClient.getVault()
+                const seen = new Set<string>()
+                const out: string[] = []
+                for (const p of [vs.writeFolder, ...vs.readPaths]) {
+                    if (!seen.has(p)) { seen.add(p); out.push(p) }
+                }
+                return out
+            },
+            getWriteFolder: async () => (await daemonClient.getVault()).writeFolder ?? null,
             applyGraphDelta: async (delta, recordForUndo) => {
                 await daemonClient.applyGraphDelta(delta as unknown as unknown[], {
                     recordForUndo: recordForUndo ?? true,
@@ -198,26 +265,38 @@ async function main(): Promise<void> {
                 })
             },
         },
-        liveState: {
-            applyLiveCommand: (): Promise<never> => Promise.reject(
-                new Error('vt_dispatch_live_command not available in perf harness'),
-            ),
-            getLiveStateSnapshot: (): Promise<never> => Promise.reject(
-                new Error('vt_get_live_state not available in perf harness'),
-            ),
-        },
-    })
+    }
 
-    let mcpHandle: McpServerHandle
+    // Bearer auth token: ephemeral per-run. The fake-agent subprocess
+    // discovers it from the temp vault's .voicetree/auth-token file via
+    // @vt/vt-rpc discovery; we also publish the rpc.port file so the same
+    // discovery chain finds the port without an env override.
+    const token: string = generateAuthToken()
+    await writeAuthTokenFile(tempVault, token)
+
+    const hookHandler: HookHandler = (input): unknown =>
+        handleHookEventRequest(
+            { source: input.source, terminalId: input.terminalId, hookEventName: input.eventName },
+            { updateAgentEvent: agentRuntime.updateTerminalAgentEvent },
+        )
+
+    let httpHandle: HttpDaemonServerHandle
     try {
-        mcpHandle = await startMcpServer({ startPort: undefined })
+        httpHandle = await startHttpDaemonServer({
+            catalog: buildDefaultToolCatalog(mcpBridges),
+            hookHandler,
+            token,
+            bindHost: '127.0.0.1',
+            port: undefined,
+        })
+        await writeRpcPortFile(tempVault, httpHandle.port)
     } catch (err) {
         await daemonHandle.stop().catch(() => undefined)
-        throw new Error(`startMcpServer failed: ${(err as Error).message}`)
+        throw new Error(`startHttpDaemonServer failed: ${(err as Error).message}`)
     }
 
     process.stdout.write(
-        `[perf] mcp port=${mcpHandle.port} graphd port=${daemonHandle.port} `
+        `[perf] daemon=${httpHandle.url} graphd port=${daemonHandle.port} `
         + `vault=${tempVault} app-support=${tempAppSupport}\n`,
     )
 
@@ -262,7 +341,7 @@ async function main(): Promise<void> {
         if (isolatedDir) mkdirSync(isolatedDir, { recursive: true })
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_MCP_PORT: String(mcpHandle.port),
+            VOICETREE_DAEMON_URL: httpHandle.url,
             VOICETREE_VAULT_PATH: tempVault,
             TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
@@ -340,8 +419,10 @@ async function main(): Promise<void> {
 
     const filesCreated = countMarkdownFiles(tempVault)
 
-    // Tear down in the same order vt-mcpd uses on SIGTERM.
-    await mcpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] mcp stop: ${(e as Error).message}\n`))
+    // Tear down: HTTP daemon → terminals → graph-db. (Note: the standalone
+    // vtd binary no longer embeds graph-db, but this perf harness still does
+    // — graphd shutdown happens here only because we own the spawn locally.)
+    await httpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] http daemon stop: ${(e as Error).message}\n`))
     agentRuntime.getTerminalManager().cleanup()
     await daemonHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] daemon stop: ${(e as Error).message}\n`))
 

@@ -1,4 +1,4 @@
-import type {RecoverableAgentSession, ResumePersistedResult} from '@vt/agent-runtime'
+import type {RecoverableAgentSession, ResumePersistedResult} from '@vt/vt-daemon-client'
 
 type RecoveryCallback = (sessions: readonly RecoverableAgentSession[]) => void
 

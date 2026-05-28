@@ -20,7 +20,7 @@ function createTestNode(id: string, title: string, contentExtra: string = ''): G
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     }
 }
@@ -170,7 +170,7 @@ describe('recentNodeHistoryV2', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }

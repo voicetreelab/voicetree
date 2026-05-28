@@ -86,7 +86,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },

@@ -1,9 +1,10 @@
 // Type definitions for floating window components - V2
 // Functional design: flat types with intersection composition, IDs derived not stored
 //
-// Terminal types are owned by @vt/agent-runtime; this file re-exports them and
-// layers an optional `ui` field via intersection so webapp can attach renderer
-// handles (HTMLElement) without leaking the DOM into runtime.
+// Terminal wire types are owned by @vt/vt-daemon-protocol (re-exported via
+// @vt/vt-daemon-client); this file mirrors `TerminalData` locally so the
+// webapp can intersect an optional `ui` field (HTMLElement handle) without
+// leaking the DOM into the protocol package.
 
 import type {Option} from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';

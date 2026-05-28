@@ -26,7 +26,6 @@ import {
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { Page } from '@playwright/test';
 import type { GraphDelta, GraphNode } from '@/pure/graph';
-import type { EditorView } from '@codemirror/view';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {
@@ -75,11 +74,6 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
   }
 });
 
-// Helper type for CodeMirror access
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: EditorView };
-}
-
 interface ExtendedWindowWithGraph extends ExtendedWindow {
   electronAPI?: {
     main?: {
@@ -93,42 +87,39 @@ interface ExtendedWindowWithGraph extends ExtendedWindow {
   };
 }
 
-/**
- * Helper to get editor content via CodeMirror API
- */
-async function getEditorContent(page: Page, editorWindowId: string): Promise<string | null> {
-  // Escape dots in window ID for CSS selector
-  const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`;
-  return page.evaluate((selector) => {
-    const editorElement = document.querySelector(`${selector} .cm-content`) as CodeMirrorElement | null;
-    if (!editorElement) return null;
+// Editor access goes through the production `vanillaFloatingWindowInstances` store
+// and the public CodeMirrorEditorView API (focusAtEnd/getValue). The older approach
+// of reading CodeMirror's internal `cmView` property off `.cm-content` stopped
+// working in @codemirror/view 6.43, which replaced it with `cmTile`. The store
+// lookup is version-agnostic and lets us drive real `page.keyboard` input so CM
+// tags transactions as user events (which the production autosave path requires).
+type EditorInstance = { getValue: () => string; focusAtEnd: () => void };
 
-    const cmView = editorElement.cmView?.view;
-    if (!cmView) return null;
-
-    return cmView.state.doc.toString();
-  }, editorSelector);
+async function waitForEditorInstance(page: Page, editorInstanceId: string): Promise<void> {
+  await page.waitForFunction(async (id) => {
+    const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
+    return store.vanillaFloatingWindowInstances.has(id);
+  }, editorInstanceId, { timeout: 5000 });
 }
 
-/**
- * Helper to set editor content via CodeMirror API (simulates typing)
- */
-async function typeInEditor(page: Page, editorWindowId: string, content: string): Promise<void> {
-  // Escape dots in window ID for CSS selector
-  const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`;
-  await page.evaluate(({ selector, newContent }: { selector: string; newContent: string }) => {
-    const editorElement = document.querySelector(`${selector} .cm-content`) as CodeMirrorElement | null;
-    if (!editorElement) throw new Error('Editor content element not found');
+async function focusEditorAtEnd(page: Page, editorInstanceId: string): Promise<void> {
+  await page.evaluate(async (id) => {
+    const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
+    const instance = store.vanillaFloatingWindowInstances.get(id) as unknown as EditorInstance | undefined;
+    if (!instance) throw new Error(`Editor instance not registered: ${id}`);
+    if (typeof instance.focusAtEnd !== 'function') throw new Error('Editor lacks focusAtEnd');
+    instance.focusAtEnd();
+  }, editorInstanceId);
+}
 
-    const cmView = editorElement.cmView?.view;
-    if (!cmView) throw new Error('CodeMirror view not found');
-
-    // Simulate typing by appending to existing content
-    const currentLength = cmView.state.doc.length;
-    cmView.dispatch({
-      changes: { from: currentLength, to: currentLength, insert: newContent }
-    });
-  }, { selector: editorSelector, newContent: content });
+async function readEditorValue(page: Page, editorInstanceId: string): Promise<string> {
+  return page.evaluate(async (id) => {
+    const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
+    const instance = store.vanillaFloatingWindowInstances.get(id) as unknown as EditorInstance | undefined;
+    if (!instance) throw new Error(`Editor instance not registered: ${id}`);
+    if (typeof instance.getValue !== 'function') throw new Error('Editor lacks getValue');
+    return instance.getValue();
+  }, editorInstanceId);
 }
 
 /**
@@ -228,7 +219,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -251,6 +242,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     // Editor window ID needs escaped dots for CSS selector
     const editorWindowId = `window-${nodeId}-editor`;
     const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`; // Escape dots for CSS selector
+    const editorInstanceId = `${nodeId}-editor`; // Matches getEditorId(): `${nodeId}-editor`
 
     // Wait for editor to open
     await page.waitForSelector(editorSelector, { timeout: 5000 });
@@ -259,46 +251,125 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     // Wait for CodeMirror to render
     await page.waitForSelector(`${editorSelector} .cm-editor`, { timeout: 5000 });
 
+    // Wait for the editor instance to be registered in the production store
+    // before reading/writing through it.
+    await waitForEditorInstance(page, editorInstanceId);
+
+    // Production autosave debounce (set in FloatingEditorCRUD). Keep in sync if it changes.
+    const AUTOSAVE_DEBOUNCE_MS = 150;
+    // Mock filesystem-feedback delay scheduled below.
+    const MOCK_FS_FEEDBACK_DELAY_MS = 100;
+
+    // Install a writeMarkdownFile mock that captures the saved content and, after a small
+    // delay, drives a projected-graph update carrying that (now-stale) content back into
+    // the renderer — i.e. simulates chokidar's filesystem-watch echo.
+    //
+    // Why install it here instead of upgrading the shared `setupMockWithFilesystemFeedback`:
+    //   the shared mock still wires the older `applyGraphDeltaToDBAndMem` path which production
+    //   no longer calls from autosave (saves now go through `writeMarkdownFile`). Updating the
+    //   shared mock would also retarget the peer-owned :307 test, so we install the mock here
+    //   for :204 only and flag the shared-mock staleness in the agent report.
+    await page.evaluate(({ feedbackDelayMs }) => {
+      type GraphNodeLike = {
+        absoluteFilePathIsID: string;
+        contentWithoutYamlOrLinks: string;
+      };
+      const win = window as unknown as {
+        electronAPI?: {
+          main?: {
+            writeMarkdownFile?: (nodeId: string, body: string, writerId: string) => Promise<unknown>;
+          };
+          graph?: {
+            _graphState?: { nodes: Record<string, GraphNodeLike> };
+            _projectedGraphCallback?: (graph: unknown) => void;
+          };
+        };
+      };
+      const api = win.electronAPI;
+      if (!api?.main || !api.graph) {
+        throw new Error('electronAPI mock is not initialised');
+      }
+      const graphState = api.graph._graphState;
+      if (!graphState) {
+        throw new Error('mock graph state is not initialised');
+      }
+      api.main.writeMarkdownFile = async (nodeIdArg: string, body: string, _writerId: string) => {
+        // Update the mock graph with what was saved (this is the content the FS will echo back).
+        const existing = graphState.nodes[nodeIdArg];
+        const savedNode: GraphNodeLike = existing
+          ? { ...existing, contentWithoutYamlOrLinks: body }
+          : { absoluteFilePathIsID: nodeIdArg, contentWithoutYamlOrLinks: body };
+        graphState.nodes[nodeIdArg] = savedNode;
+
+        // Schedule the FS-echo: project a delta whose nodeToUpsert matches what we just saved,
+        // with previousNode also pointing at that saved snapshot (= what was on disk pre-save
+        // when chokidar fires after a UI-initiated write). EditorSync should refuse to overwrite
+        // the editor's newer content because currentEditorContent no longer matches prevContent.
+        setTimeout(() => {
+          void (async () => {
+            const feedbackDelta = [
+              {
+                type: 'UpsertNode',
+                nodeToUpsert: savedNode,
+                previousNode: { _tag: 'Some', value: savedNode } as const,
+              },
+            ];
+            const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts' as string);
+            const projected = projectDelta(feedbackDelta as unknown as Parameters<typeof projectDelta>[0]);
+            api.graph?._projectedGraphCallback?.(projected);
+          })();
+        }, feedbackDelayMs);
+
+        return { ok: true, absolutePath: nodeIdArg, preservedSuffix: null };
+      };
+    }, { feedbackDelayMs: MOCK_FS_FEEDBACK_DELAY_MS });
+
     console.log('=== Step 6: Reproduce the feedback loop bug ===');
+
+    // Focus the editor with cursor at end so subsequent keystrokes append to existing content.
+    await focusEditorAtEnd(page, editorInstanceId);
 
     // Simulate the sequence of events:
     // 1. User types "Hello world"
     console.log('[Bug Repro Step 1] User types "Hello world"');
-    await typeInEditor(page, editorWindowId, '\nHello world');
-    await page.waitForTimeout(5); // Brief pause
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Hello world');
 
-    const contentAfterFirstType = await getEditorContent(page, editorWindowId);
-    console.log('Content after first type:', contentAfterFirstType?.substring(contentAfterFirstType.length - 50));
+    const contentAfterFirstType = await readEditorValue(page, editorInstanceId);
+    console.log('Content after first type:', contentAfterFirstType.substring(contentAfterFirstType.length - 50));
     expect(contentAfterFirstType).toContain('Hello world');
 
-    // 2. Wait for debounce to fire (300ms)
-    console.log('[Bug Repro Step 2] Waiting for debounced save (300ms)...');
-    await page.waitForTimeout(35); // Wait for debounce + save to trigger
+    // 2. Wait long enough for the autosave debounce to fire on the FIRST burst.
+    //    Once the debounce fires, the mock captures `Hello world` as the saved content
+    //    and schedules a filesystem-feedback callback MOCK_FS_FEEDBACK_DELAY_MS later.
+    console.log('[Bug Repro Step 2] Waiting for debounced save to fire...');
+    await page.waitForTimeout(AUTOSAVE_DEBOUNCE_MS + 30);
 
-    // 3. User continues typing MORE content AFTER the debounce fired
+    // 3. User continues typing MORE content AFTER the save fired.
+    //    The editor now holds "...Hello world and more text" but the in-flight FS feedback
+    //    still carries only "...Hello world".
     console.log('[Bug Repro Step 3] User types " and more text" AFTER debounce fired');
-    await typeInEditor(page, editorWindowId, ' and more text');
-    await page.waitForTimeout(5);
+    await page.keyboard.type(' and more text');
 
-    const contentAfterSecondType = await getEditorContent(page, editorWindowId);
-    console.log('Content after second type:', contentAfterSecondType?.substring(contentAfterSecondType.length - 50));
+    const contentAfterSecondType = await readEditorValue(page, editorInstanceId);
+    console.log('Content after second type:', contentAfterSecondType.substring(contentAfterSecondType.length - 50));
     expect(contentAfterSecondType).toContain('Hello world and more text');
 
-    // 4. Filesystem event arrives with the FIRST save (only "Hello world", not "and more text")
+    // 4. Wait for the filesystem feedback (with stale content) to arrive.
+    //    Feedback was scheduled at save-fire time = ~AUTOSAVE_DEBOUNCE_MS, so it lands
+    //    ~MOCK_FS_FEEDBACK_DELAY_MS after that. Add headroom for projection + dispatch.
     console.log('[Bug Repro Step 4] Waiting for filesystem event to arrive with stale content...');
-    await page.waitForTimeout(20); // Wait for filesystem feedback to arrive
+    await page.waitForTimeout(MOCK_FS_FEEDBACK_DELAY_MS + 80);
 
-    // 5. CRITICAL ASSERTION: Editor should STILL have the full content
-    const finalContent = await getEditorContent(page, editorWindowId);
-    console.log('Final editor content:', finalContent?.substring(finalContent.length - 50));
+    // 5. CRITICAL ASSERTION: Editor should STILL have the full content (no overwrite).
+    const finalContent = await readEditorValue(page, editorInstanceId);
+    console.log('Final editor content:', finalContent.substring(finalContent.length - 50));
 
-    // THIS ASSERTION WILL FAIL - reproducing the bug
-    // The editor will have lost "and more text" because setValue() was called
     expect(finalContent).toContain('Hello world and more text');
     console.log('✓ Editor preserved all typed content despite filesystem feedback');
 
-    // Additional verification: content should NOT be just "Hello world"
-    if (finalContent && !finalContent.includes('and more text')) {
+    // Additional verification: content should NOT have been truncated back to the saved snapshot.
+    if (!finalContent.includes('and more text')) {
       console.error('❌ BUG REPRODUCED: Editor lost "and more text" after filesystem feedback!');
       console.error('Editor only has:', finalContent.substring(finalContent.length - 50));
     }
@@ -323,7 +394,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -342,35 +413,38 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
     const editorWindowId = `window-${nodeId}-editor`;
     const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`; // Escape dots for CSS selector
+    const editorInstanceId = `${nodeId}-editor`; // Matches getEditorId(): `${nodeId}-editor`
+
     await page.waitForSelector(`${editorSelector} .cm-editor`, { timeout: 5000 });
+    await waitForEditorInstance(page, editorInstanceId);
 
     console.log('=== Simulating rapid typing pattern ===');
 
-    // Type "Line 1"
-    await typeInEditor(page, editorWindowId, 'Line 1\n');
+    // Focus once with cursor at end; the four rapid types below append in sequence.
+    await focusEditorAtEnd(page, editorInstanceId);
+
+    await page.keyboard.type('Line 1\n');
     console.log('[Rapid] Typed "Line 1"');
     await page.waitForTimeout(10);
 
-    // Type "Line 2"
-    await typeInEditor(page, editorWindowId, 'Line 2\n');
+    await page.keyboard.type('Line 2\n');
     console.log('[Rapid] Typed "Line 2"');
     await page.waitForTimeout(10);
 
-    // Type "Line 3"
-    await typeInEditor(page, editorWindowId, 'Line 3\n');
+    await page.keyboard.type('Line 3\n');
     console.log('[Rapid] Typed "Line 3"');
 
     // Wait for debounce
     await page.waitForTimeout(35);
 
     // Type "Line 4" AFTER debounce
-    await typeInEditor(page, editorWindowId, 'Line 4\n');
+    await page.keyboard.type('Line 4\n');
     console.log('[Rapid] Typed "Line 4" after debounce');
 
     // Wait for filesystem feedback
     await page.waitForTimeout(20);
 
-    const finalContent = await getEditorContent(page, editorWindowId);
+    const finalContent = await readEditorValue(page, editorInstanceId);
     console.log('Final content after rapid edits:', finalContent);
 
     // All lines should be present

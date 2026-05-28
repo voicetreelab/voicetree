@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import type {RecoverableAgentSession} from '@vt/agent-runtime';
+import type {RecoverableAgentSession} from '@vt/vt-daemon-client';
 import {
     getRecoverySessions,
     subscribeToRecoverySessions,

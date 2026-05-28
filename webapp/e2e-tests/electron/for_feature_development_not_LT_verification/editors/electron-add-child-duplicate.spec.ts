@@ -223,7 +223,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
           title: 'New GraphNode',
           color: { _tag: 'None' } as const,
           position: { _tag: 'None' } as const, // Will be positioned by layout
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: {}
         }
       };
 

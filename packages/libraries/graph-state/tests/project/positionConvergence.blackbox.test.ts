@@ -88,7 +88,7 @@ describe('Hot Zone C (a) — Position convergence under add/remove/expand', () =
                 nodeUIMetadata: {
                     color: { _tag: 'None' } as never,
                     position: { _tag: 'None' } as never,
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                 },
             } as never,
         }
@@ -138,8 +138,8 @@ describe('Hot Zone C (a) — Position convergence under add/remove/expand', () =
 
         const mutations: readonly Command[] = [
             // Add-then-remove cycles — BF-117 must stay put through all of these.
-            { type: 'AddNode', node: { outgoingEdges: [], absoluteFilePathIsID: `${ROOT}/tasks/A.md`, contentWithoutYamlOrLinks: 'A', nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'None' }, additionalYAMLProps: new Map() } } as never } as Command,
-            { type: 'AddNode', node: { outgoingEdges: [], absoluteFilePathIsID: `${ROOT}/tasks/B.md`, contentWithoutYamlOrLinks: 'B', nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'None' }, additionalYAMLProps: new Map() } } as never } as Command,
+            { type: 'AddNode', node: { outgoingEdges: [], absoluteFilePathIsID: `${ROOT}/tasks/A.md`, contentWithoutYamlOrLinks: 'A', nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'None' }, additionalYAMLProps: {} } } as never } as Command,
+            { type: 'AddNode', node: { outgoingEdges: [], absoluteFilePathIsID: `${ROOT}/tasks/B.md`, contentWithoutYamlOrLinks: 'B', nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'None' }, additionalYAMLProps: {} } } as never } as Command,
             setFolderState('collapsed'),
             setFolderState('expanded'),
             { type: 'RemoveNode', id: `${ROOT}/tasks/A.md` },

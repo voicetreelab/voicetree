@@ -105,7 +105,6 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
       VOICETREE_TERMINAL_ID: 'Ama',
       VOICETREE_CALLER_TERMINAL_ID: 'Ama',
       AGENT_NAME: 'Ama',
-      VOICETREE_MCP_PORT: '3002',
       ...resolvedEnvVars,
     };
 
@@ -127,7 +126,6 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     // Should contain the actual resolved values
     expect(result.AGENT_PROMPT).toContain('/Users/test/project/vault/task-123.md');
     expect(result.AGENT_PROMPT).toContain('Ama');
-    expect(result.AGENT_PROMPT).toContain('3002');
 
     // AGENT_PROMPT should equal AGENT_PROMPT_CORE (since default is just '$AGENT_PROMPT_CORE')
     expect(result.AGENT_PROMPT).toBe(result.AGENT_PROMPT_CORE);

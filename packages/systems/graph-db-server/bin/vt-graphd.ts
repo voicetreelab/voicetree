@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --import tsx
 import { resolve } from 'node:path'
 import { startDaemon } from '../src/daemon/server.ts'
+import { startParentPidWatchdog } from '@vt/daemon-lifecycle'
 import { tracing } from '@vt/observability'
 import { perfProbeFromEnv } from '@vt/perf-analysis/perf-probe'
 
@@ -115,6 +116,19 @@ async function main() {
   }
   process.on('SIGINT', () => void shutdown('SIGINT'))
   process.on('SIGTERM', () => void shutdown('SIGTERM'))
+
+  const parentPidEnv = process.env.VOICETREE_PARENT_PID
+  if (parentPidEnv) {
+    const parentPid = Number.parseInt(parentPidEnv, 10)
+    if (Number.isInteger(parentPid) && parentPid > 0) {
+      startParentPidWatchdog({
+        onParentGone: () => void shutdown('PARENT_GONE'),
+        parentPid,
+      })
+    } else {
+      process.stderr.write(`vt-graphd: ignoring invalid VOICETREE_PARENT_PID=${parentPidEnv}\n`)
+    }
+  }
 }
 
 void main()

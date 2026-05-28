@@ -21,7 +21,7 @@ import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsive
 import type {GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {isImageNode} from "@vt/graph-model/graph";
 import type {Core} from "cytoscape";
-import type {RecoverableAgentSession, TerminalRecord, UnclaimedTmuxSession} from '@vt/agent-runtime';
+import type {RecoverableAgentSession, TerminalRecord, UnclaimedTmuxSession} from '@vt/vt-daemon-client';
 import {syncFromMain} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {syncUnclaimedTmuxFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore";
 import {syncRecoverySessionsFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore";

@@ -43,7 +43,7 @@ export async function getExpandedFolderPathsForVault(projectRoot: FilePath): Pro
     }
     const store = await loadFolderVisibilityStore()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot, dbModule.defaultFolderVisibilityDbDeps)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
@@ -70,7 +70,7 @@ export async function getWatchRootsForActiveView(projectRoot: FilePath): Promise
     }
     const store = await loadStoreWithDerivation()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot, dbModule.defaultFolderVisibilityDbDeps)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
@@ -96,7 +96,7 @@ export async function setActiveViewFolderState(
     }
     const store = await loadFolderVisibilityStore()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot, dbModule.defaultFolderVisibilityDbDeps)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
@@ -119,7 +119,7 @@ export async function seedActiveViewExpandedFolderStates(
     }
     const store = await loadFolderVisibilityStore()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot, dbModule.defaultFolderVisibilityDbDeps)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)

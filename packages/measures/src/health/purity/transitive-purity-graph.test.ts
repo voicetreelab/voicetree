@@ -19,7 +19,11 @@ import { recordHealthMetric } from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
-const TRANSITIVE_IMPURE_FUNCTIONS_BUDGET = 320
+// Fixed shell allowance plus one transitive-impure function per N pure package
+// functions. New impurity spends budget twice: it increments the impure count
+// and removes one function from the pure-code allowance.
+const TRANSITIVE_IMPURE_FUNCTIONS_BASE_BUDGET = 90
+const PURE_FUNCTIONS_PER_TRANSITIVE_IMPURE_ALLOWANCE = 8
 const IMPURE_RATIO_BUDGET = 1
 const IMPURE_MODULES: ReadonlySet<string> = new Set([
     'fs',
@@ -52,11 +56,15 @@ describe('transitive impurity (ts-morph call graph)', () => {
         const scopedNodeIds = [...graph.nodes.keys()].filter(id => id.startsWith('packages/'))
         const transitiveIds = scopedNodeIds
             .filter(id => directIds.has(id) || graph.reachesAny(id, node => directIds.has(node.id)))
+        const pureFunctionCount = scopedNodeIds.length - transitiveIds.length
+        const transitiveImpureFunctionsBudget =
+            TRANSITIVE_IMPURE_FUNCTIONS_BASE_BUDGET
+            + Math.ceil(pureFunctionCount / PURE_FUNCTIONS_PER_TRANSITIVE_IMPURE_ALLOWANCE)
         const maxFolderRatio = maxImpureFolderRatio(graph, new Set(transitiveIds))
         const directTransitiveCount = transitiveIds.filter(id => directIds.has(id)).length
 
         console.info(`buildCallGraph first call: ${buildMs}ms`)
-        console.info(`TS transitive impurity: ${transitiveIds.length} functions; direct=${directTransitiveCount}, transitive=${transitiveIds.length - directTransitiveCount}`)
+        console.info(`TS transitive impurity: ${transitiveIds.length} functions; budget=${transitiveImpureFunctionsBudget}, pure=${pureFunctionCount}, direct=${directTransitiveCount}, transitive=${transitiveIds.length - directTransitiveCount}`)
         console.info(`TS transitive impurity top roots: ${topRoots(graph, transitiveIds).join(', ')}`)
 
         await recordHealthMetric({
@@ -65,12 +73,16 @@ describe('transitive impurity (ts-morph call graph)', () => {
             description: 'ts-morph call-graph count of functions that directly or transitively reach filesystem, network, or process sinks.',
             category: 'Purity',
             current: transitiveIds.length,
-            budget: TRANSITIVE_IMPURE_FUNCTIONS_BUDGET,
+            budget: transitiveImpureFunctionsBudget,
             comparison: 'lte',
             unit: 'functions',
             details: {
                 directFunctions: directTransitiveCount,
                 transitiveOnlyFunctions: transitiveIds.length - directTransitiveCount,
+                totalPackageFunctions: scopedNodeIds.length,
+                pureFunctionCount,
+                baseBudget: TRANSITIVE_IMPURE_FUNCTIONS_BASE_BUDGET,
+                pureFunctionsPerAllowance: PURE_FUNCTIONS_PER_TRANSITIVE_IMPURE_ALLOWANCE,
                 buildMs,
                 scope: 'packages/',
                 sampleFunctionIds: transitiveIds.slice(0, 25),
@@ -94,8 +106,8 @@ describe('transitive impurity (ts-morph call graph)', () => {
         const topTsCandidates = transitiveIds.slice(0, 10).map(id => graph.nodes.get(id)?.name ?? id)
         expect(
             transitiveIds.length,
-            `Transitive impurity count ${transitiveIds.length} exceeds budget ${TRANSITIVE_IMPURE_FUNCTIONS_BUDGET}. Top candidates: ${topTsCandidates.join(', ')}`,
-        ).toBeLessThanOrEqual(TRANSITIVE_IMPURE_FUNCTIONS_BUDGET)
+            `Transitive impurity count ${transitiveIds.length} exceeds budget ${transitiveImpureFunctionsBudget}. Pure functions: ${pureFunctionCount}. Top candidates: ${topTsCandidates.join(', ')}`,
+        ).toBeLessThanOrEqual(transitiveImpureFunctionsBudget)
     }, 120000)
 })
 

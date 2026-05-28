@@ -39,7 +39,7 @@ function createTestNode(
         nodeUIMetadata: {
             color: O.none,
             position: position ? O.some(position) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }
@@ -289,7 +289,7 @@ describe('Rename Node - Integration Tests', () => {
                     nodeUIMetadata: {
                         color: O.some('#ff5500'),
                         position: O.some({ x: 42, y: 84 }),
-                        additionalYAMLProps: new Map([['agent_name', 'TestAgent']]),
+                        additionalYAMLProps: { agent_name: 'TestAgent' },
                         isContextNode: false
                     }
                 }
@@ -353,7 +353,7 @@ describe('Rename Node - Integration Tests', () => {
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.none,
-                        additionalYAMLProps: new Map(),
+                        additionalYAMLProps: {},
                         isContextNode: true
                     }
                 },

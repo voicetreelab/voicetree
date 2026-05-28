@@ -14,7 +14,7 @@ describe('graph-transformations', () => {
       color: O.none,
       position: O.none,
 
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })

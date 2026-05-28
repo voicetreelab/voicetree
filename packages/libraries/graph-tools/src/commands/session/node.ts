@@ -383,7 +383,7 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     return err('node', pick.message, pick.hint, 2)
   }
 
-  const transport = createLiveTransport(pick.instance.mcpPort)
+  const transport = createLiveTransport(pick.instance.projectRoot)
   let state
   try {
     state = await transport.getLiveState()
@@ -391,7 +391,7 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     return err(
       'node',
       `live state fetch failed: ${String(e)}`,
-      `verify MCP server is reachable on port ${pick.instance.mcpPort}`,
+      `verify the daemon is running for vault ${pick.instance.projectRoot}`,
       2,
     )
   }
