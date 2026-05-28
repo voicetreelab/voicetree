@@ -1,8 +1,8 @@
 import {unlink} from 'node:fs/promises'
 import path from 'node:path'
 
-import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
+import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
+import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {getRecoveryMetadataDir} from './paths'
 
 /**

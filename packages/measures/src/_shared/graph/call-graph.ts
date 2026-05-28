@@ -40,12 +40,34 @@ const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
 
 let graphPromise: Promise<CallGraph> | undefined
 
-export async function buildCallGraph(): Promise<CallGraph> {
-    graphPromise ??= Promise.resolve(createCallGraph())
+/**
+ * Build a CallGraph.
+ *
+ * Zero-arg form scans the whole repo and caches the result (module-scope
+ * promise). Pass `{sourceFiles, rootDir}` to build a graph over an
+ * arbitrary, caller-supplied set of ts-morph SourceFiles — used by tools
+ * (the cgcli `loadGraph` path, tests) that need to point the same
+ * algorithm at a fixture tree. Custom-input form is uncached and creates
+ * a fresh graph each call.
+ */
+export async function buildCallGraph(
+    opts?: {readonly sourceFiles: readonly SourceFile[]; readonly rootDir: string},
+): Promise<CallGraph> {
+    if (opts) return createCallGraphFromSourceFiles(opts.sourceFiles, opts.rootDir)
+    graphPromise ??= Promise.resolve(buildRepoCallGraph())
     return graphPromise
 }
 
-function createCallGraph(): CallGraph {
+function createCallGraphFromSourceFiles(
+    sourceFiles: readonly SourceFile[],
+    rootDir: string,
+): CallGraph {
+    const {nodes, functionIdsBySyntaxNode} = collectFunctionNodes(sourceFiles, rootDir)
+    const {calleeIdsByFnId, callerIdsByFnId} = collectCallEdges(nodes, functionIdsBySyntaxNode)
+    return assembleGraph(nodes, sourceFiles, calleeIdsByFnId, callerIdsByFnId)
+}
+
+function buildRepoCallGraph(): CallGraph {
     const project = new Project({
         compilerOptions: {
             moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -77,29 +99,39 @@ function createCallGraph(): CallGraph {
     if (sourceFiles.length === 0) {
         throw new Error('buildCallGraph found 0 production source files; check for concurrent package moves before changing globs')
     }
+    return createCallGraphFromSourceFiles(sourceFiles, REPO_ROOT)
+}
 
+function collectFunctionNodes(
+    sourceFiles: readonly SourceFile[],
+    rootDir: string,
+): {nodes: Map<string, FunctionNode>; functionIdsBySyntaxNode: Map<MorphNode, string>} {
     const nodes = new Map<string, FunctionNode>()
     const functionIdsBySyntaxNode = new Map<MorphNode, string>()
-
     for (const sourceFile of sourceFiles) {
         for (const fn of sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) {
-            addFunctionDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, fn)
+            addFunctionDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, fn, rootDir)
         }
         for (const method of sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration)) {
-            addMethodDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, method)
+            addMethodDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, method, rootDir)
         }
         for (const variable of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-            addVariableFunction(nodes, functionIdsBySyntaxNode, sourceFile, variable)
+            addVariableFunction(nodes, functionIdsBySyntaxNode, sourceFile, variable, rootDir)
         }
     }
+    return {nodes, functionIdsBySyntaxNode}
+}
 
+function collectCallEdges(
+    nodes: ReadonlyMap<string, FunctionNode>,
+    functionIdsBySyntaxNode: ReadonlyMap<MorphNode, string>,
+): {calleeIdsByFnId: Map<string, Set<string>>; callerIdsByFnId: Map<string, Set<string>>} {
     const calleeIdsByFnId = new Map<string, Set<string>>()
     const callerIdsByFnId = new Map<string, Set<string>>()
     for (const id of nodes.keys()) {
         calleeIdsByFnId.set(id, new Set())
         callerIdsByFnId.set(id, new Set())
     }
-
     for (const [syntaxNode, callerId] of functionIdsBySyntaxNode.entries()) {
         if (Node.isVariableDeclaration(syntaxNode)) continue
         for (const call of syntaxNode.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -110,7 +142,15 @@ function createCallGraph(): CallGraph {
             callerIdsByFnId.get(calleeId)?.add(callerId)
         }
     }
+    return {calleeIdsByFnId, callerIdsByFnId}
+}
 
+function assembleGraph(
+    nodes: ReadonlyMap<string, FunctionNode>,
+    sourceFiles: readonly SourceFile[],
+    calleeIdsByFnId: ReadonlyMap<string, ReadonlySet<string>>,
+    callerIdsByFnId: ReadonlyMap<string, ReadonlySet<string>>,
+): CallGraph {
     const reachableMemo = new Map<string, ReadonlySet<string>>()
     const graph: CallGraph = {
         nodes,
@@ -168,10 +208,11 @@ function addFunctionDeclaration(
     functionIdsBySyntaxNode: Map<MorphNode, string>,
     sourceFile: SourceFile,
     fn: FunctionDeclaration,
+    rootDir: string,
 ): void {
     if (!fn.getBody()) return
     const name = fn.getName() ?? 'default'
-    const node = createFunctionNode(sourceFile, fn.getNameNode() ?? fn, fn, name, 'function', fn.isExported())
+    const node = createFunctionNode(sourceFile, fn.getNameNode() ?? fn, fn, name, 'function', fn.isExported(), rootDir)
     nodes.set(node.id, node)
     functionIdsBySyntaxNode.set(fn, node.id)
 }
@@ -181,11 +222,12 @@ function addMethodDeclaration(
     functionIdsBySyntaxNode: Map<MorphNode, string>,
     sourceFile: SourceFile,
     method: MethodDeclaration,
+    rootDir: string,
 ): void {
     if (!method.getBody()) return
     const classDecl = method.getParentIfKind(SyntaxKind.ClassDeclaration)
     const name = method.getName()
-    const node = createFunctionNode(sourceFile, method.getNameNode(), method, name, 'method', classDecl?.isExported() ?? false)
+    const node = createFunctionNode(sourceFile, method.getNameNode(), method, name, 'method', classDecl?.isExported() ?? false, rootDir)
     nodes.set(node.id, node)
     functionIdsBySyntaxNode.set(method, node.id)
 }
@@ -195,6 +237,7 @@ function addVariableFunction(
     functionIdsBySyntaxNode: Map<MorphNode, string>,
     sourceFile: SourceFile,
     variable: VariableDeclaration,
+    rootDir: string,
 ): void {
     const initializer = variable.getInitializer()
     if (!initializer || (!Node.isArrowFunction(initializer) && !Node.isFunctionExpression(initializer))) return
@@ -208,6 +251,7 @@ function addVariableFunction(
         name,
         Node.isArrowFunction(initializer) ? 'arrow' : 'function',
         variableStatement?.isExported() ?? false,
+        rootDir,
     )
     nodes.set(node.id, node)
     functionIdsBySyntaxNode.set(variable, node.id)
@@ -221,8 +265,9 @@ function createFunctionNode(
     name: string,
     kind: FunctionNode['kind'],
     isExported: boolean,
+    rootDir: string,
 ): FunctionNode {
-    const file = normalizePath(relative(REPO_ROOT, sourceFile.getFilePath()))
+    const file = normalizePath(relative(rootDir, sourceFile.getFilePath()))
     const line = sourceFile.getLineAndColumnAtPos(locationNode.getStart()).line
     return {
         id: `${file}:${line}:${name}`,

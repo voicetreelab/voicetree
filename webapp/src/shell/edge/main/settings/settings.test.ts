@@ -52,6 +52,23 @@ describe('settings', () => {
     expect(await loadSettings()).toEqual(custom);
   });
 
+  it('observes settings.json changes written outside this process immediately', async () => {
+    const initial: VTSettings = {
+      ...DEFAULT_SETTINGS,
+      agents: [{ name: 'Initial Agent', command: 'initial "$AGENT_PROMPT"' }],
+    };
+    const externallyUpdated: VTSettings = {
+      ...DEFAULT_SETTINGS,
+      agents: [{ name: 'Updated Agent', command: 'updated "$AGENT_PROMPT"' }],
+    };
+    const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+
+    await saveSettings(initial);
+    await fs.writeFile(settingsPath, JSON.stringify(externallyUpdated, null, 2), 'utf-8');
+
+    expect(await loadSettings()).toEqual(externallyUpdated);
+  });
+
   it('should persist data correctly', async () => {
     const customSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',

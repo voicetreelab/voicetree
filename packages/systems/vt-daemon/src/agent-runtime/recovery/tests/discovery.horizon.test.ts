@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {discoverRecoverableAgentSessions, type DiscoverRecoveryDeps} from '../discovery'
-import type {MetadataRecord} from '../classifier'
+import type {MetadataRecord} from '../classifier/classifier'
 import type {UnclaimedTmuxSession} from '../../terminals/tmux/unclaimed-tmux'
 import {
     makeExitedClaudeMetadata,
@@ -12,7 +12,7 @@ import {
     TERMINAL_A,
     VAULT_HASH,
     VAULT_PATH,
-} from './classifier.test-fixtures'
+} from '../classifier/classifier.test-fixtures'
 
 const NOW_MS: number = Date.parse('2026-05-27T00:00:00.000Z')
 const FIVE_DAYS_AGO: string = new Date(NOW_MS - 5 * 24 * 60 * 60 * 1000).toISOString()

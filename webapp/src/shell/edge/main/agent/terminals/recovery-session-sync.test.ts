@@ -29,6 +29,7 @@ vi.mock('@vt/vt-daemon-client', async (importOriginal) => {
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-url-binding', () => ({
     getVtDaemonClient: vi.fn(() => ({} as never)),
+    getActiveVault: vi.fn((): string | null => '/vault'),
 }))
 
 vi.mock('@/shell/edge/main/runtime/ui-api-proxy', () => ({
