@@ -248,6 +248,15 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
     esac
   done
 
+  # Capture main_repo BEFORE the remove. Once the worktree is gone the
+  # path-anchored `git worktree list` lookup below can't find a git context;
+  # using -C against the to-be-removed worktree also keeps the gate working
+  # when its own cwd is not a git repo (e.g. agent shell rooted elsewhere).
+  main_repo=""
+  if [ -n "$wt_path" ]; then
+    main_repo="$("$REAL_GIT" -C "$wt_path" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  fi
+
   "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
 
@@ -259,7 +268,7 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
     if [[ "$wt_name" =~ ^[A-Za-z0-9_.-]+$ ]] && [ "$wt_name" != "." ] && [ "$wt_name" != ".." ]; then
       remote_host="${VT_REMOTE_HOST:-}"
       if [ -z "$remote_host" ]; then
-        main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+        # main_repo was captured above before the worktree was removed
         [ -n "$main_repo" ] && [ -f "$main_repo/.env" ] && \
           remote_host="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$main_repo/.env")"
       fi
