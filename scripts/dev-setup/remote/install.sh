@@ -5,7 +5,7 @@
 # (optionally) pre-seeds the devbox with a fresh GitHub clone so the first
 # mutagen sync reconciles by hash instead of streaming the whole working
 # tree over the laptop uplink, creates the mutagen vt-remote session, and
-# routes git hooks through .githooks.
+# routes git hooks through scripts/hooks.
 #
 # Prereqs (on this laptop, before running):
 #   - voicetree-public cloned locally (you are here)
@@ -103,9 +103,9 @@ else
   ok "session created"
 fi
 
-step "routing git hooks through .githooks"
-git -C "$REPO_ROOT" config core.hooksPath .githooks
-ok "core.hooksPath = .githooks"
+step "routing git hooks through scripts/hooks"
+git -C "$REPO_ROOT" config core.hooksPath scripts/hooks
+ok "core.hooksPath = scripts/hooks"
 
 cat <<MSG
 
