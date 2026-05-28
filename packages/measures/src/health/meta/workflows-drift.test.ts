@@ -181,7 +181,7 @@ describe('workflow generator — checked-in YAML matches current folder tree', (
             // diff. The error message also points at the fix command.
             const errorMsg = (
                 'measures-budget-gate.generated.yml is out of sync with the folder tree.\n' +
-                'Run `npm run gen:workflows` to regenerate.'
+                'Run `pnpm --filter @vt/measures run gen:workflows` to regenerate.'
             )
             expect(actual, errorMsg).toBe(expected)
         }

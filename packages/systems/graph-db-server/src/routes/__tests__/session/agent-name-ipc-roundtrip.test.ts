@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { GraphDbClient } from '@vt/graph-db-client'
+import { GraphDbClient } from '../../../../../graph-db-client/src/index.ts'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import { resetUndoState } from '../../../state/undo-store.ts'
 

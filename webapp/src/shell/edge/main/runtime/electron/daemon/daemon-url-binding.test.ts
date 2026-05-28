@@ -113,6 +113,29 @@ function buildVtDaemonBinCommand(): string {
     return `${node} --import ${tsxPath} ${vtdPath}`
 }
 
+function buildFakeVtDaemonBinCommand(): string {
+    const node: string = process.execPath
+    const repoRoot: string = path.resolve(TEST_FILE_DIR, '..', '..', '..', '..', '..', '..', '..', '..')
+    const fakeVtdPath: string = path.join(
+        repoRoot,
+        'packages',
+        'systems',
+        'vt-daemon-client',
+        'src',
+        '__tests__',
+        'fixtures',
+        'fake-vtd.mjs',
+    )
+    for (const part of [node, fakeVtdPath]) {
+        if (/\s/.test(part)) {
+            throw new Error(
+                `daemon-url-binding.test: path contains whitespace, VT_DAEMON_BIN parser would split it: ${part}`,
+            )
+        }
+    }
+    return `${node} ${fakeVtdPath}`
+}
+
 interface SpawnedVtdRecord {
     pid: number
     vaultPath: string
@@ -127,6 +150,7 @@ const harness: {
         VT_GRAPHD_BIN: string | undefined
         VOICETREE_DAEMON_URL: string | undefined
         VOICETREE_APP_SUPPORT: string | undefined
+        FAKE_VTD_ENV_SNAPSHOT_PATH: string | undefined
         VOICETREE_PARENT_PID: string | undefined
     }
 } = {
@@ -138,6 +162,7 @@ const harness: {
         VT_GRAPHD_BIN: undefined,
         VOICETREE_DAEMON_URL: undefined,
         VOICETREE_APP_SUPPORT: undefined,
+        FAKE_VTD_ENV_SNAPSHOT_PATH: undefined,
         VOICETREE_PARENT_PID: undefined,
     },
 }
@@ -191,6 +216,7 @@ beforeEach(async (): Promise<void> => {
         VT_GRAPHD_BIN: process.env.VT_GRAPHD_BIN,
         VOICETREE_DAEMON_URL: process.env.VOICETREE_DAEMON_URL,
         VOICETREE_APP_SUPPORT: process.env.VOICETREE_APP_SUPPORT,
+        FAKE_VTD_ENV_SNAPSHOT_PATH: process.env.FAKE_VTD_ENV_SNAPSHOT_PATH,
         VOICETREE_PARENT_PID: process.env.VOICETREE_PARENT_PID,
     }
     delete process.env.VOICETREE_DAEMON_URL
@@ -238,6 +264,7 @@ afterEach(async (): Promise<void> => {
     restoreEnv('VT_GRAPHD_BIN', harness.savedEnv.VT_GRAPHD_BIN)
     restoreEnv('VOICETREE_DAEMON_URL', harness.savedEnv.VOICETREE_DAEMON_URL)
     restoreEnv('VOICETREE_APP_SUPPORT', harness.savedEnv.VOICETREE_APP_SUPPORT)
+    restoreEnv('FAKE_VTD_ENV_SNAPSHOT_PATH', harness.savedEnv.FAKE_VTD_ENV_SNAPSHOT_PATH)
     restoreEnv('VOICETREE_PARENT_PID', harness.savedEnv.VOICETREE_PARENT_PID)
 
     if (harness.appSupportTmp !== null) {
@@ -423,6 +450,27 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
                 ),
             )
             expect(owner.pid).toBe(first.pid)
+        },
+        TEST_TIMEOUT_MS,
+    )
+
+    test(
+        'bind uses the current process env when spawning VTD after startup pins app support',
+        async (): Promise<void> => {
+            const envSnapshotPath: string = path.join(harness.appSupportTmp!, 'fake-vtd-env.json')
+            process.env.VT_DAEMON_BIN = buildFakeVtDaemonBinCommand()
+            process.env.FAKE_VTD_ENV_SNAPSHOT_PATH = envSnapshotPath
+
+            const { projectRoot } = await makeProjectWithDatedWriteSubdir()
+            await bindVtDaemonForVault(projectRoot)
+            await recordVtdPid(projectRoot)
+
+            const snapshot: {
+                readonly VOICETREE_APP_SUPPORT: string | null
+                readonly VT_DAEMON_BIN: string | null
+            } = JSON.parse(await fs.readFile(envSnapshotPath, 'utf-8'))
+            expect(snapshot.VOICETREE_APP_SUPPORT).toBe(harness.appSupportTmp)
+            expect(snapshot.VT_DAEMON_BIN).toBe(process.env.VT_DAEMON_BIN)
         },
         TEST_TIMEOUT_MS,
     )

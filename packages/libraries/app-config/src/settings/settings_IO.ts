@@ -1,30 +1,26 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { homedir } from 'os';
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
 import {getCallbacks} from '@vt/graph-model';
-import {resolveAppSupportPath} from '../app-support-path.ts';
 
 function getSettingsPath(appSupportPath: string): string {
   return path.join(appSupportPath, 'settings.json');
 }
 
-const settingsCacheByPath: Map<string, { settings: VTSettings; loadedAt: number }> = new Map();
-const SETTINGS_CACHE_TTL_MS: number = 5000;
+function resolveSettingsAppSupportPath(): string {
+  return process.env.VOICETREE_APP_SUPPORT ?? path.join(homedir(), '.voicetree');
+}
 
 /** Reset the settings cache. For testing only. */
 export function clearSettingsCache(): void {
-  settingsCacheByPath.clear();
+  // No-op: loadSettings reads from disk on every call so cross-process writes are visible immediately.
 }
 
 export async function loadSettings(): Promise<VTSettings> {
-  const appSupportPath: string = resolveAppSupportPath();
-  const now: number = Date.now();
-  const cached: { settings: VTSettings; loadedAt: number } | undefined = settingsCacheByPath.get(appSupportPath);
-  if (cached && (now - cached.loadedAt) < SETTINGS_CACHE_TTL_MS) {
-    return cached.settings;
-  }
+  const appSupportPath: string = resolveSettingsAppSupportPath();
   const settingsPath: string = getSettingsPath(appSupportPath);
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
@@ -39,7 +35,6 @@ export async function loadSettings(): Promise<VTSettings> {
         ...userSettings.INJECT_ENV_VARS,
       },
     };
-    settingsCacheByPath.set(appSupportPath, { settings, loadedAt: now });
     return settings;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -55,7 +50,7 @@ export async function loadSettings(): Promise<VTSettings> {
  * Normal settings loads preserve user edits; only a version transition triggers this overwrite.
  */
 export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersion: string): Promise<boolean> {
-  const appSupportPath: string = resolveAppSupportPath();
+  const appSupportPath: string = resolveSettingsAppSupportPath();
   const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
@@ -94,7 +89,7 @@ export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersio
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
-  const appSupportPath: string = resolveAppSupportPath();
+  const appSupportPath: string = resolveSettingsAppSupportPath();
   const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
@@ -137,7 +132,7 @@ export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
-  const appSupportPath: string = resolveAppSupportPath();
+  const appSupportPath: string = resolveSettingsAppSupportPath();
   const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
@@ -178,7 +173,7 @@ export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
-  const appSupportPath: string = resolveAppSupportPath();
+  const appSupportPath: string = resolveSettingsAppSupportPath();
   const settingsPath: string = getSettingsPath(appSupportPath);
 
   let userSettings: Partial<VTSettings>;
@@ -216,13 +211,12 @@ export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
 }
 
 export async function saveSettings(settings: VTSettings): Promise<boolean> {
-  const appSupportPath: string = resolveAppSupportPath();
+  const appSupportPath: string = resolveSettingsAppSupportPath();
   const settingsPath: string = getSettingsPath(appSupportPath);
   const settingsDir: string = path.dirname(settingsPath);
 
   await fs.mkdir(settingsDir, { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-  settingsCacheByPath.set(appSupportPath, { settings, loadedAt: Date.now() });
   getCallbacks().onSettingsChanged?.();
   return true;
 }

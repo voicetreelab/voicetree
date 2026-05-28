@@ -19,10 +19,15 @@ describe('workflow (call-DAG) duplication health', () => {
     it('keeps the count of >=0.7-score call-DAG duplicate pairs within budget', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
-        const records = await extractFunctions(files, path => readFile(path, 'utf8'))
-        // topK large enough to see the full distribution; details still
-        // store only the top 20.
-        const result = clusterCallDags(records, {topK: 100000})
+        // Scope the AST-bearing records so they become unreachable once
+        // clustering returns its (lean) WorkflowPair[] — full-repo ASTs are
+        // multi-GB and the suite runs in a single vitest worker.
+        const result = await (async () => {
+            const records = await extractFunctions(files, path => readFile(path, 'utf8'))
+            // topK large enough to see the full distribution; details still
+            // store only the top 20.
+            return clusterCallDags(records, {topK: 100000})
+        })()
         const overThreshold = result.pairs.filter(pair => pair.score >= SCORE_THRESHOLD)
         const top20 = overThreshold.slice(0, 20)
         const exactMatchesAtThreshold = overThreshold.filter(pair => pair.exactMatch).length

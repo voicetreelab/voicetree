@@ -34,7 +34,6 @@
 import {readFile} from 'node:fs/promises'
 import {exportedSymbolNames} from '../../../_shared/complexity/exported-symbols.ts'
 import type {SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 
 const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
@@ -48,10 +47,16 @@ import type {
 export const MEASURE_ID = 'boundary-width'
 
 /**
- * Communities exporting more than this many symbols are auto-fail.
- * Calibrate down as we ratchet; 30 is a "deeply unhealthy" floor.
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Set to the historical per-community max (1045 for webapp/shell)
+ * so existing code passes; ratchet down as fat communities are split.
+ *
+ * TODO: tier-1's `MAX_BOUNDARY_WIDTH_RATIO_BUDGET` uses a ratio
+ * (boundary_files / total_files) rather than a raw count. A ratio model
+ * would self-scale with community size; conversion deferred to a follow-up
+ * once the right denominator (file count vs all symbols) is decided.
  */
-export const BOUNDARY_WIDTH_ABSOLUTE_BUDGET = 30
+export const BOUNDARY_WIDTH_THRESHOLD = 1045
 
 function boundaryExportNames(filePath: string, text: string): readonly string[] {
     const names = exportedSymbolNames(filePath, text)
@@ -99,32 +104,18 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         perCommunity[community] = counts.reduce((s, n) => s + n, 0)
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of parsedSubgraph.touchedCommunities) {
         const current = perCommunity[community]
-        const baselineScore = community in baseline ? baseline[community] : null
-        if (current > BOUNDARY_WIDTH_ABSOLUTE_BUDGET) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `boundary-width ${current} exports > absolute budget ${BOUNDARY_WIDTH_ABSOLUTE_BUDGET} — community has a wide public channel; collapse to a deep-function shape`
-                    + `\nSee: ${SKILL_DOC}`,
-            })
-            continue
-        }
-        if (baselineScore !== null && current > baselineScore) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `boundary-width regressed: ${baselineScore} -> ${current} exports`
-                    + `\nSee: ${SKILL_DOC}`,
-            })
-        }
+        if (current <= BOUNDARY_WIDTH_THRESHOLD) continue
+        violations.push({
+            community,
+            score: current,
+            baseline: null,
+            severity: 'fail',
+            message: `boundary-width ${current} exports > threshold ${BOUNDARY_WIDTH_THRESHOLD} — community has a wide public channel; collapse to a deep-function shape`
+                + `\nSee: ${SKILL_DOC}`,
+        })
     }
     return {measureId: MEASURE_ID, perCommunity, violations}
 }

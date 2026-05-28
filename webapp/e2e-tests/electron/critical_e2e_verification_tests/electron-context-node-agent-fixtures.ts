@@ -8,7 +8,7 @@ import type { ElectronAPI } from '@/shell/electron';
 import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
-export const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_VAULT_TEMPLATE_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -18,15 +18,41 @@ export interface ExtendedWindow {
 export const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
+  fixtureVaultPath: string;
+  fakeAgentBinPath: string;
 }>({
-  electronApp: async ({}, use) => {
+  fixtureVaultPath: async ({}, use) => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ctx-agent-vault-'));
+    const fixtureVaultPath = path.join(tempRoot, 'example_small');
+    await fs.cp(FIXTURE_VAULT_TEMPLATE_PATH, fixtureVaultPath, { recursive: true });
+    await use(fixtureVaultPath);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  },
+
+  fakeAgentBinPath: async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ctx-agent-test-'));
+    const fakeBinPath = path.join(tempUserDataPath, 'bin');
+    await fs.mkdir(fakeBinPath, { recursive: true });
+    await fs.writeFile(
+      path.join(fakeBinPath, 'claude'),
+      '#!/usr/bin/env bash\n' +
+      'sleep 1\n' +
+      'grep -o "SECRET_E2E_NEEDLE: [^ ]*" "$CONTEXT_NODE_PATH" | head -1\n' +
+      'sleep 30\n',
+      { encoding: 'utf8', mode: 0o755 },
+    );
+    await use(fakeBinPath);
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
+  },
+
+  electronApp: async ({ fixtureVaultPath, fakeAgentBinPath }, use) => {
+    const tempUserDataPath = path.dirname(fakeAgentBinPath);
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: fixtureVaultPath,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: ''
+        [fixtureVaultPath]: ''
       }
     }, null, 2), 'utf8');
 
@@ -36,10 +62,7 @@ export const test = base.extend<{
     // the daemon's in-process settings cache (5 s TTL, separate process),
     // so the agent registration must be on-disk before the daemon loads.
     const settingsPath = path.join(tempUserDataPath, 'settings.json');
-    const grepAgentCommand = 'grep -o "SECRET_E2E_NEEDLE: [^ ]*" "$CONTEXT_NODE_PATH" | head -1';
     await fs.writeFile(settingsPath, JSON.stringify({
-      agents: [{ name: 'E2E Context Probe', command: grepAgentCommand }],
-      defaultAgent: 'E2E Context Probe',
       terminalSpawnPathRelativeToWatchedDirectory: '../',
     }, null, 2), 'utf8');
 
@@ -68,7 +91,8 @@ export const test = base.extend<{
         VOICETREE_APP_SUPPORT: tempUserDataPath,
         // Fallback for runtime paths before the daemon has reported the
         // configured write folder.
-        VOICETREE_VAULT_PATH: FIXTURE_VAULT_PATH,
+        VOICETREE_VAULT_PATH: fixtureVaultPath,
+        PATH: `${fakeAgentBinPath}${path.delimiter}${process.env.PATH ?? ''}`,
       },
       timeout: 10000
     });
@@ -77,7 +101,6 @@ export const test = base.extend<{
 
     await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp }, use) => {

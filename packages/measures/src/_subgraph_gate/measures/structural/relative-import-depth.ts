@@ -38,7 +38,6 @@
  *   exports-per-file) — so this measure pays no incremental ts-morph cost.
  */
 import {ts} from 'ts-morph'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasureInput,
@@ -47,7 +46,14 @@ import type {
 } from '../../_internal/subgraph-measure.ts'
 
 const MEASURE_ID = 'relative-import-depth'
-const RELATIVE_IMPORT_BUDGET = 0
+/**
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Aligned with tier-1's `BANNED_RELATIVE_IMPORT_BUDGET = 0` in
+ * `packages/measures/src/health/coupling/relative-import-depth.test.ts`
+ * — zero tolerance. Current per-community max baseline is also 0, so no
+ * regression is introduced by dropping the baseline file.
+ */
+export const RELATIVE_IMPORT_THRESHOLD = 0
 
 type BannedImport = {
     readonly file: string
@@ -123,32 +129,19 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         }
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of parsedSubgraph.touchedCommunities) {
         const current = perCommunity[community]
-        const baselineScore = community in baseline ? baseline[community] : null
-        if (current > RELATIVE_IMPORT_BUDGET) {
-            const examples = bannedByCommunity.get(community)!.slice(0, 3)
-            const summary = examples.map(b => `${b.file}:${b.line} ${b.specifier}`).join('; ')
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `relative-import-depth: ${current} banned relative import(s) (depth >= 2) in ${community} — ${summary}`,
-            })
-            continue
-        }
-        if (baselineScore !== null && current > baselineScore) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `relative-import-depth regressed: ${baselineScore} -> ${current}`,
-            })
-        }
+        if (current <= RELATIVE_IMPORT_THRESHOLD) continue
+        const examples = bannedByCommunity.get(community)!.slice(0, 3)
+        const summary = examples.map(b => `${b.file}:${b.line} ${b.specifier}`).join('; ')
+        violations.push({
+            community,
+            score: current,
+            baseline: null,
+            severity: 'fail',
+            message: `relative-import-depth: ${current} banned relative import(s) (depth >= 2) in ${community} > threshold ${RELATIVE_IMPORT_THRESHOLD} — ${summary}`,
+        })
     }
     return {measureId: MEASURE_ID, perCommunity, violations}
 }

@@ -15,6 +15,7 @@ import {
 } from '@vt/graph-db-server/contract'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { createDatedSubfolder, findExistingVoicetreeDir } from '@vt/app-config/project'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
@@ -162,6 +163,20 @@ async function openResources(projectRoot: string): Promise<void> {
   }
 }
 
+// When opening a project root with no saved config and no caller-supplied
+// writeFolder, default to an existing `voicetree-{day}-{month}` subfolder
+// or create one. Treating the project root itself as the writeFolder would
+// recursively scan every `.md` under it — fine for a small notes folder,
+// catastrophic for a source repo. The bare `targetProjectRoot` fallback
+// caused vt-graphd to die with `File limit exceeded` when started against
+// a monorepo whose nested vaults pushed the .md count past the 1000-file
+// guard.
+async function resolveDefaultWriteFolder(targetProjectRoot: string): Promise<string> {
+  const existing: string | null = await findExistingVoicetreeDir(targetProjectRoot)
+  if (existing !== null) return existing
+  return await createDatedSubfolder(targetProjectRoot)
+}
+
 async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: string): Promise<void> {
   await mkdir(join(targetProjectRoot, '.voicetree'), { recursive: true })
   setProjectRoot(targetProjectRoot)
@@ -170,7 +185,7 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
   const configuredWriteFolder = input.writeFolder ?? savedConfig?.writeFolder
   const targetWriteFolder = configuredWriteFolder
     ? resolveWriteFolder(targetProjectRoot, configuredWriteFolder)
-    : targetProjectRoot
+    : await resolveDefaultWriteFolder(targetProjectRoot)
 
   const result = await setWriteFolder(targetWriteFolder, {
     createStarterIfEmpty: input.createStarterIfEmpty,

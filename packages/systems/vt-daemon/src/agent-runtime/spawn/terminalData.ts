@@ -22,8 +22,8 @@ import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../
  *   /Users/x/repos/vt-wts/<name>/         ← worktree
  *
  * The directory-name constant `vt-wts` is duplicated (not imported) in
- * webapp/.../gitWorktreeCommands.ts and scripts/git/worktree/ensure-ready.mjs.
- * Keep all three in sync.
+ * webapp/.../gitWorktreeCommands.ts, scripts/run-remote.mjs, and
+ * scripts/dev-setup/git-gate/git-gate.sh. Keep all four in sync.
  *
  * Example: "/Users/x/repos/vt-wts/wt-fix-auth-bug-a3k" -> "wt-fix-auth-bug-a3k"
  */

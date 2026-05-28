@@ -37,7 +37,6 @@
  */
 import {siblingGroupParent} from '../../../_shared/community/community-at-depth.ts'
 import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
@@ -52,7 +51,14 @@ export const MEASURE_ID = 'dsm-upper-triangular'
  * Any non-zero back-edge count fails the gate. (We have no warn tier;
  * a back-edge means a cycle exists in the parent's community DAG.)
  */
-export const DSM_BACKEDGE_BUDGET = 0
+/**
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Strict zero-tolerance — matches the old `DSM_BACKEDGE_BUDGET = 0`
+ * absolute. A below-diagonal cell is a tier-order violation by construction.
+ * 9 grandfathered communities have backedges > 0 and now fail when touched;
+ * fix the order rather than persist via baseline.
+ */
+export const DSM_BACKEDGE_THRESHOLD = 0
 
 export type DsmReport = {
     readonly ordering: readonly string[]
@@ -296,33 +302,19 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         perCommunity[community] = dsm?.belowDiagonalByCommunity.get(community) ?? 0
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of parsedSubgraph.touchedCommunities) {
         const current = perCommunity[community]
-        const baselineScore = community in baseline ? baseline[community] : null
-
-        if (current > DSM_BACKEDGE_BUDGET) {
-            const parent = siblingGroupParent(community, parsedSubgraph.depth)
-            const dsm = perParent.get(parent)!
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `dsm-upper-triangular: ${current} below-diagonal cell(s) in ${parent} (compression ratio ${dsm.report.compressionRatio.toFixed(2)}) — cycle in tier order`,
-            })
-            continue
-        }
-        if (baselineScore !== null && current > baselineScore) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `dsm-upper-triangular regressed: ${baselineScore} -> ${current}`,
-            })
-        }
+        if (current <= DSM_BACKEDGE_THRESHOLD) continue
+        const parent = siblingGroupParent(community, parsedSubgraph.depth)
+        const dsm = perParent.get(parent)!
+        violations.push({
+            community,
+            score: current,
+            baseline: null,
+            severity: 'fail',
+            message: `dsm-upper-triangular: ${current} below-diagonal cell(s) in ${parent} (compression ratio ${dsm.report.compressionRatio.toFixed(2)}) > threshold ${DSM_BACKEDGE_THRESHOLD} — cycle in tier order`,
+        })
     }
     return {measureId: MEASURE_ID, perCommunity, violations}
 }

@@ -7,9 +7,9 @@ import { mainAliases, rendererAliases } from './electron.vite.config/aliases'
 import { buildTimingPlugins, rollupHookTimingPlugin } from './electron.vite.config/build-timing'
 import {
   ELECTRON_VITE_EXTERNALIZE_EXCLUDE,
+  MAIN_RUNTIME_EXTERNALS,
   externalMainDepsPlugin,
   externalNativePlugin,
-  isMainExternal,
 } from './electron.vite.config/externals'
 import {
   graphStateFixtureFilenameShimPlugin,
@@ -50,7 +50,7 @@ export default defineConfig({
         input: {
           index: path.resolve(webappDir, 'src/shell/edge/main/runtime/electron/app/main.ts')
         },
-        external: isMainExternal,
+        external: MAIN_RUNTIME_EXTERNALS,
         output: {
           format: 'cjs',
           entryFileNames: '[name].js'
