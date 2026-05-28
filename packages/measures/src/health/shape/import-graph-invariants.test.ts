@@ -1,4 +1,5 @@
 import {existsSync, realpathSync} from 'node:fs'
+import {readdir} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {ts, type ExportDeclaration, type ImportDeclaration, type Project, type SourceFile} from 'ts-morph'
@@ -79,29 +80,54 @@ function importerIsServer(pkg: string): boolean {
     return pkg === SERVER_PACKAGE_DIR || pkg.startsWith(`${SERVER_PACKAGE_DIR}/`)
 }
 
-function buildProject(packages: readonly PackageInfo[]): Project {
+async function buildProject(packages: readonly PackageInfo[]): Promise<Project> {
     const project = createRepoTsMorphProject(REPO_ROOT, packages)
-    project.addSourceFilesAtPaths([
-        `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.test.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.spec.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.d.ts`,
-        `!${REPO_ROOT}/**/__tests__/**`,
-        `!${REPO_ROOT}/**/tests/**`,
-        `!${REPO_ROOT}/**/__generated__/**`,
-        `!${REPO_ROOT}/**/integration-tests/**`,
-        `!${REPO_ROOT}/**/node_modules/**`,
-        `!${REPO_ROOT}/**/dist/**`,
-        `!${REPO_ROOT}/**/build/**`,
-        `!${REPO_ROOT}/**/*.config.ts`,
-    ])
+    project.addSourceFilesAtPaths(await discoverProductionSourcePaths())
     if (project.getSourceFiles().length === 0) {
         throw new Error('import-graph-invariants found 0 production source files; check globs against concurrent package moves')
     }
     return project
 }
+
+async function discoverProductionSourcePaths(): Promise<string[]> {
+    const roots = [
+        resolve(REPO_ROOT, 'packages', 'libraries'),
+        resolve(REPO_ROOT, 'packages', 'systems'),
+        resolve(REPO_ROOT, 'webapp', 'src'),
+    ]
+    const nested = await Promise.all(roots.map(root => walkSourcePaths(root)))
+    return nested.flat().filter(isProductionSourcePath).sort()
+}
+
+async function walkSourcePaths(dir: string): Promise<string[]> {
+    let entries: Awaited<ReturnType<typeof readdir>>
+    try {
+        entries = await readdir(dir, {withFileTypes: true})
+    } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+        throw err
+    }
+    const nested = await Promise.all(entries.map(async entry => {
+        const path = resolve(dir, entry.name)
+        if (entry.isDirectory()) {
+            if (IGNORED_SOURCE_DIR_NAMES.has(entry.name)) return []
+            return walkSourcePaths(path)
+        }
+        if (!entry.isFile() || (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx'))) return []
+        return [path]
+    }))
+    return nested.flat()
+}
+
+const IGNORED_SOURCE_DIR_NAMES: ReadonlySet<string> = new Set([
+    'node_modules',
+    'dist',
+    'build',
+    '__tests__',
+    '__generated__',
+    'integration-tests',
+    'tests',
+])
 
 function staticImportRuntimeSymbols(decl: ImportDeclaration): readonly string[] {
     if (decl.isTypeOnly()) return []
@@ -129,6 +155,10 @@ function exportRuntimeSymbols(decl: ExportDeclaration): readonly string[] {
 
 function isProductionSourceFile(sourceFile: SourceFile): boolean {
     const file = repoRel(sourceFile.getFilePath())
+    return isProductionSourcePath(file)
+}
+
+function isProductionSourcePath(file: string): boolean {
     return !file.endsWith('.test.ts')
         && !file.endsWith('.test.tsx')
         && !file.endsWith('.spec.ts')
@@ -248,7 +278,7 @@ function formatRelativeViolation(e: ImportEdge): string {
 let edgesPromise: Promise<readonly ImportEdge[]> | undefined
 
 async function getEdges(): Promise<readonly ImportEdge[]> {
-    edgesPromise ??= discoverPackages(REPO_ROOT).then(packages => collectEdges(buildProject(packages)))
+    edgesPromise ??= discoverPackages(REPO_ROOT).then(async packages => collectEdges(await buildProject(packages)))
     return edgesPromise
 }
 
