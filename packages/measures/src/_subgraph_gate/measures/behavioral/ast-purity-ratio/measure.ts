@@ -10,7 +10,6 @@
  * (this file) and must not leak into the community's boundary count.
  */
 import {Node, SyntaxKind, type SourceFile as MorphSourceFile} from 'ts-morph'
-import {loadBaseline} from '../../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
@@ -385,26 +384,25 @@ export function analyzeFile(sourceFile: MorphSourceFile): FileFunctionReport {
 // Severity classification / message.
 // ──────────────────────────────────────────────────────────────────────
 
-const NO_BASELINE_WARN_RATIO = 0.5
-const NO_BASELINE_FAIL_RATIO = 0.8
+/**
+ * Single per-measure thresholds (replace the old per-community baseline
+ * ratchet). Tier-1's `IMPURE_RATIO_BUDGET = 1` allows any impurity ratio;
+ * we use the more meaningful 0.5/0.8 (warn/fail) cutoffs uniformly across
+ * communities — they were already the default for new communities under
+ * the old model and serve as the principle the measure is meant to enforce.
+ */
+const PURITY_WARN_THRESHOLD = 0.5
+const PURITY_FAIL_THRESHOLD = 0.8
 
-function classifySeverity(ratio: number, baseline: number | null): 'pass' | 'warn' | 'fail' {
-    if (baseline === null) {
-        if (ratio <= NO_BASELINE_WARN_RATIO) return 'pass'
-        if (ratio <= NO_BASELINE_FAIL_RATIO) return 'warn'
-        return 'fail'
-    }
-    if (ratio <= baseline + 1e-9) return 'pass'
-    if (ratio <= NO_BASELINE_FAIL_RATIO) return 'warn'
+function classifySeverity(ratio: number): 'pass' | 'warn' | 'fail' {
+    if (ratio <= PURITY_WARN_THRESHOLD) return 'pass'
+    if (ratio <= PURITY_FAIL_THRESHOLD) return 'warn'
     return 'fail'
 }
 
-function buildMessage(ratio: number, impure: number, total: number, baseline: number | null): string {
-    const baselineFragment = baseline === null
-        ? '(no baseline — using default 0.5 warn / 0.8 fail)'
-        : `baseline=${baseline.toFixed(2)}`
+function buildMessage(ratio: number, impure: number, total: number): string {
     return (
-        `impure/total = ${impure}/${total} = ${ratio.toFixed(2)} ${baselineFragment}. `
+        `impure/total = ${impure}/${total} = ${ratio.toFixed(2)} > threshold ${PURITY_FAIL_THRESHOLD.toFixed(2)}. `
         + 'Each impure function declares its side effects in its signature — '
         + 'split into a pure inner (transform) and an impure outer (env-touching) layer '
         + '(FP pattern 1: core/shell).'
@@ -440,22 +438,20 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         perCommunity[community] = total === 0 ? 0 : impure / total
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of touched) {
         const {pure, impure} = totals.get(community)!
         const total = pure + impure
         if (total === 0) continue
         const ratio = impure / total
-        const baselineScore = community in baseline ? baseline[community] : null
-        const severity = classifySeverity(ratio, baselineScore)
+        const severity = classifySeverity(ratio)
         if (severity === 'pass') continue
         violations.push({
             community,
             score: ratio,
-            baseline: baselineScore,
+            baseline: null,
             severity,
-            message: buildMessage(ratio, impure, total, baselineScore),
+            message: buildMessage(ratio, impure, total),
         })
     }
 
