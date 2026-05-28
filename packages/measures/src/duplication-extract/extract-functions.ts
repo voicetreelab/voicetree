@@ -13,16 +13,30 @@
 import * as ts from 'typescript'
 import type {SourceFileInfo} from '../_shared/discovery/function-discovery'
 
-export type FunctionRecord = {
+/**
+ * Phase-2 view of a function: everything the duplication pipeline needs
+ * AFTER fingerprinting. Crucially, no AST pointers — a `ts.Node` transitively
+ * pins its entire `SourceFile` parse tree, so holding hundreds of these alive
+ * past the fingerprinting phase costs multiple GB of heap (one OOM in the
+ * full-repo health test). Anything downstream of fingerprinting (severity
+ * ranking, endpoint rendering, output formatting) must take this type.
+ */
+export type LeanFunctionRecord = {
     readonly id: string
     readonly packageName: string
     readonly file: string
     readonly line: number
     readonly name: string
-    readonly node: ts.FunctionLikeDeclaration
-    readonly sourceFile: ts.SourceFile
+    /** Whole-declaration LOC (end-line − start-line + 1). Computed at
+     *  extraction so downstream code never needs the AST to recover it. */
+    readonly loc: number
     readonly tokenStream: readonly string[]
     readonly bodyNodeCount: number
+}
+
+export type FunctionRecord = LeanFunctionRecord & {
+    readonly node: ts.FunctionLikeDeclaration
+    readonly sourceFile: ts.SourceFile
 }
 
 export type ReadFileText = (absolutePath: string) => Promise<string>
@@ -130,14 +144,16 @@ function makeRecord(
     if (bodyNodeCount < MIN_AST_NODES) return null
     const tokenStream = tokenizeRange(text, body, sourceFile)
     if (tokenStream.length < MIN_TOKEN_COUNT) return null
-    const {line} = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+    const startLine = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line
+    const endLine = sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line
     const name = functionName(node, sourceFile)
     return {
-        id: `${file.relativePath}:${line + 1}:${name}`,
+        id: `${file.relativePath}:${startLine + 1}:${name}`,
         packageName: file.packageName,
         file: file.relativePath,
-        line: line + 1,
+        line: startLine + 1,
         name,
+        loc: endLine - startLine + 1,
         node,
         sourceFile,
         tokenStream,
