@@ -1,0 +1,4 @@
+# Scenario fixture corpora populated by scripts/scrape-*.ts.
+# Regenerable from PokéAPI (and similar sources) — keep out of git to avoid
+# checking in hundreds of generated leaves.
+fixtures/
