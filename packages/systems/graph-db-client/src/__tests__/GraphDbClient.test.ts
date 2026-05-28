@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearWatchFolderState } from '@vt/graph-db-server/state/watch-folder-store'
@@ -45,6 +46,15 @@ async function waitFor<T>(
   throw new Error(`condition not met within ${timeoutMs}ms`)
 }
 
+async function addReadPath(client: GraphDbClient, p: string): Promise<void> {
+  const { sessionId } = await client.createSession()
+  try {
+    await client.setFolderState(sessionId, p, 'expanded')
+  } finally {
+    await client.deleteSession(sessionId).catch(() => {})
+  }
+}
+
 describe('GraphDbClient', () => {
   let harness: Harness
   let handles: DaemonHandle[]
@@ -55,6 +65,7 @@ describe('GraphDbClient', () => {
     handles = []
     originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
     process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
+    await saveVaultConfigForDirectory(harness.vault, { writeFolder: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
   })
@@ -75,7 +86,10 @@ describe('GraphDbClient', () => {
   })
 
   const start = async (): Promise<DaemonHandle> => {
-    const handle = await startDaemon({ vault: harness.vault })
+    const handle = await startDaemon({
+      vault: harness.vault,
+      createStarterIfEmpty: false,
+    })
     handles.push(handle)
     return handle
   }
@@ -256,6 +270,7 @@ describe('GraphDbClient', () => {
       const filePath = join(docsPath, 'hello.md')
 
       await mkdir(docsPath, { recursive: true })
+      await addReadPath(client, docsPath)
       await writeFile(filePath, '# Hello\n\nwatch me\n', 'utf8')
 
       const graph = await waitFor(async () => {

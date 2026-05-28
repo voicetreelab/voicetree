@@ -8,7 +8,7 @@ export const ELECTRON_VITE_EXTERNALIZE_EXCLUDE = [
   'rbush',
 ]
 
-const MAIN_RUNTIME_EXTERNALS: string[] = [
+export const MAIN_RUNTIME_EXTERNALS: string[] = [
   'electron-trackpad-detect',
   '@huggingface/transformers',
   'onnxruntime-node',
