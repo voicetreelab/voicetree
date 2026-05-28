@@ -12,9 +12,8 @@ import {
     type SourceFile,
     type VariableDeclaration,
 } from 'ts-morph'
-import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import { buildCallGraph, type CallGraph } from '../../_shared/graph/call-graph'
-import { createRepoTsMorphProject } from '../../_shared/graph/repo-ts-morph-project'
 import { recordHealthMetric } from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
@@ -53,7 +52,7 @@ describe('transitive impurity (ts-morph call graph)', () => {
         const packages = await discoverPackages(REPO_ROOT)
         const graph = await buildCallGraph(REPO_ROOT, packages)
         const buildMs = Math.round(performance.now() - started)
-        const directIds = collectDirectlyImpureFunctionIds(graph, packages)
+        const directIds = collectDirectlyImpureFunctionIds(graph)
         const scopedNodeIds = [...graph.nodes.keys()].filter(id => id.startsWith('packages/'))
         const transitiveIds = scopedNodeIds
             .filter(id => directIds.has(id) || graph.reachesAny(id, node => directIds.has(node.id)))
@@ -112,10 +111,11 @@ describe('transitive impurity (ts-morph call graph)', () => {
     }, 120000)
 })
 
-function collectDirectlyImpureFunctionIds(graph: CallGraph, packages: readonly PackageInfo[]): ReadonlySet<string> {
-    const project = createRepoTsMorphProject(REPO_ROOT, packages)
-    const files = [...new Set([...graph.nodes.values()].map(node => resolve(REPO_ROOT, node.file)))]
-    const sourceFiles = project.addSourceFilesAtPaths(files)
+function collectDirectlyImpureFunctionIds(graph: CallGraph): ReadonlySet<string> {
+    // Reuse the call-graph's existing ts-morph Project. Building a second one
+    // here roughly doubled the test's heap (~900 MB → ~1.8 GB) and was the
+    // cause of the tier-1-health OOM that drove the captureCi heap bumps.
+    const sourceFiles = graph.sourceFiles
     const functionNodes = new Map<string, FunctionSyntax>()
     for (const sourceFile of sourceFiles) {
         for (const fn of sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) {
