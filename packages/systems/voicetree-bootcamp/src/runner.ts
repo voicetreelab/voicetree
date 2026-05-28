@@ -50,6 +50,16 @@ const SHIM_BIN = path.join(PACKAGE_DIR, 'bin', 'vt-shim')
  */
 const DEFAULT_REAL_VT_BIN = path.resolve(PACKAGE_DIR, '..', 'voicetree-cli', 'bin', 'vt')
 
+/**
+ * Path to the in-repo webapp dir (the Electron app source). The bootcamp
+ * MUST launch the in-repo build rather than `/Applications/Voicetree.app`,
+ * because the whole point of the harness is to test the *current* CLI
+ * behavior — a stale installed app would mask any regressions in the
+ * version under test.
+ */
+const REPO_ROOT_DEFAULT = path.resolve(PACKAGE_DIR, '..', '..', '..')
+const WEBAPP_DIR_DEFAULT = path.join(REPO_ROOT_DEFAULT, 'webapp')
+
 export type RunMode = 'headless' | 'headful'
 
 export type RunOptions = {
@@ -92,7 +102,10 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
     const mode: RunMode = opts.mode ?? 'headless'
     const rep = opts.rep ?? 0
     const timeoutMs = opts.timeoutMs ?? 10 * 60_000
-    const daemonReadyTimeoutMs = opts.headfulDaemonReadyTimeoutMs ?? 60_000
+    // In-repo dev-mode launch (npm run electron → workspace build → native rebuild
+    // → electron-vite dev → app startup) can comfortably eat 60-90s on a cold
+    // tree. 180s gives headroom without making genuine failures hang too long.
+    const daemonReadyTimeoutMs = opts.headfulDaemonReadyTimeoutMs ?? 180_000
     const realVtBin = opts.realVtBin ?? DEFAULT_REAL_VT_BIN
     const launchApp = opts.launchVoicetreeApp ?? launchVoicetreeAppDefault
     const waitDaemon = opts.waitForDaemonReady ?? waitForDaemonReadyDefault
@@ -201,30 +214,74 @@ function currentEnvAsStrings(): Record<string, string> {
 }
 
 /**
- * Launch the Voicetree Electron app pointed at vaultDir, using the documented
- * `--open-folder <path>` argv handler. Always opens a fresh instance (`-na`)
- * so we don't fight an already-open vault: the `--open-folder` flag is read
- * once at app startup, so reusing a running instance silently drops the
- * argument and lands the user in their previous vault.
+ * Launch the in-repo Electron build pointed at vaultDir.
+ *
+ * We deliberately do NOT use `/Applications/Voicetree.app` — that bundle is
+ * a *user-installed* version that may lag the current codebase, and the
+ * whole point of the bootcamp is to exercise the current CLI behaviour.
+ * Spawning `npm run electron` from `webapp/` runs whatever the working
+ * tree says, which is what the user is iterating on.
+ *
+ * Communication: VOICETREE_STARTUP_FOLDER env var. The webapp's
+ * environment-config.ts reads either `--open-folder <path>` from argv OR
+ * this env var, but env-var is the only channel that survives the
+ * `electron-vite dev` wrapper without depending on its argv-forwarding
+ * behavior.
+ *
+ * Lifecycle: the child is fully detached so VoiceTree survives the
+ * bootcamp process exiting — the user wants to keep watching / poking at
+ * the graph after the report prints. stdout/stderr are redirected to a
+ * sibling log file so the dev server's chatter doesn't pollute the
+ * harness's own report output.
  */
 async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-        const child = spawn(
-            'open',
-            ['-na', 'Voicetree', '--args', '--open-folder', vaultDir],
-            {stdio: 'ignore'},
+    const webappDir = WEBAPP_DIR_DEFAULT
+    try {
+        await fs.stat(path.join(webappDir, 'package.json'))
+    } catch {
+        throw new Error(
+            `launchVoicetreeApp: cannot find webapp/ at ${webappDir}. ` +
+                'The harness launches the in-repo Electron build by running ' +
+                "`npm run electron` from webapp/. Override with the " +
+                'launchVoicetreeApp option if your tree layout differs.',
         )
-        child.on('error', reject)
-        child.on('exit', (code) => {
-            if (code === 0) return resolve()
-            reject(
-                new Error(
-                    'launchVoicetreeApp: `open -na Voicetree` exited ' +
-                        `${code}. Is /Applications/Voicetree.app installed?`,
-                ),
+    }
+
+    const workspaceRoot = path.dirname(vaultDir)
+    const logFile = path.join(workspaceRoot, 'voicetree-app.log')
+    const out = await fs.open(logFile, 'a')
+
+    try {
+        const child = spawn('npm', ['run', 'electron'], {
+            cwd: webappDir,
+            env: {
+                ...process.env,
+                VOICETREE_STARTUP_FOLDER: vaultDir,
+                NODE_ENV: 'development',
+            },
+            stdio: ['ignore', out.fd, out.fd],
+            detached: true,
+        })
+        child.on('error', (err) => {
+            process.stderr.write(
+                `launchVoicetreeApp: failed to spawn \`npm run electron\`: ${err.message}\n`,
             )
         })
-    })
+        // Detach so VT keeps running after the bootcamp process exits.
+        child.unref()
+    } finally {
+        // Closing the parent's FileHandle does not affect the duplicated fd the
+        // child got from spawn — npm's subprocesses keep writing to the same
+        // inode happily.
+        await out.close()
+    }
+
+    process.stderr.write(
+        `[bootcamp] launching VoiceTree (in-repo dev build) from ${webappDir}\n` +
+            `[bootcamp] vault: ${vaultDir}\n` +
+            `[bootcamp] app log: ${logFile}\n` +
+            `[bootcamp] waiting for daemon... (cold dev start ≈ 60-90s)\n`,
+    )
 }
 
 /**
