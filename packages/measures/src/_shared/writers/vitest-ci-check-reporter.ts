@@ -1,6 +1,7 @@
 import type {File, Task, Test} from '@vitest/runner'
 import type {Reporter} from 'vitest/reporters'
 
+import {messageOf} from '../messageOf.ts'
 import {recordCheckReport, type CheckReport} from './check-report-writer.ts'
 
 type ReporterOptions = {
@@ -63,14 +64,6 @@ function countFiles(files: readonly File[]): Counts {
 function flattenTests(task: Task): Test[] {
     if (task.type === 'test') return [task]
     return task.tasks.flatMap(flattenTests)
-}
-
-function messageOf(value: unknown): string {
-    if (value instanceof Error) return value.message || value.stack || String(value)
-    if (typeof value === 'object' && value !== null && 'message' in value) {
-        return String((value as {message?: unknown}).message ?? value)
-    }
-    return String(value)
 }
 
 function summarizeError(value: unknown): string {
