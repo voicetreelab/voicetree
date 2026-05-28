@@ -78,6 +78,14 @@ export type RunOptions = {
      */
     readonly headfulParentNodeId?: string
     /**
+     * Headful only — `vt agent spawn`'s `--terminal` (caller terminal id).
+     * The CLI requires this to attribute the spawn to a caller; when the
+     * bootcamp is launched from a non-VT shell there is no caller terminal,
+     * so the user must supply one (the id of any open VT terminal).
+     * Falls back to `$VOICETREE_TERMINAL_ID` when omitted.
+     */
+    readonly headfulCallerTerminalId?: string
+    /**
      * Headful only — attempt `open -a Voicetree` before spawning so the user
      * sees the app come up. Best-effort; no-op if Voicetree.app is missing.
      */
@@ -131,6 +139,7 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
                       transcriptPath: transcriptDefaultPath,
                       realVtBin,
                       parentNodeId: opts.headfulParentNodeId,
+                      callerTerminalId: opts.headfulCallerTerminalId,
                       launchApp: opts.launchApp ?? false,
                   })
 
@@ -203,6 +212,7 @@ type HeadfulOpts = {
     readonly transcriptPath: string
     readonly realVtBin: string
     readonly parentNodeId: string | undefined
+    readonly callerTerminalId: string | undefined
     readonly launchApp: boolean
 }
 
@@ -244,6 +254,16 @@ async function runHeadful(opts: HeadfulOpts): Promise<DriverShape> {
         )
     }
 
+    const callerTerminalId = opts.callerTerminalId ?? opts.env.VOICETREE_TERMINAL_ID
+    if (!callerTerminalId) {
+        throw new Error(
+            'runHeadful: a caller terminal id is required — `vt agent spawn` ' +
+                'attributes spawns to a caller. Pass headfulCallerTerminalId ' +
+                '(the id of any open VT terminal), or set $VOICETREE_TERMINAL_ID ' +
+                "before running, or use mode='headless'.",
+        )
+    }
+
     if (opts.launchApp) {
         await bestEffortLaunchApp()
     }
@@ -251,7 +271,12 @@ async function runHeadful(opts: HeadfulOpts): Promise<DriverShape> {
     const start = Date.now()
     const spawnRes = await execCapture(
         opts.realVtBin,
-        ['agent', 'spawn', '--task', opts.prompt, '--parent', opts.parentNodeId],
+        [
+            'agent', 'spawn',
+            '--terminal', callerTerminalId,
+            '--task', opts.prompt,
+            '--parent', opts.parentNodeId,
+        ],
         {cwd: opts.cwd, env: opts.env, timeoutMs: 30_000},
     )
     if (spawnRes.exitCode !== 0) {

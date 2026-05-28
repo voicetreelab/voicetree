@@ -41,6 +41,11 @@ Headful-only options (required when --mode headful):
                             Find one in your open VT graph (e.g. an existing task node).
   --workspace-root <path>   Fixed workspace dir. Vault is created at <path>/vault.
                             REQUIRED for headful so you can point VT at the vault before the run.
+  --headful-caller-terminal <id>
+                            VT terminal id to attribute the spawn to (\`vt agent spawn --terminal\`).
+                            Required unless \$VOICETREE_TERMINAL_ID is set in the environment.
+                            Find one via \`vt agent list --json\` inside the vault, or
+                            \`echo \$VOICETREE_TERMINAL_ID\` from any open VT terminal.
   --launch-app              Best-effort \`open -a Voicetree\` before spawning the inner agent.
 `
 
@@ -59,6 +64,7 @@ type Config = {
     readonly dryRun: boolean
     readonly headfulParentNodeId: string | undefined
     readonly workspaceRoot: string | undefined
+    readonly headfulCallerTerminalId: string | undefined
     readonly launchApp: boolean
 }
 
@@ -117,6 +123,7 @@ function parseConfig(argv: readonly string[]): Config {
                 help: {type: 'boolean', short: 'h'},
                 'headful-parent': {type: 'string'},
                 'workspace-root': {type: 'string'},
+                'headful-caller-terminal': {type: 'string'},
                 'launch-app': {type: 'boolean'},
             },
         })
@@ -157,6 +164,9 @@ function parseConfig(argv: readonly string[]): Config {
     const workspaceRoot = typeof parsed.values['workspace-root'] === 'string'
         ? parsed.values['workspace-root']
         : undefined
+    const headfulCallerTerminalId = typeof parsed.values['headful-caller-terminal'] === 'string'
+        ? parsed.values['headful-caller-terminal']
+        : undefined
     const launchApp = parsed.values['launch-app'] === true
 
     if (mode === 'headful' && !headfulParentNodeId) {
@@ -164,6 +174,17 @@ function parseConfig(argv: readonly string[]): Config {
     }
     if (mode === 'headful' && !workspaceRoot) {
         die('--workspace-root <path> is required when --mode headful (so you can point VoiceTree at it before the run)')
+    }
+    if (
+        mode === 'headful'
+        && !headfulCallerTerminalId
+        && typeof process.env.VOICETREE_TERMINAL_ID !== 'string'
+    ) {
+        die(
+            '--headful-caller-terminal <id> is required when --mode headful ' +
+                '(unless $VOICETREE_TERMINAL_ID is set in the environment). ' +
+                '`vt agent spawn` needs a caller terminal id to attribute the spawn to.',
+        )
     }
 
     return {
@@ -177,6 +198,7 @@ function parseConfig(argv: readonly string[]): Config {
         dryRun: parsed.values['dry-run'] === true,
         headfulParentNodeId,
         workspaceRoot,
+        headfulCallerTerminalId,
         launchApp,
     }
 }
@@ -193,6 +215,7 @@ function dryRunPlan(cfg: Config): string {
         json: cfg.json,
         headfulParentNodeId: cfg.headfulParentNodeId,
         workspaceRoot: cfg.workspaceRoot,
+        headfulCallerTerminalId: cfg.headfulCallerTerminalId,
         launchApp: cfg.launchApp,
     }
     return JSON.stringify(plan, null, 2)
@@ -222,6 +245,7 @@ async function main(): Promise<void> {
             rep,
             headfulParentNodeId: cfg.headfulParentNodeId,
             workspaceRoot: cfg.workspaceRoot,
+            headfulCallerTerminalId: cfg.headfulCallerTerminalId,
             launchApp: cfg.launchApp,
         })
         results.push(result)
