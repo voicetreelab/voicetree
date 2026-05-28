@@ -30,16 +30,16 @@ const mutationTimeoutMs = 2 * 60 * 60 * 1000
 const mutationIncrementalTimeoutMs = 15 * 60 * 1000
 
 const npmRun = (name: string, extras: readonly string[] = []): string[] =>
-    ['npm', 'run', name, ...(extras.length ? ['--', ...extras] : [])]
+    ['pnpm', 'run', name, ...(extras.length ? ['--', ...extras] : [])]
 
 const npmExec = (...args: string[]): string[] =>
-    ['npm', 'exec', '--', ...args]
+    ['pnpm', 'exec', ...args]
 
 const npmWorkspaceRun = (ws: string, name: string, extras: readonly string[] = []): string[] =>
-    ['npm', '--workspace', ws, 'run', name, ...(extras.length ? ['--', ...extras] : [])]
+    ['pnpm', '--filter', ws, 'run', name, ...(extras.length ? ['--', ...extras] : [])]
 
 const npmWorkspaceExec = (ws: string, ...args: string[]): string[] =>
-    ['npm', '--workspace', ws, 'exec', '--', ...args]
+    ['pnpm', '--filter', ws, 'exec', ...args]
 
 const vitestJsonArgs = (jsonOut: string | null): string[] =>
     jsonOut === null ? ['--reporter=json'] : ['--reporter=json', `--outputFile=${jsonOut}`]
