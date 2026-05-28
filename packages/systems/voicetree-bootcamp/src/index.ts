@@ -18,3 +18,5 @@ export {aggregateScore, scoreCommand, scoreFor, scoreScenario} from './scoring.t
 export {matchesVerb, parseShimLog} from './shim-log.ts'
 export {renderCellResult, renderCellResults} from './report.ts'
 export type {RenderOptions} from './report.ts'
+export {runScenario} from './runner.ts'
+export type {RunMode, RunOptions} from './runner.ts'
