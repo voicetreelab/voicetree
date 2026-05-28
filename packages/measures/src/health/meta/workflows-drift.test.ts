@@ -35,10 +35,10 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
     it('is deterministic: same fixture input → identical output across runs', async () => {
         const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
         try {
-            await writeTierFixture(root, 'tier_0_pre_commit', {needs: []}, {
+            await writeTierFixture(root, 'tier_0_pre_commit', {needs: [], protection: {requiredOn: ['dev'], conditionalOn: []}}, {
                 'lint/foo.ts': checkSrc('foo-check'),
             })
-            await writeTierFixture(root, 'tier_1', {needs: []}, {
+            await writeTierFixture(root, 'tier_1', {needs: [], protection: {requiredOn: ['dev'], conditionalOn: []}}, {
                 'unit/bar.ts': checkSrc('bar-check'),
                 'unit/baz.ts': checkSrc('baz-check'),
             })
@@ -48,7 +48,7 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
             // And ensure the output is non-trivial.
             expect(a).toContain('foo-check')
             expect(a).toContain('bar-check,baz-check')
-            expect(a).toContain('budget-gate:')
+            expect(a).toContain('budget-gate-dev:')
         } finally {
             await rm(root, {recursive: true, force: true})
         }
@@ -117,14 +117,15 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
             const contexts = requiredStatusContextsByBaseRef(await discoverTiers(root))
 
             expect(contexts.dev).toEqual([
-                'budget-gate',
+                'budget-gate-dev',
                 'tier-0-pre-commit-lint',
                 'tier-1-unit',
                 'tier-2-fuzz (a-fuzz)',
                 'tier-2-fuzz (b-fuzz)',
             ])
             expect(contexts.main).toContain('tier-3-e2e')
-            expect(contexts.main).toContain('budget-gate')
+            expect(contexts.main).toContain('budget-gate-main')
+            expect(contexts.main).not.toContain('budget-gate-dev')
             expect(contexts.main).not.toContain('tier-4-analyzers')
         } finally {
             await rm(root, {recursive: true, force: true})

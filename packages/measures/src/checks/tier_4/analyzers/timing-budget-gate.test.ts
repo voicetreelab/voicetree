@@ -206,7 +206,7 @@ describe('runTierBudgetGate — branch-aware CI integrity', () => {
                 ...opts,
                 baseRef: 'dev',
                 needsJson: JSON.stringify({'tier-1-unit': {result: 'failure'}}),
-                requiredJobsByBaseRefJson: JSON.stringify({dev: ['tier-1-unit', 'budget-gate']}),
+                requiredJobsByBaseRefJson: JSON.stringify({dev: ['tier-1-unit']}),
             })
             expect(exitCode).toBe(1)
             expect(result.ciFailures).toEqual([{
@@ -223,7 +223,7 @@ describe('runTierBudgetGate — branch-aware CI integrity', () => {
                 ...opts,
                 baseRef: 'dev',
                 needsJson: JSON.stringify({'tier-2-unit': {result: 'success'}}),
-                requiredJobsByBaseRefJson: JSON.stringify({dev: ['tier-2-unit', 'budget-gate']}),
+                requiredJobsByBaseRefJson: JSON.stringify({dev: ['tier-2-unit']}),
             })
             expect(exitCode).toBe(1)
             expect(result.ciFailures).toEqual([{

@@ -171,14 +171,32 @@ export function tierSpecsToWorkflow(input: TierSpecs): WorkflowYaml {
         }
     }
 
-    // Final budget-gate job: depends on every tier job, runs always.
-    jobs.push(budgetGateJob(jobs, maxTier, input))
+    // One budget-gate per protected base ref: each waits only on the jobs
+    // required (or conditional) for that base ref, so a dev-targeted PR
+    // doesn't sit on main-only tier-3/4 work.
+    for (const baseRef of protectedBaseRefs(input)) {
+        jobs.push(budgetGateJob(baseRef, input, maxTier))
+    }
 
     return {name: 'Measures (generated)', jobs}
 }
 
+export function protectedBaseRefs(input: TierSpecs): readonly string[] {
+    const set = new Set<string>()
+    for (const conc of input.concerns) {
+        for (const baseRef of conc.spec.protection?.requiredOn ?? []) set.add(baseRef)
+    }
+    return [...set].sort()
+}
+
+export function budgetGateJobId(baseRef: string): string {
+    return `budget-gate-${baseRef}`
+}
+
 export function requiredStatusContextsByBaseRef(input: TierSpecs): RequiredContextsByBaseRef {
-    return mapValuesSorted(requiredJobContextsByBaseRef(input, 'status-context'))
+    const map = requiredJobContextsByBaseRef(input, 'status-context')
+    for (const baseRef of map.keys()) addToMapSet(map, baseRef, budgetGateJobId(baseRef))
+    return mapValuesSorted(map)
 }
 
 export function requiredJobIdsByBaseRef(input: TierSpecs): RequiredContextsByBaseRef {
@@ -210,17 +228,14 @@ function requiredJobContextsByBaseRef(
     mode: 'job-id' | 'status-context',
 ): Map<string, Set<string>> {
     const out = new Map<string, Set<string>>()
-    const protectedBranches = new Set<string>()
     for (const conc of input.concerns) {
         for (const baseRef of conc.spec.protection?.requiredOn ?? []) {
-            protectedBranches.add(baseRef)
             const contexts = mode === 'job-id'
                 ? [jobIdFor(conc.tier, conc.concern)]
                 : statusContextsForConcern(conc)
             for (const context of contexts) addToMapSet(out, baseRef, context)
         }
     }
-    for (const baseRef of protectedBranches) addToMapSet(out, baseRef, 'budget-gate')
     return out
 }
 
@@ -345,17 +360,19 @@ function perCheckMatrixJob(conc: ConcernSpec, input: TierSpecs): Job {
     }
 }
 
-function budgetGateJob(upstreamJobs: readonly Job[], maxTier: number, input: TierSpecs): Job {
-    const upstreamJobIds = upstreamJobs
-        .filter(j => j.id !== 'budget-gate')
-        .map(j => j.id)
-        .sort()
+function budgetGateJob(baseRef: string, input: TierSpecs, maxTier: number): Job {
+    const required = requiredJobIdsByBaseRef(input)[baseRef] ?? []
+    const conditional = conditionalJobIdsByBaseRef(input)[baseRef] ?? []
+    const conditionalPrecheck = conditionalPrecheckByJobId(input)
+    const prechecks = [...new Set(conditional.map(j => conditionalPrecheck[j]).filter((p): p is string => !!p))]
+    const needs = [...new Set([...required, ...conditional, ...prechecks])].sort()
+    const id = budgetGateJobId(baseRef)
     return {
-        id: 'budget-gate',
-        name: 'budget-gate',
+        id,
+        name: id,
         runsOn: 'ubuntu-latest',
-        needs: upstreamJobIds,
-        ifExpr: 'always()',
+        needs,
+        ifExpr: `always() && github.base_ref == '${baseRef}'`,
         strategy: null,
         outputs: null,
         steps: [

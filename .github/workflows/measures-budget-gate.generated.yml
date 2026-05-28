@@ -567,10 +567,10 @@ jobs:
           path: health-dashboard/reports/checks/
           retention-days: 1
 
-  budget-gate:
-    name: budget-gate
-    needs: [tier-0-pre-commit-lint, tier-0-pre-commit-policy, tier-0-pre-commit-static, tier-1-coverage, tier-1-e2e, tier-1-health, tier-1-structure, tier-1-typecheck, tier-2-contract, tier-2-e2e, tier-2-fuzz, tier-2-lint, tier-2-unit, tier-3-analyzers, tier-3-e2e, tier-4-analyzers, tier4-precheck]
-    if: "always()"
+  budget-gate-dev:
+    name: budget-gate-dev
+    needs: [tier-0-pre-commit-lint, tier-0-pre-commit-policy, tier-0-pre-commit-static, tier-1-coverage, tier-1-e2e, tier-1-health, tier-1-structure, tier-1-typecheck, tier-2-contract, tier-2-e2e, tier-2-fuzz, tier-2-lint, tier-2-unit]
+    if: "always() && github.base_ref == 'dev'"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -594,7 +594,40 @@ jobs:
           GITHUB_BASE_REF: "${{ github.base_ref }}"
           MEASURES_CONDITIONAL_JOBS_BY_BASE_REF: "{\"main\":[\"tier-4-analyzers\"]}"
           MEASURES_CONDITIONAL_PRECHECK_BY_JOB_ID: "{\"tier-4-analyzers\":\"tier4-precheck\"}"
-          MEASURES_REQUIRED_JOBS_BY_BASE_REF: "{\"dev\":[\"budget-gate\",\"tier-0-pre-commit-lint\",\"tier-0-pre-commit-policy\",\"tier-0-pre-commit-static\",\"tier-1-coverage\",\"tier-1-e2e\",\"tier-1-health\",\"tier-1-structure\",\"tier-1-typecheck\",\"tier-2-contract\",\"tier-2-e2e\",\"tier-2-fuzz\",\"tier-2-lint\",\"tier-2-unit\"],\"main\":[\"budget-gate\",\"tier-0-pre-commit-lint\",\"tier-0-pre-commit-policy\",\"tier-0-pre-commit-static\",\"tier-1-coverage\",\"tier-1-e2e\",\"tier-1-health\",\"tier-1-structure\",\"tier-1-typecheck\",\"tier-2-contract\",\"tier-2-e2e\",\"tier-2-fuzz\",\"tier-2-lint\",\"tier-2-unit\",\"tier-3-analyzers\",\"tier-3-e2e\"]}"
+          MEASURES_REQUIRED_JOBS_BY_BASE_REF: "{\"dev\":[\"tier-0-pre-commit-lint\",\"tier-0-pre-commit-policy\",\"tier-0-pre-commit-static\",\"tier-1-coverage\",\"tier-1-e2e\",\"tier-1-health\",\"tier-1-structure\",\"tier-1-typecheck\",\"tier-2-contract\",\"tier-2-e2e\",\"tier-2-fuzz\",\"tier-2-lint\",\"tier-2-unit\"],\"main\":[\"tier-0-pre-commit-lint\",\"tier-0-pre-commit-policy\",\"tier-0-pre-commit-static\",\"tier-1-coverage\",\"tier-1-e2e\",\"tier-1-health\",\"tier-1-structure\",\"tier-1-typecheck\",\"tier-2-contract\",\"tier-2-e2e\",\"tier-2-fuzz\",\"tier-2-lint\",\"tier-2-unit\",\"tier-3-analyzers\",\"tier-3-e2e\"]}"
+          MEASURES_WORKFLOW_NEEDS_JSON: "${{ toJson(needs) }}"
+        run: |
+          node --no-warnings=ExperimentalWarning --experimental-strip-types \
+            packages/measures/scripts/check-tier-budgets.ts
+
+  budget-gate-main:
+    name: budget-gate-main
+    needs: [tier-0-pre-commit-lint, tier-0-pre-commit-policy, tier-0-pre-commit-static, tier-1-coverage, tier-1-e2e, tier-1-health, tier-1-structure, tier-1-typecheck, tier-2-contract, tier-2-e2e, tier-2-fuzz, tier-2-lint, tier-2-unit, tier-3-analyzers, tier-3-e2e, tier-4-analyzers, tier4-precheck]
+    if: "always() && github.base_ref == 'main'"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+      - name: Download all check reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: reports-*
+          path: health-dashboard/reports/checks/
+          merge-multiple: true
+      - name: "Run tier budget gate (max tier 4)"
+        env:
+          GITHUB_BASE_REF: "${{ github.base_ref }}"
+          MEASURES_CONDITIONAL_JOBS_BY_BASE_REF: "{\"main\":[\"tier-4-analyzers\"]}"
+          MEASURES_CONDITIONAL_PRECHECK_BY_JOB_ID: "{\"tier-4-analyzers\":\"tier4-precheck\"}"
+          MEASURES_REQUIRED_JOBS_BY_BASE_REF: "{\"dev\":[\"tier-0-pre-commit-lint\",\"tier-0-pre-commit-policy\",\"tier-0-pre-commit-static\",\"tier-1-coverage\",\"tier-1-e2e\",\"tier-1-health\",\"tier-1-structure\",\"tier-1-typecheck\",\"tier-2-contract\",\"tier-2-e2e\",\"tier-2-fuzz\",\"tier-2-lint\",\"tier-2-unit\"],\"main\":[\"tier-0-pre-commit-lint\",\"tier-0-pre-commit-policy\",\"tier-0-pre-commit-static\",\"tier-1-coverage\",\"tier-1-e2e\",\"tier-1-health\",\"tier-1-structure\",\"tier-1-typecheck\",\"tier-2-contract\",\"tier-2-e2e\",\"tier-2-fuzz\",\"tier-2-lint\",\"tier-2-unit\",\"tier-3-analyzers\",\"tier-3-e2e\"]}"
           MEASURES_WORKFLOW_NEEDS_JSON: "${{ toJson(needs) }}"
         run: |
           node --no-warnings=ExperimentalWarning --experimental-strip-types \

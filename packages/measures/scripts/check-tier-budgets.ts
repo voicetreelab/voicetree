@@ -222,7 +222,7 @@ function evaluateCiIntegrity(
     const conditionalJobs = conditionalJobsByBase[opts.baseRef] ?? []
     const failures: EvaluationResult['ciFailures'][number][] = []
 
-    for (const jobId of requiredJobs.filter(id => id !== 'budget-gate')) {
+    for (const jobId of requiredJobs) {
         const result = needs[jobId]?.result ?? 'missing'
         if (result !== 'success') {
             failures.push({
