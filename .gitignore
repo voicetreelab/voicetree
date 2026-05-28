@@ -250,7 +250,8 @@ webapp/workers/share-worker/.wrangler/**
 **/transcript_history.txt
 **/chromadb_data/*
 test_output/*
-.claude/settings.local.json
+**/.claude/settings.local.json
+**/.claude/settings.local.bak.json
 
 # Vestigial root-level files that tools/agents might recreate
 # (progress notes are already covered by **/*.md above)
