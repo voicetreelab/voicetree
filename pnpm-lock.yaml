@@ -98,6 +98,47 @@ importers:
         specifier: ~5.8.3
         version: 5.8.3
 
+  packages/libraries/code-graph-cli:
+    dependencies:
+      '@vt/measures':
+        specifier: '*'
+        version: link:../../measures
+      ts-morph:
+        specifier: ^28.0.0
+        version: 28.0.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/libraries/daemon-lifecycle:
+    dependencies:
+      '@opentelemetry/api':
+        specifier: ^1.9.1
+        version: 1.9.1
+      '@vt/graph-db-protocol':
+        specifier: '*'
+        version: link:../graph-db-protocol
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
   packages/libraries/graph-db-protocol:
     dependencies:
       zod:
@@ -172,15 +213,15 @@ importers:
 
   packages/libraries/graph-tools:
     dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: '*'
-        version: 1.29.0(zod@4.4.3)
       '@vt/graph-model':
         specifier: '*'
         version: link:../graph-model
       '@vt/graph-state':
         specifier: '*'
         version: link:../graph-state
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../vt-rpc
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -263,6 +304,34 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
+  packages/libraries/vt-daemon-protocol:
+    dependencies:
+      '@vt/graph-db-protocol':
+        specifier: '*'
+        version: link:../graph-db-protocol
+      '@vt/graph-model':
+        specifier: '*'
+        version: link:../graph-model
+      fp-ts:
+        specifier: ^2.16.9
+        version: 2.16.11
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+
+  packages/libraries/vt-rpc:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
   packages/measures:
     dependencies:
       '@opentelemetry/api':
@@ -280,9 +349,6 @@ importers:
       '@opentelemetry/semantic-conventions':
         specifier: ^1.41.1
         version: 1.41.1
-      '@vt/agent-runtime':
-        specifier: '*'
-        version: link:../systems/agent-runtime
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../systems/graph-db-client
@@ -301,9 +367,12 @@ importers:
       '@vt/perf-fixtures':
         specifier: '*'
         version: link:../libraries/perf-fixtures
-      '@vt/voicetree-mcp':
+      '@vt/vt-daemon':
         specifier: '*'
-        version: link:../systems/voicetree-mcp
+        version: link:../systems/vt-daemon
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../libraries/vt-rpc
       ws:
         specifier: ^8.18.0
         version: 8.21.0
@@ -336,51 +405,14 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
-  packages/systems/agent-runtime:
-    dependencies:
-      '@vt/app-config':
-        specifier: '*'
-        version: link:../../libraries/app-config
-      '@vt/graph-db-protocol':
-        specifier: '*'
-        version: link:../../libraries/graph-db-protocol
-      '@vt/graph-db-server':
-        specifier: '*'
-        version: link:../graph-db-server
-      '@vt/graph-model':
-        specifier: '*'
-        version: link:../../libraries/graph-model
-      fp-ts:
-        specifier: ^2.16.9
-        version: 2.16.11
-      node-pty:
-        specifier: ^1.1.0
-        version: 1.1.0
-      ws:
-        specifier: ^8.20.0
-        version: 8.21.0
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      '@types/ws':
-        specifier: ^8.18.1
-        version: 8.18.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.22.3
-      typescript:
-        specifier: ~5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
-
   packages/systems/graph-db-client:
     dependencies:
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
       '@vt/graph-db-protocol':
         specifier: '*'
         version: link:../../libraries/graph-db-protocol
@@ -412,6 +444,9 @@ importers:
       '@vt/app-config':
         specifier: '*'
         version: link:../../libraries/app-config
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
       '@vt/graph-db-protocol':
         specifier: '*'
         version: link:../../libraries/graph-db-protocol
@@ -465,54 +500,8 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
-  packages/systems/voicetree-mcp:
-    dependencies:
-      '@mermaid-js/parser':
-        specifier: ^0.6.2
-        version: 0.6.3
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.22.0
-        version: 1.29.0(zod@4.4.3)
-      '@vt/agent-runtime':
-        specifier: '*'
-        version: link:../agent-runtime
-      '@vt/app-config':
-        specifier: '*'
-        version: link:../../libraries/app-config
-      '@vt/graph-db-protocol':
-        specifier: '*'
-        version: link:../../libraries/graph-db-protocol
-      '@vt/graph-db-server':
-        specifier: '*'
-        version: link:../graph-db-server
-      '@vt/graph-model':
-        specifier: '*'
-        version: link:../../libraries/graph-model
-      '@vt/graph-state':
-        specifier: '*'
-        version: link:../../libraries/graph-state
-      '@vt/graph-tools':
-        specifier: '*'
-        version: link:../../libraries/graph-tools
-      '@vt/observability':
-        specifier: '*'
-        version: link:../../libraries/observability
-      express:
-        specifier: ^4.21.2
-        version: 4.22.2
-      fp-ts:
-        specifier: ^2.16.9
-        version: 2.16.11
-      normalize-path:
-        specifier: ^3.0.0
-        version: 3.0.0
-      zod:
-        specifier: ^4.3.6
-        version: 4.4.3
+  packages/systems/voicetree-bootcamp:
     devDependencies:
-      '@types/express':
-        specifier: ^5.0.5
-        version: 5.0.6
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
@@ -525,6 +514,205 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/systems/voicetree-cli:
+    dependencies:
+      '@mermaid-js/parser':
+        specifier: ^0.6.2
+        version: 0.6.3
+      '@vscode/ripgrep':
+        specifier: ^1.15.9
+        version: 1.18.0
+      chokidar:
+        specifier: ^3.6.0
+        version: 3.6.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      '@vt/app-config':
+        specifier: '*'
+        version: link:../../libraries/app-config
+      '@vt/graph-db-client':
+        specifier: '*'
+        version: link:../graph-db-client
+      '@vt/graph-db-protocol':
+        specifier: '*'
+        version: link:../../libraries/graph-db-protocol
+      '@vt/graph-db-server':
+        specifier: '*'
+        version: link:../graph-db-server
+      '@vt/graph-model':
+        specifier: '*'
+        version: link:../../libraries/graph-model
+      '@vt/graph-tools':
+        specifier: '*'
+        version: link:../../libraries/graph-tools
+      '@vt/graph-validation':
+        specifier: '*'
+        version: link:../voicetree-graph-validation
+      '@vt/vt-daemon-client':
+        specifier: '*'
+        version: link:../vt-daemon-client
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../../libraries/vt-rpc
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
+      fp-ts:
+        specifier: ^2.16.9
+        version: 2.16.11
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/systems/voicetree-graph-validation:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/systems/vt-daemon:
+    dependencies:
+      '@mermaid-js/parser':
+        specifier: ^0.6.2
+        version: 0.6.3
+      '@vt/app-config':
+        specifier: '*'
+        version: link:../../libraries/app-config
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
+      '@vt/graph-db-client':
+        specifier: '*'
+        version: link:../graph-db-client
+      '@vt/graph-db-protocol':
+        specifier: '*'
+        version: link:../../libraries/graph-db-protocol
+      '@vt/graph-model':
+        specifier: '*'
+        version: link:../../libraries/graph-model
+      '@vt/graph-state':
+        specifier: '*'
+        version: link:../../libraries/graph-state
+      '@vt/graph-tools':
+        specifier: '*'
+        version: link:../../libraries/graph-tools
+      '@vt/graph-validation':
+        specifier: '*'
+        version: link:../voicetree-graph-validation
+      '@vt/observability':
+        specifier: '*'
+        version: link:../../libraries/observability
+      '@vt/vt-daemon-protocol':
+        specifier: '*'
+        version: link:../../libraries/vt-daemon-protocol
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../../libraries/vt-rpc
+      chokidar:
+        specifier: ^3.6.0
+        version: 3.6.0
+      express:
+        specifier: ^4.21.2
+        version: 4.22.2
+      fp-ts:
+        specifier: ^2.16.9
+        version: 2.16.11
+      node-pty:
+        specifier: ^1.1.0
+        version: 1.1.0
+      normalize-path:
+        specifier: ^3.0.0
+        version: 3.0.0
+      ws:
+        specifier: ^8.20.0
+        version: 8.21.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.4.3
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.5
+        version: 5.0.6
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/systems/vt-daemon-client:
+    dependencies:
+      '@opentelemetry/api':
+        specifier: ^1.9.1
+        version: 1.9.1
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
+      '@vt/graph-db-client':
+        specifier: '*'
+        version: link:../graph-db-client
+      '@vt/graph-db-protocol':
+        specifier: '*'
+        version: link:../../libraries/graph-db-protocol
+      '@vt/vt-daemon':
+        specifier: '*'
+        version: link:../vt-daemon
+      '@vt/vt-daemon-protocol':
+        specifier: '*'
+        version: link:../../libraries/vt-daemon-protocol
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../../libraries/vt-rpc
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
+  tools/vt-fake-agent:
+    dependencies:
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../../packages/libraries/vt-rpc
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
+      typescript:
+        specifier: ^5.7.3
+        version: 5.8.3
 
   webapp:
     dependencies:
@@ -573,9 +761,6 @@ importers:
       '@markdoc/markdoc':
         specifier: ^0.5.4
         version: 0.5.7(@types/react@19.2.15)(react@19.2.6)
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.22.0
-        version: 1.29.0(zod@3.25.76)
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
@@ -787,9 +972,6 @@ importers:
       '@vitest/ui':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4)
-      '@vt/agent-runtime':
-        specifier: '*'
-        version: link:../packages/systems/agent-runtime
       '@vt/graph-model':
         specifier: '*'
         version: link:../packages/libraries/graph-model
@@ -799,9 +981,15 @@ importers:
       '@vt/perf-fixtures':
         specifier: '*'
         version: link:../packages/libraries/perf-fixtures
-      '@vt/voicetree-mcp':
+      '@vt/vt-daemon':
         specifier: '*'
-        version: link:../packages/systems/voicetree-mcp
+        version: link:../packages/systems/vt-daemon
+      '@vt/vt-daemon-client':
+        specifier: '*'
+        version: link:../packages/systems/vt-daemon-client
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../packages/libraries/vt-rpc
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
@@ -2157,16 +2345,6 @@ packages:
 
   '@mermaid-js/parser@1.1.1':
     resolution: {integrity: sha512-VuHdsYMK1bT6X2JbcAaWAhugTRvRBRyuZgd+c22swUeI9g/ntaxF7CY7dYarhZovofCbUNO0G7JesfmNtjYOCw==}
-
-  '@modelcontextprotocol/sdk@1.29.0':
-    resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
-    peerDependenciesMeta:
-      '@cfworker/json-schema':
-        optional: true
 
   '@mswjs/interceptors@0.41.9':
     resolution: {integrity: sha512-VVPPgHyQ6ShqnrmDWuxjmUIsO9gWyOZFmuOfLd9LfBGQJwZfy0gvv9pbHSJuoFNIYC7ZDX9aoFwowjcdSC4E8w==}
@@ -4349,14 +4527,6 @@ packages:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
 
-  ajv-formats@3.0.1:
-    resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
-
   ajv-keywords@3.5.2:
     resolution: {integrity: sha512-5p6WTN0DdTGVQk6VjcEju19IgaHudalcfabD7yhDGeA6bcQnmL+CpveLJq/3hvfwd1aof6L386Ougkx6RfyMIQ==}
     peerDependencies:
@@ -4367,9 +4537,6 @@ packages:
 
   ajv@8.18.0:
     resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
-
-  ajv@8.20.0:
-    resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
 
   angular-html-parser@10.4.0:
     resolution: {integrity: sha512-++nLNyZwRfHqFh7akH5Gw/JYizoFlMRz0KRigfwfsLqV8ZqlcVRb1LkPEWdYvEKDnbktknM2J4BXaYUGrQZPww==}
@@ -4868,10 +5035,6 @@ packages:
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
-
-  cors@2.8.6:
-    resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
-    engines: {node: '>= 0.10'}
 
   cose-base@1.0.3:
     resolution: {integrity: sha512-s9whTXInMSgAp/NVXVNuVxVKzGH2qck3aQlVHxDCdAEPgtMKwc4Wq6/QKhgdEdgbLSi9rBTAcPoRa6JpiG4ksg==}
@@ -5519,14 +5682,6 @@ packages:
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
-  eventsource-parser@3.0.8:
-    resolution: {integrity: sha512-70QWGkr4snxr0OXLRWsFLeRBIRPuQOvt4s8QYjmUlmlkyTZkRqS7EDVRZtzU3TiyDbXSzaOeF0XUKy8PchzukQ==}
-    engines: {node: '>=18.0.0'}
-
-  eventsource@3.0.7:
-    resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
-    engines: {node: '>=18.0.0'}
-
   execa@4.1.0:
     resolution: {integrity: sha512-j5W0//W7f8UxAn8hXVnwG8tLwdiUy4FJLcSupCg6maBYZDpyBvTApK7KyuI4bKj8KOh1r2YH+6ucuYtJv1bTZA==}
     engines: {node: '>=10'}
@@ -5545,12 +5700,6 @@ packages:
 
   exponential-backoff@3.1.3:
     resolution: {integrity: sha512-ZgEeZXj30q+I0EN+CbSSpIyPaJ5HVQD18Z1m+u1FXbAeT94mr1zw50q4q6jiiC447Nl/YTcIYSAftiGqetwXCA==}
-
-  express-rate-limit@8.5.2:
-    resolution: {integrity: sha512-5Kb34ipNX694DH48vN9irak1Qx30nb0PLYHXfJgw4YEjiC3ZEmZJhwOp+VfiCYwFzvFTdB9QkArYS5kXa2cx2A==}
-    engines: {node: '>= 16'}
-    peerDependencies:
-      express: '>= 4.11'
 
   express@4.22.2:
     resolution: {integrity: sha512-IuL+Elrou2ZvCFHs18/CIzy2Nzvo25nZ1/D2eIZlz7c+QUayAcYoiM2BthCjs+EBHVpjYjcuLDAiCWgeIX3X1Q==}
@@ -6172,9 +6321,6 @@ packages:
     resolution: {integrity: sha512-2/OKlogiESf2Nh3TFCrRjrr9z1DRHeW0I+KReF67+4J0Ns+8hBtHRmoWAZ2OFU6I5+TWLEe6sVlSdXPjHm5UbQ==}
     engines: {node: '>= 20'}
 
-  jose@6.2.3:
-    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
-
   js-base64@3.7.8:
     resolution: {integrity: sha512-hNngCeKxIUQiEUN3GPJOkz4wF/YvdUdbNL9hsBcMQTkKzboD7T/q3OYOuuPZLUE6dBxSGpwhk5mwuDud7JVAow==}
 
@@ -6230,9 +6376,6 @@ packages:
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
-
-  json-schema-typed@8.0.2:
-    resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
 
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
@@ -7076,10 +7219,6 @@ packages:
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
-
-  pkce-challenge@5.0.1:
-    resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
-    engines: {node: '>=16.20.0'}
 
   playwright-core@1.60.0:
     resolution: {integrity: sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA==}
@@ -8436,11 +8575,6 @@ packages:
   zip-stream@4.1.1:
     resolution: {integrity: sha512-9qv4rlDiopXg4E69k+vMHjNN63YFMe9sZMrdlvKnCjlCRWeCBswPPMPUfx+ipsAWq1LXHe70RcbaHdJJpS6hyQ==}
     engines: {node: '>= 10'}
-
-  zod-to-json-schema@3.25.2:
-    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
-    peerDependencies:
-      zod: ^3.25.28 || ^4
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
@@ -9854,50 +9988,6 @@ snapshots:
   '@mermaid-js/parser@1.1.1':
     dependencies:
       '@chevrotain/types': 11.1.2
-
-  '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
-    dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.23)
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-      content-type: 1.0.5
-      cors: 2.8.6
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.0.8
-      express: 5.2.1
-      express-rate-limit: 8.5.2(express@5.2.1)
-      hono: 4.12.23
-      jose: 6.2.3
-      json-schema-typed: 8.0.2
-      pkce-challenge: 5.0.1
-      raw-body: 3.0.2
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.2(zod@3.25.76)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@modelcontextprotocol/sdk@1.29.0(zod@4.4.3)':
-    dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.23)
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-      content-type: 1.0.5
-      cors: 2.8.6
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.0.8
-      express: 5.2.1
-      express-rate-limit: 8.5.2(express@5.2.1)
-      hono: 4.12.23
-      jose: 6.2.3
-      json-schema-typed: 8.0.2
-      pkce-challenge: 5.0.1
-      raw-body: 3.0.2
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    transitivePeerDependencies:
-      - supports-color
 
   '@mswjs/interceptors@0.41.9':
     dependencies:
@@ -11836,7 +11926,7 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
 
   '@types/cacheable-request@6.0.3':
     dependencies:
@@ -11852,7 +11942,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
 
   '@types/cytoscape@3.31.0':
     dependencies:
@@ -11993,7 +12083,7 @@ snapshots:
 
   '@types/express-serve-static-core@5.1.1':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
       '@types/qs': 6.15.1
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -12086,12 +12176,12 @@ snapshots:
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
 
   '@types/serve-static@2.2.0':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
 
   '@types/set-cookie-parser@2.4.10':
     dependencies:
@@ -12112,7 +12202,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
 
   '@types/yauzl@2.10.3':
     dependencies:
@@ -12365,6 +12455,7 @@ snapshots:
     dependencies:
       mime-types: 3.0.2
       negotiator: 1.0.0
+    optional: true
 
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
@@ -12399,10 +12490,6 @@ snapshots:
       clean-stack: 2.2.0
       indent-string: 4.0.0
 
-  ajv-formats@3.0.1(ajv@8.20.0):
-    optionalDependencies:
-      ajv: 8.20.0
-
   ajv-keywords@3.5.2(ajv@6.15.0):
     dependencies:
       ajv: 6.15.0
@@ -12415,13 +12502,6 @@ snapshots:
       uri-js: 4.4.1
 
   ajv@8.18.0:
-    dependencies:
-      fast-deep-equal: 3.1.3
-      fast-uri: 3.1.2
-      json-schema-traverse: 1.0.0
-      require-from-string: 2.0.2
-
-  ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
       fast-uri: 3.1.2
@@ -12651,6 +12731,7 @@ snapshots:
       type-is: 2.1.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   boolean@3.2.0:
     optional: true
@@ -12987,11 +13068,13 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  content-disposition@1.1.0: {}
+  content-disposition@1.1.0:
+    optional: true
 
   content-type@1.0.5: {}
 
-  content-type@2.0.0: {}
+  content-type@2.0.0:
+    optional: true
 
   convert-source-map@2.0.0: {}
 
@@ -13008,7 +13091,8 @@ snapshots:
 
   cookie-signature@1.0.7: {}
 
-  cookie-signature@1.2.2: {}
+  cookie-signature@1.2.2:
+    optional: true
 
   cookie@0.7.2: {}
 
@@ -13020,11 +13104,6 @@ snapshots:
     optional: true
 
   core-util-is@1.0.3: {}
-
-  cors@2.8.6:
-    dependencies:
-      object-assign: 4.1.1
-      vary: 1.1.2
 
   cose-base@1.0.3:
     dependencies:
@@ -13815,12 +13894,6 @@ snapshots:
 
   eventemitter3@5.0.4: {}
 
-  eventsource-parser@3.0.8: {}
-
-  eventsource@3.0.7:
-    dependencies:
-      eventsource-parser: 3.0.8
-
   execa@4.1.0:
     dependencies:
       cross-spawn: 7.0.6
@@ -13863,11 +13936,6 @@ snapshots:
   expect-type@1.3.0: {}
 
   exponential-backoff@3.1.3: {}
-
-  express-rate-limit@8.5.2(express@5.2.1):
-    dependencies:
-      express: 5.2.1
-      ip-address: 10.2.0
 
   express@4.22.2:
     dependencies:
@@ -13937,6 +14005,7 @@ snapshots:
       vary: 1.1.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   extend-shallow@2.0.1:
     dependencies:
@@ -14041,6 +14110,7 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   find-up@5.0.0:
     dependencies:
@@ -14084,7 +14154,8 @@ snapshots:
 
   fresh@0.5.2: {}
 
-  fresh@2.0.0: {}
+  fresh@2.0.0:
+    optional: true
 
   fs-constants@1.0.0: {}
 
@@ -14541,7 +14612,8 @@ snapshots:
 
   is-promise@2.2.2: {}
 
-  is-promise@4.0.0: {}
+  is-promise@4.0.0:
+    optional: true
 
   is-regex@1.2.1:
     dependencies:
@@ -14591,8 +14663,6 @@ snapshots:
       '@hapi/tlds': 1.1.6
       '@hapi/topo': 6.0.2
       '@standard-schema/spec': 1.1.0
-
-  jose@6.2.3: {}
 
   js-base64@3.7.8: {}
 
@@ -14668,8 +14738,6 @@ snapshots:
   json-schema-traverse@0.4.1: {}
 
   json-schema-traverse@1.0.0: {}
-
-  json-schema-typed@8.0.2: {}
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
@@ -15080,11 +15148,13 @@ snapshots:
 
   media-typer@0.3.0: {}
 
-  media-typer@1.1.0: {}
+  media-typer@1.1.0:
+    optional: true
 
   merge-descriptors@1.0.3: {}
 
-  merge-descriptors@2.0.0: {}
+  merge-descriptors@2.0.0:
+    optional: true
 
   merge-stream@2.0.0: {}
 
@@ -15314,7 +15384,8 @@ snapshots:
 
   mime-db@1.52.0: {}
 
-  mime-db@1.54.0: {}
+  mime-db@1.54.0:
+    optional: true
 
   mime-types@2.1.35:
     dependencies:
@@ -15323,6 +15394,7 @@ snapshots:
   mime-types@3.0.2:
     dependencies:
       mime-db: 1.54.0
+    optional: true
 
   mime@1.6.0: {}
 
@@ -15501,7 +15573,8 @@ snapshots:
 
   negotiator@0.6.4: {}
 
-  negotiator@1.0.0: {}
+  negotiator@1.0.0:
+    optional: true
 
   ninja-keys@1.2.2:
     dependencies:
@@ -15764,7 +15837,8 @@ snapshots:
 
   path-to-regexp@6.3.0: {}
 
-  path-to-regexp@8.4.2: {}
+  path-to-regexp@8.4.2:
+    optional: true
 
   pathe@2.0.3: {}
 
@@ -15779,8 +15853,6 @@ snapshots:
   picomatch@2.3.2: {}
 
   picomatch@4.0.4: {}
-
-  pkce-challenge@5.0.1: {}
 
   playwright-core@1.60.0: {}
 
@@ -15879,7 +15951,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.1
-      '@types/node': 22.19.19
+      '@types/node': 24.12.4
       long: 5.3.2
 
   proxy-addr@2.0.7:
@@ -15996,6 +16068,7 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.2
       unpipe: 1.0.0
+    optional: true
 
   rbush@2.0.2:
     dependencies:
@@ -16330,6 +16403,7 @@ snapshots:
       path-to-regexp: 8.4.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   run-parallel@1.2.0:
     dependencies:
@@ -16406,6 +16480,7 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   serialize-error@7.0.1:
     dependencies:
@@ -16429,6 +16504,7 @@ snapshots:
       send: 1.2.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   set-blocking@2.0.0: {}
 
@@ -16826,6 +16902,7 @@ snapshots:
       content-type: 2.0.0
       media-typer: 1.1.0
       mime-types: 3.0.2
+    optional: true
 
   typed-inject@5.0.0: {}
 
@@ -17332,14 +17409,6 @@ snapshots:
       archiver-utils: 3.0.4
       compress-commons: 4.1.2
       readable-stream: 3.6.2
-
-  zod-to-json-schema@3.25.2(zod@3.25.76):
-    dependencies:
-      zod: 3.25.76
-
-  zod-to-json-schema@3.25.2(zod@4.4.3):
-    dependencies:
-      zod: 4.4.3
 
   zod@3.25.76: {}
 
