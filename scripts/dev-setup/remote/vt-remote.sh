@@ -5,6 +5,7 @@
 #   vt-remote.sh run <cmd...>         # run a command in /root/voicetree-public
 #   vt-remote.sh sync-status          # show Mutagen sync state
 #   vt-remote.sh sync-recreate        # recreate vt-remote from repo config
+#   vt-remote.sh brain-recreate       # recreate two-way ~/brain sync
 #   vt-remote.sh artifacts-pull <id>  # copy explicit Onidel artifacts to Mac
 #   vt-remote.sh htop                 # remote htop
 #   vt-remote.sh ip                   # print public IP
@@ -44,6 +45,9 @@ MUTAGEN_CONFIG="$SCRIPT_DIR/mutagen-vt-remote.yml"
 CSV_HISTORY_CONFIG="$SCRIPT_DIR/mutagen-vt-csv-history.yml"
 CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
 CSV_HISTORY_REMOTE="${REMOTE_DIR}/health-dashboard/reports/scores-history"
+VT_BRAIN_CONFIG="$SCRIPT_DIR/mutagen-vt-brain.yml"
+VT_BRAIN_LOCAL="${VT_BRAIN_LOCAL:-$HOME/brain}"
+VT_BRAIN_REMOTE="${VT_BRAIN_REMOTE:-/root/brain-checkout}"
 VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts.yml"
 VT_WTS_LOCAL="$(cd "$REPO_ROOT/.." && pwd)/vt-wts"
 VT_WTS_REMOTE="/root/vt-wts"
@@ -75,6 +79,25 @@ create_vt_wts_sync() {
     --configuration-file "$VT_WTS_CONFIG" \
     "$VT_WTS_LOCAL" \
     "${REMOTE}:${VT_WTS_REMOTE}"
+}
+
+create_vt_brain_sync() {
+  [ -d "$VT_BRAIN_LOCAL" ] || {
+    echo "vt-remote.sh: local brain path does not exist: $VT_BRAIN_LOCAL" >&2
+    exit 1
+  }
+  local vt_brain_local_real
+  vt_brain_local_real="$(cd "$VT_BRAIN_LOCAL" && pwd -P)"
+  ssh -o StrictHostKeyChecking=no "$REMOTE" "\
+    mkdir -p '$VT_BRAIN_REMOTE' && \
+    if [ -L /root/brain ]; then rm /root/brain; \
+    elif [ -e /root/brain ]; then mv /root/brain \"/root/brain.backup.\$(date +%Y%m%d-%H%M%S)\"; fi && \
+    ln -s '$VT_BRAIN_REMOTE' /root/brain"
+  exec mutagen sync create \
+    --name vt-brain \
+    --configuration-file "$VT_BRAIN_CONFIG" \
+    "$vt_brain_local_real" \
+    "${REMOTE}:${VT_BRAIN_REMOTE}"
 }
 
 case "${1:-}" in
@@ -149,6 +172,31 @@ case "${1:-}" in
   vt-wts-terminate)
     exec mutagen sync terminate vt-wts
     ;;
+  brain-create)
+    create_vt_brain_sync
+    ;;
+  brain-recreate)
+    mutagen sync terminate vt-brain >/dev/null 2>&1 || true
+    create_vt_brain_sync
+    ;;
+  brain-status)
+    exec mutagen sync list vt-brain
+    ;;
+  brain-flush)
+    exec mutagen sync flush vt-brain
+    ;;
+  brain-pause)
+    exec mutagen sync pause vt-brain
+    ;;
+  brain-resume)
+    exec mutagen sync resume vt-brain
+    ;;
+  brain-monitor)
+    exec mutagen sync monitor vt-brain
+    ;;
+  brain-terminate)
+    exec mutagen sync terminate vt-brain
+    ;;
   artifacts-list)
     exec ssh -o StrictHostKeyChecking=no "$REMOTE" \
       "find '$ARTIFACT_ROOT' -mindepth 1 -maxdepth 1 -type d -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort"
@@ -197,6 +245,14 @@ vt-remote.sh — remote dev box ($REMOTE)
   vt-wts-resume          resume syncing
   vt-wts-monitor         live sync activity view
   vt-wts-terminate       stop the vt-wts sync session
+  brain-create           create vt-brain two-way-safe sync for ~/brain
+  brain-recreate         terminate any existing vt-brain and recreate
+  brain-status           mutagen sync list vt-brain
+  brain-flush            force a sync now
+  brain-pause            pause syncing
+  brain-resume           resume syncing
+  brain-monitor          live sync activity view
+  brain-terminate        stop the vt-brain sync session
   artifacts-list     list explicit artifact directories on Onidel
   artifacts-pull ID  copy /root/.voicetree/artifacts/ID back to ./artifacts/ID
   htop               remote htop (use 'q' to quit)
