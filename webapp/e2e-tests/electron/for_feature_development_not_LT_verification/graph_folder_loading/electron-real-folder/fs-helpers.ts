@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
-export const FIXTURE_VAULT_PATH = path.join(
+export const FIXTURE_PROJECT_PATH = path.join(
   PROJECT_ROOT,
   'example_folder_fixtures',
   'example_real_large',
@@ -15,16 +15,16 @@ export const INCREMENTAL_TEST_FILE_NAMES = [
   'incremental-test-3.md'
 ];
 
-export const filePathInVault = (fileName: string): string => path.join(FIXTURE_VAULT_PATH, fileName);
+export const filePathInProject = (fileName: string): string => path.join(FIXTURE_PROJECT_PATH, fileName);
 
-export const writeVaultFile = async (fileName: string, content: string): Promise<string> => {
-  const filePath = filePathInVault(fileName);
+export const writeProjectFile = async (fileName: string, content: string): Promise<string> => {
+  const filePath = filePathInProject(fileName);
   await fs.writeFile(filePath, content);
   return filePath;
 };
 
-export const deleteVaultFile = async (fileName: string): Promise<void> => {
-  await fs.unlink(filePathInVault(fileName));
+export const deleteProjectFile = async (fileName: string): Promise<void> => {
+  await fs.unlink(filePathInProject(fileName));
 };
 
 export const deleteFilePath = async (filePath: string): Promise<void> => {
@@ -42,10 +42,10 @@ export const fileExists = async (filePath: string): Promise<boolean> => {
   }
 };
 
-export const deleteVaultFilesIfPresent = async (fileNames: readonly string[]): Promise<void> => {
+export const deleteProjectFilesIfPresent = async (fileNames: readonly string[]): Promise<void> => {
   for (const fileName of fileNames) {
     try {
-      await deleteVaultFile(fileName);
+      await deleteProjectFile(fileName);
       console.log(`Cleaned up leftover file: ${fileName}`);
     } catch {
       // File doesn't exist, which is fine

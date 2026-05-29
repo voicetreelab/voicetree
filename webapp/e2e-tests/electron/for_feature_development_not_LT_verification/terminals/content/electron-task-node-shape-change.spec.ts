@@ -16,7 +16,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -31,12 +31,12 @@ const test = base.extend<{
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-task-node-shape-test-'));
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: FIXTURE_PROJECT_PATH,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: ''
+        [FIXTURE_PROJECT_PATH]: ''
       }
     }, null, 2), 'utf8');
-    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+    console.log('[Test] Created config file to auto-load:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [

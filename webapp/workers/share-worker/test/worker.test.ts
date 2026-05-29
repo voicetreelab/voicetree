@@ -1,7 +1,7 @@
 import { unstable_dev, type Unstable_DevWorker } from 'wrangler';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-function createUploadForm(files: Record<string, string>, folderName = 'test-vault'): FormData {
+function createUploadForm(files: Record<string, string>, folderName = 'test-project'): FormData {
   const form = new FormData();
   form.append('folderName', folderName);
   for (const [name, content] of Object.entries(files)) {
@@ -47,7 +47,7 @@ describe('share-worker E2E', () => {
   it('serves manifest with correct cache headers after upload', async () => {
     const form = createUploadForm({
       'doc.md': '# Doc',
-    }, 'my-vault');
+    }, 'my-project');
 
     const uploadRes = await worker.fetch('http://worker/upload', {
       method: 'POST',
@@ -60,7 +60,7 @@ describe('share-worker E2E', () => {
 
     const manifest = await res.json() as { files: string[]; folderName: string; createdAt: string };
     expect(manifest.files).toContain('doc.md');
-    expect(manifest.folderName).toBe('my-vault');
+    expect(manifest.folderName).toBe('my-project');
     expect(manifest.createdAt).toBeDefined();
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600');
   });
@@ -85,7 +85,7 @@ describe('share-worker E2E', () => {
   // 4. File count reject
   it('rejects upload with more than 1000 files', async () => {
     const form = new FormData();
-    form.append('folderName', 'big-vault');
+    form.append('folderName', 'big-project');
     for (let i = 0; i < 1001; i++) {
       form.append('files', new File([`# File ${i}`], `file${i}.md`, { type: 'text/markdown' }));
     }
@@ -131,7 +131,7 @@ describe('share-worker E2E', () => {
       `--${boundary}`,
       'Content-Disposition: form-data; name="folderName"',
       '',
-      'test-vault',
+      'test-project',
       `--${boundary}`,
       'Content-Disposition: form-data; name="files"; filename="sub\\\\dir\\\\file.md"',
       'Content-Type: text/markdown',
@@ -170,7 +170,7 @@ describe('share-worker E2E', () => {
   it('serves .voicetree/positions.json after upload', async () => {
     const positions = JSON.stringify({ 'node1.md': { x: 100, y: 200 } });
     const form = new FormData();
-    form.append('folderName', 'pos-vault');
+    form.append('folderName', 'pos-project');
     form.append('files', new File(['# Node 1'], 'node1.md', { type: 'text/markdown' }));
     form.append('files', new File([positions], '.voicetree/positions.json', { type: 'application/json' }));
 

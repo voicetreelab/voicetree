@@ -13,15 +13,15 @@ import type { Graph, GraphDelta, GraphNode, Edge } from '@vt/graph-model/graph'
  */
 describe('isReadPath', () => {
     it('should correctly identify readPaths nodes', () => {
-        const readPaths: readonly string[] = ['/path/to/read-vault', '/path/to/another-vault']
+        const readPaths: readonly string[] = ['/path/to/read-project', '/path/to/another-project']
 
         // Node in readPath should return true
-        expect(isReadPath('/path/to/read-vault/node.md', readPaths)).toBe(true)
-        expect(isReadPath('/path/to/read-vault/subdir/node.md', readPaths)).toBe(true)
-        expect(isReadPath('/path/to/another-vault/node.md', readPaths)).toBe(true)
+        expect(isReadPath('/path/to/read-project/node.md', readPaths)).toBe(true)
+        expect(isReadPath('/path/to/read-project/subdir/node.md', readPaths)).toBe(true)
+        expect(isReadPath('/path/to/another-project/node.md', readPaths)).toBe(true)
 
         // Node NOT in readPath should return false
-        expect(isReadPath('/path/to/write-vault/node.md', readPaths)).toBe(false)
+        expect(isReadPath('/path/to/write-project/node.md', readPaths)).toBe(false)
         expect(isReadPath('/completely/different/path.md', readPaths)).toBe(false)
     })
 })
@@ -179,7 +179,7 @@ describe('resolveLinkedNodesInWatchedFolder', () => {
     beforeAll(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'resolve-watched-folder-test-'))
         watchedFolder = tmpDir
-        writeFolderPath = path.join(tmpDir, 'write-vault')
+        writeFolderPath = path.join(tmpDir, 'write-project')
 
         await fs.mkdir(writeFolderPath, { recursive: true })
 

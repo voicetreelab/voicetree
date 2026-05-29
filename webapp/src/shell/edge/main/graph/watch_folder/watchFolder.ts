@@ -6,24 +6,24 @@ import { getCallbacks, getAvailableFolders, parseSearchQuery, toAbsolutePath } f
 import type { AbsolutePath, AvailableFolderItem, FilePath } from '@vt/graph-model'
 import type { ParsedQuery } from '@vt/graph-model'
 import { createDatedSubfolder } from '@vt/app-config/project'
-import type { VaultState } from '@vt/graph-db-client'
+import type { ProjectState } from '@vt/graph-db-client'
 import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import {
-    getStartupVaultHint,
-    openVault,
-} from './openVault'
+    getStartupProjectHint,
+    openProject,
+} from './openProject'
 
-export { getStartupVaultHint, openVault }
+export { getStartupProjectHint, openProject }
 
-async function getVaultState(): Promise<VaultState> {
-    return await callDaemon((client) => client.getVault())
+async function getProjectState(): Promise<ProjectState> {
+    return await callDaemon((client) => client.getProject())
 }
 
 async function getActiveProjectRoot(): Promise<string | null> {
     try {
-        return (await getVaultState()).projectRoot
+        return (await getProjectState()).projectRoot
     } catch {
         return null
     }
@@ -38,7 +38,7 @@ export async function getAvailableFoldersForSelector(
     }
 
     const loadedPaths: readonly AbsolutePath[] =
-        (await getVaultPaths()).map((p: string) => toAbsolutePath(p))
+        (await getProjectPaths()).map((p: string) => toAbsolutePath(p))
     const parsed: ParsedQuery = parseSearchQuery(searchQuery)
 
     if (parsed.isAbsolute && parsed.basePath) {
@@ -90,7 +90,7 @@ export async function getAvailableFoldersForSelector(
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     try {
         await stopDaemonGraphSync()
-        await callDaemon((client) => client.closeVault())
+        await callDaemon((client) => client.closeProject())
         getCallbacks().onFolderCleared?.()
         return { success: true }
     } catch (error) {
@@ -101,10 +101,10 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
 
 export async function getWatchStatus(): Promise<{ readonly isWatching: boolean; readonly directory: string | undefined }> {
     try {
-        const vaultState: VaultState = await getVaultState()
+        const projectState: ProjectState = await getProjectState()
         return {
             isWatching: true,
-            directory: vaultState.projectRoot,
+            directory: projectState.projectRoot,
         }
     } catch {
         return { isWatching: false, directory: undefined }
@@ -115,21 +115,21 @@ export async function isWatching(): Promise<boolean> {
     return (await getWatchStatus()).isWatching
 }
 
-export async function getVaultPaths(): Promise<readonly FilePath[]> {
-    const daemonVaultState: VaultState = await getVaultState()
+export async function getProjectPaths(): Promise<readonly FilePath[]> {
+    const daemonProjectState: ProjectState = await getProjectState()
     return [
-        daemonVaultState.writeFolderPath,
-        ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writeFolderPath),
+        daemonProjectState.writeFolderPath,
+        ...daemonProjectState.readPaths.filter((path: string) => path !== daemonProjectState.writeFolderPath),
     ]
 }
 
 export async function getReadPaths(): Promise<readonly FilePath[]> {
-    return (await getVaultState()).readPaths
+    return (await getProjectState()).readPaths
 }
 
 export async function getWriteFolderPath(): Promise<O.Option<FilePath>> {
     try {
-        return O.some((await getVaultState()).writeFolderPath)
+        return O.some((await getProjectState()).writeFolderPath)
     } catch {
         return O.none
     }
@@ -141,8 +141,8 @@ export async function createDatedVoiceTreeFolder(): Promise<{
     error?: string
 }> {
     try {
-        const previousVaultState: VaultState = await getVaultState()
-        const watchedDir: string = previousVaultState.projectRoot
+        const previousProjectState: ProjectState = await getProjectState()
+        const watchedDir: string = previousProjectState.projectRoot
         const newPath: string = await createDatedSubfolder(watchedDir)
         await callDaemon(async (client) => {
             await client.addReadPath(newPath)
@@ -150,11 +150,11 @@ export async function createDatedVoiceTreeFolder(): Promise<{
         })
 
         if (
-            previousVaultState.writeFolderPath
-            && previousVaultState.writeFolderPath !== newPath
-            && previousVaultState.writeFolderPath !== watchedDir
+            previousProjectState.writeFolderPath
+            && previousProjectState.writeFolderPath !== newPath
+            && previousProjectState.writeFolderPath !== watchedDir
         ) {
-            await callDaemon((client) => client.removeReadPath(previousVaultState.writeFolderPath)).catch(() => undefined)
+            await callDaemon((client) => client.removeReadPath(previousProjectState.writeFolderPath)).catch(() => undefined)
         }
 
         return { success: true, path: newPath }

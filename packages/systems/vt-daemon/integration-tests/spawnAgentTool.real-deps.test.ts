@@ -45,7 +45,7 @@ import type {GraphBridge} from '../src/config/mcpBridges.ts'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)
 
-const PARENT_NODE_ID: NodeIdAndFilePath = '/vault/parent.md' as NodeIdAndFilePath
+const PARENT_NODE_ID: NodeIdAndFilePath = '/project/parent.md' as NodeIdAndFilePath
 const CALLER_TERMINAL_ID: string = 'caller-real-deps'
 
 function buildParentGraphNode(): GraphNode {
@@ -75,7 +75,7 @@ function buildGraphWithParent(): Graph {
 function buildBridge(writeFolderPath: string): GraphBridge {
     return {
         getGraph: vi.fn(async () => buildGraphWithParent()),
-        getVaultPaths: vi.fn(async () => [writeFolderPath]),
+        getProjectPaths: vi.fn(async () => [writeFolderPath]),
         getWriteFolderPath: vi.fn(async () => writeFolderPath),
         getProjectRoot: vi.fn(async () => writeFolderPath),
         getUnseenNodesAroundContextNode: vi.fn(async () => []),

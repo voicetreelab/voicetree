@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import type { OwnerDiagnosticEvent } from '@vt/graph-db-protocol'
 import {
-  ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject,
   subscribeOwnerDiagnostics,
 } from '../index.ts'
 
@@ -23,14 +23,14 @@ const FIXTURE_DIR = join(
 const FAKE_BIN = join(FIXTURE_DIR, 'fake-vt-graphd.mjs')
 const FAKE_BIN_COMMAND = `${process.execPath} ${FAKE_BIN}`
 
-let vault: string
+let project: string
 let spawnedPids: number[]
 let captured: OwnerDiagnosticEvent[]
 let unsubscribe: (() => void) | null = null
 
 beforeEach(async () => {
-  vault = await mkdtemp(join(tmpdir(), 'vt-graphd-bf347-diag-'))
-  await mkdir(join(vault, '.voicetree'), { recursive: true })
+  project = await mkdtemp(join(tmpdir(), 'vt-graphd-bf347-diag-'))
+  await mkdir(join(project, '.voicetree'), { recursive: true })
   spawnedPids = []
   captured = []
   unsubscribe = subscribeOwnerDiagnostics((event) => captured.push(event))
@@ -46,12 +46,12 @@ afterEach(async () => {
       // already gone
     }
   }
-  await rm(vault, { recursive: true, force: true })
+  await rm(project, { recursive: true, force: true })
 })
 
 describe('OwnerDiagnosticEvent emission (BF-347)', () => {
   test('cold-start emits the claim → spawn-started → spawn-ready → acquired sequence with required fields', async () => {
-    const result = await ensureGraphDaemonForVault(vault, 'cli', {
+    const result = await ensureGraphDaemonForProject(project, 'cli', {
       bin: FAKE_BIN_COMMAND,
       timeoutMs: 5_000,
     })
@@ -75,10 +75,10 @@ describe('OwnerDiagnosticEvent emission (BF-347)', () => {
     expect(readyIdx).toBeLessThan(acquiredIdx)
 
     // Every event carries the spec's required identity fields.
-    const canonicalVault = resolve(vault)
+    const canonicalProject = resolve(project)
     for (const event of captured) {
       expect(event.callerKind).toBe('cli')
-      expect(event.canonicalVault).toBe(canonicalVault)
+      expect(event.canonicalProject).toBe(canonicalProject)
       expect(typeof event.attemptId).toBe('string')
       expect(event.attemptId.length).toBeGreaterThan(0)
       expect(Number.isFinite(event.nowMs)).toBe(true)
@@ -100,7 +100,7 @@ describe('OwnerDiagnosticEvent emission (BF-347)', () => {
 
   test('reuse path emits a `reuse` event with pid + port + ownerNonce', async () => {
     // First ensure starts the daemon.
-    const first = await ensureGraphDaemonForVault(vault, 'cli', {
+    const first = await ensureGraphDaemonForProject(project, 'cli', {
       bin: FAKE_BIN_COMMAND,
       timeoutMs: 5_000,
     })
@@ -111,7 +111,7 @@ describe('OwnerDiagnosticEvent emission (BF-347)', () => {
 
     // Second ensure should reuse — but the in-process single-flight is
     // already cleared by then, so this is a fresh discovery → reuse.
-    const second = await ensureGraphDaemonForVault(vault, 'electron-main', {
+    const second = await ensureGraphDaemonForProject(project, 'electron-main', {
       bin: FAKE_BIN_COMMAND,
       timeoutMs: 2_000,
     })
@@ -135,7 +135,7 @@ describe('OwnerDiagnosticEvent emission (BF-347)', () => {
     })
 
     try {
-      const result = await ensureGraphDaemonForVault(vault, 'test', {
+      const result = await ensureGraphDaemonForProject(project, 'test', {
         bin: FAKE_BIN_COMMAND,
         timeoutMs: 5_000,
       })

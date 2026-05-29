@@ -43,18 +43,18 @@ interface GraphState {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  tempVaultPath: string;
+  tempProjectPath: string;
 }>({
-  tempVaultPath: async ({}, use) => {
-    // Create a temporary vault directory for this test
+  tempProjectPath: async ({}, use) => {
+    // Create a temporary project directory for this test
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-text-to-tree-e2e-'));
-    const projectRoot = path.join(tempDir, 'test-vault');
+    const projectRoot = path.join(tempDir, 'test-project');
     await fs.mkdir(projectRoot, { recursive: true });
 
-    // Create minimal root.md to initialize the vault
+    // Create minimal root.md to initialize the project
     await fs.writeFile(
       path.join(projectRoot, 'root.md'),
-      '# Root\n\nTest vault for text-to-tree E2E test.\n',
+      '# Root\n\nTest project for text-to-tree E2E test.\n',
       'utf8'
     );
 
@@ -64,20 +64,20 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  electronApp: async ({ tempVaultPath }, use) => {
+  electronApp: async ({ tempProjectPath }, use) => {
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-text2tree-userdata-'));
 
-    // Write config to auto-load the test vault
+    // Write config to auto-load the test project
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: tempVaultPath,
+      lastDirectory: tempProjectPath,
       suffixes: {
-        [tempVaultPath]: '' // Empty suffix means use directory directly
+        [tempProjectPath]: '' // Empty suffix means use directory directly
       }
     }, null, 2), 'utf8');
 
-    console.log('[Text-to-Tree E2E] Created test vault at:', tempVaultPath);
+    console.log('[Text-to-Tree E2E] Created test project at:', tempProjectPath);
     console.log('[Text-to-Tree E2E] Using REAL Python backend server');
 
     const electronApp = await electron.launch({
@@ -146,7 +146,7 @@ test.describe('Text-to-Tree End-to-End Integration', () => {
   // Set longer timeout - LLM processing takes time (~2 minutes expected)
   test.setTimeout(180000); // 3 minutes max
 
-  test.skip('should create nodes from text input via real Python backend', async ({ appWindow, tempVaultPath }) => {
+  test.skip('should create nodes from text input via real Python backend', async ({ appWindow, tempProjectPath }) => {
     // SKIPPED: This test requires external infrastructure (real Python backend with LLM capabilities)
     // The test sets USE_REAL_SERVER=1 to spawn the Python backend, but this requires:
     // - Python backend dependencies installed (uv sync)
@@ -211,8 +211,8 @@ test.describe('Text-to-Tree End-to-End Integration', () => {
     expect(healthCheck?.ok).toBe(true);
     console.log('✓ Backend server is healthy and ready');
 
-    // ===== STEP 3: Load the test vault directory =====
-    console.log('\n=== STEP 3: Load test vault directory ===');
+    // ===== STEP 3: Load the test project directory =====
+    console.log('\n=== STEP 3: Load test project directory ===');
 
     const loadResult = await appWindow.evaluate(async (args) => {
       const [port, projectRoot] = args;
@@ -226,10 +226,10 @@ test.describe('Text-to-Tree End-to-End Integration', () => {
         status: response.status,
         body: await response.json()
       };
-    }, [backendPort, tempVaultPath] as const);
+    }, [backendPort, tempProjectPath] as const);
 
     expect(loadResult.ok).toBe(true);
-    console.log('✓ Test vault loaded into backend:', loadResult.body);
+    console.log('✓ Test project loaded into backend:', loadResult.body);
 
     // ===== STEP 4: Get initial graph state =====
     console.log('\n=== STEP 4: Get initial graph state ===');

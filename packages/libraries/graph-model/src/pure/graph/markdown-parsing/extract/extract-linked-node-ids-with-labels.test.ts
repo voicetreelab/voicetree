@@ -289,7 +289,7 @@ Parent:
 
   describe('integration with path matching', () => {
     it('should extract labels with absolute path wikilinks', () => {
-      const content: "references [[/Users/user/vault/folder/file.md]]" = 'references [[/Users/user/vault/folder/file.md]]'
+      const content: "references [[/Users/user/project/folder/file.md]]" = 'references [[/Users/user/project/folder/file.md]]'
 
       const nodes: { readonly 'folder/file': GraphNode; } = {
         'folder/file': createNode('folder/file')

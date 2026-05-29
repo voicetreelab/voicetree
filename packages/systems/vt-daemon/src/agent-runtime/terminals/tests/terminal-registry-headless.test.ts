@@ -56,8 +56,8 @@ import {
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
 
-const TASK_NODE_A: NodeIdAndFilePath = '/vault/task-a.md' as NodeIdAndFilePath
-const TASK_NODE_B: NodeIdAndFilePath = '/vault/task-b.md' as NodeIdAndFilePath
+const TASK_NODE_A: NodeIdAndFilePath = '/project/task-a.md' as NodeIdAndFilePath
+const TASK_NODE_B: NodeIdAndFilePath = '/project/task-b.md' as NodeIdAndFilePath
 
 function buildTerminalData(params: {
     terminalId: string

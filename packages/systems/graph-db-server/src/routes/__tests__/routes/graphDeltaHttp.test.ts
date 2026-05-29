@@ -47,30 +47,30 @@ async function readProjectedGraph(
   throw new Error('Timed out waiting for projectedGraph SSE event')
 }
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-delta-test-'))
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-  const appSupport = await mkdtemp(join(tmpdir(), 'graphd-delta-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+  const voicetreeHome = await mkdtemp(join(tmpdir(), 'graphd-delta-appsupport-'))
   const config = {
-    vaultConfig: {
-      [vault]: { writeFolderPath: vault },
+    projectConfig: {
+      [project]: { writeFolderPath: project },
     },
   }
-  await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))
-  return appSupport
+  await writeFile(join(voicetreeHome, 'voicetree-config.json'), JSON.stringify(config))
+  return voicetreeHome
 }
 
 describe('HTTP graph delta writes', () => {
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handles: DaemonHandle[]
   let sseController: AbortController | null
 
   beforeEach(async () => {
-    vault = await withTempVault()
-    appSupport = await createAppSupport(vault)
+    project = await withTempProject()
+    voicetreeHome = await createVoicetreeHome(project)
     handles = []
     sseController = null
     resetUndoState()
@@ -82,15 +82,15 @@ describe('HTTP graph delta writes', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
-    await rm(vault, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
   }, 15000)
 
   test('applies a session-tagged delta and returns an ack from /graph/delta', async () => {
-    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
+    const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
-    const testNodePath = join(vault, 'test-node-http.md')
+    const testNodePath = join(project, 'test-node-http.md')
     const delta = [
       {
         type: 'UpsertNode',
@@ -133,7 +133,7 @@ describe('HTTP graph delta writes', () => {
   }, 20000)
 
   test('apply-delta returns ack, updates graph, publishes SSE, and respects recordForUndo false', async () => {
-    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
+    const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
     const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
@@ -148,7 +148,7 @@ describe('HTTP graph delta writes', () => {
     const reader = sseRes.body!.getReader()
     await reader.read()
 
-    const testNodePath = join(vault, 'no-undo-node.md')
+    const testNodePath = join(project, 'no-undo-node.md')
     const expectedSeq = getCurrentSeq() + 1
     const delta = [
       {
@@ -196,10 +196,10 @@ describe('HTTP graph delta writes', () => {
   }, 20000)
 
   test('delete-node returns ack, updates graph, and publishes SSE', async () => {
-    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
+    const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
-    const testNodePath = join(vault, 'delete-node-http.md')
+    const testNodePath = join(project, 'delete-node-http.md')
     const delta = [
       {
         type: 'UpsertNode',
@@ -263,7 +263,7 @@ describe('HTTP graph delta writes', () => {
   }, 20000)
 
   test('rejects invalid graph delta payloads', async () => {
-    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
+    const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
     handles.push(handle)
 
     const res = await fetch(`http://127.0.0.1:${handle.port}/graph/delta`, {

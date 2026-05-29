@@ -5,9 +5,9 @@ import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 
 // Mock shell/edge dependencies
-vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
+vi.mock('@vt/graph-db-server/watch-folder/project-allowlist', () => ({
     getWriteFolderPath: vi.fn(),
-    getVaultPaths: vi.fn()
+    getProjectPaths: vi.fn()
 }))
 
 vi.mock('@vt/graph-db-server/state/graph-store', () => ({
@@ -52,8 +52,8 @@ vi.mock('@mermaid-js/parser', () => ({
 }))
 
 import {configureMcpServer, createGraphTool} from '@vt/voicetree-mcp'
-import {getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {getWriteFolderPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getProjectPaths} from '@vt/graph-db-server/watch-folder/project-allowlist'
+import {getWriteFolderPath} from '@vt/graph-db-server/watch-folder/project-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
@@ -68,8 +68,8 @@ function parsePayload(response: McpToolResponse): unknown {
     return JSON.parse(response.content[0].text)
 }
 
-const WRITE_PATH: string = '/test/vault'
-const READ_PATH: string = '/test/reference-vault'
+const WRITE_PATH: string = '/test/project'
+const READ_PATH: string = '/test/reference-project'
 const PARENT_NODE_ID: NodeIdAndFilePath = `${WRITE_PATH}/parent-task.md`
 const CALLER_TERMINAL_ID: string = 'ctx-nodes/caller.md-terminal-0'
 const CALLER_CONTEXT_NODE_ID: NodeIdAndFilePath = 'ctx-nodes/caller.md'
@@ -137,7 +137,7 @@ function mockCallerTerminal(options?: {
 function setupStandardMocks(graphOverride?: Graph): void {
     mockCallerTerminal()
     vi.mocked(getWriteFolderPath).mockResolvedValue(O.some(WRITE_PATH))
-    vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
+    vi.mocked(getProjectPaths).mockResolvedValue([WRITE_PATH])
     vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
     vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 }
@@ -148,7 +148,7 @@ function configureCreateGraphToolTestServer(): void {
             getSnapshot: async () => ({
                 graph: getGraph(),
                 projectRoot: WRITE_PATH,
-                vaultPaths: await getVaultPaths(),
+                projectPaths: await getProjectPaths(),
                 writeFolderPath: O.toNullable(await getWriteFolderPath()),
             }),
             applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
@@ -169,7 +169,7 @@ export function createAddProgressNodeMcpTestHarness() {
         createGraphTool,
         getGraph,
         getTerminalRecords,
-        getVaultPaths,
+        getProjectPaths,
         getWriteFolderPath,
         mermaidParse,
         mockCallerTerminal,

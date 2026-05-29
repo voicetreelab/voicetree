@@ -137,15 +137,15 @@ export const DAEMON_ROUTE_SPECS = [
     exemptionReason:
       '`/graph/redo` re-applies a previously undone mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
   },
-  { id: 'vault.show', method: 'GET', path: '/vault' },
-  { id: 'vault.open', method: 'POST', path: '/vault/open' },
-  { id: 'vault.close', method: 'POST', path: '/vault/close' },
-  { id: 'vault.set-write-path', method: 'PUT', path: '/vault/write-path' },
-  { id: 'vault.views.list', method: 'GET', path: '/vault/views' },
-  { id: 'vault.views.create', method: 'POST', path: '/vault/views' },
-  { id: 'vault.views.activate', method: 'POST', path: '/vault/views/:viewId/activate' },
-  { id: 'vault.views.clone', method: 'POST', path: '/vault/views/:viewId/clone' },
-  { id: 'vault.views.delete', method: 'DELETE', path: '/vault/views/:viewId' },
+  { id: 'project.show', method: 'GET', path: '/project' },
+  { id: 'project.open', method: 'POST', path: '/project/open' },
+  { id: 'project.close', method: 'POST', path: '/project/close' },
+  { id: 'project.set-write-path', method: 'PUT', path: '/project/write-path' },
+  { id: 'project.views.list', method: 'GET', path: '/project/views' },
+  { id: 'project.views.create', method: 'POST', path: '/project/views' },
+  { id: 'project.views.activate', method: 'POST', path: '/project/views/:viewId/activate' },
+  { id: 'project.views.clone', method: 'POST', path: '/project/views/:viewId/clone' },
+  { id: 'project.views.delete', method: 'DELETE', path: '/project/views/:viewId' },
 ] as const satisfies readonly DaemonRouteSpec[]
 
 export type DaemonRouteId = Extract<

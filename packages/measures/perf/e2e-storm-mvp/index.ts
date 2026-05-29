@@ -3,7 +3,7 @@
  *
  * Minimal end-to-end perf-architecture smoke: launches the real Electron
  * VoiceTree main bundle, lets it boot the daemon + MCP server against a
- * freshly seeded vault, discovers the MCP port from `.mcp.json`, spawns 30
+ * freshly seeded project, discovers the MCP port from `.mcp.json`, spawns 30
  * vt-fake-agents that each create 5 nodes via real MCP, then asserts the
  * expected markdown files landed on disk.
  *
@@ -25,7 +25,7 @@ import { inflateSync } from 'node:zlib'
 import type { Page } from '@playwright/test'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
-import { generateVaultOnDisk } from '@vt/perf-fixtures'
+import { generateProjectOnDisk } from '@vt/perf-fixtures'
 
 import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
 import {
@@ -117,9 +117,9 @@ function walkMarkdownFiles(dir: string): readonly string[] {
     return result
 }
 
-function countStormOutputNodes(vaultDir: string): number {
+function countStormOutputNodes(projectDir: string): number {
     const marker = 'MVP storm node mvp-agent-'
-    return walkMarkdownFiles(vaultDir).filter(file => {
+    return walkMarkdownFiles(projectDir).filter(file => {
         try { return readFileSync(file, 'utf8').includes(marker) } catch { return false }
     }).length
 }
@@ -605,8 +605,8 @@ async function main(): Promise<void> {
     const overallStart = Date.now()
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-project-'))
     const projectDir = path.join(projectRoot, 'mvp-project')
-    const vaultDir = path.join(projectDir, 'mvp-vault')
-    mkdirSync(vaultDir, { recursive: true })
+    const projectDir = path.join(projectDir, 'mvp-project')
+    mkdirSync(projectDir, { recursive: true })
 
     const voicetreeHomePath = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-app-'))
     writeStormSettings(voicetreeHomePath, args)
@@ -617,13 +617,13 @@ async function main(): Promise<void> {
     process.stdout.write(`[mvp] run id: ${runContext.runUuid}\n`)
     process.stdout.write(`[mvp] perf run dir: ${runContext.runDir}\n`)
 
-    // Seed a small realistic vault so the daemon has nodes to attach to. The
-    // single-agent MVP doesn't dogpile, but we still want the seed vault to
-    // exercise the daemon's full vault-scan + index-build path.
-    const vaultLayout = generateVaultOnDisk(vaultDir, 5)
-    process.stdout.write(`[mvp] seeded vault: ${vaultLayout.nodes.length} nodes at ${vaultDir}\n`)
+    // Seed a small realistic project so the daemon has nodes to attach to. The
+    // single-agent MVP doesn't dogpile, but we still want the seed project to
+    // exercise the daemon's full project-scan + index-build path.
+    const projectLayout = generateProjectOnDisk(projectDir, 5)
+    process.stdout.write(`[mvp] seeded project: ${projectLayout.nodes.length} nodes at ${projectDir}\n`)
 
-    const filesBefore = countMarkdownFiles(vaultDir)
+    const filesBefore = countMarkdownFiles(projectDir)
 
     let pass = false
     let failureReason: string | null = null
@@ -662,7 +662,7 @@ async function main(): Promise<void> {
         const launched = await launchElectronAndDiscoverMcp({
             repoRoot: REPO_ROOT,
             projectDir,
-            vaultDir,
+            projectDir,
             voicetreeHomePath,
             logFilePath: electronLogPath,
             inspectPort: args.inspectPort,
@@ -687,8 +687,8 @@ async function main(): Promise<void> {
         // Pick the first cluster node as the agent's parent — anchors the new
         // node under a real existing node, the way real agents work.
         const seedNodeAbsolutePath = path.join(
-            vaultDir,
-            vaultLayout.firstClusterNodePaths[0] ?? vaultLayout.nodes[0].relativePath,
+            projectDir,
+            projectLayout.firstClusterNodePaths[0] ?? projectLayout.nodes[0].relativePath,
         )
 
         const appWindow = await app.firstWindow({ timeout: 30_000 })
@@ -741,8 +741,8 @@ async function main(): Promise<void> {
             }
         }
 
-        filesAfter = countMarkdownFiles(vaultDir)
-        nodesCreated = countStormOutputNodes(vaultDir)
+        filesAfter = countMarkdownFiles(projectDir)
+        nodesCreated = countStormOutputNodes(projectDir)
 
         const spawnFailure = agentResults.find(result => !result.spawnSuccess)
         const scriptFailure = agentResults.find(result => result.spawnSuccess && !result.exitedCleanly && !result.timedOut)
@@ -862,7 +862,7 @@ async function main(): Promise<void> {
             rmSync(projectRoot, { recursive: true, force: true })
             rmSync(voicetreeHomePath, { recursive: true, force: true })
         } else {
-            process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} appSupport=${voicetreeHomePath}\n`)
+            process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} voicetreeHome=${voicetreeHomePath}\n`)
         }
 
         if (hostVmMetrics !== null) {
@@ -896,7 +896,7 @@ async function main(): Promise<void> {
         filesBefore,
         filesAfter,
         mcpPort,
-        vaultDir,
+        projectDir,
         projectDir,
         voicetreeHomePath,
         electronLogPath,

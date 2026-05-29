@@ -1,37 +1,37 @@
 import type {Graph} from '@vt/graph-model/graph'
-import type {VaultState} from '@vt/graph-db-client'
+import type {ProjectState} from '@vt/graph-db-client'
 import {getNormalizedDaemonGraph} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
 
 type GraphSnapshotClient = {
     readonly getGraph: () => Promise<unknown>
-    readonly getVault: () => Promise<VaultState>
+    readonly getProject: () => Promise<ProjectState>
 }
 
 export type ElectronGraphSnapshot = {
     readonly graph: Graph
     readonly projectRoot: string | null
-    readonly vaultPaths: readonly string[]
+    readonly projectPaths: readonly string[]
     readonly writeFolderPath: string | null
 }
 
-export function getVaultPathsFromState(vaultState: VaultState): readonly string[] {
+export function getProjectPathsFromState(projectState: ProjectState): readonly string[] {
     return [
-        vaultState.writeFolderPath,
-        ...vaultState.readPaths.filter((path: string) => path !== vaultState.writeFolderPath),
+        projectState.writeFolderPath,
+        ...projectState.readPaths.filter((path: string) => path !== projectState.writeFolderPath),
     ]
 }
 
 export async function buildElectronGraphSnapshot(
     client: GraphSnapshotClient,
 ): Promise<ElectronGraphSnapshot> {
-    const [graph, vaultState]: [Graph, VaultState] = await Promise.all([
+    const [graph, projectState]: [Graph, ProjectState] = await Promise.all([
         getNormalizedDaemonGraph(client),
-        client.getVault(),
+        client.getProject(),
     ])
     return {
         graph,
-        projectRoot: vaultState.projectRoot,
-        vaultPaths: getVaultPathsFromState(vaultState),
-        writeFolderPath: vaultState.writeFolderPath,
+        projectRoot: projectState.projectRoot,
+        projectPaths: getProjectPathsFromState(projectState),
+        writeFolderPath: projectState.writeFolderPath,
     }
 }

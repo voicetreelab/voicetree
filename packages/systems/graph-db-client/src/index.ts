@@ -12,13 +12,13 @@ export {
   OwnerSpawnCooldownError,
   OwnerWaitTimeoutError,
   UnsafeOwnerError,
-  VaultNotOpenError,
-  VaultOpenFailedError,
+  ProjectNotOpenError,
+  ProjectOpenFailedError,
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
-  ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject,
   resolveDaemonRuntimeCommand,
   type EnsureDaemonResult,
   type EnsureGraphDaemonOptions,
@@ -36,7 +36,7 @@ export {
   type OwnerDiagnosticUnsubscribe,
 } from '@vt/daemon-lifecycle'
 export {
-  isVtGraphdProcessForVault,
+  isVtGraphdProcessForProject,
   killOrphanVtGraphdDaemons,
   terminateUnresponsiveDaemon,
   type OrphanCleanupResult,

@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url)
 export interface AgentStormArgs {
     readonly agents: number
     readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
+    readonly projectSeedNodeCount: number
     readonly perAgentTimeoutMs: number
     readonly globalTimeoutMs: number
     readonly outPath: string | null
@@ -28,7 +28,7 @@ export function parseAgentStormArgs(argv: readonly string[]): AgentStormArgs {
     const defaults: AgentStormArgs = {
         agents: 5,
         nodesPerAgent: 5,
-        vaultSeedNodeCount: 200,
+        projectSeedNodeCount: 200,
         perAgentTimeoutMs: 60_000,
         globalTimeoutMs: 5 * 60_000,
         outPath: null,
@@ -37,7 +37,7 @@ export function parseAgentStormArgs(argv: readonly string[]): AgentStormArgs {
     }
     let agents = defaults.agents
     let nodesPerAgent = defaults.nodesPerAgent
-    let vaultSeedNodeCount = defaults.vaultSeedNodeCount
+    let projectSeedNodeCount = defaults.projectSeedNodeCount
     let perAgentTimeoutMs = defaults.perAgentTimeoutMs
     let globalTimeoutMs = defaults.globalTimeoutMs
     let outPath = defaults.outPath
@@ -55,7 +55,7 @@ export function parseAgentStormArgs(argv: readonly string[]): AgentStormArgs {
         switch (a) {
             case '--agents': agents = intArg(argv[++i], 'agents'); break
             case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
-            case '--vault-seed-nodes': vaultSeedNodeCount = intArg(argv[++i], 'vault-seed-nodes'); break
+            case '--project-seed-nodes': projectSeedNodeCount = intArg(argv[++i], 'project-seed-nodes'); break
             case '--per-agent-timeout-ms': perAgentTimeoutMs = intArg(argv[++i], 'per-agent-timeout-ms'); break
             case '--global-timeout-ms': globalTimeoutMs = intArg(argv[++i], 'global-timeout-ms'); break
             case '--out': outPath = argv[++i] ?? null; break
@@ -67,19 +67,19 @@ export function parseAgentStormArgs(argv: readonly string[]): AgentStormArgs {
                     'agent-storm.ts: spawn N vt-fake-agents and measure daemon-side OTel signals.\n'
                     + '  --agents N                    parallel fake-agents (default 5)\n'
                     + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
-                    + '  --vault-seed-nodes N          existing nodes to seed the vault with (default 200)\n'
+                    + '  --project-seed-nodes N          existing nodes to seed the project with (default 200)\n'
                     + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
                     + '  --global-timeout-ms MS        overall run deadline (default 300000)\n'
                     + '  --out PATH                    JSON report path (default ~/.voicetree/reports/perf-agent-storm-<ts>.json)\n'
-                    + '  --keep-artifacts              keep temp vault + app-support dirs after the run\n'
-                    + '  --isolate-dirs                give each agent a unique outputDir under <vault>/isolated/agent-<i>/ (probe per-dir FS contention)\n',
+                    + '  --keep-artifacts              keep temp project + voicetree-home dirs after the run\n'
+                    + '  --isolate-dirs                give each agent a unique outputDir under <project>/isolated/agent-<i>/ (probe per-dir FS contention)\n',
                 )
                 process.exit(0)
             default:
                 throw new Error(`unknown argument: ${a}`)
         }
     }
-    return { agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs, globalTimeoutMs, outPath, keepArtifacts, isolateDirs }
+    return { agents, nodesPerAgent, projectSeedNodeCount, perAgentTimeoutMs, globalTimeoutMs, outPath, keepArtifacts, isolateDirs }
 }
 
 // ─── Fake-agent script + prompt ───────────────────────────────────────────

@@ -28,15 +28,15 @@ describe('daemon CLI route parity', () => {
             {id: 'graph.read', method: 'GET', path: '/graph'},
             {id: 'graph.delta', method: 'POST', path: '/graph/delta'},
             {id: 'graph.delete-node', method: 'DELETE', path: '/graph/node/:encodedNodeId'},
-            {id: 'vault.show', method: 'GET', path: '/vault'},
-            {id: 'vault.open', method: 'POST', path: '/vault/open'},
-            {id: 'vault.close', method: 'POST', path: '/vault/close'},
-            {id: 'vault.set-write-path', method: 'PUT', path: '/vault/write-path'},
-            {id: 'vault.views.list', method: 'GET', path: '/vault/views'},
-            {id: 'vault.views.create', method: 'POST', path: '/vault/views'},
-            {id: 'vault.views.activate', method: 'POST', path: '/vault/views/:viewId/activate'},
-            {id: 'vault.views.clone', method: 'POST', path: '/vault/views/:viewId/clone'},
-            {id: 'vault.views.delete', method: 'DELETE', path: '/vault/views/:viewId'},
+            {id: 'project.show', method: 'GET', path: '/project'},
+            {id: 'project.open', method: 'POST', path: '/project/open'},
+            {id: 'project.close', method: 'POST', path: '/project/close'},
+            {id: 'project.set-write-path', method: 'PUT', path: '/project/write-path'},
+            {id: 'project.views.list', method: 'GET', path: '/project/views'},
+            {id: 'project.views.create', method: 'POST', path: '/project/views'},
+            {id: 'project.views.activate', method: 'POST', path: '/project/views/:viewId/activate'},
+            {id: 'project.views.clone', method: 'POST', path: '/project/views/:viewId/clone'},
+            {id: 'project.views.delete', method: 'DELETE', path: '/project/views/:viewId'},
         ])
         expect(DAEMON_ROUTE_PARITY_EXEMPTIONS).toEqual([
             {
@@ -188,8 +188,8 @@ describe('daemon CLI route parity', () => {
 
     it('documents graph subcommands that intentionally remain outside daemon parity', () => {
         expect(getCliCommandsWithoutDaemonRoute()).toEqual([
-            'vt vault add-read-path',
-            'vt vault remove-read-path',
+            'vt project add-read-path',
+            'vt project remove-read-path',
             'vt view collapse',
             'vt view expand',
             'vt graph index',

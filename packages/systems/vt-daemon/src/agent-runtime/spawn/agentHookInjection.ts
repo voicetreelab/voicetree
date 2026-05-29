@@ -16,7 +16,7 @@
  * Hook delivery target: the unified HTTP daemon (Step 9b). Spawned agents
  * discover the URL via `$VOICETREE_DAEMON_URL`, injected by the spawn
  * pipeline (§5.3). The bearer auth token is read from
- * `<vault>/.voicetree/auth-token` via `cat` — NEVER passed via env or CLI
+ * `<project>/.voicetree/auth-token` via `cat` — NEVER passed via env or CLI
  * arg, so `ps` cannot leak it (§3.3, §4.4).
  */
 
@@ -72,7 +72,7 @@ export function injectClaudeSettingsFlag(command: string, settingsPath: string):
 /**
  * Build a single curl invocation that POSTs `<terminalId, event>` to the
  * VoiceTree daemon's `/hook/<source>` route, with the bearer auth-token
- * read inline via `cat` from the vault's auth-token file. Wire shape and
+ * read inline via `cat` from the project's auth-token file. Wire shape and
  * security choices pinned in design doc §4.4 / §3.3:
  *
  *   - URL composed from `daemonUrl`. For Codex the URL is baked at spawn
@@ -152,7 +152,7 @@ export function injectCodexHookFlags(command: string, daemonUrl: string, termina
 }
 
 /**
- * Returns the static JSON that VoiceTree writes to its app-support dir for
+ * Returns the static JSON that VoiceTree writes to its voicetree-home dir for
  * Claude Code to consume via `--settings`. Hook commands reference
  * `$VOICETREE_DAEMON_URL`, `$VOICETREE_PROJECT_PATH`, and
  * `$VOICETREE_TERMINAL_ID` as shell variables — those are injected into the

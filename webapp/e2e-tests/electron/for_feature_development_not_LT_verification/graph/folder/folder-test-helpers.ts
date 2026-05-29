@@ -1,6 +1,6 @@
 /**
  * Shared helpers for folder node e2e tests.
- * Pure functions + test vault factory + diagnostic utilities.
+ * Pure functions + test project factory + diagnostic utilities.
  */
 
 import { expect } from '@playwright/test';
@@ -15,14 +15,14 @@ export interface ExtendedWindow {
     electronAPI?: ElectronAPI;
 }
 
-// ── Vault Factory ─────────────────────────────────────────────────────
-// Creates a test vault with explicit folder structure:
+// ── Project Factory ─────────────────────────────────────────────────────
+// Creates a test project with explicit folder structure:
 //   auth/login-flow.md, auth/jwt-token.md, auth/session-manager.md  (3 files)
 //   api/gateway.md, api/router.md                                    (2 files)
 //   utils/logger.md, utils/config.md                                 (2 files)
 //   readme.md                                                        (root, no folder)
-export async function createFolderTestVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'folder-test-vault');
+export async function createFolderTestProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'folder-test-project');
 
     await fs.mkdir(path.join(projectRoot, 'auth'), { recursive: true });
     await fs.mkdir(path.join(projectRoot, 'api'), { recursive: true });

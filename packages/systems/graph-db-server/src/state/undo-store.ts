@@ -14,7 +14,7 @@ let undoState: UndoState = createEmptyUndoState()
 // Getter for current undo state (primarily for debugging/testing)
 export const getUndoState: () => UndoState = (): UndoState => undoState
 
-// Reset undo state (e.g., when changing vaults) todo
+// Reset undo state (e.g., when changing projects) todo
 export const resetUndoState: () => void = (): void => {
     undoState = createEmptyUndoState()
 }

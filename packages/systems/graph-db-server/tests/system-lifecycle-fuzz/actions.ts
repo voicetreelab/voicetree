@@ -8,7 +8,7 @@ import type { FuzzAction, TrackedState } from './types.ts'
 
 export function generateAction(
   rng: () => number,
-  vault: string,
+  project: string,
   baseUrl: string,
   tracked: TrackedState,
   seqId: number,
@@ -26,10 +26,10 @@ export function generateAction(
   const actionType = pick(rng, candidates)
 
   switch (actionType) {
-    case 'createFile': return createFileAction(vault, tracked, seqId, stepId)
+    case 'createFile': return createFileAction(project, tracked, seqId, stepId)
     case 'deleteFile': return deleteFileAction(rng, tracked)
-    case 'upsertNodeDelta': return upsertNodeDeltaAction(baseUrl, vault, tracked, seqId, stepId)
-    case 'upsertNodeWithEdges': return upsertNodeWithEdgesAction(rng, baseUrl, vault, tracked, seqId, stepId)
+    case 'upsertNodeDelta': return upsertNodeDeltaAction(baseUrl, project, tracked, seqId, stepId)
+    case 'upsertNodeWithEdges': return upsertNodeWithEdgesAction(rng, baseUrl, project, tracked, seqId, stepId)
     case 'updateExistingNode': return updateExistingNodeAction(rng, baseUrl, tracked, seqId, stepId)
     case 'deleteNodeDelta': return deleteNodeDeltaAction(rng, baseUrl, tracked)
     case 'deleteNodeEndpoint': return deleteNodeEndpointAction(rng, baseUrl, tracked)
@@ -37,9 +37,9 @@ export function generateAction(
   }
 }
 
-function createFileAction(vault: string, tracked: TrackedState, seqId: number, stepId: number): FuzzAction {
+function createFileAction(project: string, tracked: TrackedState, seqId: number, stepId: number): FuzzAction {
   const fileName = `fuzz-${seqId}-${stepId}.md`
-  const filePath = path.join(vault, fileName)
+  const filePath = path.join(project, fileName)
   const content = `# Fuzz ${seqId}-${stepId}\n\nContent seed=${seqId * 1000 + stepId}.\n`
   const fileContent = `---\n---\n${content}`
   return {
@@ -65,8 +65,8 @@ function deleteFileAction(rng: () => number, tracked: TrackedState): FuzzAction 
   }
 }
 
-function upsertNodeDeltaAction(baseUrl: string, vault: string, tracked: TrackedState, seqId: number, stepId: number): FuzzAction {
-  const nodePath = path.join(vault, `fuzz-api-${seqId}-${stepId}.md`)
+function upsertNodeDeltaAction(baseUrl: string, project: string, tracked: TrackedState, seqId: number, stepId: number): FuzzAction {
+  const nodePath = path.join(project, `fuzz-api-${seqId}-${stepId}.md`)
   const content = `# API Node ${seqId}-${stepId}\n`
   return {
     type: 'upsertNodeDelta',
@@ -86,8 +86,8 @@ function upsertNodeDeltaAction(baseUrl: string, vault: string, tracked: TrackedS
   }
 }
 
-function upsertNodeWithEdgesAction(rng: () => number, baseUrl: string, vault: string, tracked: TrackedState, seqId: number, stepId: number): FuzzAction {
-  const nodePath = path.join(vault, `fuzz-edge-${seqId}-${stepId}.md`)
+function upsertNodeWithEdgesAction(rng: () => number, baseUrl: string, project: string, tracked: TrackedState, seqId: number, stepId: number): FuzzAction {
+  const nodePath = path.join(project, `fuzz-edge-${seqId}-${stepId}.md`)
   const content = `# Edge Node ${seqId}-${stepId}\n`
   const existingIds = [...tracked.nodesViaApi.keys()]
   const edgeCount = existingIds.length > 0 ? randInt(rng, 1, Math.min(3, existingIds.length)) : 0

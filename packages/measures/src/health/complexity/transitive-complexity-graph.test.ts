@@ -8,7 +8,7 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../../..')
 // 2026-05-15 [BF-271]: DOVL+UFV epic structural baseline bump. Top function
-// vt-graph.ts:691:main grew to transitive=2125 from new vault lifecycle routes
+// vt-graph.ts:691:main grew to transitive=2125 from new project lifecycle routes
 // + folder-state/view plumbing landed via JOINT-001 / UFV-2.
 // Budgets derive from previous baseline*tolerance: 1743 * 1.22 ≈ 2127 (max),
 // 270 * 1.50 = 405 (folder mean). These are honest TS-morph budgets, not

@@ -2,7 +2,7 @@
  * Test: Lazy resolve for links with path components like [[openspec/AGENTS.md]]
  *
  * Scenario:
- * - writeFolderPath: tempDir/sun (main vault)
+ * - writeFolderPath: tempDir/sun (main project)
  * - watchedFolder: tempDir (parent)
  * - File exists at: tempDir/openspec/AGENTS.md (outside writeFolderPath but inside watchedFolder)
  * - User creates link [[openspec/AGENTS.md]] in a node in sun/
@@ -50,7 +50,7 @@ const test = base.extend<{
       configPath,
       JSON.stringify({
         lastDirectory: tempDir,
-        vaultConfig: {
+        projectConfig: {
           [tempDir]: {
             writeFolderPath: sunDir,
             readPaths: []

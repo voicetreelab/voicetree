@@ -2,7 +2,7 @@
  * Shared shape descriptions for VoiceTree tools — the single source of
  * truth that powers (a) the daemon's RPC catalog (`@vt/vt-daemon`'s
  * `catalog.ts`), (b) the user-facing manual rendered for `vt manual` and
- * spawn-time prompt injection, and (c) the cross-shell vault discovery
+ * spawn-time prompt injection, and (c) the cross-shell project discovery
  * file written into CLAUDE.md / AGENTS.md.
  *
  * The actual spec data + renderer live in this package (`tool-specs.ts`

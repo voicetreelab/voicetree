@@ -1,21 +1,21 @@
 /**
  * Black-box launch test for the standalone vtd binary (BF-371).
  *
- * Spawns `bin/vtd.ts` against a freshly-created temp vault with the
+ * Spawns `bin/vtd.ts` against a freshly-created temp project with the
  * fake vt-graphd fixture as VT_GRAPHD_BIN. Asserts on the observable
  * boundary, never on internal call sites (CLAUDE.md):
  *
  *   - readiness line emitted on stdout in the documented contract format;
- *   - <vault>/.voicetree/vtd.owner.json decodes to a valid OwnerRecord
- *     stamped with daemonKind='vtd', the bound port, and canonicalVault;
- *   - <vault>/.voicetree/rpc.port contains the bound port;
- *   - <vault>/.voicetree/auth-token exists with mode 0600;
+ *   - <project>/.voicetree/vtd.owner.json decodes to a valid OwnerRecord
+ *     stamped with daemonKind='vtd', the bound port, and canonicalProject;
+ *   - <project>/.voicetree/rpc.port contains the bound port;
+ *   - <project>/.voicetree/auth-token exists with mode 0600;
  *   - SIGTERM produces a clean shutdown line and removes the owner record
  *     AND the rpc.port file;
  *   - the spawned vt-graphd sibling SURVIVES VTD shutdown — that's the
  *     BF-346 invariant codified.
  *
- * No mocks. Real binary, real ensureGraphDaemonForVault, real owner record
+ * No mocks. Real binary, real ensureGraphDaemonForProject, real owner record
  * I/O. The fake graphd fixture matters because we want to (a) avoid
  * dragging in the full graphd stack for a binary-launch test and (b) make
  * the "graphd survives VTD shutdown" assertion observable via `ps`.
@@ -60,13 +60,13 @@ type LaunchOutcome = {
     readonly stderrBuf: {text: string}
 }
 
-const READINESS_REGEX = /^vtd: listening on (https?:\/\/[^,]+), vault=(\S+), gdb=(\d+)$/m
+const READINESS_REGEX = /^vtd: listening on (https?:\/\/[^,]+), project=(\S+), gdb=(\d+)$/m
 
 function sleep(ms: number): Promise<void> {
     return new Promise<void>((res) => setTimeout(res, ms))
 }
 
-async function makeTempVault(prefix: string): Promise<string> {
+async function makeTempProject(prefix: string): Promise<string> {
     const dir = await mkdtemp(join(tmpdir(), prefix))
     await mkdir(join(dir, '.voicetree'), {recursive: true})
     return dir
@@ -85,9 +85,9 @@ function isProcessAlive(pid: number): boolean {
     }
 }
 
-function listGraphdPidsForVault(vault: string): number[] {
+function listGraphdPidsForProject(project: string): number[] {
     if (process.platform !== 'darwin' && process.platform !== 'linux') return []
-    const canonical = resolve(vault)
+    const canonical = resolve(project)
     const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
         encoding: 'utf8',
         timeout: 5000,
@@ -115,7 +115,7 @@ function killForgiving(pid: number, signal: NodeJS.Signals = 'SIGKILL'): void {
 }
 
 async function spawnVtd(
-    vault: string,
+    project: string,
     extraEnv: Record<string, string | undefined> = {},
 ): Promise<LaunchOutcome> {
     const env: Record<string, string> = {}
@@ -130,7 +130,7 @@ async function spawnVtd(
 
     const child = spawn(
         NODE_BIN,
-        [TSX_CLI_PATH, VTD_ENTRYPOINT, '--vault', vault, '--port', '0'],
+        [TSX_CLI_PATH, VTD_ENTRYPOINT, '--project', project, '--port', '0'],
         {
             cwd: REPO_ROOT,
             env,
@@ -237,49 +237,49 @@ describe('vtd binary — black-box launch (BF-371)', () => {
     })
 
     it('emits the readiness line, writes owner + port + auth files, and survives SIGTERM cleanly while leaving vt-graphd running', async () => {
-        const vault = await makeTempVault('vtd-launch-')
+        const project = await makeTempProject('vtd-launch-')
         cleanup.push(async () => {
-            for (const pid of listGraphdPidsForVault(vault)) killForgiving(pid)
-            await rm(vault, {recursive: true, force: true})
+            for (const pid of listGraphdPidsForProject(project)) killForgiving(pid)
+            await rm(project, {recursive: true, force: true})
         })
 
-        const launch = await spawnVtd(vault)
+        const launch = await spawnVtd(project)
         cleanup.push(async () => {
             if (launch.child.exitCode === null) killForgiving(launch.child.pid!, 'SIGKILL')
         })
 
         // Readiness line carries the right format.
         expect(launch.readinessLine).toMatch(
-            /^vtd: listening on http:\/\/127\.0\.0\.1:\d+, vault=.+, gdb=\d+$/,
+            /^vtd: listening on http:\/\/127\.0\.0\.1:\d+, project=.+, gdb=\d+$/,
         )
         expect(launch.httpPort).toBeGreaterThan(0)
         expect(launch.gdbPort).toBeGreaterThan(0)
 
         // Owner record decodes to a valid OwnerRecord with the expected fields.
-        const ownerPath = join(vault, '.voicetree', 'vtd.owner.json')
+        const ownerPath = join(project, '.voicetree', 'vtd.owner.json')
         const ownerRaw = await readFile(ownerPath, 'utf8')
         const ownerRecord = ownerRecordFile.decode(ownerRaw)
         expect(ownerRecord).not.toBeNull()
         if (ownerRecord === null) throw new Error('unreachable')
         expect(ownerRecord.daemonKind).toBe('vtd')
         expect(ownerRecord.port).toBe(launch.httpPort)
-        expect(ownerRecord.canonicalVault).toBe(resolve(vault))
+        expect(ownerRecord.canonicalProject).toBe(resolve(project))
         // The binary self-identifies as 'vtd' when no env override is present.
         expect(ownerRecord.callerKind).toBe('vtd')
 
         // rpc.port contains the bound port.
-        const rpcPortPath = join(vault, '.voicetree', 'rpc.port')
+        const rpcPortPath = join(project, '.voicetree', 'rpc.port')
         const rpcPortContent = (await readFile(rpcPortPath, 'utf8')).trim()
         expect(Number(rpcPortContent)).toBe(launch.httpPort)
 
         // auth-token exists with mode 0600.
-        const authTokenPath = join(vault, '.voicetree', 'auth-token')
+        const authTokenPath = join(project, '.voicetree', 'auth-token')
         const authStat = await stat(authTokenPath)
         // mode is the lower 9 bits — 0o600.
         expect(authStat.mode & 0o777).toBe(0o600)
 
-        // The spawned vt-graphd is visible via ps for the same vault.
-        const graphdPids = listGraphdPidsForVault(vault)
+        // The spawned vt-graphd is visible via ps for the same project.
+        const graphdPids = listGraphdPidsForProject(project)
         expect(graphdPids.length).toBeGreaterThanOrEqual(1)
         const graphdPid = graphdPids[0]
 
@@ -303,10 +303,10 @@ describe('vtd binary — black-box launch (BF-371)', () => {
     }, 60_000)
 
     it('exits when its declared parent process disappears (PARENT_GONE watchdog)', async () => {
-        const vault = await makeTempVault('vtd-watchdog-')
+        const project = await makeTempProject('vtd-watchdog-')
         cleanup.push(async () => {
-            for (const pid of listGraphdPidsForVault(vault)) killForgiving(pid)
-            await rm(vault, {recursive: true, force: true})
+            for (const pid of listGraphdPidsForProject(project)) killForgiving(pid)
+            await rm(project, {recursive: true, force: true})
         })
 
         // We need a *separate* live pid we can kill to simulate parent death.
@@ -319,14 +319,14 @@ describe('vtd binary — black-box launch (BF-371)', () => {
         const helperPid = helper.pid!
         cleanup.push(async () => killForgiving(helperPid))
 
-        const launch = await spawnVtd(vault, {
+        const launch = await spawnVtd(project, {
             VOICETREE_PARENT_PID: String(helperPid),
         })
         cleanup.push(async () => {
             if (launch.child.exitCode === null) killForgiving(launch.child.pid!, 'SIGKILL')
         })
 
-        const ownerPath = join(vault, '.voicetree', 'vtd.owner.json')
+        const ownerPath = join(project, '.voicetree', 'vtd.owner.json')
         expect(await fileExists(ownerPath)).toBe(true)
 
         // Kill the declared parent; watchdog should fire within its poll

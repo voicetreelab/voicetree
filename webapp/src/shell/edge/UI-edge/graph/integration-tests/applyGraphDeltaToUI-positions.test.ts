@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
-import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
+import { syncProjectStateFromMain } from '@/shell/edge/UI-edge/state/stores/ProjectPathStore'
 import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, syncFolderTree } from './applyGraphDeltaToUI.test-utils'
 
@@ -23,7 +23,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         setTestCollapseSet(new Set())
-        syncVaultStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
+        syncProjectStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
     })
 
     describe('Append animation behavior', () => {
@@ -95,11 +95,11 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     describe('Position preservation through collapse/expand cycle', () => {
         it('nodes reappearing after expand get their persisted position from spec', () => {
-            syncFolderTree('/vault')
-            syncVaultStateFromMain({ readPaths: [], writeFolderPath: '/vault', starredFolders: [] })
+            syncFolderTree('/project')
+            syncProjectStateFromMain({ readPaths: [], writeFolderPath: '/project', starredFolders: [] })
 
             const childNode: GraphNode = {
-                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                absoluteFilePathIsID: '/project/auth/login-flow.md',
                 contentWithoutYamlOrLinks: '# Login Flow',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -111,18 +111,18 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             applyDeltaToUI(cy, [upsert(childNode)])
-            expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(1)
+            expect(cy.getElementById('/project/auth/login-flow.md').length).toBe(1)
 
             // Collapse the folder — child node disappears
-            setTestCollapseSet(new Set(['/vault/auth/']))
+            setTestCollapseSet(new Set(['/project/auth/']))
             applyDeltaToUI(cy, [upsert(childNode)])
-            expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(0)
+            expect(cy.getElementById('/project/auth/login-flow.md').length).toBe(0)
 
             // Expand — child node reappears at its spec-seeded position
             setTestCollapseSet(new Set())
             applyDeltaToUI(cy, [upsert(childNode)])
 
-            const node: cytoscape.CollectionReturnValue = cy.getElementById('/vault/auth/login-flow.md')
+            const node: cytoscape.CollectionReturnValue = cy.getElementById('/project/auth/login-flow.md')
             expect(node.length).toBe(1)
 
             const pos: cytoscape.Position = node.position()
@@ -131,11 +131,11 @@ describe('applyGraphDeltaToUI - Integration', () => {
         })
 
         it('collapsing and expanding does not affect positions of nodes outside the folder', () => {
-            syncFolderTree('/vault')
-            syncVaultStateFromMain({ readPaths: [], writeFolderPath: '/vault', starredFolders: [] })
+            syncFolderTree('/project')
+            syncProjectStateFromMain({ readPaths: [], writeFolderPath: '/project', starredFolders: [] })
 
             const outsideNode: GraphNode = {
-                absoluteFilePathIsID: '/vault/readme.md',
+                absoluteFilePathIsID: '/project/readme.md',
                 contentWithoutYamlOrLinks: '# Readme',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -147,7 +147,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const insideNode: GraphNode = {
-                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                absoluteFilePathIsID: '/project/auth/login-flow.md',
                 contentWithoutYamlOrLinks: '# Login Flow',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -161,17 +161,17 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyDeltaToUI(cy, [upsert(outsideNode), upsert(insideNode)])
 
             // Renderer moves the outside node
-            cy.getElementById('/vault/readme.md').position({ x: 800, y: 700 })
+            cy.getElementById('/project/readme.md').position({ x: 800, y: 700 })
 
             // Collapse the folder
-            setTestCollapseSet(new Set(['/vault/auth/']))
+            setTestCollapseSet(new Set(['/project/auth/']))
             applyDeltaToUI(cy, [upsert(outsideNode), upsert(insideNode)])
 
             // Expand the folder
             setTestCollapseSet(new Set())
             applyDeltaToUI(cy, [upsert(outsideNode), upsert(insideNode)])
 
-            const pos: cytoscape.Position = cy.getElementById('/vault/readme.md').position()
+            const pos: cytoscape.Position = cy.getElementById('/project/readme.md').position()
             expect(pos.x).toBe(800)
             expect(pos.y).toBe(700)
         })

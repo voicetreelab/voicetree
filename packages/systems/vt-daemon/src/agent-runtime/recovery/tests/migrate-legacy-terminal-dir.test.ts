@@ -18,7 +18,7 @@ describe('migrateLegacyTerminalDir', () => {
     beforeEach(() => {
         const base: string = makeFixtureRoot()
         projectRoot = join(base, 'project')
-        writeFolderPath = join(base, 'project', 'inner-vault')
+        writeFolderPath = join(base, 'project', 'inner-project')
         mkdirSync(projectRoot, {recursive: true})
         mkdirSync(writeFolderPath, {recursive: true})
     })

@@ -28,7 +28,7 @@ const NOW_MS = 1_700_000_000_000
 const VTD_RECORD: OwnerRecord = {
     schemaVersion: 1,
     daemonKind: 'vtd',
-    canonicalVault: '/tmp/some-vault',
+    canonicalProject: '/tmp/some-project',
     pid: 12345,
     ppid: 1,
     port: 40000,
@@ -49,13 +49,13 @@ const POLICY: OwnerDecisionPolicy = {
 }
 
 describe('decideOwnerAction (VTD discrimination smoke)', () => {
-    test('VTD record + verified VTD probe (matching nonce + vault + port) → reuse', () => {
+    test('VTD record + verified VTD probe (matching nonce + project + port) → reuse', () => {
         const evidence: OwnerEvidence = {
             record: VTD_RECORD,
             recordedPidLiveness: 'alive',
             health: {
                 kind: 'verified',
-                canonicalVault: VTD_RECORD.canonicalVault,
+                canonicalProject: VTD_RECORD.canonicalProject,
                 ownerNonce: VTD_RECORD.ownerNonce,
                 pid: VTD_RECORD.pid,
                 port: VTD_RECORD.port!,
@@ -77,7 +77,7 @@ describe('decideOwnerAction (VTD discrimination smoke)', () => {
             recordedPidLiveness: 'alive',
             health: {
                 kind: 'verified',
-                canonicalVault: VTD_RECORD.canonicalVault,
+                canonicalProject: VTD_RECORD.canonicalProject,
                 ownerNonce: 'graphd-nonce-not-ours',
                 pid: VTD_RECORD.pid,
                 port: VTD_RECORD.port!,
@@ -99,7 +99,7 @@ describe('decideOwnerAction (VTD discrimination smoke)', () => {
             recordedPidLiveness: 'alive',
             health: {
                 kind: 'mismatch',
-                observedCanonicalVault: VTD_RECORD.canonicalVault,
+                observedCanonicalProject: VTD_RECORD.canonicalProject,
                 observedOwnerNonce: 'something-else',
             },
             commandFingerprintMatch: 'match',

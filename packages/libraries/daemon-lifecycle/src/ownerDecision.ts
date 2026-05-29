@@ -1,5 +1,5 @@
 /**
- * Pure decision function for vault ownership.
+ * Pure decision function for project ownership.
  *
  * Callers gather observations about the on-disk owner record, recorded
  * pid liveness, health probe identity, command fingerprint match, and
@@ -52,12 +52,12 @@ export type HealthProbeResult =
   | { readonly kind: 'unreachable' }
   | {
       readonly kind: 'mismatch'
-      readonly observedCanonicalVault: string | null
+      readonly observedCanonicalProject: string | null
       readonly observedOwnerNonce: string | null
     }
   | {
       readonly kind: 'verified'
-      readonly canonicalVault: string
+      readonly canonicalProject: string
       readonly ownerNonce: string
       readonly pid: number
       readonly port: number
@@ -147,7 +147,7 @@ export type OwnerDecision =
   | CooldownSuppressedDecision
 
 /**
- * Decide the next single-owner action for a vault given current evidence.
+ * Decide the next single-owner action for a project given current evidence.
  *
  * Priority order:
  *  1. Reuse — a verified healthy owner is always usable, even during a
@@ -242,7 +242,7 @@ function healthMatchesRecord(
   health: Extract<HealthProbeResult, { kind: 'verified' }>,
   record: OwnerRecord,
 ): boolean {
-  if (health.canonicalVault !== record.canonicalVault) return false
+  if (health.canonicalProject !== record.canonicalProject) return false
   if (health.ownerNonce !== record.ownerNonce) return false
   if (record.port !== null && health.port !== record.port) return false
   return true

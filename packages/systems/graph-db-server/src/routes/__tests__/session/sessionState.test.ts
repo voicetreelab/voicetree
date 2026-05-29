@@ -14,31 +14,31 @@ import {
 // the daemon's default writeFolderPath resolution (findExistingVoicetreeDir →
 // createDatedSubfolder) latches onto a known path.
 const WRITE_FOLDER_NAME = 'voicetree-1-1' as const
-async function withTempVault(): Promise<{ vault: string; writeFolderPath: string }> {
-  const vault = await mkdtemp(join(tmpdir(), 'graphd-session-state-test-'))
-  const writeFolderPath = join(vault, WRITE_FOLDER_NAME)
+async function withTempProject(): Promise<{ project: string; writeFolderPath: string }> {
+  const project = await mkdtemp(join(tmpdir(), 'graphd-session-state-test-'))
+  const writeFolderPath = join(project, WRITE_FOLDER_NAME)
   await mkdir(writeFolderPath, { recursive: true })
   await writeFile(join(writeFolderPath, 'one.md'), '# one')
-  return { vault, writeFolderPath }
+  return { project, writeFolderPath }
 }
 
 describe('GET /sessions/:sessionId/state', () => {
-  let vault: string
+  let project: string
   let writeFolderPath: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    ({ vault, writeFolderPath } = await withTempVault())
+    ({ project, writeFolderPath } = await withTempProject())
     handles = []
   })
 
   afterEach(async () => {
     for (const h of handles) await h.stop().catch(() => {})
-    await rm(vault, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
   })
 
   test('returns a schema-valid snapshot with the expected top-level keys', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
 
     const created = await fetch(`http://127.0.0.1:${handle.port}/sessions`, {
@@ -64,7 +64,7 @@ describe('GET /sessions/:sessionId/state', () => {
   })
 
   test('omits graph node markdown content when content=omit is requested', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
 
     const created = await fetch(`http://127.0.0.1:${handle.port}/sessions`, {
@@ -92,7 +92,7 @@ describe('GET /sessions/:sessionId/state', () => {
   })
 
   test('returns 404 for unknown session', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
 
     const res = await fetch(

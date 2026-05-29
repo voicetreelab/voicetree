@@ -27,12 +27,12 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {
-    ensureGraphDaemonForVault,
+    ensureGraphDaemonForProject,
     GraphDbClient,
     type EnsureGraphDaemonResult,
 } from '@vt/graph-db-client'
 import {
-    ensureVtDaemonForVault,
+    ensureVtDaemonForProject,
     type EnsureVtDaemonResult,
 } from '@vt/vt-daemon-client'
 import {
@@ -62,7 +62,7 @@ const VTD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/vt-daemon/bin/v
 // `node <tsx-cli> <script>` is the worktree-portable equivalent of running
 // `tsx <script>` directly — see TSX_CLI_PATH derivation above. Used for both
 // graphd and vtd; the per-daemon ensure clients split on whitespace and
-// append `--project-root <vault>` / `--vault <vault>` respectively.
+// append `--project-root <project>` / `--project <project>` respectively.
 const VT_GRAPHD_BIN_OVERRIDE: string = `${NODE_BIN} ${TSX_CLI_PATH} ${GRAPHD_SOURCE_BIN}`
 const VT_DAEMON_BIN_OVERRIDE: string = `${NODE_BIN} ${TSX_CLI_PATH} ${VTD_SOURCE_BIN}`
 
@@ -93,10 +93,10 @@ function sleep(ms: number): Promise<void> {
     return new Promise<void>((res) => setTimeout(res, ms))
 }
 
-function buildChildEnv(appSupport: string): Record<string, string> {
+function buildChildEnv(voicetreeHome: string): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
-        VOICETREE_HOME_PATH: appSupport,
+        VOICETREE_HOME_PATH: voicetreeHome,
         TSX_TSCONFIG_PATH: CLI_TSCONFIG,
         VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         VT_DAEMON_BIN: VT_DAEMON_BIN_OVERRIDE,
@@ -115,8 +115,8 @@ function buildChildEnv(appSupport: string): Record<string, string> {
 function parseServeReady(line: string): ServeReady | null {
     // Format produced by serve.ts (BF-377):
     //   "vt serve: graph-db <verb> on http://127.0.0.1:<port> (pid <pid>),
-    //    vt-daemon <verb> on <url> (pid <pid>), vault=<path>"
-    const match: RegExpExecArray | null = /^vt serve: graph-db (launched|reused) on http:\/\/127\.0\.0\.1:(\d+) \(pid (\d+)\), vt-daemon (launched|reused) on (\S+) \(pid (\d+)\), vault=/m.exec(line)
+    //    vt-daemon <verb> on <url> (pid <pid>), project=<path>"
+    const match: RegExpExecArray | null = /^vt serve: graph-db (launched|reused) on http:\/\/127\.0\.0\.1:(\d+) \(pid (\d+)\), vt-daemon (launched|reused) on (\S+) \(pid (\d+)\), project=/m.exec(line)
     if (!match) return null
     const graphdVerb: 'launched' | 'reused' = match[1] === 'launched' ? 'launched' : 'reused'
     const vtdVerb: 'launched' | 'reused' = match[4] === 'launched' ? 'launched' : 'reused'
@@ -130,13 +130,13 @@ function parseServeReady(line: string): ServeReady | null {
     }
 }
 
-function spawnServe(args: string[], appSupport: string): ServeHandle {
+function spawnServe(args: string[], voicetreeHome: string): ServeHandle {
     const child: ChildProcess = spawn(
         NODE_BIN,
         [TSX_CLI_PATH, CLI_ENTRYPOINT, 'serve', ...args],
         {
             cwd: REPO_ROOT,
-            env: buildChildEnv(appSupport),
+            env: buildChildEnv(voicetreeHome),
             stdio: ['ignore', 'pipe', 'pipe'],
         },
     )
@@ -209,9 +209,9 @@ async function stopServe(handle: ServeHandle): Promise<{code: number | null; sig
     }
 }
 
-async function readOwnerRecord(vault: string, daemonKind: 'graphd' | 'vtd'): Promise<OwnerRecord | null> {
+async function readOwnerRecord(project: string, daemonKind: 'graphd' | 'vtd'): Promise<OwnerRecord | null> {
     try {
-        const raw: string = await readFile(ownerRecordFile.pathFor(vault, daemonKind), 'utf8')
+        const raw: string = await readFile(ownerRecordFile.pathFor(project, daemonKind), 'utf8')
         return ownerRecordFile.decode(raw)
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
@@ -262,15 +262,15 @@ async function waitForDaemonExit(pid: number, timeoutMs: number): Promise<boolea
     return false
 }
 
-async function ensureCleanVault(vault: string): Promise<void> {
-    const graphdRecord: OwnerRecord | null = await readOwnerRecord(vault, 'graphd')
+async function ensureCleanProject(project: string): Promise<void> {
+    const graphdRecord: OwnerRecord | null = await readOwnerRecord(project, 'graphd')
     if (graphdRecord !== null && graphdRecord.port !== null) {
         await shutdownGraphd(graphdRecord.port)
         if (graphdRecord.pid) {
             await waitForDaemonExit(graphdRecord.pid, DAEMON_SHUTDOWN_TIMEOUT_MS)
         }
     }
-    const vtdRecord: OwnerRecord | null = await readOwnerRecord(vault, 'vtd')
+    const vtdRecord: OwnerRecord | null = await readOwnerRecord(project, 'vtd')
     if (vtdRecord !== null && vtdRecord.pid) {
         // vtd has no GraphDbClient analogue; signal-terminate the pid.
         try {
@@ -290,7 +290,7 @@ async function ensureCleanVault(vault: string): Promise<void> {
         'auth-token',
         'rpc.port',
     ]) {
-        await rm(join(vault, '.voicetree', file), {force: true}).catch(() => undefined)
+        await rm(join(project, '.voicetree', file), {force: true}).catch(() => undefined)
     }
 }
 
@@ -298,16 +298,16 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
     'BF-377 vt serve two-ensure wrapper',
     () => {
         let root: string
-        let vault: string
-        let appSupport: string
+        let project: string
+        let voicetreeHome: string
         const serveHandles: ServeHandle[] = []
 
         beforeEach(async () => {
             root = await mkdtemp(join(tmpdir(), 'vt-serve-owner-'))
-            vault = join(root, 'vault')
-            appSupport = join(root, 'app-support')
-            await mkdir(join(vault, '.voicetree'), {recursive: true})
-            await mkdir(appSupport, {recursive: true})
+            project = join(root, 'project')
+            voicetreeHome = join(root, 'voicetree-home')
+            await mkdir(join(project, '.voicetree'), {recursive: true})
+            await mkdir(voicetreeHome, {recursive: true})
         })
 
         afterEach(async () => {
@@ -315,14 +315,14 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 await stopServe(handle).catch(() => undefined)
             }
             serveHandles.length = 0
-            await ensureCleanVault(vault).catch(() => undefined)
+            await ensureCleanProject(project).catch(() => undefined)
             await rm(root, {recursive: true, force: true}).catch(() => undefined)
         })
 
         it(
             'cold-start: spawns one vt-graphd AND one vt-daemon; both /health probes prove identity',
             async () => {
-                const handle: ServeHandle = spawnServe(['--vault', vault], appSupport)
+                const handle: ServeHandle = spawnServe(['--project', project], voicetreeHome)
                 serveHandles.push(handle)
 
                 const ready: ServeReady = await handle.ready
@@ -334,20 +334,20 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 expect(ready.vtdPid).toBeGreaterThan(0)
                 expect(ready.vtdPid).not.toBe(ready.graphdPid)
 
-                const graphdRecord: OwnerRecord | null = await readOwnerRecord(vault, 'graphd')
+                const graphdRecord: OwnerRecord | null = await readOwnerRecord(project, 'graphd')
                 expect(graphdRecord, 'graphd.owner.json must exist after launch').not.toBeNull()
-                expect(graphdRecord!.canonicalVault).toBe(resolve(vault))
+                expect(graphdRecord!.canonicalProject).toBe(resolve(project))
                 expect(graphdRecord!.pid).toBe(ready.graphdPid)
                 expect(graphdRecord!.port).toBe(ready.graphdPort)
 
-                const vtdRecord: OwnerRecord | null = await readOwnerRecord(vault, 'vtd')
+                const vtdRecord: OwnerRecord | null = await readOwnerRecord(project, 'vtd')
                 expect(vtdRecord, 'vtd.owner.json must exist after launch').not.toBeNull()
-                expect(vtdRecord!.canonicalVault).toBe(resolve(vault))
+                expect(vtdRecord!.canonicalProject).toBe(resolve(project))
                 expect(vtdRecord!.pid).toBe(ready.vtdPid)
 
                 const graphdHealth: HealthResponse = await fetchGraphdHealth(ready.graphdPort)
                 expect(graphdHealth.owner, 'graphd owner block must be present').not.toBeNull()
-                expect(graphdHealth.owner!.canonicalVault).toBe(resolve(vault))
+                expect(graphdHealth.owner!.canonicalProject).toBe(resolve(project))
                 expect(graphdHealth.owner!.ownerNonce).toBe(graphdRecord!.ownerNonce)
                 expect(graphdHealth.owner!.port).toBe(ready.graphdPort)
                 expect(graphdHealth.owner!.pid).toBe(ready.graphdPid)
@@ -364,24 +364,24 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             'warm reuse: pre-existing graphd AND vtd owners are reused',
             async () => {
-                process.env.VOICETREE_HOME_PATH = appSupport
+                process.env.VOICETREE_HOME_PATH = voicetreeHome
                 process.env.VT_GRAPHD_BIN = VT_GRAPHD_BIN_OVERRIDE
                 process.env.VT_DAEMON_BIN = VT_DAEMON_BIN_OVERRIDE
 
-                const graphdPrewarm: EnsureGraphDaemonResult = await ensureGraphDaemonForVault(
-                    vault,
+                const graphdPrewarm: EnsureGraphDaemonResult = await ensureGraphDaemonForProject(
+                    project,
                     'test',
                     {bin: VT_GRAPHD_BIN_OVERRIDE, timeoutMs: ENSURE_TIMEOUT_MS},
                 )
                 expect(graphdPrewarm.launched).toBe(true)
-                const vtdPrewarm: EnsureVtDaemonResult = await ensureVtDaemonForVault(
-                    vault,
+                const vtdPrewarm: EnsureVtDaemonResult = await ensureVtDaemonForProject(
+                    project,
                     'test',
                     {bin: VT_DAEMON_BIN_OVERRIDE, timeoutMs: ENSURE_TIMEOUT_MS},
                 )
                 expect(vtdPrewarm.launched).toBe(true)
 
-                const handle: ServeHandle = spawnServe(['--vault', vault], appSupport)
+                const handle: ServeHandle = spawnServe(['--project', project], voicetreeHome)
                 serveHandles.push(handle)
 
                 const ready: ServeReady = await handle.ready
@@ -404,7 +404,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             '--exclusive refuses when a vt-daemon owner already exists; leaves the existing daemon alive',
             async () => {
-                process.env.VOICETREE_HOME_PATH = appSupport
+                process.env.VOICETREE_HOME_PATH = voicetreeHome
                 process.env.VT_GRAPHD_BIN = VT_GRAPHD_BIN_OVERRIDE
                 process.env.VT_DAEMON_BIN = VT_DAEMON_BIN_OVERRIDE
 
@@ -414,13 +414,13 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 // exclusive check passes, allowing the vt-daemon-named
                 // exclusive-conflict error to surface (graph-db's check
                 // runs first by construction in serve.ts).
-                const vtdPrewarm: EnsureVtDaemonResult = await ensureVtDaemonForVault(
-                    vault,
+                const vtdPrewarm: EnsureVtDaemonResult = await ensureVtDaemonForProject(
+                    project,
                     'test',
                     {bin: VT_DAEMON_BIN_OVERRIDE, timeoutMs: ENSURE_TIMEOUT_MS},
                 )
                 expect(vtdPrewarm.launched).toBe(true)
-                const graphdRecord: OwnerRecord | null = await readOwnerRecord(vault, 'graphd')
+                const graphdRecord: OwnerRecord | null = await readOwnerRecord(project, 'graphd')
                 expect(graphdRecord, 'vtd should have brought up a graphd sibling').not.toBeNull()
                 expect(graphdRecord!.port).not.toBeNull()
                 await shutdownGraphd(graphdRecord!.port!)
@@ -428,7 +428,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 // vt-daemon must still be alive — the BF-346 invariant.
                 expect(isPidAlive(vtdPrewarm.pid)).toBe(true)
 
-                const handle: ServeHandle = spawnServe(['--vault', vault, '--exclusive'], appSupport)
+                const handle: ServeHandle = spawnServe(['--project', project, '--exclusive'], voicetreeHome)
                 serveHandles.push(handle)
 
                 const exitResult = await waitForExclusiveRefusal(handle)
@@ -447,18 +447,18 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             '--exclusive refuses when a graph-db owner already exists; leaves the existing daemon alive',
             async () => {
-                process.env.VOICETREE_HOME_PATH = appSupport
+                process.env.VOICETREE_HOME_PATH = voicetreeHome
                 process.env.VT_GRAPHD_BIN = VT_GRAPHD_BIN_OVERRIDE
                 process.env.VT_DAEMON_BIN = VT_DAEMON_BIN_OVERRIDE
 
-                const graphdPrewarm: EnsureGraphDaemonResult = await ensureGraphDaemonForVault(
-                    vault,
+                const graphdPrewarm: EnsureGraphDaemonResult = await ensureGraphDaemonForProject(
+                    project,
                     'test',
                     {bin: VT_GRAPHD_BIN_OVERRIDE, timeoutMs: ENSURE_TIMEOUT_MS},
                 )
                 expect(graphdPrewarm.launched).toBe(true)
 
-                const handle: ServeHandle = spawnServe(['--vault', vault, '--exclusive'], appSupport)
+                const handle: ServeHandle = spawnServe(['--project', project, '--exclusive'], voicetreeHome)
                 serveHandles.push(handle)
 
                 const exitResult = await waitForExclusiveRefusal(handle)
@@ -477,7 +477,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             'vt serve SIGTERM does NOT kill either daemon (BF-346 cross-process invariant)',
             async () => {
-                const handle: ServeHandle = spawnServe(['--vault', vault], appSupport)
+                const handle: ServeHandle = spawnServe(['--project', project], voicetreeHome)
                 serveHandles.push(handle)
                 const ready: ServeReady = await handle.ready
 
@@ -500,7 +500,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             'idle: vt serve stays alive and daemons remain reachable 2s after ready',
             async () => {
-                const handle: ServeHandle = spawnServe(['--vault', vault], appSupport)
+                const handle: ServeHandle = spawnServe(['--project', project], voicetreeHome)
                 serveHandles.push(handle)
                 const ready: ServeReady = await handle.ready
 

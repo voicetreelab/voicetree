@@ -27,10 +27,10 @@ total 56
 -rwxr-xr-x@ 1 example  staff   507 May 15 14:37 read-output.sh
 -rwxr-xr-x@ 1 example  staff   406 May 15 14:37 send-message.sh
 -rwxr-xr-x@ 1 example  staff  1511 May 15 14:37 spawn-agent.sh
-drwxr-xr-x@ 4 example  staff   128 May 15 14:37 test-vault
+drwxr-xr-x@ 4 example  staff   128 May 15 14:37 test-project
 ```
 
-## Test Vault Terminals Directory Listing
+## Test Project Terminals Directory Listing
 
 ```text
 total 0

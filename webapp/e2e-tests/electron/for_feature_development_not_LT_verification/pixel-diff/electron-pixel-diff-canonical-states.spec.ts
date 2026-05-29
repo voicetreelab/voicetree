@@ -23,7 +23,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 const SCREENSHOT_OPTS = { maxDiffPixelRatio: 0.01 } as const;
 
 interface CyNode {
@@ -67,7 +67,7 @@ const test = base.extend<{
       path.join(tempDir, 'projects.json'),
       JSON.stringify([{
         id: 'pixel-diff-project',
-        path: FIXTURE_VAULT_PATH,
+        path: FIXTURE_PROJECT_PATH,
         name: 'example_small',
         type: 'folder',
         lastOpened: Date.now(),
@@ -244,7 +244,7 @@ test.describe('Pixel-diff: canonical UI states', () => {
     });
 
     if (!hoverTarget) {
-      throw new Error('State 09: no .md node found — fixture vault may be empty');
+      throw new Error('State 09: no .md node found — fixture project may be empty');
     }
 
     // Move mouse to the node centre first (so the cursor is visually over the node).

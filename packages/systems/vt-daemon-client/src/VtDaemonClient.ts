@@ -3,7 +3,7 @@
  *
  * Wraps two transport surfaces of the BF-371 unified HTTP server:
  *  - `GET  /health` — unauthenticated identity probe (used by
- *    `ensureVtDaemonForVault` post-spawn validation).
+ *    `ensureVtDaemonForProject` post-spawn validation).
  *  - `POST /rpc`    — JSON-RPC 2.0, bearer-authenticated; the tool dispatch
  *    surface VTD will grow into (BF-375 / BF-376 / BF-377).
  *
@@ -76,7 +76,7 @@ export class VtDaemonClient {
 
   /**
    * Probe the daemon's `/health` endpoint. Unauthenticated (the response
-   * carries no secrets — only owner identity, vault path, uptime). The
+   * carries no secrets — only owner identity, project path, uptime). The
    * body is validated against {@link VtDaemonHealthResponseSchema}; a
    * graphd-shaped body (no `daemonKind` discriminator) is rejected.
    */

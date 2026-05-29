@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./generateRealisticVault": "./src/generateRealisticVault.ts"
+    "./generateRealisticProject": "./src/generateRealisticProject.ts"
   },
   "scripts": {
     "test": "vitest run"

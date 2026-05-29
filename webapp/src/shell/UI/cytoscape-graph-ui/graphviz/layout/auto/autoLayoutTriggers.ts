@@ -35,7 +35,7 @@ export function markNodeDirty(cy: Core, nodeId: string): void {
 
 /**
  * Reset layout state and trigger a full R-tree pack + Cola layout from scratch.
- * Use this when graph topology changes substantially (e.g. vault folders added/removed).
+ * Use this when graph topology changes substantially (e.g. project folders added/removed).
  */
 export function triggerFullLayout(cy: Core): void {
   layoutTriggers.get(cy)?.runFullLayout();

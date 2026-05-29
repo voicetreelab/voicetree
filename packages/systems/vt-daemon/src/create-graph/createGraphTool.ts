@@ -27,7 +27,7 @@ import {
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
 import {registerAgentNodes} from '../agent-runtime/agent-control/completion/agentNodeIndex.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolderPath} from '../config/graphBridge.ts'
+import {applyMcpGraphDelta, getMcpGraph, getMcpProjectPaths, getMcpWriteFolderPath} from '../config/graphBridge.ts'
 import type {GraphBridge} from '../config/mcpBridges.ts'
 import {
     hasCycle,
@@ -64,7 +64,7 @@ function isPathWithinDirectory(targetPath: string, directoryPath: string): boole
 function resolveOutputDirectory(
     writeFolderPath: string,
     outputPath: string | undefined,
-    allowedVaultPaths: readonly string[]
+    allowedProjectPaths: readonly string[]
 ): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } {
     if (!outputPath || outputPath.trim() === '') {
         return {ok: true, path: normalizePath(writeFolderPath)}
@@ -77,13 +77,13 @@ function resolveOutputDirectory(
             : path.resolve(writeFolderPath, requestedPath)
     )
 
-    if (allowedVaultPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
+    if (allowedProjectPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
         return {ok: true, path: resolvedPath}
     }
 
     return {
         ok: false,
-        error: `outputPath "${outputPath}" resolves to "${resolvedPath}" which is outside the loaded vault paths. Choose a path inside one of: ${allowedVaultPaths.join(', ')}`,
+        error: `outputPath "${outputPath}" resolves to "${resolvedPath}" which is outside the loaded project paths. Choose a path inside one of: ${allowedProjectPaths.join(', ')}`,
     }
 }
 
@@ -96,16 +96,16 @@ function findCallerRecord(callerTerminalId: string): Result<TerminalRecord> {
 }
 
 async function resolveConfiguredOutputDirectory(outputPath: string | undefined, bridge: GraphBridge): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await getMcpWriteFolderPath(bridge)
-    if (O.isNone(vaultPathOpt)) {
-        return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
+    const projectPathOpt: O.Option<string> = await getMcpWriteFolderPath(bridge)
+    if (O.isNone(projectPathOpt)) {
+        return {ok: false, error: 'No project loaded. Please load a folder in the UI first.'}
     }
 
-    const writeFolderPath: string = vaultPathOpt.value
-    const loadedVaultPaths: readonly string[] = await getMcpVaultPaths(bridge)
-    const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writeFolderPath])
+    const writeFolderPath: string = projectPathOpt.value
+    const loadedProjectPaths: readonly string[] = await getMcpProjectPaths(bridge)
+    const allowedProjectPaths: readonly string[] = (loadedProjectPaths.length > 0 ? loadedProjectPaths : [writeFolderPath])
         .map((projectRoot: string) => normalizePath(projectRoot))
-    const outputDirectoryResolution = resolveOutputDirectory(writeFolderPath, outputPath, allowedVaultPaths)
+    const outputDirectoryResolution = resolveOutputDirectory(writeFolderPath, outputPath, allowedProjectPaths)
     if (!outputDirectoryResolution.ok) return outputDirectoryResolution
     return {ok: true, value: outputDirectoryResolution.path}
 }

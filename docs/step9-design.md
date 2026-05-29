@@ -121,7 +121,7 @@ interface portably is the same fragility as version detection.
 
 **Decision.** The daemon generates a 32-byte cryptographically random
 token at startup (`crypto.randomBytes(32).toString('hex')`, 64 hex
-chars). Token is written to `<vault>/.voicetree/auth-token` with mode
+chars). Token is written to `<project>/.voicetree/auth-token` with mode
 `0600`. Clients send `Authorization: Bearer <token>` on every HTTP
 request and on the initial WebSocket upgrade. Daemon rejects bad
 tokens with HTTP `401`, empty body. WebSocket upgrades with bad
@@ -133,7 +133,7 @@ Filesystem permissions remain the trust root, at one level of
 indirection.
 
 Threat: another local user reading the token file. Mitigated by
-`0600` — only the owning user can read. Cross-user vault access is
+`0600` — only the owning user can read. Cross-user project access is
 out of the threat model.
 
 **Rejected: no auth.** Anything on the LAN could call `vt agent
@@ -215,23 +215,23 @@ the auth handshake. Multiplexing is simpler.
 
 ### 2.7 Port discovery
 
-**Decision.** Daemon writes its port to `<vault>/.voicetree/rpc.port`
+**Decision.** Daemon writes its port to `<project>/.voicetree/rpc.port`
 as plain text (decimal integer + `\n`). Clients (CLI, graph-tools,
 renderer) resolve the URL via this chain, first hit wins:
 
 1. **`$VOICETREE_DAEMON_URL`** — full URL including scheme/host/port
    (e.g. `http://172.21.0.1:51337`). Spawned-agent shells get this
    injected at spawn time. Highest priority — explicit override.
-2. **`<discovered-vault>/.voicetree/rpc.port`** — vault discovered by
+2. **`<discovered-project>/.voicetree/rpc.port`** — project discovered by
    the `findRepoRoot.ts` up-walk (Step 6 / Step 7 precedent). Host
    default depends on platform (§3.2 — `127.0.0.1` for native,
    WSL2-aware on Windows).
 3. **`$VOICETREE_PROJECT_PATH/.voicetree/rpc.port`** — fallback for
-   CLI invocations outside a vault directory.
+   CLI invocations outside a project directory.
 4. None resolve → fail fast with `daemon_unreachable` (§4.6).
 
-The auth token lives at `<vault>/.voicetree/auth-token` at the same
-vault location. Clients that resolve via `$VOICETREE_DAEMON_URL` also
+The auth token lives at `<project>/.voicetree/auth-token` at the same
+project location. Clients that resolve via `$VOICETREE_DAEMON_URL` also
 need `$VOICETREE_AUTH_TOKEN` injected; the spawn pipeline sets both
 (§5.3).
 
@@ -319,7 +319,7 @@ Daemon inside WSL2; Electron native Windows. Two networking modes:
 Windows 11 22H2+). WSL2 shares the host's loopback; `127.0.0.1`
 works from both sides. Windows clients construct
 `http://127.0.0.1:<port>` from the port file (read via
-`\\wsl$\<Distro>\<vault-path>\.voicetree\rpc.port`).
+`\\wsl$\<Distro>\<project-path>\.voicetree\rpc.port`).
 
 **NAT** (legacy default). Loopback not mirrored. Windows clients
 reach the daemon via the WSL2 distro's IP. Discovery:
@@ -345,8 +345,8 @@ connections. The auth token is the gate.
 
 - **Same-LAN port scan.** Mitigated by token — without it, `401`.
 - **Token-file leak via second local user.** Mitigated by mode
-  `0600`. The vault directory is the user's directory; cross-user
-  vault access is out of scope.
+  `0600`. The project directory is the user's directory; cross-user
+  project access is out of scope.
 - **Token leak via `ps`.** Mitigated by always reading the token
   from disk. Hook scripts read via `cat`, not via env-arg (§4.4).
 - **Token leak via daemon logs.** Mitigated by explicit redaction in
@@ -463,7 +463,7 @@ existing zod schema; 64 KiB body cap; `204 No Content` on success;
 `claude`, `codex`, `opencode`.
 
 Auth: bearer token via §4.1. Hook scripts in spawned-agent shells
-read the token from `<vault>/.voicetree/auth-token` via `cat`, NOT
+read the token from `<project>/.voicetree/auth-token` via `cat`, NOT
 from `$VOICETREE_AUTH_TOKEN` as a command-line argument (avoids
 `ps` leak — §3.3). The hook curl template:
 
@@ -640,7 +640,7 @@ exposed.
 ### R6 — Test-environment port collisions
 
 Bind port 0, read back via `server.address()`, publish to the
-test-specific vault path. Auth tokens generated fresh per test
+test-specific project path. Auth tokens generated fresh per test
 daemon. Mirrors Step 7e's port-0 pattern.
 
 ### R7 — Cycle-forced duplication carries over

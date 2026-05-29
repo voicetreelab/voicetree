@@ -135,7 +135,7 @@
     "timeout_seconds": 120,
     "max_retries": 3,
     "pass_threshold": 0.7,
-    "vault_cleanup": true,
+    "project_cleanup": true,
     "generate_reports": true
   }
 }

@@ -9,7 +9,7 @@ import {
 import { toAbsolutePath } from './types';
 import type { AbsolutePath, AvailableFolderItem, FolderAction, FolderSelectorState } from './types';
 import type { ParsedQuery } from './transforms';
-import type { VaultConfig } from '../settings/types';
+import type { ProjectConfig } from '../settings/types';
 
 describe('toDisplayPath', () => {
     it('returns "." when absolutePath equals projectRoot', () => {
@@ -242,68 +242,68 @@ describe('reduceFolderConfig', () => {
     const projectRoot: AbsolutePath = toAbsolutePath('/Users/bob/project');
 
     it('RESET_WRITE_TO_ROOT sets write to root', () => {
-        const config: VaultConfig = {
+        const config: ProjectConfig = {
             writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = { type: 'RESET_WRITE_TO_ROOT' };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
+        const result: ProjectConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result.writeFolderPath).toBe('/Users/bob/project');
     });
 
     it('SET_AS_WRITE updates the write path only', () => {
-        const config: VaultConfig = {
+        const config: ProjectConfig = {
             writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
+        const result: ProjectConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result.writeFolderPath).toBe('/Users/bob/project/drafts');
     });
 
     it('SET_AS_WRITE returns the same config if same as new write', () => {
-        const config: VaultConfig = {
+        const config: ProjectConfig = {
             writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
             path: toAbsolutePath('/Users/bob/project/notes'),
         };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
+        const result: ProjectConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result).toBe(config);
     });
 
     it('ADD_AS_READ leaves config unchanged because visibility is sqlite-backed', () => {
-        const config: VaultConfig = {
+        const config: ProjectConfig = {
             writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'ADD_AS_READ',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
+        const result: ProjectConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result).toBe(config);
     });
 
     it('REMOVE_READ_FOLDER leaves config unchanged because visibility is sqlite-backed', () => {
-        const config: VaultConfig = {
+        const config: ProjectConfig = {
             writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'REMOVE_READ_FOLDER',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
+        const result: ProjectConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result).toBe(config);
     });
 
     it('returns same config for unhandled action types', () => {
-        const config: VaultConfig = {
+        const config: ProjectConfig = {
             writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = { type: 'TOGGLE_DROPDOWN' };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
+        const result: ProjectConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result).toEqual(config);
     });
 });

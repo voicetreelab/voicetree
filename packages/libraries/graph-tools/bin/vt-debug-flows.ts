@@ -47,7 +47,7 @@ type RunnerOptions = {
   writeBaseline: boolean
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 type ParsedArgs =
@@ -72,7 +72,7 @@ type RunAllResult = {
 function usage(message?: string): Response<never> {
   return err(
     'flows',
-    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--write-baseline] [--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]`,
+    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--write-baseline] [--port <n> | --cdpPort <n> | --pid <n> | --project <path>]`,
   )
 }
 
@@ -107,7 +107,7 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
   let writeBaseline = false
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
 
   const flagArgs = command === 'run' ? rest : [maybeFlowId, ...rest].filter(Boolean) as string[]
 
@@ -164,14 +164,14 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
         continue
       }
 
-      if (arg === '--vault') {
-        vault = readFlagValue('--vault', flagArgs[index + 1])
+      if (arg === '--project') {
+        project = readFlagValue('--project', flagArgs[index + 1])
         index += 1
         continue
       }
 
-      if (arg.startsWith('--vault=')) {
-        vault = readFlagValue('--vault', arg.slice('--vault='.length))
+      if (arg.startsWith('--project=')) {
+        project = readFlagValue('--project', arg.slice('--project='.length))
         continue
       }
 
@@ -183,7 +183,7 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
     return usage(String(error))
   }
 
-  const options: RunnerOptions = { outDir, fixtureOut, writeBaseline, port, pid, vault }
+  const options: RunnerOptions = { outDir, fixtureOut, writeBaseline, port, pid, project }
 
   if (command === 'list') {
     return { command, options }
@@ -294,7 +294,7 @@ async function resolveTargetInstance(options: RunnerOptions): Promise<DebugInsta
   const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
-    vault: options.vault,
+    project: options.project,
   })
 
   if (!pick.ok) {

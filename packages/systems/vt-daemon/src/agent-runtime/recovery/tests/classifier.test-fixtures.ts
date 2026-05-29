@@ -5,20 +5,20 @@ import type {UnclaimedTmuxSession} from '@vt/vt-daemon/agent-runtime/terminals/t
 import type {ResumeCapability} from '../types'
 import * as O from 'fp-ts/lib/Option.js'
 
-// VAULT_PATH is used consistently so that computed session names (via
+// PROJECT_PATH is used consistently so that computed session names (via
 // buildTmuxSessionName) match SESSION_A in tests that omit the session field.
-export const VAULT_PATH = '/vault'
-export const VAULT_HASH = buildTmuxNamespaceHash(VAULT_PATH)
+export const PROJECT_PATH = '/project'
+export const PROJECT_HASH = buildTmuxNamespaceHash(PROJECT_PATH)
 export const FOREIGN_HASH = 'f6e7d8c9b0'
 export const TERMINAL_A = 'A'
-export const SESSION_A = `vt-${VAULT_HASH}-${TERMINAL_A}`
-export const METADATA_PATH_A = '/vault/.voicetree/terminals/A.json'
+export const SESSION_A = `vt-${PROJECT_HASH}-${TERMINAL_A}`
+export const METADATA_PATH_A = '/project/.voicetree/terminals/A.json'
 
 export function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
     return {
         type: 'Terminal',
         terminalId: TERMINAL_A as TerminalData['terminalId'],
-        attachedToContextNodeId: '/vault/node.md' as TerminalData['attachedToContextNodeId'],
+        attachedToContextNodeId: '/project/node.md' as TerminalData['attachedToContextNodeId'],
         terminalCount: 0,
         anchoredToNodeId: O.none,
         title: 'Agent A',
@@ -39,7 +39,7 @@ export function makeTerminalData(overrides: Partial<TerminalData> = {}): Termina
         initialCommand: 'claude',
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: TERMINAL_A,
-            VOICETREE_PROJECT_PATH: VAULT_PATH,
+            VOICETREE_PROJECT_PATH: PROJECT_PATH,
         },
         ...overrides,
     }
@@ -59,14 +59,14 @@ export function makeRunningCodexMetadata(overrides: Record<string, unknown> = {}
     return {
         name: 'B',
         status: 'running',
-        session: `vt-${VAULT_HASH}-B`,
+        session: `vt-${PROJECT_HASH}-B`,
         terminalData: makeTerminalData({
             terminalId: 'B' as TerminalData['terminalId'],
             initialCommand: 'codex',
             agentName: 'Bea',
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: 'B',
-                VOICETREE_PROJECT_PATH: VAULT_PATH,
+                VOICETREE_PROJECT_PATH: PROJECT_PATH,
             },
         }),
         ...overrides,
@@ -103,14 +103,14 @@ export function makeLiveSession(sessionName: string, overrides: Partial<Unclaime
     return {
         sessionName,
         terminalId: TERMINAL_A,
-        hash: VAULT_HASH,
+        hash: PROJECT_HASH,
         agentName: 'Ari',
         panePid: 12345,
         createdAt: 0,
-        classification: 'this-vault',
+        classification: 'this-project',
         attachable: true,
-        projectRoot: VAULT_PATH,
-        contextNodePath: '/vault/node.md',
+        projectRoot: PROJECT_PATH,
+        contextNodePath: '/project/node.md',
         ...overrides,
     }
 }
@@ -120,7 +120,7 @@ export function baseInput(overrides: Partial<ClassifierInput> = {}): ClassifierI
         metadataRecords: [],
         liveTmuxSessionsByName: new Map<string, UnclaimedTmuxSession>(),
         registryTerminalIds: new Set(),
-        currentNamespaceHash: VAULT_HASH,
+        currentNamespaceHash: PROJECT_HASH,
         resumeHandleByTerminalId: new Map<string, ResumeCapability>(),
         ...overrides,
     }

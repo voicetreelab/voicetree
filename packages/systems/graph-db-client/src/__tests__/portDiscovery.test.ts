@@ -19,7 +19,7 @@ describe('discoverPort', () => {
   test('fails immediately when neither the port file nor daemon lock exists', async () => {
     await expect(
       discoverPort(
-        '/tmp/vault',
+        '/tmp/project',
         { timeoutMs: 5000 },
         portDiscoveryDeps({
           sleep: async () => {
@@ -36,7 +36,7 @@ describe('discoverPort', () => {
 
     await expect(
       discoverPort(
-        '/tmp/vault',
+        '/tmp/project',
         { timeoutMs: 500 },
         portDiscoveryDeps({
           now: () => currentTimeMs,

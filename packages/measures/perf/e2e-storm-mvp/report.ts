@@ -28,7 +28,7 @@ export interface ReportInput {
     readonly filesBefore: number
     readonly filesAfter: number
     readonly mcpPort: number
-    readonly vaultDir: string
+    readonly projectDir: string
     readonly projectDir: string
     readonly voicetreeHomePath: string
     readonly electronLogPath: string
@@ -88,7 +88,7 @@ export function writeReportAndSummary(input: ReportInput): void {
         },
         artifacts: {
             mcpPort: input.mcpPort,
-            vaultDir: input.vaultDir,
+            projectDir: input.projectDir,
             projectDir: input.projectDir,
             voicetreeHomePath: input.voicetreeHomePath,
             electronLogPath: input.electronLogPath,

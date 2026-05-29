@@ -38,7 +38,7 @@ import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
 import { simulatePanZoom, type PanZoomFpsResult } from './perf-helpers/simulatePanZoom';
 import {
   collectLoadDiagnostics,
-  getGeneratedVaultPath,
+  getGeneratedProjectPath,
   getMainInspectPort,
   PERF_TRACES_DIR,
   test,
@@ -50,7 +50,7 @@ import {
 // ============================================================================
 
 test.describe('Realistic 500-Node Performance', () => {
-  test('LOAD → PAN/ZOOM → UPDATE with real vault pipeline', async ({ electronApp: _electronApp, appWindow }) => {
+  test('LOAD → PAN/ZOOM → UPDATE with real project pipeline', async ({ electronApp: _electronApp, appWindow }) => {
     test.setTimeout(600000); // 10 min — real pipeline is much slower
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -90,7 +90,7 @@ test.describe('Realistic 500-Node Performance', () => {
     // ======================================================================
     // Phase 1: LOAD — measure load-to-interactive
     // ======================================================================
-    const loadMetrics = await test.step('PHASE 1: LOAD 500-node vault', async () => {
+    const loadMetrics = await test.step('PHASE 1: LOAD 500-node project', async () => {
       console.log('\n=== PHASE 1: LOAD (real pipeline) ===');
       await appWindow.evaluate(() => performance.mark('load-start'));
       await startCDPTrace(cdp);
@@ -102,7 +102,7 @@ test.describe('Realistic 500-Node Performance', () => {
             return Object.keys(graph?.nodes ?? {}).length;
           }),
           {
-            message: 'Waiting for main graph to load generated vault nodes',
+            message: 'Waiting for main graph to load generated project nodes',
             timeout: 300000,
             intervals: [5000, 5000, 5000, 5000, 5000],
           }
@@ -137,7 +137,7 @@ test.describe('Realistic 500-Node Performance', () => {
               return stableRuns >= STABLE_THRESHOLD;
             },
             {
-              message: `Waiting for vault to finish loading (last count: ${lastCount})`,
+              message: `Waiting for project to finish loading (last count: ${lastCount})`,
               timeout: 300000,
               intervals: [5000, 5000, 5000, 5000, 5000],
             }
@@ -147,7 +147,7 @@ test.describe('Realistic 500-Node Performance', () => {
         console.error('[Realistic Perf] LOAD wait diagnostics:', JSON.stringify(await collectLoadDiagnostics(appWindow), null, 2));
         throw error;
       }
-      console.log(`[Realistic Perf] Vault loading complete at ${lastCount} nodes`);
+      console.log(`[Realistic Perf] Project loading complete at ${lastCount} nodes`);
 
       const nodeCountBeforeStable = await appWindow.evaluate((): number => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -170,7 +170,7 @@ test.describe('Realistic 500-Node Performance', () => {
       const loadPerfM = await cdp.send('Performance.getMetrics') as { metrics: Array<{ name: string; value: number }> };
       const loadHeap = loadPerfM.metrics.find(m => m.name === 'JSHeapUsedSize');
       console.log(`[Memory] JS Heap: ${((loadHeap?.value ?? 0) / 1024 / 1024).toFixed(1)} MB`);
-      const m = analyzeTrace(trace, 'LOAD 500-node vault (real pipeline)');
+      const m = analyzeTrace(trace, 'LOAD 500-node project (real pipeline)');
       printMetricsTable(m);
       return m;
     });
@@ -253,7 +253,7 @@ test.describe('Realistic 500-Node Performance', () => {
       await appWindow.evaluate(() => performance.mark('update-start'));
       await startCDPTrace(cdp);
 
-      // Write a new .md file to the vault — the file watcher should pick it up
+      // Write a new .md file to the project — the file watcher should pick it up
       const newNodeContent = [
         '---',
         'isContextNode: false',
@@ -269,11 +269,11 @@ test.describe('Realistic 500-Node Performance', () => {
       ].join('\n');
 
       await fs.writeFile(
-        path.join(getGeneratedVaultPath(), 'update-test-node.md'),
+        path.join(getGeneratedProjectPath(), 'update-test-node.md'),
         newNodeContent,
         'utf8'
       );
-      console.log('[Realistic Perf] Wrote update-test-node.md to vault');
+      console.log('[Realistic Perf] Wrote update-test-node.md to project');
 
       // Wait for the new node to appear in the graph
       await appWindow.waitForFunction(

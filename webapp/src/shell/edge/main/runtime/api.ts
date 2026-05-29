@@ -8,7 +8,7 @@
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {SavedProject} from '@vt/graph-model/project'
-import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWriteFolderPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, stopFileWatching, getProjectPaths, getReadPaths, getWriteFolderPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openProject, getStartupProjectHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getVoicetreeHomePath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
@@ -122,7 +122,7 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
 }
 
 // ---------------------------------------------------------------------------
-// BF-376 outbound: per-route wrappers fronting the per-vault VTD via
+// BF-376 outbound: per-route wrappers fronting the per-project VTD via
 // @vt/vt-daemon-client. Renderer-facing IPC keeps its prior (terminalId,
 // value) call shape; each wrapper folds that into the typed RPC request
 // the daemon contract expects.
@@ -230,10 +230,10 @@ export const mainAPI = {
 
   saveSettings: (settings: VTSettings): Promise<boolean> => saveSettings(settings),
 
-  // Vault operations — single canonical entry-point.
-  openVault,
+  // Project operations — single canonical entry-point.
+  openProject,
 
-  getStartupVaultHint,
+  getStartupProjectHint,
 
   stopFileWatching,
 
@@ -241,8 +241,8 @@ export const mainAPI = {
 
   getWatchStatus,
 
-  // Multi-vault path operations
-  getVaultPaths,
+  // Multi-project path operations
+  getProjectPaths,
   getReadPaths,
   getWriteFolderPath,
   setWriteFolderPath,
@@ -269,7 +269,7 @@ export const mainAPI = {
   performUndo,
   performRedo,
 
-  // Terminal spawning — RPC to per-vault VTD via @vt/vt-daemon-client.
+  // Terminal spawning — RPC to per-project VTD via @vt/vt-daemon-client.
   spawnTerminalWithContextNode: spawnTerminalWithContextNode,
 
   // Plain terminal spawning (no agent command, no context node)

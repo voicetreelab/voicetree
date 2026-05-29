@@ -7,8 +7,8 @@ import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import { SessionRegistry } from '../../../application/session/registry.ts'
 import { createDaemonApp } from '../../daemonApp.ts'
 import {
-  closeFolderVisibilityForVault,
-  openFolderVisibilityForVault,
+  closeFolderVisibilityForProject,
+  openFolderVisibilityForProject,
   updateCurrentFolderState,
 } from '../../../data/views/folderVisibilityResource.ts'
 import {
@@ -16,7 +16,7 @@ import {
   setProjectRoot,
 } from '../../../state/watch-folder-store.ts'
 
-async function createTempVault(): Promise<string> {
+async function createTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-folder-state-test-'))
 }
 
@@ -27,11 +27,11 @@ async function createSession(port: number): Promise<string> {
 }
 
 describe('folderState routes', () => {
-  let vault: string
+  let project: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    vault = await createTempVault()
+    project = await createTempProject()
     handles = []
   })
 
@@ -39,18 +39,18 @@ describe('folderState routes', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
-    await closeFolderVisibilityForVault().catch(() => {})
+    await closeFolderVisibilityForProject().catch(() => {})
     clearWatchFolderState()
-    await rm(vault, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
   })
 
   async function start(): Promise<DaemonHandle> {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
     return handle
   }
 
-  test('GET returns folderState and activeView for the session vault', async () => {
+  test('GET returns folderState and activeView for the session project', async () => {
     const handle = await start()
     const sessionId = await createSession(handle.port)
 
@@ -61,22 +61,22 @@ describe('folderState routes', () => {
     expect(response.status).toBe(200)
     // setWriteFolderPath seeds the writeFolderPath as 'expanded' on cold mount so the
     // sidebar can show its contents. With no saved config the default
-    // writeFolderPath is a `voicetree-{day}-{month}` subfolder of the vault.
+    // writeFolderPath is a `voicetree-{day}-{month}` subfolder of the project.
     const body = await response.json() as { folderState: [string, string][]; activeView: { name: string } }
     expect(body.activeView.name).toBe('main')
     const expandedRows: [string, string][] = body.folderState.filter(([, state]: [string, string]) => state === 'expanded')
     expect(expandedRows).toHaveLength(1)
     const [expandedPath] = expandedRows[0]
-    expect(expandedPath).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(expandedPath).toMatch(new RegExp(`^${project}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
   })
 
   test('PATCH single and batch write active-view rows', async () => {
     const handle = await start()
     const sessionId = await createSession(handle.port)
-    const docsPath = join(vault, 'docs')
-    const srcPath = join(vault, 'src')
-    const tmpPath = join(vault, 'tmp')
-    const notesPath = join(vault, 'notes')
+    const docsPath = join(project, 'docs')
+    const srcPath = join(project, 'src')
+    const tmpPath = join(project, 'tmp')
+    const notesPath = join(project, 'notes')
 
     const single = await fetch(
       `http://127.0.0.1:${handle.port}/sessions/${sessionId}/folder-state/${encodeURIComponent(docsPath)}`,
@@ -107,7 +107,7 @@ describe('folderState routes', () => {
     const body = await batch.json() as { folderState: [string, string][] }
     // The PATCHed rows are interleaved (by path ASC) with the seeded
     // [<writeFolderPath>, 'expanded'] row. The default writeFolderPath for an
-    // unconfigured vault is a `voicetree-{day}-{month}` subfolder.
+    // unconfigured project is a `voicetree-{day}-{month}` subfolder.
     const patchedRows: [string, string][] = body.folderState.filter(
       ([rowPath]: [string, string]) => rowPath === docsPath || rowPath === notesPath || rowPath === srcPath || rowPath === tmpPath,
     )
@@ -118,21 +118,21 @@ describe('folderState routes', () => {
       [tmpPath, 'hidden'],
     ])
     const seededExpanded: [string, string][] = body.folderState.filter(
-      ([rowPath]: [string, string]) => rowPath.startsWith(`${vault}/voicetree-`),
+      ([rowPath]: [string, string]) => rowPath.startsWith(`${project}/voicetree-`),
     )
     expect(seededExpanded).toHaveLength(1)
     expect(seededExpanded[0][1]).toBe('expanded')
   })
 
   test('PATCH syncs the active session collapseSet used by projection', async () => {
-    await openFolderVisibilityForVault(vault)
-    setProjectRoot(vault as never)
+    await openFolderVisibilityForProject(project)
+    setProjectRoot(project as never)
     const registry = new SessionRegistry()
     const app = createDaemonApp({
       registry,
       readHealth: () => ({
         version: 'test',
-        vault,
+        project,
         uptimeSeconds: 0,
         sessionCount: registry.size(),
         owner: null,
@@ -140,8 +140,8 @@ describe('folderState routes', () => {
       onShutdown: () => {},
     })
     const session = registry.create()
-    const docsPath = join(vault, 'docs')
-    const notesPath = join(vault, 'notes')
+    const docsPath = join(project, 'docs')
+    const notesPath = join(project, 'notes')
 
     const collapsed = await app.request(
       `/sessions/${session.id}/folder-state/${encodeURIComponent(docsPath)}`,
@@ -172,8 +172,8 @@ describe('folderState routes', () => {
   })
 
   test('new sessions hydrate collapseSet from current folder visibility rows', async () => {
-    await openFolderVisibilityForVault(vault)
-    const docsPath = join(vault, 'docs')
+    await openFolderVisibilityForProject(project)
+    const docsPath = join(project, 'docs')
     updateCurrentFolderState(docsPath, 'collapsed')
 
     const session = new SessionRegistry().create()

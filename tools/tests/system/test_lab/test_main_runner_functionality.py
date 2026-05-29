@@ -56,8 +56,8 @@ def test_test_lab_components():
     
     # Test 3: Add New Node Functionality (Core Integration)
     with tempfile.TemporaryDirectory() as temp_dir:
-        test_vault = Path(temp_dir) / "test_vault"
-        test_date_dir = test_vault / "2025-08-08" 
+        test_project = Path(temp_dir) / "test_project"
+        test_date_dir = test_project / "2025-08-08"
         test_date_dir.mkdir(parents=True)
         
         # Create source node

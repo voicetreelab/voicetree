@@ -22,7 +22,7 @@ import {getFolderTreeReadModel} from "@vt/graph-db-server/state/folder-tree-read
  *
  * FS Event Path: FS → MEM + GraphUI + Editors
  *
- * Note: Bulk loads (e.g., adding a new vault path) use loadVaultPathAdditively
+ * Note: Bulk loads (e.g., adding a new project path) use loadProjectPathAdditively
  * instead of this function, so no time-based guard is needed here.
  *
  * @param fsEvent - Filesystem event (add, change, or delete)

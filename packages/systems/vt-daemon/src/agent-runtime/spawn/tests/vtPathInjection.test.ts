@@ -138,7 +138,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
 
         configureAgentRuntime({
             env: {
-                getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
+                getProjectPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
                 getVtBinDir: (): string => vtBinDir,
@@ -165,7 +165,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
     it('leaves PATH untouched when getVtBinDir is not registered', async () => {
         configureAgentRuntime({
             env: {
-                getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
+                getProjectPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
             },
@@ -193,7 +193,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
 
         configureAgentRuntime({
             env: {
-                getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
+                getProjectPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
                 getVtBinDir: (): string => vtBinDir,

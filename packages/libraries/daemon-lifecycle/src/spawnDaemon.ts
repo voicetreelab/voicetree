@@ -2,7 +2,7 @@
  * Generic detached daemon spawn.
  *
  * The caller resolves the command + args (graphd uses
- * `resolveCommand(vault, bin?)` from graph-db-client; vt-daemon-client
+ * `resolveCommand(project, bin?)` from graph-db-client; vt-daemon-client
  * will provide its own resolver). This helper handles only the universal
  * mechanics of "spawn detached, swallow child errors, return the pid":
  *

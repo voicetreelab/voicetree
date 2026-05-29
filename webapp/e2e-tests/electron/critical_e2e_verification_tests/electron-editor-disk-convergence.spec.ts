@@ -34,7 +34,7 @@ import {
   closeEditorWindow,
   configureNoopAgent,
   deleteCtxNodesDir,
-  deleteExtraVaultFiles,
+  deleteExtraProjectFiles,
   expectContextNodeContains,
   expectDaemonNodeContains,
   expectDiskContainsAll,
@@ -64,7 +64,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await closeAllEditorWindows(appWindow);
     await closeAllTerminalWindows(appWindow);
     await fs.writeFile(path.join(writeFolderPath, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
-    await deleteExtraVaultFiles(appWindow, writeFolderPath);
+    await deleteExtraProjectFiles(appWindow, writeFolderPath);
     await deleteCtxNodesDir(writeFolderPath);
     await resetSettings(appWindow, settingsSnapshot);
     await waitForGraphReset(appWindow, PARENT_TITLE);

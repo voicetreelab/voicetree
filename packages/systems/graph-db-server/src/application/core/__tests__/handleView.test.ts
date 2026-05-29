@@ -17,7 +17,7 @@ function sessionFixture(): Session {
     folderState: new Map(),
     collapseSet: new Set<string>(),
     selection: new Set<string>(),
-    expandOverrides: new Set<string>(['/vault/docs']),
+    expandOverrides: new Set<string>(['/project/docs']),
     layout: {
       positions: {},
       pan: { x: 0, y: 0 },
@@ -31,7 +31,7 @@ function stateFixture(): State {
   return {
     graph: createEmptyGraph(),
     roots: {
-      loaded: new Set<string>(['/vault']),
+      loaded: new Set<string>(['/project']),
       folderTree: [],
     },
     collapseSet: new Set<string>(),
@@ -70,7 +70,7 @@ describe('handleView', () => {
       stateFixture(),
       undefined,
       undefined,
-      ['/vault/extra'],
+      ['/project/extra'],
     )
 
     expect(result).toEqual({
@@ -86,7 +86,7 @@ describe('handleView', () => {
     expect(result.response).toMatchObject({
       nodes: [],
       edges: [],
-      rootPath: '/vault',
+      rootPath: '/project',
       revision: 7,
       forests: [],
       arboricity: 0,
@@ -95,10 +95,10 @@ describe('handleView', () => {
   })
 
   test('renders user-collapsed folders from the uncollapsed projected state', () => {
-    const root = '/vault'
-    const docs = '/vault/docs'
-    const alpha = '/vault/docs/alpha.md'
-    const beta = '/vault/docs/beta.md'
+    const root = '/project'
+    const docs = '/project/docs'
+    const alpha = '/project/docs/alpha.md'
+    const beta = '/project/docs/beta.md'
     const session = {
       ...sessionFixture(),
       folderState: new Map<string, 'expanded' | 'collapsed' | 'hidden'>([
@@ -115,7 +115,7 @@ describe('handleView', () => {
       roots: {
         loaded: new Set<string>([root]),
         folderTree: [{
-          name: 'vault',
+          name: 'project',
           absolutePath: toAbsolutePath(root),
           loadState: 'loaded',
           isWriteTarget: true,
@@ -154,23 +154,23 @@ describe('handleView', () => {
   test('adds an expand override immutably and touches the registry', () => {
     const session = sessionFixture()
 
-    const result = handleAddExpandOverride(session, '/vault/new')
+    const result = handleAddExpandOverride(session, '/project/new')
 
     expect(result).toEqual({
       session: {
         ...session,
-        expandOverrides: new Set<string>(['/vault/docs', '/vault/new']),
+        expandOverrides: new Set<string>(['/project/docs', '/project/new']),
       },
       commands: [{ type: 'RegistryTouch', sessionId: 'session-1' }],
-      response: { expandOverrides: ['/vault/docs', '/vault/new'] },
+      response: { expandOverrides: ['/project/docs', '/project/new'] },
     })
-    expect(session.expandOverrides).toEqual(new Set<string>(['/vault/docs']))
+    expect(session.expandOverrides).toEqual(new Set<string>(['/project/docs']))
   })
 
   test('deletes an expand override immutably and touches the registry', () => {
     const session = sessionFixture()
 
-    const result = handleDeleteExpandOverride(session, '/vault/docs')
+    const result = handleDeleteExpandOverride(session, '/project/docs')
 
     expect(result).toEqual({
       session: {
@@ -180,6 +180,6 @@ describe('handleView', () => {
       commands: [{ type: 'RegistryTouch', sessionId: 'session-1' }],
       response: { expandOverrides: [] },
     })
-    expect(session.expandOverrides).toEqual(new Set<string>(['/vault/docs']))
+    expect(session.expandOverrides).toEqual(new Set<string>(['/project/docs']))
   })
 })

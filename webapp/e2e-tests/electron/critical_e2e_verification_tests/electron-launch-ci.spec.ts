@@ -22,7 +22,7 @@ test.describe('Electron CI Launch Fallback', () => {
 
     try {
       // Seed an empty saved-project list so the launched app deterministically
-      // boots into the project selection screen instead of auto-opening a vault.
+      // boots into the project selection screen instead of auto-opening a project.
       await fs.writeFile(
         path.join(tempUserDataPath, 'projects.json'),
         JSON.stringify([], null, 2),

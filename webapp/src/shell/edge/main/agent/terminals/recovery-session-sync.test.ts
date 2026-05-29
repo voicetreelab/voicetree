@@ -29,7 +29,7 @@ vi.mock('@vt/vt-daemon-client', async (importOriginal) => {
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-url-binding', () => ({
     getVtDaemonClient: vi.fn(() => ({} as never)),
-    getActiveVault: vi.fn((): string | null => '/vault'),
+    getActiveProject: vi.fn((): string | null => '/project'),
 }))
 
 vi.mock('@/shell/edge/main/runtime/ui-api-proxy', () => ({
@@ -51,13 +51,13 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
     return {
         type: 'Terminal',
         terminalId: 'Mira' as TerminalId,
-        attachedToContextNodeId: '/vault/readme.md' as NodeIdAndFilePath,
+        attachedToContextNodeId: '/project/readme.md' as NodeIdAndFilePath,
         terminalCount: 0,
         anchoredToNodeId: O.none,
         title: 'Mira',
         resizable: true,
         shadowNodeDimensions: {width: 395, height: 380},
-        initialEnvVars: {VOICETREE_TERMINAL_ID: 'Mira', VOICETREE_PROJECT_PATH: '/vault'},
+        initialEnvVars: {VOICETREE_TERMINAL_ID: 'Mira', VOICETREE_PROJECT_PATH: '/project'},
         initialCommand: 'claude',
         isPinned: true,
         isDone: false,
@@ -96,7 +96,7 @@ describe('recovery-session-sync', () => {
 
         expect(result).toEqual({success: true, terminalId: 'Mira'})
         expect(mocks.uiLaunches).toEqual([
-            {nodeId: '/vault/readme.md', terminalData, skipFitAnimation: false},
+            {nodeId: '/project/readme.md', terminalData, skipFitAnimation: false},
         ])
     })
 
@@ -189,7 +189,7 @@ describe('recovery-session-sync', () => {
 
         expect(result).toEqual({success: true, terminalId: 'Mira 2'})
         expect(mocks.uiLaunches).toEqual([
-            {nodeId: '/vault/readme.md', terminalData, skipFitAnimation: false},
+            {nodeId: '/project/readme.md', terminalData, skipFitAnimation: false},
         ])
     })
 })

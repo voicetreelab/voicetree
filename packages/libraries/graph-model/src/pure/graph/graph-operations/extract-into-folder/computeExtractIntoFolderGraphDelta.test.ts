@@ -29,13 +29,13 @@ function createTestNode(
 describe('computeExtractIntoFolderGraphDelta', () => {
     it('supports same-parent absolute file selections', () => {
         const selectedItemIds = [
-            '/tmp/vault/alpha.md',
-            '/tmp/vault/beta.md'
+            '/tmp/project/alpha.md',
+            '/tmp/project/beta.md'
         ]
 
         expect(getExtractIntoFolderSelectionSupport(selectedItemIds)).toEqual({
             canExtract: true,
-            commonParentPath: '/tmp/vault/',
+            commonParentPath: '/tmp/project/',
             supportedSelectionCount: 2,
             selectionsShareParent: true
         })
@@ -43,19 +43,19 @@ describe('computeExtractIntoFolderGraphDelta', () => {
 
     it('creates move + index.md + delete deltas for same-parent file selections', () => {
         const graph: Graph = createGraph({
-            '/tmp/vault/alpha.md': createTestNode('/tmp/vault/alpha.md', { position: { x: 100, y: 100 } }),
-            '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md', { position: { x: 200, y: 100 } }),
-            '/tmp/vault/overview.md': createTestNode('/tmp/vault/overview.md', { position: { x: 300, y: 100 } })
+            '/tmp/project/alpha.md': createTestNode('/tmp/project/alpha.md', { position: { x: 100, y: 100 } }),
+            '/tmp/project/beta.md': createTestNode('/tmp/project/beta.md', { position: { x: 200, y: 100 } }),
+            '/tmp/project/overview.md': createTestNode('/tmp/project/overview.md', { position: { x: 300, y: 100 } })
         })
 
         const { delta, newFolderId } = computeExtractIntoFolderGraphDelta(
-            ['/tmp/vault/alpha.md', '/tmp/vault/beta.md'],
+            ['/tmp/project/alpha.md', '/tmp/project/beta.md'],
             graph,
-            '/tmp/vault'
+            '/tmp/project'
         )
 
         expect(delta.length).toBeGreaterThan(0)
-        expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
+        expect(newFolderId).toMatch(/^\/tmp\/project\/extract_[a-z0-9_]+\/$/)
 
         const upserts = delta
             .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
@@ -74,26 +74,26 @@ describe('computeExtractIntoFolderGraphDelta', () => {
             .map((nodeDelta) => nodeDelta.nodeId)
 
         expect(deletedIds).toEqual(expect.arrayContaining([
-            '/tmp/vault/alpha.md',
-            '/tmp/vault/beta.md'
+            '/tmp/project/alpha.md',
+            '/tmp/project/beta.md'
         ]))
     })
 
     it('retargets basename folder links when extracting a selected folder', () => {
         const graph: Graph = createGraph({
-            '/tmp/vault/docs/intro.md': createTestNode('/tmp/vault/docs/intro.md'),
-            '/tmp/vault/docs/architecture.md': createTestNode('/tmp/vault/docs/architecture.md'),
-            '/tmp/vault/overview.md': createTestNode('/tmp/vault/overview.md'),
-            '/tmp/vault/references.md': createTestNode('/tmp/vault/references.md', {
+            '/tmp/project/docs/intro.md': createTestNode('/tmp/project/docs/intro.md'),
+            '/tmp/project/docs/architecture.md': createTestNode('/tmp/project/docs/architecture.md'),
+            '/tmp/project/overview.md': createTestNode('/tmp/project/overview.md'),
+            '/tmp/project/references.md': createTestNode('/tmp/project/references.md', {
                 outgoingEdges: [{ targetId: 'docs', label: 'See' }],
                 contentWithoutYamlOrLinks: '# References\n\nSee [docs]* for details.'
             })
         })
 
         const { delta } = computeExtractIntoFolderGraphDelta(
-            ['/tmp/vault/docs/', '/tmp/vault/overview.md'],
+            ['/tmp/project/docs/', '/tmp/project/overview.md'],
             graph,
-            '/tmp/vault'
+            '/tmp/project'
         )
 
         const upserts = delta.filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => {
@@ -108,7 +108,7 @@ describe('computeExtractIntoFolderGraphDelta', () => {
 
         const expectedFolderTargetId = movedDocsIntro!.absoluteFilePathIsID.slice(0, -'intro.md'.length)
         const referencesUpsert = upserts.find((nodeDelta) => {
-            return nodeDelta.nodeToUpsert.absoluteFilePathIsID === '/tmp/vault/references.md'
+            return nodeDelta.nodeToUpsert.absoluteFilePathIsID === '/tmp/project/references.md'
         })?.nodeToUpsert
 
         expect(referencesUpsert).toBeDefined()
@@ -124,13 +124,13 @@ describe('computeExtractIntoFolderGraphDelta', () => {
 
     it('reports cross-parent selections as extractable with longest common ancestor', () => {
         const selectedItemIds = [
-            '/tmp/vault/alpha.md',
-            '/tmp/vault/nested/beta.md'
+            '/tmp/project/alpha.md',
+            '/tmp/project/nested/beta.md'
         ]
 
         expect(getExtractIntoFolderSelectionSupport(selectedItemIds)).toEqual({
             canExtract: true,
-            commonParentPath: '/tmp/vault/',
+            commonParentPath: '/tmp/project/',
             supportedSelectionCount: 2,
             selectionsShareParent: false
         })
@@ -138,13 +138,13 @@ describe('computeExtractIntoFolderGraphDelta', () => {
 
     it('reports common ancestor for deeper differing parents', () => {
         const selectedItemIds = [
-            '/tmp/vault/foo/x.md',
-            '/tmp/vault/bar/y.md'
+            '/tmp/project/foo/x.md',
+            '/tmp/project/bar/y.md'
         ]
 
         expect(getExtractIntoFolderSelectionSupport(selectedItemIds)).toEqual({
             canExtract: true,
-            commonParentPath: '/tmp/vault/',
+            commonParentPath: '/tmp/project/',
             supportedSelectionCount: 2,
             selectionsShareParent: false
         })
@@ -152,17 +152,17 @@ describe('computeExtractIntoFolderGraphDelta', () => {
 
     it('extracts cross-parent selections into a new folder at the common ancestor', () => {
         const graph: Graph = createGraph({
-            '/tmp/vault/foo/alpha.md': createTestNode('/tmp/vault/foo/alpha.md', { position: { x: 100, y: 100 } }),
-            '/tmp/vault/bar/beta.md': createTestNode('/tmp/vault/bar/beta.md', { position: { x: 200, y: 100 } })
+            '/tmp/project/foo/alpha.md': createTestNode('/tmp/project/foo/alpha.md', { position: { x: 100, y: 100 } }),
+            '/tmp/project/bar/beta.md': createTestNode('/tmp/project/bar/beta.md', { position: { x: 200, y: 100 } })
         })
 
         const { delta, newFolderId } = computeExtractIntoFolderGraphDelta(
-            ['/tmp/vault/foo/alpha.md', '/tmp/vault/bar/beta.md'],
+            ['/tmp/project/foo/alpha.md', '/tmp/project/bar/beta.md'],
             graph,
-            '/tmp/vault'
+            '/tmp/project'
         )
 
-        expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
+        expect(newFolderId).toMatch(/^\/tmp\/project\/extract_[a-z0-9_]+\/$/)
 
         const upsertIds = delta
             .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
@@ -176,40 +176,40 @@ describe('computeExtractIntoFolderGraphDelta', () => {
             .map((nodeDelta) => nodeDelta.nodeId)
 
         expect(deletedIds).toEqual(expect.arrayContaining([
-            '/tmp/vault/foo/alpha.md',
-            '/tmp/vault/bar/beta.md'
+            '/tmp/project/foo/alpha.md',
+            '/tmp/project/bar/beta.md'
         ]))
     })
 
     it('honors the folderName override when provided', () => {
         const graph: Graph = createGraph({
-            '/tmp/vault/alpha.md': createTestNode('/tmp/vault/alpha.md'),
-            '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md')
+            '/tmp/project/alpha.md': createTestNode('/tmp/project/alpha.md'),
+            '/tmp/project/beta.md': createTestNode('/tmp/project/beta.md')
         })
 
         const { newFolderId } = computeExtractIntoFolderGraphDelta(
-            ['/tmp/vault/alpha.md', '/tmp/vault/beta.md'],
+            ['/tmp/project/alpha.md', '/tmp/project/beta.md'],
             graph,
-            '/tmp/vault',
+            '/tmp/project',
             'my custom name'
         )
 
-        expect(newFolderId).toBe('/tmp/vault/my custom name/')
+        expect(newFolderId).toBe('/tmp/project/my custom name/')
     })
 
     it('falls back to generated name when override is blank', () => {
         const graph: Graph = createGraph({
-            '/tmp/vault/alpha.md': createTestNode('/tmp/vault/alpha.md'),
-            '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md')
+            '/tmp/project/alpha.md': createTestNode('/tmp/project/alpha.md'),
+            '/tmp/project/beta.md': createTestNode('/tmp/project/beta.md')
         })
 
         const { newFolderId } = computeExtractIntoFolderGraphDelta(
-            ['/tmp/vault/alpha.md', '/tmp/vault/beta.md'],
+            ['/tmp/project/alpha.md', '/tmp/project/beta.md'],
             graph,
-            '/tmp/vault',
+            '/tmp/project',
             '   '
         )
 
-        expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
+        expect(newFolderId).toMatch(/^\/tmp\/project\/extract_[a-z0-9_]+\/$/)
     })
 })

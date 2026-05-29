@@ -51,7 +51,7 @@ function onFSNodeWithAgentName(agentName: string, nodeId: string, title: string)
 
 const TERMINAL_ID: string = 'test-fs-terminal'
 const AGENT_NAME: string = 'TestFS'
-const NODE_ID: string = '/vault/voicetree-1/progress-node.md'
+const NODE_ID: string = '/project/voicetree-1/progress-node.md'
 const NODE_TITLE: string = 'Progress Node'
 
 const emptyGraph: Graph = {
@@ -104,13 +104,13 @@ describe('FS node agent_name → agentNodeIndex → blue edge', () => {
     it('accumulates multiple FS-written nodes for the same terminal', () => {
         registerTestTerminal()
 
-        onFSNodeWithAgentName(AGENT_NAME, '/vault/node1.md', 'Node 1')
-        onFSNodeWithAgentName(AGENT_NAME, '/vault/node2.md', 'Node 2')
+        onFSNodeWithAgentName(AGENT_NAME, '/project/node1.md', 'Node 1')
+        onFSNodeWithAgentName(AGENT_NAME, '/project/node2.md', 'Node 2')
 
         const nodes = getAgentNodes(TERMINAL_ID)
         expect(nodes).toHaveLength(2)
-        expect(nodes[0].nodeId).toBe('/vault/node1.md')
-        expect(nodes[1].nodeId).toBe('/vault/node2.md')
+        expect(nodes[0].nodeId).toBe('/project/node1.md')
+        expect(nodes[1].nodeId).toBe('/project/node2.md')
     })
 
     it('routes FS nodes to correct terminal when multiple terminals exist', () => {

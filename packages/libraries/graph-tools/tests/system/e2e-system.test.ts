@@ -19,7 +19,7 @@ function runCli(args: readonly string[], env?: NodeJS.ProcessEnv) {
   )
 }
 
-function makeVault(tempDirs: string[]): string {
+function makeProject(tempDirs: string[]): string {
   const project = mkdtempSync(path.join(tmpdir(), 'vt-tools-system-'))
   tempDirs.push(project)
   mkdirSync(path.join(project, '.voicetree'))
@@ -91,7 +91,7 @@ describe('@vt/graph-tools system contract', () => {
   let project: string
 
   beforeEach(() => {
-    project = makeVault(tempDirs)
+    project = makeProject(tempDirs)
   })
 
   afterEach(() => {

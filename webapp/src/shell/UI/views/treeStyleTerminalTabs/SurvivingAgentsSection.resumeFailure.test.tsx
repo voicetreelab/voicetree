@@ -20,7 +20,7 @@ function makeTerminalData(): TerminalData {
     return {
         type: 'Terminal',
         terminalId: 'Bob' as TerminalData['terminalId'],
-        attachedToContextNodeId: '/vault/ctx.md' as TerminalData['attachedToContextNodeId'],
+        attachedToContextNodeId: '/project/ctx.md' as TerminalData['attachedToContextNodeId'],
         terminalCount: 0,
         anchoredToNodeId: O.none,
         title: 'Bob',
@@ -39,7 +39,7 @@ function makeTerminalData(): TerminalData {
         contextContent: '',
         agentTypeName: '',
         initialCommand: 'claude',
-        initialEnvVars: {VOICETREE_PROJECT_PATH: '/vault/current'},
+        initialEnvVars: {VOICETREE_PROJECT_PATH: '/project/current'},
     };
 }
 
@@ -47,7 +47,7 @@ function makeResumable(cliType: 'claude' | 'codex'): RecoverableAgentSession {
     return {
         terminalId: 'Bob' as TerminalData['terminalId'],
         agentName: 'Bob',
-        metadataPath: '/vault/current/.voicetree/terminals/Bob.json',
+        metadataPath: '/project/current/.voicetree/terminals/Bob.json',
         terminalData: makeTerminalData(),
         isClaimed: false,
         status: 'running',
@@ -106,12 +106,12 @@ const REASON_CASES: readonly ReasonCase[] = [
     {
         reason: 'marker-mismatch',
         cliType: 'codex',
-        expectedMessage: 'No matching session — likely the vault was moved or the task node renamed since spawn',
+        expectedMessage: 'No matching session — likely the project was moved or the task node renamed since spawn',
     },
     {
         reason: 'no-rows',
         cliType: 'codex',
-        expectedMessage: 'No Codex threads recorded for this vault',
+        expectedMessage: 'No Codex threads recorded for this project',
     },
     {
         reason: 'projects-dir-missing',
@@ -121,7 +121,7 @@ const REASON_CASES: readonly ReasonCase[] = [
     {
         reason: 'no-jsonl-matches',
         cliType: 'claude',
-        expectedMessage: 'No Claude transcripts matched this vault/cwd',
+        expectedMessage: 'No Claude transcripts matched this project/cwd',
     },
     {
         reason: 'scan-timeout',

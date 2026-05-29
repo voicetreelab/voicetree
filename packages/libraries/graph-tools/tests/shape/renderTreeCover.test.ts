@@ -14,7 +14,7 @@ describe('renderTreeCover', () => {
         tempDirs.length = 0
     })
 
-    function makeFixtureVault(): string {
+    function makeFixtureProject(): string {
         const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-render-tree-cover-'))
         tempDirs.push(tempDir)
 
@@ -30,7 +30,7 @@ describe('renderTreeCover', () => {
         return tempDir
     }
 
-    function makeLargeFixtureVault(): string {
+    function makeLargeFixtureProject(): string {
         const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-render-tree-cover-large-'))
         tempDirs.push(tempDir)
 
@@ -47,30 +47,30 @@ describe('renderTreeCover', () => {
         return tempDir
     }
 
-    it('produces identical output to renderAutoView for uncollapsed vault', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+    it('produces identical output to renderAutoView for uncollapsed project', () => {
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const fromPure = renderTreeCover(graph, {budget: 1000})
-        const fromLegacy = renderAutoView(vaultPath, {budget: 1000}).output
+        const fromLegacy = renderAutoView(projectPath, {budget: 1000}).output
         expect(fromPure).toBe(fromLegacy)
     })
 
-    it('produces identical output to renderAutoView for collapsed vault', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+    it('produces identical output to renderAutoView for collapsed project', () => {
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const fromPure = renderTreeCover(graph, {budget: 3})
-        const fromLegacy = renderAutoView(vaultPath, {budget: 3}).output
+        const fromLegacy = renderAutoView(projectPath, {budget: 3}).output
         expect(fromPure).toBe(fromLegacy)
     })
 
-    it('produces identical output for larger vault with nested folders', () => {
-        const vaultPath = makeLargeFixtureVault()
-        const root = path.resolve(vaultPath)
+    it('produces identical output for larger project with nested folders', () => {
+        const projectPath = makeLargeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const fromPure = renderTreeCover(graph, {budget: 1000})
-        const fromLegacy = renderAutoView(vaultPath, {budget: 1000}).output
+        const fromLegacy = renderAutoView(projectPath, {budget: 1000}).output
         expect(fromPure).toBe(fromLegacy)
     })
 
@@ -82,8 +82,8 @@ describe('renderTreeCover', () => {
     })
 
     it('is a pure function: same graph + opts produces same output', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const opts = {budget: 3}
         const first = renderTreeCover(graph, opts)
@@ -92,18 +92,18 @@ describe('renderTreeCover', () => {
     })
 
     it('accepts selected as ReadonlySet and matches selectedIds behavior', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const nodeId = graph.nodes[0]!.id
         const fromSet = renderTreeCover(graph, {budget: 3, selected: new Set([nodeId])})
-        const fromLegacy = renderAutoView(vaultPath, {budget: 3, selectedIds: [nodeId]}).output
+        const fromLegacy = renderAutoView(projectPath, {budget: 3, selectedIds: [nodeId]}).output
         expect(fromSet).toBe(fromLegacy)
     })
 
-    it('snapshot: uncollapsed small vault', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+    it('snapshot: uncollapsed small project', () => {
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const output = renderTreeCover(graph, {budget: 1000})
         expect(output).toContain('# format: tree-cover (auto-selected)')
@@ -112,9 +112,9 @@ describe('renderTreeCover', () => {
         expect(output).not.toContain('[collapsed:')
     })
 
-    it('snapshot: collapsed small vault', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+    it('snapshot: collapsed small project', () => {
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const output = renderTreeCover(graph, {budget: 3})
         expect(output).toContain('# budget: 3 visible entities')
@@ -123,8 +123,8 @@ describe('renderTreeCover', () => {
     })
 
     it('uses explicit title and view-applied marker for daemon-rendered views', () => {
-        const vaultPath = makeFixtureVault()
-        const root = path.resolve(vaultPath)
+        const projectPath = makeFixtureProject()
+        const root = path.resolve(projectPath)
         const graph = buildAutoViewGraph(root)
         const output = renderTreeCover(graph, {
             budget: 1000,
@@ -139,70 +139,70 @@ describe('renderTreeCover', () => {
         const graph = {
             nodes: [
                 {
-                    id: '/vault/alpha.md',
+                    id: '/project/alpha.md',
                     kind: 'file' as const,
                     label: 'Alpha',
                     relPath: 'alpha.md',
                     basename: 'alpha.md',
-                    folderPath: '/vault/',
+                    folderPath: '/project/',
                     content: 'Alpha',
                 },
                 {
-                    id: '/vault/docs/beta.md',
+                    id: '/project/docs/beta.md',
                     kind: 'file' as const,
                     label: 'Beta',
                     relPath: 'docs/beta.md',
                     basename: 'beta.md',
-                    folderPath: '/vault/docs/',
+                    folderPath: '/project/docs/',
                     content: 'Beta',
                 },
             ],
             edges: [],
-            rootPath: '/vault',
+            rootPath: '/project',
             revision: 0,
             forests: [],
             arboricity: 0,
         }
 
-        const output = renderTreeCover(graph, {title: 'vault', viewApplied: true})
+        const output = renderTreeCover(graph, {title: 'project', viewApplied: true})
 
-        expect(output).toContain('▢ vault/')
+        expect(output).toContain('▢ project/')
         expect(output).toContain('├── ▢ docs/')
-        expect(output).not.toContain('▢ vault/\n└── ▢ vault/')
+        expect(output).not.toContain('▢ project/\n└── ▢ project/')
     })
 
     it('forces user-collapsed folders to render as collapsed clusters', () => {
         const graph = {
             nodes: [
                 {
-                    id: '/vault/docs/a.md',
+                    id: '/project/docs/a.md',
                     kind: 'file' as const,
                     label: 'A',
                     relPath: 'docs/a.md',
                     basename: 'a.md',
-                    folderPath: '/vault/docs/',
+                    folderPath: '/project/docs/',
                     content: 'A',
                 },
                 {
-                    id: '/vault/docs/b.md',
+                    id: '/project/docs/b.md',
                     kind: 'file' as const,
                     label: 'B',
                     relPath: 'docs/b.md',
                     basename: 'b.md',
-                    folderPath: '/vault/docs/',
+                    folderPath: '/project/docs/',
                     content: 'B',
                 },
             ],
             edges: [],
-            rootPath: '/vault',
+            rootPath: '/project',
             revision: 0,
             forests: [],
             arboricity: 0,
         }
 
         const output = renderTreeCover(graph, {
-            collapsed: new Set(['/vault/docs']),
-            title: 'vault',
+            collapsed: new Set(['/project/docs']),
+            title: 'project',
             viewApplied: true,
         })
 
@@ -214,7 +214,7 @@ describe('renderTreeCover', () => {
         const graph = {
             nodes: [
                 {
-                    id: '/vault/docs/',
+                    id: '/project/docs/',
                     kind: 'folder-collapsed' as const,
                     label: 'docs',
                     relPath: 'docs/',
@@ -227,7 +227,7 @@ describe('renderTreeCover', () => {
                 },
             ],
             edges: [],
-            rootPath: '/vault',
+            rootPath: '/project',
             revision: 0,
             forests: [],
             arboricity: 0,

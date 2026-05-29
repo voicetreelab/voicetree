@@ -179,11 +179,11 @@ async function prepareSpawnRuntime(
 }
 
 async function loadWriteFolderPath(deps: SpawnAgentDeps): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await deps.loadWriteFolderPath()
-    if (O.isNone(vaultPathOpt)) {
-        return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
+    const projectPathOpt: O.Option<string> = await deps.loadWriteFolderPath()
+    if (O.isNone(projectPathOpt)) {
+        return {ok: false, error: 'No project loaded. Please load a folder in the UI first.'}
     }
-    return {ok: true, value: vaultPathOpt.value}
+    return {ok: true, value: projectPathOpt.value}
 }
 
 function resolveNodeId(graph: Graph, nodeId: string): NodeIdAndFilePath | undefined {

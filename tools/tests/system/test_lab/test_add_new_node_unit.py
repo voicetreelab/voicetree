@@ -17,8 +17,8 @@ def test_add_new_node_functionality():
     
     # Create temporary test directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        test_vault = Path(temp_dir) / "test_vault"
-        test_date_dir = test_vault / "2025-08-08"
+        test_project = Path(temp_dir) / "test_project"
+        test_date_dir = test_project / "2025-08-08"
         test_date_dir.mkdir(parents=True)
         
         # Create source node
@@ -134,8 +134,8 @@ def test_add_new_node_with_special_chars_in_title():
 
     # Create temporary test directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        test_vault = Path(temp_dir) / "test_vault"
-        test_date_dir = test_vault / "2025-08-08"
+        test_project = Path(temp_dir) / "test_project"
+        test_date_dir = test_project / "2025-08-08"
         test_date_dir.mkdir(parents=True)
 
         # Create source node

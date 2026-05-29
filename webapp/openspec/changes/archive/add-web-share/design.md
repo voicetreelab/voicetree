@@ -5,7 +5,7 @@ position:
 isContextNode: false
 ---
 ## Context
-VoiceTree is an Electron app for visualizing markdown file trees as interactive graphs. The web share feature allows users to upload a vault folder and receive a shareable URL where others can view the graph read-only in a browser. Architecture follows the existing pure/shell separation: pure core is identical between Electron and web, only the I/O edge differs.
+VoiceTree is an Electron app for visualizing markdown file trees as interactive graphs. The web share feature allows users to upload a project folder and receive a shareable URL where others can view the graph read-only in a browser. Architecture follows the existing pure/shell separation: pure core is identical between Electron and web, only the I/O edge differs.
 
 ## Goals / Non-Goals
 - Goals:

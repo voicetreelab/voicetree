@@ -8,7 +8,7 @@ import {
 import type { LiveStateSnapshot } from '@vt/graph-db-server/contract'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
-import { getReadPaths, getVaultPaths, getWriteFolderPath } from '@vt/graph-db-server/state/vaultAllowlist'
+import { getReadPaths, getProjectPaths, getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store'
 import { handleReadSessionState } from '../core/handleSessionState.ts'
@@ -41,7 +41,7 @@ function readFolderVisibilitySnapshot(
 async function readFolderTreeForSnapshot(
   projectRoot: string | null,
   readPaths: readonly string[],
-  vaultPaths: readonly string[],
+  projectPaths: readonly string[],
   writeFolderPath: AbsolutePath | null,
   graphNodePaths: ReadonlySet<string>,
 ): Promise<FolderTreeNode | null> {
@@ -57,7 +57,7 @@ async function readFolderTreeForSnapshot(
   if (!directoryEntry) return null
   return buildFolderTree(
     directoryEntry,
-    new Set<string>([...readPaths, ...vaultPaths]),
+    new Set<string>([...readPaths, ...projectPaths]),
     writeFolderPath,
     new Set<string>(graphNodePaths),
   )
@@ -77,12 +77,12 @@ export async function readSessionStateWorkflow(
   const projectRoot = getProjectRoot()
   const writeFolderPath = resolveWriteFolderPath(await getWriteFolderPath())
   const readPaths = [...(await getReadPaths())]
-  const vaultPaths = await getVaultPaths()
+  const projectPaths = await getProjectPaths()
 
   const folderTree = await readFolderTreeForSnapshot(
     projectRoot,
     readPaths,
-    vaultPaths,
+    projectPaths,
     writeFolderPath,
     new Set(Object.keys(graph.nodes)),
   )

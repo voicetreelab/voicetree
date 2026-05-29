@@ -13,7 +13,7 @@ While decentralized module loading does add some testing complexity, it's manage
 - **Key Approach**: Test each module in isolation, then test integration
 - **Files to Implement**:
   - backend/tests/integration_tests/test_module_loading.py
-  - backend/tests/fixtures/sample_vault/ (test data)
+  - backend/tests/fixtures/sample_project/ (test data)
 
 ** Architecture/Flow Diagram**
 ```mermaid
@@ -31,7 +31,7 @@ graph TD
         
         subgraph "Integration Test Pattern"
             Setup[Test Setup]
-            Setup --> CreateFixture[Create Test Vault]
+            Setup --> CreateFixture[Create Test Project]
             CreateFixture --> PopulateData[Populate Test Data]
             
             PopulateData --> MD[markdown files]
@@ -52,14 +52,14 @@ graph TD
     subgraph "Implementation Example"
         Code["
         def test_integration_module_loading():
-            ** Setup test vault**
-            with tempdir() as vault:
-                setup_test_data(vault)
+            ** Setup test project**
+            with tempdir() as project:
+                setup_test_data(project)
                 
                 ** Initialize system**
-                tree = MarkdownTree(vault)
+                tree = MarkdownTree(project)
                 history = HistoryManager()
-                history.load_from_file(vault)
+                history.load_from_file(project)
                 
                 ** Verify**
                 assert len(tree.tree) == expected

@@ -24,8 +24,8 @@ import {
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
-async function createExtractIntoFolderVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'extract-into-folder-vault');
+async function createExtractIntoFolderProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'extract-into-folder-project');
 
     await fs.mkdir(path.join(projectRoot, 'docs'), { recursive: true });
 
@@ -178,7 +178,7 @@ async function openCanvasContextMenu(appWindow: Page): Promise<void> {
 
 async function openProjectFromRecentProjects(appWindow: Page): Promise<void> {
     await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-    const projectButton = appWindow.locator('button:has-text("extract-folder-test-vault")').first();
+    const projectButton = appWindow.locator('button:has-text("extract-folder-test-project")').first();
     await expect(projectButton).toBeVisible({ timeout: 10000 });
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -220,7 +220,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-extract-folder-'));
-        const projectRoot = await createExtractIntoFolderVault(tempDir);
+        const projectRoot = await createExtractIntoFolderProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -230,7 +230,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
                     writeFolderPath: projectRoot,
                     readPaths: [],
@@ -241,7 +241,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'extract-folder-test',
             path: projectRoot,
-            name: 'extract-folder-test-vault',
+            name: 'extract-folder-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true,

@@ -18,19 +18,19 @@ import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes
 import { getGraph, getNode, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
-import { VaultStateSchema } from '@vt/graph-db-server/contract'
+import { ProjectStateSchema } from '@vt/graph-db-server/contract'
 import {
   addReadPath,
   getReadPaths,
   getWriteFolderPath,
   removeReadPath,
   setWriteFolderPath,
-} from '@vt/graph-db-server/state/vaultAllowlist'
+} from '@vt/graph-db-server/state/projectAllowlist'
 import { isPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
 import type { Command, CommandOutput } from './command.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
-import { VaultNotOpenError } from '../errors/vaultNotOpen.ts'
+import { ProjectNotOpenError } from '../errors/projectNotOpen.ts'
 
 export type { Command, CommandOutput } from './command.ts'
 
@@ -54,10 +54,10 @@ function requireRegistry(deps: RunCommandDeps): SessionRegistry {
   return deps.registry
 }
 
-async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
+async function readProjectState(): Promise<CommandOutput['ReadProjectState']> {
   const projectRoot = getProjectRoot()
   if (!projectRoot) {
-    throw new VaultNotOpenError()
+    throw new ProjectNotOpenError()
   }
 
   const readPaths = [...(await getReadPaths())]
@@ -66,7 +66,7 @@ async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
     ? writeFolderPathOption.value
     : projectRoot
 
-  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolderPath })
+  return ProjectStateSchema.parse({ projectRoot, readPaths, writeFolderPath })
 }
 
 async function pathExistsOnDisk(absolutePath: string): Promise<boolean> {
@@ -96,7 +96,7 @@ async function reconcileGraphWithDisk(): Promise<CommandOutput['ReconcileGraphWi
 }
 
 const commandHandlers = {
-  AddVaultReadPath: command => addReadPath(command.path),
+  AddProjectReadPath: command => addReadPath(command.path),
   ApplyGraphDeltaToDB: async command => {
     await applyGraphDeltaToDBThroughMemAndUI(
       command.delta,
@@ -137,15 +137,15 @@ const commandHandlers = {
   ReadGraph: () => getGraph(),
   ReadGraphNode: command => getNode(command.nodeId),
   ReconcileGraphWithDisk: () => reconcileGraphWithDisk(),
-  ReadVaultState: () => readVaultState(),
+  ReadProjectState: () => readProjectState(),
   RegistryTouch: (command, deps) => {
     requireRegistry(deps).touch(command.sessionId)
   },
-  RemoveVaultReadPath: command => removeReadPath(command.path),
+  RemoveProjectReadPath: command => removeReadPath(command.path),
   SetGraph: command => {
     setGraph(command.graph)
   },
-  SetVaultWriteFolderPath: command => setWriteFolderPath(command.path),
+  SetProjectWriteFolderPath: command => setWriteFolderPath(command.path),
   UpdateContextNodeContainedIds: async command => {
     await updateContextNodeContainedIds(
       command.contextNodeId,

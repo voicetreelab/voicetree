@@ -68,7 +68,7 @@ https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe
 Docker (sandboxed — keeps agents off your host filesystem)
 ```bash
 docker run -d --rm -p 6080:6080 \
-    -v voicetree-vault:/home/vt/vault \
+    -v voicetree-project:/home/vt/project \
     -v voicetree-claude:/home/vt/.config/claude \
     --shm-size=1g \
     -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \

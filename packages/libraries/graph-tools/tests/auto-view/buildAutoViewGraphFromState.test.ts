@@ -31,18 +31,18 @@ function findNode(result: ReturnType<typeof buildAutoViewGraphFromState>, id: st
 }
 
 describe('buildAutoViewGraphFromState', () => {
-    const root = '/vault'
+    const root = '/project'
 
     it('converts a single-node graph', () => {
         const graph = makeGraph({
-            '/vault/note.md': {content: '# Hello World'},
+            '/project/note.md': {content: '# Hello World'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
         expect(result.rootPath).toBe(root)
         expect(result.nodes).toHaveLength(1)
-        expect(result.nodes[0]!.id).toBe('/vault/note.md')
+        expect(result.nodes[0]!.id).toBe('/project/note.md')
         expect(result.nodes[0]!.label).toBe('Hello World')
         expect(result.nodes[0]!.relPath).toBe('note.md')
         expect(result.nodes[0]!.folderPath).toBe('')
@@ -53,28 +53,28 @@ describe('buildAutoViewGraphFromState', () => {
 
     it('derives labels from H1 headings', () => {
         const graph = makeGraph({
-            '/vault/a.md': {content: '# First Note\nSome body text'},
-            '/vault/b.md': {content: 'No heading here'},
+            '/project/a.md': {content: '# First Note\nSome body text'},
+            '/project/b.md': {content: 'No heading here'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
-        const nodeA = findNode(result, '/vault/a.md')
-        const nodeB = findNode(result, '/vault/b.md')
+        const nodeA = findNode(result, '/project/a.md')
+        const nodeB = findNode(result, '/project/b.md')
         expect(nodeA!.label).toBe('First Note')
         expect(nodeB!.label).toBe('No heading here')
     })
 
     it('computes folder paths from nested structure', () => {
         const graph = makeGraph({
-            '/vault/sub/deep/note.md': {content: '# Deep'},
-            '/vault/top.md': {content: '# Top'},
+            '/project/sub/deep/note.md': {content: '# Deep'},
+            '/project/top.md': {content: '# Top'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
-        const deep = findNode(result, '/vault/sub/deep/note.md')
-        const top = findNode(result, '/vault/top.md')
+        const deep = findNode(result, '/project/sub/deep/note.md')
+        const top = findNode(result, '/project/top.md')
         expect(deep!.folderPath).toBe('sub/deep')
         expect(deep!.relPath).toBe('sub/deep/note.md')
         expect(top!.folderPath).toBe('')
@@ -83,48 +83,48 @@ describe('buildAutoViewGraphFromState', () => {
 
     it('builds edges from outgoingEdges', () => {
         const graph = makeGraph({
-            '/vault/a.md': {content: '# A', edges: ['/vault/b.md']},
-            '/vault/b.md': {content: '# B', edges: ['/vault/a.md']},
+            '/project/a.md': {content: '# A', edges: ['/project/b.md']},
+            '/project/b.md': {content: '# B', edges: ['/project/a.md']},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
         expect(result.edges).toHaveLength(2)
-        expect(result.edges).toContainEqual(expect.objectContaining({source: '/vault/a.md', target: '/vault/b.md'}))
-        expect(result.edges).toContainEqual(expect.objectContaining({source: '/vault/b.md', target: '/vault/a.md'}))
+        expect(result.edges).toContainEqual(expect.objectContaining({source: '/project/a.md', target: '/project/b.md'}))
+        expect(result.edges).toContainEqual(expect.objectContaining({source: '/project/b.md', target: '/project/a.md'}))
     })
 
     it('filters self-referencing edges', () => {
         const graph = makeGraph({
-            '/vault/a.md': {content: '# A', edges: ['/vault/a.md', '/vault/b.md']},
-            '/vault/b.md': {content: '# B'},
+            '/project/a.md': {content: '# A', edges: ['/project/a.md', '/project/b.md']},
+            '/project/b.md': {content: '# B'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
         expect(result.edges).toHaveLength(1)
-        expect(result.edges[0]).toEqual(expect.objectContaining({source: '/vault/a.md', target: '/vault/b.md'}))
+        expect(result.edges[0]).toEqual(expect.objectContaining({source: '/project/a.md', target: '/project/b.md'}))
     })
 
     it('sets kind to folder for folder nodes', () => {
         const graph = makeGraph({
-            '/vault/folder/': {content: '', kind: 'folder'},
-            '/vault/leaf.md': {content: '# Leaf', kind: 'leaf'},
+            '/project/folder/': {content: '', kind: 'folder'},
+            '/project/leaf.md': {content: '# Leaf', kind: 'leaf'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
-        const folder = findNode(result, '/vault/folder/')
-        const leaf = findNode(result, '/vault/leaf.md')
+        const folder = findNode(result, '/project/folder/')
+        const leaf = findNode(result, '/project/leaf.md')
         expect(folder!.kind).toBe('folder')
         expect(leaf!.kind).toBe('file')
     })
 
     it('computes arboricity', () => {
         const graph = makeGraph({
-            '/vault/a.md': {content: '# A', edges: ['/vault/b.md', '/vault/c.md']},
-            '/vault/b.md': {content: '# B', edges: ['/vault/c.md']},
-            '/vault/c.md': {content: '# C'},
+            '/project/a.md': {content: '# A', edges: ['/project/b.md', '/project/c.md']},
+            '/project/b.md': {content: '# B', edges: ['/project/c.md']},
+            '/project/c.md': {content: '# C'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
@@ -145,9 +145,9 @@ describe('buildAutoViewGraphFromState', () => {
 
     it('synthesizes folder nodes from file paths', () => {
         const graph = makeGraph({
-            '/vault/sub/deep/note.md': {content: '# Deep'},
-            '/vault/sub/other.md': {content: '# Other'},
-            '/vault/top.md': {content: '# Top'},
+            '/project/sub/deep/note.md': {content: '# Deep'},
+            '/project/sub/other.md': {content: '# Other'},
+            '/project/top.md': {content: '# Top'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
@@ -155,13 +155,13 @@ describe('buildAutoViewGraphFromState', () => {
         const folderNodes = result.nodes.filter(n => n.kind === 'folder')
         expect(folderNodes).toHaveLength(2)
 
-        const sub = findNode(result, '/vault/sub')
+        const sub = findNode(result, '/project/sub')
         expect(sub).toBeDefined()
         expect(sub!.kind).toBe('folder')
         expect(sub!.relPath).toBe('sub')
         expect(sub!.folderPath).toBe('')
 
-        const deep = findNode(result, '/vault/sub/deep')
+        const deep = findNode(result, '/project/sub/deep')
         expect(deep).toBeDefined()
         expect(deep!.kind).toBe('folder')
         expect(deep!.relPath).toBe('sub/deep')
@@ -170,8 +170,8 @@ describe('buildAutoViewGraphFromState', () => {
 
     it('does not synthesize folders for root-level files', () => {
         const graph = makeGraph({
-            '/vault/a.md': {content: '# A'},
-            '/vault/b.md': {content: '# B'},
+            '/project/a.md': {content: '# A'},
+            '/project/b.md': {content: '# B'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
@@ -182,14 +182,14 @@ describe('buildAutoViewGraphFromState', () => {
 
     it('does not duplicate existing folder nodes from graph', () => {
         const graph = makeGraph({
-            '/vault/sub/note.md': {content: '# Note'},
-            '/vault/sub': {content: '', kind: 'folder'},
+            '/project/sub/note.md': {content: '# Note'},
+            '/project/sub': {content: '', kind: 'folder'},
         })
 
         const result = buildAutoViewGraphFromState(graph, root)
 
         const folderNodes = result.nodes.filter(n => n.kind === 'folder')
         expect(folderNodes).toHaveLength(1)
-        expect(folderNodes[0]!.id).toBe('/vault/sub')
+        expect(folderNodes[0]!.id).toBe('/project/sub')
     })
 })

@@ -25,7 +25,7 @@ import {
 } from '../../../critical_e2e_verification_tests/helpers/e2e-rpc-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
     cytoscapeInstance?: {
@@ -54,7 +54,7 @@ const test = base.extend<{
         const projectsPath = path.join(tempUserDataPath, 'projects.json');
         const savedProject = {
             id: 'stop-gate-test-project',
-            path: FIXTURE_VAULT_PATH,
+            path: FIXTURE_PROJECT_PATH,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
@@ -63,7 +63,7 @@ const test = base.extend<{
         await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
 
         // Settings: use 'claude "$AGENT_PROMPT"' as the command pattern.
         // Headless spawn transforms this to: claude --session-id "vt-<name>" -p "$AGENT_PROMPT"
@@ -337,7 +337,7 @@ test.describe('Stop Gate Audit E2E (BF-024)', () => {
         console.log('');
         console.log('=== STOP GATE AUDIT E2E TEST SUMMARY ===');
         console.log('[Pass] MCP server started and initialized');
-        console.log('[Pass] Vault loaded into graph');
+        console.log('[Pass] Project loaded into graph');
         console.log('[Pass] Caller terminal registered');
         console.log('[Pass] Headless agent spawned with headless=true');
         console.log('[Pass] list_agents shows isHeadless: true');

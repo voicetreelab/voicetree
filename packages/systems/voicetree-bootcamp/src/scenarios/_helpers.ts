@@ -132,13 +132,13 @@ export function stripMdExt(s: string): string {
 }
 
 /**
- * Read and parse the PATH-shim JSONL log for a vault. The shim path is the
- * `VT_BOOTCAMP_SHIM_LOG_PATH` override or `<vaultDir>/.voicetree/shim-log.jsonl`.
+ * Read and parse the PATH-shim JSONL log for a project. The shim path is the
+ * `VT_BOOTCAMP_SHIM_LOG_PATH` override or `<projectDir>/.voicetree/shim-log.jsonl`.
  * Returns an empty list if the file is absent/unreadable.
  */
-export async function loadShimLog(vaultDir: string): Promise<readonly ShimLogEntry[]> {
+export async function loadShimLog(projectDir: string): Promise<readonly ShimLogEntry[]> {
     const shimLogPath = process.env.VT_BOOTCAMP_SHIM_LOG_PATH
-        ?? path.join(getProjectDotVoicetreePath(vaultDir), 'shim-log.jsonl')
+        ?? path.join(getProjectDotVoicetreePath(projectDir), 'shim-log.jsonl')
     try {
         const raw = await fs.readFile(shimLogPath, 'utf8')
         return parseShimLog(raw)
@@ -150,7 +150,7 @@ export async function loadShimLog(vaultDir: string): Promise<readonly ShimLogEnt
 /**
  * Daemon-handle sidecar persistence for B5: the `setup` hook spawns the
  * daemon and writes the pid here; `teardown` reads it and kills the process.
- * Sidecar lives inside the vault so a single vaultDir argument carries the
+ * Sidecar lives inside the project so a single projectDir argument carries the
  * full lifecycle state.
  */
 export type DaemonHandle = {
@@ -160,13 +160,13 @@ export type DaemonHandle = {
 
 const DAEMON_SIDECAR_FILENAME = '.bootcamp-daemon.json'
 
-export async function writeDaemonHandle(vaultDir: string, handle: DaemonHandle): Promise<void> {
-    await writeFile(path.join(vaultDir, DAEMON_SIDECAR_FILENAME), JSON.stringify(handle))
+export async function writeDaemonHandle(projectDir: string, handle: DaemonHandle): Promise<void> {
+    await writeFile(path.join(projectDir, DAEMON_SIDECAR_FILENAME), JSON.stringify(handle))
 }
 
-export async function readDaemonHandle(vaultDir: string): Promise<DaemonHandle | undefined> {
+export async function readDaemonHandle(projectDir: string): Promise<DaemonHandle | undefined> {
     try {
-        const raw = await fs.readFile(path.join(vaultDir, DAEMON_SIDECAR_FILENAME), 'utf8')
+        const raw = await fs.readFile(path.join(projectDir, DAEMON_SIDECAR_FILENAME), 'utf8')
         const parsed: unknown = JSON.parse(raw)
         if (
             typeof parsed === 'object' &&
@@ -182,9 +182,9 @@ export async function readDaemonHandle(vaultDir: string): Promise<DaemonHandle |
     }
 }
 
-export async function removeDaemonHandle(vaultDir: string): Promise<void> {
+export async function removeDaemonHandle(projectDir: string): Promise<void> {
     try {
-        await fs.unlink(path.join(vaultDir, DAEMON_SIDECAR_FILENAME))
+        await fs.unlink(path.join(projectDir, DAEMON_SIDECAR_FILENAME))
     } catch {
         /* best-effort */
     }

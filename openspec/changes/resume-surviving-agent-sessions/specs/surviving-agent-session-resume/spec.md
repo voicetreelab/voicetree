@@ -2,7 +2,7 @@
 
 ### Requirement: Discover resumable persisted agent sessions
 
-The system SHALL discover resumable agent sessions from the current project's `.voicetree/terminals` metadata in addition to live unclaimed tmux sessions. A persisted record is resumable only when its metadata status is `running`, it belongs to the current vault, it is not already represented in the terminal registry, its expected tmux session is not alive, its persisted terminal data identifies a supported Claude or Codex command, and its metadata contains a deterministic native session handle.
+The system SHALL discover resumable agent sessions from the current project's `.voicetree/terminals` metadata in addition to live unclaimed tmux sessions. A persisted record is resumable only when its metadata status is `running`, it belongs to the current project, it is not already represented in the terminal registry, its expected tmux session is not alive, its persisted terminal data identifies a supported Claude or Codex command, and its metadata contains a deterministic native session handle.
 
 #### Scenario: Persisted running Claude record with missing tmux pane is resumable
 - **WHEN** `.voicetree/terminals/A.json` contains a valid running terminal metadata record for terminal `A`
@@ -46,7 +46,7 @@ The system SHALL read Claude/Codex provider-global stores as resolver inputs and
 
 ### Requirement: Exclude non-resumable persisted records
 
-The system SHALL NOT offer resume for persisted terminal metadata that is explicitly exited, already claimed, foreign to the current vault, invalid, unsupported by CLI type, or still has a live tmux pane that should be attached instead.
+The system SHALL NOT offer resume for persisted terminal metadata that is explicitly exited, already claimed, foreign to the current project, invalid, unsupported by CLI type, or still has a live tmux pane that should be attached instead.
 
 #### Scenario: Exited metadata is not resumable
 - **WHEN** a terminal metadata file has `status: "exited"`

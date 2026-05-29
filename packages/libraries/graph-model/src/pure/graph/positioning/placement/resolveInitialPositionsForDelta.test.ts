@@ -35,10 +35,10 @@ function upsert(node: GraphNode, previousNode: O.Option<GraphNode> = O.none): Up
 describe('resolveInitialPositionsForDelta', () => {
     it('fills in position for a new node by following its parent edge', () => {
         const graph: Graph = makeGraph({
-            '/vault/parent.md': makeNode('/vault/parent.md', [], { x: 100, y: 200 }),
+            '/project/parent.md': makeNode('/project/parent.md', [], { x: 100, y: 200 }),
         })
-        const child: GraphNode = makeNode('/vault/child.md', [
-            { targetId: '/vault/parent.md' as NodeIdAndFilePath, label: 'parent' },
+        const child: GraphNode = makeNode('/project/child.md', [
+            { targetId: '/project/parent.md' as NodeIdAndFilePath, label: 'parent' },
         ])
 
         const { delta, anyResolved } = resolveInitialPositionsForDelta(graph, [upsert(child)])
@@ -50,11 +50,11 @@ describe('resolveInitialPositionsForDelta', () => {
 
     it('preserves existing position on new node (legacy YAML)', () => {
         const graph: Graph = makeGraph({
-            '/vault/parent.md': makeNode('/vault/parent.md', [], { x: 100, y: 200 }),
+            '/project/parent.md': makeNode('/project/parent.md', [], { x: 100, y: 200 }),
         })
         const child: GraphNode = makeNode(
-            '/vault/child.md',
-            [{ targetId: '/vault/parent.md' as NodeIdAndFilePath, label: 'parent' }],
+            '/project/child.md',
+            [{ targetId: '/project/parent.md' as NodeIdAndFilePath, label: 'parent' }],
             { x: 999, y: 999 },
         )
 
@@ -68,9 +68,9 @@ describe('resolveInitialPositionsForDelta', () => {
     })
 
     it('skips updates to existing nodes (previousNode = Some)', () => {
-        const existing: GraphNode = makeNode('/vault/n.md', [], { x: 1, y: 2 })
-        const graph: Graph = makeGraph({ '/vault/n.md': existing })
-        const updated: GraphNode = makeNode('/vault/n.md', [])
+        const existing: GraphNode = makeNode('/project/n.md', [], { x: 1, y: 2 })
+        const graph: Graph = makeGraph({ '/project/n.md': existing })
+        const updated: GraphNode = makeNode('/project/n.md', [])
 
         const { delta, anyResolved } = resolveInitialPositionsForDelta(graph, [upsert(updated, O.some(existing))])
 
@@ -90,13 +90,13 @@ describe('resolveInitialPositionsForDelta', () => {
 
     it('resolves a batch where later nodes depend on earlier nodes in the same delta', () => {
         const graph: Graph = makeGraph({
-            '/vault/root.md': makeNode('/vault/root.md', [], { x: 0, y: 0 }),
+            '/project/root.md': makeNode('/project/root.md', [], { x: 0, y: 0 }),
         })
-        const mid: GraphNode = makeNode('/vault/mid.md', [
-            { targetId: '/vault/root.md' as NodeIdAndFilePath, label: 'parent' },
+        const mid: GraphNode = makeNode('/project/mid.md', [
+            { targetId: '/project/root.md' as NodeIdAndFilePath, label: 'parent' },
         ])
-        const leaf: GraphNode = makeNode('/vault/leaf.md', [
-            { targetId: '/vault/mid.md' as NodeIdAndFilePath, label: 'parent' },
+        const leaf: GraphNode = makeNode('/project/leaf.md', [
+            { targetId: '/project/mid.md' as NodeIdAndFilePath, label: 'parent' },
         ])
 
         const { delta, anyResolved } = resolveInitialPositionsForDelta(graph, [upsert(mid), upsert(leaf)])
@@ -111,9 +111,9 @@ describe('resolveInitialPositionsForDelta', () => {
 
     it('falls back to centroid free-slot for a parentless new node', () => {
         const graph: Graph = makeGraph({
-            '/vault/a.md': makeNode('/vault/a.md', [], { x: 50, y: 50 }),
+            '/project/a.md': makeNode('/project/a.md', [], { x: 50, y: 50 }),
         })
-        const orphan: GraphNode = makeNode('/vault/orphan.md', [])
+        const orphan: GraphNode = makeNode('/project/orphan.md', [])
 
         const { delta, anyResolved } = resolveInitialPositionsForDelta(graph, [upsert(orphan)])
 

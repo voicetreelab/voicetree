@@ -26,8 +26,8 @@ import {syncFromMain} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {syncUnclaimedTmuxFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore";
 import {syncRecoverySessionsFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore";
 import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/anchoring/headless-badge-overlay";
-import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
-import type {VaultPathState} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
+import {syncProjectStateFromMain} from "@/shell/edge/UI-edge/state/stores/ProjectPathStore";
+import type {ProjectPathState} from "@/shell/edge/UI-edge/state/stores/ProjectPathStore";
 import {syncFolderTreeFromMain, syncStarredTreesFromMain, syncExternalTreesFromMain} from "@/shell/edge/UI-edge/state/stores/FolderTreeStore";
 import type {FolderTreeNode} from "@vt/graph-model/folders";
 
@@ -89,8 +89,8 @@ function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: bo
 }
 
 /**
- * Fit viewport to remaining nodes after vault removal.
- * Called from main process when a vault path is removed from the allowlist.
+ * Fit viewport to remaining nodes after project removal.
+ * Called from main process when a project path is removed from the allowlist.
  */
 function fitViewport(): void {
     if (hasVisibleRoots()) {
@@ -119,11 +119,11 @@ function syncRecoverySessions(sessions: readonly RecoverableAgentSession[]): voi
 }
 
 /**
- * Sync vault path state from main process to renderer.
- * Called from main process after any vault path or starred folder mutation.
+ * Sync project path state from main process to renderer.
+ * Called from main process after any project path or starred folder mutation.
  */
-function syncVaultState(state: VaultPathState): void {
-    syncVaultStateFromMain(state);
+function syncProjectState(state: ProjectPathState): void {
+    syncProjectStateFromMain(state);
 }
 
 /**
@@ -179,7 +179,7 @@ export const uiAPIHandler = {
     createEditorForExternalNode,
     fitViewport,
     syncTerminals,
-    syncVaultState,
+    syncProjectState,
     syncFolderTree,
     syncStarredFolderTrees,
     syncExternalFolderTrees,

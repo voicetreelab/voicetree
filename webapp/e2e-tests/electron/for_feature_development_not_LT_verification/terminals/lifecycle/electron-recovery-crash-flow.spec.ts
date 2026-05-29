@@ -38,7 +38,7 @@ import {
     SCREENSHOT_DIR,
     buildSessionName,
     ensureScreenshotDir,
-    ensureVaultLoadedIntoGraph,
+    ensureProjectLoadedIntoGraph,
     fixtureClaudeTranscript,
     killSeededTmuxSession,
     spawnSeededTmuxSession,
@@ -118,11 +118,11 @@ async function seedRichRecoveryMetadata(opts: {
 test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
     test.describe.configure({mode: 'serial', timeout: 180_000});
 
-    test('discovery surfaces 3 recovery rows with worktree+title+agent-type and attach promotes a live tmux row into a terminal', async ({appWindow, vault}) => {
+    test('discovery surfaces 3 recovery rows with worktree+title+agent-type and attach promotes a live tmux row into a terminal', async ({appWindow, project}) => {
         await ensureScreenshotDir();
-        await ensureVaultLoadedIntoGraph(appWindow);
+        await ensureProjectLoadedIntoGraph(appWindow);
 
-        const taskNodePath: string = path.join(vault.projectRoot, 'readme.md');
+        const taskNodePath: string = path.join(project.projectRoot, 'readme.md');
 
         // ── Seed three fixtures into the CANONICAL projectRoot location ──
         // Agent A: claude, resumable via fixture transcript (Resume capability)
@@ -156,20 +156,20 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
             cliBinary: 'claude',
             status: 'running',
         };
-        const agentCSessionName: string = buildSessionName(vault.projectRoot, agentC.terminalId);
+        const agentCSessionName: string = buildSessionName(project.projectRoot, agentC.terminalId);
 
         const seededPaths: string[] = [];
         let agentATranscriptPath: string | null = null;
         let createdAgentCSession = false;
         try {
-            seededPaths.push(await seedRichRecoveryMetadata({projectRoot: vault.projectRoot, taskNodePath, agent: agentA}));
-            seededPaths.push(await seedRichRecoveryMetadata({projectRoot: vault.projectRoot, taskNodePath, agent: agentB}));
-            seededPaths.push(await seedRichRecoveryMetadata({projectRoot: vault.projectRoot, taskNodePath, agent: {...agentC, sessionNameOverride: agentCSessionName}}));
+            seededPaths.push(await seedRichRecoveryMetadata({projectRoot: project.projectRoot, taskNodePath, agent: agentA}));
+            seededPaths.push(await seedRichRecoveryMetadata({projectRoot: project.projectRoot, taskNodePath, agent: agentB}));
+            seededPaths.push(await seedRichRecoveryMetadata({projectRoot: project.projectRoot, taskNodePath, agent: {...agentC, sessionNameOverride: agentCSessionName}}));
 
             agentATranscriptPath = await fixtureClaudeTranscript({
-                claudeProjectsRoot: vault.claudeProjectsRoot,
+                claudeProjectsRoot: project.claudeProjectsRoot,
                 terminalId: agentA.terminalId,
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 taskNodePath,
                 sessionId: agentANativeSessionId,
             });
@@ -177,10 +177,10 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
             spawnSeededTmuxSession(agentCSessionName, {
                 VOICETREE_TERMINAL_ID: agentC.terminalId,
                 AGENT_NAME: agentC.terminalId,
-                VOICETREE_PROJECT_PATH: vault.projectRoot,
-                VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
+                VOICETREE_PROJECT_PATH: project.projectRoot,
+                VOICETREE_PROJECT_DIR: path.join(project.projectRoot, '.voicetree'),
                 CONTEXT_NODE_PATH: taskNodePath,
-            }, tmuxSocketPath(vault.appSupportPath));
+            }, tmuxSocketPath(project.voicetreeHomePath));
             createdAgentCSession = true;
 
             // ── Drive recovery discovery ──
@@ -209,7 +209,7 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
             // Agent C — live tmux session seeded → row carries Attach handle.
             const liveRow = byId.get(agentC.terminalId);
             expect(liveRow?.attach?.session.sessionName).toBe(agentCSessionName);
-            expect(liveRow?.attach?.session.classification).toBe('this-vault');
+            expect(liveRow?.attach?.session.classification).toBe('this-project');
             expect(liveRow?.attach?.session.attachable).toBe(true);
 
             // ── Render assertions (§5 row parity) ──
@@ -286,7 +286,7 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
                 await fs.rm(agentATranscriptPath, {force: true});
             }
             if (createdAgentCSession) {
-                killSeededTmuxSession(agentCSessionName, tmuxSocketPath(vault.appSupportPath));
+                killSeededTmuxSession(agentCSessionName, tmuxSocketPath(project.voicetreeHomePath));
             }
         }
     });

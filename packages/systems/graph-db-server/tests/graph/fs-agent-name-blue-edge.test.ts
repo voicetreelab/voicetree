@@ -16,8 +16,8 @@ import { project } from '@vt/graph-state'
 import type { Graph, GraphDelta, FSUpdate } from '@vt/graph-model/graph'
 import type { ProjectedGraph, ProjectedNode, State } from '@vt/graph-state/contract'
 
-vi.mock('../../src/watch-folder/paths/vault-allowlist', () => ({
-    getVaultPaths: vi.fn(async () => []),
+vi.mock('../../src/watch-folder/paths/project-allowlist', () => ({
+    getProjectPaths: vi.fn(async () => []),
 }))
 
 function buildMinimalState(graph: Graph): State {
@@ -59,7 +59,7 @@ Some work was done.
 [[parent-node]]`
 
         const fsEvent: FSUpdate = {
-            absolutePath: '/vault/agent-progress.md',
+            absolutePath: '/project/agent-progress.md',
             content,
             eventType: 'Added',
         }
@@ -77,14 +77,14 @@ Some work was done.
 
         // Step 2: Apply delta to graph, verify node in graph has agent_name
         const graph: Graph = applyGraphDeltaToGraph(emptyGraph, delta)
-        const node = graph.nodes['/vault/agent-progress.md']
+        const node = graph.nodes['/project/agent-progress.md']
         expect(node).toBeDefined()
         expect(node.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe('Victor')
 
         // Step 3: Project graph state to ProjectedGraph, verify agent_name survives
         const state: State = buildMinimalState(graph)
         const projected: ProjectedGraph = project(state)
-        const projNode: ProjectedNode | undefined = projected.nodes.find(n => n.id === '/vault/agent-progress.md')
+        const projNode: ProjectedNode | undefined = projected.nodes.find(n => n.id === '/project/agent-progress.md')
         expect(projNode).toBeDefined()
 
         const agentName = getAgentNameFromProjectedNode(projNode!)
@@ -99,7 +99,7 @@ color: green
 No agent here.`
 
         const fsEvent: FSUpdate = {
-            absolutePath: '/vault/regular-node.md',
+            absolutePath: '/project/regular-node.md',
             content,
             eventType: 'Added',
         }
@@ -109,7 +109,7 @@ No agent here.`
         const graph: Graph = applyGraphDeltaToGraph(emptyGraph, delta)
         const state: State = buildMinimalState(graph)
         const projected: ProjectedGraph = project(state)
-        const projNode: ProjectedNode | undefined = projected.nodes.find(n => n.id === '/vault/regular-node.md')
+        const projNode: ProjectedNode | undefined = projected.nodes.find(n => n.id === '/project/regular-node.md')
         expect(projNode).toBeDefined()
 
         const agentName = getAgentNameFromProjectedNode(projNode!)

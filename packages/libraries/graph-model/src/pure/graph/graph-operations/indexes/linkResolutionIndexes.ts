@@ -17,7 +17,7 @@ export type UnresolvedLinksIndex = ReadonlyMap<string, readonly NodeIdAndFilePat
  * Strips .md extension and normalizes to lowercase for consistent matching.
  *
  * @example
- * getBaseName('/vault/a/foo.md') => 'foo'
+ * getBaseName('/project/a/foo.md') => 'foo'
  * getBaseName('./foo.md') => 'foo'
  * getBaseName('FooBar.md') => 'foobar'
  */
@@ -97,7 +97,7 @@ function mutableCopy(index: NodeByBaseNameIndex | UnresolvedLinksIndex | undefin
  * Build nodeByBaseName index: maps lowercase basename to all node IDs with that basename.
  *
  * @example
- * "foo" → ["/vault/a/foo.md", "/vault/b/foo.md"]
+ * "foo" → ["/project/a/foo.md", "/project/b/foo.md"]
  */
 export function buildNodeByBaseNameIndex(
   nodes: Record<NodeIdAndFilePath, GraphNode>
@@ -117,7 +117,7 @@ export function buildNodeByBaseNameIndex(
  * An edge is "unresolved" if its targetId doesn't exist in nodes.
  *
  * @example
- * "bar" → ["/vault/note1.md"] (note1 has [bar] but bar.md doesn't exist)
+ * "bar" → ["/project/note1.md"] (note1 has [bar] but bar.md doesn't exist)
  */
 export function buildUnresolvedLinksIndex(
   nodes: Record<NodeIdAndFilePath, GraphNode>

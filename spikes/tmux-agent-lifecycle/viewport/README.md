@@ -23,7 +23,7 @@ Useful environment variables:
 ```bash
 PORT=4174 npm start
 VIEWPORT_AGENT=Rex npm start
-VAULT_DIR=/tmp/bf203-vault npm start
+PROJECT_DIR=/tmp/bf203-project npm start
 ```
 
 ## Capture evidence

@@ -12,7 +12,7 @@
  *   — lossless pass/fail
  *
  * Run:
- *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-parse.ts /tmp/wm-tree-cover.txt /tmp/wm-state.json [<vault-root>]
+ *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-parse.ts /tmp/wm-tree-cover.txt /tmp/wm-state.json [<project-root>]
  */
 
 import * as fs from 'node:fs'
@@ -105,8 +105,8 @@ function lcpOfIds(ids: readonly string[]): string {
     return lcp
 }
 
-function relId(absPath: string, vaultRoot: string): string {
-    return absPath.startsWith(vaultRoot + '/') ? absPath.slice(vaultRoot.length + 1) : absPath
+function relId(absPath: string, projectRoot: string): string {
+    return absPath.startsWith(projectRoot + '/') ? absPath.slice(projectRoot.length + 1) : absPath
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -114,28 +114,28 @@ function relId(absPath: string, vaultRoot: string): string {
 function main(): void {
     const asciiPath: string | undefined = process.argv[2]
     const jsonPath: string | undefined = process.argv[3]
-    const vaultArg: string | undefined = process.argv[4]
+    const projectArg: string | undefined = process.argv[4]
     if (!asciiPath || !jsonPath) {
-        console.error('Usage: L3-BF-192-tree-cover-parse.ts <tree-cover.txt> <state.json> [<vault-root>]')
+        console.error('Usage: L3-BF-192-tree-cover-parse.ts <tree-cover.txt> <state.json> [<project-root>]')
         process.exit(2)
     }
     const ascii: string = fs.readFileSync(asciiPath, 'utf8')
     const state: JsonState = JSON.parse(fs.readFileSync(jsonPath, 'utf8'))
     const ids: string[] = Object.keys(state.graph.nodes)
-    const vaultRoot: string = vaultArg ? path.resolve(vaultArg) : lcpOfIds(ids)
+    const projectRoot: string = projectArg ? path.resolve(projectArg) : lcpOfIds(ids)
 
     const parsed: Parsed = parseTreeCover(ascii)
 
     // Ground-truth node set: unique relative ids
-    const jsonNodeIds: Set<string> = new Set(ids.map(id => relId(id, vaultRoot)))
+    const jsonNodeIds: Set<string> = new Set(ids.map(id => relId(id, projectRoot)))
 
     // Ground-truth edge set: (src-rel, tgt-rel) pairs, skip self-loops
     const jsonEdges: Set<string> = new Set()
     for (const [srcAbs, node] of Object.entries(state.graph.nodes)) {
-        const src: string = relId(srcAbs, vaultRoot)
+        const src: string = relId(srcAbs, projectRoot)
         for (const e of node.outgoingEdges) {
             if (e.targetId === srcAbs) continue
-            const tgt: string = relId(e.targetId, vaultRoot)
+            const tgt: string = relId(e.targetId, projectRoot)
             jsonEdges.add(`${src}|${tgt}`)
         }
     }
@@ -173,7 +173,7 @@ function main(): void {
         && unexpectedGhostNodes.length === 0 && nodesCovered === jsonNodeIds.size
 
     console.log('=== L3-BF-192 tree-cover roundtrip fidelity ===')
-    console.log(`vault_root: ${vaultRoot}`)
+    console.log(`project_root: ${projectRoot}`)
     console.log()
     console.log(`| metric                        | value |`)
     console.log(`|-------------------------------|-------|`)

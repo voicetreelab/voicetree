@@ -28,7 +28,7 @@ export type DepthLimitedTreeInput = {
 };
 
 /**
- * Explicit invalidation requests. Callers (file watcher, vault lifecycle) must
+ * Explicit invalidation requests. Callers (file watcher, project lifecycle) must
  * tell the read model when its cached view is stale; the read model never
  * polls the filesystem.
  *

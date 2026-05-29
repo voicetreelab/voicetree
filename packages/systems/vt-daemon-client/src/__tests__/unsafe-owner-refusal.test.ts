@@ -4,7 +4,7 @@
  * Three adversarial preconditions in which the recorded owner record
  * does NOT belong to the VTD it claims to. The protocol must refuse to
  * reclaim — refuse to SIGTERM the recorded pid AND refuse to spawn a
- * replacement (the May-22 fork-storm's "vault_not_open cascade" failure
+ * replacement (the May-22 fork-storm's "project_not_open cascade" failure
  * mode is precisely the absence of these refusals).
  *
  *  - live pid + mismatched fingerprint
@@ -36,15 +36,15 @@ import { createServer, type Server } from 'node:http'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { UnsafeOwnerError } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
+import { ensureVtDaemonForProject } from './harness/nodeEnsureVtDaemonForProject.ts'
 import {
   FAKE_BIN,
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   destroyHarness,
   isProcessAlive,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   readPersistedOwner,
   spawnInnocentLongRunner,
   trackDaemonPid,
@@ -66,7 +66,7 @@ afterEach(async () => {
   for (const server of httpServers.splice(0)) {
     await new Promise<void>((res) => server.close(() => res()))
   }
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -91,7 +91,7 @@ describe.runIf(process.platform !== 'win32')(
         // `node -e setInterval(...)` — they differ → fingerprint-mismatch.
         const staleHeartbeat = Date.now() - 60_000
         const recordedNonce = 'unsafe-fingerprint-nonce'
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: innocentPid,
           port: null,
           ownerNonce: recordedNonce,
@@ -101,16 +101,16 @@ describe.runIf(process.platform !== 'win32')(
             executable: process.execPath,
             args: [
               '/opt/voicetree/vtd.mjs',
-              '--vault',
-              harness.vault,
+              '--project',
+              harness.project,
             ],
           },
         })
 
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 2_000,
           }),
@@ -120,10 +120,10 @@ describe.runIf(process.platform !== 'win32')(
         expect(isProcessAlive(innocentPid)).toBe(true)
 
         // No new vtd child was spawned.
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         // Owner record on disk is untouched.
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         expect(owner.pid).toBe(innocentPid)
         expect(owner.ownerNonce).toBe(recordedNonce)
       },
@@ -141,7 +141,7 @@ describe.runIf(process.platform !== 'win32')(
 
         const fakeChild = spawn(
           process.execPath,
-          [FAKE_BIN, '--vault', harness.vault],
+          [FAKE_BIN, '--project', harness.project],
           {
             stdio: 'ignore',
             env: {
@@ -154,22 +154,22 @@ describe.runIf(process.platform !== 'win32')(
         trackSpawn(harness, fakeChild)
         if (!fakeChild.pid) throw new Error('fake-vtd failed to spawn')
 
-        const realRecord = await waitForBoundPort(harness.vault, 5_000)
+        const realRecord = await waitForBoundPort(harness.project, 5_000)
         trackDaemonPid(harness, realRecord.pid)
 
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: realRecord.pid,
           port: realRecord.port,
           ownerNonce: recordedNonce,
           heartbeatAtMs: Date.now(),
           commandFingerprint: {
             executable: process.execPath,
-            args: [FAKE_BIN, '--vault', harness.vault],
+            args: [FAKE_BIN, '--project', harness.project],
           },
         })
 
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 2_000,
           }),
@@ -178,10 +178,10 @@ describe.runIf(process.platform !== 'win32')(
         // The real fake-vtd is STILL ALIVE — unsafe-owner refused to
         // SIGTERM it because we cannot prove it's the daemon we recorded.
         expect(isProcessAlive(realRecord.pid)).toBe(true)
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(1)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(1)
 
         // Owner record is unchanged (carries our overwritten nonce).
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         expect(owner.ownerNonce).toBe(recordedNonce)
       },
       15_000,
@@ -203,7 +203,7 @@ describe.runIf(process.platform !== 'win32')(
 
         const staleHeartbeat = Date.now() - 60_000
         const recordedNonce = 'port-reused-unrelated-nonce'
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: innocentPid,
           port: unrelatedPort,
           ownerNonce: recordedNonce,
@@ -211,14 +211,14 @@ describe.runIf(process.platform !== 'win32')(
           startedAtMs: staleHeartbeat,
           commandFingerprint: {
             executable: process.execPath,
-            args: [FAKE_BIN, '--vault', harness.vault],
+            args: [FAKE_BIN, '--project', harness.project],
           },
         })
 
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 2_000,
           }),
@@ -232,9 +232,9 @@ describe.runIf(process.platform !== 'win32')(
         // same port, the second listen would EADDRINUSE; the fact that
         // no vtd child was spawned (per the ps count below) proves the
         // unrelated server's port stays exclusively theirs.
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         expect(owner.pid).toBe(innocentPid)
         expect(owner.port).toBe(unrelatedPort)
         expect(owner.ownerNonce).toBe(recordedNonce)
@@ -259,13 +259,13 @@ async function startUnrelatedHttpServer(): Promise<number> {
 }
 
 async function waitForBoundPort(
-  vault: string,
+  project: string,
   timeoutMs: number,
 ): Promise<{ pid: number; port: number; ownerNonce: string }> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
-      const owner = await readPersistedOwner(vault)
+      const owner = await readPersistedOwner(project)
       if (owner.port !== null) {
         return {
           pid: owner.pid,

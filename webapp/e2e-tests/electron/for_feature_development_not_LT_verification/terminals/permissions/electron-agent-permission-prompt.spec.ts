@@ -30,7 +30,7 @@ import type { ElectronAPI } from '@/shell/electron';
 import type { VTSettings } from '@/pure/settings';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -53,11 +53,11 @@ function createTestFixture(permissionResponse: 'auto-run' | 'safe-mode') {
     },
 
     electronApp: async ({ tempUserDataPath }, use) => {
-      // Write config to auto-load test vault
+      // Write config to auto-load test project
       const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
       await fs.writeFile(configPath, JSON.stringify({
-        lastDirectory: FIXTURE_VAULT_PATH,
-        suffixes: { [FIXTURE_VAULT_PATH]: '' }
+        lastDirectory: FIXTURE_PROJECT_PATH,
+        suffixes: { [FIXTURE_PROJECT_PATH]: '' }
       }, null, 2), 'utf8');
 
       // Write initial settings with agentPermissionModeChosen: false

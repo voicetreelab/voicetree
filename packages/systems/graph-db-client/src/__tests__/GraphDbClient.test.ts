@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearWatchFolderState } from '@vt/graph-db-server/state/watch-folder-store'
@@ -13,18 +13,18 @@ import { DaemonUnreachableError, GraphDbClientError } from '../errors.ts'
 type Harness = {
   voicetreeHomePath: string
   root: string
-  vault: string
+  project: string
 }
 
 async function createHarness(): Promise<Harness> {
   const root = await mkdtemp(join(tmpdir(), 'graph-db-client-test-'))
-  const voicetreeHomePath = join(root, 'app-support')
-  const vault = join(root, 'vault')
+  const voicetreeHomePath = join(root, 'voicetree-home')
+  const project = join(root, 'project')
 
   await mkdir(voicetreeHomePath, { recursive: true })
-  await mkdir(vault, { recursive: true })
+  await mkdir(project, { recursive: true })
 
-  return { voicetreeHomePath, root, vault }
+  return { voicetreeHomePath, root, project }
 }
 
 async function waitFor<T>(
@@ -65,7 +65,7 @@ describe('GraphDbClient', () => {
     handles = []
     originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
     process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
-    await saveVaultConfigForDirectory(harness.vault, { writeFolderPath: '.' })
+    await saveProjectConfigForDirectory(harness.project, { writeFolderPath: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
   })
@@ -87,7 +87,7 @@ describe('GraphDbClient', () => {
 
   const start = async (): Promise<DaemonHandle> => {
     const handle = await startDaemon({
-      vault: harness.vault,
+      project: harness.project,
       createStarterIfEmpty: false,
     })
     handles.push(handle)
@@ -95,7 +95,7 @@ describe('GraphDbClient', () => {
   }
 
   const connect = async (sessionId?: string): Promise<GraphDbClient> => {
-    return await GraphDbClient.connect({ vault: harness.vault, sessionId })
+    return await GraphDbClient.connect({ project: harness.project, sessionId })
   }
 
   describe('lifecycle', () => {
@@ -104,7 +104,7 @@ describe('GraphDbClient', () => {
       const client = await connect()
 
       await expect(client.health()).resolves.toMatchObject({
-        vault: harness.vault,
+        project: harness.project,
         sessionCount: 0,
       })
       await expect(client.shutdown()).resolves.toEqual({ ok: true })
@@ -120,9 +120,9 @@ describe('GraphDbClient', () => {
     })
 
     test('connect rejects when the discovered port does not answer health', async () => {
-      await mkdir(join(harness.vault, '.voicetree'), { recursive: true })
+      await mkdir(join(harness.project, '.voicetree'), { recursive: true })
       await writeFile(
-        join(harness.vault, '.voicetree', 'graphd.port'),
+        join(harness.project, '.voicetree', 'graphd.port'),
         '1\n',
         'utf8',
       )
@@ -131,38 +131,38 @@ describe('GraphDbClient', () => {
     })
   })
 
-  describe('vault endpoints', () => {
-    test('reads and mutates vault write path through typed helpers', async () => {
+  describe('project endpoints', () => {
+    test('reads and mutates project write path through typed helpers', async () => {
       await start()
       const client = await connect()
-      const outPath = join(harness.vault, 'out')
+      const outPath = join(harness.project, 'out')
 
       await mkdir(outPath, { recursive: true })
 
       // setWriteFolderPath seeds the writeFolderPath as 'expanded' on cold mount.
-      await expect(client.getVault()).resolves.toEqual({
-        projectRoot: harness.vault,
-        readPaths: [harness.vault],
-        writeFolderPath: harness.vault,
+      await expect(client.getProject()).resolves.toEqual({
+        projectRoot: harness.project,
+        readPaths: [harness.project],
+        writeFolderPath: harness.project,
       })
 
       const afterWriteFolderPath = await client.setWriteFolderPath(outPath)
       expect(afterWriteFolderPath).toMatchObject({
-        projectRoot: harness.vault,
+        projectRoot: harness.project,
         writeFolderPath: outPath,
       })
-      // After setWriteFolderPath(outPath): the old writeFolderPath (harness.vault) is
+      // After setWriteFolderPath(outPath): the old writeFolderPath (harness.project) is
       // demoted to the expanded set, and the new writeFolderPath (outPath) is
       // seeded as expanded. Both appear in readPaths.
       expect([...afterWriteFolderPath.readPaths].sort()).toEqual(
-        [harness.vault, outPath].sort(),
+        [harness.project, outPath].sort(),
       )
     })
 
     test('surfaces daemon 4xx responses as GraphDbClientError', async () => {
       await start()
       const client = await connect()
-      const missingPath = join(harness.vault, 'missing')
+      const missingPath = join(harness.project, 'missing')
 
       await expect(client.setWriteFolderPath(missingPath)).rejects.toMatchObject({
         name: 'GraphDbClientError',
@@ -192,7 +192,7 @@ describe('GraphDbClient', () => {
           const responseByPath: Record<string, unknown> = {
             '/graph/apply-delta': { ok: true },
             '/graph/delta': { ok: true },
-            '/graph/write-markdown-file': { ok: true, absolutePath: '/vault/note.md' },
+            '/graph/write-markdown-file': { ok: true, absolutePath: '/project/note.md' },
             '/graph/context-node-from-selected-nodes': { nodeId: 'ctx.md' },
             '/graph/unseen-nodes-around-context-node': {
               nodes: [{ nodeId: 'node.md', content: '# Node' }],
@@ -218,8 +218,8 @@ describe('GraphDbClient', () => {
         client.createContextNodeFromSelectedNodes('task.md', ['a.md', 'b.md']),
       ).resolves.toEqual({ nodeId: 'ctx.md' })
       await expect(
-        client.writeMarkdownFile('/vault/note.md', '# Body\n', 'editor-1'),
-      ).resolves.toEqual({ ok: true, absolutePath: '/vault/note.md', preservedSuffix: null })
+        client.writeMarkdownFile('/project/note.md', '# Body\n', 'editor-1'),
+      ).resolves.toEqual({ ok: true, absolutePath: '/project/note.md', preservedSuffix: null })
       await expect(client.getUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
         { nodeId: 'node.md', content: '# Node' },
       ])
@@ -244,7 +244,7 @@ describe('GraphDbClient', () => {
           path: '/graph/context-node-from-selected-nodes',
         },
         {
-          body: { absolutePath: '/vault/note.md', body: '# Body\n', editorId: 'editor-1' },
+          body: { absolutePath: '/project/note.md', body: '# Body\n', editorId: 'editor-1' },
           method: 'POST',
           path: '/graph/write-markdown-file',
         },
@@ -266,7 +266,7 @@ describe('GraphDbClient', () => {
     test('returns graph state after watcher-driven updates', async () => {
       await start()
       const client = await connect()
-      const docsPath = join(harness.vault, 'docs')
+      const docsPath = join(harness.project, 'docs')
       const filePath = join(docsPath, 'hello.md')
 
       await mkdir(docsPath, { recursive: true })
@@ -284,7 +284,7 @@ describe('GraphDbClient', () => {
     test('creates context nodes and writes positions through graph helpers', async () => {
       await start()
       const client = await connect()
-      const filePath = join(harness.vault, 'source.md')
+      const filePath = join(harness.project, 'source.md')
 
       await writeFile(filePath, '# Source\n\nbody\n', 'utf8')
 
@@ -305,7 +305,7 @@ describe('GraphDbClient', () => {
       ).resolves.toEqual({ written: 1 })
 
       const positions = JSON.parse(
-        await readFile(join(harness.vault, '.voicetree', 'positions.json'), 'utf8'),
+        await readFile(join(harness.project, '.voicetree', 'positions.json'), 'utf8'),
       )
       expect(positions[filePath]).toEqual({ x: 12, y: 100 })
       expect(positions.missing).toBeUndefined()
@@ -316,14 +316,14 @@ describe('GraphDbClient', () => {
     test('round-trips create, read, folder state, selection, layout, views, and delete', async () => {
       await start()
       const client = await connect()
-      const docsPath = join(harness.vault, 'docs')
+      const docsPath = join(harness.project, 'docs')
 
       const created = await client.createSession()
       expect(created.sessionId).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
 
-      // setWriteFolderPath seeds [vault, 'expanded'] on cold mount; subsequent
+      // setWriteFolderPath seeds [project, 'expanded'] on cold mount; subsequent
       // PATCHes are interleaved with that row by path-ASC ordering.
       await expect(client.getSession(created.sessionId)).resolves.toMatchObject({
         id: created.sessionId,
@@ -333,7 +333,7 @@ describe('GraphDbClient', () => {
 
       await expect(client.getSessionState(created.sessionId)).resolves.toMatchObject(
         {
-          folderState: [[harness.vault, 'expanded']],
+          folderState: [[harness.project, 'expanded']],
           activeView: { name: 'main' },
           selection: [],
         },
@@ -343,27 +343,27 @@ describe('GraphDbClient', () => {
         client.setFolderState(created.sessionId, docsPath, 'collapsed'),
       ).resolves.toMatchObject({
         folderState: [
-          [harness.vault, 'expanded'],
+          [harness.project, 'expanded'],
           [docsPath, 'collapsed'],
         ],
       })
       await expect(client.getFolderState(created.sessionId)).resolves.toMatchObject({
         folderState: [
-          [harness.vault, 'expanded'],
+          [harness.project, 'expanded'],
           [docsPath, 'collapsed'],
         ],
       })
       await expect(
         client.setFolderStateBatch(created.sessionId, [
-          { path: join(harness.vault, 'src'), state: 'expanded' },
-          { path: join(harness.vault, 'tmp'), state: 'hidden' },
+          { path: join(harness.project, 'src'), state: 'expanded' },
+          { path: join(harness.project, 'tmp'), state: 'hidden' },
         ]),
       ).resolves.toMatchObject({
         folderState: [
-          [harness.vault, 'expanded'],
+          [harness.project, 'expanded'],
           [docsPath, 'collapsed'],
-          [join(harness.vault, 'src'), 'expanded'],
-          [join(harness.vault, 'tmp'), 'hidden'],
+          [join(harness.project, 'src'), 'expanded'],
+          [join(harness.project, 'tmp'), 'hidden'],
         ],
       })
 
@@ -418,13 +418,13 @@ describe('GraphDbClient', () => {
       const { sessionId } = await bootstrap.createSession()
       const clientA = await connect(sessionId)
       const clientB = await connect(sessionId)
-      const docsPath = join(harness.vault, 'docs')
+      const docsPath = join(harness.project, 'docs')
 
       await clientA.setFolderState(sessionId, docsPath, 'collapsed')
-      // The seeded [vault, 'expanded'] row sorts before docsPath (path ASC).
+      // The seeded [project, 'expanded'] row sorts before docsPath (path ASC).
       await expect(clientB.getSessionState(sessionId)).resolves.toMatchObject({
         folderState: [
-          [harness.vault, 'expanded'],
+          [harness.project, 'expanded'],
           [docsPath, 'collapsed'],
         ],
       })

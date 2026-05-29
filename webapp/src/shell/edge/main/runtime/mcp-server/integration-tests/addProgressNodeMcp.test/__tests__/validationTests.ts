@@ -40,7 +40,7 @@ export function describeCreateGraphToolValidationTests(): void {
             expect(payload.error).toContain('Unknown caller terminal')
         })
 
-        it('returns error when no vault is loaded', async () => {
+        it('returns error when no project is loaded', async () => {
             mockCallerTerminal()
             vi.mocked(getWriteFolderPath).mockResolvedValue(O.none)
 
@@ -52,10 +52,10 @@ export function describeCreateGraphToolValidationTests(): void {
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('No vault loaded')
+            expect(payload.error).toContain('No project loaded')
         })
 
-        it('returns error when outputPath resolves outside loaded vault paths', async () => {
+        it('returns error when outputPath resolves outside loaded project paths', async () => {
             setupStandardMocks()
 
             const response: McpToolResponse = await createGraphTool({
@@ -67,7 +67,7 @@ export function describeCreateGraphToolValidationTests(): void {
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('outside the loaded vault paths')
+            expect(payload.error).toContain('outside the loaded project paths')
         })
 
         it('returns error when parent node is not found', async () => {

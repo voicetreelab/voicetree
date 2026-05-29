@@ -5,7 +5,7 @@
 // (webapp + packages/libraries/* + packages/systems/*). Ratchet down over time.
 //
 // 2026-05-15 [BF-270]: DOVL+UFV epic structural baseline bump. Three pairs grew
-// from new daemon vault lifecycle + folder-state/view wire shapes added across
+// from new daemon project lifecycle + folder-state/view wire shapes added across
 // JOINT-001 / UFV-2 / BF-245:
 //   graph-db-client -> graph-db-protocol: 17 -> 25 (+8)
 //   graph-db-server -> graph-state:        7 -> 10 (+3)
@@ -92,7 +92,7 @@
 // is the measured value at extraction; voicetree-cli should ratchet down
 // over time, not up:
 //   voicetree-cli -> agent-runtime:        0 -> 4  (vt serve spawns runtime)
-//   voicetree-cli -> graph-db-client:      0 -> 7  (vt graph/vault/session)
+//   voicetree-cli -> graph-db-client:      0 -> 7  (vt graph/project/session)
 //   voicetree-cli -> graph-db-server:      0 -> 3  (search backend + types
 //     for vt graph index/search)
 //   voicetree-cli -> graph-model:          0 -> 1  (fromNodeToMarkdownContent
@@ -135,10 +135,10 @@
 //     one entry point; the 26 type-only symbols are free)
 //
 // `webapp -> vt-daemon-client`: 0 -> 13 — Phase 2 BF-376 outbound. Webapp
-// is now a pure client of the per-vault VTD via vt-daemon-client. The 13
+// is now a pure client of the per-project VTD via vt-daemon-client. The 13
 // value symbols are the 11 spawn / recovery / registry-management /
-// agent-events wrappers plus `ensureVtDaemonForVault` + `bindVtDaemonClient`
-// for vault-bind and `TERMINAL_REGISTRY_EVENT_TYPES` for the SSE topic.
+// agent-events wrappers plus `ensureVtDaemonForProject` + `bindVtDaemonClient`
+// for project-bind and `TERMINAL_REGISTRY_EVENT_TYPES` for the SSE topic.
 //
 // 2026-05-27 [Slice D]: @vt/agent-runtime retired. All terminal/spawn/runtime/
 // lifecycle/headless/hooks/inject/recovery/completion code absorbed into
@@ -157,7 +157,7 @@
 //   graph-db-protocol -> paths:      0 -> 1 (owner record filename)
 //   graph-db-server -> paths:        0 -> 2 (daemon types + port files)
 //   graph-tools -> paths:            0 -> 1 (live CRUD positions path)
-//   perf-fixtures -> paths:          0 -> 1 (realistic vault fixture layout)
+//   perf-fixtures -> paths:          0 -> 1 (realistic project fixture layout)
 //   voicetree-bootcamp -> paths:     0 -> 1 (scenario fixture runtime files)
 //   voicetree-cli -> paths:          0 -> 2 (home-path command + project marker)
 //   vt-daemon -> paths:              0 -> 4 (spawn env + runtime state)
@@ -209,7 +209,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'voicetree-cli -> vt-daemon': 7,
     // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
     // for non-daemon peers (BF-377); the CLI is a peer just like webapp and
-    // calls `ensureVtDaemonForVault` to spawn-or-adopt the per-vault VTD.
+    // calls `ensureVtDaemonForProject` to spawn-or-adopt the per-project VTD.
     'voicetree-cli -> vt-daemon-client': 1,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 4. `vt manual` is a pure function of
     // the protocol's canonical spec set, so the CLI legitimately reaches in
@@ -231,7 +231,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is again
     // imported into vt-daemon (vtd boot + spawn helpers + graph-db-server's
     // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
-    // app-support.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
+    // voicetree-home.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
     // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
     'vt-daemon -> app-config': 2,
     'vt-daemon -> daemon-lifecycle': 9,
@@ -274,7 +274,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon -> vt-daemon-protocol': 4,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
-    // (proposed `@vt/vault-paths` or `@vt/paths`). See #123 for
+    // (proposed `@vt/project-paths` or `@vt/paths`). See #123 for
     // the follow-up consolidation issue. After that lands, ratchet back
     // to 2 (just `ERROR_CODES`, `redactAuthorizationHeader`).
     'vt-daemon -> vt-rpc': 3,
@@ -293,9 +293,9 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-fake-agent -> vt-rpc': 1,
     'vt-rpc -> paths': 1,
     // 2026-05-27: ratcheted 24 -> 22. stripStaleVoicetreeMcpEntries +
-    // writeVaultAgentDiscoveryFile were briefly here (ce909fdeb) but only
+    // writeProjectAgentDiscoveryFile were briefly here (ce909fdeb) but only
     // webapp's electron-main calls them; now live colocated in
-    // webapp/src/shell/edge/main/runtime/electron/startup/vault-bootstrap/.
+    // webapp/src/shell/edge/main/runtime/electron/startup/project-bootstrap/.
     'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
     'webapp -> graph-model': 86,
@@ -306,7 +306,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
     // cleanups above (drop in-process configureMcpServer +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix
-    // peekCurrentVault -> getActiveVault in getMetricsViaVtd) webapp has
+    // peekCurrentProject -> getActiveProject in getMetricsViaVtd) webapp has
     // ZERO value imports from `@vt/vt-daemon`. The remaining type-only
     // imports (AgentMetricsData / SessionMetric / TopicName / etc.) cost
     // nothing at runtime and stay free. Any future value import becomes
@@ -318,7 +318,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // historical agent records (dev-manu UX preserved through the dev-manu→dev
     // integration). Single new symbol on the canonical HTTP boundary.
     'webapp -> vt-daemon-client': 14,
-    // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 1. Vault-bootstrap renders the
+    // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 1. Project-bootstrap renders the
     // canonical CLI manual into CLAUDE.md / AGENTS.md before any daemon
     // is up, so it must reach the renderer at the leaf protocol package
     // directly. The single import is `renderFullManual` (no-arg helper

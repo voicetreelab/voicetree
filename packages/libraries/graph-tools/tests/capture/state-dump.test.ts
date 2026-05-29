@@ -29,7 +29,7 @@ describe('vt-graph state dump CLI', () => {
         tempDirs.length = 0
     })
 
-    function makeFixtureVault(): string {
+    function makeFixtureProject(): string {
         const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-state-dump-'))
         tempDirs.push(tempDir)
 
@@ -42,8 +42,8 @@ describe('vt-graph state dump CLI', () => {
     }
 
     it('prints valid serialized State JSON to stdout', () => {
-        const vaultPath = makeFixtureVault()
-        const stdout = runStateDumpCli([vaultPath])
+        const projectPath = makeFixtureProject()
+        const stdout = runStateDumpCli([projectPath])
         const parsed = JSON.parse(stdout) as {
             meta: {schemaVersion: number; revision: number}
             folderState: readonly (readonly [string, string])[]
@@ -53,16 +53,16 @@ describe('vt-graph state dump CLI', () => {
 
         expect(parsed.meta.schemaVersion).toBe(1)
         expect(parsed.meta.revision).toBe(0)
-        expect(parsed.folderState).toEqual([[vaultPath, 'expanded']])
+        expect(parsed.folderState).toEqual([[projectPath, 'expanded']])
         expect(Object.keys(parsed.graph.nodes)).toHaveLength(3)
         expect(parsed.layout.positions.length).toBeGreaterThan(0)
         expect(stdout).toContain('\n  "meta": {')
     })
 
     it('supports --out and compact output', () => {
-        const vaultPath = makeFixtureVault()
-        const outPath = path.join(vaultPath, 'state.json')
-        const stdout = runStateDumpCli([vaultPath, '--no-pretty', '--out', outPath])
+        const projectPath = makeFixtureProject()
+        const outPath = path.join(projectPath, 'state.json')
+        const stdout = runStateDumpCli([projectPath, '--no-pretty', '--out', outPath])
 
         expect(existsSync(outPath)).toBe(true)
         expect(readFileSync(outPath, 'utf8')).toBe(stdout)

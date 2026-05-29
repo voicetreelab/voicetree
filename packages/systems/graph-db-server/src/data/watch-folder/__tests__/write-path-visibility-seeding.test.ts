@@ -22,7 +22,7 @@ import * as os from 'os'
 // ── Mocks (hoisted before imports) ──────────────────────────────────────
 
 vi.mock('../../graph/loading/loadGraphFromDisk', () => ({
-    loadVaultPathAdditively: vi.fn().mockResolvedValue({
+    loadProjectPathAdditively: vi.fn().mockResolvedValue({
         _tag: 'Right',
         right: { graph: { nodes: {} }, delta: [] },
     }),
@@ -60,25 +60,25 @@ import {
     setProjectRoot,
     clearWatchFolderState,
 } from '../../../state/watch-folder-store'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { setActiveViewFolderState } from '../folder-visibility-active-view'
-import { setWriteFolderPath, getReadPaths } from '../../../state/vaultAllowlist'
+import { setWriteFolderPath, getReadPaths } from '../../../state/projectAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 import { getFolderStateForActiveView } from '../../views/folderStateOps'
 
 describe('write path folder visibility seeding', () => {
     let testTmpDir: string
-    let appSupportDir: string
+    let voicetreeHomeDir: string
 
     beforeEach(async () => {
         testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'write-path-visibility-'))
-        appSupportDir = path.join(testTmpDir, 'app-support')
-        await fs.mkdir(appSupportDir, { recursive: true })
+        voicetreeHomeDir = path.join(testTmpDir, 'voicetree-home')
+        await fs.mkdir(voicetreeHomeDir, { recursive: true })
 
-        process.env.VOICETREE_HOME_PATH = appSupportDir
+        process.env.VOICETREE_HOME_PATH = voicetreeHomeDir
         initGraphModel({
-            syncVaultState: vi.fn(),
+            syncProjectState: vi.fn(),
             syncFolderTree: vi.fn(),
             syncStarredFolderTrees: vi.fn(),
             syncExternalFolderTrees: vi.fn(),
@@ -107,7 +107,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(nested, { recursive: true })
         await fs.mkdir(childB, { recursive: true })
         setProjectRoot(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writeFolderPath })
+        await saveProjectConfigForDirectory(watchedDir, { writeFolderPath })
 
         const result = await setWriteFolderPath(writeFolderPath, { createStarterIfEmpty: false })
 
@@ -127,7 +127,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(hiddenChild, { recursive: true })
         await fs.mkdir(newChild, { recursive: true })
         setProjectRoot(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writeFolderPath })
+        await saveProjectConfigForDirectory(watchedDir, { writeFolderPath })
         await setActiveViewFolderState(watchedDir, hiddenChild, 'hidden')
 
         const result = await setWriteFolderPath(writeFolderPath, { createStarterIfEmpty: false })

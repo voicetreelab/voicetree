@@ -1162,7 +1162,7 @@
           <span class="name">unloaded</span>
         </div>
         <p><b>Drawer row only.</b> No graph projection — no node, no edges, no presence in any body. Just a row in the parent's registry.</p>
-        <p>Cheapest state. The vault can have <em>thousands</em> of folders in this state with zero render cost.</p>
+        <p>Cheapest state. The project can have <em>thousands</em> of folders in this state with zero render cost.</p>
         <div class="ex">in canvas: tasks-archive/ · README.md · BF-116/117/118</div>
       </div>
 
@@ -1464,7 +1464,7 @@
       </div>
       <div class="edge">
         <h5>same file open twice</h5>
-        <p>A markdown file hard-expanded as a leaf is a single graph node. If two parent folders both have it loaded (legal in linked-vaults), the node is <em>shared</em> across both compounds — Cytoscape's normal multi-parent rules apply.</p>
+        <p>A markdown file hard-expanded as a leaf is a single graph node. If two parent folders both have it loaded (legal in linked-projects), the node is <em>shared</em> across both compounds — Cytoscape's normal multi-parent rules apply.</p>
       </div>
       <div class="edge">
         <h5>depth &gt;5</h5>
@@ -1489,7 +1489,7 @@
         With the recursive anatomy above, the two designs converge: <b>at the lowest non-trivial scale they're the same thing.</b> A hard-expanded folder has a control bar, a body of graph children, and a drawer of unloaded children — whether the outermost container is a 2D canvas (B) or a vertical scroll (A) only shapes the <em>first frame</em> you see when you open the app.
       </p>
       <p>
-        The real choice is: <b>does the user enter the system through the canvas or through the filesystem?</b> If you're a code-editor user (vault opens to a tree, expand to see), A wins. If you're a graph-app user (vault opens to a workspace, drill into territory), B wins. <em>Both deliver the same recursion.</em> Pick by what the first ten seconds of using the app should feel like.
+        The real choice is: <b>does the user enter the system through the canvas or through the filesystem?</b> If you're a code-editor user (project opens to a tree, expand to see), A wins. If you're a graph-app user (project opens to a workspace, drill into territory), B wins. <em>Both deliver the same recursion.</em> Pick by what the first ten seconds of using the app should feel like.
       </p>
     </div>
 

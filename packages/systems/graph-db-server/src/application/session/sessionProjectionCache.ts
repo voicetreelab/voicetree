@@ -53,11 +53,11 @@ function createSessionProjectionCache(
 function shouldRebuildSessionProjectionCache(input: {
   readonly cache: SessionProjectionCache | null
   readonly session: Session
-  readonly vaultVersion: number
+  readonly projectPathsVersion: number
 }): boolean {
   if (input.cache === null) return true
   if (input.cache.snapshot.session.id !== input.session.id) return true
-  if (input.cache.snapshot.vaultVersion !== input.vaultVersion) return true
+  if (input.cache.snapshot.projectPathsVersion !== input.projectPathsVersion) return true
   return input.cache.folderStateSignature !== folderStateSignature(input.session)
 }
 
@@ -66,7 +66,7 @@ function projectSessionProjectionCache(
 ): State {
   return projectSessionState({
     graph: cache.snapshot.graph,
-    vault: cache.snapshot.vault,
+    project: cache.snapshot.project,
     folderTree: cache.snapshot.folderTree,
     session: cache.snapshot.session,
   })
@@ -85,7 +85,7 @@ function advanceSessionProjectionCache(
       ? toAbsolutePath(cache.snapshot.projectRoot)
       : null,
     readPaths: cache.snapshot.readPaths,
-    vaultPaths: cache.snapshot.vaultPaths,
+    projectPaths: cache.snapshot.projectPaths,
     writeFolderPath: cache.snapshot.writeFolderPath
       ? toAbsolutePath(cache.snapshot.writeFolderPath)
       : null,

@@ -3,14 +3,14 @@
 // Relocates the OTLP listener (POST /v1/metrics) from Electron Main into the
 // daemon. Identical wire shape as before — Claude-Code-style agents are
 // unmodified; only the listening process moves. Both Electron Main and any
-// CLI peer reach the same per-vault metrics surface via JSON-RPC, while
+// CLI peer reach the same per-project metrics surface via JSON-RPC, while
 // agents continue to emit metrics on the discovered port.
 //
-// Lifecycle: `startOtlpReceiver(vault)` binds to localhost on
+// Lifecycle: `startOtlpReceiver(project)` binds to localhost on
 // `OTLP_BASE_PORT` (4318), retrying up to `OTLP_MAX_PORT_ATTEMPTS` (10)
 // times on EADDRINUSE — matching the prior Main-side contract. On a
 // successful bind the chosen port is published to
-// `<vault>/.voicetree/otlp.port` via the atomic writer in
+// `<project>/.voicetree/otlp.port` via the atomic writer in
 // `../lifecycle/otlpPortFile.ts`. `stopOtlpReceiver()` closes the listener
 // and removes the port file.
 //
@@ -37,7 +37,7 @@ const BODY_LIMIT_BYTES: number = 64 * 1024
 interface RunningReceiver {
     readonly server: Server
     readonly port: number
-    readonly vault: string
+    readonly project: string
 }
 
 let running: RunningReceiver | null = null
@@ -73,7 +73,7 @@ function readBodyWithCap(req: IncomingMessage): Promise<string | {readonly tooLa
 async function handleMetricsRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    vault: string,
+    project: string,
 ): Promise<void> {
     if (req.method !== 'POST' || req.url !== '/v1/metrics') {
         res.writeHead(404, {'Content-Type': 'application/json'})
@@ -92,7 +92,7 @@ async function handleMetricsRequest(
         const payload: OTLPMetricsRequest = JSON.parse(body)
         const parsed: ParsedMetrics = parseOTLPMetrics(payload)
         await appendTokenMetrics(
-            vault,
+            project,
             parsed.sessionId,
             {
                 input: parsed.tokens.input,
@@ -115,10 +115,10 @@ async function handleMetricsRequest(
     }
 }
 
-function tryListenOnPort(port: number, vault: string): Promise<Server | null> {
+function tryListenOnPort(port: number, project: string): Promise<Server | null> {
     return new Promise<Server | null>((resolveTry): void => {
         const candidate: Server = http.createServer((req: IncomingMessage, res: ServerResponse): void => {
-            void handleMetricsRequest(req, res, vault).catch((cause: unknown): void => {
+            void handleMetricsRequest(req, res, project).catch((cause: unknown): void => {
                 process.stderr.write(
                     `[otlpReceiver] handler error: ${(cause as Error).message}\n`,
                 )
@@ -141,19 +141,19 @@ function tryListenOnPort(port: number, vault: string): Promise<Server | null> {
     })
 }
 
-export async function startOtlpReceiver(vault: string): Promise<void> {
+export async function startOtlpReceiver(project: string): Promise<void> {
     if (running !== null) {
         throw new Error(
-            `startOtlpReceiver: receiver already running on port ${running.port} for vault ${running.vault}. `
+            `startOtlpReceiver: receiver already running on port ${running.port} for project ${running.project}. `
             + `Call stopOtlpReceiver() first.`,
         )
     }
     for (let i: number = 0; i < OTLP_MAX_PORT_ATTEMPTS; i++) {
         const port: number = OTLP_BASE_PORT + i
-        const bound: Server | null = await tryListenOnPort(port, vault)
+        const bound: Server | null = await tryListenOnPort(port, project)
         if (bound !== null) {
-            running = {server: bound, port, vault}
-            await writeOtlpPortFile(vault, port)
+            running = {server: bound, port, project}
+            await writeOtlpPortFile(project, port)
             return
         }
     }
@@ -173,7 +173,7 @@ export async function stopOtlpReceiver(): Promise<void> {
             else resolveStop()
         })
     })
-    await removeOtlpPortFile(current.vault).catch((cause: unknown): void => {
+    await removeOtlpPortFile(current.project).catch((cause: unknown): void => {
         process.stderr.write(
             `[otlpReceiver] failed to remove otlp.port: ${(cause as Error).message}\n`,
         )
@@ -182,7 +182,7 @@ export async function stopOtlpReceiver(): Promise<void> {
 
 // Test-only inspector — black-box tests use this to discover the chosen
 // port without round-tripping through the disk-published `otlp.port` file
-// when they want fast assertions. The public `<vault>/.voicetree/otlp.port`
+// when they want fast assertions. The public `<project>/.voicetree/otlp.port`
 // remains the contract for any non-test caller.
 export function __peekRunningOtlpPortForTests(): number | null {
     return running?.port ?? null

@@ -131,11 +131,11 @@ const compactAttrs = (span) => {
   const interesting = {
     service: span.serviceName,
     run: span.serviceInstanceId,
-    vault: span.spanAttrs.vault,
+    project: span.spanAttrs.project,
     port: span.spanAttrs.port,
     outcome: span.spanAttrs.outcome,
     owner: span.spanAttrs['owner.nonce'],
-    path: span.spanAttrs.targetVaultPath || span.spanAttrs.projectRoot || span.spanAttrs.watchedFolderPath,
+    path: span.spanAttrs.targetProjectPath || span.spanAttrs.projectRoot || span.spanAttrs.watchedFolderPath,
   }
   return Object.entries(interesting)
     .filter(([, value]) => value !== undefined && value !== '')

@@ -23,11 +23,11 @@ interface ExtendedWindow {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
-  // Create temp userData directory with embedded vault + config
-  // The config auto-loads the vault during app initialization
-  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix
+  // Create temp userData directory with embedded project + config
+  // The config auto-loads the project during app initialization
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default projectSuffix
   electronApp: async ({}, use, testInfo) => {
     const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -35,10 +35,10 @@ const test = base.extend<{
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-add-child-test-'));
 
     // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Create the actual vault path with default suffix 'voicetree'
+    // Create the actual project path with default suffix 'voicetree'
     // The app looks for .md files in {watchedFolder}/voicetree/
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });
@@ -47,11 +47,11 @@ const test = base.extend<{
     const parentContent = '# Parent GraphNode\n\nThis is the parent.';
     await fs.writeFile(path.join(projectRoot, 'parent.md'), parentContent, 'utf-8');
 
-    // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
+    // Write config to auto-load the watched folder (project = watchedFolder + 'voicetree')
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     // Store projectRoot for test access via testInfo (the actual path where .md files live)
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
@@ -89,13 +89,13 @@ const test = base.extend<{
     await electronApp.close();
     console.log('[Test] Electron app closed');
 
-    // Cleanup entire temp directory (includes vault)
+    // Cleanup entire temp directory (includes project)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
     console.log('[Test] Cleaned up temp directory');
   },
 
-  // Get vault path from testInfo (set by electronApp fixture)
-  testVaultPath: async ({}, use, testInfo) => {
+  // Get project path from testInfo (set by electronApp fixture)
+  testProjectPath: async ({}, use, testInfo) => {
     // Wait for electronApp fixture to set projectRoot
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
@@ -139,12 +139,12 @@ const test = base.extend<{
 });
 
 test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
-  test('should only create ONE node when adding child via context menu', async ({ appWindow, testVaultPath }) => {
+  test('should only create ONE node when adding child via context menu', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(90000);
     console.log('=== Testing add child node duplicate bug ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
-    // Vault is auto-loaded via config - wait for graph to have nodes
+    // Project is auto-loaded via config - wait for graph to have nodes
     // The appWindow fixture already waits for cytoscapeInstance, but we need nodes loaded too
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
@@ -183,7 +183,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('  Nodes:', JSON.stringify(initialState.nodes, null, 2));
     console.log('=====================================');
 
-    // Find the parent node (node ID includes the vault subdirectory path)
+    // Find the parent node (node ID includes the project subdirectory path)
     const parentNodeExists = initialState.nodes.some(n => n.id === 'voicetree/parent.md');
     expect(parentNodeExists).toBe(true);
 
@@ -209,7 +209,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const currentGraph = await api.main.getGraph();
       if (!currentGraph) throw new Error('No graph state');
 
-      // Get parent node (node ID includes the vault subdirectory path)
+      // Get parent node (node ID includes the project subdirectory path)
       const parentNode = currentGraph.nodes['voicetree/parent.md'];
       if (!parentNode) throw new Error('Parent node not found');
 
@@ -367,8 +367,8 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('[Test] COUNT IN GRAPH:', graphChildNodes.length);
 
     // Verify file was created on disk
-    const files = await fs.readdir(testVaultPath);
-    console.log('[Test] Files in vault:', files);
+    const files = await fs.readdir(testProjectPath);
+    console.log('[Test] Files in project:', files);
 
     // The child node ID includes the voicetree/ prefix (e.g., "voicetree/parent.md_0.md")
     // But readdir returns just filenames without directory prefixes

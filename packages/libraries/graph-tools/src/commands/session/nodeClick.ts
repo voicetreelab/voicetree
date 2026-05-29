@@ -39,7 +39,7 @@ type NodeClickOptions = {
   buttonRef: string
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 type RendererSnapshot = {
@@ -85,7 +85,7 @@ function usage(message?: string): Response<never> {
   return err(
     'node-click',
     message ?? 'usage: vt-debug node click <id> <label|index>',
-    'usage: vt-debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--vault PATH]',
+    'usage: vt-debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--project PATH]',
     2,
   )
 }
@@ -211,7 +211,7 @@ function parseArgs(argv: string[]): NodeClickOptions | Response<never> {
     buttonRef: positional[1],
     port: target.port,
     pid: target.pid,
-    vault: target.vault,
+    project: target.project,
   }
 }
 
@@ -335,7 +335,7 @@ async function nodeClickHandler(argv: string[]): Promise<Response<unknown>> {
   const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
-    vault: options.vault,
+    project: options.project,
   })
   if (!pick.ok) {
     return err('node-click', pick.message, pick.hint, 2)

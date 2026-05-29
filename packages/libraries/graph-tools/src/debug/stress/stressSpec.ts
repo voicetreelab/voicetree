@@ -30,7 +30,7 @@ export const RECORDED_STATE_FIXTURE_IDS = [
   '050-two-roots-root-a-only',
   '051-two-roots-loaded',
   '054-multi-command-final',
-  '080-folder-nodes-real-vault',
+  '080-folder-nodes-real-project',
 ] as const
 
 export interface StressRuntimeContext {

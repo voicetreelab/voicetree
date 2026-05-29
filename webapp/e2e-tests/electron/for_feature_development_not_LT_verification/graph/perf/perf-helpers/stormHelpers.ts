@@ -16,7 +16,7 @@ import * as os from 'node:os'
 export interface E2EArgs {
     readonly agents: number
     readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
+    readonly projectSeedNodeCount: number
     readonly perAgentTimeoutMs: number
     readonly globalTimeoutMs: number
     readonly keepArtifacts: boolean
@@ -39,7 +39,7 @@ export function parseStormArgs(): E2EArgs {
     return {
         agents: intEnv('PERF_E2E_AGENTS', 8),
         nodesPerAgent: intEnv('PERF_E2E_NODES_PER_AGENT', 30),
-        vaultSeedNodeCount: intEnv('PERF_E2E_VAULT_SEED_NODES', 300),
+        projectSeedNodeCount: intEnv('PERF_E2E_PROJECT_SEED_NODES', 300),
         perAgentTimeoutMs: intEnv('PERF_E2E_PER_AGENT_TIMEOUT_MS', 120_000),
         globalTimeoutMs: intEnv('PERF_E2E_GLOBAL_TIMEOUT_MS', 10 * 60_000),
         keepArtifacts: boolEnv('PERF_E2E_KEEP_ARTIFACTS'),

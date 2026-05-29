@@ -80,14 +80,14 @@ function getObsidianConfigPath(): string {
     }
 }
 
-interface ObsidianVault {
+interface ObsidianProject {
     path: string;
     ts: number;
     open?: boolean;
 }
 
 interface ObsidianConfig {
-    vaults: Record<string, ObsidianVault>;
+    projects: Record<string, ObsidianProject>;
 }
 
 /**
@@ -102,10 +102,10 @@ function isWithinSearchDirs(targetPath: string, searchDirs: readonly string[]): 
 }
 
 /**
- * Reads Obsidian vault paths directly from Obsidian's config file.
- * Only returns vaults within the specified search directories.
+ * Reads Obsidian project paths directly from Obsidian's config file.
+ * Only returns projects within the specified search directories.
  */
-async function getObsidianVaultPaths(searchDirs: readonly string[]): Promise<string[]> {
+async function getObsidianProjectPaths(searchDirs: readonly string[]): Promise<string[]> {
     const configPath: string = getObsidianConfigPath();
 
     try {
@@ -116,23 +116,23 @@ async function getObsidianVaultPaths(searchDirs: readonly string[]): Promise<str
         const configData: string = await fs.promises.readFile(configPath, 'utf-8');
         const config: ObsidianConfig = JSON.parse(configData) as ObsidianConfig;
 
-        const vaultPaths: string[] = [];
+        const projectPaths: string[] = [];
 
-        for (const vault of Object.values(config.vaults)) {
+        for (const project of Object.values(config.projects)) {
             // Skip if path doesn't exist anymore
-            if (!fs.existsSync(vault.path)) {
+            if (!fs.existsSync(project.path)) {
                 continue;
             }
 
-            // Only include vaults within search directories
-            if (!isWithinSearchDirs(vault.path, searchDirs)) {
+            // Only include projects within search directories
+            if (!isWithinSearchDirs(project.path, searchDirs)) {
                 continue;
             }
 
-            vaultPaths.push(vault.path);
+            projectPaths.push(project.path);
         }
 
-        return vaultPaths;
+        return projectPaths;
     } catch (err) {
         console.error('[project-scanner] Failed to read Obsidian config:', err);
         return [];
@@ -189,7 +189,7 @@ export function getDefaultSearchDirectories(): string[] {
 
 /**
  * Runs ripgrep to find marker files indicating project types.
- * Uses .git/HEAD for git repos and .obsidian/app.json for Obsidian vaults.
+ * Uses .git/HEAD for git repos and .obsidian/app.json for Obsidian projects.
  */
 async function findMarkerFiles(
     markerGlob: string,
@@ -276,7 +276,7 @@ function extractProjectPath(markerPath: string, markerSuffix: string): string {
 /**
  * Gets the last activity time for a project based on marker file mtime.
  * - Git repos: .git/index (updated on most git operations)
- * - Obsidian vaults: .obsidian/workspace.json (updated when vault is opened)
+ * - Obsidian projects: .obsidian/workspace.json (updated when project is opened)
  * Falls back to directory mtime if marker file doesn't exist.
  */
 async function getProjectActivityTime(projectPath: string, type: 'git' | 'obsidian'): Promise<number> {
@@ -300,11 +300,11 @@ async function getProjectActivityTime(projectPath: string, type: 'git' | 'obsidi
 }
 
 /**
- * Scans for git repositories and discovers Obsidian vaults.
+ * Scans for git repositories and discovers Obsidian projects.
  * Returns projects sorted by last activity time (most recent first).
  *
  * Uses a hybrid approach:
- * - Obsidian vaults: Read from config (instant) + scan for fallback
+ * - Obsidian projects: Read from config (instant) + scan for fallback
  * - Git repos: Scan with ripgrep (fast, comprehensive)
  *
  * @param searchDirs - Directories to scan for projects
@@ -314,29 +314,29 @@ export async function scanForProjects(
     searchDirs: readonly string[]
 ): Promise<DiscoveredProject[]> {
     // Run all discovery methods in parallel
-    const [gitMarkers, obsidianMarkers, obsidianVaultPaths] = await Promise.all([
+    const [gitMarkers, obsidianMarkers, obsidianProjectPaths] = await Promise.all([
         findMarkerFiles('**/.git/HEAD', searchDirs),
         findMarkerFiles('**/.obsidian/app.json', searchDirs),
-        getObsidianVaultPaths(searchDirs),
+        getObsidianProjectPaths(searchDirs),
     ]);
 
     // Collect all unique project paths with their types
     const projectEntries: Array<{ path: string; name: string; type: 'git' | 'obsidian' }> = [];
     const seenPaths: Set<string> = new Set<string>();
 
-    // Add Obsidian vaults from config first (authoritative source)
-    for (const vaultPath of obsidianVaultPaths) {
-        if (!seenPaths.has(vaultPath)) {
-            seenPaths.add(vaultPath);
+    // Add Obsidian projects from config first (authoritative source)
+    for (const projectPath of obsidianProjectPaths) {
+        if (!seenPaths.has(projectPath)) {
+            seenPaths.add(projectPath);
             projectEntries.push({
-                path: vaultPath,
-                name: path.basename(vaultPath),
+                path: projectPath,
+                name: path.basename(projectPath),
                 type: 'obsidian',
             });
         }
     }
 
-    // Process scanned Obsidian vaults (fallback for vaults not in config)
+    // Process scanned Obsidian projects (fallback for projects not in config)
     for (const markerPath of obsidianMarkers) {
         const projectPath: string = extractProjectPath(markerPath, '/.obsidian/app.json');
 

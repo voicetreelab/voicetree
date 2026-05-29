@@ -55,17 +55,17 @@ function pct(arr: readonly number[], p: number): number {
 }
 
 describe('SSE round-trip benchmark', () => {
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handle: DaemonHandle | null
   let abort: AbortController | null
 
   beforeEach(async () => {
-    vault = await mkdtemp(join(tmpdir(), 'sse-bench-vault-'))
-    appSupport = await mkdtemp(join(tmpdir(), 'sse-bench-app-'))
+    project = await mkdtemp(join(tmpdir(), 'sse-bench-project-'))
+    voicetreeHome = await mkdtemp(join(tmpdir(), 'sse-bench-app-'))
     await writeFile(
-      join(appSupport, 'voicetree-config.json'),
-      JSON.stringify({ vaultConfig: { [vault]: { writeFolderPath: vault } } }),
+      join(voicetreeHome, 'voicetree-config.json'),
+      JSON.stringify({ projectConfig: { [project]: { writeFolderPath: project } } }),
     )
     handle = null
     abort = null
@@ -75,12 +75,12 @@ describe('SSE round-trip benchmark', () => {
     abort?.abort()
     await new Promise(r => setTimeout(r, 50))
     if (handle) await handle.stop().catch(() => {})
-    await rm(vault, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
   }, 15_000)
 
   test('publish -> SSE consumer latency over 50 iterations', async () => {
-    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
 
     const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
@@ -97,7 +97,7 @@ describe('SSE round-trip benchmark', () => {
     // Seed graph so that publishing deltas projects something non-trivial.
     setGraph(applyGraphDeltaToGraph(createEmptyGraph(), [{
       type: 'UpsertNode',
-      nodeToUpsert: makeNode(join(vault, 'seed.md'), '# seed'),
+      nodeToUpsert: makeNode(join(project, 'seed.md'), '# seed'),
       previousNode: O.none,
     }]))
 
@@ -106,7 +106,7 @@ describe('SSE round-trip benchmark', () => {
     let buffered = ''
 
     for (let i = 0; i < N; i++) {
-      const nodeId = join(vault, `bench-${i}.md`)
+      const nodeId = join(project, `bench-${i}.md`)
       const delta: GraphDelta = [{
         type: 'UpsertNode',
         nodeToUpsert: makeNode(nodeId, `# bench ${i}`),
@@ -167,12 +167,12 @@ describe('SSE round-trip benchmark', () => {
   }, 60_000)
 
   test('cold-start: time-to-first-delta on a freshly connected SSE consumer', async () => {
-    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
 
     setGraph(applyGraphDeltaToGraph(createEmptyGraph(), [{
       type: 'UpsertNode',
-      nodeToUpsert: makeNode(join(vault, 'seed.md'), '# seed'),
+      nodeToUpsert: makeNode(join(project, 'seed.md'), '# seed'),
       previousNode: O.none,
     }]))
 
@@ -186,7 +186,7 @@ describe('SSE round-trip benchmark', () => {
       // SIMULATE the production race: fire the publish in the same tick we begin
       // the SSE connect. This mirrors spawnAgentTool firing both paths together.
       const ctrl = new AbortController()
-      const nodeId = join(vault, `cold-${i}.md`)
+      const nodeId = join(project, `cold-${i}.md`)
       const delta: GraphDelta = [{
         type: 'UpsertNode',
         nodeToUpsert: makeNode(nodeId, `# cold ${i}`),
@@ -244,12 +244,12 @@ describe('SSE round-trip benchmark', () => {
   }, 60_000)
 
   test('publish-before-connect: pessimistic race (delta published while SSE is still connecting)', async () => {
-    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
 
     setGraph(applyGraphDeltaToGraph(createEmptyGraph(), [{
       type: 'UpsertNode',
-      nodeToUpsert: makeNode(join(vault, 'seed.md'), '# seed'),
+      nodeToUpsert: makeNode(join(project, 'seed.md'), '# seed'),
       previousNode: O.none,
     }]))
 
@@ -260,7 +260,7 @@ describe('SSE round-trip benchmark', () => {
       const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
       const { sessionId } = SessionCreateResponseSchema.parse(await createRes.json())
 
-      const nodeId = join(vault, `prerace-${i}.md`)
+      const nodeId = join(project, `prerace-${i}.md`)
       const delta: GraphDelta = [{
         type: 'UpsertNode',
         nodeToUpsert: makeNode(nodeId, `# prerace ${i}`),

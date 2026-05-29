@@ -3,20 +3,20 @@
  * a CellResult.
  *
  * One deep impure function (`runScenario`) wraps the full pipeline:
- *   1. mkdtemp workspace (vault/, shim/, shim-log/)
+ *   1. mkdtemp workspace (project/, shim/, shim-log/)
  *   2. symlink the PATH shim so the agent's `vt` flows through the logger
- *   3. headful only: launch VoiceTree pointing at vaultDir + wait for daemon
- *   4. scenario.setup(vaultDir) materialises fixtures (VT watcher fires if open)
+ *   3. headful only: launch VoiceTree pointing at projectDir + wait for daemon
+ *   4. scenario.setup(projectDir) materialises fixtures (VT watcher fires if open)
  *   5. driver.runScenario — same path for headless and headful; the diff is
  *      whether VT is open and watching
  *   6. merge per-call shim-log files, score, compute coverage + fitness
- *   7. scenario.teardown(vaultDir) in finally{} so it always runs
+ *   7. scenario.teardown(projectDir) in finally{} so it always runs
  *
  * All scoring lives in pure functions (scoring.ts) — the runner just plumbs
  * the data. The driver interface absorbs harness-specific churn; the runner
  * stays harness-agnostic.
  *
- * Headful is "headless + a VT window watching the vault". The agent process
+ * Headful is "headless + a VT window watching the project". The agent process
  * is identical (external claude-code, same PATH-shim, same env); VT picks up
  * the file writes through its normal watcher. This means full telemetry is
  * preserved (driver returns real token counts) and there are no caller-
@@ -84,7 +84,7 @@ export type RunOptions = {
     /** Hard cap on the inner agent invocation. Defaults to 10 minutes. */
     readonly timeoutMs?: number
     /**
-     * Headful only — how long to wait for the per-vault VTD to write its
+     * Headful only — how long to wait for the per-project VTD to write its
      * rpc.port discovery file before giving up. Defaults to 60s; raise if
      * the machine is slow to launch Electron.
      */
@@ -95,8 +95,8 @@ export type RunOptions = {
      * polling the filesystem. Production callers should leave these unset
      * and get the real implementations.
      */
-    readonly launchVoicetreeApp?: (vaultDir: string) => Promise<void>
-    readonly waitForDaemonReady?: (vaultDir: string, timeoutMs: number) => Promise<void>
+    readonly launchVoicetreeApp?: (projectDir: string) => Promise<void>
+    readonly waitForDaemonReady?: (projectDir: string, timeoutMs: number) => Promise<void>
 }
 
 export async function runScenario(opts: RunOptions): Promise<CellResult> {
@@ -113,27 +113,27 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
 
     const workspaceRoot =
         opts.workspaceRoot ?? (await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bootcamp-')))
-    const vaultDir = path.join(workspaceRoot, 'vault')
+    const projectDir = path.join(workspaceRoot, 'project')
     const shimDir = path.join(workspaceRoot, 'shim')
     const shimLogDir = path.join(workspaceRoot, 'shim-log')
 
-    await fs.mkdir(vaultDir, {recursive: true})
+    await fs.mkdir(projectDir, {recursive: true})
     await fs.mkdir(shimDir, {recursive: true})
     await fs.mkdir(shimLogDir, {recursive: true})
     await fs.symlink(SHIM_BIN, path.join(shimDir, 'vt'))
 
-    // Headful: open VT pointing at the empty vault BEFORE we copy fixtures so
+    // Headful: open VT pointing at the empty project BEFORE we copy fixtures so
     // the user sees them appear in the graph in real time. Wait for the
-    // per-vault VTD to write rpc.port — that's the daemon-ready signal that
+    // per-project VTD to write rpc.port — that's the daemon-ready signal that
     // the app's watcher is wired up. Both the bootcamp's shim'd `vt` calls
     // and the Electron app converge on this one daemon (BF-348 single-flight),
     // so the agent's graph mutations reach VT's renderer through the same RPC.
     if (mode === 'headful') {
-        await launchApp(vaultDir)
-        await waitDaemon(vaultDir, daemonReadyTimeoutMs)
+        await launchApp(projectDir)
+        await waitDaemon(projectDir, daemonReadyTimeoutMs)
     }
 
-    await opts.scenario.setup(vaultDir)
+    await opts.scenario.setup(projectDir)
 
     try {
         const env: Record<string, string> = {
@@ -147,7 +147,7 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
             model: opts.model,
             effort: opts.effort,
             prompt: opts.scenario.taskPrompt,
-            cwd: vaultDir,
+            cwd: projectDir,
             env,
             timeoutMs,
             artifactDir: workspaceRoot,
@@ -155,7 +155,7 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
 
         const shimEntries = await loadShimEntries(shimLogDir)
         const {attempts} = scoreScenario(opts.scenario.expectedCommands, shimEntries)
-        const success = await opts.scenario.successCriteria(vaultDir)
+        const success = await opts.scenario.successCriteria(projectDir)
         const coverage = computeCoverage(opts.scenario.expectedCommands, shimEntries)
 
         const telemetry: RunTelemetry = {
@@ -186,7 +186,7 @@ export async function runScenario(opts: RunOptions): Promise<CellResult> {
         }
     } finally {
         if (opts.scenario.teardown) {
-            await opts.scenario.teardown(vaultDir).catch(() => {})
+            await opts.scenario.teardown(projectDir).catch(() => {})
         }
     }
 }
@@ -215,7 +215,7 @@ function currentEnvAsStrings(): Record<string, string> {
 }
 
 /**
- * Launch the in-repo Electron build pointed at vaultDir.
+ * Launch the in-repo Electron build pointed at projectDir.
  *
  * We deliberately do NOT use `/Applications/Voicetree.app` — that bundle is
  * a *user-installed* version that may lag the current codebase, and the
@@ -235,7 +235,7 @@ function currentEnvAsStrings(): Record<string, string> {
  * sibling log file so the dev server's chatter doesn't pollute the
  * harness's own report output.
  */
-async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
+async function launchVoicetreeAppDefault(projectDir: string): Promise<void> {
     const webappDir = WEBAPP_DIR_DEFAULT
     try {
         await fs.stat(path.join(webappDir, 'package.json'))
@@ -248,7 +248,7 @@ async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
         )
     }
 
-    const workspaceRoot = path.dirname(vaultDir)
+    const workspaceRoot = path.dirname(projectDir)
     const logFile = path.join(workspaceRoot, 'voicetree-app.log')
     const out = await fs.open(logFile, 'a')
 
@@ -257,7 +257,7 @@ async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
             cwd: webappDir,
             env: {
                 ...process.env,
-                VOICETREE_STARTUP_FOLDER: vaultDir,
+                VOICETREE_STARTUP_FOLDER: projectDir,
                 NODE_ENV: 'development',
             },
             stdio: ['ignore', out.fd, out.fd],
@@ -279,21 +279,21 @@ async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
 
     process.stderr.write(
         `[bootcamp] launching VoiceTree (in-repo dev build) from ${webappDir}\n` +
-            `[bootcamp] vault: ${vaultDir}\n` +
+            `[bootcamp] project: ${projectDir}\n` +
             `[bootcamp] app log: ${logFile}\n` +
             `[bootcamp] waiting for daemon... (cold dev start ≈ 60-90s)\n`,
     )
 }
 
 /**
- * Poll for the per-vault VTD's discovery file at `<vault>/.voicetree/rpc.port`.
- * The Electron app spawns one VTD per opened vault; the daemon writes rpc.port
+ * Poll for the per-project VTD's discovery file at `<project>/.voicetree/rpc.port`.
+ * The Electron app spawns one VTD per opened project; the daemon writes rpc.port
  * once it's accepting connections. Appearance of that file is the canonical
  * "daemon ready" signal — the same signal the CLI's daemon-url-binding uses
  * to discover a running peer.
  */
-async function waitForDaemonReadyDefault(vaultDir: string, timeoutMs: number): Promise<void> {
-    const rpcPortPath = path.join(getProjectDotVoicetreePath(vaultDir), 'rpc.port')
+async function waitForDaemonReadyDefault(projectDir: string, timeoutMs: number): Promise<void> {
+    const rpcPortPath = path.join(getProjectDotVoicetreePath(projectDir), 'rpc.port')
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
         try {
@@ -306,7 +306,7 @@ async function waitForDaemonReadyDefault(vaultDir: string, timeoutMs: number): P
     }
     throw new Error(
         `waitForDaemonReady: ${rpcPortPath} did not appear within ${timeoutMs}ms. ` +
-            'Is the Voicetree app installed and able to open this vault path?',
+            'Is the Voicetree app installed and able to open this project path?',
     )
 }
 

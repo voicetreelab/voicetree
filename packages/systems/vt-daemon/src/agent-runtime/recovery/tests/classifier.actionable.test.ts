@@ -12,8 +12,8 @@ import {
     record,
     SESSION_A,
     TERMINAL_A,
-    VAULT_HASH,
-    VAULT_PATH,
+    PROJECT_HASH,
+    PROJECT_PATH,
 } from './classifier.test-fixtures'
 
 // ---------------------------------------------------------------------------
@@ -102,16 +102,16 @@ describe('resume capability — Claude', () => {
                     type: 'Terminal',
                     terminalId: 'Mira',
                     agentName: 'Mira',
-                    attachedToContextNodeId: '/vault/readme.md',
+                    attachedToContextNodeId: '/project/readme.md',
                     initialCommand: 'claude',
                     initialEnvVars: {
                         VOICETREE_TERMINAL_ID: 'Mira',
-                        VOICETREE_PROJECT_PATH: VAULT_PATH,
-                        TASK_NODE_PATH: '/vault/task.md',
+                        VOICETREE_PROJECT_PATH: PROJECT_PATH,
+                        TASK_NODE_PATH: '/project/task.md',
                     },
                     isHeadless: false,
                 },
-            }, '/vault/.voicetree/terminals/Mira.json')],
+            }, '/project/.voicetree/terminals/Mira.json')],
             resumeHandleByTerminalId: new Map([['Mira', {cliType: 'claude'}]]),
         }))
         expect(result.kind).toBe('recoverable')
@@ -120,7 +120,7 @@ describe('resume capability — Claude', () => {
             expect(result.record.terminalData.shadowNodeDimensions).toEqual({width: 395, height: 380})
             expect(O.isSome(result.record.terminalData.anchoredToNodeId)).toBe(true)
             if (O.isSome(result.record.terminalData.anchoredToNodeId)) {
-                expect(result.record.terminalData.anchoredToNodeId.value).toBe('/vault/task.md')
+                expect(result.record.terminalData.anchoredToNodeId.value).toBe('/project/task.md')
             }
         }
     })
@@ -172,12 +172,12 @@ describe('session name resolution from env vars', () => {
                     initialCommand: 'claude',
                     initialEnvVars: {
                         VOICETREE_TERMINAL_ID: TERMINAL_A,
-                        VOICETREE_PROJECT_PATH: VAULT_PATH,
+                        VOICETREE_PROJECT_PATH: PROJECT_PATH,
                     },
                 }),
             })],
             liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
-            currentNamespaceHash: VAULT_HASH,
+            currentNamespaceHash: PROJECT_HASH,
         }))
         expect(result.kind).toBe('recoverable')
         if (result.kind === 'recoverable') {
@@ -194,7 +194,7 @@ describe('session name resolution from env vars', () => {
                     initialCommand: 'claude',
                     initialEnvVars: {
                         VOICETREE_TERMINAL_ID: TERMINAL_A,
-                        VOICETREE_PROJECT_PATH: VAULT_PATH,
+                        VOICETREE_PROJECT_PATH: PROJECT_PATH,
                     },
                 }),
             })],

@@ -28,7 +28,7 @@ export function installElectronApiStub(daemon: InBrowserDaemon): void {
     })
 
     // Build a Proxy for `main.*` so any RPC method shipped renderer code may
-    // call during boot (terminal restoration, vault probe, etc.) returns
+    // call during boot (terminal restoration, project probe, etc.) returns
     // `undefined`/`null` rather than throwing on access. The handful of
     // methods the playground actually needs are explicitly handled.
     const mainTarget: Record<string, (...args: unknown[]) => Promise<unknown>> = {
@@ -82,9 +82,9 @@ export function installElectronApiStub(daemon: InBrowserDaemon): void {
                 ({ success: false, error: 'playground: terminals disabled' }),
         },
         onBackendLog: (): void => {},
-        onVaultSwitching: (): (() => void) => (): void => {},
-        onVaultReady: (): (() => void) => (): void => {},
-        onVaultLost: (): (() => void) => (): void => {},
+        onProjectSwitching: (): (() => void) => (): void => {},
+        onProjectReady: (): (() => void) => (): void => {},
+        onProjectLost: (): (() => void) => (): void => {},
         onViewSwitched: (): (() => void) => (): void => {},
         removeAllListeners: (): void => {},
         invoke: async (): Promise<unknown> => null,

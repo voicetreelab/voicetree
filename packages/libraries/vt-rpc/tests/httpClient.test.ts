@@ -134,7 +134,7 @@ describe('createRpcClient + call', (): void => {
 
 describe('createRpcClientForProject', (): void => {
     it('round-trips against the explicit project, ignoring cwd', async (): Promise<void> => {
-        const token: string = 'tok_vault_only_zzzz'
+        const token: string = 'tok_project_only_zzzz'
         const fake: FakeDaemon = await startFakeDaemon(token, (_req, body): unknown => {
             const parsed = JSON.parse(body)
             return {jsonrpc: '2.0', id: parsed.id, result: {ok: true}}

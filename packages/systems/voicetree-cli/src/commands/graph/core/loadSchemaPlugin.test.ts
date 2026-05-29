@@ -5,20 +5,20 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {clearLoadSchemaPluginCacheForTest, loadSchemaPlugin} from './loadSchemaPlugin'
 
 describe('loadSchemaPlugin', () => {
-    let vaultRoot: string
+    let projectRoot: string
 
     beforeEach(async () => {
-        vaultRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-load-schema-')))
+        projectRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-load-schema-')))
         clearLoadSchemaPluginCacheForTest()
     })
 
     afterEach(async () => {
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
         clearLoadSchemaPluginCacheForTest()
     })
 
     async function writeSchemasModule(body: string): Promise<string> {
-        const voicetreeDir: string = join(vaultRoot, '.voicetree')
+        const voicetreeDir: string = join(projectRoot, '.voicetree')
         await mkdir(voicetreeDir, {recursive: true})
         const schemasPath: string = join(voicetreeDir, 'schemas.cjs')
         await writeFile(schemasPath, body, 'utf8')
@@ -40,7 +40,7 @@ describe('loadSchemaPlugin', () => {
             }`
         )
 
-        const plugin = await loadSchemaPlugin(vaultRoot)
+        const plugin = await loadSchemaPlugin(projectRoot)
         expect(plugin).toBeDefined()
         expect(plugin?.['my-kind']).toBeDefined()
         expect(plugin?.['my-kind'].validate('with required content')).toEqual([])
@@ -50,35 +50,35 @@ describe('loadSchemaPlugin', () => {
     })
 
     it('returns undefined when no schemas.cjs exists', async () => {
-        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-        expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
+        await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
+        expect(await loadSchemaPlugin(projectRoot)).toBeUndefined()
     })
 
     it('returns undefined when the .voicetree dir itself is absent', async () => {
-        expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
+        expect(await loadSchemaPlugin(projectRoot)).toBeUndefined()
     })
 
     it('returns undefined when the exported value is not a ValidatorMap', async () => {
         await writeSchemasModule('module.exports = "not an object"')
-        expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
+        expect(await loadSchemaPlugin(projectRoot)).toBeUndefined()
     })
 
     it('returns undefined when a validator entry is missing the validate function', async () => {
         await writeSchemasModule(`module.exports = { "broken": { notValidate: () => [] } }`)
-        expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
+        expect(await loadSchemaPlugin(projectRoot)).toBeUndefined()
     })
 
-    it('rejects schemas.cjs that resolves outside the vault root via symlink', async () => {
+    it('rejects schemas.cjs that resolves outside the project root via symlink', async () => {
         const outsideDir: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-outside-schema-')))
         try {
             const outsideSchemas: string = join(outsideDir, 'schemas.cjs')
             await writeFile(outsideSchemas, 'module.exports = {}', 'utf8')
 
-            const voicetreeDir: string = join(vaultRoot, '.voicetree')
+            const voicetreeDir: string = join(projectRoot, '.voicetree')
             await mkdir(voicetreeDir, {recursive: true})
             await symlink(outsideSchemas, join(voicetreeDir, 'schemas.cjs'))
 
-            await expect(loadSchemaPlugin(vaultRoot)).rejects.toThrow(/Refusing to load schema plugin/)
+            await expect(loadSchemaPlugin(projectRoot)).rejects.toThrow(/Refusing to load schema plugin/)
         } finally {
             await rm(outsideDir, {recursive: true, force: true})
         }
@@ -97,18 +97,18 @@ describe('loadSchemaPlugin', () => {
             }`
         )
 
-        const first = await loadSchemaPlugin(vaultRoot)
-        const second = await loadSchemaPlugin(vaultRoot)
+        const first = await loadSchemaPlugin(projectRoot)
+        const second = await loadSchemaPlugin(projectRoot)
         expect(first).toBe(second)
         void schemasPath
     })
 
     it('reloads the module when schemas.cjs mtime changes', async () => {
         await writeSchemasModule(`module.exports = { "my-kind": { validate: () => [] } }`)
-        const before = await loadSchemaPlugin(vaultRoot)
+        const before = await loadSchemaPlugin(projectRoot)
         expect(before?.['my-kind']).toBeDefined()
 
-        const newSchemasPath: string = join(vaultRoot, '.voicetree', 'schemas.cjs')
+        const newSchemasPath: string = join(projectRoot, '.voicetree', 'schemas.cjs')
         await writeFile(
             newSchemasPath,
             `module.exports = { "renamed-kind": { validate: () => [] } }`,
@@ -117,7 +117,7 @@ describe('loadSchemaPlugin', () => {
         const future: Date = new Date(Date.now() + 5000)
         await utimes(newSchemasPath, future, future)
 
-        const after = await loadSchemaPlugin(vaultRoot)
+        const after = await loadSchemaPlugin(projectRoot)
         expect(after?.['renamed-kind']).toBeDefined()
         expect(after?.['my-kind']).toBeUndefined()
         expect(after).not.toBe(before)

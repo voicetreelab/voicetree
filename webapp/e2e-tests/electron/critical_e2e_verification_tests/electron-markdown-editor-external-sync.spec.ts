@@ -20,7 +20,7 @@ import * as fs from 'fs/promises';
 import type { EdgeSingular } from 'cytoscape';
 import type { ExtendedWindow } from './helpers/electron-markdown-editor-fixtures';
 import {
-  FIXTURE_VAULT_PATH,
+  FIXTURE_PROJECT_PATH,
   registerStopFileWatchingAfterEach,
   test,
 } from './helpers/electron-markdown-editor-fixtures';
@@ -55,8 +55,8 @@ test.describe('Markdown Editor External Sync', () => {
     const testFilePath = path.isAbsolute(nodeId)
       ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
       : (nodeId.endsWith('.md')
-          ? path.join(FIXTURE_VAULT_PATH, nodeId)
-          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
+          ? path.join(FIXTURE_PROJECT_PATH, nodeId)
+          : path.join(FIXTURE_PROJECT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
     const initialEdges = await appWindow.evaluate((nId) => {
@@ -184,12 +184,12 @@ test.describe('Markdown Editor External Sync', () => {
 
     console.log(`✓ Found node with ID: ${nodeId}`);
 
-    // nodeId may be absolute or relative to FIXTURE_VAULT_PATH.
+    // nodeId may be absolute or relative to FIXTURE_PROJECT_PATH.
     const testFilePath = path.isAbsolute(nodeId)
       ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
       : (nodeId.endsWith('.md')
-          ? path.join(FIXTURE_VAULT_PATH, nodeId)
-          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
+          ? path.join(FIXTURE_PROJECT_PATH, nodeId)
+          : path.join(FIXTURE_PROJECT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content:', originalContent.substring(0, 50) + '...');
 

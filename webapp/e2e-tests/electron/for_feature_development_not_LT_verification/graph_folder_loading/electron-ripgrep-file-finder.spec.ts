@@ -60,7 +60,7 @@ const test = base.extend<{
       configPath,
       JSON.stringify({
         lastDirectory: testDir,
-        vaultConfig: {
+        projectConfig: {
           [testDir]: {
             writeFolderPath: testDir,
             readPaths: []

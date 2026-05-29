@@ -7,10 +7,10 @@ import {getProjectDotVoicetreePath} from '@vt/paths'
 import {liveStateDump} from '../src/live/live'
 import {findLoadedRootForFile} from './liveEdgePersist'
 
-async function getLoadedRoots(vaultPath?: string): Promise<readonly string[]> {
+async function getLoadedRoots(projectPath?: string): Promise<readonly string[]> {
   // BF-266a: derive loaded roots via hydrateState. Post-UFV the wire shape no longer
   // includes `roots.loaded`; hydrateState derives it from folderState rows.
-  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
+  const result = await liveStateDump({pretty: false, ...(projectPath !== undefined ? {projectPath} : {})})
   const serialized = JSON.parse(result.json) as SerializedState
   const state = hydrateState(serialized)
   return [...state.roots.loaded]
@@ -34,8 +34,8 @@ function writePositionRecord(filePath: string, update: (positions: Record<string
   fs.writeFileSync(filePath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
 }
 
-async function positionsPathForFile(filePath: string, vaultPath?: string): Promise<string | undefined> {
-  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
+async function positionsPathForFile(filePath: string, projectPath?: string): Promise<string | undefined> {
+  const root = findLoadedRootForFile(await getLoadedRoots(projectPath), filePath)
   return root === undefined
     ? undefined
     : path.join(getProjectDotVoicetreePath(root), 'positions.json')
@@ -44,9 +44,9 @@ async function positionsPathForFile(filePath: string, vaultPath?: string): Promi
 export async function writePositionForFile(
   filePath: string,
   position: {readonly x: number; readonly y: number},
-  vaultPath?: string,
+  projectPath?: string,
 ): Promise<void> {
-  const positionsPath = await positionsPathForFile(filePath, vaultPath)
+  const positionsPath = await positionsPathForFile(filePath, projectPath)
   if (positionsPath === undefined) return
 
   writePositionRecord(positionsPath, (positions) => {
@@ -54,8 +54,8 @@ export async function writePositionForFile(
   })
 }
 
-export async function removePositionForFile(filePath: string, vaultPath?: string): Promise<void> {
-  const positionsPath = await positionsPathForFile(filePath, vaultPath)
+export async function removePositionForFile(filePath: string, projectPath?: string): Promise<void> {
+  const positionsPath = await positionsPathForFile(filePath, projectPath)
   if (positionsPath === undefined) return
 
   writePositionRecord(positionsPath, (positions) => {

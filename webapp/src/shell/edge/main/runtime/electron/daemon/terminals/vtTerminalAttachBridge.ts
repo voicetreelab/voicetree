@@ -11,7 +11,7 @@
  * renderer-side IPC routing never depends on terminal identity.
  *
  * Cleanup: returned closure disposes all clients and removes IPC handlers
- * on vault switch / app shutdown.
+ * on project switch / app shutdown.
  */
 import {randomUUID} from 'node:crypto'
 import {ipcMain, type BrowserWindow} from 'electron'

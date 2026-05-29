@@ -12,7 +12,7 @@ import type {
     FolderTreeNode,
     FileTreeNode,
 } from './types';
-import type { VaultConfig } from '../settings/types';
+import type { ProjectConfig } from '../settings/types';
 
 /**
  * Result of parsing a search query for folder navigation.
@@ -169,14 +169,14 @@ export function getAvailableFolders(
 }
 
 /**
- * Handle folder actions immutably. Returns new VaultConfig.
+ * Handle folder actions immutably. Returns new ProjectConfig.
  * Only handles folder config actions; UI-only actions return original config.
  */
 export function reduceFolderConfig(
-    config: VaultConfig,
+    config: ProjectConfig,
     action: FolderAction,
     projectRoot: AbsolutePath
-): VaultConfig {
+): ProjectConfig {
     switch (action.type) {
         case 'RESET_WRITE_TO_ROOT': {
             // Set writeFolderPath to projectRoot
@@ -254,14 +254,14 @@ export function toFolderSelectorState(
 }
 
 /**
- * Filter loaded vault paths to those NOT under projectRoot. PURE.
+ * Filter loaded project paths to those NOT under projectRoot. PURE.
  */
 export function getExternalReadPaths(
-    vaultPaths: readonly string[],
+    projectPaths: readonly string[],
     projectRoot: string
 ): readonly string[] {
     const normalizedRoot: string = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/';
-    return vaultPaths.filter((p: string) => !p.startsWith(normalizedRoot) && p !== projectRoot);
+    return projectPaths.filter((p: string) => !p.startsWith(normalizedRoot) && p !== projectRoot);
 }
 
 // ============================================================

@@ -76,7 +76,7 @@ export function stopTrackpadMonitoring(): void {
  * or production dist), wire up macOS hide-on-close, trackpad detection,
  * and focus tracking.
  *
- * Post-BF-376: tmux PTY lifetimes are owned by the per-vault VTD, so the
+ * Post-BF-376: tmux PTY lifetimes are owned by the per-project VTD, so the
  * window-close path no longer issues a `cleanupForWindow` call into an
  * in-process `TerminalManager` — sessions persist on the daemon's tmux
  * server across window destruction (matching dock-hide semantics).

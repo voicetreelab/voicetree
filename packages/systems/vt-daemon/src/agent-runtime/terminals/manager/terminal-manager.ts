@@ -91,7 +91,7 @@ export class TerminalManager {
   // directly — no PTY is owned by this process.
   //
   // Phase 6 prompt delivery: the agent prompt is written to a disk file
-  // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
+  // ({project}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
   // time as an auxiliary delivery path. After the shell is ready, the agent
   // command is injected via `tmux send-keys` exactly as configured. The
   // original AGENT_PROMPT env var is kept so existing
@@ -147,7 +147,7 @@ export class TerminalManager {
    *
    * Use `preserve` when the host process is quitting and tmux sessions should
    * survive for reconciliation on relaunch. Use `terminate` for explicit
-   * destructive cleanup such as vault switching.
+   * destructive cleanup such as project switching.
    * Records are cleared first so subscriber notifications don't fire after
    * the renderer is torn down; then headless runtime state and ring buffers
    * are cleared according to the policy.

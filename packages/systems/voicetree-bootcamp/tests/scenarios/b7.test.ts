@@ -42,9 +42,9 @@ describe('b7 — knowledge gardening', () => {
         expect(leaves.length).toBe(FIXTURE_LEAF_COUNT)
     })
 
-    it('successCriteria: all four checkpoints pass on a fully-gardened vault', async () => {
+    it('successCriteria: all four checkpoints pass on a fully-gardened project', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         const result = await b7.successCriteria(tempDir)
         expect(result.passed).toBe(true)
         expect(result.checkpoints).toBeDefined()
@@ -54,7 +54,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C1 fails when leaves are missing', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         // Delete one leaf after gardening.
         const folders = await listSubdirs(tempDir)
         const aFolder = folders[0]
@@ -67,7 +67,7 @@ describe('b7 — knowledge gardening', () => {
         expect(c1?.detail).toMatch(/missing/)
     })
 
-    it('successCriteria: C2 fails when leaves remain at vault root', async () => {
+    it('successCriteria: C2 fails when leaves remain at project root', async () => {
         await b7.setup(tempDir)
         // Garden only half the leaves; leave the rest at root.
         const allEntries = await fs.readdir(tempDir)
@@ -80,12 +80,12 @@ describe('b7 — knowledge gardening', () => {
         expect(result.passed).toBe(false)
         const c2 = result.checkpoints?.find((c) => c.name === 'C2-regrouped')
         expect(c2?.passed).toBe(false)
-        expect(c2?.detail).toMatch(/still at vault root/)
+        expect(c2?.detail).toMatch(/still at project root/)
     })
 
     it('successCriteria: C2 fails when too few folders are used', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 3) // below MIN_FOLDERS=5
+        await gardenProject(tempDir, 3) // below MIN_FOLDERS=5
         const result = await b7.successCriteria(tempDir)
         expect(result.passed).toBe(false)
         const c2 = result.checkpoints?.find((c) => c.name === 'C2-regrouped')
@@ -95,7 +95,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C2 fails when too many folders are used', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 20) // above MAX_FOLDERS=15
+        await gardenProject(tempDir, 20) // above MAX_FOLDERS=15
         const result = await b7.successCriteria(tempDir)
         expect(result.passed).toBe(false)
         const c2 = result.checkpoints?.find((c) => c.name === 'C2-regrouped')
@@ -105,7 +105,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C3 fails when a folder note is missing', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         // Delete one folder note.
         const folders = await listSubdirs(tempDir)
         const target = folders[0]
@@ -119,7 +119,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C3 fails when a leaf is orphaned (no folder-note wikilink)', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         // Strip wikilinks from one folder note → all its leaves go orphan.
         const folders = await listSubdirs(tempDir)
         const target = folders[0]
@@ -137,7 +137,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C3 fails when a leaf is wikilinked from two folder notes', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         // Take a leaf from folder A, wikilink it from folder B's note too.
         const folders = await listSubdirs(tempDir)
         const [folderA, folderB] = folders
@@ -167,9 +167,9 @@ describe('b7 — knowledge gardening', () => {
         expect(c4?.detail).toMatch(/index\.md is missing/)
     })
 
-    it('successCriteria: C4 fails when index.md is missing from the vault root', async () => {
+    it('successCriteria: C4 fails when index.md is missing from the project root', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         await fs.unlink(path.join(tempDir, 'index.md'))
         const result = await b7.successCriteria(tempDir)
         expect(result.passed).toBe(false)
@@ -180,7 +180,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C4 fails when index.md does not wikilink every folder note', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 8)
+        await gardenProject(tempDir, 8)
         // Rewrite index.md to link only the first folder.
         const folders = await listSubdirs(tempDir)
         const firstFolder = path.basename(folders[0])
@@ -198,7 +198,7 @@ describe('b7 — knowledge gardening', () => {
 
     it('successCriteria: C4 accepts wikilinks written as <folder>/<folder>.md', async () => {
         await b7.setup(tempDir)
-        await gardenVault(tempDir, 6)
+        await gardenProject(tempDir, 6)
         const folders = await listSubdirs(tempDir)
         const links = folders
             .map((f) => path.basename(f))
@@ -215,30 +215,30 @@ describe('b7 — knowledge gardening', () => {
 })
 
 /**
- * Move every leaf at the vault root into one of `numFolders` directories
+ * Move every leaf at the project root into one of `numFolders` directories
  * (round-robin), then write a folder note linking every leaf in that folder,
  * then write a root index.md wikilinking every folder note. Reproduces the
- * post-state shape of a fully-gardened vault.
+ * post-state shape of a fully-gardened project.
  */
-async function gardenVault(vaultDir: string, numFolders: number): Promise<void> {
-    const entries = await fs.readdir(vaultDir)
+async function gardenProject(projectDir: string, numFolders: number): Promise<void> {
+    const entries = await fs.readdir(projectDir)
     const leaves = entries.filter((n) => /^\d{3}-[a-z0-9-]+\.md$/.test(n))
     const folderNames = Array.from({length: numFolders}, (_, i) => `bucket-${i + 1}`)
     for (let i = 0; i < leaves.length; i++) {
         const folder = folderNames[i % numFolders]
-        const folderPath = path.join(vaultDir, folder)
+        const folderPath = path.join(projectDir, folder)
         await fs.mkdir(folderPath, {recursive: true})
-        await fs.rename(path.join(vaultDir, leaves[i]), path.join(folderPath, leaves[i]))
+        await fs.rename(path.join(projectDir, leaves[i]), path.join(folderPath, leaves[i]))
     }
-    await writeFolderPathNotesFor(vaultDir)
-    await writeRootIndexFor(vaultDir)
+    await writeFolderPathNotesFor(projectDir)
+    await writeRootIndexFor(projectDir)
 }
 
 /**
- * Write `index.md` at the vault root with wikilinks to every folder note.
+ * Write `index.md` at the project root with wikilinks to every folder note.
  */
-async function writeRootIndexFor(vaultDir: string): Promise<void> {
-    const subdirs = await listSubdirs(vaultDir)
+async function writeRootIndexFor(projectDir: string): Promise<void> {
+    const subdirs = await listSubdirs(projectDir)
     const folderLinks: string[] = []
     for (const dir of subdirs) {
         const name = path.basename(dir)
@@ -260,21 +260,21 @@ async function writeRootIndexFor(vaultDir: string): Promise<void> {
         ...folderLinks,
         '',
     ].join('\n')
-    await fs.writeFile(path.join(vaultDir, 'index.md'), body)
+    await fs.writeFile(path.join(projectDir, 'index.md'), body)
 }
 
 async function groupLeavesIntoFolders(
-    vaultDir: string,
+    projectDir: string,
     leafBasenames: readonly string[],
     numFolders: number,
 ): Promise<void> {
     const folderNames = Array.from({length: numFolders}, (_, i) => `bucket-${i + 1}`)
     for (let i = 0; i < leafBasenames.length; i++) {
         const folder = folderNames[i % numFolders]
-        const folderPath = path.join(vaultDir, folder)
+        const folderPath = path.join(projectDir, folder)
         await fs.mkdir(folderPath, {recursive: true})
         await fs.rename(
-            path.join(vaultDir, leafBasenames[i]),
+            path.join(projectDir, leafBasenames[i]),
             path.join(folderPath, leafBasenames[i]),
         )
     }
@@ -284,8 +284,8 @@ async function groupLeavesIntoFolders(
  * For every subdirectory that contains leaves, write a folder note at
  * `<folder>/<folder>.md` listing every leaf inside as a wikilink.
  */
-async function writeFolderPathNotesFor(vaultDir: string): Promise<void> {
-    const subdirs = await listSubdirs(vaultDir)
+async function writeFolderPathNotesFor(projectDir: string): Promise<void> {
+    const subdirs = await listSubdirs(projectDir)
     for (const dir of subdirs) {
         const entries = await fs.readdir(dir)
         const leaves = entries.filter((n) => /^\d{3}-[a-z0-9-]+\.md$/.test(n))
@@ -307,9 +307,9 @@ async function writeFolderPathNotesFor(vaultDir: string): Promise<void> {
     }
 }
 
-async function listSubdirs(vaultDir: string): Promise<readonly string[]> {
-    const entries = await fs.readdir(vaultDir, {withFileTypes: true})
+async function listSubdirs(projectDir: string): Promise<readonly string[]> {
+    const entries = await fs.readdir(projectDir, {withFileTypes: true})
     return entries
         .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-        .map((e) => path.join(vaultDir, e.name))
+        .map((e) => path.join(projectDir, e.name))
 }

@@ -19,7 +19,7 @@ const test = base.extend({});
 async function setupMockWithWatchedDirectory(page: import('@playwright/test').Page): Promise<void> {
   await page.addInitScript(() => {
     // Store callback for watching-started event
-    const _watchingStartedCallback: ((data: { directory: string; vaultSuffix: string }) => void) | null = null;
+    const _watchingStartedCallback: ((data: { directory: string; projectSuffix: string }) => void) | null = null;
 
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {
@@ -68,11 +68,11 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
           return { success: true };
         },
       },
-      onWatchingStarted: (callback: (data: { directory: string; vaultSuffix: string }) => void) => {
+      onWatchingStarted: (callback: (data: { directory: string; projectSuffix: string }) => void) => {
         watchingStartedCallback = callback;
         // Immediately trigger with mock data to show folder in UI
         setTimeout(() => {
-          callback({ directory: '/Users/demo/projects/my-notes', vaultSuffix: 'voicetree' });
+          callback({ directory: '/Users/demo/projects/my-notes', projectSuffix: 'voicetree' });
         }, 50);
       },
       onFileWatchingStopped: () => {},

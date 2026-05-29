@@ -16,7 +16,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder-test-helpers';
 import {
@@ -111,8 +111,8 @@ function buildFolderSpecFixture(projectRoot: string): FolderSpecFixture {
     };
 }
 
-async function createCriticalFolderSpecVault(basePath: string): Promise<string> {
-    const projectRoot = await createFolderTestVault(basePath);
+async function createCriticalFolderSpecProject(basePath: string): Promise<string> {
+    const projectRoot = await createFolderTestProject(basePath);
     const nestedAuthFolderPath = path.join(projectRoot, 'auth', 'internal');
 
     await fs.mkdir(nestedAuthFolderPath, { recursive: true });
@@ -129,7 +129,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-spec-test-'));
-        const projectRoot = await createCriticalFolderSpecVault(tempDir);
+        const projectRoot = await createCriticalFolderSpecProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -139,7 +139,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
                     writeFolderPath: projectRoot,
                     readPaths: []
@@ -150,7 +150,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-spec-test',
             path: projectRoot,
-            name: 'folder-spec-test-vault',
+            name: 'folder-spec-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true
@@ -212,7 +212,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-spec-test-vault")').first());
+        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-spec-test-project")').first());
 
         const hasCytoscape = await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,

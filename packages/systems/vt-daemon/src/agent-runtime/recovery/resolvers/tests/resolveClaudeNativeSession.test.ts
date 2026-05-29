@@ -3,8 +3,8 @@ import {resolveClaudeNativeSession, type ClaudeTranscriptsList, type ResolveClau
 import type {ClaudeTranscriptRecord} from '../claude-transcript-matcher'
 
 const TERMINAL = 'Ari'
-const VAULT = '/vault'
-const TASK = '/vault/task.md'
+const PROJECT = '/project'
+const TASK = '/project/task.md'
 const NOW = 1779424330000
 
 function markerRecord(sessionId: string): ClaudeTranscriptRecord {
@@ -13,7 +13,7 @@ function markerRecord(sessionId: string): ClaudeTranscriptRecord {
         type: 'user',
         message: {
             role: 'user',
-            content: `prompt body\nVOICETREE_TERMINAL_ID = ${TERMINAL}\nVOICETREE_PROJECT_PATH = ${VAULT}\nTASK_NODE_PATH = ${TASK}`,
+            content: `prompt body\nVOICETREE_TERMINAL_ID = ${TERMINAL}\nVOICETREE_PROJECT_PATH = ${PROJECT}\nTASK_NODE_PATH = ${TASK}`,
         },
     }
 }
@@ -35,7 +35,7 @@ function makeDeps(overrides: Partial<ResolveClaudeDeps> = {}): ResolveClaudeDeps
 describe('resolveClaudeNativeSession', () => {
     it('returns the sessionId from the most recently modified matching transcript', async () => {
         const result = await resolveClaudeNativeSession(
-            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
+            {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK},
             makeDeps({
                 listProjectTranscripts: () => transcripts(['/x/old.jsonl', '/x/new.jsonl']),
                 fileModifiedAt: (p) => (p === '/x/new.jsonl' ? NOW - 60_000 : NOW - 3_600_000),
@@ -47,7 +47,7 @@ describe('resolveClaudeNativeSession', () => {
 
     it('falls through to older transcripts when newest does not match', async () => {
         const result = await resolveClaudeNativeSession(
-            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
+            {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK},
             makeDeps({
                 listProjectTranscripts: () => transcripts(['/x/old.jsonl', '/x/new.jsonl']),
                 fileModifiedAt: (p) => (p === '/x/new.jsonl' ? NOW - 60_000 : NOW - 3_600_000),
@@ -59,7 +59,7 @@ describe('resolveClaudeNativeSession', () => {
 
     it('returns no-jsonl-matches when all candidates are older than the recency window', async () => {
         const result = await resolveClaudeNativeSession(
-            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK, recencyWindowMs: 60_000},
+            {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK, recencyWindowMs: 60_000},
             makeDeps({
                 listProjectTranscripts: () => transcripts(['/x/stale.jsonl']),
                 fileModifiedAt: () => NOW - 3_600_000,  // 1 hour ago, outside 1-minute window
@@ -74,7 +74,7 @@ describe('resolveClaudeNativeSession', () => {
     describe('structured miss reasons', () => {
         it('returns projects-dir-missing when the deps report the projects directory is absent', async () => {
             const result = await resolveClaudeNativeSession(
-                {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
+                {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK},
                 makeDeps({listProjectTranscripts: () => ({kind: 'projects-dir-missing'})}),
             )
             expect(result).toEqual({kind: 'not-found', reason: 'projects-dir-missing'})
@@ -82,7 +82,7 @@ describe('resolveClaudeNativeSession', () => {
 
         it('returns no-jsonl-matches when the projects directory has no transcripts at all', async () => {
             const result = await resolveClaudeNativeSession(
-                {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
+                {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK},
                 makeDeps({listProjectTranscripts: () => transcripts([])}),
             )
             expect(result).toEqual({kind: 'not-found', reason: 'no-jsonl-matches'})
@@ -90,7 +90,7 @@ describe('resolveClaudeNativeSession', () => {
 
         it('returns marker-mismatch when in-window transcripts exist but none contain the markers', async () => {
             const result = await resolveClaudeNativeSession(
-                {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
+                {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK},
                 makeDeps({
                     listProjectTranscripts: () => transcripts(['/x/recent.jsonl']),
                     fileModifiedAt: () => NOW - 60_000,
@@ -107,7 +107,7 @@ describe('resolveClaudeNativeSession', () => {
             // on the second call so the iteration's deadline check trips before reading any file.
             let callCount = 0
             const result = await resolveClaudeNativeSession(
-                {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK, scanTimeoutMs: 50},
+                {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK, scanTimeoutMs: 50},
                 makeDeps({
                     listProjectTranscripts: () => transcripts(['/x/a.jsonl', '/x/b.jsonl']),
                     fileModifiedAt: () => NOW - 1_000,  // both in window

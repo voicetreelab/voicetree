@@ -43,13 +43,13 @@ const test = base.extend<{
   },
 
   writeFolderPath: async ({ tempDir }, use) => {
-    const writeFolderPath: string = path.join(tempDir, 'write-vault');
+    const writeFolderPath: string = path.join(tempDir, 'write-project');
     await fs.mkdir(writeFolderPath, { recursive: true });
     await use(writeFolderPath);
   },
 
   readPath: async ({ tempDir }, use) => {
-    const readPath: string = path.join(tempDir, 'read-vault');
+    const readPath: string = path.join(tempDir, 'read-project');
     await fs.mkdir(readPath, { recursive: true });
     await use(readPath);
   },
@@ -58,7 +58,7 @@ const test = base.extend<{
     const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-reveal-link-userdata-'));
 
     // Create the node files BEFORE launching the app
-    // Main node in writeFolderPath with an EXISTING link to read-vault
+    // Main node in writeFolderPath with an EXISTING link to read-project
     await fs.writeFile(
       path.join(writeFolderPath, 'main-node.md'),
       `# Main Node
@@ -92,7 +92,7 @@ It should NOT be loaded.`
       configPath,
       JSON.stringify({
         lastDirectory: tempDir,
-        vaultConfig: {
+        projectConfig: {
           [tempDir]: {
             writeFolderPath: writeFolderPath,
             readPaths: [readPath]

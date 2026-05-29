@@ -30,8 +30,8 @@ function makeName(): TerminalId {
     return `bf311-${randomUUID().slice(0, 8)}` as TerminalId
 }
 
-async function makeTempVault(): Promise<string> {
-    const dir: string = await mkdtemp(join(tmpdir(), 'bf311-vault-'))
+async function makeTempProject(): Promise<string> {
+    const dir: string = await mkdtemp(join(tmpdir(), 'bf311-project-'))
     tempDirs.add(dir)
     return dir
 }
@@ -91,7 +91,7 @@ describe('headlessAgentManager tmux backend', () => {
 
     it('spawns a real tmux-backed headless agent, captures log output, accepts input, and marks natural exit', async () => {
         const terminalId: TerminalId = makeName()
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
         const metadataPath: string = join(terminalDir, `${terminalId}.json`)
         const logPath: string = join(terminalDir, `${terminalId}.log`)
@@ -131,7 +131,7 @@ describe('headlessAgentManager tmux backend', () => {
     // failure Wei observed cannot recur.
     it('spawns a tmux-backed interactive terminal (isHeadless=false) and persists the original terminalData for reconciliation', async () => {
         const terminalId: TerminalId = makeName()
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const metadataPath: string = join(projectRoot, '.voicetree', 'terminals', `${terminalId}.json`)
         sessions.add(terminalId)
 
@@ -174,7 +174,7 @@ describe('headlessAgentManager tmux backend', () => {
 
     it('preserves tmux sessions when terminal runtime cleanup detaches host state', async () => {
         const terminalId: TerminalId = makeName()
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const metadataPath: string = join(projectRoot, '.voicetree', 'terminals', `${terminalId}.json`)
         const terminalManager: TerminalManager = new TerminalManager()
         sessions.add(terminalId)
@@ -201,7 +201,7 @@ describe('headlessAgentManager tmux backend', () => {
 
     it('terminates tmux sessions when terminal runtime cleanup is destructive', async () => {
         const terminalId: TerminalId = makeName()
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const terminalManager: TerminalManager = new TerminalManager()
         sessions.add(terminalId)
 
@@ -228,7 +228,7 @@ describe('headlessAgentManager tmux backend', () => {
     // After the fix, the second call rebinds to the existing pane.
     it('rebinds to an existing tmux session instead of failing with duplicate session (Electron relaunch case)', async () => {
         const terminalId: TerminalId = makeName()
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const metadataPath: string = join(projectRoot, '.voicetree', 'terminals', `${terminalId}.json`)
         sessions.add(terminalId)
 

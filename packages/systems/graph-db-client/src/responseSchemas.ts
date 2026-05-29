@@ -1,7 +1,7 @@
 import {
   UnseenNodeSchema,
-  VaultStateSchema,
-  type OpenVaultResponse,
+  ProjectStateSchema,
+  type OpenProjectResponse,
   type UnseenNode,
 } from './contract.ts'
 
@@ -43,7 +43,7 @@ function isFolderStateEntry(value: unknown): value is [string, 'expanded' | 'col
     && (value[1] === 'expanded' || value[1] === 'collapsed' || value[1] === 'hidden')
 }
 
-export const OpenVaultResponseSchema: Schema<OpenVaultResponse> = {
+export const OpenProjectResponseSchema: Schema<OpenProjectResponse> = {
   parse(input: unknown) {
     if (
       !isObject(input)
@@ -55,13 +55,13 @@ export const OpenVaultResponseSchema: Schema<OpenVaultResponse> = {
       || typeof input.activeView.viewId !== 'string'
       || typeof input.activeView.name !== 'string'
     ) {
-      throw new Error('Invalid open-vault response body')
+      throw new Error('Invalid open-project response body')
     }
 
     return {
       sessionId: input.sessionId,
       writeFolderPath: input.writeFolderPath,
-      vaultState: VaultStateSchema.parse(input.vaultState),
+      projectState: ProjectStateSchema.parse(input.projectState),
       initialProjectedGraph: input.initialProjectedGraph,
       folderState: input.folderState,
       activeView: {

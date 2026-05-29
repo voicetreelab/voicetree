@@ -209,7 +209,7 @@ If pure functions CALL `env.broadcast()`, they're executing side effects!
 
 **Pattern:**
 ```typescript
-// Pure function can read vaultPath (just data)
+// Pure function can read projectPath (just data)
 return (env: Env) => TE.tryCatch(
   async () => {
     await fs.writeFile(env.projectRoot + '/file.md', content)

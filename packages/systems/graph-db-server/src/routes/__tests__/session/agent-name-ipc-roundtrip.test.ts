@@ -12,29 +12,29 @@ import { GraphDbClient } from '../../../../../graph-db-client/src/index.ts'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import { resetUndoState } from '../../../state/undo-store.ts'
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-agentname-test-'))
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-  const appSupport = await mkdtemp(join(tmpdir(), 'graphd-agentname-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+  const voicetreeHome = await mkdtemp(join(tmpdir(), 'graphd-agentname-appsupport-'))
   const config = {
-    vaultConfig: {
-      [vault]: { writeFolderPath: vault },
+    projectConfig: {
+      [project]: { writeFolderPath: project },
     },
   }
-  await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))
-  return appSupport
+  await writeFile(join(voicetreeHome, 'voicetree-config.json'), JSON.stringify(config))
+  return voicetreeHome
 }
 
 describe('agent_name survives IPC roundtrip to daemon', () => {
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    vault = await withTempVault()
-    appSupport = await createAppSupport(vault)
+    project = await withTempProject()
+    voicetreeHome = await createVoicetreeHome(project)
     handles = []
     resetUndoState()
   })
@@ -43,14 +43,14 @@ describe('agent_name survives IPC roundtrip to daemon', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
-    await rm(vault, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
   }, 15000)
 
   test('agent_name in additionalYAMLProps persists to disk frontmatter', async () => {
-    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
+    const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
     handles.push(handle)
-    const testNodePath = join(vault, 'hello-from-ari.md')
+    const testNodePath = join(project, 'hello-from-ari.md')
 
     const delta: unknown[] = [
       {

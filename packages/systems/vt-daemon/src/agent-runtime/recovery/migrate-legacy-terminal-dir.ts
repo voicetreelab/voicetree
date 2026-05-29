@@ -56,7 +56,7 @@ function writeMigratedStub(legacyDir: string, canonicalDir: string): void {
  * `<writeFolderPath>/.voicetree/terminals/*.json` records into the canonical
  * `<projectRoot>/.voicetree/terminals/`.
  *
- * Must be invoked from `onVaultOpened` BEFORE reconciliation runs, so the
+ * Must be invoked from `onProjectOpened` BEFORE reconciliation runs, so the
  * reconciler sees the post-move state. No-op when `writeFolderPath === projectRoot`
  * or the legacy directory does not exist. Conflicts keep the canonical copy
  * and leave the legacy entry untouched.

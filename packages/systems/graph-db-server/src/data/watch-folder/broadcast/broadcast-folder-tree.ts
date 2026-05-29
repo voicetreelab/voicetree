@@ -1,11 +1,11 @@
 /**
  * Broadcast folder tree to renderer for FolderTreeSidebar.
- * Called after vault state changes and file watcher add/unlink events.
+ * Called after project state changes and file watcher add/unlink events.
  * Debounced to avoid excessive filesystem scans during rapid FS changes.
  */
 
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store';
-import { getVaultPaths, getWriteFolderPath } from '@vt/graph-db-server/state/vaultAllowlist';
+import { getProjectPaths, getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist';
 import { getStarredFolders } from '../starred-folders';
 import { getGraph } from '@vt/graph-db-server/state/graph-store';
 import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store';
@@ -27,7 +27,7 @@ async function doBroadcast(): Promise<void> {
     const projectRoot: FilePath | null = getProjectRoot();
     if (!projectRoot) return;
 
-    const vaultPaths: readonly FilePath[] = await getVaultPaths();
+    const projectPaths: readonly FilePath[] = await getProjectPaths();
     const writeFolderPathOption: O.Option<FilePath> = await getWriteFolderPath();
     const writeFolderPath: AbsolutePath | null = O.isSome(writeFolderPathOption) ? toAbsolutePath(writeFolderPathOption.value) : null;
 
@@ -36,7 +36,7 @@ async function doBroadcast(): Promise<void> {
         Object.keys(graph.nodes) as readonly NodeIdAndFilePath[]
     );
 
-    const loadedPaths: Set<string> = new Set<string>(vaultPaths);
+    const loadedPaths: Set<string> = new Set<string>(projectPaths);
     if (writeFolderPath) loadedPaths.add(writeFolderPath);
 
     const readModel = getFolderTreeReadModel();
@@ -61,7 +61,7 @@ async function doBroadcast(): Promise<void> {
     }
     getCallbacks().syncStarredFolderTrees?.(starredTrees);
 
-    const externalPaths: readonly string[] = getExternalReadPaths([...vaultPaths], projectRoot);
+    const externalPaths: readonly string[] = getExternalReadPaths([...projectPaths], projectRoot);
     const externalTrees: Record<string, FolderTreeNode> = {};
     for (const extPath of externalPaths) {
         const extEntry: DirectoryEntry | null = await readModel.readDepthLimitedTree({

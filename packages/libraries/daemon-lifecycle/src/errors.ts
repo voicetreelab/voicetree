@@ -17,13 +17,13 @@ export class DaemonLaunchTimeout extends Error {
  * Refused to use or replace a daemon because identity checks failed
  * safely. The recorded owner pid is alive but its command fingerprint
  * or `/health` identity does not match the daemon we would have
- * launched for this vault — possibly a reused pid or an unrelated
+ * launched for this project — possibly a reused pid or an unrelated
  * program holding the same record. Stale reclamation never kills under
  * this condition.
  */
 export class UnsafeOwnerError extends Error {
   constructor(
-    public readonly vault: string,
+    public readonly project: string,
     public readonly recordedPid: number,
     public readonly reason:
       | 'health-identity-mismatch'
@@ -31,26 +31,26 @@ export class UnsafeOwnerError extends Error {
       | 'fingerprint-unknown-stale',
   ) {
     super(
-      `daemon owner for vault ${vault} is unsafe to reuse or reclaim (pid ${recordedPid}, reason ${reason})`,
+      `daemon owner for project ${project} is unsafe to reuse or reclaim (pid ${recordedPid}, reason ${reason})`,
     )
     this.name = 'UnsafeOwnerError'
   }
 }
 
 /**
- * Spawn was suppressed by an active per-vault cooldown breadcrumb. The
+ * Spawn was suppressed by an active per-project cooldown breadcrumb. The
  * breadcrumb is written elsewhere (BF-347); ensure reads it through the
  * owner-evidence pipeline and surfaces the suppression as a typed error
  * instead of forking another launch attempt.
  */
 export class OwnerSpawnCooldownError extends Error {
   constructor(
-    public readonly vault: string,
+    public readonly project: string,
     public readonly untilMs: number,
     public readonly reason: string,
   ) {
     super(
-      `daemon spawn for vault ${vault} suppressed by cooldown until ${new Date(untilMs).toISOString()} (${reason})`,
+      `daemon spawn for project ${project} suppressed by cooldown until ${new Date(untilMs).toISOString()} (${reason})`,
     )
     this.name = 'OwnerSpawnCooldownError'
   }
@@ -64,11 +64,11 @@ export class OwnerSpawnCooldownError extends Error {
  */
 export class OwnerWaitTimeoutError extends Error {
   constructor(
-    public readonly vault: string,
+    public readonly project: string,
     public readonly recordedPid: number,
   ) {
     super(
-      `daemon owner for vault ${vault} did not become healthy before deadline (pid ${recordedPid})`,
+      `daemon owner for project ${project} did not become healthy before deadline (pid ${recordedPid})`,
     )
     this.name = 'OwnerWaitTimeoutError'
   }

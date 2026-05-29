@@ -14,7 +14,7 @@ export class ExitCalled extends Error {
 export type Harness = {
     voicetreeHomePath: string
     root: string
-    vault: string
+    project: string
 }
 
 export type CommandResult = {
@@ -29,13 +29,13 @@ export function parseStdoutJson<T>(result: CommandResult): T {
 
 export async function createHarness(): Promise<Harness> {
     const root: string = await mkdtemp(join(tmpdir(), 'vt-cli-view-'))
-    const voicetreeHomePath: string = join(root, 'app-support')
-    const vault: string = join(root, 'vault')
+    const voicetreeHomePath: string = join(root, 'voicetree-home')
+    const project: string = join(root, 'project')
 
     await mkdir(voicetreeHomePath, {recursive: true})
-    await mkdir(vault, {recursive: true})
+    await mkdir(project, {recursive: true})
 
-    return {root, voicetreeHomePath, vault}
+    return {root, voicetreeHomePath, project}
 }
 
 export async function waitFor<T>(

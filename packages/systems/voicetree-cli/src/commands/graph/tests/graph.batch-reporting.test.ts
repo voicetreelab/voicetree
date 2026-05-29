@@ -12,7 +12,7 @@ import {
 import {
     captureGraphCreate,
     SCHEMAS_TWO_RULES,
-    setupGatedVault,
+    setupGatedProject,
     startStubDaemon,
     type CapturedRun,
     type StubDaemon,
@@ -20,7 +20,7 @@ import {
 
 describe('graph create batch reporting (filesystem mode)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let vaultRoot: string
+    let projectRoot: string
 
     beforeAll(() => {
         originalStdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
@@ -34,21 +34,21 @@ describe('graph create batch reporting (filesystem mode)', () => {
     })
 
     beforeEach(async () => {
-        vaultRoot = await setupGatedVault()
+        projectRoot = await setupGatedProject()
     })
 
     afterEach(async () => {
         clearLoadSchemaPluginCacheForTest()
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
     it('case 1: all-ok batch — two valid files exit 0 with two ok verdicts', async () => {
-        await writeFile(join(vaultRoot, 'work', 'a.md'), '# A\n\nNeeded marker present.\n', 'utf8')
-        await writeFile(join(vaultRoot, 'work', 'b.md'), '# B\n\nNeeded marker present.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'a.md'), '# A\n\nNeeded marker present.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'b.md'), '# B\n\nNeeded marker present.\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/a.md', 'work/b.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -61,16 +61,16 @@ describe('graph create batch reporting (filesystem mode)', () => {
             ],
             summary: {ok: 2, rejected: 0, skipped: 0, warning: 0},
         })
-        await expect(access(join(vaultRoot, 'work', 'a.md'))).resolves.toBeUndefined()
-        await expect(access(join(vaultRoot, 'work', 'b.md'))).resolves.toBeUndefined()
+        await expect(access(join(projectRoot, 'work', 'a.md'))).resolves.toBeUndefined()
+        await expect(access(join(projectRoot, 'work', 'b.md'))).resolves.toBeUndefined()
     })
 
     it('case 2: mixed batch — gate-all evaluates both nodes; rejected and ok both visible', async () => {
-        await writeFile(join(vaultRoot, 'work', 'a.md'), '# A\n\nNeeded marker present.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'a.md'), '# A\n\nNeeded marker present.\n', 'utf8')
         const bOriginal: string = '# B\n\nno marker here\n'
-        await writeFile(join(vaultRoot, 'work', 'b.md'), bOriginal, 'utf8')
+        await writeFile(join(projectRoot, 'work', 'b.md'), bOriginal, 'utf8')
 
-        const result: CapturedRun = await captureGraphCreate(['work/a.md', 'work/b.md'], vaultRoot)
+        const result: CapturedRun = await captureGraphCreate(['work/a.md', 'work/b.md'], projectRoot)
 
         expect(result.exitCode).toBe(1)
         const payload = JSON.parse(result.stderr.trim())
@@ -82,17 +82,17 @@ describe('graph create batch reporting (filesystem mode)', () => {
             ],
             summary: {ok: 1, rejected: 1, skipped: 0, warning: 0},
         })
-        expect(await readFile(join(vaultRoot, 'work', 'b.md'), 'utf8')).toBe(bOriginal)
+        expect(await readFile(join(projectRoot, 'work', 'b.md'), 'utf8')).toBe(bOriginal)
     })
 
     it('case 3: all-rejected batch — three rejections all visible with ruleIds', async () => {
-        await writeFile(join(vaultRoot, 'work', 'a.md'), '# A\n\nbody one\n', 'utf8')
-        await writeFile(join(vaultRoot, 'work', 'b.md'), '# B\n\nbody two\n', 'utf8')
-        await writeFile(join(vaultRoot, 'work', 'c.md'), '# C\n\nbody three\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'a.md'), '# A\n\nbody one\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'b.md'), '# B\n\nbody two\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'c.md'), '# C\n\nbody three\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/a.md', 'work/b.md', 'work/c.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBe(1)
@@ -106,13 +106,13 @@ describe('graph create batch reporting (filesystem mode)', () => {
     })
 
     it('case 4: typeless folder is silent — gate emits ok with no skipReason', async () => {
-        const freeDir: string = join(vaultRoot, 'free')
+        const freeDir: string = join(projectRoot, 'free')
         await mkdir(freeDir, {recursive: true})
         await writeFile(join(freeDir, 'note.md'), '# Free\n\nanything goes\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['free/note.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -131,18 +131,18 @@ describe('graph create batch reporting (filesystem mode)', () => {
     })
 
     it('case 6: empty batch — no inputs surfaces a non-zero exit', async () => {
-        const result: CapturedRun = await captureGraphCreate([], vaultRoot, {terminalId: 't'})
+        const result: CapturedRun = await captureGraphCreate([], projectRoot, {terminalId: 't'})
 
         expect(result.exitCode).toBe(1)
         expect(result.stderr).toMatch(/^error:/)
     })
 
     it('case 8: JSON envelope shape — top-level kind/nodes/summary present', async () => {
-        await writeFile(join(vaultRoot, 'work', 'a.md'), '# A\n\nNeeded marker.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'a.md'), '# A\n\nNeeded marker.\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/a.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -159,24 +159,24 @@ describe('graph create batch reporting (filesystem mode)', () => {
     })
 
     it('case 9: stderr-vs-stdout split — rejection envelope on stderr, success envelope on stdout', async () => {
-        await writeFile(join(vaultRoot, 'work', 'good.md'), '# G\n\nNeeded marker.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'good.md'), '# G\n\nNeeded marker.\n', 'utf8')
         const okOnly: CapturedRun = await captureGraphCreate(
             ['work/good.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
         expect(okOnly.stdout).toContain('graph_create_batch_result')
         expect(okOnly.stderr).toBe('')
 
-        await writeFile(join(vaultRoot, 'work', 'bad.md'), '# B\n\nno marker\n', 'utf8')
-        const rejected: CapturedRun = await captureGraphCreate(['work/bad.md'], vaultRoot)
+        await writeFile(join(projectRoot, 'work', 'bad.md'), '# B\n\nno marker\n', 'utf8')
+        const rejected: CapturedRun = await captureGraphCreate(['work/bad.md'], projectRoot)
         expect(rejected.stderr).toContain('graph_create_batch_result')
         expect(rejected.stdout).toBe('')
     })
 
     it('case 11: orphan rejection - a node with no parent and no --parent is rejected and not written', async () => {
-        await writeFile(join(vaultRoot, 'work', 'lonely.md'), '# Lonely\n\nNeeded marker.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'lonely.md'), '# Lonely\n\nNeeded marker.\n', 'utf8')
 
-        const result: CapturedRun = await captureGraphCreate(['work/lonely.md'], vaultRoot)
+        const result: CapturedRun = await captureGraphCreate(['work/lonely.md'], projectRoot)
 
         expect(result.exitCode).toBe(1)
         const payload = JSON.parse(result.stderr.trim())
@@ -188,15 +188,15 @@ describe('graph create batch reporting (filesystem mode)', () => {
         expect(payload.nodes[0].planErrorMessage).toContain('no parent edge')
         // The orphan check rejects before applyFilesystemPlan runs, so the source
         // file is left exactly as the author wrote it: no frontmatter/parent fixes applied.
-        expect(await readFile(join(vaultRoot, 'work', 'lonely.md'), 'utf8')).toBe('# Lonely\n\nNeeded marker.\n')
+        expect(await readFile(join(projectRoot, 'work', 'lonely.md'), 'utf8')).toBe('# Lonely\n\nNeeded marker.\n')
     })
 
     it('case 13: orphan rule can be overridden with rationale', async () => {
-        await writeFile(join(vaultRoot, 'work', 'lonely.md'), '# Lonely\n\nNeeded marker.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'lonely.md'), '# Lonely\n\nNeeded marker.\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/lonely.md', '--override', 'node_must_have_edge:intentional inbox node'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -211,7 +211,7 @@ describe('graph create batch reporting (filesystem mode)', () => {
             ],
             summary: {ok: 1, rejected: 0, skipped: 0, warning: 0},
         })
-        const written = await readFile(join(vaultRoot, 'work', 'lonely.md'), 'utf8')
+        const written = await readFile(join(projectRoot, 'work', 'lonely.md'), 'utf8')
         expect(written).toContain('# Lonely')
         expect(written).toContain('isContextNode: false')
         expect(written).not.toContain('- parent [[')
@@ -219,12 +219,12 @@ describe('graph create batch reporting (filesystem mode)', () => {
 
     it('case 12: a body parent link satisfies attachment without --parent', async () => {
         await writeFile(
-            join(vaultRoot, 'work', 'anchored.md'),
+            join(projectRoot, 'work', 'anchored.md'),
             '# Anchored\n\nNeeded marker.\n\n- parent [[work]]\n',
             'utf8',
         )
 
-        const result: CapturedRun = await captureGraphCreate(['work/anchored.md'], vaultRoot)
+        const result: CapturedRun = await captureGraphCreate(['work/anchored.md'], projectRoot)
 
         expect(result.exitCode).toBeNull()
         const payload = JSON.parse(result.stdout)
@@ -238,8 +238,8 @@ describe('graph create batch reporting (filesystem mode)', () => {
 describe('graph create batch reporting (live mode + HTTP daemon)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
     let originalDaemonUrl: string | undefined
-    let originalVaultPath: string | undefined
-    let vaultRoot: string
+    let originalProjectPath: string | undefined
+    let projectRoot: string
     let parentNodeId: string
     let stub: StubDaemon
 
@@ -255,21 +255,21 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
     })
 
     beforeEach(async () => {
-        vaultRoot = await setupGatedVault()
-        parentNodeId = join(vaultRoot, 'work', 'parent.md')
+        projectRoot = await setupGatedProject()
+        parentNodeId = join(projectRoot, 'work', 'parent.md')
         await writeFile(parentNodeId, '# Parent\n\nNeeded marker.\n', 'utf8')
         originalDaemonUrl = process.env.VOICETREE_DAEMON_URL
-        originalVaultPath = process.env.VOICETREE_PROJECT_PATH
+        originalProjectPath = process.env.VOICETREE_PROJECT_PATH
     })
 
     afterEach(async () => {
         if (stub) await stub.stop()
         if (originalDaemonUrl === undefined) delete process.env.VOICETREE_DAEMON_URL
         else process.env.VOICETREE_DAEMON_URL = originalDaemonUrl
-        if (originalVaultPath === undefined) delete process.env.VOICETREE_PROJECT_PATH
-        else process.env.VOICETREE_PROJECT_PATH = originalVaultPath
+        if (originalProjectPath === undefined) delete process.env.VOICETREE_PROJECT_PATH
+        else process.env.VOICETREE_PROJECT_PATH = originalProjectPath
         clearLoadSchemaPluginCacheForTest()
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
     it('case 5: daemon warning surfaces as warning verdict — node was created, exit 0', async () => {
@@ -278,7 +278,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
             nodes: [
                 {
                     id: 'topic-c',
-                    path: join(vaultRoot, 'work', 'topic-c.md'),
+                    path: join(projectRoot, 'work', 'topic-c.md'),
                     status: 'warning',
                     warning: 'mermaid parse failed — fix at topic-c',
                 },
@@ -294,7 +294,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
                 '--parent',
                 parentNodeId,
             ],
-            vaultRoot,
+            projectRoot,
             {terminalId: 't'},
         )
 
@@ -313,7 +313,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
             nodes: [
                 {
                     id: 'topic-d',
-                    path: join(vaultRoot, 'work', 'topic-d.md'),
+                    path: join(projectRoot, 'work', 'topic-d.md'),
                     status: 'ok',
                 },
             ],
@@ -330,7 +330,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
                 '--override',
                 'node_line_limit:big rewrite',
             ],
-            vaultRoot,
+            projectRoot,
             {terminalId: 't'},
         )
 
@@ -379,7 +379,7 @@ function makeTelemetryHarness(): TelemetryHarness {
 
 describe('graph create batch reporting — telemetry union ruleIds', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let vaultRoot: string
+    let projectRoot: string
     let harness: TelemetryHarness
 
     beforeAll(() => {
@@ -394,7 +394,7 @@ describe('graph create batch reporting — telemetry union ruleIds', () => {
     })
 
     beforeEach(async () => {
-        vaultRoot = await setupGatedVault(SCHEMAS_TWO_RULES)
+        projectRoot = await setupGatedProject(SCHEMAS_TWO_RULES)
         harness = makeTelemetryHarness()
         __resetCliInvocationSinkForTests()
         installCliInvocationSink({
@@ -409,21 +409,21 @@ describe('graph create batch reporting — telemetry union ruleIds', () => {
     afterEach(async () => {
         __resetCliInvocationSinkForTests()
         clearLoadSchemaPluginCacheForTest()
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
     it('case 10: gate_rejection.ruleIds records the union of all rejected nodes ruleIds', async () => {
         await writeFile(
-            join(vaultRoot, 'work', 'a.md'),
+            join(projectRoot, 'work', 'a.md'),
             '# A\n\nbody with Needed marker present\n',
             'utf8',
         )
-        await writeFile(join(vaultRoot, 'work', 'b.md'), '# B\n\nbody is bare\n', 'utf8')
-        await writeFile(join(vaultRoot, 'work', 'c.md'), '# C\n\nbody with Required tag\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'b.md'), '# B\n\nbody is bare\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'c.md'), '# C\n\nbody with Required tag\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/a.md', 'work/b.md', 'work/c.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBe(1)
@@ -441,7 +441,7 @@ describe('graph create batch reporting — telemetry union ruleIds', () => {
 
 describe('graph create batch reporting — human format (TTY mode)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let vaultRoot: string
+    let projectRoot: string
 
     beforeAll(() => {
         originalStdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
@@ -455,21 +455,21 @@ describe('graph create batch reporting — human format (TTY mode)', () => {
     })
 
     beforeEach(async () => {
-        vaultRoot = await setupGatedVault()
+        projectRoot = await setupGatedProject()
     })
 
     afterEach(async () => {
         clearLoadSchemaPluginCacheForTest()
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
     it('emits per-node lines and a summary line in human/TTY mode', async () => {
-        await writeFile(join(vaultRoot, 'work', 'good.md'), '# G\n\nNeeded marker.\n', 'utf8')
-        await writeFile(join(vaultRoot, 'work', 'bad.md'), '# B\n\nno marker\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'good.md'), '# G\n\nNeeded marker.\n', 'utf8')
+        await writeFile(join(projectRoot, 'work', 'bad.md'), '# B\n\nno marker\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/good.md', 'work/bad.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBe(1)

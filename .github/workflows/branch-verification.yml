@@ -145,7 +145,7 @@ jobs:
           TSX_PATH=$(node -e "console.log(require.resolve('tsx'))")
           timeout 30 node --import "$TSX_PATH" \
             packages/systems/graph-db-server/bin/vt-graphd.ts \
-            --vault /tmp/daemon-warmup --idle-timeout-ms 3000 || true
+            --project /tmp/daemon-warmup --idle-timeout-ms 3000 || true
           rm -rf /tmp/daemon-warmup
 
       - name: Run Electron Tier 1 smoke tests

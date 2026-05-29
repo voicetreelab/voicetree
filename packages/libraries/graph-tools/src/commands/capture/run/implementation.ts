@@ -44,7 +44,7 @@ type RunOptions = {
   outDir: string
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 type LoadedSteps = {
   steps: StepSpec[]
@@ -89,7 +89,7 @@ function usage(message?: string): Response<never> {
       '--state-each',
       '--stop-on-error=false',
       '--out <dir>',
-      '[--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]',
+      '[--port <n> | --cdpPort <n> | --pid <n> | --project <path>]',
       `selectors: ${STEP_SPEC_SELECTOR_NOTE}`,
     ].join(' '),
   )
@@ -140,7 +140,7 @@ function parseRunArgs(argv: string[]): RunOptions | Response<never> {
     outDir,
     port: target.port,
     pid: target.pid,
-    vault: target.vault,
+    project: target.project,
   }
 }
 
@@ -346,7 +346,7 @@ async function executeStep(
 }
 
 async function resolveTarget(options: RunOptions) {
-  const pick = await resolveDebugInstance({ port: options.port, pid: options.pid, vault: options.vault })
+  const pick = await resolveDebugInstance({ port: options.port, pid: options.pid, project: options.project })
   if (!pick.ok) {
     return { ok: false as const, response: err('run', pick.message, pick.hint, 2) }
   }

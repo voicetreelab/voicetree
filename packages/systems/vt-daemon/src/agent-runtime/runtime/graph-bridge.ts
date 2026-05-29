@@ -23,8 +23,8 @@ export async function getRuntimeProjectRoot(): Promise<FilePath | null> {
     return await requireGraphBridge().getProjectRoot()
 }
 
-export async function getRuntimeVaultPaths(): Promise<readonly FilePath[]> {
-    return await requireGraphBridge().getVaultPaths()
+export async function getRuntimeProjectPaths(): Promise<readonly FilePath[]> {
+    return await requireGraphBridge().getProjectPaths()
 }
 
 export async function applyRuntimeGraphDelta(

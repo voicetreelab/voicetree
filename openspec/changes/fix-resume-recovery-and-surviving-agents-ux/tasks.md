@@ -2,10 +2,10 @@
 
 - [x] 1.1 Add `getRecoveryMetadataDir(projectRoot: string): string` helper in `@vt/agent-runtime/src/application/recovery/paths.ts` returning `path.join(projectRoot, '.voicetree', 'terminals')`. Cover with unit test.
 - [x] 1.2 Refactor `reconcileTmuxTerminalRegistry(projectRoot, deps)` in `packages/systems/agent-runtime/src/application/terminals/terminal-registry/reconciliation.ts:74-129` to use `getRecoveryMetadataDir(projectRoot)`. The `projectRoot` argument's documented semantics now require the value returned by `graph.getProjectRoot()`, NOT writeFolder / env.
-- [x] 1.3 Update `webapp/src/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init.ts:75` to pass `info.projectRoot` (or pull from `getRuntimeProjectRoot()`) instead of `info.writeFolder`. Confirm the graph-model `onVaultOpened` event carries `projectRoot`; if it doesn't, add it to the event payload first.
-- [x] 1.4 Update `webapp/src/shell/edge/main/runtime/electron/app/main.ts:262-267` to either drop the startup reconciliation call (now redundant with `onVaultOpened`) or resolve `projectRoot` through the graph bridge. Delete the `process.env.VOICETREE_PROJECT_PATH`-driven branch.
-- [x] 1.5 Update `webapp/src/shell/edge/main/cli/commands/runtime/serve.ts:180` and `packages/systems/voicetree-mcp/bin/vt-mcpd.ts:160` to derive `projectRoot` from `args.vault`'s graph-bridge probe (or document that headless callers MUST pass projectRoot, not writeFolder).
-- [x] 1.6 Refactor `discovery.ts:resolveCurrentVaultMetadataDir` (`packages/systems/agent-runtime/src/application/recovery/discovery.ts:172-178`) to use `getRecoveryMetadataDir(getRuntimeProjectRoot())`. Delete the `writeFolder/terminals` (no-`.voicetree`) fallback branch.
+- [x] 1.3 Update `webapp/src/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init.ts:75` to pass `info.projectRoot` (or pull from `getRuntimeProjectRoot()`) instead of `info.writeFolder`. Confirm the graph-model `onProjectOpened` event carries `projectRoot`; if it doesn't, add it to the event payload first.
+- [x] 1.4 Update `webapp/src/shell/edge/main/runtime/electron/app/main.ts:262-267` to either drop the startup reconciliation call (now redundant with `onProjectOpened`) or resolve `projectRoot` through the graph bridge. Delete the `process.env.VOICETREE_PROJECT_PATH`-driven branch.
+- [x] 1.5 Update `webapp/src/shell/edge/main/cli/commands/runtime/serve.ts:180` and `packages/systems/voicetree-mcp/bin/vt-mcpd.ts:160` to derive `projectRoot` from `args.project`'s graph-bridge probe (or document that headless callers MUST pass projectRoot, not writeFolder).
+- [x] 1.6 Refactor `discovery.ts:resolveCurrentProjectMetadataDir` (`packages/systems/agent-runtime/src/application/recovery/discovery.ts:172-178`) to use `getRecoveryMetadataDir(getRuntimeProjectRoot())`. Delete the `writeFolder/terminals` (no-`.voicetree`) fallback branch.
 - [x] 1.7 Add black-box test in `discovery.test.ts` asserting the metadata dir is `<projectRoot>/.voicetree/terminals/` regardless of writeFolder (mock `runtimeEnv.getWriteFolder` to return a different path; verify discovery reads only projectRoot path).
 - [x] 1.8 Audit `tmuxHeadlessRuntime.ts` and any other writer of `.voicetree/terminals/*.json` (grep for `'terminals'` joins). Update each writer to use `getRecoveryMetadataDir(projectRoot)`.
 
@@ -14,7 +14,7 @@
 - [x] 2.1 Add `packages/systems/agent-runtime/src/application/recovery/migrate-legacy-terminal-dir.ts` exporting `migrateLegacyTerminalDir({projectRoot, writeFolder, logger})`. Returns `{moved: string[], conflicts: string[], skipped: string[]}`.
 - [x] 2.2 Implementation rules: no-op when `writeFolder === projectRoot` or when legacy dir does not exist. For each `<id>.json` in `<writeFolder>/.voicetree/terminals/`: if `<projectRoot>/.voicetree/terminals/<id>.json` exists → log conflict + skip; else `fs.rename` the JSON and each existing sibling artifact (`<id>.log`, `<id>-prompt.txt`, `<id>.exitcode`).
 - [x] 2.3 Write `MIGRATED.txt` into the legacy dir on first successful move pointing users at the canonical location.
-- [x] 2.4 Invoke the migration synchronously from `onVaultOpened`, BEFORE `reconcileTmuxTerminalsForVault(...)`. Order matters — reconciliation must see the post-move state.
+- [x] 2.4 Invoke the migration synchronously from `onProjectOpened`, BEFORE `reconcileTmuxTerminalsForProject(...)`. Order matters — reconciliation must see the post-move state.
 - [x] 2.5 Unit-test migration: no-op when paths equal; idempotent when run twice; conflict path keeps canonical copy + logs warning; missing sibling artifacts don't break (skip silently); malformed JSON files are migrated as-is (don't try to parse).
 
 ## 3. Structured resolver-miss reasons
@@ -64,7 +64,7 @@
 
 ## 9. Cross-cutting validation
 
-- [ ] 9.1 Manual smoke test on the affected vault (`/Users/example/Voicetree/voicetree-26-5/`): remove the temporary symlink, restart Electron, verify all 50 agents appear in Surviving Agents with worktree+title; click Resume on Jin → produces `codex resume 019e651e-...`; click Delete on a stale row → JSON gone. **Orchestrator + user — requires real vault and electron restart.**
+- [ ] 9.1 Manual smoke test on the affected project (`/Users/example/Voicetree/voicetree-26-5/`): remove the temporary symlink, restart Electron, verify all 50 agents appear in Surviving Agents with worktree+title; click Resume on Jin → produces `codex resume 019e651e-...`; click Delete on a stale row → JSON gone. **Orchestrator + user — requires real project and electron restart.**
 - [x] 9.2 Add an end-to-end Playwright spec covering the crash-recovery flow: spawn 3 agents → kill electron → reopen → assert all 3 surface in Surviving Agents → Resume one → assert it becomes a live terminal. **Scoped to fixture-backed discovery→render→attach (per leading comment); real SIGKILL variant deferred to follow-up since Phase 6 single-agent crash test already covers the kill primitive.**
 - [x] 9.3 Update `docs/RECOVERY.md` (or create) with the new canonical location, the migration behavior, and the resolver-miss reasons + manual-resume escape hatch.
 - [x] 9.4 Add a project memory / brain note (`~/brain/knowledge/`) capturing the projectRoot-vs-writeFolder distinction, so future agents don't re-introduce the divergence.

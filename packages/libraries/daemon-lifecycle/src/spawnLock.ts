@@ -9,13 +9,13 @@
  * burns 99 spawns per cold start.
  *
  * `acquireSpawnLock` atomic-creates the file with `wx` so only one
- * caller per machine wins the spawn step for this `(vault, daemonKind)`.
+ * caller per machine wins the spawn step for this `(project, daemonKind)`.
  * Losers wait for the lock to release (or its holder to die) and loop
  * back to discovery — by then the winner has produced a healthy owner
  * record and they reuse it.
  *
- * Each daemon kind has its own lock file under `<vault>/.voicetree/`, so
- * a graphd spawn and a vtd spawn for the same vault do not block each
+ * Each daemon kind has its own lock file under `<project>/.voicetree/`, so
+ * a graphd spawn and a vtd spawn for the same project do not block each
  * other.
  */
 
@@ -29,8 +29,8 @@ export type SpawnLockAcquisition =
   | { readonly kind: 'acquired'; readonly release: () => Promise<void> }
   | { readonly kind: 'held'; readonly holderPid: number | null }
 
-export function spawnLockPathFor(vaultDir: string, daemonKind: DaemonKind): string {
-  return join(getProjectDotVoicetreePath(vaultDir), `${daemonKind}.spawn.lock`)
+export function spawnLockPathFor(projectDir: string, daemonKind: DaemonKind): string {
+  return join(getProjectDotVoicetreePath(projectDir), `${daemonKind}.spawn.lock`)
 }
 
 /**
@@ -41,11 +41,11 @@ export function spawnLockPathFor(vaultDir: string, daemonKind: DaemonKind): stri
  * loop back to discovery.
  */
 export async function acquireSpawnLock(
-  vaultDir: string,
+  projectDir: string,
   daemonKind: DaemonKind,
   ownPid: number,
 ): Promise<SpawnLockAcquisition> {
-  const path = spawnLockPathFor(vaultDir, daemonKind)
+  const path = spawnLockPathFor(projectDir, daemonKind)
   if (await tryCreate(path, ownPid)) {
     return { kind: 'acquired', release: async () => releaseSpawnLock(path) }
   }

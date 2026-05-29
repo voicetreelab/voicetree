@@ -17,11 +17,11 @@ import { apply_graph_deltas_to_db } from '@vt/graph-db-server/graph/graphActions
 
 const state: {
     currentGraph: Graph | null
-    tempVault: string
+    tempProject: string
     handlersImported: boolean
 } = {
     currentGraph: null,
-    tempVault: '',
+    tempProject: '',
     handlersImported: false
 }
 
@@ -31,7 +31,7 @@ function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGra
 
 async function applyDeltaToFilesystemAndState(cy: Core, delta: GraphDelta): Promise<void> {
     const result: E.Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)({
-        projectRoot: state.tempVault
+        projectRoot: state.tempProject
     })()
     if (E.isLeft(result)) {
         throw result.left
@@ -46,12 +46,12 @@ function setCurrentGraph(graph: Graph): void {
     state.currentGraph = graph
 }
 
-function tempVault(): string {
-    return state.tempVault
+function tempProject(): string {
+    return state.tempProject
 }
 
-function vaultFilePath(filename: string): string {
-    return path.join(state.tempVault, filename)
+function projectFilePath(filename: string): string {
+    return path.join(state.tempProject, filename)
 }
 
 function createTestWindow(cy: Core, includeWriteFolderPath: boolean): Window {
@@ -62,8 +62,8 @@ function createTestWindow(cy: Core, includeWriteFolderPath: boolean): Window {
                 getNode: async (nodeId: string) => state.currentGraph?.nodes[nodeId],
                 ...(includeWriteFolderPath
                     ? {
-                        getWriteFolderPath: () => Promise.resolve(O.some(state.tempVault)),
-                        getWatchStatus: () => ({ isWatching: false, directory: state.tempVault })
+                        getWriteFolderPath: () => Promise.resolve(O.some(state.tempProject)),
+                        getWatchStatus: () => ({ isWatching: false, directory: state.tempProject })
                     }
                     : {}),
                 applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
@@ -135,28 +135,28 @@ async function ensureHandlersImported(): Promise<void> {
 
 async function setupDeleteFilesystemTest(): Promise<void> {
     resetTestProjectionState()
-    await setupFilesystemTest('test-vault-delete-edges')
+    await setupFilesystemTest('test-project-delete-edges')
 }
 
-async function setupMergeFilesystemTest(vaultPrefix: string): Promise<void> {
-    await setupFilesystemTest(vaultPrefix)
+async function setupMergeFilesystemTest(projectPrefix: string): Promise<void> {
+    await setupFilesystemTest(projectPrefix)
 }
 
-async function setupFilesystemTest(vaultPrefix: string): Promise<void> {
+async function setupFilesystemTest(projectPrefix: string): Promise<void> {
     state.currentGraph = null
     initGraphModel({})
     await ensureHandlersImported()
-    state.tempVault = path.join('/tmp', `${vaultPrefix}-${Date.now()}`)
-    await fs.mkdir(state.tempVault, { recursive: true })
-    setDbServerProjectRoot(state.tempVault)
+    state.tempProject = path.join('/tmp', `${projectPrefix}-${Date.now()}`)
+    await fs.mkdir(state.tempProject, { recursive: true })
+    setDbServerProjectRoot(state.tempProject)
 }
 
 async function cleanupFilesystemTest(cy: Core | undefined): Promise<void> {
     cy?.destroy()
-    await fs.rm(state.tempVault, { recursive: true, force: true })
+    await fs.rm(state.tempProject, { recursive: true, force: true })
     state.currentGraph = null
     setDbServerProjectRoot(null)
-    state.tempVault = ''
+    state.tempProject = ''
     vi.clearAllMocks()
 }
 
@@ -212,12 +212,12 @@ async function fileExists(filePath: string): Promise<boolean> {
     return fs.access(filePath).then(() => true).catch(() => false)
 }
 
-async function readVaultDirectory(): Promise<string[]> {
-    return fs.readdir(state.tempVault)
+async function readProjectDirectory(): Promise<string[]> {
+    return fs.readdir(state.tempProject)
 }
 
-async function readVaultFile(filename: string): Promise<string> {
-    return fs.readFile(vaultFilePath(filename), 'utf-8')
+async function readProjectFile(filename: string): Promise<string> {
+    return fs.readFile(projectFilePath(filename), 'utf-8')
 }
 
 function basename(filePath: string): string {
@@ -230,14 +230,14 @@ export function createDeleteAndMergeFilesystemTestSupport(): {
     createTestNode: typeof createTestNode
     createTestWindow: typeof createTestWindow
     fileExists: typeof fileExists
-    readVaultDirectory: typeof readVaultDirectory
-    readVaultFile: typeof readVaultFile
+    readProjectDirectory: typeof readProjectDirectory
+    readProjectFile: typeof readProjectFile
     readWikilinksFromFile: typeof readWikilinksFromFile
     setCurrentGraph: typeof setCurrentGraph
     setupDeleteFilesystemTest: typeof setupDeleteFilesystemTest
     setupMergeFilesystemTest: typeof setupMergeFilesystemTest
-    tempVault: typeof tempVault
-    vaultFilePath: typeof vaultFilePath
+    tempProject: typeof tempProject
+    projectFilePath: typeof projectFilePath
     writeMarkdownFile: typeof writeMarkdownFile
 } {
     return {
@@ -246,14 +246,14 @@ export function createDeleteAndMergeFilesystemTestSupport(): {
         createTestNode,
         createTestWindow,
         fileExists,
-        readVaultDirectory,
-        readVaultFile,
+        readProjectDirectory,
+        readProjectFile,
         readWikilinksFromFile,
         setCurrentGraph,
         setupDeleteFilesystemTest,
         setupMergeFilesystemTest,
-        tempVault,
-        vaultFilePath,
+        tempProject,
+        projectFilePath,
         writeMarkdownFile
     }
 }

@@ -74,7 +74,7 @@ def analyze_tag_patterns(folder_path):
         # Check if it's a location tag
         elif any(loc in tag_lower for loc in ['_ranch', '_zoo', '_farm', '_aquarium', '_circus', 
                                                '_caverns', '_hollow', '_grotto', '_chasms', '_depths',
-                                               '_catacombs', '_rift', '_vault', '_ocean', '_basin',
+                                               '_catacombs', '_rift', '_project', '_ocean', '_basin',
                                                '_shoals', '_waters', '_maze', '_chamber', '_tunnels']):
             location_tags['locations'].append((tag, count))
         

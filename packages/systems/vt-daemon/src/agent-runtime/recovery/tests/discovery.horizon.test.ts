@@ -10,8 +10,8 @@ import {
     record,
     SESSION_A,
     TERMINAL_A,
-    VAULT_HASH,
-    VAULT_PATH,
+    PROJECT_HASH,
+    PROJECT_PATH,
 } from './classifier.test-fixtures'
 
 const NOW_MS: number = Date.parse('2026-05-27T00:00:00.000Z')
@@ -26,15 +26,15 @@ function fixedNow(): number {
 
 function makeDeps(overrides: Partial<DiscoverRecoveryDeps> = {}): DiscoverRecoveryDeps {
     return {
-        readVaultMetadataDir: async () => [],
+        readProjectMetadataDir: async () => [],
         listLiveUnclaimedTmuxSessions: async () => [],
         getRegistryTerminalIds: () => new Set<string>(),
-        getCurrentNamespaceHash: async () => VAULT_HASH,
+        getCurrentNamespaceHash: async () => PROJECT_HASH,
         ...overrides,
     }
 }
 
-function metadataRecord(data: unknown, path = '/vault/.voicetree/terminals/A.json'): MetadataRecord {
+function metadataRecord(data: unknown, path = '/project/.voicetree/terminals/A.json'): MetadataRecord {
     return record(data, path)
 }
 
@@ -42,15 +42,15 @@ function makeUnclaimed(overrides: Partial<UnclaimedTmuxSession> = {}): Unclaimed
     return {
         sessionName: SESSION_A,
         terminalId: TERMINAL_A,
-        hash: VAULT_HASH,
-        classification: 'this-vault',
+        hash: PROJECT_HASH,
+        classification: 'this-project',
         attachable: true,
         createdAt: 1_700_000_000_000,
         panePid: 1234,
         agentName: 'Ari',
-        projectRoot: VAULT_PATH,
-        contextNodePath: '/vault/node.md',
-        taskNodePath: '/vault/task.md',
+        projectRoot: PROJECT_PATH,
+        contextNodePath: '/project/node.md',
+        taskNodePath: '/project/task.md',
         ...overrides,
     }
 }
@@ -59,7 +59,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
     it('includes an exited record whose endedAt is within the horizon', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [metadataRecord(makeExitedClaudeMetadata({
+                readProjectMetadataDir: async () => [metadataRecord(makeExitedClaudeMetadata({
                     endedAt: FIVE_DAYS_AGO,
                 }))],
             }),
@@ -73,7 +73,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
     it('drops an exited record whose endedAt is older than the horizon', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [metadataRecord(makeExitedClaudeMetadata({
+                readProjectMetadataDir: async () => [metadataRecord(makeExitedClaudeMetadata({
                     endedAt: THIRTY_DAYS_AGO,
                 }))],
             }),
@@ -85,7 +85,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
     it('surfaces a killed record within the horizon with killReason propagated', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [metadataRecord(makeKilledClaudeMetadata({
+                readProjectMetadataDir: async () => [metadataRecord(makeKilledClaudeMetadata({
                     endedAt: ONE_DAY_AGO,
                     killReason: 'user',
                 }))],
@@ -100,7 +100,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
     it('keeps a running row regardless of how old its startedAt is (horizon only gates closed rows)', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
+                readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
                     startedAt: THIRTY_DAYS_AGO,
                 }))],
             }),
@@ -113,7 +113,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
     it('disables the cutoff when horizonMs is null (show-older path)', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [metadataRecord(makeExitedClaudeMetadata({
+                readProjectMetadataDir: async () => [metadataRecord(makeExitedClaudeMetadata({
                     endedAt: THIRTY_DAYS_AGO,
                 }))],
             }),
@@ -126,7 +126,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
     it('surfaces an exited row that carries no endedAt (unknown age — do not silently hide)', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [metadataRecord({
+                readProjectMetadataDir: async () => [metadataRecord({
                     name: TERMINAL_A,
                     status: 'exited',
                     session: SESSION_A,
@@ -142,7 +142,7 @@ describe('discoverRecoverableAgentSessions — recency horizon (§6.3, §6.6)', 
 
 describe('discoverRecoverableAgentSessions — sort across groups (§6.4)', () => {
     it('orders attach-bearing → resume-only → closed; within group sorts by recency desc', async () => {
-        const liveSessionName = `vt-${VAULT_HASH}-Live`
+        const liveSessionName = `vt-${PROJECT_HASH}-Live`
         const live: UnclaimedTmuxSession = makeUnclaimed({
             sessionName: liveSessionName,
             terminalId: 'Live',
@@ -156,47 +156,47 @@ describe('discoverRecoverableAgentSessions — sort across groups (§6.4)', () =
             terminalData: makeTerminalData({
                 terminalId: 'Live' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Live', VOICETREE_PROJECT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Live', VOICETREE_PROJECT_PATH: PROJECT_PATH},
             }),
         }
         const resumeOnlyMeta = makeRunningClaudeMetadata({
             name: 'ResumeOnly',
-            session: `vt-${VAULT_HASH}-ResumeOnly`,
+            session: `vt-${PROJECT_HASH}-ResumeOnly`,
             startedAt: FIVE_DAYS_AGO,
             terminalData: makeTerminalData({
                 terminalId: 'ResumeOnly' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ResumeOnly', VOICETREE_PROJECT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ResumeOnly', VOICETREE_PROJECT_PATH: PROJECT_PATH},
             }),
         })
         const closedRecent = makeExitedClaudeMetadata({
             name: 'ClosedRecent',
-            session: `vt-${VAULT_HASH}-ClosedRecent`,
+            session: `vt-${PROJECT_HASH}-ClosedRecent`,
             endedAt: ONE_DAY_AGO,
             terminalData: makeTerminalData({
                 terminalId: 'ClosedRecent' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedRecent', VOICETREE_PROJECT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedRecent', VOICETREE_PROJECT_PATH: PROJECT_PATH},
             }),
         })
         const closedOlder = makeKilledClaudeMetadata({
             name: 'ClosedOlder',
-            session: `vt-${VAULT_HASH}-ClosedOlder`,
+            session: `vt-${PROJECT_HASH}-ClosedOlder`,
             endedAt: FIVE_DAYS_AGO,
             terminalData: makeTerminalData({
                 terminalId: 'ClosedOlder' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedOlder', VOICETREE_PROJECT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedOlder', VOICETREE_PROJECT_PATH: PROJECT_PATH},
             }),
         })
 
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
-                readVaultMetadataDir: async () => [
-                    metadataRecord(closedOlder, '/vault/.voicetree/terminals/ClosedOlder.json'),
-                    metadataRecord(resumeOnlyMeta, '/vault/.voicetree/terminals/ResumeOnly.json'),
-                    metadataRecord(closedRecent, '/vault/.voicetree/terminals/ClosedRecent.json'),
-                    metadataRecord(liveMeta, '/vault/.voicetree/terminals/Live.json'),
+                readProjectMetadataDir: async () => [
+                    metadataRecord(closedOlder, '/project/.voicetree/terminals/ClosedOlder.json'),
+                    metadataRecord(resumeOnlyMeta, '/project/.voicetree/terminals/ResumeOnly.json'),
+                    metadataRecord(closedRecent, '/project/.voicetree/terminals/ClosedRecent.json'),
+                    metadataRecord(liveMeta, '/project/.voicetree/terminals/Live.json'),
                 ],
                 listLiveUnclaimedTmuxSessions: async () => [live],
             }),

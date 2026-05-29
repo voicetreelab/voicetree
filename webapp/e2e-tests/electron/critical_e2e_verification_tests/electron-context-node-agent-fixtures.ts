@@ -8,7 +8,7 @@ import type { ElectronAPI } from '@/shell/electron';
 import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_TEMPLATE_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_TEMPLATE_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -18,14 +18,14 @@ export interface ExtendedWindow {
 export const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  fixtureVaultPath: string;
+  fixtureProjectPath: string;
   fakeAgentBinPath: string;
 }>({
-  fixtureVaultPath: async ({}, use) => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ctx-agent-vault-'));
-    const fixtureVaultPath = path.join(tempRoot, 'example_small');
-    await fs.cp(FIXTURE_VAULT_TEMPLATE_PATH, fixtureVaultPath, { recursive: true });
-    await use(fixtureVaultPath);
+  fixtureProjectPath: async ({}, use) => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ctx-agent-project-'));
+    const fixtureProjectPath = path.join(tempRoot, 'example_small');
+    await fs.cp(FIXTURE_PROJECT_TEMPLATE_PATH, fixtureProjectPath, { recursive: true });
+    await use(fixtureProjectPath);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
@@ -45,14 +45,14 @@ export const test = base.extend<{
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
-  electronApp: async ({ fixtureVaultPath, fakeAgentBinPath }, use) => {
+  electronApp: async ({ fixtureProjectPath, fakeAgentBinPath }, use) => {
     const tempUserDataPath = path.dirname(fakeAgentBinPath);
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: fixtureVaultPath,
+      lastDirectory: fixtureProjectPath,
       suffixes: {
-        [fixtureVaultPath]: ''
+        [fixtureProjectPath]: ''
       }
     }, null, 2), 'utf8');
 
@@ -75,7 +75,7 @@ export const test = base.extend<{
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
         '--open-folder',
-        fixtureVaultPath,
+        fixtureProjectPath,
       ],
       env: {
         ...process.env,
@@ -85,7 +85,7 @@ export const test = base.extend<{
         ENABLE_PLAYWRIGHT_DEBUG: '0',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
-        // Pin the app-support path to the temp user-data dir so the daemon
+        // Pin the voicetree-home path to the temp user-data dir so the daemon
         // (a forked subprocess) reads the same settings.json the fixture
         // pre-seeded. Without this override the parent shell's
         // VOICETREE_HOME_PATH leaks into the test process and the daemon
@@ -93,7 +93,7 @@ export const test = base.extend<{
         VOICETREE_HOME_PATH: tempUserDataPath,
         // Fallback for runtime paths before the daemon has reported the
         // configured write folder path.
-        VOICETREE_PROJECT_PATH: fixtureVaultPath,
+        VOICETREE_PROJECT_PATH: fixtureProjectPath,
         PATH: `${fakeAgentBinPath}${path.delimiter}${process.env.PATH ?? ''}`,
       },
       timeout: 10000

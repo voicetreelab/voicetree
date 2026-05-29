@@ -2,7 +2,7 @@
  * DIAGNOSTIC + REGRESSION — Folder Nodes (Compound Container System)
  *
  * Tests folder nodes (commit fd5f294b) against approved Option A design.
- * Uses a custom vault with auth/, api/, utils/ subdirectories.
+ * Uses a custom project with auth/, api/, utils/ subdirectories.
  *
  * DESIGN SPEC thresholds:
  *   zoom  0.3=circle  0.5=morph  0.8=card  1.2=expand  1.8=child-cards
@@ -15,7 +15,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
     dumpGraphState,
     snapshotFolderCards,
@@ -33,7 +33,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -41,11 +41,11 @@ const test = base.extend<{
     electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-ud-'));
 
-        // Create voicetree-config.json with lastDirectory + vaultConfig so loadFolder
-        // knows to use the vault root as the writeFolderPath (loads all files directly)
+        // Create voicetree-config.json with lastDirectory + projectConfig so loadFolder
+        // knows to use the project root as the writeFolderPath (loads all files directly)
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
                     writeFolderPath: projectRoot,
                     readPaths: []
@@ -58,7 +58,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-test',
             path: projectRoot,
-            name: 'folder-test-vault',
+            name: 'folder-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true
@@ -108,7 +108,7 @@ const test = base.extend<{
         await w.waitForLoadState('domcontentloaded');
 
         // App starts on ProjectSelectionScreen. Trigger startFileWatching to
-        // load the vault, which emits watching-started → App.tsx switches to graph-view.
+        // load the project, which emits watching-started → App.tsx switches to graph-view.
         await w.evaluate(async (vp: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (api) await api.main.startFileWatching(vp);

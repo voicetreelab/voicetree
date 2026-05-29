@@ -8,17 +8,17 @@ import {
     type FolderTransitionError,
 } from '../state/projectStateTransitions';
 
-const WRITE_FOLDER = '/vault/write' as FilePath;
-const FOLDER_A = '/vault/a' as FilePath;
+const WRITE_FOLDER = '/project/write' as FilePath;
+const FOLDER_A = '/project/a' as FilePath;
 
 function makeState(
     folders: ReadonlyArray<readonly [FilePath, FolderTreeState]> = [],
 ): BoundProject {
     return {
-        root: '/vault' as FilePath,
+        root: '/project' as FilePath,
         writeFolderPath: WRITE_FOLDER,
         version: 0,
-        vaultVersion: 0,
+        projectPathsVersion: 0,
         folders: new Map(folders),
         watcher: null,
         cleanups: [],

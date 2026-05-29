@@ -42,10 +42,10 @@ function createCountingScanner(): CountingScanner {
   }
 }
 
-async function withTempVault(): Promise<string> {
-  const vault = await mkdtemp(join(tmpdir(), 'graphd-scan-reuse-test-'))
-  await writeFile(join(vault, 'one.md'), '# one')
-  return vault
+async function withTempProject(): Promise<string> {
+  const project = await mkdtemp(join(tmpdir(), 'graphd-scan-reuse-test-'))
+  await writeFile(join(project, 'one.md'), '# one')
+  return project
 }
 
 async function createSession(base: string): Promise<string> {
@@ -56,22 +56,22 @@ async function createSession(base: string): Promise<string> {
 }
 
 describe('daemon folder-tree scan reuse', () => {
-  let vault: string
+  let project: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    vault = await withTempVault()
+    project = await withTempProject()
     handles = []
   })
 
   afterEach(async () => {
     for (const h of handles) await h.stop().catch(() => {})
-    await rm(vault, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
   })
 
   test('two /state reads share one scan', async () => {
     const scanner = createCountingScanner()
-    const handle = await startDaemon({ vault, folderTreeScanner: scanner.fn })
+    const handle = await startDaemon({ project, folderTreeScanner: scanner.fn })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
     const countBefore = scanner.callCount()
@@ -91,7 +91,7 @@ describe('daemon folder-tree scan reuse', () => {
 
   test('/projected-graph does not invoke the folder-tree scanner', async () => {
     const scanner = createCountingScanner()
-    const handle = await startDaemon({ vault, folderTreeScanner: scanner.fn })
+    const handle = await startDaemon({ project, folderTreeScanner: scanner.fn })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
@@ -111,7 +111,7 @@ describe('daemon folder-tree scan reuse', () => {
 
   test('/state followed by /projected-graph reuses the folder-tree cache', async () => {
     const scanner = createCountingScanner()
-    const handle = await startDaemon({ vault, folderTreeScanner: scanner.fn })
+    const handle = await startDaemon({ project, folderTreeScanner: scanner.fn })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
@@ -126,7 +126,7 @@ describe('daemon folder-tree scan reuse', () => {
 
   test('chokidar add event invalidates the read model and forces a fresh scan', async () => {
     const scanner = createCountingScanner()
-    const handle = await startDaemon({ vault, folderTreeScanner: scanner.fn })
+    const handle = await startDaemon({ project, folderTreeScanner: scanner.fn })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
@@ -136,11 +136,11 @@ describe('daemon folder-tree scan reuse', () => {
 
     handleFSEventWithStateAndUISides(
       {
-        absolutePath: toAbsolutePath(join(vault, 'two.md')),
+        absolutePath: toAbsolutePath(join(project, 'two.md')),
         content: '# two',
         eventType: 'Added',
       },
-      vault,
+      project,
     )
 
     await fetch(`${base}/sessions/${sessionId}/state`).then(r => r.json())
@@ -149,8 +149,8 @@ describe('daemon folder-tree scan reuse', () => {
 
   test('content-only change does NOT invalidate the folder-tree cache', async () => {
     const scanner = createCountingScanner()
-    const notePath = toAbsolutePath(join(vault, 'one.md'))
-    const handle = await startDaemon({ vault, folderTreeScanner: scanner.fn })
+    const notePath = toAbsolutePath(join(project, 'one.md'))
+    const handle = await startDaemon({ project, folderTreeScanner: scanner.fn })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
@@ -160,7 +160,7 @@ describe('daemon folder-tree scan reuse', () => {
 
     handleFSEventWithStateAndUISides(
       { absolutePath: notePath, content: '# one v2', eventType: 'Changed' },
-      vault,
+      project,
     )
 
     await fetch(`${base}/sessions/${sessionId}/state`).then(r => r.json())

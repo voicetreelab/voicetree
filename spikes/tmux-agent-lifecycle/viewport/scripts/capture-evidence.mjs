@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const viewportDir = path.resolve(__dirname, '..');
 const lifecycleDir = path.resolve(viewportDir, '..');
 const evidenceDir = path.join(viewportDir, 'EVIDENCE');
-const vaultDir = path.join(viewportDir, '.runtime-vault');
+const projectDir = path.join(viewportDir, '.runtime-project');
 const agent = process.env.VIEWPORT_AGENT || 'BF203';
 const port = Number(process.env.PORT || 4173);
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -23,7 +23,7 @@ function runLifecycleScript(script, args = []) {
   return new Promise((resolve) => {
     const child = spawn('bash', [path.join(lifecycleDir, script), ...args], {
       cwd: lifecycleDir,
-      env: { ...process.env, VAULT_DIR: vaultDir },
+      env: { ...process.env, PROJECT_DIR: projectDir },
       stdio: 'ignore'
     });
     child.on('exit', () => resolve());
@@ -55,11 +55,11 @@ async function typeCommand(page, command) {
 
 await mkdir(evidenceDir, { recursive: true });
 await runLifecycleScript('kill-agent.sh', [agent]);
-await rm(vaultDir, { recursive: true, force: true });
+await rm(projectDir, { recursive: true, force: true });
 
 const server = spawn('node', ['src/server.mjs'], {
   cwd: viewportDir,
-  env: { ...process.env, PORT: String(port), VIEWPORT_AGENT: agent, VAULT_DIR: vaultDir },
+  env: { ...process.env, PORT: String(port), VIEWPORT_AGENT: agent, PROJECT_DIR: projectDir },
   stdio: ['ignore', 'pipe', 'pipe']
 });
 

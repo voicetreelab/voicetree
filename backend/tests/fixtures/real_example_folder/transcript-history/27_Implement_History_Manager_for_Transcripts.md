@@ -2,9 +2,9 @@
 node_id: 27
 title: Implement History Manager for Transcripts (27)
 ---
-### Proposes implementing a dedicated history manager for saving only processed transcript text, as an alternative to the current markdown vault method.
+### Proposes implementing a dedicated history manager for saving only processed transcript text, as an alternative to the current markdown project method.
 
-Ideally, the transcript history should be saved to a dedicated history manager, rather than directly to a markdown file in a vault folder. The history manager will save only processed text (completed text).
+Ideally, the transcript history should be saved to a dedicated history manager, rather than directly to a markdown file in a project folder. The history manager will save only processed text (completed text).
 
 
 -----------------

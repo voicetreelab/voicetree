@@ -74,13 +74,13 @@ class ChromaDBVectorStore:
             # Production mode: Use persistent storage
             # Set default persist directory if not provided
             if persist_directory is None:
-                # Try to find markdown tree vault directory
+                # Try to find markdown tree project directory
                 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-                markdown_vault_path = os.path.join(project_root, "markdownTreeVault", "chromadb_data")
+                markdown_project_path = os.path.join(project_root, "markdownTreeProject", "chromadb_data")
 
-                # Fall back to backend location if vault not found
-                if os.path.exists(os.path.join(project_root, "markdownTreeVault")):
-                    persist_directory = markdown_vault_path
+                # Fall back to backend location if project not found
+                if os.path.exists(os.path.join(project_root, "markdownTreeProject")):
+                    persist_directory = markdown_project_path
                 else:
                     persist_directory = os.path.join(
                         os.path.dirname(os.path.dirname(__file__)),

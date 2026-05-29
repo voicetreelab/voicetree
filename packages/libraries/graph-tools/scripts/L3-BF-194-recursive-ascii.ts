@@ -76,13 +76,13 @@ function parseLimit(raw: string | undefined, fallback: number): number {
 function formatLimit(value: number): string {
     return Number.isFinite(value) ? String(value) : '∞'
 }
-function loadStateFromRoot(vaultRoot: string): JsonState {
+function loadStateFromRoot(projectRoot: string): JsonState {
     const tempPath: string = path.join(os.tmpdir(), `bf194-${process.pid}-${Date.now()}.json`)
     try {
         execFileSync('./node_modules/.bin/vt-graph', [
             'state',
             'dump',
-            vaultRoot,
+            projectRoot,
             '--no-pretty',
             '--out',
             tempPath,
@@ -99,7 +99,7 @@ function sortFiles(files: readonly FileInfo[]): readonly FileInfo[] {
     return [...files].sort((left, right) =>
         left.title.localeCompare(right.title) || left.relPath.localeCompare(right.relPath))
 }
-function buildFolderTree(state: JsonState, vaultRoot: string): {root: FolderNode; fileById: ReadonlyMap<string, FileInfo>} {
+function buildFolderTree(state: JsonState, projectRoot: string): {root: FolderNode; fileById: ReadonlyMap<string, FileInfo>} {
     type MutableFolder = {
         readonly name: string
         readonly relPath: string
@@ -107,14 +107,14 @@ function buildFolderTree(state: JsonState, vaultRoot: string): {root: FolderNode
         readonly childMap: Map<string, MutableFolder>
     }
     const mutableRoot: MutableFolder = {
-        name: path.basename(vaultRoot),
+        name: path.basename(projectRoot),
         relPath: '',
         files: [],
         childMap: new Map(),
     }
     const fileById: Map<string, FileInfo> = new Map()
     for (const [absId, node] of Object.entries(state.graph.nodes)) {
-        const relPath: string = relId(absId, vaultRoot)
+        const relPath: string = relId(absId, projectRoot)
         const segments: string[] = relPath.split('/')
         let current: MutableFolder = mutableRoot
         for (let i = 0; i < segments.length - 1; i++) {
@@ -232,7 +232,7 @@ function localInlineEdges(
     fragmentId: string,
     fileById: ReadonlyMap<string, FileInfo>,
     nodeToFragment: ReadonlyMap<string, string>,
-    vaultRoot: string,
+    projectRoot: string,
 ): readonly string[] {
     const lines: string[] = []
     const localTargets = file.outgoingEdges
@@ -245,7 +245,7 @@ function localInlineEdges(
         .sort((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id))
     for (const target of localTargets) {
         const labelPart: string = target.label ? ` [${target.label}]` : ''
-        lines.push(`⇢ ${target.title} @[${relId(target.id, vaultRoot)}]${labelPart}`)
+        lines.push(`⇢ ${target.title} @[${relId(target.id, projectRoot)}]${labelPart}`)
     }
     return lines
 }
@@ -258,7 +258,7 @@ function renderFragmentTree(
     extractedFolderToFragment: ReadonlyMap<string, string>,
     nodeToFragment: ReadonlyMap<string, string>,
     fileById: ReadonlyMap<string, FileInfo>,
-    vaultRoot: string,
+    projectRoot: string,
 ): void {
     const entries: Array<{kind: 'folder'; folder: FolderNode} | {kind: 'file'; file: FileInfo}> = []
     for (const child of folder.children) {
@@ -295,12 +295,12 @@ function renderFragmentTree(
                 extractedFolderToFragment,
                 nodeToFragment,
                 fileById,
-                vaultRoot,
+                projectRoot,
             )
             continue
         }
         lines.push(`${prefix}· ${entry.file.title} @[${entry.file.relPath}]`)
-        const inlineEdges: readonly string[] = localInlineEdges(entry.file, fragmentId, fileById, nodeToFragment, vaultRoot)
+        const inlineEdges: readonly string[] = localInlineEdges(entry.file, fragmentId, fileById, nodeToFragment, projectRoot)
         const childPrefix: string = indents.map(open => open ? '│   ' : '    ').join('') + (isLast ? '    ' : '│   ')
         for (let j = 0; j < inlineEdges.length; j++) {
             const edge: string = inlineEdges[j]!
@@ -315,7 +315,7 @@ function buildFragmentFooter(
     nodeIds: readonly string[],
     fileById: ReadonlyMap<string, FileInfo>,
     nodeToFragment: ReadonlyMap<string, string>,
-    vaultRoot: string,
+    projectRoot: string,
 ): readonly string[] {
     const lines: string[] = []
     const sortedNodeIds: readonly string[] = [...nodeIds].sort((left, right) =>
@@ -328,7 +328,7 @@ function buildFragmentFooter(
             const targetFragment: string | undefined = nodeToFragment.get(edge.targetId)
             if (targetFragment === fragmentId) continue
             const targetText: string = targetFragment
-                ? `${targetFragment}::${relId(edge.targetId, vaultRoot)}`
+                ? `${targetFragment}::${relId(edge.targetId, projectRoot)}`
                 : `?${edge.targetId}`
             lines.push(`${file.relPath} -> ${targetText}`)
         }
@@ -366,8 +366,8 @@ function computeFragmentStats(
     }
 }
 
-function buildRecursiveAscii(state: JsonState, vaultRoot: string, options: RecursiveRenderOptions): RecursiveRender {
-    const {root, fileById} = buildFolderTree(state, vaultRoot)
+function buildRecursiveAscii(state: JsonState, projectRoot: string, options: RecursiveRenderOptions): RecursiveRender {
+    const {root, fileById} = buildFolderTree(state, projectRoot)
     computeFolderStats(root, fileById)
     const plan: ExtractPlan = planExtractions(root, options)
     const nodeToFragment: Map<string, string> = new Map()
@@ -390,13 +390,13 @@ function buildRecursiveAscii(state: JsonState, vaultRoot: string, options: Recur
             plan.extractedFolderToFragment,
             nodeToFragment,
             fileById,
-            vaultRoot,
+            projectRoot,
         )
         const nodeIds: readonly string[] = groupedNodes.get(fragmentId) ?? []
-        const footerLines: readonly string[] = buildFragmentFooter(fragmentId, nodeIds, fileById, nodeToFragment, vaultRoot)
+        const footerLines: readonly string[] = buildFragmentFooter(fragmentId, nodeIds, fileById, nodeToFragment, projectRoot)
         fragments.push({
             id: fragmentId,
-            label: fragmentId === 'main' ? path.basename(vaultRoot) : (fragmentRoot.relPath || fragmentRoot.name),
+            label: fragmentId === 'main' ? path.basename(projectRoot) : (fragmentRoot.relPath || fragmentRoot.name),
             rootRelPath: fragmentRoot.relPath,
             lines,
             footerLines,
@@ -406,7 +406,7 @@ function buildRecursiveAscii(state: JsonState, vaultRoot: string, options: Recur
 
     const out: string[] = []
     out.push('═══ L3-BF-194 recursive ASCII ═══')
-    out.push(`vault_root: ${vaultRoot}`)
+    out.push(`project_root: ${projectRoot}`)
     out.push(`thresholds: max_inline_edges=${formatLimit(options.maxInlineEdges)}, max_inline_nodes=${formatLimit(options.maxInlineNodes)}, max_depth=${options.maxDepth}`)
     out.push(`fragment_count: ${fragments.length}`)
     out.push('')
@@ -425,7 +425,7 @@ function buildRecursiveAscii(state: JsonState, vaultRoot: string, options: Recur
     return {text: out.join('\n').trimEnd() + '\n', fragments, nodeToFragment}
 }
 
-function parseArgs(argv: readonly string[]): {vaultRoot: string; statePath: string | null; options: RecursiveRenderOptions} {
+function parseArgs(argv: readonly string[]): {projectRoot: string; statePath: string | null; options: RecursiveRenderOptions} {
     const positionals: string[] = []
     let statePath: string | null = null
     let maxInlineEdges: number = DEFAULTS.maxInlineEdges
@@ -444,21 +444,21 @@ function parseArgs(argv: readonly string[]): {vaultRoot: string; statePath: stri
         positionals.push(arg)
     }
     if (positionals.length !== 1) {
-        throw new Error('Usage: L3-BF-194-recursive-ascii.ts <vault-root> [--state <state.json>] [--max-inline-edges N|inf] [--max-inline-nodes N|inf] [--max-depth N]')
+        throw new Error('Usage: L3-BF-194-recursive-ascii.ts <project-root> [--state <state.json>] [--max-inline-edges N|inf] [--max-inline-nodes N|inf] [--max-depth N]')
     }
     return {
-        vaultRoot: path.resolve(positionals[0]!),
+        projectRoot: path.resolve(positionals[0]!),
         statePath,
         options: {maxInlineEdges, maxInlineNodes, maxDepth},
     }
 }
 
 function main(): void {
-    const {vaultRoot, statePath, options} = parseArgs(process.argv.slice(2))
+    const {projectRoot, statePath, options} = parseArgs(process.argv.slice(2))
     const state: JsonState = statePath
         ? JSON.parse(fs.readFileSync(statePath, 'utf8'))
-        : loadStateFromRoot(vaultRoot)
-    const inferredRoot: string = statePath ? (vaultRoot || lcpOfIds(Object.keys(state.graph.nodes))) : vaultRoot
+        : loadStateFromRoot(projectRoot)
+    const inferredRoot: string = statePath ? (projectRoot || lcpOfIds(Object.keys(state.graph.nodes))) : projectRoot
     process.stdout.write(buildRecursiveAscii(state, inferredRoot, options).text)
 }
 

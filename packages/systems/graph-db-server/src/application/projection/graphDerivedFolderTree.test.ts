@@ -79,54 +79,54 @@ function collectFilePaths(tree: FolderTreeNode | null): Set<string> {
 }
 
 describe('projectGraphDerivedFolderTree', () => {
-  const projectRoot: AbsolutePath = toAbsolutePath('/vault')
-  const writeFolderPath: AbsolutePath = toAbsolutePath('/vault/notes')
+  const projectRoot: AbsolutePath = toAbsolutePath('/project')
+  const writeFolderPath: AbsolutePath = toAbsolutePath('/project/notes')
 
   it('contains exactly the folders that hold graph nodes (plus root)', () => {
     const graph = makeGraph([
-      '/vault/notes/a.md',
-      '/vault/notes/sub/b.md',
-      '/vault/journal/c.md',
+      '/project/notes/a.md',
+      '/project/notes/sub/b.md',
+      '/project/journal/c.md',
     ])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
       readPaths: [],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath,
     })
     expect(tree).not.toBeNull()
     const folders = collectFolderPaths(tree)
     expect(folders).toEqual(
       new Set([
-        '/vault',
-        '/vault/notes',
-        '/vault/notes/sub',
-        '/vault/journal',
+        '/project',
+        '/project/notes',
+        '/project/notes/sub',
+        '/project/journal',
       ]),
     )
   })
 
   it('attaches graph nodes as file children under their parent folders only', () => {
-    const graph = makeGraph(['/vault/notes/a.md', '/vault/journal/c.md'])
+    const graph = makeGraph(['/project/notes/a.md', '/project/journal/c.md'])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
       readPaths: [],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath,
     })
     const files = collectFilePaths(tree)
-    expect(files).toEqual(new Set(['/vault/notes/a.md', '/vault/journal/c.md']))
+    expect(files).toEqual(new Set(['/project/notes/a.md', '/project/journal/c.md']))
   })
 
   it('marks every file as isInGraph (since they came from the graph)', () => {
-    const graph = makeGraph(['/vault/notes/a.md'])
+    const graph = makeGraph(['/project/notes/a.md'])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
       readPaths: [],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath,
     })
     const notes = (tree!.children.find((c) => c.name === 'notes') as FolderTreeNode)
@@ -135,25 +135,25 @@ describe('projectGraphDerivedFolderTree', () => {
   })
 
   it('marks the writeFolderPath folder as isWriteTarget', () => {
-    const graph = makeGraph(['/vault/notes/a.md'])
+    const graph = makeGraph(['/project/notes/a.md'])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
       readPaths: [],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath,
     })
     const notes = tree!.children.find((c) => c.name === 'notes') as FolderTreeNode
     expect(notes.isWriteTarget).toBe(true)
   })
 
-  it('marks readPaths and vaultPaths as loadState=loaded', () => {
-    const graph = makeGraph(['/vault/notes/a.md'])
+  it('marks readPaths and projectPaths as loadState=loaded', () => {
+    const graph = makeGraph(['/project/notes/a.md'])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
-      readPaths: ['/vault/notes'],
-      vaultPaths: ['/vault/refs'],
+      readPaths: ['/project/notes'],
+      projectPaths: ['/project/refs'],
       writeFolderPath,
     })
     const notes = tree!.children.find((c) => c.name === 'notes') as FolderTreeNode
@@ -163,37 +163,37 @@ describe('projectGraphDerivedFolderTree', () => {
     expect(refs.loadState).toBe('loaded')
   })
 
-  it('includes configured read/vault/write paths even when they have no graph nodes', () => {
+  it('includes configured read/project/write paths even when they have no graph nodes', () => {
     const graph = makeGraph([])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
-      readPaths: ['/vault/refs'],
-      vaultPaths: ['/vault/external/lib'],
+      readPaths: ['/project/refs'],
+      projectPaths: ['/project/external/lib'],
       writeFolderPath,
     })
     const folders = collectFolderPaths(tree)
     expect(folders).toEqual(
       new Set([
-        '/vault',
-        '/vault/notes',
-        '/vault/refs',
-        '/vault/external',
-        '/vault/external/lib',
+        '/project',
+        '/project/notes',
+        '/project/refs',
+        '/project/external',
+        '/project/external/lib',
       ]),
     )
   })
 
   it('excludes paths outside the project root', () => {
     const graph = makeGraph([
-      '/vault/notes/a.md',
+      '/project/notes/a.md',
       '/elsewhere/x.md',
     ])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
       readPaths: ['/elsewhere'],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath,
     })
     const folders = collectFolderPaths(tree)
@@ -201,16 +201,16 @@ describe('projectGraphDerivedFolderTree', () => {
     const files = collectFilePaths(tree)
     expect(files.has('/elsewhere/x.md')).toBe(false)
     // The in-root graph node is still present.
-    expect(files.has('/vault/notes/a.md')).toBe(true)
+    expect(files.has('/project/notes/a.md')).toBe(true)
   })
 
   it('returns null when projectRoot is null', () => {
-    const graph = makeGraph(['/vault/notes/a.md'])
+    const graph = makeGraph(['/project/notes/a.md'])
     const tree = projectGraphDerivedFolderTree({
       graph,
       projectRoot: null,
       readPaths: [],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath,
     })
     expect(tree).toBeNull()
@@ -222,21 +222,21 @@ describe('projectGraphDerivedFolderTree', () => {
       graph,
       projectRoot,
       readPaths: [],
-      vaultPaths: [],
+      projectPaths: [],
       writeFolderPath: null,
     })
     expect(tree).not.toBeNull()
-    expect(tree!.absolutePath).toBe('/vault')
+    expect(tree!.absolutePath).toBe('/project')
     expect(tree!.children).toEqual([])
   })
 
   it('is synchronous: returns a value (not a Promise) immediately', () => {
-    const graph = makeGraph(['/vault/notes/a.md', '/vault/journal/c.md'])
+    const graph = makeGraph(['/project/notes/a.md', '/project/journal/c.md'])
     const result: FolderTreeNode | null = projectGraphDerivedFolderTree({
       graph,
       projectRoot,
-      readPaths: ['/vault/refs'],
-      vaultPaths: [],
+      readPaths: ['/project/refs'],
+      projectPaths: [],
       writeFolderPath,
     })
     // If the function were doing I/O it would have to be async; assert the

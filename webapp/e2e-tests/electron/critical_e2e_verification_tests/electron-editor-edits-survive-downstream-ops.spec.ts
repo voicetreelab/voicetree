@@ -203,7 +203,7 @@ const test = base.extend<{
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: projectPath,
-        vaultConfig: {
+        projectConfig: {
           [projectPath]: {
             writeFolderPath,
             readPaths: [],
@@ -246,10 +246,10 @@ const test = base.extend<{
     const openResult = await window.evaluate(async (dir) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const response = await api.main.openVault(dir);
+      const response = await api.main.openProject(dir);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
-    expect(openResult.writeFolderPath, 'openVault returned no writeFolderPath').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy();
 
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);

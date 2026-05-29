@@ -26,7 +26,7 @@ function makeResumable(): RecoverableAgentSession {
     const terminalData: TerminalData = {
         type: 'Terminal',
         terminalId: 'Bob' as TerminalData['terminalId'],
-        attachedToContextNodeId: '/vault/ctx.md' as TerminalData['attachedToContextNodeId'],
+        attachedToContextNodeId: '/project/ctx.md' as TerminalData['attachedToContextNodeId'],
         terminalCount: 0,
         anchoredToNodeId: O.none,
         title: 'Bob',
@@ -45,12 +45,12 @@ function makeResumable(): RecoverableAgentSession {
         contextContent: '',
         agentTypeName: '',
         initialCommand: 'claude',
-        initialEnvVars: {VOICETREE_PROJECT_PATH: '/vault'},
+        initialEnvVars: {VOICETREE_PROJECT_PATH: '/project'},
     }
     return {
         terminalId: 'Bob' as TerminalData['terminalId'],
         agentName: 'Bob',
-        metadataPath: '/vault/.voicetree/terminals/Bob.json',
+        metadataPath: '/project/.voicetree/terminals/Bob.json',
         terminalData,
         isClaimed: false,
         status: 'running',

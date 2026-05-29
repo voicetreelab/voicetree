@@ -46,12 +46,12 @@ const test = base.extend<{
     await fs.mkdir(vtPath, { recursive: true });
 
     const rootMdPath = path.join(vtPath, 'root.md');
-    await fs.writeFile(rootMdPath, '# Root\n\nMinimal test vault for SSE E2E test.\n', 'utf8');
+    await fs.writeFile(rootMdPath, '# Root\n\nMinimal test project for SSE E2E test.\n', 'utf8');
 
     // Write config to auto-load this directory
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: vtPath }, null, 2), 'utf8');
-    console.log('[SSE E2E Test] Created minimal test vault at:', vtPath);
+    console.log('[SSE E2E Test] Created minimal test project at:', vtPath);
 
     const electronApp = await electron.launch({
       args: [

@@ -22,7 +22,7 @@ import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -41,7 +41,7 @@ const test = base.extend<{
   electronApp: [async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-dark-mode-test-'));
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
 
     const electronApp = await electron.launch({
       args: [

@@ -158,7 +158,7 @@ export class SseStatusPanel {
 
     /** Dispatch navigation event for VoiceTreeGraphView to handle */
     private navigateToNode(filename: string): void {
-        // filename now includes vault folder from backend, use directly as nodeId
+        // filename now includes project folder from backend, use directly as nodeId
         window.dispatchEvent(new CustomEvent('voicetree-navigate', {
             detail: { nodeId: filename }
         }));

@@ -2,7 +2,7 @@
 //
 // `startDaemon` installs an instance (production: wraps `getDirectoryTree`;
 // tests: a counting/failing scanner) and consumers (sessionState workflow,
-// watcher event handler, vault lifecycle) read it from here. Reset on daemon
+// watcher event handler, project lifecycle) read it from here. Reset on daemon
 // stop so tests do not leak cache state across workers.
 
 import type { DirectoryEntry } from '@vt/graph-model/folders'
@@ -21,7 +21,7 @@ const defaultScanner: FolderTreeScanner = async (root, maxDepth) => {
   } catch {
     // Treat a missing or unreadable root as a cacheable `null` — callers fall
     // back to an empty folderTree. The cache will be cleared by the next
-    // structural event (chokidar add, vault close, etc.).
+    // structural event (chokidar add, project close, etc.).
     return null
   }
 }

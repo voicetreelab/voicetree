@@ -122,17 +122,17 @@ export const SCHEMAS_TWO_RULES: string = `module.exports = {
 
 export const FOLDER_NOTE_BODY: string = '# Work\n\n## Type: my-kind\n\nfolder note body\n'
 
-export async function setupGatedVault(
+export async function setupGatedProject(
     schemaPlugin: string = SCHEMAS_REQUIRES_NEEDED_MARKER,
 ): Promise<string> {
-    const vaultRoot: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-batch-')))
-    await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-    await writeFile(join(vaultRoot, '.voicetree', 'schemas.cjs'), schemaPlugin, 'utf8')
-    const workDir: string = join(vaultRoot, 'work')
+    const projectRoot: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-batch-')))
+    await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
+    await writeFile(join(projectRoot, '.voicetree', 'schemas.cjs'), schemaPlugin, 'utf8')
+    const workDir: string = join(projectRoot, 'work')
     await mkdir(workDir, {recursive: true})
     await writeFile(join(workDir, 'work.md'), FOLDER_NOTE_BODY, 'utf8')
     clearLoadSchemaPluginCacheForTest()
-    return vaultRoot
+    return projectRoot
 }
 
 // Spins up a minimal HTTP JSON-RPC responder so daemon-client.ts exercises

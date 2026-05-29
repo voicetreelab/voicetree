@@ -10,7 +10,7 @@ const {
   makeFolderTree,
   makeGraph,
   makeSession,
-  makeVault,
+  makeProject,
   makeVisibilityFolderTree,
   makeVisibilityGraph,
 } = makeProjectSessionStateFixtures()
@@ -22,7 +22,7 @@ describe('projectSessionState', () => {
     // webapp/src/shell/edge/main/state/buildLiveStateSnapshot.ts.
     const graph = makeGraph()
     const folderTree = makeFolderTree()
-    // Under expand-descendants-of-target semantics: /vault writeFolderPath expands
+    // Under expand-descendants-of-target semantics: /project writeFolderPath expands
     // every folder under it (docs, node_modules, node_modules/dep). Manual
     // collapse (collapseSet) is now conveyed through state.collapseSet alone —
     // the serialized folder tree keeps full children so downstream consumers
@@ -32,11 +32,11 @@ describe('projectSessionState', () => {
       ...folderTree,
       children: folderTree.children.filter((child) => child.name === 'docs'),
     }
-    const vault = makeVault()
+    const project = makeProject()
     const session = makeSession({
-      folderState: new Map([['/vault/docs', 'collapsed']]),
-      collapseSet: new Set(['/vault/docs/']),
-      selection: new Set(['/vault/docs/a.md']),
+      folderState: new Map([['/project/docs', 'collapsed']]),
+      collapseSet: new Set(['/project/docs/']),
+      selection: new Set(['/project/docs/a.md']),
       layout: { positions: {}, pan: { x: 5, y: 6 }, zoom: 2 },
       lastAccessedAt: 1700000000000,
     })
@@ -44,13 +44,13 @@ describe('projectSessionState', () => {
     const expected: State = {
       graph,
       roots: {
-        loaded: new Set(['/vault', '/vault/docs']),
+        loaded: new Set(['/project', '/project/docs']),
         folderTree: [expectedFolderTree],
       },
-      collapseSet: new Set(['/vault/docs/']),
-      selection: new Set(['/vault/docs/a.md']),
+      collapseSet: new Set(['/project/docs/']),
+      selection: new Set(['/project/docs/a.md']),
       layout: {
-        positions: new Map([['/vault/docs/a.md', { x: 10, y: 20 }]]),
+        positions: new Map([['/project/docs/a.md', { x: 10, y: 20 }]]),
         zoom: 2,
         pan: { x: 5, y: 6 },
       },
@@ -61,22 +61,22 @@ describe('projectSessionState', () => {
       },
     }
 
-    const result = projectSessionState({ graph, vault, folderTree, session })
+    const result = projectSessionState({ graph, project, folderTree, session })
     expect(result).toEqual(expected)
   })
 
   test('isolation: two sessions with different collapseSets produce different snapshots on the same inputs', () => {
     const graph = makeGraph()
     const folderTree = makeFolderTree()
-    const vault = makeVault()
+    const project = makeProject()
 
-    const sessionA = makeSession({ folderState: new Map([['/vault/docs', 'collapsed']]), collapseSet: new Set(['/vault/docs/']) })
-    const sessionB = makeSession({ folderState: new Map([['/vault/docs', 'expanded']]), collapseSet: new Set() })
+    const sessionA = makeSession({ folderState: new Map([['/project/docs', 'collapsed']]), collapseSet: new Set(['/project/docs/']) })
+    const sessionB = makeSession({ folderState: new Map([['/project/docs', 'expanded']]), collapseSet: new Set() })
 
-    const snapA = projectSessionState({ graph, vault, folderTree, session: sessionA })
-    const snapB = projectSessionState({ graph, vault, folderTree, session: sessionB })
+    const snapA = projectSessionState({ graph, project, folderTree, session: sessionA })
+    const snapB = projectSessionState({ graph, project, folderTree, session: sessionB })
 
-    expect([...snapA.collapseSet]).toEqual(['/vault/docs/'])
+    expect([...snapA.collapseSet]).toEqual(['/project/docs/'])
     expect([...snapB.collapseSet]).toEqual([])
     expect(snapA.collapseSet).not.toEqual(snapB.collapseSet)
     // Collapse state is conveyed through state.collapseSet alone — the
@@ -89,7 +89,7 @@ describe('projectSessionState', () => {
   test('null folderTree produces an empty roots.folderTree', () => {
     const snapshot = projectSessionState({
       graph: makeGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: null,
       session: makeSession(),
     })
@@ -99,7 +99,7 @@ describe('projectSessionState', () => {
   test('implicit write path renders folders with graph content and prunes empty folders', () => {
     const snapshot = projectSessionState({
       graph: makeGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeFolderTree(),
       session: makeSession(),
     })
@@ -107,47 +107,47 @@ describe('projectSessionState', () => {
     const root = snapshot.roots.folderTree[0]
     expect(root.children.map((child) => child.name)).toEqual(['docs'])
     expect(Object.keys(snapshot.graph.nodes).sort()).toEqual([
-      '/vault/docs/a.md',
-      '/vault/docs/b.md',
+      '/project/docs/a.md',
+      '/project/docs/b.md',
     ])
   })
 
   test('new folders under an expanded write path inherit visibility so moved targets and healed links project', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
-      session: makeSession({ folderState: new Map([['/vault', 'expanded']]) }),
+      session: makeSession({ folderState: new Map([['/project', 'expanded']]) }),
     })
 
     const root = snapshot.roots.folderTree[0]
     const archive = root.children.find((child) => child.name === 'archive') as FolderTreeNode
-    const source = snapshot.graph.nodes['/vault/source.md']
+    const source = snapshot.graph.nodes['/project/source.md']
     const projectedIds = project(snapshot).nodes.map((node) => node.id)
 
     expect(archive.children.map((child) => child.name)).toEqual(['target.md'])
-    expect(snapshot.graph.nodes['/vault/archive/target.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/project/archive/target.md']).toBeDefined()
     expect(source.outgoingEdges).toEqual([
-      { targetId: '/vault/archive/target.md', label: 'target' },
+      { targetId: '/project/archive/target.md', label: 'target' },
     ])
-    expect(projectedIds).toContain('/vault/archive/')
-    expect(projectedIds).toContain('/vault/archive/target.md')
+    expect(projectedIds).toContain('/project/archive/')
+    expect(projectedIds).toContain('/project/archive/target.md')
   })
 
   test('write path behaves as an implicit expanded ancestor without persisting a view row', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
       session: makeSession({ folderState: new Map() }),
     })
 
     const projectedIds = project(snapshot).nodes.map((node) => node.id)
 
-    expect(snapshot.graph.nodes['/vault/archive/target.md']).toBeDefined()
-    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeDefined()
-    expect(projectedIds).toContain('/vault/archive/')
-    expect(projectedIds).toContain('/vault/docs/archive/')
+    expect(snapshot.graph.nodes['/project/archive/target.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeDefined()
+    expect(projectedIds).toContain('/project/archive/')
+    expect(projectedIds).toContain('/project/docs/archive/')
   })
 
   test.each(['hidden', 'collapsed'] as const)(
@@ -155,12 +155,12 @@ describe('projectSessionState', () => {
     (parentState) => {
       const snapshot = projectSessionState({
         graph: makeDynamicMoveGraph(),
-        vault: makeVault(),
+        project: makeProject(),
         folderTree: makeDynamicFolderTree(),
         session: makeSession({
           folderState: new Map([
-            ['/vault', 'expanded'],
-            ['/vault/docs', parentState],
+            ['/project', 'expanded'],
+            ['/project/docs', parentState],
           ]),
         }),
       })
@@ -168,39 +168,39 @@ describe('projectSessionState', () => {
       const projected = project(snapshot)
       const projectedIds = projected.nodes.map((node) => node.id)
 
-      expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
-      expect(projectedIds).not.toContain('/vault/docs/archive/')
-      expect(projectedIds).not.toContain('/vault/docs/archive/target.md')
+      expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeUndefined()
+      expect(projectedIds).not.toContain('/project/docs/archive/')
+      expect(projectedIds).not.toContain('/project/docs/archive/target.md')
     },
   )
 
   test('explicit hidden rows still override inherited expanded visibility', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
       session: makeSession({
         folderState: new Map([
-          ['/vault', 'expanded'],
-          ['/vault/docs', 'hidden'],
+          ['/project', 'expanded'],
+          ['/project/docs', 'hidden'],
         ]),
       }),
     })
 
-    expect(snapshot.graph.nodes['/vault/docs/direct.md']).toBeUndefined()
-    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
+    expect(snapshot.graph.nodes['/project/docs/direct.md']).toBeUndefined()
+    expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeUndefined()
     expect(snapshot.collapseSet).toEqual(new Set())
   })
 
   test('explicit collapsed rows are preserved while inherited descendants stay hidden downstream', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
       session: makeSession({
         folderState: new Map([
-          ['/vault', 'expanded'],
-          ['/vault/docs', 'collapsed'],
+          ['/project', 'expanded'],
+          ['/project/docs', 'collapsed'],
         ]),
       }),
     })
@@ -208,34 +208,34 @@ describe('projectSessionState', () => {
     const projected = project(snapshot)
     const projectedIds = projected.nodes.map((node) => node.id)
 
-    expect([...snapshot.collapseSet]).toEqual(['/vault/docs/'])
-    expect(snapshot.graph.nodes['/vault/docs/direct.md']).toBeDefined()
-    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
-    expect(projectedIds).toContain('/vault/docs/')
-    expect(projectedIds).not.toContain('/vault/docs/direct.md')
-    expect(projectedIds).not.toContain('/vault/docs/archive/target.md')
+    expect([...snapshot.collapseSet]).toEqual(['/project/docs/'])
+    expect(snapshot.graph.nodes['/project/docs/direct.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeUndefined()
+    expect(projectedIds).toContain('/project/docs/')
+    expect(projectedIds).not.toContain('/project/docs/direct.md')
+    expect(projectedIds).not.toContain('/project/docs/archive/target.md')
   })
 
   test('new folders under an expanded write path inherit visibility so moved targets and healed links project', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
-      session: makeSession({ folderState: new Map([['/vault', 'expanded']]) }),
+      session: makeSession({ folderState: new Map([['/project', 'expanded']]) }),
     })
 
     const root = snapshot.roots.folderTree[0]
     const archive = root.children.find((child) => child.name === 'archive') as FolderTreeNode
-    const source = snapshot.graph.nodes['/vault/source.md']
+    const source = snapshot.graph.nodes['/project/source.md']
     const projectedIds = project(snapshot).nodes.map((node) => node.id)
 
     expect(archive.children.map((child) => child.name)).toEqual(['target.md'])
-    expect(snapshot.graph.nodes['/vault/archive/target.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/project/archive/target.md']).toBeDefined()
     expect(source.outgoingEdges).toEqual([
-      { targetId: '/vault/archive/target.md', label: 'target' },
+      { targetId: '/project/archive/target.md', label: 'target' },
     ])
-    expect(projectedIds).toContain('/vault/archive/')
-    expect(projectedIds).toContain('/vault/archive/target.md')
+    expect(projectedIds).toContain('/project/archive/')
+    expect(projectedIds).toContain('/project/archive/target.md')
   })
 
   test.each(['hidden', 'collapsed'] as const)(
@@ -243,12 +243,12 @@ describe('projectSessionState', () => {
     (parentState) => {
       const snapshot = projectSessionState({
         graph: makeDynamicMoveGraph(),
-        vault: makeVault(),
+        project: makeProject(),
         folderTree: makeDynamicFolderTree(),
         session: makeSession({
           folderState: new Map([
-            ['/vault', 'expanded'],
-            ['/vault/docs', parentState],
+            ['/project', 'expanded'],
+            ['/project/docs', parentState],
           ]),
         }),
       })
@@ -256,39 +256,39 @@ describe('projectSessionState', () => {
       const projected = project(snapshot)
       const projectedIds = projected.nodes.map((node) => node.id)
 
-      expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
-      expect(projectedIds).not.toContain('/vault/docs/archive/')
-      expect(projectedIds).not.toContain('/vault/docs/archive/target.md')
+      expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeUndefined()
+      expect(projectedIds).not.toContain('/project/docs/archive/')
+      expect(projectedIds).not.toContain('/project/docs/archive/target.md')
     },
   )
 
   test('explicit hidden rows still override inherited expanded visibility', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
       session: makeSession({
         folderState: new Map([
-          ['/vault', 'expanded'],
-          ['/vault/docs', 'hidden'],
+          ['/project', 'expanded'],
+          ['/project/docs', 'hidden'],
         ]),
       }),
     })
 
-    expect(snapshot.graph.nodes['/vault/docs/direct.md']).toBeUndefined()
-    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
+    expect(snapshot.graph.nodes['/project/docs/direct.md']).toBeUndefined()
+    expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeUndefined()
     expect(snapshot.collapseSet).toEqual(new Set())
   })
 
   test('explicit collapsed rows are preserved while inherited descendants stay hidden downstream', () => {
     const snapshot = projectSessionState({
       graph: makeDynamicMoveGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeDynamicFolderTree(),
       session: makeSession({
         folderState: new Map([
-          ['/vault', 'expanded'],
-          ['/vault/docs', 'collapsed'],
+          ['/project', 'expanded'],
+          ['/project/docs', 'collapsed'],
         ]),
       }),
     })
@@ -296,71 +296,71 @@ describe('projectSessionState', () => {
     const projected = project(snapshot)
     const projectedIds = projected.nodes.map((node) => node.id)
 
-    expect([...snapshot.collapseSet]).toEqual(['/vault/docs/'])
-    expect(snapshot.graph.nodes['/vault/docs/direct.md']).toBeDefined()
-    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
-    expect(projectedIds).toContain('/vault/docs/')
-    expect(projectedIds).not.toContain('/vault/docs/direct.md')
-    expect(projectedIds).not.toContain('/vault/docs/archive/target.md')
+    expect([...snapshot.collapseSet]).toEqual(['/project/docs/'])
+    expect(snapshot.graph.nodes['/project/docs/direct.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/project/docs/archive/target.md']).toBeUndefined()
+    expect(projectedIds).toContain('/project/docs/')
+    expect(projectedIds).not.toContain('/project/docs/direct.md')
+    expect(projectedIds).not.toContain('/project/docs/archive/target.md')
   })
 
   test('expanded folder state renders that folder as an implicit root with direct file children', () => {
     const snapshot = projectSessionState({
       graph: makeGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeFolderTree(),
-      session: makeSession({ folderState: new Map([['/vault/docs', 'expanded']]) }),
+      session: makeSession({ folderState: new Map([['/project/docs', 'expanded']]) }),
     })
 
     const root = snapshot.roots.folderTree[0]
     const docs = root.children.find((child) => child.name === 'docs') as FolderTreeNode
 
     expect(docs.children.map((child) => child.name)).toEqual(['a.md', 'b.md'])
-    expect(Object.keys(snapshot.graph.nodes).sort()).toEqual(['/vault/docs/a.md', '/vault/docs/b.md'])
+    expect(Object.keys(snapshot.graph.nodes).sort()).toEqual(['/project/docs/a.md', '/project/docs/b.md'])
   })
 
   test('hidden ancestor makes an expanded child folder project as a graph root', () => {
     const snapshot = projectSessionState({
       graph: makeVisibilityGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeVisibilityFolderTree(),
       session: makeSession({
         folderState: new Map([
-          ['/vault/workspace', 'hidden'],
-          ['/vault/workspace/feature', 'expanded'],
+          ['/project/workspace', 'hidden'],
+          ['/project/workspace/feature', 'expanded'],
         ]),
       }),
     })
 
     const projected = project(snapshot)
-    const feature = projected.nodes.find((node) => node.id === '/vault/workspace/feature/')
-    const workspace = projected.nodes.find((node) => node.id === '/vault/workspace/')
+    const feature = projected.nodes.find((node) => node.id === '/project/workspace/feature/')
+    const workspace = projected.nodes.find((node) => node.id === '/project/workspace/')
 
     expect(workspace).toBeUndefined()
     expect(feature).toMatchObject({ kind: 'folder' })
     expect(feature).not.toHaveProperty('parent')
-    expect(projected.nodes.find((node) => node.id === '/vault/workspace/feature/leaf.md')).toMatchObject({
-      parent: '/vault/workspace/feature/',
+    expect(projected.nodes.find((node) => node.id === '/project/workspace/feature/leaf.md')).toMatchObject({
+      parent: '/project/workspace/feature/',
     })
   })
 
   test('hidden folders remove their files and edges from the projected graph input', () => {
     const snapshot = projectSessionState({
       graph: makeVisibilityGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeVisibilityFolderTree(),
       session: makeSession({
         folderState: new Map([
-          ['/vault/public', 'expanded'],
-          ['/vault/secret', 'hidden'],
+          ['/project/public', 'expanded'],
+          ['/project/secret', 'hidden'],
         ]),
       }),
     })
 
     expect(Object.keys(snapshot.graph.nodes).sort()).toEqual([
-      '/vault/public/target.md',
-      '/vault/root.md',
-      '/vault/workspace/feature/leaf.md',
+      '/project/public/target.md',
+      '/project/root.md',
+      '/project/workspace/feature/leaf.md',
     ])
     expect(project(snapshot).edges).toEqual([])
   })
@@ -373,11 +373,11 @@ describe('projectSessionState', () => {
     // can emit a `folder-collapsed` node with a correct childCount.
     const snapshot = projectSessionState({
       graph: makeGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeFolderTree(),
       session: makeSession({
-        folderState: new Map([['/vault/docs', 'collapsed']]),
-        collapseSet: new Set(['/vault/docs/']),
+        folderState: new Map([['/project/docs', 'collapsed']]),
+        collapseSet: new Set(['/project/docs/']),
       }),
     })
 
@@ -385,27 +385,27 @@ describe('projectSessionState', () => {
     const docs = root.children.find((child) => child.name === 'docs') as FolderTreeNode
 
     expect(docs.children.map((child) => child.name)).toEqual(['a.md', 'b.md'])
-    expect([...snapshot.collapseSet]).toEqual(['/vault/docs/'])
+    expect([...snapshot.collapseSet]).toEqual(['/project/docs/'])
   })
 
   test('layout.positions is sourced from graph, not from session.layout.positions', () => {
     const session = makeSession({
       layout: {
-        positions: { '/vault/docs/a.md': { x: 999, y: 999 } },
+        positions: { '/project/docs/a.md': { x: 999, y: 999 } },
         pan: { x: 0, y: 0 },
         zoom: 1,
       },
     })
     const snapshot = projectSessionState({
       graph: makeGraph(),
-      vault: makeVault(),
+      project: makeProject(),
       folderTree: makeFolderTree(),
       session: makeSession({
         ...session,
-        folderState: new Map([['/vault/docs', 'expanded']]),
+        folderState: new Map([['/project/docs', 'expanded']]),
       }),
     })
     // Graph has a.md at (10, 20); session's 999/999 is ignored by the projection.
-    expect(snapshot.layout.positions.get('/vault/docs/a.md')).toEqual({ x: 10, y: 20 })
+    expect(snapshot.layout.positions.get('/project/docs/a.md')).toEqual({ x: 10, y: 20 })
   })
 })

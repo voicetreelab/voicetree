@@ -25,7 +25,7 @@ import {
     FIXTURE_SERIALIZED_STATE,
     SAMPLE_NODE,
     TASKS_FOLDER,
-    VAULT_ROOT,
+    PROJECT_ROOT,
     buildHappyCatalog,
     initialMockServer,
     restoreEnv,
@@ -61,7 +61,7 @@ describe('createLiveTransport — happy path over HTTP', () => {
 
         expect(state.meta.revision).toBe(3)
         expect(state.meta.schemaVersion).toBe(1)
-        expect(state.roots.loaded.has(VAULT_ROOT)).toBe(true)
+        expect(state.roots.loaded.has(PROJECT_ROOT)).toBe(true)
         expect(state.collapseSet.size).toBe(0)
         expect(Object.keys(state.graph.nodes)).toContain(SAMPLE_NODE)
         expect(state.layout.positions.get(SAMPLE_NODE)).toEqual({x: 1, y: 2})
@@ -295,13 +295,13 @@ describe('createLiveTransport — discovery chain', () => {
         ])
         daemon = await startStubDaemon(catalog)
 
-        const fakeVault: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-fake-')))
-        await mkdir(join(fakeVault, '.voicetree'), {recursive: true})
-        await writeRpcPortFile(fakeVault, 2)
-        await writeAuthTokenFile(fakeVault, 'stale-token')
+        const fakeProject: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-fake-')))
+        await mkdir(join(fakeProject, '.voicetree'), {recursive: true})
+        await writeRpcPortFile(fakeProject, 2)
+        await writeAuthTokenFile(fakeProject, 'stale-token')
 
         try {
-            // Env URL aimed at the real daemon; VAULT_PATH at the real project
+            // Env URL aimed at the real daemon; PROJECT_PATH at the real project
             // (so the client reads the *correct* token, not the stale one).
             process.env.VOICETREE_DAEMON_URL = daemon.url
             process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
@@ -309,7 +309,7 @@ describe('createLiveTransport — discovery chain', () => {
             const state = await createLiveTransport().getLiveState()
             expect(state.meta.revision).toBe(99)
         } finally {
-            await rm(fakeVault, {recursive: true, force: true})
+            await rm(fakeProject, {recursive: true, force: true})
         }
     })
 

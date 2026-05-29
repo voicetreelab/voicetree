@@ -55,7 +55,7 @@ test.describe("spawn_agent terminal anchoring", () => {
 
   test("anchors the spawned interactive terminal to the new task node", async ({
     appWindow,
-    fixtureVaultPath,
+    fixtureProjectPath,
     electronDiagnostics,
   }) => {
     let rpc: RpcAccess | null = null;
@@ -68,15 +68,15 @@ test.describe("spawn_agent terminal anchoring", () => {
         token: await getBearerToken(appWindow),
       };
 
-      // Bind the daemon to the fixture vault. openVault throws on failure and
+      // Bind the daemon to the fixture project. openProject throws on failure and
       // returns the resolved write folder path on success.
       const openResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
-        const response = await api.main.openVault(projectRoot);
+        const response = await api.main.openProject(projectRoot);
         return { writeFolderPath: response.writeFolderPath };
-      }, fixtureVaultPath);
-      expect(openResult.writeFolderPath, "openVault returned no writeFolderPath").toBeTruthy();
+      }, fixtureProjectPath);
+      expect(openResult.writeFolderPath, "openProject returned no writeFolderPath").toBeTruthy();
 
       await expect
         .poll(
@@ -90,7 +90,7 @@ test.describe("spawn_agent terminal anchoring", () => {
           },
           {
             message:
-              "Waiting for graph state after openVault bound the daemon",
+              "Waiting for graph state after openProject bound the daemon",
             timeout: 15_000,
             intervals: [250, 500, 1000],
           },

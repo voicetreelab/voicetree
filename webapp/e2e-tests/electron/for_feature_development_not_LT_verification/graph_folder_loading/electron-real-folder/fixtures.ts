@@ -4,8 +4,8 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { ExtendedWindow, RealFolderFixtures } from './types';
 import {
-  deleteVaultFilesIfPresent,
-  FIXTURE_VAULT_PATH,
+  deleteProjectFilesIfPresent,
+  FIXTURE_PROJECT_PATH,
   INCREMENTAL_TEST_FILE_NAMES,
   PROJECT_ROOT
 } from './fs-helpers';
@@ -17,16 +17,16 @@ export const test = base.extend<RealFolderFixtures>({
     // Create a temporary userData directory for this test (like smoke test does)
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-real-folder-test-'));
 
-    // Write the config file to auto-load the test vault (like smoke test does)
+    // Write the config file to auto-load the test project (like smoke test does)
     // IMPORTANT: Set empty suffix so it uses the directory directly, not directory/voicetree
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: FIXTURE_PROJECT_PATH,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+        [FIXTURE_PROJECT_PATH]: '' // Empty suffix means use directory directly
       }
     }, null, 2), 'utf8');
-    console.log('[Real Folder Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+    console.log('[Real Folder Test] Created config file to auto-load:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -125,5 +125,5 @@ test.afterEach(async ({ appWindow }) => {
     // Window might be closed, that's okay
   }
 
-  await deleteVaultFilesIfPresent(INCREMENTAL_TEST_FILE_NAMES);
+  await deleteProjectFilesIfPresent(INCREMENTAL_TEST_FILE_NAMES);
 });

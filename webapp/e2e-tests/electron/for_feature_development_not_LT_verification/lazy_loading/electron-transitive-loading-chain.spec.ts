@@ -135,7 +135,7 @@ It should NOT be loaded via transitive resolution.
       configPath,
       JSON.stringify({
         lastDirectory: tempDir,
-        vaultConfig: {
+        projectConfig: {
           [tempDir]: {
             writeFolderPath: writeFolderPath,
             readPaths: []

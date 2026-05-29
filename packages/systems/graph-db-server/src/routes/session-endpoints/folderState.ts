@@ -28,10 +28,10 @@ function decodePath(raw: string): string | null {
   }
 }
 
-function vaultMustBeOpen() {
+function projectMustBeOpen() {
   return getProjectRoot()
     ? null
-    : errorResult('No vault is currently open', 'vault_not_open', 409)
+    : errorResult('No project is currently open', 'project_not_open', 409)
 }
 
 function normalizeFolderId(path: string): string {
@@ -60,11 +60,11 @@ function syncSessionCollapseSetBatch(
 
 async function syncGraphLoadedState(path: string, state: FolderState): Promise<void> {
   if (state === 'expanded') {
-    await executeCommand({ type: 'AddVaultReadPath', path })
+    await executeCommand({ type: 'AddProjectReadPath', path })
     return
   }
   if (state === 'hidden') {
-    await executeCommand({ type: 'RemoveVaultReadPath', path })
+    await executeCommand({ type: 'RemoveProjectReadPath', path })
   }
 }
 
@@ -76,8 +76,8 @@ export function mountFolderStateRoutes(
     if (!registry.get(routeParam(c, 'sessionId'))) {
       return sendHttpResult(c, notFoundResult())
     }
-    const vaultError = vaultMustBeOpen()
-    if (vaultError) return sendHttpResult(c, vaultError)
+    const projectError = projectMustBeOpen()
+    if (projectError) return sendHttpResult(c, projectError)
 
     return sendHttpResult(
       c,
@@ -90,8 +90,8 @@ export function mountFolderStateRoutes(
     if (!session) {
       return sendHttpResult(c, notFoundResult())
     }
-    const vaultError = vaultMustBeOpen()
-    if (vaultError) return sendHttpResult(c, vaultError)
+    const projectError = projectMustBeOpen()
+    if (projectError) return sendHttpResult(c, projectError)
 
     const path = decodePath(routeParam(c, 'encodedPath'))
     if (!path) {
@@ -117,8 +117,8 @@ export function mountFolderStateRoutes(
     if (!session) {
       return sendHttpResult(c, notFoundResult())
     }
-    const vaultError = vaultMustBeOpen()
-    if (vaultError) return sendHttpResult(c, vaultError)
+    const projectError = projectMustBeOpen()
+    if (projectError) return sendHttpResult(c, projectError)
 
     const body = FolderStateBatchRequestSchema.safeParse(await c.req.json())
     if (!body.success) {

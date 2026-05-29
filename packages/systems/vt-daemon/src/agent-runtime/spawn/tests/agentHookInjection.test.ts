@@ -113,7 +113,7 @@ describe('buildCodexHookFlags', () => {
         expect(flags).not.toMatch(/Bearer [a-f0-9]{16,}/)
     })
 
-    it('reads the bearer token via `cat` from the vault auth-token file', () => {
+    it('reads the bearer token via `cat` from the project auth-token file', () => {
         const flags = buildCodexHookFlags(DAEMON_URL, 'Jin')
         // The TOML-escaped form has \" instead of " — the test asserts the
         // inner-quoted-cat substring with escapes.
@@ -186,7 +186,7 @@ describe('buildClaudeHookSettingsJson', () => {
         const cmd: string = settings.hooks.Notification[0].hooks[0].command
         expect(cmd).toContain('${VOICETREE_DAEMON_URL}')
         expect(cmd).toContain('${VOICETREE_TERMINAL_ID}')
-        // VAULT_PATH appears inside a double-quoted shell string — idiomatic
+        // PROJECT_PATH appears inside a double-quoted shell string — idiomatic
         // `$VAR` form, not `${VAR}`.
         expect(cmd).toContain('$VOICETREE_PROJECT_PATH/.voicetree/auth-token')
         // Legacy refs gone.
@@ -194,7 +194,7 @@ describe('buildClaudeHookSettingsJson', () => {
         expect(cmd).not.toContain('${VOICETREE_MCP_PORT}')
     })
 
-    it('reads the bearer token via `cat` from the vault auth-token file (no token on argv)', () => {
+    it('reads the bearer token via `cat` from the project auth-token file (no token on argv)', () => {
         const settings = JSON.parse(buildClaudeHookSettingsJson()) as {hooks: Record<string, Array<{hooks: Array<{command: string}>}>>}
         const cmd: string = settings.hooks.Notification[0].hooks[0].command
         expect(cmd).toContain('TOKEN=$(cat "$VOICETREE_PROJECT_PATH/.voicetree/auth-token")')

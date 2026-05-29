@@ -38,7 +38,7 @@ else
     exit 127
 fi
 
-# tsx auto-discovers tsconfig.json from CWD, but vt runs from vault dirs —
+# tsx auto-discovers tsconfig.json from CWD, but vt runs from project dirs —
 # pin it to this package's tsconfig so module resolution stays consistent.
 exec env TSX_TSCONFIG_PATH="$PACKAGE_DIR/tsconfig.json" "$TSX_BIN" \
     "$PACKAGE_DIR/src/voicetree-cli.ts" "$@"

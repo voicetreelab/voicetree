@@ -148,13 +148,13 @@ This is the only node in project 2.
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
-    // Write vault config for BOTH projects so they load correctly when switched
+    // Write project config for BOTH projects so they load correctly when switched
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: project1Path,
-        vaultConfig: {
+        projectConfig: {
           [project1Path]: {
             writeFolderPath: writeFolderPath1,
             readPaths: []

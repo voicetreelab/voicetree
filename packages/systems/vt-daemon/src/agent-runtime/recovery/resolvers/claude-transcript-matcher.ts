@@ -51,7 +51,7 @@ function recordMatchesMarkers(
  * Pure first-match resolver for Claude transcript records.
  *
  * Returns the `sessionId` of the first record whose `message.content` contains
- * all three VoiceTree markers (terminal id, vault path, task node path).
+ * all three VoiceTree markers (terminal id, project path, task node path).
  * Returns null when no record matches or the matching record has no sessionId.
  *
  * Handles both string content and array-of-blocks content. Malformed records

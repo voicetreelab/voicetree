@@ -2,7 +2,7 @@
  * BEHAVIORAL SPEC:
  * E2E tests for the unified folder loading refactor (Phase 5).
  *
- * These tests verify that the loadAndMergeVaultPath function correctly handles:
+ * These tests verify that the loadAndMergeProjectPath function correctly handles:
  * - Creating starter nodes for empty write paths
  * - NOT creating starter nodes for read paths (even if empty)
  * - Loading files correctly when reopening a project
@@ -10,7 +10,7 @@
  *
  * Prerequisites:
  * - Phases 1-4 of the "Unify Folder Loading" refactor are complete
- * - loadAndMergeVaultPath handles isWriteFolderPath option correctly
+ * - loadAndMergeProjectPath handles isWriteFolderPath option correctly
  */
 
 import { expect } from '@playwright/test';
@@ -21,21 +21,21 @@ import {
   launchElectronApp,
   stopFileWatching,
   test,
-  writeVaultConfig
+  writeProjectConfig
 } from './electron-unified-folder-loading/fixtures';
 import type { ExtendedWindow } from './electron-unified-folder-loading/types';
 
 test.describe('Unified Folder Loading E2E Tests', () => {
   /**
-   * Test 5A: New folder creation via VaultPathSelector creates starter node
+   * Test 5A: New folder creation via ProjectPathSelector creates starter node
    *
    * SCENARIO: User creates a new folder and sets it as write destination
    * EXPECTED: Starter node is created in the new empty folder
    */
   test('5A: setting write path to empty folder creates starter node', async ({
     appWindow,
-    primaryVaultPath,
-    secondVaultPath
+    primaryProjectPath,
+    secondProjectPath
   }) => {
     test.setTimeout(45000);
 
@@ -56,19 +56,19 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     });
 
     console.log('Initial write path:', initialWriteFolderPath);
-    expect(initialWriteFolderPath).toBe(primaryVaultPath);
+    expect(initialWriteFolderPath).toBe(primaryProjectPath);
 
-    console.log('=== STEP 2: Verify second-vault is empty ===');
-    const secondVaultFiles = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault before setWriteFolderPath:', secondVaultFiles);
-    expect(secondVaultFiles.length).toBe(0);
+    console.log('=== STEP 2: Verify second-project is empty ===');
+    const secondProjectFiles = await fs.readdir(secondProjectPath);
+    console.log('Files in second-project before setWriteFolderPath:', secondProjectFiles);
+    expect(secondProjectFiles.length).toBe(0);
 
-    console.log('=== STEP 3: Set write path to empty second-vault ===');
+    console.log('=== STEP 3: Set write path to empty second-project ===');
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.setWriteFolderPath(secondPath);
-    }, secondVaultPath);
+    }, secondProjectPath);
 
     console.log('Set write path result:', setResult);
     expect(setResult.success).toBe(true);
@@ -77,8 +77,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     await appWindow.waitForTimeout(1500);
 
     console.log('=== STEP 4: Verify starter node was created on disk ===');
-    const filesAfterSet = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault after setWriteFolderPath:', filesAfterSet);
+    const filesAfterSet = await fs.readdir(secondProjectPath);
+    console.log('Files in second-project after setWriteFolderPath:', filesAfterSet);
 
     // Should have exactly one starter node file
     const mdFiles = filesAfterSet.filter(f => f.endsWith('.md'));
@@ -98,10 +98,10 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     console.log('Graph nodes:', graphNodes);
     expect(graphNodes.length).toBeGreaterThan(0);
 
-    // Find nodes in second-vault
-    const nodesInSecondVault = graphNodes.filter(n => n.id.includes('second-vault'));
-    console.log('Nodes in second-vault:', nodesInSecondVault);
-    expect(nodesInSecondVault.length).toBe(1);
+    // Find nodes in second-project
+    const nodesInSecondProject = graphNodes.filter(n => n.id.includes('second-project'));
+    console.log('Nodes in second-project:', nodesInSecondProject);
+    expect(nodesInSecondProject.length).toBe(1);
 
     // Take screenshot for verification
     await appWindow.screenshot({ path: 'e2e-tests/screenshots/e2e-5a-starter-node-created.png' });
@@ -117,8 +117,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
    */
   test('5D: adding read path does NOT create starter node', async ({
     appWindow,
-    primaryVaultPath,
-    secondVaultPath
+    primaryProjectPath,
+    secondProjectPath
   }) => {
     test.setTimeout(45000);
 
@@ -127,26 +127,26 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     console.log('=== STEP 1: Verify initial state ===');
     await appWindow.waitForTimeout(500);
 
-    // Create an initial node in primary vault so graph isn't empty
+    // Create an initial node in primary project so graph isn't empty
     await fs.writeFile(
-      path.join(primaryVaultPath, 'initial-node.md'),
+      path.join(primaryProjectPath, 'initial-node.md'),
       '# Initial Node\n\nThis is the starting node.'
     );
 
     // Wait for file watcher to pick it up
     await appWindow.waitForTimeout(1500);
 
-    console.log('=== STEP 2: Verify second-vault is empty ===');
-    const secondVaultFilesBefore = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault before addReadPath:', secondVaultFilesBefore);
-    expect(secondVaultFilesBefore.length).toBe(0);
+    console.log('=== STEP 2: Verify second-project is empty ===');
+    const secondProjectFilesBefore = await fs.readdir(secondProjectPath);
+    console.log('Files in second-project before addReadPath:', secondProjectFilesBefore);
+    expect(secondProjectFilesBefore.length).toBe(0);
 
-    console.log('=== STEP 3: Add second-vault as read path ===');
+    console.log('=== STEP 3: Add second-project as read path ===');
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.addReadPath(secondPath);
-    }, secondVaultPath);
+    }, secondProjectPath);
 
     console.log('Add read path result:', addResult);
     expect(addResult.success).toBe(true);
@@ -155,21 +155,21 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     await appWindow.waitForTimeout(1500);
 
     console.log('=== STEP 4: Verify NO starter node was created on disk ===');
-    const filesAfterAdd = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault after addReadPath:', filesAfterAdd);
+    const filesAfterAdd = await fs.readdir(secondProjectPath);
+    console.log('Files in second-project after addReadPath:', filesAfterAdd);
 
     // Should still be empty - NO starter node for read paths
     expect(filesAfterAdd.length).toBe(0);
 
     console.log('=== STEP 5: Verify read path was added to config ===');
-    const vaultPaths = await appWindow.evaluate(async () => {
+    const projectPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.getVaultPaths();
+      return await api.main.getProjectPaths();
     });
 
-    console.log('All vault paths:', vaultPaths);
-    expect(vaultPaths).toContain(secondVaultPath);
+    console.log('All project paths:', projectPaths);
+    expect(projectPaths).toContain(secondProjectPath);
 
     // Take screenshot for verification
     await appWindow.screenshot({ path: 'e2e-tests/screenshots/e2e-5d-no-starter-for-read-path.png' });
@@ -185,7 +185,7 @@ test.describe('Unified Folder Loading E2E Tests', () => {
    */
   test('5B: reopening project loads all files correctly', async ({
     testProjectPath,
-    primaryVaultPath,
+    primaryProjectPath,
     tempUserDataPath
   }) => {
     test.setTimeout(60000);
@@ -195,20 +195,20 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     console.log('=== STEP 1: Create test files with wikilinks ===');
     // Create multiple files with wikilinks to test resolution
     await fs.writeFile(
-      path.join(primaryVaultPath, 'parent-node.md'),
+      path.join(primaryProjectPath, 'parent-node.md'),
       '# Parent Node\n\nThis links to [[child-node]] and [[sibling-node]].'
     );
     await fs.writeFile(
-      path.join(primaryVaultPath, 'child-node.md'),
+      path.join(primaryProjectPath, 'child-node.md'),
       '# Child Node\n\nThis is a child that links back to [[parent-node]].'
     );
     await fs.writeFile(
-      path.join(primaryVaultPath, 'sibling-node.md'),
+      path.join(primaryProjectPath, 'sibling-node.md'),
       '# Sibling Node\n\nThis is a sibling that links to [[child-node]].'
     );
 
     console.log('=== STEP 2: Update config to load this project ===');
-    await writeVaultConfig(tempUserDataPath, testProjectPath, primaryVaultPath);
+    await writeProjectConfig(tempUserDataPath, testProjectPath, primaryProjectPath);
 
     console.log('=== STEP 3: Launch Electron app ===');
     const electronApp = await launchElectronApp(tempUserDataPath);
@@ -280,16 +280,16 @@ test.describe('Unified Folder Loading E2E Tests', () => {
    */
   test('5C: changing write path to empty folder creates starter node', async ({
     appWindow,
-    primaryVaultPath,
-    secondVaultPath
+    primaryProjectPath,
+    secondProjectPath
   }) => {
     test.setTimeout(45000);
 
     console.log('=== TEST 5C: Changing write path to empty folder creates starter node ===');
 
-    console.log('=== STEP 1: Create initial content in primary vault ===');
+    console.log('=== STEP 1: Create initial content in primary project ===');
     await fs.writeFile(
-      path.join(primaryVaultPath, 'existing-note.md'),
+      path.join(primaryProjectPath, 'existing-note.md'),
       '# Existing Note\n\nThis note existed before changing write path.'
     );
 
@@ -309,17 +309,17 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     console.log('Initial nodes:', initialNodes);
     expect(initialNodes.length).toBeGreaterThan(0);
 
-    console.log('=== STEP 3: Verify second-vault is empty ===');
-    const secondVaultFilesBefore = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault before:', secondVaultFilesBefore);
-    expect(secondVaultFilesBefore.length).toBe(0);
+    console.log('=== STEP 3: Verify second-project is empty ===');
+    const secondProjectFilesBefore = await fs.readdir(secondProjectPath);
+    console.log('Files in second-project before:', secondProjectFilesBefore);
+    expect(secondProjectFilesBefore.length).toBe(0);
 
-    console.log('=== STEP 4: Change write path to empty second-vault ===');
+    console.log('=== STEP 4: Change write path to empty second-project ===');
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.setWriteFolderPath(secondPath);
-    }, secondVaultPath);
+    }, secondProjectPath);
 
     console.log('Set write path result:', setResult);
     expect(setResult.success).toBe(true);
@@ -328,8 +328,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     await appWindow.waitForTimeout(1500);
 
     console.log('=== STEP 5: Verify starter node created in new write path ===');
-    const filesAfterChange = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault after change:', filesAfterChange);
+    const filesAfterChange = await fs.readdir(secondProjectPath);
+    console.log('Files in second-project after change:', filesAfterChange);
 
     const mdFiles = filesAfterChange.filter(f => f.endsWith('.md'));
     expect(mdFiles.length).toBe(1);
@@ -347,7 +347,7 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     });
 
     console.log('New write path:', newWriteFolderPath);
-    expect(newWriteFolderPath).toBe(secondVaultPath);
+    expect(newWriteFolderPath).toBe(secondProjectPath);
 
     // Take screenshot for verification
     await appWindow.screenshot({ path: 'e2e-tests/screenshots/e2e-5c-change-write-path.png' });
@@ -362,8 +362,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
    */
   test('5E: visual verification flow with screenshots', async ({
     appWindow,
-    primaryVaultPath,
-    secondVaultPath
+    primaryProjectPath,
+    secondProjectPath
   }) => {
     test.setTimeout(60000);
 
@@ -380,9 +380,9 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     });
     console.log('Initial node count:', initialNodeCount);
 
-    console.log('=== STEP 2: Create file in primary vault ===');
+    console.log('=== STEP 2: Create file in primary project ===');
     await fs.writeFile(
-      path.join(primaryVaultPath, 'visual-test.md'),
+      path.join(primaryProjectPath, 'visual-test.md'),
       '# Visual Test Node\n\nThis node is for visual verification.'
     );
 
@@ -402,15 +402,15 @@ test.describe('Unified Folder Loading E2E Tests', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.addReadPath(path);
-    }, secondVaultPath);
+    }, secondProjectPath);
 
     expect(addResult.success).toBe(true);
     await appWindow.waitForTimeout(1000);
     await appWindow.screenshot({ path: 'e2e-tests/screenshots/e2e-flow-step3-read-path-added.png' });
 
     // Verify no starter node in read path
-    const secondVaultFiles = await fs.readdir(secondVaultPath);
-    expect(secondVaultFiles.length).toBe(0);
+    const secondProjectFiles = await fs.readdir(secondProjectPath);
+    expect(secondProjectFiles.length).toBe(0);
 
     console.log('=== STEP 4: Verify graph node count ===');
     const finalNodeCount = await appWindow.evaluate(() => {

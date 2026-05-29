@@ -216,7 +216,7 @@ describe('graph CLI module resolution', () => {
                 {
                     path: './test-node.md',
                     status: 'skipped',
-                    skipReason: 'no_vault_detected',
+                    skipReason: 'no_project_detected',
                 },
             ],
             summary: {ok: 0, rejected: 0, skipped: 1, warning: 0},

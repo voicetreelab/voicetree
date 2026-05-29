@@ -134,7 +134,7 @@ export default function UploadPage(): JSX.Element {
                 <div className="w-full max-w-lg text-center">
                     <div className="mb-6 text-4xl">&#10003;</div>
                     <h2 className="mb-4 text-xl font-semibold text-neutral-100">
-                        Vault shared successfully
+                        Project shared successfully
                     </h2>
                     <div className="mb-6 rounded-lg border border-neutral-700 bg-neutral-900 p-4">
                         <a
@@ -165,7 +165,7 @@ export default function UploadPage(): JSX.Element {
         <div className="flex min-h-screen items-center justify-center bg-neutral-950 p-8">
             <div className="w-full max-w-lg">
                 <h1 className="mb-8 text-center text-2xl font-bold text-neutral-100">
-                    Share a VoiceTree vault
+                    Share a VoiceTree project
                 </h1>
 
                 <input
@@ -200,7 +200,7 @@ export default function UploadPage(): JSX.Element {
                                 Drop a folder here or click to browse
                             </p>
                             <p className="text-sm text-neutral-500">
-                                Markdown vault with .voicetree/ folder
+                                Markdown project with .voicetree/ folder
                             </p>
                         </div>
                     )}

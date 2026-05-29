@@ -7,7 +7,7 @@
  * 2. Unlinked nodes remain hidden (NOT loaded into the graph)
  *
  * BUG BEING TESTED:
- * addReadOnLinkPath() currently uses loadVaultPathAdditively() which loads ALL files,
+ * addReadOnLinkPath() currently uses loadProjectPathAdditively() which loads ALL files,
  * defeating lazy loading. This test will FAIL until the bug is fixed.
  *
  * EXPECTED OUTCOME (when bug is fixed):
@@ -24,7 +24,7 @@ import {
   getSourceNodeData
 } from './electron-lazy-loading-add-path/graph-helpers';
 import {
-  createTransitiveReadVault,
+  createTransitiveReadProject,
   linkSourceNodeToTarget
 } from './electron-lazy-loading-add-path/test-data';
 
@@ -98,7 +98,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
   }) => {
     test.setTimeout(30000);
 
-    const readPath = await createTransitiveReadVault(testDir, writeFolderPath);
+    const readPath = await createTransitiveReadProject(testDir, writeFolderPath);
 
     await appWindow.waitForTimeout(500);
 

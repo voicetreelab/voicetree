@@ -37,22 +37,22 @@ describe('flow library', () => {
     const state = {
       graph: {
         nodes: {
-          '/tmp/vault/a.md': {},
-          '/tmp/vault/b.md': {},
+          '/tmp/project/a.md': {},
+          '/tmp/project/b.md': {},
         },
       },
       roots: {
-        loaded: new Set(['/tmp/vault']),
+        loaded: new Set(['/tmp/project']),
         folderTree: [
           {
-            name: 'vault',
-            absolutePath: '/tmp/vault',
+            name: 'project',
+            absolutePath: '/tmp/project',
             loadState: 'loaded',
             isWriteTarget: true,
             children: [
               {
                 name: 'notes',
-                absolutePath: '/tmp/vault/notes',
+                absolutePath: '/tmp/project/notes',
                 loadState: 'loaded',
                 isWriteTarget: false,
                 children: [],
@@ -64,11 +64,11 @@ describe('flow library', () => {
     } as const
 
     expect(deriveFlowRuntimeContext(state as never)).toEqual({
-      rootPath: '/tmp/vault',
-      primaryNodeId: '/tmp/vault/a.md',
-      secondaryNodeId: '/tmp/vault/b.md',
-      primaryFolderId: '/tmp/vault/notes/',
-      primaryFolderPath: '/tmp/vault/notes',
+      rootPath: '/tmp/project',
+      primaryNodeId: '/tmp/project/a.md',
+      secondaryNodeId: '/tmp/project/b.md',
+      primaryFolderId: '/tmp/project/notes/',
+      primaryFolderPath: '/tmp/project/notes',
     })
   })
 
@@ -88,17 +88,17 @@ describe('flow library', () => {
     } satisfies FlowDefinition
 
     const resolved = resolveFlowDefinition(flow, {
-      rootPath: '/tmp/vault',
-      primaryNodeId: '/tmp/vault/a.md',
-      secondaryNodeId: '/tmp/vault/b.md',
-      primaryFolderId: '/tmp/vault/notes/',
-      primaryFolderPath: '/tmp/vault/notes',
+      rootPath: '/tmp/project',
+      primaryNodeId: '/tmp/project/a.md',
+      secondaryNodeId: '/tmp/project/b.md',
+      primaryFolderId: '/tmp/project/notes/',
+      primaryFolderPath: '/tmp/project/notes',
     })
 
     expect(resolved.steps).toEqual([
-      { tapNode: '/tmp/vault/a.md' },
-      { dispatch: { type: 'Select', ids: ['/tmp/vault/a.md'] } },
-      { dispatch: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/notes', state: 'collapsed' } },
+      { tapNode: '/tmp/project/a.md' },
+      { dispatch: { type: 'Select', ids: ['/tmp/project/a.md'] } },
+      { dispatch: { type: 'SetFolderState', viewId: 'main', path: '/tmp/project/notes', state: 'collapsed' } },
     ])
   })
 })

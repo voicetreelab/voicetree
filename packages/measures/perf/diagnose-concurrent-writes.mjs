@@ -3,7 +3,7 @@
  * Synthetic concurrent fs.writeFile diagnostic — probes hypothesis #11
  * (and optionally #10) from packages/measures/perf/hypotheses.md.
  *
- * Question: under 15 in-process concurrent writers into a VT-shaped vault
+ * Question: under 15 in-process concurrent writers into a VT-shaped project
  * dir tree, does the bare `await fs.mkdir(...) + await fs.writeFile(...)`
  * pair degrade the same ~250x as the VT daemon's writeNodeToFile path?
  *
@@ -72,9 +72,9 @@ function parseArgs(argv) {
 }
 
 /**
- * Build the VT vault subdir layout mirror — 8 clusters × 3 sub-subdirs
+ * Build the VT project subdir layout mirror — 8 clusters × 3 sub-subdirs
  * (planning/implementation/review), plus topics/topic-0..4, matching the
- * shape of generate-realistic-vault.ts (read for reference, not imported).
+ * shape of generate-realistic-project.ts (read for reference, not imported).
  */
 function buildSubdirs() {
     const dirs = []
@@ -94,7 +94,7 @@ function buildContent(id, idx) {
         `This is ${id}. ${phrase}\n\n` +
         `-----------------\n_Links:_\n\n` +
         `[[node-${Math.max(0, idx - 1)}.md]]\n[[node-${Math.max(0, idx - 5)}.md]]\n`
-    // Pad to ~500 bytes (VT realistic-vault buildNodeContent is ~250-500B; we
+    // Pad to ~500 bytes (VT realistic-project buildNodeContent is ~250-500B; we
     // pad to the high end so the syscall cost mirrors the worst case).
     const padTarget = 500
     const padding = body.length < padTarget ? ' '.padEnd(padTarget - body.length, '.') : ''
@@ -102,7 +102,7 @@ function buildContent(id, idx) {
 }
 
 /**
- * Pre-create the entire vault directory tree so mkdir-of-existing-dir is
+ * Pre-create the entire project directory tree so mkdir-of-existing-dir is
  * what we measure (matches the VT daemon's post-#8-fix behavior, where
  * writeNodeToFile caches known-existing dirs).
  *
@@ -117,7 +117,7 @@ async function precreateTree(root, subdirs) {
 
 function pickSubdir(subdirs, workerId, writeIdx) {
     // Spread writes across subdirs deterministically so the load looks like
-    // the agent-storm: each agent walks the vault, each write into a
+    // the agent-storm: each agent walks the project, each write into a
     // different subdir. With 15 workers × ~29 subdirs the per-parent
     // contention is realistic.
     return subdirs[(workerId * 7 + writeIdx) % subdirs.length]

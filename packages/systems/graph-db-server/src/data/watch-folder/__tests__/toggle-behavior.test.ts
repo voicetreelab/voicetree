@@ -1,8 +1,8 @@
 /**
  * TDD Red Phase: File tree toggle behavior bugs.
  *
- * Bug 1: removeReadPath fires broadcastVaultState as void (fire-and-forget),
- *         so vault state + folder tree broadcasts may not have completed
+ * Bug 1: removeReadPath fires broadcastProjectState as void (fire-and-forget),
+ *         so project state + folder tree broadcasts may not have completed
  *         by the time the caller acts on the return value.
  *
  * Bug 2: createDatedVoiceTreeFolder auto-loads ALL starred folders as expanded paths,
@@ -23,7 +23,7 @@ import * as os from 'os'
 // ── Mocks (hoisted before imports) ──────────────────────────────────────
 
 vi.mock('../../graph/loading/loadGraphFromDisk', () => ({
-    loadVaultPathAdditively: vi.fn().mockResolvedValue({
+    loadProjectPathAdditively: vi.fn().mockResolvedValue({
         _tag: 'Right',
         right: { graph: { nodes: {} }, delta: [] },
     }),
@@ -62,38 +62,38 @@ import {
     clearWatchFolderState,
     setWatcher,
 } from '../../../state/watch-folder-store'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { setActiveViewFolderState } from '../folder-visibility-active-view'
 import {
     removeReadPath,
     addReadPath,
     setWriteFolderPath,
     getReadPaths,
-    getVaultPaths,
+    getProjectPaths,
     createDatedVoiceTreeFolder,
-} from '../../../state/vaultAllowlist'
+} from '../../../state/projectAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 
 // ── Bug 1: removeReadPath toggle — broadcast must complete before return ─
 
-describe('Bug 1: removeReadPath should complete vault state broadcast before returning', () => {
+describe('Bug 1: removeReadPath should complete project state broadcast before returning', () => {
     let testTmpDir: string
-    let appSupportDir: string
-    let syncVaultStateSpy: ReturnType<typeof vi.fn>
+    let voicetreeHomeDir: string
+    let syncProjectStateSpy: ReturnType<typeof vi.fn>
     let syncFolderTreeSpy: ReturnType<typeof vi.fn>
 
     beforeEach(async () => {
         testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'toggle-bug1-'))
-        appSupportDir = path.join(testTmpDir, 'app-support')
-        await fs.mkdir(appSupportDir, { recursive: true })
+        voicetreeHomeDir = path.join(testTmpDir, 'voicetree-home')
+        await fs.mkdir(voicetreeHomeDir, { recursive: true })
 
-        syncVaultStateSpy = vi.fn()
+        syncProjectStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        process.env.VOICETREE_HOME_PATH = appSupportDir
+        process.env.VOICETREE_HOME_PATH = voicetreeHomeDir
         initGraphModel({
-            syncVaultState: syncVaultStateSpy,
+            syncProjectState: syncProjectStateSpy,
             syncFolderTree: syncFolderTreeSpy,
             syncStarredFolderTrees: vi.fn(),
             syncExternalFolderTrees: vi.fn(),
@@ -119,7 +119,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         vi.clearAllMocks()
     })
 
-    it('syncVaultState callback should fire with updated vault paths before removeReadPath resolves', async () => {
+    it('syncProjectState callback should fire with updated project paths before removeReadPath resolves', async () => {
         // GIVEN: A project with writeFolderPath and one expanded path loaded
         const watchedDir = path.join(testTmpDir, 'project')
         const writeFolderPath = path.join(watchedDir, 'write')
@@ -128,7 +128,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await fs.mkdir(readPathA, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -137,15 +137,15 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         const result = await removeReadPath(readPathA)
         expect(result.success).toBe(true)
 
-        // THEN: syncVaultState should have been called (broadcast completed, not still pending)
-        // If broadcastVaultState is fire-and-forget (void), this will FAIL
+        // THEN: syncProjectState should have been called (broadcast completed, not still pending)
+        // If broadcastProjectState is fire-and-forget (void), this will FAIL
         // because the async broadcast chain hasn't resolved yet.
-        expect(syncVaultStateSpy).toHaveBeenCalled()
+        expect(syncProjectStateSpy).toHaveBeenCalled()
 
         // AND: The broadcast payload should NOT include the removed path
-        const lastCall = syncVaultStateSpy.mock.calls[syncVaultStateSpy.mock.calls.length - 1]
-        const broadcastData = lastCall[0] as { vaultPaths: readonly string[] }
-        expect(broadcastData.vaultPaths).not.toContain(readPathA)
+        const lastCall = syncProjectStateSpy.mock.calls[syncProjectStateSpy.mock.calls.length - 1]
+        const broadcastData = lastCall[0] as { projectPaths: readonly string[] }
+        expect(broadcastData.projectPaths).not.toContain(readPathA)
     })
 
     it('folder tree should be rebuilt before removeReadPath resolves', async () => {
@@ -157,7 +157,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await fs.mkdir(readPathA, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -166,12 +166,12 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await removeReadPath(readPathA)
 
         // THEN: syncFolderTree should have been called (folder tree rebuilt)
-        // broadcastFolderTreeImmediate is called inside broadcastVaultState,
+        // broadcastFolderTreeImmediate is called inside broadcastProjectState,
         // which is fire-and-forget — so this FAILS if the broadcast hasn't completed.
         expect(syncFolderTreeSpy).toHaveBeenCalled()
     })
 
-    it('vault paths should not include removed path after removal', async () => {
+    it('project paths should not include removed path after removal', async () => {
         // GIVEN: A project with two expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
         const writeFolderPath = path.join(watchedDir, 'write')
@@ -182,7 +182,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         await fs.mkdir(readPathB, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -191,8 +191,8 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         // WHEN: removeReadPath removes readPathA
         await removeReadPath(readPathA)
 
-        // THEN: getVaultPaths should not include readPathA
-        const paths = await getVaultPaths()
+        // THEN: getProjectPaths should not include readPathA
+        const paths = await getProjectPaths()
         expect(paths).not.toContain(readPathA)
         expect(paths).toContain(readPathB)
     })
@@ -202,21 +202,21 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
 
 describe('Bug 1 additional: addReadPath and setWriteFolderPath should also complete broadcast before returning', () => {
     let testTmpDir: string
-    let appSupportDir: string
-    let syncVaultStateSpy: ReturnType<typeof vi.fn>
+    let voicetreeHomeDir: string
+    let syncProjectStateSpy: ReturnType<typeof vi.fn>
     let syncFolderTreeSpy: ReturnType<typeof vi.fn>
 
     beforeEach(async () => {
         testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'toggle-bug1-extra-'))
-        appSupportDir = path.join(testTmpDir, 'app-support')
-        await fs.mkdir(appSupportDir, { recursive: true })
+        voicetreeHomeDir = path.join(testTmpDir, 'voicetree-home')
+        await fs.mkdir(voicetreeHomeDir, { recursive: true })
 
-        syncVaultStateSpy = vi.fn()
+        syncProjectStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        process.env.VOICETREE_HOME_PATH = appSupportDir
+        process.env.VOICETREE_HOME_PATH = voicetreeHomeDir
         initGraphModel({
-            syncVaultState: syncVaultStateSpy,
+            syncProjectState: syncProjectStateSpy,
             syncFolderTree: syncFolderTreeSpy,
             syncStarredFolderTrees: vi.fn(),
             syncExternalFolderTrees: vi.fn(),
@@ -240,7 +240,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolderPath should also compl
         vi.clearAllMocks()
     })
 
-    it('addReadPath should complete vault state broadcast before returning', async () => {
+    it('addReadPath should complete project state broadcast before returning', async () => {
         // GIVEN: A project with a write path and no expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
         const writeFolderPath = path.join(watchedDir, 'write')
@@ -249,7 +249,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolderPath should also compl
         await fs.mkdir(newReadPath, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
 
@@ -257,14 +257,14 @@ describe('Bug 1 additional: addReadPath and setWriteFolderPath should also compl
         const result = await addReadPath(newReadPath)
         expect(result.success).toBe(true)
 
-        // THEN: syncVaultState should have been called before addReadPath returned
-        expect(syncVaultStateSpy).toHaveBeenCalled()
+        // THEN: syncProjectState should have been called before addReadPath returned
+        expect(syncProjectStateSpy).toHaveBeenCalled()
 
         // AND: syncFolderTree should have been called (folder tree rebuilt)
         expect(syncFolderTreeSpy).toHaveBeenCalled()
     })
 
-    it('setWriteFolderPath should complete vault state broadcast before returning', async () => {
+    it('setWriteFolderPath should complete project state broadcast before returning', async () => {
         // GIVEN: A project with a write path
         const watchedDir = path.join(testTmpDir, 'project')
         const writeFolderPath = path.join(watchedDir, 'write')
@@ -273,7 +273,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolderPath should also compl
         await fs.mkdir(newWriteFolderPath, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
 
@@ -281,8 +281,8 @@ describe('Bug 1 additional: addReadPath and setWriteFolderPath should also compl
         const result = await setWriteFolderPath(newWriteFolderPath)
         expect(result.success).toBe(true)
 
-        // THEN: syncVaultState should have been called before setWriteFolderPath returned
-        expect(syncVaultStateSpy).toHaveBeenCalled()
+        // THEN: syncProjectState should have been called before setWriteFolderPath returned
+        expect(syncProjectStateSpy).toHaveBeenCalled()
 
         // AND: syncFolderTree should have been called (folder tree rebuilt)
         expect(syncFolderTreeSpy).toHaveBeenCalled()
@@ -293,19 +293,19 @@ describe('Bug 1 additional: addReadPath and setWriteFolderPath should also compl
 
 describe('Bug 1 payload: folder tree broadcast should reflect updated loadState', () => {
     let testTmpDir: string
-    let appSupportDir: string
+    let voicetreeHomeDir: string
     let syncFolderTreeSpy: ReturnType<typeof vi.fn>
 
     beforeEach(async () => {
         testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'toggle-payload-'))
-        appSupportDir = path.join(testTmpDir, 'app-support')
-        await fs.mkdir(appSupportDir, { recursive: true })
+        voicetreeHomeDir = path.join(testTmpDir, 'voicetree-home')
+        await fs.mkdir(voicetreeHomeDir, { recursive: true })
 
         syncFolderTreeSpy = vi.fn()
 
-        process.env.VOICETREE_HOME_PATH = appSupportDir
+        process.env.VOICETREE_HOME_PATH = voicetreeHomeDir
         initGraphModel({
-            syncVaultState: vi.fn(),
+            syncProjectState: vi.fn(),
             syncFolderTree: syncFolderTreeSpy,
             syncStarredFolderTrees: vi.fn(),
             syncExternalFolderTrees: vi.fn(),
@@ -338,7 +338,7 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
         await fs.mkdir(readPathA, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
@@ -350,8 +350,8 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
         expect(syncFolderTreeSpy).toHaveBeenCalled()
 
         // AND: The loadedPaths set used internally should NOT include readPathA
-        // We verify this indirectly: getVaultPaths (used by doBroadcast) should not include it
-        const paths = await getVaultPaths()
+        // We verify this indirectly: getProjectPaths (used by doBroadcast) should not include it
+        const paths = await getProjectPaths()
         expect(paths).not.toContain(readPathA)
     })
 })
@@ -360,19 +360,19 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
 
 describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders', () => {
     let testTmpDir: string
-    let appSupportDir: string
-    let syncVaultStateSpy: ReturnType<typeof vi.fn>
+    let voicetreeHomeDir: string
+    let syncProjectStateSpy: ReturnType<typeof vi.fn>
 
     beforeEach(async () => {
         testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'toggle-bug2-'))
-        appSupportDir = path.join(testTmpDir, 'app-support')
-        await fs.mkdir(appSupportDir, { recursive: true })
+        voicetreeHomeDir = path.join(testTmpDir, 'voicetree-home')
+        await fs.mkdir(voicetreeHomeDir, { recursive: true })
 
-        syncVaultStateSpy = vi.fn()
+        syncProjectStateSpy = vi.fn()
 
-        process.env.VOICETREE_HOME_PATH = appSupportDir
+        process.env.VOICETREE_HOME_PATH = voicetreeHomeDir
         initGraphModel({
-            syncVaultState: syncVaultStateSpy,
+            syncProjectState: syncProjectStateSpy,
             syncFolderTree: vi.fn(),
             syncStarredFolderTrees: vi.fn(),
             syncExternalFolderTrees: vi.fn(),
@@ -402,12 +402,12 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         await fs.mkdir(writeFolderPath, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
 
         // AND: A starred folder that is NOT currently expanded
-        const starredFolder = path.join(testTmpDir, 'starred-vault')
+        const starredFolder = path.join(testTmpDir, 'starred-project')
         await fs.mkdir(starredFolder, { recursive: true })
         await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredFolder] })
 
@@ -420,14 +420,14 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         expect(expandedPaths).not.toContain(starredFolder)
     })
 
-    it('starred folders should NOT appear in getVaultPaths after new folder creation (unless previously loaded)', async () => {
+    it('starred folders should NOT appear in getProjectPaths after new folder creation (unless previously loaded)', async () => {
         // GIVEN: A project with a write path
         const watchedDir = path.join(testTmpDir, 'project')
         const writeFolderPath = path.join(watchedDir, 'currentWrite')
         await fs.mkdir(writeFolderPath, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
 
@@ -442,8 +442,8 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         const result = await createDatedVoiceTreeFolder()
         expect(result.success).toBe(true)
 
-        // THEN: Neither starred folder should be in the vault paths
-        const allPaths = await getVaultPaths()
+        // THEN: Neither starred folder should be in the project paths
+        const allPaths = await getProjectPaths()
         expect(allPaths).not.toContain(starredA)
         expect(allPaths).not.toContain(starredB)
     })
@@ -457,7 +457,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         await fs.mkdir(starredAndLoaded, { recursive: true })
         setProjectRoot(watchedDir)
 
-        await saveVaultConfigForDirectory(watchedDir, {
+        await saveProjectConfigForDirectory(watchedDir, {
             writeFolderPath,
         })
         await setActiveViewFolderState(watchedDir, starredAndLoaded, 'expanded')

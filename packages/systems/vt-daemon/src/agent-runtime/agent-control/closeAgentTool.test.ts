@@ -21,7 +21,7 @@ function makeTerminalId(): TerminalId {
     return `close-ui-${Date.now()}-${Math.random().toString(16).slice(2)}` as TerminalId
 }
 
-async function makeTempVault(): Promise<string> {
+async function makeTempProject(): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), 'close-agent-ui-'))
     tempDirs.add(dir)
     return dir
@@ -79,7 +79,7 @@ describe('closeAgentTool', () => {
     it('publishes terminal-removed and drops the registry row when closing a tmux-backed interactive agent', async () => {
         const terminalId: TerminalId = makeTerminalId()
         terminalIds.add(terminalId)
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const contextNodeId: NodeIdAndFilePath = join(projectRoot, 'context.md') as NodeIdAndFilePath
         const progressNodeId: NodeIdAndFilePath = join(projectRoot, 'progress.md') as NodeIdAndFilePath
         const events: TerminalRegistryEvent[] = []
@@ -96,7 +96,7 @@ describe('closeAgentTool', () => {
         })
         const bridge: GraphBridge = {
             getGraph: async (): Promise<Graph> => makeGraph(progressNodeId, terminalId),
-            getVaultPaths: async (): Promise<readonly string[]> => [],
+            getProjectPaths: async (): Promise<readonly string[]> => [],
             getWriteFolderPath: async (): Promise<string | null> => null,
             applyGraphDelta: async (): Promise<void> => {},
         }

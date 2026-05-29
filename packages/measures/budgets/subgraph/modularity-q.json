@@ -8,7 +8,7 @@
     "app-config/positions": 0.12345679012345674,
     "app-config/project": 0.12345679012345674,
     "app-config/settings": 0.12345679012345674,
-    "app-config/vault-config": 0.12345679012345674,
+    "app-config/project-config": 0.12345679012345674,
     "graph-db-client/__root__": 0.19768078889700513,
     "graph-db-client/autoLaunch": 0.19768078889700513,
     "graph-db-client/client": 0.19768078889700513,

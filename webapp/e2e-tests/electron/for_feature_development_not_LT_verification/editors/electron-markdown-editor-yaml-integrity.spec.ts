@@ -21,18 +21,18 @@ import { expect, test } from './electron-markdown-editor-yaml-integrity/test-fix
 import type { CodeMirrorElement, ExtendedWindow } from './electron-markdown-editor-yaml-integrity/test-fixtures';
 
 test.describe('Markdown Editor YAML Integrity', () => {
-  test('should NOT corrupt YAML frontmatter when editing markdown in floating editor', async ({ appWindow, testVaultPath }) => {
+  test('should NOT corrupt YAML frontmatter when editing markdown in floating editor', async ({ appWindow, testProjectPath }) => {
     // NO! test.setTimeout(...); // DO NOT RANDOMLY INTRODUCE HUGE TIMEOUTS INTO OUR TESTS
     console.log('=== Testing YAML integrity during markdown editing ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
     // Files are already created in electronApp fixture
     // NOTE: Node IDs include the relative path from watched folder (e.g., voicetree/filename.md)
     const testFileName = 'test-yaml-node.md';
     const testNodeId = `voicetree/${testFileName}`;
-    const testFilePath = path.join(testVaultPath, testFileName);
+    const testFilePath = path.join(testProjectPath, testFileName);
 
-    // Vault is auto-loaded via config - wait for graph to have nodes
+    // Project is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -230,18 +230,18 @@ test.describe('Markdown Editor YAML Integrity', () => {
     console.log('\n✓ YAML integrity test completed');
   });
 
-  test('should preserve all YAML properties after multiple edit cycles', async ({ appWindow, testVaultPath }) => {
+  test('should preserve all YAML properties after multiple edit cycles', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(60000); // Increase timeout to 60s for this test
     console.log('=== Testing YAML property preservation through edit cycles ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
     // Files are already created in electronApp fixture
     // NOTE: Node IDs include the relative path from watched folder (e.g., voicetree/filename.md)
     const testFileName = 'test-yaml-preservation.md';
     const testNodeId = `voicetree/${testFileName}`;
-    const testFilePath = path.join(testVaultPath, testFileName);
+    const testFilePath = path.join(testProjectPath, testFileName);
 
-    // Vault is auto-loaded via config - wait for graph to have nodes
+    // Project is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;

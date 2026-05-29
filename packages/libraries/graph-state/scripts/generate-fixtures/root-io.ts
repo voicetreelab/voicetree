@@ -12,7 +12,7 @@ import {
 
 import { configureRootIO } from '../../src/rootIO.ts'
 
-export function resolveFolderNodesVault(): string {
+export function resolveFolderNodesProject(): string {
     const candidates = [
         path.resolve('brain/working-memory/tasks/folder-nodes'),
         path.resolve('brain/mem/tasks/folder-nodes'),
@@ -22,7 +22,7 @@ export function resolveFolderNodesVault(): string {
     ]
     const match = candidates.find((candidate) => existsSync(candidate))
     if (!match) {
-        throw new Error(`folder-nodes vault fixture source not found. Checked: ${candidates.join(', ')}`)
+        throw new Error(`folder-nodes project fixture source not found. Checked: ${candidates.join(', ')}`)
     }
     return match
 }
@@ -76,8 +76,8 @@ async function collectMarkdownFiles(rootPath: string): Promise<Array<{ absoluteP
 export function configureFixtureRootIO(): void {
     configureRootIO({
         getDirectoryTree: getDirectoryTreeFromDisk,
-        loadGraphFromDisk: async (vaultPaths) => {
-            const files = (await Promise.all(vaultPaths.map(collectMarkdownFiles))).flat()
+        loadGraphFromDisk: async (projectPaths) => {
+            const files = (await Promise.all(projectPaths.map(collectMarkdownFiles))).flat()
             return E.right(buildGraphFromFiles(files))
         },
     })

@@ -5,12 +5,12 @@ import { afterEach, beforeEach, describe, test } from 'vitest'
 import { mountWatcher, type Watcher } from './daemonWatcher.ts'
 
 /**
- * Regression test for the vt-mcpd "hangs against empty temp vault" bug.
+ * Regression test for the vt-mcpd "hangs against empty temp project" bug.
  *
  * Before the fix, the chokidar `ignored` predicate branched on
  * `path.extname()` when chokidar invoked it without stats. `path.extname()`
  * returns a non-empty string for any directory whose basename contains a
- * dot (`My Vault.notes`, `mktemp -d /tmp/vault.XXXX`, …) — so the watch
+ * dot (`My Project.notes`, `mktemp -d /tmp/project.XXXX`, …) — so the watch
  * root itself was reported as "ignored" by the predicate.
  *
  * chokidar's macOS FsEventsHandler checks `_isIgnored(watchPath)` BEFORE
@@ -18,7 +18,7 @@ import { mountWatcher, type Watcher } from './daemonWatcher.ts'
  * When that returned `true`, the fsevents subscription was silently
  * skipped — the second `_emitReady()` was never called, so `_readyCount`
  * was never satisfied, and `watcher.ready` never resolved. Anything
- * awaiting ready (`startDaemonWatcher` inside `openVaultWorkflow`,
+ * awaiting ready (`startDaemonWatcher` inside `openProjectWorkflow`,
  * inside `startDaemon`, inside `bin/vt-mcpd.ts`) hung forever.
  *
  * These tests drive the real chokidar+fsevents pipeline with NODE_ENV unset
@@ -45,45 +45,45 @@ describe('mountWatcher: ready resolves with the real chokidar+fsevents backend',
     }
   })
 
-  test('empty vault with a dotted basename', async () => {
+  test('empty project with a dotted basename', async () => {
     const parent: string = await mkdtemp(join(tmpdir(), 'vt-daemonwatcher-'))
     created.push(parent)
-    const dottedVault: string = join(parent, 'vt-vault.empty')
-    await mkdir(dottedVault, { recursive: true })
+    const dottedProject: string = join(parent, 'vt-project.empty')
+    await mkdir(dottedProject, { recursive: true })
 
-    const watcher: Watcher = mountWatcher([dottedVault], dottedVault)
+    const watcher: Watcher = mountWatcher([dottedProject], dottedProject)
     try {
-      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve for dotted empty vault')
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve for dotted empty project')
     } finally {
       await watcher.unmount()
     }
   }, 10000)
 
-  test('populated vault with a dotted basename', async () => {
+  test('populated project with a dotted basename', async () => {
     const parent: string = await mkdtemp(join(tmpdir(), 'vt-daemonwatcher-'))
     created.push(parent)
-    const dottedVault: string = join(parent, 'vt-vault.populated')
-    await mkdir(dottedVault, { recursive: true })
-    await writeFile(join(dottedVault, 'starter.md'), '# starter\n')
+    const dottedProject: string = join(parent, 'vt-project.populated')
+    await mkdir(dottedProject, { recursive: true })
+    await writeFile(join(dottedProject, 'starter.md'), '# starter\n')
 
-    const watcher: Watcher = mountWatcher([dottedVault], dottedVault)
+    const watcher: Watcher = mountWatcher([dottedProject], dottedProject)
     try {
-      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve for dotted populated vault')
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve for dotted populated project')
     } finally {
       await watcher.unmount()
     }
   }, 10000)
 
-  test('vault with a clean (dotless) basename', async () => {
+  test('project with a clean (dotless) basename', async () => {
     // Sanity control: confirms the test harness can detect a healthy chokidar path.
     const parent: string = await mkdtemp(join(tmpdir(), 'vt-daemonwatcher-'))
     created.push(parent)
-    const cleanVault: string = join(parent, 'clean-vault')
-    await mkdir(cleanVault, { recursive: true })
+    const cleanProject: string = join(parent, 'clean-project')
+    await mkdir(cleanProject, { recursive: true })
 
-    const watcher: Watcher = mountWatcher([cleanVault], cleanVault)
+    const watcher: Watcher = mountWatcher([cleanProject], cleanProject)
     try {
-      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve for clean vault')
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve for clean project')
     } finally {
       await watcher.unmount()
     }

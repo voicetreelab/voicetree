@@ -21,7 +21,7 @@ function makeRecord(terminalId: string, initialEnvVars: Record<string, string> =
         terminalId,
         terminalData: createTerminalData({
             terminalId: terminalId as TerminalId,
-            attachedToNodeId: '/vault/task.md' as NodeIdAndFilePath,
+            attachedToNodeId: '/project/task.md' as NodeIdAndFilePath,
             terminalCount: 0,
             title: terminalId,
             agentName: terminalId,
@@ -75,13 +75,13 @@ describe('unclaimed tmux discovery', () => {
         const envBySession: Map<string, Record<string, string>> = new Map([
             [currentSession, {
                 AGENT_NAME: 'Ivy',
-                VOICETREE_PROJECT_PATH: '/repo/vault',
-                CONTEXT_NODE_PATH: '/repo/vault/ctx.md',
-                TASK_NODE_PATH: '/repo/vault/task.md',
+                VOICETREE_PROJECT_PATH: '/repo/project',
+                CONTEXT_NODE_PATH: '/repo/project/ctx.md',
+                TASK_NODE_PATH: '/repo/project/task.md',
             }],
             [foreignSession, {
                 AGENT_NAME: 'Jay',
-                VOICETREE_PROJECT_PATH: '/other/vault',
+                VOICETREE_PROJECT_PATH: '/other/project',
             }],
         ])
 
@@ -99,24 +99,24 @@ describe('unclaimed tmux discovery', () => {
             expect.objectContaining({
                 sessionName: foreignSession,
                 terminalId: 'Jay',
-                classification: 'foreign-vault',
+                classification: 'foreign-project',
                 attachable: false,
                 createdAt: 200000,
                 panePid: 3,
                 agentName: 'Jay',
-                projectRoot: '/other/vault',
+                projectRoot: '/other/project',
             }),
             expect.objectContaining({
                 sessionName: currentSession,
                 terminalId: 'Ivy',
-                classification: 'this-vault',
+                classification: 'this-project',
                 attachable: true,
                 createdAt: 100000,
                 panePid: 2,
                 agentName: 'Ivy',
-                projectRoot: '/repo/vault',
-                contextNodePath: '/repo/vault/ctx.md',
-                taskNodePath: '/repo/vault/task.md',
+                projectRoot: '/repo/project',
+                contextNodePath: '/repo/project/ctx.md',
+                taskNodePath: '/repo/project/task.md',
             }),
         ])
     })
@@ -192,7 +192,7 @@ describe('unclaimed tmux discovery', () => {
                 sessionName,
                 terminalId: 'Ivy',
                 agentName: 'Ivy',
-                classification: 'this-vault',
+                classification: 'this-project',
             }),
         ])
     })
@@ -215,7 +215,7 @@ describe('unclaimed tmux discovery', () => {
             sessionName,
             terminalId: 'Ivy',
             hash: '1234567890',
-            classification: 'this-vault',
+            classification: 'this-project',
             attachable: true,
             createdAt: 1000,
             panePid: 123,

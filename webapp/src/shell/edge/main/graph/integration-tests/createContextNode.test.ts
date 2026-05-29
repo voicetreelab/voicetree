@@ -39,7 +39,7 @@ import path from 'path'
 import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/graph'
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 
 const EXAMPLE_SMALL_WRITE_PATH: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
 const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetree-24-2')
@@ -54,7 +54,7 @@ describe('createContextNode - Integration Tests', () => {
     process.env.VOICETREE_HOME_PATH = '/tmp/test-userdata-context-node'
     initGraphModel({ getWriteFolderPath: async () => EXAMPLE_SMALL_WRITE_PATH })
 
-    // Initialize vault path with example_small fixture
+    // Initialize project path with example_small fixture
     setProjectRoot(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
@@ -123,10 +123,10 @@ describe('createContextNode - Integration Tests', () => {
       expect(contextNodeId).toMatch(/_context_\d+\.md$/)
 
       // AND: File should exist on disk
-      const vaultPath: O.Option<string> = O.fromNullable(getProjectRoot())
-      expect(O.isSome(vaultPath)).toBe(true)
+      const projectPath: O.Option<string> = O.fromNullable(getProjectRoot())
+      expect(O.isSome(projectPath)).toBe(true)
 
-      if (O.isSome(vaultPath)) {
+      if (O.isSome(projectPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileExists: boolean = await fs.access(contextFilePath)
           .then(() => true)
@@ -163,7 +163,7 @@ describe('createContextNode - Integration Tests', () => {
         await fs.readFile(absoluteParentNodeId, 'utf-8')
       )
 
-      await saveVaultConfigForDirectory(EXAMPLE_SMALL_PATH, {
+      await saveProjectConfigForDirectory(EXAMPLE_SMALL_PATH, {
         writeFolderPath: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
         readPaths: [],
       })
@@ -188,8 +188,8 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // THEN: Read the created file
-      const vaultPath: O.Option<string> = O.fromNullable(getProjectRoot())
-      if (O.isSome(vaultPath)) {
+      const projectPath: O.Option<string> = O.fromNullable(getProjectRoot())
+      if (O.isSome(projectPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
@@ -247,8 +247,8 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
-      const vaultPath: O.Option<string> = O.fromNullable(getProjectRoot())
-      if (O.isSome(vaultPath)) {
+      const projectPath: O.Option<string> = O.fromNullable(getProjectRoot())
+      if (O.isSome(projectPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
@@ -275,10 +275,10 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
-      const vaultPath: O.Option<string> = O.fromNullable(getProjectRoot())
-      expect(O.isSome(vaultPath)).toBe(true)
+      const projectPath: O.Option<string> = O.fromNullable(getProjectRoot())
+      expect(O.isSome(projectPath)).toBe(true)
 
-      if (O.isSome(vaultPath)) {
+      if (O.isSome(projectPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
@@ -339,10 +339,10 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // Read the context node file content to verify structure
-      const vaultPath: O.Option<string> = O.fromNullable(getProjectRoot())
-      expect(O.isSome(vaultPath)).toBe(true)
+      const projectPath: O.Option<string> = O.fromNullable(getProjectRoot())
+      expect(O.isSome(projectPath)).toBe(true)
 
-      if (O.isSome(vaultPath)) {
+      if (O.isSome(projectPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const contextFileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 

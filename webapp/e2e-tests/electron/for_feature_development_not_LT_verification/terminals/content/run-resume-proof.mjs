@@ -49,8 +49,8 @@ function buildSessionName(projectRoot, terminalId) {
   return `vt-${buildNamespaceHash(projectRoot)}-${terminalId}`;
 }
 
-function tmuxSocketPath(appSupportPath) {
-  return path.join(appSupportPath, 'tmux.sock');
+function tmuxSocketPath(voicetreeHomePath) {
+  return path.join(voicetreeHomePath, 'tmux.sock');
 }
 
 function assertRealClaudeAvailable() {
@@ -59,8 +59,8 @@ function assertRealClaudeAvailable() {
   return result.stdout.trim();
 }
 
-async function createProofVault(tempRoot) {
-  const projectRoot = path.join(tempRoot, 'resume-proof-vault');
+async function createProofProject(tempRoot) {
+  const projectRoot = path.join(tempRoot, 'resume-proof-project');
   await fs.mkdir(path.join(projectRoot, '.voicetree', 'terminals'), {recursive: true});
   await fs.writeFile(path.join(projectRoot, 'readme.md'), [
     '---',
@@ -335,7 +335,7 @@ async function main() {
   await fs.mkdir(claudeProjectsRoot, {recursive: true});
 
   const realClaudePath = assertRealClaudeAvailable();
-  const projectRoot = await createProofVault(tempRoot);
+  const projectRoot = await createProofProject(tempRoot);
   const resumeTmuxSocketPath = tmuxSocketPath(tempUserDataPath);
   const resumeSessionName = buildSessionName(projectRoot, RESUME_TERMINAL_ID);
   const taskNodePath = path.join(projectRoot, 'task.md');
@@ -347,7 +347,7 @@ async function main() {
   try {
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       lastDirectory: projectRoot,
-      vaultConfig: {[projectRoot]: {writeFolderPath: projectRoot, readPaths: []}},
+      projectConfig: {[projectRoot]: {writeFolderPath: projectRoot, readPaths: []}},
     }, null, 2), 'utf8');
     await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
       id: PROJECT_ID,

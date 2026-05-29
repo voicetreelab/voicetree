@@ -15,9 +15,9 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'vt-daemon',
 ] as const
 // BF-267: Bumped 44 → 47 to absorb the net +3 module-state vars introduced by the
-// DOVL+UFV epic (vaultLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
+// DOVL+UFV epic (projectLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
 // viewsStore.viewSwitchedListeners, watcherRebuild.unsub{FolderState,ViewSwitched}). A
-// full DI refactor would re-thread vaultLifecycle through every HTTP route and webapp
+// full DI refactor would re-thread projectLifecycle through every HTTP route and webapp
 // composition site (>3 files touched per the escalation trigger), so the team agreed to
 // accept the bump and revisit when the daemon's composition root is restructured.
 // 2026-05-21: Bumped 47 → 48 for writeMarkdownFile.ts's lastEditorBodyByTargetAndEditor
@@ -42,8 +42,8 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'voicetree-cli/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
-    // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
-    'packages/systems/graph-db-client/src/autoLaunch/spawn/vaultlessSpawn.ts',
+    // Projectless graph-db-client launcher embeds a daemon start import in the child-process eval script.
+    'packages/systems/graph-db-client/src/autoLaunch/spawn/projectlessSpawn.ts',
     // CLI serve command is the intentional entrypoint for starting the daemon.
     'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
     // Route-parity command imports daemon route types for CLI/API consistency checks.

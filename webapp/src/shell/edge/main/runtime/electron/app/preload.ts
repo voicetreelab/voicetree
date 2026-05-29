@@ -75,25 +75,25 @@ async function exposeElectronAPI(): Promise<void> {
             return () => ipcRenderer.off('watching-started', handler);
         },
 
-        onVaultSwitching: (callback) => {
-            type VaultSwitchingData = { path: string };
-            const handler: (_event: Electron.IpcRendererEvent, data: VaultSwitchingData) => void = (_event, data) => callback(data);
-            ipcRenderer.on('vault:switching', handler);
-            return () => ipcRenderer.off('vault:switching', handler);
+        onProjectSwitching: (callback) => {
+            type ProjectSwitchingData = { path: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: ProjectSwitchingData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('project:switching', handler);
+            return () => ipcRenderer.off('project:switching', handler);
         },
 
-        onVaultReady: (callback) => {
-            type VaultReadyData = { path: string };
-            const handler: (_event: Electron.IpcRendererEvent, data: VaultReadyData) => void = (_event, data) => callback(data);
-            ipcRenderer.on('vault:ready', handler);
-            return () => ipcRenderer.off('vault:ready', handler);
+        onProjectReady: (callback) => {
+            type ProjectReadyData = { path: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: ProjectReadyData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('project:ready', handler);
+            return () => ipcRenderer.off('project:ready', handler);
         },
 
-        onVaultLost: (callback) => {
-            type VaultLostData = { path?: string; error?: string; pid?: number | null };
-            const handler: (_event: Electron.IpcRendererEvent, data: VaultLostData) => void = (_event, data) => callback(data);
-            ipcRenderer.on('vault:lost', handler);
-            return () => ipcRenderer.off('vault:lost', handler);
+        onProjectLost: (callback) => {
+            type ProjectLostData = { path?: string; error?: string; pid?: number | null };
+            const handler: (_event: Electron.IpcRendererEvent, data: ProjectLostData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('project:lost', handler);
+            return () => ipcRenderer.off('project:lost', handler);
         },
 
         onViewSwitched: (callback) => {
@@ -219,9 +219,9 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
-                'vault:switching',
-                'vault:ready',
-                'vault:lost',
+                'project:switching',
+                'project:ready',
+                'project:lost',
                 'ui:call',
                 'view:switched',
                 'vt:events',
@@ -242,9 +242,9 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
-                'vault:switching',
-                'vault:ready',
-                'vault:lost',
+                'project:switching',
+                'project:ready',
+                'project:lost',
                 'ui:call',
                 'view:switched',
                 'vt:events',

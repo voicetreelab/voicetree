@@ -13,7 +13,7 @@ import {
     SEEDED_TERMINAL_ID,
     buildSessionName,
     ensureScreenshotDir,
-    ensureVaultLoadedIntoGraph,
+    ensureProjectLoadedIntoGraph,
     fixtureClaudeTranscript,
     fixtureRecoveryMetadata,
     killSeededTmuxSession,
@@ -27,25 +27,25 @@ import {
 test.describe('Surviving Agents Sidebar', () => {
     test.describe.configure({mode: 'serial', timeout: 180000});
 
-    test('shows surviving session, attaches it, and removes the row', async ({appWindow, vault, seededSessionName}) => {
+    test('shows surviving session, attaches it, and removes the row', async ({appWindow, project, seededSessionName}) => {
         await ensureScreenshotDir();
 
         console.log('=== PHASE 1: baseline — no surviving sessions ===');
-        await ensureVaultLoadedIntoGraph(appWindow);
+        await ensureProjectLoadedIntoGraph(appWindow);
         await appWindow.waitForTimeout(500);
 
         const phase1Path: string = path.join(SCREENSHOT_DIR, '1-baseline-no-surviving-agents.png');
         await appWindow.screenshot({path: phase1Path, fullPage: false});
         console.log(`Phase 1 screenshot: ${phase1Path}`);
 
-        console.log('=== PHASE 2: seed a same-vault tmux session ===');
+        console.log('=== PHASE 2: seed a same-project tmux session ===');
         spawnSeededTmuxSession(seededSessionName, {
             VOICETREE_TERMINAL_ID: SEEDED_TERMINAL_ID,
             AGENT_NAME: SEEDED_TERMINAL_ID,
-            VOICETREE_PROJECT_PATH: vault.projectRoot,
-            VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
-            CONTEXT_NODE_PATH: vault.contextNodePath,
-        }, tmuxSocketPath(vault.appSupportPath));
+            VOICETREE_PROJECT_PATH: project.projectRoot,
+            VOICETREE_PROJECT_DIR: path.join(project.projectRoot, '.voicetree'),
+            CONTEXT_NODE_PATH: project.contextNodePath,
+        }, tmuxSocketPath(project.voicetreeHomePath));
 
         // Use the unified recovery IPC: it feeds the RecoverySessionsStore that
         // the sidebar now reads from. The legacy refreshUnclaimedTmuxSessions
@@ -64,7 +64,7 @@ test.describe('Surviving Agents Sidebar', () => {
         if (!seededRow?.attach) {
             throw new Error('expected attach capability after defined check');
         }
-        expect(seededRow.attach.session.classification).toBe('this-vault');
+        expect(seededRow.attach.session.classification).toBe('this-project');
         expect(seededRow.attach.session.attachable).toBe(true);
 
         const section = appWindow.locator('[data-testid="surviving-agents-section"]');
@@ -110,24 +110,24 @@ test.describe('Surviving Agents Sidebar', () => {
 test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
     test.describe.configure({mode: 'serial', timeout: 180000});
 
-    test('renders a Resume-capable row when discovery resolves the Claude transcript for dead-pane metadata', async ({appWindow, vault}) => {
+    test('renders a Resume-capable row when discovery resolves the Claude transcript for dead-pane metadata', async ({appWindow, project}) => {
         await ensureScreenshotDir();
-        await ensureVaultLoadedIntoGraph(appWindow);
+        await ensureProjectLoadedIntoGraph(appWindow);
 
         const fixturedTerminalId = 'ResumerAlpha';
         const fixturedNativeSessionId = 'sess-e2e-alpha-1234';
-        const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
+        const taskNodePath: string = path.join(project.projectRoot, 'task.md');
         const metadataPath: string = await fixtureRecoveryMetadata({
-            projectRoot: vault.projectRoot,
+            projectRoot: project.projectRoot,
             terminalId: fixturedTerminalId,
             agentName: fixturedTerminalId,
             cliBinary: 'claude',
             taskNodePath,
         });
         const transcriptPath: string = await fixtureClaudeTranscript({
-            claudeProjectsRoot: vault.claudeProjectsRoot,
+            claudeProjectsRoot: project.claudeProjectsRoot,
             terminalId: fixturedTerminalId,
-            projectRoot: vault.projectRoot,
+            projectRoot: project.projectRoot,
             taskNodePath,
             sessionId: fixturedNativeSessionId,
         });
@@ -172,13 +172,13 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         await fs.rm(transcriptPath, {force: true});
     });
 
-    test('single row exposes BOTH Attach AND Resume when the same terminalId is live in tmux AND has a resolvable transcript (fork-while-running)', async ({appWindow, vault}) => {
-        await ensureVaultLoadedIntoGraph(appWindow);
+    test('single row exposes BOTH Attach AND Resume when the same terminalId is live in tmux AND has a resolvable transcript (fork-while-running)', async ({appWindow, project}) => {
+        await ensureProjectLoadedIntoGraph(appWindow);
 
         const twinTerminalId = 'TwinAgent';
-        const twinSessionName: string = buildSessionName(vault.projectRoot, twinTerminalId);
+        const twinSessionName: string = buildSessionName(project.projectRoot, twinTerminalId);
         const twinNativeSessionId = 'sess-e2e-twin-9999';
-        const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
+        const taskNodePath: string = path.join(project.projectRoot, 'task.md');
         let createdSession = false;
         let metadataPath: string | null = null;
         let transcriptPath: string | null = null;
@@ -186,14 +186,14 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
             spawnSeededTmuxSession(twinSessionName, {
                 VOICETREE_TERMINAL_ID: twinTerminalId,
                 AGENT_NAME: twinTerminalId,
-                VOICETREE_PROJECT_PATH: vault.projectRoot,
-                VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
-                CONTEXT_NODE_PATH: vault.contextNodePath,
-            }, tmuxSocketPath(vault.appSupportPath));
+                VOICETREE_PROJECT_PATH: project.projectRoot,
+                VOICETREE_PROJECT_DIR: path.join(project.projectRoot, '.voicetree'),
+                CONTEXT_NODE_PATH: project.contextNodePath,
+            }, tmuxSocketPath(project.voicetreeHomePath));
             createdSession = true;
 
             metadataPath = await fixtureRecoveryMetadata({
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 terminalId: twinTerminalId,
                 agentName: twinTerminalId,
                 cliBinary: 'claude',
@@ -201,9 +201,9 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
                 taskNodePath,
             });
             transcriptPath = await fixtureClaudeTranscript({
-                claudeProjectsRoot: vault.claudeProjectsRoot,
+                claudeProjectsRoot: project.claudeProjectsRoot,
                 terminalId: twinTerminalId,
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 taskNodePath,
                 sessionId: twinNativeSessionId,
             });
@@ -234,7 +234,7 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         } finally {
             if (metadataPath) await fs.rm(metadataPath, {force: true});
             if (transcriptPath) await fs.rm(transcriptPath, {force: true});
-            if (createdSession) killSeededTmuxSession(twinSessionName, tmuxSocketPath(vault.appSupportPath));
+            if (createdSession) killSeededTmuxSession(twinSessionName, tmuxSocketPath(project.voicetreeHomePath));
         }
     });
 });

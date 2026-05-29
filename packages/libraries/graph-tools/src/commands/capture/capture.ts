@@ -15,7 +15,7 @@ const CAPTURES_DIR = '/tmp/vt-debug/captures'
 type CaptureArgs = {
   port?: number
   pid?: number
-  vault?: string
+  project?: string
   forceNew?: boolean
   tag?: string
   out?: string
@@ -106,10 +106,10 @@ function parseArgs(argv: string[]): CaptureArgs {
       args.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       args.pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      args.vault = argv[++i]
-    } else if (arg.startsWith('--vault=')) {
-      args.vault = arg.slice('--vault='.length)
+    } else if (arg === '--project') {
+      args.project = argv[++i]
+    } else if (arg.startsWith('--project=')) {
+      args.project = arg.slice('--project='.length)
     } else if (arg === '--new') {
       args.forceNew = true
     } else if (arg === '--tag') {
@@ -137,7 +137,7 @@ async function captureHandler(argv: string[]): Promise<Response<unknown>> {
   const pick = await resolveDebugInstance({
     port: args.port,
     pid: args.pid,
-    vault: args.vault,
+    project: args.project,
     forceNew: args.forceNew,
   })
 

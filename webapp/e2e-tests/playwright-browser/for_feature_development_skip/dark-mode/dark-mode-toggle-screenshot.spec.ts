@@ -147,8 +147,8 @@ test.describe('Dark Mode Toggle Screenshot', () => {
     console.log(`[Test] Dark mode edge color: ${darkEdgeColor}`);
   });
 
-  test('should display vault selector correctly in dark mode', async ({ page }) => {
-    // Add vault paths to mock for selector to appear
+  test('should display project selector correctly in dark mode', async ({ page }) => {
+    // Add project paths to mock for selector to appear
     await page.addInitScript(() => {
       const mockElectronAPI = {
         main: {
@@ -171,12 +171,12 @@ test.describe('Dark Mode Toggle Screenshot', () => {
           getMetrics: async () => ({ sessions: [] }),
           applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
           applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
-          // Vault path related APIs
-          getVaultPaths: async () => ['/mock/watched/directory', '/mock/watched/directory/notes'],
+          // Project path related APIs
+          getProjectPaths: async () => ['/mock/watched/directory', '/mock/watched/directory/notes'],
           getWriteFolderPath: async () => ({ _tag: 'Some', value: '/mock/watched/directory' }),
           setWriteFolderPath: async () => ({ success: true }),
-          addVaultPathToAllowlist: async () => ({ success: true }),
-          removeVaultPathFromAllowlist: async () => ({ success: true }),
+          addProjectPathToAllowlist: async () => ({ success: true }),
+          removeProjectPathFromAllowlist: async () => ({ success: true }),
         },
         onWatchingStarted: () => {},
         onFileWatchingStopped: () => {},
@@ -231,9 +231,9 @@ test.describe('Dark Mode Toggle Screenshot', () => {
     await darkModeButton.click();
     await page.waitForTimeout(200);
 
-    // Take screenshot showing the bottom bar with vault selector in dark mode
+    // Take screenshot showing the bottom bar with project selector in dark mode
     await page.screenshot({
-      path: 'e2e-tests/screenshots/dark-mode/04-dark-mode-vault-selector.png'
+      path: 'e2e-tests/screenshots/dark-mode/04-dark-mode-project-selector.png'
     });
   });
 });

@@ -2,7 +2,7 @@
 //
 // All e2e specs that previously spoke the deleted HTTP MCP transport route
 // through these helpers. URL discovery uses mainAPI.getDaemonUrl; the bearer
-// token is read from the on-disk auth-token file under the active vault
+// token is read from the on-disk auth-token file under the active project
 // (BF-368 removed the renderer-callable getAuthToken — Main owns all
 // WebSockets, and the renderer no longer holds the token). Out-of-process
 // consumers (CLI, hook subprocesses, spawned agents) discover the token the
@@ -44,20 +44,20 @@ export async function getDaemonRpcUrl(appWindow: Page): Promise<string> {
 }
 
 export async function getBearerToken(appWindow: Page): Promise<string> {
-  // BF-368 removed the renderer-callable getAuthToken. The active vault's
+  // BF-368 removed the renderer-callable getAuthToken. The active project's
   // root path is reachable via getWatchStatus().directory; the daemon writes
-  // its bearer token to `<vault>/.voicetree/auth-token` (out-of-process
+  // its bearer token to `<project>/.voicetree/auth-token` (out-of-process
   // consumers — CLI, hooks, spawned agents — read it the same way).
-  const vaultRoot: string = await appWindow.evaluate(
+  const projectRoot: string = await appWindow.evaluate(
     async (): Promise<string> => {
       const api = (window as unknown as { electronAPI?: DaemonAccess }).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const status = await api.main.getWatchStatus();
-      if (!status.directory) throw new Error('e2e: no active vault — call startFileWatching before getBearerToken');
+      if (!status.directory) throw new Error('e2e: no active project — call startFileWatching before getBearerToken');
       return status.directory;
     }
   );
-  const tokenPath: string = path.join(vaultRoot, '.voicetree', 'auth-token');
+  const tokenPath: string = path.join(projectRoot, '.voicetree', 'auth-token');
   const raw: string = await fs.readFile(tokenPath, 'utf-8');
   return raw.trim();
 }

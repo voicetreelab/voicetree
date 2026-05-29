@@ -13,27 +13,27 @@ function isValidCSSColor(color: string): boolean {
 }
 
 /**
- * Extract the vault path prefix from a node ID.
+ * Extract the project path prefix from a node ID.
  * Node IDs are relative file paths like "openspec/foo.md" or "wed/bar.md".
- * Returns the first path segment (vault folder name).
+ * Returns the first path segment (project folder name).
  */
-function getVaultPrefixFromNodeId(nodeId: string): string {
+function getProjectPrefixFromNodeId(nodeId: string): string {
     const firstSlash: number = nodeId.indexOf('/');
     if (firstSlash === -1) return '';
     return nodeId.slice(0, firstSlash);
 }
 
 /**
- * Generate a subtle, muted color based on a vault path prefix.
+ * Generate a subtle, muted color based on a project path prefix.
  * Uses a hash of the prefix to create consistent hue, with low saturation
  * for a professional appearance that doesn't overpower explicit colors.
  */
-function generateVaultColor(vaultPrefix: string): string | undefined {
-    if (!vaultPrefix) return undefined;
+function generateProjectColor(projectPrefix: string): string | undefined {
+    if (!projectPrefix) return undefined;
 
     let hash: number = 0;
-    for (let i: number = 0; i < vaultPrefix.length; i++) {
-        hash = vaultPrefix.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i: number = 0; i < projectPrefix.length; i++) {
+        hash = projectPrefix.charCodeAt(i) + ((hash << 5) - hash);
         hash = hash & hash;
     }
 
@@ -75,10 +75,10 @@ export function applyGraphDeltaToWebUI(cy: Core, delta: GraphDelta): ApplyGraphD
                     const hasPosition: boolean = O.isSome(node.nodeUIMetadata.position);
                     const pos: { x: number; y: number } = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position);
 
-                    const vaultPrefix: string = getVaultPrefixFromNodeId(nodeId);
+                    const projectPrefix: string = getProjectPrefixFromNodeId(nodeId);
                     const colorValue: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
-                        : generateVaultColor(vaultPrefix);
+                        : generateProjectColor(projectPrefix);
 
                     cy.add({
                         group: 'nodes' as const,
@@ -105,10 +105,10 @@ export function applyGraphDeltaToWebUI(cy: Core, delta: GraphDelta): ApplyGraphD
                     existingNode.data('content', node.contentWithoutYamlOrLinks);
                     existingNode.data('summary', '');
 
-                    const existingVaultPrefix: string = getVaultPrefixFromNodeId(nodeId);
+                    const existingProjectPrefix: string = getProjectPrefixFromNodeId(nodeId);
                     const color: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
-                        : generateVaultColor(existingVaultPrefix);
+                        : generateProjectColor(existingProjectPrefix);
                     if (color === undefined) {
                         existingNode.removeData('color');
                     } else {

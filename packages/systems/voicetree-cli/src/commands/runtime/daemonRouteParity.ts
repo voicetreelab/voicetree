@@ -15,28 +15,28 @@ export type DaemonCliParityReport = {
 }
 
 export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] = [
-    {command: 'vt vault show', routeId: 'vault.show'},
+    {command: 'vt project show', routeId: 'project.show'},
     {
-        command: 'Electron openVault IPC',
-        routeId: 'vault.open',
-        notes: 'Awaitable vault lifecycle route consumed by Electron startup and project switching; not exposed as a user-facing CLI command.',
+        command: 'Electron openProject IPC',
+        routeId: 'project.open',
+        notes: 'Awaitable project lifecycle route consumed by Electron startup and project switching; not exposed as a user-facing CLI command.',
     },
     {
-        command: 'Electron closeVault IPC',
-        routeId: 'vault.close',
-        notes: 'Awaitable vault lifecycle route consumed by Electron shutdown/switching workflows; not exposed as a user-facing CLI command.',
+        command: 'Electron closeProject IPC',
+        routeId: 'project.close',
+        notes: 'Awaitable project lifecycle route consumed by Electron shutdown/switching workflows; not exposed as a user-facing CLI command.',
     },
     {
-        command: 'vt vault add-read-path',
+        command: 'vt project add-read-path',
         routeId: null,
-        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /vault/read-paths route.',
+        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /project/read-paths route.',
     },
     {
-        command: 'vt vault remove-read-path',
+        command: 'vt project remove-read-path',
         routeId: null,
-        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /vault/read-paths route.',
+        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /project/read-paths route.',
     },
-    {command: 'vt vault set-write-path', routeId: 'vault.set-write-path'},
+    {command: 'vt project set-write-path', routeId: 'project.set-write-path'},
     {command: 'vt session create', routeId: 'session.create'},
     {command: 'vt session delete', routeId: 'session.delete'},
     {command: 'vt session show', routeId: 'session.show'},
@@ -63,28 +63,28 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     },
     {
         command: 'vt view list',
-        routeId: 'vault.views.list',
-        notes: 'UFV-2 daemon route for listing named vault views; CLI verb lands in BF-252.',
+        routeId: 'project.views.list',
+        notes: 'UFV-2 daemon route for listing named project views; CLI verb lands in BF-252.',
     },
     {
         command: 'vt view create',
-        routeId: 'vault.views.create',
-        notes: 'UFV-2 daemon route for creating named vault views; CLI verb lands in BF-252.',
+        routeId: 'project.views.create',
+        notes: 'UFV-2 daemon route for creating named project views; CLI verb lands in BF-252.',
     },
     {
         command: 'vt view switch',
-        routeId: 'vault.views.activate',
-        notes: 'UFV-2 daemon route for switching named vault views; CLI verb lands in BF-252.',
+        routeId: 'project.views.activate',
+        notes: 'UFV-2 daemon route for switching named project views; CLI verb lands in BF-252.',
     },
     {
         command: 'vt view clone',
-        routeId: 'vault.views.clone',
-        notes: 'UFV-2 daemon route for cloning named vault views; CLI verb lands in BF-252.',
+        routeId: 'project.views.clone',
+        notes: 'UFV-2 daemon route for cloning named project views; CLI verb lands in BF-252.',
     },
     {
         command: 'vt view delete',
-        routeId: 'vault.views.delete',
-        notes: 'UFV-2 daemon route for deleting named vault views; CLI verb lands in BF-252.',
+        routeId: 'project.views.delete',
+        notes: 'UFV-2 daemon route for deleting named project views; CLI verb lands in BF-252.',
     },
     {
         command: 'vt view collapse',
@@ -110,7 +110,7 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     {
         command: 'vt graph index',
         routeId: null,
-        notes: 'Builds the local search index from the vault on disk and does not call vt-graphd.',
+        notes: 'Builds the local search index from the project on disk and does not call vt-graphd.',
     },
     {
         command: 'vt graph search',

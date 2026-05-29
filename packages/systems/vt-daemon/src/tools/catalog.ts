@@ -151,7 +151,7 @@ const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
             callerTerminalId: z.string().describe(d('callerTerminalId')),
             parentNodeId: z.string().optional().describe(d('parentNodeId')),
             outputPath: z.string().optional().describe(
-                'Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write folder path. The resolved path must stay inside the loaded vault paths (writeFolderPath or readPaths).',
+                'Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write folder path. The resolved path must stay inside the loaded project paths (writeFolderPath or readPaths).',
             ),
             nodes: z.array(z.object({
                 filename: z.string().describe('Filename for this node (with or without .md extension). Other nodes can reference this one via `- parent [[filename|edge-label]]` lines inside their `content`.'),

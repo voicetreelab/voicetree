@@ -11,7 +11,7 @@ import type { RequestClient } from './requestCore.ts'
 export type DaemonClient = ReturnType<typeof createDaemonClient>
 
 export type ConnectOptions = {
-  vault: string
+  project: string
   sessionId?: string
 }
 
@@ -36,7 +36,7 @@ export async function connect<TClient extends { health(): Promise<HealthResponse
   opts: ConnectOptions,
   createClient: (opts: { baseUrl: string; sessionId?: string }) => TClient,
 ): Promise<TClient> {
-  const port = await discoverPort(opts.vault)
+  const port = await discoverPort(opts.project)
   const client = createClient({
     baseUrl: `http://127.0.0.1:${port}`,
     sessionId: opts.sessionId,
@@ -49,7 +49,7 @@ export async function connect<TClient extends { health(): Promise<HealthResponse
       throw error
     }
     throw new DaemonUnreachableError(
-      `Discovered vt-graphd for vault ${opts.vault}, but /health was unreachable`,
+      `Discovered vt-graphd for project ${opts.project}, but /health was unreachable`,
     )
   }
 

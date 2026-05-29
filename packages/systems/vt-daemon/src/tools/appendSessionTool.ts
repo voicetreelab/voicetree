@@ -2,12 +2,12 @@
 //
 // Internal write path — primarily called by the OTLP HTTP receiver itself,
 // but exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can
-// also write into the same per-vault `agent_metrics.json` file. Same
+// also write into the same per-project `agent_metrics.json` file. Same
 // upsert semantics as `appendTokenMetrics`: a second call with the same
 // `sessionId` updates the existing entry rather than pushing a duplicate.
 
 import {appendTokenMetrics, type TokenMetrics} from '../observability/agentMetricsStore.ts'
-import {getCurrentVault} from '../state/currentVault.ts'
+import {getCurrentProject} from '../state/currentProject.ts'
 
 import {buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
@@ -21,7 +21,7 @@ export interface AppendSessionParams {
 export async function appendSessionTool(params: AppendSessionParams): Promise<McpToolResponse> {
     try {
         await appendTokenMetrics(
-            getCurrentVault(),
+            getCurrentProject(),
             params.sessionId,
             params.tokens,
             params.costUsd,

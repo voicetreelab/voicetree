@@ -2,10 +2,10 @@
 
 ### Requirement: Discover resumable persisted agent sessions
 
-The system SHALL discover resumable agent sessions from the canonical `<projectRoot>/.voicetree/terminals/` directory, where `projectRoot` is resolved from the graph bridge (`getProjectRoot()`), NOT from `writeFolder` or `process.env.VOICETREE_PROJECT_PATH`. Discovery SHALL include records with `status` of `running`, `exited`, or `killed`, scoped to the current vault namespace. Records SHALL be classified as: attachable-live-tmux, resumable-dead-tmux, recently-closed, exited, killed, unsupported, foreign-vault, or invalid. Records older than the recency horizon (configurable, default 7 days since `endedAt` or `startedAt`) SHALL be omitted to keep the list bounded.
+The system SHALL discover resumable agent sessions from the canonical `<projectRoot>/.voicetree/terminals/` directory, where `projectRoot` is resolved from the graph bridge (`getProjectRoot()`), NOT from `writeFolder` or `process.env.VOICETREE_PROJECT_PATH`. Discovery SHALL include records with `status` of `running`, `exited`, or `killed`, scoped to the current project namespace. Records SHALL be classified as: attachable-live-tmux, resumable-dead-tmux, recently-closed, exited, killed, unsupported, foreign-project, or invalid. Records older than the recency horizon (configurable, default 7 days since `endedAt` or `startedAt`) SHALL be omitted to keep the list bounded.
 
 #### Scenario: Discovery reads from projectRoot regardless of writeFolder
-- **WHEN** the current vault has `projectRoot = /a/b` and `writeFolder = /a/b/sub` (writeFolder differs from projectRoot)
+- **WHEN** the current project has `projectRoot = /a/b` and `writeFolder = /a/b/sub` (writeFolder differs from projectRoot)
 - **AND** `/a/b/.voicetree/terminals/Noa.json` exists with a valid metadata record
 - **THEN** discovery returns a row for `Noa`
 - **AND** discovery does NOT read from `/a/b/sub/.voicetree/terminals/`
@@ -76,7 +76,7 @@ Codex resolver `reason` values:
 
 Claude resolver `reason` values:
 - `projects-dir-missing` — `~/.claude/projects` does not exist
-- `no-jsonl-matches` — no transcript JSONL files were found for the vault/cwd
+- `no-jsonl-matches` — no transcript JSONL files were found for the project/cwd
 - `marker-mismatch` — JSONLs were scanned but none contained all three VoiceTree markers
 - `scan-timeout` — scan exceeded its time budget before completion
 
@@ -94,9 +94,9 @@ Claude resolver `reason` values:
 - **AND** the UI offers a "Copy manual resume command" button with the literal text `codex resume <id>` (id obtained by widening the resolver query to drop the recency filter for the diagnostic-only lookup)
 
 #### Scenario: Marker mismatch reports actionable detail
-- **WHEN** the resolver finds candidate rows but none contain `VOICETREE_TERMINAL_ID = <id>` matched against this vault
+- **WHEN** the resolver finds candidate rows but none contain `VOICETREE_TERMINAL_ID = <id>` matched against this project
 - **THEN** `not-found` reason is `marker-mismatch`
-- **AND** the UI says: "No matching session — likely the vault was moved or the task node renamed since spawn"
+- **AND** the UI says: "No matching session — likely the project was moved or the task node renamed since spawn"
 
 ### Requirement: Codex Resume produces a manually-runnable `codex resume` command
 
@@ -121,15 +121,15 @@ The Resume action for an interactive Codex agent SHALL build a command equivalen
 
 ### Requirement: Persisted recovery records SHALL live under projectRoot
 
-All writers of `.voicetree/terminals/*.json` (tmux spawn, reconciliation, hook handlers, runtime APIs) SHALL write to `<projectRoot>/.voicetree/terminals/`. Writing to `<writeFolder>/.voicetree/terminals/` is prohibited. On vault open, a one-time migration SHALL detect legacy records in `<writeFolder>/.voicetree/terminals/` (when `writeFolder ≠ projectRoot`) and move them and their sibling artifacts into the canonical location. The migration SHALL be idempotent and SHALL leave the source directory empty (but not removed) so external tooling that watches it does not break.
+All writers of `.voicetree/terminals/*.json` (tmux spawn, reconciliation, hook handlers, runtime APIs) SHALL write to `<projectRoot>/.voicetree/terminals/`. Writing to `<writeFolder>/.voicetree/terminals/` is prohibited. On project open, a one-time migration SHALL detect legacy records in `<writeFolder>/.voicetree/terminals/` (when `writeFolder ≠ projectRoot`) and move them and their sibling artifacts into the canonical location. The migration SHALL be idempotent and SHALL leave the source directory empty (but not removed) so external tooling that watches it does not break.
 
 #### Scenario: Spawn writes to projectRoot path
-- **WHEN** a tmux-backed terminal is spawned in a vault with `projectRoot = /a/b` and `writeFolder = /a/b/sub`
+- **WHEN** a tmux-backed terminal is spawned in a project with `projectRoot = /a/b` and `writeFolder = /a/b/sub`
 - **THEN** the metadata JSON is written to `/a/b/.voicetree/terminals/<id>.json`
 - **AND** no JSON appears in `/a/b/sub/.voicetree/terminals/`
 
 #### Scenario: Migration moves legacy records on first open
-- **WHEN** vault opens with `projectRoot = /a/b`, `writeFolder = /a/b/sub`
+- **WHEN** project opens with `projectRoot = /a/b`, `writeFolder = /a/b/sub`
 - **AND** `/a/b/sub/.voicetree/terminals/X.json` exists from a prior install
 - **AND** `/a/b/.voicetree/terminals/` is empty or missing
 - **THEN** `X.json` (and `X.log`, `X-prompt.txt`, `X.exitcode` if present) are moved to `/a/b/.voicetree/terminals/`

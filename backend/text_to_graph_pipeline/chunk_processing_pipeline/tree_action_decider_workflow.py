@@ -379,13 +379,13 @@ class TreeActionDeciderWorkflow:
 
             # Workflow complete - include detailed node info for frontend display
             nodes_info = []
-            # Get vault folder name to include in filename (for multi-vault support)
-            vault_folder = os.path.basename(self.decision_tree.output_dir) if self.decision_tree and self.decision_tree.output_dir else ""
+            # Get project folder name to include in filename (for multi-project support)
+            project_folder = os.path.basename(self.decision_tree.output_dir) if self.decision_tree and self.decision_tree.output_dir else ""
             for node_id in modified_or_new_nodes:
                 if self.decision_tree is not None and node_id in self.decision_tree.tree:
                     node = self.decision_tree.tree[node_id]
-                    # Include vault folder in filename so frontend can construct correct nodeId
-                    full_filename = f"{vault_folder}/{node.filename}" if vault_folder else node.filename
+                    # Include project folder in filename so frontend can construct correct nodeId
+                    full_filename = f"{project_folder}/{node.filename}" if project_folder else node.filename
                     nodes_info.append({
                         "title": node.title,
                         "filename": full_filename,

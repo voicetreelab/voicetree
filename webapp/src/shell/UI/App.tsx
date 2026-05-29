@@ -4,7 +4,7 @@ import {useEventSubscriptionConnection} from "@/shell/edge/renderer/live/useEven
 import {VoiceTreeGraphView} from "@/shell/UI/views/graph-view/VoiceTreeGraphView";
 import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBackground";
 import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
-import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
+import {ProjectPathSelector} from "@/shell/UI/views/components/ProjectPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
 import {ViewSwitcher} from "@/shell/edge/UI-edge/components/ViewSwitcher";
 import {useEffect, useRef, useState, useCallback} from "react";
@@ -17,7 +17,7 @@ import type { ProjectedGraph } from "@vt/graph-state/contract";
 
 type AppView = 'project-selection' | 'graph-view';
 
-interface OpenedVaultState {
+interface OpenedProjectState {
     readonly path: string;
     readonly sessionId: string;
 }
@@ -50,12 +50,12 @@ function App(): JSX.Element {
     // App navigation state
     const [currentView, setCurrentView] = useState<AppView>('project-selection');
     const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
-    const [openedVault, setOpenedVault] = useState<OpenedVaultState | null>(null);
+    const [openedProject, setOpenedProject] = useState<OpenedProjectState | null>(null);
     const pendingInitialProjectedGraphRef = useRef<ProjectedGraph | null>(null);
-    const [vaultSwitching, setVaultSwitching] = useState<boolean>(false);
-    const [vaultError, setVaultError] = useState<string | null>(null);
+    const [projectSwitching, setProjectSwitching] = useState<boolean>(false);
+    const [projectError, setProjectError] = useState<string | null>(null);
     const hasBootstrappedStartupProjectRef = useRef(false);
-    const lastKnownVaultPathRef = useRef<string | null>(null);
+    const lastKnownProjectPathRef = useRef<string | null>(null);
 
     // Use the folder watcher hook for file watching
     const {
@@ -94,19 +94,19 @@ function App(): JSX.Element {
         setCurrentView('graph-view');
     }, [loadProjectForDirectory]);
 
-    const openVaultForProject: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
+    const openProjectForProject: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
         if (!window.electronAPI) return;
 
-        const response = await window.electronAPI.main.openVault(project.path);
-        lastKnownVaultPathRef.current = project.path;
+        const response = await window.electronAPI.main.openProject(project.path);
+        lastKnownProjectPathRef.current = project.path;
         pendingInitialProjectedGraphRef.current = isProjectedGraph(response.initialProjectedGraph)
             ? response.initialProjectedGraph
             : null;
-        setOpenedVault({
+        setOpenedProject({
             path: project.path,
             sessionId: response.sessionId,
         });
-        setVaultError(null);
+        setProjectError(null);
         setCurrentProject(project);
         setCurrentView('graph-view');
     }, []);
@@ -132,25 +132,25 @@ function App(): JSX.Element {
         }
 
         try {
-            await openVaultForProject(selectedProject);
+            await openProjectForProject(selectedProject);
         } catch (err) {
-            console.error('[App] Failed to open vault:', err);
-            setVaultError(err instanceof Error ? err.message : String(err));
+            console.error('[App] Failed to open project:', err);
+            setProjectError(err instanceof Error ? err.message : String(err));
         }
-    }, [openVaultForProject]);
+    }, [openProjectForProject]);
 
-    const retryLastKnownVault: () => Promise<void> = useCallback(async (): Promise<void> => {
-        if (!lastKnownVaultPathRef.current) return;
-        const project: SavedProject = await loadProjectForDirectory(lastKnownVaultPathRef.current);
-        await openVaultForProject(project);
-    }, [loadProjectForDirectory, openVaultForProject]);
+    const retryLastKnownProject: () => Promise<void> = useCallback(async (): Promise<void> => {
+        if (!lastKnownProjectPathRef.current) return;
+        const project: SavedProject = await loadProjectForDirectory(lastKnownProjectPathRef.current);
+        await openProjectForProject(project);
+    }, [loadProjectForDirectory, openProjectForProject]);
 
     // Handle returning to project selection
     const handleBackToProjects: () => Promise<void> = useCallback(async (): Promise<void> => {
         // Stop watching the current folder
         await stopWatching();
         setCurrentProject(null);
-        setOpenedVault(null);
+        setOpenedProject(null);
         setCurrentView('project-selection');
     }, [stopWatching]);
 
@@ -196,50 +196,50 @@ function App(): JSX.Element {
     // Recover programmatic loads even if they happened before React attached IPC listeners.
     useEffect(() => {
         if (!electronReady || !window.electronAPI || hasBootstrappedStartupProjectRef.current) return;
-        const getStartupVaultHint = window.electronAPI.main.getStartupVaultHint;
-        if (typeof getStartupVaultHint !== 'function') return;
+        const getStartupProjectHint = window.electronAPI.main.getStartupProjectHint;
+        if (typeof getStartupProjectHint !== 'function') return;
 
         hasBootstrappedStartupProjectRef.current = true;
         let cancelled = false;
 
         void (async () => {
             try {
-                const startupHint = await getStartupVaultHint();
+                const startupHint = await getStartupProjectHint();
 
                 if (cancelled) return;
                 if (startupHint.kind === 'open-folder') {
                     const project: SavedProject = await loadProjectForDirectory(startupHint.path);
-                    if (!cancelled) await openVaultForProject(project);
+                    if (!cancelled) await openProjectForProject(project);
                 }
             } catch (err) {
                 console.error('[App] Failed to bootstrap startup project:', err);
-                setVaultError(err instanceof Error ? err.message : String(err));
+                setProjectError(err instanceof Error ? err.message : String(err));
             }
         })();
 
         return () => {
             cancelled = true;
         };
-    }, [electronReady, loadProjectForDirectory, openVaultForProject]);
+    }, [electronReady, loadProjectForDirectory, openProjectForProject]);
 
     useEffect(() => {
         if (!electronReady || !window.electronAPI) return;
 
-        const cleanupSwitching = window.electronAPI.onVaultSwitching?.((data: { path: string }) => {
-            lastKnownVaultPathRef.current = data.path;
-            setVaultSwitching(true);
-            setVaultError(null);
+        const cleanupSwitching = window.electronAPI.onProjectSwitching?.((data: { path: string }) => {
+            lastKnownProjectPathRef.current = data.path;
+            setProjectSwitching(true);
+            setProjectError(null);
         }) ?? (() => {});
-        const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
-            lastKnownVaultPathRef.current = data.path;
-            setVaultSwitching(false);
-            setVaultError(null);
+        const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string }) => {
+            lastKnownProjectPathRef.current = data.path;
+            setProjectSwitching(false);
+            setProjectError(null);
             void syncProjectFromDirectory(data.path);
         }) ?? (() => {});
-        const cleanupLost = window.electronAPI.onVaultLost?.((data: { path?: string; error?: string }) => {
-            if (data.path) lastKnownVaultPathRef.current = data.path;
-            setVaultSwitching(false);
-            setVaultError(data.error ?? 'Vault unavailable');
+        const cleanupLost = window.electronAPI.onProjectLost?.((data: { path?: string; error?: string }) => {
+            if (data.path) lastKnownProjectPathRef.current = data.path;
+            setProjectSwitching(false);
+            setProjectError(data.error ?? 'Project unavailable');
         }) ?? (() => {});
 
         return () => {
@@ -274,7 +274,7 @@ function App(): JSX.Element {
                             <span className="text-[10px] ml-1">▼</span>
                         </button>
                         <span className="text-muted-foreground">/</span>
-                        <VaultPathSelector />
+                        <ProjectPathSelector />
                     </>
                 )}
             </div>
@@ -324,7 +324,7 @@ function App(): JSX.Element {
             disposed = true;
             graphView?.dispose();
         };
-    }, [currentView, openedVault?.sessionId]); // Reinitialize when the active vault session changes
+    }, [currentView, openedProject?.sessionId]); // Reinitialize when the active project session changes
 
     // Attach dot-grid background subscriber when in graph view
     useEffect(() => {
@@ -347,15 +347,15 @@ function App(): JSX.Element {
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
             <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 
-            {(vaultSwitching || vaultError) && (
+            {(projectSwitching || projectError) && (
                 <div className="fixed top-3 left-1/2 z-[1300] -translate-x-1/2 rounded border border-border bg-background px-3 py-2 text-sm shadow-lg">
-                    {vaultSwitching ? (
-                        <span className="text-foreground">Opening vault...</span>
+                    {projectSwitching ? (
+                        <span className="text-foreground">Opening project...</span>
                     ) : (
                         <div className="flex items-center gap-3">
-                            <span className="text-destructive">{vaultError}</span>
+                            <span className="text-destructive">{projectError}</span>
                             <button
-                                onClick={() => void retryLastKnownVault()}
+                                onClick={() => void retryLastKnownProject()}
                                 className="rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-accent"
                                 type="button"
                             >

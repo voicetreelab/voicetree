@@ -88,7 +88,7 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: projectPath,
-        vaultConfig: { [projectPath]: { writeFolderPath, readPaths: [] } },
+        projectConfig: { [projectPath]: { writeFolderPath, readPaths: [] } },
       }, null, 2),
       'utf8',
     );
@@ -123,13 +123,13 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
-    const openResult = await window.evaluate(async (vault: string) => {
+    const openResult = await window.evaluate(async (project: string) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const response = await api.main.openVault(vault);
+      const response = await api.main.openProject(project);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
-    expect(openResult.writeFolderPath, 'openVault returned no writeFolderPath').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy();
 
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
@@ -316,7 +316,7 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
 }
 
 async function deleteGraphExtraMarkdownNodes(page: Page, writeFolderPath: string): Promise<readonly string[]> {
-  return page.evaluate(async ({ parentNodeId, vaultPath }) => {
+  return page.evaluate(async ({ parentNodeId, projectPath }) => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
     await api.main.reconcileGraphWithDisk();
@@ -325,7 +325,7 @@ async function deleteGraphExtraMarkdownNodes(page: Page, writeFolderPath: string
     const nodeIds = Object.keys(graphWithNodes.nodes ?? {}).filter((nodeId) => {
       return nodeId !== parentNodeId
         && nodeId.endsWith('.md')
-        && (nodeId === vaultPath || nodeId.startsWith(`${vaultPath}/`));
+        && (nodeId === projectPath || nodeId.startsWith(`${projectPath}/`));
     });
     if (nodeIds.length === 0) return [];
 
@@ -340,11 +340,11 @@ async function deleteGraphExtraMarkdownNodes(page: Page, writeFolderPath: string
     return nodeIds;
   }, {
     parentNodeId: path.join(writeFolderPath, PARENT_FILENAME),
-    vaultPath: writeFolderPath,
+    projectPath: writeFolderPath,
   });
 }
 
-export async function deleteExtraVaultFiles(page: Page, writeFolderPath: string): Promise<void> {
+export async function deleteExtraProjectFiles(page: Page, writeFolderPath: string): Promise<void> {
   await deleteGraphExtraMarkdownNodes(page, writeFolderPath);
 
   const entries = await fs.readdir(writeFolderPath, { withFileTypes: true });

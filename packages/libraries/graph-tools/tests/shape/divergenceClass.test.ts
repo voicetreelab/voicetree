@@ -8,15 +8,15 @@ describe('divergenceClass', () => {
       dataVsProjection: {
         equal: false,
         missingInA: ['edge:a->b'],
-        missingInB: ['/tmp/vault/node.md'],
+        missingInB: ['/tmp/project/node.md'],
         differing: [
-          { id: '/tmp/vault/node.md', fields: ['classes', 'position'] },
+          { id: '/tmp/project/node.md', fields: ['classes', 'position'] },
           { id: '__selection__', fields: ['items'] },
         ],
       },
       projectionVsRendered: {
         equal: false,
-        missingInA: ['/tmp/vault/other.md'],
+        missingInA: ['/tmp/project/other.md'],
         missingInB: ['edge:b->c'],
         differing: [
           { id: '__viewport__', fields: ['pan'] },
@@ -24,8 +24,8 @@ describe('divergenceClass', () => {
         ],
       },
       nodeContentStale: [
-        { id: '/tmp/vault/node.md', mainLen: 10, fsLen: 8 },
-        { id: '/tmp/vault/missing.md', mainLen: 7, fsLen: -1 },
+        { id: '/tmp/project/node.md', mainLen: 10, fsLen: 8 },
+        { id: '/tmp/project/missing.md', mainLen: 7, fsLen: -1 },
       ],
     })
 

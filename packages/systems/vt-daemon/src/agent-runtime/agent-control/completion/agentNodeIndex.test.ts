@@ -12,19 +12,19 @@ describe('agentNodeIndex', () => {
 
     it('registers and retrieves nodes for an agent', () => {
         registerAgentNodes('test-agent-1', [
-            {nodeId: '/vault/node-a.md', title: 'Node A'},
-            {nodeId: '/vault/node-b.md', title: 'Node B'},
+            {nodeId: '/project/node-a.md', title: 'Node A'},
+            {nodeId: '/project/node-b.md', title: 'Node B'},
         ])
         const nodes: readonly AgentNodeEntry[] = getAgentNodes('test-agent-1')
         expect(nodes).toEqual([
-            {nodeId: '/vault/node-a.md', title: 'Node A'},
-            {nodeId: '/vault/node-b.md', title: 'Node B'},
+            {nodeId: '/project/node-a.md', title: 'Node A'},
+            {nodeId: '/project/node-b.md', title: 'Node B'},
         ])
     })
 
     it('accumulates nodes across multiple create_graph calls', () => {
-        registerAgentNodes('test-agent-2', [{nodeId: '/vault/first.md', title: 'First'}])
-        registerAgentNodes('test-agent-2', [{nodeId: '/vault/second.md', title: 'Second'}])
+        registerAgentNodes('test-agent-2', [{nodeId: '/project/first.md', title: 'First'}])
+        registerAgentNodes('test-agent-2', [{nodeId: '/project/second.md', title: 'Second'}])
         const nodes: readonly AgentNodeEntry[] = getAgentNodes('test-agent-2')
         expect(nodes).toHaveLength(2)
         expect(nodes[0].title).toBe('First')
@@ -32,8 +32,8 @@ describe('agentNodeIndex', () => {
     })
 
     it('keeps agents isolated from each other', () => {
-        registerAgentNodes('agent-iso-a', [{nodeId: '/vault/a.md', title: 'A'}])
-        registerAgentNodes('agent-iso-b', [{nodeId: '/vault/b.md', title: 'B'}])
+        registerAgentNodes('agent-iso-a', [{nodeId: '/project/a.md', title: 'A'}])
+        registerAgentNodes('agent-iso-b', [{nodeId: '/project/b.md', title: 'B'}])
         expect(getAgentNodes('agent-iso-a')).toHaveLength(1)
         expect(getAgentNodes('agent-iso-a')[0].title).toBe('A')
         expect(getAgentNodes('agent-iso-b')[0].title).toBe('B')

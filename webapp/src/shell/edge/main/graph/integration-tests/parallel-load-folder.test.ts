@@ -1,9 +1,9 @@
 /**
- * Black-box test for surface (a) — Parallel openVault idempotency.
+ * Black-box test for surface (a) — Parallel openProject idempotency.
  *
- * Demonstrates that 3+ concurrent openVault() callers (renderer bootstrap,
- * UI click, IPC handler) for the same vault path:
- *   1. spawn at most one vt-graphd daemon process for that vault, and
+ * Demonstrates that 3+ concurrent openProject() callers (renderer bootstrap,
+ * UI click, IPC handler) for the same project path:
+ *   1. spawn at most one vt-graphd daemon process for that project, and
  *   2. leave the just-loaded graph populated (no late re-spawn clearing the
  *      graph view).
  *
@@ -12,7 +12,7 @@
  * for an unrelated BETA broadcast-count regression — this test isolates the
  * idempotency surface so it isn't blocked by that.
  *
- * Black-box rules: drives the public openVault() API, asserts on observable
+ * Black-box rules: drives the public openProject() API, asserts on observable
  * daemon graph state via GraphDbClient, and counts daemons via `ps` (no internal
  * idempotency-map inspection, no mocks of internal collaborators).
  */
@@ -24,7 +24,7 @@ import path from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-    openVault,
+    openProject,
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
@@ -33,7 +33,7 @@ import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
 import { createGraph } from '@vt/graph-model/graph'
 import type { GraphDelta } from '@vt/graph-model/graph'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 
@@ -41,7 +41,7 @@ const MIN_SMALL_NODE_COUNT: 10 = 10 as const
 const TIMEOUT_MS: 60000 = 60000 as const
 
 vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
-    getVoicetreeHomePath: vi.fn(() => '/tmp/parallel-load-folder-app-support'),
+    getVoicetreeHomePath: vi.fn(() => '/tmp/parallel-load-folder-voicetree-home'),
     getMainWindow: vi.fn(() => ({
         webContents: { send: vi.fn(), isDestroyed: vi.fn(() => false) },
         isDestroyed: vi.fn(() => false),
@@ -70,32 +70,32 @@ async function copyFixture(): Promise<string> {
     return dst
 }
 
-async function shutdownDaemonForVault(vault: string): Promise<void> {
-    const client: GraphDbClient | null = await GraphDbClient.connect({ vault }).catch(() => null)
+async function shutdownDaemonForProject(project: string): Promise<void> {
+    const client: GraphDbClient | null = await GraphDbClient.connect({ project }).catch(() => null)
     await client?.shutdown().catch(() => undefined)
 }
 
-function countVtGraphdProcessesForVault(vault: string): number {
+function countVtGraphdProcessesForProject(project: string): number {
     if (process.platform !== 'darwin' && process.platform !== 'linux') return 0
     const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
         encoding: 'utf8',
         timeout: 5000,
     })
     if (result.status !== 0 || !result.stdout) return 0
-    const re: RegExp = new RegExp(`vt-graphd\\.ts.*--project-root\\s+${vault}(\\s|$)`)
+    const re: RegExp = new RegExp(`vt-graphd\\.ts.*--project-root\\s+${project}(\\s|$)`)
     return result.stdout.split('\n').filter(line => re.test(line)).length
 }
 
-async function readDaemonNodeCount(vault: string): Promise<number> {
-    const client: GraphDbClient = await GraphDbClient.connect({ vault })
+async function readDaemonNodeCount(project: string): Promise<number> {
+    const client: GraphDbClient = await GraphDbClient.connect({ project })
     const graph: Awaited<ReturnType<GraphDbClient['getGraph']>> = await client.getGraph()
     return Object.keys(graph.nodes).length
 }
 
-async function waitForDaemonNodeCount(vault: string): Promise<number> {
+async function waitForDaemonNodeCount(project: string): Promise<number> {
     const startedAt: number = Date.now()
     while (Date.now() - startedAt < 10_000) {
-        const nodeCount: number = await readDaemonNodeCount(vault)
+        const nodeCount: number = await readDaemonNodeCount(project)
         if (nodeCount >= MIN_SMALL_NODE_COUNT) {
             return nodeCount
         }
@@ -104,19 +104,19 @@ async function waitForDaemonNodeCount(vault: string): Promise<number> {
     throw new Error('daemon graph never reached MIN_SMALL_NODE_COUNT after parallel load (waited 10000ms)')
 }
 
-describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
+describe('Parallel openProject idempotency (Hot Zone A surface a)', () => {
     beforeAll(async () => {
         originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
         tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'parallel-load-folder-'))
-        const appSupport = path.join(tempFixtureRoot, 'app-support')
-        process.env.VOICETREE_HOME_PATH = appSupport
+        const voicetreeHome = path.join(tempFixtureRoot, 'voicetree-home')
+        process.env.VOICETREE_HOME_PATH = voicetreeHome
         initGraphModel({
             onGraphDelta: (): void => undefined,
             onGraphCleared: (): void => undefined,
             onWatchingStarted: (): void => undefined,
         })
         projectRoot = await copyFixture()
-        await saveVaultConfigForDirectory(projectRoot, {
+        await saveProjectConfigForDirectory(projectRoot, {
             writeFolderPath: path.join(projectRoot, 'voicetree'),
         })
     }, TIMEOUT_MS)
@@ -134,7 +134,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
             onGraphCleared: (): void => undefined,
             onWatchingStarted: (): void => undefined,
         }
-        process.env.VOICETREE_HOME_PATH = path.join(tempFixtureRoot!, 'app-support')
+        process.env.VOICETREE_HOME_PATH = path.join(tempFixtureRoot!, 'voicetree-home')
         initGraphModel(noopBroadcasts)
 
         setGraph(createGraph({}))
@@ -148,7 +148,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
     })
 
     afterAll(async () => {
-        await shutdownDaemonForVault(projectRoot)
+        await shutdownDaemonForProject(projectRoot)
         clearDaemonClientCache()
         if (tempFixtureRoot) {
             await fs.rm(tempFixtureRoot, { recursive: true, force: true })
@@ -158,36 +158,36 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
         else process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
     }, TIMEOUT_MS)
 
-    it('5 concurrent openVault callers spawn ≤1 vt-graphd and leave graph populated', async () => {
-        // GIVEN: clean slate — no stale daemon for this vault.
-        await shutdownDaemonForVault(projectRoot)
+    it('5 concurrent openProject callers spawn ≤1 vt-graphd and leave graph populated', async () => {
+        // GIVEN: clean slate — no stale daemon for this project.
+        await shutdownDaemonForProject(projectRoot)
         clearDaemonClientCache()
 
         // WHEN: 5 callers race to load the same folder.
         // (Models renderer-bootstrap + UI click + IPC handler + 2 stragglers.)
-        // openVault throws on failure — Promise.all rejecting is the failure mode.
+        // openProject throws on failure — Promise.all rejecting is the failure mode.
         await Promise.all([
-            openVault(projectRoot),
-            openVault(projectRoot),
-            openVault(projectRoot),
-            openVault(projectRoot),
-            openVault(projectRoot),
+            openProject(projectRoot),
+            openProject(projectRoot),
+            openProject(projectRoot),
+            openProject(projectRoot),
+            openProject(projectRoot),
         ])
 
         // THEN: daemon graph populated — not cleared by a late re-spawn.
         const nodeCount: number = await waitForDaemonNodeCount(projectRoot)
         expect(nodeCount).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
 
-        // AND: at most 1 vt-graphd process for this vault.
+        // AND: at most 1 vt-graphd process for this project.
         if (process.platform === 'darwin' || process.platform === 'linux') {
-            const daemonCount: number = countVtGraphdProcessesForVault(projectRoot)
-            expect(daemonCount, `expected ≤1 vt-graphd for vault, found ${daemonCount}`)
+            const daemonCount: number = countVtGraphdProcessesForProject(projectRoot)
+            expect(daemonCount, `expected ≤1 vt-graphd for project, found ${daemonCount}`)
                 .toBeLessThanOrEqual(1)
         }
 
-        // AND: a follow-up openVault is a no-op that preserves the graph
+        // AND: a follow-up openProject is a no-op that preserves the graph
         // (the original race symptom: late call-site re-spawns and clears).
-        await openVault(projectRoot)
+        await openProject(projectRoot)
         const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(projectRoot)
         expect(nodeCountAfterFollowup).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
     }, TIMEOUT_MS)

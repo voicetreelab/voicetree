@@ -98,10 +98,10 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     const unexpandedEnvVars: Record<string, string> = {
       VOICETREE_PROJECT_DIR: '/Users/test/project/.voicetree',
       VOICETREE_HOME_PATH: '/Users/test/Library/Application Support/Voicetree',
-      VOICETREE_PROJECT_PATH: '/Users/test/project/vault',
-      ALL_MARKDOWN_READ_PATHS: '/Users/test/project/vault',
-      CONTEXT_NODE_PATH: '/Users/test/project/vault/task-123.md',
-      TASK_NODE_PATH: '/Users/test/project/vault/task-123.md',
+      VOICETREE_PROJECT_PATH: '/Users/test/project/project',
+      ALL_MARKDOWN_READ_PATHS: '/Users/test/project/project',
+      CONTEXT_NODE_PATH: '/Users/test/project/project/task-123.md',
+      TASK_NODE_PATH: '/Users/test/project/project/task-123.md',
       VOICETREE_TERMINAL_ID: 'Ama',
       VOICETREE_CALLER_TERMINAL_ID: 'Ama',
       AGENT_NAME: 'Ama',
@@ -124,7 +124,7 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     expect(result.AGENT_PROMPT).not.toContain('$AGENT_NAME');
 
     // Should contain the actual resolved values
-    expect(result.AGENT_PROMPT).toContain('/Users/test/project/vault/task-123.md');
+    expect(result.AGENT_PROMPT).toContain('/Users/test/project/project/task-123.md');
     expect(result.AGENT_PROMPT).toContain('Ama');
 
     // AGENT_PROMPT should equal AGENT_PROMPT_CORE (since default is just '$AGENT_PROMPT_CORE')
@@ -148,7 +148,7 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     expect(result.AGENT_PROMPT).toMatch(/Never auto-commit\.$/);
 
     // Core content is in the middle
-    expect(result.AGENT_PROMPT).toContain('/Users/test/project/vault/task-123.md');
+    expect(result.AGENT_PROMPT).toContain('/Users/test/project/project/task-123.md');
   });
 
   it('user AGENT_PROMPT without $AGENT_PROMPT_CORE still works (fully custom)', () => {
@@ -160,7 +160,7 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     const result: Record<string, string> = simulateBuildTerminalEnvVars(customEnvVars);
 
     expect(result.AGENT_PROMPT).toBe(
-      'Just read /Users/test/project/vault/task-123.md and do your best, Ama.',
+      'Just read /Users/test/project/project/task-123.md and do your best, Ama.',
     );
   });
 
@@ -177,7 +177,7 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     // Should still expand all $VAR references in AGENT_PROMPT directly
     expect(result.AGENT_PROMPT).not.toContain('$CONTEXT_NODE_PATH');
     expect(result.AGENT_PROMPT).not.toContain('$VOICETREE_TERMINAL_ID');
-    expect(result.AGENT_PROMPT).toContain('/Users/test/project/vault/task-123.md');
+    expect(result.AGENT_PROMPT).toContain('/Users/test/project/project/task-123.md');
     expect(result.AGENT_PROMPT).toContain('Ama');
   });
 });

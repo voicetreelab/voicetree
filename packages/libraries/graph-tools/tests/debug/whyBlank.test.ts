@@ -19,7 +19,7 @@ function makeMessages(overrides: Partial<BlankMessages> = {}): BlankMessages {
 
 function makeState(overrides: Partial<BlankState> = {}): BlankState {
   return {
-    loadedRoots: ['/tmp/vault'],
+    loadedRoots: ['/tmp/project'],
     graphNodeCount: 3,
     projectedNodeCount: 3,
     ...overrides,

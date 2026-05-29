@@ -184,38 +184,38 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
     },
     {
         surface: 'loaded-roots',
-        label: 'Persisted writeFolderPath/readPaths vault config',
+        label: 'Persisted writeFolderPath/readPaths project config',
         primary: {
-            relativePath: 'packages/libraries/graph-model/src/watch-folder/vault-allowlist.ts',
-            contains: 'export async function getVaultPaths(): Promise<readonly FilePath[]> {',
+            relativePath: 'packages/libraries/graph-model/src/watch-folder/project-allowlist.ts',
+            contains: 'export async function getProjectPaths(): Promise<readonly FilePath[]> {',
         },
         owner: '@vt/graph-model watch-folder config file',
         consumers: [
             {
-                description: 'broadcast pushes the persisted vault state into the renderer mirror',
+                description: 'broadcast pushes the persisted project state into the renderer mirror',
                 ref: {
-                    relativePath: 'packages/libraries/graph-model/src/watch-folder/broadcast-vault-state.ts',
-                    contains: 'getCallbacks().syncVaultState?.({ readPaths, writeFolderPath, starredFolders });',
+                    relativePath: 'packages/libraries/graph-model/src/watch-folder/broadcast-project-state.ts',
+                    contains: 'getCallbacks().syncProjectState?.({ readPaths, writeFolderPath, starredFolders });',
                 },
             },
             {
                 description: 'delta projection maps node ids back to currently loaded roots',
                 ref: {
                     relativePath: 'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts',
-                    contains: 'const { writeFolderPath, readPaths } = getVaultState()',
+                    contains: 'const { writeFolderPath, readPaths } = getProjectState()',
                 },
             },
             {
-                description: 'vault-path subscription forces a full layout reset when loaded roots change',
+                description: 'project-path subscription forces a full layout reset when loaded roots change',
                 ref: {
                     relativePath: 'webapp/src/shell/edge/UI-edge/graph/setupViewSubscriptions.ts',
-                    contains: 'const vaultPathSubscription: () => void = subscribeToVaultPaths((state: VaultPathState) => {',
+                    contains: 'const projectPathSubscription: () => void = subscribeToProjectPaths((state: ProjectPathState) => {',
                 },
             },
         ],
         mutatesGraphModel: 'Yes',
         survivesRestart: 'Yes',
-        notes: 'writeFolderPath/readPaths are persisted in vault config and drive graph load/unload plus renderer topology changes.',
+        notes: 'writeFolderPath/readPaths are persisted in project config and drive graph load/unload plus renderer topology changes.',
     },
     {
         surface: 'F6 aggregation call sites',

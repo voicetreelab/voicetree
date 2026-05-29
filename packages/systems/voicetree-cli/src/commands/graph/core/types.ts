@@ -37,7 +37,7 @@ export type NodeVerdictStatus = 'ok' | 'rejected' | 'skipped' | 'warning'
 export type SkipReason =
     | 'no_schema_plugin'
     | 'unknown_type'
-    | 'no_vault_detected'
+    | 'no_project_detected'
     | 'no_parent_for_live_node'
 
 export type NodeVerdict = {
@@ -96,13 +96,13 @@ export type ToolFailure = {
 
 export type GraphIndexSuccess = {
     success: true
-    vaultPath: string
+    projectPath: string
     indexPath: string
 }
 
 export type GraphSearchSuccess = {
     success: true
-    vaultPath: string
+    projectPath: string
     query: string
     topK: number
     hits: readonly NodeSearchHit[]

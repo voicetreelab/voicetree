@@ -85,7 +85,7 @@ const test = base.extend<{
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-filetree-load-child-ud-'));
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: fixture.projectPath,
-            vaultConfig: {
+            projectConfig: {
                 [fixture.projectPath]: {
                     writeFolderPath: fixture.writeFolderPath,
                     readPaths: [],

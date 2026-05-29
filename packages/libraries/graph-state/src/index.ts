@@ -56,8 +56,8 @@ export {
     SNAPSHOTS_DIR,
     SEQUENCES_DIR,
     PROJECTIONS_DIR,
-    REAL_VAULT_FIXTURE_ID,
-    REAL_VAULT_CANONICAL_ROOT,
+    REAL_PROJECT_FIXTURE_ID,
+    REAL_PROJECT_CANONICAL_ROOT,
     collectLayoutPositions,
     serializeState,
     serializeCommand,
@@ -71,8 +71,8 @@ export {
     loadSequence,
     loadProjection,
     loadFixture,
-    buildStateFromVault,
-    snapshotStateFromVault,
+    buildStateFromProject,
+    snapshotStateFromProject,
     toFixtureJson,
 } from './fixtures'
 

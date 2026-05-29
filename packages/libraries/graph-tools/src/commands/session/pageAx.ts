@@ -32,7 +32,7 @@ interface ChromiumLike {
 type PageAxArgs = {
   port?: number
   pid?: number
-  vault?: string
+  project?: string
   forceNew?: boolean
   selector?: string
 }
@@ -50,10 +50,10 @@ function parseArgs(argv: string[]): PageAxArgs {
       parsed.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       parsed.pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      parsed.vault = argv[++i]
-    } else if (arg.startsWith('--vault=')) {
-      parsed.vault = arg.slice('--vault='.length)
+    } else if (arg === '--project') {
+      parsed.project = argv[++i]
+    } else if (arg.startsWith('--project=')) {
+      parsed.project = arg.slice('--project='.length)
     } else if (arg === '--selector') {
       parsed.selector = argv[++i]
     } else if (arg.startsWith('--selector=')) {
@@ -119,9 +119,9 @@ async function snapshotPageAx(
 }
 
 async function pageAxHandler(argv: string[]): Promise<Response<unknown>> {
-  const { port, pid, vault, forceNew, selector } = parseArgs(argv)
+  const { port, pid, project, forceNew, selector } = parseArgs(argv)
 
-  const pick = await resolveDebugInstance({ port, pid, vault, forceNew })
+  const pick = await resolveDebugInstance({ port, pid, project, forceNew })
 
   if (!pick.ok) {
     return err('page-ax', pick.message, pick.hint, 2)

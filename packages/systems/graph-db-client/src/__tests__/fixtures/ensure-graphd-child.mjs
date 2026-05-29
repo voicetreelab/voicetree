@@ -6,7 +6,7 @@
  *   node --import tsx <this> --project-root <path> --bin "<command line>"
  *     [--timeoutMs <n>] [--caller <CallerKind>]
  *
- * Calls `ensureGraphDaemonForVault` once and writes a single JSON line to
+ * Calls `ensureGraphDaemonForProject` once and writes a single JSON line to
  * stdout describing the outcome:
  *
  *   { "ok": true, "port": N, "pid": P, "ownerNonce": "...", "launched": true|false }
@@ -21,25 +21,25 @@
  * test file.
  */
 
-import { ensureGraphDaemonForVault } from '@vt/graph-db-client'
+import { ensureGraphDaemonForProject } from '@vt/graph-db-client'
 
 function arg(flag) {
   const i = process.argv.indexOf(flag)
   return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined
 }
 
-const vault = arg('--project-root')
+const project = arg('--project-root')
 const bin = arg('--bin')
 const timeoutMs = Number(arg('--timeoutMs') ?? '10000')
 const caller = arg('--caller') ?? 'electron'
 
-if (!vault || !bin) {
+if (!project || !bin) {
   process.stderr.write('ensure-graphd-child: --project-root and --bin required\n')
   process.exit(2)
 }
 
 try {
-  const result = await ensureGraphDaemonForVault(vault, caller, {
+  const result = await ensureGraphDaemonForProject(project, caller, {
     bin,
     timeoutMs,
   })

@@ -34,7 +34,7 @@ function helpText(): string {
     '  --port <N>      Target a specific registered dev session by CDP/MCP port.',
     '  --cdpPort <N>   Backward-compatible alias for --port.',
     '  --pid <N>       Target a specific registered dev process.',
-    '  --vault <path>  Target a specific registered dev vault path.',
+    '  --project <path>  Target a specific registered dev project path.',
     '  --new           Launch a fresh dev session even if one already exists (preferred if testing new code).',
     '',
     'Auto-launch:',

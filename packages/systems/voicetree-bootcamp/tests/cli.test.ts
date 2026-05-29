@@ -148,7 +148,7 @@ describe('vt-bootcamp CLI', () => {
 
     it('--mode headful needs no extra required flags', async () => {
         // Headful no longer requires a parent node id or a caller terminal id:
-        // it launches VT pointing at the vault and the agent runs externally,
+        // it launches VT pointing at the project and the agent runs externally,
         // same as headless. Asserting this with a dry-run so we don't actually
         // try to open Voicetree.app.
         const r = await runCli([

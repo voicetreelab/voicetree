@@ -1,22 +1,22 @@
 /**
- * Per-vault binding to the standalone VTD (vt-daemon) controller.
+ * Per-project binding to the standalone VTD (vt-daemon) controller.
  *
  * Post-Phase-2 (BF-375): the unified HTTP daemon is no longer in-process.
- * Electron Main is a CLIENT of a per-vault VTD child spawned via the
+ * Electron Main is a CLIENT of a per-project VTD child spawned via the
  * `@vt/vt-daemon-client` ensure path. This module owns the small piece
- * of impurity that is "the currently-bound vault" — `bindVtDaemonForVault`
- * on vault-open, `unbindVtDaemon` on app quit, and the
+ * of impurity that is "the currently-bound project" — `bindVtDaemonForProject`
+ * on project-open, `unbindVtDaemon` on app quit, and the
  * `getDaemonUrl` / `getAuthToken` accessors the renderer reaches via IPC.
  *
  * Invariants (per BF-346 + BF-375):
- *   - One VTD per vault per machine; multiple Electron windows / CLI
+ *   - One VTD per project per machine; multiple Electron windows / CLI
  *     peers converge on the same child via the ensure path's BF-348
  *     single-flight + cross-process spawn lock.
  *   - Main does NOT own the VTD child's lifetime — `unbindVtDaemon`
  *     clears Main's cached handle but is observably a no-op on the
- *     spawned child. Vault-switch leaks a child on purpose; the bounded
+ *     spawned child. Project-switch leaks a child on purpose; the bounded
  *     cleanup is VTD's `VOICETREE_PARENT_PID` watchdog.
- *   - `getDaemonUrl` / `getAuthToken` re-call `ensureVtDaemonForVault`
+ *   - `getDaemonUrl` / `getAuthToken` re-call `ensureVtDaemonForProject`
  *     on every access so a VTD respawn (crash → new pid → new token)
  *     surfaces fresh credentials, not a stale cached snapshot. The
  *     ensure call is cheap (in-process single-flight) when the cache
@@ -25,8 +25,8 @@
  *     both the cache and the ensure path entirely — tests and dev
  *     overrides redirect to a daemon spawned out-of-band.
  *
- * Serialisation: `bindVtDaemonForVault` / `unbindVtDaemon` queue through
- * a single promise chain — `openVault` may be invoked in parallel and a
+ * Serialisation: `bindVtDaemonForProject` / `unbindVtDaemon` queue through
+ * a single promise chain — `openProject` may be invoked in parallel and a
  * rebind must not race a teardown of the prior `active` snapshot.
  */
 
@@ -42,9 +42,9 @@ import {
     type VtDaemonClientFacade,
 } from '@vt/vt-daemon-client'
 import {
-    ensureNodeVtDaemonForVault,
+    ensureNodeVtDaemonForProject,
     type NodeEnsureVtDaemonRuntime,
-} from '@vt/vt-daemon-client/nodeEnsureVtDaemonForVault'
+} from '@vt/vt-daemon-client/nodeEnsureVtDaemonForProject'
 
 const requireFromHere = createRequire(import.meta.url)
 
@@ -61,7 +61,7 @@ function createNodeEnsureRuntime(): NodeEnsureVtDaemonRuntime {
 }
 
 interface ActiveVtDaemon {
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly url: string
     readonly token: string
     readonly pid: number
@@ -81,9 +81,9 @@ function chain<T>(work: () => Promise<T>): Promise<T> {
     return next
 }
 
-function snapshotFromEnsure(vaultPath: string, result: ActiveEnsureResult): ActiveVtDaemon {
+function snapshotFromEnsure(projectPath: string, result: ActiveEnsureResult): ActiveVtDaemon {
     return {
-        vaultPath,
+        projectPath,
         url: result.client.baseUrl,
         token: result.authToken,
         pid: result.pid,
@@ -93,24 +93,24 @@ function snapshotFromEnsure(vaultPath: string, result: ActiveEnsureResult): Acti
     }
 }
 
-export function bindVtDaemonForVault(vaultPath: string): Promise<ActiveVtDaemon> {
+export function bindVtDaemonForProject(projectPath: string): Promise<ActiveVtDaemon> {
     return chain(async (): Promise<ActiveVtDaemon> => {
-        if (active?.vaultPath === vaultPath) {
+        if (active?.projectPath === projectPath) {
             // Idempotent rebind. The ensure path's in-process single-flight
-            // cache means a fresh `ensureVtDaemonForVault` call here would
+            // cache means a fresh `ensureVtDaemonForProject` call here would
             // also return the same handle cheaply, but skipping it
             // preserves observable identity for callers that want to know
             // "did anything change?" without an extra round-trip.
             return active
         }
-        // Vault-swap: drop the cached handle without killing the prior
+        // Project-swap: drop the cached handle without killing the prior
         // VTD child. Per BF-346, the VTD is a shared cross-process
         // resource that outlives any single Electron Main; the bounded
         // cleanup is VTD's parent-pid watchdog (BF-369) plus
         // killOrphanVt*Daemons on next startup.
         active = null
-        const result: ActiveEnsureResult = await ensureNodeVtDaemonForVault(createNodeEnsureRuntime(), vaultPath, 'electron')
-        const next: ActiveVtDaemon = snapshotFromEnsure(vaultPath, result)
+        const result: ActiveEnsureResult = await ensureNodeVtDaemonForProject(createNodeEnsureRuntime(), projectPath, 'electron')
+        const next: ActiveVtDaemon = snapshotFromEnsure(projectPath, result)
         active = next
         return next
     })
@@ -121,7 +121,7 @@ export function unbindVtDaemon(): Promise<void> {
         // Observably a no-op on the spawned VTD child — Main does not own
         // its lifetime (see header). We only drop the cached handle so
         // subsequent `getDaemonUrl` / `getAuthToken` calls reject with
-        // `daemon_unreachable` until the next `bindVtDaemonForVault`.
+        // `daemon_unreachable` until the next `bindVtDaemonForProject`.
         active = null
     })
 }
@@ -138,31 +138,31 @@ export async function getAuthToken(): Promise<string> {
 }
 
 /**
- * Synchronous read of the currently-bound vault path, or `null` if no vault
+ * Synchronous read of the currently-bound project path, or `null` if no project
  * is bound yet (or after `unbindVtDaemon`). Used by the agent-events SSE
- * subscriber's vault-switch fence — it must be authoritative the instant
- * `bindVtDaemonForVault` resolves, so we expose it as a direct accessor on
+ * subscriber's project-switch fence — it must be authoritative the instant
+ * `bindVtDaemonForProject` resolves, so we expose it as a direct accessor on
  * the cached `active` snapshot rather than re-calling the ensure path.
  *
- * Per main-host-purity §"Vault-switch fence drops stale events": this
- * accessor returns the value `bindVtDaemonForVault` last set, before any
- * subsequent vault-switch begins. Combined with the `chain<T>` promise
+ * Per main-host-purity §"Project-switch fence drops stale events": this
+ * accessor returns the value `bindVtDaemonForProject` last set, before any
+ * subsequent project-switch begins. Combined with the `chain<T>` promise
  * serialisation in this file, the SSE subscriber sees a consistent view
- * of "the vault Main currently considers active".
+ * of "the project Main currently considers active".
  */
-export function getActiveVault(): string | null {
-    return active?.vaultPath ?? null
+export function getActiveProject(): string | null {
+    return active?.projectPath ?? null
 }
 
 /**
  * Bound RPC facade closed over the active vt-daemon connection. Throws
- * `daemon_unreachable` when no vault is bound — callers that fan out the
+ * `daemon_unreachable` when no project is bound — callers that fan out the
  * 19 BF-376 RPC routes (mainAPI handlers, polling syncs, lazy-attach IPC)
  * reach this on every invocation, so a respawned VTD surfaces the fresh
  * client without the call site holding a stale reference.
  *
  * Sync accessor (not async). The active snapshot is already on the
- * promise-chained `bindVtDaemonForVault`; the renderer-visible auth-token
+ * promise-chained `bindVtDaemonForProject`; the renderer-visible auth-token
  * refresh path (`getAuthToken`) is the only spot that needs the ensure
  * round-trip, and it does so by calling `refreshActive` directly.
  */
@@ -179,20 +179,20 @@ export function getVtDaemonClient(): VtDaemonClient {
 
 /**
  * Test-only: stamp a synthetic active-binding entry without spawning a real
- * VTD child. Lets unit tests exercise consumers of `getActiveVault()` (e.g.
+ * VTD child. Lets unit tests exercise consumers of `getActiveProject()` (e.g.
  * the Main-side live-state RPC client) without going through
- * `ensureVtDaemonForVault`. The client/facade fields are left as no-op stubs
+ * `ensureVtDaemonForProject`. The client/facade fields are left as no-op stubs
  * because tests using this path point `createRpcClientForProject` at a local
  * HTTP listener via the on-disk discovery files (`rpc.port` + `auth-token`)
  * rather than reusing the cached snapshot.
  */
-export function __setBoundVaultForTests(vaultPath: string | null): void {
-    if (vaultPath === null) {
+export function __setBoundProjectForTests(projectPath: string | null): void {
+    if (projectPath === null) {
         active = null
         return
     }
     active = {
-        vaultPath,
+        projectPath,
         url: '',
         token: '',
         pid: 0,
@@ -203,24 +203,24 @@ export function __setBoundVaultForTests(vaultPath: string | null): void {
 }
 
 /**
- * Re-call the ensure path for the currently-bound vault so a respawned
+ * Re-call the ensure path for the currently-bound project so a respawned
  * VTD (crash → new pid → new auth token) surfaces fresh credentials.
  * Cheap when the ensure path's in-process single-flight cache is warm.
- * Throws `daemon_unreachable` when no vault has been bound yet (or after
+ * Throws `daemon_unreachable` when no project has been bound yet (or after
  * `unbindVtDaemon`) so callers don't silently fall through to a stale
  * value.
  */
 async function refreshActive(): Promise<ActiveVtDaemon> {
     const current: ActiveVtDaemon | null = active
     if (!current) throw new Error('daemon_unreachable: no active vt-daemon binding')
-    const result: ActiveEnsureResult = await ensureNodeVtDaemonForVault(createNodeEnsureRuntime(), current.vaultPath, 'electron')
+    const result: ActiveEnsureResult = await ensureNodeVtDaemonForProject(createNodeEnsureRuntime(), current.projectPath, 'electron')
     if (result.pid === current.pid && result.ownerNonce === current.ownerNonce) {
         // Hot-path: same owner. Avoid rebuilding the snapshot.
         return current
     }
     // Respawn detected — replace `active` so a parallel caller sees the
     // refreshed values too.
-    const next: ActiveVtDaemon = snapshotFromEnsure(current.vaultPath, result)
+    const next: ActiveVtDaemon = snapshotFromEnsure(current.projectPath, result)
     active = next
     return next
 }

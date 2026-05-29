@@ -72,20 +72,20 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
  *
  * @example
  * ```typescript
- * // Graph state: { "/vault/felix/2.md": { edges: [{ targetId: "1", label: "related" }] } }
- * // Add: /vault/felix/1.md
+ * // Graph state: { "/project/felix/2.md": { edges: [{ targetId: "1", label: "related" }] } }
+ * // Add: /project/felix/1.md
  *
  * const delta = addNodeToGraph(
- *   { absolutePath: "/vault/felix/1.md", content: "# One", eventType: "Added" },
+ *   { absolutePath: "/project/felix/1.md", content: "# One", eventType: "Added" },
  *   currentGraph
  * )
  *
  * // Returns:
  * [
- *   { type: 'UpsertNode', nodeToUpsert: { id: "/vault/felix/1.md", ... } },
+ *   { type: 'UpsertNode', nodeToUpsert: { id: "/project/felix/1.md", ... } },
  *   { type: 'UpsertNode', nodeToUpsert: {
- *       id: "/vault/felix/2.md",
- *       edges: [{ targetId: "/vault/felix/1.md", label: "related" }]  // HEALED
+ *       id: "/project/felix/2.md",
+ *       edges: [{ targetId: "/project/felix/1.md", label: "related" }]  // HEALED
  *     }
  *   }
  * ]
@@ -146,8 +146,8 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
  * @example
  * ```typescript
  * // New node: "ctx-nodes/VT/foo.md"
- * // unresolvedLinksIndex: { "foo": ["/vault/other.md"] }
- * // => Returns ["/vault/other.md"]
+ * // unresolvedLinksIndex: { "foo": ["/project/other.md"] }
+ * // => Returns ["/project/other.md"]
  * ```
  */
 function findNodesWithPotentialEdgesToNode(
@@ -163,10 +163,10 @@ function findNodesWithPotentialEdgesToNode(
  * Extract node ID from file path using the absolute path.
  *
  * Node IDs are now absolute paths (normalized with forward slashes).
- * This simplifies the architecture by removing the need for a vault/watched directory base.
+ * This simplifies the architecture by removing the need for a project/watched directory base.
  *
- * @param filePath - Absolute path to the file (e.g., "/path/to/vault/subfolder/MyNote.md")
- * @returns GraphNode ID as normalized absolute path (e.g., "/path/to/vault/subfolder/MyNote.md")
+ * @param filePath - Absolute path to the file (e.g., "/path/to/project/subfolder/MyNote.md")
+ * @returns GraphNode ID as normalized absolute path (e.g., "/path/to/project/subfolder/MyNote.md")
  */
 function extractNodeIdFromPath(filePath: string): NodeIdAndFilePath {
     // Normalize path separators to forward slashes for cross-platform consistency

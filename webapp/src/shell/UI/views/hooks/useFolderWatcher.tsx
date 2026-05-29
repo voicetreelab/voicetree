@@ -46,22 +46,22 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     void checkStatus();
   }, [isElectron]);
 
-  // Listen to vault lifecycle events to stay in sync
+  // Listen to project lifecycle events to stay in sync
   useEffect(() => {
     if (!isElectron || !window.electronAPI) return;
 
-    const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
+    const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string }) => {
       setWatchStatus({ isWatching: true, directory: data.path });
       setIsLoading(false);
       setError(null);
     }) ?? (() => {});
-    const cleanupSwitching = window.electronAPI.onVaultSwitching?.(() => {
+    const cleanupSwitching = window.electronAPI.onProjectSwitching?.(() => {
       setIsLoading(true);
       setError(null);
     }) ?? (() => {});
-    const cleanupLost = window.electronAPI.onVaultLost?.((data: { error?: string }) => {
+    const cleanupLost = window.electronAPI.onProjectLost?.((data: { error?: string }) => {
       setIsLoading(false);
-      setError(data.error ?? 'Vault unavailable');
+      setError(data.error ?? 'Project unavailable');
     }) ?? (() => {});
 
     return () => {
@@ -84,16 +84,16 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
     try {
       if (!watchStatus.directory) {
-        setError('No vault selected');
+        setError('No project selected');
         setIsLoading(false);
         return;
       }
-      await window.electronAPI!.main.openVault(watchStatus.directory);
+      await window.electronAPI!.main.openProject(watchStatus.directory);
       setWatchStatus({ isWatching: true, directory: watchStatus.directory });
       setIsLoading(false);
     } catch (_err) {
       //console.log('[DEBUG] startWatching error:', _err);
-      setError('Failed to open vault');
+      setError('Failed to open project');
       setIsLoading(false);
     }
   }, [isElectron, watchStatus.directory]);

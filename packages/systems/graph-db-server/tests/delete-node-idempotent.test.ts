@@ -62,19 +62,19 @@ async function getGraphNodes(baseUrl: string): Promise<Record<string, unknown>> 
 
 describe('DELETE /graph/node/:id idempotency', () => {
   let root: string
-  let vault: string
+  let project: string
   let handle: DaemonHandle | null
   let baseUrl: string
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphd-delete-idem-'))
-    vault = path.join(root, 'vault')
-    await mkdir(vault, { recursive: true })
+    project = path.join(root, 'project')
+    await mkdir(project, { recursive: true })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
       createStarterIfEmpty: false,
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
@@ -89,7 +89,7 @@ describe('DELETE /graph/node/:id idempotency', () => {
   })
 
   it('returns 200 with alreadyAbsent=true when the node was never in the graph', async () => {
-    const ghost = path.join(vault, 'never-existed.md')
+    const ghost = path.join(project, 'never-existed.md')
     const { status, body } = await deleteNode(baseUrl, ghost)
     expect(status).toBe(200)
     expect(body).toEqual({ ok: true, alreadyAbsent: true })
@@ -100,7 +100,7 @@ describe('DELETE /graph/node/:id idempotency', () => {
     // graph still has the node, but the file is already gone from disk by the
     // time DELETE arrives. Pre-fix this raised 500 GRAPH_NODE_DELETE_FAILED
     // *and* left the in-memory node behind.
-    const nodePath = path.join(vault, 'racy-delete.md')
+    const nodePath = path.join(project, 'racy-delete.md')
     await postUpsert(baseUrl, leafNode(nodePath, '# Racy\n'))
     await unlink(nodePath)
 
@@ -112,7 +112,7 @@ describe('DELETE /graph/node/:id idempotency', () => {
   })
 
   it('a second DELETE on the same node is a no-op success', async () => {
-    const nodePath = path.join(vault, 'double-delete.md')
+    const nodePath = path.join(project, 'double-delete.md')
     await postUpsert(baseUrl, leafNode(nodePath, '# Twice\n'))
 
     const first = await deleteNode(baseUrl, nodePath)

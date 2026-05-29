@@ -28,14 +28,14 @@ function getSortedFilenames(graph: Graph): readonly string[] {
 }
 
 describe('Progressive Edge Validation - Incremental Updates', () => {
-  let testVaultPath: string = ''
+  let testProjectPath: string = ''
 
   beforeAll(async () => {
-    testVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-incremental-test-'))
+    testProjectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-incremental-test-'))
   })
 
   afterAll(async () => {
-    await fs.rm(testVaultPath, { recursive: true, force: true })
+    await fs.rm(testProjectPath, { recursive: true, force: true })
   })
 
   describe('mapFSEventsToGraphDelta edge resolution', () => {
@@ -50,7 +50,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
       })
 
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultPath, 'source.md'),
+        absolutePath: path.join(testProjectPath, 'source.md'),
         content: '# Source\n\n- links [[target]]',
         eventType: 'Added'
       }
@@ -69,7 +69,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
     it('should store raw link text when target does not exist yet', () => {
       const currentGraph: Graph = createGraph({})
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultPath, 'source.md'),
+        absolutePath: path.join(testProjectPath, 'source.md'),
         content: '# Source\n\n- links [[non-existent]]',
         eventType: 'Added'
       }
@@ -86,7 +86,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
     it('incremental should preserve raw link text when target never exists', () => {
       const currentGraph: Graph = createGraph({})
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultPath, 'source.md'),
+        absolutePath: path.join(testProjectPath, 'source.md'),
         content: '# Source\n\n- broken [[does-not-exist]]',
         eventType: 'Added'
       }
@@ -110,7 +110,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
       })
 
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultPath, 'felix', '2.md'),
+        absolutePath: path.join(testProjectPath, 'felix', '2.md'),
         content: '# Node 2\n\n- related [[1]]',
         eventType: 'Added'
       }
@@ -133,7 +133,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
         }
       })
 
-      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child', eventType: 'Added' }
+      const fsEvent: FSUpdate = { absolutePath: path.join(testProjectPath, 'child.md'), content: '# Child', eventType: 'Added' }
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       expect(delta).toHaveLength(2)
@@ -158,7 +158,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
 
       expect(currentGraph.nodes['target.md']).toBeUndefined()
 
-      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'target.md'), content: '# Target', eventType: 'Added' }
+      const fsEvent: FSUpdate = { absolutePath: path.join(testProjectPath, 'target.md'), content: '# Target', eventType: 'Added' }
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       expect(delta).toHaveLength(2)
@@ -184,7 +184,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
         }
       })
 
-      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child updated', eventType: 'Changed' }
+      const fsEvent: FSUpdate = { absolutePath: path.join(testProjectPath, 'child.md'), content: '# Child updated', eventType: 'Changed' }
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       expect(delta).toHaveLength(1)
@@ -196,18 +196,18 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
 
   describe('Unified Behavior: Bulk and Incremental Produce Same Result', () => {
     it('should produce identical graphs: bulk load vs sequential incremental', async () => {
-      const bulkVaultPath: string = path.join(testVaultPath, 'bulk-unified')
-      await fs.mkdir(bulkVaultPath, { recursive: true })
-      await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
-      await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B\n\n- links [[c]]')
-      await fs.writeFile(path.join(bulkVaultPath, 'c.md'), '# C')
+      const bulkProjectPath: string = path.join(testProjectPath, 'bulk-unified')
+      await fs.mkdir(bulkProjectPath, { recursive: true })
+      await fs.writeFile(path.join(bulkProjectPath, 'a.md'), '# A\n\n- links [[b]]')
+      await fs.writeFile(path.join(bulkProjectPath, 'b.md'), '# B\n\n- links [[c]]')
+      await fs.writeFile(path.join(bulkProjectPath, 'c.md'), '# C')
 
-      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath])
+      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkProjectPath])
       if (E.isLeft(bulkResult)) throw new Error('Expected Right')
       const bulkGraph: Graph = bulkResult.right
 
-      const incrementalVaultPath: string = path.join(testVaultPath, 'incremental-unified')
-      await fs.mkdir(incrementalVaultPath, { recursive: true })
+      const incrementalProjectPath: string = path.join(testProjectPath, 'incremental-unified')
+      await fs.mkdir(incrementalProjectPath, { recursive: true })
 
       const files: readonly { readonly name: string; readonly content: string; }[] = [
         { name: 'a.md', content: '# A\n\n- links [[b]]' },
@@ -216,7 +216,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
       ]
 
       const incrementalGraph: Graph = files.reduce((graph, file) => {
-        const fsEvent: FSUpdate = { absolutePath: path.join(incrementalVaultPath, file.name), content: file.content, eventType: 'Added' }
+        const fsEvent: FSUpdate = { absolutePath: path.join(incrementalProjectPath, file.name), content: file.content, eventType: 'Added' }
         return applyGraphDeltaToGraph(graph, mapFSEventsToGraphDelta(fsEvent, graph))
       }, createGraph({}))
 
@@ -236,22 +236,22 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
       expect(bulkC!.outgoingEdges).toHaveLength(0)
       expect(incC!.outgoingEdges).toHaveLength(0)
 
-      await fs.rm(bulkVaultPath, { recursive: true })
-      await fs.rm(incrementalVaultPath, { recursive: true })
+      await fs.rm(bulkProjectPath, { recursive: true })
+      await fs.rm(incrementalProjectPath, { recursive: true })
     })
 
     it('should produce identical graphs: bulk load vs incremental in REVERSE order', async () => {
-      const bulkVaultPath: string = path.join(testVaultPath, 'bulk-reverse')
-      await fs.mkdir(bulkVaultPath, { recursive: true })
-      await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
-      await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B')
+      const bulkProjectPath: string = path.join(testProjectPath, 'bulk-reverse')
+      await fs.mkdir(bulkProjectPath, { recursive: true })
+      await fs.writeFile(path.join(bulkProjectPath, 'a.md'), '# A\n\n- links [[b]]')
+      await fs.writeFile(path.join(bulkProjectPath, 'b.md'), '# B')
 
-      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath])
+      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkProjectPath])
       if (E.isLeft(bulkResult)) throw new Error('Expected Right')
       const bulkGraph: Graph = bulkResult.right
 
-      const incrementalVaultPath: string = path.join(testVaultPath, 'incremental-reverse')
-      await fs.mkdir(incrementalVaultPath, { recursive: true })
+      const incrementalProjectPath: string = path.join(testProjectPath, 'incremental-reverse')
+      await fs.mkdir(incrementalProjectPath, { recursive: true })
 
       const files: readonly { readonly name: string; readonly content: string; }[] = [
         { name: 'b.md', content: '# B' },
@@ -259,7 +259,7 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
       ]
 
       const incrementalGraph: Graph = files.reduce((graph, file) => {
-        const fsEvent: FSUpdate = { absolutePath: path.join(incrementalVaultPath, file.name), content: file.content, eventType: 'Added' }
+        const fsEvent: FSUpdate = { absolutePath: path.join(incrementalProjectPath, file.name), content: file.content, eventType: 'Added' }
         return applyGraphDeltaToGraph(graph, mapFSEventsToGraphDelta(fsEvent, graph))
       }, createGraph({}))
 
@@ -270,8 +270,8 @@ describe('Progressive Edge Validation - Incremental Updates', () => {
       expect(getFilename(bulkA!.outgoingEdges[0].targetId)).toBe('b.md')
       expect(getFilename(incA!.outgoingEdges[0].targetId)).toBe('b.md')
 
-      await fs.rm(bulkVaultPath, { recursive: true })
-      await fs.rm(incrementalVaultPath, { recursive: true })
+      await fs.rm(bulkProjectPath, { recursive: true })
+      await fs.rm(incrementalProjectPath, { recursive: true })
     })
   })
 })

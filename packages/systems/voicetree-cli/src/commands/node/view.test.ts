@@ -56,7 +56,7 @@ describe('runViewCommand', () => {
         setStdoutIsTTY(false)
         clearWatchFolderState()
         setGraph(createEmptyGraph())
-        daemonHandle = await startDaemon({vault: harness.vault, createStarterIfEmpty: false})
+        daemonHandle = await startDaemon({project: harness.project, createStarterIfEmpty: false})
     })
 
     afterEach(async () => {
@@ -97,8 +97,8 @@ describe('runViewCommand', () => {
                 'set-pan',
                 '10',
                 '20',
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -119,7 +119,7 @@ describe('runViewCommand', () => {
         process.env.VT_SESSION = sessionId
 
         const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['layout', 'set-zoom', '1.5', '--vault', harness.vault]),
+            runViewCommand(['layout', 'set-zoom', '1.5', '--project', harness.project]),
         )
 
         expect(result.exitCode).toBeNull()
@@ -158,8 +158,8 @@ describe('runViewCommand', () => {
                 'layout',
                 'set-positions',
                 filePath,
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -184,7 +184,7 @@ describe('runViewCommand', () => {
         await writeFile(filePath, '{not valid json', 'utf8')
 
         const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['layout', 'set-positions', filePath, '--vault', harness.vault]),
+            runViewCommand(['layout', 'set-positions', filePath, '--project', harness.project]),
         )
 
         expect(result.exitCode).toBe(EXIT.ARG_VALIDATION)
@@ -201,8 +201,8 @@ describe('runViewCommand', () => {
                 'set-pan',
                 '4',
                 '9',
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -216,10 +216,10 @@ describe('runViewCommand', () => {
         })
     })
 
-    it('lists named vault views with the active view marked', async () => {
-        await runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault])
+    it('lists named project views with the active view marked', async () => {
+        await runViewJson(['clone', 'main', 'scratch', '--project', harness.project])
 
-        const views = await runViewJson(['list', '--vault', harness.vault])
+        const views = await runViewJson(['list', '--project', harness.project])
 
         expect(views).toEqual(
             expect.arrayContaining([
@@ -238,9 +238,9 @@ describe('runViewCommand', () => {
     })
 
     it('switches views by name', async () => {
-        await runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault])
+        await runViewJson(['clone', 'main', 'scratch', '--project', harness.project])
 
-        await expect(runViewJson(['switch', 'scratch', '--vault', harness.vault])).resolves.toMatchObject({
+        await expect(runViewJson(['switch', 'scratch', '--project', harness.project])).resolves.toMatchObject({
             name: 'scratch',
             isActive: true,
             is_active: true,
@@ -249,7 +249,7 @@ describe('runViewCommand', () => {
 
     it('clones a named view', async () => {
         await expect(
-            runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault]),
+            runViewJson(['clone', 'main', 'scratch', '--project', harness.project]),
         ).resolves.toMatchObject({
             name: 'scratch',
             isActive: false,
@@ -259,7 +259,7 @@ describe('runViewCommand', () => {
 
     it('rejects deletion of the active view with the daemon active-view error', async () => {
         const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['delete', 'main', '--vault', harness.vault]),
+            runViewCommand(['delete', 'main', '--project', harness.project]),
         )
 
         expect(result.exitCode).toBe(EXIT.DAEMON_HTTP_ERROR)
@@ -267,9 +267,9 @@ describe('runViewCommand', () => {
     })
 
     it('deletes a non-active view', async () => {
-        await runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault])
+        await runViewJson(['clone', 'main', 'scratch', '--project', harness.project])
 
-        await expect(runViewJson(['delete', 'scratch', '--vault', harness.vault])).resolves.toMatchObject({
+        await expect(runViewJson(['delete', 'scratch', '--project', harness.project])).resolves.toMatchObject({
             name: 'scratch',
             isActive: false,
             is_active: false,
@@ -282,15 +282,15 @@ describe('runViewCommand', () => {
     it('sets folder state on the active view', async () => {
         const client: GraphDbClient = createClient()
         const {sessionId}: {sessionId: string} = await client.createSession()
-        const folderPath: string = join(harness.vault, 'docs')
+        const folderPath: string = join(harness.project, 'docs')
 
         await expect(
             runViewJson([
                 'set-folder',
                 folderPath,
                 'collapsed',
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -306,14 +306,14 @@ describe('runViewCommand', () => {
     })
 
     it('omits node markdown content from show JSON output', async () => {
-        const nodePath: string = join(harness.vault, 'one.md')
+        const nodePath: string = join(harness.project, 'one.md')
         await writeFile(nodePath, '# one\n\nbody text that should not be printed\n', 'utf8')
         await waitFor(async () => {
             const graph = await createClient().getGraph()
             return graph.nodes[nodePath] ? true : null
         })
 
-        const body = await runViewJson(['show', '--vault', harness.vault])
+        const body = await runViewJson(['show', '--project', harness.project])
         expect(body).toMatchObject({
             graph: {
                 nodes: {
@@ -327,7 +327,7 @@ describe('runViewCommand', () => {
     })
 
     it('renders the projected graph for human show output', async () => {
-        const docsPath: string = join(harness.vault, 'docs')
+        const docsPath: string = join(harness.project, 'docs')
         const alphaPath: string = join(docsPath, 'alpha.md')
         const betaPath: string = join(docsPath, 'beta.md')
         const makeNode = (absoluteFilePathIsID: string, title: string): GraphNode => ({
@@ -358,7 +358,7 @@ describe('runViewCommand', () => {
 
         setStdoutIsTTY(true)
         const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['show', '--vault', harness.vault, '--session', sessionId]),
+            runViewCommand(['show', '--project', harness.project, '--session', sessionId]),
         )
 
         expect(result.exitCode).toBeNull()
@@ -377,8 +377,8 @@ describe('runViewCommand', () => {
                 'set',
                 'alpha',
                 'beta',
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -400,8 +400,8 @@ describe('runViewCommand', () => {
                 'selection',
                 'add',
                 'gamma',
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -423,8 +423,8 @@ describe('runViewCommand', () => {
                 'selection',
                 'remove',
                 'alpha',
-                '--vault',
-                harness.vault,
+                '--project',
+                harness.project,
                 '--session',
                 sessionId,
             ]),
@@ -437,13 +437,13 @@ describe('runViewCommand', () => {
         const client: GraphDbClient = createClient()
 
         expect((await client.health()).sessionCount).toBe(0)
-        await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
+        await expect(runViewJson(['show', '--project', harness.project])).resolves.toMatchObject({
             activeView: {name: 'main'},
             selection: [],
         })
         expect((await client.health()).sessionCount).toBe(1)
 
-        await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
+        await expect(runViewJson(['show', '--project', harness.project])).resolves.toMatchObject({
             activeView: {name: 'main'},
             selection: [],
         })
@@ -457,14 +457,14 @@ describe('runViewCommand', () => {
             'selection',
             'set',
             'shared-node',
-            '--vault',
-            harness.vault,
+            '--project',
+            harness.project,
             '--session',
             sessionId,
         ])
 
         await expect(
-            runViewJson(['show', '--vault', harness.vault, '--session', sessionId]),
+            runViewJson(['show', '--project', harness.project, '--session', sessionId]),
         ).resolves.toMatchObject({
             selection: ['shared-node'],
         })

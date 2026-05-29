@@ -7,8 +7,8 @@ import {
 } from '@opentelemetry/api'
 import {
   GraphDbClientError,
-  VaultNotOpenError,
-  VaultOpenFailedError,
+  ProjectNotOpenError,
+  ProjectOpenFailedError,
 } from '../errors.ts'
 import type { Schema } from '../responseSchemas.ts'
 
@@ -81,11 +81,11 @@ export async function toGraphDbClientError(
     ?? nestedError?.message
     ?? (typeof payload.error === 'string' ? payload.error : undefined)
     ?? response.statusText
-  if (response.status === 409 && code === 'vault_not_open') {
-    return new VaultNotOpenError(message)
+  if (response.status === 409 && code === 'project_not_open') {
+    return new ProjectNotOpenError(message)
   }
-  if (response.status === 409 && code === 'vault_open_failed') {
-    return new VaultOpenFailedError(message)
+  if (response.status === 409 && code === 'project_open_failed') {
+    return new ProjectOpenFailedError(message)
   }
   return new GraphDbClientError(response.status, code, message)
 }

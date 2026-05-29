@@ -231,7 +231,7 @@ Read .md files from a folder on disk and render the graph structure as ASCII. Sm
 
 ### `vt search`
 
-Semantic search across the active vault. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.
+Semantic search across the active project. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.
 
 **Parameters:**
 
@@ -247,7 +247,7 @@ Implemented locally by the CLI; the same surface is exposed over JSON-RPC as the
 **Parameters:**
 
 - `--pretty | --no-pretty`: Pretty-print the JSON output (default: pretty).
-- `--vault VALUE`: Override the resolved vault path. Defaults to the active vault for the current working directory.
+- `--project VALUE`: Override the resolved project path. Defaults to the active project for the current working directory.
 
 ### `vt graph live apply`
 
@@ -266,17 +266,17 @@ Implemented locally by the CLI; the same surface is exposed over JSON-RPC as the
   - `RemoveEdge`: `{type, source, targetId}`
   - `RemoveNode`: `{type, id}`
   - `AddNode`: `{type, node}` (full SerializedGraphNode)
-- `--vault VALUE`: Override the resolved vault path. Defaults to the active vault for the current working directory.
+- `--project VALUE`: Override the resolved project path. Defaults to the active project for the current working directory.
 
 ### `vt agent metrics sessions`
 
-Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <vault>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.
+Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads <project>/.voicetree/agent_metrics.json. Same surface as the legacy main-side getMetrics() — Electron Main and CLI peers reach an identical response over JSON-RPC.
 
 Exposed over JSON-RPC as the `metrics.getSessions` daemon tool; no `vt` CLI wrapper is wired yet. Invoke via the daemon HTTP transport.
 
 ### `vt agent metrics append`
 
-Append (or upsert by sessionId) a single session's token/cost telemetry into <vault>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.
+Append (or upsert by sessionId) a single session's token/cost telemetry into <project>/.voicetree/agent_metrics.json. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface.
 
 Exposed over JSON-RPC as the `metrics.appendSession` daemon tool; no `vt` CLI wrapper is wired yet. Invoke via the daemon HTTP transport.
 

@@ -4,12 +4,12 @@ import { createGraph, type GraphNode } from '@vt/graph-model/graph'
 import type { Session } from '../session.ts'
 import { handleReadSessionState } from '../handleSessionState.ts'
 
-const NODE_ID = '/tmp/vault/docs/one.md'
+const NODE_ID = '/tmp/project/docs/one.md'
 
 function sessionFixture(): Session {
   return {
     id: 'session-1',
-    folderState: new Map([['/tmp/vault/docs', 'expanded']]),
+    folderState: new Map([['/tmp/project/docs', 'expanded']]),
     collapseSet: new Set<string>(),
     selection: new Set<string>([NODE_ID]),
     expandOverrides: new Set<string>(),
@@ -42,7 +42,7 @@ describe('handleSessionState', () => {
       session: sessionFixture(),
       contentMode: undefined,
       graph: createGraph({ [NODE_ID]: graphNodeFixture() }),
-      projectRoot: '/tmp/vault',
+      projectRoot: '/tmp/project',
       writeFolderPath: null,
       readPaths: [],
       folderTree: null,
@@ -67,7 +67,7 @@ describe('handleSessionState', () => {
       session: sessionFixture(),
       contentMode: 'omit',
       graph: createGraph({ [NODE_ID]: graphNodeFixture() }),
-      projectRoot: '/tmp/vault',
+      projectRoot: '/tmp/project',
       writeFolderPath: null,
       readPaths: [],
       folderTree: null,

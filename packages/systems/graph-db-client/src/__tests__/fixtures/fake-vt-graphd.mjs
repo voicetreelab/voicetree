@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // Standalone fake vt-graphd for graph-db-client black-box tests. Mirrors
-// the BF-343 owner protocol just enough to exercise ensureGraphDaemonForVault
+// the BF-343 owner protocol just enough to exercise ensureGraphDaemonForProject
 // without depending on graph-db-server internals: atomic-create the owner
-// record under <vault>/.voicetree/, bind a loopback HTTP server, atomic-
+// record under <project>/.voicetree/, bind a loopback HTTP server, atomic-
 // replace the owner record with the bound port, serve /health with a
 // HealthResponse-shaped JSON body, and clean up on SIGTERM/SIGINT.
 //
 // Recognised env vars (set by tests):
 //   FAKE_VT_GRAPHD_STARTUP_DELAY_MS - delay between claim and bind
 //   FAKE_VT_GRAPHD_HEALTH_OWNER_NONCE - override the /health owner.nonce
-//   FAKE_VT_GRAPHD_HEALTH_CANONICAL_VAULT - override owner.canonicalVault
+//   FAKE_VT_GRAPHD_HEALTH_CANONICAL_PROJECT - override owner.canonicalProject
 //   FAKE_VT_GRAPHD_HEALTH_OWNER_NULL=1 - serve /health with owner=null
 
 import { createServer } from 'node:http'
@@ -22,19 +22,19 @@ import {
 import { join } from 'node:path'
 
 const args = process.argv.slice(2)
-const vaultIndex = args.indexOf('--project-root')
-if (vaultIndex === -1 || !args[vaultIndex + 1]) {
+const projectIndex = args.indexOf('--project-root')
+if (projectIndex === -1 || !args[projectIndex + 1]) {
   process.stderr.write('fake-vt-graphd: missing --project-root\n')
   process.exit(1)
 }
-const vault = args[vaultIndex + 1]
-const ownerPath = join(vault, '.voicetree', 'graphd.owner.json')
+const project = args[projectIndex + 1]
+const ownerPath = join(project, '.voicetree', 'graphd.owner.json')
 const startedAtMs = Date.now()
 const ownerNonce = randomUUID()
 const baseRecord = {
   schemaVersion: 1,
   daemonKind: 'graphd',
-  canonicalVault: vault,
+  canonicalProject: project,
   pid: process.pid,
   ppid: process.ppid ?? 0,
   port: null,
@@ -96,18 +96,18 @@ const server = createServer((req, res) => {
       process.env.FAKE_VT_GRAPHD_HEALTH_OWNER_NULL === '1'
     const reportedNonce =
       process.env.FAKE_VT_GRAPHD_HEALTH_OWNER_NONCE ?? ownerNonce
-    const reportedVault =
-      process.env.FAKE_VT_GRAPHD_HEALTH_CANONICAL_VAULT ?? vault
+    const reportedProject =
+      process.env.FAKE_VT_GRAPHD_HEALTH_CANONICAL_PROJECT ?? project
     const body = {
       version: '0.2.0',
-      vault,
+      project,
       uptimeSeconds: Math.floor((Date.now() - startedAtMs) / 1000),
       sessionCount: 0,
       owner: ownerOverrideNull
         ? null
         : {
             schemaVersion: 1,
-            canonicalVault: reportedVault,
+            canonicalProject: reportedProject,
             pid: process.pid,
             ppid: process.ppid ?? 0,
             port: server.address().port,

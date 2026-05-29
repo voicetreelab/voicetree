@@ -149,7 +149,7 @@ describe('tmux-session-manager', () => {
         expect(second).toEqual({pid: first.pid, created: false})
     })
 
-    it('scopes tmux session names by vault so parallel runtimes can reuse terminal IDs', async () => {
+    it('scopes tmux session names by project so parallel runtimes can reuse terminal IDs', async () => {
         const name: string = 'bf310-shared-terminal'
         const firstDir: string = await makeTempDir()
         const secondDir: string = await makeTempDir()

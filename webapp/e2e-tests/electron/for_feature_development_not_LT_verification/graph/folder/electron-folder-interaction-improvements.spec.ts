@@ -13,7 +13,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from './folder-test-helpers';
 
@@ -28,7 +28,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bf113-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -38,7 +38,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
                     writeFolderPath: projectRoot,
                     readPaths: []
@@ -49,7 +49,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'bf113-test',
             path: projectRoot,
-            name: 'bf113-test-vault',
+            name: 'bf113-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true
@@ -289,7 +289,7 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
         const synthBefore = await getSyntheticEdges(appWindow);
         expect(synthBefore.length).toBe(0);
 
-        // Collapse auth/ — test vault has:
+        // Collapse auth/ — test project has:
         //   api/router.md → auth/login-flow.md (incoming to auth)
         //   auth/session-manager.md → api/gateway.md (outgoing from auth)
         //   readme.md → auth/login-flow.md (incoming to auth)

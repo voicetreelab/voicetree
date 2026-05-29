@@ -81,7 +81,7 @@ type OpenProjectResponse = {
 }
 ```
 
-Current code may continue to call the underlying daemon route `openVault` during migration, but the public app lifecycle should be conceptually `openProject(projectPath)`.
+Current code may continue to call the underlying daemon route `openProject` during migration, but the public app lifecycle should be conceptually `openProject(projectPath)`.
 
 ## Ownership Boundary
 
@@ -114,10 +114,10 @@ Current duplicated shape:
 App.handleProjectSelected
   -> initializeProject(project.path)
   -> saveProject(initialized)
-  -> openVault(project.path)
+  -> openProject(project.path)
        -> resolveOrCreateWriteFolder(projectRoot)
             -> initializeProject(projectRoot) again if needed
-       -> daemon openVaultWorkflow()
+       -> daemon openProjectWorkflow()
             -> resolveDefaultWriteFolder(projectRoot) if needed
 ```
 
@@ -146,7 +146,7 @@ There is intentionally no `last-directory` variant.
 ## Migration Strategy
 
 1. Add regression tests for startup hints: persisted `lastDirectory` must not auto-open, explicit `--open-folder` must.
-2. Rename the app-facing lifecycle wrapper from `openVaultForProject` toward `openProject`.
+2. Rename the app-facing lifecycle wrapper from `openProjectForProject` toward `openProject`.
 3. Remove renderer-side `initializeProject()` from selection flow once daemon setup is authoritative.
 4. Keep recent-project list sorting in the picker.
 5. Add drift tests that prevent reintroducing `lastDirectory` as a startup hint.
@@ -155,4 +155,4 @@ There is intentionally no `last-directory` variant.
 
 - Existing e2e tests may depend on autoloading the last project. Those tests should be updated to either click the picker or pass an explicit `--open-folder`.
 - Moving initialization behind daemon open may expose differences between Electron onboarding templates and daemon default write-folder behavior. Resolve by making daemon setup the single source, not by preserving dual setup.
-- Broad `vault` vocabulary remains until the sibling OpenSpec lands. This change should avoid expanding the old vocabulary surface.
+- Broad `project` vocabulary remains until the sibling OpenSpec lands. This change should avoid expanding the old vocabulary surface.

@@ -5,7 +5,7 @@
  * 3. Check whether the .inject-badge element exists inside the terminal's title bar.
  * 4. If the badge exists, attempt to force-show it via the InjectBar registry.
  * 5. Take screenshots to document the state.
- * 6. (Pipeline test) Create a new node in the vault, verify badge becomes visible via the
+ * 6. (Pipeline test) Create a new node in the project, verify badge becomes visible via the
  *    full pipeline: file watcher → graph delta → projected graph update →
  *    refreshAllInjectBadges (debounced 500ms) → getUnseenNodesForTerminal → updateBadge.
  *
@@ -19,7 +19,7 @@ import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
-import { FIXTURE_VAULT_PATH, test } from './electron-inject-badge-in-titlebar/inject-badge-fixture';
+import { FIXTURE_PROJECT_PATH, test } from './electron-inject-badge-in-titlebar/inject-badge-fixture';
 import type { ExtendedWindow } from './electron-inject-badge-in-titlebar/inject-badge-fixture';
 
 test.describe('Inject Badge in Terminal Title Bar', () => {
@@ -245,11 +245,11 @@ test.describe('Inject Badge in Terminal Title Bar', () => {
     expect(badgeExistsInAnyTitleBar, 'inject-badge element should exist in terminal title bar').toBe(true);
   });
 
-  test('badge becomes visible when new nearby unseen nodes are created in vault (full pipeline)', async ({ appWindow }) => {
+  test('badge becomes visible when new nearby unseen nodes are created in project (full pipeline)', async ({ appWindow }) => {
     test.setTimeout(90000);
 
     // Pre-test cleanup: remove any leftover test files from previous failed runs
-    const voicetreeDir = path.join(FIXTURE_VAULT_PATH, 'voicetree');
+    const voicetreeDir = path.join(FIXTURE_PROJECT_PATH, 'voicetree');
     try {
       const files = await fs.readdir(voicetreeDir);
       for (const file of files) {
@@ -344,13 +344,13 @@ test.describe('Inject Badge in Terminal Title Bar', () => {
     // Badge should be hidden (display: none) since there are no unseen nodes yet
     expect(initialBadgeDisplay).toBe('none');
 
-    console.log('=== PIPELINE TEST STEP 5: Create new markdown file in vault ===');
-    // Creating a new .md file in the vault triggers:
+    console.log('=== PIPELINE TEST STEP 5: Create new markdown file in project ===');
+    // Creating a new .md file in the project triggers:
     // file watcher 'add' → handleFSEventWithStateAndUISides → applyGraphDeltaToMemState →
     // projected graph update → refreshAllInjectBadges (debounced 500ms) →
     // getUnseenNodesForTerminal → updateInjectBadge IPC → badge visible
     const testNodeFilename = `test_pipeline_unseen_${Date.now()}.md`;
-    const testNodePath = path.join(FIXTURE_VAULT_PATH, 'voicetree', testNodeFilename);
+    const testNodePath = path.join(FIXTURE_PROJECT_PATH, 'voicetree', testNodeFilename);
 
     // Extract target node basename for the wikilink
     const targetBasename = path.basename(targetNodeId);

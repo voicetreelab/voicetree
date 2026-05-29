@@ -18,7 +18,7 @@ const SCHEMAS_FILENAME: string = 'schemas.cjs'
 
 const requireFromHere: NodeJS.Require = createRequire(import.meta.url)
 
-const cacheByVaultRoot: Map<string, CacheEntry> = new Map<string, CacheEntry>()
+const cacheByProjectRoot: Map<string, CacheEntry> = new Map<string, CacheEntry>()
 
 function statSafely(targetPath: string): Stats | undefined {
     try {
@@ -41,27 +41,27 @@ function isValidatorMap(candidate: unknown): candidate is ValidatorMap {
 }
 
 export function clearLoadSchemaPluginCacheForTest(): void {
-    cacheByVaultRoot.clear()
+    cacheByProjectRoot.clear()
 }
 
-export async function loadSchemaPlugin(vaultRoot: string): Promise<ValidatorMap | undefined> {
-    const absoluteVault: string = resolve(vaultRoot)
-    const schemasPath: string = join(getProjectDotVoicetreePath(absoluteVault), SCHEMAS_FILENAME)
+export async function loadSchemaPlugin(projectRoot: string): Promise<ValidatorMap | undefined> {
+    const absoluteProject: string = resolve(projectRoot)
+    const schemasPath: string = join(getProjectDotVoicetreePath(absoluteProject), SCHEMAS_FILENAME)
 
     const stats: Stats | undefined = statSafely(schemasPath)
     if (stats === undefined || !stats.isFile()) {
-        cacheByVaultRoot.delete(absoluteVault)
+        cacheByProjectRoot.delete(absoluteProject)
         return undefined
     }
 
     const realSchemasPath: string = realpathSync(schemasPath)
-    if (!isWithin(realSchemasPath, absoluteVault)) {
+    if (!isWithin(realSchemasPath, absoluteProject)) {
         throw new Error(
-            `Refusing to load schema plugin from outside vault: ${realSchemasPath} is not within ${absoluteVault}`
+            `Refusing to load schema plugin from outside project: ${realSchemasPath} is not within ${absoluteProject}`
         )
     }
 
-    const cached: CacheEntry | undefined = cacheByVaultRoot.get(absoluteVault)
+    const cached: CacheEntry | undefined = cacheByProjectRoot.get(absoluteProject)
     if (cached && cached.mtimeMs === stats.mtimeMs) {
         return cached.pluginResult
     }
@@ -71,7 +71,7 @@ export async function loadSchemaPlugin(vaultRoot: string): Promise<ValidatorMap 
     const exported: unknown = requireFromHere(realSchemasPath)
 
     const pluginResult: ValidatorMap | undefined = isValidatorMap(exported) ? exported : undefined
-    cacheByVaultRoot.set(absoluteVault, {mtimeMs: stats.mtimeMs, pluginResult})
+    cacheByProjectRoot.set(absoluteProject, {mtimeMs: stats.mtimeMs, pluginResult})
     return pluginResult
 }
 

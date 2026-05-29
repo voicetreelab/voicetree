@@ -11,7 +11,7 @@ import {resolve} from 'node:path'
 
 import {
     applyCommandWithDelta,
-    buildStateFromVault,
+    buildStateFromProject,
     emptyState,
     hydrateCommand,
     serializeState,
@@ -51,7 +51,7 @@ export async function buildProjectLiveCatalog(projectPath?: string): Promise<Cat
     let state: State = emptyState()
     if (projectPath !== undefined && projectPath.length > 0) {
         const resolved: string = resolve(projectPath)
-        state = await buildStateFromVault(resolved, resolved)
+        state = await buildStateFromProject(resolved, resolved)
     }
     return new Map<string, CatalogHandler>([
         ['vt_get_live_state', async (): Promise<ToolResult> => {

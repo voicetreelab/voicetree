@@ -59,8 +59,8 @@ describe('runAgentOnSelectedNodes', () => {
 
   it('passes selected nodes to spawnTerminalWithContextNode, not as spawnDirectory', async () => {
     const selectedNodeIds: readonly NodeIdAndFilePath[] = [
-      '/vault/a.md' as NodeIdAndFilePath,
-      '/vault/b.md' as NodeIdAndFilePath
+      '/project/a.md' as NodeIdAndFilePath,
+      '/project/b.md' as NodeIdAndFilePath
     ]
     const graph: Graph = createGraph({
       [selectedNodeIds[0]]: createNode(selectedNodeIds[0], '# A'),
@@ -68,10 +68,10 @@ describe('runAgentOnSelectedNodes', () => {
     })
 
     vi.mocked(getGraphFromDaemon).mockResolvedValue(graph)
-    vi.mocked(getWriteFolderPath).mockResolvedValue(O.some('/vault'))
+    vi.mocked(getWriteFolderPath).mockResolvedValue(O.some('/project'))
     vi.mocked(mocks.spawnTerminalWithContextNode).mockResolvedValue({
       terminalId: 'agent-1',
-      contextNodeId: '/vault/ctx-nodes/task_context.md' as NodeIdAndFilePath
+      contextNodeId: '/project/ctx-nodes/task_context.md' as NodeIdAndFilePath
     })
 
     const result: RunAgentOnSelectedResult = await runAgentOnSelectedNodes({
@@ -81,7 +81,7 @@ describe('runAgentOnSelectedNodes', () => {
     })
 
     expect(result.terminalId).toBe('agent-1')
-    expect(result.contextNodeId).toBe('/vault/ctx-nodes/task_context.md')
+    expect(result.contextNodeId).toBe('/project/ctx-nodes/task_context.md')
     expect(result.taskNodeId).toMatch(/\.md$/)
     expect(postDeltaThroughDaemonWithEditors).toHaveBeenCalledTimes(1)
 

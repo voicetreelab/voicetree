@@ -85,25 +85,25 @@ function expectNodeAppearsExactlyOnce(graph: GraphResponse, nodeId: string): voi
 
 describe('pending-writes suppression over daemon HTTP API', () => {
   let root: string
-  let vault: string
+  let project: string
   let docs: string
   let baseUrl: string
   let handle: DaemonHandle | null
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphd-pending-writes-'))
-    vault = path.join(root, 'vault')
-    docs = path.join(vault, 'docs')
+    project = path.join(root, 'project')
+    docs = path.join(project, 'docs')
     await mkdir(docs, { recursive: true })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
     // The default writeFolderPath is now a `voicetree-{date}` subfolder of the
-    // vault (see resolveDefaultWriteFolderPath), so files written to vault/docs/
+    // project (see resolveDefaultWriteFolderPath), so files written to project/docs/
     // sit outside the watcher's allowlist until we mark docs/ as expanded.
     await addReadPath(baseUrl, docs)
   })

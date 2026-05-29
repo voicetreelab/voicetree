@@ -95,7 +95,7 @@ describe('renderAutoView', () => {
         tempDirs.length = 0
     })
 
-    function makeFixtureVault(): string {
+    function makeFixtureProject(): string {
         const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-auto-view-'))
         tempDirs.push(tempDir)
 
@@ -112,17 +112,17 @@ describe('renderAutoView', () => {
     }
 
     it('preserves the legacy tree-cover body when no collapse is needed', () => {
-        const vaultPath = makeFixtureVault()
-        const output = renderAutoView(vaultPath, {budget: 1000}).output
+        const projectPath = makeFixtureProject()
+        const output = renderAutoView(projectPath, {budget: 1000}).output
         const body = output.slice(output.indexOf('═══ SPINE'))
 
-        expect(body).toBe(legacyTreeCover(vaultPath))
+        expect(body).toBe(legacyTreeCover(projectPath))
         expect(output).not.toContain('[collapsed:')
     })
 
     it('adds collapsed summary nodes and self-describing header lines when budget is tight', () => {
-        const vaultPath = makeFixtureVault()
-        const output = renderAutoView(vaultPath, {budget: 3}).output
+        const projectPath = makeFixtureProject()
+        const output = renderAutoView(projectPath, {budget: 3}).output
 
         expect(output).toContain('# budget: 3 visible entities')
         expect(output).toContain('# collapse: strategy=')
@@ -131,20 +131,20 @@ describe('renderAutoView', () => {
     })
 
     it('prints an `expand:` command for each collapsed cluster and a footer hint', () => {
-        const vaultPath = makeFixtureVault()
-        const output = renderAutoView(vaultPath, {budget: 3}).output
+        const projectPath = makeFixtureProject()
+        const output = renderAutoView(projectPath, {budget: 3}).output
 
         expect(output).toMatch(/expand: vt-graph live focus /)
         expect(output).toContain('# hint: to expand a collapsed')
     })
 
     it('supports --budget from the CLI and rejects it on explicit render escape hatches', () => {
-        const vaultPath = makeFixtureVault()
+        const projectPath = makeFixtureProject()
 
-        const collapsedOutput = runViewCli([vaultPath, '--budget', '3'])
+        const collapsedOutput = runViewCli([projectPath, '--budget', '3'])
         expect(collapsedOutput).toContain('[collapsed:')
 
-        expect(() => runViewCli([vaultPath, '--ascii', '--budget', '3']))
+        expect(() => runViewCli([projectPath, '--ascii', '--budget', '3']))
             .toThrow('--budget can only be used with the default auto view or --auto')
     })
 })

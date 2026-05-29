@@ -1,6 +1,6 @@
 /**
  * BEHAVIORAL SPEC:
- * E2E tests for the VaultPathSelector folder management component.
+ * E2E tests for the ProjectPathSelector folder management component.
  *
  * Tests the complete folder management flow:
  * 1. Dropdown opens with three sections (Writing to, Also reading, Add folder)
@@ -23,7 +23,7 @@ test.describe('Folder Management E2E', () => {
         test.setTimeout(30000);
 
         console.log('=== STEP 1: Find and click folder selector button ===');
-        // The VaultPathSelector button has title starting with "Write Path:"
+        // The ProjectPathSelector button has title starting with "Write Path:"
         const selectorButton = appWindow.locator('button[title^="Write Path:"]');
         await expect(selectorButton).toBeVisible({ timeout: 5000 });
 
@@ -49,11 +49,11 @@ test.describe('Folder Management E2E', () => {
     test('add folder as read', async ({ appWindow, testProjectPath }) => {
         test.setTimeout(45000);
 
-        console.log('=== STEP 1: Get initial vault paths ===');
+        console.log('=== STEP 1: Get initial project paths ===');
         const initialPaths = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.getVaultPaths();
+            return await api.main.getProjectPaths();
         });
         console.log('Initial paths:', initialPaths);
 
@@ -96,11 +96,11 @@ test.describe('Folder Management E2E', () => {
         // Wait for the operation to complete
         await appWindow.waitForTimeout(1000);
 
-        console.log('=== STEP 4: Verify folder appears in vault paths ===');
+        console.log('=== STEP 4: Verify folder appears in project paths ===');
         const updatedPaths = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.getVaultPaths();
+            return await api.main.getProjectPaths();
         });
         console.log('Updated paths:', updatedPaths);
 
@@ -172,7 +172,7 @@ test.describe('Folder Management E2E', () => {
         const allPaths = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.getVaultPaths();
+            return await api.main.getProjectPaths();
         });
         console.log('All paths:', allPaths);
 
@@ -239,7 +239,7 @@ test.describe('Folder Management E2E', () => {
         const allPaths = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.getVaultPaths();
+            return await api.main.getProjectPaths();
         });
         console.log('All paths:', allPaths);
 

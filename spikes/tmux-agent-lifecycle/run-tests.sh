@@ -2,8 +2,8 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VAULT_DIR="$SCRIPT_DIR/test-vault-bf201"
-TERMINAL_DIR="$VAULT_DIR/.voicetree/terminals"
+PROJECT_DIR="$SCRIPT_DIR/test-project-bf201"
+TERMINAL_DIR="$PROJECT_DIR/.voicetree/terminals"
 RUN_LOG="$SCRIPT_DIR/RUN_LOG.md"
 RESULTS_JSON="$SCRIPT_DIR/RESULTS.json"
 TMP_DIR="$SCRIPT_DIR/.bf201-tmp"
@@ -181,8 +181,8 @@ run_validation_tests() {
   rm -rf "$TERMINAL_DIR"
   mkdir -p "$TERMINAL_DIR"
 
-  command='VAULT_DIR="$PWD/test-vault-bf201" ./spawn-agent.sh Rex'
-  output="$(cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./spawn-agent.sh Rex 2>&1)"
+  command='PROJECT_DIR="$PWD/test-project-bf201" ./spawn-agent.sh Rex'
+  output="$(cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./spawn-agent.sh Rex 2>&1)"
   if [[ -f "$TERMINAL_DIR/Rex.json" ]] && tmux has-session -t vt-Rex 2>/dev/null && wait_for_nonempty_file "$TERMINAL_DIR/Rex.log" 2000; then
     VAL_3_1="$(result_object PASS "metadata exists, vt-Rex is present, Rex.log became non-empty")"
     verdict="PASS"
@@ -193,8 +193,8 @@ run_validation_tests() {
   actual="$output"$'\n'"metadata: $(ls "$TERMINAL_DIR"/Rex.json 2>/dev/null || true)"$'\n'"session vt-Rex: $(tmux has-session -t vt-Rex 2>/dev/null; echo $?)"$'\n'"log bytes: $(wc -c < "$TERMINAL_DIR/Rex.log" 2>/dev/null || echo 0)"
   append_test "3.1 spawn writes metadata, tmux session, non-empty log" "$verdict" "$command" "Rex.json exists; tmux has-session vt-Rex returns 0; Rex.log non-empty within 2s" "$actual"
 
-  command='VAULT_DIR="$PWD/test-vault-bf201" ./send-message.sh Rex "say hello"'
-  output="$(cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./send-message.sh Rex "say hello" 2>&1)"
+  command='PROJECT_DIR="$PWD/test-project-bf201" ./send-message.sh Rex "say hello"'
+  output="$(cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./send-message.sh Rex "say hello" 2>&1)"
   if wait_for_file_text "$TERMINAL_DIR/Rex.log" "say hello" 5000; then
     VAL_3_2="$(result_object PASS "Rex.log contains sent message text")"
     verdict="PASS"
@@ -205,11 +205,11 @@ run_validation_tests() {
   actual="$output"$'\n'"$(tail -n 12 "$TERMINAL_DIR/Rex.log" 2>/dev/null || true)"
   append_test "3.2 send-message records message text" "$verdict" "$command" "Rex.log contains: say hello" "$actual"
 
-  command='VAULT_DIR="$PWD/test-vault-bf201" ./list-agents.sh; tmux list-sessions | grep "^vt-Rex:"'
+  command='PROJECT_DIR="$PWD/test-project-bf201" ./list-agents.sh; tmux list-sessions | grep "^vt-Rex:"'
   local list_output
   local metadata_present_count
   local tmux_present_count
-  list_output="$(cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./list-agents.sh 2>&1)"
+  list_output="$(cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./list-agents.sh 2>&1)"
   metadata_present_count="$(printf '%s\n' "$list_output" | awk 'NR > 1 && $3 == "present" { count++ } END { print count + 0 }')"
   tmux_present_count="$(tmux list-sessions 2>/dev/null | grep -c '^vt-Rex:' || true)"
   if [[ "$metadata_present_count" == "$tmux_present_count" ]]; then
@@ -222,8 +222,8 @@ run_validation_tests() {
   actual="$list_output"$'\n'"vt-Rex tmux count: $tmux_present_count"
   append_test "3.3 list-agents matches tmux session count" "$verdict" "$command" "present rows in list-agents match matching tmux sessions" "$actual"
 
-  command='VAULT_DIR="$PWD/test-vault-bf201" ./kill-agent.sh Rex'
-  output="$(cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./kill-agent.sh Rex 2>&1)"
+  command='PROJECT_DIR="$PWD/test-project-bf201" ./kill-agent.sh Rex'
+  output="$(cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./kill-agent.sh Rex 2>&1)"
   if ! tmux has-session -t vt-Rex 2>/dev/null && grep -Fq '"status":"exited"' "$TERMINAL_DIR/Rex.json"; then
     VAL_3_4="$(result_object PASS "vt-Rex absent and Rex.json status is exited")"
     verdict="PASS"
@@ -234,11 +234,11 @@ run_validation_tests() {
   actual="$output"$'\n'"session vt-Rex: $(tmux has-session -t vt-Rex 2>/dev/null; echo $?)"$'\n'"metadata: $(cat "$TERMINAL_DIR/Rex.json" 2>/dev/null || true)"
   append_test "3.4 kill-agent removes session and flips metadata" "$verdict" "$command" "tmux has-session vt-Rex returns non-zero; Rex.json has status exited" "$actual"
 
-  command='VAULT_DIR="$PWD/test-vault-bf201" ./spawn-agent.sh RexExit hi'
+  command='PROJECT_DIR="$PWD/test-project-bf201" ./spawn-agent.sh RexExit hi'
   local start_ms
   local end_ms
   start_ms="$(now_ms)"
-  output="$(cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./spawn-agent.sh RexExit hi 2>&1)"
+  output="$(cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./spawn-agent.sh RexExit hi 2>&1)"
   if wait_for_session_absent vt-RexExit 10000; then
     end_ms="$(now_ms)"
     local latency=$(( end_ms - start_ms ))
@@ -264,10 +264,10 @@ run_crash_tests() {
   rm -rf "$TERMINAL_DIR"
   mkdir -p "$TERMINAL_DIR"
 
-  command='(VAULT_DIR="$PWD/test-vault-bf201" ./spawn-agent.sh Rex; sleep 60) & kill $subshell_pid'
+  command='(PROJECT_DIR="$PWD/test-project-bf201" ./spawn-agent.sh Rex; sleep 60) & kill $subshell_pid'
   (
     cd "$SCRIPT_DIR" || exit 1
-    VAULT_DIR="$VAULT_DIR" ./spawn-agent.sh Rex
+    PROJECT_DIR="$PROJECT_DIR" ./spawn-agent.sh Rex
     sleep 60
   ) > "$TMP_DIR/crash-subprocess.out" 2>&1 &
   subpid=$!
@@ -300,9 +300,9 @@ run_crash_tests() {
   fi
   append_test "4.2 capture-pane preserves prior output" "$verdict" "$command" "captured pane includes crash-preserved" "$output"
 
-  command='printf "$$" > test-vault-bf201/.voicetree/relay.pid; VAULT_DIR="$PWD/test-vault-bf201" ./send-message.sh Rex "echo relay-ok"'
-  printf '%s\n' "$$" > "$VAULT_DIR/.voicetree/relay.pid"
-  output="$(cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./send-message.sh Rex "echo relay-ok" 2>&1)"
+  command='printf "$$" > test-project-bf201/.voicetree/relay.pid; PROJECT_DIR="$PWD/test-project-bf201" ./send-message.sh Rex "echo relay-ok"'
+  printf '%s\n' "$$" > "$PROJECT_DIR/.voicetree/relay.pid"
+  output="$(cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./send-message.sh Rex "echo relay-ok" 2>&1)"
   if wait_for_file_text "$TERMINAL_DIR/Rex.log" "relay-ok" 5000; then
     CRASH_4_3="$(result_object PASS "fresh relay.pid did not prevent new-shell send-message; log contains relay-ok")"
     verdict="PASS"
@@ -310,7 +310,7 @@ run_crash_tests() {
     CRASH_4_3="$(result_object FAIL "log did not contain relay-ok after new-shell send-message")"
     verdict="FAIL"
   fi
-  actual="$output"$'\n'"relay.pid: $(cat "$VAULT_DIR/.voicetree/relay.pid" 2>/dev/null || true)"$'\n'"$(tail -n 14 "$TERMINAL_DIR/Rex.log" 2>/dev/null || true)"
+  actual="$output"$'\n'"relay.pid: $(cat "$PROJECT_DIR/.voicetree/relay.pid" 2>/dev/null || true)"$'\n'"$(tail -n 14 "$TERMINAL_DIR/Rex.log" 2>/dev/null || true)"
   append_test "4.3 new shell send-message after fresh relay.pid" "$verdict" "$command" "agent receives and acts on relay-ok message" "$actual"
 }
 
@@ -382,7 +382,7 @@ run_perf_tests() {
 
   rm -rf "$TERMINAL_DIR"
   mkdir -p "$TERMINAL_DIR"
-  (cd "$SCRIPT_DIR" && VAULT_DIR="$VAULT_DIR" ./spawn-agent.sh SpikeLag >/dev/null 2>&1)
+  (cd "$SCRIPT_DIR" && PROJECT_DIR="$PROJECT_DIR" ./spawn-agent.sh SpikeLag >/dev/null 2>&1)
   values=()
   for i in 1 2 3 4 5; do
     local marker="lag-ts-$i:"
@@ -407,7 +407,7 @@ run_perf_tests() {
 {
   printf '# BF-201 tmux Agent Lifecycle Empirical Run\n\n'
   printf '%s\n' "- Run directory: \`$SCRIPT_DIR\`"
-  printf '%s\n' "- Vault directory: \`$VAULT_DIR\`"
+  printf '%s\n' "- Project directory: \`$PROJECT_DIR\`"
   printf '%s\n' "- Claude version: \`$CLAUDE_VERSION\`"
   printf '%s\n' "- Claude substitution used: \`$CLAUDE_SUBSTITUTION\`"
   printf '%s\n' '- Note: phase-1 scripts name tmux sessions `vt-AGENT_NAME`, so Rex is observed as `vt-Rex`.'

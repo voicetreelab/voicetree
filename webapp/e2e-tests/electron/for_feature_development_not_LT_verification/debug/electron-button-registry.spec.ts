@@ -6,7 +6,7 @@
  * - After 1 unregisterDebugButton call → returns 4 entries
  *
  * Simulates "mount 5 components, unmount 1" using the window.__vtDebug__ test API
- * installed pre-React in main.tsx (no vault/project needed).
+ * installed pre-React in main.tsx (no project/project needed).
  */
 
 import {test as base, expect, _electron as electron} from '@playwright/test'

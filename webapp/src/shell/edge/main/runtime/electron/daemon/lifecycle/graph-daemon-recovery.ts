@@ -8,19 +8,19 @@
  * 1. **Stop stale loops before recovery.** SSE subscription and the
  *    watch-sync poller keep retrying on their own timers and will
  *    keep failing while the daemon is gone. Recovery stops both
- *    BEFORE attempting `ensureGraphDaemonForVault` so the recovery
+ *    BEFORE attempting `ensureGraphDaemonForProject` so the recovery
  *    call is the only thing reaching for the daemon, and the loops
  *    do not waste cycles racing the recovery attempt or — worse —
  *    accidentally drive a re-ensure of their own in the future.
  *
  * 2. **Recovery is bounded by the owner ensure path.**
- *    `ensureGraphDaemonForVault` is the only recovery boundary allowed
+ *    `ensureGraphDaemonForProject` is the only recovery boundary allowed
  *    to claim, wait for, reclaim, or spawn the daemon. It coalesces
  *    concurrent same-process callers, serialises cross-process spawns
- *    with the vault spawn lock, and suppresses repeated failed launches
- *    with the per-vault cooldown breadcrumb.
+ *    with the project spawn lock, and suppresses repeated failed launches
+ *    with the per-project cooldown breadcrumb.
  *
- * Electron owns no recovery attempt history here. It has one active vault
+ * Electron owns no recovery attempt history here. It has one active project
  * at a time and delegates the load-bearing fork-storm protection to the
  * shared graph-db-client owner infrastructure used by every caller.
  */
@@ -28,7 +28,7 @@
 import { SpanStatusCode } from '@opentelemetry/api'
 
 import {
-  ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject,
   type CallerKind,
   type EnsureGraphDaemonOptions,
   type EnsureGraphDaemonResult,
@@ -39,7 +39,7 @@ import { daemonTracer } from '@/shell/edge/main/observability/tracing/daemon-tra
 export type StopRecoveryLoopsFn = () => Promise<void> | void
 
 export type EnsureForRecoveryFn = (
-  vault: string,
+  project: string,
   caller: CallerKind,
   options?: EnsureGraphDaemonOptions,
 ) => Promise<EnsureGraphDaemonResult>
@@ -53,7 +53,7 @@ export type OwnerMediatedRecoveryOptions = {
   readonly stopLoops?: StopRecoveryLoopsFn
   /**
    * Override the ensure call. Default is the shared
-   * `ensureGraphDaemonForVault`. Tests inject a fake so they do not
+   * `ensureGraphDaemonForProject`. Tests inject a fake so they do not
    * launch a real vt-graphd.
    */
   readonly ensureFn?: EnsureForRecoveryFn
@@ -62,26 +62,26 @@ export type OwnerMediatedRecoveryOptions = {
 /**
  * Public entry: stop stale loops, then delegate exactly one recovery to
  * the shared owner-mediated ensure path. Typed cooldown/launch errors from
- * `ensureGraphDaemonForVault` propagate unchanged so callers can render
+ * `ensureGraphDaemonForProject` propagate unchanged so callers can render
  * the owner infrastructure's suppression state.
  */
 export async function attemptOwnerMediatedRecovery(
-  canonicalVault: string,
+  canonicalProject: string,
   caller: CallerKind,
   options: OwnerMediatedRecoveryOptions = {},
 ): Promise<EnsureGraphDaemonResult> {
   return await daemonTracer().startActiveSpan('daemon.owner-mediated-recovery', async (span) => {
     try {
-      span.setAttribute('vault', canonicalVault)
+      span.setAttribute('project', canonicalProject)
       span.setAttribute('caller', caller)
-      const ensureFn = options.ensureFn ?? ensureGraphDaemonForVault
+      const ensureFn = options.ensureFn ?? ensureGraphDaemonForProject
       const stopLoops = options.stopLoops
 
       // Stop SSE + watch-sync BEFORE ensure so loops cannot race recovery
       // or reintroduce their own ensure path while the owner protocol runs.
       if (stopLoops) await stopLoops()
 
-      const result = await ensureFn(canonicalVault, caller)
+      const result = await ensureFn(canonicalProject, caller)
       span.setAttribute('recoveredPid', result.pid)
       span.setAttribute('launched', result.launched)
       return result

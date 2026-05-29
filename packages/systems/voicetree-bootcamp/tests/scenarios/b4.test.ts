@@ -53,7 +53,7 @@ describe('b4 — semantic index + search + focus + unseen', () => {
             Buffer.from([1, 2, 3, 4]),
         )
         await writeShimLog(shimLogPath, [
-            entry({argv: ['graph', 'index', '--vault', tempDir]}),
+            entry({argv: ['graph', 'index', '--project', tempDir]}),
             entry({argv: ['graph', 'search', '--query', 'authentication flow', '--top-k', '3']}),
             entry({argv: ['graph', 'live', 'focus', '--file', 'auth-jwt-flow.md', '--hops', '2']}),
             entry({argv: ['graph', 'unseen', '--related-to', 'auth-jwt-flow.md']}),

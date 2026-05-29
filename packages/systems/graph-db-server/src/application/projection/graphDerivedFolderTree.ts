@@ -4,7 +4,7 @@
 // WITHOUT touching the filesystem. The folder structure is derived purely
 // from:
 //   - the in-memory graph (node keys are absolute file paths),
-//   - the active read paths, vault paths, and write path,
+//   - the active read paths, project paths, and write path,
 //   - the project root that anchors the synthesized tree.
 //
 // The downstream consumer (`projectSessionState`) expects a `FolderTreeNode`
@@ -13,7 +13,7 @@
 // that contains exactly the folders relevant to projection:
 //   - the chosen root (projectRoot),
 //   - every ancestor folder of every graph-node file path under the root,
-//   - every read/vault/write path that is at or under the root (even if it
+//   - every read/project/write path that is at or under the root (even if it
 //     currently contains no graph nodes),
 // and the graph-node files themselves as leaf entries.
 //
@@ -33,7 +33,7 @@ export interface ProjectGraphDerivedFolderTreeArgs {
   readonly graph: Graph
   readonly projectRoot: AbsolutePath | null
   readonly readPaths: readonly string[]
-  readonly vaultPaths: readonly string[]
+  readonly projectPaths: readonly string[]
   readonly writeFolderPath: AbsolutePath | null
 }
 
@@ -168,20 +168,20 @@ function freezeMutableToDirectoryEntry(node: MutableDirectory): DirectoryEntry {
 export function projectGraphDerivedFolderTree(
   args: ProjectGraphDerivedFolderTreeArgs,
 ): FolderTreeNode | null {
-  const { graph, projectRoot, readPaths, vaultPaths, writeFolderPath } = args
+  const { graph, projectRoot, readPaths, projectPaths, writeFolderPath } = args
   if (!projectRoot) return null
 
   const rootPath = normalizeFolderPath(projectRoot)
 
   // 1. Determine the set of folders that must appear in the synthesized tree:
   //    - the root itself
-  //    - every read/vault/write path at-or-under the root
+  //    - every read/project/write path at-or-under the root
   //    - every ancestor folder of every graph node file at-or-under the root
   const requiredFolderPaths = new Set<string>([rootPath])
 
   const candidateRoots: readonly string[] = [
     ...readPaths,
-    ...vaultPaths,
+    ...projectPaths,
     ...(writeFolderPath ? [writeFolderPath] : []),
   ]
   for (const candidate of candidateRoots) {
@@ -222,7 +222,7 @@ export function projectGraphDerivedFolderTree(
   //    the same FolderTreeNode shape (sorting, loadState, isWriteTarget,
   //    isInGraph) as a scanned tree.
   const directoryEntry = freezeMutableToDirectoryEntry(rootDir)
-  const loadedPaths = new Set<string>([...readPaths, ...vaultPaths])
+  const loadedPaths = new Set<string>([...readPaths, ...projectPaths])
   const graphFilePathsSet = new Set<string>(graphFilePaths)
 
   return buildFolderTree(directoryEntry, loadedPaths, writeFolderPath, graphFilePathsSet)

@@ -24,7 +24,7 @@ import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -41,10 +41,10 @@ const test = base.extend<{
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-tab-hints-test-'));
 
-    // Write the config file to auto-load the test vault on startup
+    // Write the config file to auto-load the test project on startup
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
-    console.log('[Tab Hints Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
+    console.log('[Tab Hints Test] Created config file to auto-load:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -125,12 +125,12 @@ test.describe('Terminal Tab Shortcut Hints Screenshot', () => {
     });
     console.log('Settings configured with mock agent: echo test');
 
-    console.log('=== STEP 2: Load test vault via file watching ===');
+    console.log('=== STEP 2: Load test project via file watching ===');
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     expect(watchResult.success).toBe(true);
     console.log('File watching started');

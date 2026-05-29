@@ -1,7 +1,7 @@
 import type {
   ActiveView,
   FolderStateEntry,
-  VaultState,
+  ProjectState,
 } from '@vt/graph-db-protocol'
 
 export {
@@ -26,7 +26,7 @@ export {
   SetWriteFolderPathRequestSchema,
   ShutdownResponseSchema,
   UnseenNodeSchema,
-  VaultStateSchema,
+  ProjectStateSchema,
   ViewRecordSchema,
   ViewResponseSchema,
   type ActiveView,
@@ -53,15 +53,15 @@ export {
   type SetWriteFolderPathRequest,
   type ShutdownResponse,
   type UnseenNode,
-  type VaultState,
+  type ProjectState,
   type ViewRecord,
   type ViewResponse,
 } from '@vt/graph-db-protocol'
 
-export type OpenVaultResponse = {
+export type OpenProjectResponse = {
   sessionId: string
   writeFolderPath: string
-  vaultState: VaultState
+  projectState: ProjectState
   initialProjectedGraph: unknown
   folderState: FolderStateEntry[]
   activeView: ActiveView

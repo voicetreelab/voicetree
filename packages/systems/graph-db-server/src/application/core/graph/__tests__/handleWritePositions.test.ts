@@ -6,8 +6,8 @@ import {
   parseWritePositionsRequest,
 } from '../handleWritePositions.ts'
 
-const NODE_A = '/tmp/vault/a.md'
-const NODE_B = '/tmp/vault/b.md'
+const NODE_A = '/tmp/project/a.md'
+const NODE_B = '/tmp/project/b.md'
 
 function graphNodeFixture(id: string): GraphNode {
   return {
@@ -51,7 +51,7 @@ describe('handleWritePositions', () => {
 
     const result = graphWithUpdatedPositions(graph, {
       [NODE_A]: { x: 10, y: 20 },
-      '/tmp/vault/missing.md': { x: 99, y: 100 },
+      '/tmp/project/missing.md': { x: 99, y: 100 },
     })
 
     expect(result.written).toBe(1)

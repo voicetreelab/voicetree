@@ -1,4 +1,4 @@
-export type { VTSettings, AgentConfig, EnvVarValue, HotkeyModifier, HotkeyBinding, HotkeySettings, HookSettings, VaultConfig, VoiceTreeConfig } from './pure/settings/types'
+export type { VTSettings, AgentConfig, EnvVarValue, HotkeyModifier, HotkeyBinding, HotkeySettings, HookSettings, ProjectConfig, VoiceTreeConfig } from './pure/settings/types'
 export { getUniqueAgentName } from './pure/settings/types'
 export { AGENT_NAMES, getNextAgentName, getDefaultAgent } from './pure/settings/types'
 export { expandEnvVarsInValues, resolveEnvVars, resolveEnvVarsWithSelection } from './pure/settings/resolve-environment-variable'

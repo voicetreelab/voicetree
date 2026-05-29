@@ -1,6 +1,6 @@
 /**
  * BEHAVIORAL SPEC:
- * 1. VaultConfig should persist and load WITHOUT showAllPaths field
+ * 1. ProjectConfig should persist and load WITHOUT showAllPaths field
  * 2. Loading a folder should work correctly without showAllPaths configuration
  * 3. The API no longer exposes getShowAllPaths or toggleShowAll
  */
@@ -43,7 +43,7 @@ const test = base.extend<{
       configPath,
       JSON.stringify({
         lastDirectory: testDir,
-        vaultConfig: {
+        projectConfig: {
           [testDir]: {
             writeFolderPath: testDir,
             readPaths: []
@@ -104,7 +104,7 @@ const test = base.extend<{
 });
 
 test.describe('No showAllPaths Configuration', () => {
-  test('should load vault without showAllPaths config', async ({ appWindow }) => {
+  test('should load project without showAllPaths config', async ({ appWindow }) => {
     test.setTimeout(30000);
 
     // Verify app loaded with no showAllPaths in config

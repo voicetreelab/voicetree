@@ -5,7 +5,7 @@
 import path from 'node:path'
 import { app, Menu, dialog } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
-import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { openProject } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 
 export function setupApplicationMenu(): void {
     const template: MenuItemConstructorOptions[] = [
@@ -32,9 +32,9 @@ export function setupApplicationMenu(): void {
                             })
                             if (result.canceled || result.filePaths.length === 0) return
                             try {
-                                await openVault(result.filePaths[0])
+                                await openProject(result.filePaths[0])
                             } catch (err: unknown) {
-                                console.error('[application-menu] openVault failed:', err)
+                                console.error('[application-menu] openProject failed:', err)
                             }
                         })()
                     }

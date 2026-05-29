@@ -35,7 +35,7 @@ export interface TmuxAttachWiring {
 
 export interface TmuxAttachWiringOptions {
     // Resolved at attach time so each new connection picks up the current
-    // vault setting without restarting the daemon. Defaults to `false` (mouse
+    // project setting without restarting the daemon. Defaults to `false` (mouse
     // off, browser-style text selection without Shift) when omitted.
     readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
 }

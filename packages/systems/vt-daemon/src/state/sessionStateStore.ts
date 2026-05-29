@@ -1,7 +1,7 @@
 /**
  * BF-379 · Phase 3 — daemon-side session state store.
  *
- * Owns the per-vault `@vt/graph-state` `State` (graph, roots, layout, meta)
+ * Owns the per-project `@vt/graph-state` `State` (graph, roots, layout, meta)
  * that used to live in Electron Main's `live-state-store.ts`. Every accepted
  * `applyCommandToSessionState` call bumps the authoritative revision counter
  * exactly once, atomically with the state mutation.
@@ -10,7 +10,7 @@
  *   - Public API is narrow (read, mutate, test-reset) and deep (assembly +
  *     application + persistence composition is hidden).
  *   - `buildInitialState` and `applyCommandWithDelta` are pure.
- *   - The impure shell (`readGraphFromGraphd`, `readVaultStateFromGraphd`,
+ *   - The impure shell (`readGraphFromGraphd`, `readProjectStateFromGraphd`,
  *     `persistPositionsToGraphd`) is the only side-effecting boundary; it
  *     speaks JSON-RPC to vt-graphd over HTTP, so every client of this module
  *     sees the same state regardless of how they reach the daemon.
@@ -35,33 +35,33 @@ import {
     type Position,
 } from '@vt/graph-model'
 import { GraphDbClient } from '@vt/graph-db-client'
-import type { VaultState } from '@vt/graph-db-protocol'
+import type { ProjectState } from '@vt/graph-db-protocol'
 
 export type AbsolutePath = string
 export type PositionMap = Record<string, Position>
 
-const stateByVault: Map<AbsolutePath, State> = new Map()
-const clientByVault: Map<AbsolutePath, GraphDbClient> = new Map()
+const stateByProject: Map<AbsolutePath, State> = new Map()
+const clientByProject: Map<AbsolutePath, GraphDbClient> = new Map()
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-export async function getCurrentSessionState(vault: AbsolutePath): Promise<State> {
-    return await loadOrBootstrap(vault)
+export async function getCurrentSessionState(project: AbsolutePath): Promise<State> {
+    return await loadOrBootstrap(project)
 }
 
 export async function applyCommandToSessionState(
-    vault: AbsolutePath,
+    project: AbsolutePath,
     command: Command,
 ): Promise<{ readonly state: State; readonly delta: Delta }> {
-    const before: State = await loadOrBootstrap(vault)
+    const before: State = await loadOrBootstrap(project)
     const result: { state: State; delta: Delta } = applyCommandWithDelta(before, command)
-    stateByVault.set(vault, result.state)
-    await persistMovedPositionsIfAny(vault, result.delta)
+    stateByProject.set(project, result.state)
+    await persistMovedPositionsIfAny(project, result.delta)
     return { state: result.state, delta: result.delta }
 }
 
 async function persistMovedPositionsIfAny(
-    vault: AbsolutePath,
+    project: AbsolutePath,
     delta: Delta,
 ): Promise<void> {
     if (!delta.positionsMoved || delta.positionsMoved.size === 0) return
@@ -69,24 +69,24 @@ async function persistMovedPositionsIfAny(
     for (const [nodeId, position] of delta.positionsMoved.entries()) {
         positions[nodeId] = position
     }
-    await persistPositionsToGraphd(vault, positions)
+    await persistPositionsToGraphd(project, positions)
 }
 
-export function __resetSessionStateForTests(vault?: AbsolutePath): void {
-    if (vault === undefined) {
-        stateByVault.clear()
-        clientByVault.clear()
+export function __resetSessionStateForTests(project?: AbsolutePath): void {
+    if (project === undefined) {
+        stateByProject.clear()
+        clientByProject.clear()
         return
     }
-    stateByVault.delete(vault)
-    clientByVault.delete(vault)
+    stateByProject.delete(project)
+    clientByProject.delete(project)
 }
 
 // ─── Pure assembly ───────────────────────────────────────────────────────────
 
-function buildInitialState(graph: Graph, vaultState: VaultState): State {
-    const loaded: ReadonlySet<string> = vaultState.writeFolderPath
-        ? new Set([vaultState.writeFolderPath])
+function buildInitialState(graph: Graph, projectState: ProjectState): State {
+    const loaded: ReadonlySet<string> = projectState.writeFolderPath
+        ? new Set([projectState.writeFolderPath])
         : new Set()
     return {
         graph,
@@ -108,28 +108,28 @@ function buildInitialState(graph: Graph, vaultState: VaultState): State {
 
 // ─── Impure shell (vt-graphd boundary) ───────────────────────────────────────
 
-async function loadOrBootstrap(vault: AbsolutePath): Promise<State> {
+async function loadOrBootstrap(project: AbsolutePath): Promise<State> {
     // Re-read writeFolderPath from vt-graphd on every call: setWriteFolderPath() can
     // change it after first bootstrap, and there's no longer a
     // syncWatchedProjectRoot hook to invalidate downstream caches. Costs one
     // extra RPC per read but keeps roots.loaded honest without coupling to
-    // vault-state events.
-    const vaultState: VaultState = await readVaultStateFromGraphd(vault)
-    const cached: State | undefined = stateByVault.get(vault)
+    // project-state events.
+    const projectState: ProjectState = await readProjectStateFromGraphd(project)
+    const cached: State | undefined = stateByProject.get(project)
     if (cached) {
-        const refreshed: State = refreshLoadedRoots(cached, vaultState)
-        if (refreshed !== cached) stateByVault.set(vault, refreshed)
+        const refreshed: State = refreshLoadedRoots(cached, projectState)
+        if (refreshed !== cached) stateByProject.set(project, refreshed)
         return refreshed
     }
-    const graph: Graph = await readGraphFromGraphd(vault)
-    const initial: State = buildInitialState(graph, vaultState)
-    stateByVault.set(vault, initial)
+    const graph: Graph = await readGraphFromGraphd(project)
+    const initial: State = buildInitialState(graph, projectState)
+    stateByProject.set(project, initial)
     return initial
 }
 
-function refreshLoadedRoots(state: State, vaultState: VaultState): State {
-    const loaded: ReadonlySet<string> = vaultState.writeFolderPath
-        ? new Set([vaultState.writeFolderPath])
+function refreshLoadedRoots(state: State, projectState: ProjectState): State {
+    const loaded: ReadonlySet<string> = projectState.writeFolderPath
+        ? new Set([projectState.writeFolderPath])
         : new Set()
     if (sameLoadedRoots(state.roots.loaded, loaded)) return state
     return {
@@ -147,31 +147,31 @@ function sameLoadedRoots(a: ReadonlySet<string>, b: ReadonlySet<string>): boolea
     return true
 }
 
-async function getOrCreateClient(vault: AbsolutePath): Promise<GraphDbClient> {
-    const cached: GraphDbClient | undefined = clientByVault.get(vault)
+async function getOrCreateClient(project: AbsolutePath): Promise<GraphDbClient> {
+    const cached: GraphDbClient | undefined = clientByProject.get(project)
     if (cached) return cached
-    const client: GraphDbClient = await GraphDbClient.connect({ vault })
-    clientByVault.set(vault, client)
+    const client: GraphDbClient = await GraphDbClient.connect({ project })
+    clientByProject.set(project, client)
     return client
 }
 
-async function readGraphFromGraphd(vault: AbsolutePath): Promise<Graph> {
-    const client: GraphDbClient = await getOrCreateClient(vault)
+async function readGraphFromGraphd(project: AbsolutePath): Promise<Graph> {
+    const client: GraphDbClient = await getOrCreateClient(project)
     const raw: { readonly nodes: Record<string, unknown> } = await client.getGraph()
     return normalizeGraph(raw.nodes)
 }
 
-async function readVaultStateFromGraphd(vault: AbsolutePath): Promise<VaultState> {
-    const client: GraphDbClient = await getOrCreateClient(vault)
-    return await client.getVault()
+async function readProjectStateFromGraphd(project: AbsolutePath): Promise<ProjectState> {
+    const client: GraphDbClient = await getOrCreateClient(project)
+    return await client.getProject()
 }
 
 export async function persistPositionsToGraphd(
-    vault: AbsolutePath,
+    project: AbsolutePath,
     positions: PositionMap,
 ): Promise<void> {
     if (Object.keys(positions).length === 0) return
-    const client: GraphDbClient = await getOrCreateClient(vault)
+    const client: GraphDbClient = await getOrCreateClient(project)
     await client.writePositions(positions)
 }
 

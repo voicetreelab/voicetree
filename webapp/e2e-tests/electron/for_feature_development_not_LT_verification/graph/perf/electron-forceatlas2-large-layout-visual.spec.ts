@@ -49,7 +49,7 @@ async function waitForGraphNodes(appWindow: Page): Promise<void> {
         return cy?.nodes().length ?? 0;
       }),
       {
-        message: 'Waiting for realistic vault graph nodes to reach Cytoscape',
+        message: 'Waiting for realistic project graph nodes to reach Cytoscape',
         timeout: 180000,
         intervals: [2000, 3000, 5000, 5000, 5000],
       }

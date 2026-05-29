@@ -7,10 +7,10 @@ import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-mode
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
-import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
+import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt} from './cliManualInjection'
 import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
-import {readDaemonPortFromVault} from './daemonUrlFile'
+import {readDaemonPortFromProject} from './daemonUrlFile'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
@@ -38,12 +38,12 @@ export async function buildTerminalEnvVars(params: {
     }
     const env = getRuntimeEnv()
     const voicetreeHomePath: string = resolveVoicetreeHomePath()
-    const allVaultPaths: readonly string[] = env.getVaultPaths
-        ? await env.getVaultPaths()
-        : await getRuntimeVaultPaths()
-    const allMarkdownReadPaths: string = allVaultPaths.join('\n')
+    const allProjectPaths: readonly string[] = env.getProjectPaths
+        ? await env.getProjectPaths()
+        : await getRuntimeProjectPaths()
+    const allMarkdownReadPaths: string = allProjectPaths.join('\n')
 
-    // VOICETREE_PROJECT_PATH points at the canonical vault root (where `.voicetree/` lives),
+    // VOICETREE_PROJECT_PATH points at the canonical project root (where `.voicetree/` lives),
     // not the daemon's current writeFolderPath. Many consumers — the CLI's auth-token resolver
     // (vt-rpc#authTokenFilePath), the agent hook script template
     // (agentHookInjection.ts), tmuxPromptFile, the tmux namespace builder — all read
@@ -53,7 +53,7 @@ export async function buildTerminalEnvVars(params: {
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
-    const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)
+    const daemonPort: number | null = await readDaemonPortFromProject(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
 
     const unexpandedEnvVars: Record<string, string> = {

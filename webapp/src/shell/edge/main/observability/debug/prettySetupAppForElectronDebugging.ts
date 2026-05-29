@@ -1,6 +1,6 @@
 import { getGraphThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import { getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
-import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import { openProject } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
@@ -122,7 +122,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         console.log('[DebugSetup] Saved project:', project.id);
 
         try {
-            await openVault(testProjectPath);
+            await openProject(testProjectPath);
         } catch (err: unknown) {
             console.error('[DebugSetup] Failed to load test project:', err);
             return { terminalsSpawned: [], nodeCount: 0 };

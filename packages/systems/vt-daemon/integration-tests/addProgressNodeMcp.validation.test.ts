@@ -1,7 +1,7 @@
 /**
  * Real-deps integration test for the create_graph MCP tool (validation +
  * line-length blocking). Mirrors the moved creation tests in setup style:
- * real terminal-registry, real settings (per-test temp app-support),
+ * real terminal-registry, real settings (per-test temp voicetree-home),
  * capturing GraphBridge. No vi.mock of @vt/agent-runtime.
  */
 
@@ -15,7 +15,7 @@ import {
     CALLER_TERMINAL_ID,
     WRITE_FOLDER,
     buildGraph,
-    cleanupAppSupport,
+    cleanupVoicetreeHome,
     parsePayload,
     setupRealDeps,
     type BridgeState,
@@ -24,16 +24,16 @@ import {
     type SuccessPayload,
 } from './__helpers__/addProgressNodeMcp.testHelpers'
 
-let appSupport: string
+let voicetreeHome: string
 let state: BridgeState
 let bridge: GraphBridge
 
 beforeEach(async () => {
-    ({appSupport, state, bridge} = await setupRealDeps())
+    ({voicetreeHome, state, bridge} = await setupRealDeps())
 })
 
 afterEach(async () => {
-    await cleanupAppSupport(appSupport)
+    await cleanupVoicetreeHome(voicetreeHome)
 })
 
 describe('MCP create_graph tool — validation + line length', () => {
@@ -52,7 +52,7 @@ describe('MCP create_graph tool — validation + line length', () => {
             expect(payload.error).toContain('Unknown caller terminal')
         })
 
-        it('returns error when no vault is loaded', async () => {
+        it('returns error when no project is loaded', async () => {
             state.writeFolderPath = null
 
             const response: McpToolResponse = await createGraphTool({
@@ -63,10 +63,10 @@ describe('MCP create_graph tool — validation + line length', () => {
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('No vault loaded')
+            expect(payload.error).toContain('No project loaded')
         })
 
-        it('returns error when outputPath resolves outside loaded vault paths', async () => {
+        it('returns error when outputPath resolves outside loaded project paths', async () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: '../outside',
@@ -76,7 +76,7 @@ describe('MCP create_graph tool — validation + line length', () => {
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('outside the loaded vault paths')
+            expect(payload.error).toContain('outside the loaded project paths')
         })
 
         it('returns error when parent node is not found', async () => {

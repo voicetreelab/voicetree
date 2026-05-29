@@ -13,29 +13,29 @@ import {
   resolveGraphDaemonNodeBin,
   robustElectronTeardown,
   safeStopFileWatching,
-  stopSmokeGraphDaemonForVault,
+  stopSmokeGraphDaemonForProject,
 } from "./electron-smoke-helpers";
 import { rpcCallTool } from "./helpers/e2e-rpc-helpers";
 
 export const test = base.extend<{
-  fixtureVaultPath: string;
+  fixtureProjectPath: string;
   tempUserDataPath: string;
   electronDiagnostics: ElectronDiagnostics;
   electronApp: ElectronApplication;
   appWindow: Page;
 }>({
-  fixtureVaultPath: async ({}, use) => {
+  fixtureProjectPath: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(
-      path.join(os.tmpdir(), "voicetree-anchor-vault-"),
+      path.join(os.tmpdir(), "voicetree-anchor-project-"),
     );
-    const tempVaultPath = path.join(tempRoot, "anchor-vault");
-    await fs.mkdir(tempVaultPath, { recursive: true });
+    const tempProjectPath = path.join(tempRoot, "anchor-project");
+    await fs.mkdir(tempProjectPath, { recursive: true });
     await fs.writeFile(
-      path.join(tempVaultPath, "Root.md"),
+      path.join(tempProjectPath, "Root.md"),
       "# Root\n\nSpawn-agent terminal anchoring parent.\n",
       "utf8",
     );
-    await use(tempVaultPath);
+    await use(tempProjectPath);
 
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
@@ -53,15 +53,15 @@ export const test = base.extend<{
   },
 
   electronApp: async (
-    { fixtureVaultPath, tempUserDataPath, electronDiagnostics },
+    { fixtureProjectPath, tempUserDataPath, electronDiagnostics },
     use,
   ) => {
     await fs.writeFile(
       path.join(tempUserDataPath, "voicetree-config.json"),
       JSON.stringify(
         {
-          vaultConfig: {
-            [fixtureVaultPath]: { writeFolderPath: fixtureVaultPath, readPaths: [] },
+          projectConfig: {
+            [fixtureProjectPath]: { writeFolderPath: fixtureProjectPath, readPaths: [] },
           },
         },
         null,
@@ -104,7 +104,7 @@ export const test = base.extend<{
         path.join(WEBAPP_ROOT, "dist-electron/main/index.js"),
         `--user-data-dir=${tempUserDataPath}`,
         "--open-folder",
-        fixtureVaultPath,
+        fixtureProjectPath,
       ],
       env: {
         ...process.env,
@@ -113,9 +113,9 @@ export const test = base.extend<{
         MINIMIZE_TEST: "1",
         VOICETREE_PERSIST_STATE: "1",
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
-        // Pin the daemon's app-support path to the temp user-data dir so it
+        // Pin the daemon's voicetree-home path to the temp user-data dir so it
         // talks tmux on the same socket as the test (resolved from the same
-        // env). Without this, pinProcessAppSupportPath() in webapp main can
+        // env). Without this, pinProcessVoicetreeHomePath() in webapp main can
         // race --user-data-dir resolution and the daemon ends up on
         // /root/.voicetree/tmux.sock while the test polls a different socket.
         VOICETREE_HOME_PATH: tempUserDataPath,
@@ -137,7 +137,7 @@ export const test = base.extend<{
 
     await use(electronApp);
 
-    stopSmokeGraphDaemonForVault(fixtureVaultPath);
+    stopSmokeGraphDaemonForProject(fixtureProjectPath);
     await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
   },
@@ -165,7 +165,7 @@ export const test = base.extend<{
           });
         },
         {
-          message: "Waiting for the temp vault graph to render",
+          message: "Waiting for the temp project graph to render",
           timeout: 45_000,
           intervals: [250, 500, 1000, 2000],
         },

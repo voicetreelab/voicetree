@@ -7,8 +7,8 @@ import { clearRecentDeltas } from '../../src/state/recent-deltas-store'
 import { handleFSEventWithStateAndUISides } from '../../src/data/graph/watching/handleFSEvent'
 import type { FSUpdate } from '@vt/graph-model'
 
-vi.mock('../../src/watch-folder/paths/vault-allowlist', () => ({
-    getVaultPaths: vi.fn(async () => []),
+vi.mock('../../src/watch-folder/paths/project-allowlist', () => ({
+    getProjectPaths: vi.fn(async () => []),
 }))
 
 describe('handleFSEvent agent_name detection', () => {
@@ -30,21 +30,21 @@ agent_name: Victor
 Some content here.`
 
         const fsEvent: FSUpdate = {
-            absolutePath: '/vault/progress-node.md',
+            absolutePath: '/project/progress-node.md',
             content,
             eventType: 'Added',
         }
 
-        handleFSEventWithStateAndUISides(fsEvent, '/vault')
+        handleFSEventWithStateAndUISides(fsEvent, '/project')
         await vi.waitFor(() => expect(agentNameCallback).toHaveBeenCalledTimes(1), { timeout: 2000 })
 
         expect(agentNameCallback).toHaveBeenCalledWith(
             'Victor',
-            '/vault/progress-node.md',
+            '/project/progress-node.md',
             'Progress Node',
         )
 
-        const node = getNode('/vault/progress-node.md')
+        const node = getNode('/project/progress-node.md')
         expect(node).toBeDefined()
         expect(node!.kind).toBe('leaf')
         expect(node!.nodeUIMetadata.color).toEqual(O.some('blue'))
@@ -58,17 +58,17 @@ color: green
 No agent here.`
 
         const fsEvent: FSUpdate = {
-            absolutePath: '/vault/regular-node.md',
+            absolutePath: '/project/regular-node.md',
             content,
             eventType: 'Added',
         }
 
-        handleFSEventWithStateAndUISides(fsEvent, '/vault')
+        handleFSEventWithStateAndUISides(fsEvent, '/project')
         await new Promise(r => setTimeout(r, 200))
 
         expect(agentNameCallback).not.toHaveBeenCalled()
 
-        const node = getNode('/vault/regular-node.md')
+        const node = getNode('/project/regular-node.md')
         expect(node).toBeDefined()
         expect(node!.nodeUIMetadata.color).toEqual(O.some('green'))
     })
@@ -80,11 +80,11 @@ agent_name: Amit
 # First Version`
 
         const fsEvent1: FSUpdate = {
-            absolutePath: '/vault/existing-node.md',
+            absolutePath: '/project/existing-node.md',
             content: initialContent,
             eventType: 'Added',
         }
-        handleFSEventWithStateAndUISides(fsEvent1, '/vault')
+        handleFSEventWithStateAndUISides(fsEvent1, '/project')
         await vi.waitFor(() => expect(agentNameCallback).toHaveBeenCalledTimes(1), { timeout: 2000 })
 
         agentNameCallback.mockClear()
@@ -96,16 +96,16 @@ agent_name: Amit
 More content.`
 
         const fsEvent2: FSUpdate = {
-            absolutePath: '/vault/existing-node.md',
+            absolutePath: '/project/existing-node.md',
             content: updatedContent,
             eventType: 'Changed',
         }
-        handleFSEventWithStateAndUISides(fsEvent2, '/vault')
+        handleFSEventWithStateAndUISides(fsEvent2, '/project')
         await new Promise(r => setTimeout(r, 200))
 
         expect(agentNameCallback).not.toHaveBeenCalled()
 
-        const node = getNode('/vault/existing-node.md')
+        const node = getNode('/project/existing-node.md')
         expect(node).toBeDefined()
         expect(node!.contentWithoutYamlOrLinks).toContain('Updated Version')
     })

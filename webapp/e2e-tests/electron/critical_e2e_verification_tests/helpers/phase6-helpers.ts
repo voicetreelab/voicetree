@@ -33,15 +33,15 @@ export const AGENT_NAMES: ReadonlyArray<string> = [
 ];
 
 export function tmuxSessionExists(
-  appSupportPath: string,
+  voicetreeHomePath: string,
   sessionName: string,
 ): boolean {
   try {
     execFileSync(
       "tmux",
       tmuxCommandArgsForTest(
-        ["has-session", "-t", resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
-        appSupportPath,
+        ["has-session", "-t", resolveTmuxSessionNameForTest(sessionName, voicetreeHomePath)],
+        voicetreeHomePath,
       ),
       { stdio: "ignore" },
     );
@@ -51,12 +51,12 @@ export function tmuxSessionExists(
   }
 }
 
-export function killTmuxSession(appSupportPath: string, sessionName: string): void {
-  for (const resolvedName of resolveTmuxSessionNamesForTest(sessionName, appSupportPath)) {
+export function killTmuxSession(voicetreeHomePath: string, sessionName: string): void {
+  for (const resolvedName of resolveTmuxSessionNamesForTest(sessionName, voicetreeHomePath)) {
     try {
       execFileSync(
         "tmux",
-        tmuxCommandArgsForTest(["kill-session", "-t", resolvedName], appSupportPath),
+        tmuxCommandArgsForTest(["kill-session", "-t", resolvedName], voicetreeHomePath),
         { stdio: "ignore" },
       );
     } catch {
@@ -75,18 +75,18 @@ export function killProcessGroup(pid: number): void {
 }
 
 export function reapStaleTestTmuxSessions(
-  appSupportPath: string,
+  voicetreeHomePath: string,
   extraNames: ReadonlyArray<string> = [],
 ): void {
   for (const name of [...AGENT_NAMES, ...extraNames]) {
-    if (tmuxSessionExists(appSupportPath, name)) {
-      killTmuxSession(appSupportPath, name);
+    if (tmuxSessionExists(voicetreeHomePath, name)) {
+      killTmuxSession(voicetreeHomePath, name);
     }
   }
 }
 
 export function tmuxPanePid(
-  appSupportPath: string,
+  voicetreeHomePath: string,
   sessionName: string,
 ): number | null {
   try {
@@ -96,11 +96,11 @@ export function tmuxPanePid(
         [
           "list-panes",
           "-t",
-          resolveTmuxSessionNameForTest(sessionName, appSupportPath),
+          resolveTmuxSessionNameForTest(sessionName, voicetreeHomePath),
           "-F",
           "#{pane_pid}",
         ],
-        appSupportPath,
+        voicetreeHomePath,
       ),
       { encoding: "utf8" },
     );
@@ -115,7 +115,7 @@ export function tmuxPanePid(
 // directory and uses it as VOICETREE_PROJECT_PATH for spawned agents — that's
 // where Phase 6 writes prompt files. Resolve it once after file-watching
 // initializes the project.
-export async function resolveVaultWriteFolderPath(parentDir: string): Promise<string> {
+export async function resolveProjectWriteFolderPath(parentDir: string): Promise<string> {
   const entries = await fs.readdir(parentDir, { withFileTypes: true });
   const voicetreeDir = entries.find(
     (e) => e.isDirectory() && /^voicetree(-\d{1,2}-\d{1,2})?$/.test(e.name),

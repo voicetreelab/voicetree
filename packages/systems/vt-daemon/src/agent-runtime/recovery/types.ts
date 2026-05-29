@@ -75,4 +75,4 @@ export type RecoveryClassification =
 
 export type DroppedReason =
     | 'invalid'         // metadata file is malformed or missing required fields
-    | 'foreign-vault'   // tmux session name's namespace hash doesn't match current vault
+    | 'foreign-project'   // tmux session name's namespace hash doesn't match current project

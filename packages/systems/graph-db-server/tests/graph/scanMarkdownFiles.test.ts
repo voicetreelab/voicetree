@@ -3,7 +3,7 @@
  *
  * Bug: scanMarkdownFiles used to recurse into hidden directories
  * (e.g. `.voicetree/prompts/`), causing per-project tooling files to
- * appear as nodes in the graph when a vault root was scanned.
+ * appear as nodes in the graph when a project root was scanned.
  */
 
 import { describe, it, expect, afterEach } from 'vitest'

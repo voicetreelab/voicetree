@@ -3,8 +3,8 @@ import { toAbsolutePath } from '@vt/graph-model'
 import type { FolderTreeNode, Graph } from '@vt/graph-model'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
-import { getReadPaths, getVaultPaths, getWriteFolderPath } from '@vt/graph-db-server/state/vaultAllowlist'
-import type { VaultState } from '@vt/graph-db-server/contract'
+import { getReadPaths, getProjectPaths, getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist'
+import type { ProjectState } from '@vt/graph-db-server/contract'
 import { getProject } from '../workflows/state/projectState.ts'
 import { projectGraphDerivedFolderTree } from '../projection/graphDerivedFolderTree.ts'
 import type { Session } from './types.ts'
@@ -14,12 +14,12 @@ type DaemonStateSnapshot = {
   readonly folderTree: FolderTreeNode | null
   readonly graph: Graph
   readonly projectRoot: string | null
-  readonly projectVersion: number
+  readonly graphVersion: number
   readonly readPaths: readonly string[]
   readonly session: Session
-  readonly vault: VaultState
-  readonly vaultPaths: readonly string[]
-  readonly vaultVersion: number
+  readonly project: ProjectState
+  readonly projectPaths: readonly string[]
+  readonly projectPathsVersion: number
   readonly writeFolderPath: string | null
 }
 
@@ -34,28 +34,28 @@ function getProjectVersion(): number {
   return getProject()?.version ?? 0
 }
 
-function getVaultVersion(): number {
-  return getProject()?.vaultVersion ?? 0
+function getProjectPathsVersion(): number {
+  return getProject()?.projectPathsVersion ?? 0
 }
 
 export async function readDaemonStateSnapshot(session: Session): Promise<DaemonStateSnapshot> {
   const graph = getGraph()
   const projectRoot = getProjectRoot()
-  const projectVersion = getProjectVersion()
-  const vaultVersion = getVaultVersion()
+  const graphVersion = getProjectVersion()
+  const projectPathsVersion = getProjectPathsVersion()
   const writeFolderPath = resolveWriteFolderPath(await getWriteFolderPath())
   const readPaths = [...(await getReadPaths())]
-  const vaultPaths = await getVaultPaths()
+  const projectPaths = await getProjectPaths()
 
   const folderTree: FolderTreeNode | null = projectGraphDerivedFolderTree({
     graph,
     projectRoot: projectRoot ? toAbsolutePath(projectRoot) : null,
     readPaths,
-    vaultPaths,
+    projectPaths,
     writeFolderPath: writeFolderPath ? toAbsolutePath(writeFolderPath) : null,
   })
 
-  const vault: VaultState = {
+  const project: ProjectState = {
     projectRoot: projectRoot ?? '',
     readPaths,
     writeFolderPath: writeFolderPath ?? projectRoot ?? '',
@@ -64,13 +64,13 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
   return {
     folderTree,
     graph,
+    graphVersion,
     projectRoot,
-    projectVersion,
     readPaths,
     session,
-    vault,
-    vaultPaths,
-    vaultVersion,
+    project,
+    projectPaths,
+    projectPathsVersion,
     writeFolderPath,
   }
 }
@@ -78,7 +78,7 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
 function projectDaemonStateSnapshot(snapshot: DaemonStateSnapshot): State {
   return projectSessionState({
     graph: snapshot.graph,
-    vault: snapshot.vault,
+    project: snapshot.project,
     folderTree: snapshot.folderTree,
     session: snapshot.session,
   })

@@ -3,7 +3,7 @@
  *
  * Four adversarial preconditions that the BF-348 decision rule must route
  * correctly. Each scenario is the vtd analogue of a graphd case (BF-342→348);
- * the differences are limited to the daemon kind, argv shape (`--vault`),
+ * the differences are limited to the daemon kind, argv shape (`--project`),
  * owner file (`vtd.owner.json`), and that VTD's spawn returns an
  * `authToken` field on the result.
  *
@@ -32,17 +32,17 @@ import { spawn } from 'node:child_process'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { UnsafeOwnerError } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
+import { ensureVtDaemonForProject } from './harness/nodeEnsureVtDaemonForProject.ts'
 import {
   FAKE_BIN,
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   deadPid,
   destroyHarness,
   fakeDaemonFingerprintFor,
   isProcessAlive,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   readPersistedOwner,
   spawnInnocentLongRunner,
   trackDaemonPid,
@@ -58,7 +58,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -77,7 +77,7 @@ describe.runIf(process.platform !== 'win32')(
         const stalePid = await deadPid()
         const staleNonce = 'stale-dead-pid-nonce-bf374'
 
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: stalePid,
           port: null,
           ownerNonce: staleNonce,
@@ -87,13 +87,13 @@ describe.runIf(process.platform !== 'win32')(
           // and we want the test to mirror what a real crashed daemon
           // would leave behind — a record whose recorded fingerprint
           // matches what vtd would have written for itself.
-          commandFingerprint: fakeDaemonFingerprintFor(harness.vault),
+          commandFingerprint: fakeDaemonFingerprintFor(harness.project),
         })
 
         const callCount = 100
         const results = await Promise.all(
           Array.from({ length: callCount }, () =>
-            ensureVtDaemonForVault(harness.vault, 'electron', {
+            ensureVtDaemonForProject(harness.project, 'electron', {
               bin: FAKE_BIN_COMMAND,
               timeoutMs: 10_000,
             }),
@@ -102,7 +102,7 @@ describe.runIf(process.platform !== 'win32')(
 
         // (1) The stale nonce/pid are gone — the on-disk record now
         // reflects the freshly reclaimed owner.
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         trackDaemonPid(harness, owner.pid)
         expect(owner.ownerNonce).not.toBe(staleNonce)
         expect(owner.pid).not.toBe(stalePid)
@@ -111,7 +111,7 @@ describe.runIf(process.platform !== 'win32')(
 
         // (2) Exactly ONE vtd child visible to ps. The dead pid was
         // never alive, so the count is the new daemon and nothing else.
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(1)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(1)
 
         // (3) All 100 callers converged on the same new owner.
         const ports = new Set(results.map((r) => r.port))
@@ -160,7 +160,7 @@ describe.runIf(process.platform !== 'win32')(
 
         const staleHeartbeat = Date.now() - 60_000
         const recordedNonce = 'stale-port-unbound-nonce'
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: innocentPid,
           port: unboundPort,
           ownerNonce: recordedNonce,
@@ -170,13 +170,13 @@ describe.runIf(process.platform !== 'win32')(
           // live process is `node -e setInterval(...)` so the kernel-
           // observed command differs and the branch is fingerprint-
           // mismatch.
-          commandFingerprint: fakeDaemonFingerprintFor(harness.vault),
+          commandFingerprint: fakeDaemonFingerprintFor(harness.project),
         })
 
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 2_000,
           }),
@@ -189,11 +189,11 @@ describe.runIf(process.platform !== 'win32')(
 
         // (2) NO new vtd child spawned. Unsafe-owner means refuse, do
         // not respawn.
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         // (3) Owner record on disk is untouched — reclaim was refused
         // safely; the operator's stale record is preserved for diagnosis.
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         expect(owner.pid).toBe(innocentPid)
         expect(owner.ownerNonce).toBe(recordedNonce)
         expect(owner.port).toBe(unboundPort)
@@ -212,7 +212,7 @@ describe.runIf(process.platform !== 'win32')(
         const servedNonce = 'served-by-fake'
         const recordedNonce = 'expected-nonce'
 
-        const fakeChild = spawnFakeVtd(harness.vault, {
+        const fakeChild = spawnFakeVtd(harness.project, {
           FAKE_VTD_HEALTH_OWNER_NONCE: servedNonce,
         })
         trackSpawn(harness, fakeChild)
@@ -221,23 +221,23 @@ describe.runIf(process.platform !== 'win32')(
         // Wait until the real fake-vtd has bound a port — it does this
         // by atomic-replacing the owner record with a non-null port. We
         // poll the on-disk record until port is set.
-        const realRecord = await waitForBoundPort(harness.vault, 5_000)
+        const realRecord = await waitForBoundPort(harness.project, 5_000)
         trackDaemonPid(harness, realRecord.pid)
 
         // Now OVERWRITE the owner record so it advertises the right
         // port but a different nonce. The protocol will probe /health
         // (since port is set), observe a verified body whose nonce
         // mismatches → unsafe-owner.
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: realRecord.pid,
           port: realRecord.port,
           ownerNonce: recordedNonce,
           heartbeatAtMs: Date.now(),
-          commandFingerprint: fakeDaemonFingerprintFor(harness.vault),
+          commandFingerprint: fakeDaemonFingerprintFor(harness.project),
         })
 
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 2_000,
           }),
@@ -247,7 +247,7 @@ describe.runIf(process.platform !== 'win32')(
         expect(isProcessAlive(realRecord.pid)).toBe(true)
 
         // Owner record is unchanged (the recorded nonce we wrote).
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         expect(owner.ownerNonce).toBe(recordedNonce)
       },
       15_000,
@@ -258,9 +258,9 @@ describe.runIf(process.platform !== 'win32')(
       async () => {
         // Bring up a fake-vtd with an enormous startup delay so it
         // claims the owner record then hangs BEFORE binding the HTTP
-        // port. The live process IS a real `node fake-vtd.mjs --vault X`
+        // port. The live process IS a real `node fake-vtd.mjs --project X`
         // — its command fingerprint matches `fakeDaemonFingerprintFor`.
-        const hungChild = spawnFakeVtd(harness.vault, {
+        const hungChild = spawnFakeVtd(harness.project, {
           FAKE_VTD_STARTUP_DELAY_MS: '600000',
         })
         trackSpawn(harness, hungChild)
@@ -268,7 +268,7 @@ describe.runIf(process.platform !== 'win32')(
 
         // Wait until the hung fake-vtd has written its initial port-null
         // record. We DON'T wait for a bound port (it never binds).
-        const initial = await waitForOwnerRecord(harness.vault, 5_000)
+        const initial = await waitForOwnerRecord(harness.project, 5_000)
         const hungPid = initial.pid
         expect(hungPid).toBe(hungChild.pid)
         const initialNonce = initial.ownerNonce
@@ -279,21 +279,21 @@ describe.runIf(process.platform !== 'win32')(
         //   pid alive + health unprobed (port=null) + heartbeat stale
         //   + fingerprintMatch === 'match' → stale-reclaim:stale-heartbeat
         const staleHeartbeat = Date.now() - 60_000
-        await writeOwnerRecord(harness.vault, {
+        await writeOwnerRecord(harness.project, {
           pid: hungPid,
           port: null,
           ownerNonce: initialNonce,
           heartbeatAtMs: staleHeartbeat,
           startedAtMs: staleHeartbeat,
-          commandFingerprint: fakeDaemonFingerprintFor(harness.vault),
+          commandFingerprint: fakeDaemonFingerprintFor(harness.project),
         })
 
-        // Confirm exactly one vtd-shaped process for this vault before
+        // Confirm exactly one vtd-shaped process for this project before
         // ensure runs (the hung fake-vtd itself).
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(1)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(1)
 
-        const result = await ensureVtDaemonForVault(
-          harness.vault,
+        const result = await ensureVtDaemonForProject(
+          harness.project,
           'electron',
           {
             bin: FAKE_BIN_COMMAND,
@@ -314,13 +314,13 @@ describe.runIf(process.platform !== 'win32')(
         expect(isProcessAlive(hungPid)).toBe(false)
 
         // (3) Owner record reflects the new daemon.
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         expect(owner.pid).toBe(result.pid)
         expect(owner.port).toBe(result.port)
         expect(owner.ownerNonce).toBe(result.ownerNonce)
 
         // (4) Exactly ONE vtd child visible to ps (the fresh one).
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(1)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(1)
       },
       30_000,
     )
@@ -332,10 +332,10 @@ describe.runIf(process.platform !== 'win32')(
 import { createServer } from 'node:http'
 
 function spawnFakeVtd(
-  vault: string,
+  project: string,
   env: Record<string, string>,
 ): ReturnType<typeof spawn> {
-  return spawn(process.execPath, [FAKE_BIN, '--vault', vault], {
+  return spawn(process.execPath, [FAKE_BIN, '--project', project], {
     stdio: 'ignore',
     env: { ...process.env, ...env },
     detached: false,
@@ -361,15 +361,15 @@ async function reservePortAndRelease(): Promise<number> {
   return port
 }
 
-/** Poll until `<vault>/.voicetree/vtd.owner.json` exists. */
+/** Poll until `<project>/.voicetree/vtd.owner.json` exists. */
 async function waitForOwnerRecord(
-  vault: string,
+  project: string,
   timeoutMs: number,
 ): Promise<{ pid: number; port: number | null; ownerNonce: string }> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
-      const owner = await readPersistedOwner(vault)
+      const owner = await readPersistedOwner(project)
       return {
         pid: owner.pid,
         port: owner.port,
@@ -385,13 +385,13 @@ async function waitForOwnerRecord(
 
 /** Poll until the on-disk record carries a non-null port. */
 async function waitForBoundPort(
-  vault: string,
+  project: string,
   timeoutMs: number,
 ): Promise<{ pid: number; port: number; ownerNonce: string }> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
-      const owner = await readPersistedOwner(vault)
+      const owner = await readPersistedOwner(project)
       if (owner.port !== null) {
         return {
           pid: owner.pid,

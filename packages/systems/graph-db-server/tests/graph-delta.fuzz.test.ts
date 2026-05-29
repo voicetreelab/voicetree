@@ -142,11 +142,11 @@ function assertEdgeConsistency(graph: GraphBody, ctx: string): void {
 }
 
 async function assertNoOrphanFiles(
-  vault: string,
+  project: string,
   graph: GraphBody,
   ctx: string,
 ): Promise<void> {
-  const markdownFiles = await listMarkdownFiles(vault)
+  const markdownFiles = await listMarkdownFiles(project)
   const nodeIds = Object.keys(graph.nodes).sort()
   expect(markdownFiles, `[${ctx}] markdown files must correspond to graph nodes`).toEqual(nodeIds)
 }
@@ -187,13 +187,13 @@ async function assertNodeDeleted(
 
 describe('graph delta HTTP API fuzz test', () => {
   let root: string
-  let vault: string
+  let project: string
   let handle: DaemonHandle | null
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphd-delta-fuzz-'))
-    vault = path.join(root, 'vault')
-    await mkdir(vault, { recursive: true })
+    project = path.join(root, 'project')
+    await mkdir(project, { recursive: true })
     handle = null
   })
 
@@ -204,8 +204,8 @@ describe('graph delta HTTP API fuzz test', () => {
 
   it('preserves graph, markdown, and edge invariants across random delta sequences', { timeout: 60_000 }, async () => {
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
     })
     const baseUrl = `http://127.0.0.1:${handle.port}`
     const seed = 0xA11CE5
@@ -234,7 +234,7 @@ describe('graph delta HTTP API fuzz test', () => {
             ] as const)
 
         if (operation === 'create') {
-          const nodePath = path.join(vault, `fuzz-${nextNodeSeq++}.md`)
+          const nodePath = path.join(project, `fuzz-${nextNodeSeq++}.md`)
           const node = makeNode(
             nodePath,
             `# Fuzz ${nextNodeSeq}\n\nCreated in ${ctx}.\n`,
@@ -248,7 +248,7 @@ describe('graph delta HTTP API fuzz test', () => {
           expectedNodes.set(nodePath, node)
 
           const graph = await assertNodeMaterialized(baseUrl, node, ctx)
-          await assertNoOrphanFiles(vault, graph, ctx)
+          await assertNoOrphanFiles(project, graph, ctx)
           continue
         }
 
@@ -269,7 +269,7 @@ describe('graph delta HTTP API fuzz test', () => {
           expectedNodes.set(nodePath, node)
 
           const graph = await assertNodeMaterialized(baseUrl, node, ctx)
-          await assertNoOrphanFiles(vault, graph, ctx)
+          await assertNoOrphanFiles(project, graph, ctx)
           continue
         }
 
@@ -283,7 +283,7 @@ describe('graph delta HTTP API fuzz test', () => {
           expectedNodes.delete(nodePath)
 
           const graph = await assertNodeDeleted(baseUrl, nodePath, ctx)
-          await assertNoOrphanFiles(vault, graph, ctx)
+          await assertNoOrphanFiles(project, graph, ctx)
           continue
         }
 
@@ -328,13 +328,13 @@ describe('graph delta HTTP API fuzz test', () => {
 
           const graph = await getGraph(baseUrl)
           assertEdgeConsistency(graph, ctx)
-          await assertNoOrphanFiles(vault, graph, ctx)
+          await assertNoOrphanFiles(project, graph, ctx)
           continue
         }
 
         const graph = await getGraph(baseUrl)
         assertEdgeConsistency(graph, ctx)
-        await assertNoOrphanFiles(vault, graph, ctx)
+        await assertNoOrphanFiles(project, graph, ctx)
       }
     }
   })

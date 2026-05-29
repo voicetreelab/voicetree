@@ -24,7 +24,7 @@ import type { Command } from '@vt/graph-state'
 
 import { applyLiveCommand } from '@/shell/edge/main/runtime/state/live-state-store'
 import {
-    __setBoundVaultForTests,
+    __setBoundProjectForTests,
 } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import { setMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
@@ -139,30 +139,30 @@ function installRendererStub(): RendererStubHandle {
 }
 
 describe('BF-380 — Main applyLiveCommand dispatches via JSON-RPC to the daemon', (): void => {
-    let vault: string
+    let project: string
     let daemon: DaemonStub
     let renderer: RendererStubHandle
 
     beforeAll(async (): Promise<void> => {
-        vault = await mkdtemp(join(tmpdir(), 'bf380-rpc-'))
-        await mkdir(join(vault, '.voicetree'), { recursive: true })
-        await writeFile(join(vault, '.voicetree', 'auth-token'), 'test-bearer-token', { mode: 0o600 })
+        project = await mkdtemp(join(tmpdir(), 'bf380-rpc-'))
+        await mkdir(join(project, '.voicetree'), { recursive: true })
+        await writeFile(join(project, '.voicetree', 'auth-token'), 'test-bearer-token', { mode: 0o600 })
     })
 
     afterAll(async (): Promise<void> => {
-        await rm(vault, { recursive: true, force: true })
+        await rm(project, { recursive: true, force: true })
     })
 
     beforeEach(async (): Promise<void> => {
         daemon = await startDaemonStub()
-        await writeFile(join(vault, '.voicetree', 'rpc.port'), `${daemon.port}\n`)
-        __setBoundVaultForTests(vault)
+        await writeFile(join(project, '.voicetree', 'rpc.port'), `${daemon.port}\n`)
+        __setBoundProjectForTests(project)
         renderer = installRendererStub()
     })
 
     afterEach(async (): Promise<void> => {
         renderer.detach()
-        __setBoundVaultForTests(null)
+        __setBoundProjectForTests(null)
         await daemon.close()
     })
 
@@ -226,10 +226,10 @@ describe('BF-380 — Main applyLiveCommand dispatches via JSON-RPC to the daemon
         expect(delta.selectionAdded).toEqual(['/a.md'])
     })
 
-    it('rejects when no vault is bound', async (): Promise<void> => {
-        __setBoundVaultForTests(null)
+    it('rejects when no project is bound', async (): Promise<void> => {
+        __setBoundProjectForTests(null)
         await expect(applyLiveCommand({ type: 'Move', id: '/x.md', to: { x: 1, y: 1 } }))
-            .rejects.toThrow(/no vault is bound/)
+            .rejects.toThrow(/no project is bound/)
         expect(daemon.receivedCalls).toHaveLength(0)
     })
 })

@@ -13,9 +13,9 @@ YOU ARE GRADED ON 4 pillars:
 
 Your task is to
 1. Decompose the task/problem into a subtask dependency graph. Sketch this out first with ascii diagrams.
-2. Add this subtask dependency graph to our markdown graph. Write one markdown file per subtask under `$VOICETREE_VAULT_PATH`, each child's body linking to its parent via `[[parent-basename]]` wikilinks, then run `vt graph create <path-a.md> <path-b.md> ...` to register them.
+2. Add this subtask dependency graph to our markdown graph. Write one markdown file per subtask under `$VOICETREE_PROJECT_PATH`, each child's body linking to its parent via `[[parent-basename]]` wikilinks, then run `vt graph create <path-a.md> <path-b.md> ...` to register them.
 
-Subtask nodes follow the template at `$VOICETREE_APP_SUPPORT/tools/prompts/SUBAGENT_PROMPT.md`.
+Subtask nodes follow the template at `$VOICETREE_VOICETREE_HOME/tools/prompts/SUBAGENT_PROMPT.md`.
 
 ## Overview
 
@@ -56,7 +56,7 @@ title: bob_implement_feature (3_1)
 ```
 
 ```bash
-vt graph create "$VOICETREE_VAULT_PATH/bob_implement_feature.md"
+vt graph create "$VOICETREE_PROJECT_PATH/bob_implement_feature.md"
 ```
 
 When the subagent is spawned on this node, they inherit the green color for all their progress nodes.
@@ -86,13 +86,13 @@ Here's where it fits: [minimal tree view]"
 
 Always ask subagents to update markdown checkboxes tracking their progress.
 
-REMEMBER: save state of tasks WITHIN THE VOICETREE markdown files in `$VOICETREE_VAULT_PATH` (specifically in the directory of the source note you are working from). Tell your subagents to do the same.
+REMEMBER: save state of tasks WITHIN THE VOICETREE markdown files in `$VOICETREE_PROJECT_PATH` (specifically in the directory of the source note you are working from). Tell your subagents to do the same.
 
 ## Best Practices for Multi-Subagent Development
 
 1. **Color Coding**: Assign unique colors to visualize each subagent's contributions.
 2. **Clear Boundaries**: Define exactly which files/modules each subagent can modify.
-3. **Shared Documentation**: Keep task tracking in the shared markdown vault.
+3. **Shared Documentation**: Keep task tracking in the shared markdown project.
 4. **Module Contracts**: Define interfaces before parallel development begins.
 
 ## Example Workflow for Creating Subagent Tasks
@@ -101,7 +101,7 @@ The orchestrator creates one subtask file per agent and registers them with `vt 
 
 ```bash
 # Write Bob's subtask file (agent Bob, color green)
-cat > "$VOICETREE_VAULT_PATH/bob_implement_auth.md" <<EOF
+cat > "$VOICETREE_PROJECT_PATH/bob_implement_auth.md" <<EOF
 ---
 color: green
 agent_name: Bob
@@ -109,7 +109,7 @@ agent_name: Bob
 
 # Bob — Implement auth
 
-[[$VOICETREE_VAULT_PATH/$VOICETREE_SOURCE_NOTE]]
+[[$VOICETREE_PROJECT_PATH/$VOICETREE_SOURCE_NOTE]]
 
 $(cat "$USER_ROOT_DIR/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md" \
   | sed 's/{task_path}/current_task_path/g' \
@@ -118,7 +118,7 @@ $(cat "$USER_ROOT_DIR/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md" \
 EOF
 
 # Write Alice's subtask file (agent Alice, color blue) — similar pattern.
-cat > "$VOICETREE_VAULT_PATH/alice_create_tests.md" <<EOF
+cat > "$VOICETREE_PROJECT_PATH/alice_create_tests.md" <<EOF
 ---
 color: blue
 agent_name: Alice
@@ -129,8 +129,8 @@ EOF
 # Register all subtask nodes in a single call. The CLI walks the file frontmatter
 # and the body's [[parent]] wikilinks to wire up the graph.
 vt graph create \
-  "$VOICETREE_VAULT_PATH/bob_implement_auth.md" \
-  "$VOICETREE_VAULT_PATH/alice_create_tests.md"
+  "$VOICETREE_PROJECT_PATH/bob_implement_auth.md" \
+  "$VOICETREE_PROJECT_PATH/alice_create_tests.md"
 ```
 
 When subagents are spawned on these nodes:

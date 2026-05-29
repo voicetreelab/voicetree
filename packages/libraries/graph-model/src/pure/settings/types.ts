@@ -139,12 +139,12 @@ export interface VTSettings {
 }
 
 /**
- * Per-folder vault configuration for multi-vault support.
+ * Per-folder project configuration for multi-project support.
  *
- * writeFolderPath: The main vault (read + write). Can be relative to projectRoot or absolute.
+ * writeFolderPath: The main project (read + write). Can be relative to projectRoot or absolute.
  */
-export interface VaultConfig {
-    /** Main vault path where new nodes are created. Can be relative or absolute. */
+export interface ProjectConfig {
+    /** Main project path where new nodes are created. Can be relative or absolute. */
     readonly writeFolderPath: string;
     /** Compatibility read paths for older app builds; current active-view state is authoritative. */
     readonly readPaths?: readonly string[];
@@ -155,6 +155,6 @@ export interface VaultConfig {
  */
 export interface VoiceTreeConfig {
     readonly lastDirectory?: string;
-    /** Per-folder vault configuration for multi-vault support */
-    readonly vaultConfig?: { readonly [folderPath: string]: VaultConfig };
+    /** Per-folder project configuration for multi-project support */
+    readonly projectConfig?: { readonly [folderPath: string]: ProjectConfig };
 }

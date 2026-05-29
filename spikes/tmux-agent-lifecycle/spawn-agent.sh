@@ -22,8 +22,8 @@ fi
 
 agent_name="$1"
 prompt="${2:-}"
-vault_dir="${VAULT_DIR:-./test-vault}"
-terminal_dir="$vault_dir/.voicetree/terminals"
+project_dir="${PROJECT_DIR:-./test-project}"
+terminal_dir="$project_dir/.voicetree/terminals"
 log_file="$terminal_dir/$agent_name.log"
 metadata_file="$terminal_dir/$agent_name.json"
 session_name="vt-$agent_name"

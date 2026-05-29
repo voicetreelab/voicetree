@@ -11,7 +11,7 @@ import {
   LiveStateSnapshotSchema,
   SessionCreateResponseSchema,
   ShutdownResponseSchema,
-  VaultStateSchema,
+  ProjectStateSchema,
   readPortFile,
   startDaemon,
   type DaemonHandle,
@@ -23,21 +23,21 @@ import { addReadPath, makeNode, upsertDelta, waitFor } from './e2e-system-helper
 
 describe('@vt/graph-db-server system contract', () => {
   let root: string
-  let vault: string
+  let project: string
   let docs: string
   let handle: DaemonHandle | null
   let baseUrl: string
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphd-system-'))
-    vault = path.join(root, 'vault')
-    docs = path.join(vault, 'docs')
+    project = path.join(root, 'project')
+    docs = path.join(project, 'docs')
     await mkdir(docs, { recursive: true })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
       // Test owns the graph it creates — opt out of the daemon's first-run
       // starter-node side effect so layout.positions stays predictable.
       createStarterIfEmpty: false,
@@ -54,10 +54,10 @@ describe('@vt/graph-db-server system contract', () => {
   })
 
   describe('health endpoint', () => {
-    it('writes a port file matching the daemon port and reports the open vault', async () => {
-      expect(await readPortFile(vault)).toBe(handle!.port)
+    it('writes a port file matching the daemon port and reports the open project', async () => {
+      expect(await readPortFile(project)).toBe(handle!.port)
       const body = HealthResponseSchema.parse(await (await fetch(`${baseUrl}/health`)).json())
-      expect(body).toMatchObject({ vault, sessionCount: 0 })
+      expect(body).toMatchObject({ project, sessionCount: 0 })
     })
 
     it('reflects session count after a session is created', async () => {
@@ -67,16 +67,16 @@ describe('@vt/graph-db-server system contract', () => {
     })
   })
 
-  describe('vault endpoint', () => {
-    it('sets the write path and reflects it in /vault', async () => {
-      const res = await fetch(`${baseUrl}/vault/write-path`, {
+  describe('project endpoint', () => {
+    it('sets the write path and reflects it in /project', async () => {
+      const res = await fetch(`${baseUrl}/project/write-path`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ path: docs }),
       })
       expect(res.status).toBe(200)
-      const vaultState = VaultStateSchema.parse(await (await fetch(`${baseUrl}/vault`)).json())
-      expect(vaultState).toMatchObject({ projectRoot: vault, writeFolderPath: docs })
+      const projectState = ProjectStateSchema.parse(await (await fetch(`${baseUrl}/project`)).json())
+      expect(projectState).toMatchObject({ projectRoot: project, writeFolderPath: docs })
     })
   })
 
@@ -100,7 +100,7 @@ describe('@vt/graph-db-server system contract', () => {
     })
 
     it('creates a node from POST /graph/delta and writes it to disk', async () => {
-      const nodePath = path.join(vault, 'http-created.md')
+      const nodePath = path.join(project, 'http-created.md')
       const res = await fetch(`${baseUrl}/graph/delta`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -113,7 +113,7 @@ describe('@vt/graph-db-server system contract', () => {
     })
 
     it('deletes a node via DELETE /graph/node/:id and removes the file', async () => {
-      const nodePath = path.join(vault, 'to-delete.md')
+      const nodePath = path.join(project, 'to-delete.md')
       await fetch(`${baseUrl}/graph/delta`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -237,7 +237,7 @@ describe('@vt/graph-db-server system contract', () => {
         await (await fetch(`${baseUrl}/shutdown`, { method: 'POST' })).json(),
       )
       expect(shutdown).toEqual({ ok: true })
-      await waitFor(async () => ((await readPortFile(vault)) === null ? true : null))
+      await waitFor(async () => ((await readPortFile(project)) === null ? true : null))
       handle = null
     })
   })
@@ -248,7 +248,7 @@ describe('@vt/graph-db-server system contract', () => {
     })
 
     it('serves 30 concurrent layout updates on one session — all 200, session settles on a valid zoom', async () => {
-      const notePath = path.join(vault, 'race.md')
+      const notePath = path.join(project, 'race.md')
       await fetch(`${baseUrl}/graph/delta`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -347,7 +347,7 @@ describe('@vt/graph-db-server system contract', () => {
       const NODES = 200
       const delta: GraphDelta = Array.from({ length: NODES }, (_, i) => ({
         type: 'UpsertNode',
-        nodeToUpsert: makeNode(path.join(vault, `bulk-${i}.md`), `# bulk-${i}\n`),
+        nodeToUpsert: makeNode(path.join(project, `bulk-${i}.md`), `# bulk-${i}\n`),
         previousNode: O.none,
       }))
       const res = await fetch(`${baseUrl}/graph/delta`, {
@@ -358,7 +358,7 @@ describe('@vt/graph-db-server system contract', () => {
       expect(res.status).toBe(200)
       const graph = await (await fetch(`${baseUrl}/graph`)).json() as { nodes: Record<string, unknown> }
       for (let i = 0; i < NODES; i++) {
-        expect(graph.nodes[path.join(vault, `bulk-${i}.md`)]).toBeDefined()
+        expect(graph.nodes[path.join(project, `bulk-${i}.md`)]).toBeDefined()
       }
     })
 
@@ -399,7 +399,7 @@ describe('@vt/graph-db-server system contract', () => {
     // Idempotency cases covered in delete-node-idempotent.test.ts.
 
     it('returns 404 on session-scoped routes when the session does not exist', async () => {
-      const folderId = `${vault}/`
+      const folderId = `${project}/`
       const folderState = await fetch(
         `${baseUrl}/sessions/unknown-id/folder-state/${encodeURIComponent(folderId)}`,
         {
@@ -432,10 +432,10 @@ describe('@vt/graph-db-server system contract', () => {
     })
 
     it('returns 400 PATH_NOT_FOUND when setting a missing write path', async () => {
-      const res = await fetch(`${baseUrl}/vault/write-path`, {
+      const res = await fetch(`${baseUrl}/project/write-path`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path: path.join(vault, 'never-existed') }),
+        body: JSON.stringify({ path: path.join(project, 'never-existed') }),
       })
       expect(res.status).toBe(400)
       const body = (await res.json()) as { code: string }
@@ -444,13 +444,13 @@ describe('@vt/graph-db-server system contract', () => {
 
     it('rejects HTTP requests after /shutdown completes', async () => {
       await fetch(`${baseUrl}/shutdown`, { method: 'POST' })
-      await waitFor(async () => ((await readPortFile(vault)) === null ? true : null))
+      await waitFor(async () => ((await readPortFile(project)) === null ? true : null))
       handle = null
       await expect(fetch(`${baseUrl}/health`)).rejects.toBeInstanceOf(Error)
     })
 
     it('accepts /graph/delta without an X-Session-Id header — defaults to anonymous', async () => {
-      const notePath = path.join(vault, 'no-session.md')
+      const notePath = path.join(project, 'no-session.md')
       const res = await fetch(`${baseUrl}/graph/delta`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

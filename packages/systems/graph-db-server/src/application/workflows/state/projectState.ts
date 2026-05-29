@@ -3,7 +3,7 @@
  * each of its folders is in one of three states".
  *
  * Replaces the ~9 module-mutables previously scattered across
- * watch-folder-store, vaultLifecycle, watcherRebuild, and
+ * watch-folder-store, projectLifecycle, watcherRebuild, and
  * folderVisibilityResource with one encapsulated mutation point.
  *
  * Per design § D2, this is the intermediate step between "ten scattered lets"
@@ -47,13 +47,13 @@ export type ReadPathsListener = (watchPaths: readonly FilePath[]) => void;
 /**
  * Shape of an open project. Always carries a root; writeFolderPath is null only
  * during the brief window between `setProjectRoot` (root binding) and
- * `setWriteFolderPath` (writeFolderPath binding) in the legacy vault-open flow.
+ * `setWriteFolderPath` (writeFolderPath binding) in the legacy project-open flow.
  */
 export interface ProjectState {
     readonly root: FilePath | null;
     readonly writeFolderPath: FilePath | null;
     readonly version: number;
-    readonly vaultVersion: number;
+    readonly projectPathsVersion: number;
     readonly folders: ReadonlyMap<FilePath, FolderTreeState>;
     readonly watcher: FSWatcher | null;
     readonly cleanups: readonly (() => void)[];
@@ -78,7 +78,7 @@ export type BoundProject = ProjectState & {
  *
  * Per package-boundaries.test.ts scanner: this `let` counts as one
  * module-level mutable. By design, it replaces ~9 scattered lets / Sets /
- * arrays across watch-folder-store, vaultLifecycle, watcherRebuild, and
+ * arrays across watch-folder-store, projectLifecycle, watcherRebuild, and
  * folderVisibilityResource.
  */
 let projectState: ProjectState | null = null;
@@ -121,7 +121,7 @@ export function freshProject(root: FilePath | null = null): ProjectState {
         root,
         writeFolderPath: null,
         version: 0,
-        vaultVersion: 0,
+        projectPathsVersion: 0,
         folders: new Map(),
         watcher: null,
         cleanups: [],

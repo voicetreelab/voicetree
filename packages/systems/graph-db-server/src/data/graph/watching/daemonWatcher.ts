@@ -55,7 +55,7 @@ function waitForReady(watcher: FSWatcher): Promise<void> {
 }
 
 function buildWatcherOptions() {
-  // fsevents on macOS silently drops 'add' events for some vault paths
+  // fsevents on macOS silently drops 'add' events for some project paths
   // (reproduced deterministically: chokidar 3.6.0 + fsevents 2.3.3, dir under
   // ~/Voicetree/voicetree-…/voicetree-…/). Polling is the only reliable
   // backend in dev where this matters most for agent progress nodes.
@@ -72,8 +72,8 @@ function buildWatcherOptions() {
     // line 305 — the gate that decides whether to set up the macOS fsevents
     // listener at all), it must NOT use `path.extname()` as a "this is a file"
     // heuristic: `path.extname()` returns a non-empty string for any directory
-    // whose basename contains a dot (e.g. `mktemp -d /tmp/vt-vault.XXXX`,
-    // user vaults like `My Vault.notes`, …). Treating such a directory as a
+    // whose basename contains a dot (e.g. `mktemp -d /tmp/vt-project.XXXX`,
+    // user projects like `My Project.notes`, …). Treating such a directory as a
     // file and ignoring it causes chokidar to skip the fsevents subscription
     // — which leaves `_readyCount` half-decremented, so `watcher.ready`
     // never resolves and any caller that awaits it (e.g. startDaemonWatcher)

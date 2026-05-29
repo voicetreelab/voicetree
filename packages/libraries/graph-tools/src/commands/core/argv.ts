@@ -3,7 +3,7 @@ import path from 'node:path'
 export type DebugTargetArgs = {
   port?: number
   pid?: number
-  vault?: string
+  project?: string
   forceNew?: boolean
 }
 
@@ -13,7 +13,7 @@ type ConsumeResult =
 
 type DebugTargetFlagOptions = {
   allowForceNew?: boolean
-  resolveVault?: boolean
+  resolveProject?: boolean
 }
 
 export function readFlagValue(flag: string, value: string | undefined): string {
@@ -61,14 +61,14 @@ export function consumeDebugTargetFlag(
     target.pid = parseIntegerFlag('--pid', arg.slice('--pid='.length))
     return { matched: true, nextIndex: index }
   }
-  if (arg === '--vault') {
-    const vault = readFlagValue('--vault', argv[index + 1])
-    target.vault = options.resolveVault ? path.resolve(vault) : vault
+  if (arg === '--project') {
+    const project = readFlagValue('--project', argv[index + 1])
+    target.project = options.resolveProject ? path.resolve(project) : project
     return { matched: true, nextIndex: index + 1 }
   }
-  if (arg.startsWith('--vault=')) {
-    const vault = readFlagValue('--vault', arg.slice('--vault='.length))
-    target.vault = options.resolveVault ? path.resolve(vault) : vault
+  if (arg.startsWith('--project=')) {
+    const project = readFlagValue('--project', arg.slice('--project='.length))
+    target.project = options.resolveProject ? path.resolve(project) : project
     return { matched: true, nextIndex: index }
   }
   if (options.allowForceNew && arg === '--new') {

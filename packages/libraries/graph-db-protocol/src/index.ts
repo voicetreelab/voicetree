@@ -8,7 +8,7 @@ export const CONTRACT_VERSION = '0.2.0'
 /**
  * Owner-identifying block surfaced by `/health`. Mirrors the seven fields
  * BF-343 must expose so a client can prove "is this the daemon I am allowed
- * to use?": canonical vault path, owner nonce, contract version, pid, ppid,
+ * to use?": canonical project path, owner nonce, contract version, pid, ppid,
  * bound port, schema version.
  *
  * This is the response-shape projection of OwnerRecord. The pure decision
@@ -17,7 +17,7 @@ export const CONTRACT_VERSION = '0.2.0'
  */
 export const HealthOwnerSchema = z.object({
   schemaVersion: z.literal(1),
-  canonicalVault: z.string().min(1),
+  canonicalProject: z.string().min(1),
   pid: z.number().int().positive(),
   ppid: z.number().int().nonnegative(),
   port: z.number().int().min(0).max(65535),
@@ -28,13 +28,13 @@ export type HealthOwner = z.infer<typeof HealthOwnerSchema>
 
 export const HealthResponseSchema = z.object({
   version: z.string(),
-  vault: z.string().nullable(),
+  project: z.string().nullable(),
   uptimeSeconds: z.number().nonnegative(),
   sessionCount: z.number().int().nonnegative(),
   /**
-   * Owner identity for the canonical vault this daemon serves. `null`
-   * during the vaultless startup window (no claim yet) and on legacy
-   * vaultless daemons (Electron's pre-BF-345 path).
+   * Owner identity for the canonical project this daemon serves. `null`
+   * during the projectless startup window (no claim yet) and on legacy
+   * projectless daemons (Electron's pre-BF-345 path).
    */
   owner: HealthOwnerSchema.nullable(),
 })
@@ -56,7 +56,7 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>
  */
 export const VtDaemonHealthOwnerSchema = z.object({
   schemaVersion: z.literal(1),
-  canonicalVault: z.string().min(1),
+  canonicalProject: z.string().min(1),
   pid: z.number().int().positive(),
   ppid: z.number().int().nonnegative(),
   port: z.number().int().min(0).max(65535),
@@ -67,7 +67,7 @@ export type VtDaemonHealthOwner = z.infer<typeof VtDaemonHealthOwnerSchema>
 
 export const VtDaemonHealthResponseSchema = z.object({
   version: z.string(),
-  vault: z.string().nullable(),
+  project: z.string().nullable(),
   uptimeSeconds: z.number().nonnegative(),
   /**
    * Discriminator. Tagged so a probe that asked for `'vtd'` cannot
@@ -77,7 +77,7 @@ export const VtDaemonHealthResponseSchema = z.object({
    */
   daemonKind: z.literal('vtd'),
   /**
-   * Owner identity. `null` during the vaultless startup window between
+   * Owner identity. `null` during the projectless startup window between
    * `claimVtDaemonOwner` and `ownerHandle.bindPort` (the handle's
    * `health()` getter returns `null` until the port is bound).
    */
@@ -260,28 +260,28 @@ export const LiveStateSnapshotSchema = z.object({
 })
 export type LiveStateSnapshot = z.infer<typeof LiveStateSnapshotSchema>
 
-export const VaultStateSchema = z.object({
+export const ProjectStateSchema = z.object({
   projectRoot: z.string(),
   readPaths: z.array(z.string()),
   writeFolderPath: z.string(),
 })
-export type VaultState = z.infer<typeof VaultStateSchema>
+export type ProjectState = z.infer<typeof ProjectStateSchema>
 
-export const OpenVaultRequestSchema = z.object({
+export const OpenProjectRequestSchema = z.object({
   path: z.string(),
   writeFolderPath: z.string().optional(),
 })
-export type OpenVaultRequest = z.infer<typeof OpenVaultRequestSchema>
+export type OpenProjectRequest = z.infer<typeof OpenProjectRequestSchema>
 
-export const OpenVaultResponseSchema = z.object({
+export const OpenProjectResponseSchema = z.object({
   sessionId: SessionIdSchema,
   writeFolderPath: z.string(),
-  vaultState: VaultStateSchema,
+  projectState: ProjectStateSchema,
   initialProjectedGraph: z.unknown(),
   folderState: z.array(FolderStateEntrySchema),
   activeView: ActiveViewSchema,
 })
-export type OpenVaultResponse = z.infer<typeof OpenVaultResponseSchema>
+export type OpenProjectResponse = z.infer<typeof OpenProjectResponseSchema>
 
 export const SetWriteFolderPathRequestSchema = z.object({
   path: z.string(),

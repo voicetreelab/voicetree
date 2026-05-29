@@ -24,26 +24,26 @@ class EndToEndTestLab:
             self.voicetree_root = Path("../../../..")
         else:
             self.voicetree_root = Path(voicetree_root)
-        self.test_vault_root = None
+        self.test_project_root = None
         self.test_results = []
         self.current_test = None
         
     def setup_test_environment(self):
-        """Create isolated test environment with temporary vault"""
+        """Create isolated test environment with temporary project"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.test_vault_root = self.voicetree_root / f"test_vault_{timestamp}"
-        self.test_vault_root.mkdir(exist_ok=True)
+        self.test_project_root = self.voicetree_root / f"test_project_{timestamp}"
+        self.test_project_root.mkdir(exist_ok=True)
         
         # Create test date directory
-        test_date_dir = self.test_vault_root / "2025-08-08"
+        test_date_dir = self.test_project_root / "2025-08-08"
         test_date_dir.mkdir(exist_ok=True)
         
         return test_date_dir
         
     def cleanup_test_environment(self):
         """Clean up test environment"""
-        if self.test_vault_root and self.test_vault_root.exists():
-            shutil.rmtree(self.test_vault_root)
+        if self.test_project_root and self.test_project_root.exists():
+            shutil.rmtree(self.test_project_root)
             
     def create_dummy_source_note(self, test_dir, test_name, content):
         """Create a dummy source note for testing"""
@@ -119,9 +119,9 @@ Parent:
         voicetree_root = current_file.parent.parent.parent.parent.parent  # Go up to VoiceTree root
         tools_dir = voicetree_root / "tools"
 
-        # Use absolute paths for vault and source note
-        env['OBSIDIAN_VAULT_PATH'] = str(self.test_vault_root.resolve())
-        env['OBSIDIAN_SOURCE_NOTE'] = str(source_note_path.relative_to(self.test_vault_root))
+        # Use absolute paths for project and source note
+        env['OBSIDIAN_PROJECT_PATH'] = str(self.test_project_root.resolve())
+        env['OBSIDIAN_SOURCE_NOTE'] = str(source_note_path.relative_to(self.test_project_root))
         env['VOICETREE_ROOT'] = str(voicetree_root)
         env['TOOLS_DIR'] = str(tools_dir)
             
@@ -148,7 +148,7 @@ Parent:
             cmd = ['bash', str(claude_sh_path)]
 
             print(f"Running agent via VoiceTree system: {cmd}")
-            print(f"  OBSIDIAN_VAULT_PATH: {env['OBSIDIAN_VAULT_PATH']}")
+            print(f"  OBSIDIAN_PROJECT_PATH: {env['OBSIDIAN_PROJECT_PATH']}")
             print(f"  OBSIDIAN_SOURCE_NOTE: {env['OBSIDIAN_SOURCE_NOTE']}")
 
             # Start hook injection thread if configured
@@ -299,7 +299,7 @@ Parent:
         # Always cleanup test environment unless DEBUG_TESTS env var is set
         debug_mode = os.environ.get('DEBUG_TESTS', 'false').lower() == 'true'
         if debug_mode and not success:
-            print(f"❗ Test vault preserved for debugging: {self.test_vault_root}")
+            print(f"❗ Test project preserved for debugging: {self.test_project_root}")
         else:
             self.cleanup_test_environment()
         print(f"Overall Result: {'✅ PASS' if success else '❌ FAIL'}")

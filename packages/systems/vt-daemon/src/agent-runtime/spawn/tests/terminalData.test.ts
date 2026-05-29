@@ -49,8 +49,8 @@ describe('prepareTerminalDataInMain', () => {
 
     it('does not fail when the freshly-created context node is not visible in the graph snapshot yet', async () => {
         const voicetreeHomePath = await mkdtemp(join(tmpdir(), 'vt-terminal-data-'))
-        const taskNodeId = '/vault/task.md' as NodeIdAndFilePath
-        const contextNodeId = '/vault/ctx-nodes/task-context.md' as NodeIdAndFilePath
+        const taskNodeId = '/project/task.md' as NodeIdAndFilePath
+        const contextNodeId = '/project/ctx-nodes/task-context.md' as NodeIdAndFilePath
 
         try {
             process.env.VOICETREE_HOME_PATH = voicetreeHomePath
@@ -58,11 +58,11 @@ describe('prepareTerminalDataInMain', () => {
                 env: {
                     getProjectRoot: async () => '/project',
                     getWriteFolderPath: async () => '/project/voicetree-25-5',
-                    getVaultPaths: async () => ['/project/voicetree-25-5'],
+                    getProjectPaths: async () => ['/project/voicetree-25-5'],
                 },
                 graph: {
                     getGraph: async () => graphWithOnlyTask(taskNodeId),
-                    getVaultPaths: async () => ['/project/voicetree-25-5'],
+                    getProjectPaths: async () => ['/project/voicetree-25-5'],
                     getWriteFolderPath: async () => O.some('/project/voicetree-25-5'),
                     getProjectRoot: async () => '/project',
                     getWatchStatus: async () => ({isWatching: false, directory: undefined}),

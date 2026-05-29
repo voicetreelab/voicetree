@@ -21,7 +21,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder-test-helpers';
 
@@ -70,8 +70,8 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-handle-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
-        // Folder note so HoverEditor can resolve /<vault>/auth/ → /<vault>/auth/index.md
+        const projectRoot = await createFolderTestProject(tempDir);
+        // Folder note so HoverEditor can resolve /<project>/auth/ → /<project>/auth/index.md
         await fs.writeFile(
             path.join(projectRoot, 'auth', 'index.md'),
             `---\nposition:\n  x: 50\n  y: 120\n---\n# Auth Folder Note\n\nThis is the folder note for the auth/ folder.\n`,
@@ -85,7 +85,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: { writeFolderPath: projectRoot, readPaths: [] },
             },
         }, null, 2), 'utf8');
@@ -93,7 +93,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-handle-test',
             path: projectRoot,
-            name: 'folder-handle-test-vault',
+            name: 'folder-handle-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true,
@@ -146,7 +146,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await window.locator('button:has-text("folder-handle-test-vault")').first().click();
+        await window.locator('button:has-text("folder-handle-test-project")').first().click();
 
         await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,

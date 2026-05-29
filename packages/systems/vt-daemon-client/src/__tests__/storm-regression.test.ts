@@ -2,9 +2,9 @@
  * BF-374 regression: VTD fork-storm.
  *
  * Sibling of `packages/systems/graph-db-client/src/__tests__/storm-regression.test.ts`
- * — same shape, mechanically lifted, swapping graphd-isms (`ensureGraphDaemonForVault`,
- * `--project-root`, `graphd.owner.json`) for vtd-isms (`ensureVtDaemonForVault`,
- * `--vault`, `vtd.owner.json`). BF-369 factored the orchestrator into a single
+ * — same shape, mechanically lifted, swapping graphd-isms (`ensureGraphDaemonForProject`,
+ * `--project-root`, `graphd.owner.json`) for vtd-isms (`ensureVtDaemonForProject`,
+ * `--project`, `vtd.owner.json`). BF-369 factored the orchestrator into a single
  * shared `attemptSpawnAndWait`, so both daemons inherit the same single-flight +
  * spawn-lock arbitration. This file asserts VTD's instantiation of that protocol
  * holds the same invariants the graphd regression locks in for graphd.
@@ -14,9 +14,9 @@
  * preventing spawns. The fork-storm assertion is observable iff we count
  * processes by command fingerprint via `ps` (Gotcha 2 of BF-348).
  *
- *  - Test A: 100 concurrent ensureVtDaemonForVault calls from one process →
+ *  - Test A: 100 concurrent ensureVtDaemonForProject calls from one process →
  *    exactly ONE vtd child visible to `ps`.
- *  - Test B: N concurrent ensureVtDaemonForVault calls each in a separate Node
+ *  - Test B: N concurrent ensureVtDaemonForProject calls each in a separate Node
  *    child → exactly ONE vtd child visible to `ps`, no caller shares in-process
  *    single-flight state — the cross-process spawn lock is what's under test.
  */
@@ -26,13 +26,13 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
+import { ensureVtDaemonForProject } from './harness/nodeEnsureVtDaemonForProject.ts'
 import {
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   destroyHarness,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   readPersistedOwner,
   trackDaemonPid,
   type Harness,
@@ -52,8 +52,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   // Belt-and-braces: any vtd child we missed gets SIGKILLed via
-  // listDaemonPidsForVault before the temp vault is removed.
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  // listDaemonPidsForProject before the temp project is removed.
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -67,13 +67,13 @@ describe.runIf(process.platform !== 'win32')(
   'BF-374 regression: VTD fork-storm',
   () => {
     test(
-      'in-process: 100 concurrent ensureVtDaemonForVault calls produce exactly one vtd child',
+      'in-process: 100 concurrent ensureVtDaemonForProject calls produce exactly one vtd child',
       async () => {
         const callCount = 100
 
         const results = await Promise.all(
           Array.from({ length: callCount }, () =>
-            ensureVtDaemonForVault(harness.vault, 'electron', {
+            ensureVtDaemonForProject(harness.project, 'electron', {
               bin: FAKE_BIN_COMMAND,
               timeoutMs: 10_000,
             }),
@@ -83,10 +83,10 @@ describe.runIf(process.platform !== 'win32')(
         // (1) Exactly ONE healthy owner record on disk — direct atomic-IO
         // read, decoded as a `daemonKind === 'vtd'` record (the harness's
         // `readPersistedOwner` enforces that discriminant).
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         trackDaemonPid(harness, owner.pid)
         expect(owner.port).not.toBeNull()
-        expect(owner.canonicalVault).toBe(resolve(harness.vault))
+        expect(owner.canonicalProject).toBe(resolve(harness.project))
         expect(owner.daemonKind).toBe('vtd')
 
         // (2) `/health` reports the matching ownerNonce and `daemonKind: 'vtd'`.
@@ -99,11 +99,11 @@ describe.runIf(process.platform !== 'win32')(
         expect(health.owner?.ownerNonce).toBe(owner.ownerNonce)
         expect(health.owner?.port).toBe(owner.port)
 
-        // (3) Exactly ONE vtd child process visible to ps for this vault.
+        // (3) Exactly ONE vtd child process visible to ps for this project.
         // This is the direct fork-storm assertion: a single-flight cache
         // could return identical pid/port to all 100 callers WITHOUT
         // actually preventing spawns, so we count by command fingerprint.
-        const liveDaemonCount = countDaemonProcessesForVault(harness.vault)
+        const liveDaemonCount = countDaemonProcessesForProject(harness.project)
         expect(liveDaemonCount).toBe(1)
 
         // (4) The 100 returned VtDaemonClients all bind to that one port,
@@ -128,7 +128,7 @@ describe.runIf(process.platform !== 'win32')(
           results.slice(0, 10).map((r) => r.client.health()),
         )
         for (const body of sampleHealth) {
-          expect(body.vault).toBe(resolve(harness.vault))
+          expect(body.project).toBe(resolve(harness.project))
           expect(body.owner?.ownerNonce).toBe(owner.ownerNonce)
           expect(body.owner?.port).toBe(owner.port)
           expect(body.daemonKind).toBe('vtd')
@@ -138,7 +138,7 @@ describe.runIf(process.platform !== 'win32')(
     )
 
     test(
-      'cross-process: N separate Node processes racing on the same vault produce exactly one vtd child',
+      'cross-process: N separate Node processes racing on the same project produce exactly one vtd child',
       async () => {
         // The in-process single-flight does not span Node processes; this
         // test exercises the filesystem spawn lock + claim arbitration.
@@ -150,7 +150,7 @@ describe.runIf(process.platform !== 'win32')(
         const childTimeoutMs = 12_000
 
         const children = Array.from({ length: processCount }, () =>
-          spawnEnsureChild(harness.vault, childTimeoutMs),
+          spawnEnsureChild(harness.project, childTimeoutMs),
         )
         const outcomes = await Promise.all(children.map(collectChildOutcome))
 
@@ -178,14 +178,14 @@ describe.runIf(process.platform !== 'win32')(
         expect(tokens.size).toBe(1)
 
         // (2) Exactly ONE owner record on disk.
-        const owner = await readPersistedOwner(harness.vault)
+        const owner = await readPersistedOwner(harness.project)
         trackDaemonPid(harness, owner.pid)
         expect(owner.pid).toBe([...pids][0])
         expect(owner.port).toBe([...ports][0])
         expect(owner.ownerNonce).toBe([...nonces][0])
 
-        // (3) Exactly ONE vtd child visible to ps for this vault.
-        const liveDaemonCount = countDaemonProcessesForVault(harness.vault)
+        // (3) Exactly ONE vtd child visible to ps for this project.
+        const liveDaemonCount = countDaemonProcessesForProject(harness.project)
         expect(liveDaemonCount).toBe(1)
 
         // (4) The cross-process invariant: at most ONE child reported
@@ -217,15 +217,15 @@ type ChildFailure = {
 
 type ChildOutcome = ChildSuccess | ChildFailure
 
-function spawnEnsureChild(vault: string, timeoutMs: number): ChildProcess {
+function spawnEnsureChild(project: string, timeoutMs: number): ChildProcess {
   return spawn(
     process.execPath,
     [
       '--import',
       TSX_LOADER,
       ENSURE_CHILD,
-      '--vault',
-      vault,
+      '--project',
+      project,
       '--bin',
       FAKE_BIN_COMMAND,
       '--timeoutMs',

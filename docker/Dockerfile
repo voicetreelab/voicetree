@@ -18,7 +18,7 @@ ARG WEBSOCKIFY_VERSION=0.12.0
 ENV DEBIAN_FRONTEND=noninteractive \
     DISPLAY=:99 \
     XDG_RUNTIME_DIR=/tmp/runtime-vt \
-    VOICETREE_VAULT=/home/vt/vault
+    VOICETREE_PROJECT=/home/vt/project
 
 # System dependencies: virtual X stack, Electron runtime libs, VNC, Node (for
 # agent CLIs that ship as npm packages), git, curl. libasound2t64 is the
@@ -55,7 +55,7 @@ RUN npm install -g @anthropic-ai/claude-code
 # it first to free the uid.
 RUN userdel -r ubuntu 2>/dev/null || true \
     && useradd --create-home --shell /bin/bash --uid 1000 vt \
-    && mkdir -p /home/vt/vault /home/vt/.config/claude "$XDG_RUNTIME_DIR" \
+    && mkdir -p /home/vt/project /home/vt/.config/claude "$XDG_RUNTIME_DIR" \
     && chown -R vt:vt /home/vt "$XDG_RUNTIME_DIR" \
     && chmod 700 "$XDG_RUNTIME_DIR"
 
@@ -93,7 +93,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/install-agents.sh
 
 USER vt
 WORKDIR /home/vt
-VOLUME ["/home/vt/vault", "/home/vt/.config/claude"]
+VOLUME ["/home/vt/project", "/home/vt/.config/claude"]
 EXPOSE 6080
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]

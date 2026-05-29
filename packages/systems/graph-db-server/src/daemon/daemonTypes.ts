@@ -14,7 +14,7 @@ export type DaemonLogger = {
 }
 
 export type StartDaemonOptions = {
-  vault?: string | null
+  project?: string | null
   port?: number
   logLevel?: 'info' | 'debug'
   voicetreeHomePath?: string
@@ -25,12 +25,12 @@ export type StartDaemonOptions = {
   // port-file delete). The bin sets this to process.exit(0); tests leave it
   // unset so vitest workers survive.
   onShutdownComplete?: () => void | Promise<void>
-  // When the vault is empty, auto-create a starter node so first-run UI users
+  // When the project is empty, auto-create a starter node so first-run UI users
   // see a non-empty graph. Defaults to true to preserve shell behavior; tests
   // pass false to keep their world pristine.
   createStarterIfEmpty?: boolean
   // Self-exit when the kernel reparents this daemon to PID 1 (parent died).
-  // Set by Electron's vaultless spawn so a crashed/jetsam-killed Electron
+  // Set by Electron's projectless spawn so a crashed/jetsam-killed Electron
   // doesn't leak orphaned daemons. Disabled by default because launchd-owned
   // daemons (e.g. the future LaunchAgent path) have ppid=1 from the start.
   exitOnParentDeath?: boolean
@@ -72,7 +72,7 @@ export function resolveDaemonLogger(opts: StartDaemonOptions): DaemonLogger {
 
 export function buildHealthResponse(
   version: string,
-  vault: string | null,
+  project: string | null,
   startMs: number,
   nowMs: number,
   sessionCount: number,
@@ -80,7 +80,7 @@ export function buildHealthResponse(
 ): HealthResponse {
   return {
     version,
-    vault,
+    project,
     uptimeSeconds: Math.floor((nowMs - startMs) / 1000),
     sessionCount,
     owner,

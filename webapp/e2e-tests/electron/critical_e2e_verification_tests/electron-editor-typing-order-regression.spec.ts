@@ -117,7 +117,7 @@ const test = base.extend<{
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: projectPath,
-        vaultConfig: {
+        projectConfig: {
           [projectPath]: {
             writeFolderPath,
             readPaths: [],
@@ -159,15 +159,15 @@ const test = base.extend<{
   appWindow: async ({ electronApp, projectPath }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
-    // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
+    // voicetree-config.json has lastDirectory set, so the app may auto-load the project
     // before the project selection screen is fully visible. Try detecting auto-load first.
     const openResult = await window.evaluate(async (dir) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const response = await api.main.openVault(dir);
+      const response = await api.main.openProject(dir);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
-    expect(openResult.writeFolderPath, 'openVault returned no writeFolderPath').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy();
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await pollForCondition(window, async () => {

@@ -5,10 +5,10 @@ import * as os from 'os';
 import * as path from 'path';
 import type { ExtendedWindow } from './types';
 import {
-  writeFileChangeReadVault,
-  writeInitialFileChangeVault,
-  writeInitialLinkedVault,
-  writeLinkedReadVault
+  writeFileChangeReadProject,
+  writeInitialFileChangeProject,
+  writeInitialLinkedProject,
+  writeLinkedReadProject
 } from './test-data';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -25,7 +25,7 @@ async function createTempDirectory(prefix: string): Promise<string> {
   return await fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }
 
-async function writeVaultConfig(
+async function writeProjectConfig(
   userDataPath: string,
   testDir: string,
   writeFolderPath: string,
@@ -36,7 +36,7 @@ async function writeVaultConfig(
     configPath,
     JSON.stringify({
       lastDirectory: testDir,
-      vaultConfig: {
+      projectConfig: {
         [testDir]: {
           writeFolderPath,
           readPaths
@@ -139,23 +139,23 @@ export const test = base.extend<LazyLoadingFixtures>({
   },
 
   writeFolderPath: async ({ testDir }, use) => {
-    const writeFolderPath = path.join(testDir, 'write-vault');
+    const writeFolderPath = path.join(testDir, 'write-project');
     await fs.mkdir(writeFolderPath, { recursive: true });
-    await writeInitialLinkedVault(writeFolderPath);
+    await writeInitialLinkedProject(writeFolderPath);
     await use(writeFolderPath);
   },
 
   readPath: async ({ testDir }, use) => {
-    const readPath = path.join(testDir, 'read-vault');
+    const readPath = path.join(testDir, 'read-project');
     await fs.mkdir(readPath, { recursive: true });
-    await writeLinkedReadVault(readPath);
+    await writeLinkedReadProject(readPath);
     await use(readPath);
   },
 
   electronApp: async ({ testDir, writeFolderPath }, use) => {
     const tempUserDataPath = await createTempDirectory('voicetree-lazy-load-userdata-');
 
-    await writeVaultConfig(tempUserDataPath, testDir, writeFolderPath, []);
+    await writeProjectConfig(tempUserDataPath, testDir, writeFolderPath, []);
     console.log('[Lazy Load Test] Config created for:', testDir);
 
     const electronApp = await launchElectronApp(tempUserDataPath);
@@ -189,23 +189,23 @@ export const testFileChange = base.extend<LazyLoadingFixtures>({
   },
 
   writeFolderPath: async ({ testDir }, use) => {
-    const writeFolderPath = path.join(testDir, 'write-vault');
+    const writeFolderPath = path.join(testDir, 'write-project');
     await fs.mkdir(writeFolderPath, { recursive: true });
-    await writeInitialFileChangeVault(writeFolderPath);
+    await writeInitialFileChangeProject(writeFolderPath);
     await use(writeFolderPath);
   },
 
   readPath: async ({ testDir }, use) => {
-    const readPath = path.join(testDir, 'read-vault');
+    const readPath = path.join(testDir, 'read-project');
     await fs.mkdir(readPath, { recursive: true });
-    await writeFileChangeReadVault(readPath);
+    await writeFileChangeReadProject(readPath);
     await use(readPath);
   },
 
   electronApp: async ({ testDir, writeFolderPath, readPath }, use) => {
     const tempUserDataPath = await createTempDirectory('voicetree-file-change-userdata-');
 
-    await writeVaultConfig(tempUserDataPath, testDir, writeFolderPath, [readPath]);
+    await writeProjectConfig(tempUserDataPath, testDir, writeFolderPath, [readPath]);
     console.log('[Test Setup] Config saved. testDir:', testDir, 'writeFolderPath:', writeFolderPath, 'readPath:', readPath);
 
     const electronApp = await launchElectronApp(tempUserDataPath);

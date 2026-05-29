@@ -44,9 +44,9 @@ export function restoreEnv(snap: Record<string, string | undefined>): void {
 
 // ── fixture serialized state ───────────────────────────────────────────────
 
-export const VAULT_ROOT: string = '/tmp/project'
-export const SAMPLE_NODE: string = `${VAULT_ROOT}/sample.md`
-export const TASKS_FOLDER: string = `${VAULT_ROOT}/tasks/`
+export const PROJECT_ROOT: string = '/tmp/project'
+export const SAMPLE_NODE: string = `${PROJECT_ROOT}/sample.md`
+export const TASKS_FOLDER: string = `${PROJECT_ROOT}/tasks/`
 
 export const FIXTURE_SERIALIZED_STATE = {
     graph: {
@@ -67,10 +67,10 @@ export const FIXTURE_SERIALIZED_STATE = {
         unresolvedLinksIndex: [],
     },
     roots: {
-        loaded: [VAULT_ROOT],
+        loaded: [PROJECT_ROOT],
         folderTree: [{
             name: 'project',
-            absolutePath: VAULT_ROOT,
+            absolutePath: PROJECT_ROOT,
             children: [],
             loadState: 'loaded' as const,
             isWriteTarget: true,

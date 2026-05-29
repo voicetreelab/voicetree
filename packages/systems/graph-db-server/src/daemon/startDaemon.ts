@@ -29,15 +29,15 @@ import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'
 import { deleteDaemonPortFile, writeDaemonPortFile } from './lifecycle/daemonPortLifecycle.ts'
 import {
-  closeVaultWorkflow,
-  configureVaultLifecycle,
-  openVaultWorkflow,
-  registerVaultResource,
-  resetVaultLifecycle,
-} from '../application/workflows/vaultLifecycle.ts'
+  closeProjectWorkflow,
+  configureProjectLifecycle,
+  openProjectWorkflow,
+  registerProjectResource,
+  resetProjectLifecycle,
+} from '../application/workflows/projectLifecycle.ts'
 import {
-  closeFolderVisibilityForVault,
-  openFolderVisibilityForVault,
+  closeFolderVisibilityForProject,
+  openFolderVisibilityForProject,
 } from '../data/views/folderVisibilityResource.ts'
 import { getProjectRoot } from '../state/watch-folder-store.ts'
 import {
@@ -80,12 +80,12 @@ async function cleanupOwnedDaemon(
     // RPCs in that window.
     await ownerHandle?.release()
     await resources.httpServer?.close()
-    await closeVaultWorkflow()
+    await closeProjectWorkflow()
   } finally {
     if (options.resetGraphState) {
       resetDaemonGraphState()
     }
-    resetVaultLifecycle()
+    resetProjectLifecycle()
     resetFolderTreeReadModel()
     await options.onShutdownComplete?.()
   }
@@ -93,7 +93,7 @@ async function cleanupOwnedDaemon(
 
 async function startOwnedDaemon(
   opts: StartDaemonOptions,
-  startupVault: string | null,
+  startupProject: string | null,
   startSpan: Span,
   ownerHandle: DaemonOwnerHandle | null,
 ): Promise<DaemonHandle> {
@@ -106,14 +106,14 @@ async function startOwnedDaemon(
     stopHeartbeat: () => {},
   }
   let watcher: DaemonWatcherController | null = null
-  let portFileVault: string | null = null
+  let portFileProject: string | null = null
   let assignedPort = 0
   let shuttingDown = false
   let stopped = false
 
   try {
     resetDaemonGraphState()
-    resetVaultLifecycle()
+    resetProjectLifecycle()
     resetFolderTreeReadModel()
     installFolderTreeReadModel(opts.folderTreeScanner)
     // Normalize VOICETREE_HOME_PATH so every leaf in this process reads
@@ -129,51 +129,51 @@ async function startOwnedDaemon(
       registry,
       opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
     )
-    configureVaultLifecycle({ registry })
-    registerVaultResource({
-      openForVault: openFolderVisibilityForVault,
-      closeForVault: closeFolderVisibilityForVault,
+    configureProjectLifecycle({ registry })
+    registerProjectResource({
+      openForProject: openFolderVisibilityForProject,
+      closeForProject: closeFolderVisibilityForProject,
     })
-    registerVaultResource({
-      async openForVault(): Promise<void> {
-        // A fresh vault means previously cached roots are now irrelevant; clear
+    registerProjectResource({
+      async openForProject(): Promise<void> {
+        // A fresh project means previously cached roots are now irrelevant; clear
         // everything rather than try to scope by old vs new root.
         getFolderTreeReadModel().invalidate({ kind: 'all' })
       },
-      async closeForVault(): Promise<void> {
+      async closeForProject(): Promise<void> {
         getFolderTreeReadModel().invalidate({ kind: 'all' })
       },
     })
-    registerVaultResource({
-      async openForVault(projectRoot: string): Promise<void> {
+    registerProjectResource({
+      async openForProject(projectRoot: string): Promise<void> {
         await watcher?.stop()
         watcher = await startDaemonWatcher(projectRoot, logger)
       },
-      async closeForVault(): Promise<void> {
+      async closeForProject(): Promise<void> {
         await watcher?.stop()
         watcher = null
       },
     })
-    registerVaultResource({
-      async openForVault(): Promise<void> {},
-      async closeForVault(): Promise<void> {
+    registerProjectResource({
+      async openForProject(): Promise<void> {},
+      async closeForProject(): Promise<void> {
         registry.clear()
       },
     })
-    registerVaultResource({
-      async openForVault(projectRoot: string): Promise<void> {
-        if (portFileVault && portFileVault !== projectRoot) {
-          await deleteDaemonPortFile(portFileVault).catch(() => {})
+    registerProjectResource({
+      async openForProject(projectRoot: string): Promise<void> {
+        if (portFileProject && portFileProject !== projectRoot) {
+          await deleteDaemonPortFile(portFileProject).catch(() => {})
         }
         await writeDaemonPortFile(projectRoot, assignedPort)
-        portFileVault = projectRoot
+        portFileProject = projectRoot
       },
-      async closeForVault(): Promise<void> {
-        if (!portFileVault) {
+      async closeForProject(): Promise<void> {
+        if (!portFileProject) {
           return
         }
-        await deleteDaemonPortFile(portFileVault).catch(() => {})
-        portFileVault = null
+        await deleteDaemonPortFile(portFileProject).catch(() => {})
+        portFileProject = null
       },
     })
 
@@ -214,9 +214,9 @@ async function startOwnedDaemon(
       resources.stopHeartbeat = ownerHandle.startHeartbeat()
     }
 
-    if (startupVault) {
-      await openVaultWorkflow({
-        path: startupVault,
+    if (startupProject) {
+      await openProjectWorkflow({
+        path: startupProject,
         createStarterIfEmpty: opts.createStarterIfEmpty,
       })
       registry.clear()
@@ -276,15 +276,15 @@ export async function startDaemon(
     try {
       const logger = resolveDaemonLogger(opts)
       const clock = resolveDaemonClock(opts)
-      const startupVault = opts.vault ? resolve(opts.vault) : null
-      if (startupVault) {
-        startSpan.setAttribute('vault', startupVault)
-        await mkdir(getProjectDotVoicetreePath(startupVault), { recursive: true })
+      const startupProject = opts.project ? resolve(opts.project) : null
+      if (startupProject) {
+        startSpan.setAttribute('project', startupProject)
+        await mkdir(getProjectDotVoicetreePath(startupProject), { recursive: true })
       }
 
-      const ownerHandle = startupVault
+      const ownerHandle = startupProject
         ? await claimDaemonOwner({
-            canonicalVault: startupVault,
+            canonicalProject: startupProject,
             callerKind: 'cli',
             contractVersion: CONTRACT_VERSION,
             commandFingerprint: commandFingerprintForProcess(),
@@ -293,14 +293,14 @@ export async function startDaemon(
         : null
 
       try {
-        return await startOwnedDaemon(opts, startupVault, startSpan, ownerHandle)
+        return await startOwnedDaemon(opts, startupProject, startSpan, ownerHandle)
       } catch (err) {
         await ownerHandle?.release().catch(() => {})
         // Surface conflict errors so the bin / orchestrator can fail loudly
         // without silently overwriting a live owner; `logger` is used so the
         // CLI also has a human-readable line.
         logger.writeStderr(
-          `vt-graphd: startup failed for ${startupVault ?? '(vaultless)'}: ${(err as Error).message}\n`,
+          `vt-graphd: startup failed for ${startupProject ?? '(projectless)'}: ${(err as Error).message}\n`,
         )
         throw err
       }

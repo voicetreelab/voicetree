@@ -2,7 +2,7 @@ import path from 'node:path'
 import {GraphDbClient, readPortFile, type ViewResponse} from '@vt/graph-db-client'
 import {renderAutoView, renderGraphView, type ViewFormat} from '@vt/graph-tools/node'
 import {error, handleCliError} from '../cliDeps'
-import {resolveGraphVault} from './snapshot'
+import {resolveGraphProject} from './snapshot'
 
 export async function graphStructure(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
@@ -124,8 +124,8 @@ export async function graphStructure(terminalId: string | undefined, args: strin
 }
 
 async function viewViaDaemon(folderPath: string, budget: number, expandIds: string[]): Promise<string> {
-    const vault: string = resolveGraphVault(folderPath)
-    const daemonPort: number | null = await readPortFile(vault)
+    const project: string = resolveGraphProject(folderPath)
+    const daemonPort: number | null = await readPortFile(project)
 
     if (daemonPort !== null) {
         try {

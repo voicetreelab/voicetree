@@ -2,7 +2,7 @@
  * Real-deps integration test for the create_graph MCP tool (node creation).
  *
  * Drives the daemon-side `createGraphTool` directly against the real
- * agent-runtime registry, real `loadSettings` (per-test temp app-support),
+ * agent-runtime registry, real `loadSettings` (per-test temp voicetree-home),
  * and a capturing GraphBridge. No vi.mock of @vt/agent-runtime — the
  * webapp-side relocated tests previously faked the runtime; this version
  * exercises the same path the running daemon does.
@@ -20,7 +20,7 @@ import {
     WRITE_FOLDER,
     buildGraph,
     buildGraphNode,
-    cleanupAppSupport,
+    cleanupVoicetreeHome,
     parsePayload,
     recordCaller,
     setupRealDeps,
@@ -29,16 +29,16 @@ import {
     type SuccessPayload,
 } from './__helpers__/addProgressNodeMcp.testHelpers'
 
-let appSupport: string
+let voicetreeHome: string
 let state: BridgeState
 let bridge: GraphBridge
 
 beforeEach(async () => {
-    ({appSupport, state, bridge} = await setupRealDeps())
+    ({voicetreeHome, state, bridge} = await setupRealDeps())
 })
 
 afterEach(async () => {
-    await cleanupAppSupport(appSupport)
+    await cleanupVoicetreeHome(voicetreeHome)
 })
 
 function findUpsert(delta: GraphDelta, predicate: (n: GraphNode) => boolean): GraphNode | undefined {
@@ -66,8 +66,8 @@ describe('MCP create_graph tool — node creation', () => {
         })
 
         it('uses agent color and name from caller terminal record', async () => {
-            await cleanupAppSupport(appSupport)
-            ;({appSupport, state, bridge} = await setupRealDeps({
+            await cleanupVoicetreeHome(voicetreeHome)
+            ;({voicetreeHome, state, bridge} = await setupRealDeps({
                 callerOptions: {agentName: 'my-agent', color: 'green'},
             }))
 
@@ -97,7 +97,7 @@ describe('MCP create_graph tool — node creation', () => {
         })
 
         it('creates a node in an absolute outputPath when it is within a loaded read path', async () => {
-            state.vaultPaths = [WRITE_FOLDER, READ_PATH]
+            state.projectPaths = [WRITE_FOLDER, READ_PATH]
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,

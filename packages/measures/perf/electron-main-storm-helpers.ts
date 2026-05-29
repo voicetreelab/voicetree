@@ -24,7 +24,7 @@ export const REPO_ROOT = resolve(__dirname, '..', '..', '..')
 export interface ElectronMainStormArgs {
     readonly agents: number
     readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
+    readonly projectSeedNodeCount: number
     readonly perAgentTimeoutMs: number
     readonly bootTimeoutMs: number
     readonly settleAfterStormMs: number
@@ -36,7 +36,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
     const defaults: ElectronMainStormArgs = {
         agents: 5,
         nodesPerAgent: 5,
-        vaultSeedNodeCount: 200,
+        projectSeedNodeCount: 200,
         perAgentTimeoutMs: 60_000,
         bootTimeoutMs: 60_000,
         settleAfterStormMs: 2_000,
@@ -45,7 +45,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
     }
     let agents = defaults.agents
     let nodesPerAgent = defaults.nodesPerAgent
-    let vaultSeedNodeCount = defaults.vaultSeedNodeCount
+    let projectSeedNodeCount = defaults.projectSeedNodeCount
     let perAgentTimeoutMs = defaults.perAgentTimeoutMs
     let bootTimeoutMs = defaults.bootTimeoutMs
     let settleAfterStormMs = defaults.settleAfterStormMs
@@ -63,7 +63,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
         switch (a) {
             case '--agents': agents = intArg(argv[++i], 'agents'); break
             case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
-            case '--vault-seed-nodes': vaultSeedNodeCount = intArg(argv[++i], 'vault-seed-nodes'); break
+            case '--project-seed-nodes': projectSeedNodeCount = intArg(argv[++i], 'project-seed-nodes'); break
             case '--per-agent-timeout-ms': perAgentTimeoutMs = intArg(argv[++i], 'per-agent-timeout-ms'); break
             case '--boot-timeout-ms': bootTimeoutMs = intArg(argv[++i], 'boot-timeout-ms'); break
             case '--settle-after-storm-ms': settleAfterStormMs = intArg(argv[++i], 'settle-after-storm-ms'); break
@@ -75,12 +75,12 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
                     'electron-main-storm.ts: profile Electron main CPU under an N-agent fake-agent storm.\n'
                     + '  --agents N                    parallel fake-agents (default 5)\n'
                     + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
-                    + '  --vault-seed-nodes N          seed-vault size (default 200)\n'
+                    + '  --project-seed-nodes N          seed-project size (default 200)\n'
                     + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
                     + '  --boot-timeout-ms MS          how long to wait for app boot + .mcp.json (default 60000)\n'
                     + '  --settle-after-storm-ms MS   keep profiling N ms after last agent exits (default 2000)\n'
                     + '  --out PATH                    .cpuprofile path (default ~/.voicetree/reports/electron-main-storm-<ts>.cpuprofile)\n'
-                    + '  --keep-artifacts              keep temp vault + userData after the run\n',
+                    + '  --keep-artifacts              keep temp project + userData after the run\n',
                 )
                 process.exit(0)
             default:
@@ -88,7 +88,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
         }
     }
     return {
-        agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs,
+        agents, nodesPerAgent, projectSeedNodeCount, perAgentTimeoutMs,
         bootTimeoutMs, settleAfterStormMs, outPath, keepArtifacts,
     }
 }
@@ -185,7 +185,7 @@ export async function spawnElectron(args: {
 }
 
 /**
- * Poll `<vault>/.mcp.json` for the voicetree MCP port. This file was written
+ * Poll `<project>/.mcp.json` for the voicetree MCP port. This file was written
  * by the electron app's in-process MCP server before the MCP→CLI cutover.
  *
  * WARNING (pre-existing damage, out of scope for this PR): the in-process MCP
@@ -195,8 +195,8 @@ export async function spawnElectron(args: {
  * post-cutover app. Migrating it requires rewriting the discovery handshake;
  * tracked as a follow-up.
  */
-export async function waitForMcpPort(vault: string, timeoutMs: number): Promise<number> {
-    const mcpPath = join(vault, '.mcp.json')
+export async function waitForMcpPort(project: string, timeoutMs: number): Promise<number> {
+    const mcpPath = join(project, '.mcp.json')
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
         if (existsSync(mcpPath)) {

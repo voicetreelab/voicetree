@@ -91,7 +91,7 @@ function importRunningRecord(metadata: TmuxTerminalMetadata, projectRoot: string
  *
  * `projectRoot` MUST be the value returned by `graph.getProjectRoot()` (i.e.
  * the canonical `.voicetree/` parent), NOT `writeFolderPath` or
- * `process.env.VOICETREE_PROJECT_PATH`. The two diverge whenever a vault is
+ * `process.env.VOICETREE_PROJECT_PATH`. The two diverge whenever a project is
  * loaded as a sub-directory of a project that already has its own
  * `.voicetree/` config — passing writeFolderPath used to cause this reconciler
  * to write to a directory that discovery never read from.

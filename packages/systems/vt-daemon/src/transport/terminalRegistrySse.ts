@@ -2,7 +2,7 @@
 // an HTTP text/event-stream channel. Mirrors `agentEventsSse.ts` but with
 // the terminal-registry wire envelope:
 //
-//   { kind: 'terminal-registry', seq, event: TerminalRegistryEvent, vault }
+//   { kind: 'terminal-registry', seq, event: TerminalRegistryEvent, project }
 //
 // The hub-side publish (see vt-daemon/bin/vtd.ts#buildPublishTerminalRegistryEvent)
 // stores each event under `event=<event.type>` and `data=<full TerminalRegistryEvent>`.
@@ -40,14 +40,14 @@ export interface TerminalRegistryEnvelope {
     readonly kind: 'terminal-registry'
     readonly seq: number
     readonly event: TerminalRegistryEvent
-    readonly vault: string
+    readonly project: string
 }
 
 export interface TerminalRegistryGapEnvelope {
     readonly kind: 'terminal-registry-gap'
     readonly fromSeq: number
     readonly currentSeq: number
-    readonly vault: string
+    readonly project: string
 }
 
 export type TerminalRegistryFrame =
@@ -79,7 +79,7 @@ export function matchTerminalRegistryPath(pathname: string): string | null {
 export function projectHubEventToTerminalRegistryEnvelope(
     seq: number,
     data: unknown,
-    vault: string,
+    project: string,
 ): TerminalRegistryEnvelope | null {
     if (typeof data !== 'object' || data === null) return null
     const d = data as Record<string, unknown>
@@ -89,7 +89,7 @@ export function projectHubEventToTerminalRegistryEnvelope(
         kind: 'terminal-registry',
         seq,
         event: data as TerminalRegistryEvent,
-        vault,
+        project,
     }
 }
 
@@ -104,7 +104,7 @@ export function encodeTerminalRegistrySseBlock(envelope: TerminalRegistryFrame):
 
 export interface TerminalRegistrySseOptions {
     readonly hub: EventSubscriptionHub
-    readonly canonicalVault: string
+    readonly canonicalProject: string
     readonly resumeSeq: number
 }
 
@@ -138,7 +138,7 @@ export function handleTerminalRegistrySse(
             const p = parsed as Record<string, unknown>
             if (p.type === 'event' && typeof p.seq === 'number') {
                 const envelope: TerminalRegistryEnvelope | null =
-                    projectHubEventToTerminalRegistryEnvelope(p.seq, p.data, options.canonicalVault)
+                    projectHubEventToTerminalRegistryEnvelope(p.seq, p.data, options.canonicalProject)
                 if (envelope) res.write(encodeTerminalRegistrySseBlock(envelope))
                 return
             }
@@ -147,7 +147,7 @@ export function handleTerminalRegistrySse(
                     kind: 'terminal-registry-gap',
                     fromSeq: p.fromSeq,
                     currentSeq: p.currentSeq,
-                    vault: options.canonicalVault,
+                    project: options.canonicalProject,
                 }
                 res.write(encodeTerminalRegistrySseBlock(gap))
                 return

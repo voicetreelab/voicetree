@@ -12,7 +12,7 @@ import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
 import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
-import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultNotOpen'
+import { ProjectNotOpenError } from '@vt/graph-db-server/application/errors/projectNotOpen'
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 import { markRecentDelta } from '@vt/graph-db-server/state/recent-deltas-store'
 
@@ -97,7 +97,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const appliedDelta = commitGraphDeltaMemState(prepared);
 
     // Persist newly-computed positions synchronously so they survive a daemon
-    // crash (without this, positions live only in memory until vault-switch /
+    // crash (without this, positions live only in memory until project-switch /
     // app-exit). Only fires when the resolver actually filled in at least one
     // position; user drags and unrelated updates take the no-op path.
     if (anyResolved) {
@@ -128,7 +128,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     const watchedDirectory: string = pipe(
         O.fromNullable(getProjectRoot()),
         O.getOrElseW(() => {
-            throw new VaultNotOpenError()
+            throw new ProjectNotOpenError()
         })
     )
 

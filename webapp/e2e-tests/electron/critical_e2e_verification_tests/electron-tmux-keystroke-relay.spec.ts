@@ -28,13 +28,13 @@ import { test } from './electron-anchor-test-fixtures';
 
 const KEYSTROKE_SETTLE_TIMEOUT_MS: number = 15_000;
 
-function tmuxCapturePane(sessionName: string, appSupportPath?: string): string {
+function tmuxCapturePane(sessionName: string, voicetreeHomePath?: string): string {
   try {
     return execFileSync(
       'tmux',
       tmuxCommandArgsForTest(
-        ['capture-pane', '-p', '-J', '-S', '-200', '-t', resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
-        appSupportPath,
+        ['capture-pane', '-p', '-J', '-S', '-200', '-t', resolveTmuxSessionNameForTest(sessionName, voicetreeHomePath)],
+        voicetreeHomePath,
       ),
       { encoding: 'utf8' },
     );
@@ -43,13 +43,13 @@ function tmuxCapturePane(sessionName: string, appSupportPath?: string): string {
   }
 }
 
-function tmuxSessionExists(sessionName: string, appSupportPath?: string): boolean {
+function tmuxSessionExists(sessionName: string, voicetreeHomePath?: string): boolean {
   try {
     execFileSync(
       'tmux',
       tmuxCommandArgsForTest(
-        ['has-session', '-t', resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
-        appSupportPath,
+        ['has-session', '-t', resolveTmuxSessionNameForTest(sessionName, voicetreeHomePath)],
+        voicetreeHomePath,
       ),
       { stdio: 'ignore' },
     );
@@ -59,13 +59,13 @@ function tmuxSessionExists(sessionName: string, appSupportPath?: string): boolea
   }
 }
 
-function killTmuxSession(sessionName: string, appSupportPath?: string): void {
+function killTmuxSession(sessionName: string, voicetreeHomePath?: string): void {
   try {
     execFileSync(
       'tmux',
       tmuxCommandArgsForTest(
-        ['kill-session', '-t', resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
-        appSupportPath,
+        ['kill-session', '-t', resolveTmuxSessionNameForTest(sessionName, voicetreeHomePath)],
+        voicetreeHomePath,
       ),
       { stdio: 'ignore' },
     );

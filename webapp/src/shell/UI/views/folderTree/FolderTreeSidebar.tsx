@@ -2,7 +2,7 @@
  * FolderTreeSidebar (React) - Hierarchical file tree sidebar
  *
  * Renders folder tree with load states, starred section, search, and hover actions.
- * Self-contained: subscribes to FolderTreeStore and VaultPathStore internally.
+ * Self-contained: subscribes to FolderTreeStore and ProjectPathStore internally.
  * Mounted/unmounted via createFolderTreeSidebar / disposeFolderTreeSidebar.
  *
  * Follows the same patterns as TerminalTreeSidebar.
@@ -23,10 +23,10 @@ import {
     type FolderTreeState,
 } from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import {
-    subscribeToVaultPaths,
-    getVaultState,
-    type VaultPathState,
-} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
+    subscribeToProjectPaths,
+    getProjectState,
+    type ProjectPathState,
+} from '@/shell/edge/UI-edge/state/stores/ProjectPathStore';
 import {
     getLatestProjectedGraph,
     subscribeLatestProjectedGraph,
@@ -47,8 +47,8 @@ function useFolderTreeState(): FolderTreeState {
     return useSyncExternalStore(subscribeFolderTree, getFolderTreeState);
 }
 
-function useVaultPathState(): VaultPathState {
-    return useSyncExternalStore(subscribeToVaultPaths, getVaultState);
+function useProjectPathState(): ProjectPathState {
+    return useSyncExternalStore(subscribeToProjectPaths, getProjectState);
 }
 
 function useLatestProjectedGraph(): ProjectedGraph | null {
@@ -285,7 +285,7 @@ interface SidebarInternalProps {
 // eslint-disable-next-line react-refresh/only-export-components
 function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Element | null {
     const folderState: FolderTreeState = useFolderTreeState();
-    const vaultState: VaultPathState = useVaultPathState();
+    const projectState: ProjectPathState = useProjectPathState();
     const latestProjectedGraph: ProjectedGraph | null = useLatestProjectedGraph();
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
@@ -366,10 +366,10 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
 
             {/* Starred Section */}
             <StarredSection
-                starredFolders={vaultState.starredFolders}
+                starredFolders={projectState.starredFolders}
                 starredFolderTrees={folderState.starredFolderTrees}
-                readPaths={vaultState.readPaths}
-                writeFolderPath={vaultState.writeFolderPath}
+                readPaths={projectState.readPaths}
+                writeFolderPath={projectState.writeFolderPath}
                 expandedPaths={folderState.expandedPaths}
                 onFileSelect={callbacks.onFileSelect}
                 onToggleExpand={toggleFolderExpanded}
@@ -426,7 +426,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
             {/* Footer */}
             <FooterSection
                 watchDirectory={watchDirectory}
-                readPaths={vaultState.readPaths}
+                readPaths={projectState.readPaths}
             />
 
             {/* Resize Handle */}

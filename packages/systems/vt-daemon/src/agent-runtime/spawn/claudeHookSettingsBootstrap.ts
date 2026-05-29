@@ -1,6 +1,6 @@
 /**
  * Edge helper: writes the static Claude Code hook-settings JSON to the
- * VoiceTree app-support dir on first call, returns the absolute path.
+ * VoiceTree voicetree-home dir on first call, returns the absolute path.
  *
  * Idempotent: the JSON is identical for every spawn, so subsequent calls
  * just confirm the file is on disk. Cheap enough to run per spawn — no

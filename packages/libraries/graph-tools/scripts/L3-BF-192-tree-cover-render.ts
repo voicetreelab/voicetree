@@ -13,8 +13,8 @@
  * and target labels, inside a single local tree fragment. No "jump to edge list" required.
  *
  * Usage:
- *   ./node_modules/.bin/vt-graph state dump <vault> --no-pretty --out /tmp/state.json
- *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-render.ts /tmp/state.json [<vault-root>] > /tmp/tree-cover.txt
+ *   ./node_modules/.bin/vt-graph state dump <project> --no-pretty --out /tmp/state.json
+ *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-render.ts /tmp/state.json [<project-root>] > /tmp/tree-cover.txt
  */
 
 import * as fs from 'node:fs'
@@ -54,8 +54,8 @@ function lcpOfIds(ids: readonly string[]): string {
     return lcp
 }
 
-function relId(absPath: string, vaultRoot: string): string {
-    return absPath.startsWith(vaultRoot + '/') ? absPath.slice(vaultRoot.length + 1) : absPath
+function relId(absPath: string, projectRoot: string): string {
+    return absPath.startsWith(projectRoot + '/') ? absPath.slice(projectRoot.length + 1) : absPath
 }
 
 // ── Arboricity: greedy forest decomposition (upper bound) ─────────────────────
@@ -233,10 +233,10 @@ type TreeNodeSpine = {
     readonly children: Map<string, TreeNodeSpine>
 }
 
-function buildFolderSpine(state: JsonState, vaultRoot: string): TreeNodeSpine {
-    const root: TreeNodeSpine = {kind: 'virtualFolder', name: path.basename(vaultRoot), absPath: vaultRoot, title: '', children: new Map()}
+function buildFolderSpine(state: JsonState, projectRoot: string): TreeNodeSpine {
+    const root: TreeNodeSpine = {kind: 'virtualFolder', name: path.basename(projectRoot), absPath: projectRoot, title: '', children: new Map()}
     for (const [absPath, node] of Object.entries(state.graph.nodes)) {
-        const rel: string = relId(absPath, vaultRoot)
+        const rel: string = relId(absPath, projectRoot)
         const segments: string[] = rel.split('/')
         let cur: TreeNodeSpine = root
         for (let i = 0; i < segments.length - 1; i++) {
@@ -245,7 +245,7 @@ function buildFolderSpine(state: JsonState, vaultRoot: string): TreeNodeSpine {
                 cur.children.set(name, {
                     kind: 'virtualFolder',
                     name,
-                    absPath: vaultRoot + '/' + segments.slice(0, i + 1).join('/'),
+                    absPath: projectRoot + '/' + segments.slice(0, i + 1).join('/'),
                     title: '',
                     children: new Map(),
                 })
@@ -259,14 +259,14 @@ function buildFolderSpine(state: JsonState, vaultRoot: string): TreeNodeSpine {
     return root
 }
 
-function renderSpine(root: TreeNodeSpine, vaultRoot: string): string {
+function renderSpine(root: TreeNodeSpine, projectRoot: string): string {
     const lines: string[] = []
     lines.push(`▢ ${root.name}/`)
-    renderSpineChildren(root, [], vaultRoot, lines)
+    renderSpineChildren(root, [], projectRoot, lines)
     return lines.join('\n')
 }
 
-function renderSpineChildren(node: TreeNodeSpine, indents: boolean[], vaultRoot: string, out: string[]): void {
+function renderSpineChildren(node: TreeNodeSpine, indents: boolean[], projectRoot: string, out: string[]): void {
     const kids: TreeNodeSpine[] = [...node.children.values()]
         .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'virtualFolder' ? -1 : 1))
     for (let i = 0; i < kids.length; i++) {
@@ -275,9 +275,9 @@ function renderSpineChildren(node: TreeNodeSpine, indents: boolean[], vaultRoot:
         const prefix: string = indents.map(p => p ? '│   ' : '    ').join('') + (isLast ? '└── ' : '├── ')
         if (kid.kind === 'virtualFolder') {
             out.push(`${prefix}▢ ${kid.name}/`)
-            renderSpineChildren(kid, [...indents, !isLast], vaultRoot, out)
+            renderSpineChildren(kid, [...indents, !isLast], projectRoot, out)
         } else {
-            const rel: string = relId(kid.absPath, vaultRoot)
+            const rel: string = relId(kid.absPath, projectRoot)
             out.push(`${prefix}· ${kid.title} @[${rel}]`)
         }
     }
@@ -291,7 +291,7 @@ type CoverForestRender = {
     readonly text: string
 }
 
-function renderCoverForest(index: number, forest: readonly DirectedEdge[], titleOf: Map<string, string>, vaultRoot: string): string {
+function renderCoverForest(index: number, forest: readonly DirectedEdge[], titleOf: Map<string, string>, projectRoot: string): string {
     // Group by source for co-located rendering: each unique source is a top-level ● block
     // with its outgoing edges from this forest as children.
     const bySource: Map<string, DirectedEdge[]> = new Map()
@@ -306,7 +306,7 @@ function renderCoverForest(index: number, forest: readonly DirectedEdge[], title
     lines.push(`═══ COVER FOREST ${index} (|E|=${forest.length}) ═══`)
     for (const src of sources) {
         const srcTitle: string = titleOf.get(src) ?? path.basename(src, '.md')
-        const srcRel: string = relId(src, vaultRoot)
+        const srcRel: string = relId(src, projectRoot)
         lines.push(`● ${srcTitle} @[${srcRel}]`)
         const outs: DirectedEdge[] = bySource.get(src)!
         for (let i = 0; i < outs.length; i++) {
@@ -314,7 +314,7 @@ function renderCoverForest(index: number, forest: readonly DirectedEdge[], title
             const isLast: boolean = i === outs.length - 1
             const prefix: string = isLast ? '└── ' : '├── '
             const tgtTitle: string = titleOf.get(e.tgt) ?? path.basename(e.tgt, '.md')
-            const tgtRel: string = relId(e.tgt, vaultRoot)
+            const tgtRel: string = relId(e.tgt, projectRoot)
             const labelPart: string = e.label ? ` [${e.label}]` : ''
             lines.push(`${prefix}⇢ ${tgtTitle} @[${tgtRel}]${labelPart}`)
         }
@@ -327,16 +327,16 @@ function renderCoverForest(index: number, forest: readonly DirectedEdge[], title
 
 function main(): void {
     const jsonPath: string | undefined = process.argv[2]
-    const vaultArg: string | undefined = process.argv[3]
+    const projectArg: string | undefined = process.argv[3]
     if (!jsonPath) {
-        console.error('Usage: L3-BF-192-tree-cover-render.ts <state.json> [<vault-root>]')
+        console.error('Usage: L3-BF-192-tree-cover-render.ts <state.json> [<project-root>]')
         process.exit(2)
     }
     const state: JsonState = JSON.parse(fs.readFileSync(jsonPath, 'utf8'))
     const ids: string[] = Object.keys(state.graph.nodes)
-    const vaultRoot: string = vaultArg ? path.resolve(vaultArg) : lcpOfIds(ids)
-    if (!vaultRoot) {
-        console.error('Could not infer vault root; pass explicitly as second arg.')
+    const projectRoot: string = projectArg ? path.resolve(projectArg) : lcpOfIds(ids)
+    if (!projectRoot) {
+        console.error('Could not infer project root; pass explicitly as second arg.')
         process.exit(2)
     }
 
@@ -366,7 +366,7 @@ function main(): void {
     // ─── Report ──────────────────────────────────────────────────
     const reportLines: string[] = []
     reportLines.push('═══ L3-BF-192 arboricity report ═══')
-    reportLines.push(`vault_root      : ${vaultRoot}`)
+    reportLines.push(`project_root      : ${projectRoot}`)
     reportLines.push(`nodes N         : ${N}`)
     reportLines.push(`edges E (directed, non-self): ${E}`)
     reportLines.push(`edges undirected (unique): ${E_undirected}`)
@@ -381,8 +381,8 @@ function main(): void {
     reportLines.push('')
 
     // ─── Rendering ───────────────────────────────────────────────
-    const spineText: string = renderSpine(buildFolderSpine(state, vaultRoot), vaultRoot)
-    const coverTexts: string[] = cover.forests.map((f, i) => renderCoverForest(i + 1, f, titleOf, vaultRoot))
+    const spineText: string = renderSpine(buildFolderSpine(state, projectRoot), projectRoot)
+    const coverTexts: string[] = cover.forests.map((f, i) => renderCoverForest(i + 1, f, titleOf, projectRoot))
 
     const out: string[] = []
     out.push(reportLines.join('\n'))

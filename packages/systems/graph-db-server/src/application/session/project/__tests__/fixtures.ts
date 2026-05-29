@@ -30,8 +30,8 @@ function makeNodeWithEdges(
 function makeGraph(): Graph {
   return {
     nodes: {
-      '/vault/docs/a.md': makeNode('/vault/docs/a.md', 'A', { x: 10, y: 20 }),
-      '/vault/docs/b.md': makeNode('/vault/docs/b.md', 'B'),
+      '/project/docs/a.md': makeNode('/project/docs/a.md', 'A', { x: 10, y: 20 }),
+      '/project/docs/b.md': makeNode('/project/docs/b.md', 'B'),
     },
     incomingEdgesIndex: new Map(),
     nodeByBaseName: new Map(),
@@ -41,28 +41,28 @@ function makeGraph(): Graph {
 
 function makeFolderTree(): FolderTreeNode {
   return {
-    name: 'vault',
-    absolutePath: toAbsolutePath('/vault'),
+    name: 'project',
+    absolutePath: toAbsolutePath('/project'),
     children: [
       {
         name: 'docs',
-        absolutePath: toAbsolutePath('/vault/docs'),
+        absolutePath: toAbsolutePath('/project/docs'),
         children: [
-          { name: 'a.md', absolutePath: toAbsolutePath('/vault/docs/a.md'), isInGraph: true },
-          { name: 'b.md', absolutePath: toAbsolutePath('/vault/docs/b.md'), isInGraph: true },
+          { name: 'a.md', absolutePath: toAbsolutePath('/project/docs/a.md'), isInGraph: true },
+          { name: 'b.md', absolutePath: toAbsolutePath('/project/docs/b.md'), isInGraph: true },
         ],
         loadState: 'loaded',
         isWriteTarget: false,
       },
       {
         name: 'node_modules',
-        absolutePath: toAbsolutePath('/vault/node_modules'),
+        absolutePath: toAbsolutePath('/project/node_modules'),
         children: [
           {
             name: 'dep',
-            absolutePath: toAbsolutePath('/vault/node_modules/dep'),
+            absolutePath: toAbsolutePath('/project/node_modules/dep'),
             children: [
-              { name: 'index.js', absolutePath: toAbsolutePath('/vault/node_modules/dep/index.js'), isInGraph: false },
+              { name: 'index.js', absolutePath: toAbsolutePath('/project/node_modules/dep/index.js'), isInGraph: false },
             ],
             loadState: 'not-loaded',
             isWriteTarget: false,
@@ -80,11 +80,11 @@ function makeFolderTree(): FolderTreeNode {
 function makeVisibilityGraph(): Graph {
   return {
     nodes: {
-      '/vault/root.md': makeNode('/vault/root.md', 'Root'),
-      '/vault/workspace/feature/leaf.md': makeNode('/vault/workspace/feature/leaf.md', 'Leaf'),
-      '/vault/public/target.md': makeNode('/vault/public/target.md', 'Target'),
-      '/vault/secret/new-link.md': makeNodeWithEdges('/vault/secret/new-link.md', [
-        { targetId: '/vault/public/target.md', label: 'public/target' },
+      '/project/root.md': makeNode('/project/root.md', 'Root'),
+      '/project/workspace/feature/leaf.md': makeNode('/project/workspace/feature/leaf.md', 'Leaf'),
+      '/project/public/target.md': makeNode('/project/public/target.md', 'Target'),
+      '/project/secret/new-link.md': makeNodeWithEdges('/project/secret/new-link.md', [
+        { targetId: '/project/public/target.md', label: 'public/target' },
       ]),
     },
     incomingEdgesIndex: new Map(),
@@ -95,37 +95,37 @@ function makeVisibilityGraph(): Graph {
 
 function makeVisibilityFolderTree(): FolderTreeNode {
   return {
-    name: 'vault',
-    absolutePath: toAbsolutePath('/vault'),
+    name: 'project',
+    absolutePath: toAbsolutePath('/project'),
     children: [
-      { name: 'root.md', absolutePath: toAbsolutePath('/vault/root.md'), isInGraph: true },
+      { name: 'root.md', absolutePath: toAbsolutePath('/project/root.md'), isInGraph: true },
       {
         name: 'public',
-        absolutePath: toAbsolutePath('/vault/public'),
+        absolutePath: toAbsolutePath('/project/public'),
         children: [
-          { name: 'target.md', absolutePath: toAbsolutePath('/vault/public/target.md'), isInGraph: true },
+          { name: 'target.md', absolutePath: toAbsolutePath('/project/public/target.md'), isInGraph: true },
         ],
         loadState: 'loaded',
         isWriteTarget: false,
       },
       {
         name: 'secret',
-        absolutePath: toAbsolutePath('/vault/secret'),
+        absolutePath: toAbsolutePath('/project/secret'),
         children: [
-          { name: 'new-link.md', absolutePath: toAbsolutePath('/vault/secret/new-link.md'), isInGraph: true },
+          { name: 'new-link.md', absolutePath: toAbsolutePath('/project/secret/new-link.md'), isInGraph: true },
         ],
         loadState: 'loaded',
         isWriteTarget: false,
       },
       {
         name: 'workspace',
-        absolutePath: toAbsolutePath('/vault/workspace'),
+        absolutePath: toAbsolutePath('/project/workspace'),
         children: [
           {
             name: 'feature',
-            absolutePath: toAbsolutePath('/vault/workspace/feature'),
+            absolutePath: toAbsolutePath('/project/workspace/feature'),
             children: [
-              { name: 'leaf.md', absolutePath: toAbsolutePath('/vault/workspace/feature/leaf.md'), isInGraph: true },
+              { name: 'leaf.md', absolutePath: toAbsolutePath('/project/workspace/feature/leaf.md'), isInGraph: true },
             ],
             loadState: 'loaded',
             isWriteTarget: false,
@@ -143,12 +143,12 @@ function makeVisibilityFolderTree(): FolderTreeNode {
 function makeDynamicMoveGraph(): Graph {
   return {
     nodes: {
-      '/vault/source.md': makeNodeWithEdges('/vault/source.md', [
-        { targetId: '/vault/archive/target.md', label: 'target' },
+      '/project/source.md': makeNodeWithEdges('/project/source.md', [
+        { targetId: '/project/archive/target.md', label: 'target' },
       ]),
-      '/vault/archive/target.md': makeNode('/vault/archive/target.md', 'Target'),
-      '/vault/docs/archive/target.md': makeNode('/vault/docs/archive/target.md', 'Nested target'),
-      '/vault/docs/direct.md': makeNode('/vault/docs/direct.md', 'Direct'),
+      '/project/archive/target.md': makeNode('/project/archive/target.md', 'Target'),
+      '/project/docs/archive/target.md': makeNode('/project/docs/archive/target.md', 'Nested target'),
+      '/project/docs/direct.md': makeNode('/project/docs/direct.md', 'Direct'),
     },
     incomingEdgesIndex: new Map(),
     nodeByBaseName: new Map(),
@@ -158,29 +158,29 @@ function makeDynamicMoveGraph(): Graph {
 
 function makeDynamicFolderTree(): FolderTreeNode {
   return {
-    name: 'vault',
-    absolutePath: toAbsolutePath('/vault'),
+    name: 'project',
+    absolutePath: toAbsolutePath('/project'),
     children: [
-      { name: 'source.md', absolutePath: toAbsolutePath('/vault/source.md'), isInGraph: true },
+      { name: 'source.md', absolutePath: toAbsolutePath('/project/source.md'), isInGraph: true },
       {
         name: 'archive',
-        absolutePath: toAbsolutePath('/vault/archive'),
+        absolutePath: toAbsolutePath('/project/archive'),
         children: [
-          { name: 'target.md', absolutePath: toAbsolutePath('/vault/archive/target.md'), isInGraph: true },
+          { name: 'target.md', absolutePath: toAbsolutePath('/project/archive/target.md'), isInGraph: true },
         ],
         loadState: 'loaded',
         isWriteTarget: false,
       },
       {
         name: 'docs',
-        absolutePath: toAbsolutePath('/vault/docs'),
+        absolutePath: toAbsolutePath('/project/docs'),
         children: [
-          { name: 'direct.md', absolutePath: toAbsolutePath('/vault/docs/direct.md'), isInGraph: true },
+          { name: 'direct.md', absolutePath: toAbsolutePath('/project/docs/direct.md'), isInGraph: true },
           {
             name: 'archive',
-            absolutePath: toAbsolutePath('/vault/docs/archive'),
+            absolutePath: toAbsolutePath('/project/docs/archive'),
             children: [
-              { name: 'target.md', absolutePath: toAbsolutePath('/vault/docs/archive/target.md'), isInGraph: true },
+              { name: 'target.md', absolutePath: toAbsolutePath('/project/docs/archive/target.md'), isInGraph: true },
             ],
             loadState: 'loaded',
             isWriteTarget: false,
@@ -195,11 +195,11 @@ function makeDynamicFolderTree(): FolderTreeNode {
   }
 }
 
-function makeVault() {
+function makeProject() {
   return {
-    projectRoot: '/vault',
-    readPaths: ['/vault/docs'],
-    writeFolderPath: '/vault',
+    projectRoot: '/project',
+    readPaths: ['/project/docs'],
+    writeFolderPath: '/project',
   }
 }
 
@@ -223,7 +223,7 @@ export function makeProjectSessionStateFixtures() {
     makeFolderTree,
     makeGraph,
     makeSession,
-    makeVault,
+    makeProject,
     makeVisibilityFolderTree,
     makeVisibilityGraph,
   }

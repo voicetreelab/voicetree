@@ -21,12 +21,12 @@ export interface CodeMirrorElement extends HTMLElement {
 export const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
   electronApp: async ({}, use, testInfo) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-add-link-context-menu-'));
 
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
     const projectRoot = path.join(watchedFolder, 'voicetree');
@@ -70,7 +70,7 @@ This is another node in the graph.
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
@@ -111,7 +111,7 @@ This is another node in the graph.
     console.log('[Test] Cleaned up temp directory');
   },
 
-  testVaultPath: async ({}, use, testInfo) => {
+  testProjectPath: async ({}, use, testInfo) => {
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 

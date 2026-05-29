@@ -1,6 +1,6 @@
 // BF-223 — CLI cold-start e2e (north-star test for decouple-ui-from-graph-server).
 //
-// Spawns the real `vt` CLI against a tmp vault with no daemon running and
+// Spawns the real `vt` CLI against a tmp project with no daemon running and
 // asserts the full cold-start / session-isolation / clean-shutdown loop.
 //
 // Deviation from card: the card calls for `pnpm --filter webapp build` + `node
@@ -60,10 +60,10 @@ function sleep(ms: number): Promise<void> {
     return new Promise<void>((res) => setTimeout(res, ms))
 }
 
-function buildChildEnv(appSupport: string, overrides?: Record<string, string | undefined>): Record<string, string> {
+function buildChildEnv(voicetreeHome: string, overrides?: Record<string, string | undefined>): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
-        VOICETREE_HOME_PATH: appSupport,
+        VOICETREE_HOME_PATH: voicetreeHome,
         TSX_TSCONFIG_PATH: CLI_TSCONFIG,
         VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         ...overrides,
@@ -85,7 +85,7 @@ function buildChildEnv(appSupport: string, overrides?: Record<string, string | u
 
 function spawnCli(
     args: string[],
-    appSupport: string,
+    voicetreeHome: string,
     opts: SpawnOptions = {},
 ): Promise<SpawnResult> {
     return new Promise<SpawnResult>((resolvePromise, rejectPromise) => {
@@ -94,7 +94,7 @@ function spawnCli(
             [TSX_CLI_PATH, CLI_ENTRYPOINT, ...args],
             {
                 cwd: REPO_ROOT,
-                env: buildChildEnv(appSupport, opts.env),
+                env: buildChildEnv(voicetreeHome, opts.env),
                 stdio: ['ignore', 'pipe', 'pipe'],
             },
         )
@@ -129,8 +129,8 @@ function spawnCli(
     })
 }
 
-async function waitForPortFile(vault: string, timeoutMs: number): Promise<number> {
-    const portFile: string = join(vault, '.voicetree', 'graphd.port')
+async function waitForPortFile(project: string, timeoutMs: number): Promise<number> {
+    const portFile: string = join(project, '.voicetree', 'graphd.port')
     const deadline: number = Date.now() + timeoutMs
     while (Date.now() < deadline) {
         try {
@@ -162,9 +162,9 @@ async function waitUntilMissing(path: string, timeoutMs: number): Promise<boolea
     return false
 }
 
-async function readLockedPid(vault: string): Promise<number | null> {
+async function readLockedPid(project: string): Promise<number | null> {
     try {
-        const raw: string = await readFile(join(vault, '.voicetree', 'graphd.lock'), 'utf8')
+        const raw: string = await readFile(join(project, '.voicetree', 'graphd.lock'), 'utf8')
         const pid: number = Number(raw.trim())
         return Number.isInteger(pid) && pid > 0 ? pid : null
     } catch (err) {
@@ -185,8 +185,8 @@ function isPidAlive(pid: number): boolean {
     }
 }
 
-async function killAllGraphd(vault: string): Promise<void> {
-    const pid: number | null = await readLockedPid(vault)
+async function killAllGraphd(project: string): Promise<void> {
+    const pid: number | null = await readLockedPid(project)
     if (pid !== null && isPidAlive(pid)) {
         try {
             process.kill(pid, 'SIGTERM')
@@ -194,7 +194,7 @@ async function killAllGraphd(vault: string): Promise<void> {
             // Already gone.
         }
         const exited: boolean = await waitUntilMissing(
-            join(vault, '.voicetree', 'graphd.port'),
+            join(project, '.voicetree', 'graphd.port'),
             DAEMON_CLEANUP_SIGTERM_TIMEOUT_MS,
         )
         if (!exited && isPidAlive(pid)) {
@@ -205,8 +205,8 @@ async function killAllGraphd(vault: string): Promise<void> {
             }
         }
     }
-    await rm(join(vault, '.voicetree', 'graphd.port'), {force: true})
-    await rm(join(vault, '.voicetree', 'graphd.lock'), {force: true})
+    await rm(join(project, '.voicetree', 'graphd.port'), {force: true})
+    await rm(join(project, '.voicetree', 'graphd.lock'), {force: true})
 }
 
 function parseJsonStdout<T>(result: SpawnResult): T {
@@ -222,36 +222,36 @@ function parseJsonStdout<T>(result: SpawnResult): T {
 describe.skipIf(process.env.CI_SANDBOX === '1')(
     'BF-223 CLI cold-start e2e (north-star)',
     () => {
-        let vault: string
+        let project: string
         let readDir: string
-        let appSupport: string
+        let voicetreeHome: string
         let root: string
 
         beforeAll(async () => {
             root = await mkdtemp(join(tmpdir(), 'vt-cli-coldstart-'))
-            vault = join(root, 'vault')
+            project = join(root, 'project')
             readDir = join(root, 'read-dir')
-            appSupport = join(root, 'app-support')
-            await mkdir(join(vault, '.voicetree'), {recursive: true})
+            voicetreeHome = join(root, 'voicetree-home')
+            await mkdir(join(project, '.voicetree'), {recursive: true})
             await mkdir(readDir, {recursive: true})
-            await mkdir(appSupport, {recursive: true})
+            await mkdir(voicetreeHome, {recursive: true})
         })
 
         afterAll(async () => {
-            await killAllGraphd(vault).catch(() => {})
+            await killAllGraphd(project).catch(() => {})
             await rm(root, {recursive: true, force: true})
         }, DAEMON_CLEANUP_HOOK_TIMEOUT_MS)
 
         it(
             'Scenario A — cold start: auto-launches vt-graphd and persists folder state',
             async () => {
-                const portFile: string = join(vault, '.voicetree', 'graphd.port')
+                const portFile: string = join(project, '.voicetree', 'graphd.port')
                 // Pre-check: no daemon running.
                 await expect(stat(portFile)).rejects.toMatchObject({code: 'ENOENT'})
 
                 const setFolderResult: SpawnResult = await spawnCli(
-                    ['view', 'set-folder', readDir, 'expanded', '--vault', vault, '--json'],
-                    appSupport,
+                    ['view', 'set-folder', readDir, 'expanded', '--project', project, '--json'],
+                    voicetreeHome,
                 )
                 expect(setFolderResult.code, `set-folder stderr: ${setFolderResult.stderr}`).toBe(0)
 
@@ -259,26 +259,26 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 expect(folderPayload).toEqual({path: readDir, state: 'expanded'})
 
                 // Port file now exists; daemon PID is alive.
-                const portAfterAdd: number = await waitForPortFile(vault, DAEMON_READY_TIMEOUT_MS)
+                const portAfterAdd: number = await waitForPortFile(project, DAEMON_READY_TIMEOUT_MS)
                 expect(portAfterAdd).toBeGreaterThan(0)
 
-                const daemonPid: number | null = await readLockedPid(vault)
+                const daemonPid: number | null = await readLockedPid(project)
                 expect(daemonPid, 'expected graphd.lock to record a pid').not.toBeNull()
                 expect(isPidAlive(daemonPid!)).toBe(true)
 
                 // Second invocation must reuse the same daemon (same port, same pid).
                 const showResult: SpawnResult = await spawnCli(
-                    ['vault', 'show', '--vault', vault, '--json'],
-                    appSupport,
+                    ['project', 'show', '--project', project, '--json'],
+                    voicetreeHome,
                 )
-                expect(showResult.code, `vault show stderr: ${showResult.stderr}`).toBe(0)
+                expect(showResult.code, `project show stderr: ${showResult.stderr}`).toBe(0)
 
                 const showPayload: {readPaths: string[]; projectRoot: string} = parseJsonStdout(showResult)
-                expect(showPayload.projectRoot).toBe(vault)
+                expect(showPayload.projectRoot).toBe(project)
 
-                const portAfterShow: number = await waitForPortFile(vault, 1_000)
+                const portAfterShow: number = await waitForPortFile(project, 1_000)
                 expect(portAfterShow).toBe(portAfterAdd)
-                expect(await readLockedPid(vault)).toBe(daemonPid)
+                expect(await readLockedPid(project)).toBe(daemonPid)
             },
             SCENARIO_TIMEOUT_MS,
         )
@@ -287,15 +287,15 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
             'Scenario B — active-view folder state is visible to sessions',
             async () => {
                 const create1: SpawnResult = await spawnCli(
-                    ['session', 'create', '--vault', vault, '--json'],
-                    appSupport,
+                    ['session', 'create', '--project', project, '--json'],
+                    voicetreeHome,
                 )
                 expect(create1.code, `session create 1 stderr: ${create1.stderr}`).toBe(0)
                 const sid1: string = parseJsonStdout<{sessionId: string}>(create1).sessionId
 
                 const create2: SpawnResult = await spawnCli(
-                    ['session', 'create', '--vault', vault, '--json'],
-                    appSupport,
+                    ['session', 'create', '--project', project, '--json'],
+                    voicetreeHome,
                 )
                 expect(create2.code, `session create 2 stderr: ${create2.stderr}`).toBe(0)
                 const sid2: string = parseJsonStdout<{sessionId: string}>(create2).sessionId
@@ -304,8 +304,8 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
                 const folderId: string = '/some/folder'
                 const setFolder: SpawnResult = await spawnCli(
-                    ['view', 'set-folder', folderId, 'collapsed', '--vault', vault, '--session', sid1, '--json'],
-                    appSupport,
+                    ['view', 'set-folder', folderId, 'collapsed', '--project', project, '--session', sid1, '--json'],
+                    voicetreeHome,
                 )
                 expect(setFolder.code, `view set-folder stderr: ${setFolder.stderr}`).toBe(0)
                 expect(parseJsonStdout<{path: string; state: string}>(setFolder)).toEqual({
@@ -314,8 +314,8 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 })
 
                 const showSid2: SpawnResult = await spawnCli(
-                    ['view', 'show', '--vault', vault, '--session', sid2, '--json'],
-                    appSupport,
+                    ['view', 'show', '--project', project, '--session', sid2, '--json'],
+                    voicetreeHome,
                 )
                 expect(showSid2.code, `view show sid2 stderr: ${showSid2.stderr}`).toBe(0)
                 expect(parseJsonStdout<{folderState: [string, string][]}>(showSid2).folderState).toContainEqual([
@@ -324,8 +324,8 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 ])
 
                 const showSid1: SpawnResult = await spawnCli(
-                    ['view', 'show', '--vault', vault, '--session', sid1, '--json'],
-                    appSupport,
+                    ['view', 'show', '--project', project, '--session', sid1, '--json'],
+                    voicetreeHome,
                 )
                 expect(showSid1.code, `view show sid1 stderr: ${showSid1.stderr}`).toBe(0)
                 expect(parseJsonStdout<{folderState: [string, string][]}>(showSid1).folderState).toContainEqual([
@@ -339,10 +339,10 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             'Scenario C — clean shutdown: daemon exits, files disappear, next call cold-starts',
             async () => {
-                const portFile: string = join(vault, '.voicetree', 'graphd.port')
-                const lockFile: string = join(vault, '.voicetree', 'graphd.lock')
+                const portFile: string = join(project, '.voicetree', 'graphd.port')
+                const lockFile: string = join(project, '.voicetree', 'graphd.lock')
 
-                const portBeforeShutdown: number = await waitForPortFile(vault, 1_000)
+                const portBeforeShutdown: number = await waitForPortFile(project, 1_000)
                 const client: GraphDbClient = new GraphDbClient({
                     baseUrl: `http://127.0.0.1:${portBeforeShutdown}`,
                 })
@@ -354,12 +354,12 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
                 // A subsequent CLI invocation must cold-start a fresh daemon.
                 const showAgain: SpawnResult = await spawnCli(
-                    ['vault', 'show', '--vault', vault, '--json'],
-                    appSupport,
+                    ['project', 'show', '--project', project, '--json'],
+                    voicetreeHome,
                 )
-                expect(showAgain.code, `post-shutdown vault show stderr: ${showAgain.stderr}`).toBe(0)
+                expect(showAgain.code, `post-shutdown project show stderr: ${showAgain.stderr}`).toBe(0)
 
-                const portAfterColdStart: number = await waitForPortFile(vault, DAEMON_READY_TIMEOUT_MS)
+                const portAfterColdStart: number = await waitForPortFile(project, DAEMON_READY_TIMEOUT_MS)
                 expect(portAfterColdStart).toBeGreaterThan(0)
                 expect(portAfterColdStart).not.toBe(portBeforeShutdown)
             },
