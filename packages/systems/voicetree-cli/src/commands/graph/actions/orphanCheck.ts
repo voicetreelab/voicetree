@@ -1,5 +1,4 @@
 import {
-    extractExistingParentRefs,
     type FilesystemAuthoringPlanEntry,
 } from '@vt/graph-tools/node'
 import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
@@ -105,10 +104,14 @@ function entryWillHaveParent(
     entry: FilesystemAuthoringPlanEntry,
     externalParentRef: string | undefined,
 ): boolean {
-    const hasParentLine: boolean = extractExistingParentRefs(entry.markdown).size > 0
+    const hasParentLine: boolean = hasCanonicalParentLine(entry.markdown)
     const willAttachExternal: boolean =
         externalParentRef !== undefined &&
         entry.parentFilenames.length === 0 &&
         normalizeRef(entry.filename) !== externalParentRef
     return hasParentLine || willAttachExternal
+}
+
+function hasCanonicalParentLine(markdown: string): boolean {
+    return /^- parent \[\[[^[\]\n\r]+\]\]$/m.test(markdown)
 }
