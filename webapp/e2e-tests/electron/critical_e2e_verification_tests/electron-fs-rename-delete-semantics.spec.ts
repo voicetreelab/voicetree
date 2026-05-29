@@ -52,35 +52,35 @@ interface GraphSnapshot {
 }
 
 const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-  tempProjectPath: string;
+  electronApp: ElectronApplication,
+  appWindow: Page,
+  tempWriteFolderPath: string,
 }>({
-  tempProjectPath: [async ({}, use) => {
+  tempWriteFolderPath: [async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-fs-semantics-'));
     const tempProjectPath = path.join(tempDir, 'fs-semantics-project');
-    const tempProjectPath = path.join(tempProjectPath, 'voicetree');
+    const tempWriteFolderPath = path.join(tempProjectPath, 'voicetree');
 
-    await fs.mkdir(tempProjectPath, { recursive: true });
+    await fs.mkdir(tempWriteFolderPath, { recursive: true });
 
     await fs.writeFile(
-      path.join(tempProjectPath, SOURCE_FILE_NAME),
+      path.join(tempWriteFolderPath, SOURCE_FILE_NAME),
       '# Source Note\n\nThis note links to [[target]].\n'
     );
 
     await fs.writeFile(
-      path.join(tempProjectPath, TARGET_FILE_NAME),
+      path.join(tempWriteFolderPath, TARGET_FILE_NAME),
       '# Target Note\n\nThis target note is linked from source.md.\n'
     );
 
-    await use(tempProjectPath);
+    await use(tempWriteFolderPath);
 
     await fs.rm(tempDir, { recursive: true, force: true });
   }, { timeout: 45000 }],
 
-  electronApp: [async ({ tempProjectPath }, use) => {
+  electronApp: [async ({ tempWriteFolderPath }, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-fssem-userdata-'));
-    const tempProjectPath = path.dirname(tempProjectPath);
+    const tempProjectPath = path.dirname(tempWriteFolderPath);
     const tempProjectName = path.basename(tempProjectPath);
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
@@ -88,7 +88,7 @@ const test = base.extend<{
       lastDirectory: tempProjectPath,
       projectConfig: {
         [tempProjectPath]: {
-          writeFolderPath: tempProjectPath,
+          writeFolderPath: tempWriteFolderPath,
           readPaths: []
         }
       }
@@ -133,9 +133,9 @@ const test = base.extend<{
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   }, { timeout: 45000 }],
 
-  appWindow: [async ({ electronApp, tempProjectPath }, use) => {
+  appWindow: [async ({ electronApp, tempWriteFolderPath }, use) => {
     const page = await electronApp.firstWindow();
-    const tempProjectPath = path.dirname(tempProjectPath);
+    const tempProjectPath = path.dirname(tempWriteFolderPath);
     page.on('console', (msg) => {
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
     });
@@ -182,9 +182,9 @@ const test = base.extend<{
           targetLoaded: hasNodeForPath(normalizedTargetPath)
         };
       }, {
-        sourceFilePath: path.join(tempProjectPath, SOURCE_FILE_NAME),
-        targetFilePath: path.join(tempProjectPath, TARGET_FILE_NAME),
-        projectRoot: tempProjectPath
+        sourceFilePath: path.join(tempWriteFolderPath, SOURCE_FILE_NAME),
+        targetFilePath: path.join(tempWriteFolderPath, TARGET_FILE_NAME),
+        projectRoot: tempWriteFolderPath
       });
     }, {
       message: 'Waiting for source and target fixture nodes to load',
@@ -208,7 +208,7 @@ const test = base.extend<{
       isWatching: true,
       directory: tempProjectPath
     });
-    await waitForExternalFsPipelineReady(page, path.join(tempProjectPath, SOURCE_FILE_NAME));
+    await waitForExternalFsPipelineReady(page, path.join(tempWriteFolderPath, SOURCE_FILE_NAME));
 
     // waitForExternalFsPipelineReady only verifies the main-process graph has settled.
     // The projected edge (source→target wikilink) may still be in flight via SSE to
@@ -234,9 +234,9 @@ const test = base.extend<{
         if (!srcId || !tgtId) return false;
         return cy.edges().some((e) => e.source().id() === srcId && e.target().id() === tgtId);
       }, {
-        sourceFilePath: path.join(tempProjectPath, SOURCE_FILE_NAME),
-        targetFilePath: path.join(tempProjectPath, TARGET_FILE_NAME),
-        projectRoot: tempProjectPath
+        sourceFilePath: path.join(tempWriteFolderPath, SOURCE_FILE_NAME),
+        targetFilePath: path.join(tempWriteFolderPath, TARGET_FILE_NAME),
+        projectRoot: tempWriteFolderPath
       });
     }, {
       message: 'Waiting for source→target wikilink edge to appear in cytoscape',
@@ -332,31 +332,31 @@ async function waitForExternalFsPipelineReady(window: Page, sourceFilePath: stri
 }
 
 test.describe('Filesystem rename/delete semantics', () => {
-  test('same-basename move should keep user-visible link behavior', async ({ appWindow, tempProjectPath }) => {
+  test('same-basename move should keep user-visible link behavior', async ({ appWindow, tempWriteFolderPath }) => {
     test.setTimeout(60000);
 
-    const sourceFilePath = path.join(tempProjectPath, SOURCE_FILE_NAME);
-    const targetFilePath = path.join(tempProjectPath, TARGET_FILE_NAME);
-    const movedTargetPath = path.join(tempProjectPath, 'archive', TARGET_FILE_NAME);
+    const sourceFilePath = path.join(tempWriteFolderPath, SOURCE_FILE_NAME);
+    const targetFilePath = path.join(tempWriteFolderPath, TARGET_FILE_NAME);
+    const movedTargetPath = path.join(tempWriteFolderPath, 'archive', TARGET_FILE_NAME);
 
     const initial = await getGraphSnapshot(appWindow);
-    const sourceNodeId = getNodeIdForFilePath(initial, tempProjectPath, sourceFilePath);
-    const originalTargetNodeId = getNodeIdForFilePath(initial, tempProjectPath, targetFilePath);
+    const sourceNodeId = getNodeIdForFilePath(initial, tempWriteFolderPath, sourceFilePath);
+    const originalTargetNodeId = getNodeIdForFilePath(initial, tempWriteFolderPath, targetFilePath);
 
     expect(sourceNodeId).toBeTruthy();
     expect(originalTargetNodeId).toBeTruthy();
     expect(hasEdge(initial, sourceNodeId, originalTargetNodeId)).toBe(true);
 
-    await fs.mkdir(path.join(tempProjectPath, 'archive'), { recursive: true });
+    await fs.mkdir(path.join(tempWriteFolderPath, 'archive'), { recursive: true });
     await fs.rename(targetFilePath, movedTargetPath);
 
     await expect.poll(async () => {
       const snapshot = await getGraphSnapshot(appWindow);
-      const movedTargetNodeId = getNodeIdForFilePath(snapshot, tempProjectPath, movedTargetPath);
-      const movedSourceNodeId = getNodeIdForFilePath(snapshot, tempProjectPath, sourceFilePath);
+      const movedTargetNodeId = getNodeIdForFilePath(snapshot, tempWriteFolderPath, movedTargetPath);
+      const movedSourceNodeId = getNodeIdForFilePath(snapshot, tempWriteFolderPath, sourceFilePath);
       return {
         movedTargetExists: Boolean(movedTargetNodeId),
-        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempProjectPath, targetFilePath),
+        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempWriteFolderPath, targetFilePath),
         healedEdge: hasEdge(snapshot, movedSourceNodeId, movedTargetNodeId)
       };
     }, {
@@ -370,21 +370,21 @@ test.describe('Filesystem rename/delete semantics', () => {
     });
 
     const final = await getGraphSnapshot(appWindow);
-    const finalTargetNodeId = getNodeIdForFilePath(final, tempProjectPath, movedTargetPath);
-    const finalSourceNodeId = getNodeIdForFilePath(final, tempProjectPath, sourceFilePath);
+    const finalTargetNodeId = getNodeIdForFilePath(final, tempWriteFolderPath, movedTargetPath);
+    const finalSourceNodeId = getNodeIdForFilePath(final, tempWriteFolderPath, sourceFilePath);
     expect(hasEdge(final, finalSourceNodeId, finalTargetNodeId)).toBe(true);
   });
 
-  test('basename-changing external rename should not preserve outgoing wiki link behavior', async ({ appWindow, tempProjectPath }) => {
+  test('basename-changing external rename should not preserve outgoing wiki link behavior', async ({ appWindow, tempWriteFolderPath }) => {
     test.setTimeout(60000);
 
-    const sourceFilePath = path.join(tempProjectPath, SOURCE_FILE_NAME);
-    const targetFilePath = path.join(tempProjectPath, TARGET_FILE_NAME);
-    const renamedTargetPath = path.join(tempProjectPath, 'target-renamed.md');
+    const sourceFilePath = path.join(tempWriteFolderPath, SOURCE_FILE_NAME);
+    const targetFilePath = path.join(tempWriteFolderPath, TARGET_FILE_NAME);
+    const renamedTargetPath = path.join(tempWriteFolderPath, 'target-renamed.md');
 
     const initial = await getGraphSnapshot(appWindow);
-    const sourceNodeIdBefore = getNodeIdForFilePath(initial, tempProjectPath, sourceFilePath);
-    const originalTargetNodeId = getNodeIdForFilePath(initial, tempProjectPath, targetFilePath);
+    const sourceNodeIdBefore = getNodeIdForFilePath(initial, tempWriteFolderPath, sourceFilePath);
+    const originalTargetNodeId = getNodeIdForFilePath(initial, tempWriteFolderPath, targetFilePath);
 
     expect(sourceNodeIdBefore).toBeTruthy();
     expect(originalTargetNodeId).toBeTruthy();
@@ -394,11 +394,11 @@ test.describe('Filesystem rename/delete semantics', () => {
 
     await expect.poll(async () => {
       const snapshot = await getGraphSnapshot(appWindow);
-      const sourceNodeId = getNodeIdForFilePath(snapshot, tempProjectPath, sourceFilePath);
-      const renamedTargetNodeId = getNodeIdForFilePath(snapshot, tempProjectPath, renamedTargetPath);
+      const sourceNodeId = getNodeIdForFilePath(snapshot, tempWriteFolderPath, sourceFilePath);
+      const renamedTargetNodeId = getNodeIdForFilePath(snapshot, tempWriteFolderPath, renamedTargetPath);
       const renamedEdgeExists = hasEdge(snapshot, sourceNodeId, renamedTargetNodeId);
       return {
-        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempProjectPath, targetFilePath),
+        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempWriteFolderPath, targetFilePath),
         renamedTargetPresent: Boolean(renamedTargetNodeId),
         renamedEdgeMissing: !renamedEdgeExists,
         sourceStillVisible: Boolean(sourceNodeId)
@@ -415,15 +415,15 @@ test.describe('Filesystem rename/delete semantics', () => {
     });
   });
 
-  test('external delete should remove the node and unlink incoming relationships', async ({ appWindow, tempProjectPath }) => {
+  test('external delete should remove the node and unlink incoming relationships', async ({ appWindow, tempWriteFolderPath }) => {
     test.setTimeout(60000);
 
-    const sourceFilePath = path.join(tempProjectPath, SOURCE_FILE_NAME);
-    const targetFilePath = path.join(tempProjectPath, TARGET_FILE_NAME);
+    const sourceFilePath = path.join(tempWriteFolderPath, SOURCE_FILE_NAME);
+    const targetFilePath = path.join(tempWriteFolderPath, TARGET_FILE_NAME);
 
     const initial = await getGraphSnapshot(appWindow);
-    const sourceNodeIdBefore = getNodeIdForFilePath(initial, tempProjectPath, sourceFilePath);
-    const initialTargetNodeId = getNodeIdForFilePath(initial, tempProjectPath, targetFilePath);
+    const sourceNodeIdBefore = getNodeIdForFilePath(initial, tempWriteFolderPath, sourceFilePath);
+    const initialTargetNodeId = getNodeIdForFilePath(initial, tempWriteFolderPath, targetFilePath);
     expect(sourceNodeIdBefore).toBeTruthy();
     expect(initialTargetNodeId).toBeTruthy();
     expect(hasEdge(initial, sourceNodeIdBefore, initialTargetNodeId)).toBe(true);
@@ -432,8 +432,8 @@ test.describe('Filesystem rename/delete semantics', () => {
 
     await expect.poll(async () => {
       const snapshot = await getGraphSnapshot(appWindow);
-      const sourceNodeId = getNodeIdForFilePath(snapshot, tempProjectPath, sourceFilePath);
-      const deletedTargetNodeId = getNodeIdForFilePath(snapshot, tempProjectPath, targetFilePath);
+      const sourceNodeId = getNodeIdForFilePath(snapshot, tempWriteFolderPath, sourceFilePath);
+      const deletedTargetNodeId = getNodeIdForFilePath(snapshot, tempWriteFolderPath, targetFilePath);
       const edgeToDeletedTargetExists = hasEdge(snapshot, sourceNodeId, deletedTargetNodeId);
       return {
         deletedTargetGone: !deletedTargetNodeId,
