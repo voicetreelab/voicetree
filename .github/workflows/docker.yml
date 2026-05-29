@@ -34,14 +34,17 @@ jobs:
 
       - name: Resolve VoiceTree version
         id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            scripts/ci/resolve-docker-appimage.sh "${{ github.event.release.tag_name }}" "${{ github.event_name }}"
           else
-            echo "tag=${{ inputs.voicetree_version || 'latest' }}" >> "$GITHUB_OUTPUT"
+            scripts/ci/resolve-docker-appimage.sh "${{ inputs.voicetree_version || 'latest' }}" "${{ github.event_name }}"
           fi
 
       - name: Compute image tags
+        if: steps.ver.outputs.should_build == 'true'
         id: tags
         run: |
           TAG="${{ steps.ver.outputs.tag }}"
@@ -57,7 +60,7 @@ jobs:
           fi
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: steps.ver.outputs.should_build == 'true' && github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -65,6 +68,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build (load locally, push on release / manual)
+        if: steps.ver.outputs.should_build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -76,11 +80,12 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             VOICETREE_VERSION=${{ steps.ver.outputs.tag }}
+            VOICETREE_APPIMAGE_URL=${{ steps.ver.outputs.appimage_url }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Smoke test
-        if: github.event_name != 'release'
+        if: steps.ver.outputs.should_build == 'true' && github.event_name != 'release'
         env:
           IMAGE: ${{ env.IMAGE }}:pr-${{ github.event.pull_request.number || 'manual' }}
           BOOT_TIMEOUT: 120
@@ -93,6 +98,16 @@ jobs:
           fi
           echo "Smoke-testing image: $IMAGE"
           bash docker/test/smoke.sh
+
+      - name: Explain skipped Docker image
+        if: steps.ver.outputs.should_build == 'false'
+        run: |
+          echo "${{ steps.ver.outputs.skip_reason }}"
+          {
+            echo "## Docker image skipped"
+            echo
+            echo "${{ steps.ver.outputs.skip_reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize failure
         if: failure()

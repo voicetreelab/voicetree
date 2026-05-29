@@ -12,6 +12,7 @@
 FROM ubuntu:24.04
 
 ARG VOICETREE_VERSION=latest
+ARG VOICETREE_APPIMAGE_URL=
 ARG NOVNC_VERSION=1.5.0
 ARG WEBSOCKIFY_VERSION=0.12.0
 
@@ -72,7 +73,9 @@ RUN userdel -r ubuntu 2>/dev/null || true \
 # all read straight from the 64-bit ELF header (LE on x86-64).
 WORKDIR /opt
 RUN set -eux; \
-    if [ "$VOICETREE_VERSION" = "latest" ]; then \
+    if [ -n "$VOICETREE_APPIMAGE_URL" ]; then \
+        URL="$VOICETREE_APPIMAGE_URL"; \
+    elif [ "$VOICETREE_VERSION" = "latest" ]; then \
         URL="https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage"; \
     else \
         URL="https://github.com/voicetreelab/voicetree/releases/download/${VOICETREE_VERSION}/voicetree.AppImage"; \
