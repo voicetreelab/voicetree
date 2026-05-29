@@ -137,6 +137,7 @@ export type ParsedFilesystemModeArgs = {
     color?: string
     manifest?: StructureManifest
     validateOnly: boolean
+    overrides: readonly OverrideSpec[]
 }
 
 export type ParsedGraphCreateArgs = ParsedLiveCreateArgs | ParsedFilesystemModeArgs

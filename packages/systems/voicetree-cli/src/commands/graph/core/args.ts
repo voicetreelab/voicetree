@@ -206,14 +206,11 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
             })()
             : undefined
 
-        if (overrides.length > 0) {
-            error('--override is only valid with live-mode (--node / --nodes-file / stdin), not filesystem markdown inputs')
-        }
-
         return {
             mode: 'filesystem',
             inputFilePaths,
             validateOnly,
+            overrides,
             ...(parentValue ? {parentPath: parentValue} : {}),
             ...(color ? {color} : {}),
             ...(manifest ? {manifest} : {}),

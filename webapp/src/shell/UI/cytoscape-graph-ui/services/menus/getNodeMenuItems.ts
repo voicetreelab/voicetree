@@ -61,6 +61,16 @@ function createRunButtonSliderConfig(
     };
 }
 
+async function spawnCurrentAgentByName(nodeId: string, cy: Core, agentName: string): Promise<void> {
+    const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+    const agent: AgentConfig | undefined = settings?.agents?.find((candidate: AgentConfig) => candidate.name === agentName);
+    if (!agent?.command) {
+        console.error(`[getNodeMenuItems] Agent "${agentName}" is no longer present in settings.agents`);
+        return;
+    }
+    await spawnTerminalWithNewContextNode(nodeId, cy, agent.command);
+}
+
 /**
  * Get menu items for a node - pure function that returns menu item definitions.
  * Extracted for reuse by floating window chrome.
@@ -286,7 +296,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             label: agent.name,
             color: '#6366f1', // indigo to distinguish from default Run
             action: async () => {
-                await spawnTerminalWithNewContextNode(nodeId, cy, agent.command);
+                await spawnCurrentAgentByName(nodeId, cy, agent.name);
             },
             // Context nodes: show contained nodes. Normal nodes: preview what would be captured.
             onHoverEnter: isContextNode

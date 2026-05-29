@@ -207,7 +207,7 @@ function App(): JSX.Element {
                 const startupHint = await getStartupVaultHint();
 
                 if (cancelled) return;
-                if (startupHint.kind === 'open-folder' || startupHint.kind === 'last-directory') {
+                if (startupHint.kind === 'open-folder') {
                     const project: SavedProject = await loadProjectForDirectory(startupHint.path);
                     if (!cancelled) await openVaultForProject(project);
                 }

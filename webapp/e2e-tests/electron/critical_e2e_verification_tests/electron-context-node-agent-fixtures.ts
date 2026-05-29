@@ -73,7 +73,9 @@ export const test = base.extend<{
       args: [
         ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`
+        `--user-data-dir=${tempUserDataPath}`,
+        '--open-folder',
+        fixtureVaultPath,
       ],
       env: {
         ...process.env,

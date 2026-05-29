@@ -113,7 +113,7 @@ const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCal
     updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),
 });
 
-type StartupVaultHint = {readonly kind: 'none'} | {readonly kind: 'last' | 'cli'; readonly path: string};
+type StartupVaultHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly path: string};
 
 type StartGraphUpdateSubscriptionInput = {
     hasInitialProjectedGraph: boolean;
