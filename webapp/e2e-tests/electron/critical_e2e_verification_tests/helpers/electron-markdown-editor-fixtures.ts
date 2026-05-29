@@ -51,8 +51,9 @@ export const test = base.extend<{
   electronApp: [async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-test-'));
 
-    // Config file auto-loads the test vault; without it the graph never
-    // populates the in-memory store.
+    // Keep the persisted config present for settings/vault-config reads, but
+    // use --open-folder for startup. Persisted lastDirectory is intentionally
+    // not an auto-open signal.
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
 
@@ -64,6 +65,8 @@ export const test = base.extend<{
         ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
+        '--open-folder',
+        FIXTURE_VAULT_PATH,
       ],
       env: {
         ...process.env,
@@ -112,7 +115,7 @@ export const test = base.extend<{
     }
 
     await pollForCytoscape(page, 45000);
-    // Allow the auto-load triggered by lastDirectory to finish.
+    // Allow the startup vault open to finish.
     await page.waitForTimeout(500);
 
     await use(page);
