@@ -92,7 +92,7 @@ function applyHorizon(
  * registry, and the current vault namespace hash. Decides resume capability
  * purely from metadata shape: a record carries `resume: {cliType}` when its
  * `initialCommand` parses to a supported CLI (`claude`/`codex`) and the
- * record has a `VOICETREE_VAULT_PATH`. The actual native session id is NOT
+ * record has a `VOICETREE_PROJECT_PATH`. The actual native session id is NOT
  * resolved here — that would require scanning `~/.claude/projects/**\/*.jsonl`
  * (~1 GB for heavy users) on every 10s poll. The resolver runs lazily inside
  * `resumePersistedAgentSession` / `forkAgentSession` at click time.
@@ -172,7 +172,7 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
             title,
             agentName: title,
             initialEnvVars: {
-                ...(session.projectRoot ? {VOICETREE_VAULT_PATH: session.projectRoot} : {}),
+                ...(session.projectRoot ? {VOICETREE_PROJECT_PATH: session.projectRoot} : {}),
                 ...(session.contextNodePath ? {CONTEXT_NODE_PATH: session.contextNodePath} : {}),
                 ...(session.taskNodePath ? {TASK_NODE_PATH: session.taskNodePath} : {}),
             },
@@ -187,7 +187,7 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
  * Decide resume capability for each metadata record from metadata shape alone.
  *
  * Surfaces `{cliType}` when the record targets a supported CLI and carries the
- * minimum env (`VOICETREE_VAULT_PATH`) required for the resolver to run later
+ * minimum env (`VOICETREE_PROJECT_PATH`) required for the resolver to run later
  * at click time. No filesystem IO, no transcript scans — this runs on every
  * 10s poll and must stay cheap.
  *
@@ -217,7 +217,7 @@ function detectResumeCapabilitiesFromMetadata(
         }
         const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
         if (!cliType) continue
-        const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
+        const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_PROJECT_PATH
         if (!projectRoot) continue
         out.set(metadata.name, {cliType})
     }

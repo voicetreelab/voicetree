@@ -2,7 +2,7 @@
 
 ### Requirement: Discover resumable persisted agent sessions
 
-The system SHALL discover resumable agent sessions from the canonical `<projectRoot>/.voicetree/terminals/` directory, where `projectRoot` is resolved from the graph bridge (`getProjectRoot()`), NOT from `writeFolder` or `process.env.VOICETREE_VAULT_PATH`. Discovery SHALL include records with `status` of `running`, `exited`, or `killed`, scoped to the current vault namespace. Records SHALL be classified as: attachable-live-tmux, resumable-dead-tmux, recently-closed, exited, killed, unsupported, foreign-vault, or invalid. Records older than the recency horizon (configurable, default 7 days since `endedAt` or `startedAt`) SHALL be omitted to keep the list bounded.
+The system SHALL discover resumable agent sessions from the canonical `<projectRoot>/.voicetree/terminals/` directory, where `projectRoot` is resolved from the graph bridge (`getProjectRoot()`), NOT from `writeFolder` or `process.env.VOICETREE_PROJECT_PATH`. Discovery SHALL include records with `status` of `running`, `exited`, or `killed`, scoped to the current vault namespace. Records SHALL be classified as: attachable-live-tmux, resumable-dead-tmux, recently-closed, exited, killed, unsupported, foreign-vault, or invalid. Records older than the recency horizon (configurable, default 7 days since `endedAt` or `startedAt`) SHALL be omitted to keep the list bounded.
 
 #### Scenario: Discovery reads from projectRoot regardless of writeFolder
 - **WHEN** the current vault has `projectRoot = /a/b` and `writeFolder = /a/b/sub` (writeFolder differs from projectRoot)

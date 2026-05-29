@@ -29,16 +29,16 @@ beforeAll(async () => {
 
     server = await createHeadlessServer({vaultPath: VAULT})
 
-    savedVaultEnv = process.env.VOICETREE_VAULT_PATH
+    savedVaultEnv = process.env.VOICETREE_PROJECT_PATH
     savedUrlEnv = process.env.VOICETREE_DAEMON_URL
-    process.env.VOICETREE_VAULT_PATH = server.vaultPath
+    process.env.VOICETREE_PROJECT_PATH = server.vaultPath
     delete process.env.VOICETREE_DAEMON_URL
 })
 
 afterAll(async () => {
     await server.close()
-    if (savedVaultEnv === undefined) delete process.env.VOICETREE_VAULT_PATH
-    else process.env.VOICETREE_VAULT_PATH = savedVaultEnv
+    if (savedVaultEnv === undefined) delete process.env.VOICETREE_PROJECT_PATH
+    else process.env.VOICETREE_PROJECT_PATH = savedVaultEnv
     if (savedUrlEnv === undefined) delete process.env.VOICETREE_DAEMON_URL
     else process.env.VOICETREE_DAEMON_URL = savedUrlEnv
     rmSync(VAULT, {recursive: true, force: true})

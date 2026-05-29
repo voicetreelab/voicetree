@@ -8,8 +8,8 @@
 
 ## 2. Native provider session id resolution
 
-- [x] 2.1 Add a Claude resolver that scans recently modified `~/.claude/projects/**/*.jsonl`, matches string user messages by `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, and returns the transcript `sessionId`.
-- [x] 2.2 Add a Codex resolver that queries `~/.codex/state_5.sqlite` `threads`, matches `first_user_message` by `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, and returns the full `threads.id`.
+- [x] 2.1 Add a Claude resolver that scans recently modified `~/.claude/projects/**/*.jsonl`, matches string user messages by `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`, and returns the transcript `sessionId`.
+- [x] 2.2 Add a Codex resolver that queries `~/.codex/state_5.sqlite` `threads`, matches `first_user_message` by `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`, and returns the full `threads.id`.
 - [x] 2.3 Persist successful resolver output into `.voicetree/terminals/<terminalId>.json` under `recovery.native`; resolver misses remain diagnostic and non-actionable.
 - [x] 2.4 Unit-test resolver matching with fixture Claude JSONL records and Codex `threads` rows, including reused terminal names, wrong vault, wrong task path, old timestamps, array-valued Claude message content, and duplicate candidates.
 

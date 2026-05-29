@@ -178,7 +178,7 @@ export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void>
  * Discovery's Claude resolver scans `*.jsonl` under
  * `VOICETREE_CLAUDE_PROJECTS_DIR` (or `~/.claude/projects` by default) and
  * matches records whose `message.content` contains the three VoiceTree
- * markers: VOICETREE_TERMINAL_ID, VOICETREE_VAULT_PATH, TASK_NODE_PATH.
+ * markers: VOICETREE_TERMINAL_ID, VOICETREE_PROJECT_PATH, TASK_NODE_PATH.
  *
  * The e2e tests set VOICETREE_CLAUDE_PROJECTS_DIR to a temp dir and call this
  * helper to seed the matching transcript, so the resolver can find the
@@ -197,7 +197,7 @@ export async function fixtureClaudeTranscript(opts: {
     const transcriptPath: string = path.join(subdir, `${opts.sessionId}.jsonl`);
     const markerText: string = [
         `VOICETREE_TERMINAL_ID = ${opts.terminalId}`,
-        `VOICETREE_VAULT_PATH = ${opts.projectRoot}`,
+        `VOICETREE_PROJECT_PATH = ${opts.projectRoot}`,
         `TASK_NODE_PATH = ${opts.taskNodePath}`,
     ].join('\n');
     const record = {
@@ -245,7 +245,7 @@ export async function fixtureRecoveryMetadata(opts: {
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: opts.terminalId,
                 AGENT_NAME: opts.agentName,
-                VOICETREE_VAULT_PATH: opts.projectRoot,
+                VOICETREE_PROJECT_PATH: opts.projectRoot,
                 VOICETREE_PROJECT_DIR: projectDir,
                 ...(opts.taskNodePath ? {TASK_NODE_PATH: opts.taskNodePath} : {}),
             },

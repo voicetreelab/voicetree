@@ -144,7 +144,7 @@ interface EnvState {
 function snapshotEnv(): EnvState {
     const KEYS: ReadonlyArray<string> = [
         'VOICETREE_DAEMON_URL',
-        'VOICETREE_VAULT_PATH',
+        'VOICETREE_PROJECT_PATH',
         'VOICETREE_DAEMON_TIMEOUT_MS',
     ]
     const snapshot: Record<string, string | undefined> = {}
@@ -162,7 +162,7 @@ function restoreEnv(state: EnvState): void {
 
 function clearDiscoveryEnv(): void {
     delete process.env.VOICETREE_DAEMON_URL
-    delete process.env.VOICETREE_VAULT_PATH
+    delete process.env.VOICETREE_PROJECT_PATH
     delete process.env.VOICETREE_DAEMON_TIMEOUT_MS
 }
 
@@ -351,7 +351,7 @@ describe('callDaemon — black-box HTTP wire', () => {
 
             process.chdir(losing.vaultPath)
             process.env.VOICETREE_DAEMON_URL = winning.url
-            process.env.VOICETREE_VAULT_PATH = winning.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = winning.vaultPath
 
             const result: unknown = await callDaemon('search_nodes', {})
             expect(result).toEqual({via: 'env_url'})
@@ -379,7 +379,7 @@ describe('callDaemon — black-box HTTP wire', () => {
             expect(err).toBeInstanceOf(DaemonUnreachable)
             const msg: string = (err as Error).message
             expect(msg).toContain('VOICETREE_DAEMON_URL')
-            expect(msg).toContain('VOICETREE_VAULT_PATH')
+            expect(msg).toContain('VOICETREE_PROJECT_PATH')
         })
     })
 })

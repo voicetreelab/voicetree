@@ -14,7 +14,7 @@ function userRecord(content: string | ReadonlyArray<{type?: string; text?: strin
 }
 
 function markers(terminal = TERMINAL, vault = VAULT, task = TASK): string {
-    return `VOICETREE_TERMINAL_ID = ${terminal} VOICETREE_VAULT_PATH = ${vault} TASK_NODE_PATH = ${task}`
+    return `VOICETREE_TERMINAL_ID = ${terminal} VOICETREE_PROJECT_PATH = ${vault} TASK_NODE_PATH = ${task}`
 }
 
 describe('matchClaudeSessionId — happy path', () => {
@@ -54,7 +54,7 @@ describe('matchClaudeSessionId — non-match cases', () => {
     })
 
     it('returns null when only terminal+vault markers are present (missing task)', () => {
-        const partial: string = `VOICETREE_TERMINAL_ID = ${TERMINAL}\nVOICETREE_VAULT_PATH = ${VAULT}\n`
+        const partial: string = `VOICETREE_TERMINAL_ID = ${TERMINAL}\nVOICETREE_PROJECT_PATH = ${VAULT}\n`
         expect(matchClaudeSessionId({
             records: [userRecord(partial)],
             terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK,

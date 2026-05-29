@@ -46,7 +46,7 @@ describe('createLiveTransport — happy path over HTTP', () => {
         envSnapshot = snapshotEnv()
         mock = initialMockServer()
         daemon = await startStubDaemon(buildHappyCatalog(mock))
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
     })
 
     afterEach(async () => {
@@ -113,7 +113,7 @@ describe('createLiveTransport — happy path over HTTP', () => {
     })
 
     it('honors an explicit vaultPath argument (no cwd up-walk needed)', async () => {
-        delete process.env.VOICETREE_VAULT_PATH
+        delete process.env.VOICETREE_PROJECT_PATH
         const transport = createLiveTransport(daemon.vaultPath)
         const state = await transport.getLiveState()
         expect(state.meta.revision).toBe(3)
@@ -147,7 +147,7 @@ describe('createLiveTransport — error envelopes', () => {
             })],
         ])
         daemon = await startStubDaemon(catalog)
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
 
         const transport = createLiveTransport()
         await expect(transport.getLiveState()).rejects.toThrow(
@@ -164,7 +164,7 @@ describe('createLiveTransport — error envelopes', () => {
             }],
         ])
         daemon = await startStubDaemon(catalog)
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
 
         const transport = createLiveTransport()
         try {
@@ -179,7 +179,7 @@ describe('createLiveTransport — error envelopes', () => {
 
     it('other JSON-RPC errors surface error.message (unknown method)', async () => {
         daemon = await startStubDaemon(new Map())
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
 
         const transport = createLiveTransport()
         await expect(transport.getLiveState()).rejects.toThrow(
@@ -215,7 +215,7 @@ describe('createLiveTransport — transport failures', () => {
         // Stale the on-disk token so the client sends a mismatched bearer
         // and the daemon (which still holds the original) rejects with 401.
         await writeAuthTokenFile(daemon.vaultPath, 'wrong-token-not-the-real-one')
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
 
         const transport = createLiveTransport()
         await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonAuthRequired)
@@ -234,7 +234,7 @@ describe('createLiveTransport — transport failures', () => {
             }],
         ])
         daemon = await startStubDaemon(catalog)
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
         process.env.VOICETREE_DAEMON_TIMEOUT_MS = '100'
 
         const transport = createLiveTransport()
@@ -249,7 +249,7 @@ describe('createLiveTransport — transport failures', () => {
         await writeAuthTokenFile(vaultPath, 'irrelevant-no-listener-anyway')
         // Port 1 is reserved on most OSes — TCP connect rejects with ECONNREFUSED.
         await writeRpcPortFile(vaultPath, 1)
-        process.env.VOICETREE_VAULT_PATH = vaultPath
+        process.env.VOICETREE_PROJECT_PATH = vaultPath
 
         try {
             const transport = createLiveTransport()
@@ -304,7 +304,7 @@ describe('createLiveTransport — discovery chain', () => {
             // Env URL aimed at the real daemon; VAULT_PATH at the real vault
             // (so the client reads the *correct* token, not the stale one).
             process.env.VOICETREE_DAEMON_URL = daemon.url
-            process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
 
             const state = await createLiveTransport().getLiveState()
             expect(state.meta.revision).toBe(99)
@@ -320,7 +320,7 @@ describe('createLiveTransport — discovery chain', () => {
         daemon = await startStubDaemon(catalog)
 
         delete process.env.VOICETREE_DAEMON_URL
-        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
 
         const state = await createLiveTransport().getLiveState()
         expect(state.meta.revision).toBe(3)
@@ -330,7 +330,7 @@ describe('createLiveTransport — discovery chain', () => {
         const isolated: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-no-vault-')))
         try {
             delete process.env.VOICETREE_DAEMON_URL
-            delete process.env.VOICETREE_VAULT_PATH
+            delete process.env.VOICETREE_PROJECT_PATH
             process.chdir(isolated)
 
             const transport = createLiveTransport()

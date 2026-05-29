@@ -73,7 +73,7 @@ export async function forkAgentSession(
     const initialCommand: string | undefined = source.terminalData.initialCommand
     if (!initialCommand) return {kind: 'unsupported', reason: 'missing-initial-command'}
 
-    const projectRoot: string | undefined = source.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH
+    const projectRoot: string | undefined = source.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH
     if (!projectRoot) return {kind: 'unsupported', reason: 'missing-project-root'}
     const taskNodePath: string = source.terminalData.initialEnvVars?.TASK_NODE_PATH ?? ''
 

@@ -72,7 +72,7 @@ export async function resumePersistedAgentSession(
     const initialCommand: string | undefined = session.terminalData.initialCommand
     if (!initialCommand) return {kind: 'unsupported', reason: 'missing-initial-command'}
 
-    const projectRoot: string | undefined = session.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH
+    const projectRoot: string | undefined = session.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH
     if (!projectRoot) return {kind: 'unsupported', reason: 'missing-project-root'}
     const taskNodePath: string = session.terminalData.initialEnvVars?.TASK_NODE_PATH ?? ''
 

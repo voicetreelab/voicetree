@@ -53,7 +53,7 @@ For an external workflow that wants to route writes into a specific loaded vault
 
 Inside a spawned agent the loaded vault paths are surfaced as:
 
-- `VOICETREE_VAULT_PATH` — the daemon's `writePath`.
+- `VOICETREE_PROJECT_PATH` — the daemon's `writePath`.
 - `ALL_MARKDOWN_READ_PATHS` — newline-separated `[writePath, ...readPaths]`.
 
 A workflow that wants per-agent vault routing currently composes by:

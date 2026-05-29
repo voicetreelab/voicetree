@@ -123,12 +123,12 @@ export async function prepareTerminalDataInMain(
     // Auto-install lifecycle hooks per agent type. Each pure injector is a
     // no-op for non-matching commands, so the same pipeline handles every
     // agent. Claude: settings JSON in APP_SUPPORT (uses $VOICETREE_DAEMON_URL
-    // + $VOICETREE_VAULT_PATH shell-var expansion at fire time). Codex: TOML
+    // + $VOICETREE_PROJECT_PATH shell-var expansion at fire time). Codex: TOML
     // inline `-c` flags with the daemon URL + terminalId baked in at spawn
     // time. Both target the unified HTTP daemon (Step 9b) published per-vault
     // at `<vault>/.voicetree/rpc.port`. The bearer token is NEVER passed via
     // env / CLI args (design doc §3.3) — hook curls read it via `cat` from
-    // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` at fire time.
+    // `$VOICETREE_PROJECT_PATH/.voicetree/auth-token` at fire time.
     const env = getRuntimeEnv()
     const voicetreeHomePath: string = resolveVoicetreeHomePath()
     const projectRoot: string | null = env.getProjectRoot

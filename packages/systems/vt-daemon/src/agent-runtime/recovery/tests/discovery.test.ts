@@ -236,7 +236,7 @@ describe('discoverRecoverableAgentSessions — ordering', () => {
             terminalData: makeTerminalData({
                 terminalId: 'Claimed' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Claimed', VOICETREE_VAULT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Claimed', VOICETREE_PROJECT_PATH: VAULT_PATH},
             }),
         })
         const rows = await discoverRecoverableAgentSessions(makeDeps({

@@ -75,13 +75,13 @@ describe('unclaimed tmux discovery', () => {
         const envBySession: Map<string, Record<string, string>> = new Map([
             [currentSession, {
                 AGENT_NAME: 'Ivy',
-                VOICETREE_VAULT_PATH: '/repo/vault',
+                VOICETREE_PROJECT_PATH: '/repo/vault',
                 CONTEXT_NODE_PATH: '/repo/vault/ctx.md',
                 TASK_NODE_PATH: '/repo/vault/task.md',
             }],
             [foreignSession, {
                 AGENT_NAME: 'Jay',
-                VOICETREE_VAULT_PATH: '/other/vault',
+                VOICETREE_PROJECT_PATH: '/other/vault',
             }],
         ])
 

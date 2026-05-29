@@ -156,7 +156,7 @@ describe('discoverRecoverableAgentSessions — sort across groups (§6.4)', () =
             terminalData: makeTerminalData({
                 terminalId: 'Live' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Live', VOICETREE_VAULT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Live', VOICETREE_PROJECT_PATH: VAULT_PATH},
             }),
         }
         const resumeOnlyMeta = makeRunningClaudeMetadata({
@@ -166,7 +166,7 @@ describe('discoverRecoverableAgentSessions — sort across groups (§6.4)', () =
             terminalData: makeTerminalData({
                 terminalId: 'ResumeOnly' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ResumeOnly', VOICETREE_VAULT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ResumeOnly', VOICETREE_PROJECT_PATH: VAULT_PATH},
             }),
         })
         const closedRecent = makeExitedClaudeMetadata({
@@ -176,7 +176,7 @@ describe('discoverRecoverableAgentSessions — sort across groups (§6.4)', () =
             terminalData: makeTerminalData({
                 terminalId: 'ClosedRecent' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedRecent', VOICETREE_VAULT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedRecent', VOICETREE_PROJECT_PATH: VAULT_PATH},
             }),
         })
         const closedOlder = makeKilledClaudeMetadata({
@@ -186,7 +186,7 @@ describe('discoverRecoverableAgentSessions — sort across groups (§6.4)', () =
             terminalData: makeTerminalData({
                 terminalId: 'ClosedOlder' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedOlder', VOICETREE_VAULT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'ClosedOlder', VOICETREE_PROJECT_PATH: VAULT_PATH},
             }),
         })
 

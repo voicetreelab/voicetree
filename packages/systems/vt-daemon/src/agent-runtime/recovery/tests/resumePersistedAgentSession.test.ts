@@ -80,7 +80,7 @@ describe('resumePersistedAgentSession — Claude', () => {
             terminalData: makeTerminalData({
                 initialCommand: 'claude',
                 initialSpawnDirectory: '/vault/work',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_VAULT_PATH: VAULT_PATH, AGENT_NAME: 'Ari'},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_PROJECT_PATH: VAULT_PATH, AGENT_NAME: 'Ari'},
             }),
         })
         const {deps, spawnCalls, resolveCalls} = makeDeps({discover: async () => [row]})
@@ -93,7 +93,7 @@ describe('resumePersistedAgentSession — Claude', () => {
         expect(spawnCalls).toHaveLength(1)
         expect(spawnCalls[0].terminalId).toBe(TERMINAL_ID_A)
         expect(spawnCalls[0].cwd).toBe('/vault/work')
-        expect(spawnCalls[0].env).toEqual({VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_VAULT_PATH: VAULT_PATH, AGENT_NAME: 'Ari'})
+        expect(spawnCalls[0].env).toEqual({VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_PROJECT_PATH: VAULT_PATH, AGENT_NAME: 'Ari'})
         // Lazy resolution: resolver invoked exactly once, at click time, with click-scoped request
         expect(resolveCalls).toHaveLength(1)
         expect(resolveCalls[0]).toEqual({
@@ -204,7 +204,7 @@ describe('resumePersistedAgentSession — lazy native-session resolution', () =>
                 initialCommand: 'claude',
                 initialEnvVars: {
                     VOICETREE_TERMINAL_ID: TERMINAL_A,
-                    VOICETREE_VAULT_PATH: '/some/vault/root',
+                    VOICETREE_PROJECT_PATH: '/some/vault/root',
                     TASK_NODE_PATH: '/some/vault/root/.voicetree/tasks/T-1.md',
                 },
             }),
@@ -269,11 +269,11 @@ describe('resumePersistedAgentSession — unsupported inputs', () => {
         expect(resolveCalls).toHaveLength(0)
     })
 
-    it('returns unsupported/missing-project-root when the persisted terminal has no VOICETREE_VAULT_PATH', async () => {
+    it('returns unsupported/missing-project-root when the persisted terminal has no VOICETREE_PROJECT_PATH', async () => {
         const row = makeRecoverableRow({
             terminalData: makeTerminalData({
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A},  // no VOICETREE_VAULT_PATH
+                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A},  // no VOICETREE_PROJECT_PATH
             }),
         })
         const {deps, spawnCalls, resolveCalls} = makeDeps({discover: async () => [row]})

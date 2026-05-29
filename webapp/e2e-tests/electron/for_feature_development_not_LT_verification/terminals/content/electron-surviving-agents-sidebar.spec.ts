@@ -42,7 +42,7 @@ test.describe('Surviving Agents Sidebar', () => {
         spawnSeededTmuxSession(seededSessionName, {
             VOICETREE_TERMINAL_ID: SEEDED_TERMINAL_ID,
             AGENT_NAME: SEEDED_TERMINAL_ID,
-            VOICETREE_VAULT_PATH: vault.projectRoot,
+            VOICETREE_PROJECT_PATH: vault.projectRoot,
             VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
             CONTEXT_NODE_PATH: vault.contextNodePath,
         }, tmuxSocketPath(vault.appSupportPath));
@@ -186,7 +186,7 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
             spawnSeededTmuxSession(twinSessionName, {
                 VOICETREE_TERMINAL_ID: twinTerminalId,
                 AGENT_NAME: twinTerminalId,
-                VOICETREE_VAULT_PATH: vault.projectRoot,
+                VOICETREE_PROJECT_PATH: vault.projectRoot,
                 VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
                 CONTEXT_NODE_PATH: vault.contextNodePath,
             }, tmuxSocketPath(vault.appSupportPath));

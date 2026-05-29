@@ -13,7 +13,7 @@ function markerRecord(sessionId: string): ClaudeTranscriptRecord {
         type: 'user',
         message: {
             role: 'user',
-            content: `prompt body\nVOICETREE_TERMINAL_ID = ${TERMINAL}\nVOICETREE_VAULT_PATH = ${VAULT}\nTASK_NODE_PATH = ${TASK}`,
+            content: `prompt body\nVOICETREE_TERMINAL_ID = ${TERMINAL}\nVOICETREE_PROJECT_PATH = ${VAULT}\nTASK_NODE_PATH = ${TASK}`,
         },
     }
 }

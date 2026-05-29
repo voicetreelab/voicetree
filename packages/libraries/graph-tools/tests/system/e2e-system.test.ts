@@ -137,7 +137,7 @@ describe('@vt/graph-tools system contract', () => {
     function daemonEnv(server: HeadlessHandle): NodeJS.ProcessEnv {
       return {
         VOICETREE_DAEMON_URL: server.url,
-        VOICETREE_VAULT_PATH: server.vaultPath,
+        VOICETREE_PROJECT_PATH: server.vaultPath,
       }
     }
 

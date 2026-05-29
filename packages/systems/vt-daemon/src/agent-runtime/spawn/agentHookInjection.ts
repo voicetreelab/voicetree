@@ -92,7 +92,7 @@ function buildHookCurl(args: {
     readonly escapeQuotesForTomlInline: boolean
 }): string {
     const url: string = `${args.daemonUrl}/hook/${args.source}?terminal=${args.terminalIdInUrl}&event=${args.event}`
-    const tokenFile: string = '"$VOICETREE_VAULT_PATH/.voicetree/auth-token"'
+    const tokenFile: string = '"$VOICETREE_PROJECT_PATH/.voicetree/auth-token"'
     if (args.escapeQuotesForTomlInline) {
         // Codex single-quotes the outer `-c 'hooks.Event=[…]'`; double quotes
         // inside the curl invocation must be TOML-escaped (`\"`) so they
@@ -154,7 +154,7 @@ export function injectCodexHookFlags(command: string, daemonUrl: string, termina
 /**
  * Returns the static JSON that VoiceTree writes to its app-support dir for
  * Claude Code to consume via `--settings`. Hook commands reference
- * `$VOICETREE_DAEMON_URL`, `$VOICETREE_VAULT_PATH`, and
+ * `$VOICETREE_DAEMON_URL`, `$VOICETREE_PROJECT_PATH`, and
  * `$VOICETREE_TERMINAL_ID` as shell variables — those are injected into the
  * spawned agent's env by buildTerminalEnvVars and inherited by the hook
  * subprocess.

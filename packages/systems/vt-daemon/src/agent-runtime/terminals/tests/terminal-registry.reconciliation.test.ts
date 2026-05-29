@@ -31,7 +31,7 @@ function makeTerminalData(terminalId: TerminalId, projectRoot: string): Terminal
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: projectRoot,
+            VOICETREE_PROJECT_PATH: projectRoot,
         },
     })
 }

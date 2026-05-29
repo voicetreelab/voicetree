@@ -111,7 +111,7 @@ describe('closeAgentTool', () => {
             executeCommand: true,
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: terminalId,
-                VOICETREE_VAULT_PATH: projectRoot,
+                VOICETREE_PROJECT_PATH: projectRoot,
             },
         })
 
@@ -120,7 +120,7 @@ describe('closeAgentTool', () => {
             terminalData,
             `bash -lc 'sleep 30'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         expect(await hasSession(terminalId)).toBe(true)
 

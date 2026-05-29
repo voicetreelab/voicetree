@@ -11,7 +11,7 @@
 // Env (required, set by buildTerminalEnvVars when hook terminal is spawned):
 //   VOICETREE_MCP_PORT              - MCP server port (errors if missing)
 //   VOICETREE_CALLER_TERMINAL_ID    - Terminal ID for agent spawning (errors if missing)
-//   VOICETREE_VAULT_PATH            - Vault root directory (used by spawned agents, not this script)
+//   VOICETREE_PROJECT_PATH            - Vault root directory (used by spawned agents, not this script)
 
 'use strict'
 

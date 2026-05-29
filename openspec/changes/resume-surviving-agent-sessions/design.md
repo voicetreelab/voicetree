@@ -82,8 +82,8 @@ Non-actionable records can be returned only for diagnostics/tests, or omitted fr
 
 **Choice:** Add provider-specific resolver functions that read Claude/Codex global state shortly after spawn and write the resolved native id into the existing per-agent terminal metadata file:
 
-- Claude: scan recently modified `~/.claude/projects/**/*.jsonl` transcript files. Match user records whose string `message.content` contains `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`; persist the record's `sessionId`, transcript path, cwd, timestamp, and source `claude-project-transcript`.
-- Codex: query `~/.codex/state_5.sqlite` table `threads`. Match `first_user_message` on `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, constrained by recent `created_at_ms` / `updated_at_ms`; persist `id`, `rollout_path`, cwd, timestamp, and source `codex-state-index`.
+- Claude: scan recently modified `~/.claude/projects/**/*.jsonl` transcript files. Match user records whose string `message.content` contains `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`; persist the record's `sessionId`, transcript path, cwd, timestamp, and source `claude-project-transcript`.
+- Codex: query `~/.codex/state_5.sqlite` table `threads`. Match `first_user_message` on `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`, constrained by recent `created_at_ms` / `updated_at_ms`; persist `id`, `rollout_path`, cwd, timestamp, and source `codex-state-index`.
 
 Write the result under the existing project-local record:
 

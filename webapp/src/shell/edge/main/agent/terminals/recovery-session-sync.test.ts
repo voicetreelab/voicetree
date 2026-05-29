@@ -57,7 +57,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
         title: 'Mira',
         resizable: true,
         shadowNodeDimensions: {width: 395, height: 380},
-        initialEnvVars: {VOICETREE_TERMINAL_ID: 'Mira', VOICETREE_VAULT_PATH: '/vault'},
+        initialEnvVars: {VOICETREE_TERMINAL_ID: 'Mira', VOICETREE_PROJECT_PATH: '/vault'},
         initialCommand: 'claude',
         isPinned: true,
         isDone: false,

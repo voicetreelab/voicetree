@@ -68,7 +68,7 @@ function makeTerminalData(terminalId: TerminalId, projectRoot: string): Terminal
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: projectRoot,
+            VOICETREE_PROJECT_PATH: projectRoot,
         },
     })
 }
@@ -102,7 +102,7 @@ describe('headlessAgentManager tmux backend', () => {
             makeTerminalData(terminalId, projectRoot),
             `bash -lc 'echo BF311_READY; while IFS= read -r line; do echo BF311_GOT:$line; [ "$line" = "BF311_EXIT" ] && break; done'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
             undefined,
             'tmux',
         )
@@ -144,7 +144,7 @@ describe('headlessAgentManager tmux backend', () => {
             isHeadless: false,
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: terminalId,
-                VOICETREE_VAULT_PATH: projectRoot,
+                VOICETREE_PROJECT_PATH: projectRoot,
             },
         })
 
@@ -153,7 +153,7 @@ describe('headlessAgentManager tmux backend', () => {
             interactiveTerminalData,
             '/bin/bash -l',
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         expect(created.pid).toBeGreaterThan(0)
 
@@ -184,7 +184,7 @@ describe('headlessAgentManager tmux backend', () => {
             makeTerminalData(terminalId, projectRoot),
             `bash -lc 'echo BF311_PRESERVE_READY; sleep 300'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         await waitFor(async () => hasSession(terminalId))
         expect((await readMetadata(metadataPath))?.status).toBe('running')
@@ -210,7 +210,7 @@ describe('headlessAgentManager tmux backend', () => {
             makeTerminalData(terminalId, projectRoot),
             `bash -lc 'echo BF311_TERMINATE_READY; sleep 300'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         await waitFor(async () => hasSession(terminalId))
 
@@ -238,7 +238,7 @@ describe('headlessAgentManager tmux backend', () => {
             td,
             '/bin/bash -l',
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         expect(first.pid).toBeGreaterThan(0)
         expect(await hasSession(terminalId)).toBe(true)
@@ -251,7 +251,7 @@ describe('headlessAgentManager tmux backend', () => {
             td,
             '/bin/bash -l',
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         expect(second.pid).toBe(first.pid)
         expect(await hasSession(terminalId)).toBe(true)

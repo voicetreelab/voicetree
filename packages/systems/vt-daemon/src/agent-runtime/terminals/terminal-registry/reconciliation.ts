@@ -57,7 +57,7 @@ function fallbackTerminalData(metadata: TmuxTerminalMetadata, projectRoot: strin
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: metadata.name,
-            VOICETREE_VAULT_PATH: projectRoot,
+            VOICETREE_PROJECT_PATH: projectRoot,
         },
     })
 }
@@ -91,7 +91,7 @@ function importRunningRecord(metadata: TmuxTerminalMetadata, projectRoot: string
  *
  * `projectRoot` MUST be the value returned by `graph.getProjectRoot()` (i.e.
  * the canonical `.voicetree/` parent), NOT `writeFolder` or
- * `process.env.VOICETREE_VAULT_PATH`. The two diverge whenever a vault is
+ * `process.env.VOICETREE_PROJECT_PATH`. The two diverge whenever a vault is
  * loaded as a sub-directory of a project that already has its own
  * `.voicetree/` config — passing writeFolder used to cause this reconciler
  * to write to a directory that discovery never read from.

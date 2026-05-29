@@ -45,7 +45,7 @@ function makeResumable(): RecoverableAgentSession {
         contextContent: '',
         agentTypeName: '',
         initialCommand: 'claude',
-        initialEnvVars: {VOICETREE_VAULT_PATH: '/vault'},
+        initialEnvVars: {VOICETREE_PROJECT_PATH: '/vault'},
     }
     return {
         terminalId: 'Bob' as TerminalData['terminalId'],

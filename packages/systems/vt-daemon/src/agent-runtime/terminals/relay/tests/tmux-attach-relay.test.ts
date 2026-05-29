@@ -318,7 +318,7 @@ describe('tmux attach relay', () => {
     it('attaches a raw terminal route to its vault-namespaced tmux session', async () => {
         const terminalId: string = makeSessionName('namespaced')
         const env: Record<string, string> = {
-            VOICETREE_VAULT_PATH: `/tmp/${terminalId}-vault`,
+            VOICETREE_PROJECT_PATH: `/tmp/${terminalId}-vault`,
         }
         const sessionName: string = buildTmuxSessionName(terminalId, env)
         sessions.push(terminalId)

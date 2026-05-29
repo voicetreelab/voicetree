@@ -142,7 +142,7 @@ describe('createRpcClientForVault', (): void => {
         active.push(fake)
         const vault: string = await makeVaultWith(token, fake.port)
 
-        // Pass env={} — no $VOICETREE_VAULT_PATH and no $VOICETREE_DAEMON_URL.
+        // Pass env={} — no $VOICETREE_PROJECT_PATH and no $VOICETREE_DAEMON_URL.
         // The standard `createRpcClient` would fail here (no discovery hits);
         // `createRpcClientForVault` succeeds because vault is explicit.
         const client = await createRpcClientForVault(vault, {env: {}})

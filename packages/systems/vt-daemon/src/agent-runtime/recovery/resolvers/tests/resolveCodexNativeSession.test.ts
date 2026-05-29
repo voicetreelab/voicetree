@@ -10,7 +10,7 @@ const NOW = 1779424330000
 function makeRow(overrides: Partial<CodexThreadRow> = {}): CodexThreadRow {
     return {
         id: 'thread-uuid-default',
-        first_user_message: `header\nVOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_VAULT_PATH = ${VAULT} TASK_NODE_PATH = ${TASK}`,
+        first_user_message: `header\nVOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_PROJECT_PATH = ${VAULT} TASK_NODE_PATH = ${TASK}`,
         cwd: VAULT,
         created_at_ms: NOW - 120_000,
         updated_at_ms: NOW - 60_000,

@@ -167,7 +167,7 @@ async function startHeadless(vault: string): Promise<{readonly url: string; read
 }
 
 function daemonEnv(server: {url: string; vaultPath: string}): Record<string, string> {
-    return {VOICETREE_DAEMON_URL: server.url, VOICETREE_VAULT_PATH: server.vaultPath}
+    return {VOICETREE_DAEMON_URL: server.url, VOICETREE_PROJECT_PATH: server.vaultPath}
 }
 
 describe('graph CLI module resolution', () => {

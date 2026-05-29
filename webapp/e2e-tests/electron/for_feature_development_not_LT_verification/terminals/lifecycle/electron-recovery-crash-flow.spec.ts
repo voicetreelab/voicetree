@@ -101,7 +101,7 @@ async function seedRichRecoveryMetadata(opts: {
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: agent.terminalId,
                 AGENT_NAME: agent.terminalId,
-                VOICETREE_VAULT_PATH: projectRoot,
+                VOICETREE_PROJECT_PATH: projectRoot,
                 VOICETREE_PROJECT_DIR: path.join(projectRoot, '.voicetree'),
                 TASK_NODE_PATH: taskNodePath,
             },
@@ -177,7 +177,7 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
             spawnSeededTmuxSession(agentCSessionName, {
                 VOICETREE_TERMINAL_ID: agentC.terminalId,
                 AGENT_NAME: agentC.terminalId,
-                VOICETREE_VAULT_PATH: vault.projectRoot,
+                VOICETREE_PROJECT_PATH: vault.projectRoot,
                 VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
                 CONTEXT_NODE_PATH: taskNodePath,
             }, tmuxSocketPath(vault.appSupportPath));

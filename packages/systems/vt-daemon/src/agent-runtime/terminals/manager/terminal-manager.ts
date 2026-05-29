@@ -21,8 +21,8 @@ import {
   buildTmuxEnv,
   resolveHeadfulPromptInjection,
   resolvePromptFileWrite,
-  resolveTmuxVaultPath,
-  withResolvedTmuxVaultPath,
+  resolveTmuxProjectPath,
+  withResolvedTmuxProjectPath,
   type HeadfulPromptInjectionRequest,
   type PromptFileWriteRequest,
 } from '../tmux/tmuxSpawnPlanning';
@@ -52,9 +52,9 @@ function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string
   return writePromptFile(request.projectRoot, request.terminalId, request.prompt);
 }
 
-async function resolveRuntimeWriteFolder(): Promise<string | null> {
+async function resolveRuntimeProjectRoot(): Promise<string | null> {
   try {
-    return await (getRuntimeEnv().getWriteFolder?.() ?? Promise.resolve(null));
+    return await (getRuntimeEnv().getProjectRoot?.() ?? Promise.resolve(null));
   } catch {
     return null;
   }
@@ -107,16 +107,16 @@ export class TerminalManager {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
-      const projectRoot: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWriteFolder());
+      const projectRoot: string | undefined = resolveTmuxProjectPath(deps.env, initial, await resolveRuntimeProjectRoot());
       const promptFile: string | null = writeResolvedPromptFile(
         resolvePromptFileWrite(projectRoot, terminalId, initial.AGENT_PROMPT),
       );
       const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, projectRoot, promptFile);
-      const terminalDataWithVaultPath: TerminalData = {
+      const terminalDataWithProjectPath: TerminalData = {
         ...terminalData,
-        initialEnvVars: withResolvedTmuxVaultPath(initial, projectRoot),
+        initialEnvVars: withResolvedTmuxProjectPath(initial, projectRoot),
       };
-      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
+      await spawnTmuxBackedTerminal(terminalId, terminalDataWithProjectPath, shell, cwd, tmuxEnv, undefined, promptFile);
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
         terminalId,
         terminalData.initialCommand,

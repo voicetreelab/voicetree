@@ -84,7 +84,7 @@ export async function createRpcClient(options: CreateRpcClientOptions): Promise<
     const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({cwd, env})
     if (!endpoint) {
         throw new DaemonUnreachable(
-            'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, open a vault, or set $VOICETREE_VAULT_PATH.',
+            'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, open a project, or set $VOICETREE_PROJECT_PATH.',
         )
     }
     return buildClientFromEndpoint(endpoint, env)
@@ -124,7 +124,7 @@ async function buildClientFromEndpoint(
     const token: string | null = tokenSource ? await readAuthTokenFile(tokenSource) : null
     if (token === null) {
         throw new DaemonUnreachable(
-            `No auth token at ${tokenSource ?? '<unknown vault>'}/.voicetree/auth-token. Daemon may not be running, or vault path is wrong.`,
+            `No auth token at ${tokenSource ?? '<unknown project>'}/.voicetree/auth-token. Daemon may not be running, or project path is wrong.`,
         )
     }
     return {
