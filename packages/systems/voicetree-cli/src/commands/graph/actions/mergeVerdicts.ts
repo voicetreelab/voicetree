@@ -1,7 +1,6 @@
 import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringPlanEntry,
-    FilesystemAuthoringValidationError,
 } from '@vt/graph-tools/node'
 import type {AppliedNode} from '../io/filesystem'
 import type {GatedInput} from './gateVerdicts'
@@ -10,6 +9,11 @@ import type {
     GraphCreateSuccess,
     NodeVerdict,
 } from '../core/types'
+
+type PlanErrorLike = {
+    readonly message: string
+    readonly filename?: string
+}
 
 export function indexMcpResults(result: GraphCreateSuccess): ReadonlyMap<string, GraphCreateResult> {
     const indexed: Map<string, GraphCreateResult> = new Map()
@@ -54,20 +58,20 @@ export function mergeMcpResults(
     })
 }
 
-export function indexPlanErrorsByFilename(
-    errors: readonly FilesystemAuthoringValidationError[],
+export function indexPlanErrorsByFilename<T extends PlanErrorLike>(
+    errors: readonly T[],
 ): {
-    readonly byFilename: ReadonlyMap<string, readonly FilesystemAuthoringValidationError[]>
-    readonly unattached: readonly FilesystemAuthoringValidationError[]
+    readonly byFilename: ReadonlyMap<string, readonly T[]>
+    readonly unattached: readonly T[]
 } {
-    const byFilename: Map<string, FilesystemAuthoringValidationError[]> = new Map()
-    const unattached: FilesystemAuthoringValidationError[] = []
+    const byFilename: Map<string, T[]> = new Map()
+    const unattached: T[] = []
     for (const err of errors) {
         if (err.filename === undefined) {
             unattached.push(err)
             continue
         }
-        const existing: FilesystemAuthoringValidationError[] = byFilename.get(err.filename) ?? []
+        const existing: T[] = byFilename.get(err.filename) ?? []
         existing.push(err)
         byFilename.set(err.filename, existing)
     }
@@ -77,7 +81,7 @@ export function indexPlanErrorsByFilename(
 export function mergePlanIntoGateVerdicts(
     gateVerdicts: readonly GatedInput[],
     writePlan: readonly FilesystemAuthoringPlanEntry[],
-    planErrorsByFilename: ReadonlyMap<string, readonly FilesystemAuthoringValidationError[]>,
+    planErrorsByFilename: ReadonlyMap<string, readonly PlanErrorLike[]>,
 ): readonly NodeVerdict[] {
     const planByFilename: Map<string, FilesystemAuthoringPlanEntry> = new Map()
     for (const entry of writePlan) {
@@ -85,9 +89,12 @@ export function mergePlanIntoGateVerdicts(
     }
 
     return gateVerdicts.map((gated): NodeVerdict => {
-        if (gated.verdict.status !== 'ok') return gated.verdict
-
-        const planErrors: readonly FilesystemAuthoringValidationError[] | undefined =
+        // A plan-level rejection (orphan node, duplicate target, oversized body)
+        // is a structural impossibility that must override any non-rejected gate
+        // verdict, including `skipped` (schema didn't apply). A skipped verdict
+        // is not an endorsement: an orphan whose folder has no schema plugin must
+        // still be rejected, never silently dropped.
+        const planErrors: readonly PlanErrorLike[] | undefined =
             planErrorsByFilename.get(gated.path)
         if (planErrors !== undefined && planErrors.length > 0) {
             return {
@@ -96,6 +103,8 @@ export function mergePlanIntoGateVerdicts(
                 planErrorMessage: planErrors.map((e) => e.message).join('; '),
             }
         }
+
+        if (gated.verdict.status !== 'ok') return gated.verdict
 
         const planEntry: FilesystemAuthoringPlanEntry | undefined = planByFilename.get(gated.path)
         return {
