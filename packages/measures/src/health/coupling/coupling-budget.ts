@@ -168,6 +168,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
     'graph-tools -> vt-rpc': 8,
+    // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
+    // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
+    // (one dynamic import in scenarios/b5.ts). Measured value at package
+    // introduction; the bootcamp is a leaf consumer that should not grow this.
+    'voicetree-bootcamp -> graph-db-client': 1,
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
