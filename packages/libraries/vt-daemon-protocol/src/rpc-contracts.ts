@@ -81,7 +81,7 @@ export interface UnseenNodeInfo {
  * that picks up where the prior one left off.
  */
 export interface AttachCapability {
-    readonly sessionName: string
+    readonly session: UnclaimedTmuxSession
 }
 export interface ResumeCapability {
     readonly cliType: 'claude' | 'codex'
@@ -97,8 +97,16 @@ export interface RecoverableAgentSession {
     readonly metadataPath: string
     readonly terminalData: TerminalData
     readonly isClaimed: boolean
+    readonly status: 'running' | 'exited' | 'killed'
     readonly attach?: AttachCapability
     readonly resume?: ResumeCapability
+    readonly worktreeName?: string
+    readonly title?: string
+    readonly agentTypeName?: string
+    readonly startedAt?: string
+    readonly endedAt?: string
+    readonly closedAt?: number
+    readonly killReason?: string
 }
 
 export type ResumePersistedResult =
