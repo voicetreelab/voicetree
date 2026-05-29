@@ -4,7 +4,7 @@ import path from 'node:path'
 import {hydrateState, type SerializedState} from '@vt/graph-state'
 import {getProjectDotVoicetreePath} from '@vt/paths'
 
-import {liveStateDump} from '../src/node'
+import {liveStateDump} from '../src/live/live'
 import {findLoadedRootForFile} from './liveEdgePersist'
 
 async function getLoadedRoots(vaultPath?: string): Promise<readonly string[]> {

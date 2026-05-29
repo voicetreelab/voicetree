@@ -111,13 +111,6 @@ export async function setActiveVaultAndEnsureDaemon(vault: string): Promise<Daem
   return await ensureDaemonForActiveVault()
 }
 
-export function getDaemonClient(): GraphDbClient {
-  if (activeOwner === null) {
-    throw new Error('Graph daemon client is not connected. Open a vault first.')
-  }
-  return activeOwner.client
-}
-
 export function getActiveDaemonClient(): GraphDbClient | null {
   return activeOwner?.client ?? null
 }

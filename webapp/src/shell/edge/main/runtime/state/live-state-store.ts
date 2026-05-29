@@ -23,8 +23,3 @@ export async function applyLiveCommand(cmd: Command): Promise<Delta> {
     }
     return await dispatchLiveCommandToDaemon(cmd)
 }
-
-/** Compatibility wrapper for existing tests/callers. */
-export async function applyLiveCommandAsync(cmd: Command): Promise<Delta> {
-    return applyLiveCommand(cmd)
-}

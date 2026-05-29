@@ -151,12 +151,3 @@ export function unsubscribeFromTerminalRegistrySse(): void {
     runner.stop()
     currentHandler = null
 }
-
-export function __debugLockTerminalRegistrySSE(): void {
-    runner.lockForTest()
-    currentHandler = null
-}
-
-export function __debugUnlockTerminalRegistrySSE(): void {
-    runner.unlockForTest()
-}

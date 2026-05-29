@@ -54,9 +54,3 @@ export function installVtDaemonEventsBridge(deps: VtDaemonEventsBridgeDeps): () 
         client.close()
     }
 }
-
-export const __vtDaemonEventsChannels = {
-    events: EVENTS_CHANNEL,
-    connection: CONNECTION_CHANNEL,
-    resnapshot: RESNAPSHOT_INVOKE,
-} as const
