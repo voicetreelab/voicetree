@@ -62,14 +62,14 @@ describe('buildCliInvocationRecord — pure shape transform', () => {
             errorClass: 'SchemaViolation',
             gateRejection: {
                 typeName: 'forecast',
-                schemaPath: '/vault/.voicetree/schemas/forecast.md',
+                schemaPath: '/project/.voicetree/schemas/forecast.md',
                 ruleIds: ['$.probability', '$.confidence'],
             },
         })
         expect(r.error_class).toBe('SchemaViolation')
         expect(r.gate_rejection).toEqual({
             typeName: 'forecast',
-            schemaPath: '/vault/.voicetree/schemas/forecast.md',
+            schemaPath: '/project/.voicetree/schemas/forecast.md',
             ruleIds: ['$.probability', '$.confidence'],
         })
     })
@@ -201,7 +201,7 @@ describe('installCliInvocationSink — edge behaviour with injected deps', () =>
             startMs: 1_000,
             deps: h.deps,
         })
-        setInvocationContext({verb: 'graph structure', argsShape: 'graph structure --vault <arg>'})
+        setInvocationContext({verb: 'graph structure', argsShape: 'graph structure --project <arg>'})
         setErrorClass('DaemonUnreachableError')
         h.fakeNow = 1_058
         h.fakeNowIso = '2026-05-21T14:32:55.880Z'
@@ -228,7 +228,7 @@ describe('installCliInvocationSink — edge behaviour with injected deps', () =>
         setErrorClass('SchemaViolation')
         setGateRejection({
             typeName: 'forecast',
-            schemaPath: '/vault/.voicetree/schemas/forecast.md',
+            schemaPath: '/project/.voicetree/schemas/forecast.md',
             ruleIds: ['$.probability', '$.confidence'],
         })
         h.fakeExitCode = 1
@@ -239,7 +239,7 @@ describe('installCliInvocationSink — edge behaviour with injected deps', () =>
         expect(record.error_class).toBe('SchemaViolation')
         expect(record.gate_rejection).toEqual({
             typeName: 'forecast',
-            schemaPath: '/vault/.voicetree/schemas/forecast.md',
+            schemaPath: '/project/.voicetree/schemas/forecast.md',
             ruleIds: ['$.probability', '$.confidence'],
         })
         // The full record JSON must not contain any violation message text.
@@ -270,7 +270,7 @@ describe('installCliInvocationSink — edge behaviour with injected deps', () =>
             startMs: 1_000,
             deps: h.deps,
         })
-        setInvocationContext({verb: 'serve', argsShape: 'serve --vault=<redacted>'})
+        setInvocationContext({verb: 'serve', argsShape: 'serve --project=<redacted>'})
 
         h.fakeNow = 1_300
         h.fakeNowIso = '2026-05-21T15:00:00.000Z'

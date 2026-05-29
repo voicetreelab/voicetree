@@ -8,7 +8,7 @@ import {
 } from '@vt/graph-db-server/contract'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-layout-test-'))
 }
 
@@ -22,11 +22,11 @@ async function createSession(port: number): Promise<string> {
 }
 
 describe('layout routes', () => {
-  let vault: string
+  let project: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    vault = await withTempVault()
+    project = await withTempProject()
     handles = []
   })
 
@@ -34,11 +34,11 @@ describe('layout routes', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
-    await rm(vault, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
   })
 
   const start = async (): Promise<DaemonHandle> => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
     return handle
   }

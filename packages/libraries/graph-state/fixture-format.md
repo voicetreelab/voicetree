@@ -47,15 +47,15 @@ sorted `[k,v][]`; fp-ts `Option` becomes `{ _tag: "None" } | { _tag: "Some", val
 {
   "$schema": "graph-state/snapshot@1",
   "id": "010-one-folder-expanded",
-  "description": "One vault root /tmp/vault, folder tasks/ expanded, no selection.",
+  "description": "One project root /tmp/project, folder tasks/ expanded, no selection.",
   "state": {
     "graph": {
       "nodes": {
-        "/tmp/vault/tasks/BF-117.md": {
+        "/tmp/project/tasks/BF-117.md": {
           "outgoingEdges": [
-            { "targetId": "/tmp/vault/tasks/BF-118.md", "label": "" }
+            { "targetId": "/tmp/project/tasks/BF-118.md", "label": "" }
           ],
-          "absoluteFilePathIsID": "/tmp/vault/tasks/BF-117.md",
+          "absoluteFilePathIsID": "/tmp/project/tasks/BF-117.md",
           "contentWithoutYamlOrLinks": "...",
           "nodeUIMetadata": {
             "color":    { "_tag": "None" },
@@ -66,19 +66,19 @@ sorted `[k,v][]`; fp-ts `Option` becomes `{ _tag: "None" } | { _tag: "Some", val
         }
       },
       "incomingEdgesIndex": [
-        ["/tmp/vault/tasks/BF-118.md", ["/tmp/vault/tasks/BF-117.md"]]
+        ["/tmp/project/tasks/BF-118.md", ["/tmp/project/tasks/BF-117.md"]]
       ],
-      "nodeByBaseName":        [["BF-117.md", ["/tmp/vault/tasks/BF-117.md"]]],
+      "nodeByBaseName":        [["BF-117.md", ["/tmp/project/tasks/BF-117.md"]]],
       "unresolvedLinksIndex":  []
     },
     "roots": {
-      "loaded":     ["/tmp/vault"],
+      "loaded":     ["/tmp/project"],
       "folderTree": [ /* FolderTreeNode[] exactly as @vt/graph-model produces */ ]
     },
     "collapseSet": [],
     "selection":   [],
     "layout": {
-      "positions": [["/tmp/vault/tasks/BF-117.md", { "x": 100, "y": 200 }]]
+      "positions": [["/tmp/project/tasks/BF-117.md", { "x": 100, "y": 200 }]]
     },
     "meta": { "schemaVersion": 1, "revision": 0 }
   }
@@ -105,15 +105,15 @@ A loader (~20 lines) inflates these back to Set/Map/Option.
   "description": "Collapsing then expanding a folder returns identical State (revision aside).",
   "initial": "010-one-folder-expanded",              // or inline State under "initialState"
   "commands": [
-    { "type": "Collapse", "folder": "/tmp/vault/tasks/" },
-    { "type": "Expand",   "folder": "/tmp/vault/tasks/" }
+    { "type": "Collapse", "folder": "/tmp/project/tasks/" },
+    { "type": "Expand",   "folder": "/tmp/project/tasks/" }
   ],
   "expected": {
     "finalSnapshot":  "010-one-folder-expanded",     // OPTIONAL: sameness assertion
     "revisionDelta":  2,                              // OPTIONAL: monotonic check
     "deltas": [                                       // OPTIONAL: assert per-step Delta
-      { "revision": 1, "collapseAdded":   ["/tmp/vault/tasks/"] },
-      { "revision": 2, "collapseRemoved": ["/tmp/vault/tasks/"] }
+      { "revision": 1, "collapseAdded":   ["/tmp/project/tasks/"] },
+      { "revision": 2, "collapseRemoved": ["/tmp/project/tasks/"] }
     ]
   }
 }
@@ -134,8 +134,8 @@ trip test might assert only `finalSnapshot`.
   "id": "010-one-folder-expanded",
   "sourceSnapshot": "010-one-folder-expanded",
   "elementSpec": {
-    "nodes": [ { "id": "/tmp/vault/tasks/",       "kind": "folder", "data": {} },
-               { "id": "/tmp/vault/tasks/BF-117.md", "parent": "/tmp/vault/tasks/",
+    "nodes": [ { "id": "/tmp/project/tasks/",       "kind": "folder", "data": {} },
+               { "id": "/tmp/project/tasks/BF-117.md", "parent": "/tmp/project/tasks/",
                  "kind": "node", "label": "BF-117", "data": {} } ],
     "edges": [],
     "revision": 0

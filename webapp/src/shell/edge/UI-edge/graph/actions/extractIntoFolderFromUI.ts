@@ -19,9 +19,9 @@ export async function extractIntoFolderFromUI(
         return
     }
 
-    const writeFolderOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolder()
-    const writeFolder: string = writeFolderOption ? O.getOrElse(() => '')(writeFolderOption) : ''
-    const { delta: graphDelta, newFolderId } = computeExtractIntoFolderGraphDelta(selectedNodeIds, currentGraph, writeFolder, folderNameOverride)
+    const writeFolderPathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolderPath()
+    const writeFolderPath: string = writeFolderPathOption ? O.getOrElse(() => '')(writeFolderPathOption) : ''
+    const { delta: graphDelta, newFolderId } = computeExtractIntoFolderGraphDelta(selectedNodeIds, currentGraph, writeFolderPath, folderNameOverride)
 
     if (graphDelta.length === 0 || newFolderId === null) {
         console.error('[extractIntoFolderFromUI] No valid extract delta generated')

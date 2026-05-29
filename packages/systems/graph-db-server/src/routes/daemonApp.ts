@@ -10,8 +10,8 @@ import { mountLayoutRoutes } from './graph-endpoints/layout.ts'
 import { mountFolderStateRoutes } from './session-endpoints/folderState.ts'
 import { mountSelectionRoutes } from './session-endpoints/selection.ts'
 import { mountSessionStateRoutes } from './session-endpoints/sessionState.ts'
-import { mountVaultRoutes } from './graph-endpoints/vault.ts'
-import { mountVaultViewsRoutes } from './graph-endpoints/vaultViews.ts'
+import { mountProjectRoutes } from './graph-endpoints/project.ts'
+import { mountProjectViewsRoutes } from './graph-endpoints/projectViews.ts'
 import { mountSessionRoutes } from './session-endpoints/sessions.ts'
 import { mountSessionEventsRoute } from './session-endpoints/sessionEvents.ts'
 import { mountViewRoutes } from './graph-endpoints/view.ts'
@@ -28,7 +28,7 @@ export type CreateDaemonAppOptions = {
 /**
  * Extracts the incoming W3C `traceparent` (+ baggage) header into an OTel
  * context that wraps the rest of the request lifecycle. Any spans started
- * inside the handler — `daemon.open-vault`, `daemon.set-write-path.*`, etc —
+ * inside the handler — `daemon.open-project`, `daemon.set-write-path.*`, etc —
  * will then attach to the caller's trace instead of starting a new root.
  */
 function attachIncomingTraceContext(app: Hono): void {
@@ -65,8 +65,8 @@ export function mountDaemonRoutes(
   })
 
   app.route('/graph', createGraphRoutes(opts.registry))
-  mountVaultRoutes(app)
-  mountVaultViewsRoutes(app)
+  mountProjectRoutes(app)
+  mountProjectViewsRoutes(app)
 }
 
 export function createDaemonApp(opts: CreateDaemonAppOptions): Hono {

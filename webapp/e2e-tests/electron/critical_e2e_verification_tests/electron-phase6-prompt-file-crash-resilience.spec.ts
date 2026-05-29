@@ -4,7 +4,7 @@
  * Replaces the manual M1-rerun-6 sweep. Locks in the Phase 6 contract:
  *
  *   1. Headless agent spawn under ptyBackend='tmux' writes the prompt to
- *      `{vault}/.voicetree/terminals/{name}-prompt.txt` (mode 0600) and the
+ *      `{project}/.voicetree/terminals/{name}-prompt.txt` (mode 0600) and the
  *      prompt is actually visible to the agent process — proved by fake-agent
  *      reading AGENT_PROMPT_FILE and executing a create_node action whose
  *      title carries a sentinel derived from the prompt.
@@ -42,7 +42,7 @@ import {
   killTmuxSession,
   launchPhase6ElectronApp,
   reapStaleTestTmuxSessions,
-  resolveVaultWriteFolder,
+  resolveProjectWriteFolderPath,
   tmuxPanePid,
   tmuxSessionExists,
   writePhase6Settings,
@@ -70,11 +70,11 @@ type PhaseSixFixtures = {
 
 const test = base.extend<PhaseSixFixtures>({
   projectRoot: async ({}, use) => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vt-phase6-vault-"));
-    const vault = path.join(root, "vault");
-    await fs.mkdir(vault, { recursive: true });
-    await fs.writeFile(path.join(vault, "task.md"), "# Phase 6 prompt-file e2e\n", "utf8");
-    await use(vault);
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vt-phase6-project-"));
+    const project = path.join(root, "project");
+    await fs.mkdir(project, { recursive: true });
+    await fs.writeFile(path.join(project, "task.md"), "# Phase 6 prompt-file e2e\n", "utf8");
+    await use(project);
     await fs.rm(root, { recursive: true, force: true });
   },
 
@@ -130,19 +130,19 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       const rpcUrl = await getDaemonRpcUrl(appWindow);
       const token = await getBearerToken(appWindow);
 
-      // ── STEP 2: vault graph loaded — `--open-folder` doesn't reliably attach
+      // ── STEP 2: project graph loaded — `--open-folder` doesn't reliably attach
       //           the watcher in the test harness, so trigger explicitly. ──
       const openResult = await appWindow.evaluate(async (vp) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
         const response = await (
           api.main as unknown as {
-            openVault: (p: string) => Promise<{ writeFolder: string }>;
+            openProject: (p: string) => Promise<{ writeFolderPath: string }>;
           }
-        ).openVault(vp);
-        return { writeFolder: response.writeFolder };
+        ).openProject(vp);
+        return { writeFolderPath: response.writeFolderPath };
       }, projectRoot);
-      expect(openResult.writeFolder, "openVault returned no writeFolder").toBeTruthy();
+      expect(openResult.writeFolderPath, "openProject returned no writeFolderPath").toBeTruthy();
 
       await expect
         .poll(
@@ -190,8 +190,8 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       // ── STEP 4: prompt file contract (existence, mode, contents) ──
       // `projectRoot` is the watched parent; production writes prompt files
       // into the voicetree-N-M subfolder it created during init.
-      const writeFolder = await resolveVaultWriteFolder(projectRoot);
-      promptFile = path.join(writeFolder, ".voicetree", "terminals", `${terminalId}-prompt.txt`);
+      const writeFolderPath = await resolveProjectWriteFolderPath(projectRoot);
+      promptFile = path.join(writeFolderPath, ".voicetree", "terminals", `${terminalId}-prompt.txt`);
       await expect
         .poll(
           async () => {
@@ -295,12 +295,12 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
                 if (!api) throw new Error("electronAPI not available");
                 const response = await (
                   api.main as unknown as {
-                    openVault: (p: string) => Promise<{ writeFolder: string }>;
+                    openProject: (p: string) => Promise<{ writeFolderPath: string }>;
                   }
-                ).openVault(vp);
-                return { writeFolder: response.writeFolder };
+                ).openProject(vp);
+                return { writeFolderPath: response.writeFolderPath };
               }, projectRoot);
-              return Boolean(wr.writeFolder);
+              return Boolean(wr.writeFolderPath);
             } catch {
               return false;
             }
@@ -308,7 +308,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
           {
             timeout: 30_000,
             intervals: [1000, 2000, 3000],
-            message: "openVault did not recover after relaunch",
+            message: "openProject did not recover after relaunch",
           },
         )
         .toBe(true);

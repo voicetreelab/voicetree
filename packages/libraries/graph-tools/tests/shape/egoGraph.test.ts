@@ -2,38 +2,38 @@
  * BF-200 — unit tests for egoGraph pure functions.
  *
  * Graph fixture: a→b, b→c, e→b. d is isolated.
- * Built via buildStateFromVault on a temp dir.
+ * Built via buildStateFromProject on a temp dir.
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
 import {mkdirSync, writeFileSync, rmSync} from 'fs'
-import {buildStateFromVault} from '@vt/graph-state'
+import {buildStateFromProject} from '@vt/graph-state'
 import type {State} from '@vt/graph-state/contract'
 import {configureGraphToolsRootIO} from '../../src/live/rootIO'
 import {focus, neighbors, shortestPath, renderFocus, renderNeighbors, renderPath} from '../../src/view/egoGraph'
 
-const VAULT = '/tmp/vt-ego-unit-test'
-const A = `${VAULT}/a.md`
-const B = `${VAULT}/b.md`
-const C = `${VAULT}/c.md`
-const D = `${VAULT}/d.md`
-const E = `${VAULT}/e.md`
+const PROJECT = '/tmp/vt-ego-unit-test'
+const A = `${PROJECT}/a.md`
+const B = `${PROJECT}/b.md`
+const C = `${PROJECT}/c.md`
+const D = `${PROJECT}/d.md`
+const E = `${PROJECT}/e.md`
 
 let graph: State['graph']
 
 beforeAll(async () => {
     configureGraphToolsRootIO()
-    mkdirSync(VAULT, {recursive: true})
+    mkdirSync(PROJECT, {recursive: true})
     writeFileSync(A, '# A\n[[b]]\n')
     writeFileSync(B, '# B\n[[c]]\n')
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n')
     writeFileSync(E, '# E\n[[b]]\n')
-    const state = await buildStateFromVault(VAULT, VAULT)
+    const state = await buildStateFromProject(PROJECT, PROJECT)
     graph = state.graph
 })
 
 afterAll(() => {
-    rmSync(VAULT, {recursive: true, force: true})
+    rmSync(PROJECT, {recursive: true, force: true})
 })
 
 describe('focus()', () => {
@@ -57,7 +57,7 @@ describe('focus()', () => {
     })
 
     it('returns empty for missing node', () => {
-        expect(focus(graph, '/vault/missing.md')).toEqual([])
+        expect(focus(graph, '/project/missing.md')).toEqual([])
     })
 
     it('0-hop returns only center', () => {
@@ -87,7 +87,7 @@ describe('neighbors()', () => {
     })
 
     it('returns empty for missing node', () => {
-        expect(neighbors(graph, '/vault/missing.md', 1)).toEqual([])
+        expect(neighbors(graph, '/project/missing.md', 1)).toEqual([])
     })
 })
 
@@ -105,7 +105,7 @@ describe('shortestPath()', () => {
     })
 
     it('returns null for missing source', () => {
-        expect(shortestPath(graph, '/vault/missing.md', B)).toBeNull()
+        expect(shortestPath(graph, '/project/missing.md', B)).toBeNull()
     })
 
     it('undirected: c→b→e via reverse edges', () => {
@@ -130,7 +130,7 @@ describe('renderFocus()', () => {
     })
 
     it('missing node returns error string', () => {
-        expect(renderFocus(graph, '/vault/missing.md')).toContain('not found')
+        expect(renderFocus(graph, '/project/missing.md')).toContain('not found')
     })
 })
 

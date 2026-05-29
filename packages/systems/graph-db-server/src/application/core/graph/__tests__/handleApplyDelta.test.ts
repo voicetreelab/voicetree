@@ -10,7 +10,7 @@ import {
   parseGraphDeltaRequest,
 } from '../handleApplyDelta.ts'
 
-const NODE_ID = '/tmp/vault/node.md'
+const NODE_ID = '/tmp/project/node.md'
 
 function graphNodeFixture(overrides: Partial<GraphNode> = {}): GraphNode {
   return {
@@ -59,7 +59,7 @@ describe('handleApplyDelta', () => {
 
   test('normalizes upsert deltas and preserves delete deltas', () => {
     const previousNode = graphNodeFixture({
-      absoluteFilePathIsID: '/tmp/vault/previous.md',
+      absoluteFilePathIsID: '/tmp/project/previous.md',
       nodeUIMetadata: {
         color: O.none,
         position: O.none,
@@ -81,7 +81,7 @@ describe('handleApplyDelta', () => {
       },
       {
         type: 'UpsertNode',
-        nodeToUpsert: graphNodeFixture({ absoluteFilePathIsID: '/tmp/vault/new.md' }),
+        nodeToUpsert: graphNodeFixture({ absoluteFilePathIsID: '/tmp/project/new.md' }),
         previousNode: O.none,
       },
       {

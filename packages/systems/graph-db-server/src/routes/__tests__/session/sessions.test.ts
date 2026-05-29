@@ -9,16 +9,16 @@ import {
   SessionInfoSchema,
 } from '@vt/graph-db-server/contract'
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sessions-test-'))
 }
 
 describe('session routes', () => {
-  let vault: string
+  let project: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    vault = await withTempVault()
+    project = await withTempProject()
     handles = []
   })
 
@@ -26,11 +26,11 @@ describe('session routes', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
-    await rm(vault, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
   })
 
   test('create, read, delete, and health sessionCount round-trip', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
 
     const createResponse = await fetch(`http://127.0.0.1:${handle.port}/sessions`, {
@@ -47,8 +47,8 @@ describe('session routes', () => {
     expect(getResponse.status).toBe(200)
     const info = SessionInfoSchema.parse(await getResponse.json())
     expect(info.id).toBe(createBody.sessionId)
-    // setWriteFolder seeds the writeFolder as 'expanded' on cold mount, so a
-    // freshly-created session sees one folder-state row (the writeFolder).
+    // setWriteFolderPath seeds the writeFolderPath as 'expanded' on cold mount, so a
+    // freshly-created session sees one folder-state row (the writeFolderPath).
     expect(info.folderStateSize).toBe(1)
     expect(info.selectionSize).toBe(0)
 
@@ -79,7 +79,7 @@ describe('session routes', () => {
   })
 
   test('missing session returns 404', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ project })
     handles.push(handle)
 
     const response = await fetch(

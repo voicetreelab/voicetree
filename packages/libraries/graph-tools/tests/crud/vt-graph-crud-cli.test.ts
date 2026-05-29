@@ -37,11 +37,11 @@ function runVtGraphFailure(args: readonly string[]): {readonly status: number; r
 
 describe('vt-graph live CRUD CLI', () => {
     it.each([
-        ['add-node', ['--file', '--label', '--x', '--y', '--vault']],
-        ['rm-node', ['--file', '--vault']],
-        ['add-edge', ['--src-file', '--tgt-file', '--label', '--vault']],
-        ['rm-edge', ['--src-file', '--tgt-file', '--vault']],
-        ['mv-node', ['--file', '--x', '--y', '--vault']],
+        ['add-node', ['--file', '--label', '--x', '--y', '--project']],
+        ['rm-node', ['--file', '--project']],
+        ['add-edge', ['--src-file', '--tgt-file', '--label', '--project']],
+        ['rm-edge', ['--src-file', '--tgt-file', '--project']],
+        ['mv-node', ['--file', '--x', '--y', '--project']],
     ])('prints per-verb help for %s', (verb: string, flags: readonly string[]) => {
         const stdout = runVtGraph(['live', verb, '--help'])
 

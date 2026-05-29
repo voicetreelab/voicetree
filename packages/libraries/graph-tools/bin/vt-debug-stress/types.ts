@@ -12,7 +12,7 @@ export type RunnerOptions = {
   skipFlows: boolean
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 export type ExecResult = {

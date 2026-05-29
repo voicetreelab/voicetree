@@ -1,11 +1,11 @@
 /**
- * Test for duplicate node creation bug (multivault path duplication)
+ * Test for duplicate node creation bug (multiproject path duplication)
  *
  * Purpose: Verify that creating a node in an empty folder only creates ONE file,
- * not duplicates from path concatenation bugs in the multivault refactor.
+ * not duplicates from path concatenation bugs in the multiproject refactor.
  *
  * This test catches the bug where paths like:
- *   /vault//vault/vault/file.md
+ *   /project//project/project/file.md
  * were being created due to absolute paths being concatenated multiple times.
  */
 
@@ -25,7 +25,7 @@ interface ExtendedWindow {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
   watchedFolder: string;
 }>({
   electronApp: async ({}, use, testInfo) => {
@@ -35,10 +35,10 @@ const test = base.extend<{
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-single-node-test-'));
 
     // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Create the actual vault path with default suffix 'voicetree'
+    // Create the actual project path with default suffix 'voicetree'
     // IMPORTANT: Start EMPTY - no files created
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });
@@ -47,7 +47,7 @@ const test = base.extend<{
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     // Store paths for test access via testInfo
     (testInfo as unknown as { projectRoot: string; watchedFolder: string }).projectRoot = projectRoot;
@@ -91,7 +91,7 @@ const test = base.extend<{
     console.log('[Test] Cleaned up temp directory');
   },
 
-  testVaultPath: async ({}, use, testInfo) => {
+  testProjectPath: async ({}, use, testInfo) => {
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
@@ -155,10 +155,10 @@ async function listDirsRecursive(dir: string, prefix = ''): Promise<string[]> {
 }
 
 test.describe('Single Node Creation - No Duplicate Files', () => {
-  test('should not create duplicate nodes when file watcher processes new file', async ({ appWindow, testVaultPath, watchedFolder }) => {
+  test('should not create duplicate nodes when file watcher processes new file', async ({ appWindow, testProjectPath, watchedFolder }) => {
     test.setTimeout(90000);
     console.log('=== Testing node creation duplicate bug ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
     console.log('[Test] Watched folder:', watchedFolder);
 
     // Get initial state (may have default nodes from onboarding)
@@ -256,7 +256,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
 
     // Check for the duplicate bug pattern:
     // If we have both a relative ID (voicetree/test-single-node.md) AND an absolute ID
-    // (/path/to/vault/voicetree/test-single-node.md), that's a duplicate
+    // (/path/to/project/voicetree/test-single-node.md), that's a duplicate
     const hasRelativeId = finalState.graphNodeIds.some(id => id === relativeNodeId);
     const hasAbsoluteVersion = finalState.graphNodeIds.some(id =>
       id !== relativeNodeId && id.endsWith('/test-single-node.md')
@@ -299,7 +299,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     expect(newGraphNodes.length).toBe(1);
     expect(newCytoscapeNodes.length).toBe(1);
 
-    // 2. Check for nested directories (path duplication creates /vault/vault/vault/...)
+    // 2. Check for nested directories (path duplication creates /project/project/project/...)
     const unexpectedDirs = allDirs.filter(d => {
       // Allow 'voicetree' and 'onboarding' (default dirs)
       return d !== 'voicetree' && d !== 'onboarding' && !d.startsWith('voicetree/');
@@ -313,7 +313,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     console.log('✅ Test complete!');
   });
 
-  test('should not create duplicate nodes when creating multiple nodes', async ({ appWindow, _testVaultPath, watchedFolder }) => {
+  test('should not create duplicate nodes when creating multiple nodes', async ({ appWindow, _testProjectPath, watchedFolder }) => {
     test.setTimeout(90000);
     console.log('=== Testing multiple node creation (no duplicates) ===');
 

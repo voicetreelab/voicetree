@@ -41,19 +41,19 @@ function createCountingScanner(): CountingScanner {
   }
 }
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-norescan-test-'))
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-  const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-norescan-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+  const voicetreeHome = await mkdtemp(join(tmpdir(), 'graphd-sse-norescan-appsupport-'))
   const config = {
-    vaultConfig: {
-      [vault]: { writeFolder: vault },
+    projectConfig: {
+      [project]: { writeFolderPath: project },
     },
   }
-  await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))
-  return appSupport
+  await writeFile(join(voicetreeHome, 'voicetree-config.json'), JSON.stringify(config))
+  return voicetreeHome
 }
 
 function parseSSEGraphEvents(text: string): readonly ProjectedGraph[] {
@@ -107,14 +107,14 @@ async function readUntilNGraphs(
 }
 
 describe('SSE delta projection does not rescan the filesystem', () => {
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handles: DaemonHandle[]
   let sseController: AbortController | null
 
   beforeEach(async () => {
-    vault = await withTempVault()
-    appSupport = await createAppSupport(vault)
+    project = await withTempProject()
+    voicetreeHome = await createVoicetreeHome(project)
     handles = []
     sseController = null
   })
@@ -123,15 +123,15 @@ describe('SSE delta projection does not rescan the filesystem', () => {
     sseController?.abort()
     await new Promise(r => setTimeout(r, 50))
     for (const h of handles) await h.stop().catch(() => {})
-    await rm(vault, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
   }, 15000)
 
   test('three graph deltas emit one coalesced projection without any folder-tree scan', async () => {
     const scanner = createCountingScanner()
     const handle = await startDaemon({
-      vault,
-      voicetreeHomePath: appSupport,
+      project,
+      voicetreeHomePath: voicetreeHome,
       createStarterIfEmpty: false,
       folderTreeScanner: scanner.fn,
     })
@@ -155,7 +155,7 @@ describe('SSE delta projection does not rescan the filesystem', () => {
 
     setGraph(createEmptyGraph())
     for (let i = 0; i < 3; i++) {
-      const nodePath = join(vault, `delta-${i}.md`)
+      const nodePath = join(project, `delta-${i}.md`)
       const delta: GraphDelta = [
         {
           type: 'UpsertNode',
@@ -169,9 +169,9 @@ describe('SSE delta projection does not rescan the filesystem', () => {
 
     const graphs = await readUntilNGraphs(reader, 1)
     expect(graphs.at(-1)?.recentNodeIds).toEqual([
-      join(vault, 'delta-0.md'),
-      join(vault, 'delta-1.md'),
-      join(vault, 'delta-2.md'),
+      join(project, 'delta-0.md'),
+      join(project, 'delta-1.md'),
+      join(project, 'delta-2.md'),
     ])
 
     // SSE delta projection must use graph-derived projection (pure, no fs).

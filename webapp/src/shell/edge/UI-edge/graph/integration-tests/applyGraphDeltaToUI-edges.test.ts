@@ -5,7 +5,7 @@ import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
 import type { ProjectedEdge, ProjectedGraph, ProjectedNode } from '@vt/graph-state/contract'
-import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
+import { syncProjectStateFromMain } from '@/shell/edge/UI-edge/state/stores/ProjectPathStore'
 import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, applySpecToUI } from './applyGraphDeltaToUI.test-utils'
 
@@ -24,43 +24,43 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         setTestCollapseSet(new Set())
-        syncVaultStateFromMain({ readPaths: [], writeFolder: null, starredFolders: [] })
+        syncProjectStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
     })
 
     describe('Edge handling', () => {
         it('refreshes metadata for existing projected edges', () => {
             const source: ProjectedNode = {
-                id: '/vault/auth/',
+                id: '/project/auth/',
                 kind: 'folder-collapsed',
                 label: 'auth',
                 relPath: 'auth/',
                 basename: 'auth',
-                folderPath: '/vault/',
+                folderPath: '/project/',
                 content: '# auth',
                 loadState: 'loaded',
                 isWriteTarget: true,
                 childCount: 4,
             }
             const target: ProjectedNode = {
-                id: '/vault/api/gateway.md',
+                id: '/project/api/gateway.md',
                 kind: 'file',
                 label: 'gateway',
                 relPath: 'api/gateway.md',
                 basename: 'gateway',
-                folderPath: '/vault/api/',
+                folderPath: '/project/api/',
                 content: '# gateway',
             }
             const graphWithEdge = (edge: ProjectedEdge): ProjectedGraph => ({
                 nodes: [source, target],
                 edges: [edge],
-                rootPath: '/vault',
+                rootPath: '/project',
                 revision: 1,
                 forests: [],
                 arboricity: 0,
                 recentNodeIds: [],
             })
             const edgeBase = {
-                id: 'synthetic:/vault/auth/:out:/vault/api/gateway.md',
+                id: 'synthetic:/project/auth/:out:/project/api/gateway.md',
                 source: source.id,
                 target: target.id,
             } as const

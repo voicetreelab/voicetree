@@ -3,14 +3,14 @@
   "data": {
     "graph": {
       "nodes": {
-        "/tmp/vault/a.md": {
+        "/tmp/project/a.md": {
           "outgoingEdges": [
             {
-              "targetId": "/tmp/vault/b.md",
+              "targetId": "/tmp/project/b.md",
               "label": ""
             }
           ],
-          "absoluteFilePathIsID": "/tmp/vault/a.md",
+          "absoluteFilePathIsID": "/tmp/project/a.md",
           "contentWithoutYamlOrLinks": "alpha",
           "nodeUIMetadata": {
             "color": { "_tag": "None" },
@@ -18,9 +18,9 @@
             "additionalYAMLProps": []
           }
         },
-        "/tmp/vault/b.md": {
+        "/tmp/project/b.md": {
           "outgoingEdges": [],
-          "absoluteFilePathIsID": "/tmp/vault/b.md",
+          "absoluteFilePathIsID": "/tmp/project/b.md",
           "contentWithoutYamlOrLinks": "beta",
           "nodeUIMetadata": {
             "color": { "_tag": "None" },
@@ -31,26 +31,26 @@
       },
       "incomingEdgesIndex": [
         [
-          "/tmp/vault/b.md",
-          ["/tmp/vault/a.md"]
+          "/tmp/project/b.md",
+          ["/tmp/project/a.md"]
         ]
       ],
       "nodeByBaseName": [
-        ["a.md", ["/tmp/vault/a.md"]],
-        ["b.md", ["/tmp/vault/b.md"]]
+        ["a.md", ["/tmp/project/a.md"]],
+        ["b.md", ["/tmp/project/b.md"]]
       ],
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": ["/tmp/vault"],
+      "loaded": ["/tmp/project"],
       "folderTree": []
     },
     "collapseSet": [],
-    "selection": ["/tmp/vault/a.md"],
+    "selection": ["/tmp/project/a.md"],
     "layout": {
       "positions": [
-        ["/tmp/vault/a.md", { "x": 10, "y": 20 }],
-        ["/tmp/vault/b.md", { "x": 30, "y": 40 }]
+        ["/tmp/project/a.md", { "x": 10, "y": 20 }],
+        ["/tmp/project/b.md", { "x": 30, "y": 40 }]
       ],
       "zoom": 1.25,
       "pan": { "x": 5, "y": 6 }
@@ -60,20 +60,20 @@
       "revision": 1
     },
     "fsContentById": {
-      "/tmp/vault/a.md": "alpha",
-      "/tmp/vault/b.md": "zzzz"
+      "/tmp/project/a.md": "alpha",
+      "/tmp/project/b.md": "zzzz"
     }
   },
   "projected": {
     "nodes": [
       {
-        "id": "/tmp/vault/a.md",
+        "id": "/tmp/project/a.md",
         "classes": ["selected"],
         "position": { "x": 10, "y": 20 },
         "visible": true
       },
       {
-        "id": "/tmp/vault/b.md",
+        "id": "/tmp/project/b.md",
         "classes": [],
         "position": { "x": 30, "y": 40 },
         "visible": true
@@ -81,9 +81,9 @@
     ],
     "edges": [
       {
-        "id": "/tmp/vault/a.md->/tmp/vault/b.md",
-        "source": "/tmp/vault/a.md",
-        "target": "/tmp/vault/b.md",
+        "id": "/tmp/project/a.md->/tmp/project/b.md",
+        "source": "/tmp/project/a.md",
+        "target": "/tmp/project/b.md",
         "classes": []
       }
     ],
@@ -91,18 +91,18 @@
       "zoom": 1.25,
       "pan": { "x": 5, "y": 6 }
     },
-    "selection": ["/tmp/vault/a.md"]
+    "selection": ["/tmp/project/a.md"]
   },
   "rendered": {
     "nodes": [
       {
-        "id": "/tmp/vault/a.md",
+        "id": "/tmp/project/a.md",
         "classes": ["selected"],
         "position": { "x": 10, "y": 20 },
         "visible": true
       },
       {
-        "id": "/tmp/vault/b.md",
+        "id": "/tmp/project/b.md",
         "classes": [],
         "position": { "x": 30, "y": 40 },
         "visible": true
@@ -110,9 +110,9 @@
     ],
     "edges": [
       {
-        "id": "/tmp/vault/a.md->/tmp/vault/b.md",
-        "source": "/tmp/vault/a.md",
-        "target": "/tmp/vault/b.md",
+        "id": "/tmp/project/a.md->/tmp/project/b.md",
+        "source": "/tmp/project/a.md",
+        "target": "/tmp/project/b.md",
         "classes": []
       }
     ],
@@ -120,14 +120,14 @@
       "zoom": 1.25,
       "pan": { "x": 5, "y": 6 }
     },
-    "selection": ["/tmp/vault/a.md"]
+    "selection": ["/tmp/project/a.md"]
   },
   "expected": {
     "dataVsProjection": { "equal": true },
     "projectionVsRendered": { "equal": true },
     "nodeContentStale": [
       {
-        "id": "/tmp/vault/b.md",
+        "id": "/tmp/project/b.md",
         "mainLen": 4,
         "fsLen": 4
       }

@@ -24,7 +24,7 @@ import type { ElectronAPI } from '@/shell/electron';
 import type { EditorView } from '@codemirror/view';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions for window extensions
 interface ExtendedWindow {
@@ -51,8 +51,8 @@ const test = base.extend<{
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-preview-chip-e2e-'));
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
-    console.log('[Preview Chip E2E] Created config to auto-load:', FIXTURE_VAULT_PATH);
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
+    console.log('[Preview Chip E2E] Created config to auto-load:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [

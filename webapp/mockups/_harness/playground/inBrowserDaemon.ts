@@ -1,7 +1,7 @@
 // In-browser daemon stub for the folder-node playground.
 //
 // Stands in for what the real graph-db-server does: hold mutable Session state
-// (collapseSet) plus an immutable Graph + FolderTreeNode + VaultState, and on
+// (collapseSet) plus an immutable Graph + FolderTreeNode + ProjectState, and on
 // every folder-state command re-run the REAL pure `project()` function from
 // @vt/graph-state to produce a fresh ProjectedGraph.
 //
@@ -14,12 +14,12 @@ import { project } from '@vt/graph-state/project'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { Graph } from '@vt/graph-model'
 import type { FolderTreeNode } from '@vt/graph-model/folders'
-import type { VaultState } from '@vt/graph-db-protocol'
+import type { ProjectState } from '@vt/graph-db-protocol'
 
 import type { Session } from './sessionTypes'
 
 export interface DaemonState {
-    readonly vault: VaultState
+    readonly project: ProjectState
     readonly graph: Graph
     readonly folderTree: FolderTreeNode
     readonly session: Session
@@ -49,7 +49,7 @@ export interface InBrowserDaemon {
 }
 
 export interface CreateInBrowserDaemonArgs {
-    readonly vault: VaultState
+    readonly project: ProjectState
     readonly graph: Graph
     readonly folderTree: FolderTreeNode
     readonly initialCollapsedFolderIds: ReadonlySet<string>
@@ -78,7 +78,7 @@ function projectFromState(daemon: DaemonState): ProjectedGraph {
     return project({
         graph: daemon.graph,
         roots: {
-            loaded: new Set<string>([daemon.vault.writeFolder, ...daemon.vault.readPaths].filter((p) => p.length > 0)),
+            loaded: new Set<string>([daemon.project.writeFolderPath, ...daemon.project.readPaths].filter((p) => p.length > 0)),
             folderTree: [daemon.folderTree],
         },
         collapseSet: new Set(daemon.session.collapseSet),
@@ -102,7 +102,7 @@ export function createInBrowserDaemon(args: CreateInBrowserDaemonArgs): InBrowse
     // itself, but the playground synthesises Graph nodes without positions, so
     // we layer a parallel positions map and feed it to project() each time.
     const state: DaemonState = {
-        vault: args.vault,
+        project: args.project,
         graph: args.graph,
         folderTree: args.folderTree,
         session: makeSession(args.initialCollapsedFolderIds),

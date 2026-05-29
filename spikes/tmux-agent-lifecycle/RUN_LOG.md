@@ -1,7 +1,7 @@
 # BF-201 tmux Agent Lifecycle Empirical Run
 
 - Run directory: `/Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle`
-- Vault directory: `/Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle/test-vault-bf201`
+- Project directory: `/Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle/test-project-bf201`
 - Claude version: `2.1.142 (Claude Code)`
 - Claude substitution used: `no`
 - Note: phase-1 scripts name tmux sessions `vt-AGENT_NAME`, so Rex is observed as `vt-Rex`.
@@ -13,7 +13,7 @@ Verdict: PASS
 Command:
 
 ```bash
-VAULT_DIR="$PWD/test-vault-bf201" ./spawn-agent.sh Rex
+PROJECT_DIR="$PWD/test-project-bf201" ./spawn-agent.sh Rex
 ```
 
 Expected:
@@ -26,7 +26,7 @@ Actual:
 
 ```text
 spawned Rex in tmux session vt-Rex
-metadata: /Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle/test-vault-bf201/.voicetree/terminals/Rex.json
+metadata: /Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle/test-project-bf201/.voicetree/terminals/Rex.json
 session vt-Rex: 0
 log bytes:       18
 ```
@@ -38,7 +38,7 @@ Verdict: PASS
 Command:
 
 ```bash
-VAULT_DIR="$PWD/test-vault-bf201" ./send-message.sh Rex "say hello"
+PROJECT_DIR="$PWD/test-project-bf201" ./send-message.sh Rex "say hello"
 ```
 
 Expected:
@@ -62,7 +62,7 @@ Verdict: PASS
 Command:
 
 ```bash
-VAULT_DIR="$PWD/test-vault-bf201" ./list-agents.sh; tmux list-sessions | grep "^vt-Rex:"
+PROJECT_DIR="$PWD/test-project-bf201" ./list-agents.sh; tmux list-sessions | grep "^vt-Rex:"
 ```
 
 Expected:
@@ -86,7 +86,7 @@ Verdict: PASS
 Command:
 
 ```bash
-VAULT_DIR="$PWD/test-vault-bf201" ./kill-agent.sh Rex
+PROJECT_DIR="$PWD/test-project-bf201" ./kill-agent.sh Rex
 ```
 
 Expected:
@@ -100,7 +100,7 @@ Actual:
 ```text
 killed Rex
 session vt-Rex: 1
-metadata: {"name":"Rex","status":"exited","pid":46570,"session":"vt-Rex","startedAt":"2026-05-15T04:47:53Z","exitedAt":"2026-05-15T04:47:53Z","logFile":"/Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle/test-vault-bf201/.voicetree/terminals/Rex.log"}
+metadata: {"name":"Rex","status":"exited","pid":46570,"session":"vt-Rex","startedAt":"2026-05-15T04:47:53Z","exitedAt":"2026-05-15T04:47:53Z","logFile":"/Users/example/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/spikes/tmux-agent-lifecycle/test-project-bf201/.voicetree/terminals/Rex.log"}
 ```
 
 ## 3.5 natural exit for claude --print spawn
@@ -110,7 +110,7 @@ Verdict: PASS
 Command:
 
 ```bash
-VAULT_DIR="$PWD/test-vault-bf201" ./spawn-agent.sh RexExit hi
+PROJECT_DIR="$PWD/test-project-bf201" ./spawn-agent.sh RexExit hi
 ```
 
 Expected:
@@ -135,7 +135,7 @@ Verdict: PASS
 Command:
 
 ```bash
-(VAULT_DIR="$PWD/test-vault-bf201" ./spawn-agent.sh Rex; sleep 60) & kill $subshell_pid
+(PROJECT_DIR="$PWD/test-project-bf201" ./spawn-agent.sh Rex; sleep 60) & kill $subshell_pid
 ```
 
 Expected:
@@ -183,7 +183,7 @@ Verdict: PASS
 Command:
 
 ```bash
-printf "$$" > test-vault-bf201/.voicetree/relay.pid; VAULT_DIR="$PWD/test-vault-bf201" ./send-message.sh Rex "echo relay-ok"
+printf "$$" > test-project-bf201/.voicetree/relay.pid; PROJECT_DIR="$PWD/test-project-bf201" ./send-message.sh Rex "echo relay-ok"
 ```
 
 Expected:

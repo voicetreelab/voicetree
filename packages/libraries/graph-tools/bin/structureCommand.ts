@@ -24,9 +24,9 @@ interface DaemonOverlay {
   readonly defaultRoot: string | undefined
 }
 
-async function tryGetDaemonOverlay(vaultPath?: string): Promise<DaemonOverlay | undefined> {
+async function tryGetDaemonOverlay(projectPath?: string): Promise<DaemonOverlay | undefined> {
   try {
-    const transport = createLiveTransport(vaultPath)
+    const transport = createLiveTransport(projectPath)
     const state = await transport.getLiveState()
     const defaultRoot = state.roots.loaded.size > 0
       ? [...state.roots.loaded][0]
@@ -51,7 +51,7 @@ export async function runStructureCommand(args: string[]): Promise<void> {
   let explicitRender = false
   let budget = 30
   let budgetExplicit = false
-  let vaultPath: string | undefined
+  let projectPath: string | undefined
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -117,16 +117,16 @@ export async function runStructureCommand(args: string[]): Promise<void> {
       explicitRender = true
       continue
     }
-    if (arg === '--vault') {
+    if (arg === '--project') {
       const next: string | undefined = args[++i]
       if (!next || next.startsWith('--')) {
-        fail('--vault requires a value')
+        fail('--project requires a value')
       }
-      vaultPath = next
+      projectPath = next
       continue
     }
-    if (arg.startsWith('--vault=')) {
-      vaultPath = arg.slice('--vault='.length)
+    if (arg.startsWith('--project=')) {
+      projectPath = arg.slice('--project='.length)
       continue
     }
     if (arg.startsWith('--')) {
@@ -144,7 +144,7 @@ export async function runStructureCommand(args: string[]): Promise<void> {
     if (explicitRender) {
       fail('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
     }
-    const overlay = await tryGetDaemonOverlay(vaultPath)
+    const overlay = await tryGetDaemonOverlay(projectPath)
     const resolvedFolder = folderPath
       ? path.resolve(folderPath)
       : (overlay?.defaultRoot ?? process.cwd())

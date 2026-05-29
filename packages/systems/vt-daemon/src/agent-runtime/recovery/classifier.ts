@@ -25,8 +25,8 @@ export type ClassifierInput = {
      */
     readonly registryTerminalIds: ReadonlySet<string>
     /**
-     * Namespace hash for the current vault, from `getCurrentTmuxNamespaceHash()`.
-     * Null if the current vault namespace could not be resolved.
+     * Namespace hash for the current project, from `getCurrentTmuxNamespaceHash()`.
+     * Null if the current project namespace could not be resolved.
      */
     readonly currentNamespaceHash: string | null
     /**
@@ -154,7 +154,7 @@ function classifyRecord(record: MetadataRecord, input: ClassifierInput): Recover
     if (input.currentNamespaceHash !== null) {
         const metadataHash: string | null = extractNamespaceHash(sessionName)
         if (metadataHash !== null && metadataHash !== input.currentNamespaceHash) {
-            return {kind: 'dropped', reason: 'foreign-vault', metadataPath: record.path}
+            return {kind: 'dropped', reason: 'foreign-project', metadataPath: record.path}
         }
     }
 

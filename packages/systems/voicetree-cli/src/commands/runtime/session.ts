@@ -1,6 +1,6 @@
 import {ensureDaemon, GraphDbClient, type SessionInfo} from '@vt/graph-db-client'
 import {isJsonMode} from '../output'
-import {resolveVault} from '../util/detectVault'
+import {resolveProject} from '../util/detectProject'
 import {ArgValidationError, handleCliError} from '../util/exitCodes'
 
 type SessionSubcommand = 'create' | 'delete' | 'show'
@@ -9,7 +9,7 @@ type ParsedSessionCommand = {
     forceJson: boolean
     sessionId?: string
     subcommand: SessionSubcommand
-    vaultFlag?: string
+    projectFlag?: string
 }
 
 type SessionCreateResult = {
@@ -22,9 +22,9 @@ type SessionDeleteResult = {
 }
 
 const SESSION_USAGE: string = `Usage:
-  vt session create [--vault <path>] [--json]
-  vt session delete <id> [--vault <path>] [--json]
-  vt session show [id] [--vault <path>] [--json]`
+  vt session create [--project <path>] [--json]
+  vt session delete <id> [--project <path>] [--json]
+  vt session show [id] [--project <path>] [--json]`
 
 function validationError(message: string): never {
     throw new ArgValidationError(`${message}\n\n${SESSION_USAGE}`)
@@ -55,7 +55,7 @@ function hasSessionId(value: string | undefined): value is string {
 function parseSessionCommand(argv: string[]): ParsedSessionCommand {
     const positionalArgs: string[] = []
     let forceJson: boolean = false
-    let vaultFlag: string | undefined
+    let projectFlag: string | undefined
 
     for (let index: number = 0; index < argv.length; index += 1) {
         const arg: string = argv[index]
@@ -65,14 +65,14 @@ function parseSessionCommand(argv: string[]): ParsedSessionCommand {
             continue
         }
 
-        if (arg === '--vault') {
-            vaultFlag = readRequiredFlagValue(argv, index, '--vault')
+        if (arg === '--project') {
+            projectFlag = readRequiredFlagValue(argv, index, '--project')
             index += 1
             continue
         }
 
-        if (arg.startsWith('--vault=')) {
-            vaultFlag = parseOptionalFlagAssignment('--vault', arg)
+        if (arg.startsWith('--project=')) {
+            projectFlag = parseOptionalFlagAssignment('--project', arg)
             continue
         }
 
@@ -98,7 +98,7 @@ function parseSessionCommand(argv: string[]): ParsedSessionCommand {
                 validationError('`create` does not accept positional arguments.')
             }
 
-            return {subcommand: 'create', vaultFlag, forceJson}
+            return {subcommand: 'create', projectFlag, forceJson}
         case 'delete':
             if (rest.length === 0) {
                 validationError('Missing required <id> for `delete`.')
@@ -107,13 +107,13 @@ function parseSessionCommand(argv: string[]): ParsedSessionCommand {
                 validationError('Too many positional arguments for `delete`.')
             }
 
-            return {subcommand: 'delete', sessionId: rest[0], vaultFlag, forceJson}
+            return {subcommand: 'delete', sessionId: rest[0], projectFlag, forceJson}
         case 'show':
             if (rest.length > 1) {
                 validationError('Too many positional arguments for `show`.')
             }
 
-            return {subcommand: 'show', sessionId: rest[0], vaultFlag, forceJson}
+            return {subcommand: 'show', sessionId: rest[0], projectFlag, forceJson}
         default:
             validationError(`Unknown session subcommand: ${rawSubcommand}`)
     }
@@ -162,8 +162,8 @@ export async function runSessionCommand(argv: string[]): Promise<void> {
         const parsed: ParsedSessionCommand = parseSessionCommand(argv)
         const showSessionId: string | undefined =
             parsed.subcommand === 'show' ? resolveShowSessionId(parsed.sessionId) : undefined
-        const vault: string = resolveVault({flag: parsed.vaultFlag, cwd: process.cwd()})
-        const {port}: {port: number} = await ensureDaemon(vault)
+        const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd()})
+        const {port}: {port: number} = await ensureDaemon(project)
         const client = new GraphDbClient({
             baseUrl: `http://127.0.0.1:${port}`,
         })

@@ -22,7 +22,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -50,7 +50,7 @@ const test = base.extend<{
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     const savedProject = {
       id: 'web-share-regression-project-id',
-      path: FIXTURE_VAULT_PATH,
+      path: FIXTURE_PROJECT_PATH,
       name: 'example_small',
       type: 'folder',
       lastOpened: Date.now(),

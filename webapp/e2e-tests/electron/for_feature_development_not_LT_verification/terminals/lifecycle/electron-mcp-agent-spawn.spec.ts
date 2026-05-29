@@ -14,7 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 const MCP_URL = 'http://localhost:3001/mcp';
 const TARGET_NODE_ID = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md';
 
@@ -23,7 +23,7 @@ interface ExtendedWindow {
     main: {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-      getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string; vaultSuffix: string }>;
+      getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string; projectSuffix: string }>;
       saveSettings: (settings: Record<string, unknown>) => Promise<void>;
     };
   };
@@ -179,7 +179,7 @@ test.describe('MCP Agent Spawn E2E', () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     expect(watchResult.success).toBe(true);
     await appWindow.waitForTimeout(3000);
@@ -201,8 +201,8 @@ test.describe('MCP Agent Spawn E2E', () => {
       clientInfo: { name: 'e2e-test', version: '1.0.0' }
     });
 
-    // No need to call set_vault_path - MCP server shares state with Electron
-    // and vault is already loaded via startFileWatching above
+    // No need to call set_project_path - MCP server shares state with Electron
+    // and project is already loaded via startFileWatching above
 
     const spawnResponse = await mcpCallToolRaw('spawn_agent', { nodeId: TARGET_NODE_ID }) as {
       success: boolean;

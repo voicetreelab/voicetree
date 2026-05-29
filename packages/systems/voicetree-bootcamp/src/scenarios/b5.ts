@@ -3,8 +3,8 @@
  *
  * Heaviest scenario by verb count. setup writes seed/ + bloated/ fixtures and
  * spawns the vt-graphd daemon via @vt/graph-db-client's ensureDaemon. The
- * daemon pid+port is persisted to a sidecar inside the vault so teardown can
- * locate and terminate the process by vault path alone.
+ * daemon pid+port is persisted to a sidecar inside the project so teardown can
+ * locate and terminate the process by project path alone.
  *
  * Note on port selection: the plan specifies $VT_BOOTCAMP_DAEMON_PORT (default
  * 4773) but graph-db-client's ensureDaemon API does not accept a port — the
@@ -30,7 +30,7 @@ import {
     writeFile,
 } from './_helpers.ts'
 
-const TASK_PROMPT = `You're working with a live VoiceTree vault. The graph daemon is already
+const TASK_PROMPT = `You're working with a live VoiceTree project. The graph daemon is already
 running on port $VT_BOOTCAMP_DAEMON_PORT and has three seed nodes ingested
 from \`seed/\` (a.md, b.md, c.md).
 
@@ -58,30 +58,30 @@ const BLOATED_CHILD_COUNT = 12
  * Fixture-only setup, exported for unit tests so the daemon spawn can be
  * exercised separately from filesystem fixture verification.
  */
-export async function writeB5Fixtures(vaultDir: string): Promise<void> {
-    await writeFile(path.join(vaultDir, 'seed', 'a.md'), '# A\n\nSeed node A.\n')
-    await writeFile(path.join(vaultDir, 'seed', 'b.md'), '# B\n\nSeed node B.\n')
-    await writeFile(path.join(vaultDir, 'seed', 'c.md'), '# C\n\nSeed node C.\n')
+export async function writeB5Fixtures(projectDir: string): Promise<void> {
+    await writeFile(path.join(projectDir, 'seed', 'a.md'), '# A\n\nSeed node A.\n')
+    await writeFile(path.join(projectDir, 'seed', 'b.md'), '# B\n\nSeed node B.\n')
+    await writeFile(path.join(projectDir, 'seed', 'c.md'), '# C\n\nSeed node C.\n')
 
     let parentBody = '# Parent\n\n'
     for (let i = 1; i <= BLOATED_CHILD_COUNT; i++) {
-        await writeFile(path.join(vaultDir, 'bloated', `child-${i}.md`), `# Child ${i}\n`)
+        await writeFile(path.join(projectDir, 'bloated', `child-${i}.md`), `# Child ${i}\n`)
         parentBody += `[[child-${i}]]\n`
     }
-    await writeFile(path.join(vaultDir, 'bloated', 'parent.md'), parentBody)
+    await writeFile(path.join(projectDir, 'bloated', 'parent.md'), parentBody)
 }
 
 export const b5: ScenarioSpec = {
     id: 'B5',
     name: 'live edit + lint loop',
-    async setup(vaultDir) {
-        await writeB5Fixtures(vaultDir)
+    async setup(projectDir) {
+        await writeB5Fixtures(projectDir)
         const {ensureDaemon} = await import('@vt/graph-db-client')
-        const result = await ensureDaemon(vaultDir, {timeoutMs: 10_000})
+        const result = await ensureDaemon(projectDir, {timeoutMs: 10_000})
         if (result.pid === null) {
             throw new Error('B5 setup: ensureDaemon returned null pid — cannot track daemon for teardown')
         }
-        await writeDaemonHandle(vaultDir, {pid: result.pid, port: result.port})
+        await writeDaemonHandle(projectDir, {pid: result.pid, port: result.port})
     },
     taskPrompt: TASK_PROMPT,
     expectedCommands: [
@@ -93,11 +93,11 @@ export const b5: ScenarioSpec = {
         {verb: 'graph lint', minCount: 2},
         {verb: 'graph group'},
     ],
-    async successCriteria(vaultDir): Promise<SuccessResult> {
+    async successCriteria(projectDir): Promise<SuccessResult> {
         // Part 2: re-run `vt graph lint bloated/ --max-arity 8
         // --coupling-threshold 5 --json` from the runner and verify zero
         // violations remain.
-        const lintReport = await runLintReVerification(vaultDir)
+        const lintReport = await runLintReVerification(projectDir)
         if (!lintReport.ok) {
             return {passed: false, detail: lintReport.detail}
         }
@@ -113,8 +113,8 @@ export const b5: ScenarioSpec = {
             detail: `lint re-verification passed (${lintReport.violationCount} violations)`,
         }
     },
-    async teardown(vaultDir) {
-        const handle = await readDaemonHandle(vaultDir)
+    async teardown(projectDir) {
+        const handle = await readDaemonHandle(projectDir)
         if (handle === undefined) return
         try {
             process.kill(handle.pid, 'SIGTERM')
@@ -127,7 +127,7 @@ export const b5: ScenarioSpec = {
         } catch {
             // Process already gone — fine.
         }
-        await removeDaemonHandle(vaultDir)
+        await removeDaemonHandle(projectDir)
     },
     budgets: {
         tokens: 7000,
@@ -137,7 +137,7 @@ export const b5: ScenarioSpec = {
     },
 }
 
-async function runLintReVerification(vaultDir: string): Promise<{
+async function runLintReVerification(projectDir: string): Promise<{
     readonly ok: boolean
     readonly detail: string
     readonly violationCount: number
@@ -146,7 +146,7 @@ async function runLintReVerification(vaultDir: string): Promise<{
     if (!realBin) {
         return {ok: false, detail: 'VT_REAL_BIN not set — cannot re-verify lint state', violationCount: -1}
     }
-    if (!(await fileExists(path.join(vaultDir, 'bloated')))) {
+    if (!(await fileExists(path.join(projectDir, 'bloated')))) {
         return {ok: false, detail: 'bloated/ directory missing — fixture not present', violationCount: -1}
     }
 
@@ -159,7 +159,7 @@ async function runLintReVerification(vaultDir: string): Promise<{
         '--coupling-threshold',
         '5',
         '--json',
-    ], vaultDir)
+    ], projectDir)
 
     if (lintResult.exitCode !== 0 && lintResult.stdout.trim().length === 0) {
         return {

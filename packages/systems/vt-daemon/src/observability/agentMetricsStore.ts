@@ -3,14 +3,14 @@
 // Relocates the per-session token/cost telemetry store from Electron Main
 // (`webapp/.../agent-metrics-store.ts`) into the daemon, with one structural
 // change: the file moves from `<userData>/agent_metrics.json` (per-user, all
-// vaults co-mingled) to `<vault>/.voicetree/agent_metrics.json` (per-vault).
+// projects co-mingled) to `<project>/.voicetree/agent_metrics.json` (per-project).
 // The C4 principle requires that anything VTD owns is reachable identically
 // by every client; per-user storage tied agents to the host process and
-// hid them from CLI peers reaching the same vault.
+// hid them from CLI peers reaching the same project.
 //
 // Functional design:
 //   - Public API is narrow: `appendTokenMetrics`, `getSessions`. Both take
-//     `vault` explicitly — no module-level globals, no setVault coupling.
+//     `project` explicitly — no module-level globals, no setProject coupling.
 //   - Pure helpers (`isValidSession`, `extractValidSessions`) do parsing /
 //     validation against `unknown` inputs.
 //   - Impure shell (`readMetrics`, `writeMetrics`) isolates file I/O. The
@@ -49,8 +49,8 @@ export interface AgentMetricsData {
 
 export const AGENT_METRICS_FILENAME: string = 'agent_metrics.json'
 
-function metricsFilePath(vault: string): string {
-    return join(getProjectDotVoicetreePath(resolve(vault)), AGENT_METRICS_FILENAME)
+function metricsFilePath(project: string): string {
+    return join(getProjectDotVoicetreePath(resolve(project)), AGENT_METRICS_FILENAME)
 }
 
 function isValidSession(session: unknown): session is SessionMetric {
@@ -92,8 +92,8 @@ function extractValidSessions(parsed: unknown): SessionMetric[] {
     return validSessions
 }
 
-async function readMetrics(vault: string): Promise<{readonly sessions: SessionMetric[]}> {
-    const path: string = metricsFilePath(vault)
+async function readMetrics(project: string): Promise<{readonly sessions: SessionMetric[]}> {
+    const path: string = metricsFilePath(project)
     try {
         const text: string = await readFile(path, 'utf-8')
         const parsed: unknown = JSON.parse(text)
@@ -111,28 +111,28 @@ async function readMetrics(vault: string): Promise<{readonly sessions: SessionMe
 }
 
 async function writeMetrics(
-    vault: string,
+    project: string,
     data: {readonly sessions: readonly SessionMetric[]},
 ): Promise<void> {
-    const path: string = metricsFilePath(vault)
+    const path: string = metricsFilePath(project)
     const tempPath: string = `${path}.${process.pid}.tmp`
     await mkdir(dirname(path), {recursive: true})
     await writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8')
     await rename(tempPath, path)
 }
 
-export async function getSessions(vault: string): Promise<readonly SessionMetric[]> {
-    const {sessions} = await readMetrics(vault)
+export async function getSessions(project: string): Promise<readonly SessionMetric[]> {
+    const {sessions} = await readMetrics(project)
     return sessions
 }
 
 export async function appendTokenMetrics(
-    vault: string,
+    project: string,
     sessionId: string,
     tokens: TokenMetrics,
     costUsd: number,
 ): Promise<void> {
-    const {sessions: prior}: {sessions: SessionMetric[]} = await readMetrics(vault)
+    const {sessions: prior}: {sessions: SessionMetric[]} = await readMetrics(project)
     const updated: SessionMetric[] = [...prior]
     const existingIdx: number = updated.findIndex(
         (s: SessionMetric): boolean => s.sessionId === sessionId,
@@ -164,5 +164,5 @@ export async function appendTokenMetrics(
     } else {
         updated.push(merged)
     }
-    await writeMetrics(vault, {sessions: updated})
+    await writeMetrics(project, {sessions: updated})
 }

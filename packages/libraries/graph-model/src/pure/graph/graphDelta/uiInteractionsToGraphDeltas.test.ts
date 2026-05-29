@@ -48,7 +48,7 @@ describe('generateChildNodeId', () => {
     })
 
     describe('context nodes (in ctx-nodes/)', () => {
-        it('should strip ctx-nodes/ when parent is in vault/ctx-nodes/', () => {
+        it('should strip ctx-nodes/ when parent is in project/ctx-nodes/', () => {
             const parentNode: GraphNode = createTestNode('tuesday/ctx-nodes/context_123.md', 0)
             expect(generateChildNodeId(parentNode)).toBe('tuesday/context_123_0.md')
         })
@@ -59,8 +59,8 @@ describe('generateChildNodeId', () => {
         })
 
         it('should strip ctx-nodes/ from deeply nested path', () => {
-            const parentNode: GraphNode = createTestNode('vault/subfolder/ctx-nodes/deep_context.md', 0)
-            expect(generateChildNodeId(parentNode)).toBe('vault/subfolder/deep_context_0.md')
+            const parentNode: GraphNode = createTestNode('project/subfolder/ctx-nodes/deep_context.md', 0)
+            expect(generateChildNodeId(parentNode)).toBe('project/subfolder/deep_context_0.md')
         })
 
         it('should handle context node with _context_ in filename', () => {

@@ -128,7 +128,7 @@ export type ForkAgentSessionResult =
  * it). Returned by `listUnclaimedTmuxSessions`; consumed by Main to render
  * the recovery picker.
  */
-export type UnclaimedTmuxClassification = 'this-vault' | 'foreign-vault'
+export type UnclaimedTmuxClassification = 'this-project' | 'foreign-project'
 
 export interface UnclaimedTmuxSession {
     readonly sessionName: string

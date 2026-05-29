@@ -20,7 +20,7 @@ import {
   resolveGraphDaemonNodeBin,
   robustElectronTeardown,
   safeStopFileWatching,
-  stopSmokeGraphDaemonForVault,
+  stopSmokeGraphDaemonForProject,
 } from '../../critical_e2e_verification_tests/electron-smoke-helpers';
 import {
   getBearerToken,
@@ -49,14 +49,14 @@ Spawn one child with agentName "Codex" and task:
 `;
 
 const test = base.extend<{
-  fixtureVaultPath: string;
+  fixtureProjectPath: string;
   tempUserDataPath: string;
   electronApp: ElectronApplication;
   appWindow: Page;
 }>({
-  fixtureVaultPath: async ({}, use) => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-real-agent-vault-'));
-    const projectRoot = path.join(tempRoot, 'test-vault');
+  fixtureProjectPath: async ({}, use) => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-real-agent-project-'));
+    const projectRoot = path.join(tempRoot, 'test-project');
     await fs.mkdir(projectRoot, { recursive: true });
     await fs.writeFile(
       path.join(projectRoot, 'task.md'),
@@ -73,10 +73,10 @@ const test = base.extend<{
     await fs.rm(dir, { recursive: true, force: true });
   },
 
-  electronApp: async ({ fixtureVaultPath, tempUserDataPath }, use) => {
+  electronApp: async ({ fixtureProjectPath, tempUserDataPath }, use) => {
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-      vaultConfig: {
-        [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] },
+      projectConfig: {
+        [fixtureProjectPath]: { writeFolderPath: fixtureProjectPath, readPaths: [] },
       },
     }, null, 2), 'utf8');
 
@@ -98,7 +98,7 @@ const test = base.extend<{
         path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
         '--open-folder',
-        fixtureVaultPath,
+        fixtureProjectPath,
       ],
       env: {
         ...process.env,
@@ -121,7 +121,7 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    stopSmokeGraphDaemonForVault(fixtureVaultPath);
+    stopSmokeGraphDaemonForProject(fixtureProjectPath);
     await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
   },
@@ -155,7 +155,7 @@ async function getCytoscapeNodeCount(page: Page): Promise<number> {
 }
 
 test.describe('Real agent spawn E2E', () => {
-  test('sonnet agent spawns sonnet + codex sub-agents that create hello-world nodes', async ({ appWindow, fixtureVaultPath }) => {
+  test('sonnet agent spawns sonnet + codex sub-agents that create hello-world nodes', async ({ appWindow, fixtureProjectPath }) => {
     test.setTimeout(600_000); // 10 min — real agents need time
 
     // --- Daemon /rpc discovery ---
@@ -163,7 +163,7 @@ test.describe('Real agent spawn E2E', () => {
     // serves tool calls as JSON-RPC over POST /rpc, authorised by a bearer
     // token. Renderer accessors mainAPI.getDaemonUrl + mainAPI.getAuthToken are
     // the canonical discovery path; spawned subprocesses use
-    // $VOICETREE_DAEMON_URL + $VOICETREE_VAULT_PATH/.voicetree/auth-token.
+    // $VOICETREE_DAEMON_URL + $VOICETREE_PROJECT_PATH/.voicetree/auth-token.
     const rpcUrl: string = await getDaemonRpcUrl(appWindow);
     const token: string = await getBearerToken(appWindow);
 
@@ -172,7 +172,7 @@ test.describe('Real agent spawn E2E', () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(projectRoot);
-    }, fixtureVaultPath);
+    }, fixtureProjectPath);
     expect(watchResult.success).toBe(true);
 
     await expect.poll(async () => {
@@ -244,7 +244,7 @@ test.describe('Real agent spawn E2E', () => {
       }],
     });
     expect(probeResult.parsed, `create_graph via .mcp.json URL failed: ${JSON.stringify(probeResult.parsed)}`).toMatchObject({ success: true });
-    const probeNodePath = path.join(fixtureVaultPath, `${probeNodeFilename}.md`);
+    const probeNodePath = path.join(fixtureProjectPath, `${probeNodeFilename}.md`);
     expect(
       await fs.access(probeNodePath).then(() => true).catch(() => false),
       `progress node ${probeNodePath} was not written by create_graph`,
@@ -258,10 +258,10 @@ test.describe('Real agent spawn E2E', () => {
     // --- Spawn real Sonnet agent on task.md ---
     console.log('Spawning real Sonnet agent on task.md...');
     const spawnResult = await rpcCallTool(rpcUrl, token,'spawn_agent', {
-      nodeId: path.join(fixtureVaultPath, 'task.md'),
+      nodeId: path.join(fixtureProjectPath, 'task.md'),
       callerTerminalId,
       agentName: 'Claude Sonnet',
-      spawnDirectory: fixtureVaultPath,
+      spawnDirectory: fixtureProjectPath,
       depthBudget: 3,
     });
     expect(spawnResult.parsed, `spawn_agent failed: ${JSON.stringify(spawnResult.parsed)}`).toMatchObject({ success: true });

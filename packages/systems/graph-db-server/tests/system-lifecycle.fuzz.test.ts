@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, it } from 'vitest'
 
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { startDaemon, type DaemonHandle } from '../src/daemon/index.ts'
 import { generateAction } from './system-lifecycle-fuzz/actions.ts'
 import { cleanupSequence } from './system-lifecycle-fuzz/drain.ts'
@@ -15,15 +15,15 @@ import { emptyTrackedState, resetForNextSequence } from './system-lifecycle-fuzz
 
 describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
   let root: string
-  let vault: string
+  let project: string
   let handle: DaemonHandle | null
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-fuzz-system-'))
-    vault = path.join(root, 'vault')
-    process.env.VOICETREE_HOME_PATH = path.join(root, 'app-support')
-    await mkdir(vault, { recursive: true })
-    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
+    project = path.join(root, 'project')
+    process.env.VOICETREE_HOME_PATH = path.join(root, 'voicetree-home')
+    await mkdir(project, { recursive: true })
+    await saveProjectConfigForDirectory(project, { writeFolderPath: '.' })
     handle = null
   })
 
@@ -34,8 +34,8 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
 
   it('maintains invariants across 100 random command sequences', { timeout: 180_000 }, async () => {
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
       createStarterIfEmpty: false,
     })
     const baseUrl = `http://127.0.0.1:${handle.port}`
@@ -56,7 +56,7 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
       const seqLen = randInt(seqRng, 8, 20)
 
       for (let step = 0; step < seqLen; step++) {
-        const action = generateAction(seqRng, vault, baseUrl, tracked, seq, step)
+        const action = generateAction(seqRng, project, baseUrl, tracked, seq, step)
         const ctx = `seq=${seq} seed=0x${seqSeed.toString(16)} step=${step} action=${action.type}`
 
         await action.execute()

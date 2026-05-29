@@ -12,8 +12,8 @@
  * src/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk.ts
  *
  * TEST SETUP:
- * - tempDir/writeFolder/A.md -> [[B]] (entry point, in writeFolder)
- * - tempDir/chain/B.md -> [[C]] (outside writeFolder, inside watched folder)
+ * - tempDir/writeFolderPath/A.md -> [[B]] (entry point, in writeFolderPath)
+ * - tempDir/chain/B.md -> [[C]] (outside writeFolderPath, inside watched folder)
  * - tempDir/chain/C.md -> [[D]]
  * - tempDir/chain/D.md (end of chain)
  * - tempDir/chain/orphan.md (no links to it - should NOT be loaded)
@@ -42,23 +42,23 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   tempDir: string;
-  writeFolder: string;
+  writeFolderPath: string;
   chainDir: string;
 }>({
   /**
    * Creates a temp directory structure for testing transitive wikilink loading:
    *
    * tempDir/                    <- watched folder (root)
-   *   writeFolder/                <- only A.md here (will be loaded immediately)
+   *   writeFolderPath/                <- only A.md here (will be loaded immediately)
    *     A.md -> [[B]]
-   *   chain/                    <- outside writeFolder, inside watched folder
+   *   chain/                    <- outside writeFolderPath, inside watched folder
    *     B.md -> [[C]]
    *     C.md -> [[D]]
    *     D.md (end of chain)
    *     orphan.md (no links to it)
    *
    * Expected behavior:
-   * - A.md loaded because it's in writeFolder
+   * - A.md loaded because it's in writeFolderPath
    * - B.md, C.md, D.md loaded transitively via resolveLinkedNodesInWatchedFolder()
    * - orphan.md NOT loaded (nothing links to it)
    */
@@ -74,20 +74,20 @@ const test = base.extend<{
     await use(chainDir);
   },
 
-  writeFolder: async ({ tempDir, chainDir }, use) => {
-    const writeFolder: string = path.join(tempDir, 'writeFolder');
-    await fs.mkdir(writeFolder);
+  writeFolderPath: async ({ tempDir, chainDir }, use) => {
+    const writeFolderPath: string = path.join(tempDir, 'writeFolderPath');
+    await fs.mkdir(writeFolderPath);
 
-    // Only A.md is in writeFolder (this triggers the transitive loading)
+    // Only A.md is in writeFolderPath (this triggers the transitive loading)
     await fs.writeFile(
-      path.join(writeFolder, 'A.md'),
+      path.join(writeFolderPath, 'A.md'),
       `# Node A
 This is the entry point of the chain.
 Links to: [[B]]
 `
     );
 
-    // B, C, D are outside writeFolder but inside watched folder
+    // B, C, D are outside writeFolderPath but inside watched folder
     await fs.writeFile(
       path.join(chainDir, 'B.md'),
       `# Node B
@@ -120,24 +120,24 @@ It should NOT be loaded via transitive resolution.
 `
     );
 
-    await use(writeFolder);
+    await use(writeFolderPath);
   },
 
-  electronApp: async ({ tempDir, writeFolder }, use) => {
+  electronApp: async ({ tempDir, writeFolderPath }, use) => {
     const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-transitive-chain-userdata-'));
 
     // Write config:
     // - watchedFolder (lastDirectory): tempDir (the root)
-    // - writeFolder: tempDir/writeFolder (only A.md)
-    // - This means B, C, D, orphan are in watched folder but outside writeFolder
+    // - writeFolderPath: tempDir/writeFolderPath (only A.md)
+    // - This means B, C, D, orphan are in watched folder but outside writeFolderPath
     const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: tempDir,
-        vaultConfig: {
+        projectConfig: {
           [tempDir]: {
-            writeFolder: writeFolder,
+            writeFolderPath: writeFolderPath,
             readPaths: []
           }
         }
@@ -355,7 +355,7 @@ Links to: [[E]]
     expect(nodeState.labels).not.toContain('Orphan Node');
   });
 
-  test('should handle branching transitive links', async ({ appWindow, tempDir, writeFolder, chainDir }) => {
+  test('should handle branching transitive links', async ({ appWindow, tempDir, writeFolderPath, chainDir }) => {
     test.setTimeout(30000);
 
     console.log('');
@@ -364,7 +364,7 @@ Links to: [[E]]
 
     // Modify A to have two outgoing links (branching)
     await fs.writeFile(
-      path.join(writeFolder, 'A.md'),
+      path.join(writeFolderPath, 'A.md'),
       `# Node A
 This is the entry point with branching links.
 Links to: [[B]] and [[D]]
@@ -448,7 +448,7 @@ End of branch 2. No further links.
     expect(hasBtoC, 'Edge B -> C should exist').toBe(true);
   });
 
-  test('should handle circular links without infinite loop', async ({ appWindow, tempDir, writeFolder, chainDir }) => {
+  test('should handle circular links without infinite loop', async ({ appWindow, tempDir, writeFolderPath, chainDir }) => {
     test.setTimeout(30000);
 
     console.log('');
@@ -457,7 +457,7 @@ End of branch 2. No further links.
 
     // Create a circular chain: A -> B -> C -> A
     await fs.writeFile(
-      path.join(writeFolder, 'A.md'),
+      path.join(writeFolderPath, 'A.md'),
       `# Node A
 Start of circular chain.
 Links to: [[B]]

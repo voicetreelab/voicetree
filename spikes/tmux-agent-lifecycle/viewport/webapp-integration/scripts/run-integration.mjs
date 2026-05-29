@@ -224,10 +224,10 @@ async function runQ2() {
 
   // Sanity-check: feed the same bytes from the BF-207-style source.
   // Here we mimic node-pty(tmux attach) by using `tmux attach` indirectly through the prior
-  // BF-203 capture-pane raw .log (`.runtime-vault/.voicetree/terminals/BF203.log`), which the
+  // BF-203 capture-pane raw .log (`.runtime-project/.voicetree/terminals/BF203.log`), which the
   // emulator processes successfully and exposes alt-screen state more faithfully than pipe-pane.
   try {
-    const bf203LogPath = path.join(viewportDir, '.runtime-vault', '.voicetree', 'terminals', 'BF203.log');
+    const bf203LogPath = path.join(viewportDir, '.runtime-project', '.voicetree', 'terminals', 'BF203.log');
     const bf203Bytes = await readFile(bf203LogPath);
     const t2 = new Terminal({ rows: 40, cols: 200, allowProposedApi: true, scrollback: 100 });
     await new Promise((r) => t2.write(bf203Bytes, r));
@@ -337,7 +337,7 @@ async function runQ3() {
   // Cross-check: BF-203 capture-pane raw .log uses normal `\r\n` and works as-is with the
   // production sanitizer — confirming the fix targets pipe-pane specifically.
   try {
-    const bf203Path = path.join(viewportDir, '.runtime-vault', '.voicetree', 'terminals', 'BF203.log');
+    const bf203Path = path.join(viewportDir, '.runtime-project', '.voicetree', 'terminals', 'BF203.log');
     const bf203Raw = await readFile(bf203Path, 'utf-8');
     const bf203Out = sanitize(bf203Raw).replace(/\n{3,}/g, '\n\n').slice(-10000);
     results.notes.push(

@@ -1,7 +1,7 @@
 /**
  * Main-process /events WebSocket client (Phase 0 / BF-367).
  *
- * Owns one WS connection per active vault, bridging VTD's /events stream
+ * Owns one WS connection per active project, bridging VTD's /events stream
  * onto Main-side callbacks. Native `Authorization: Bearer` header (Node
  * `ws` module) — no `vt-bearer` subprotocol workaround. The renderer never
  * sees the bearer token.

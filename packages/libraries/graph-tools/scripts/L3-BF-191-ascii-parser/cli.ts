@@ -11,8 +11,8 @@ type JsonState = {
     }
 }
 
-function rootOfDump(state: JsonState, vaultRootArg: string | undefined): string {
-    if (vaultRootArg) return path.resolve(vaultRootArg)
+function rootOfDump(state: JsonState, projectRootArg: string | undefined): string {
+    if (projectRootArg) return path.resolve(projectRootArg)
     const ids: string[] = Object.keys(state.graph.nodes)
     if (ids.length === 0) return ''
     let lcp: string = ids[0]!
@@ -291,9 +291,9 @@ function computeCoLocationStats(
 export function runAsciiParserCli(argv: readonly string[]): void {
     const asciiPath: string | undefined = argv[2]
     const jsonPath: string | undefined = argv[3]
-    const vaultRoot: string | undefined = argv[4]
+    const projectRoot: string | undefined = argv[4]
     if (!asciiPath || !jsonPath) {
-        console.error('Usage: L3-BF-191-ascii-parser.ts <ascii.txt> <state.json> [<vault-root>]')
+        console.error('Usage: L3-BF-191-ascii-parser.ts <ascii.txt> <state.json> [<project-root>]')
         process.exit(2)
     }
 
@@ -301,7 +301,7 @@ export function runAsciiParserCli(argv: readonly string[]): void {
     const state: JsonState = JSON.parse(fs.readFileSync(jsonPath, 'utf8'))
     const parsed: ParseResult = parseAscii(ascii)
 
-    const rootPrefix: string = rootOfDump(state, vaultRoot)
+    const rootPrefix: string = rootOfDump(state, projectRoot)
     const jsonInfo = buildJsonNodeInfo(state, rootPrefix)
     const jsonEdges: JsonEdgeInfo[] = buildJsonEdges(state, jsonInfo.nodesByAbsId)
 

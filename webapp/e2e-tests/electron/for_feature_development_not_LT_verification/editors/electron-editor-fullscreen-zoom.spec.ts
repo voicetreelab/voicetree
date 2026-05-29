@@ -25,7 +25,7 @@ import type { ElectronAPI } from '@/shell/electron';
 
 // Use large example graph for realistic testing
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
 // Type definitions
 interface ExtendedWindow {
@@ -45,7 +45,7 @@ const test = base.extend<{
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     const savedProject = {
       id: 'fullscreen-zoom-test-project',
-      path: FIXTURE_VAULT_PATH,
+      path: FIXTURE_PROJECT_PATH,
       name: '2025-09-30',
       type: 'folder',
       lastOpened: Date.now(),
@@ -56,9 +56,9 @@ const test = base.extend<{
     // Legacy config for backwards compatibility
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: FIXTURE_PROJECT_PATH,
     }, null, 2), 'utf8');
-    console.log('[Test] Created config files to load:', FIXTURE_VAULT_PATH);
+    console.log('[Test] Created config files to load:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [

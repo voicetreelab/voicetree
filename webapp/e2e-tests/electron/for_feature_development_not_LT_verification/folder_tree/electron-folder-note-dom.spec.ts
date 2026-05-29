@@ -55,8 +55,8 @@ async function writeMarkdown(filePath: string, body: string): Promise<void> {
     await fs.writeFile(filePath, body, 'utf8');
 }
 
-async function createFolderNoteDomVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'folder-note-dom-vault');
+async function createFolderNoteDomProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'folder-note-dom-project');
 
     await writeMarkdown(path.join(projectRoot, 'auth', 'index.md'),
         `---\nposition:\n  x: 60\n  y: 100\n---\n# Auth Folder Note\n\nUnique folder note content for DOM hover.\n`);
@@ -68,7 +68,7 @@ async function createFolderNoteDomVault(basePath: string): Promise<string> {
     return projectRoot;
 }
 
-function idsForVault(projectRoot: string): {
+function idsForProject(projectRoot: string): {
     readonly authFolderId: string;
     readonly authNoteId: string;
     readonly loginId: string;
@@ -87,7 +87,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-note-dom-'));
-        const projectRoot = await createFolderNoteDomVault(tempDir);
+        const projectRoot = await createFolderNoteDomProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -97,9 +97,9 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: [],
                 },
             },
@@ -108,7 +108,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-note-dom-test',
             path: projectRoot,
-            name: 'folder-note-dom-test-vault',
+            name: 'folder-note-dom-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true,
@@ -176,7 +176,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-note-dom-test-vault")').first());
+        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-note-dom-test-project")').first());
 
         const hasCytoscape = await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -391,7 +391,7 @@ async function closeHoverEditor(appWindow: Page): Promise<void> {
 test.describe('Folder-note DOM affordance', () => {
     test('renders folder note only through the DOM eye chip in expanded and collapsed states', async ({ appWindow, projectRoot }) => {
         test.setTimeout(90000);
-        const { authFolderId, authNoteId, loginId } = idsForVault(projectRoot);
+        const { authFolderId, authNoteId, loginId } = idsForProject(projectRoot);
 
         await waitForGraphLoaded(appWindow, 3);
         await fitGraph(appWindow);

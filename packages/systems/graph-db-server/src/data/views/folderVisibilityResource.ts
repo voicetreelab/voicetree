@@ -41,21 +41,21 @@ function readDb(): FolderVisibilityDatabase | null {
   return handle ? (handle.db as FolderVisibilityDatabase) : null
 }
 
-export async function openFolderVisibilityForVault(vaultPath: string): Promise<void> {
-  await closeFolderVisibilityForVault()
-  const db = openFolderVisibilityDb(vaultPath, defaultFolderVisibilityDbDeps)
+export async function openFolderVisibilityForProject(projectPath: string): Promise<void> {
+  await closeFolderVisibilityForProject()
+  const db = openFolderVisibilityDb(projectPath, defaultFolderVisibilityDbDeps)
   ensureDefaultView(db)
   configureFolderVisibilityStore(db as never)
   updateProject((prev: ProjectState | null): ProjectState => {
-    const base = prev ?? freshProject(vaultPath as FilePath)
+    const base = prev ?? freshProject(projectPath as FilePath)
     return {
       ...base,
-      folderVisibility: { projectRoot: vaultPath as FilePath, db },
+      folderVisibility: { projectRoot: projectPath as FilePath, db },
     }
   })
 }
 
-export async function closeFolderVisibilityForVault(): Promise<void> {
+export async function closeFolderVisibilityForProject(): Promise<void> {
   const previous = getProject()?.folderVisibility ?? null
   mutateProject((prev: ProjectState): ProjectState => ({
     ...prev,
@@ -70,7 +70,7 @@ export async function closeFolderVisibilityForVault(): Promise<void> {
 export function getCurrentFolderVisibilityDb(): FolderVisibilityDatabase {
   const db = readDb()
   if (!db) {
-    throw new Error('No folder visibility database is open for the current vault')
+    throw new Error('No folder visibility database is open for the current project')
   }
   configureFolderVisibilityStore(db as never)
   return db

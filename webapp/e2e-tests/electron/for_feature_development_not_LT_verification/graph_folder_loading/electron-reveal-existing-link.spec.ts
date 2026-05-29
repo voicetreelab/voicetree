@@ -1,13 +1,13 @@
 /**
  * BEHAVIORAL SPEC:
- * When a node in writeFolder has an existing wikilink to a node in readPaths,
+ * When a node in writeFolderPath has an existing wikilink to a node in readPaths,
  * the linked node should be revealed (lazy-loaded) at initial graph load time.
  *
  * BUG: Currently, nodes linked via existing wikilinks are NOT revealed at load time.
  * The reveal only works when a NEW link is created (after the graph is already loaded).
  *
  * Expected behavior:
- * 1. writeFolder/main.md has [[linked-node]] wikilink
+ * 1. writeFolderPath/main.md has [[linked-node]] wikilink
  * 2. readPath/linked-node.md exists
  * 3. On graph load → linked-node.md should be visible in the graph
  *
@@ -33,7 +33,7 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   tempDir: string;
-  writeFolder: string;
+  writeFolderPath: string;
   readPath: string;
 }>({
   tempDir: async ({}, use) => {
@@ -42,25 +42,25 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  writeFolder: async ({ tempDir }, use) => {
-    const writeFolder: string = path.join(tempDir, 'write-vault');
-    await fs.mkdir(writeFolder, { recursive: true });
-    await use(writeFolder);
+  writeFolderPath: async ({ tempDir }, use) => {
+    const writeFolderPath: string = path.join(tempDir, 'write-project');
+    await fs.mkdir(writeFolderPath, { recursive: true });
+    await use(writeFolderPath);
   },
 
   readPath: async ({ tempDir }, use) => {
-    const readPath: string = path.join(tempDir, 'read-vault');
+    const readPath: string = path.join(tempDir, 'read-project');
     await fs.mkdir(readPath, { recursive: true });
     await use(readPath);
   },
 
-  electronApp: async ({ tempDir, writeFolder, readPath }, use) => {
+  electronApp: async ({ tempDir, writeFolderPath, readPath }, use) => {
     const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-reveal-link-userdata-'));
 
     // Create the node files BEFORE launching the app
-    // Main node in writeFolder with an EXISTING link to read-vault
+    // Main node in writeFolderPath with an EXISTING link to read-project
     await fs.writeFile(
-      path.join(writeFolder, 'main-node.md'),
+      path.join(writeFolderPath, 'main-node.md'),
       `# Main Node
 
 This node is in the write path.
@@ -86,15 +86,15 @@ This node has no incoming links.
 It should NOT be loaded.`
     );
 
-    // Write config with writeFolder and readPaths configured
+    // Write config with writeFolderPath and readPaths configured
     const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: tempDir,
-        vaultConfig: {
+        projectConfig: {
           [tempDir]: {
-            writeFolder: writeFolder,
+            writeFolderPath: writeFolderPath,
             readPaths: [readPath]
           }
         }
@@ -169,7 +169,7 @@ test.describe('Reveal node on existing link', () => {
    * CRITICAL TEST: Verifies that nodes linked via EXISTING wikilinks are revealed.
    *
    * Setup:
-   * - writeFolder/main-node.md contains [[linked-node]]
+   * - writeFolderPath/main-node.md contains [[linked-node]]
    * - readPath/linked-node.md exists
    *
    * Expected: linked-node should be visible in the graph at load time
@@ -195,7 +195,7 @@ test.describe('Reveal node on existing link', () => {
 
     console.log('Node state after initial load:', JSON.stringify(nodeState, null, 2));
 
-    // Main node from writeFolder should be loaded
+    // Main node from writeFolderPath should be loaded
     expect(nodeState.labels).toContain('Main Node');
 
     // CRITICAL ASSERTION: Linked node from readPath should be revealed
@@ -221,7 +221,7 @@ test.describe('Reveal node on existing link', () => {
    */
   test('should reveal linked node when NEW link is created after load (working scenario)', async ({
     appWindow,
-    writeFolder,
+    writeFolderPath,
     readPath
   }) => {
     test.setTimeout(30000);
@@ -236,7 +236,7 @@ This node will be linked AFTER the graph is loaded.`
 
     // Add a link to the new target in the existing main-node
     await fs.writeFile(
-      path.join(writeFolder, 'main-node.md'),
+      path.join(writeFolderPath, 'main-node.md'),
       `# Main Node
 
 This node is in the write path.
@@ -271,17 +271,17 @@ NEW: Now also linking to [[new-target]].`
    * Test transitive links with existing wikilinks.
    *
    * Setup:
-   * - writeFolder/a.md links to [[b]] (existing link)
+   * - writeFolderPath/a.md links to [[b]] (existing link)
    * - readPath/b.md links to [[c]] (existing link)
    * - readPath/c.md exists
    *
    * Expected: All nodes A, B, C should be visible
    */
-  test('should reveal transitively linked nodes from existing links', async ({ appWindow, writeFolder, readPath }) => {
+  test('should reveal transitively linked nodes from existing links', async ({ appWindow, writeFolderPath, readPath }) => {
     test.setTimeout(30000);
 
     // Create a chain of files with existing links
-    await fs.writeFile(path.join(writeFolder, 'chain-start.md'), '# Chain Start\nLinks to [[chain-middle]]');
+    await fs.writeFile(path.join(writeFolderPath, 'chain-start.md'), '# Chain Start\nLinks to [[chain-middle]]');
     await fs.writeFile(path.join(readPath, 'chain-middle.md'), '# Chain Middle\nLinks to [[chain-end]]');
     await fs.writeFile(path.join(readPath, 'chain-end.md'), '# Chain End\nEnd of the chain');
 
@@ -290,7 +290,7 @@ NEW: Now also linking to [[new-target]].`
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       await api.main.startFileWatching(dir);
-    }, path.dirname(writeFolder));
+    }, path.dirname(writeFolderPath));
 
     // Wait for lazy loading to complete
     await appWindow.waitForTimeout(2500);

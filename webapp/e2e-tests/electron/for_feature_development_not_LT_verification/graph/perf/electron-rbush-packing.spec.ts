@@ -8,7 +8,7 @@
  * of each other, even if they started 50,000px apart.
  *
  * TEST FLOW:
- * 1. Launch Electron with fresh temp userData (no vault auto-loaded)
+ * 1. Launch Electron with fresh temp userData (no project auto-loaded)
  * 2. Add two disconnected 3-node clusters directly via cy.add():
  *    - Cluster A: nodes at x=0..200, y=0..150 (near origin)
  *    - Cluster B: nodes at x=50000..50200, y=0..150 (50,000px away)
@@ -22,7 +22,7 @@
  * - Very large vs very small components mixed
  *
  * SETUP:
- * - No vault required — nodes added directly to cy
+ * - No project required — nodes added directly to cy
  * - enableAutoLayout() is registered at app startup, so cy.add() triggers layout
  * - Build first: npx electron-vite build
  * - Config: playwright-electron.config.ts
@@ -68,7 +68,7 @@ const test = base.extend<{
     const electronApp = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}` // Fresh isolated userData — no vault auto-loads
+        `--user-data-dir=${tempUserDataPath}` // Fresh isolated userData — no project auto-loads
       ],
       env: {
         ...process.env,
@@ -92,7 +92,7 @@ const test = base.extend<{
       });
       await window.waitForTimeout(300);
     } catch {
-      // Ignore shutdown errors — no vault was loaded
+      // Ignore shutdown errors — no project was loaded
     }
 
     await electronApp.close();

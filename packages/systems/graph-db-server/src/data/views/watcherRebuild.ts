@@ -18,10 +18,10 @@ import {
 } from '@vt/graph-db-server/application/workflows/state/projectState'
 import { onViewSwitched } from './viewsStore'
 import { getWatchRootsForActiveView } from '../watch-folder/folder-visibility-active-view'
-import { getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist'
+import { getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist'
 import { setupWatcher } from '../watch-folder/watching/file-watcher-setup'
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from '../watch-folder/watching/watcher-options.shared'
-import { broadcastVaultState } from '../watch-folder/broadcast/broadcast-vault-state'
+import { broadcastProjectState } from '../watch-folder/broadcast/broadcast-project-state'
 import type { WatcherOptions } from '../watch-folder/watching/file-watcher-setup'
 import type { FSWatcher } from 'chokidar'
 
@@ -40,29 +40,29 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
     )
 }
 
-async function getVaultPathsForRebuild(projectRoot: FilePath): Promise<readonly string[]> {
+async function getProjectPathsForRebuild(projectRoot: FilePath): Promise<readonly string[]> {
     const watchRoots = await getWatchRootsForActiveView(projectRoot)
-    let writeFolderStr: string | null = null
+    let writeFolderPathStr: string | null = null
     try {
-        const writeFolder = await getWriteFolder()
-        writeFolderStr = O.isSome(writeFolder) ? writeFolder.value : null
+        const writeFolderPath = await getWriteFolderPath()
+        writeFolderPathStr = O.isSome(writeFolderPath) ? writeFolderPath.value : null
     } catch {
-        // getWriteFolder may throw when GraphModel config is not initialized (e.g. in tests)
+        // getWriteFolderPath may throw when GraphModel config is not initialized (e.g. in tests)
     }
     const paths: string[] = []
-    if (writeFolderStr) paths.push(writeFolderStr)
+    if (writeFolderPathStr) paths.push(writeFolderPathStr)
     for (const root of watchRoots) {
-        if (root !== writeFolderStr) paths.push(root)
+        if (root !== writeFolderPathStr) paths.push(root)
     }
     return paths
 }
 
-async function rebuildWatcherForCurrentVault(): Promise<void> {
+async function rebuildWatcherForCurrentProject(): Promise<void> {
     const projectRoot: FilePath | null = getProjectRoot()
     if (!projectRoot) return
 
-    const [vaultPaths, watcherOptions] = await Promise.all([
-        getVaultPathsForRebuild(projectRoot),
+    const [projectPaths, watcherOptions] = await Promise.all([
+        getProjectPathsForRebuild(projectRoot),
         resolveWatcherOptions(),
     ])
 
@@ -72,11 +72,11 @@ async function rebuildWatcherForCurrentVault(): Promise<void> {
         setWatcher(null)
     }
 
-    if (vaultPaths.length > 0) {
-        await setupWatcher(vaultPaths, projectRoot, watcherOptions)
+    if (projectPaths.length > 0) {
+        await setupWatcher(projectPaths, projectRoot, watcherOptions)
     }
 
-    void broadcastVaultState()
+    void broadcastProjectState()
 }
 
 function runUnsubscribes(): void {
@@ -97,10 +97,10 @@ export async function setupStateChangeSubscriptions(_projectRoot: FilePath): Pro
     const graphState = await import('@vt/graph-state') as unknown as GraphStateModule
 
     const folderStateUnsubscribe = graphState.onFolderStateChanged(() => {
-        void rebuildWatcherForCurrentVault()
+        void rebuildWatcherForCurrentProject()
     })
     const viewSwitchedUnsubscribe = onViewSwitched(() => {
-        void rebuildWatcherForCurrentVault()
+        void rebuildWatcherForCurrentProject()
     })
 
     mutateProject((prev: ProjectState): ProjectState => ({

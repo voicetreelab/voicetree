@@ -16,7 +16,7 @@ Investigated the current implementation status of vector loading in VoiceTree. F
   - ChromaDBVectorStore automatically loads persisted vectors when initialized with a persist_directory
   - The load_dir.py currently only implements markdown loading (function #1 of 3 in spec)
   - Vector loading happens automatically through ChromaDB's PersistentClient
-  - EmbeddingManager creates ChromaDB store with persistence to markdownTreeVault/chromadb_data
+  - EmbeddingManager creates ChromaDB store with persistence to markdownTreeProject/chromadb_data
 
 ** Architecture/Flow Diagram**
 ```mermaid

@@ -22,7 +22,7 @@ import {
 } from './folder-spec-e2e-helpers';
 import {
     buildFixture,
-    createVisibilityVault,
+    createVisibilityProject,
     expectNodeToUseCanonicalRootParent,
     getCanonicalRootSnapshot,
     getHiddenFolderLeakSnapshot,
@@ -40,7 +40,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-visibility-'));
-        const projectRoot = await createVisibilityVault(tempDir);
+        const projectRoot = await createVisibilityProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -50,9 +50,9 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: []
                 }
             }
@@ -61,7 +61,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-visibility-test',
             path: projectRoot,
-            name: 'folder-visibility-test-vault',
+            name: 'folder-visibility-test-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true
@@ -123,7 +123,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-visibility-test-vault")').first());
+        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-visibility-test-project")').first());
 
         const hasCytoscape = await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,

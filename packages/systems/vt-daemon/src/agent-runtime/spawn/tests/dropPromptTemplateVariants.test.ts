@@ -20,13 +20,13 @@ describe('dropPromptTemplateVariants', () => {
     it('keeps AGENT_PROMPT and AGENT_PROMPT_FILE', () => {
         const result = dropPromptTemplateVariants({
             AGENT_PROMPT: 'expanded prompt',
-            AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
+            AGENT_PROMPT_FILE: '/project/.voicetree/terminals/Aki-prompt.txt',
             AGENT_PROMPT_CORE: 'core body',
         });
 
         expect(result).toEqual({
             AGENT_PROMPT: 'expanded prompt',
-            AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
+            AGENT_PROMPT_FILE: '/project/.voicetree/terminals/Aki-prompt.txt',
         });
     });
 
@@ -34,13 +34,13 @@ describe('dropPromptTemplateVariants', () => {
         const result = dropPromptTemplateVariants({
             VOICETREE_TERMINAL_ID: 'Aki',
             DEPTH_BUDGET: '10',
-            CONTEXT_NODE_PATH: '/vault/ctx.md',
+            CONTEXT_NODE_PATH: '/project/ctx.md',
         });
 
         expect(result).toEqual({
             VOICETREE_TERMINAL_ID: 'Aki',
             DEPTH_BUDGET: '10',
-            CONTEXT_NODE_PATH: '/vault/ctx.md',
+            CONTEXT_NODE_PATH: '/project/ctx.md',
         });
     });
 });

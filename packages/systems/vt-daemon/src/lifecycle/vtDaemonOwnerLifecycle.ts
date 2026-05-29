@@ -4,7 +4,7 @@
  * Mirrors `daemonOwnerLifecycle.ts` in graph-db-server but:
  *
  *   - threads `daemonKind: 'vtd'` through every record/path resolution so
- *     a vault may host one `graphd` daemon and one `vtd` daemon at the
+ *     a project may host one `graphd` daemon and one `vtd` daemon at the
  *     same time without their state colliding;
  *   - stamps {@link VTD_CONTRACT_VERSION} (distinct from graphd's
  *     `CONTRACT_VERSION`) so a `/health` probe surfaces the VTD contract,
@@ -16,7 +16,7 @@
  * Public surface (one function + one handle type + one error class):
  *
  *   - {@link claimVtDaemonOwner} — atomic claim under
- *     `<vault>/.voicetree/vtd.owner.json`. On contention it throws
+ *     `<project>/.voicetree/vtd.owner.json`. On contention it throws
  *     {@link VtDaemonOwnerConflictError} so the caller can fail loudly;
  *     wait/retry policy belongs in the ensure path (BF-373), not here.
  *   - {@link VtDaemonOwnerHandle} — the only sanctioned way to bind the
@@ -53,25 +53,25 @@ import type { VtDaemonHealthOwner } from '../contract.ts'
  * `daemonOwnerLifecycle.ts:HEARTBEAT_INTERVAL_MS`). At each tick the handle
  * atomically rewrites the on-disk record with a bumped `heartbeatAtMs`.
  * Do NOT shorten without measuring filesystem contention — on a NFS-mounted
- * vault the write+rename round-trip could become expensive.
+ * project the write+rename round-trip could become expensive.
  */
 export const VTD_HEARTBEAT_INTERVAL_MS = 2_000
 
 export class VtDaemonOwnerConflictError extends Error {
     readonly code = 'VT_DAEMON_OWNER_CONFLICT'
     constructor(
-        readonly canonicalVault: string,
+        readonly canonicalProject: string,
         readonly existingOwner: OwnerRecord,
     ) {
         super(
-            `vt-daemon: vault ${canonicalVault} already owned by pid ${existingOwner.pid} (nonce ${existingOwner.ownerNonce})`,
+            `vt-daemon: project ${canonicalProject} already owned by pid ${existingOwner.pid} (nonce ${existingOwner.ownerNonce})`,
         )
         this.name = 'VtDaemonOwnerConflictError'
     }
 }
 
 export type ClaimVtDaemonOwnerOptions = {
-    readonly canonicalVault: string
+    readonly canonicalProject: string
     readonly callerKind: CallerKind
     readonly contractVersion: string
     readonly commandFingerprint: CommandFingerprint
@@ -108,10 +108,10 @@ export type VtDaemonOwnerHandle = {
 export async function claimVtDaemonOwner(
     options: ClaimVtDaemonOwnerOptions,
 ): Promise<VtDaemonOwnerHandle> {
-    const path = ownerRecordFile.pathFor(options.canonicalVault, 'vtd')
+    const path = ownerRecordFile.pathFor(options.canonicalProject, 'vtd')
     const initial = createInitialRecord({
         daemonKind: 'vtd',
-        canonicalVault: options.canonicalVault,
+        canonicalProject: options.canonicalProject,
         pid: process.pid,
         ppid: process.ppid ?? 0,
         callerKind: options.callerKind,
@@ -119,21 +119,21 @@ export async function claimVtDaemonOwner(
         commandFingerprint: options.commandFingerprint,
         nowMs: options.clock(),
     })
-    const claimed = await acquireOwnerRecord(path, initial, options.canonicalVault)
+    const claimed = await acquireOwnerRecord(path, initial, options.canonicalProject)
     return makeHandle(path, claimed, options.clock)
 }
 
 async function acquireOwnerRecord(
     path: string,
     desired: OwnerRecord,
-    canonicalVault: string,
+    canonicalProject: string,
 ): Promise<OwnerRecord> {
     const firstAttempt = await tryAtomicCreate(path, desired)
     if (firstAttempt.kind === 'created') return desired
 
     const existing = decodeOwnerRecord(firstAttempt.existingRaw)
     if (existing !== null && isOwnerPidAlive(existing.pid)) {
-        throw new VtDaemonOwnerConflictError(canonicalVault, existing)
+        throw new VtDaemonOwnerConflictError(canonicalProject, existing)
     }
 
     // The existing record is either undecodable (corrupt) or held by a dead
@@ -146,10 +146,10 @@ async function acquireOwnerRecord(
 
     const racer = decodeOwnerRecord(secondAttempt.existingRaw)
     if (racer !== null && isOwnerPidAlive(racer.pid)) {
-        throw new VtDaemonOwnerConflictError(canonicalVault, racer)
+        throw new VtDaemonOwnerConflictError(canonicalProject, racer)
     }
     throw new Error(
-        `vt-daemon: failed to claim owner for ${canonicalVault} (record contention)`,
+        `vt-daemon: failed to claim owner for ${canonicalProject} (record contention)`,
     )
 }
 
@@ -233,7 +233,7 @@ function healthFromRecord(record: OwnerRecord): VtDaemonHealthOwner | null {
     if (record.port === null) return null
     return {
         schemaVersion: record.schemaVersion,
-        canonicalVault: record.canonicalVault,
+        canonicalProject: record.canonicalProject,
         pid: record.pid,
         ppid: record.ppid,
         port: record.port,

@@ -22,13 +22,13 @@ const INTERNAL_PACKAGE_ROOTS: Record<string, string> = {
 }
 
 const FORBIDDEN_MODULES: RegExp[] = [
-    /^@vt\/graph-db-server\/watch-folder\/vault-allowlist$/,
+    /^@vt\/graph-db-server\/watch-folder\/project-allowlist$/,
     /^@vt\/graph-db-server\/views\/folderVisibilitySqlite$/,
     /^@vt\/graph-db-server\/views\/folder-visibility-active-view$/,
 ]
 
 const FORBIDDEN_SOURCE_PATHS: string[] = [
-    join(REPO_ROOT, 'packages/systems/graph-db-server/src/watch-folder/vault-allowlist.ts'),
+    join(REPO_ROOT, 'packages/systems/graph-db-server/src/watch-folder/project-allowlist.ts'),
     join(REPO_ROOT, 'packages/systems/graph-db-server/src/views/folderVisibilitySqlite.ts'),
     join(REPO_ROOT, 'packages/systems/graph-db-server/src/views/folder-visibility-active-view.ts'),
 ]

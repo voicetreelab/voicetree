@@ -1,10 +1,10 @@
 # `@vt/graph-db-server`
 
-`@vt/graph-db-server` ships `vt-graphd`, the localhost daemon that owns canonical live state for one vault.
+`@vt/graph-db-server` ships `vt-graphd`, the localhost daemon that owns canonical live state for one project.
 
 ## What The Daemon Owns
 
-- mounted vault root and watcher lifecycle
+- mounted project root and watcher lifecycle
 - read-path and write-path configuration
 - parsed in-memory graph snapshot
 - server-side session registry
@@ -14,10 +14,10 @@ The filesystem is still the durable source of truth. `vt-graphd` is the live own
 
 ## Process Model
 
-- one daemon per vault
+- one daemon per project
 - loopback-only HTTP on `127.0.0.1`
-- dynamic port written to `<vault>/.voicetree/graphd.port`
-- single-instance lock at `<vault>/.voicetree/graphd.lock`
+- dynamic port written to `<project>/.voicetree/graphd.port`
+- single-instance lock at `<project>/.voicetree/graphd.lock`
 - daemon exits cleanly on `SIGINT`, `SIGTERM`, or `POST /shutdown`
 
 ## Launch
@@ -25,7 +25,7 @@ The filesystem is still the durable source of truth. `vt-graphd` is the live own
 From this repo checkout, run the bin directly:
 
 ```bash
-node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --vault /abs/path/to/vault
+node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --project /abs/path/to/project
 ```
 
 Useful flags:
@@ -42,7 +42,7 @@ node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --help
 Example startup line:
 
 ```text
-vt-graphd: listening on http://127.0.0.1:<dynamic-port> for vault /abs/path/to/vault
+vt-graphd: listening on http://127.0.0.1:<dynamic-port> for project /abs/path/to/project
 ```
 
 ## Endpoint Families
@@ -52,12 +52,12 @@ vt-graphd: listening on http://127.0.0.1:<dynamic-port> for vault /abs/path/to/v
 - `GET /health`
 - `POST /shutdown`
 
-### Vault control
+### Project control
 
-- `GET /vault`
-- `POST /vault/read-paths`
-- `DELETE /vault/read-paths/:encodedPath`
-- `PUT /vault/write-path`
+- `GET /project`
+- `POST /project/read-paths`
+- `DELETE /project/read-paths/:encodedPath`
+- `PUT /project/write-path`
 
 ### Graph snapshot
 
@@ -87,13 +87,13 @@ vt-graphd: listening on http://127.0.0.1:<dynamic-port> for vault /abs/path/to/v
 
 ### CLI entrypoint
 
-- `webapp/src/shell/edge/main/cli/voicetree-cli.ts` routes `vault`, `session`, and `view` commands through `@vt/graph-db-client`
+- `webapp/src/shell/edge/main/cli/voicetree-cli.ts` routes `project`, `session`, and `view` commands through `@vt/graph-db-client`
 - those commands auto-launch or attach to `vt-graphd`
 - they share the same backend behavior as the desktop app
 - example:
 
 ```bash
-node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts vault show --vault /abs/path/to/vault --json
+node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts project show --project /abs/path/to/project --json
 ```
 
 ### MCP
@@ -108,8 +108,8 @@ These are the commands worth running when checking the daemon path manually:
 
 ```bash
 node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --help
-node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts vault show --vault /abs/path/to/vault --json
-node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts session create --vault /abs/path/to/vault --json
+node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts project show --project /abs/path/to/project --json
+node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts session create --project /abs/path/to/project --json
 ```
 
 If you use the CLI commands above, they will auto-launch the daemon when needed.
@@ -120,6 +120,6 @@ If you use the CLI commands above, they will auto-launch the daemon when needed.
 - `packages/systems/graph-db-server/src/daemonApp.ts`
 - `packages/systems/graph-db-server/src/contract.ts`
 - `packages/systems/graph-db-client/src/GraphDbClient.ts`
-- `webapp/src/shell/edge/main/cli/commands/vault.ts`
+- `webapp/src/shell/edge/main/cli/commands/project.ts`
 - `webapp/src/shell/edge/main/cli/commands/session.ts`
 - `webapp/src/shell/edge/main/cli/commands/view.ts`

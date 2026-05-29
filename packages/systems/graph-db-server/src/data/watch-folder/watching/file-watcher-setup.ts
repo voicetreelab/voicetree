@@ -85,19 +85,19 @@ export interface WatcherOptions {
 }
 
 export async function setupWatcher(
-    vaultPaths: readonly FilePath[],
+    projectPaths: readonly FilePath[],
     watchedDir: FilePath,
     options?: WatcherOptions,
     dependencies: WatcherListenerDependencies = defaultWatcherListenerDependencies,
 ): Promise<void> {
     // Note: watcher is already closed in loadFolder before this is called
 
-    // vaultPaths contains all paths in the allowlist (e.g., primary vault + openspec)
+    // projectPaths contains all paths in the allowlist (e.g., primary project + openspec)
     // watchedDir is {loaded_dir} (base for node IDs)
     const usePolling: boolean = options?.usePolling ?? false;
 
     // Create new watcher - chokidar supports array of paths natively
-    const newWatcher: FSWatcher = chokidar.watch([...vaultPaths], {
+    const newWatcher: FSWatcher = chokidar.watch([...projectPaths], {
         // Only watch .md and image files (directories must pass through for traversal).
         // KEEP IN SYNC WITH packages/systems/graph-db-server/src/data/graph/watching/daemonWatcher.ts.
         //
@@ -106,7 +106,7 @@ export async function setupWatcher(
         // to set up the macOS fsevents listener), it must NOT use
         // `path.extname()` as a "this is a file" heuristic: extname returns
         // a non-empty string for any directory whose basename contains a
-        // dot (`My Vault.notes`, `mktemp -d /tmp/vault.XXXX`, …). Treating
+        // dot (`My Project.notes`, `mktemp -d /tmp/project.XXXX`, …). Treating
         // such a directory as a file and ignoring it causes chokidar to
         // skip the fsevents subscription — which leaves _readyCount
         // half-decremented, so the watcher's `ready` promise never resolves.

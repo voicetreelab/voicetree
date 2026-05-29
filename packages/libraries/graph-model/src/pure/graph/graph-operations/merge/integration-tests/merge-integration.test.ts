@@ -72,7 +72,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
 
             // WHEN: Merge internal1 and internal2
             const selectedNodeIds: readonly string[] = ['internal1.md', 'internal2.md']
-            const delta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, initialGraph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, initialGraph, '/test/project')
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
             // THEN: Original nodes should be deleted
@@ -132,7 +132,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             })
 
             // WHEN: Merge both nodes
-            const delta: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], initialGraph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], initialGraph, '/test/project')
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
             // THEN: Only the merged node should remain
@@ -155,7 +155,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             })
 
             // WHEN: Merge only to-merge-1 and to-merge-2
-            const delta: GraphDelta = computeMergeGraphDelta(['to-merge-1.md', 'to-merge-2.md'], initialGraph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta(['to-merge-1.md', 'to-merge-2.md'], initialGraph, '/test/project')
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
             // THEN: Unrelated nodes should be unchanged
@@ -180,7 +180,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             })
 
             // WHEN: Merge all leaf nodes
-            const delta: GraphDelta = computeMergeGraphDelta(['leaf1.md', 'leaf2.md', 'leaf3.md'], initialGraph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta(['leaf1.md', 'leaf2.md', 'leaf3.md'], initialGraph, '/test/project')
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
             // THEN: Hub's edges should all point to the merged node
@@ -206,7 +206,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
                 'single.md': createTestNode('single.md')
             })
 
-            const delta: GraphDelta = computeMergeGraphDelta(['single.md'], graph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta(['single.md'], graph, '/test/project')
             expect(delta).toEqual([])
         })
 
@@ -215,7 +215,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
                 'node.md': createTestNode('node.md')
             })
 
-            const delta: GraphDelta = computeMergeGraphDelta([], graph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta([], graph, '/test/project')
             expect(delta).toEqual([])
         })
 
@@ -224,7 +224,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
                 'existing.md': createTestNode('existing.md')
             })
 
-            const delta: GraphDelta = computeMergeGraphDelta(['missing1.md', 'missing2.md'], graph, '/test/vault')
+            const delta: GraphDelta = computeMergeGraphDelta(['missing1.md', 'missing2.md'], graph, '/test/project')
             expect(delta).toEqual([])
         })
     })

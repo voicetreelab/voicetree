@@ -85,24 +85,24 @@ function requireSeq(graph: SequencedProjectedGraph): number {
   return graph.seq
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-  const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-replay-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+  const voicetreeHome = await mkdtemp(join(tmpdir(), 'graphd-sse-replay-appsupport-'))
   await writeFile(
-    join(appSupport, 'voicetree-config.json'),
-    JSON.stringify({ vaultConfig: { [vault]: { writeFolder: vault } } }),
+    join(voicetreeHome, 'voicetree-config.json'),
+    JSON.stringify({ projectConfig: { [project]: { writeFolderPath: project } } }),
   )
-  return appSupport
+  return voicetreeHome
 }
 
 describe('SSE replay buffer', () => {
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handle: DaemonHandle | null
   let controllers: AbortController[]
 
   beforeEach(async () => {
-    vault = await mkdtemp(join(tmpdir(), 'graphd-sse-replay-vault-'))
-    appSupport = await createAppSupport(vault)
+    project = await mkdtemp(join(tmpdir(), 'graphd-sse-replay-project-'))
+    voicetreeHome = await createVoicetreeHome(project)
     handle = null
     controllers = []
     setGraph(createEmptyGraph())
@@ -112,8 +112,8 @@ describe('SSE replay buffer', () => {
     for (const controller of controllers) controller.abort()
     await new Promise(resolve => setTimeout(resolve, 50))
     if (handle) await handle.stop().catch(() => {})
-    await rm(vault, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
     setGraph(createEmptyGraph())
   }, 15_000)
 
@@ -136,7 +136,7 @@ describe('SSE replay buffer', () => {
   }
 
   function publishNode(filename: string, content: string): string {
-    const nodeId = join(vault, filename)
+    const nodeId = join(project, filename)
     const delta: GraphDelta = [{
       type: 'UpsertNode',
       nodeToUpsert: makeNode(nodeId, content),
@@ -148,7 +148,7 @@ describe('SSE replay buffer', () => {
   }
 
   test('publish before subscribe: subscriber connects with since=0 and receives the missed delta on replay', async () => {
-    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
     const sessionId = await createSession(base)
 
@@ -167,7 +167,7 @@ describe('SSE replay buffer', () => {
   }, 20_000)
 
   test('reconnect with last seen seq receives only deltas missed while disconnected', async () => {
-    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
     const sessionId = await createSession(base)
 
@@ -199,7 +199,7 @@ describe('SSE replay buffer', () => {
   }, 20_000)
 
   test('ring buffer cap: subscriber with stale since receives a full snapshot reset sentinel', async () => {
-    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
     const sessionId = await createSession(base)
 

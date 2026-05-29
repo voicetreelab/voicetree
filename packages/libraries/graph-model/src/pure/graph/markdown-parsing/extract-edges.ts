@@ -121,7 +121,7 @@ export function findBestMatchingNode(
   // while still preventing [a/b/foo.md] from matching [x/foo.md].
   //
   // Examples:
-  // - [/Users/user/vault/folder/file.md] (5 components) matching [folder/file.md] (2):
+  // - [/Users/user/project/folder/file.md] (5 components) matching [folder/file.md] (2):
   //   score=2, minRequired=min(5,2)=2 → 2 >= 2 ✓ accepted
   // - [a/b/foo.md] (3 components) vs [x/foo.md] (2):
   //   score=1 (only 'foo'), minRequired=min(3,2)=2 → 1 < 2 ✗ rejected

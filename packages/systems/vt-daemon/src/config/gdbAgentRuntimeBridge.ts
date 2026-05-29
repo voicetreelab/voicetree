@@ -5,7 +5,7 @@
 // This is the agent-spawn-pipeline sibling of `gdbGraphBridge.ts` (which adapts
 // the same client into the narrower `GraphBridge` shape used by the MCP tool
 // catalog). The agent-runtime needs a superset of methods — context-node
-// creation, write-folder, watch status — but the underlying RPC client carries
+// creation, write-folder-path, watch status — but the underlying RPC client carries
 // them all, so this builder is a thin adaptation.
 //
 // `getGraph` rehydrates via `normalizeDaemonGraph` for the same reason the
@@ -34,11 +34,11 @@ export function buildGdbAgentRuntimeGraphBridge(
 ): GraphStateBridge {
     return {
         getGraph: async (): Promise<Graph> => normalizeDaemonGraph(await client.getGraph()),
-        getVaultPaths: async (): Promise<readonly FilePath[]> => {
-            const vs = await client.getVault()
+        getProjectPaths: async (): Promise<readonly FilePath[]> => {
+            const vs = await client.getProject()
             const seen: Set<string> = new Set<string>()
             const out: string[] = []
-            for (const p of [vs.writeFolder, ...vs.readPaths]) {
+            for (const p of [vs.writeFolderPath, ...vs.readPaths]) {
                 if (p && !seen.has(p)) {
                     seen.add(p)
                     out.push(p)
@@ -46,12 +46,12 @@ export function buildGdbAgentRuntimeGraphBridge(
             }
             return out
         },
-        getWriteFolder: async (): Promise<O.Option<FilePath>> =>
-            O.fromNullable((await client.getVault()).writeFolder ?? null),
+        getWriteFolderPath: async (): Promise<O.Option<FilePath>> =>
+            O.fromNullable((await client.getProject()).writeFolderPath ?? null),
         getProjectRoot: async (): Promise<FilePath | null> => projectRoot,
-        // vtd's vault IS the watched directory — vt-graphd watches it as a
+        // vtd's project IS the watched directory — vt-graphd watches it as a
         // sibling process. Reporting `isWatching: true` matches the daemon's
-        // invariant that a vault is always watched when vtd is up.
+        // invariant that a project is always watched when vtd is up.
         getWatchStatus: async (): Promise<WatchStatus> => ({
             isWatching: true,
             directory: projectRoot,

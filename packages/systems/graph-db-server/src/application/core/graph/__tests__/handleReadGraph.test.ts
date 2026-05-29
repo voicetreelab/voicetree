@@ -8,7 +8,7 @@ import {
   composeGraphResponse,
 } from '../handleReadGraph.ts'
 
-const NODE_ID = '/tmp/vault/node.md'
+const NODE_ID = '/tmp/project/node.md'
 
 function graphNodeFixture(): GraphNode {
   return {
@@ -36,7 +36,7 @@ describe('handleReadGraph', () => {
   test('classifies find-file requests', () => {
     expect(classifyFindFileRequest({
       name: undefined,
-      searchPath: '/tmp/vault',
+      searchPath: '/tmp/project',
     })).toEqual({
       kind: 'error',
       message: 'Missing required query parameter: name',
@@ -48,24 +48,24 @@ describe('handleReadGraph', () => {
       searchPath: null,
     })).toEqual({
       kind: 'error',
-      message: 'No vault is currently open',
-      code: 'NO_VAULT',
+      message: 'No project is currently open',
+      code: 'NO_PROJECT',
       status: 503,
     })
 
     expect(classifyFindFileRequest({
       name: 'node',
-      searchPath: '/tmp/vault',
+      searchPath: '/tmp/project',
     })).toEqual({
       kind: 'ok',
       name: 'node',
-      searchPath: '/tmp/vault',
+      searchPath: '/tmp/project',
     })
   })
 
   test('composes file search and undo responses', () => {
-    expect(composeFindFileResponse(['/tmp/vault/node.md'])).toEqual({
-      matches: ['/tmp/vault/node.md'],
+    expect(composeFindFileResponse(['/tmp/project/node.md'])).toEqual({
+      matches: ['/tmp/project/node.md'],
     })
     expect(composeAppliedResponse(true)).toEqual({ applied: true })
   })

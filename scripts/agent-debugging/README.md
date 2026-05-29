@@ -67,7 +67,7 @@ vtbg step-out
 vtbg resume
 
 # Evaluate (auto-routes: evaluateOnCallFrame if paused, Runtime.evaluate otherwise)
-vtbg eval 'JSON.stringify(await window.electronAPI.main.getStartupVaultHint())'
+vtbg eval 'JSON.stringify(await window.electronAPI.main.getStartupProjectHint())'
 #   ^ top-level `await` is auto-wrapped
 
 # Page control
@@ -87,7 +87,7 @@ than racing React's mount cycle:
 
 ```bash
 # 1. Install
-vtbg eval $'(function(){window.__demo = async function(label){\n  const hint = await window.electronAPI.main.getStartupVaultHint();\n  const kind = hint.kind;\n  return {label, kind};\n}; return "installed";})()\n//# sourceURL=demo.js'
+vtbg eval $'(function(){window.__demo = async function(label){\n  const hint = await window.electronAPI.main.getStartupProjectHint();\n  const kind = hint.kind;\n  return {label, kind};\n}; return "installed";})()\n//# sourceURL=demo.js'
 
 # 2. BP inside it
 vtbg bp 'demo\.js' 3

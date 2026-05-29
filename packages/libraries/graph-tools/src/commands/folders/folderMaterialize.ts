@@ -44,7 +44,7 @@ export type FolderMaterializeOptions = {
   pid?: number
   port?: number
   timeoutMs: number
-  vault?: string
+  project?: string
 }
 
 export type ScratchFixture = {
@@ -73,7 +73,7 @@ export type FolderMaterializeResult = {
   savedContentPreview: string
   seedFilePath?: string
   projectRoot: string
-  writeFolder: string
+  writeFolderPath: string
 }
 
 export { createScratchFixture, folderMaterialize }
@@ -87,7 +87,7 @@ function usage(message?: string): Response<never> {
       '[--marker <text>]',
       '[--timeout-ms <ms>]',
       '[--keep-fixture]',
-      '[--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]',
+      '[--port <n> | --cdpPort <n> | --pid <n> | --project <path>]',
     ].join(' '),
   )
 }
@@ -117,7 +117,7 @@ export function parseArgs(argv: string[]): FolderMaterializeOptions | Response<n
       } else if (arg === '--keep-fixture') {
         keepFixture = true
       } else {
-        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target, { resolveVault: true })
+        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target, { resolveProject: true })
         if (!debugTargetFlag.matched) {
           return usage(`unknown argument: ${arg}`)
         }
@@ -139,7 +139,7 @@ export function parseArgs(argv: string[]): FolderMaterializeOptions | Response<n
     ...(target.pid !== undefined ? { pid: target.pid } : {}),
     ...(target.port !== undefined ? { port: target.port } : {}),
     timeoutMs,
-    ...(target.vault ? { vault: target.vault } : {}),
+    ...(target.project ? { project: target.project } : {}),
   }
 }
 
@@ -149,7 +149,7 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
     return parsed
   }
 
-  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, project: parsed.project })
   if (!pick.ok) {
     return err('folder-materialize', pick.message, pick.hint, 2)
   }
@@ -163,15 +163,15 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
     }
 
     const interactivePage = page as Parameters<typeof folderMaterialize>[0]
-    const writeFolder = await waitForGraphReady(interactivePage, parsed.timeoutMs)
-    const selectedVaultPath = parsed.vault ?? (pick.instance.projectRoot || writeFolder)
+    const writeFolderPath = await waitForGraphReady(interactivePage, parsed.timeoutMs)
+    const selectedProjectPath = parsed.project ?? (pick.instance.projectRoot || writeFolderPath)
     const response = await folderMaterialize(interactivePage, {
       ...(parsed.folder ? { folder: parsed.folder } : {}),
       keepFixture: parsed.keepFixture,
       ...(parsed.marker ? { marker: parsed.marker } : {}),
       timeoutMs: parsed.timeoutMs,
-      projectRoot: selectedVaultPath,
-      writeFolder,
+      projectRoot: selectedProjectPath,
+      writeFolderPath,
     })
 
     if (!response.ok) {
@@ -185,7 +185,7 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
       ...response.result,
       cdpPort: pick.instance.cdpPort,
       pid: pick.instance.pid,
-      projectRoot: path.resolve(selectedVaultPath || response.result.projectRoot),
+      projectRoot: path.resolve(selectedProjectPath || response.result.projectRoot),
     })
   } catch (e) {
     return err(

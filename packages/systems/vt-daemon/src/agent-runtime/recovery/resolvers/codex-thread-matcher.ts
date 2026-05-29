@@ -23,7 +23,7 @@ function rowMatchesMarkers(
     const firstUserMessage: string | undefined = row.first_user_message
     if (typeof firstUserMessage !== 'string' || !firstUserMessage) return false
     return firstUserMessage.includes(`VOICETREE_TERMINAL_ID = ${terminalId}`)
-        && firstUserMessage.includes(`VOICETREE_VAULT_PATH = ${projectRoot}`)
+        && firstUserMessage.includes(`VOICETREE_PROJECT_PATH = ${projectRoot}`)
         && firstUserMessage.includes(`TASK_NODE_PATH = ${taskNodePath}`)
 }
 

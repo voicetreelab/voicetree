@@ -1,5 +1,5 @@
 // Read the unified HTTP daemon's port from
-// `<vault>/.voicetree/rpc.port`. Returns null when the file is missing or
+// `<project>/.voicetree/rpc.port`. Returns null when the file is missing or
 // malformed — callers omit `VOICETREE_DAEMON_URL` from spawn envs in that
 // case, and the agent's hook subprocess silently falls back to a no-op
 // (curl against an empty URL fails fast under the `|| true` clamp).
@@ -12,7 +12,7 @@
 import {readFile} from 'node:fs/promises'
 import path from 'path'
 
-export async function readDaemonPortFromVault(voicetreeProjectDir: string): Promise<number | null> {
+export async function readDaemonPortFromProject(voicetreeProjectDir: string): Promise<number | null> {
     if (!voicetreeProjectDir) return null
     try {
         const text: string = await readFile(path.join(voicetreeProjectDir, 'rpc.port'), 'utf8')

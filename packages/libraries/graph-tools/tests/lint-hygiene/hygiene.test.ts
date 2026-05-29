@@ -138,7 +138,7 @@ describe('checkCanonicalHierarchy', () => {
 // --- runHygieneAudit integration ---
 
 describe('runHygieneAudit', () => {
-    it('clean vault — no violations, exit-worthy error count = 0', () => {
+    it('clean project — no violations, exit-worthy error count = 0', () => {
         writeFileSync(path.join(tempDir, 'root.md'), '# Root\n[[child]]')
         mkdirSync(path.join(tempDir, 'notes'))
         writeFileSync(path.join(tempDir, 'notes', 'child.md'), '# Child')

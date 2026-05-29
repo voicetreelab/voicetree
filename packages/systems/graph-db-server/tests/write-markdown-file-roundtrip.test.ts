@@ -68,13 +68,13 @@ function graphContainsSuppressedRecentNode(
   )
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-  const appSupport = await mkdtemp(path.join(tmpdir(), 'graphd-write-md-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+  const voicetreeHome = await mkdtemp(path.join(tmpdir(), 'graphd-write-md-appsupport-'))
   await writeFile(
-    path.join(appSupport, 'voicetree-config.json'),
-    JSON.stringify({ vaultConfig: { [vault]: { writeFolder: vault } } }),
+    path.join(voicetreeHome, 'voicetree-config.json'),
+    JSON.stringify({ projectConfig: { [project]: { writeFolderPath: project } } }),
   )
-  return appSupport
+  return voicetreeHome
 }
 
 async function createSessionEventsReader(
@@ -121,16 +121,16 @@ async function readGraph(baseUrl: string): Promise<GraphResponse> {
 
 describe('write-markdown-file daemon roundtrip', () => {
   let root: string
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handle: DaemonHandle | null
   let controllers: AbortController[]
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'graphd-write-md-roundtrip-'))
-    vault = path.join(root, 'vault')
-    await mkdir(vault, { recursive: true })
-    appSupport = await createAppSupport(vault)
+    project = path.join(root, 'project')
+    await mkdir(project, { recursive: true })
+    voicetreeHome = await createVoicetreeHome(project)
     handle = null
     controllers = []
     clearWatchFolderState()
@@ -144,20 +144,20 @@ describe('write-markdown-file daemon roundtrip', () => {
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     await rm(root, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
   }, 15000)
 
   async function start(): Promise<string> {
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: appSupport,
+      project,
+      voicetreeHomePath: voicetreeHome,
       createStarterIfEmpty: false,
     })
     return `http://127.0.0.1:${handle.port}`
   }
 
   test('preserves existing frontmatter and broadcasts a suppressed change event', async () => {
-    const notePath = path.join(vault, 'frontmatter.md')
+    const notePath = path.join(project, 'frontmatter.md')
     const frontmatter = '---\nposition:\n  x: 10\n  y: 20\ncolor: blue\n---\n'
     const body = '# New body\n\nChanged through endpoint.\n'
     await writeFile(notePath, `${frontmatter}# Old body\n`, 'utf8')
@@ -176,7 +176,7 @@ describe('write-markdown-file daemon roundtrip', () => {
   }, 15000)
 
   test('updates an existing markdown file with no frontmatter', async () => {
-    const notePath = path.join(vault, 'plain.md')
+    const notePath = path.join(project, 'plain.md')
     const body = '# Plain new body\n\nNo frontmatter.\n'
     await writeFile(notePath, '# Plain old body\n', 'utf8')
 
@@ -191,7 +191,7 @@ describe('write-markdown-file daemon roundtrip', () => {
   }, 15000)
 
   test('creates a new markdown file through the watcher path', async () => {
-    const notePath = path.join(vault, 'new-node.md')
+    const notePath = path.join(project, 'new-node.md')
     const body = '# New node\n\nCreated through endpoint.\n'
 
     const baseUrl = await start()
@@ -206,7 +206,7 @@ describe('write-markdown-file daemon roundtrip', () => {
   }, 15000)
 
   test('resolves a folder node save to index.md and broadcasts that node', async () => {
-    const folderPath = path.join(vault, 'folder-node')
+    const folderPath = path.join(project, 'folder-node')
     const indexPath = path.join(folderPath, 'index.md')
     const body = '# Folder body\n\nSaved via folder node path.\n'
     await mkdir(folderPath, { recursive: true })

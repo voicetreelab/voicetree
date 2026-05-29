@@ -480,12 +480,12 @@
     text-overflow: ellipsis;
 }
 
-.surviving-agent-badge.this-vault {
+.surviving-agent-badge.this-project {
     border-color: rgba(34, 197, 94, 0.35);
     color: #22c55e;
 }
 
-.surviving-agent-badge.foreign-vault {
+.surviving-agent-badge.foreign-project {
     opacity: 0.72;
 }
 

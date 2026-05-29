@@ -10,7 +10,7 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/mutations/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
-import { resolveContextWriteFolder } from './contextWriteFolder'
+import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeFromQuestionClock = {
@@ -65,11 +65,11 @@ export async function createContextNodeFromQuestion(
     )
 
     const timestamp: number = dependencies.clock.now()
-    const writeFolder: string = await resolveContextWriteFolder(validNodeIds[0])
+    const writeFolderPath: string = await resolveContextWriteFolderPath(validNodeIds[0])
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
 
     // 1. Create standalone question node (no parent)
-    const candidateQuestionNodeId: string = `${writeFolder}/ask_${timestamp}.md`
+    const candidateQuestionNodeId: string = `${writeFolderPath}/ask_${timestamp}.md`
     // Ensure unique ID by appending _2, _3, etc. if collision exists
     const questionNodeId: string = ensureUniqueNodeId(candidateQuestionNodeId, existingIds)
 
@@ -100,7 +100,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(questionDelta)
 
     // 2. Create context node as child of question node
-    const contextNodeId: string = `${writeFolder}/${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
+    const contextNodeId: string = `${writeFolderPath}/${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
 
     const asciiTree: string = graphToAscii(subgraph)
     const contextContent: string = buildAskModeContent(

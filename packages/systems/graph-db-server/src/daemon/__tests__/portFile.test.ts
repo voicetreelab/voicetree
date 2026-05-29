@@ -9,45 +9,45 @@ import {
   PORT_FILENAME,
 } from '../portFile.ts'
 
-let vault: string
+let project: string
 
 beforeEach(async () => {
-  vault = await mkdtemp(join(tmpdir(), 'vt-graphd-port-test-'))
-  await mkdir(join(vault, '.voicetree'), { recursive: true })
+  project = await mkdtemp(join(tmpdir(), 'vt-graphd-port-test-'))
+  await mkdir(join(project, '.voicetree'), { recursive: true })
 })
 
 afterEach(async () => {
-  await rm(vault, { recursive: true, force: true })
+  await rm(project, { recursive: true, force: true })
 })
 
 describe('portFile', () => {
   test('write + read roundtrip returns the same port', async () => {
-    await writePortFile(vault, 49152)
-    expect(await readPortFile(vault)).toBe(49152)
+    await writePortFile(project, 49152)
+    expect(await readPortFile(project)).toBe(49152)
   })
 
   test('readPortFile returns null when missing', async () => {
-    expect(await readPortFile(vault)).toBeNull()
+    expect(await readPortFile(project)).toBeNull()
   })
 
   test('readPortFile returns null on garbled contents', async () => {
     const { writeFile } = await import('node:fs/promises')
-    await writeFile(join(vault, '.voicetree', PORT_FILENAME), 'not-a-port')
-    expect(await readPortFile(vault)).toBeNull()
+    await writeFile(join(project, '.voicetree', PORT_FILENAME), 'not-a-port')
+    expect(await readPortFile(project)).toBeNull()
   })
 
   test('deletePortFile is idempotent', async () => {
-    await expect(deletePortFile(vault)).resolves.toBeUndefined()
-    await writePortFile(vault, 50000)
-    await expect(deletePortFile(vault)).resolves.toBeUndefined()
-    expect(await readPortFile(vault)).toBeNull()
-    await expect(deletePortFile(vault)).resolves.toBeUndefined()
+    await expect(deletePortFile(project)).resolves.toBeUndefined()
+    await writePortFile(project, 50000)
+    await expect(deletePortFile(project)).resolves.toBeUndefined()
+    expect(await readPortFile(project)).toBeNull()
+    await expect(deletePortFile(project)).resolves.toBeUndefined()
   })
 
   test('overwrite replaces previous port atomically', async () => {
-    await writePortFile(vault, 40000)
-    await writePortFile(vault, 41000)
-    expect(await readPortFile(vault)).toBe(41000)
+    await writePortFile(project, 40000)
+    await writePortFile(project, 41000)
+    expect(await readPortFile(project)).toBe(41000)
   })
 
   test('concurrent writers never expose a partial/invalid file', async () => {
@@ -58,12 +58,12 @@ describe('portFile', () => {
     const reads: Array<Promise<number | null>> = []
     const reader = (async () => {
       while (keepReading) {
-        reads.push(readPortFile(vault))
+        reads.push(readPortFile(project))
         await new Promise((r) => setImmediate(r))
       }
     })()
 
-    await Promise.all(ports.map((p) => writePortFile(vault, p)))
+    await Promise.all(ports.map((p) => writePortFile(project, p)))
     keepReading = false
     await reader
 
@@ -74,15 +74,15 @@ describe('portFile', () => {
       )
     }
 
-    const final = await readPortFile(vault)
+    const final = await readPortFile(project)
     expect(ports.includes(final!)).toBe(true)
   })
 
   test('no temp files leak in .voicetree/ after writes settle', async () => {
     await Promise.all(
-      Array.from({ length: 10 }, (_, i) => writePortFile(vault, 51000 + i)),
+      Array.from({ length: 10 }, (_, i) => writePortFile(project, 51000 + i)),
     )
-    const entries = await readdir(join(vault, '.voicetree'))
+    const entries = await readdir(join(project, '.voicetree'))
     const leaked = entries.filter(
       (n) => n !== PORT_FILENAME && n.includes('graphd.port'),
     )
@@ -90,8 +90,8 @@ describe('portFile', () => {
   })
 
   test('written file content is exactly the port integer as UTF-8 text', async () => {
-    await writePortFile(vault, 52345)
-    const raw = await readFile(join(vault, '.voicetree', PORT_FILENAME), 'utf8')
+    await writePortFile(project, 52345)
+    const raw = await readFile(join(project, '.voicetree', PORT_FILENAME), 'utf8')
     expect(raw.trim()).toBe('52345')
   })
 })

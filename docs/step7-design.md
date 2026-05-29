@@ -79,15 +79,15 @@ infrastructure bug, not a feature deprecation.
 ### 2.3 CLI ↔ daemon transport: Unix domain socket
 
 **Decision.** The internal CLI and `vt graph live` talk to the daemon over
-a Unix domain socket. The daemon listens on a per-vault socket file; the
-CLI process discovers the socket via vault-root up-walk (see §3) and writes
+a Unix domain socket. The daemon listens on a per-project socket file; the
+CLI process discovers the socket via project-root up-walk (see §3) and writes
 length-delimited JSON-RPC over it (see §4). No network port. No HTTP. No
 MCP protocol framing.
 
 **Rationale.** UDS is the textbook local-IPC choice on POSIX: no port
 allocation, no firewall surface, kernel-enforced same-host isolation, and
 filesystem permissions as the trust model. The daemon already owns
-per-vault state (`graphd.lock`, `graphd.port`); the socket file fits the
+per-project state (`graphd.lock`, `graphd.port`); the socket file fits the
 same convention. The HTTP MCP server it replaces is 472 LOC of boilerplate
 that bought no functional benefit over a 80-LOC `net.createServer`.
 
@@ -110,7 +110,7 @@ branch. Flagged as open question §9.4.
 `http.createServer` (no express, no MCP, no framework), bound only to
 `127.0.0.1`, with a single route `POST /hook/:source?terminal=…&event=…`.
 Hook scripts running inside spawned agents continue to use `curl` against
-this port. The port is published to `<vault>/.voicetree/hook.port` at
+this port. The port is published to `<project>/.voicetree/hook.port` at
 daemon boot; the spawn pipeline reads that file and injects
 `VOICETREE_HOOK_PORT` into spawned-agent environments.
 
@@ -128,7 +128,7 @@ point — the UDS transport replaces HTTP precisely so the daemon stops
 running a 472-LOC HTTP server. Keeping one route alive for hooks justifies
 the entire express+MCP-SDK stack.
 
-**Rejected: file-drop hook ingestion (hook writes to `<vault>/.voicetree/hooks/`,
+**Rejected: file-drop hook ingestion (hook writes to `<project>/.voicetree/hooks/`,
 daemon watches).** Adds chokidar latency to a path that today is
 sub-millisecond. Diagnostic experience (visibility into hook events) is
 worse. Not worth the simplification.
@@ -147,10 +147,10 @@ manual to that prompt costs one file read and a string substitution. The
 agent then uses its built-in Bash tool to invoke `vt …` directly. No
 external transport is involved in discovery.
 
-**Rejected: `CLAUDE.md` / `AGENTS.md` written into the vault root only.**
+**Rejected: `CLAUDE.md` / `AGENTS.md` written into the project root only.**
 Insufficient for spawned agents — many agent runtimes consume that file
 only when the user opens the project, not when an agent is spawned. The
-file-in-vault path is useful as a *supplement* for user-launched agents
+file-in-project path is useful as a *supplement* for user-launched agents
 (see R1 in §7) but not as the primary mechanism.
 
 **Rejected: stdio MCP server that re-publishes typed tool definitions.**
@@ -179,20 +179,20 @@ This section is the authoritative path layout. 7b/7c/7d/7e MUST follow it.
 
 | Path | Owner | Purpose |
 |---|---|---|
-| `<vault>/.voicetree/vt.sock` | daemon writes; CLI reads | Primary UDS path for CLI↔daemon JSON-RPC |
-| `<vault>/.voicetree/hook.port` | daemon writes; spawn-pipeline reads | Hook HTTP port number (text file containing the decimal port) |
-| `<vault>/.voicetree/graphd.port` | already exists; unchanged | Graph-db-server port (out of Step 7 scope) |
-| `~/.voicetree/<vault-hash>.sock` | fallback if no vault is open | Headless `vt` invoked outside any vault directory |
+| `<project>/.voicetree/vt.sock` | daemon writes; CLI reads | Primary UDS path for CLI↔daemon JSON-RPC |
+| `<project>/.voicetree/hook.port` | daemon writes; spawn-pipeline reads | Hook HTTP port number (text file containing the decimal port) |
+| `<project>/.voicetree/graphd.port` | already exists; unchanged | Graph-db-server port (out of Step 7 scope) |
+| `~/.voicetree/<project-hash>.sock` | fallback if no project is open | Headless `vt` invoked outside any project directory |
 
 Path semantics:
 
-- All UDS paths use the **per-vault** location as the canonical primary
-  path. `<vault>` is the vault root directory — same vault as discovered by
+- All UDS paths use the **per-project** location as the canonical primary
+  path. `<project>` is the project root directory — same project as discovered by
   the existing `findRepoRoot.ts` up-walk pattern (Step 6 precedent).
-- The fallback `~/.voicetree/<vault-hash>.sock` exists only for the
-  pathological case of `vt …` invoked outside any vault directory at all.
-  In that case the daemon must have been started with `--vault <path>`
-  earlier; the CLI hashes the explicit vault arg or `$VOICETREE_VAULT_PATH`
+- The fallback `~/.voicetree/<project-hash>.sock` exists only for the
+  pathological case of `vt …` invoked outside any project directory at all.
+  In that case the daemon must have been started with `--project <path>`
+  earlier; the CLI hashes the explicit project arg or `$VOICETREE_PROJECT_PATH`
   to find the right socket.
 - The hook port file is plain text (`echo "$port"`), not JSON, mirroring
   the existing `.voicetree/graphd.port` shape so callers parse it the same
@@ -208,13 +208,13 @@ the socket path in this order. First hit wins:
    if the env var is set and the file does not exist, the CLI fails fast
    with `DaemonUnreachable` (no further fallback) — the override means
    "trust me, this is where it should be."
-2. **`<discovered-vault>/.voicetree/vt.sock`.** Vault discovery uses the
+2. **`<discovered-project>/.voicetree/vt.sock`.** Project discovery uses the
    same up-walk as `findRepoRoot.ts` (look for `.voicetree/` directory).
-3. **`$VOICETREE_VAULT_PATH/.voicetree/vt.sock`.** Spawned-agent
+3. **`$VOICETREE_PROJECT_PATH/.voicetree/vt.sock`.** Spawned-agent
    environments set this; honour it when set.
-4. **`~/.voicetree/<vault-hash>.sock`** where `<vault-hash>` is
-   `sha256(<absolute-vault-path>).slice(0,16)`. Last-resort path for
-   headless `vt` outside any vault tree.
+4. **`~/.voicetree/<project-hash>.sock`** where `<project-hash>` is
+   `sha256(<absolute-project-path>).slice(0,16)`. Last-resort path for
+   headless `vt` outside any project tree.
 
 If none of these point at a connectable socket, the CLI fails with the
 `daemon_unreachable` error code (§4.3) — never silently retry, never spin
@@ -397,7 +397,7 @@ Tables, not prose. Paths are repo-relative.
 | `webapp/src/shell/edge/main/cli/commands/runtime/agent.ts` etc. | `callMcpTool(port, …)` → `callDaemon(…)` rename | 7b |
 | `packages/systems/agent-runtime/src/application/spawn/agentHookInjection.ts` | URL `$VOICETREE_MCP_PORT` → `$VOICETREE_HOOK_PORT` | 7e |
 | `packages/systems/agent-runtime/src/application/spawn/` (prompt synth) | Inject `tools/prompts/cli-manual.md` into spawn prompts | 7d |
-| `packages/systems/voicetree-mcp/bin/vt-mcpd.ts` | Replace `startMcpServer()` with UDS daemon + hook-port startup; delete the `--port` flag entirely (no replacement — UDS path is derived from `--vault`, hook port is auto-assigned) | 7f |
+| `packages/systems/voicetree-mcp/bin/vt-mcpd.ts` | Replace `startMcpServer()` with UDS daemon + hook-port startup; delete the `--port` flag entirely (no replacement — UDS path is derived from `--project`, hook port is auto-assigned) | 7f |
 | `webapp/src/shell/edge/main/runtime/electron/app/main.ts` | Same swap on the desktop bootstrap path | 7f |
 
 ### 5.4 Package rename in 7g
@@ -439,7 +439,7 @@ of coherent transport-layer code.
 - `tools/prompts/cli-manual.md` — load-bearing as the canonical manual,
   now also load-bearing as the spawn-prompt injection source.
 - The `vt-mcpd` binary identity. It still owns graph-state, chokidar
-  watcher, terminal registry, and the per-vault lock — its transport
+  watcher, terminal registry, and the per-project lock — its transport
   changes, its role does not.
 - Electron desktop terminal flow. Renderer-side IPC is unaffected; only
   the in-process transport between Electron main and the tool catalog
@@ -485,23 +485,23 @@ HTTP wire.
 Cho's risk register, kept verbatim in intent. R3 has been resolved by §3
 of this document and is dropped from the residual set.
 
-### R1 — User-launched coding agents in a vault
+### R1 — User-launched coding agents in a project
 
 **Risk.** Spawn-time prompt injection (2.5) reaches only agents that VT
 itself spawns. A user who opens Claude Code (or Codex, or another coding
-agent) directly in their vault — without going through `vt agent spawn`
+agent) directly in their project — without going through `vt agent spawn`
 — never sees the manual injection. Today, that user-launched agent reads
 `.mcp.json` and discovers VoiceTree's tools automatically. After Step 7,
 the agent has no discovery surface.
 
-**Mitigation (recommended for 7d).** At vault open, write a
-`CLAUDE.md` / `AGENTS.md` addendum into the vault root advertising the
+**Mitigation (recommended for 7d).** At project open, write a
+`CLAUDE.md` / `AGENTS.md` addendum into the project root advertising the
 `vt` CLI. Suggested implementation:
 
-- If `<vault>/CLAUDE.md` exists, append a fenced VoiceTree section
+- If `<project>/CLAUDE.md` exists, append a fenced VoiceTree section
   (idempotent — re-running does not duplicate).
-- Else create `<vault>/.voicetree/AGENTS.md` containing the same content
-  and symlink (or include via `@`) from a generated `<vault>/CLAUDE.md`.
+- Else create `<project>/.voicetree/AGENTS.md` containing the same content
+  and symlink (or include via `@`) from a generated `<project>/CLAUDE.md`.
 - Content: the same `tools/prompts/cli-manual.md` body, with a banner
   identifying VoiceTree as the source.
 
@@ -563,7 +563,7 @@ violate them; the orchestrator (Ari) enforces them when sequencing.
    `voicetree-mcp` and `graph-tools`, audits the residual `mcp` references
    in the codebase for stale comments. Trivially reversible.
 
-6. **7d's stale-entry migrator MUST run on first vault open after the
+6. **7d's stale-entry migrator MUST run on first project open after the
    user upgrades to a post-7f build.** Otherwise the user's existing
    `.mcp.json` / `.codex/config.toml` / `opencode.jsonc` files contain a
    `voicetree` MCP entry pointing at a port that no longer binds; the
@@ -572,7 +572,7 @@ violate them; the orchestrator (Ari) enforces them when sequencing.
    falls back to its own (now manual-injection-based) discovery. This
    constraint applies whether or not 7d landed in the same release as 7f
    — but landing 7d before 7f is preferred because it eliminates the
-   window in which a vault open writes a stale entry that the same
+   window in which a project open writes a stale entry that the same
    binary then refuses to serve.
 
 ## 9. Clarifications ratified during 7a drafting
@@ -585,8 +585,8 @@ content lives in the body sections referenced.
 ### 9.1 `vt-mcpd --port` flag: DELETE entirely
 
 The `--port <n>` argument to `vt-mcpd` is removed in 7f. No replacement
-flag — the UDS path is derived from `--vault`, and the hook HTTP port
-is auto-assigned (and published to `<vault>/.voicetree/hook.port`). Per
+flag — the UDS path is derived from `--project`, and the hook HTTP port
+is auto-assigned (and published to `<project>/.voicetree/hook.port`). Per
 CLAUDE.md "no backwards compatibility": no alias, no deprecation
 warning. See §5.3 row for `bin/vt-mcpd.ts`.
 

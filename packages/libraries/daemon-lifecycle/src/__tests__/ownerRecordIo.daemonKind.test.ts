@@ -1,5 +1,5 @@
 /**
- * BF-369 daemonKind separation: a single vault can host both a 'graphd'
+ * BF-369 daemonKind separation: a single project can host both a 'graphd'
  * and a 'vtd' owner record simultaneously, with independent file paths,
  * nonces, and pids. The decision rule routes a cross-kind record to
  * unsafe-owner so a stale graphd record can't be read as a vtd record
@@ -20,24 +20,24 @@ import {
   type OwnerEvidence,
 } from '../index.ts'
 
-let vault: string
+let project: string
 
 beforeEach(async () => {
-  vault = await mkdtemp(join(tmpdir(), 'vt-daemon-lifecycle-kind-'))
-  await mkdir(join(vault, '.voicetree'), { recursive: true })
+  project = await mkdtemp(join(tmpdir(), 'vt-daemon-lifecycle-kind-'))
+  await mkdir(join(project, '.voicetree'), { recursive: true })
 })
 
 afterEach(async () => {
-  await rm(vault, { recursive: true, force: true })
+  await rm(project, { recursive: true, force: true })
 })
 
 describe('OwnerRecord daemonKind separation (BF-369)', () => {
-  test('concurrent atomic creates for graphd and vtd on the same vault BOTH succeed with distinct on-disk files and nonces', async () => {
-    const fingerprint = { executable: '/usr/local/bin/node', args: ['--project-root', vault] }
+  test('concurrent atomic creates for graphd and vtd on the same project BOTH succeed with distinct on-disk files and nonces', async () => {
+    const fingerprint = { executable: '/usr/local/bin/node', args: ['--project-root', project] }
     const now = 1_700_000_000_000
     const graphdRecord = createInitialRecord({
       daemonKind: 'graphd',
-      canonicalVault: vault,
+      canonicalProject: project,
       pid: 1001,
       ppid: 1,
       callerKind: 'test',
@@ -47,7 +47,7 @@ describe('OwnerRecord daemonKind separation (BF-369)', () => {
     })
     const vtdRecord = createInitialRecord({
       daemonKind: 'vtd',
-      canonicalVault: vault,
+      canonicalProject: project,
       pid: 2002,
       ppid: 1,
       callerKind: 'test',
@@ -56,10 +56,10 @@ describe('OwnerRecord daemonKind separation (BF-369)', () => {
       nowMs: now,
     })
 
-    const graphdPath = ownerRecordFile.pathFor(vault, 'graphd')
-    const vtdPath = ownerRecordFile.pathFor(vault, 'vtd')
-    expect(graphdPath).toBe(join(vault, '.voicetree', 'graphd.owner.json'))
-    expect(vtdPath).toBe(join(vault, '.voicetree', 'vtd.owner.json'))
+    const graphdPath = ownerRecordFile.pathFor(project, 'graphd')
+    const vtdPath = ownerRecordFile.pathFor(project, 'vtd')
+    expect(graphdPath).toBe(join(project, '.voicetree', 'graphd.owner.json'))
+    expect(vtdPath).toBe(join(project, '.voicetree', 'vtd.owner.json'))
     expect(graphdPath).not.toBe(vtdPath)
 
     const [graphdOutcome, vtdOutcome] = await Promise.all([
@@ -78,10 +78,10 @@ describe('OwnerRecord daemonKind separation (BF-369)', () => {
     expect(vtdOnDisk?.pid).toBe(2002)
     expect(graphdOnDisk?.ownerNonce).not.toBe(vtdOnDisk?.ownerNonce)
 
-    // And via the (vaultDir, daemonKind) overload — readOwnerRecord resolves
+    // And via the (projectDir, daemonKind) overload — readOwnerRecord resolves
     // the right path internally.
-    expect(await readOwnerRecord(vault, 'graphd')).toEqual(graphdOnDisk)
-    expect(await readOwnerRecord(vault, 'vtd')).toEqual(vtdOnDisk)
+    expect(await readOwnerRecord(project, 'graphd')).toEqual(graphdOnDisk)
+    expect(await readOwnerRecord(project, 'vtd')).toEqual(vtdOnDisk)
 
     // Each file's encoded form contains the expected daemonKind discriminant.
     const graphdRaw = await readFile(graphdPath, 'utf8')
@@ -93,11 +93,11 @@ describe('OwnerRecord daemonKind separation (BF-369)', () => {
   test('decideOwnerAction returns unsafe-owner when probe identity matches but recorded daemonKind disagrees with policy', () => {
     // A stale graphd record observed at a port now bound by vtd would
     // surface as unsafe-owner because the verified health identity comes
-    // from a different daemon (the vault path matches but the nonce does
+    // from a different daemon (the project path matches but the nonce does
     // not, since per-claim nonces never collide across kinds).
     const graphdRecord = createInitialRecord({
       daemonKind: 'graphd',
-      canonicalVault: vault,
+      canonicalProject: project,
       pid: 1001,
       ppid: 1,
       callerKind: 'test',
@@ -111,7 +111,7 @@ describe('OwnerRecord daemonKind separation (BF-369)', () => {
       recordedPidLiveness: 'alive',
       health: {
         kind: 'verified',
-        canonicalVault: vault,
+        canonicalProject: project,
         ownerNonce: 'vtd-nonce',
         pid: 1001,
         port: 65123,

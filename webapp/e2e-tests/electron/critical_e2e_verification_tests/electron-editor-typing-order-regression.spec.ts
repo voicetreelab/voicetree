@@ -49,11 +49,11 @@ interface ExtendedWindow {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writeFolder = path.join(projectPath, 'voicetree');
-  await fs.mkdir(writeFolder, { recursive: true });
+  const writeFolderPath = path.join(projectPath, 'voicetree');
+  await fs.mkdir(writeFolderPath, { recursive: true });
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true });
   await fs.writeFile(
-    path.join(writeFolder, 'Typing Target.md'),
+    path.join(writeFolderPath, 'Typing Target.md'),
     '# Typing Target\n\nInitial content that will be replaced.\n',
     'utf8',
   );
@@ -62,7 +62,7 @@ async function seedProject(projectPath: string): Promise<string> {
     JSON.stringify({ 'Typing Target.md': { x: 100, y: 100 } }, null, 2),
     'utf8',
   );
-  return writeFolder;
+  return writeFolderPath;
 }
 
 function resolveGraphdNodeBin(): string | undefined {
@@ -88,7 +88,7 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   projectPath: string;
-  writeFolder: string;
+  writeFolderPath: string;
 }>({
   projectPath: async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-order-'));
@@ -96,12 +96,12 @@ const test = base.extend<{
     await fs.rm(projectPath, { recursive: true, force: true });
   },
 
-  writeFolder: async ({ projectPath }, use) => {
-    const writeFolder = await seedProject(projectPath);
-    await use(writeFolder);
+  writeFolderPath: async ({ projectPath }, use) => {
+    const writeFolderPath = await seedProject(projectPath);
+    await use(writeFolderPath);
   },
 
-  electronApp: async ({ projectPath, writeFolder }, use) => {
+  electronApp: async ({ projectPath, writeFolderPath }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-order-app-'));
     const savedProject = {
       id: 'editor-typing-order-regression',
@@ -117,9 +117,9 @@ const test = base.extend<{
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: projectPath,
-        vaultConfig: {
+        projectConfig: {
           [projectPath]: {
-            writeFolder,
+            writeFolderPath,
             readPaths: [],
           },
         },
@@ -159,15 +159,15 @@ const test = base.extend<{
   appWindow: async ({ electronApp, projectPath }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
-    // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
+    // voicetree-config.json has lastDirectory set, so the app may auto-load the project
     // before the project selection screen is fully visible. Try detecting auto-load first.
     const openResult = await window.evaluate(async (dir) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const response = await api.main.openVault(dir);
-      return { writeFolder: response.writeFolder };
+      const response = await api.main.openProject(dir);
+      return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
-    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy();
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await pollForCondition(window, async () => {
@@ -187,7 +187,7 @@ const test = base.extend<{
 
 test.describe.configure({ timeout: 75_000 });
 
-test('preserves character-by-character editor typing after autosave and file watcher settle', async ({ appWindow, writeFolder }) => {
+test('preserves character-by-character editor typing after autosave and file watcher settle', async ({ appWindow, writeFolderPath }) => {
   await expect.poll(async () => {
     return await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -280,11 +280,11 @@ test('preserves character-by-character editor typing after autosave and file wat
   }, editorWindowId);
   expect(settled).toBe(expectedContent);
 
-  const savedContent = await fs.readFile(path.join(writeFolder, 'Typing Target.md'), 'utf8');
+  const savedContent = await fs.readFile(path.join(writeFolderPath, 'Typing Target.md'), 'utf8');
   expect(savedContent).toBe(expectedContent);
 });
 
-test('merges external daemon SSE append while the editor is focused and typing', async ({ appWindow, writeFolder }) => {
+test('merges external daemon SSE append while the editor is focused and typing', async ({ appWindow, writeFolderPath }) => {
   await appWindow.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     await api?.main.syncRendererSessionStateWithDaemon();
@@ -335,7 +335,7 @@ test('merges external daemon SSE append while the editor is focused and typing',
   const typing = appWindow.keyboard.type(userText, { delay: 80 });
 
   await appWindow.waitForTimeout(500);
-  await fs.appendFile(path.join(writeFolder, 'Typing Target.md'), `\n\n${agentText}\n`, 'utf8');
+  await fs.appendFile(path.join(writeFolderPath, 'Typing Target.md'), `\n\n${agentText}\n`, 'utf8');
   await typing;
   await appWindow.waitForTimeout(1_000);
 
@@ -348,7 +348,7 @@ test('merges external daemon SSE append while the editor is focused and typing',
   }).toBe(true);
 
   await expect.poll(async () => {
-    const content = await fs.readFile(path.join(writeFolder, 'Typing Target.md'), 'utf8');
+    const content = await fs.readFile(path.join(writeFolderPath, 'Typing Target.md'), 'utf8');
     return content.includes(userText) && content.includes(agentText);
   }, {
     message: 'Waiting for file to contain both user typing and external agent append',
@@ -356,7 +356,7 @@ test('merges external daemon SSE append while the editor is focused and typing',
   }).toBe(true);
 });
 
-test('applies non-append external filesystem replacements while the editor is focused', async ({ appWindow, writeFolder }) => {
+test('applies non-append external filesystem replacements while the editor is focused', async ({ appWindow, writeFolderPath }) => {
   await appWindow.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     await api?.main.syncRendererSessionStateWithDaemon();
@@ -387,7 +387,7 @@ test('applies non-append external filesystem replacements while the editor is fo
 
   const expectedEditorContent = '# Typing Target\n\nExternal filesystem replacement should win while focused.\n';
   await fs.writeFile(
-    path.join(writeFolder, 'Typing Target.md'),
+    path.join(writeFolderPath, 'Typing Target.md'),
     `---\n---\n${expectedEditorContent}`,
     'utf8',
   );

@@ -1,6 +1,6 @@
 # agent-storm: hypotheses
 
-Config: 15 agents × 30 nodes × 300-seed vault on Onidel. Spans in `~/.voicetree/traces/vt-graphd.ndjson`.
+Config: 15 agents × 30 nodes × 300-seed project on Onidel. Spans in `~/.voicetree/traces/vt-graphd.ndjson`.
 
 | # | Hypothesis | Status | Evidence |
 |---|---|---|---|

@@ -13,8 +13,8 @@ import {
   parseUnseenNodesAroundContextNodeRequest,
 } from '../handleContextNode.ts'
 
-const PARENT_ID = '/tmp/vault/parent.md'
-const CHILD_ID = '/tmp/vault/child.md'
+const PARENT_ID = '/tmp/project/parent.md'
+const CHILD_ID = '/tmp/project/child.md'
 
 function graphNodeFixture(
   id: string,
@@ -129,8 +129,8 @@ describe('handleContextNode', () => {
       title: 'Child',
       parentNodePath: PARENT_ID,
     })
-    expect(composeFromQuestionResponse('/tmp/vault/missing.md', graph)).toEqual({
-      nodeId: '/tmp/vault/missing.md',
+    expect(composeFromQuestionResponse('/tmp/project/missing.md', graph)).toEqual({
+      nodeId: '/tmp/project/missing.md',
       title: '',
       parentNodePath: '',
     })

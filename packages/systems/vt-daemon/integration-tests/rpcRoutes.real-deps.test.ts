@@ -63,7 +63,7 @@ function makeTerminalId(label: string): TerminalId {
     return `${label}-${Date.now()}-${Math.random().toString(16).slice(2)}` as TerminalId
 }
 
-async function makeTempVault(): Promise<string> {
+async function makeTempProject(): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), 'rpc-routes-'))
     tempDirs.add(dir)
     return dir
@@ -71,9 +71,9 @@ async function makeTempVault(): Promise<string> {
 
 async function captureEventsWithRealRuntime(): Promise<void> {
     events.length = 0
-    const appSupport: string = await makeTempVault()
-    const writeFolder: string = await makeTempVault()
-    process.env.VOICETREE_HOME_PATH = appSupport
+    const voicetreeHome: string = await makeTempProject()
+    const writeFolderPath: string = await makeTempProject()
+    process.env.VOICETREE_HOME_PATH = voicetreeHome
     configureAgentRuntime({
         env: {
             getCliManualPath: (): string | null => null,
@@ -86,8 +86,8 @@ async function captureEventsWithRealRuntime(): Promise<void> {
                 nodeByBaseName: new Map(),
                 unresolvedLinksIndex: new Map(),
             }),
-            getVaultPaths: async () => [],
-            getWriteFolder: async () => O.none,
+            getProjectPaths: async () => [],
+            getWriteFolderPath: async () => O.none,
             getProjectRoot: async () => null,
             getWatchStatus: async () => ({isWatching: false, directory: undefined}),
             applyGraphDelta: async () => undefined,
@@ -101,9 +101,9 @@ async function captureEventsWithRealRuntime(): Promise<void> {
         },
     })
     // The publishOnTopic from vt-daemon's vtd.ts wires fanout — but here we
-    // just want the raw event capture. `writeFolder` is held by tempDirs so
+    // just want the raw event capture. `writeFolderPath` is held by tempDirs so
     // afterEach cleans it up.
-    void writeFolder
+    void writeFolderPath
 }
 
 beforeEach(async () => {
@@ -136,7 +136,7 @@ function parseResult(response: McpToolResponse): unknown {
 function makeFixtureRecord(terminalId: TerminalId, isHeadless = false): TerminalData {
     return createTerminalData({
         terminalId,
-        attachedToNodeId: '/vault/parent.md',
+        attachedToNodeId: '/project/parent.md',
         terminalCount: 0,
         title: `fixture ${terminalId}`,
         agentName: terminalId,
@@ -176,7 +176,7 @@ describe('rpc routes — spawn', () => {
         // spawn here — that would require tmux + a populated graph; the
         // publishing behavior of spawn is exercised by agent-runtime's own
         // tests. Here we assert the catalog wiring detects bad input.
-        await expect((handler as CatalogHandler)({nodeId: '/vault/a.md'})).rejects.toThrow()
+        await expect((handler as CatalogHandler)({nodeId: '/project/a.md'})).rejects.toThrow()
     })
 })
 
@@ -197,7 +197,7 @@ describe('rpc routes — inject', () => {
         const handler: CatalogHandler = dispatch().get('injectNodesIntoTerminal')!
         const response: McpToolResponse = await handler({
             terminalId: 'no-such-terminal',
-            nodeIds: ['/vault/x.md', '/vault/y.md'],
+            nodeIds: ['/project/x.md', '/project/y.md'],
         } satisfies InjectNodesIntoTerminal.Request)
         const result = parseResult(response) as InjectNodesIntoTerminal.Response
         expect(result).toEqual({success: false, injectedCount: 0})
@@ -256,7 +256,7 @@ describe('rpc routes — headless', () => {
     it('closeHeadlessAgent kills the tmux session and publishes terminal-removed', async () => {
         const terminalId: TerminalId = makeTerminalId('headless-close')
         sessionsToCleanup.add(terminalId)
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const data: TerminalData = createTerminalData({
             terminalId,
             attachedToNodeId: join(projectRoot, 'ctx.md'),
@@ -265,7 +265,7 @@ describe('rpc routes — headless', () => {
             agentName: terminalId,
             isHeadless: true,
             executeCommand: true,
-            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         })
 
         await spawnTmuxBackedTerminal(
@@ -273,7 +273,7 @@ describe('rpc routes — headless', () => {
             data,
             `bash -lc 'sleep 30'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         expect(await hasSession(terminalId)).toBe(true)
         // Re-arm the capture after the recordTerminalSpawn the spawn fired.
@@ -293,7 +293,7 @@ describe('rpc routes — headless', () => {
     it('getHeadlessAgentOutput returns a string for a tmux-backed terminal', async () => {
         const terminalId: TerminalId = makeTerminalId('headless-output')
         sessionsToCleanup.add(terminalId)
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const data: TerminalData = createTerminalData({
             terminalId,
             attachedToNodeId: join(projectRoot, 'ctx.md'),
@@ -302,14 +302,14 @@ describe('rpc routes — headless', () => {
             agentName: terminalId,
             isHeadless: true,
             executeCommand: true,
-            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         })
         await spawnTmuxBackedTerminal(
             terminalId,
             data,
             `bash -lc 'echo hello && sleep 5'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
 
         const handler: CatalogHandler = dispatch().get('getHeadlessAgentOutput')!
@@ -327,7 +327,7 @@ describe('rpc routes — recovery', () => {
         // registry row; discovery picks it up via the metadata directory.
         const terminalId: TerminalId = makeTerminalId('recovery-disc')
         sessionsToCleanup.add(terminalId)
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const data: TerminalData = createTerminalData({
             terminalId,
             attachedToNodeId: join(projectRoot, 'ctx.md'),
@@ -336,7 +336,7 @@ describe('rpc routes — recovery', () => {
             agentName: terminalId,
             isHeadless: false,
             executeCommand: true,
-            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         })
 
         const handler: CatalogHandler = dispatch().get('discoverRecoverableAgentSessions')!
@@ -351,7 +351,7 @@ describe('rpc routes — recovery', () => {
         for (const session of result as readonly {attach?: {session?: {sessionName?: unknown; classification?: unknown; panePid?: unknown}}}[]) {
             if (session.attach) {
                 expect(typeof session.attach.session?.sessionName).toBe('string')
-                expect(['this-vault', 'foreign-vault']).toContain(session.attach.session?.classification)
+                expect(['this-project', 'foreign-project']).toContain(session.attach.session?.classification)
                 expect(typeof session.attach.session?.panePid).toBe('number')
             }
         }

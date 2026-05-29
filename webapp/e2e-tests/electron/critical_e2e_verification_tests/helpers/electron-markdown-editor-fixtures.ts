@@ -19,10 +19,10 @@ import {
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
 
-// FIXTURE_VAULT_PATH is the watched directory. The app uses a default
-// vaultSuffix of 'voicetree' so files are in FIXTURE_VAULT_PATH/voicetree/,
+// FIXTURE_PROJECT_PATH is the watched directory. The app uses a default
+// projectSuffix of 'voicetree' so files are in FIXTURE_PROJECT_PATH/voicetree/,
 // and node IDs include this prefix (e.g., "voicetree/2025-09-30/file.md").
-export const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large');
+export const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large');
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -51,11 +51,11 @@ export const test = base.extend<{
   electronApp: [async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-test-'));
 
-    // Keep the persisted config present for settings/vault-config reads, but
+    // Keep the persisted config present for settings/project-config reads, but
     // use --open-folder for startup. Persisted lastDirectory is intentionally
     // not an auto-open signal.
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
 
     const ciFlags = process.env.CI
       ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
@@ -66,7 +66,7 @@ export const test = base.extend<{
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
         '--open-folder',
-        FIXTURE_VAULT_PATH,
+        FIXTURE_PROJECT_PATH,
       ],
       env: {
         ...process.env,
@@ -115,7 +115,7 @@ export const test = base.extend<{
     }
 
     await pollForCytoscape(page, 45000);
-    // Allow the startup vault open to finish.
+    // Allow the startup project open to finish.
     await page.waitForTimeout(500);
 
     await use(page);

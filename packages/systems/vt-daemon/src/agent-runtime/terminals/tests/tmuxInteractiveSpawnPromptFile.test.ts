@@ -28,7 +28,7 @@ import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/head
 import {clearTerminalRecords} from '../terminal-registry'
 import {hasSession, killSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
-import {withVoicetreeVaultPath} from '../tmux/tmuxSpawnPlanning'
+import {withVoicetreeProjectPath} from '../tmux/tmuxSpawnPlanning'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminal-registry/types'
 
 const sessions: Set<string> = new Set<string>()
@@ -38,8 +38,8 @@ function makeName(): TerminalId {
     return `bf-interactive-promptfile-${randomUUID().slice(0, 8)}` as TerminalId
 }
 
-async function makeTempVault(): Promise<string> {
-    const dir: string = await mkdtemp(join(tmpdir(), 'bf-interactive-vault-'))
+async function makeTempProject(): Promise<string> {
+    const dir: string = await mkdtemp(join(tmpdir(), 'bf-interactive-project-'))
     tempDirs.add(dir)
     return dir
 }
@@ -86,17 +86,17 @@ async function cleanup(): Promise<void> {
     clearTerminalRecords()
 }
 
-function makeInteractiveTerminalData(terminalId: TerminalId, vaultPath: string): TerminalData {
+function makeInteractiveTerminalData(terminalId: TerminalId, projectPath: string): TerminalData {
     return createTerminalData({
         terminalId,
-        attachedToNodeId: join(vaultPath, 'context.md') as NodeIdAndFilePath,
+        attachedToNodeId: join(projectPath, 'context.md') as NodeIdAndFilePath,
         terminalCount: 0,
         title: 'interactive prompt-file overflow regression',
         agentName: terminalId,
         isHeadless: false,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_PROJECT_PATH: projectPath,
         },
     })
 }
@@ -107,7 +107,7 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
 
     it('does NOT overflow ARG_MAX / tmux command-protocol: spills 200 KiB AGENT_PROMPT to a file, points env at it, and CLI-rewrites the initialCommand', async () => {
         const terminalId: TerminalId = makeName()
-        const vaultPath: string = await makeTempVault()
+        const projectPath: string = await makeTempProject()
         const giantPrompt: string = 'X'.repeat(200 * 1024)
 
         // Same shape the interactive renderer path builds: initialEnvVars
@@ -115,7 +115,7 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
         // is the agent CLI command template from settings.agents[].command.
         const initial: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_PROJECT_PATH: projectPath,
             AGENT_PROMPT: giantPrompt,
             // User-settings AGENT_PROMPT_* siblings are still propagated;
             // these are NOT what this test fixes — see fragility report.
@@ -127,16 +127,16 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
         // Mirror what `TerminalManager.spawnTmuxBacked` does in
         // packages/systems/agent-runtime/src/application/terminals/terminal-manager.ts:
         const plan = applyPromptFileToTmuxSpawn({
-            projectRoot: vaultPath,
+            projectRoot: projectPath,
             terminalId,
             command: initialCommand,
             env: initial,
         })
-        const tmuxEnv: Record<string, string> = withVoicetreeVaultPath(plan.env, vaultPath)
+        const tmuxEnv: Record<string, string> = withVoicetreeProjectPath(plan.env, projectPath)
 
         // Sanity on the plan: prompt file path is set, command is CLI-rewritten,
         // big AGENT_PROMPT is gone from the env vector that tmux -e will receive.
-        expect(plan.promptFilePath).toBe(join(vaultPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`))
+        expect(plan.promptFilePath).toBe(join(projectPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`))
         expect(plan.command).toBe(`claude --dangerously-skip-permissions < '${plan.promptFilePath}'`)
         expect(tmuxEnv.AGENT_PROMPT).toBe('')
         expect(tmuxEnv.AGENT_PROMPT_FILE).toBe(plan.promptFilePath)
@@ -146,12 +146,12 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
         // Real-wire spawn — the assertion this entire fix exists for: tmux
         // does not reject this spawn with "command too long".
         sessions.add(terminalId)
-        const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, vaultPath)
+        const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, projectPath)
         const created: {readonly pid: number} = await spawnTmuxBackedTerminal(
             terminalId,
             terminalData,
             '/bin/bash -l',
-            vaultPath,
+            projectPath,
             tmuxEnv,
             undefined,
             plan.promptFilePath,

@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { getNodeThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries'
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO'
-import { getVaultPaths, getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getProjectPaths, getWriteFolderPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown'
 import type { GraphNode } from '@vt/graph-model/graph'
@@ -18,12 +18,12 @@ function slugify(text: string): string {
         .replace(/^-|-$/g, '')
 }
 
-async function syncVaultStateToRenderer(): Promise<void> {
+async function syncProjectStateToRenderer(): Promise<void> {
     const settings: VTSettings = await loadSettings()
-    const writeFolderOption: O.Option<string> = await getWriteFolder()
-    uiAPI.syncVaultState({
-        readPaths: [...await getVaultPaths()],
-        writeFolder: O.isSome(writeFolderOption) ? writeFolderOption.value : null,
+    const writeFolderPathOption: O.Option<string> = await getWriteFolderPath()
+    uiAPI.syncProjectState({
+        readPaths: [...await getProjectPaths()],
+        writeFolderPath: O.isSome(writeFolderPathOption) ? writeFolderPathOption.value : null,
         starredFolders: settings.starredFolders ?? [],
     })
 }
@@ -40,14 +40,14 @@ export async function addStarredFolder(folderPath: string): Promise<void> {
         return
     }
     await saveSettings({ ...settings, starredFolders: [...current, folderPath] })
-    await syncVaultStateToRenderer()
+    await syncProjectStateToRenderer()
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
     const settings: VTSettings = await loadSettings()
     const current: readonly string[] = settings.starredFolders ?? []
     await saveSettings({ ...settings, starredFolders: current.filter((p: string) => p !== folderPath) })
-    await syncVaultStateToRenderer()
+    await syncProjectStateToRenderer()
 }
 
 export async function isStarred(folderPath: string): Promise<boolean> {

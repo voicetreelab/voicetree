@@ -27,7 +27,7 @@ flowchart TD
   tmuxServer -->|PTY sessions| agentProcesses
   tmuxServer -->|pipe-pane terminal logs| filesystem
   agentProcesses -->|MCP HTTP tools callback| vtd
-  graphd -->|read/write/watch vault markdown| filesystem
+  graphd -->|read/write/watch project markdown| filesystem
 
   click filesystem "."
   click electronMain "webapp/src/shell/edge/main/runtime/electron/app/main.ts"

@@ -15,16 +15,16 @@ export async function getRuntimeGraph(): Promise<Graph> {
     return await requireGraphBridge().getGraph()
 }
 
-export async function getRuntimeWriteFolder(): Promise<O.Option<FilePath>> {
-    return await requireGraphBridge().getWriteFolder()
+export async function getRuntimeWriteFolderPath(): Promise<O.Option<FilePath>> {
+    return await requireGraphBridge().getWriteFolderPath()
 }
 
 export async function getRuntimeProjectRoot(): Promise<FilePath | null> {
     return await requireGraphBridge().getProjectRoot()
 }
 
-export async function getRuntimeVaultPaths(): Promise<readonly FilePath[]> {
-    return await requireGraphBridge().getVaultPaths()
+export async function getRuntimeProjectPaths(): Promise<readonly FilePath[]> {
+    return await requireGraphBridge().getProjectPaths()
 }
 
 export async function applyRuntimeGraphDelta(

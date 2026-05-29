@@ -10,7 +10,7 @@
  *    process actually wrote — proving a real process ran, not just a stub
  * 5. The agent transitions to status 'exited' with exitCode 0
  *
- * Bootstrap: launch Electron, load the vault fixture, register a caller
+ * Bootstrap: launch Electron, load the project fixture, register a caller
  * terminal via electronAPI (so we have a valid callerTerminalId for MCP),
  * then drive the headless lifecycle entirely through MCP.
  */
@@ -29,7 +29,7 @@ import {
 import { getBearerToken, getDaemonRpcUrl, rpcCallTool } from './helpers/e2e-rpc-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_SOURCE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_SOURCE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 const HEADLESS_OUTPUT_MARKER = 'VT_HEADLESS_E2E_OUTPUT_MARKER';
 
 interface ExtendedWindow {
@@ -58,14 +58,14 @@ const test = base.extend<{
     electronApp: async ({}, use) => {
         // Create a temporary userData directory for this test
         const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-headless-e2e-'));
-        const fixtureVaultPath = path.join(tempUserDataPath, 'example_small');
-        await fs.cp(FIXTURE_SOURCE_VAULT_PATH, fixtureVaultPath, { recursive: true });
+        const fixtureProjectPath = path.join(tempUserDataPath, 'example_small');
+        await fs.cp(FIXTURE_SOURCE_PROJECT_PATH, fixtureProjectPath, { recursive: true });
 
-        // Create projects.json with the test vault (smoke test pattern)
+        // Create projects.json with the test project (smoke test pattern)
         const projectsPath = path.join(tempUserDataPath, 'projects.json');
         const savedProject = {
             id: 'headless-test-project',
-            path: fixtureVaultPath,
+            path: fixtureProjectPath,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
@@ -75,7 +75,7 @@ const test = base.extend<{
 
         // Also write legacy config for auto-load attempt
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: fixtureVaultPath }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: fixtureProjectPath }, null, 2), 'utf8');
 
         // Test agent command emits a distinctive marker on stdout and exits 0.
         // The marker lets read_terminal_output prove a real process ran and its
@@ -108,7 +108,7 @@ const test = base.extend<{
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
                 VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
-                // Pin the daemon's app-support path so its tmux socket lives
+                // Pin the daemon's voicetree-home path so its tmux socket lives
                 // under the same user-data dir the test queries.
                 VOICETREE_HOME_PATH: tempUserDataPath,
             },
@@ -197,7 +197,7 @@ test.describe('Headless Agent E2E', () => {
     // health-probe. The vt-daemon /rpc surface was overhauled in origin/dev
     // (BF-371 auth, BF-376 routes) and this spec's getDaemonRpcUrl helper
     // likely depends on a pre-migration URL/bearer flow. Re-baseline against
-    // the new ensureVtDaemonForVault + bindVtDaemonForVault contracts.
+    // the new ensureVtDaemonForProject + bindVtDaemonForProject contracts.
     test.skip('spawn headless agent via /rpc, verify lifecycle and guards', async ({ appWindow }) => {
         // ═══════════════════════════════════════════════════════════════════
         // STEP 1: Discover daemon /rpc URL + bearer token
@@ -208,7 +208,7 @@ test.describe('Headless Agent E2E', () => {
         console.log(`✓ Daemon discovered: ${rpcUrl}`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 3: Wait for vault to fully load (graph nodes)
+        // STEP 3: Wait for project to fully load (graph nodes)
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 3: Wait for graph nodes ===');
         await expect.poll(async () => {
@@ -221,7 +221,7 @@ test.describe('Headless Agent E2E', () => {
             timeout: 15000,
             intervals: [500, 1000, 1000]
         }).toBeGreaterThan(0);
-        console.log('✓ Vault loaded into graph');
+        console.log('✓ Project loaded into graph');
 
         // Extra wait for stability
         await appWindow.waitForTimeout(2000);
@@ -399,7 +399,7 @@ test.describe('Headless Agent E2E', () => {
         console.log('');
         console.log('=== HEADLESS AGENT E2E TEST SUMMARY ===');
         console.log('✓ Daemon /rpc reachable');
-        console.log('✓ Test vault loaded');
+        console.log('✓ Test project loaded');
         console.log('✓ Caller terminal spawned and registered (isHeadless: false)');
         console.log('✓ Headless agent spawned via MCP spawn_agent (headless: true)');
         console.log('✓ list_agents shows isHeadless: true');

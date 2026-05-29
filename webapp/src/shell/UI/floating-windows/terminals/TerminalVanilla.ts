@@ -302,7 +302,7 @@ export class TerminalVanilla {
   private async initRelayTerminal(): Promise<void> {
     if (!this.term) return;
 
-    // Post-BF-376: the per-vault VTD owns the tmux server and creates the
+    // Post-BF-376: the per-project VTD owns the tmux server and creates the
     // session as part of the spawn family RPCs
     // (`spawnPlainTerminal` / `spawnPlainTerminalWithNode` /
     // `spawnTerminalWithContextNode`). The renderer panel is mounted only

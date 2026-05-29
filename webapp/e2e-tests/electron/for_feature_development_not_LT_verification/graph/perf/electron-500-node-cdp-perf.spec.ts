@@ -50,7 +50,7 @@ import { describePerfTestConfig, loadPerfTestConfig } from './perf-helpers/perfC
 const PROJECT_ROOT = path.resolve(process.cwd());
 const PERF_CONFIG = loadPerfTestConfig(PROJECT_ROOT);
 const PERF_TRACES_DIR = PERF_CONFIG.outputDir;
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -79,7 +79,7 @@ const test = base.extend<{
       projectsPath,
       JSON.stringify([{
         id: 'perf-test-project',
-        path: FIXTURE_VAULT_PATH,
+        path: FIXTURE_PROJECT_PATH,
         name: 'example_small',
         type: 'folder',
         lastOpened: Date.now(),
@@ -233,12 +233,12 @@ test.describe('CDP Performance Trace', () => {
     const generatedNodeCount = graphElements.filter((e) => e.group === 'nodes').length;
     console.log(`Generated: ${generatedNodeCount} nodes, ${graphElements.length - generatedNodeCount} edges`);
 
-    // Capture baseline node count (vault's pre-existing nodes from example_small)
+    // Capture baseline node count (project's pre-existing nodes from example_small)
     const baselineNodeCount = await appWindow.evaluate((): number => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.nodes().length : 0;
     });
-    console.log(`Baseline nodes from vault: ${baselineNodeCount}`);
+    console.log(`Baseline nodes from project: ${baselineNodeCount}`);
 
     // Phase 1: CREATE
     const createMetrics = await test.step(`PHASE 1: CREATE ${nodeLabel} nodes`, async () => {

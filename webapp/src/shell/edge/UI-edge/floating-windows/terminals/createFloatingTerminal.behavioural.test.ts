@@ -26,9 +26,9 @@ vi.mock('@/shell/UI/floating-windows/terminals/TerminalVanilla', () => ({
     })),
 }));
 
-const SOURCE_TASK_NODE_ID: NodeIdAndFilePath = '/vault/source-task.md' as NodeIdAndFilePath;
-const CONTEXT_NODE_ID: NodeIdAndFilePath = '/vault/ctx-nodes/context_context_123.md' as NodeIdAndFilePath;
-const LATE_TASK_NODE_ID: NodeIdAndFilePath = '/vault/late-node.md' as NodeIdAndFilePath;
+const SOURCE_TASK_NODE_ID: NodeIdAndFilePath = '/project/source-task.md' as NodeIdAndFilePath;
+const CONTEXT_NODE_ID: NodeIdAndFilePath = '/project/ctx-nodes/context_context_123.md' as NodeIdAndFilePath;
+const LATE_TASK_NODE_ID: NodeIdAndFilePath = '/project/late-node.md' as NodeIdAndFilePath;
 const TERMINAL_ID: TerminalId = 'behavioural-terminal' as TerminalId;
 
 function createTestCy(includeAnchorNode: boolean): Core {

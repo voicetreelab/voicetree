@@ -42,7 +42,7 @@ async function attachToInstance(instance: DebugInstance): Promise<Response<Attac
 async function attachHandler(argv: string[]): Promise<Response<unknown>> {
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
   let forceNew = false
 
   for (let i = 0; i < argv.length; i++) {
@@ -55,16 +55,16 @@ async function attachHandler(argv: string[]): Promise<Response<unknown>> {
       pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      vault = argv[++i]
-    } else if (arg.startsWith('--vault=')) {
-      vault = arg.slice('--vault='.length)
+    } else if (arg === '--project') {
+      project = argv[++i]
+    } else if (arg.startsWith('--project=')) {
+      project = arg.slice('--project='.length)
     } else if (arg === '--new') {
       forceNew = true
     }
   }
 
-  const pick = await resolveDebugInstance({ port, pid, vault, forceNew })
+  const pick = await resolveDebugInstance({ port, pid, project, forceNew })
 
   if (!pick.ok) {
     return err('attach', pick.message, pick.hint, 2)

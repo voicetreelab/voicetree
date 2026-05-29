@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const viewportDir = path.resolve(__dirname, '..');
 const lifecycleDir = path.resolve(viewportDir, '..');
 const evidenceDir = path.join(viewportDir, 'EVIDENCE');
-const vaultDir = path.join(viewportDir, '.stress-vault');
+const projectDir = path.join(viewportDir, '.stress-project');
 const resultPath = path.join(viewportDir, 'STRESS_RESULTS.json');
 const logPath = path.join(viewportDir, 'STRESS_RUN_LOG.md');
 const agents = ['BF204-Ada', 'BF204-Ben', 'BF204-Cyd'];
@@ -59,7 +59,7 @@ async function killAgent(agent) {
   await new Promise((resolve) => {
     const child = spawn('bash', [path.join(lifecycleDir, 'kill-agent.sh'), agent], {
       cwd: lifecycleDir,
-      env: { ...process.env, VAULT_DIR: vaultDir },
+      env: { ...process.env, PROJECT_DIR: projectDir },
       stdio: 'ignore'
     });
     child.on('exit', resolve);
@@ -99,7 +99,7 @@ async function typeCommand(page, command) {
 async function startServer(port) {
   const server = spawn('node', ['src/server.mjs'], {
     cwd: viewportDir,
-    env: { ...process.env, PORT: String(port), VAULT_DIR: vaultDir, POLL_MS: '100' },
+    env: { ...process.env, PORT: String(port), PROJECT_DIR: projectDir, POLL_MS: '100' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let output = '';
@@ -223,7 +223,7 @@ async function runMultiStress() {
 }
 
 async function logFileSize(agent) {
-  const agentLog = path.join(vaultDir, '.voicetree', 'terminals', `${agent}.log`);
+  const agentLog = path.join(projectDir, '.voicetree', 'terminals', `${agent}.log`);
   return stat(agentLog).then((info) => info.size).catch(() => 0);
 }
 
@@ -299,7 +299,7 @@ async function writeOutputs() {
 - claude: ${claudeVersion}
 - tmux: ${run('tmux', ['-V']).stdout.trim()}
 - Node: ${process.version}
-- Vault: ${path.relative(viewportDir, vaultDir)}
+- Project: ${path.relative(viewportDir, projectDir)}
 
 ## Results
 - multi_C_n3_pass: ${results.multi_C_n3_pass}
@@ -325,8 +325,8 @@ ${notes.map((line) => `- ${line}`).join('\n')}
 try {
   await mkdir(evidenceDir, { recursive: true });
   await cleanupAgents();
-  await rm(vaultDir, { recursive: true, force: true });
-  await mkdir(vaultDir, { recursive: true });
+  await rm(projectDir, { recursive: true, force: true });
+  await mkdir(projectDir, { recursive: true });
   await runMultiStress();
   await runReattachStress();
   await writeOutputs();

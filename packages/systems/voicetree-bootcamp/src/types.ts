@@ -61,26 +61,26 @@ export type CommandAttempt = {
 /**
  * One scenario: workflow + post-state verification.
  *
- * setup(vaultDir) writes fixtures and starts daemons.
+ * setup(projectDir) writes fixtures and starts daemons.
  * taskPrompt is handed to the harness verbatim.
- * successCriteria(vaultDir) verifies the post-state.
- * teardown(vaultDir) runs unconditionally in finally{} — used by scenarios
+ * successCriteria(projectDir) verifies the post-state.
+ * teardown(projectDir) runs unconditionally in finally{} — used by scenarios
  * that own auxiliary processes (B5 owns vt-graphd).
  */
 export type ScenarioSpec = {
     readonly id: string
     readonly name: string
-    readonly setup: (vaultDir: string) => Promise<void>
+    readonly setup: (projectDir: string) => Promise<void>
     readonly taskPrompt: string
     readonly expectedCommands: readonly CommandPattern[]
-    readonly successCriteria: (vaultDir: string) => Promise<SuccessResult>
+    readonly successCriteria: (projectDir: string) => Promise<SuccessResult>
     readonly budgets: {
         readonly tokens: number
         readonly toolCalls: number
         readonly vtInvocations: number
         readonly seconds: number
     }
-    readonly teardown?: (vaultDir: string) => Promise<void>
+    readonly teardown?: (projectDir: string) => Promise<void>
 }
 
 /**

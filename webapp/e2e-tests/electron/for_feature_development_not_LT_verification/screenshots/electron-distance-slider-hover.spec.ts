@@ -22,7 +22,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Slider constants (must match HorizontalMenuService.ts)
 const SLIDER_GOLD_COLOR = 'rgba(251, 191, 36, 0.9)';
@@ -40,12 +40,12 @@ const test = base.extend<{
   electronApp: async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-slider-test-'));
 
-    // Write config to auto-load test vault with a known contextNodeMaxDistance
+    // Write config to auto-load test project with a known contextNodeMaxDistance
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: FIXTURE_PROJECT_PATH,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: ''
+        [FIXTURE_PROJECT_PATH]: ''
       }
     }, null, 2), 'utf8');
 

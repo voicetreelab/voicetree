@@ -141,7 +141,7 @@ test.describe('SSE Activity Panel Screenshot', () => {
         </button>
         <span class="text-gray-400">/</span>
         <button class="text-gray-600 px-1.5 py-1 rounded bg-gray-100" style="font-size: 12px;">
-          vault
+          project
         </button>
       `;
 

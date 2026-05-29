@@ -27,10 +27,10 @@ describe('contract', () => {
     expect(CONTRACT_VERSION).toBe('0.2.0')
   })
 
-  test('HealthResponse round-trips a valid sample with owner=null (vaultless)', () => {
+  test('HealthResponse round-trips a valid sample with owner=null (projectless)', () => {
     const sample: HealthResponse = {
       version: CONTRACT_VERSION,
-      vault: null,
+      project: null,
       uptimeSeconds: 42,
       sessionCount: 0,
       owner: null,
@@ -42,12 +42,12 @@ describe('contract', () => {
   test('HealthResponse round-trips a valid sample with full owner identity', () => {
     const sample: HealthResponse = {
       version: CONTRACT_VERSION,
-      vault: '/tmp/vault',
+      project: '/tmp/project',
       uptimeSeconds: 42,
       sessionCount: 0,
       owner: {
         schemaVersion: 1,
-        canonicalVault: '/tmp/vault',
+        canonicalProject: '/tmp/project',
         pid: 1234,
         ppid: 1,
         port: 65123,
@@ -64,14 +64,14 @@ describe('contract', () => {
     expect(() =>
       HealthResponseSchema.parse({
         version: '0.1.0',
-        vault: '/tmp/v',
+        project: '/tmp/v',
         uptimeSeconds: 1,
       }),
     ).toThrow()
     expect(() =>
       HealthResponseSchema.parse({
         version: '0.1.0',
-        vault: '/tmp/v',
+        project: '/tmp/v',
         uptimeSeconds: 1,
         sessionCount: 0,
       }),
@@ -82,7 +82,7 @@ describe('contract', () => {
     expect(() =>
       HealthResponseSchema.parse({
         version: '0.1.0',
-        vault: '/tmp/v',
+        project: '/tmp/v',
         uptimeSeconds: 'forty',
         sessionCount: 0,
         owner: null,
@@ -94,7 +94,7 @@ describe('contract', () => {
     expect(() =>
       HealthResponseSchema.parse({
         version: '0.1.0',
-        vault: '/tmp/v',
+        project: '/tmp/v',
         uptimeSeconds: -1,
         sessionCount: 0,
         owner: null,
@@ -103,7 +103,7 @@ describe('contract', () => {
     expect(() =>
       HealthResponseSchema.parse({
         version: '0.1.0',
-        vault: '/tmp/v',
+        project: '/tmp/v',
         uptimeSeconds: 1,
         sessionCount: -1,
         owner: null,
@@ -115,12 +115,12 @@ describe('contract', () => {
     expect(() =>
       HealthResponseSchema.parse({
         version: '0.1.0',
-        vault: '/tmp/v',
+        project: '/tmp/v',
         uptimeSeconds: 1,
         sessionCount: 0,
         owner: {
           schemaVersion: 2,
-          canonicalVault: '/tmp/v',
+          canonicalProject: '/tmp/v',
           pid: 1,
           ppid: 0,
           port: 1,

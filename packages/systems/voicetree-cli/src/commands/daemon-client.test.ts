@@ -42,13 +42,13 @@ type ResponderOutcome =
     | {readonly type: 'error'; readonly code: number; readonly message: string; readonly data: unknown}
 
 interface StubDaemonHandle {
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly url: string
     readonly token: string
     readonly stop: () => Promise<void>
 }
 
-async function makeVault(prefix: string): Promise<string> {
+async function makeProject(prefix: string): Promise<string> {
     const dir: string = await realpath(await mkdtemp(join(tmpdir(), prefix)))
     await mkdir(join(dir, '.voicetree'), {recursive: true})
     return dir
@@ -69,9 +69,9 @@ async function startStubDaemon(
     toolName: string,
     handler: (args: Record<string, unknown>) => Promise<ResponderOutcome>,
 ): Promise<StubDaemonHandle> {
-    const vaultPath: string = await makeVault('vt-daemon-client-')
+    const projectPath: string = await makeProject('vt-daemon-client-')
     const token: string = generateAuthToken()
-    await writeAuthTokenFile(vaultPath, token)
+    await writeAuthTokenFile(projectPath, token)
     const raw: RawHttpServer = await startRawServer((req, res) => {
         void readBody(req).then(async (rawBody: string): Promise<void> => {
             const auth: string | undefined = req.headers.authorization
@@ -106,8 +106,8 @@ async function startStubDaemon(
             res.end(JSON.stringify(body))
         })
     })
-    await writeRpcPortFile(vaultPath, raw.port)
-    return {vaultPath, url: raw.url, token, stop: raw.close}
+    await writeRpcPortFile(projectPath, raw.port)
+    return {projectPath, url: raw.url, token, stop: raw.close}
 }
 
 interface RawHttpServer {
@@ -144,7 +144,7 @@ interface EnvState {
 function snapshotEnv(): EnvState {
     const KEYS: ReadonlyArray<string> = [
         'VOICETREE_DAEMON_URL',
-        'VOICETREE_VAULT_PATH',
+        'VOICETREE_PROJECT_PATH',
         'VOICETREE_DAEMON_TIMEOUT_MS',
     ]
     const snapshot: Record<string, string | undefined> = {}
@@ -162,7 +162,7 @@ function restoreEnv(state: EnvState): void {
 
 function clearDiscoveryEnv(): void {
     delete process.env.VOICETREE_DAEMON_URL
-    delete process.env.VOICETREE_VAULT_PATH
+    delete process.env.VOICETREE_PROJECT_PATH
     delete process.env.VOICETREE_DAEMON_TIMEOUT_MS
 }
 
@@ -186,8 +186,8 @@ describe('callDaemon — black-box HTTP wire', () => {
         const expectedPayload = {nodes: [{path: 'a.md'}], cursor: 'abc'}
         const daemon = await startStubDaemon('search_nodes', async () => ({type: 'ok', payload: expectedPayload}))
         cleanups.push(daemon.stop)
-        tempDirs.push(daemon.vaultPath)
-        process.chdir(daemon.vaultPath)
+        tempDirs.push(daemon.projectPath)
+        process.chdir(daemon.projectPath)
 
         const result: unknown = await callDaemon('search_nodes', {query: 'a'})
         expect(result).toEqual(expectedPayload)
@@ -202,8 +202,8 @@ describe('callDaemon — black-box HTTP wire', () => {
             data: failurePayload,
         }))
         cleanups.push(daemon.stop)
-        tempDirs.push(daemon.vaultPath)
-        process.chdir(daemon.vaultPath)
+        tempDirs.push(daemon.projectPath)
+        process.chdir(daemon.projectPath)
 
         await expect(callDaemon('create_graph', {batch: []})).rejects.toMatchObject({
             message: JSON.stringify(failurePayload),
@@ -223,8 +223,8 @@ describe('callDaemon — black-box HTTP wire', () => {
             data: expectedData,
         }))
         cleanups.push(daemon.stop)
-        tempDirs.push(daemon.vaultPath)
-        process.chdir(daemon.vaultPath)
+        tempDirs.push(daemon.projectPath)
+        process.chdir(daemon.projectPath)
 
         await expect(callDaemon('search_nodes', {})).rejects.toMatchObject({
             message: JSON.stringify({kind: 'validation_failed', data: expectedData}),
@@ -232,13 +232,13 @@ describe('callDaemon — black-box HTTP wire', () => {
     })
 
     it('first-call 401 with stale token-on-disk: retry-after-disk-refresh succeeds', async () => {
-        const vault: string = await makeVault('vt-401-fresh-')
-        tempDirs.push(vault)
+        const project: string = await makeProject('vt-401-fresh-')
+        tempDirs.push(project)
         const staleToken: string = generateAuthToken()
         const currentToken: string = generateAuthToken()
-        await writeAuthTokenFile(vault, staleToken)
+        await writeAuthTokenFile(project, staleToken)
 
-        const tokenFile: string = authTokenFilePath(vault)
+        const tokenFile: string = authTokenFilePath(project)
         const raw = await startRawServer((req, res) => {
             void readBody(req).then(async () => {
                 const auth: string | undefined = req.headers.authorization
@@ -256,18 +256,18 @@ describe('callDaemon — black-box HTTP wire', () => {
             })
         })
         cleanups.push(raw.close)
-        await writeRpcPortFile(vault, raw.port)
-        process.chdir(vault)
+        await writeRpcPortFile(project, raw.port)
+        process.chdir(project)
 
         const result: unknown = await callDaemon('search_nodes', {q: 'x'})
         expect(result).toEqual({ok: true, after: 'retry'})
     })
 
     it('first-call 401 with disk token still bad: retries once then throws DaemonAuthRequired naming the token file', async () => {
-        const vault: string = await makeVault('vt-401-exhaust-')
-        tempDirs.push(vault)
+        const project: string = await makeProject('vt-401-exhaust-')
+        tempDirs.push(project)
         const wrongToken: string = generateAuthToken()
-        await writeAuthTokenFile(vault, wrongToken)
+        await writeAuthTokenFile(project, wrongToken)
 
         let authRequiredCount: number = 0
         const raw = await startRawServer((req, res) => {
@@ -278,10 +278,10 @@ describe('callDaemon — black-box HTTP wire', () => {
             })
         })
         cleanups.push(raw.close)
-        await writeRpcPortFile(vault, raw.port)
-        process.chdir(vault)
+        await writeRpcPortFile(project, raw.port)
+        process.chdir(project)
 
-        const tokenFile: string = authTokenFilePath(vault)
+        const tokenFile: string = authTokenFilePath(project)
         await expect(callDaemon('search_nodes', {})).rejects.toMatchObject({
             name: 'DaemonAuthRequired',
             message: expect.stringContaining(tokenFile),
@@ -290,10 +290,10 @@ describe('callDaemon — black-box HTTP wire', () => {
     })
 
     it('timeout exceeded: throws DaemonTimeout; underlying fetch was aborted (no response received)', async () => {
-        const vault: string = await makeVault('vt-timeout-')
-        tempDirs.push(vault)
+        const project: string = await makeProject('vt-timeout-')
+        tempDirs.push(project)
         const token: string = generateAuthToken()
-        await writeAuthTokenFile(vault, token)
+        await writeAuthTokenFile(project, token)
 
         let observedAbort: boolean = false
         const raw = await startRawServer((req, _res) => {
@@ -306,8 +306,8 @@ describe('callDaemon — black-box HTTP wire', () => {
             // Intentionally never call res.end(): hold the request open until the client aborts.
         })
         cleanups.push(raw.close)
-        await writeRpcPortFile(vault, raw.port)
-        process.chdir(vault)
+        await writeRpcPortFile(project, raw.port)
+        process.chdir(project)
         process.env.VOICETREE_DAEMON_TIMEOUT_MS = '120'
 
         const err: unknown = await callDaemon('search_nodes', {}).catch((e: unknown) => e)
@@ -319,15 +319,15 @@ describe('callDaemon — black-box HTTP wire', () => {
     })
 
     it('ECONNREFUSED (daemon not running at the port): throws DaemonUnreachable', async () => {
-        const vault: string = await makeVault('vt-econnrefused-')
-        tempDirs.push(vault)
-        await writeAuthTokenFile(vault, generateAuthToken())
+        const project: string = await makeProject('vt-econnrefused-')
+        tempDirs.push(project)
+        await writeAuthTokenFile(project, generateAuthToken())
 
         const placeholder = await startRawServer(() => {})
         const deadPort: number = placeholder.port
         await placeholder.close()
-        await writeRpcPortFile(vault, deadPort)
-        process.chdir(vault)
+        await writeRpcPortFile(project, deadPort)
+        process.chdir(project)
 
         const err: unknown = await callDaemon('search_nodes', {}).catch((e: unknown) => e)
         expect(err).toBeInstanceOf(DaemonUnreachable)
@@ -340,18 +340,18 @@ describe('callDaemon — black-box HTTP wire', () => {
                 payload: {via: 'env_url'},
             }))
             cleanups.push(winning.stop)
-            tempDirs.push(winning.vaultPath)
+            tempDirs.push(winning.projectPath)
 
             const losing = await startStubDaemon('search_nodes', async () => ({
                 type: 'ok',
                 payload: {via: 'cwd_up_walk'},
             }))
             cleanups.push(losing.stop)
-            tempDirs.push(losing.vaultPath)
+            tempDirs.push(losing.projectPath)
 
-            process.chdir(losing.vaultPath)
+            process.chdir(losing.projectPath)
             process.env.VOICETREE_DAEMON_URL = winning.url
-            process.env.VOICETREE_VAULT_PATH = winning.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = winning.projectPath
 
             const result: unknown = await callDaemon('search_nodes', {})
             expect(result).toEqual({via: 'env_url'})
@@ -363,8 +363,8 @@ describe('callDaemon — black-box HTTP wire', () => {
                 payload: {via: 'cwd_up_walk'},
             }))
             cleanups.push(daemon.stop)
-            tempDirs.push(daemon.vaultPath)
-            process.chdir(daemon.vaultPath)
+            tempDirs.push(daemon.projectPath)
+            process.chdir(daemon.projectPath)
 
             const result: unknown = await callDaemon('search_nodes', {})
             expect(result).toEqual({via: 'cwd_up_walk'})
@@ -379,7 +379,7 @@ describe('callDaemon — black-box HTTP wire', () => {
             expect(err).toBeInstanceOf(DaemonUnreachable)
             const msg: string = (err as Error).message
             expect(msg).toContain('VOICETREE_DAEMON_URL')
-            expect(msg).toContain('VOICETREE_VAULT_PATH')
+            expect(msg).toContain('VOICETREE_PROJECT_PATH')
         })
     })
 })

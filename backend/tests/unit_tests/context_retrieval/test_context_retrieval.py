@@ -21,7 +21,7 @@ class TestTraverseToNode:
     def temp_markdown_dir(self):
         """Create a temporary directory with test markdown files."""
         temp_dir = tempfile.mkdtemp()
-        markdown_dir = Path(temp_dir) / "test_vault"
+        markdown_dir = Path(temp_dir) / "test_project"
         markdown_dir.mkdir()
 
         # Create a simple tree structure

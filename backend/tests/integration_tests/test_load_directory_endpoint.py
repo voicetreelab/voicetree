@@ -64,7 +64,7 @@ class TestLoadDirectoryEndpoint:
         Test loading a directory that doesn't exist yet.
         Should create the directory and initialize an empty tree.
         """
-        new_dir = os.path.join(temp_dir, "new_markdown_vault")
+        new_dir = os.path.join(temp_dir, "new_markdown_project")
 
         # Verify directory doesn't exist yet
         assert not os.path.exists(new_dir)
@@ -121,7 +121,7 @@ class TestLoadDirectoryEndpoint:
         assert nodes_in_fixture > 0
 
         # Then, switch to a new empty directory
-        new_dir = os.path.join(temp_dir, "another_vault")
+        new_dir = os.path.join(temp_dir, "another_project")
         response2 = client.post(
             "/load-directory",
             json={"directory_path": new_dir}

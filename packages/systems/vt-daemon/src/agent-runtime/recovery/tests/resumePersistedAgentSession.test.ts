@@ -3,7 +3,7 @@ import {resumePersistedAgentSession, type ResumePersistedDeps} from '../resumePe
 import type {NativeSessionRequest, NativeSessionResult} from '../resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from '../types'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
-import {makeLiveSession, makeTerminalData, SESSION_A, TERMINAL_A, VAULT_PATH} from './classifier.test-fixtures'
+import {makeLiveSession, makeTerminalData, SESSION_A, TERMINAL_A, PROJECT_PATH} from './classifier.test-fixtures'
 
 const TERMINAL_ID_A: TerminalId = TERMINAL_A as TerminalId
 
@@ -11,7 +11,7 @@ function makeRecoverableRow(overrides: Partial<RecoverableAgentSession> = {}): R
     return {
         terminalId: TERMINAL_ID_A,
         agentName: 'Ari',
-        metadataPath: '/vault/.voicetree/terminals/A.json',
+        metadataPath: '/project/.voicetree/terminals/A.json',
         terminalData: makeTerminalData({initialCommand: 'claude'}),
         isClaimed: false,
         resume: {cliType: 'claude'},
@@ -79,8 +79,8 @@ describe('resumePersistedAgentSession — Claude', () => {
         const row = makeRecoverableRow({
             terminalData: makeTerminalData({
                 initialCommand: 'claude',
-                initialSpawnDirectory: '/vault/work',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_VAULT_PATH: VAULT_PATH, AGENT_NAME: 'Ari'},
+                initialSpawnDirectory: '/project/work',
+                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_PROJECT_PATH: PROJECT_PATH, AGENT_NAME: 'Ari'},
             }),
         })
         const {deps, spawnCalls, resolveCalls} = makeDeps({discover: async () => [row]})
@@ -92,14 +92,14 @@ describe('resumePersistedAgentSession — Claude', () => {
         }
         expect(spawnCalls).toHaveLength(1)
         expect(spawnCalls[0].terminalId).toBe(TERMINAL_ID_A)
-        expect(spawnCalls[0].cwd).toBe('/vault/work')
-        expect(spawnCalls[0].env).toEqual({VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_VAULT_PATH: VAULT_PATH, AGENT_NAME: 'Ari'})
+        expect(spawnCalls[0].cwd).toBe('/project/work')
+        expect(spawnCalls[0].env).toEqual({VOICETREE_TERMINAL_ID: TERMINAL_A, VOICETREE_PROJECT_PATH: PROJECT_PATH, AGENT_NAME: 'Ari'})
         // Lazy resolution: resolver invoked exactly once, at click time, with click-scoped request
         expect(resolveCalls).toHaveLength(1)
         expect(resolveCalls[0]).toEqual({
             cliType: 'claude',
             terminalId: TERMINAL_ID_A,
-            projectRoot: VAULT_PATH,
+            projectRoot: PROJECT_PATH,
             taskNodePath: '',
         })
     })
@@ -204,8 +204,8 @@ describe('resumePersistedAgentSession — lazy native-session resolution', () =>
                 initialCommand: 'claude',
                 initialEnvVars: {
                     VOICETREE_TERMINAL_ID: TERMINAL_A,
-                    VOICETREE_VAULT_PATH: '/some/vault/root',
-                    TASK_NODE_PATH: '/some/vault/root/.voicetree/tasks/T-1.md',
+                    VOICETREE_PROJECT_PATH: '/some/project/root',
+                    TASK_NODE_PATH: '/some/project/root/.voicetree/tasks/T-1.md',
                 },
             }),
         })
@@ -215,8 +215,8 @@ describe('resumePersistedAgentSession — lazy native-session resolution', () =>
             {
                 cliType: 'claude',
                 terminalId: TERMINAL_ID_A,
-                projectRoot: '/some/vault/root',
-                taskNodePath: '/some/vault/root/.voicetree/tasks/T-1.md',
+                projectRoot: '/some/project/root',
+                taskNodePath: '/some/project/root/.voicetree/tasks/T-1.md',
             },
         ])
     })
@@ -269,11 +269,11 @@ describe('resumePersistedAgentSession — unsupported inputs', () => {
         expect(resolveCalls).toHaveLength(0)
     })
 
-    it('returns unsupported/missing-project-root when the persisted terminal has no VOICETREE_VAULT_PATH', async () => {
+    it('returns unsupported/missing-project-root when the persisted terminal has no VOICETREE_PROJECT_PATH', async () => {
         const row = makeRecoverableRow({
             terminalData: makeTerminalData({
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A},  // no VOICETREE_VAULT_PATH
+                initialEnvVars: {VOICETREE_TERMINAL_ID: TERMINAL_A},  // no VOICETREE_PROJECT_PATH
             }),
         })
         const {deps, spawnCalls, resolveCalls} = makeDeps({discover: async () => [row]})

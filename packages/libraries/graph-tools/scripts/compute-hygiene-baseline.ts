@@ -20,13 +20,13 @@ function computeStats(values: number[]) {
     }
 }
 
-const vaultPath = process.argv[2]
-if (!vaultPath) {
-    console.error('Usage: compute-hygiene-baseline.ts <vault-path>')
+const projectPath = process.argv[2]
+if (!projectPath) {
+    console.error('Usage: compute-hygiene-baseline.ts <project-path>')
     process.exit(1)
 }
 
-const mdFiles = scanMarkdownFiles(path.resolve(vaultPath))
+const mdFiles = scanMarkdownFiles(path.resolve(projectPath))
 
 // Metric 1: wikilinks per node
 const wikilinkCounts: number[] = mdFiles.map(filePath => {
@@ -60,7 +60,7 @@ function collectDirChildren(dir: string): void {
     }
 }
 
-collectDirChildren(path.resolve(vaultPath))
+collectDirChildren(path.resolve(projectPath))
 
 const treeWidths = [...dirChildren.values()].map(s => s.size)
 
@@ -68,7 +68,7 @@ const wlStats = computeStats(wikilinkCounts)
 const twStats = computeStats(treeWidths)
 
 console.log('=== Hygiene Baseline ===')
-console.log(`Vault: ${vaultPath}`)
+console.log(`Project: ${projectPath}`)
 console.log(`Nodes: ${mdFiles.length}`)
 console.log('')
 console.log('max_wikilinks_per_node:')

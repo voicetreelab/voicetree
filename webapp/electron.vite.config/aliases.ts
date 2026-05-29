@@ -5,7 +5,7 @@ export const mainAliases = (webappDir: string) => [
   { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(webappDir, '../packages/libraries/graph-model/src/$1') },
   { find: /^@vt\/app-config$/, replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/index.ts') },
   { find: '@vt/app-config/settings', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
-  { find: '@vt/app-config/vault-config', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+  { find: '@vt/app-config/project-config', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/project-config/voicetree-config-io.ts') },
   { find: '@vt/app-config/project', replacement: path.resolve(webappDir, '../packages/libraries/app-config/src/project/index.ts') },
   { find: '@', replacement: path.resolve(webappDir, './src') }
 ]

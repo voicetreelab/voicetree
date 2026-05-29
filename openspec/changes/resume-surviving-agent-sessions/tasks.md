@@ -2,16 +2,16 @@
 
 - [x] 1.1 Define a discriminated recovery-session type for live tmux attach rows and persisted CLI resume rows in `@vt/agent-runtime`.
 - [x] 1.2 Extend `.voicetree/terminals/<terminalId>.json` metadata types with `recovery.native` fields for provider cli, mode, session id, capture timestamp, resolver source, and optional provider store path.
-- [x] 1.3 Add pure metadata classification for `.voicetree/terminals/*.json` records: attachable live tmux, resumable missing tmux with native handle, missing native handle, exited, claimed, foreign vault, unsupported CLI, invalid.
+- [x] 1.3 Add pure metadata classification for `.voicetree/terminals/*.json` records: attachable live tmux, resumable missing tmux with native handle, missing native handle, exited, claimed, foreign project, unsupported CLI, invalid.
 - [x] 1.4 Unit-test classification with black-box inputs covering Claude, Codex, missing native handle, exited metadata, unsupported CLI, invalid metadata, already-registered terminals, live tmux sessions, and missing tmux sessions.
-- [x] 1.5 Add an impure discovery function that reads the current vault terminal metadata, checks live tmux sessions, reuses current namespace scoping, and returns only actionable recovery rows to callers.
+- [x] 1.5 Add an impure discovery function that reads the current project terminal metadata, checks live tmux sessions, reuses current namespace scoping, and returns only actionable recovery rows to callers.
 
 ## 2. Native provider session id resolution
 
-- [x] 2.1 Add a Claude resolver that scans recently modified `~/.claude/projects/**/*.jsonl`, matches string user messages by `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, and returns the transcript `sessionId`.
-- [x] 2.2 Add a Codex resolver that queries `~/.codex/state_5.sqlite` `threads`, matches `first_user_message` by `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, and returns the full `threads.id`.
+- [x] 2.1 Add a Claude resolver that scans recently modified `~/.claude/projects/**/*.jsonl`, matches string user messages by `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`, and returns the transcript `sessionId`.
+- [x] 2.2 Add a Codex resolver that queries `~/.codex/state_5.sqlite` `threads`, matches `first_user_message` by `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`, and returns the full `threads.id`.
 - [x] 2.3 Persist successful resolver output into `.voicetree/terminals/<terminalId>.json` under `recovery.native`; resolver misses remain diagnostic and non-actionable.
-- [x] 2.4 Unit-test resolver matching with fixture Claude JSONL records and Codex `threads` rows, including reused terminal names, wrong vault, wrong task path, old timestamps, array-valued Claude message content, and duplicate candidates.
+- [x] 2.4 Unit-test resolver matching with fixture Claude JSONL records and Codex `threads` rows, including reused terminal names, wrong project, wrong task path, old timestamps, array-valued Claude message content, and duplicate candidates.
 
 ## 3. Shared CLI resume command support
 

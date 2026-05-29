@@ -1,7 +1,7 @@
 import {describe, expect, it, vi, type MockInstance} from 'vitest'
 import {CliExitError, EXIT} from './util/exitCodes'
 import {runViewCommand} from './node/view.ts'
-import {runVaultCommand} from './runtime/vault.ts'
+import {runProjectCommand} from './runtime/project.ts'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) {
@@ -52,8 +52,8 @@ async function captureCommand(invoke: () => Promise<void>): Promise<CommandResul
 
 describe('legacy CLI verbs', () => {
     it.each([
-        ['vt vault add-read-path', () => runVaultCommand(['add-read-path', '/tmp/x'])],
-        ['vt vault remove-read-path', () => runVaultCommand(['remove-read-path', '/tmp/x'])],
+        ['vt project add-read-path', () => runProjectCommand(['add-read-path', '/tmp/x'])],
+        ['vt project remove-read-path', () => runProjectCommand(['remove-read-path', '/tmp/x'])],
         ['vt view collapse', () => runViewCommand(['collapse', '/tmp/x'])],
         ['vt view expand', () => runViewCommand(['expand', '/tmp/x'])],
     ])('%s is unknown', async (_label, invoke) => {

@@ -23,7 +23,7 @@ test.describe("SSE replay buffer", () => {
   // the new vt-daemon-client SSE subscription contract.
   test.skip("anchors terminal after SSE reconnect replays missed delta", async ({
     appWindow,
-    fixtureVaultPath,
+    fixtureProjectPath,
     electronDiagnostics,
   }) => {
     test.setTimeout(process.env.CI ? 120_000 : 90_000);
@@ -37,15 +37,15 @@ test.describe("SSE replay buffer", () => {
         token: await getBearerToken(appWindow),
       };
 
-      // Bind the daemon to the fixture vault. openVault throws on failure and
-      // returns the resolved write folder on success.
+      // Bind the daemon to the fixture project. openProject throws on failure and
+      // returns the resolved write folder path on success.
       const openResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
-        const response = await api.main.openVault(projectRoot);
-        return { writeFolder: response.writeFolder };
-      }, fixtureVaultPath);
-      expect(openResult.writeFolder, "openVault returned no writeFolder").toBeTruthy();
+        const response = await api.main.openProject(projectRoot);
+        return { writeFolderPath: response.writeFolderPath };
+      }, fixtureProjectPath);
+      expect(openResult.writeFolderPath, "openProject returned no writeFolderPath").toBeTruthy();
 
       await expect
         .poll(
@@ -58,7 +58,7 @@ test.describe("SSE replay buffer", () => {
             });
           },
           {
-            message: "Waiting for graph state after openVault bound the daemon",
+            message: "Waiting for graph state after openProject bound the daemon",
             timeout: 15_000,
             intervals: [250, 500, 1000],
           },
@@ -127,7 +127,7 @@ test.describe("SSE replay buffer", () => {
 
       // Stop the main-process graph sync poller so the ONLY graph delivery
       // channel is SSE. Do not call stopFileWatching() here: that unloads the
-      // active daemon/vault and leaves MCP spawn_agent without a write path.
+      // active daemon/project and leaves MCP spawn_agent without a write path.
       await appWindow.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");

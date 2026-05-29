@@ -12,7 +12,7 @@ import {VtDaemonHealthResponseSchema} from '../../contract.ts'
 
 const sampleOwner: VtDaemonHealthOwner = {
     schemaVersion: 1,
-    canonicalVault: '/abs/vault',
+    canonicalProject: '/abs/project',
     pid: 12345,
     ppid: 1,
     port: 51999,
@@ -27,11 +27,11 @@ describe('buildVtDaemonHealthResponse', (): void => {
             startMs: 1_000,
             nowMs: 3_500,
             owner: null,
-            canonicalVault: '/abs/vault',
+            canonicalProject: '/abs/project',
         })
         expect(out).toEqual({
             version: '0.1.0',
-            vault: '/abs/vault',
+            project: '/abs/project',
             uptimeSeconds: 2,
             daemonKind: 'vtd',
             owner: null,
@@ -47,7 +47,7 @@ describe('buildVtDaemonHealthResponse', (): void => {
             startMs: 0,
             nowMs: 60_000,
             owner: sampleOwner,
-            canonicalVault: sampleOwner.canonicalVault,
+            canonicalProject: sampleOwner.canonicalProject,
         })
         expect(out.owner).toEqual(sampleOwner)
         expect(out.uptimeSeconds).toBe(60)
@@ -57,15 +57,15 @@ describe('buildVtDaemonHealthResponse', (): void => {
         expect(VtDaemonHealthResponseSchema.safeParse(out).success).toBe(true)
     })
 
-    it('emits vault: null when canonicalVault is null (vaultless startup)', (): void => {
+    it('emits project: null when canonicalProject is null (projectless startup)', (): void => {
         const out = buildVtDaemonHealthResponse({
             contractVersion: '0.1.0',
             startMs: 5_000,
             nowMs: 5_750,
             owner: null,
-            canonicalVault: null,
+            canonicalProject: null,
         })
-        expect(out.vault).toBeNull()
+        expect(out.project).toBeNull()
         expect(out.uptimeSeconds).toBe(0)
         expect(VtDaemonHealthResponseSchema.safeParse(out).success).toBe(true)
     })
@@ -76,7 +76,7 @@ describe('buildVtDaemonHealthResponse', (): void => {
             startMs: 0,
             nowMs: 2_999,
             owner: null,
-            canonicalVault: '/x',
+            canonicalProject: '/x',
         })
         // 2.999s wall clock should report 2s, not 3 — graphd's projector
         // uses Math.floor, and a probe round-tripping uptimeSeconds must

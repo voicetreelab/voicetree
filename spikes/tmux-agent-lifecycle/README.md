@@ -1,6 +1,6 @@
 # tmux Agent Lifecycle Spike
 
-Standalone bash scripts for testing a filesystem-native agent lifecycle through tmux. The scripts default to `VAULT_DIR=./test-vault` and write metadata/log files under `$VAULT_DIR/.voicetree/terminals/`.
+Standalone bash scripts for testing a filesystem-native agent lifecycle through tmux. The scripts default to `PROJECT_DIR=./test-project` and write metadata/log files under `$PROJECT_DIR/.voicetree/terminals/`.
 
 ## Setup
 
@@ -11,10 +11,10 @@ tmux -V
 chmod +x *.sh
 ```
 
-Override the test vault when needed:
+Override the test project when needed:
 
 ```bash
-VAULT_DIR=/path/to/vault ./list-agents.sh
+PROJECT_DIR=/path/to/project ./list-agents.sh
 ```
 
 ## Scripts
@@ -25,7 +25,7 @@ VAULT_DIR=/path/to/vault ./list-agents.sh
 ./spawn-agent.sh AGENT_NAME [PROMPT]
 ```
 
-Creates a detached tmux session named `vt-AGENT_NAME`, pipes pane output to `$VAULT_DIR/.voicetree/terminals/AGENT_NAME.log`, and writes metadata to `$VAULT_DIR/.voicetree/terminals/AGENT_NAME.json`.
+Creates a detached tmux session named `vt-AGENT_NAME`, pipes pane output to `$PROJECT_DIR/.voicetree/terminals/AGENT_NAME.log`, and writes metadata to `$PROJECT_DIR/.voicetree/terminals/AGENT_NAME.json`.
 
 With a prompt, it starts:
 
@@ -49,7 +49,7 @@ Sends `MESSAGE` plus Enter to the `vt-AGENT_NAME` tmux session.
 ./list-agents.sh
 ```
 
-Reads `$VAULT_DIR/.voicetree/terminals/*.json`, checks each recorded tmux session, and prints a table with metadata status and tmux presence.
+Reads `$PROJECT_DIR/.voicetree/terminals/*.json`, checks each recorded tmux session, and prints a table with metadata status and tmux presence.
 
 ### kill-agent.sh
 
@@ -65,4 +65,4 @@ Kills the `vt-AGENT_NAME` tmux session when present and rewrites the metadata st
 ./read-output.sh AGENT_NAME [N_LINES]
 ```
 
-Prints the last `N_LINES` lines from `$VAULT_DIR/.voicetree/terminals/AGENT_NAME.log`. Defaults to 50 lines.
+Prints the last `N_LINES` lines from `$PROJECT_DIR/.voicetree/terminals/AGENT_NAME.log`. Defaults to 50 lines.

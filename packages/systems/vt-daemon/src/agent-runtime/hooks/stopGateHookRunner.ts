@@ -135,7 +135,7 @@ function buildContext(
         terminalId,
         agentName: record.terminalData.agentName,
         taskNodePath,
-        projectRoot: record.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH ?? '',
+        projectRoot: record.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH ?? '',
         parentTerminalId: record.terminalData.parentTerminalId,
         childAgents
     }

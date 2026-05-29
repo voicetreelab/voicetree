@@ -16,7 +16,7 @@ vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }));
 const PROJECTED_GRAPH: ProjectedGraph = {
     nodes: [],
     edges: [],
-    rootPath: '/vault',
+    rootPath: '/project',
     revision: 1,
     forests: [],
     arboricity: 0,

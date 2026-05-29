@@ -15,7 +15,7 @@ import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '../graph/mutations/applyGraphDelta'
 import { ensureUniqueNodeId } from '@vt/graph-model/graph'
-import { resolveContextWriteFolder } from './contextWriteFolder'
+import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeFromSelectedNodesClock = {
@@ -60,8 +60,8 @@ export async function createContextNodeFromSelectedNodes(
 
   // Generate unique context node ID
   const timestamp: number = dependencies.clock.now()
-  const writeFolder: string = await resolveContextWriteFolder(taskNodeId)
-  const candidateContextNodeId: string = `${writeFolder}/${CONTEXT_NODES_FOLDER}/task_context_${timestamp}.md`
+  const writeFolderPath: string = await resolveContextWriteFolderPath(taskNodeId)
+  const candidateContextNodeId: string = `${writeFolderPath}/${CONTEXT_NODES_FOLDER}/task_context_${timestamp}.md`
   const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
   const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)
 

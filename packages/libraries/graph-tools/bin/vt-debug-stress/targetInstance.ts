@@ -9,7 +9,7 @@ export async function resolveTargetInstance(options: RunnerOptions): Promise<Deb
   const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
-    vault: options.vault,
+    project: options.project,
   })
 
   if (!pick.ok) {

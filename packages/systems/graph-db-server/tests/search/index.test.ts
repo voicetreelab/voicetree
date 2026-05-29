@@ -6,7 +6,7 @@ describe('SearchBackend stub contract', () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
         try {
-            await buildIndex('/tmp/vault')
+            await buildIndex('/tmp/project')
             expect(logSpy).toHaveBeenCalledWith('vector search todo')
         } finally {
             logSpy.mockRestore()
@@ -14,11 +14,11 @@ describe('SearchBackend stub contract', () => {
     })
 
     it('returns no search results while vector search is unavailable', async () => {
-        await expect(search('/tmp/vault', 'anything', 10)).resolves.toEqual([])
+        await expect(search('/tmp/project', 'anything', 10)).resolves.toEqual([])
     })
 
     it('treats incremental index updates as no-ops', async () => {
-        await expect(upsertNode('/tmp/vault', '/tmp/vault/node.md', '# Node', 'Node')).resolves.toBeUndefined()
-        await expect(deleteNode('/tmp/vault', '/tmp/vault/node.md')).resolves.toBeUndefined()
+        await expect(upsertNode('/tmp/project', '/tmp/project/node.md', '# Node', 'Node')).resolves.toBeUndefined()
+        await expect(deleteNode('/tmp/project', '/tmp/project/node.md')).resolves.toBeUndefined()
     })
 })

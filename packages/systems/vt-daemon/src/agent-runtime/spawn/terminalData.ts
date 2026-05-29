@@ -8,7 +8,7 @@ import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/termi
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjection'
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
-import {readDaemonPortFromVault} from './daemonUrlFile'
+import {readDaemonPortFromProject} from './daemonUrlFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
@@ -122,20 +122,20 @@ export async function prepareTerminalDataInMain(
 
     // Auto-install lifecycle hooks per agent type. Each pure injector is a
     // no-op for non-matching commands, so the same pipeline handles every
-    // agent. Claude: settings JSON in APP_SUPPORT (uses $VOICETREE_DAEMON_URL
-    // + $VOICETREE_VAULT_PATH shell-var expansion at fire time). Codex: TOML
+    // agent. Claude: settings JSON in VOICETREE_HOME (uses $VOICETREE_DAEMON_URL
+    // + $VOICETREE_PROJECT_PATH shell-var expansion at fire time). Codex: TOML
     // inline `-c` flags with the daemon URL + terminalId baked in at spawn
-    // time. Both target the unified HTTP daemon (Step 9b) published per-vault
-    // at `<vault>/.voicetree/rpc.port`. The bearer token is NEVER passed via
+    // time. Both target the unified HTTP daemon (Step 9b) published per-project
+    // at `<project>/.voicetree/rpc.port`. The bearer token is NEVER passed via
     // env / CLI args (design doc §3.3) — hook curls read it via `cat` from
-    // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` at fire time.
+    // `$VOICETREE_PROJECT_PATH/.voicetree/auth-token` at fire time.
     const env = getRuntimeEnv()
     const voicetreeHomePath: string = resolveVoicetreeHomePath()
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
-    const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)
+    const daemonPort: number | null = await readDaemonPortFromProject(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
     const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(voicetreeHomePath)
     const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)

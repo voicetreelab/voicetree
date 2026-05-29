@@ -55,17 +55,17 @@ function stateWithRoots(roots: State['roots']): State {
 
 describe('folderTreeHelpers path utilities', () => {
     it('normalizes slashes and extracts basenames from trailing-slash paths', () => {
-        expect(normalizePathValue('C:\\vault\\notes\\')).toBe('C:/vault/notes/')
-        expect(getBasename('/tmp/vault/notes///')).toBe('notes')
-        expect(getBasename('C:\\vault\\daily.md')).toBe('daily.md')
+        expect(normalizePathValue('C:\\project\\notes\\')).toBe('C:/project/notes/')
+        expect(getBasename('/tmp/project/notes///')).toBe('notes')
+        expect(getBasename('C:\\project\\daily.md')).toBe('daily.md')
     })
 
     it('checks containment on path boundaries and joins below normalized parents', () => {
-        expect(pathContains('/tmp/vault/', '/tmp/vault')).toBe(true)
-        expect(pathContains('/tmp/vault', '/tmp/vault/notes/a.md')).toBe(true)
-        expect(pathContains('/tmp/vault', '/tmp/vault-other/a.md')).toBe(false)
-        expect(pathContains('/tmp/vault', '/tmp/vaulted/a.md')).toBe(false)
-        expect(joinPath('/tmp/vault///' as AbsolutePath, 'notes')).toBe('/tmp/vault/notes')
+        expect(pathContains('/tmp/project/', '/tmp/project')).toBe(true)
+        expect(pathContains('/tmp/project', '/tmp/project/notes/a.md')).toBe(true)
+        expect(pathContains('/tmp/project', '/tmp/project-other/a.md')).toBe(false)
+        expect(pathContains('/tmp/project', '/tmp/projected/a.md')).toBe(false)
+        expect(joinPath('/tmp/project///' as AbsolutePath, 'notes')).toBe('/tmp/project/notes')
     })
 })
 

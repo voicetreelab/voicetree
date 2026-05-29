@@ -1,19 +1,19 @@
 ## Context
 
-The just-shipped `resume-surviving-agent-sessions` change introduced the Surviving Agents UI section and a CLI-native resume flow for orphaned Claude/Codex agents. In real recovery situations (Electron crash → reopen vault) the feature fails silently for users whose `projectRoot ≠ writeFolder` (this happens whenever a vault is loaded as a subdirectory of a folder that already contains a `.voicetree/` config dir).
+The just-shipped `resume-surviving-agent-sessions` change introduced the Surviving Agents UI section and a CLI-native resume flow for orphaned Claude/Codex agents. In real recovery situations (Electron crash → reopen project) the feature fails silently for users whose `projectRoot ≠ writeFolder` (this happens whenever a project is loaded as a subdirectory of a folder that already contains a `.voicetree/` config dir).
 
 Concrete reproducible failure observed 2026-05-27:
-- 50 agent JSONs in `<innerVault>/.voicetree/terminals/` (where `reconciliation.ts` wrote them via `info.writeFolder`)
-- `discovery.ts:resolveCurrentVaultMetadataDir` reads from `<outerProjectRoot>/.voicetree/terminals/` (from `graph.getProjectRoot()`)
+- 50 agent JSONs in `<innerProject>/.voicetree/terminals/` (where `reconciliation.ts` wrote them via `info.writeFolder`)
+- `discovery.ts:resolveCurrentProjectMetadataDir` reads from `<outerProjectRoot>/.voicetree/terminals/` (from `graph.getProjectRoot()`)
 - `readdirSync` throws ENOENT, caught silently, discovery returns `[]`, UI is empty
-- Workaround: symlink outer dir → inner dir (already applied to the affected vault as a temporary patch)
+- Workaround: symlink outer dir → inner dir (already applied to the affected project as a temporary patch)
 
 In addition to fixing the path bug, three adjacent gaps make the recovery UX poor even when discovery does find rows. Bundling them keeps the surface change-set small and lets a single migration handle the metadata-location consolidation.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Make Resume work after a crash, in 100% of vault layouts, with zero user setup.
+- Make Resume work after a crash, in 100% of project layouts, with zero user setup.
 - One canonical location for all `.voicetree/` per-project data: `<projectRoot>/.voicetree/`.
 - Visual parity between Surviving Agents rows and live terminal tiles (worktree, title, agent type).
 - Per-row permanent deletion for users to prune accumulated history.
@@ -22,7 +22,7 @@ In addition to fixing the path bug, three adjacent gaps make the recovery UX poo
 
 **Non-Goals:**
 - Auto-resume on crash. User must click Resume / Attach explicitly.
-- Cross-vault recovery (foreign-vault rows still filtered).
+- Cross-project recovery (foreign-project rows still filtered).
 - Gemini or other CLIs (still `unsupported`).
 - Reaching back to retrieve sessions that codex / claude itself never persisted — that's a provider limitation we surface, not one we work around.
 - Resurrecting metadata older than the recency horizon (default 7 days) on the live discovery polls — only the Delete-time diagnostic resolver lookup widens the window.
@@ -31,28 +31,28 @@ In addition to fixing the path bug, three adjacent gaps make the recovery UX poo
 
 ### 1. Single source of truth: `getProjectRoot()` for all `.voicetree/` paths
 
-**Decision:** `projectRoot` (from the graph bridge) becomes the only path used to derive `.voicetree/` data locations. `writeFolder` is for markdown / vault content only. `process.env.VOICETREE_VAULT_PATH` is no longer consulted at runtime for terminal-dir resolution.
+**Decision:** `projectRoot` (from the graph bridge) becomes the only path used to derive `.voicetree/` data locations. `writeFolder` is for markdown / project content only. `process.env.VOICETREE_PROJECT_PATH` is no longer consulted at runtime for terminal-dir resolution.
 
 **Alternatives considered:**
-- *Make `writeFolder` canonical* — would require migrating every existing install's `.voicetree/` from project root to subdir vault, and breaks projects that intentionally co-locate `.voicetree/` at a parent level (`/projects/foo/.voicetree/` shared across multiple sub-vaults). Rejected.
+- *Make `writeFolder` canonical* — would require migrating every existing install's `.voicetree/` from project root to subdir project, and breaks projects that intentionally co-locate `.voicetree/` at a parent level (`/projects/foo/.voicetree/` shared across multiple sub-projects). Rejected.
 - *Accept both paths in discovery (search both, prefer one)* — masks the inconsistency rather than fixing it; metadata still gets written to two locations going forward. Rejected.
 
-**Migration:** one-time on-vault-open scan moves legacy `<writeFolder>/.voicetree/terminals/*.json` (+ siblings) to `<projectRoot>/.voicetree/terminals/`. Idempotent; conflicts log a warning and keep the canonical copy.
+**Migration:** one-time on-project-open scan moves legacy `<writeFolder>/.voicetree/terminals/*.json` (+ siblings) to `<projectRoot>/.voicetree/terminals/`. Idempotent; conflicts log a warning and keep the canonical copy.
 
 ### 2. Reconciliation pulls projectRoot from the graph bridge, not from its caller
 
 **Decision:** `reconcileTmuxTerminalRegistry()` reads `projectRoot` via injected `getProjectRoot` (default: graph bridge), rather than accepting it as a positional arg. Existing callers (`main.ts:262-267`, `graph-model-init.ts:75`, `serve.ts:180`, `vt-mcpd.ts:160`) drop the arg.
 
-**Why:** Today the same function takes "projectRoot" as a parameter but receives `writeFolder` / `process.env.VOICETREE_VAULT_PATH` from different sites. Making it pull from a single source removes the divergence at the type level.
+**Why:** Today the same function takes "projectRoot" as a parameter but receives `writeFolder` / `process.env.VOICETREE_PROJECT_PATH` from different sites. Making it pull from a single source removes the divergence at the type level.
 
-**Trade-off:** Adds an implicit dependency on graph-bridge availability at reconciliation time. Mitigated by gating reconcile on `onVaultOpened` (already the case) and exposing an optional `projectRoot` override for tests / headless callers.
+**Trade-off:** Adds an implicit dependency on graph-bridge availability at reconciliation time. Mitigated by gating reconcile on `onProjectOpened` (already the case) and exposing an optional `projectRoot` override for tests / headless callers.
 
 ### 3. Recency horizon for exited rows, not unbounded history
 
 **Decision:** Surviving Agents shows rows with `endedAt` (or `startedAt` if missing) within the last 7 days by default. Configurable via `VOICETREE_RECOVERY_HORIZON_DAYS`.
 
 **Alternatives considered:**
-- *Unbounded* — list would balloon to hundreds of rows on heavy-use vaults (this vault already has 50). Rejected for UX + render cost.
+- *Unbounded* — list would balloon to hundreds of rows on heavy-use projects (this project already has 50). Rejected for UX + render cost.
 - *Per-status horizon (longer for `killed`, shorter for `exited`)* — over-engineered for v1. Single horizon now, can split later.
 
 ### 4. Structured resolver-miss reasons
@@ -82,7 +82,7 @@ Implementation: `resolveCodexNativeSession` early-returns the reason when `openC
 
 | Risk | Mitigation |
 |---|---|
-| Migration moves files mid-write, racing with a concurrent spawn | Run migration synchronously in `onVaultOpened`, before reconciliation triggers any new spawns. Migrating only `status: exited`/`killed` records first (writes to running records are rarer mid-vault-switch); fall back to skip-on-EBUSY for the still-live ones. |
+| Migration moves files mid-write, racing with a concurrent spawn | Run migration synchronously in `onProjectOpened`, before reconciliation triggers any new spawns. Migrating only `status: exited`/`killed` records first (writes to running records are rarer mid-project-switch); fall back to skip-on-EBUSY for the still-live ones. |
 | Users open the legacy path manually (e.g. via VS Code) and lose their tmux pane | The legacy dir is left present-but-empty after migration. Add a `MIGRATED.txt` stub pointing to the canonical location. |
 | Recency horizon hides recovery a user needs | Configurable via env var; UI shows a "show older" link that re-queries without the horizon. |
 | Codex resolver's "second query without time filter" doubles DB load on miss | Only runs on the miss path (not the live discovery poll). One extra SELECT per failed resume click. Negligible. |
@@ -94,7 +94,7 @@ Implementation: `resolveCodexNativeSession` early-returns the reason when `openC
 No feature flag, no rollback CLI. Per project policy (CLAUDE.md): nothing is in production, and keeping legacy code paths around is explicitly not desired. The change lands directly:
 
 1. `<projectRoot>/.voicetree/terminals/` becomes the only path readers and writers use.
-2. A one-time migration runs synchronously on `onVaultOpened`, before reconciliation, to move any legacy `<writeFolder>/.voicetree/terminals/*.json` into the canonical location. Idempotent; conflicts log a warning and keep the canonical copy.
+2. A one-time migration runs synchronously on `onProjectOpened`, before reconciliation, to move any legacy `<writeFolder>/.voicetree/terminals/*.json` into the canonical location. Idempotent; conflicts log a warning and keep the canonical copy.
 3. The legacy-path read branch is deleted in the same change.
 
 **Rollback:** Since `fs.rename` is a metadata move, manual rollback is `mv <projectRoot>/.voicetree/terminals/* <writeFolder>/.voicetree/terminals/` — trivial and one-shot. No CLI needed.

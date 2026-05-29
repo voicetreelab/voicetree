@@ -18,7 +18,7 @@ import {
   type ProjectDeltaEventInput,
 } from '../handleSessionEvents.ts'
 
-const NODE_ID = '/vault/docs/one.md'
+const NODE_ID = '/project/docs/one.md'
 
 function graphNodeFixture(id = NODE_ID): GraphNode {
   return {
@@ -38,7 +38,7 @@ function stateFixture(): State {
   return {
     graph: createGraph({ [NODE_ID]: graphNodeFixture() }),
     roots: {
-      loaded: new Set<string>(['/vault']),
+      loaded: new Set<string>(['/project']),
       folderTree: [],
     },
     collapseSet: new Set<string>(),
@@ -60,7 +60,7 @@ function projectedGraphFixture(): ProjectedGraph {
   return {
     nodes: [],
     edges: [],
-    rootPath: '/vault',
+    rootPath: '/project',
     revision: 7,
     forests: [],
     arboricity: 0,
@@ -146,8 +146,8 @@ describe('handleSessionEvents', () => {
   })
 
   test('batches homogeneous-suppress events into one combined event with latest seq', () => {
-    const firstNode = graphNodeFixture('/vault/docs/first.md')
-    const secondNode = graphNodeFixture('/vault/docs/second.md')
+    const firstNode = graphNodeFixture('/project/docs/first.md')
+    const secondNode = graphNodeFixture('/project/docs/second.md')
     const result = batchProjectDeltaEvents([
       {
         delta: [{ type: 'UpsertNode', nodeToUpsert: firstNode, previousNode: O.none }],
@@ -186,7 +186,7 @@ describe('handleSessionEvents', () => {
   // Splitting by suppress equality keeps the projections separate so the
   // renderer evaluates each suppress set against its own nodeDelta batch.
   test('batchProjectDeltaEvents splits at every suppress-set boundary', () => {
-    const sharedNode = graphNodeFixture('/vault/docs/shared.md')
+    const sharedNode = graphNodeFixture('/project/docs/shared.md')
     const eventA: ProjectDeltaEventInput = {
       delta: [{ type: 'UpsertNode', nodeToUpsert: sharedNode, previousNode: O.none }],
       seq: 20,
@@ -205,9 +205,9 @@ describe('handleSessionEvents', () => {
   })
 
   test('batchProjectDeltaEvents merges contiguous matching-suppress runs only', () => {
-    const firstNode = graphNodeFixture('/vault/docs/first.md')
-    const secondNode = graphNodeFixture('/vault/docs/second.md')
-    const thirdNode = graphNodeFixture('/vault/docs/third.md')
+    const firstNode = graphNodeFixture('/project/docs/first.md')
+    const secondNode = graphNodeFixture('/project/docs/second.md')
+    const thirdNode = graphNodeFixture('/project/docs/third.md')
     const upsertFirst = { type: 'UpsertNode' as const, nodeToUpsert: firstNode, previousNode: O.none }
     const upsertSecond = { type: 'UpsertNode' as const, nodeToUpsert: secondNode, previousNode: O.none }
     const upsertThird = { type: 'UpsertNode' as const, nodeToUpsert: thirdNode, previousNode: O.none }
@@ -225,8 +225,8 @@ describe('handleSessionEvents', () => {
   })
 
   test('batchProjectDeltaEvents treats undefined and empty suppress as equal', () => {
-    const firstNode = graphNodeFixture('/vault/docs/first.md')
-    const secondNode = graphNodeFixture('/vault/docs/second.md')
+    const firstNode = graphNodeFixture('/project/docs/first.md')
+    const secondNode = graphNodeFixture('/project/docs/second.md')
     const upsertFirst = { type: 'UpsertNode' as const, nodeToUpsert: firstNode, previousNode: O.none }
     const upsertSecond = { type: 'UpsertNode' as const, nodeToUpsert: secondNode, previousNode: O.none }
 

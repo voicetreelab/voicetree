@@ -1,7 +1,7 @@
 import {dirname, isAbsolute, join, relative as relativePath, resolve as resolvePath} from 'node:path'
 import {buildMarkdownBody, type FilesystemAuthoringInput} from '@vt/graph-tools/node'
 import {runSchemaGate, type SchemaGateResult} from '../core/schemaGate'
-import {detectVaultFromCwd} from '../cliDeps'
+import {detectProjectFromCwd} from '../cliDeps'
 import type {GraphCreateNode, NodeVerdict} from '../core/types'
 
 /**
@@ -57,16 +57,16 @@ export async function collectFilesystemGateVerdicts(
     const verdicts: GatedInput[] = []
     for (const fileInput of inputs) {
         const absoluteTarget: string = absoluteFromCwd(fileInput.filename)
-        const vaultRoot: string | null = detectVaultFromCwd(dirname(absoluteTarget))
+        const projectRoot: string | null = detectProjectFromCwd(dirname(absoluteTarget))
 
-        if (vaultRoot === null) {
+        if (projectRoot === null) {
             verdicts.push({
                 path: fileInput.filename,
                 absoluteTargetForMerge: absoluteTarget,
                 verdict: {
                     path: fileInput.filename,
                     status: 'skipped',
-                    skipReason: 'no_vault_detected',
+                    skipReason: 'no_project_detected',
                 },
             })
             continue
@@ -75,7 +75,7 @@ export async function collectFilesystemGateVerdicts(
         const result: SchemaGateResult = await runSchemaGate({
             targetPath: absoluteTarget,
             rawBody: fileInput.markdown,
-            vaultRoot,
+            projectRoot,
         })
         verdicts.push({
             path: fileInput.filename,
@@ -134,17 +134,17 @@ export async function collectLiveGateVerdicts(
     parentNodeId: string | undefined,
     defaultColor: string | undefined,
 ): Promise<readonly GatedInput[]> {
-    const vaultRoot: string | null = detectVaultFromCwd(process.cwd())
+    const projectRoot: string | null = detectProjectFromCwd(process.cwd())
     const verdicts: GatedInput[] = []
 
     for (const node of nodes) {
         const {displayPath, absoluteTarget} = resolveLivePaths(node, parentNodeId)
 
-        if (vaultRoot === null) {
+        if (projectRoot === null) {
             verdicts.push({
                 path: displayPath,
                 absoluteTargetForMerge: absoluteTarget,
-                verdict: {path: displayPath, status: 'skipped', skipReason: 'no_vault_detected'},
+                verdict: {path: displayPath, status: 'skipped', skipReason: 'no_project_detected'},
             })
             continue
         }
@@ -165,7 +165,7 @@ export async function collectLiveGateVerdicts(
         const result: SchemaGateResult = await runSchemaGate({
             targetPath: absoluteTarget,
             rawBody: assembleLiveBody(node, defaultColor),
-            vaultRoot,
+            projectRoot,
         })
         verdicts.push({
             path: displayPath,

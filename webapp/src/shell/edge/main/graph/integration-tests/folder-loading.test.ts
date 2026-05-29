@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
-import { openVault, stopFileWatching, isWatching, getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { openProject, stopFileWatching, isWatching, getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
@@ -34,7 +34,7 @@ import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixtu
 import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
 import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
@@ -53,7 +53,7 @@ const MIN_LARGE_NODE_COUNT: 75 = 75 as const
 const INTEGRATION_TEST_TIMEOUT_MS: 30000 = 30000 as const
 
 async function loadFixtureFolder(folderPath: string): Promise<void> {
-  await openVault(folderPath)
+  await openProject(folderPath)
   await waitForCondition(
     () => Object.keys(getGraph().nodes).some(nodePath => nodePath.startsWith(`${folderPath}${path.sep}`)),
     { maxWaitMs: 10000, errorMessage: `Graph did not populate for loaded fixture folder: ${folderPath}` }
@@ -87,16 +87,16 @@ async function copyFixtureToTemp(sourcePath: string, destinationName: string): P
   return destinationPath
 }
 
-async function shutdownDaemonForVault(projectRoot: string | undefined): Promise<void> {
+async function shutdownDaemonForProject(projectRoot: string | undefined): Promise<void> {
   if (!projectRoot) return
-  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: projectRoot }).catch(() => null)
+  const client: GraphDbClient | null = await GraphDbClient.connect({ project: projectRoot }).catch(() => null)
   await client?.shutdown().catch(() => undefined)
 }
 
 async function shutdownFixtureDaemons(): Promise<void> {
   await Promise.all([
-    shutdownDaemonForVault(exampleSmallPath),
-    shutdownDaemonForVault(exampleLargePath)
+    shutdownDaemonForProject(exampleSmallPath),
+    shutdownDaemonForProject(exampleLargePath)
   ])
   clearDaemonClientCache()
 }
@@ -132,8 +132,8 @@ describe.skip('Folder Loading - Integration Tests', () => {
     broadcastCalls = []
 
     // Initialize graph model with test callbacks that mirror Electron IPC channels.
-    const appSupport = path.join(tempFixtureRoot, 'app-support')
-    process.env.VOICETREE_HOME_PATH = appSupport
+    const voicetreeHome = path.join(tempFixtureRoot, 'voicetree-home')
+    process.env.VOICETREE_HOME_PATH = voicetreeHome
     initGraphModel({
       onGraphCleared: (): void => {
         broadcastCalls.push({ channel: 'graph:clear', delta: [] })
@@ -146,11 +146,11 @@ describe.skip('Folder Loading - Integration Tests', () => {
     // Reset graph state
     setGraph(createGraph({}))
 
-    await saveVaultConfigForDirectory(exampleSmallPath, {
-      writeFolder: path.join(exampleSmallPath, 'voicetree')
+    await saveProjectConfigForDirectory(exampleSmallPath, {
+      writeFolderPath: path.join(exampleSmallPath, 'voicetree')
     })
-    await saveVaultConfigForDirectory(exampleLargePath, {
-      writeFolder: path.join(exampleLargePath, 'voicetree')
+    await saveProjectConfigForDirectory(exampleLargePath, {
+      writeFolderPath: path.join(exampleLargePath, 'voicetree')
     })
 
     for (const testFilePath of [
@@ -183,7 +183,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       await fs.rm(ctxNodesPath, { recursive: true, force: true })
     }
 
-    // Also clean up voicetree/ctx-nodes since that's what gets loaded (with DEFAULT_VAULT_SUFFIX)
+    // Also clean up voicetree/ctx-nodes since that's what gets loaded (with DEFAULT_PROJECT_SUFFIX)
     const voicetreeCtxNodesPath: string = path.join(exampleSmallPath, 'voicetree', 'ctx-nodes')
     const voicetreeCtxNodesDirExists: boolean = await fs.access(voicetreeCtxNodesPath).then(() => true).catch(() => false)
     if (voicetreeCtxNodesDirExists) {
@@ -253,7 +253,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       })
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
-      // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
+      // Filter for graph-specific channels (ignoring ui:call from settings/project state)
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
         ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
@@ -283,7 +283,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       })
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
-      // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
+      // Filter for graph-specific channels (ignoring ui:call from settings/project state)
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
         ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
@@ -475,7 +475,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
         .filter(node => node.outgoingEdges.length > 0).length
       expect(finalEdgesCount).toBeGreaterThan(0)
 
-      // Verify all broadcasts used valid channels (includes ui:call from settings/vault state)
+      // Verify all broadcasts used valid channels (includes ui:call from settings/project state)
       broadcastCalls.forEach(call => {
         expect(['graph:projectedGraphUpdate', 'graph:clear', 'watching-started', 'ui:call']).toContain(call.channel)
         if (call.channel === 'graph:projectedGraphUpdate') {
@@ -487,17 +487,17 @@ describe.skip('Folder Loading - Integration Tests', () => {
       expect(await isWatching()).toBe(true)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
-    it('should not throw when switching vaults while a previous load is not connected to the daemon', async () => {
+    it('should not throw when switching projects while a previous load is not connected to the daemon', async () => {
       // Regression: simulate the old race where a concurrent/failed first load
       // left stale main-process state, causing writeCurrentPositionsThroughDaemon to
-      // throw "No vault is currently open" and blocking the vault switch entirely.
+      // throw "No project is currently open" and blocking the project switch entirely.
       //
       // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
       // second load seeing stale state from the first (daemon not yet connected).
       // The old load implementation attempted writeCurrentPositionsThroughDaemon and
       // had to avoid propagating that error.
 
-      await openVault(exampleLargePath)
+      await openProject(exampleLargePath)
       await expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
@@ -588,7 +588,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       await loadFixtureFolder(exampleSmallPath)
 
       // THEN: Should have broadcast graph-specific channels (clear + stateChanged + watching-started)
-      // Additional ui:call broadcasts may come from settings/vault state updates
+      // Additional ui:call broadcasts may come from settings/project state updates
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
         ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )

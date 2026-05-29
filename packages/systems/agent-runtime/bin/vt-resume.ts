@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import tsx
 // vt-resume: terminal-side equivalent of the Voicetree "Surviving Agents"
-// panel. Lists recoverable Claude/Codex agent sessions in a vault, and
+// panel. Lists recoverable Claude/Codex agent sessions in a project, and
 // resumes a chosen one — spawning the tmux-backed terminal and execing
 // `tmux attach-session` to drop the user into the live pane.
 //
@@ -8,9 +8,9 @@
 //   1. `vt-resume list`              → enumerate surviving agents
 //   2. `vt-resume resume <id>`       → resume + attach in this terminal
 //
-// Vault / project root resolution (in order):
-//   --vault <path>            explicit vault path
-//   $VOICETREE_VAULT_PATH     env var set by Voicetree-spawned terminals
+// Project / project root resolution (in order):
+//   --project <path>            explicit project path
+//   $VOICETREE_PROJECT_PATH     env var set by Voicetree-spawned terminals
 //   walk up from cwd          looks for a `.voicetree` directory
 //
 // The discovery + resume code paths are the same ones the Electron main
@@ -32,7 +32,7 @@ type Cmd = 'list' | 'resume'
 type Args = {
     readonly cmd: Cmd
     readonly terminalId?: string
-    readonly vault?: string
+    readonly project?: string
     readonly projectRoot?: string
     readonly noAttach: boolean
 }
@@ -50,8 +50,8 @@ function usage(): never {
             '  vt-resume resume <terminalId>           Resume an agent and attach to tmux',
             '',
             'Flags:',
-            '  --vault <path>           Vault directory (default: $VOICETREE_VAULT_PATH or auto-detect)',
-            '  --project-root <path>    Watched parent dir (default: parent of vault)',
+            '  --project <path>           Project directory (default: $VOICETREE_PROJECT_PATH or auto-detect)',
+            '  --project-root <path>    Watched parent dir (default: parent of project)',
             '  --no-attach              For `resume`: spawn the tmux session but do not exec attach',
             '',
         ].join('\n'),
@@ -62,13 +62,13 @@ function usage(): never {
 function parseArgs(argv: readonly string[]): Args {
     let cmd: Cmd | null = null
     let terminalId: string | undefined
-    let vault: string | undefined
+    let project: string | undefined
     let projectRoot: string | undefined
     let noAttach: boolean = false
     for (let i = 0; i < argv.length; i++) {
         const a: string = argv[i]
-        if (a === '--vault') {
-            vault = argv[++i]
+        if (a === '--project') {
+            project = argv[++i]
             continue
         }
         if (a === '--project-root') {
@@ -92,10 +92,10 @@ function parseArgs(argv: readonly string[]): Args {
     }
     if (cmd === null) usage()
     if (cmd === 'resume' && !terminalId) usage()
-    return {cmd, terminalId, vault, projectRoot, noAttach}
+    return {cmd, terminalId, project, projectRoot, noAttach}
 }
 
-// A vault directory has `.voicetree/terminals/` but no daemon lock; the
+// A project directory has `.voicetree/terminals/` but no daemon lock; the
 // project-root `.voicetree` is the one holding `graphd.owner.json` (written
 // by the graph-db-server daemon). The CLI must use the project-root form so
 // tmux namespace hashing matches what the running Voicetree process used.
@@ -116,30 +116,30 @@ function findUpForProjectRoot(start: string): string | null {
 }
 
 type ResolvedPaths = {
-    readonly vault: string
+    readonly project: string
     readonly projectRoot: string
 }
 
 function resolvePaths(args: Args): ResolvedPaths {
-    const envVault: string | undefined = process.env.VOICETREE_VAULT_PATH
+    const envProject: string | undefined = process.env.VOICETREE_PROJECT_PATH
     const envProjectDir: string | undefined = process.env.VOICETREE_PROJECT_DIR // ends in `/.voicetree`
 
-    const vault: string = args.vault
-        ? resolve(args.vault)
-        : envVault
-            ? resolve(envVault)
-            : (findUpForProjectRoot(process.cwd()) ?? die('cannot locate a vault. Pass --vault or set VOICETREE_VAULT_PATH.'))
+    const project: string = args.project
+        ? resolve(args.project)
+        : envProject
+            ? resolve(envProject)
+            : (findUpForProjectRoot(process.cwd()) ?? die('cannot locate a project. Pass --project or set VOICETREE_PROJECT_PATH.'))
 
     const projectRoot: string = args.projectRoot
         ? resolve(args.projectRoot)
         : envProjectDir
             ? resolve(dirname(envProjectDir))
-            : findUpForProjectRoot(vault) ?? resolve(dirname(vault))
+            : findUpForProjectRoot(project) ?? resolve(dirname(project))
 
     if (!existsSync(getProjectDotVoicetreePath(projectRoot))) {
         die(`project root ${projectRoot} has no .voicetree directory.`)
     }
-    return {vault, projectRoot}
+    return {project, projectRoot}
 }
 
 function configureRuntime(paths: ResolvedPaths): void {
@@ -147,16 +147,16 @@ function configureRuntime(paths: ResolvedPaths): void {
         env: {
             // Discovery and tmux-namespace resolution read project-root and
             // write-path; the snapshot keeps spawned terminal env assembly on
-            // the same resolved vault metadata if this CLI launches one.
+            // the same resolved project metadata if this CLI launches one.
             getVoicetreeHomePath: (): string => '',
             getMcpPort: (): number => 0,
             getProjectRoot: async (): Promise<string> => paths.projectRoot,
-            getVaultSnapshot: async () => ({
+            getProjectSnapshot: async () => ({
                 projectRoot: paths.projectRoot,
-                readPaths: [paths.vault],
-                writeFolder: paths.vault,
+                readPaths: [paths.project],
+                writeFolderPath: paths.project,
             }),
-            getWriteFolder: async (): Promise<string> => paths.vault,
+            getWriteFolderPath: async (): Promise<string> => paths.project,
         },
     })
 }
@@ -174,7 +174,7 @@ async function runList(paths: ResolvedPaths): Promise<void> {
     configureRuntime(paths)
     const sessions: readonly RecoverableAgentSession[] = await discoverRecoverableAgentSessions()
     process.stdout.write(`project_root: ${paths.projectRoot}\n`)
-    process.stdout.write(`vault:        ${paths.vault}\n\n`)
+    process.stdout.write(`project:        ${paths.project}\n\n`)
     if (sessions.length === 0) {
         process.stdout.write('(no recoverable agents)\n')
         return

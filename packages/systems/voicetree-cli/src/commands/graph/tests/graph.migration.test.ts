@@ -14,8 +14,8 @@ import {
 import {
     createEmptyGraph,
 } from '@vt/graph-model'
-import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
-import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {saveProjectConfigForDirectory} from '@vt/app-config/project-config'
+import {loadAndMergeProjectPath} from '@vt/graph-db-server/watch-folder/project-allowlist'
 import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
 import {main} from '../../../voicetree-cli.ts'
 
@@ -29,7 +29,7 @@ type Harness = {
     voicetreeHomePath: string
     docsPath: string
     root: string
-    vault: string
+    project: string
 }
 
 type CommandResult = {
@@ -40,14 +40,14 @@ type CommandResult = {
 
 async function createHarness(): Promise<Harness> {
     const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-cli-graph-')))
-    const voicetreeHomePath: string = join(root, 'app-support')
-    const vault: string = join(root, 'vault')
-    const docsPath: string = join(vault, 'docs')
+    const voicetreeHomePath: string = join(root, 'voicetree-home')
+    const project: string = join(root, 'project')
+    const docsPath: string = join(project, 'docs')
 
     await mkdir(voicetreeHomePath, {recursive: true})
     await mkdir(docsPath, {recursive: true})
 
-    return {root, voicetreeHomePath, vault, docsPath}
+    return {root, voicetreeHomePath, project, docsPath}
 }
 
 async function waitFor<T>(
@@ -122,7 +122,7 @@ describe('graph daemon migration', () => {
     let stdoutIsTTYDescriptor: PropertyDescriptor | undefined
 
     function docsRoot(): string {
-        return join(harness.vault, 'docs')
+        return join(harness.project, 'docs')
     }
 
     function createClient(): GraphDbClient {
@@ -144,8 +144,8 @@ describe('graph daemon migration', () => {
         setGraph(createEmptyGraph())
 
         await mkdir(join(harness.docsPath, 'nested'), {recursive: true})
-        await saveVaultConfigForDirectory(harness.vault, {
-            writeFolder: harness.docsPath,
+        await saveProjectConfigForDirectory(harness.project, {
+            writeFolderPath: harness.docsPath,
             readPaths: [],
         })
 
@@ -153,10 +153,10 @@ describe('graph daemon migration', () => {
         await writeFile(join(harness.docsPath, 'nested', 'leaf.md'), '# Leaf\n\n[[root]]\n', 'utf8')
         await writeFile(join(harness.docsPath, 'nested', 'other.md'), '# Other\n', 'utf8')
 
-        daemonHandle = await startDaemon({vault: harness.vault})
-        const loadResult = await loadAndMergeVaultPath(harness.docsPath, {isWriteFolder: true})
+        daemonHandle = await startDaemon({project: harness.project})
+        const loadResult = await loadAndMergeProjectPath(harness.docsPath, {isWriteFolderPath: true})
         expect(loadResult).toEqual({kind: 'ok'})
-        process.chdir(harness.vault)
+        process.chdir(harness.project)
 
         await waitFor(async () => {
             const graph: GraphState = await createClient().getGraph()

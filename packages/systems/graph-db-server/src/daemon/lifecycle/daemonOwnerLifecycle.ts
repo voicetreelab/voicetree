@@ -3,9 +3,9 @@
  *
  * One public entry, `claimDaemonOwner`, runs the BF-343 protocol:
  *
- *   1. Atomic-create the owner record under `<vault>/.voicetree/` with
+ *   1. Atomic-create the owner record under `<project>/.voicetree/` with
  *      port=null. Winning the create is the cross-process arbitration —
- *      whoever wins is the sole owner for the canonical vault path.
+ *      whoever wins is the sole owner for the canonical project path.
  *   2. If the record already exists, decide between reclaim (recorded pid
  *      dead) and conflict (recorded pid alive). Conflict raises a typed
  *      error so the caller can fail loudly without overwriting an active
@@ -64,18 +64,18 @@ export const HEARTBEAT_INTERVAL_MS = 2_000
 export class DaemonOwnerConflictError extends Error {
   readonly code = 'DAEMON_OWNER_CONFLICT'
   constructor(
-    readonly canonicalVault: string,
+    readonly canonicalProject: string,
     readonly existingOwner: OwnerRecord,
   ) {
     super(
-      `vt-graphd: vault ${canonicalVault} already owned by pid ${existingOwner.pid} (nonce ${existingOwner.ownerNonce})`,
+      `vt-graphd: project ${canonicalProject} already owned by pid ${existingOwner.pid} (nonce ${existingOwner.ownerNonce})`,
     )
     this.name = 'DaemonOwnerConflictError'
   }
 }
 
 export type ClaimDaemonOwnerOptions = {
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly callerKind: CallerKind
   readonly contractVersion: string
   readonly commandFingerprint: CommandFingerprint
@@ -107,12 +107,12 @@ export async function claimDaemonOwner(
   options: ClaimDaemonOwnerOptions,
 ): Promise<DaemonOwnerHandle> {
   return tracer.startActiveSpan('daemon.claim-owner', async (span) => {
-    span.setAttribute('vault', options.canonicalVault)
+    span.setAttribute('project', options.canonicalProject)
     try {
-      const path = ownerRecordFile.pathFor(options.canonicalVault, 'graphd')
+      const path = ownerRecordFile.pathFor(options.canonicalProject, 'graphd')
       let record = createInitialRecord({
         daemonKind: 'graphd',
-        canonicalVault: options.canonicalVault,
+        canonicalProject: options.canonicalProject,
         pid: process.pid,
         ppid: process.ppid ?? 0,
         callerKind: options.callerKind,
@@ -121,11 +121,11 @@ export async function claimDaemonOwner(
         nowMs: options.clock(),
       })
 
-      record = await acquireOwnerRecord(path, record, options.canonicalVault)
-      await writeLegacyLockSidecar(options.canonicalVault, record.pid)
+      record = await acquireOwnerRecord(path, record, options.canonicalProject)
+      await writeLegacyLockSidecar(options.canonicalProject, record.pid)
       span.setAttribute('owner.nonce', record.ownerNonce)
       span.setAttribute('owner.pid', record.pid)
-      return makeHandle(path, record, options.clock, options.canonicalVault)
+      return makeHandle(path, record, options.clock, options.canonicalProject)
     } catch (err) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
       throw err
@@ -138,14 +138,14 @@ export async function claimDaemonOwner(
 async function acquireOwnerRecord(
   path: string,
   desired: OwnerRecord,
-  canonicalVault: string,
+  canonicalProject: string,
 ): Promise<OwnerRecord> {
   const firstAttempt = await tryAtomicCreate(path, desired)
   if (firstAttempt.kind === 'created') return desired
 
   const existing = decodeOwnerRecord(firstAttempt.existingRaw)
   if (existing !== null && isOwnerPidAlive(existing.pid)) {
-    throw new DaemonOwnerConflictError(canonicalVault, existing)
+    throw new DaemonOwnerConflictError(canonicalProject, existing)
   }
 
   // The existing record is either undecodable (corrupt) or held by a dead
@@ -158,10 +158,10 @@ async function acquireOwnerRecord(
 
   const racer = decodeOwnerRecord(secondAttempt.existingRaw)
   if (racer !== null && isOwnerPidAlive(racer.pid)) {
-    throw new DaemonOwnerConflictError(canonicalVault, racer)
+    throw new DaemonOwnerConflictError(canonicalProject, racer)
   }
   throw new Error(
-    `vt-graphd: failed to claim owner for ${canonicalVault} (record contention)`,
+    `vt-graphd: failed to claim owner for ${canonicalProject} (record contention)`,
   )
 }
 
@@ -169,7 +169,7 @@ function makeHandle(
   path: string,
   initial: OwnerRecord,
   clock: () => number,
-  canonicalVault: string,
+  canonicalProject: string,
 ): DaemonOwnerHandle {
   let current = initial
   let writeInFlight: Promise<void> = Promise.resolve()
@@ -218,7 +218,7 @@ function makeHandle(
         /* swallow */
       }
       await deleteOwnerRecord(path)
-      await deleteLegacyLockSidecar(canonicalVault)
+      await deleteLegacyLockSidecar(canonicalProject)
     },
   }
 
@@ -233,17 +233,17 @@ function makeTempSuffix(): string {
   return `${process.pid}.${randomBytes(4).toString('hex')}`
 }
 
-function legacyLockPathFor(vaultDir: string): string {
-  return join(getProjectDotVoicetreePath(vaultDir), LEGACY_LOCK_FILENAME)
+function legacyLockPathFor(projectDir: string): string {
+  return join(getProjectDotVoicetreePath(projectDir), LEGACY_LOCK_FILENAME)
 }
 
-async function writeLegacyLockSidecar(vaultDir: string, pid: number): Promise<void> {
-  await writeFile(legacyLockPathFor(vaultDir), `${pid}\n`, 'utf8')
+async function writeLegacyLockSidecar(projectDir: string, pid: number): Promise<void> {
+  await writeFile(legacyLockPathFor(projectDir), `${pid}\n`, 'utf8')
 }
 
-async function deleteLegacyLockSidecar(vaultDir: string): Promise<void> {
+async function deleteLegacyLockSidecar(projectDir: string): Promise<void> {
   try {
-    await unlink(legacyLockPathFor(vaultDir))
+    await unlink(legacyLockPathFor(projectDir))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
   }
@@ -253,7 +253,7 @@ function healthFromRecord(record: OwnerRecord): HealthOwner | null {
   if (record.port === null) return null
   return {
     schemaVersion: record.schemaVersion,
-    canonicalVault: record.canonicalVault,
+    canonicalProject: record.canonicalProject,
     pid: record.pid,
     ppid: record.ppid,
     port: record.port,

@@ -1,7 +1,7 @@
 /**
  * B4 — semantic index + search + focus + unseen.
  *
- * 20-note vault, 4 clusters. Agent indexes, searches "authentication flow",
+ * 20-note project, 4 clusters. Agent indexes, searches "authentication flow",
  * focuses the top hit, surfaces unseen related nodes. The plan's stdout-based
  * verification ("auth-jwt-flow.md in the first 3 result lines") is currently
  * unrunnable — the PATH shim only captures stderr/exit code, not stdout.
@@ -17,8 +17,8 @@ import type {ScenarioSpec, SuccessResult} from '../types.ts'
 import {matchesVerb} from '../shim-log.ts'
 import {fileExists, loadShimLog, writeFile} from './_helpers.ts'
 
-const TASK_PROMPT = `This vault has about 20 notes across several topics. Build a semantic index
-over the vault, then search it for the query "authentication flow". Open the
+const TASK_PROMPT = `This project has about 20 notes across several topics. Build a semantic index
+over the project, then search it for the query "authentication flow". Open the
 top match, view its 2-hop neighborhood, and list any related notes you
 haven't read yet in this session.
 
@@ -82,7 +82,7 @@ const RENDERING_NOTES = [
 const INFRA_NOTES = [
     {name: 'deploy.md', body: '# Deploy\n\nKubernetes via Argo CD; per-tenant namespaces.\n'},
     {name: 'ci.md', body: '# CI\n\nGitHub Actions; matrix over node 20/22.\n'},
-    {name: 'secrets.md', body: '# Secrets\n\nVault per-environment; injected at pod boot.\n'},
+    {name: 'secrets.md', body: '# Secrets\n\nProject per-environment; injected at pod boot.\n'},
     {name: 'observability.md', body: '# Observability\n\nOpenTelemetry → Tempo + Loki.\n'},
     {name: 'rate-limit.md', body: '# Rate limit\n\nToken bucket per API key; sliding window.\n'},
     {name: 'backup.md', body: '# Backup\n\nNightly snapshots; 30 day retention.\n'},
@@ -102,12 +102,12 @@ const SEEN_NODES = ['auth-jwt-flow.md', 'auth-oauth-handoff.md', 'db-schema.md',
 export const b4: ScenarioSpec = {
     id: 'B4',
     name: 'semantic index + search + focus + unseen',
-    async setup(vaultDir) {
+    async setup(projectDir) {
         const allNotes = [...AUTH_NOTES, ...STORAGE_NOTES, ...RENDERING_NOTES, ...INFRA_NOTES, ...META_NOTES]
         for (const {name, body} of allNotes) {
-            await writeFile(path.join(vaultDir, name), body.endsWith('\n') ? body : body + '\n')
+            await writeFile(path.join(projectDir, name), body.endsWith('\n') ? body : body + '\n')
         }
-        const dotVoicetreePath = getProjectDotVoicetreePath(vaultDir)
+        const dotVoicetreePath = getProjectDotVoicetreePath(projectDir)
         await writeFile(
             path.join(dotVoicetreePath, 'links.json'),
             JSON.stringify({
@@ -134,8 +134,8 @@ export const b4: ScenarioSpec = {
         {verb: 'graph live focus'},
         {verb: 'graph unseen'},
     ],
-    async successCriteria(vaultDir): Promise<SuccessResult> {
-        const indexDir = path.join(getProjectDotVoicetreePath(vaultDir), 'index')
+    async successCriteria(projectDir): Promise<SuccessResult> {
+        const indexDir = path.join(getProjectDotVoicetreePath(projectDir), 'index')
         if (!(await fileExists(indexDir))) {
             return {passed: false, detail: '.voicetree/index/ missing — agent did not run graph index'}
         }
@@ -143,7 +143,7 @@ export const b4: ScenarioSpec = {
             return {passed: false, detail: '.voicetree/index/ exists but contains no artefacts'}
         }
 
-        const shimLog = await loadShimLog(vaultDir)
+        const shimLog = await loadShimLog(projectDir)
 
         const searchHit = shimLog.find(
             (e) =>

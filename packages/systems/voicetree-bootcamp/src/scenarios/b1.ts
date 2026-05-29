@@ -12,8 +12,8 @@ import {fileExists, listMarkdownFiles, parseFrontmatter, parseWikilinks, stripMd
 
 const COOLDOWN_FILENAME = 'graphd.cooldown.json'
 
-const TASK_PROMPT = `You have a fresh VoiceTree vault in this directory. Your first attempt to use
-the vault will likely fail because the previous session left it in a bad
+const TASK_PROMPT = `You have a fresh VoiceTree project in this directory. Your first attempt to use
+the project will likely fail because the previous session left it in a bad
 state. Diagnose what is wrong, clear it, and then capture three short notes
 about dialing in espresso: one about grind size, one about dose, one about
 extraction time. The three notes should form a small tree (a parent and two
@@ -27,8 +27,8 @@ const ESPRESSO_KEYWORDS = ['grind', 'dose', 'extraction'] as const
 export const b1: ScenarioSpec = {
     id: 'B1',
     name: 'cold-start with daemon recovery',
-    async setup(vaultDir) {
-        const cooldownPath = path.join(getProjectDotVoicetreePath(vaultDir), COOLDOWN_FILENAME)
+    async setup(projectDir) {
+        const cooldownPath = path.join(getProjectDotVoicetreePath(projectDir), COOLDOWN_FILENAME)
         await writeFile(
             cooldownPath,
             JSON.stringify({
@@ -37,24 +37,24 @@ export const b1: ScenarioSpec = {
             }),
         )
         await writeFile(
-            path.join(vaultDir, 'README.md'),
-            '# Espresso notes\n\nFresh vault. Plan to capture how I dial in espresso.\n',
+            path.join(projectDir, 'README.md'),
+            '# Espresso notes\n\nFresh project. Plan to capture how I dial in espresso.\n',
         )
     },
     taskPrompt: TASK_PROMPT,
     expectedCommands: [
         {verb: 'serve'},
-        {verb: 'vault show'},
+        {verb: 'project show'},
         {verb: 'graph create'},
         {verb: 'graph structure'},
     ],
-    async successCriteria(vaultDir): Promise<SuccessResult> {
-        const cooldownExists = await fileExists(path.join(getProjectDotVoicetreePath(vaultDir), COOLDOWN_FILENAME))
+    async successCriteria(projectDir): Promise<SuccessResult> {
+        const cooldownExists = await fileExists(path.join(getProjectDotVoicetreePath(projectDir), COOLDOWN_FILENAME))
         if (cooldownExists) {
             return {passed: false, detail: 'cooldown breadcrumb still present at .voicetree/graphd.cooldown.json'}
         }
 
-        const allMd = await listMarkdownFiles(vaultDir)
+        const allMd = await listMarkdownFiles(projectDir)
         const notes = allMd.filter((p) => path.basename(p).toLowerCase() !== 'readme.md')
         if (notes.length < 3) {
             return {

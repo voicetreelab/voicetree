@@ -25,7 +25,7 @@ function makeSession(overrides: Partial<UnclaimedTmuxSession> = {}): UnclaimedTm
         sessionName: 'vt-1234567890-agent-a',
         terminalId: 'agent-a',
         hash: '1234567890',
-        classification: 'this-vault',
+        classification: 'this-project',
         attachable: true,
         createdAt: 1_779_365_910_000,
         panePid: 12345,

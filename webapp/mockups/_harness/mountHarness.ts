@@ -3,7 +3,7 @@
 //
 // Wires:
 //   - In-browser daemon (real `project()` from @vt/graph-state over a
-//     synthetic Graph + FolderTreeNode + VaultState)
+//     synthetic Graph + FolderTreeNode + ProjectState)
 //   - window.electronAPI stub bridging to that daemon
 //   - Real `applyGraphDeltaToUI` mutates cy from each ProjectedGraph
 //   - Real `FolderHandleService` chevron chip
@@ -165,7 +165,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
     // underlying daemon state and collapseSet persist across rebuilds.
     const fixture = buildPlaygroundFixture()
     let daemon: InBrowserDaemon = createInBrowserDaemon({
-        vault: fixture.vault,
+        project: fixture.project,
         graph: fixture.graph,
         folderTree: fixture.folderTree,
         initialCollapsedFolderIds: fixture.initialCollapsedFolderIds,
@@ -337,7 +337,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
         lastProjection = null
         const freshFixture = buildPlaygroundFixture()
         daemon = createInBrowserDaemon({
-            vault: freshFixture.vault,
+            project: freshFixture.project,
             graph: freshFixture.graph,
             folderTree: freshFixture.folderTree,
             initialCollapsedFolderIds: freshFixture.initialCollapsedFolderIds,

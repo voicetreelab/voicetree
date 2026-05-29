@@ -3,7 +3,7 @@
  *
  * Mirrors `ensureGraphDaemonCooldown.test.ts` for graphd. The cooldown
  * breadcrumb is daemon-kind-scoped — VTD writes to
- * `<vault>/.voicetree/vtd.cooldown.json`, graphd to `graphd.cooldown.json`
+ * `<project>/.voicetree/vtd.cooldown.json`, graphd to `graphd.cooldown.json`
  * — so the two daemons cannot pollute each other's cooldown state.
  *
  *  - active cooldown blocks claim
@@ -33,13 +33,13 @@ import {
   OwnerSpawnCooldownError,
   readCooldownBreadcrumb,
 } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
+import { ensureVtDaemonForProject } from './harness/nodeEnsureVtDaemonForProject.ts'
 import {
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   destroyHarness,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   readPersistedOwnerOrNull,
   trackDaemonPid,
   type Harness,
@@ -52,7 +52,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -71,7 +71,7 @@ describe.runIf(process.platform !== 'win32')(
         const now = Date.now()
         const breadcrumb = {
           schemaVersion: 1 as const,
-          canonicalVault: harness.vault,
+          canonicalProject: harness.project,
           writtenAtMs: now,
           untilMs: now + 60_000,
           reason: 'test-injected-active',
@@ -81,13 +81,13 @@ describe.runIf(process.platform !== 'win32')(
           lastErrorMessage: 'synthetic — never spawned',
         }
         await writeFile(
-          cooldownBreadcrumbPathFor(harness.vault, 'vtd'),
+          cooldownBreadcrumbPathFor(harness.project, 'vtd'),
           `${JSON.stringify(breadcrumb, null, 2)}\n`,
           'utf8',
         )
 
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 2_000,
           }),
@@ -95,14 +95,14 @@ describe.runIf(process.platform !== 'win32')(
 
         // No owner record was written — the protocol short-circuited
         // before any spawn attempt.
-        const owner = await readPersistedOwnerOrNull(harness.vault)
+        const owner = await readPersistedOwnerOrNull(harness.project)
         expect(owner).toBeNull()
 
         // No vtd child visible to ps.
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         // Breadcrumb is still on disk (we did not clear it).
-        const cooldown = await readCooldownBreadcrumb(harness.vault, 'vtd')
+        const cooldown = await readCooldownBreadcrumb(harness.project, 'vtd')
         expect(cooldown).not.toBeNull()
         expect(cooldown!.reason).toBe('test-injected-active')
       },
@@ -115,7 +115,7 @@ describe.runIf(process.platform !== 'win32')(
         const now = Date.now()
         const breadcrumb = {
           schemaVersion: 1 as const,
-          canonicalVault: harness.vault,
+          canonicalProject: harness.project,
           writtenAtMs: now - 60_000,
           untilMs: now - 1_000,
           reason: 'test-injected-expired',
@@ -125,12 +125,12 @@ describe.runIf(process.platform !== 'win32')(
           lastErrorMessage: 'synthetic — already expired',
         }
         await writeFile(
-          cooldownBreadcrumbPathFor(harness.vault, 'vtd'),
+          cooldownBreadcrumbPathFor(harness.project, 'vtd'),
           `${JSON.stringify(breadcrumb, null, 2)}\n`,
           'utf8',
         )
 
-        const result = await ensureVtDaemonForVault(harness.vault, 'electron', {
+        const result = await ensureVtDaemonForProject(harness.project, 'electron', {
           bin: FAKE_BIN_COMMAND,
           timeoutMs: 10_000,
           spawnCooldownMs: 5_000,
@@ -141,7 +141,7 @@ describe.runIf(process.platform !== 'win32')(
         expect(result.port).toBeGreaterThan(0)
 
         // The successful spawn cleared the breadcrumb.
-        const cleared = await readCooldownBreadcrumb(harness.vault, 'vtd')
+        const cleared = await readCooldownBreadcrumb(harness.project, 'vtd')
         expect(cleared).toBeNull()
       },
       15_000,
@@ -156,7 +156,7 @@ describe.runIf(process.platform !== 'win32')(
         const spawnCooldownMs = 30_000
         const startMs = Date.now()
         await expect(
-          ensureVtDaemonForVault(harness.vault, 'electron', {
+          ensureVtDaemonForProject(harness.project, 'electron', {
             bin: `env FAKE_VTD_EXIT_CODE=1 ${FAKE_BIN_COMMAND}`,
             timeoutMs: 2_000,
             spawnCooldownMs,
@@ -165,9 +165,9 @@ describe.runIf(process.platform !== 'win32')(
           }),
         ).rejects.toThrow()
 
-        const breadcrumb = await readCooldownBreadcrumb(harness.vault, 'vtd')
+        const breadcrumb = await readCooldownBreadcrumb(harness.project, 'vtd')
         expect(breadcrumb).not.toBeNull()
-        expect(breadcrumb!.canonicalVault).toBe(harness.vault)
+        expect(breadcrumb!.canonicalProject).toBe(harness.project)
         expect(breadcrumb!.untilMs).toBeGreaterThan(Date.now())
         // The window is approximately `now + spawnCooldownMs` — allow a
         // generous lower bound to swallow scheduling jitter.
@@ -179,7 +179,7 @@ describe.runIf(process.platform !== 'win32')(
         )
 
         // No vtd child running.
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
       },
       15_000,
     )

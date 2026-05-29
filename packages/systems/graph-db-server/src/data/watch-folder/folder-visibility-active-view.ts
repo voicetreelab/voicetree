@@ -32,7 +32,7 @@ async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDeriva
     return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreAndDerivation
 }
 
-export async function getExpandedFolderPathsForVault(projectRoot: FilePath): Promise<readonly FilePath[]> {
+export async function getExpandedFolderPathsForProject(projectRoot: FilePath): Promise<readonly FilePath[]> {
     let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
     try {
         dbModule = await loadFolderVisibilityDbModule()

@@ -1,5 +1,5 @@
 /**
- * Topic-agnostic SSE subscription loop shared by every per-vault VTD
+ * Topic-agnostic SSE subscription loop shared by every per-project VTD
  * subscriber in this directory (BF-376's `terminal-registry`, and any
  * future topic that rides the same wire).
  *
@@ -8,7 +8,7 @@
  * caller supplies only:
  *   - a URL builder (`{baseUrl}/sessions/<id>/<topicPath>?since=<seq>`),
  *   - a block→frame parser,
- *   - frame metadata (`vault`, advance-`seq`, deliver?),
+ *   - frame metadata (`project`, advance-`seq`, deliver?),
  *   - an `onEnvelope` handler invoked for delivered frames.
  *
  * Why a helper instead of duplicating mechanics per topic: the loop
@@ -24,7 +24,7 @@
  * `subscribe` call. The helper itself is stateless across calls.
  */
 
-import {getActiveVault, getAuthToken, getDaemonUrl} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import {getActiveProject, getAuthToken, getDaemonUrl} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 
 const SSE_SILENCE_TIMEOUT_MS: number = 45_000
 const RECONNECT_DELAY_MS: number = 3_000
@@ -37,11 +37,11 @@ const RECONNECT_DELAY_MS: number = 3_000
  */
 export interface FrameClassification {
     /**
-     * Frame's authoritative vault. The loop applies the vault-switch
-     * fence: a frame whose vault does not match `getActiveVault()` is
+     * Frame's authoritative project. The loop applies the project-switch
+     * fence: a frame whose project does not match `getActiveProject()` is
      * silently dropped (no handler call, no seq advance).
      */
-    readonly vault: string
+    readonly project: string
     /**
      * Seq value the loop should advance `lastSeenSeq` to (using `Math.max`).
      * For envelopes this is the envelope seq; for gaps this is the gap's
@@ -76,7 +76,7 @@ export interface SseTopicConfig<F> {
      */
     readonly parseBlock: (block: string) => F | null
     /**
-     * Classify a parsed frame — vault for fence, seq for resume cursor,
+     * Classify a parsed frame — project for fence, seq for resume cursor,
      * deliver flag for the handler. Return null to drop entirely (e.g.
      * a frame whose discriminator is recognised but whose payload is
      * malformed).
@@ -101,10 +101,10 @@ export interface SseSubscriptionRunner {
 /**
  * Build a subscription runner for one topic. Each call returns a fresh
  * runner with its own state — `agent-events` and `terminal-registry`
- * each hold their own runner module-level so vault-switch can tear them
+ * each hold their own runner module-level so project-switch can tear them
  * down independently.
  *
- * The handler receives only frames that (a) passed the vault fence and
+ * The handler receives only frames that (a) passed the project fence and
  * (b) had `deliver: true` from `classifyFrame`.
  */
 export function createSseSubscriptionRunner<F>(
@@ -176,13 +176,13 @@ export function createSseSubscriptionRunner<F>(
                 if (frame === null) continue
                 const classification: FrameClassification | null = config.classifyFrame(frame)
                 if (classification === null) continue
-                // Vault-switch fence — drop frames addressed to the prior
-                // vault. The fence consults the synchronous accessor on
+                // Project-switch fence — drop frames addressed to the prior
+                // project. The fence consults the synchronous accessor on
                 // `daemon-url-binding`, authoritative the instant
-                // `bindVtDaemonForVault` resolves (see its `chain<T>`
+                // `bindVtDaemonForProject` resolves (see its `chain<T>`
                 // serialisation).
-                const activeVault: string | null = getActiveVault()
-                if (activeVault === null || classification.vault !== activeVault) continue
+                const activeProject: string | null = getActiveProject()
+                if (activeProject === null || classification.project !== activeProject) continue
                 if (classification.advanceSeq !== null) {
                     lastSeenSeq = Math.max(lastSeenSeq, classification.advanceSeq)
                 }

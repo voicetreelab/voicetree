@@ -12,8 +12,8 @@ import {
     record,
     SESSION_A,
     TERMINAL_A,
-    VAULT_HASH,
-    VAULT_PATH,
+    PROJECT_HASH,
+    PROJECT_PATH,
 } from './classifier.test-fixtures'
 
 void _ignored
@@ -22,10 +22,10 @@ const FOREIGN_HASH = 'f6e7d8c9b0'
 
 function makeDeps(overrides: Partial<DiscoverRecoveryDeps> = {}): DiscoverRecoveryDeps {
     return {
-        readVaultMetadataDir: async () => [],
+        readProjectMetadataDir: async () => [],
         listLiveUnclaimedTmuxSessions: async () => [],
         getRegistryTerminalIds: () => new Set<string>(),
-        getCurrentNamespaceHash: async () => VAULT_HASH,
+        getCurrentNamespaceHash: async () => PROJECT_HASH,
         ...overrides,
     }
 }
@@ -34,15 +34,15 @@ function makeUnclaimed(overrides: Partial<UnclaimedTmuxSession> = {}): Unclaimed
     return {
         sessionName: SESSION_A,
         terminalId: TERMINAL_A,
-        hash: VAULT_HASH,
-        classification: 'this-vault',
+        hash: PROJECT_HASH,
+        classification: 'this-project',
         attachable: true,
         createdAt: 1_700_000_000_000,
         panePid: 1234,
         agentName: 'Ari',
-        projectRoot: VAULT_PATH,
-        contextNodePath: '/vault/node.md',
-        taskNodePath: '/vault/task.md',
+        projectRoot: PROJECT_PATH,
+        contextNodePath: '/project/node.md',
+        taskNodePath: '/project/task.md',
         ...overrides,
     }
 }
@@ -58,7 +58,7 @@ function metadataRecord(data: unknown, path = METADATA_PATH_A): MetadataRecord {
 describe('discoverRecoverableAgentSessions — resume capability', () => {
     it('attaches a resume capability for Claude when metadata identifies a Claude CLI', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
         }))
         expect(rows).toHaveLength(1)
         const row: RecoverableAgentSession = rows[0]
@@ -69,7 +69,7 @@ describe('discoverRecoverableAgentSessions — resume capability', () => {
 
     it('attaches a resume capability for Codex when metadata identifies a Codex CLI', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningCodexMetadata(), '/vault/.voicetree/terminals/B.json')],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningCodexMetadata(), '/project/.voicetree/terminals/B.json')],
         }))
         expect(rows).toHaveLength(1)
         expect(rows[0].resume?.cliType).toBe('codex')
@@ -77,7 +77,7 @@ describe('discoverRecoverableAgentSessions — resume capability', () => {
 
     it('omits resume for unsupported CLIs (no nativeSessionId field surfaces in this design)', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
                 terminalData: makeTerminalData({initialCommand: 'gemini'}),
             }))],
         }))
@@ -85,9 +85,9 @@ describe('discoverRecoverableAgentSessions — resume capability', () => {
         expect(rows).toHaveLength(0)
     })
 
-    it('omits resume for foreign-vault records', async () => {
+    it('omits resume for foreign-project records', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
                 session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
             }))],
         }))
@@ -99,13 +99,13 @@ describe('discoverRecoverableAgentSessions — resume capability', () => {
         // session-id resolver. Even if .claude/projects contained millions of
         // .jsonl files, this code path would not read any of them.
         const deps: DiscoverRecoveryDeps = makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
         })
         expect(Object.keys(deps).sort()).toEqual([
             'getCurrentNamespaceHash',
             'getRegistryTerminalIds',
             'listLiveUnclaimedTmuxSessions',
-            'readVaultMetadataDir',
+            'readProjectMetadataDir',
         ])
         const rows = await discoverRecoverableAgentSessions(deps)
         expect(rows).toHaveLength(1)
@@ -121,7 +121,7 @@ describe('discoverRecoverableAgentSessions — attach capability', () => {
     it('attaches an attach capability when the tmux session is alive and matches an unclaimed listing', async () => {
         const unclaimed: UnclaimedTmuxSession = makeUnclaimed()
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
             listLiveUnclaimedTmuxSessions: async () => [unclaimed],
         }))
         expect(rows).toHaveLength(1)
@@ -131,7 +131,7 @@ describe('discoverRecoverableAgentSessions — attach capability', () => {
     it('attaches BOTH attach AND resume capabilities when tmux is alive AND metadata identifies a supported CLI', async () => {
         const unclaimed: UnclaimedTmuxSession = makeUnclaimed()
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
             listLiveUnclaimedTmuxSessions: async () => [unclaimed],
         }))
         expect(rows).toHaveLength(1)
@@ -141,12 +141,12 @@ describe('discoverRecoverableAgentSessions — attach capability', () => {
 
     it('surfaces a live unclaimed tmux session that has no matching metadata file', async () => {
         const orphan: UnclaimedTmuxSession = makeUnclaimed({
-            sessionName: `vt-${VAULT_HASH}-Orphan`,
+            sessionName: `vt-${PROJECT_HASH}-Orphan`,
             terminalId: 'Orphan',
             agentName: 'Orphan',
         })
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [],
+            readProjectMetadataDir: async () => [],
             listLiveUnclaimedTmuxSessions: async () => [orphan],
         }))
         expect(rows).toHaveLength(1)
@@ -157,7 +157,7 @@ describe('discoverRecoverableAgentSessions — attach capability', () => {
     it('does not duplicate a terminal that appears in both metadata classification and live unclaimed list', async () => {
         const unclaimed: UnclaimedTmuxSession = makeUnclaimed()
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
             listLiveUnclaimedTmuxSessions: async () => [unclaimed],
         }))
         expect(rows).toHaveLength(1)
@@ -171,7 +171,7 @@ describe('discoverRecoverableAgentSessions — attach capability', () => {
 describe('discoverRecoverableAgentSessions — surfacing rules', () => {
     it('surfaces claimed terminals with isClaimed=true (so live tabs can offer fork-on-hover)', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
             getRegistryTerminalIds: () => new Set([TERMINAL_A]),
         }))
         expect(rows).toHaveLength(1)
@@ -181,24 +181,24 @@ describe('discoverRecoverableAgentSessions — surfacing rules', () => {
 
     it('surfaces an exited record (resume capability comes from metadata, not transcript presence)', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({status: 'exited'}))],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({status: 'exited'}))],
         }))
         expect(rows).toHaveLength(1)
         expect(rows[0].resume?.cliType).toBe('claude')
     })
 
-    it('drops foreign-vault records', async () => {
+    it('drops foreign-project records', async () => {
         const foreignSession = `vt-${FOREIGN_HASH}-${TERMINAL_A}`
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({session: foreignSession}))],
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({session: foreignSession}))],
         }))
         expect(rows).toHaveLength(0)
     })
 
     it('skips invalid metadata records but still returns valid ones', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [
-                metadataRecord({not: 'valid metadata'}, '/vault/.voicetree/terminals/bad.json'),
+            readProjectMetadataDir: async () => [
+                metadataRecord({not: 'valid metadata'}, '/project/.voicetree/terminals/bad.json'),
                 metadataRecord(makeRunningClaudeMetadata()),
             ],
         }))
@@ -206,8 +206,8 @@ describe('discoverRecoverableAgentSessions — surfacing rules', () => {
         expect(rows[0].terminalId).toBe(TERMINAL_A)
     })
 
-    it('returns empty when the vault metadata dir is empty and no live sessions', async () => {
-        const rows = await discoverRecoverableAgentSessions(makeDeps({readVaultMetadataDir: async () => []}))
+    it('returns empty when the project metadata dir is empty and no live sessions', async () => {
+        const rows = await discoverRecoverableAgentSessions(makeDeps({readProjectMetadataDir: async () => []}))
         expect(rows).toEqual([])
     })
 })
@@ -218,7 +218,7 @@ describe('discoverRecoverableAgentSessions — surfacing rules', () => {
 
 describe('discoverRecoverableAgentSessions — ordering', () => {
     it('places unclaimed rows before claimed rows, attach-bearing rows before resume-only rows', async () => {
-        const unclaimedSession = `vt-${VAULT_HASH}-AttachOnly`
+        const unclaimedSession = `vt-${PROJECT_HASH}-AttachOnly`
         const attachOnly: UnclaimedTmuxSession = makeUnclaimed({
             sessionName: unclaimedSession,
             terminalId: 'AttachOnly',
@@ -236,14 +236,14 @@ describe('discoverRecoverableAgentSessions — ordering', () => {
             terminalData: makeTerminalData({
                 terminalId: 'Claimed' as ReturnType<typeof makeTerminalData>['terminalId'],
                 initialCommand: 'claude',
-                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Claimed', VOICETREE_VAULT_PATH: VAULT_PATH},
+                initialEnvVars: {VOICETREE_TERMINAL_ID: 'Claimed', VOICETREE_PROJECT_PATH: PROJECT_PATH},
             }),
         })
         const rows = await discoverRecoverableAgentSessions(makeDeps({
-            readVaultMetadataDir: async () => [
-                metadataRecord(attachOnlyMeta, '/vault/.voicetree/terminals/AttachOnly.json'),
+            readProjectMetadataDir: async () => [
+                metadataRecord(attachOnlyMeta, '/project/.voicetree/terminals/AttachOnly.json'),
                 metadataRecord(resumableA, METADATA_PATH_A),
-                metadataRecord(claimedMeta, '/vault/.voicetree/terminals/Claimed.json'),
+                metadataRecord(claimedMeta, '/project/.voicetree/terminals/Claimed.json'),
             ],
             listLiveUnclaimedTmuxSessions: async () => [attachOnly],
             getRegistryTerminalIds: () => new Set(['Claimed']),

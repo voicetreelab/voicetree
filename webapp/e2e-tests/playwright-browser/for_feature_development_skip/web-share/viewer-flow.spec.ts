@@ -1,20 +1,20 @@
 import { test, expect } from '@playwright/test'
 import {
-  uploadMinimalVaultViaAPI,
+  uploadMinimalProjectViaAPI,
   navigateToViewer,
   assertGraphVisible,
 } from './helpers'
 
 test.describe('Viewer Flow', () => {
-  test('viewer loads graph from uploaded vault', async ({ page }) => {
-    const shareId = await uploadMinimalVaultViaAPI()
+  test('viewer loads graph from uploaded project', async ({ page }) => {
+    const shareId = await uploadMinimalProjectViaAPI()
     await navigateToViewer(page, shareId)
     await page.waitForSelector('text=Loading graph', { state: 'hidden', timeout: 30_000 })
     await assertGraphVisible(page)
   })
 
   test('graph container has non-zero dimensions', async ({ page }) => {
-    const shareId = await uploadMinimalVaultViaAPI()
+    const shareId = await uploadMinimalProjectViaAPI()
     await navigateToViewer(page, shareId)
     await page.waitForSelector('text=Loading graph', { state: 'hidden', timeout: 30_000 })
 
@@ -27,7 +27,7 @@ test.describe('Viewer Flow', () => {
   })
 
   test('loading indicator shows then disappears', async ({ page }) => {
-    const shareId = await uploadMinimalVaultViaAPI()
+    const shareId = await uploadMinimalProjectViaAPI()
     await page.goto(`/share/${shareId}`)
 
     // Assert loading text appears initially

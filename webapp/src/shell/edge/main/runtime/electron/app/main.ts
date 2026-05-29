@@ -71,7 +71,7 @@ if (app.isPackaged) {
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Note: vt-daemon's MCP server runs out-of-process inside the per-vault VTD
+// Note: vt-daemon's MCP server runs out-of-process inside the per-project VTD
 // child. The in-process `configureMcpServer` call that used to live here
 // wired in-process bridges (`getMcpGraph`, `getLiveStateBridge`, …) against
 // vt-daemon's module-level state. After BF-375/BF-376 those bridges are
@@ -136,7 +136,7 @@ let textToTreeServerPort: number | null = null;
 // (the events client reschedules and the terminal-attach bridge only opens
 // upstream WS on demand). Post-Phase-2 (BF-375): the bridges resolve the
 // daemon URL + auth token via daemon-url-binding, which re-ensures the
-// per-vault VTD on every access.
+// per-project VTD on every access.
 const teardownVtDaemonEventsBridge: () => void = installVtDaemonEventsBridge({
     getMainWindow,
     getDaemonUrl,
@@ -149,7 +149,7 @@ const teardownVtTerminalAttachBridge: () => void = installVtTerminalAttachBridge
 });
 
 // Bridge terminal-registry cache mutations (driven by SSE deltas + the
-// vault-open cold-start prime) to the renderer / completion notifier /
+// project-open cold-start prime) to the renderer / completion notifier /
 // recovery pollers. The local cache mirror is the canonical change
 // source — agent-runtime is daemon-side post-BF-376.
 const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
@@ -168,8 +168,8 @@ void app.whenReady().then(async () => {
     registerGraphIpcHandlers();
     setupApplicationMenu();
 
-    // The per-vault VTD child is spawned (or adopted) on-demand by
-    // openVault → bindVtDaemonForVault; tmux preflight / server ensure /
+    // The per-project VTD child is spawned (or adopted) on-demand by
+    // openProject → bindVtDaemonForProject; tmux preflight / server ensure /
     // headless reconciliation all run inside the daemon at boot. The
     // lifecycle JSONL telemetry sink is installed by `vtd.ts:333` — Main
     // is a client and observes the events via the `terminal-registry`
@@ -178,7 +178,7 @@ void app.whenReady().then(async () => {
     // Register this instance for vt-debug discovery
     await registerInstance();
 
-    // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
+    // Reap leftover vt-graphd daemons whose project paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
     const orphanCleanup: ReturnType<typeof killOrphanVtGraphdDaemons> = killOrphanVtGraphdDaemons();

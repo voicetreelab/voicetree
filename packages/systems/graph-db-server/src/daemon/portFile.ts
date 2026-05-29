@@ -9,16 +9,16 @@ type WritePortFileOptions = {
   readonly tempSuffix?: string
 }
 
-function portPathFor(vaultDir: string): string {
-  return join(getProjectDotVoicetreePath(vaultDir), PORT_FILENAME)
+function portPathFor(projectDir: string): string {
+  return join(getProjectDotVoicetreePath(projectDir), PORT_FILENAME)
 }
 
 function createDefaultTempSuffix(): string {
   return `${process.pid}.${randomBytes(4).toString('hex')}`
 }
 
-function tmpPathFor(vaultDir: string, suffix: string): string {
-  return join(getProjectDotVoicetreePath(vaultDir), `${PORT_FILENAME}.tmp.${suffix}`)
+function tmpPathFor(projectDir: string, suffix: string): string {
+  return join(getProjectDotVoicetreePath(projectDir), `${PORT_FILENAME}.tmp.${suffix}`)
 }
 
 function isValidPort(port: number): boolean {
@@ -30,15 +30,15 @@ function serializePort(port: number): string {
 }
 
 export async function writePortFile(
-  vaultDir: string,
+  projectDir: string,
   port: number,
   options: WritePortFileOptions = {},
 ): Promise<void> {
   if (!isValidPort(port)) {
     throw new Error(`invalid port: ${port}`)
   }
-  const final = portPathFor(vaultDir)
-  const tmp = tmpPathFor(vaultDir, options.tempSuffix ?? createDefaultTempSuffix())
+  const final = portPathFor(projectDir)
+  const tmp = tmpPathFor(projectDir, options.tempSuffix ?? createDefaultTempSuffix())
   await writeFile(tmp, serializePort(port), 'utf8')
   try {
     await rename(tmp, final)
@@ -48,9 +48,9 @@ export async function writePortFile(
   }
 }
 
-export async function readPortFile(vaultDir: string): Promise<number | null> {
+export async function readPortFile(projectDir: string): Promise<number | null> {
   try {
-    const raw = await readFile(portPathFor(vaultDir), 'utf8')
+    const raw = await readFile(portPathFor(projectDir), 'utf8')
     const n = Number(raw.trim())
     if (!Number.isInteger(n) || n < 0 || n > 65535) return null
     return n
@@ -60,9 +60,9 @@ export async function readPortFile(vaultDir: string): Promise<number | null> {
   }
 }
 
-export async function deletePortFile(vaultDir: string): Promise<void> {
+export async function deletePortFile(projectDir: string): Promise<void> {
   try {
-    await unlink(portPathFor(vaultDir))
+    await unlink(portPathFor(projectDir))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
   }

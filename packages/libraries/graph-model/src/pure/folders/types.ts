@@ -56,7 +56,7 @@ export interface AvailableFolderItem {
 /**
  * Complete state for folder selector UI component.
  * Matches the 3-section design in ASCII Design V2:
- * - WRITING TO: Single write folder
+ * - WRITING TO: Single write folder path
  * - ALSO READING: List of read folders
  * - ADD FOLDER: Available folders with search
  */
@@ -65,11 +65,11 @@ export interface FolderSelectorState {
     readonly projectRoot: AbsolutePath | null;
 
     // === WRITING TO section ===
-    /** The currently selected write folder, or null if using project root */
-    readonly writeFolder: LoadedFolderItem | null;
+    /** The currently selected write folder path, or null if using project root */
+    readonly writeFolderPath: LoadedFolderItem | null;
 
     // === ALSO READING section ===
-    /** List of additional folders being read (not including the write folder) */
+    /** List of additional folders being read (not including the write folder path) */
     readonly readFolders: readonly LoadedFolderItem[];
 
     // === ADD FOLDER section ===
@@ -127,7 +127,7 @@ export function isFolderTreeNode(node: FolderTreeNode | FileTreeNode): node is F
  * Explicit union type instead of conditional boolean flags.
  */
 export type FolderAction =
-    | { readonly type: 'RESET_WRITE_TO_ROOT' }                          // [−] on write folder
+    | { readonly type: 'RESET_WRITE_TO_ROOT' }                          // [−] on write folder path
     | { readonly type: 'REMOVE_READ_FOLDER'; readonly path: AbsolutePath }  // [−] on read folder
     | { readonly type: 'SET_AS_WRITE'; readonly path: AbsolutePath }        // [✎ Write] or click read folder
     | { readonly type: 'ADD_AS_READ'; readonly path: AbsolutePath }         // [+ Read] button

@@ -58,7 +58,7 @@ type CommandError = {
 }
 
 type ParsedArgs =
-  | { ok: true; port?: number; pid?: number; vault?: string; forceNew?: boolean; seed?: SeedScenario }
+  | { ok: true; port?: number; pid?: number; project?: string; forceNew?: boolean; seed?: SeedScenario }
   | { ok: false; message: string; hint?: string }
 
 function parseIntFlag(raw: string, flagName: string): number {
@@ -72,7 +72,7 @@ function parseIntFlag(raw: string, flagName: string): number {
 function parseArgs(argv: string[]): ParsedArgs {
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
   let forceNew: boolean | undefined
   let seed: SeedScenario | undefined
 
@@ -87,10 +87,10 @@ function parseArgs(argv: string[]): ParsedArgs {
         pid = parseIntFlag(argv[++i] ?? '', '--pid')
       } else if (arg.startsWith('--pid=')) {
         pid = parseIntFlag(arg.slice('--pid='.length), '--pid')
-      } else if (arg === '--vault') {
-        vault = argv[++i]
-      } else if (arg.startsWith('--vault=')) {
-        vault = arg.slice('--vault='.length)
+      } else if (arg === '--project') {
+        project = argv[++i]
+      } else if (arg.startsWith('--project=')) {
+        project = arg.slice('--project='.length)
       } else if (arg === '--seed') {
         const value = argv[++i] ?? ''
         if (!VALID_SEEDS.has(value as SeedScenario)) {
@@ -117,7 +117,7 @@ function parseArgs(argv: string[]): ParsedArgs {
         return {
           ok: false,
           message: `unknown argument "${arg}"`,
-          hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed, --new',
+          hint: 'supported flags: --port, --cdpPort, --pid, --project, --seed, --new',
         }
       }
     }
@@ -125,11 +125,11 @@ function parseArgs(argv: string[]): ParsedArgs {
     return {
       ok: false,
       message: String(e),
-      hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed, --new',
+      hint: 'supported flags: --port, --cdpPort, --pid, --project, --seed, --new',
     }
   }
 
-  return { ok: true, port, pid, vault, forceNew, seed }
+  return { ok: true, port, pid, project, forceNew, seed }
 }
 
 function summarizeState(state: State): BlankState {
@@ -361,7 +361,7 @@ async function whyBlankHandler(argv: string[]): Promise<Response<unknown>> {
     return err('why-blank', parsed.message, parsed.hint, 2)
   }
 
-  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault, forceNew: parsed.forceNew })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, project: parsed.project, forceNew: parsed.forceNew })
   if (!pick.ok) {
     return err('why-blank', pick.message, pick.hint, 2)
   }

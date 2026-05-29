@@ -7,7 +7,7 @@
  */
 
 import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
-import { getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getWriteFolderPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@vt/graph-model/graph'
 import { spawnTerminalWithContextNode } from '@vt/vt-daemon-client'
 import { getVtDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
@@ -43,15 +43,15 @@ export async function runAgentOnSelectedNodes(
 
   // Get current graph and write path
   const graph: Graph = await getGraphFromDaemon()
-  const writeFolderOption: O.Option<string> = await getWriteFolder()
-  const writeFolder: string = O.getOrElse(() => '')(writeFolderOption)
+  const writeFolderPathOption: O.Option<string> = await getWriteFolderPath()
+  const writeFolderPath: string = O.getOrElse(() => '')(writeFolderPathOption)
 
   // 1. Create task node
   const taskNodeDelta: GraphDelta = createTaskNode({
     taskDescription,
     selectedNodeIds,
     graph,
-    writeFolder,
+    writeFolderPath,
     position
   })
 

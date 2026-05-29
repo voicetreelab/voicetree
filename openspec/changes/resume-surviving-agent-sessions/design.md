@@ -20,7 +20,7 @@ That covers Electron/MCP registry loss while the tmux pane is still alive. It do
 **Non-Goals:**
 - Resuming arbitrary custom CLIs or Gemini in this change.
 - Guessing a missing command from an agent name when `terminalData.initialCommand` is absent.
-- Resuming sessions from another vault namespace.
+- Resuming sessions from another project namespace.
 - Rewriting Claude/Codex local session stores. VoiceTree only reads those stores and persists the resolved native id into its own project metadata.
 - Treating every old metadata file as recoverable; exited/manual/invalid records stay non-actionable.
 
@@ -28,7 +28,7 @@ That covers Electron/MCP registry loss while the tmux pane is still alive. It do
 
 ### D1. Use `.voicetree/terminals` metadata as the source for dead-pane resume candidates
 
-**Choice:** Add a pure classifier that reads terminal metadata records and live tmux state, then returns recovery candidates. A record is resumable when it belongs to the current vault, has `status: "running"`, is not in the registry, its tmux session is absent, its `terminalData.initialCommand` detects as Claude or Codex, and its metadata contains `recovery.native.sessionId`.
+**Choice:** Add a pure classifier that reads terminal metadata records and live tmux state, then returns recovery candidates. A record is resumable when it belongs to the current project, has `status: "running"`, is not in the registry, its tmux session is absent, its `terminalData.initialCommand` detects as Claude or Codex, and its metadata contains `recovery.native.sessionId`.
 
 **Rationale:**
 - The metadata already contains the terminal id, context/task attachment, parent terminal, initial spawn directory, initial env vars, initial command, agent name, and display metadata needed to rebuild the VoiceTree terminal record.
@@ -82,8 +82,8 @@ Non-actionable records can be returned only for diagnostics/tests, or omitted fr
 
 **Choice:** Add provider-specific resolver functions that read Claude/Codex global state shortly after spawn and write the resolved native id into the existing per-agent terminal metadata file:
 
-- Claude: scan recently modified `~/.claude/projects/**/*.jsonl` transcript files. Match user records whose string `message.content` contains `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`; persist the record's `sessionId`, transcript path, cwd, timestamp, and source `claude-project-transcript`.
-- Codex: query `~/.codex/state_5.sqlite` table `threads`. Match `first_user_message` on `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, constrained by recent `created_at_ms` / `updated_at_ms`; persist `id`, `rollout_path`, cwd, timestamp, and source `codex-state-index`.
+- Claude: scan recently modified `~/.claude/projects/**/*.jsonl` transcript files. Match user records whose string `message.content` contains `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`; persist the record's `sessionId`, transcript path, cwd, timestamp, and source `claude-project-transcript`.
+- Codex: query `~/.codex/state_5.sqlite` table `threads`. Match `first_user_message` on `VOICETREE_TERMINAL_ID`, `VOICETREE_PROJECT_PATH`, and `TASK_NODE_PATH`, constrained by recent `created_at_ms` / `updated_at_ms`; persist `id`, `rollout_path`, cwd, timestamp, and source `codex-state-index`.
 
 Write the result under the existing project-local record:
 
@@ -104,7 +104,7 @@ Write the result under the existing project-local record:
 
 **Rationale:**
 - The provider stores are good at proving the native id, but they are not VoiceTree project state. Persisting the resolved handle into `.voicetree/terminals/<terminalId>.json` makes future recovery independent of re-running fuzzy lookup.
-- Matching terminal id alone is unsafe because names are reused. Matching terminal id, vault path, task path, and recent timestamps scopes the lookup to the spawn that created the agent.
+- Matching terminal id alone is unsafe because names are reused. Matching terminal id, project path, task path, and recent timestamps scopes the lookup to the spawn that created the agent.
 - The resolver is impure, but the parser/matcher should be pure and black-box testable with fixture rows/records.
 - This gives Claude and Codex aligned behavior: both resolve from provider-global state, then store the exact native handle in VoiceTree metadata.
 
@@ -142,7 +142,7 @@ Write the result under the existing project-local record:
 
 - **Risk: provider global store schemas can change.** -> Keep resolvers isolated, fixture-tested, and diagnostic-only when no exact match is found.
 - **Risk: stale metadata can point at a Claude/Codex session that the external CLI can no longer resume.** -> Re-run discovery before action, surface the CLI spawn failure in the row, and leave metadata unchanged unless a new tmux process is actually registered.
-- **Risk: resolver lookup could match the wrong provider session if scoped too loosely.** -> Require terminal id, vault path, task path, and recent timestamp constraints before persisting `recovery.native.sessionId`.
+- **Risk: resolver lookup could match the wrong provider session if scoped too loosely.** -> Require terminal id, project path, task path, and recent timestamp constraints before persisting `recovery.native.sessionId`.
 - **Risk: a metadata file marked `running` after an intentional UI detach is indistinguishable from a crash if its tmux pane later dies.** -> Treat "running metadata + missing tmux + supported CLI" as user-actionable, not automatic; the user chooses Resume.
 - **Risk: duplicate recovery if another process reclaims the same terminal while the user clicks Resume.** -> The resume API must perform an action-time registry/tmux/metadata check and fail if the terminal is no longer resumable.
 - **Trade-off: unsupported CLIs are not resumable.** This is intentional until each CLI has tested resume semantics.
@@ -155,4 +155,4 @@ Write the result under the existing project-local record:
 
 ## Open Questions
 
-- Should `providerStorePath` be persisted as diagnostic metadata or only kept in logs? Persisting it helps debugging but records an absolute path outside the vault.
+- Should `providerStorePath` be persisted as diagnostic metadata or only kept in logs? Persisting it helps debugging but records an absolute path outside the project.

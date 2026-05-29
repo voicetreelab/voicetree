@@ -16,7 +16,7 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
     Add a new node to the VoiceTree structure.
 
     Args:
-        parent_file (str, optional): Path to a single parent markdown file (relative to vault or absolute).
+        parent_file (str, optional): Path to a single parent markdown file (relative to project or absolute).
                                      If not provided, uses CONTEXT_NODE_PATH env var.
         parent_files (list, optional): List of paths for multiple parents (for diamond dependencies).
                                        Takes precedence over parent_file if provided.
@@ -42,8 +42,8 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
     else:
         agent_name = os.environ.get('AGENT_NAME', 'default')
 
-    # Get vault path from environment variable
-    vault_path_env = os.environ.get('OBSIDIAN_VAULT_PATH')
+    # Get project path from environment variable
+    project_path_env = os.environ.get('OBSIDIAN_PROJECT_PATH')
 
     # Handle multiple parents (for diamond dependencies) or single parent
     if parent_files:
@@ -53,8 +53,8 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
     elif parent_file is None:
         # If parent_file not provided, use CONTEXT_NODE_PATH from environment
         source_note = os.environ.get('CONTEXT_NODE_PATH')
-        if not source_note or not vault_path_env:
-            raise ValueError("parent_file not provided and OBSIDIAN_VAULT_PATH/CONTEXT_NODE_PATH not set")
+        if not source_note or not project_path_env:
+            raise ValueError("parent_file not provided and OBSIDIAN_PROJECT_PATH/CONTEXT_NODE_PATH not set")
         parent_file = source_note
         all_parent_files = [parent_file]
     else:
@@ -63,16 +63,16 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
     # Convert parent_file to Path
     parent_path = Path(parent_file)
 
-    # Determine vault directory
+    # Determine project directory
     if parent_path.is_absolute():
         # Use the directory containing the parent file as the working directory
         full_parent_path = parent_path
-        # Find vault directory by traversing up to find a directory containing .md files
-        # or use parent's parent if it looks like a vault subdirectory
-        vault_dir = parent_path.parent
+        # Find project directory by traversing up to find a directory containing .md files
+        # or use parent's parent if it looks like a project subdirectory
+        project_dir = parent_path.parent
 
     else:
-        # For relative paths, try WATCHED_FOLDER first (default), fallback to OBSIDIAN_VAULT_PATH
+        # For relative paths, try WATCHED_FOLDER first (default), fallback to OBSIDIAN_PROJECT_PATH
         watched_folder_env = os.environ.get('WATCHED_FOLDER')
 
         # Default approach: WATCHED_FOLDER + parent_path directly
@@ -80,37 +80,37 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
             watched_folder = Path(watched_folder_env)
             full_parent_path = watched_folder / parent_path
 
-            # If this path exists, use watched_folder as vault_dir
+            # If this path exists, use watched_folder as project_dir
             if full_parent_path.exists():
-                vault_dir = watched_folder
-            # Fallback: try OBSIDIAN_VAULT_PATH with strip-prefix logic
-            elif vault_path_env:
-                vault_dir = Path(vault_path_env)
+                project_dir = watched_folder
+            # Fallback: try OBSIDIAN_PROJECT_PATH with strip-prefix logic
+            elif project_path_env:
+                project_dir = Path(project_path_env)
                 adjusted_path = parent_path
-                vault_name = vault_dir.name
-                if adjusted_path.parts and adjusted_path.parts[0] == vault_name:
+                project_name = project_dir.name
+                if adjusted_path.parts and adjusted_path.parts[0] == project_name:
                     adjusted_path = Path(*adjusted_path.parts[1:])
-                full_parent_path = vault_dir / adjusted_path
+                full_parent_path = project_dir / adjusted_path
             else:
                 # Keep the WATCHED_FOLDER path even if it doesn't exist (will fail later with clear error)
-                vault_dir = watched_folder
-        elif vault_path_env:
-            # Legacy fallback: use OBSIDIAN_VAULT_PATH with strip-prefix logic
-            vault_dir = Path(vault_path_env)
-            vault_name = vault_dir.name
-            if parent_path.parts and parent_path.parts[0] == vault_name:
+                project_dir = watched_folder
+        elif project_path_env:
+            # Legacy fallback: use OBSIDIAN_PROJECT_PATH with strip-prefix logic
+            project_dir = Path(project_path_env)
+            project_name = project_dir.name
+            if parent_path.parts and parent_path.parts[0] == project_name:
                 parent_path = Path(*parent_path.parts[1:])
-            full_parent_path = vault_dir / parent_path
+            full_parent_path = project_dir / parent_path
         else:
-            raise ValueError("WATCHED_FOLDER or OBSIDIAN_VAULT_PATH environment variable must be set for relative paths")
+            raise ValueError("WATCHED_FOLDER or OBSIDIAN_PROJECT_PATH environment variable must be set for relative paths")
     
     # Get parent directory and parent filename
     parent_dir = full_parent_path.parent
     parent_filename = full_parent_path.name
 
-    # Find max node_id across all files in the vault
+    # Find max node_id across all files in the project
     max_node_id = 0
-    for md_file in vault_dir.rglob("*.md"):
+    for md_file in project_dir.rglob("*.md"):
         # Read frontmatter to get node_id
         try:
             with open(md_file, 'r', encoding='utf-8') as f:
@@ -171,29 +171,29 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
         if pf_path.is_absolute():
             full_pf_path = pf_path
         else:
-            # Try WATCHED_FOLDER first, then OBSIDIAN_VAULT_PATH
+            # Try WATCHED_FOLDER first, then OBSIDIAN_PROJECT_PATH
             watched_folder_env = os.environ.get('WATCHED_FOLDER')
             if watched_folder_env:
                 full_pf_path = Path(watched_folder_env) / pf_path
-                if not full_pf_path.exists() and vault_path_env:
-                    # Fallback to vault path with strip-prefix
+                if not full_pf_path.exists() and project_path_env:
+                    # Fallback to project path with strip-prefix
                     adjusted = pf_path
-                    vault_name = Path(vault_path_env).name
-                    if adjusted.parts and adjusted.parts[0] == vault_name:
+                    project_name = Path(project_path_env).name
+                    if adjusted.parts and adjusted.parts[0] == project_name:
                         adjusted = Path(*adjusted.parts[1:])
-                    full_pf_path = Path(vault_path_env) / adjusted
-            elif vault_path_env:
+                    full_pf_path = Path(project_path_env) / adjusted
+            elif project_path_env:
                 adjusted = pf_path
-                vault_name = Path(vault_path_env).name
-                if adjusted.parts and adjusted.parts[0] == vault_name:
+                project_name = Path(project_path_env).name
+                if adjusted.parts and adjusted.parts[0] == project_name:
                     adjusted = Path(*adjusted.parts[1:])
-                full_pf_path = Path(vault_path_env) / adjusted
+                full_pf_path = Path(project_path_env) / adjusted
             else:
                 full_pf_path = pf_path  # Best effort
 
-        # Calculate relative path from vault root
+        # Calculate relative path from project root
         try:
-            relative_pf_path = full_pf_path.relative_to(vault_dir)
+            relative_pf_path = full_pf_path.relative_to(project_dir)
         except ValueError:
             # If can't make relative, use the filename
             relative_pf_path = full_pf_path.name
@@ -242,7 +242,7 @@ Examples:
   python3 add_new_node.py "Bob Subtask" "Implement feature X" --parent parent.md --color green --agent-name Bob
 
 Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden.
-      Vault path from OBSIDIAN_VAULT_PATH, parent defaults to CONTEXT_NODE_PATH.
+      Project path from OBSIDIAN_PROJECT_PATH, parent defaults to CONTEXT_NODE_PATH.
       Use --parent for single parent, --parents for multiple (comma-separated).
         """
     )

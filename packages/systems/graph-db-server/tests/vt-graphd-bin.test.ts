@@ -63,11 +63,11 @@ describe('vt-graphd binary shutdown', () => {
   it(
     'cleans up port + lock files on SIGTERM even when stderr pipe to parent is broken',
     async () => {
-      const vault = await mkdtemp(join(root, 'vault-'))
+      const project = await mkdtemp(join(root, 'project-'))
 
       const child: ChildProcess = spawn(
         process.execPath,
-        ['--import', TSX_IMPORT_PATH, ENTRY, '--project-root', vault],
+        ['--import', TSX_IMPORT_PATH, ENTRY, '--project-root', project],
         { detached: true, stdio: ['ignore', 'pipe', 'pipe'] },
       )
 
@@ -79,8 +79,8 @@ describe('vt-graphd binary shutdown', () => {
       // Drain stdout so the child doesn't block on a full pipe before we kill it.
       child.stdout?.on('data', () => {})
 
-      const portFile = join(vault, '.voicetree', 'graphd.port')
-      const lockFile = join(vault, '.voicetree', 'graphd.lock')
+      const portFile = join(project, '.voicetree', 'graphd.port')
+      const lockFile = join(project, '.voicetree', 'graphd.lock')
 
       const portReady = await waitForFile(portFile, 10_000)
       expect(portReady, 'daemon should have written its port file').toBe(true)

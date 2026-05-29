@@ -1,7 +1,7 @@
 /**
  * Tier 2 black-box e2e: view-switcher dropdown in the top/bottom bar.
  *
- * Opens vault A, interacts with the ViewSwitcher UI:
+ * Opens project A, interacts with the ViewSwitcher UI:
  * - dropdown shows "main" (active by default)
  * - "+ New view" creates a cloned view and activates it
  * - deleting the original "main" view (after switching away) succeeds
@@ -21,16 +21,16 @@ import {
   WEBAPP_ROOT,
   type ElectronDiagnostics,
   resolveGraphDaemonNodeBin,
-  stopSmokeGraphDaemonForVault,
+  stopSmokeGraphDaemonForProject,
   expectNoCriticalElectronErrors,
 } from '@e2e/highest-value-system/electron-smoke-helpers';
 
-type FixtureVault = {
+type FixtureProject = {
   readonly tempRoot: string;
   readonly projectRoot: string;
 };
 
-async function writeFixtureVault(projectRoot: string): Promise<void> {
+async function writeFixtureProject(projectRoot: string): Promise<void> {
   await fs.mkdir(projectRoot, { recursive: true });
   await fs.writeFile(path.join(projectRoot, 'root.md'), '# Root\n\nHello.\n', 'utf8');
 }
@@ -45,18 +45,18 @@ async function stubFolderDialog(electronApp: ElectronApplication, folderPath: st
 }
 
 const test = base.extend<{
-  fixtureVault: FixtureVault;
+  fixtureProject: FixtureProject;
   tempUserDataPath: string;
   electronDiagnostics: ElectronDiagnostics;
   electronApp: ElectronApplication;
   appWindow: Page;
 }>({
-  fixtureVault: async ({}, use) => {
+  fixtureProject: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-view-switcher-'));
-    const projectRoot = path.join(tempRoot, 'vault-a');
-    await writeFixtureVault(projectRoot);
+    const projectRoot = path.join(tempRoot, 'project-a');
+    await writeFixtureProject(projectRoot);
     await use({ tempRoot, projectRoot });
-    stopSmokeGraphDaemonForVault(projectRoot);
+    stopSmokeGraphDaemonForProject(projectRoot);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
@@ -141,20 +141,20 @@ test.describe('view-switcher dropdown', () => {
   test('shows "main" as active view and allows creating + switching views', async ({
     appWindow,
     electronApp,
-    fixtureVault,
+    fixtureProject,
     electronDiagnostics,
   }) => {
-    // Open vault via "Open existing folder" button
+    // Open project via "Open existing folder" button
     const openButton = appWindow.getByRole('button', { name: /open existing folder/i });
     await expect(openButton).toBeVisible({ timeout: 30000 });
 
-    await stubFolderDialog(electronApp, fixtureVault.projectRoot);
+    await stubFolderDialog(electronApp, fixtureProject.projectRoot);
     await openButton.click();
 
-    // Wait for vault to open (bottom-bar should show vault name)
+    // Wait for project to open (bottom-bar should show project name)
     await expect(
       appWindow.locator('button[title="Project root – agents spawn here by default"]'),
-    ).toContainText(path.basename(fixtureVault.projectRoot), { timeout: 60000 });
+    ).toContainText(path.basename(fixtureProject.projectRoot), { timeout: 60000 });
 
     // ViewSwitcher trigger should exist and show "main"
     const trigger = appWindow.getByTestId('view-switcher-trigger');

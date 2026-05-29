@@ -90,15 +90,15 @@ export interface StartHttpDaemonOptions {
      */
     readonly readHealth?: () => VtDaemonHealthResponse
     /**
-     * Canonical vault path. Stamped into every `agent-events` SSE envelope
-     * so consumers can apply the vault-switch fence
-     * (`specs/main-host-purity/spec.md` §"Vault-switch fence drops stale
+     * Canonical project path. Stamped into every `agent-events` SSE envelope
+     * so consumers can apply the project-switch fence
+     * (`specs/main-host-purity/spec.md` §"Project-switch fence drops stale
      * events"). Optional during decomposition: when absent, the agent-events
      * SSE route returns 503 with an explanatory body so the unwired state
      * is observable rather than silently emitting envelopes with an empty
-     * vault.
+     * project.
      */
-    readonly canonicalVault?: string
+    readonly canonicalProject?: string
     /**
      * Resolved per attach so a settings flip takes effect on the next
      * connection without restarting the daemon. Defaults to mouse off
@@ -248,7 +248,7 @@ function buildRequestHandler(
     token: string,
     logger: AccessLogger,
     readHealth: (() => VtDaemonHealthResponse) | undefined,
-    canonicalVault: string | undefined,
+    canonicalProject: string | undefined,
 ): (req: IncomingMessage, res: ServerResponse) => void {
     return (req: IncomingMessage, res: ServerResponse): void => {
         const method: string = req.method ?? 'GET'
@@ -263,7 +263,7 @@ function buildRequestHandler(
         // /health is the ONLY unauthenticated route. Placement BEFORE the
         // isAuthorized gate is intentional and load-bearing: BF-373's
         // ensure path invokes probeOwnerHealth BEFORE it has read
-        // <vault>/.voicetree/auth-token — that probe IS the gate that
+        // <project>/.voicetree/auth-token — that probe IS the gate that
         // decides whether to read the token. Gating /health on auth would
         // chicken-and-egg the discovery path. Mirrors graphd's
         // unauthenticated /health.
@@ -294,16 +294,16 @@ function buildRequestHandler(
             const pathname: string = new URL(url, 'http://127.0.0.1').pathname
             const agentEventsSessionId: string | null = matchAgentEventsPath(pathname)
             if (agentEventsSessionId !== null) {
-                if (canonicalVault === undefined) {
+                if (canonicalProject === undefined) {
                     res.statusCode = 503
                     res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({error: 'agent-events sse not wired (canonicalVault unset)'}))
+                    res.end(JSON.stringify({error: 'agent-events sse not wired (canonicalProject unset)'}))
                     logger.logRequest(buildAccessLogLine(req, 503))
                     return
                 }
                 handleAgentEventsSse(req, res, {
                     hub,
-                    canonicalVault,
+                    canonicalProject,
                     resumeSeq: parseSinceQuery(url),
                 })
                 // SSE is long-lived; log the open here so we still see the
@@ -314,16 +314,16 @@ function buildRequestHandler(
             }
             const terminalRegistrySessionId: string | null = matchTerminalRegistryPath(pathname)
             if (terminalRegistrySessionId !== null) {
-                if (canonicalVault === undefined) {
+                if (canonicalProject === undefined) {
                     res.statusCode = 503
                     res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({error: 'terminal-registry sse not wired (canonicalVault unset)'}))
+                    res.end(JSON.stringify({error: 'terminal-registry sse not wired (canonicalProject unset)'}))
                     logger.logRequest(buildAccessLogLine(req, 503))
                     return
                 }
                 handleTerminalRegistrySse(req, res, {
                     hub,
-                    canonicalVault,
+                    canonicalProject,
                     resumeSeq: parseSinceQuery(url),
                 })
                 logger.logRequest(buildAccessLogLine(req, 200))
@@ -410,7 +410,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
     const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring({getTmuxMouseMode: options.getTmuxMouseMode})
 
     const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth, options.canonicalVault,
+        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth, options.canonicalProject,
     ))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 
@@ -442,7 +442,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
                 // new upgrades but leaves existing clients connected; without
                 // this, server.close() blocks until each client's ping/idle
                 // timer fires (~10s with the default ws keepalive). On
-                // shutdown — including vault rebind — we are intentionally
+                // shutdown — including project rebind — we are intentionally
                 // dropping in-flight work, so a graceful drain has no value.
                 for (const client of wss.clients) client.terminate()
                 wss.close((): void => {

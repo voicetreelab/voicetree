@@ -27,7 +27,7 @@ type ErrorResponse = Extract<Response<never>, { ok: false }>
 type EvalOptions = {
   port?: number
   pid?: number
-  vault?: string
+  project?: string
   forceNew?: boolean
   source: string
 }
@@ -285,7 +285,7 @@ function parseIntFlag(command: string, flag: string, rawValue: string | undefine
 function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
   let forceNew: boolean | undefined
   const sourceParts: string[] = []
   let parsingFlags = true
@@ -326,17 +326,17 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
       continue
     }
 
-    if (parsingFlags && arg === '--vault') {
+    if (parsingFlags && arg === '--project') {
       const next = argv[++i]
       if (!next || next.startsWith('--')) {
-        return err('eval', '--vault requires a value')
+        return err('eval', '--project requires a value')
       }
-      vault = next
+      project = next
       continue
     }
 
-    if (parsingFlags && arg.startsWith('--vault=')) {
-      vault = arg.slice('--vault='.length)
+    if (parsingFlags && arg.startsWith('--project=')) {
+      project = arg.slice('--project='.length)
       continue
     }
 
@@ -354,13 +354,13 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
   }
 
   if (sourceParts.length === 0) {
-    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--cdpPort N|--pid N|--vault PATH|--new]')
+    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--cdpPort N|--pid N|--project PATH|--new]')
   }
 
   return {
     port,
     pid,
-    vault,
+    project,
     forceNew,
     source: sourceParts.join(' '),
   }
@@ -409,7 +409,7 @@ async function evalHandler(argv: string[]): Promise<Response<unknown>> {
   const pick = await resolveDebugInstance({
     port: parsed.port,
     pid: parsed.pid,
-    vault: parsed.vault,
+    project: parsed.project,
     forceNew: parsed.forceNew,
   })
 

@@ -2,11 +2,11 @@
 //
 // Returns the daemon-owned agent-metrics surface as
 // `{ sessions: SessionMetric[] }`. Both Electron Main (as a client) and any
-// CLI peer reach the same per-vault file via this call — the daemon is the
+// CLI peer reach the same per-project file via this call — the daemon is the
 // single authority, no Main-side `getMetrics()` re-export is involved.
 
 import {getSessions, type SessionMetric} from '../observability/agentMetricsStore.ts'
-import {getCurrentVault} from '../state/currentVault.ts'
+import {getCurrentProject} from '../state/currentProject.ts'
 
 import {buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
@@ -17,7 +17,7 @@ export interface GetSessionsResult {
 
 export async function getSessionsTool(): Promise<McpToolResponse> {
     try {
-        const sessions: readonly SessionMetric[] = await getSessions(getCurrentVault())
+        const sessions: readonly SessionMetric[] = await getSessions(getCurrentProject())
         return buildJsonResponse({sessions} satisfies GetSessionsResult)
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)

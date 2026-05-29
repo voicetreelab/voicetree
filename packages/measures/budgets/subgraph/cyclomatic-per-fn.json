@@ -8,7 +8,7 @@
     "app-config/positions": 4,
     "app-config/project": 7,
     "app-config/settings": 7,
-    "app-config/vault-config": 5,
+    "app-config/project-config": 5,
     "graph-db-client/__root__": 9,
     "graph-db-client/autoLaunch": 12,
     "graph-db-client/client": 12,

@@ -3,7 +3,7 @@
  *
  * Records every hook firing (Claude Code / Codex / SDK) with timestamp and
  * agent type, into both an in-memory ring buffer (10k events) for live
- * snapshots and an optional sink (the JSONL file at APP_SUPPORT/
+ * snapshots and an optional sink (the JSONL file at VOICETREE_HOME/
  * lifecycle-telemetry.jsonl).
  *
  * Useful for spotting regressions: if hooks stop firing for a supported

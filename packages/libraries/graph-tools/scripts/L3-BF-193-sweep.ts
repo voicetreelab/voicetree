@@ -35,7 +35,7 @@ type SweepFixture = {
 }
 
 type SweepRow = {
-    readonly vault: string
+    readonly project: string
     readonly a_G: number
     readonly n_nodes: number
     readonly n_edges: number
@@ -66,8 +66,8 @@ function runCommand(command: string, args: readonly string[]): string {
     })
 }
 
-function dumpState(vaultRoot: string, outPath: string): JsonState {
-    runCommand(VT_GRAPH_BIN, ['state', 'dump', vaultRoot, '--no-pretty', '--out', outPath])
+function dumpState(projectRoot: string, outPath: string): JsonState {
+    runCommand(VT_GRAPH_BIN, ['state', 'dump', projectRoot, '--no-pretty', '--out', outPath])
     return JSON.parse(fs.readFileSync(outPath, 'utf8')) as JsonState
 }
 
@@ -78,11 +78,11 @@ function stripCrossLinksFooter(text: string): string {
     return `${text.slice(0, markerIndex).trimEnd()}\n`
 }
 
-function renderFormat(format: 'A' | 'B' | 'C' | 'E', vaultRoot: string, statePath: string): string {
-    if (format === 'A') return stripCrossLinksFooter(runCommand(VT_GRAPH_BIN, ['view', vaultRoot]))
-    if (format === 'B') return runCommand(VT_GRAPH_BIN, ['view', vaultRoot, '--mermaid'])
-    if (format === 'C') return runCommand(VT_GRAPH_BIN, ['view', vaultRoot])
-    return runCommand('npx', ['tsx', TREE_COVER_SCRIPT, statePath, vaultRoot])
+function renderFormat(format: 'A' | 'B' | 'C' | 'E', projectRoot: string, statePath: string): string {
+    if (format === 'A') return stripCrossLinksFooter(runCommand(VT_GRAPH_BIN, ['view', projectRoot]))
+    if (format === 'B') return runCommand(VT_GRAPH_BIN, ['view', projectRoot, '--mermaid'])
+    if (format === 'C') return runCommand(VT_GRAPH_BIN, ['view', projectRoot])
+    return runCommand('npx', ['tsx', TREE_COVER_SCRIPT, statePath, projectRoot])
 }
 
 function deriveTitle(content: string, fallbackBasename: string): string {
@@ -246,15 +246,15 @@ function scoreAsciiFormat(text: string, jsonInfo: ReturnType<typeof buildJsonNod
     }
 }
 
-function scoreTreeCoverFormat(text: string, state: JsonState, vaultRoot: string): {readonly nodeFidelity: number; readonly edgeFidelity: number} {
+function scoreTreeCoverFormat(text: string, state: JsonState, projectRoot: string): {readonly nodeFidelity: number; readonly edgeFidelity: number} {
     const parsed = parseTreeCover(text)
-    const jsonNodeIds: Set<string> = new Set(Object.keys(state.graph.nodes).map(id => relId(id, vaultRoot)))
+    const jsonNodeIds: Set<string> = new Set(Object.keys(state.graph.nodes).map(id => relId(id, projectRoot)))
     const jsonEdges: Set<string> = new Set()
     for (const [srcAbs, node] of Object.entries(state.graph.nodes)) {
-        const src: string = relId(srcAbs, vaultRoot)
+        const src: string = relId(srcAbs, projectRoot)
         for (const edge of node.outgoingEdges) {
             if (edge.targetId === srcAbs) continue
-            jsonEdges.add(`${src}|${relId(edge.targetId, vaultRoot)}`)
+            jsonEdges.add(`${src}|${relId(edge.targetId, projectRoot)}`)
         }
     }
 
@@ -362,7 +362,7 @@ function approximateTokens(text: string): number {
 
 function csvLine(row: SweepRow): string {
     return [
-        row.vault,
+        row.project,
         String(row.a_G),
         String(row.n_nodes),
         String(row.n_edges),
@@ -389,7 +389,7 @@ function measureFixture(fixture: SweepFixture, tempDir: string): readonly SweepR
         }
     }
     const a_G: number = computeArboricity(jsonInfo.nodes.length, directedEdges).arboricityUpperBound
-    const baseRow = {vault: fixture.name, a_G, n_nodes: jsonInfo.nodes.length, n_edges: jsonEdges.length}
+    const baseRow = {project: fixture.name, a_G, n_nodes: jsonInfo.nodes.length, n_edges: jsonEdges.length}
 
     return (['A', 'C', 'E', 'B'] as const).map(format => {
         const text: string = renderFormat(format, absRoot, statePath)
@@ -449,23 +449,23 @@ function main(): void {
 
     const syntheticFixtures: readonly GeneratedFixture[] = ensureSyntheticFixtures(fixturesRoot, seed)
     const fixtures: readonly SweepFixture[] = [
-        {name: 'brain/knowledge/world-model', root: 'brain/knowledge/world-model', description: 'Real vault anchor from BF-192.'},
+        {name: 'brain/knowledge/world-model', root: 'brain/knowledge/world-model', description: 'Real project anchor from BF-192.'},
         ...syntheticFixtures.map(fixture => ({name: fixture.name, root: fixture.root, description: fixture.description})),
     ]
 
     const tempDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'bf193-sweep-'))
     const rows: SweepRow[] = fixtures.flatMap(fixture => measureFixture(fixture, tempDir))
-    rows.sort((left, right) => left.a_G - right.a_G || left.vault.localeCompare(right.vault) || left.format.localeCompare(right.format))
+    rows.sort((left, right) => left.a_G - right.a_G || left.project.localeCompare(right.project) || left.format.localeCompare(right.format))
 
     const csv: string = [
-        'vault,a_G,n_nodes,n_edges,format,tokens,node_fidelity,edge_fidelity,co_location_mean',
+        'project,a_G,n_nodes,n_edges,format,tokens,node_fidelity,edge_fidelity,co_location_mean',
         ...rows.map(csvLine),
     ].join('\n') + '\n'
 
     fs.writeFileSync(csvOut, csv, 'utf8')
     console.log(`Wrote ${rows.length} rows to ${csvOut}`)
     for (const fixture of fixtures) {
-        const fixtureRows: SweepRow[] = rows.filter(row => row.vault === fixture.name)
+        const fixtureRows: SweepRow[] = rows.filter(row => row.project === fixture.name)
         const edgeSummary: string = fixtureRows.map(row => `${row.format}:${row.edge_fidelity.toFixed(1)}%`).join(' ')
         console.log(`- ${fixture.name} a=${fixtureRows[0]?.a_G ?? 'n/a'} edges=${fixtureRows[0]?.n_edges ?? 'n/a'} ${edgeSummary}`)
     }

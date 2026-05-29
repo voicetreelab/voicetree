@@ -2,7 +2,7 @@
 
 The `vt` command-line tool for [Voicetree](https://github.com/lochlan-hill/voicetree).
 A backend CLI that runs headless on macOS, Linux, and WSL: spawn coding agents,
-inspect and mutate vault graphs, run the local Voicetree daemon, and search
+inspect and mutate project graphs, run the local Voicetree daemon, and search
 indexed notes — decoupled from the Electron app so it can be embedded by other
 runtimes and scripted independently.
 
@@ -21,7 +21,7 @@ vt --help            # list all top-level commands
 vt manual            # print the canonical CLI manual
 vt manual <tool>     # print the manual section for one tool
 
-vt serve --vault <path>     # start the headless daemon for a vault
+vt serve --project <path>     # start the headless daemon for a project
 vt graph live <args...>     # live graph operations
 vt agent spawn <args...>    # spawn a coding agent
 ```

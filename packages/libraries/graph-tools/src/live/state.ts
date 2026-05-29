@@ -3,7 +3,7 @@ import path from 'node:path'
 
 import {
     applyCommand,
-    buildStateFromVault,
+    buildStateFromProject,
     hydrateCommand,
     hydrateState,
     serializeState,
@@ -91,7 +91,7 @@ export async function dumpState(rootPath: string, options: StateDumpOptions = {}
 
     const pretty: boolean = options.pretty !== false
     const resolvedRootPath = path.resolve(rootPath)
-    const serializedState = serializeState(await buildStateFromVault(resolvedRootPath, resolvedRootPath))
+    const serializedState = serializeState(await buildStateFromProject(resolvedRootPath, resolvedRootPath))
     const json: string = formatStateJson(serializedState, pretty)
 
     if (options.outFile) {

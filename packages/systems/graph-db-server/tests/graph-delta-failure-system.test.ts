@@ -30,17 +30,17 @@ function upsertDelta(node: GraphNode): GraphDelta {
 
 describe('@vt/graph-db-server graph delta failure handling', () => {
   let root: string
-  let vault: string
+  let project: string
   let handle: DaemonHandle | null
   let baseUrl: string
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphd-delta-failure-'))
-    vault = path.join(root, 'vault')
-    await mkdir(vault, { recursive: true })
+    project = path.join(root, 'project')
+    await mkdir(project, { recursive: true })
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
       createStarterIfEmpty: false,
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
@@ -53,7 +53,7 @@ describe('@vt/graph-db-server graph delta failure handling', () => {
   })
 
   it('leaves graph memory unchanged when a delta cannot be persisted', async () => {
-    const blockingFile = path.join(vault, 'not-a-directory')
+    const blockingFile = path.join(project, 'not-a-directory')
     await writeFile(blockingFile, 'blocks child writes', 'utf8')
     const nodePath = path.join(blockingFile, 'child.md')
 

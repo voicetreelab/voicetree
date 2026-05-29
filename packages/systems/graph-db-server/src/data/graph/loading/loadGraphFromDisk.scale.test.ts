@@ -6,7 +6,7 @@ import * as path from 'path'
 import normalizePath from 'normalize-path'
 
 import {
-  buildStateFromVault,
+  buildStateFromProject,
   clearRootIOForTests,
   configureRootIO,
   project,
@@ -15,11 +15,11 @@ import type { ProjectedGraph, State } from '@vt/graph-state/contract'
 
 import { loadGraphFromDisk } from './loadGraphFromDisk'
 import { getDirectoryTree } from './folderScanner'
-import { MAX_MARKDOWN_FILES_PER_VAULT_PATH } from './fileLimitEnforce'
+import { MAX_MARKDOWN_FILES_PER_PROJECT_PATH } from './fileLimitEnforce'
 
 const TOP_FOLDER_COUNT = 5
 const SUBFOLDER_COUNT = 5
-const PROFILE_FILE_COUNTS = [600, MAX_MARKDOWN_FILES_PER_VAULT_PATH] as const
+const PROFILE_FILE_COUNTS = [600, MAX_MARKDOWN_FILES_PER_PROJECT_PATH] as const
 const CROSS_FOLDER_LINK_STRIDE = 5
 // Full pre-push runs execute this profile under suite-wide CPU/IO contention; isolated runs remain well under 1s.
 const LOCAL_LOAD_AND_PROJECT_BUDGET_MS = 6000
@@ -55,7 +55,7 @@ function createNoteContent(index: number, fileCount: number, filesPerTopFolder: 
   return `# ${noteBasename(index)}\n\nScale fixture node ${index}. Links to [[${noteBasename(targetIndex)}]].\n`
 }
 
-async function seedNestedVault(root: string, fileCount: number): Promise<void> {
+async function seedNestedProject(root: string, fileCount: number): Promise<void> {
   const filesPerSubfolder = fileCount / (TOP_FOLDER_COUNT * SUBFOLDER_COUNT)
   expect(Number.isInteger(filesPerSubfolder)).toBe(true)
 
@@ -79,9 +79,9 @@ async function seedNestedVault(root: string, fileCount: number): Promise<void> {
   await Promise.all(writes)
 }
 
-async function profileVault(projectRoot: string): Promise<ProfileResult> {
+async function profileProject(projectRoot: string): Promise<ProfileResult> {
   const startedAt = performance.now()
-  const state: State = await buildStateFromVault(projectRoot)
+  const state: State = await buildStateFromProject(projectRoot)
   const collapsedFolderId = folderIdForPath(path.join(projectRoot, 'folder-0'))
   const projected: ProjectedGraph = project({
     ...state,
@@ -91,7 +91,7 @@ async function profileVault(projectRoot: string): Promise<ProfileResult> {
   const heapUsedMiB = process.memoryUsage().heapUsed / 1024 / 1024
 
   expect(Object.keys(state.graph.nodes)).toHaveLength(
-    Number(path.basename(projectRoot).replace('vault-', '')),
+    Number(path.basename(projectRoot).replace('project-', '')),
   )
   expect(projected.nodes).toContainEqual(expect.objectContaining({
     id: collapsedFolderId,
@@ -116,18 +116,18 @@ afterEach(async () => {
   }
 })
 
-test('loadGraphFromDisk plus project handles nested vaults through the configured file cap within the local budget', async () => {
+test('loadGraphFromDisk plus project handles nested projects through the configured file cap within the local budget', async () => {
   tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'bf112-load-project-scale-'))
   configureRootIO({ loadGraphFromDisk, getDirectoryTree })
 
   const results: ProfileResult[] = []
   for (const fileCount of PROFILE_FILE_COUNTS) {
-    const projectRoot = path.join(tempRoot, `vault-${fileCount}`)
-    await seedNestedVault(projectRoot, fileCount)
-    results.push(await profileVault(projectRoot))
+    const projectRoot = path.join(tempRoot, `project-${fileCount}`)
+    await seedNestedProject(projectRoot, fileCount)
+    results.push(await profileProject(projectRoot))
   }
 
-  const capResult = results.find((result) => result.fileCount === MAX_MARKDOWN_FILES_PER_VAULT_PATH)
+  const capResult = results.find((result) => result.fileCount === MAX_MARKDOWN_FILES_PER_PROJECT_PATH)
   console.info([
     'BF-112 load+project profile:',
     ...results.map((result) =>

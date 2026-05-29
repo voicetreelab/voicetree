@@ -105,30 +105,30 @@ describe('buildManifest', () => {
   it('creates manifest with correct fields', () => {
     const manifest: ShareManifest = buildManifest(
       ['a.md', 'sub/b.md'],
-      'my-vault',
+      'my-project',
       '2025-01-01T00:00:00.000Z'
     )
     expect(manifest.files).toEqual(['a.md', 'sub/b.md'])
-    expect(manifest.folderName).toBe('my-vault')
+    expect(manifest.folderName).toBe('my-project')
     expect(manifest.createdAt).toBe('2025-01-01T00:00:00.000Z')
   })
 
   it('filters to only .md paths', () => {
     const manifest: ShareManifest = buildManifest(
       ['a.md', 'image.png', 'sub/b.md', 'config.json'],
-      'vault'
+      'project'
     )
     expect(manifest.files).toEqual(['a.md', 'sub/b.md'])
   })
 
   it('uses provided createdAt', () => {
     const ts: string = '2024-06-15T12:00:00.000Z'
-    const manifest: ShareManifest = buildManifest(['note.md'], 'vault', ts)
+    const manifest: ShareManifest = buildManifest(['note.md'], 'project', ts)
     expect(manifest.createdAt).toBe(ts)
   })
 
   it('uses empty createdAt if not provided', () => {
-    const manifest: ShareManifest = buildManifest(['note.md'], 'vault')
+    const manifest: ShareManifest = buildManifest(['note.md'], 'project')
     expect(manifest.createdAt).toBe('')
   })
 })

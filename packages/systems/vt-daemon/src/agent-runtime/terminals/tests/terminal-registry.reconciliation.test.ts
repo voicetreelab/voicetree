@@ -15,8 +15,8 @@ function makeName(prefix: string): TerminalId {
     return `${prefix}-${randomUUID().slice(0, 8)}` as TerminalId
 }
 
-async function makeTempVault(): Promise<string> {
-    const dir: string = await mkdtemp(join(tmpdir(), 'bf314-vault-'))
+async function makeTempProject(): Promise<string> {
+    const dir: string = await mkdtemp(join(tmpdir(), 'bf314-project-'))
     tempDirs.add(dir)
     return dir
 }
@@ -31,7 +31,7 @@ function makeTerminalData(terminalId: TerminalId, projectRoot: string): Terminal
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: projectRoot,
+            VOICETREE_PROJECT_PATH: projectRoot,
         },
     })
 }
@@ -52,7 +52,7 @@ describe('terminal-registry tmux reconciliation', () => {
     afterEach(cleanup)
 
     it('imports persisted running sessions that still exist and marks stale sessions exited', async () => {
-        const projectRoot: string = await makeTempVault()
+        const projectRoot: string = await makeTempProject()
         const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
         await mkdir(terminalDir, {recursive: true})
 

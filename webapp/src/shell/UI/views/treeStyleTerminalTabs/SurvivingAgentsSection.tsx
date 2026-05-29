@@ -49,10 +49,10 @@ const RESUME_FAILURE_MESSAGES: Record<NoNativeSessionResult['reason'], string> =
     'db-missing': 'Codex state database not found at ~/.codex/state_5.sqlite',
     'db-schema-mismatch': "Codex state DB schema is unexpected — voicetree can't read it",
     'outside-recency-window': "Session exists but is older than the resolver's recency window",
-    'marker-mismatch': 'No matching session — likely the vault was moved or the task node renamed since spawn',
-    'no-rows': 'No Codex threads recorded for this vault',
+    'marker-mismatch': 'No matching session — likely the project was moved or the task node renamed since spawn',
+    'no-rows': 'No Codex threads recorded for this project',
     'projects-dir-missing': 'Claude projects directory not found at ~/.claude/projects',
-    'no-jsonl-matches': 'No Claude transcripts matched this vault/cwd',
+    'no-jsonl-matches': 'No Claude transcripts matched this project/cwd',
     'scan-timeout': 'Claude transcript scan timed out — try again or widen the timeout',
 };
 
@@ -113,7 +113,7 @@ function rowTooltip(row: RecoverableAgentSession): string {
         if (row.endedAt) parts.push(`ended: ${row.endedAt}`);
     }
     if (row.metadataPath) parts.push(`metadata: ${row.metadataPath}`);
-    const projectRoot: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH;
+    const projectRoot: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH;
     if (projectRoot) parts.push(`project root: ${projectRoot}`);
     return parts.join('\n');
 }
@@ -131,10 +131,10 @@ function rowMeta(row: RecoverableAgentSession, now: number): string {
 
 function rowBadge(row: RecoverableAgentSession): {label: string; className: string} {
     if (row.attach) {
-        const isThisVault: boolean = row.attach.session.classification === 'this-vault';
+        const isThisProject: boolean = row.attach.session.classification === 'this-project';
         return {
-            label: isThisVault ? 'This vault' : 'Foreign vault',
-            className: isThisVault ? 'this-vault' : 'foreign-vault',
+            label: isThisProject ? 'This project' : 'Foreign project',
+            className: isThisProject ? 'this-project' : 'foreign-project',
         };
     }
     if (row.status === 'exited') {
@@ -146,7 +146,7 @@ function rowBadge(row: RecoverableAgentSession): {label: string; className: stri
     if (row.resume) {
         return {label: `Resumable (${row.resume.cliType})`, className: 'resumable'};
     }
-    return {label: 'Surviving', className: 'this-vault'};
+    return {label: 'Surviving', className: 'this-project'};
 }
 
 function agentTypeLabel(row: RecoverableAgentSession): string | null {

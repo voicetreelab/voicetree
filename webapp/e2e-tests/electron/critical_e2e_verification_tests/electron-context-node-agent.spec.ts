@@ -34,7 +34,7 @@ const TEST_AGENT_COMMAND = 'CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-p
 test.describe('Context Node Agent Terminal E2E', () => {
   test.describe.configure({ timeout: 90000 });
 
-  test('should spawn agent terminal with context node and retrieve needle from ancestor', async ({ appWindow, fixtureVaultPath, fakeAgentBinPath }) => {
+  test('should spawn agent terminal with context node and retrieve needle from ancestor', async ({ appWindow, fixtureProjectPath, fakeAgentBinPath }) => {
     test.setTimeout(90000); // 90 second timeout for Claude API call
 
     console.log('=== STEP 1: Set agentCommand to grep needle from context file ===');
@@ -62,7 +62,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     }, { shell: terminalShell, command: agentCommand });
     console.log('✓ Agent command configured:', agentCommand);
 
-    console.log('=== STEP 2: Wait for auto-load to complete (test vault: example_small) ===');
+    console.log('=== STEP 2: Wait for auto-load to complete (test project: example_small) ===');
     // The app auto-loads from config file on startup, wait for nodes to appear
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
@@ -93,13 +93,13 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`✓ Main process graph has ${mainProcessNodeCount} nodes`);
     expect(mainProcessNodeCount).toBeGreaterThan(0);
 
-    console.log('=== STEP 3: Verify watch directory and write folder (auto-loaded from config) ===');
-    const watchDir = fixtureVaultPath;
+    console.log('=== STEP 3: Verify watch directory and write folder path (auto-loaded from config) ===');
+    const watchDir = fixtureProjectPath;
     console.log(`✓ Watch directory: ${watchDir}`);
-    const writeFolder = await appWindow.evaluate(async () => {
+    const writeFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -107,8 +107,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
       }
       return null;
     });
-    if (!writeFolder) throw new Error('Expected Electron main process to expose a write folder');
-    console.log(`✓ Write folder: ${writeFolder}`);
+    if (!writeFolderPath) throw new Error('Expected Electron main process to expose a write folder path');
+    console.log(`✓ Write folder: ${writeFolderPath}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';
@@ -214,7 +214,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('✓ Agent command configured with -p flag');
-    console.log('✓ Test vault loaded (example_small)');
+    console.log('✓ Test project loaded (example_small)');
     console.log('✓ Watch status retrieved');
     console.log('✓ Context node created from Node 5');
     console.log('✓ Terminal spawned with CONTEXT_NODE_PATH env var');

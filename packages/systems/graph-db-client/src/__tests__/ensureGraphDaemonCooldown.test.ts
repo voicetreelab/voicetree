@@ -1,5 +1,5 @@
 /**
- * BF-347 black-box: ensureGraphDaemonForVault writes a cooldown breadcrumb
+ * BF-347 black-box: ensureGraphDaemonForProject writes a cooldown breadcrumb
  * when a spawn fails, short-circuits subsequent ensure calls inside the
  * cooldown window with OwnerSpawnCooldownError, and lets a fresh spawn
  * happen once the window expires.
@@ -22,7 +22,7 @@ import {
   readCooldownBreadcrumb,
 } from '@vt/daemon-lifecycle'
 import {
-  ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject,
   subscribeOwnerDiagnostics,
   type OwnerDiagnosticListener,
 } from '../index.ts'
@@ -41,14 +41,14 @@ const FAILING_DAEMON_SOURCE = `#!/usr/bin/env node
 process.exit(1)
 `
 
-let vault: string
+let project: string
 let failingBin: string
 let spawnedPids: number[]
 
 beforeEach(async () => {
-  vault = await mkdtemp(join(tmpdir(), 'vt-graphd-bf347-ensure-cd-'))
-  await mkdir(join(vault, '.voicetree'), { recursive: true })
-  failingBin = join(vault, 'fail-vt-graphd.mjs')
+  project = await mkdtemp(join(tmpdir(), 'vt-graphd-bf347-ensure-cd-'))
+  await mkdir(join(project, '.voicetree'), { recursive: true })
+  failingBin = join(project, 'fail-vt-graphd.mjs')
   await writeFile(failingBin, FAILING_DAEMON_SOURCE, { encoding: 'utf8', mode: 0o755 })
   spawnedPids = []
 })
@@ -61,7 +61,7 @@ afterEach(async () => {
       // already gone
     }
   }
-  await rm(vault, { recursive: true, force: true })
+  await rm(project, { recursive: true, force: true })
 })
 
 function failingBinCommand(): string {
@@ -84,7 +84,7 @@ function makeSpawnObserver(): {
   return { unsubscribe, spawnedCount: () => count }
 }
 
-describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
+describe('ensureGraphDaemonForProject cooldown breadcrumb (BF-347)', () => {
   test('failed spawn writes cooldown; next call inside window throws OwnerSpawnCooldownError without re-spawning; call after expiry attempts spawn', async () => {
     const observer = makeSpawnObserver()
 
@@ -93,7 +93,7 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       // because the child exits without binding an owner; cooldown
       // breadcrumb gets persisted.
       await expect(
-        ensureGraphDaemonForVault(vault, 'test', {
+        ensureGraphDaemonForProject(project, 'test', {
           bin: failingBinCommand(),
           timeoutMs: 600,
           spawnCooldownMs: 1_500,
@@ -104,16 +104,16 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       expect(observer.spawnedCount()).toBe(1)
 
       // Breadcrumb is on disk with the right shape.
-      const breadcrumb = await readCooldownBreadcrumb(vault, 'graphd')
+      const breadcrumb = await readCooldownBreadcrumb(project, 'graphd')
       expect(breadcrumb).not.toBeNull()
       expect(breadcrumb!.reason).toBe('spawn-failed')
-      expect(breadcrumb!.canonicalVault).toBe(vault)
+      expect(breadcrumb!.canonicalProject).toBe(project)
       expect(breadcrumb!.untilMs).toBeGreaterThan(Date.now())
 
       // Second call: still inside the cooldown window; throws
       // OwnerSpawnCooldownError without firing another spawn-started.
       await expect(
-        ensureGraphDaemonForVault(vault, 'test', {
+        ensureGraphDaemonForProject(project, 'test', {
           bin: failingBinCommand(),
           timeoutMs: 600,
           spawnCooldownMs: 1_500,
@@ -126,10 +126,10 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       // Third call: wait past the cooldown deadline, then a real spawn
       // is attempted again. We point at the working fake daemon so the
       // ensure can succeed and prove the breadcrumb did not permanently
-      // wedge the vault.
+      // wedge the project.
       await sleepUntilAfterCooldown(breadcrumb!.untilMs)
 
-      const success = await ensureGraphDaemonForVault(vault, 'test', {
+      const success = await ensureGraphDaemonForProject(project, 'test', {
         bin: workingBinCommand(),
         timeoutMs: 5_000,
         spawnCooldownMs: 1_500,
@@ -139,7 +139,7 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       spawnedPids.push(success.pid)
 
       // Successful spawn cleared the breadcrumb.
-      const cleared = await readCooldownBreadcrumb(vault, 'graphd')
+      const cleared = await readCooldownBreadcrumb(project, 'graphd')
       expect(cleared).toBeNull()
     } finally {
       observer.unsubscribe()

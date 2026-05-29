@@ -11,14 +11,14 @@ import {
   type ProcessLiveness,
 } from '../ownerDecision.ts'
 
-const VAULT = '/vault'
+const PROJECT = '/project'
 
 function fingerprint(
   overrides: Partial<CommandFingerprint> = {},
 ): CommandFingerprint {
   return {
     executable: '/usr/local/bin/node',
-    args: ['vt-graphd', '--project-root', VAULT],
+    args: ['vt-graphd', '--project-root', PROJECT],
     ...overrides,
   }
 }
@@ -27,7 +27,7 @@ function record(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
   return {
     schemaVersion: 1,
     daemonKind: 'graphd',
-    canonicalVault: VAULT,
+    canonicalProject: PROJECT,
     pid: 4242,
     ppid: 1,
     port: 65123,
@@ -46,7 +46,7 @@ function verifiedHealth(
 ): HealthProbeResult {
   return {
     kind: 'verified',
-    canonicalVault: VAULT,
+    canonicalProject: PROJECT,
     ownerNonce: 'nonce-abc',
     pid: 4242,
     port: 65123,
@@ -196,11 +196,11 @@ describe('decideOwnerAction — stale-reclaim', () => {
 })
 
 describe('decideOwnerAction — unsafe-owner', () => {
-  test('refuses to act when /health reports a different vault', () => {
+  test('refuses to act when /health reports a different project', () => {
     const e = evidence({
       health: {
         kind: 'mismatch',
-        observedCanonicalVault: '/other-vault',
+        observedCanonicalProject: '/other-project',
         observedOwnerNonce: 'nonce-zzz',
       },
     })

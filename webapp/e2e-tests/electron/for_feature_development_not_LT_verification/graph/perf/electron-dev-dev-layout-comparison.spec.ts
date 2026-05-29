@@ -12,7 +12,7 @@ import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
-const DEV_DEV_VAULT_PATH: string = process.env.DEV_DEV_VAULT_PATH
+const DEV_DEV_PROJECT_PATH: string = process.env.DEV_DEV_PROJECT_PATH
   ?? path.join(os.homedir(), 'repos', 'voicetree-public', 'dev-dev');
 const LAYOUT_ENGINES = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
 
@@ -112,7 +112,7 @@ const test = base.extend<{
   readonly markdownFileCount: number;
 }>({
   markdownFileCount: async ({}, use) => {
-    await use(await countMarkdownFiles(DEV_DEV_VAULT_PATH));
+    await use(await countMarkdownFiles(DEV_DEV_PROJECT_PATH));
   },
 
   electronApp: async ({}, use) => {
@@ -122,7 +122,7 @@ const test = base.extend<{
       path.join(tempUserDataPath, 'projects.json'),
       JSON.stringify([{
         id: 'dev-dev-layout-comparison',
-        path: DEV_DEV_VAULT_PATH,
+        path: DEV_DEV_PROJECT_PATH,
         name: 'dev-dev',
         type: 'folder',
         lastOpened: Date.now(),
@@ -134,10 +134,10 @@ const test = base.extend<{
     await fs.writeFile(
       path.join(tempUserDataPath, 'voicetree-config.json'),
       JSON.stringify({
-        lastDirectory: DEV_DEV_VAULT_PATH,
-        vaultConfig: {
-          [DEV_DEV_VAULT_PATH]: {
-            writeFolder: DEV_DEV_VAULT_PATH,
+        lastDirectory: DEV_DEV_PROJECT_PATH,
+        projectConfig: {
+          [DEV_DEV_PROJECT_PATH]: {
+            writeFolderPath: DEV_DEV_PROJECT_PATH,
             readPaths: [],
           },
         },
@@ -203,7 +203,7 @@ const test = base.extend<{
         throw new Error('electronAPI.main.startFileWatching is unavailable');
       }
       return api.main.startFileWatching(projectPath);
-    }, DEV_DEV_VAULT_PATH);
+    }, DEV_DEV_PROJECT_PATH);
     expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
 
     await window.waitForFunction(
@@ -224,7 +224,7 @@ async function waitForLoadedGraph(appWindow: Page, markdownFileCount: number): P
         return cy?.nodes().length ?? 0;
       }),
       {
-        message: `Waiting for ${DEV_DEV_VAULT_PATH} graph nodes to load`,
+        message: `Waiting for ${DEV_DEV_PROJECT_PATH} graph nodes to load`,
         timeout: 180000,
         intervals: [1000, 2000, 3000, 5000],
       }

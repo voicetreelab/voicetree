@@ -1,7 +1,7 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
 import { mountWatcher, type Watcher } from '@vt/graph-db-server/graph/daemonWatcher'
 import { onReadPathsChanged } from '@vt/graph-db-server/state/watch-folder-store'
-import { getVaultPaths } from '@vt/graph-db-server/state/vaultAllowlist'
+import { getProjectPaths } from '@vt/graph-db-server/state/projectAllowlist'
 import type { DaemonLogger } from '../daemonTypes.ts'
 
 const tracer = trace.getTracer('vt-graphd')
@@ -11,13 +11,13 @@ export type DaemonWatcherController = {
 }
 
 export async function startDaemonWatcher(
-  vault: string,
+  project: string,
   logger: DaemonLogger,
 ): Promise<DaemonWatcherController> {
   return tracer.startActiveSpan('daemon.mount-watcher', async (span) => {
     try {
-      const initialPaths = await getVaultPaths()
-      const watcher: Watcher = mountWatcher(initialPaths, vault)
+      const initialPaths = await getProjectPaths()
+      const watcher: Watcher = mountWatcher(initialPaths, project)
       let watcherStopped = false
       let currentPaths = new Set<string>(initialPaths)
 

@@ -14,11 +14,11 @@ import {
     PROJECT_ID,
     PROJECT_ROOT,
     buildElectronTestPath,
-    createSurvivingAgentsVault,
+    createSurvivingAgentsProject,
     electronLinuxLaunchFlags,
     test as baseTest,
     type ExtendedWindow,
-    type SurvivingAgentsVault,
+    type SurvivingAgentsProject,
 } from '../content/electron-surviving-agents-helpers';
 
 const STUB_CLAUDE_BODY: string = [
@@ -39,7 +39,7 @@ const STUB_CLAUDE_BODY: string = [
 
 /**
  * Resume-spec fixture extension:
- *   - `vault`            — fresh temp project dir (same shape as the shared helper).
+ *   - `project`            — fresh temp project dir (same shape as the shared helper).
  *   - `stubClaudeBinDir` — a temp dir containing a `claude` shim that the test
  *                          puts at the front of PATH for the Electron launch.
  *   - `electronApp`/`appWindow` — Electron launched with that PATH override.
@@ -51,8 +51,8 @@ const STUB_CLAUDE_BODY: string = [
 export const test = baseTest.extend<{
     stubClaudeBinDir: string;
 }>({
-    vault: [async ({}, use) => {
-        const v: SurvivingAgentsVault = await createSurvivingAgentsVault();
+    project: [async ({}, use) => {
+        const v: SurvivingAgentsProject = await createSurvivingAgentsProject();
         try {
             await use(v);
         } finally {
@@ -60,8 +60,8 @@ export const test = baseTest.extend<{
         }
     }, {scope: 'test', timeout: 10_000}],
 
-    stubClaudeBinDir: [async ({vault}, use) => {
-        const dir: string = path.join(vault.tempRoot, 'stub-bin');
+    stubClaudeBinDir: [async ({project}, use) => {
+        const dir: string = path.join(project.tempRoot, 'stub-bin');
         await fs.mkdir(dir, {recursive: true});
         const stubPath: string = path.join(dir, 'claude');
         await fs.writeFile(stubPath, STUB_CLAUDE_BODY, 'utf8');
@@ -69,15 +69,15 @@ export const test = baseTest.extend<{
         await use(dir);
     }, {scope: 'test', timeout: 10_000}],
 
-    electronApp: [async ({vault, stubClaudeBinDir}, use) => {
-        const tempUserDataPath: string = vault.appSupportPath;
+    electronApp: [async ({project, stubClaudeBinDir}, use) => {
+        const tempUserDataPath: string = project.voicetreeHomePath;
         await fs.mkdir(tempUserDataPath, {recursive: true});
 
         await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vault.projectRoot,
-            vaultConfig: {
-                [vault.projectRoot]: {
-                    writeFolder: vault.projectRoot,
+            lastDirectory: project.projectRoot,
+            projectConfig: {
+                [project.projectRoot]: {
+                    writeFolderPath: project.projectRoot,
                     readPaths: [],
                 },
             },
@@ -85,7 +85,7 @@ export const test = baseTest.extend<{
 
         await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
             id: PROJECT_ID,
-            path: vault.projectRoot,
+            path: project.projectRoot,
             name: PROJECT_ID,
             type: 'folder',
             lastOpened: Date.now(),
@@ -106,7 +106,7 @@ export const test = baseTest.extend<{
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
                 VOICETREE_HOME_PATH: tempUserDataPath,
-                VOICETREE_CLAUDE_PROJECTS_DIR: vault.claudeProjectsRoot,
+                VOICETREE_CLAUDE_PROJECTS_DIR: project.claudeProjectsRoot,
             },
             timeout: 15_000,
         });

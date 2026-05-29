@@ -29,11 +29,11 @@ export async function mergeSelectedNodesFromUI(
     }
 
     // Get write path for merged node path
-    const writeFolderOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolder();
-    const writeFolder: string = writeFolderOption ? O.getOrElse(() => '')(writeFolderOption) : '';
+    const writeFolderPathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolderPath();
+    const writeFolderPath: string = writeFolderPathOption ? O.getOrElse(() => '')(writeFolderPathOption) : '';
 
     // Compute the merge delta (pure function)
-    const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph, writeFolder);
+    const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph, writeFolderPath);
 
     if (graphDelta.length === 0) {
         //console.log('[mergeSelectedNodesFromUI] No valid merge delta generated');

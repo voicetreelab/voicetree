@@ -1,6 +1,6 @@
 export {
   createEnsureVtDaemonState,
-  ensureVtDaemonForVault,
+  ensureVtDaemonForProject,
 } from './ensureVtDaemon.ts'
 export type {
   EnsureVtDaemonClient,

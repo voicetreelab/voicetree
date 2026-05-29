@@ -1,9 +1,9 @@
 /**
  * Public entry for the owner-aware client launcher.
  *
- * `ensureGraphDaemonForVault` is the only sanctioned way for the client to
+ * `ensureGraphDaemonForProject` is the only sanctioned way for the client to
  * obtain a {@link GraphDbClient} bound to the authoritative vt-graphd owner
- * for a vault. It coordinates discovery, waiting, claiming, spawning,
+ * for a project. It coordinates discovery, waiting, claiming, spawning,
  * reclamation, and cooldown suppression by wrapping pure {@link
  * decideOwnerAction} with the impure IO adapters in `@vt/daemon-lifecycle`.
  *
@@ -13,7 +13,7 @@
  * and emits structured ownership diagnostics (BF-347) at each transition.
  *
  * The function is safe to call concurrently from the same Node process for
- * the same vault — an in-process single-flight cache coalesces concurrent
+ * the same project — an in-process single-flight cache coalesces concurrent
  * callers into one work-loop. Cross-process concurrency is serialised via
  * the spawn lock so 100 callers across 100 processes still produce exactly
  * one vt-graphd spawn.
@@ -66,7 +66,7 @@ export type EnsureGraphDaemonOptions = {
   /** Maximum poll backoff. Default 400ms. */
   readonly maxBackoffMs?: number
   /**
-   * Cooldown window persisted to `<vault>/.voicetree/graphd.cooldown.json`
+   * Cooldown window persisted to `<project>/.voicetree/graphd.cooldown.json`
    * after a spawn fails. Subsequent ensure calls within this window
    * short-circuit with {@link OwnerSpawnCooldownError} before re-spawning.
    * Default 5000ms.
@@ -93,30 +93,30 @@ const DEFAULT_INITIAL_BACKOFF_MS = 50
 const DEFAULT_MAX_BACKOFF_MS = 400
 const DEFAULT_SPAWN_COOLDOWN_MS = 5_000
 
-const inflightByVault = new Map<string, Promise<EnsureGraphDaemonResult>>()
+const inflightByProject = new Map<string, Promise<EnsureGraphDaemonResult>>()
 
 export function clientFor(port: number): GraphDbClient {
   return new GraphDbClient({ baseUrl: `http://127.0.0.1:${port}` })
 }
 
-export async function ensureGraphDaemonForVault(
-  vault: string,
+export async function ensureGraphDaemonForProject(
+  project: string,
   caller: CallerKind,
   options: EnsureGraphDaemonOptions = {},
 ): Promise<EnsureGraphDaemonResult> {
-  const canonicalVault = resolve(vault)
-  const existing = inflightByVault.get(canonicalVault)
+  const canonicalProject = resolve(project)
+  const existing = inflightByProject.get(canonicalProject)
   if (existing) return existing
 
-  const work = runEnsure(canonicalVault, caller, options).finally(() => {
-    inflightByVault.delete(canonicalVault)
+  const work = runEnsure(canonicalProject, caller, options).finally(() => {
+    inflightByProject.delete(canonicalProject)
   })
-  inflightByVault.set(canonicalVault, work)
+  inflightByProject.set(canonicalProject, work)
   return work
 }
 
 type EnsureContext = {
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly caller: CallerKind
   /**
    * Per-call UUID carried into every {@link emitOwnerDiagnostic} so
@@ -136,16 +136,16 @@ type LoopOutcome =
   | { readonly kind: 'continue'; readonly nextBackoff: number }
 
 async function runEnsure(
-  canonicalVault: string,
+  canonicalProject: string,
   caller: CallerKind,
   options: EnsureGraphDaemonOptions,
 ): Promise<EnsureGraphDaemonResult> {
-  await mkdir(getProjectDotVoicetreePath(canonicalVault), { recursive: true })
-  const ctx = makeEnsureContext(canonicalVault, caller, options)
+  await mkdir(getProjectDotVoicetreePath(canonicalProject), { recursive: true })
+  const ctx = makeEnsureContext(canonicalProject, caller, options)
   let backoff = ctx.initialBackoffMs
 
   while (Date.now() < ctx.deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVault, 'graphd')
+    const evidence = await gatherEvidence(canonicalProject, 'graphd')
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs: ctx.staleHeartbeatMs,
@@ -155,16 +155,16 @@ async function runEnsure(
     backoff = outcome.nextBackoff
   }
 
-  throw await timeoutError(canonicalVault)
+  throw await timeoutError(canonicalProject)
 }
 
 function makeEnsureContext(
-  canonicalVault: string,
+  canonicalProject: string,
   caller: CallerKind,
   options: EnsureGraphDaemonOptions,
 ): EnsureContext {
   return {
-    canonicalVault,
+    canonicalProject,
     caller,
     attemptId: randomUUID(),
     options,
@@ -200,7 +200,7 @@ async function handleDecision(
         kind: 'reuse',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVault: ctx.canonicalVault,
+        canonicalProject: ctx.canonicalProject,
         nowMs: Date.now(),
         pid: decision.pid,
         port: decision.port,
@@ -216,7 +216,7 @@ async function handleDecision(
         kind: 'wait',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVault: ctx.canonicalVault,
+        canonicalProject: ctx.canonicalProject,
         nowMs: Date.now(),
         reason: decision.reason,
         recordedPid: decision.recordedPid,
@@ -229,12 +229,12 @@ async function handleDecision(
         kind: 'claim-attempt',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVault: ctx.canonicalVault,
+        canonicalProject: ctx.canonicalProject,
         nowMs: Date.now(),
         reason: 'no-owner',
       })
       const result = await attemptSpawnAndWait<GraphDbClient>(
-        ctx.canonicalVault,
+        ctx.canonicalProject,
         ctx.caller,
         ctx.attemptId,
         {
@@ -254,7 +254,7 @@ async function handleDecision(
           kind: 'acquired',
           attemptId: ctx.attemptId,
           callerKind: ctx.caller,
-          canonicalVault: ctx.canonicalVault,
+          canonicalProject: ctx.canonicalProject,
           nowMs: Date.now(),
           pid: result.pid,
           port: result.port,
@@ -271,16 +271,16 @@ async function handleDecision(
         kind: 'claim-attempt',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVault: ctx.canonicalVault,
+        canonicalProject: ctx.canonicalProject,
         nowMs: Date.now(),
         reason: 'stale-reclaim',
       })
-      await reclaimStaleOwner(ctx.canonicalVault, 'graphd', decision.staleRecord)
+      await reclaimStaleOwner(ctx.canonicalProject, 'graphd', decision.staleRecord)
       emitOwnerDiagnostic({
         kind: 'stale-reclaimed',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVault: ctx.canonicalVault,
+        canonicalProject: ctx.canonicalProject,
         nowMs: Date.now(),
         reason: decision.reason,
         recordedPid: decision.staleRecord.pid,
@@ -289,7 +289,7 @@ async function handleDecision(
     }
     case 'unsafe-owner':
       throw new UnsafeOwnerError(
-        ctx.canonicalVault,
+        ctx.canonicalProject,
         decision.recordedPid,
         decision.reason,
       )
@@ -298,13 +298,13 @@ async function handleDecision(
         kind: 'cooldown-suppressed',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVault: ctx.canonicalVault,
+        canonicalProject: ctx.canonicalProject,
         nowMs: Date.now(),
         untilMs: decision.untilMs,
         reason: decision.reason,
       })
       throw new OwnerSpawnCooldownError(
-        ctx.canonicalVault,
+        ctx.canonicalProject,
         decision.untilMs,
         decision.reason,
       )
@@ -328,13 +328,13 @@ async function waitAndContinue(
  * Distinguishes "we were waiting on an in-flight owner" (record on disk)
  * from "we never even got a record" (no owner ever materialised).
  */
-async function timeoutError(canonicalVault: string): Promise<Error> {
-  const finalRecord = await readOwnerRecord(canonicalVault, 'graphd')
+async function timeoutError(canonicalProject: string): Promise<Error> {
+  const finalRecord = await readOwnerRecord(canonicalProject, 'graphd')
   if (finalRecord !== null) {
-    return new OwnerWaitTimeoutError(canonicalVault, finalRecord.pid)
+    return new OwnerWaitTimeoutError(canonicalProject, finalRecord.pid)
   }
   return new DaemonLaunchTimeout(
-    `vt-graphd ensure for vault ${canonicalVault} did not produce an owner before deadline`,
+    `vt-graphd ensure for project ${canonicalProject} did not produce an owner before deadline`,
   )
 }
 

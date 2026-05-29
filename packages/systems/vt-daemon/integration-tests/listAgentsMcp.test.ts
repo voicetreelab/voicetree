@@ -62,16 +62,16 @@ const emptyGraph: Graph = {
     unresolvedLinksIndex: new Map(),
 }
 
-let appSupport: string
+let voicetreeHome: string
 let currentGraph: Graph
 let bridge: GraphBridge
 
 beforeEach(async () => {
-    appSupport = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-list-agents-'))
-    process.env.VOICETREE_HOME_PATH = appSupport
+    voicetreeHome = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-list-agents-'))
+    process.env.VOICETREE_HOME_PATH = voicetreeHome
     clearSettingsCache()
     await fs.writeFile(
-        path.join(appSupport, 'settings.json'),
+        path.join(voicetreeHome, 'settings.json'),
         JSON.stringify(DEFAULT_SETTINGS, null, 2),
         'utf-8',
     )
@@ -79,8 +79,8 @@ beforeEach(async () => {
     currentGraph = emptyGraph
     bridge = {
         getGraph: async () => currentGraph,
-        getVaultPaths: async () => [],
-        getWriteFolder: async () => null,
+        getProjectPaths: async () => [],
+        getWriteFolderPath: async () => null,
         applyGraphDelta: async () => undefined,
         getUnseenNodesAroundContextNode: async () => [],
     }
@@ -88,7 +88,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
     clearTerminalRecords()
-    await fs.rm(appSupport, {recursive: true, force: true})
+    await fs.rm(voicetreeHome, {recursive: true, force: true})
 })
 
 describe('MCP list_agents tool', () => {

@@ -106,7 +106,7 @@ function escapeRegex(str: string): string {
 function buildReferencePatterns(
     oldAbsPath: string,
     newAbsPath: string,
-    vaultRoot: string
+    projectRoot: string
 ): Array<{pattern: RegExp; replacement: string}> {
     const patterns: Array<{pattern: RegExp; replacement: string}> = []
 
@@ -115,19 +115,19 @@ function buildReferencePatterns(
     const newBasename = basename(newAbsPath, '.md')
     const newBasenameWithExt = basename(newAbsPath)
 
-    const oldRelFromVault = relative(vaultRoot, oldAbsPath)
-    const newRelFromVault = relative(vaultRoot, newAbsPath)
+    const oldRelFromProject = relative(projectRoot, oldAbsPath)
+    const newRelFromProject = relative(projectRoot, newAbsPath)
 
-    const oldTildePath = `~/brain/${oldRelFromVault}`
-    const newTildePath = `~/brain/${newRelFromVault}`
+    const oldTildePath = `~/brain/${oldRelFromProject}`
+    const newTildePath = `~/brain/${newRelFromProject}`
 
-    if (oldRelFromVault.includes('/')) {
-        const oldRelNoExt = oldRelFromVault.replace(/\.md$/, '')
-        const newRelNoExt = newRelFromVault.replace(/\.md$/, '')
+    if (oldRelFromProject.includes('/')) {
+        const oldRelNoExt = oldRelFromProject.replace(/\.md$/, '')
+        const newRelNoExt = newRelFromProject.replace(/\.md$/, '')
 
         patterns.push({
-            pattern: new RegExp(`\\[\\[${escapeRegex(oldRelFromVault)}(\\|[^\\]]*)?\\]\\]`, 'g'),
-            replacement: `[[${newRelFromVault}$1]]`,
+            pattern: new RegExp(`\\[\\[${escapeRegex(oldRelFromProject)}(\\|[^\\]]*)?\\]\\]`, 'g'),
+            replacement: `[[${newRelFromProject}$1]]`,
         })
         patterns.push({
             pattern: new RegExp(`\\[\\[${escapeRegex(oldRelNoExt)}(\\|[^\\]]*)?\\]\\]`, 'g'),
@@ -156,19 +156,19 @@ function buildReferencePatterns(
         replacement: newAbsPath,
     })
 
-    if (oldRelFromVault.includes('/')) {
+    if (oldRelFromProject.includes('/')) {
         patterns.push({
-            pattern: new RegExp(`(?<!\\[\\[)${escapeRegex(oldRelFromVault)}(?!.*\\]\\])`, 'g'),
-            replacement: newRelFromVault,
+            pattern: new RegExp(`(?<!\\[\\[)${escapeRegex(oldRelFromProject)}(?!.*\\]\\])`, 'g'),
+            replacement: newRelFromProject,
         })
     }
 
     return patterns
 }
 
-export function resolveFilePath(inputPath: string, vaultRoot: string): string {
+export function resolveFilePath(inputPath: string, projectRoot: string): string {
     if (inputPath.startsWith('~/brain/')) {
-        return join(vaultRoot, inputPath.slice('~/brain/'.length))
+        return join(projectRoot, inputPath.slice('~/brain/'.length))
     }
     if (inputPath.startsWith('~/')) {
         return join(homedir(), inputPath.slice(2))
@@ -184,9 +184,9 @@ function isDescendantPath(parentPath: string, childPath: string): boolean {
     return relativePath !== '' && !relativePath.startsWith('..') && !isAbsolute(relativePath)
 }
 
-function parseMoveArgs(args: string[], usage: string): {dryRun: boolean; vaultRoot: string; positionals: string[]} {
+function parseMoveArgs(args: string[], usage: string): {dryRun: boolean; projectRoot: string; positionals: string[]} {
     let dryRun = false
-    let vaultRoot = BRAIN
+    let projectRoot = BRAIN
     const positionals: string[] = []
 
     for (let i = 0; i < args.length; i++) {
@@ -195,10 +195,10 @@ function parseMoveArgs(args: string[], usage: string): {dryRun: boolean; vaultRo
             dryRun = true
             continue
         }
-        if (arg === '--vault') {
+        if (arg === '--project') {
             const val = args[i + 1]
-            if (!val) error('--vault requires a value')
-            vaultRoot = resolve(val)
+            if (!val) error('--project requires a value')
+            projectRoot = resolve(val)
             i++
             continue
         }
@@ -209,7 +209,7 @@ function parseMoveArgs(args: string[], usage: string): {dryRun: boolean; vaultRo
         error(usage)
     }
 
-    return {dryRun, vaultRoot, positionals}
+    return {dryRun, projectRoot, positionals}
 }
 
 function buildMovePlan(sourceAbsPath: string, destinationAbsPath: string): GraphMovePlan {
@@ -272,14 +272,14 @@ function validateMovePlan(plan: GraphMovePlan, options: GraphMoveOptions): void 
 }
 
 export function updateReferences(
-    vaultRoot: string,
+    projectRoot: string,
     mappings: PathMapping[],
     dryRun: boolean
 ): ReferenceUpdateSummary {
     const patterns = mappings.flatMap(({oldAbsPath, newAbsPath}) =>
-        buildReferencePatterns(oldAbsPath, newAbsPath, vaultRoot)
+        buildReferencePatterns(oldAbsPath, newAbsPath, projectRoot)
     )
-    const mdFiles = findMdFiles(vaultRoot)
+    const mdFiles = findMdFiles(projectRoot)
 
     const summary: ReferenceUpdateSummary = {
         filesChanged: [],
@@ -302,7 +302,7 @@ export function updateReferences(
         }
 
         if (updatedContent !== originalContent) {
-            const relativePath = relative(vaultRoot, filePath)
+            const relativePath = relative(projectRoot, filePath)
             summary.filesChanged.push(relativePath)
             summary.referencesUpdated += fileRefCount
             summary.details.push({file: relativePath, count: fileRefCount})
@@ -366,9 +366,9 @@ function formatMoveResult(result: GraphMoveResult, verb: string, dryRunVerb: str
 }
 
 export async function runGraphMove(args: string[], options: GraphMoveOptions): Promise<void> {
-    const {dryRun, vaultRoot, positionals} = parseMoveArgs(args, options.usage)
-    const sourceAbsPath = resolveFilePath(positionals[0], vaultRoot)
-    const destinationAbsPath = resolveFilePath(positionals[1], vaultRoot)
+    const {dryRun, projectRoot, positionals} = parseMoveArgs(args, options.usage)
+    const sourceAbsPath = resolveFilePath(positionals[0], projectRoot)
+    const destinationAbsPath = resolveFilePath(positionals[1], projectRoot)
 
     if (!existsSync(sourceAbsPath)) {
         error(`Source path does not exist: ${sourceAbsPath}`)
@@ -377,14 +377,14 @@ export async function runGraphMove(args: string[], options: GraphMoveOptions): P
     const plan = buildMovePlan(sourceAbsPath, destinationAbsPath)
     validateMovePlan(plan, options)
 
-    const referenceSummary = updateReferences(vaultRoot, plan.mappings, dryRun)
+    const referenceSummary = updateReferences(projectRoot, plan.mappings, dryRun)
     performFilesystemMove(plan, dryRun)
 
     const movedFiles = plan.mappings.map(({oldAbsPath, newAbsPath}) => ({
-        from: relative(vaultRoot, oldAbsPath),
-        to: relative(vaultRoot, newAbsPath),
+        from: relative(projectRoot, oldAbsPath),
+        to: relative(projectRoot, newAbsPath),
     }))
-    const nonMarkdownFiles = plan.nonMarkdownFiles.map((filePath) => relative(vaultRoot, filePath))
+    const nonMarkdownFiles = plan.nonMarkdownFiles.map((filePath) => relative(projectRoot, filePath))
 
     const result: GraphMoveResult = {
         kind: plan.kind,
@@ -406,7 +406,7 @@ export async function graphMove(
     args: string[]
 ): Promise<void> {
     await runGraphMove(args, {
-        usage: 'Usage: vt graph mv <source-path> <dest-path> [--dry-run] [--vault PATH]',
+        usage: 'Usage: vt graph mv <source-path> <dest-path> [--dry-run] [--project PATH]',
         verb: 'Moved',
         dryRunVerb: 'Would move',
     })

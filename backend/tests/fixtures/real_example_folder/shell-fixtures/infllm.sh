@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Infinite LLM - Query the VoiceTree markdown vault with context retrieval
+# Infinite LLM - Query the VoiceTree markdown project with context retrieval
 
-# Set the script directory and markdown vault path
+# Set the script directory and markdown project path
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Find the most recent markdown vault subdirectory (format: YYYY-MM-DD or YYYY-MM-DD_*)
-LATEST_VAULT=$(ls -d "${SCRIPT_DIR}"/20*-*-* 2>/dev/null | sort -r | head -1)
-MARKDOWN_VAULT="${LATEST_VAULT:-${SCRIPT_DIR}}"
+# Find the most recent markdown project subdirectory (format: YYYY-MM-DD or YYYY-MM-DD_*)
+LATEST_PROJECT=$(ls -d "${SCRIPT_DIR}"/20*-*-* 2>/dev/null | sort -r | head -1)
+MARKDOWN_PROJECT="${LATEST_PROJECT:-${SCRIPT_DIR}}"
 BACKEND_DIR="$(dirname "${SCRIPT_DIR}")/backend"
 RETRIEVE_CONTEXT="${BACKEND_DIR}/context_retrieval/retrieve_context.py"
 
@@ -14,7 +14,7 @@ RETRIEVE_CONTEXT="${BACKEND_DIR}/context_retrieval/retrieve_context.py"
 show_usage() {
     echo "Usage: $0 \"<query>\""
     echo ""
-    echo "Query the VoiceTree markdown vault using context retrieval and Claude API."
+    echo "Query the VoiceTree markdown project using context retrieval and Claude API."
     echo ""
     echo "Examples:"
     echo "  $0 \"How does the authentication system work?\""
@@ -42,9 +42,9 @@ fi
 
 QUERY="$1"
 
-# Validate markdown vault path exists
-if [ ! -d "$MARKDOWN_VAULT" ]; then
-    error_exit "Markdown vault directory not found: $MARKDOWN_VAULT"
+# Validate markdown project path exists
+if [ ! -d "$MARKDOWN_PROJECT" ]; then
+    error_exit "Markdown project directory not found: $MARKDOWN_PROJECT"
 fi
 
 # Validate retrieve_context.py exists
@@ -68,16 +68,16 @@ echo "" >&2
 # Call retrieve_context.py to get relevant context
 if [ "$INFLLM_DEBUG" = "1" ]; then
     # Show debug output when debugging
-    CONTEXT=$(python3 "$RETRIEVE_CONTEXT" "$MARKDOWN_VAULT" "$QUERY" 2>&1)
+    CONTEXT=$(python3 "$RETRIEVE_CONTEXT" "$MARKDOWN_PROJECT" "$QUERY" 2>&1)
 else
     # Hide debug output in normal use
-    CONTEXT=$(python3 "$RETRIEVE_CONTEXT" "$MARKDOWN_VAULT" "$QUERY" 2>/dev/null)
+    CONTEXT=$(python3 "$RETRIEVE_CONTEXT" "$MARKDOWN_PROJECT" "$QUERY" 2>/dev/null)
 fi
 RETRIEVAL_EXIT_CODE=$?
 
 # Only show debug info if INFLLM_DEBUG is set
 if [ "$INFLLM_DEBUG" = "1" ]; then
-    echo "🔧 DEBUG: Using markdown vault directory: $MARKDOWN_VAULT" >&2
+    echo "🔧 DEBUG: Using markdown project directory: $MARKDOWN_PROJECT" >&2
     echo "🔧 DEBUG: Context retrieval exit code: $RETRIEVAL_EXIT_CODE" >&2
     echo "🔧 DEBUG: Context length: ${#CONTEXT} characters" >&2
 fi
@@ -92,13 +92,13 @@ if [ -z "$CONTEXT" ] || [[ "$CONTEXT" == *"No context found for the given query.
     echo "⚠️  No relevant context found for your query." >&2
     echo "" >&2
     # Still send to Claude without context
-    PROMPT="I couldn't find any relevant context in the markdown vault for the query: \"$QUERY\"
+    PROMPT="I couldn't find any relevant context in the markdown project for the query: \"$QUERY\"
 
 Please provide a general answer based on your knowledge."
 else
     echo "✅ Found relevant context!" >&2
     # Format prompt combining context and query
-    PROMPT="Based on the following context retrieved from the VoiceTree markdown vault:
+    PROMPT="Based on the following context retrieved from the VoiceTree markdown project:
 
 $CONTEXT
 

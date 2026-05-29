@@ -1,10 +1,10 @@
 // Baseline computed from brain/knowledge/world-model (453 nodes, 117 dirs)
 // using: npx tsx packages/libraries/graph-tools/scripts/compute-hygiene-baseline.ts brain/knowledge/world-model
 //
-// Methodology: compute p95 across the reference vault (a(G)≈3, known-good from BF-192),
-// then set threshold = max(ceil(p95 × 1.5), observed_max) so the reference vault is
+// Methodology: compute p95 across the reference project (a(G)≈3, known-good from BF-192),
+// then set threshold = max(ceil(p95 × 1.5), observed_max) so the reference project is
 // violation-free by construction. This gives room for authored nodes to exceed the median
-// while catching outliers in newer/larger vaults.
+// while catching outliers in newer/larger projects.
 //
 // Output:
 //   max_wikilinks_per_node: mean=1.03, p50=1, p95=3, max=9  → p95×1.5=5, max=9 → threshold=9

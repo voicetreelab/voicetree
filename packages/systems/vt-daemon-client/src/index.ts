@@ -3,8 +3,8 @@
  *
  * Three layers:
  *
- *  1. **Launcher** — `ensureVtDaemonForVault` is the only sanctioned way to
- *     obtain a `VtDaemonClient` for a vault (BF-373 owner-aware single-flight).
+ *  1. **Launcher** — `ensureVtDaemonForProject` is the only sanctioned way to
+ *     obtain a `VtDaemonClient` for a project (BF-373 owner-aware single-flight).
  *
  *  2. **Transport** — `VtDaemonClient` exposes `.health()` and
  *     `.rpc<T>(method, params)` over the bound HTTP + bearer.
@@ -29,7 +29,7 @@
  */
 
 export {
-  ensureVtDaemonForVault,
+  ensureVtDaemonForProject,
   type EnsureVtDaemonOptions,
   type EnsureVtDaemonResult,
 } from './autoLaunch/ensureVtDaemon.ts'

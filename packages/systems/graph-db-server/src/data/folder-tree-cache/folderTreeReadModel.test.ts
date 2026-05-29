@@ -40,7 +40,7 @@ function deferred<T>(): Deferred<T> {
 
 describe('folderTreeReadModel — cache hit reuse', () => {
     test('second read for same root returns cached value without re-invoking scanner', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async (rootPath, _depth) => {
             calls += 1;
@@ -63,7 +63,7 @@ describe('folderTreeReadModel — cache hit reuse', () => {
 
 describe('folderTreeReadModel — invalidate({kind:"root"})', () => {
     test('next read after root invalidation triggers a fresh scan', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async (rootPath) => {
             calls += 1;
@@ -84,8 +84,8 @@ describe('folderTreeReadModel — invalidate({kind:"root"})', () => {
 
 describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
     test('only the cached root containing the changed path is invalidated', async () => {
-        const rootAlpha: AbsolutePath = toAbsolutePath('/vault/alpha');
-        const rootBeta: AbsolutePath = toAbsolutePath('/vault/beta');
+        const rootAlpha: AbsolutePath = toAbsolutePath('/project/alpha');
+        const rootBeta: AbsolutePath = toAbsolutePath('/project/beta');
 
         let alphaCalls: number = 0;
         let betaCalls: number = 0;
@@ -105,7 +105,7 @@ describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
         // Path inside alpha should invalidate alpha only.
         rm.invalidate({
             kind: 'pathChanged',
-            absolutePath: toAbsolutePath('/vault/alpha/notes/today.md'),
+            absolutePath: toAbsolutePath('/project/alpha/notes/today.md'),
         });
 
         await rm.readRootTree({ root: rootAlpha });
@@ -115,8 +115,8 @@ describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
     });
 
     test('path outside any cached root leaves all caches intact', async () => {
-        const rootAlpha: AbsolutePath = toAbsolutePath('/vault/alpha');
-        const rootBeta: AbsolutePath = toAbsolutePath('/vault/beta');
+        const rootAlpha: AbsolutePath = toAbsolutePath('/project/alpha');
+        const rootBeta: AbsolutePath = toAbsolutePath('/project/beta');
 
         let alphaCalls: number = 0;
         let betaCalls: number = 0;
@@ -145,7 +145,7 @@ describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
     });
 
     test('pathChanged equal to the root invalidates that root', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async (rootPath) => {
             calls += 1;
@@ -162,10 +162,10 @@ describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
     });
 
     test('sibling prefix is not falsely treated as descendant', async () => {
-        // `/vault/alpha-prime` must NOT be invalidated when `/vault/alpha`
+        // `/project/alpha-prime` must NOT be invalidated when `/project/alpha`
         // changes; naive `startsWith` without a trailing `/` guard would fail.
-        const rootAlpha: AbsolutePath = toAbsolutePath('/vault/alpha');
-        const rootAlphaPrime: AbsolutePath = toAbsolutePath('/vault/alpha-prime');
+        const rootAlpha: AbsolutePath = toAbsolutePath('/project/alpha');
+        const rootAlphaPrime: AbsolutePath = toAbsolutePath('/project/alpha-prime');
 
         let alphaCalls: number = 0;
         let primeCalls: number = 0;
@@ -183,7 +183,7 @@ describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
         // A change INSIDE alpha must not invalidate alpha-prime.
         rm.invalidate({
             kind: 'pathChanged',
-            absolutePath: toAbsolutePath('/vault/alpha/file.md'),
+            absolutePath: toAbsolutePath('/project/alpha/file.md'),
         });
 
         await rm.readRootTree({ root: rootAlpha });
@@ -196,8 +196,8 @@ describe('folderTreeReadModel — invalidate({kind:"pathChanged"})', () => {
 
 describe('folderTreeReadModel — invalidate({kind:"all"})', () => {
     test('clears every cached root', async () => {
-        const rootAlpha: AbsolutePath = toAbsolutePath('/vault/alpha');
-        const rootBeta: AbsolutePath = toAbsolutePath('/vault/beta');
+        const rootAlpha: AbsolutePath = toAbsolutePath('/project/alpha');
+        const rootBeta: AbsolutePath = toAbsolutePath('/project/beta');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async (rootPath) => {
             calls += 1;
@@ -219,7 +219,7 @@ describe('folderTreeReadModel — invalidate({kind:"all"})', () => {
 
 describe('folderTreeReadModel — in-flight deduplication', () => {
     test('concurrent reads for same key invoke scanner exactly once', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const gate: Deferred<DirectoryEntry> = deferred<DirectoryEntry>();
         const scanner: FolderTreeScanner = async (rootPath) => {
@@ -254,7 +254,7 @@ describe('folderTreeReadModel — in-flight deduplication', () => {
 
 describe('folderTreeReadModel — distinct maxDepth keys', () => {
     test('different maxDepth values are independent cache entries', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async (rootPath, depth) => {
             calls += 1;
@@ -274,7 +274,7 @@ describe('folderTreeReadModel — distinct maxDepth keys', () => {
     });
 
     test('root invalidation clears all depth variants for that root', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async (rootPath, depth) => {
             calls += 1;
@@ -297,7 +297,7 @@ describe('folderTreeReadModel — distinct maxDepth keys', () => {
 
 describe('folderTreeReadModel — scanner exceptions', () => {
     test('exception propagates to caller and is NOT cached', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         let mode: 'throw' | 'ok' = 'throw';
         const scanner: FolderTreeScanner = async (rootPath) => {
@@ -327,7 +327,7 @@ describe('folderTreeReadModel — scanner exceptions', () => {
     });
 
     test('concurrent waiters all reject when the in-flight scan throws', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/alpha');
+        const root: AbsolutePath = toAbsolutePath('/project/alpha');
         let calls: number = 0;
         const gate: Deferred<DirectoryEntry> = deferred<DirectoryEntry>();
         const scanner: FolderTreeScanner = async () => {
@@ -365,7 +365,7 @@ describe('folderTreeReadModel — scanner exceptions', () => {
 
 describe('folderTreeReadModel — null is a valid cached value', () => {
     test('scanner returning null caches that absence until invalidated', async () => {
-        const root: AbsolutePath = toAbsolutePath('/vault/ghost');
+        const root: AbsolutePath = toAbsolutePath('/project/ghost');
         let calls: number = 0;
         const scanner: FolderTreeScanner = async () => {
             calls += 1;

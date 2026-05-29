@@ -183,7 +183,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     console.log('✅ Test A passed: UI-created node editor steals focus');
   });
 
-  test('External file creation should not steal focus from active editor', async ({ appWindow, testVaultPath }) => {
+  test('External file creation should not steal focus from active editor', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(90000);
     console.log('=== Test B: External file creation does NOT steal focus ===');
 
@@ -236,7 +236,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     // Step 3: Create external file via fs.writeFile
     console.log('[Test] Step 3: Creating external file...');
     const externalFileName = 'external-file.md';
-    const externalFilePath = path.join(testVaultPath, externalFileName);
+    const externalFilePath = path.join(testProjectPath, externalFileName);
     await fs.writeFile(externalFilePath, '# External File\n\nCreated externally.', 'utf-8');
 
     // Wait for file watcher to detect and process
@@ -334,7 +334,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     console.log('✅ Test B passed: External file creation does not steal focus');
   });
 
-  test('External delta for node with existing editor should not create duplicate', async ({ appWindow, testVaultPath }) => {
+  test('External delta for node with existing editor should not create duplicate', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(90000);
     console.log('=== Test C: External change to existing editor node ===');
 
@@ -374,7 +374,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     // Step 2: Modify the file externally (simulating external edit)
     // The nodeId is like "voicetree/orphan_0.md" so we need just the filename part
     const fileName = nodeId.replace('voicetree/', '');
-    const filePath = path.join(testVaultPath, fileName);
+    const filePath = path.join(testProjectPath, fileName);
 
     console.log('[Test] Step 2: Modifying file externally:', filePath);
     await fs.writeFile(filePath, '# Modified Externally\n\nThis content was changed externally.', 'utf-8');

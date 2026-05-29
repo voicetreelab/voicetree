@@ -34,7 +34,7 @@ interface ExtendedWindow {
 interface FiletreeLoadChildFixture {
     readonly tempRoot: string;
     readonly projectPath: string;
-    readonly writeFolder: string;
+    readonly writeFolderPath: string;
     readonly parentPath: string;
     readonly childPath: string;
     readonly notePath: string;
@@ -48,15 +48,15 @@ async function writeFile(filePath: string, content: string): Promise<void> {
 async function createFiletreeLoadChildFixture(): Promise<FiletreeLoadChildFixture> {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-filetree-load-child-'));
     const projectPath = path.join(tempRoot, 'project');
-    const writeFolder = path.join(projectPath, 'write');
+    const writeFolderPath = path.join(projectPath, 'write');
     const parentPath = path.join(projectPath, 'parent');
     const childPath = path.join(parentPath, 'child-a');
     const notePath = path.join(childPath, 'note.md');
 
-    await writeFile(path.join(writeFolder, 'root.md'), '# Root\n\nLoaded write-path node.\n');
+    await writeFile(path.join(writeFolderPath, 'root.md'), '# Root\n\nLoaded write-path node.\n');
     await writeFile(notePath, '# Child Note\n\nLoaded through the file tree.\n');
 
-    return { tempRoot, projectPath, writeFolder, parentPath, childPath, notePath };
+    return { tempRoot, projectPath, writeFolderPath, parentPath, childPath, notePath };
 }
 
 function folderRow(appWindow: Page, folderPath: string) {
@@ -85,9 +85,9 @@ const test = base.extend<{
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-filetree-load-child-ud-'));
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: fixture.projectPath,
-            vaultConfig: {
+            projectConfig: {
                 [fixture.projectPath]: {
-                    writeFolder: fixture.writeFolder,
+                    writeFolderPath: fixture.writeFolderPath,
                     readPaths: [],
                 },
             },
@@ -205,7 +205,7 @@ const test = base.extend<{
             return await window.evaluate((rootPath: string) => {
                 const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
                 return cy?.nodes().some((node) => node.id() === rootPath) ?? false;
-            }, path.join(fixture.writeFolder, 'root.md'));
+            }, path.join(fixture.writeFolderPath, 'root.md'));
         }, {
             message: 'Waiting for write-path node to load',
             timeout: 20000,

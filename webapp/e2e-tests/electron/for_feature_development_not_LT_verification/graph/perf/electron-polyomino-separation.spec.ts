@@ -32,7 +32,7 @@
  *   e. Far node unmoved: far1 (isolated, not near overlap) moved < 20px
  *
  * SETUP:
- * - No vault required — nodes added directly to cy
+ * - No project required — nodes added directly to cy
  * - Build first: npx electron-vite build
  * - Config: playwright-electron.config.ts
  */
@@ -71,7 +71,7 @@ interface ClusterBCenter {
 }
 
 // ============================================================================
-// Fixtures (fresh Electron instance per test — no vault)
+// Fixtures (fresh Electron instance per test — no project)
 // ============================================================================
 
 const test = base.extend<{
@@ -86,7 +86,7 @@ const test = base.extend<{
     const electronApp = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`, // Fresh isolated userData — no vault auto-loads
+        `--user-data-dir=${tempUserDataPath}`, // Fresh isolated userData — no project auto-loads
       ],
       env: {
         ...process.env,
@@ -113,7 +113,7 @@ const test = base.extend<{
       });
       await window.waitForTimeout(300);
     } catch {
-      // Ignore shutdown errors — no vault was loaded
+      // Ignore shutdown errors — no project was loaded
     }
 
     await electronApp.close();

@@ -52,7 +52,7 @@ export function resolveFolderVisibilityDbPath(projectRoot: string): string {
     return path.join(getProjectDotVoicetreePath(projectRoot), FOLDER_VISIBILITY_DB_FILENAME)
 }
 
-function assertValidVaultPath(projectRoot: string): void {
+function assertValidProjectPath(projectRoot: string): void {
     if (typeof projectRoot !== 'string' || projectRoot.length === 0) {
         throw new Error('openFolderVisibilityDb: projectRoot must be a non-empty string')
     }
@@ -65,7 +65,7 @@ function prepareFolderVisibilityDb(db: FolderVisibilityDatabase): FolderVisibili
 }
 
 /**
- * Open (or create) the folder-visibility sqlite db for a vault.
+ * Open (or create) the folder-visibility sqlite db for a project.
  *
  * - Creates `<projectRoot>/.voicetree/` if missing.
  * - Sets `journal_mode = WAL` (Decision 2: concurrent readers, single writer).
@@ -84,7 +84,7 @@ export function openFolderVisibilityDb(
     projectRoot: string,
     deps: FolderVisibilityDbDeps,
 ): FolderVisibilityDatabase {
-    assertValidVaultPath(projectRoot)
+    assertValidProjectPath(projectRoot)
     const dbPath = resolveFolderVisibilityDbPath(projectRoot)
     deps.mkdir(path.dirname(dbPath), { recursive: true })
 

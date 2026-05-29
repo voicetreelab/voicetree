@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
-import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
+import { syncProjectStateFromMain } from '@/shell/edge/UI-edge/state/stores/ProjectPathStore'
 import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, del, applyDeltaToUI } from './applyGraphDeltaToUI.test-utils'
 
@@ -23,7 +23,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         setTestCollapseSet(new Set())
-        syncVaultStateFromMain({ readPaths: [], writeFolder: null, starredFolders: [] })
+        syncProjectStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
     })
 
     describe('Add new node with parent', () => {

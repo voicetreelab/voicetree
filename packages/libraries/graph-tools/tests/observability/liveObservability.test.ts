@@ -1,7 +1,7 @@
 /**
  * BF-200 — integration tests for live focus/neighbors/path (Step 9d, HTTP).
  *
- * Boots the headless HTTP daemon with a fixture vault, then calls
+ * Boots the headless HTTP daemon with a fixture project, then calls
  * liveFocus / liveNeighbors / livePath via the transport layer.
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
@@ -9,39 +9,39 @@ import {mkdirSync, writeFileSync, rmSync} from 'fs'
 import {createHeadlessServer, type HeadlessServer} from '../../src/live/headlessServer'
 import {liveFocus, liveNeighbors, livePath} from '../../src/live/live'
 
-const VAULT = '/tmp/vt-bf200-obs-test'
-const A = `${VAULT}/a.md`
-const B = `${VAULT}/b.md`
-const C = `${VAULT}/c.md`
-const D = `${VAULT}/d.md`
+const PROJECT = '/tmp/vt-bf200-obs-test'
+const A = `${PROJECT}/a.md`
+const B = `${PROJECT}/b.md`
+const C = `${PROJECT}/c.md`
+const D = `${PROJECT}/d.md`
 
 let server: HeadlessServer
-let savedVaultEnv: string | undefined
+let savedProjectEnv: string | undefined
 let savedUrlEnv: string | undefined
 
 beforeAll(async () => {
-    mkdirSync(VAULT, {recursive: true})
-    mkdirSync(`${VAULT}/.voicetree`, {recursive: true})
+    mkdirSync(PROJECT, {recursive: true})
+    mkdirSync(`${PROJECT}/.voicetree`, {recursive: true})
     writeFileSync(A, '# A\n[[b]]\n')
     writeFileSync(B, '# B\n[[c]]\n')
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n') // isolated
 
-    server = await createHeadlessServer({vaultPath: VAULT})
+    server = await createHeadlessServer({projectPath: PROJECT})
 
-    savedVaultEnv = process.env.VOICETREE_VAULT_PATH
+    savedProjectEnv = process.env.VOICETREE_PROJECT_PATH
     savedUrlEnv = process.env.VOICETREE_DAEMON_URL
-    process.env.VOICETREE_VAULT_PATH = server.vaultPath
+    process.env.VOICETREE_PROJECT_PATH = server.projectPath
     delete process.env.VOICETREE_DAEMON_URL
 })
 
 afterAll(async () => {
     await server.close()
-    if (savedVaultEnv === undefined) delete process.env.VOICETREE_VAULT_PATH
-    else process.env.VOICETREE_VAULT_PATH = savedVaultEnv
+    if (savedProjectEnv === undefined) delete process.env.VOICETREE_PROJECT_PATH
+    else process.env.VOICETREE_PROJECT_PATH = savedProjectEnv
     if (savedUrlEnv === undefined) delete process.env.VOICETREE_DAEMON_URL
     else process.env.VOICETREE_DAEMON_URL = savedUrlEnv
-    rmSync(VAULT, {recursive: true, force: true})
+    rmSync(PROJECT, {recursive: true, force: true})
 })
 
 describe('liveFocus()', () => {

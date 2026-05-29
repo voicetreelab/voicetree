@@ -21,16 +21,16 @@ Naming and lookup:
 
 Coverage highlights:
 
-- Snapshots include empty, single-node, flat, folder, nested-folder, all-collapsed, mixed-collapse, with-selection, with-layout-positions, context-node, and real-vault cases
+- Snapshots include empty, single-node, flat, folder, nested-folder, all-collapsed, mixed-collapse, with-selection, with-layout-positions, context-node, and real-project cases
 - Sequences cover all 11 command variants plus round-trip and multi-command flows
-- The real-vault fixture is sourced from `brain/working-memory/tasks/folder-nodes` but canonicalized to `/tmp/graph-state-fixtures/real-vault-folder-nodes` so the committed JSON stays stable across machines
+- The real-project fixture is sourced from `brain/working-memory/tasks/folder-nodes` but canonicalized to `/tmp/graph-state-fixtures/real-project-folder-nodes` so the committed JSON stays stable across machines
 
 Verification scripts:
 
 - `scripts/fixture-smoke.ts`
 - `scripts/fixture-command-coverage.ts`
 - `scripts/fixture-field-coverage.ts`
-- `scripts/fixture-vault-roundtrip.ts`
+- `scripts/fixture-project-roundtrip.ts`
 
 Manual CLI spot checks:
 
@@ -47,7 +47,7 @@ jq '{id, commands: [.commands[].type], expected: .expected}' \
 npx tsx -e "import { loadFixture } from './packages/graph-state/src/index.ts'; console.log(loadFixture('nested-folder').state.roots.folderTree.length)"
 ```
 
-The four scripted checks are the automated form of those same shell-level checks: load everything, verify command coverage, verify populated state fields, and round-trip the canonicalized real-vault fixture.
+The four scripted checks are the automated form of those same shell-level checks: load everything, verify command coverage, verify populated state fields, and round-trip the canonicalized real-project fixture.
 
 Regeneration:
 

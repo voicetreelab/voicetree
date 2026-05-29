@@ -23,7 +23,7 @@ Or without compose:
 ```bash
 docker run -d --rm --name voicetree \
     -p 6080:6080 \
-    -v voicetree-vault:/home/vt/vault \
+    -v voicetree-project:/home/vt/project \
     -v voicetree-claude:/home/vt/.config/claude \
     --shm-size=1g \
     -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
@@ -37,7 +37,7 @@ Then open `http://localhost:6080/vnc.html?autoconnect=1&resize=remote`.
 - **VoiceTree desktop app** running on a virtual display, served over noVNC.
 - **Claude Code** preinstalled. Run `claude` in any terminal VoiceTree spawns.
 - **Persistent named volumes**:
-  - `voicetree-vault` → `/home/vt/vault` (your markdown graph; survives container recreates)
+  - `voicetree-project` → `/home/vt/project` (your markdown graph; survives container recreates)
   - `voicetree-claude` → `/home/vt/.config/claude` (auth tokens; log in once)
 - **No browser** is preinstalled. Set `ANTHROPIC_API_KEY` to skip Claude Code's OAuth flow, or `apt-get install` a browser yourself inside a running container if you really need it.
 

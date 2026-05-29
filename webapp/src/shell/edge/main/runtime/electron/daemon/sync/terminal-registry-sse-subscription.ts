@@ -1,5 +1,5 @@
 /**
- * Main-side SSE subscriber for the per-vault VTD's
+ * Main-side SSE subscriber for the per-project VTD's
  * `/sessions/<id>/terminal-registry` route (BF-376 outbound). Wire
  * protocol (JSON-encoded `data:` blocks split on `\n\n`, silence-timeout
  * reconnect, `?since=<seq>` resume) is shared with any future per-topic
@@ -7,7 +7,7 @@
  *
  * Why module-level subscription state rather than a generic registry:
  * each topic owns its own controller / last-seen-seq / handler triple so
- * vault-switch teardown and parallel subscribe/unsubscribe lifecycles
+ * project-switch teardown and parallel subscribe/unsubscribe lifecycles
  * stay independent.
  *
  * Envelope shape (`TerminalRegistryEvent`) is owned by
@@ -30,14 +30,14 @@ const TERMINAL_REGISTRY_PATH_SUFFIX: string = '/terminal-registry'
 
 /**
  * Wire envelope carrying one `TerminalRegistryEvent` payload, plus the
- * hub-side metadata (monotonic seq, canonical vault) the loop needs for
- * its resume cursor and vault-switch fence.
+ * hub-side metadata (monotonic seq, canonical project) the loop needs for
+ * its resume cursor and project-switch fence.
  */
 export interface TerminalRegistryEnvelope {
     readonly kind: 'terminal-registry'
     readonly seq: number
     readonly event: TerminalRegistryEvent
-    readonly vault: string
+    readonly project: string
 }
 
 /**
@@ -51,7 +51,7 @@ export interface TerminalRegistryGapEnvelope {
     readonly kind: 'terminal-registry-gap'
     readonly fromSeq: number
     readonly currentSeq: number
-    readonly vault: string
+    readonly project: string
 }
 
 export type TerminalRegistryFrame =
@@ -79,7 +79,7 @@ export function parseTerminalRegistryBlock(block: string): TerminalRegistryFrame
     if (typeof parsed !== 'object' || parsed === null) return null
     const p = parsed as Record<string, unknown>
     if (p.kind === 'terminal-registry' && typeof p.seq === 'number'
-        && typeof p.vault === 'string' && typeof p.event === 'object' && p.event !== null) {
+        && typeof p.project === 'string' && typeof p.event === 'object' && p.event !== null) {
         const event = p.event as Record<string, unknown>
         if (typeof event.type !== 'string') return null
         if (!(TERMINAL_REGISTRY_EVENT_TYPES as readonly string[]).includes(event.type)) return null
@@ -87,16 +87,16 @@ export function parseTerminalRegistryBlock(block: string): TerminalRegistryFrame
             kind: 'terminal-registry',
             seq: p.seq,
             event: p.event as TerminalRegistryEvent,
-            vault: p.vault,
+            project: p.project,
         }
     }
     if (p.kind === 'terminal-registry-gap' && typeof p.fromSeq === 'number'
-        && typeof p.currentSeq === 'number' && typeof p.vault === 'string') {
+        && typeof p.currentSeq === 'number' && typeof p.project === 'string') {
         return {
             kind: 'terminal-registry-gap',
             fromSeq: p.fromSeq,
             currentSeq: p.currentSeq,
-            vault: p.vault,
+            project: p.project,
         }
     }
     return null
@@ -107,9 +107,9 @@ function classifyTerminalRegistryFrame(frame: TerminalRegistryFrame): FrameClass
         // Advance the resume cursor past the gap; do not deliver to the
         // handler (the handler is typed for envelopes, and gap handling
         // belongs to the consumer cache via re-snapshot).
-        return {vault: frame.vault, advanceSeq: frame.currentSeq, deliver: false}
+        return {project: frame.project, advanceSeq: frame.currentSeq, deliver: false}
     }
-    return {vault: frame.vault, advanceSeq: frame.seq, deliver: true}
+    return {project: frame.project, advanceSeq: frame.seq, deliver: true}
 }
 
 const TERMINAL_REGISTRY_CONFIG: SseTopicConfig<TerminalRegistryFrame> = {
@@ -135,7 +135,7 @@ const runner = createSseSubscriptionRunner<TerminalRegistryFrame>(
  * Open (or re-open) the terminal-registry SSE subscription. Tears down
  * any existing subscription first.
  *
- * `onEnvelope` is invoked for every envelope that passes the vault-switch
+ * `onEnvelope` is invoked for every envelope that passes the project-switch
  * fence; the caller owns whatever side effect (typically forwarding to
  * the local cache mirror).
  */

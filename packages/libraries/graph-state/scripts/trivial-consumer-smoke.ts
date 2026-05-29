@@ -16,7 +16,7 @@ const api: Pick<GraphStateAPI, 'project' | 'applyCommandWithDelta'> = {
 const cmd: Command = {
     type: 'SetFolderState',
     viewId: 'main',
-    path: '/tmp/vault/tasks',
+    path: '/tmp/project/tasks',
     state: 'collapsed',
 }
 const { state, delta } = api.applyCommandWithDelta(empty, cmd)

@@ -5,7 +5,7 @@
  * BEHAVIOR TESTED:
  * - INPUT: Parent node ID, headless cytoscape instance with 2 nodes
  * - OUTPUT: Cytoscape has 3 nodes with correct edges
- * - SIDE EFFECTS: Files are actually created on disk in temp vault
+ * - SIDE EFFECTS: Files are actually created on disk in temp project
  *
  * This test uses real IPC handlers and filesystem operations (no mocking of applyGraphDelta)
  *
@@ -41,7 +41,7 @@ import { mapNewGraphToDelta } from '@vt/graph-model/graph'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
-let tempVault: string = ''
+let tempProject: string = ''
 
 function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
@@ -101,19 +101,19 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', asyn
     }
 })
 
-// Mock watchFolder for vault path functions
+// Mock watchFolder for project path functions
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOriginal) => {
     const actual: typeof import('@/shell/edge/main/graph/watch_folder/watchFolder') = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
     return {
         ...actual,
         getProjectRoot: () => {
-            return tempVault ? O.of(tempVault) : O.none
+            return tempProject ? O.of(tempProject) : O.none
         },
         setProjectRoot: (path: string) => {
-            tempVault = path
+            tempProject = path
         },
         clearProjectRoot: () => {
-            tempVault = ''
+            tempProject = ''
         },
         startFileWatching: vi.fn().mockResolvedValue({ success: true }),
         stopFileWatching: vi.fn().mockResolvedValue({ success: true }),
@@ -121,7 +121,7 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
         getWatchStatus: vi.fn(() => ({ isWatching: false, directory: undefined })),
         loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
         isWatching: vi.fn(() => false),
-        getWatchedDirectory: () => tempVault || null,
+        getWatchedDirectory: () => tempProject || null,
         loadFolder: vi.fn().mockResolvedValue(undefined),
         markFrontendReady: vi.fn().mockResolvedValue(undefined)
     }
@@ -163,16 +163,16 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
         resetTestProjectionState()
         initGraphModel({})
         // Import IPC handlers once - they auto-register on import
-        // Create temporary vault directory
-        tempVault = path.join('/tmp', `test-vault-ui-${Date.now()}`)
-        await fs.mkdir(tempVault, { recursive: true })
+        // Create temporary project directory
+        tempProject = path.join('/tmp', `test-project-ui-${Date.now()}`)
+        await fs.mkdir(tempProject, { recursive: true })
 
-        // Set vault path in graph store and real graph-model state
-        setProjectRootReal(tempVault)
+        // Set project path in graph store and real graph-model state
+        setProjectRootReal(tempProject)
 
         // Create initial markdown files with frontmatter and wikilinks
         await fs.writeFile(
-            path.join(tempVault, 'parent.md'),
+            path.join(tempProject, 'parent.md'),
             `---
 position:
   x: 100
@@ -184,7 +184,7 @@ Parent content
 [[child1.md]]`
         )
         await fs.writeFile(
-            path.join(tempVault, 'child1.md'),
+            path.join(tempProject, 'child1.md'),
             `---
 position:
   x: 200
@@ -253,8 +253,8 @@ Child content`
         cy?.destroy()
         setProjectRootReal(null)
 
-        // Cleanup temp vault
-        await fs.rm(tempVault, { recursive: true, force: true })
+        // Cleanup temp project
+        await fs.rm(tempProject, { recursive: true, force: true })
 
         vi.clearAllMocks()
     })
@@ -278,7 +278,7 @@ Child content`
         expect(newNode.length).toBe(1)
 
         // AND: File should be created on disk
-        const newFilePath: string = path.join(tempVault, newNodeId)
+        const newFilePath: string = path.join(tempProject, newNodeId)
         const fileExists: boolean = await fs.access(newFilePath).then(() => true).catch(() => false)
         expect(fileExists).toBe(true)
 
@@ -289,13 +289,13 @@ Child content`
 
     it('should create file with correct position metadata eventually', async () => {
         // GIVEN: Graph with 2 nodes
-        const initialFileCount: number = (await fs.readdir(tempVault)).length
+        const initialFileCount: number = (await fs.readdir(tempProject)).length
 
         // WHEN: Creating a new child node
         await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Should have one more file
-        const files: string[] = await fs.readdir(tempVault)
+        const files: string[] = await fs.readdir(tempProject)
         expect(files).toHaveLength(initialFileCount + 1)
 
         // AND: New file should exist with expected name (parent.md -> parent_1.md by stripping .md and adding _1.md)
@@ -303,7 +303,7 @@ Child content`
         expect(files).toContain(newNodeId)
 
         // AND: File should be readable and parseable
-        const newFilePath: string = path.join(tempVault, `${newNodeId}`)
+        const newFilePath: string = path.join(tempProject, `${newNodeId}`)
         const stat: import("fs").Stats = await fs.stat(newFilePath)
         expect(stat.isFile()).toBe(true)
         expect(stat.size).toBeGreaterThan(0)
@@ -311,7 +311,7 @@ Child content`
 
     it('should update parent file with edge to new child', async () => {
         // GIVEN: Parent node with one existing child
-        const parentFilePath: string = path.join(tempVault, 'parent.md')
+        const parentFilePath: string = path.join(tempProject, 'parent.md')
         const initialParentContent: string = await fs.readFile(parentFilePath, 'utf-8')
 
         // Verify parent initially has only child1
@@ -337,16 +337,16 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
     beforeEach(async () => {
         initGraphModel({})
         // Import IPC handlers once - they auto-register on import
-        // Create temporary vault directory
-        tempVault = path.join('/tmp', `test-vault-delete-${Date.now()}`)
-        await fs.mkdir(tempVault, { recursive: true })
+        // Create temporary project directory
+        tempProject = path.join('/tmp', `test-project-delete-${Date.now()}`)
+        await fs.mkdir(tempProject, { recursive: true })
 
-        // Set vault path in graph store and real graph-model state
-        setProjectRootReal(tempVault)
+        // Set project path in graph store and real graph-model state
+        setProjectRootReal(tempProject)
 
         // Create initial markdown files
         await fs.writeFile(
-            path.join(tempVault, 'parent.md'),
+            path.join(tempProject, 'parent.md'),
             `---
 position:
   x: 100
@@ -358,7 +358,7 @@ Parent content
 [[child1.md]]`
         )
         await fs.writeFile(
-            path.join(tempVault, 'child1.md'),
+            path.join(tempProject, 'child1.md'),
             `---
 position:
   x: 200
@@ -427,8 +427,8 @@ Child content`
         cy?.destroy()
         setProjectRootReal(null)
 
-        // Cleanup temp vault
-        await fs.rm(tempVault, { recursive: true, force: true })
+        // Cleanup temp project
+        await fs.rm(tempProject, { recursive: true, force: true })
 
         vi.clearAllMocks()
     })
@@ -448,7 +448,7 @@ Child content`
 
     it('should delete node file from disk', async () => {
         // GIVEN: Both files exist on disk
-        const child1Path: string = path.join(tempVault, 'child1.md')
+        const child1Path: string = path.join(tempProject, 'child1.md')
         const initialExists: boolean = await fs.access(child1Path).then(() => true).catch(() => false)
         expect(initialExists).toBe(true)
 

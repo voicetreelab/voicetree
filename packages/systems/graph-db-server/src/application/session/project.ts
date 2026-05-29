@@ -1,12 +1,12 @@
 // BF-214 · pure session-state projection.
 // Assembles a @vt/graph-state State from the daemon's ambient sources
-// (graph, vault, folder-tree) overlaid with a session's view state
+// (graph, project, folder-tree) overlaid with a session's view state
 // (collapseSet, selection, layout viewport). This is the same shape today's
 // webapp/main `buildLiveStateSnapshot` emits — UI + CLI share this function in P7.
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
 import type { FolderTreeNode, Graph, GraphNode } from '@vt/graph-model'
-import type { VaultState } from '@vt/graph-db-server/contract'
+import type { ProjectState } from '@vt/graph-db-server/contract'
 import type { Session } from './types.ts'
 
 type FolderState = 'expanded' | 'collapsed' | 'hidden'
@@ -26,7 +26,7 @@ type FolderRecord = {
 
 interface ProjectSessionStateArgs {
   readonly graph: Graph
-  readonly vault: VaultState
+  readonly project: ProjectState
   readonly folderTree: FolderTreeNode | null
   readonly session: Session
 }
@@ -67,13 +67,13 @@ function explicitFolderState(
   return folderState.get(normalizeFolderPath(path))
 }
 
-function folderStateWithImplicitWriteFolder(
+function folderStateWithImplicitWriteFolderPath(
   folderState: ReadonlyMap<string, FolderState>,
-  writeFolder: string,
+  writeFolderPath: string,
 ): ReadonlyMap<string, FolderState> {
-  const normalizedWriteFolder = normalizeFolderPath(writeFolder)
-  if (normalizedWriteFolder.length === 0 || folderState.has(normalizedWriteFolder)) return folderState
-  return new Map([...folderState, [normalizedWriteFolder, 'expanded' as const]])
+  const normalizedWriteFolderPath = normalizeFolderPath(writeFolderPath)
+  if (normalizedWriteFolderPath.length === 0 || folderState.has(normalizedWriteFolderPath)) return folderState
+  return new Map([...folderState, [normalizedWriteFolderPath, 'expanded' as const]])
 }
 
 function nearestExplicitAncestorState(
@@ -120,21 +120,21 @@ function collectFolderRecords(
   out.set(path, { node, path, parentPath, childFolderPaths, directFiles })
 }
 
-function isRootLevelFile(parentPath: string | null, vault: VaultState): boolean {
+function isRootLevelFile(parentPath: string | null, project: ProjectState): boolean {
   if (!parentPath) return true
   const normalizedParent = normalizeFolderPath(parentPath)
-  return normalizedParent === normalizeFolderPath(vault.writeFolder)
-    || normalizedParent === normalizeFolderPath(vault.projectRoot)
+  return normalizedParent === normalizeFolderPath(project.writeFolderPath)
+    || normalizedParent === normalizeFolderPath(project.projectRoot)
 }
 
 function shouldProjectGraphNode(
   nodeId: string,
   folderState: ReadonlyMap<string, FolderState>,
   renderedFolderPaths: ReadonlySet<string>,
-  vault: VaultState,
+  project: ProjectState,
 ): boolean {
   const parentPath = parentFolderPathForFile(nodeId)
-  if (isRootLevelFile(parentPath, vault)) return true
+  if (isRootLevelFile(parentPath, project)) return true
   if (!parentPath) return true
 
   let current: string | null = normalizeFolderPath(parentPath)
@@ -187,11 +187,11 @@ function projectGraph(
   graph: Graph,
   folderState: ReadonlyMap<string, FolderState>,
   renderedFolderPaths: ReadonlySet<string>,
-  vault: VaultState,
+  project: ProjectState,
 ): Graph {
   const nodes = Object.fromEntries(
     Object.entries(graph.nodes)
-      .filter(([nodeId]) => shouldProjectGraphNode(nodeId, folderState, renderedFolderPaths, vault)),
+      .filter(([nodeId]) => shouldProjectGraphNode(nodeId, folderState, renderedFolderPaths, project)),
   )
   const visibleNodeIds = new Set(Object.keys(nodes))
   const filteredNodes = Object.fromEntries(
@@ -294,18 +294,18 @@ function projectFolderTree(
 }
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
-  const { graph, vault, folderTree, session } = args
-  const folderState = folderStateWithImplicitWriteFolder(session.folderState, vault.writeFolder)
+  const { graph, project, folderTree, session } = args
+  const folderState = folderStateWithImplicitWriteFolderPath(session.folderState, project.writeFolderPath)
   const renderedFolderPaths = new Set(
     [...folderState]
       .filter(([, state]) => state !== 'hidden')
       .map(([path]) => normalizeFolderPath(path)),
   )
-  const projectedGraph = projectGraph(graph, folderState, renderedFolderPaths, vault)
+  const projectedGraph = projectGraph(graph, folderState, renderedFolderPaths, project)
   return {
     graph: projectedGraph,
     roots: {
-      loaded: new Set<string>([vault.writeFolder, ...vault.readPaths].filter((path) => path.length > 0)),
+      loaded: new Set<string>([project.writeFolderPath, ...project.readPaths].filter((path) => path.length > 0)),
       folderTree: projectFolderTree(folderTree, folderState, projectedGraph.nodes),
     },
     collapseSet: new Set([...folderState]

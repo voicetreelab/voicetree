@@ -5,7 +5,7 @@
 - claude: 2.1.142 (Claude Code)
 - tmux: tmux 3.6a
 - Node: v23.7.0
-- Vault: .stress-vault
+- Project: .stress-project
 
 ## Results
 - multi_C_n3_pass: true

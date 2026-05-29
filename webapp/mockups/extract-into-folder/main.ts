@@ -7,11 +7,11 @@ import {
 } from '@/shell/edge/UI-edge/graph/popups/extractIntoFolderPopup'
 
 const selectedNodes: ExtractIntoFolderSelectedNode[] = [
-    { id: 'n1', title: 'Architecture overview', parentFolderDisplay: '/tmp/vault/notes/' },
-    { id: 'n2', title: 'Auth flow diagram',     parentFolderDisplay: '/tmp/vault/diagrams/' },
-    { id: 'n3', title: 'Open questions',        parentFolderDisplay: '/tmp/vault/' },
+    { id: 'n1', title: 'Architecture overview', parentFolderDisplay: '/tmp/project/notes/' },
+    { id: 'n2', title: 'Auth flow diagram',     parentFolderDisplay: '/tmp/project/diagrams/' },
+    { id: 'n3', title: 'Open questions',        parentFolderDisplay: '/tmp/project/' },
 ]
-const commonAncestorDisplay = '/tmp/vault/'
+const commonAncestorDisplay = '/tmp/project/'
 const defaultFolderName = 'extracted'
 
 const resultBox = document.querySelector<HTMLDivElement>('#result')!

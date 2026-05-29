@@ -3,10 +3,10 @@
  * Child-process helper for the BF-374 cross-process storm regression test.
  *
  * Invoked as:
- *   node --import tsx <this> --vault <path> --bin "<command line>"
+ *   node --import tsx <this> --project <path> --bin "<command line>"
  *     [--timeoutMs <n>] [--caller <CallerKind>]
  *
- * Calls `ensureVtDaemonForVault` once and writes a single JSON line to
+ * Calls `ensureVtDaemonForProject` once and writes a single JSON line to
  * stdout describing the outcome:
  *
  *   { "ok": true, "port": N, "pid": P, "ownerNonce": "...",
@@ -17,7 +17,7 @@
  * JSON line back to verify all child processes converged on the same VTD
  * owner.
  *
- * Mirrors `ensure-graphd-child.mjs` but parses `--vault` (NOT
+ * Mirrors `ensure-graphd-child.mjs` but parses `--project` (NOT
  * `--project-root`) and imports from `@vt/vt-daemon-client`. The argv
  * flag is intentionally distinct: a misconfigured launcher must fail
  * loudly at parseArgs rather than silently route to the wrong daemon.
@@ -28,25 +28,25 @@
  * it as a test file.
  */
 
-import { ensureVtDaemonForVault } from '../harness/nodeEnsureVtDaemonForVault.ts'
+import { ensureVtDaemonForProject } from '../harness/nodeEnsureVtDaemonForProject.ts'
 
 function arg(flag) {
   const i = process.argv.indexOf(flag)
   return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined
 }
 
-const vault = arg('--vault')
+const project = arg('--project')
 const bin = arg('--bin')
 const timeoutMs = Number(arg('--timeoutMs') ?? '10000')
 const caller = arg('--caller') ?? 'electron'
 
-if (!vault || !bin) {
-  process.stderr.write('ensure-vtd-child: --vault and --bin required\n')
+if (!project || !bin) {
+  process.stderr.write('ensure-vtd-child: --project and --bin required\n')
   process.exit(2)
 }
 
 try {
-  const result = await ensureVtDaemonForVault(vault, caller, {
+  const result = await ensureVtDaemonForProject(project, caller, {
     bin,
     timeoutMs,
   })

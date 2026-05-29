@@ -12,15 +12,15 @@ import {
   type CooldownBreadcrumb,
 } from '../cooldownBreadcrumb.ts'
 
-let vault: string
+let project: string
 
 beforeEach(async () => {
-  vault = await mkdtemp(join(tmpdir(), 'vt-graphd-bf347-cd-'))
-  await mkdir(join(vault, '.voicetree'), { recursive: true })
+  project = await mkdtemp(join(tmpdir(), 'vt-graphd-bf347-cd-'))
+  await mkdir(join(project, '.voicetree'), { recursive: true })
 })
 
 afterEach(async () => {
-  await rm(vault, { recursive: true, force: true })
+  await rm(project, { recursive: true, force: true })
 })
 
 function makeBreadcrumb(
@@ -29,7 +29,7 @@ function makeBreadcrumb(
   const now = 1_700_000_000_000
   return {
     schemaVersion: 1,
-    canonicalVault: vault,
+    canonicalProject: project,
     writtenAtMs: now,
     untilMs: now + 5_000,
     reason: 'spawn-failed',
@@ -68,71 +68,71 @@ describe('decideActiveCooldown — pure', () => {
 describe('cooldown breadcrumb IO — black-box', () => {
   test('write then read round-trips the breadcrumb', async () => {
     const breadcrumb = makeBreadcrumb({ reason: 'first-attempt' })
-    await writeCooldownBreadcrumb(vault, 'graphd', breadcrumb, 1234)
+    await writeCooldownBreadcrumb(project, 'graphd', breadcrumb, 1234)
 
-    const roundtripped = await readCooldownBreadcrumb(vault, 'graphd')
+    const roundtripped = await readCooldownBreadcrumb(project, 'graphd')
     expect(roundtripped).toEqual(breadcrumb)
 
     // File lives at the published path.
-    const raw = await readFile(cooldownBreadcrumbPathFor(vault, 'graphd'), 'utf8')
+    const raw = await readFile(cooldownBreadcrumbPathFor(project, 'graphd'), 'utf8')
     expect(raw).toContain('"reason": "first-attempt"')
   })
 
   test('path is sibling to other owner files under .voicetree/, keyed by daemonKind', () => {
-    expect(cooldownBreadcrumbPathFor(vault, 'graphd')).toBe(
-      join(vault, '.voicetree', 'graphd.cooldown.json'),
+    expect(cooldownBreadcrumbPathFor(project, 'graphd')).toBe(
+      join(project, '.voicetree', 'graphd.cooldown.json'),
     )
-    expect(cooldownBreadcrumbPathFor(vault, 'vtd')).toBe(
-      join(vault, '.voicetree', 'vtd.cooldown.json'),
+    expect(cooldownBreadcrumbPathFor(project, 'vtd')).toBe(
+      join(project, '.voicetree', 'vtd.cooldown.json'),
     )
   })
 
   test('read returns null for missing file', async () => {
-    expect(await readCooldownBreadcrumb(vault, 'graphd')).toBeNull()
+    expect(await readCooldownBreadcrumb(project, 'graphd')).toBeNull()
   })
 
   test('read returns null for corrupt JSON', async () => {
-    await writeFile(cooldownBreadcrumbPathFor(vault, 'graphd'), '{ not valid json', 'utf8')
-    expect(await readCooldownBreadcrumb(vault, 'graphd')).toBeNull()
+    await writeFile(cooldownBreadcrumbPathFor(project, 'graphd'), '{ not valid json', 'utf8')
+    expect(await readCooldownBreadcrumb(project, 'graphd')).toBeNull()
   })
 
   test('read returns null for schema mismatch', async () => {
     await writeFile(
-      cooldownBreadcrumbPathFor(vault, 'graphd'),
-      JSON.stringify({ schemaVersion: 99, canonicalVault: vault }),
+      cooldownBreadcrumbPathFor(project, 'graphd'),
+      JSON.stringify({ schemaVersion: 99, canonicalProject: project }),
       'utf8',
     )
-    expect(await readCooldownBreadcrumb(vault, 'graphd')).toBeNull()
+    expect(await readCooldownBreadcrumb(project, 'graphd')).toBeNull()
   })
 
   test('clearCooldownBreadcrumb removes the file and is idempotent', async () => {
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb(), 1234)
-    await clearCooldownBreadcrumb(vault, 'graphd')
-    expect(await readCooldownBreadcrumb(vault, 'graphd')).toBeNull()
+    await writeCooldownBreadcrumb(project, 'graphd', makeBreadcrumb(), 1234)
+    await clearCooldownBreadcrumb(project, 'graphd')
+    expect(await readCooldownBreadcrumb(project, 'graphd')).toBeNull()
     // Second clear on an absent file does not throw.
-    await clearCooldownBreadcrumb(vault, 'graphd')
+    await clearCooldownBreadcrumb(project, 'graphd')
   })
 
   test('write atomically replaces an existing breadcrumb', async () => {
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'first' }), 1234)
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'second' }), 1234)
+    await writeCooldownBreadcrumb(project, 'graphd', makeBreadcrumb({ reason: 'first' }), 1234)
+    await writeCooldownBreadcrumb(project, 'graphd', makeBreadcrumb({ reason: 'second' }), 1234)
 
-    const final = await readCooldownBreadcrumb(vault, 'graphd')
+    const final = await readCooldownBreadcrumb(project, 'graphd')
     expect(final?.reason).toBe('second')
   })
 
-  test('graphd and vtd breadcrumbs are independent for the same vault', async () => {
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'graphd-spawn-failed' }), 1234)
-    await writeCooldownBreadcrumb(vault, 'vtd', makeBreadcrumb({ reason: 'vtd-spawn-failed' }), 1234)
+  test('graphd and vtd breadcrumbs are independent for the same project', async () => {
+    await writeCooldownBreadcrumb(project, 'graphd', makeBreadcrumb({ reason: 'graphd-spawn-failed' }), 1234)
+    await writeCooldownBreadcrumb(project, 'vtd', makeBreadcrumb({ reason: 'vtd-spawn-failed' }), 1234)
 
-    const graphd = await readCooldownBreadcrumb(vault, 'graphd')
-    const vtd = await readCooldownBreadcrumb(vault, 'vtd')
+    const graphd = await readCooldownBreadcrumb(project, 'graphd')
+    const vtd = await readCooldownBreadcrumb(project, 'vtd')
     expect(graphd?.reason).toBe('graphd-spawn-failed')
     expect(vtd?.reason).toBe('vtd-spawn-failed')
 
     // Clearing one does not affect the other.
-    await clearCooldownBreadcrumb(vault, 'graphd')
-    expect(await readCooldownBreadcrumb(vault, 'graphd')).toBeNull()
-    expect(await readCooldownBreadcrumb(vault, 'vtd')).not.toBeNull()
+    await clearCooldownBreadcrumb(project, 'graphd')
+    expect(await readCooldownBreadcrumb(project, 'graphd')).toBeNull()
+    expect(await readCooldownBreadcrumb(project, 'vtd')).not.toBeNull()
   })
 })

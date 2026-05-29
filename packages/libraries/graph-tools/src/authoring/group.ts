@@ -15,11 +15,11 @@ type GraphGroupResult = {
     details: Array<{file: string; count: number}>
 }
 
-const USAGE = 'Usage: vt graph group <folder-path> <node1> <node2> ... [--dry-run] [--vault PATH]'
+const USAGE = 'Usage: vt graph group <folder-path> <node1> <node2> ... [--dry-run] [--project PATH]'
 
-function parseGroupArgs(args: string[]): {dryRun: boolean; vaultRoot: string; positionals: string[]} {
+function parseGroupArgs(args: string[]): {dryRun: boolean; projectRoot: string; positionals: string[]} {
     let dryRun = false
-    let vaultRoot = BRAIN
+    let projectRoot = BRAIN
     const positionals: string[] = []
 
     for (let i = 0; i < args.length; i++) {
@@ -28,10 +28,10 @@ function parseGroupArgs(args: string[]): {dryRun: boolean; vaultRoot: string; po
             dryRun = true
             continue
         }
-        if (arg === '--vault') {
+        if (arg === '--project') {
             const val = args[i + 1]
-            if (!val) error('--vault requires a value')
-            vaultRoot = resolve(val)
+            if (!val) error('--project requires a value')
+            projectRoot = resolve(val)
             i++
             continue
         }
@@ -42,7 +42,7 @@ function parseGroupArgs(args: string[]): {dryRun: boolean; vaultRoot: string; po
         error(USAGE)
     }
 
-    return {dryRun, vaultRoot, positionals}
+    return {dryRun, projectRoot, positionals}
 }
 
 function formatGroupResult(result: GraphGroupResult): string {
@@ -70,14 +70,14 @@ export async function graphGroup(
     _terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
-    const {dryRun, vaultRoot, positionals} = parseGroupArgs(args)
+    const {dryRun, projectRoot, positionals} = parseGroupArgs(args)
     const [folderPath, ...nodePaths] = positionals
 
-    const folderAbsPath = resolveFilePath(folderPath, vaultRoot)
+    const folderAbsPath = resolveFilePath(folderPath, projectRoot)
 
     const mappings: PathMapping[] = []
     for (const nodePath of nodePaths) {
-        const sourceAbsPath = resolveFilePath(nodePath, vaultRoot)
+        const sourceAbsPath = resolveFilePath(nodePath, projectRoot)
         if (!existsSync(sourceAbsPath)) {
             error(`Source does not exist: ${nodePath}`)
         }
@@ -86,7 +86,7 @@ export async function graphGroup(
         }
         const destAbsPath = join(folderAbsPath, basename(sourceAbsPath))
         if (existsSync(destAbsPath)) {
-            error(`Destination already exists: ${relative(vaultRoot, destAbsPath)}`)
+            error(`Destination already exists: ${relative(projectRoot, destAbsPath)}`)
         }
         mappings.push({oldAbsPath: sourceAbsPath, newAbsPath: destAbsPath})
     }
@@ -99,7 +99,7 @@ export async function graphGroup(
         folderCreated = true
     }
 
-    const refSummary = updateReferences(vaultRoot, mappings, dryRun)
+    const refSummary = updateReferences(projectRoot, mappings, dryRun)
 
     if (!dryRun) {
         for (const {oldAbsPath, newAbsPath} of mappings) {
@@ -110,8 +110,8 @@ export async function graphGroup(
     const result: GraphGroupResult = {
         folderCreated,
         movedFiles: mappings.map(({oldAbsPath, newAbsPath}) => ({
-            from: relative(vaultRoot, oldAbsPath),
-            to: relative(vaultRoot, newAbsPath),
+            from: relative(projectRoot, oldAbsPath),
+            to: relative(projectRoot, newAbsPath),
         })),
         dryRun,
         filesChanged: refSummary.filesChanged,

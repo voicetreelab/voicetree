@@ -34,7 +34,7 @@ import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -131,12 +131,12 @@ test.describe('Context Node Agent Terminal E2E', () => {
     }, agentCommand);
     console.log('✓ Agent command configured:', agentCommand);
 
-    console.log('=== STEP 2: Load the test vault (example_small) ===');
+    console.log('=== STEP 2: Load the test project (example_small) ===');
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     expect(watchResult.success).toBe(true);
     console.log('✓ File watching started');
@@ -153,11 +153,11 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     expect(watchStatus.isWatching).toBe(true);
     expect(watchStatus.directory).toBeTruthy();
-    // Vault path = projectRoot + vaultSuffix (e.g., example_small + voicetree)
-    const projectRoot = path.join(watchStatus.directory!, watchStatus.vaultSuffix);
+    // Project path = projectRoot + projectSuffix (e.g., example_small + voicetree)
+    const projectRoot = path.join(watchStatus.directory!, watchStatus.projectSuffix);
     console.log(`✓ Watch directory: ${watchStatus.directory}`);
-    console.log(`✓ Vault suffix: ${watchStatus.vaultSuffix}`);
-    console.log(`✓ Vault path: ${projectRoot}`);
+    console.log(`✓ Project suffix: ${watchStatus.projectSuffix}`);
+    console.log(`✓ Project path: ${projectRoot}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';
@@ -297,7 +297,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('✓ Agent command configured with -p flag');
-    console.log('✓ Test vault loaded (example_small)');
+    console.log('✓ Test project loaded (example_small)');
     console.log('✓ Watch status retrieved');
     console.log('✓ Context node created from Node 5');
     console.log('✓ Terminal spawned with CONTEXT_NODE_PATH env var');

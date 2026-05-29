@@ -23,7 +23,7 @@ describe('vt-daemon-client wrappers — tmuxUnclaimed facade', (): void => {
             sessionName: 'voicetree-orphan-1',
             terminalId: 'orphan-1',
             hash: 'deadbeef',
-            classification: 'this-vault',
+            classification: 'this-project',
             attachable: true,
             createdAt: 1700000000000,
             panePid: 999,
@@ -53,7 +53,7 @@ describe('vt-daemon-client wrappers — tmuxUnclaimed facade', (): void => {
         const result = await vtd.tmuxUnclaimed.listUnclaimedTmuxSessions()
         expect(result).toHaveLength(1)
         expect(result[0].sessionName).toBe('voicetree-orphan-1')
-        expect(result[0].classification).toBe('this-vault')
+        expect(result[0].classification).toBe('this-project')
         expect(server.received[0].method).toBe('listUnclaimedTmuxSessions')
         expect(server.received[0].params).toEqual({})
     })

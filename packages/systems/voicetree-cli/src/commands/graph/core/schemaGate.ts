@@ -15,7 +15,7 @@ import type {
 export type SchemaGateInput = {
     readonly targetPath: string
     readonly rawBody: string
-    readonly vaultRoot: string
+    readonly projectRoot: string
 }
 
 export type SchemaGateResult =
@@ -24,7 +24,7 @@ export type SchemaGateResult =
     | {readonly status: 'rejected'; readonly violation: SchemaViolation}
 
 export async function runSchemaGate(input: SchemaGateInput): Promise<SchemaGateResult> {
-    const resolved: ResolvedFolderType | undefined = resolveTypeForTarget(input.targetPath, input.vaultRoot)
+    const resolved: ResolvedFolderType | undefined = resolveTypeForTarget(input.targetPath, input.projectRoot)
     // No upstream `## Type` folder note → the gate has nothing to validate
     // against. Emit a silent `ok`: the file is still written, and the report
     // shouldn't surface a misleading "skipped" status for the common case of a
@@ -32,7 +32,7 @@ export async function runSchemaGate(input: SchemaGateInput): Promise<SchemaGateR
     // remain loud skips so the user hears about them.
     if (!resolved) return {status: 'ok'}
 
-    const plugin: ValidatorMap | undefined = await loadSchemaPlugin(input.vaultRoot)
+    const plugin: ValidatorMap | undefined = await loadSchemaPlugin(input.projectRoot)
     if (!plugin) return {status: 'skipped', reason: 'no_schema_plugin'}
 
     const validator: Validator | undefined = plugin[resolved.typeName]
@@ -56,9 +56,9 @@ export async function runSchemaGate(input: SchemaGateInput): Promise<SchemaGateR
 }
 
 const SKIP_MESSAGES: Readonly<Record<SkipReason, string>> = {
-    no_schema_plugin: 'no .voicetree/schemas.cjs in vault',
+    no_schema_plugin: 'no .voicetree/schemas.cjs in project',
     unknown_type: 'declared Type is not registered in schemas.cjs',
-    no_vault_detected: 'no vault detected from working directory',
+    no_project_detected: 'no project detected from working directory',
     no_parent_for_live_node: 'no parent node id supplied for live-mode node',
 }
 

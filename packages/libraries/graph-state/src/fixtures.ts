@@ -100,8 +100,8 @@ export const SNAPSHOTS_DIR: string = path.join(FIXTURES_DIR, 'snapshots')
 export const SEQUENCES_DIR: string = path.join(FIXTURES_DIR, 'sequences')
 export const PROJECTIONS_DIR: string = path.join(FIXTURES_DIR, 'projections')
 
-export const REAL_VAULT_FIXTURE_ID = '080-folder-nodes-real-vault'
-export const REAL_VAULT_CANONICAL_ROOT = '/tmp/graph-state-fixtures/real-vault-folder-nodes'
+export const REAL_PROJECT_FIXTURE_ID = '080-folder-nodes-real-project'
+export const REAL_PROJECT_CANONICAL_ROOT = '/tmp/graph-state-fixtures/real-project-folder-nodes'
 
 function readJsonDocument<T>(filePath: string): T {
     return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T
@@ -271,27 +271,27 @@ export function toFixtureJson(value: unknown): string {
     return `${JSON.stringify(value, null, 2)}\n`
 }
 
-async function copyVaultToCanonicalRoot(sourceVaultPath: string, canonicalRoot: string): Promise<void> {
+async function copyProjectToCanonicalRoot(sourceProjectPath: string, canonicalRoot: string): Promise<void> {
     await fsp.rm(canonicalRoot, { recursive: true, force: true })
     await fsp.mkdir(path.dirname(canonicalRoot), { recursive: true })
-    await fsp.cp(sourceVaultPath, canonicalRoot, { recursive: true })
+    await fsp.cp(sourceProjectPath, canonicalRoot, { recursive: true })
 }
 
-export async function buildStateFromVault(
-    sourceVaultPath: string,
-    canonicalRoot: string = sourceVaultPath,
+export async function buildStateFromProject(
+    sourceProjectPath: string,
+    canonicalRoot: string = sourceProjectPath,
 ): Promise<State> {
-    const normalizedSource = normalizePath(path.resolve(sourceVaultPath))
+    const normalizedSource = normalizePath(path.resolve(sourceProjectPath))
     const normalizedCanonical = normalizePath(canonicalRoot)
 
     if (normalizedSource !== normalizedCanonical) {
-        await copyVaultToCanonicalRoot(normalizedSource, normalizedCanonical)
+        await copyProjectToCanonicalRoot(normalizedSource, normalizedCanonical)
     }
 
     const { loadGraphFromDisk, getDirectoryTree }: RootIO = getRootIO()
     const loadResult = await loadGraphFromDisk([normalizedCanonical])
     if (E.isLeft(loadResult)) {
-        throw new Error(`Failed to load vault fixture from ${sourceVaultPath}: ${JSON.stringify(loadResult.left)}`)
+        throw new Error(`Failed to load project fixture from ${sourceProjectPath}: ${JSON.stringify(loadResult.left)}`)
     }
 
     const directoryTree = await getDirectoryTree(normalizedCanonical)
@@ -324,15 +324,15 @@ export async function buildStateFromVault(
     }
 }
 
-export async function snapshotStateFromVault(
-    sourceVaultPath: string,
+export async function snapshotStateFromProject(
+    sourceProjectPath: string,
     options: {
         readonly id: string
         readonly description: string
         readonly canonicalRoot?: string
     },
 ): Promise<SnapshotDocument> {
-    const state = await buildStateFromVault(sourceVaultPath, options.canonicalRoot)
+    const state = await buildStateFromProject(sourceProjectPath, options.canonicalRoot)
     return {
         $schema: 'graph-state/snapshot@1',
         id: options.id,

@@ -46,7 +46,7 @@ import {
     TMUX_BIN,
     buildSessionName,
     ensureScreenshotDir,
-    ensureVaultLoadedIntoGraph,
+    ensureProjectLoadedIntoGraph,
     fixtureClaudeTranscript,
     fixtureRecoveryMetadata,
     tmuxSocketPath,
@@ -116,15 +116,15 @@ function collectProcessTreeArgv(rootPid: number): readonly string[] {
 test.describe('BF-332 — persisted Resume click promotes the row into a live tmux-backed terminal', () => {
     test.describe.configure({mode: 'serial', timeout: 180_000});
 
-    test('Resume row → click → new tmux pane appears AND a live terminal-tree-node materialises for the terminalId', async ({appWindow, vault, stubClaudeBinDir}) => {
+    test('Resume row → click → new tmux pane appears AND a live terminal-tree-node materialises for the terminalId', async ({appWindow, project, stubClaudeBinDir}) => {
         void stubClaudeBinDir; // referenced via the electronApp fixture's PATH
 
         await ensureScreenshotDir();
-        await ensureVaultLoadedIntoGraph(appWindow);
+        await ensureProjectLoadedIntoGraph(appWindow);
 
-        const taskNodePath: string = path.join(vault.projectRoot, 'readme.md');
-        const sessionName: string = buildSessionName(vault.projectRoot, RESUME_TERMINAL_ID);
-        const socketPath: string = tmuxSocketPath(vault.appSupportPath);
+        const taskNodePath: string = path.join(project.projectRoot, 'readme.md');
+        const sessionName: string = buildSessionName(project.projectRoot, RESUME_TERMINAL_ID);
+        const socketPath: string = tmuxSocketPath(project.voicetreeHomePath);
 
         // Pre-condition: no live tmux session for this terminalId.
         expect(tmuxHasSession(sessionName, socketPath), `tmux session ${sessionName} must NOT exist before the test starts`).toBe(false);
@@ -133,16 +133,16 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
         let transcriptPath: string | null = null;
         try {
             metadataPath = await fixtureRecoveryMetadata({
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 terminalId: RESUME_TERMINAL_ID,
                 agentName: RESUME_TERMINAL_ID,
                 cliBinary: 'claude',
                 taskNodePath,
             });
             transcriptPath = await fixtureClaudeTranscript({
-                claudeProjectsRoot: vault.claudeProjectsRoot,
+                claudeProjectsRoot: project.claudeProjectsRoot,
                 terminalId: RESUME_TERMINAL_ID,
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 taskNodePath,
                 sessionId: RESUME_NATIVE_SESSION_ID,
             });
@@ -233,18 +233,18 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
         }
     });
 
-    test('Resume → byte round trip: xterm DOM keystrokes reach tmux pane AND pane output renders into the xterm buffer', async ({appWindow, vault, stubClaudeBinDir}) => {
+    test('Resume → byte round trip: xterm DOM keystrokes reach tmux pane AND pane output renders into the xterm buffer', async ({appWindow, project, stubClaudeBinDir}) => {
         void stubClaudeBinDir;
 
         const TERMINAL_ID: string = 'PersistedResumeT10Round';
         const NATIVE_SESSION_ID: string = '7a3b4d5e-1f2c-4e9d-8b7a-3c2d1e0f9a8b';
 
         await ensureScreenshotDir();
-        await ensureVaultLoadedIntoGraph(appWindow);
+        await ensureProjectLoadedIntoGraph(appWindow);
 
-        const taskNodePath: string = path.join(vault.projectRoot, 'readme.md');
-        const sessionName: string = buildSessionName(vault.projectRoot, TERMINAL_ID);
-        const socketPath: string = tmuxSocketPath(vault.appSupportPath);
+        const taskNodePath: string = path.join(project.projectRoot, 'readme.md');
+        const sessionName: string = buildSessionName(project.projectRoot, TERMINAL_ID);
+        const socketPath: string = tmuxSocketPath(project.voicetreeHomePath);
 
         expect(tmuxHasSession(sessionName, socketPath), `tmux session ${sessionName} must NOT exist before the test starts`).toBe(false);
 
@@ -252,16 +252,16 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
         let transcriptPath: string | null = null;
         try {
             metadataPath = await fixtureRecoveryMetadata({
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 terminalId: TERMINAL_ID,
                 agentName: TERMINAL_ID,
                 cliBinary: 'claude',
                 taskNodePath,
             });
             transcriptPath = await fixtureClaudeTranscript({
-                claudeProjectsRoot: vault.claudeProjectsRoot,
+                claudeProjectsRoot: project.claudeProjectsRoot,
                 terminalId: TERMINAL_ID,
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 taskNodePath,
                 sessionId: NATIVE_SESSION_ID,
             });
@@ -327,17 +327,17 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
         }
     });
 
-    test('Resume metadata WITHOUT a Claude transcript → click surfaces no-jsonl-matches diagnostic AND no tmux pane spawns', async ({appWindow, vault, stubClaudeBinDir}) => {
+    test('Resume metadata WITHOUT a Claude transcript → click surfaces no-jsonl-matches diagnostic AND no tmux pane spawns', async ({appWindow, project, stubClaudeBinDir}) => {
         void stubClaudeBinDir;
 
         const TERMINAL_ID: string = 'PersistedResumeT10NoSession';
 
         await ensureScreenshotDir();
-        await ensureVaultLoadedIntoGraph(appWindow);
+        await ensureProjectLoadedIntoGraph(appWindow);
 
-        const taskNodePath: string = path.join(vault.projectRoot, 'readme.md');
-        const sessionName: string = buildSessionName(vault.projectRoot, TERMINAL_ID);
-        const socketPath: string = tmuxSocketPath(vault.appSupportPath);
+        const taskNodePath: string = path.join(project.projectRoot, 'readme.md');
+        const sessionName: string = buildSessionName(project.projectRoot, TERMINAL_ID);
+        const socketPath: string = tmuxSocketPath(project.voicetreeHomePath);
 
         expect(tmuxHasSession(sessionName, socketPath)).toBe(false);
 
@@ -349,7 +349,7 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
             // STILL surfaces (resume capability is a metadata-only signal); the
             // resolver only runs at click time and returns not-found.
             metadataPath = await fixtureRecoveryMetadata({
-                projectRoot: vault.projectRoot,
+                projectRoot: project.projectRoot,
                 terminalId: TERMINAL_ID,
                 agentName: TERMINAL_ID,
                 cliBinary: 'claude',

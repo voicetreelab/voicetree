@@ -113,37 +113,37 @@ const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCal
     updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),
 });
 
-type StartupVaultHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly path: string};
+type StartupProjectHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly path: string};
 
 type StartGraphUpdateSubscriptionInput = {
     hasInitialProjectedGraph: boolean;
     isDisposed: () => boolean;
-    getStartupVaultHint: (() => Promise<StartupVaultHint>) | undefined;
-    openVault: ((path: string) => Promise<unknown>) | undefined;
+    getStartupProjectHint: (() => Promise<StartupProjectHint>) | undefined;
+    openProject: ((path: string) => Promise<unknown>) | undefined;
     subscribeToGraphUpdates: () => void;
 };
 
 const startGraphUpdateSubscription = ({
     hasInitialProjectedGraph,
     isDisposed,
-    getStartupVaultHint,
-    openVault,
+    getStartupProjectHint,
+    openProject,
     subscribeToGraphUpdates,
 }: StartGraphUpdateSubscriptionInput): void => {
     // Initial graph hydration races against daemon startup only on the
     // cold-boot path. When App already supplied an initial projected
-    // graph, the vault is already open — calling openVault again would
+    // graph, the project is already open — calling openProject again would
     // tear down the daemon/SSE subscription path during graph view
     // startup.
     void (async (): Promise<void> => {
         if (!hasInitialProjectedGraph) {
             try {
-                const hint = await getStartupVaultHint?.();
+                const hint = await getStartupProjectHint?.();
                 if (hint && hint.kind !== 'none') {
-                    await openVault?.(hint.path);
+                    await openProject?.(hint.path);
                 }
             } catch (err: unknown) {
-                console.error('[VoiceTreeGraphView] startup vault open failed:', err);
+                console.error('[VoiceTreeGraphView] startup project open failed:', err);
             }
         }
         if (isDisposed()) return;
@@ -375,8 +375,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         startGraphUpdateSubscription({
             hasInitialProjectedGraph: Boolean(this.options.initialProjectedGraph),
             isDisposed: () => this.isDisposed,
-            getStartupVaultHint: window.electronAPI?.main?.getStartupVaultHint,
-            openVault: window.electronAPI?.main?.openVault,
+            getStartupProjectHint: window.electronAPI?.main?.getStartupProjectHint,
+            openProject: window.electronAPI?.main?.openProject,
             subscribeToGraphUpdates: () => this.subscribeToGraphUpdates(),
         });
     }

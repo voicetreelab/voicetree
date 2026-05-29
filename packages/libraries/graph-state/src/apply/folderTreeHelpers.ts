@@ -262,7 +262,7 @@ export function updateFolderTreeForAddedNode(
     nextGraph: Graph,
 ): State['roots'] {
     const graphFilePaths = new Set(Object.keys(nextGraph.nodes))
-    const writeFolder = findWriteTargetPath(roots.folderTree)
+    const writeFolderPath = findWriteTargetPath(roots.folderTree)
     let changed = false
 
     const folderTree = roots.folderTree.map((rootNode) => {
@@ -272,7 +272,7 @@ export function updateFolderTreeForAddedNode(
 
         changed = true
         const nextEntry = ensureFileInEntry(toDirectoryEntry(rootNode), nodeId)
-        return buildFolderTree(nextEntry, roots.loaded, writeFolder, graphFilePaths)
+        return buildFolderTree(nextEntry, roots.loaded, writeFolderPath, graphFilePaths)
     })
 
     if (changed) {
@@ -301,7 +301,7 @@ export function updateFolderTreeForAddedNode(
         ...roots,
         folderTree: [
             ...folderTree,
-            buildFolderTree(rootEntry, roots.loaded, writeFolder, graphFilePaths),
+            buildFolderTree(rootEntry, roots.loaded, writeFolderPath, graphFilePaths),
         ],
     }
 }
@@ -312,7 +312,7 @@ export function updateFolderTreeForRemovedNode(
     nextGraph: Graph,
 ): State['roots'] {
     const graphFilePaths = new Set(Object.keys(nextGraph.nodes))
-    const writeFolder = findWriteTargetPath(roots.folderTree)
+    const writeFolderPath = findWriteTargetPath(roots.folderTree)
 
     return {
         ...roots,
@@ -322,7 +322,7 @@ export function updateFolderTreeForRemovedNode(
             }
 
             const nextEntry = removeFileFromEntry(toDirectoryEntry(rootNode), nodeId)
-            return buildFolderTree(nextEntry, roots.loaded, writeFolder, graphFilePaths)
+            return buildFolderTree(nextEntry, roots.loaded, writeFolderPath, graphFilePaths)
         }),
     }
 }

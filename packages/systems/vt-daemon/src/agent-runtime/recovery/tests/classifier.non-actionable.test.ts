@@ -8,7 +8,7 @@ import {
     record,
     SESSION_A,
     TERMINAL_A,
-    VAULT_HASH,
+    PROJECT_HASH,
 } from './classifier.test-fixtures'
 
 // ---------------------------------------------------------------------------
@@ -133,11 +133,11 @@ describe('claimed terminal', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Foreign-vault namespace hash → dropped (we don't surface records that don't
-// belong to the current vault).
+// Foreign-project namespace hash → dropped (we don't surface records that don't
+// belong to the current project).
 // ---------------------------------------------------------------------------
 
-describe('foreign-vault', () => {
+describe('foreign-project', () => {
     it('drops records when session hash differs from current namespace hash', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
@@ -146,15 +146,15 @@ describe('foreign-vault', () => {
                 session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
                 terminalData: makeTerminalData({initialCommand: 'claude'}),
             })],
-            currentNamespaceHash: VAULT_HASH,
+            currentNamespaceHash: PROJECT_HASH,
         }))
         expect(result.kind).toBe('dropped')
         if (result.kind === 'dropped') {
-            expect(result.reason).toBe('foreign-vault')
+            expect(result.reason).toBe('foreign-project')
         }
     })
 
-    it('does not drop as foreign-vault when currentNamespaceHash is null', () => {
+    it('does not drop as foreign-project when currentNamespaceHash is null', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,

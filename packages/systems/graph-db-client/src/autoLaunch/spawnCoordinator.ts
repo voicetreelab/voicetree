@@ -52,30 +52,30 @@ import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { CommandSpec } from './runtime.ts'
 
 /**
- * Resolve the per-vault daemon log path and ensure its parent directory
+ * Resolve the per-project daemon log path and ensure its parent directory
  * exists so `openSync(..., 'a')` inside `spawnDaemon` cannot ENOENT.
  *
  * The daemon would itself create `.voicetree/` on first owner-record
  * write, but the launcher opens the log fd BEFORE the daemon starts —
  * so the launcher has to ensure the directory.
  */
-function daemonLogPath(canonicalVault: string, daemonKind: DaemonKind): string {
-  const dir = getProjectDotVoicetreePath(canonicalVault)
+function daemonLogPath(canonicalProject: string, daemonKind: DaemonKind): string {
+  const dir = getProjectDotVoicetreePath(canonicalProject)
   mkdirSync(dir, { recursive: true })
   return join(dir, `${daemonKind}.log`)
 }
 
 /**
- * Resolves the daemon spawn command for `(vault, override?)`. Lives in
+ * Resolves the daemon spawn command for `(project, override?)`. Lives in
  * the per-daemon client package because each daemon takes its own argv
- * shape (graphd wants `--project-root <vault>`; vtd wants `--vault
- * <vault>`) and locates its entrypoint differently (graphd hunts for
+ * shape (graphd wants `--project-root <project>`; vtd wants `--project
+ * <project>`) and locates its entrypoint differently (graphd hunts for
  * sibling bundles inside `@voicetree/cli`; vtd resolves the `@vt/vt-daemon`
  * package directly). Passing the resolver in keeps spawnCoordinator
  * daemon-kind-agnostic without forcing a shared resolver to know about
  * both bin layouts.
  */
-export type CommandResolver = (vault: string, override?: string) => CommandSpec
+export type CommandResolver = (project: string, override?: string) => CommandSpec
 
 export type SpawnCoordinationOptions<TClient> = {
   readonly bin?: string
@@ -97,15 +97,15 @@ export type SpawnAttemptResult<TClient> = {
 /**
  * Build owner-evidence from the on-disk record, runtime probes, and the
  * cooldown breadcrumb. Shared between the discovery loop and the in-spawn
- * wait loop so both see exactly the same projection of vault state.
+ * wait loop so both see exactly the same projection of project state.
  */
 export async function gatherEvidence(
-  canonicalVault: string,
+  canonicalProject: string,
   daemonKind: DaemonKind,
 ): Promise<OwnerEvidence> {
-  const breadcrumb = await readCooldownBreadcrumb(canonicalVault, daemonKind)
+  const breadcrumb = await readCooldownBreadcrumb(canonicalProject, daemonKind)
   const cooldown = decideActiveCooldown(Date.now(), breadcrumb)
-  const record = await readOwnerRecord(canonicalVault, daemonKind)
+  const record = await readOwnerRecord(canonicalProject, daemonKind)
   if (record === null) {
     return {
       record: null,
@@ -148,7 +148,7 @@ export async function gatherEvidence(
  * deadline. The breadcrumb is cleared on the spawn-ready path.
  */
 export async function attemptSpawnAndWait<TClient>(
-  canonicalVault: string,
+  canonicalProject: string,
   caller: CallerKind,
   attemptId: string,
   options: SpawnCoordinationOptions<TClient>,
@@ -157,7 +157,7 @@ export async function attemptSpawnAndWait<TClient>(
   spawnCooldownMs: number,
 ): Promise<SpawnAttemptResult<TClient> | null> {
   const acquisition = await acquireSpawnLock(
-    canonicalVault,
+    canonicalProject,
     options.daemonKind,
     process.pid,
   )
@@ -166,7 +166,7 @@ export async function attemptSpawnAndWait<TClient>(
   }
 
   try {
-    const preSpawnRecord = await readOwnerRecord(canonicalVault, options.daemonKind)
+    const preSpawnRecord = await readOwnerRecord(canonicalProject, options.daemonKind)
     if (preSpawnRecord !== null && preSpawnRecord.port !== null) {
       const reuseResult = await tryReuseExistingOwner(
         preSpawnRecord,
@@ -176,27 +176,27 @@ export async function attemptSpawnAndWait<TClient>(
       if (reuseResult !== null) return reuseResult
     }
 
-    const command = options.resolveCommand(canonicalVault, options.bin)
+    const command = options.resolveCommand(canonicalProject, options.bin)
     const spawned = spawnDaemon({
       daemonKind: options.daemonKind,
       cmd: command.cmd,
       args: command.args,
       env: command.env,
       caller,
-      logPath: daemonLogPath(canonicalVault, options.daemonKind),
+      logPath: daemonLogPath(canonicalProject, options.daemonKind),
     })
     emitOwnerDiagnostic({
       kind: 'spawn-started',
       attemptId,
       callerKind: caller,
-      canonicalVault,
+      canonicalProject,
       nowMs: Date.now(),
       childPid: spawned.pid,
     })
 
     try {
       const ready = await waitForDaemonHealth(
-        canonicalVault,
+        canonicalProject,
         spawned.pid,
         deadlineMs,
         staleHeartbeatMs,
@@ -206,18 +206,18 @@ export async function attemptSpawnAndWait<TClient>(
         kind: 'spawn-ready',
         attemptId,
         callerKind: caller,
-        canonicalVault,
+        canonicalProject,
         nowMs: Date.now(),
         pid: ready.pid,
         port: ready.port,
         ownerNonce: ready.ownerNonce,
       })
-      await clearCooldownBreadcrumb(canonicalVault, options.daemonKind)
+      await clearCooldownBreadcrumb(canonicalProject, options.daemonKind)
       return ready
     } catch (cause) {
       await onSpawnFailure(
         cause,
-        canonicalVault,
+        canonicalProject,
         options.daemonKind,
         caller,
         attemptId,
@@ -233,7 +233,7 @@ export async function attemptSpawnAndWait<TClient>(
 
 async function onSpawnFailure(
   cause: unknown,
-  canonicalVault: string,
+  canonicalProject: string,
   daemonKind: DaemonKind,
   caller: CallerKind,
   attemptId: string,
@@ -245,7 +245,7 @@ async function onSpawnFailure(
     kind: 'spawn-failed',
     attemptId,
     callerKind: caller,
-    canonicalVault,
+    canonicalProject,
     nowMs: Date.now(),
     childPid: spawnedPid,
     errorName: err.name,
@@ -258,9 +258,9 @@ async function onSpawnFailure(
   if (cause instanceof DaemonLaunchTimeout) {
     const now = Date.now()
     const writerPid: number = process.pid
-    await writeCooldownBreadcrumb(canonicalVault, daemonKind, {
+    await writeCooldownBreadcrumb(canonicalProject, daemonKind, {
       schemaVersion: 1,
-      canonicalVault,
+      canonicalProject,
       writtenAtMs: now,
       untilMs: now + spawnCooldownMs,
       reason: 'spawn-failed',
@@ -283,7 +283,7 @@ async function tryReuseExistingOwner<TClient>(
   // body as a parse failure and surface as `unreachable`, never `verified`.
   const probe = await probeOwnerHealth(record.port, { daemonKind, fetchImpl: fetch })
   if (probe.kind !== 'verified') return null
-  if (probe.canonicalVault !== record.canonicalVault) return null
+  if (probe.canonicalProject !== record.canonicalProject) return null
   if (probe.ownerNonce !== record.ownerNonce) return null
   return {
     client: clientFor(probe.port),
@@ -295,7 +295,7 @@ async function tryReuseExistingOwner<TClient>(
 }
 
 async function waitForDaemonHealth<TClient>(
-  canonicalVault: string,
+  canonicalProject: string,
   spawnedPid: number | null,
   deadlineMs: number,
   staleHeartbeatMs: number,
@@ -304,7 +304,7 @@ async function waitForDaemonHealth<TClient>(
   let backoff = options.initialBackoffMs
 
   while (Date.now() < deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVault, options.daemonKind)
+    const evidence = await gatherEvidence(canonicalProject, options.daemonKind)
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs,
@@ -320,7 +320,7 @@ async function waitForDaemonHealth<TClient>(
     }
     if (decision.kind === 'unsafe-owner') {
       throw new UnsafeOwnerError(
-        canonicalVault,
+        canonicalProject,
         decision.recordedPid,
         decision.reason,
       )
@@ -332,7 +332,7 @@ async function waitForDaemonHealth<TClient>(
   }
 
   throw new DaemonLaunchTimeout(
-    `daemon spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalVault} before deadline`,
+    `daemon spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for project ${canonicalProject} before deadline`,
   )
 }
 
@@ -344,7 +344,7 @@ async function waitForDaemonHealth<TClient>(
  * terminate so its owner record can be replaced.
  */
 export async function reclaimStaleOwner(
-  canonicalVault: string,
+  canonicalProject: string,
   daemonKind: DaemonKind,
   staleRecord: OwnerRecord,
 ): Promise<void> {
@@ -362,5 +362,5 @@ export async function reclaimStaleOwner(
       await sleep(25)
     }
   }
-  await deleteOwnerRecord(ownerRecordFile.pathFor(canonicalVault, daemonKind))
+  await deleteOwnerRecord(ownerRecordFile.pathFor(canonicalProject, daemonKind))
 }

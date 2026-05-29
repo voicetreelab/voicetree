@@ -42,7 +42,7 @@ The average number of newborn children per adult leopard in Crystalshade Tunnels
 The number of adult okapi in Shardlight Chasms equals the average number of newborn children per adult owl in Bundle Ranch.
 The number of adult killer whale (orca) in Shardlight Chasms equals the sum of the average number of newborn children per adult owl in Bundle Ranch and the average number of newborn children per adult blue jay in Bundle Ranch.
 The number of adult bryde's whale in Opal Grotto equals the sum of the average number of newborn children per adult blue jay in Hamilton Farm and the total number of newborn animal children in Ebon Hollow.
-The average number of newborn children per adult elephant in Starlight Vault equals the sum of the number of adult blue jay in Bundle Ranch and the average number of newborn children per adult blue jay in Hamilton Farm.
+The average number of newborn children per adult elephant in Starlight Project equals the sum of the number of adult blue jay in Bundle Ranch and the average number of newborn children per adult blue jay in Hamilton Farm.
 The average number of newborn children per adult beaver in Nebula Expanse equals the sum of the average number of newborn children per adult parrot in Bundle Ranch and the total number of newborn animal children in Glistenroot Grotto.
 The average number of newborn children per adult bryde's whale in Shardlight Chasms equals the difference between the total number of adult animals in Bundle Ranch and the average number of newborn children per adult crow in Mayer Aquarium.
 The average number of newborn children per adult moray eel in Ebon Hollow equals the difference between the number of adult crow in South Zoo and the average number of newborn children per adult blue jay in South Zoo.
@@ -127,7 +127,7 @@ The number of adult marlin in Ebon Hollow equals the average number of newborn c
 The average number of newborn children per adult lionfish in Fluorescent Depths equals the sum of the average number of newborn children per adult crow in Mayer Aquarium and the average number of newborn children per adult owl in South Zoo.
 The number of adult ghost crab in Glintstone Caverns equals the sum of the number of adult crow in Mayer Aquarium and the average number of newborn children per adult blue jay in Hamilton Farm.
 The average number of newborn children per adult rainbow lorikeet in Prismatic Rift equals the difference between the number of adult blue jay in Bundle Ranch and the average number of newborn children per adult crow in Hamilton Farm.
-The average number of newborn children per adult shiba inu in Crystalwave Horizon equals the difference between the average number of newborn children per adult blue jay in South Zoo and the total number of newborn animal children in Starlight Vault.
+The average number of newborn children per adult shiba inu in Crystalwave Horizon equals the difference between the average number of newborn children per adult blue jay in South Zoo and the total number of newborn animal children in Starlight Project.
 The average number of newborn children per adult lynx in Crystalshade Tunnels equals the sum of the average number of newborn children per adult crow in Mayer Aquarium and the number of adult blue jay in South Zoo.
 The average number of newborn children per adult bettas in Ebon Hollow equals the average number of newborn children per adult parrot in Bundle Ranch.
 The number of adult chimera in Glintstone Caverns equals the number of adult owl in Bundle Ranch.
@@ -180,7 +180,7 @@ The average number of newborn children per adult hippogriff in Glintstone Cavern
 The average number of newborn children per adult tapir in Shardlight Chasms equals the sum of the total number of newborn animal children in Bundle Ranch and the number of adult crow in Mayer Aquarium.
 The average number of newborn children per adult marlin in Fluorescent Depths equals the average number of newborn children per adult blue jay in Bundle Ranch.
 The average number of newborn children per adult musk ox in Ebon Hollow equals the sum of the average number of newborn children per adult blue jay in Hamilton Farm and the number of adult crow in South Zoo.
-The number of adult elephant in Starlight Vault equals the number of adult owl in Bundle Ranch.
+The number of adult elephant in Starlight Project equals the number of adult owl in Bundle Ranch.
 The number of adult sea cucumber in Fluorescent Depths equals the number of adult blue jay in Bundle Ranch.
 The number of adult butterflyfish in Ebon Hollow equals the difference between the average number of newborn children per adult parrot in Bundle Ranch and the number of adult crow in South Zoo.
 The average number of newborn children per adult dwarf sperm whale in Opal Grotto equals the number of adult blue jay in Hamilton Farm.
@@ -298,7 +298,7 @@ The average number of newborn children per adult shrimp in Glintstone Caverns eq
 The number of adult unicorn in Glintstone Caverns equals the number of adult blue jay in Bundle Ranch.
 The average number of newborn children per adult proboscis monkey in Crystalshade Tunnels equals the number of adult blue jay in Bundle Ranch.
 The average number of newborn children per adult baboon in Crystalshade Tunnels equals the sum of the total number of adult animals in Bundle Ranch and the average number of newborn children per adult parrot in Bundle Ranch.
-The number of adult aye-aye in Shadowglint Vault equals the difference between the number of adult crow in South Zoo and the number of adult blue jay in Bundle Ranch.
+The number of adult aye-aye in Shadowglint Project equals the difference between the number of adult crow in South Zoo and the number of adult blue jay in Bundle Ranch.
 The average number of newborn children per adult ivory gull in Ebon Hollow equals the average number of newborn children per adult crow in Mayer Aquarium.
 The average number of newborn children per adult sperm whale in Prismatic Rift equals the sum of the average number of newborn children per adult blue jay in South Zoo and the total number of newborn animal children in Lustrous Catacombs.
 The number of adult bobcat in Lustrous Catacombs equals the average number of newborn children per adult crow in South Zoo.
@@ -567,7 +567,7 @@ The average number of newborn children per adult collared lemming in Ebon Hollow
 The average number of newborn children per adult phytoplankton in Opal Grotto equals the difference between the average number of newborn children per adult parrot in Bundle Ranch and the number of adult owl in Bundle Ranch.
 The average number of newborn children per adult victoria crowned pigeon in Prismatic Rift equals the average number of newborn children per adult crow in South Zoo.
 The average number of newborn children per adult blue monkey in Crystalshade Tunnels equals the difference between the average number of newborn children per adult owl in South Zoo and the average number of newborn children per adult owl in Bundle Ranch.
-The average number of newborn children per adult aye-aye in Shadowglint Vault equals the average number of newborn children per adult owl in South Zoo.
+The average number of newborn children per adult aye-aye in Shadowglint Project equals the average number of newborn children per adult owl in South Zoo.
 The number of adult narwhal in Ebon Hollow equals the average number of newborn children per adult crow in Hamilton Farm.
 The number of adult sei whale in Shardlight Chasms equals the average number of newborn children per adult blue jay in Hamilton Farm.
 The average number of newborn children per adult peacock in Prismatic Rift equals the average number of newborn children per adult crow in Hamilton Farm.
@@ -578,7 +578,7 @@ The number of adult bison in Shardlight Chasms equals the average number of newb
 The number of adult thaliacean in Opal Grotto equals the difference between the average number of newborn children per adult blue jay in South Zoo and the average number of newborn children per adult owl in South Zoo.
 The number of adult rock lobster in Glintstone Caverns equals the difference between the average number of newborn children per adult parrot in Bundle Ranch and the number of adult crow in Hamilton Farm.
 The average number of newborn children per adult polar bear in Twilight Waters equals the sum of the number of adult crow in Mayer Aquarium and the total number of newborn animal children in Spectral Chamber.
-The average number of newborn children per adult chimpanzee in Starlit Ocean equals the sum of the number of adult owl in South Zoo and the total number of newborn animal children in Shadowglint Vault.
+The average number of newborn children per adult chimpanzee in Starlit Ocean equals the sum of the number of adult owl in South Zoo and the total number of newborn animal children in Shadowglint Project.
 The number of adult clownfish in Fluorescent Depths equals the number of adult crow in Mayer Aquarium.
 The average number of newborn children per adult ross's gull in Ebon Hollow equals the average number of newborn children per adult blue jay in Bundle Ranch.
 The number of adult pygmy sperm whale in Shardlight Chasms equals the number of adult crow in Mayer Aquarium.

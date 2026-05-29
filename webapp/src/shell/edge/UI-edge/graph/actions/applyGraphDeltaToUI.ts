@@ -24,18 +24,18 @@ function isValidCSSColor(color: string): boolean {
     return CSS.supports('color', color);
 }
 
-function getVaultPrefixFromNodeId(nodeId: string): string {
+function getProjectPrefixFromNodeId(nodeId: string): string {
     const firstSlash: number = nodeId.indexOf('/');
     if (firstSlash === -1) return '';
     return nodeId.slice(0, firstSlash);
 }
 
-function generateVaultColor(vaultPrefix: string): string | undefined {
-    if (!vaultPrefix) return undefined;
+function generateProjectColor(projectPrefix: string): string | undefined {
+    if (!projectPrefix) return undefined;
 
     let hash: number = 0;
-    for (let i: number = 0; i < vaultPrefix.length; i++) {
-        hash = vaultPrefix.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i: number = 0; i < projectPrefix.length; i++) {
+        hash = projectPrefix.charCodeAt(i) + ((hash << 5) - hash);
         hash = hash & hash;
     }
 
@@ -94,7 +94,7 @@ function truncatedEdgeLabel(label: string | undefined): string | undefined {
 
 function colorForNode(node: ProjectedNode): string | undefined {
     if (node.color && isValidCSSColor(node.color)) return node.color
-    return generateVaultColor(getVaultPrefixFromNodeId(node.id))
+    return generateProjectColor(getProjectPrefixFromNodeId(node.id))
 }
 
 function isFolderNode(node: ProjectedNode): boolean {

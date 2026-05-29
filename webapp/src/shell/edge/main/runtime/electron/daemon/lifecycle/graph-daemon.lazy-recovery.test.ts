@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 const graphDbClientMock = vi.hoisted(() => ({
-  ensureCalls: [] as { vault: string; caller: string }[],
+  ensureCalls: [] as { project: string; caller: string }[],
   ensureResults: [] as unknown[],
-  ensureGraphDaemonForVault: async (vault: string, caller: string): Promise<unknown> => {
-    graphDbClientMock.ensureCalls.push({ vault, caller })
+  ensureGraphDaemonForProject: async (project: string, caller: string): Promise<unknown> => {
+    graphDbClientMock.ensureCalls.push({ project, caller })
     const nextResult: unknown | undefined = graphDbClientMock.ensureResults.shift()
     if (nextResult === undefined) {
-      throw new Error('No fake daemon owner queued for ensureGraphDaemonForVault')
+      throw new Error('No fake daemon owner queued for ensureGraphDaemonForProject')
     }
     return nextResult
   },
@@ -32,7 +32,7 @@ const loopMock = vi.hoisted(() => ({
 
 vi.mock('@vt/graph-db-client', () => ({
   GraphDbClient: class GraphDbClient {},
-  ensureGraphDaemonForVault: graphDbClientMock.ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject: graphDbClientMock.ensureGraphDaemonForProject,
 }))
 
 vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
@@ -56,7 +56,7 @@ import type { EnsureGraphDaemonResult, GraphDbClient } from '@vt/graph-db-client
 import {
   callDaemon,
   clearDaemonClientCache,
-  setActiveVaultAndEnsureDaemon,
+  setActiveProjectAndEnsureDaemon,
   shutdownActiveDaemonConnection,
 } from './graph-daemon'
 
@@ -64,7 +64,7 @@ type FakeClient = GraphDbClient & {
   readonly health: ReturnType<typeof vi.fn>
 }
 
-const VAULT = '/tmp/fake-vault-for-lazy-recovery'
+const PROJECT = '/tmp/fake-project-for-lazy-recovery'
 
 function connectionFailure(): Error {
   return new Error('fetch failed')
@@ -96,14 +96,14 @@ describe('callDaemon lazy daemon recovery', () => {
     const owner = makeOwner(1)
     graphDbClientMock.ensureResults.push(owner)
 
-    await setActiveVaultAndEnsureDaemon(VAULT)
+    await setActiveProjectAndEnsureDaemon(PROJECT)
     const first = await callDaemon(async (client) => client)
     const second = await callDaemon(async (client) => client)
 
     expect(first).toBe(owner.client)
     expect(second).toBe(owner.client)
     expect(owner.client.health).not.toHaveBeenCalled()
-    expect(graphDbClientMock.ensureCalls).toEqual([{ vault: VAULT, caller: 'electron-main' }])
+    expect(graphDbClientMock.ensureCalls).toEqual([{ project: PROJECT, caller: 'electron-main' }])
   })
 
   test('recovers and retries the failed RPC once after cached daemon loss', async () => {
@@ -111,7 +111,7 @@ describe('callDaemon lazy daemon recovery', () => {
     const recoveredOwner = makeOwner(2)
     graphDbClientMock.ensureResults.push(lostOwner, recoveredOwner)
 
-    await setActiveVaultAndEnsureDaemon(VAULT)
+    await setActiveProjectAndEnsureDaemon(PROJECT)
 
     const seenClients: GraphDbClient[] = []
     const result = await callDaemon(async (client) => {
@@ -125,8 +125,8 @@ describe('callDaemon lazy daemon recovery', () => {
     expect(result).toBe('recovered')
     expect(seenClients).toEqual([lostOwner.client, recoveredOwner.client])
     expect(graphDbClientMock.ensureCalls).toEqual([
-      { vault: VAULT, caller: 'electron-main' },
-      { vault: VAULT, caller: 'electron-main' },
+      { project: PROJECT, caller: 'electron-main' },
+      { project: PROJECT, caller: 'electron-main' },
     ])
     expect(loopMock.events).toEqual(['unsubscribe-sse', 'stop-watch-sync'])
   })

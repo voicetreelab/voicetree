@@ -13,8 +13,8 @@ json_number() {
   sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p" "$file" | head -n 1
 }
 
-vault_dir="${VAULT_DIR:-./test-vault}"
-terminal_dir="$vault_dir/.voicetree/terminals"
+project_dir="${PROJECT_DIR:-./test-project}"
+terminal_dir="$project_dir/.voicetree/terminals"
 
 printf '%-20s %-10s %-10s %-24s %s\n' "NAME" "STATUS" "TMUX" "SESSION" "PID"
 

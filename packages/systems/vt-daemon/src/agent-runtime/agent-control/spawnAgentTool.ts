@@ -11,7 +11,7 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {startMonitor} from './agent-completion-monitor.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {
     consumeSpawnBudget,
@@ -38,7 +38,7 @@ export interface SpawnAgentDeps {
     readonly listTerminalRecords: () => TerminalRecord[]
     readonly consumeBudget: typeof consumeSpawnBudget
     readonly loadAgentSettings: () => Promise<VTSettings>
-    readonly loadWriteFolder: () => Promise<O.Option<string>>
+    readonly loadWriteFolderPath: () => Promise<O.Option<string>>
     readonly loadGraph: () => Promise<Graph>
     readonly applyDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>
     readonly spawnTerminal: typeof spawnContextTerminal
@@ -51,7 +51,7 @@ export function makeSpawnAgentDeps(bridge: GraphBridge): SpawnAgentDeps {
         listTerminalRecords,
         consumeBudget: consumeSpawnBudget,
         loadAgentSettings: () => loadSettings(),
-        loadWriteFolder: () => getMcpWriteFolder(bridge),
+        loadWriteFolderPath: () => getMcpWriteFolderPath(bridge),
         loadGraph: () => getMcpGraph(bridge),
         applyDelta: (delta, recordForUndo) => applyMcpGraphDelta(bridge, delta, recordForUndo),
         spawnTerminal: spawnContextTerminal,
@@ -78,7 +78,7 @@ type SpawnRuntime = {
 
 type GraphContext = {
     readonly graph: Graph
-    readonly writeFolder: string
+    readonly writeFolderPath: string
 }
 
 type SpawnedTerminal = {
@@ -178,12 +178,12 @@ async function prepareSpawnRuntime(
     }
 }
 
-async function loadWriteFolder(deps: SpawnAgentDeps): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await deps.loadWriteFolder()
-    if (O.isNone(vaultPathOpt)) {
-        return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
+async function loadWriteFolderPath(deps: SpawnAgentDeps): Promise<Result<string>> {
+    const projectPathOpt: O.Option<string> = await deps.loadWriteFolderPath()
+    if (O.isNone(projectPathOpt)) {
+        return {ok: false, error: 'No project loaded. Please load a folder in the UI first.'}
     }
-    return {ok: true, value: vaultPathOpt.value}
+    return {ok: true, value: projectPathOpt.value}
 }
 
 function resolveNodeId(graph: Graph, nodeId: string): NodeIdAndFilePath | undefined {
@@ -295,7 +295,7 @@ async function spawnAgentForTask(
             taskDescription,
             selectedNodeIds: [resolvedParentId],
             graph: graphContext.graph,
-            writeFolder: graphContext.writeFolder,
+            writeFolderPath: graphContext.writeFolderPath,
             initialStatus: 'claimed'
         })
         const taskNodeId: NodeIdAndFilePath | undefined = taskNodeIdFromDelta(taskNodeDelta)
@@ -370,12 +370,12 @@ export async function spawnAgentTool(
     const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(params, deps, callerRecordResult.value)
     if (!runtimeResult.ok) return errorResponse(runtimeResult.error)
 
-    const writeFolderResult: Result<string> = await loadWriteFolder(deps)
-    if (!writeFolderResult.ok) return errorResponse(writeFolderResult.error)
+    const writeFolderPathResult: Result<string> = await loadWriteFolderPath(deps)
+    if (!writeFolderPathResult.ok) return errorResponse(writeFolderPathResult.error)
 
     const graphContext: GraphContext = {
         graph: await deps.loadGraph(),
-        writeFolder: writeFolderResult.value,
+        writeFolderPath: writeFolderPathResult.value,
     }
 
     if (params.task) return spawnAgentForTask(params, params.task, deps, runtimeResult.value, graphContext)

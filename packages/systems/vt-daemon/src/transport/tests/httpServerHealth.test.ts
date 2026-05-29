@@ -59,12 +59,12 @@ async function bring(
 
 const fakeBody: VtDaemonHealthResponse = {
     version: '0.1.0',
-    vault: '/abs/vault',
+    project: '/abs/project',
     uptimeSeconds: 7,
     daemonKind: 'vtd',
     owner: {
         schemaVersion: 1,
-        canonicalVault: '/abs/vault',
+        canonicalProject: '/abs/project',
         pid: 99_999,
         ppid: 1,
         port: 51_888,

@@ -2,13 +2,13 @@
 //
 // Discovery chain (design doc §2.7 / §3.2 — first match wins):
 //   1. $VOICETREE_DAEMON_URL                          — token from
-//      $VOICETREE_VAULT_PATH/.voicetree/auth-token.
+//      $VOICETREE_PROJECT_PATH/.voicetree/auth-token.
 //   2. cwd up-walk for `.voicetree/rpc.port`          — token sibling.
-//   3. $VOICETREE_VAULT_PATH/.voicetree/rpc.port      — token sibling.
+//   3. $VOICETREE_PROJECT_PATH/.voicetree/rpc.port      — token sibling.
 //   4. None resolve → DaemonUnreachable naming the missing env vars.
 // Delegated to @vt/vt-rpc#discoverDaemonEndpoint; we recover the env-URL
-// tier's token path from $VOICETREE_VAULT_PATH locally because discovery
-// returns `vaultPath: null` for that tier. No `--daemon-url` CLI flag exists
+// tier's token path from $VOICETREE_PROJECT_PATH locally because discovery
+// returns `projectPath: null` for that tier. No `--daemon-url` CLI flag exists
 // today; brief authorised deferring that 4th-tier surface.
 //
 // On HTTP 401: re-read the token from disk ONCE and retry. Second 401 throws
@@ -54,7 +54,7 @@ function getTimeoutMs(env: Record<string, string | undefined>): number {
 
 interface ResolvedClient {
     readonly endpoint: ResolvedDaemonEndpoint
-    readonly tokenVault: string
+    readonly tokenProjectPath: string
     readonly tokenFilePath: string
     readonly token: string
 }
@@ -66,28 +66,28 @@ async function buildResolvedClient(
     const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({env, cwd})
     if (!endpoint) {
         throw new DaemonUnreachable(
-            'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, run inside a vault containing `.voicetree/rpc.port`, or set $VOICETREE_VAULT_PATH.',
+            'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, run inside a project containing `.voicetree/rpc.port`, or set $VOICETREE_PROJECT_PATH.',
         )
     }
-    const envVault: string | undefined = env.VOICETREE_VAULT_PATH && env.VOICETREE_VAULT_PATH.length > 0
-        ? env.VOICETREE_VAULT_PATH
+    const envProjectPath: string | undefined = env.VOICETREE_PROJECT_PATH && env.VOICETREE_PROJECT_PATH.length > 0
+        ? env.VOICETREE_PROJECT_PATH
         : undefined
-    const tokenVault: string | null = endpoint.vaultPath ?? envVault ?? null
-    if (!tokenVault) {
+    const tokenProjectPath: string | null = endpoint.projectPath ?? envProjectPath ?? null
+    if (!tokenProjectPath) {
         throw new DaemonUnreachable(
-            '$VOICETREE_DAEMON_URL is set but $VOICETREE_VAULT_PATH is not. The auth-token file lives under the vault — set $VOICETREE_VAULT_PATH so the client can locate `.voicetree/auth-token`.',
+            '$VOICETREE_DAEMON_URL is set but $VOICETREE_PROJECT_PATH is not. The auth-token file lives under the project — set $VOICETREE_PROJECT_PATH so the client can locate `.voicetree/auth-token`.',
         )
     }
-    const tokenFilePath: string = authTokenFilePath(tokenVault)
-    const token: string = await loadToken(tokenVault, tokenFilePath)
-    return {endpoint, tokenVault, tokenFilePath, token}
+    const tokenFilePath: string = authTokenFilePath(tokenProjectPath)
+    const token: string = await loadToken(tokenProjectPath, tokenFilePath)
+    return {endpoint, tokenProjectPath: tokenProjectPath, tokenFilePath, token}
 }
 
-async function loadToken(vault: string, tokenFilePath: string): Promise<string> {
-    const token: string | null = await readAuthTokenFile(vault)
+async function loadToken(project: string, tokenFilePath: string): Promise<string> {
+    const token: string | null = await readAuthTokenFile(project)
     if (token === null) {
         throw new DaemonAuthRequired(
-            `Missing or empty auth-token at ${tokenFilePath}. Daemon may not be running, or the vault path is wrong.`,
+            `Missing or empty auth-token at ${tokenFilePath}. Daemon may not be running, or the project path is wrong.`,
         )
     }
     return token
@@ -189,7 +189,7 @@ export async function callDaemon(
     let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
 
     if (outcome.kind === 'auth_required') {
-        const freshToken: string = await loadToken(client.tokenVault, client.tokenFilePath)
+        const freshToken: string = await loadToken(client.tokenProjectPath, client.tokenFilePath)
         outcome = await postRpc(client.endpoint.url, freshToken, toolName, args, timeoutMs)
         if (outcome.kind === 'auth_required') {
             throw new DaemonAuthRequired(

@@ -18,9 +18,9 @@ import {
   type SessionClient,
 } from './client/sessionClient.ts'
 import {
-  createVaultClient,
-  type VaultClient,
-} from './client/vaultClient.ts'
+  createProjectClient,
+  type ProjectClient,
+} from './client/projectClient.ts'
 
 export type GraphDbClientOptions = {
   baseUrl: string
@@ -34,7 +34,7 @@ export type GraphDbClientApi = {
   DaemonClient &
   GraphClient &
   SessionClient &
-  VaultClient
+  ProjectClient
 
 export function createGraphDbClient(opts: GraphDbClientOptions): GraphDbClientApi {
   const baseUrl = normalizeBaseUrl(opts.baseUrl)
@@ -44,7 +44,7 @@ export function createGraphDbClient(opts: GraphDbClientOptions): GraphDbClientAp
     baseUrl,
     sessionId: opts.sessionId,
     ...createDaemonClient(request),
-    ...createVaultClient(request),
+    ...createProjectClient(request),
     ...createGraphClient(request),
     ...createContextNodeClient(request),
     ...createSessionClient(request),

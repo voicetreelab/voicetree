@@ -4,7 +4,7 @@
  * tmux's command-protocol buffer overflows on large -e KEY=VALUE entries
  * (empirically ~70 vars × multi-KB combined). The prompt is the only var
  * that crosses that line. This module:
- *   1. Writes the prompt to `{vault}/.voicetree/terminals/{name}-prompt.txt`
+ *   1. Writes the prompt to `{project}/.voicetree/terminals/{name}-prompt.txt`
  *      (mode 0600). The big string never crosses tmux's argv.
  *   2. Rewrites the agent invocation to consume the file:
  *        - claude / gemini → stdin redirection (`< {file}`)
@@ -125,7 +125,7 @@ export type PromptFileSpawnPlan = {
 }
 
 /**
- * Mode-agnostic prompt-file primitive. For any tmux spawn that has a vault
+ * Mode-agnostic prompt-file primitive. For any tmux spawn that has a project
  * context: extract AGENT_PROMPT from env, write to disk, rewrite the command
  * for the CLI, and replace AGENT_PROMPT with AGENT_PROMPT_FILE in env. If
  * there's no AGENT_PROMPT (non-agent spawn), return inputs unchanged.

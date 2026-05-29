@@ -34,7 +34,7 @@ import {
   closeEditorWindow,
   configureNoopAgent,
   deleteCtxNodesDir,
-  deleteExtraVaultFiles,
+  deleteExtraProjectFiles,
   expectContextNodeContains,
   expectDaemonNodeContains,
   expectDiskContainsAll,
@@ -60,29 +60,29 @@ import {
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('editor ↔ graph ↔ disk convergence', () => {
-  test.beforeEach(async ({ appWindow, settingsSnapshot, writeFolder }) => {
+  test.beforeEach(async ({ appWindow, settingsSnapshot, writeFolderPath }) => {
     await closeAllEditorWindows(appWindow);
     await closeAllTerminalWindows(appWindow);
-    await fs.writeFile(path.join(writeFolder, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
-    await deleteExtraVaultFiles(appWindow, writeFolder);
-    await deleteCtxNodesDir(writeFolder);
+    await fs.writeFile(path.join(writeFolderPath, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
+    await deleteExtraProjectFiles(appWindow, writeFolderPath);
+    await deleteCtxNodesDir(writeFolderPath);
     await resetSettings(appWindow, settingsSnapshot);
     await waitForGraphReset(appWindow, PARENT_TITLE);
   });
 
-  test('keyboard edit lands on disk + graph label + survives close and reopen', async ({ appWindow, writeFolder }) => {
+  test('keyboard edit lands on disk + graph label + survives close and reopen', async ({ appWindow, writeFolderPath }) => {
     const { editorWindowId, nodeId } = await openEditorForLabel(appWindow, PARENT_TITLE);
 
     const typed = `# ${PARENT_TITLE}\n\nKeyboard typing makes it to disk and survives close.\n`;
     await replaceEditorContentWithKeyboard(appWindow, editorWindowId, typed);
 
     await expectEditorMatches(appWindow, editorWindowId, typed);
-    await expectDiskMatches(writeFolder, PARENT_FILENAME, typed);
+    await expectDiskMatches(writeFolderPath, PARENT_FILENAME, typed);
 
     // Real button click — exercises the .traffic-light-close → close-logic wiring.
     await clickEditorCloseButton(appWindow, editorWindowId);
     await appWindow.locator(`[id="${editorWindowId}"]`).waitFor({ state: 'detached', timeout: 5_000 });
-    const afterClose = await fs.readFile(path.join(writeFolder, PARENT_FILENAME), 'utf8');
+    const afterClose = await fs.readFile(path.join(writeFolderPath, PARENT_FILENAME), 'utf8');
     expect(afterClose).toBe(typed);
 
     // Reopen the node; editor must re-hydrate with the same content.
@@ -95,10 +95,10 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
   // prevents the editor from opening for the wikilink test. Source spec
   // (electron-markdown-editors-crud-v2) skipped this scenario; preserved here
   // so the regression locks back in once the app bug is fixed.
-  test.skip('typing [[Target]] in the editor creates an outgoing graph edge', async ({ appWindow, writeFolder }) => {
+  test.skip('typing [[Target]] in the editor creates an outgoing graph edge', async ({ appWindow, writeFolderPath }) => {
     const targetTitle = 'Wiki Link Target';
     await fs.writeFile(
-      path.join(writeFolder, `${targetTitle}.md`),
+      path.join(writeFolderPath, `${targetTitle}.md`),
       `# ${targetTitle}\n\nLinked from convergence target.\n`,
       'utf8',
     );
@@ -108,11 +108,11 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     const withLink = `# ${PARENT_TITLE}\n\nlinks to [[${targetTitle}]]\n`;
     await replaceEditorContentWithKeyboard(appWindow, editorWindowId, withLink);
 
-    await expectDiskContainsAll(writeFolder, PARENT_FILENAME, [`[[${targetTitle}]]`]);
+    await expectDiskContainsAll(writeFolderPath, PARENT_FILENAME, [`[[${targetTitle}]]`]);
     await expectGraphHasEdgeTo(appWindow, nodeId, targetTitle);
   });
 
-  test('external file write reaches the open editor (bidirectional sync)', async ({ appWindow, writeFolder }) => {
+  test('external file write reaches the open editor (bidirectional sync)', async ({ appWindow, writeFolderPath }) => {
     const { editorWindowId } = await openEditorForLabel(appWindow, PARENT_TITLE);
 
     // Initial editor state: shows the seeded body verbatim, with no frontmatter
@@ -123,7 +123,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
 
     const externallyChanged = `# ${PARENT_TITLE}\n\nEXTERNAL CHANGE — written by another process.\n`;
     await fs.writeFile(
-      path.join(writeFolder, PARENT_FILENAME),
+      path.join(writeFolderPath, PARENT_FILENAME),
       `---\n---\n${externallyChanged}`,
       'utf8',
     );
@@ -131,7 +131,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await expectEditorMatches(appWindow, editorWindowId, externallyChanged);
   });
 
-  test('char-by-char typing survives autosave + watcher settle cycles', async ({ appWindow, writeFolder }) => {
+  test('char-by-char typing survives autosave + watcher settle cycles', async ({ appWindow, writeFolderPath }) => {
     const { editorWindowId } = await openEditorForLabel(appWindow, PARENT_TITLE);
     await selectAllInEditor(appWindow);
 
@@ -145,10 +145,10 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await appWindow.waitForTimeout(1_000);
 
     await expectEditorMatches(appWindow, editorWindowId, expectedContent);
-    await expectDiskMatches(writeFolder, PARENT_FILENAME, expectedContent);
+    await expectDiskMatches(writeFolderPath, PARENT_FILENAME, expectedContent);
   });
 
-  test('external SSE append merges while editor focused and typing', async ({ appWindow, writeFolder }) => {
+  test('external SSE append merges while editor focused and typing', async ({ appWindow, writeFolderPath }) => {
     await syncRendererSessionStateWithDaemon(appWindow);
     const { editorWindowId } = await openEditorForLabel(appWindow, PARENT_TITLE);
     await selectAllInEditor(appWindow);
@@ -158,22 +158,22 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
 
     const typing = appWindow.keyboard.type(userText, { delay: 80 });
     await appWindow.waitForTimeout(500);
-    await fs.appendFile(path.join(writeFolder, PARENT_FILENAME), `\n\n${agentText}\n`, 'utf8');
+    await fs.appendFile(path.join(writeFolderPath, PARENT_FILENAME), `\n\n${agentText}\n`, 'utf8');
     await typing;
     await appWindow.waitForTimeout(1_000);
 
     await expectEditorContainsAll(appWindow, editorWindowId, [userText, agentText]);
-    await expectDiskContainsAll(writeFolder, PARENT_FILENAME, [userText, agentText]);
+    await expectDiskContainsAll(writeFolderPath, PARENT_FILENAME, [userText, agentText]);
   });
 
-  test('external non-append replacement applies while editor focused', async ({ appWindow, writeFolder }) => {
+  test('external non-append replacement applies while editor focused', async ({ appWindow, writeFolderPath }) => {
     await syncRendererSessionStateWithDaemon(appWindow);
     const { editorWindowId } = await openEditorForLabel(appWindow, PARENT_TITLE);
     await focusEditor(appWindow, editorWindowId);
 
     const replacement = `# ${PARENT_TITLE}\n\nExternal filesystem replacement should win while focused.\n`;
     await fs.writeFile(
-      path.join(writeFolder, PARENT_FILENAME),
+      path.join(writeFolderPath, PARENT_FILENAME),
       `---\n---\n${replacement}`,
       'utf8',
     );
@@ -181,7 +181,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await expectEditorMatches(appWindow, editorWindowId, replacement);
   });
 
-  test('parent unsaved edit survives cmd-n create-child shortcut', async ({ appWindow, writeFolder }) => {
+  test('parent unsaved edit survives cmd-n create-child shortcut', async ({ appWindow, writeFolderPath }) => {
     const TYPED_MARKER = 'unsaved edit survives cmd n 48291';
     const typed = `# ${PARENT_TITLE}\n\n${TYPED_MARKER}\n`;
 
@@ -192,7 +192,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await appWindow.keyboard.press('ControlOrMeta+n');
 
     await expectNodeCountIncreasedAbove(appWindow, nodeCountBefore);
-    await expectDiskContainsAll(writeFolder, PARENT_FILENAME, [TYPED_MARKER]);
+    await expectDiskContainsAll(writeFolderPath, PARENT_FILENAME, [TYPED_MARKER]);
     await expectDaemonNodeContains(appWindow, nodeId, TYPED_MARKER);
 
     // Reopen parent; editor must still show the typed marker.
@@ -205,8 +205,8 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     }).toContain(TYPED_MARKER);
   });
 
-  test('frontmatter shape on disk is preserved through editing and close', async ({ appWindow, writeFolder }) => {
-    const parentPath = path.join(writeFolder, PARENT_FILENAME);
+  test('frontmatter shape on disk is preserved through editing and close', async ({ appWindow, writeFolderPath }) => {
+    const parentPath = path.join(writeFolderPath, PARENT_FILENAME);
 
     // Re-seed externally with frontmatter so the watcher picks it up before
     // the editor opens. The editor strips frontmatter on display; autosave
@@ -261,7 +261,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
   // tests in this spec exercise the editor/disk/graph convergence behaviours
   // that DO have implementations. See dev-manu commit 1b2171ace (the TDD
   // commit) — the matching renderer-side implementation never landed.
-  test.skip('in-flight typed edit is visible in an immediate agent context snapshot', async ({ appWindow, writeFolder }) => {
+  test.skip('in-flight typed edit is visible in an immediate agent context snapshot', async ({ appWindow, writeFolderPath }) => {
     const CONTEXT_MARKER = 'agent context sees immediate edit 93017';
     const typed = `# ${PARENT_TITLE}\n\n${CONTEXT_MARKER}\n`;
 
@@ -272,7 +272,7 @@ test.describe('editor ↔ graph ↔ disk convergence', () => {
     await appWindow.waitForTimeout(75);
     await appWindow.keyboard.press('ControlOrMeta+Enter');
 
-    await expectContextNodeContains(writeFolder, CONTEXT_MARKER);
+    await expectContextNodeContains(writeFolderPath, CONTEXT_MARKER);
     await closeAllTerminalWindows(appWindow);
   });
 });

@@ -117,8 +117,8 @@ class TestOrphanLinkingBehavior:
         # Create a temporary directory for the test to avoid loading existing markdown files
         with tempfile.TemporaryDirectory() as tmpdir:
             # Set environment variable to use temp directory
-            old_vault = os.environ.get('OBSIDIAN_VAULT_PATH', None)
-            os.environ['OBSIDIAN_VAULT_PATH'] = tmpdir
+            old_project = os.environ.get('OBSIDIAN_PROJECT_PATH', None)
+            os.environ['OBSIDIAN_PROJECT_PATH'] = tmpdir
 
             try:
                 # Setup: Create a tree with orphan nodes
@@ -175,10 +175,10 @@ class TestOrphanLinkingBehavior:
                     print("DEBUG: No actions returned from agent")
             finally:
                 # Restore old environment variable
-                if old_vault:
-                    os.environ['OBSIDIAN_VAULT_PATH'] = old_vault
-                elif 'OBSIDIAN_VAULT_PATH' in os.environ:
-                    del os.environ['OBSIDIAN_VAULT_PATH']
+                if old_project:
+                    os.environ['OBSIDIAN_PROJECT_PATH'] = old_project
+                elif 'OBSIDIAN_PROJECT_PATH' in os.environ:
+                    del os.environ['OBSIDIAN_PROJECT_PATH']
 
 
 if __name__ == "__main__":

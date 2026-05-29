@@ -23,7 +23,7 @@ import {
 } from '@vt/graph-db-client'
 import {isRecord} from '../graph/core/util'
 import {isJsonMode} from '../output'
-import {resolveVault} from '../util/detectVault'
+import {resolveProject} from '../util/detectProject'
 import {ArgValidationError, handleCliError} from '../util/exitCodes'
 import {parseSessionFlag, resolveSessionId} from '../util/sessionFlag'
 import {
@@ -45,18 +45,18 @@ import {
 // ────────────────────────────────────────────────────────────────────────
 
 const VIEW_USAGE: string = `Usage:
-  vt view list [--vault <path>] [--json]
-  vt view switch <id-or-name> [--vault <path>] [--json]
-  vt view clone <src-id-or-name> <dst-name> [--vault <path>] [--json]
-  vt view delete <id-or-name> [--vault <path>] [--json]
-  vt view set-folder <path> <expanded|collapsed|hidden> [--vault <path>] [--session <id>] [--json]
-  vt view selection set <nodeIds...> [--vault <path>] [--session <id>] [--json]
-  vt view selection add <nodeIds...> [--vault <path>] [--session <id>] [--json]
-  vt view selection remove <nodeIds...> [--vault <path>] [--session <id>] [--json]
-  vt view show [--vault <path>] [--session <id>] [--json]
-  vt view layout set-pan <x> <y> [--vault <path>] [--session <id>] [--json]
-  vt view layout set-zoom <zoom> [--vault <path>] [--session <id>] [--json]
-  vt view layout set-positions <positions-json-file> [--vault <path>] [--session <id>] [--json]`
+  vt view list [--project <path>] [--json]
+  vt view switch <id-or-name> [--project <path>] [--json]
+  vt view clone <src-id-or-name> <dst-name> [--project <path>] [--json]
+  vt view delete <id-or-name> [--project <path>] [--json]
+  vt view set-folder <path> <expanded|collapsed|hidden> [--project <path>] [--session <id>] [--json]
+  vt view selection set <nodeIds...> [--project <path>] [--session <id>] [--json]
+  vt view selection add <nodeIds...> [--project <path>] [--session <id>] [--json]
+  vt view selection remove <nodeIds...> [--project <path>] [--session <id>] [--json]
+  vt view show [--project <path>] [--session <id>] [--json]
+  vt view layout set-pan <x> <y> [--project <path>] [--session <id>] [--json]
+  vt view layout set-zoom <zoom> [--project <path>] [--session <id>] [--json]
+  vt view layout set-positions <positions-json-file> [--project <path>] [--session <id>] [--json]`
 
 function validationError(message?: string): never {
     throw new ArgValidationError(message === undefined ? VIEW_USAGE : `${message}\n\n${VIEW_USAGE}`)
@@ -69,7 +69,7 @@ function validationError(message?: string): never {
 type ParsedViewBase = {
     forceJson: boolean
     sessionFlag?: string
-    vaultFlag?: string
+    projectFlag?: string
 }
 
 type ParsedSetPanCommand = ParsedViewBase & {
@@ -208,7 +208,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
     const {remaining, session} = parseSessionFlag(argv)
     const positionalArgs: string[] = []
     let forceJson: boolean = false
-    let vaultFlag: string | undefined
+    let projectFlag: string | undefined
 
     for (let index: number = 0; index < remaining.length; index += 1) {
         const arg: string = remaining[index]
@@ -216,13 +216,13 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             forceJson = true
             continue
         }
-        if (arg === '--vault') {
-            vaultFlag = readRequiredFlagValue(remaining, index, '--vault')
+        if (arg === '--project') {
+            projectFlag = readRequiredFlagValue(remaining, index, '--project')
             index += 1
             continue
         }
-        if (arg.startsWith('--vault=')) {
-            vaultFlag = parseOptionalFlagAssignment('--vault', arg)
+        if (arg.startsWith('--project=')) {
+            projectFlag = parseOptionalFlagAssignment('--project', arg)
             continue
         }
         if (arg === '--help' || arg === '-h') {
@@ -243,14 +243,14 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         if (rest.length > 0) {
             validationError('`list` does not accept positional arguments.')
         }
-        return {branch: 'list', vaultFlag, sessionFlag: session, forceJson}
+        return {branch: 'list', projectFlag, sessionFlag: session, forceJson}
     }
 
     if (rawBranch === 'switch') {
         return {
             branch: 'switch',
             target: requireSingleValue(rest, '<id-or-name>', 'switch'),
-            vaultFlag,
+            projectFlag,
             sessionFlag: session,
             forceJson,
         }
@@ -267,7 +267,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             branch: 'clone',
             source: rest[0],
             name: rest[1],
-            vaultFlag,
+            projectFlag,
             sessionFlag: session,
             forceJson,
         }
@@ -277,7 +277,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         return {
             branch: 'delete',
             target: requireSingleValue(rest, '<id-or-name>', 'delete'),
-            vaultFlag,
+            projectFlag,
             sessionFlag: session,
             forceJson,
         }
@@ -294,7 +294,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             branch: 'set-folder',
             folderPath: resolvePath(rest[0]),
             state: parseFolderState(rest[1]),
-            vaultFlag,
+            projectFlag,
             sessionFlag: session,
             forceJson,
         }
@@ -306,14 +306,14 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         if (nodeIds.length === 0) {
             validationError(`Missing required <nodeIds...> for \`selection ${rawMode}\`.`)
         }
-        return {branch: 'selection', mode, nodeIds, vaultFlag, sessionFlag: session, forceJson}
+        return {branch: 'selection', mode, nodeIds, projectFlag, sessionFlag: session, forceJson}
     }
 
     if (rawBranch === 'show') {
         if (rest.length > 0) {
             validationError('`show` does not accept positional arguments.')
         }
-        return {branch: 'show', vaultFlag, sessionFlag: session, forceJson}
+        return {branch: 'show', projectFlag, sessionFlag: session, forceJson}
     }
 
     if (rawBranch !== 'layout') {
@@ -335,7 +335,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
                 subcommand: 'set-pan',
                 x: parseNumberArg(layoutArgs[0], 'x'),
                 y: parseNumberArg(layoutArgs[1], 'y'),
-                vaultFlag,
+                projectFlag,
                 sessionFlag: session,
                 forceJson,
             }
@@ -350,7 +350,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
                 branch: 'layout',
                 subcommand: 'set-zoom',
                 zoom: parseNumberArg(layoutArgs[0], 'zoom'),
-                vaultFlag,
+                projectFlag,
                 sessionFlag: session,
                 forceJson,
             }
@@ -365,7 +365,7 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
                 branch: 'layout',
                 subcommand: 'set-positions',
                 positionsFile: resolvePath(layoutArgs[0]),
-                vaultFlag,
+                projectFlag,
                 sessionFlag: session,
                 forceJson,
             }
@@ -446,9 +446,9 @@ async function buildLayoutMutation(parsed: ParsedLayoutCommand): Promise<LayoutM
     }
 }
 
-async function createSessionClient(vaultFlag: string | undefined): Promise<GraphDbClient> {
-    const vault: string = resolveVault({flag: vaultFlag, cwd: process.cwd()})
-    const {port}: {port: number} = await ensureDaemon(vault)
+async function createSessionClient(projectFlag: string | undefined): Promise<GraphDbClient> {
+    const project: string = resolveProject({flag: projectFlag, cwd: process.cwd()})
+    const {port}: {port: number} = await ensureDaemon(project)
     return new GraphDbClient({baseUrl: `http://127.0.0.1:${port}`})
 }
 
@@ -482,18 +482,18 @@ async function resolveCommandSessionId(
 
 async function runLayoutCommand(parsed: ParsedLayoutCommand): Promise<void> {
     const mutation: LayoutMutation = await buildLayoutMutation(parsed)
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
     emitResult(await client.updateLayout(sessionId, mutation), formatLayout, parsed.forceJson)
 }
 
 async function runListCommand(parsed: ParsedListCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     emitResult((await client.views.list()).map(toCliViewRecord), formatViewList, parsed.forceJson)
 }
 
 async function runSwitchCommand(parsed: ParsedSwitchCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const view: ViewRecord = await resolveViewRecord(client, parsed.target)
     emitResult(
         toCliViewRecord(await client.views.activate(view.viewId)),
@@ -503,7 +503,7 @@ async function runSwitchCommand(parsed: ParsedSwitchCommand): Promise<void> {
 }
 
 async function runCloneCommand(parsed: ParsedCloneCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const source: ViewRecord = await resolveViewRecord(client, parsed.source)
     emitResult(
         toCliViewRecord(await client.views.clone(source.viewId, parsed.name)),
@@ -513,14 +513,14 @@ async function runCloneCommand(parsed: ParsedCloneCommand): Promise<void> {
 }
 
 async function runDeleteCommand(parsed: ParsedDeleteCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const view: ViewRecord = await resolveViewRecord(client, parsed.target)
     await client.views.delete(view.viewId)
     emitResult(toCliViewRecord(view), formatViewDeleted, parsed.forceJson)
 }
 
 async function runSetFolderCommand(parsed: ParsedSetFolderCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
     await client.setFolderState(sessionId, parsed.folderPath, parsed.state)
     const row: CliFolderStateRow = {path: parsed.folderPath, state: parsed.state}
@@ -528,7 +528,7 @@ async function runSetFolderCommand(parsed: ParsedSetFolderCommand): Promise<void
 }
 
 async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
     emitResult(
         await client.setSelection(sessionId, {mode: parsed.mode, nodeIds: parsed.nodeIds}),
@@ -538,7 +538,7 @@ async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void
 }
 
 async function runShowCommand(parsed: ParsedShowCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const client: GraphDbClient = await createSessionClient(parsed.projectFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
     const state: LiveStateSnapshot = await client.getSessionState(sessionId, {content: 'omit'})
 

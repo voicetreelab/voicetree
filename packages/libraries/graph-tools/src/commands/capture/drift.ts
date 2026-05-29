@@ -39,10 +39,10 @@ async function snapshotFsContent(state: State): Promise<FsContentById> {
   return Object.fromEntries(entries)
 }
 
-function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: number; vault?: string; forceNew?: boolean; deep: boolean } {
+function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: number; project?: string; forceNew?: boolean; deep: boolean } {
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
   let forceNew: boolean | undefined
   let deep = false
 
@@ -60,22 +60,22 @@ function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: num
       pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      vault = argv[++i]
-      if (!vault || vault.startsWith('--')) {
-        return err('drift', '--vault requires a value')
+    } else if (arg === '--project') {
+      project = argv[++i]
+      if (!project || project.startsWith('--')) {
+        return err('drift', '--project requires a value')
       }
-    } else if (arg.startsWith('--vault=')) {
-      vault = arg.slice('--vault='.length)
-      if (!vault) {
-        return err('drift', '--vault requires a value')
+    } else if (arg.startsWith('--project=')) {
+      project = arg.slice('--project='.length)
+      if (!project) {
+        return err('drift', '--project requires a value')
       }
     } else {
       return err('drift', `unknown arg: ${arg}`)
     }
   }
 
-  return { port, pid, vault, forceNew, deep }
+  return { port, pid, project, forceNew, deep }
 }
 
 async function driftHandler(argv: string[]): Promise<Response<unknown>> {
@@ -84,7 +84,7 @@ async function driftHandler(argv: string[]): Promise<Response<unknown>> {
     return parsed
   }
 
-  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault, forceNew: parsed.forceNew })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, project: parsed.project, forceNew: parsed.forceNew })
 
   if (!pick.ok) {
     return err('drift', pick.message, pick.hint, 2)

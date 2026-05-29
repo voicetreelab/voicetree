@@ -8,7 +8,7 @@
  *      all come from here.
  *   2. `@voicetree/cli`'s `vt manual` command renders the spec set
  *      (via `renderManual`) instead of reading a static markdown file.
- *   3. The webapp's vault-bootstrap renders the spec set to advertise
+ *   3. The webapp's project-bootstrap renders the spec set to advertise
  *      the `vt` CLI inside CLAUDE.md / AGENTS.md.
  *
  * Conventions:
@@ -412,8 +412,8 @@ export const SEARCH_NODES_SPEC: ToolSpec = {
     rpcName: 'search_nodes',
     cliVerb: 'vt search',
     tier: 'reference',
-    summary: 'Semantic search across the active vault.',
-    description: 'Semantic search across the active vault. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.',
+    summary: 'Semantic search across the active project.',
+    description: 'Semantic search across the active project. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.',
     inputs: [
         {
             rpcName: 'query',
@@ -444,10 +444,10 @@ export const VT_GET_LIVE_STATE_SPEC: ToolSpec = {
             description: 'Pretty-print the JSON output (default: pretty).',
         },
         {
-            rpcName: 'vault',
-            cliBulletLabel: '--vault VALUE',
+            rpcName: 'project',
+            cliBulletLabel: '--project VALUE',
             annotation: '',
-            description: 'Override the resolved vault path. Defaults to the active vault for the current working directory.',
+            description: 'Override the resolved project path. Defaults to the active project for the current working directory.',
         },
     ],
 }
@@ -478,10 +478,10 @@ export const VT_DISPATCH_LIVE_COMMAND_SPEC: ToolSpec = {
             description: 'SerializedCommand JSON. See the description above for the per-`command.type` shape.',
         },
         {
-            rpcName: 'vault',
-            cliBulletLabel: '--vault VALUE',
+            rpcName: 'project',
+            cliBulletLabel: '--project VALUE',
             annotation: '',
-            description: 'Override the resolved vault path. Defaults to the active vault for the current working directory.',
+            description: 'Override the resolved project path. Defaults to the active project for the current working directory.',
         },
     ],
 }
@@ -491,7 +491,7 @@ export const METRICS_GET_SESSIONS_SPEC: ToolSpec = {
     cliVerb: 'vt agent metrics sessions',
     tier: 'reference',
     summary: 'Return per-session token usage, USD cost, and durations.',
-    description: 'Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads `<vault>/.voicetree/agent_metrics.json`. Same surface as the legacy main-side `getMetrics()` — Electron Main and CLI peers reach an identical response over JSON-RPC. No `vt` CLI wrapper is wired yet; invoke via the daemon HTTP transport.',
+    description: 'Return the daemon-owned agent metrics: per-session token usage, USD cost, durations. Reads `<project>/.voicetree/agent_metrics.json`. Same surface as the legacy main-side `getMetrics()` — Electron Main and CLI peers reach an identical response over JSON-RPC. No `vt` CLI wrapper is wired yet; invoke via the daemon HTTP transport.',
     inputs: [],
 }
 
@@ -500,7 +500,7 @@ export const METRICS_APPEND_SESSION_SPEC: ToolSpec = {
     cliVerb: 'vt agent metrics append',
     tier: 'reference',
     summary: 'Upsert a single session\'s token / cost telemetry.',
-    description: 'Append (or upsert by `sessionId`) a single session\'s token / cost telemetry into `<vault>/.voicetree/agent_metrics.json`. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface. No `vt` CLI wrapper is wired yet; invoke via the daemon HTTP transport.',
+    description: 'Append (or upsert by `sessionId`) a single session\'s token / cost telemetry into `<project>/.voicetree/agent_metrics.json`. Primarily invoked by the OTLP HTTP receiver itself; exposed via JSON-RPC so a CLI peer with a non-OTLP ingest path can write the same surface. No `vt` CLI wrapper is wired yet; invoke via the daemon HTTP transport.',
     inputs: [
         {
             rpcName: 'sessionId',

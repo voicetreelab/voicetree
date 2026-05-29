@@ -1,11 +1,11 @@
 /**
  * BF-348 regression: May 22 fork-storm.
  *
- * On 2026-05-22 a single Electron process forked ~100 vaultless vt-graphd
+ * On 2026-05-22 a single Electron process forked ~100 projectless vt-graphd
  * children when its in-module daemon guard collapsed under reload pressure.
  * The single-owner protocol (BF-342→346) introduced two layered defenses:
  *
- *  1. An in-process single-flight (`inflightByVault`) that coalesces N
+ *  1. An in-process single-flight (`inflightByProject`) that coalesces N
  *     concurrent callers in the SAME Node process into one work loop.
  *  2. A cross-process spawn lock (`graphd.spawn.lock`) that serialises the
  *     spawn step across separate Node processes once `decideOwnerAction`
@@ -13,9 +13,9 @@
  *
  * The tests below assert observable invariants for BOTH layers:
  *
- *  - Test A: 100 concurrent `ensureGraphDaemonForVault` calls from one
+ *  - Test A: 100 concurrent `ensureGraphDaemonForProject` calls from one
  *    process → exactly ONE vt-graphd child visible to `ps`.
- *  - Test B: N concurrent `ensureGraphDaemonForVault` calls each in a
+ *  - Test B: N concurrent `ensureGraphDaemonForProject` calls each in a
  *    separate Node child → exactly ONE vt-graphd child visible to `ps`,
  *    even though no caller shares in-process single-flight state.
  *
@@ -29,14 +29,14 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { ensureGraphDaemonForVault } from '../index.ts'
+import { ensureGraphDaemonForProject } from '../index.ts'
 import {
   FAKE_BIN,
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   destroyHarness,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   readPersistedOwner,
   trackDaemonPid,
   type Harness,
@@ -56,8 +56,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   // Belt-and-braces: any vt-graphd we missed gets SIGKILLed via
-  // listDaemonPidsForVault before the temp vault is removed.
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  // listDaemonPidsForProject before the temp project is removed.
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -69,13 +69,13 @@ afterEach(async () => {
 
 describe('BF-348 regression: May 22 fork-storm', () => {
   test(
-    'in-process: 100 concurrent ensureGraphDaemonForVault calls produce exactly one vt-graphd child (May 22 fork-storm regression)',
+    'in-process: 100 concurrent ensureGraphDaemonForProject calls produce exactly one vt-graphd child (May 22 fork-storm regression)',
     async () => {
       const callCount = 100
 
       const results = await Promise.all(
         Array.from({ length: callCount }, () =>
-          ensureGraphDaemonForVault(harness.vault, 'electron', {
+          ensureGraphDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 10_000,
           }),
@@ -84,10 +84,10 @@ describe('BF-348 regression: May 22 fork-storm', () => {
 
       // (1) Exactly ONE healthy owner record on disk — atomic IO read,
       // not a function-call observation.
-      const owner = await readPersistedOwner(harness.vault)
+      const owner = await readPersistedOwner(harness.project)
       trackDaemonPid(harness, owner.pid)
       expect(owner.port).not.toBeNull()
-      expect(owner.canonicalVault).toBe(resolve(harness.vault))
+      expect(owner.canonicalProject).toBe(resolve(harness.project))
 
       // (2) Exactly ONE listening port whose /health reports the matching
       // ownerNonce. We probe the daemon directly via the returned client.
@@ -97,10 +97,10 @@ describe('BF-348 regression: May 22 fork-storm', () => {
       expect(health.owner?.port).toBe(owner.port)
 
       // (3) Exactly ONE vt-graphd child process visible to ps for this
-      // vault path. This is the direct fork-storm assertion: a single-flight
+      // project path. This is the direct fork-storm assertion: a single-flight
       // cache could return identical pid/port to all 100 callers WITHOUT
       // actually preventing spawns, so we count by command fingerprint.
-      const liveDaemonCount = countDaemonProcessesForVault(harness.vault)
+      const liveDaemonCount = countDaemonProcessesForProject(harness.project)
       expect(liveDaemonCount).toBe(1)
 
       // (4) The 100 returned GraphDbClients all bind to that one port.
@@ -119,7 +119,7 @@ describe('BF-348 regression: May 22 fork-storm', () => {
         results.slice(0, 10).map((r) => r.client.health()),
       )
       for (const body of sampleHealth) {
-        expect(body.vault).toBe(resolve(harness.vault))
+        expect(body.project).toBe(resolve(harness.project))
         expect(body.owner?.ownerNonce).toBe(owner.ownerNonce)
         expect(body.owner?.port).toBe(owner.port)
       }
@@ -128,7 +128,7 @@ describe('BF-348 regression: May 22 fork-storm', () => {
   )
 
   test(
-    'cross-process: N separate Node processes racing on the same vault produce exactly one vt-graphd child',
+    'cross-process: N separate Node processes racing on the same project produce exactly one vt-graphd child',
     async () => {
       // The in-process single-flight does not span Node processes; this
       // test exercises the filesystem spawn lock + claim arbitration.
@@ -138,7 +138,7 @@ describe('BF-348 regression: May 22 fork-storm', () => {
       const childTimeoutMs = 12_000
 
       const children = Array.from({ length: processCount }, () =>
-        spawnEnsureChild(harness.vault, childTimeoutMs),
+        spawnEnsureChild(harness.project, childTimeoutMs),
       )
       const outcomes = await Promise.all(children.map(collectChildOutcome))
 
@@ -159,14 +159,14 @@ describe('BF-348 regression: May 22 fork-storm', () => {
       expect(nonces.size).toBe(1)
 
       // (2) Exactly ONE owner record on disk.
-      const owner = await readPersistedOwner(harness.vault)
+      const owner = await readPersistedOwner(harness.project)
       trackDaemonPid(harness, owner.pid)
       expect(owner.pid).toBe([...pids][0])
       expect(owner.port).toBe([...ports][0])
       expect(owner.ownerNonce).toBe([...nonces][0])
 
-      // (3) Exactly ONE vt-graphd child visible to ps for this vault.
-      const liveDaemonCount = countDaemonProcessesForVault(harness.vault)
+      // (3) Exactly ONE vt-graphd child visible to ps for this project.
+      const liveDaemonCount = countDaemonProcessesForProject(harness.project)
       expect(liveDaemonCount).toBe(1)
 
       // (4) The cross-process invariant: at most ONE child reported
@@ -195,7 +195,7 @@ type ChildFailure = {
 
 type ChildOutcome = ChildSuccess | ChildFailure
 
-function spawnEnsureChild(vault: string, timeoutMs: number): ChildProcess {
+function spawnEnsureChild(project: string, timeoutMs: number): ChildProcess {
   return spawn(
     process.execPath,
     [
@@ -203,7 +203,7 @@ function spawnEnsureChild(vault: string, timeoutMs: number): ChildProcess {
       TSX_LOADER,
       ENSURE_CHILD,
       '--project-root',
-      vault,
+      project,
       '--bin',
       FAKE_BIN_COMMAND,
       '--timeoutMs',

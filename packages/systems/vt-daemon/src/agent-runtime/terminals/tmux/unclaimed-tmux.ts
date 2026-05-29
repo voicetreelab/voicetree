@@ -21,7 +21,7 @@ import {
     type TerminalId,
 } from '../terminal-registry/types'
 
-export type UnclaimedTmuxClassification = 'this-vault' | 'foreign-vault'
+export type UnclaimedTmuxClassification = 'this-project' | 'foreign-project'
 
 export type ParsedVoicetreeTmuxSessionName = {
     readonly hash: string
@@ -89,7 +89,7 @@ async function resolveCurrentTmuxNamespace(): Promise<string | null> {
     const projectRoot: string | null = await (runtimeEnv.getProjectRoot?.() ?? Promise.resolve(null))
     if (projectRoot) return getProjectDotVoicetreePath(projectRoot)
 
-    return await (runtimeEnv.getWriteFolder?.() ?? Promise.resolve(null))
+    return await (runtimeEnv.getWriteFolderPath?.() ?? Promise.resolve(null))
 }
 
 export async function getCurrentTmuxNamespaceHash(): Promise<string | null> {
@@ -148,18 +148,18 @@ export async function listUnclaimedTmuxSessions(
         if (registeredIds.has(terminalId)) continue
 
         const classification: UnclaimedTmuxClassification = currentHash && parsed.hash === currentHash
-            ? 'this-vault'
-            : 'foreign-vault'
+            ? 'this-project'
+            : 'foreign-project'
         unclaimed.push({
             sessionName: session.sessionName,
             terminalId,
             hash: parsed.hash,
             classification,
-            attachable: classification === 'this-vault',
+            attachable: classification === 'this-project',
             createdAt: session.createdAtSeconds * 1000,
             panePid: session.panePid,
             agentName: env.AGENT_NAME || parsed.terminalId,
-            projectRoot: env.VOICETREE_VAULT_PATH,
+            projectRoot: env.VOICETREE_PROJECT_PATH,
             contextNodePath: env.CONTEXT_NODE_PATH,
             taskNodePath: env.TASK_NODE_PATH,
         })
@@ -230,7 +230,7 @@ export async function attachUnclaimedTmuxSession(
             (session: UnclaimedTmuxSession) => session.sessionName === sessionName,
         )
         if (!target) return {success: false, error: 'Tmux session is already claimed or no longer exists'}
-        if (!target.attachable) return {success: false, error: 'Foreign-vault tmux sessions cannot be attached'}
+        if (!target.attachable) return {success: false, error: 'Foreign-project tmux sessions cannot be attached'}
 
         const env: Record<string, string> = await safeSessionEnvironment(sessionName, deps)
         const terminalId: string = target.terminalId || env.VOICETREE_TERMINAL_ID || parsed.terminalId

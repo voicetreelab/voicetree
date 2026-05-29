@@ -28,13 +28,13 @@ function deps(env: NodeJS.ProcessEnv = {}): ResolveVtDaemonCommandDeps {
 
 describe('resolveCommand — production-path resolution', () => {
   test('resolves @vt/vt-daemon/bin/vtd.ts via the package exports field', () => {
-    const spec = resolveCommand('/tmp/some-vault', undefined, deps())
+    const spec = resolveCommand('/tmp/some-project', undefined, deps())
 
     expect(spec.cmd).toBe(process.execPath)
 
-    const vaultIndex = spec.args.indexOf('--vault')
-    expect(vaultIndex).toBeGreaterThanOrEqual(0)
-    expect(spec.args[vaultIndex + 1]).toBe('/tmp/some-vault')
+    const projectIndex = spec.args.indexOf('--project')
+    expect(projectIndex).toBeGreaterThanOrEqual(0)
+    expect(spec.args[projectIndex + 1]).toBe('/tmp/some-project')
 
     const binPath = spec.args.find((a) => a.endsWith('vtd.ts'))
     expect(binPath, 'resolver must include vtd.ts path in args').toBeDefined()
@@ -43,12 +43,12 @@ describe('resolveCommand — production-path resolution', () => {
   })
 
   test('preserves explicit environment when resolving an override command', () => {
-    const spec = resolveCommand('/tmp/some-vault', '/bin/echo fake-vtd', deps({
+    const spec = resolveCommand('/tmp/some-project', '/bin/echo fake-vtd', deps({
       PATH: '/tmp/vt-daemon-client-test-path',
     }))
 
     expect(spec.cmd).toBe('/bin/echo')
-    expect(spec.args).toEqual(['fake-vtd', '--vault', '/tmp/some-vault'])
+    expect(spec.args).toEqual(['fake-vtd', '--project', '/tmp/some-project'])
     expect(spec.env.PATH).toBe('/tmp/vt-daemon-client-test-path')
   })
 })

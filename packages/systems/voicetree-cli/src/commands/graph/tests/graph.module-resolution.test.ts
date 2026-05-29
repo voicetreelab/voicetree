@@ -106,7 +106,7 @@ function spawnCli(args: string[], cwd: string, envOverrides?: Record<string, str
     })
 }
 
-async function startHeadless(vault: string): Promise<{readonly url: string; readonly vaultPath: string; close(): Promise<void>}> {
+async function startHeadless(project: string): Promise<{readonly url: string; readonly projectPath: string; close(): Promise<void>}> {
     const child: ChildProcess = spawn(
         process.execPath,
         [
@@ -114,8 +114,8 @@ async function startHeadless(vault: string): Promise<{readonly url: string; read
             TSX_LOADER,
             join(REPO_ROOT, 'packages/libraries/graph-tools/bin/vt-headless.ts'),
             'serve',
-            '--vault',
-            vault,
+            '--project',
+            project,
             '--port',
             '0',
         ],
@@ -157,7 +157,7 @@ async function startHeadless(vault: string): Promise<{readonly url: string; read
 
     return {
         url,
-        vaultPath: vault,
+        projectPath: project,
         close: async (): Promise<void> => {
             if (child.exitCode !== null) return
             child.kill('SIGINT')
@@ -166,8 +166,8 @@ async function startHeadless(vault: string): Promise<{readonly url: string; read
     }
 }
 
-function daemonEnv(server: {url: string; vaultPath: string}): Record<string, string> {
-    return {VOICETREE_DAEMON_URL: server.url, VOICETREE_VAULT_PATH: server.vaultPath}
+function daemonEnv(server: {url: string; projectPath: string}): Record<string, string> {
+    return {VOICETREE_DAEMON_URL: server.url, VOICETREE_PROJECT_PATH: server.projectPath}
 }
 
 describe('graph CLI module resolution', () => {
@@ -216,7 +216,7 @@ describe('graph CLI module resolution', () => {
                 {
                     path: './test-node.md',
                     status: 'skipped',
-                    skipReason: 'no_vault_detected',
+                    skipReason: 'no_project_detected',
                 },
             ],
             summary: {ok: 0, rejected: 0, skipped: 1, warning: 0},
@@ -353,7 +353,7 @@ describe('graph CLI module resolution', () => {
         expect(Object.hasOwn(positionsAfterRemove, join(canonicalTempDir, relativeFile))).toBe(false)
     }, 60000)
 
-    it('persists positions when the loaded vault root and CLI cwd use symlink variants', async () => {
+    it('persists positions when the loaded project root and CLI cwd use symlink variants', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-live-symlink-root-'))
         tempDirs.push(tempDir)
         const canonicalTempDir: string = await realpath(tempDir)

@@ -1,8 +1,8 @@
 import type {TerminalId} from '../terminal-registry/types';
 
 /**
- * Tmux spawn planning helpers. Vault-path discovery helpers (resolveTmuxVaultPath,
- * withResolvedTmuxVaultPath, withVoicetreeVaultPath) feed terminal-manager's
+ * Tmux spawn planning helpers. Project-path discovery helpers (resolveTmuxProjectPath,
+ * withResolvedTmuxProjectPath, withVoicetreeProjectPath) feed terminal-manager's
  * active spawn flow; the prompt-file primitive itself (write, env scrub, command
  * rewrite) lives in `../headless/tmuxPromptFile.ts` as `applyPromptFileToTmuxSpawn`
  * so headless and interactive paths share it.
@@ -26,45 +26,45 @@ export type HeadfulPromptInjectionRequest = {
 };
 
 /**
- * Resolve the canonical vault root for tmux env exposure. The third-tier
+ * Resolve the canonical project root for tmux env exposure. The third-tier
  * fallback is the daemon's project root (the directory containing `.voicetree/`),
- * NOT the daemon's writeFolder — `$VOICETREE_VAULT_PATH/.voicetree/auth-token` is
+ * NOT the daemon's writeFolderPath — `$VOICETREE_PROJECT_PATH/.voicetree/auth-token` is
  * read by the CLI, the agent hook script, and the prompt-file primitive, all of
  * which need the canonical root. See buildTerminalEnvVars for the same contract.
  */
-export function resolveTmuxVaultPath(
-    env: {readonly VOICETREE_VAULT_PATH?: string},
+export function resolveTmuxProjectPath(
+    env: {readonly VOICETREE_PROJECT_PATH?: string},
     initialEnvVars: Record<string, string>,
-    runtimeWriteFolder?: string | null,
+    runtimeProjectRoot?: string | null,
 ): string | undefined {
-    return initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWriteFolder ?? env.VOICETREE_VAULT_PATH ?? undefined;
+    return initialEnvVars.VOICETREE_PROJECT_PATH ?? runtimeProjectRoot ?? env.VOICETREE_PROJECT_PATH ?? undefined;
 }
 
-export function withResolvedTmuxVaultPath(
+export function withResolvedTmuxProjectPath(
     initialEnvVars: Record<string, string>,
     projectRoot: string | undefined,
 ): Record<string, string> | undefined {
     if (!projectRoot && Object.keys(initialEnvVars).length === 0) return undefined;
-    if (!projectRoot || initialEnvVars.VOICETREE_VAULT_PATH) return initialEnvVars;
-    return {...initialEnvVars, VOICETREE_VAULT_PATH: projectRoot};
+    if (!projectRoot || initialEnvVars.VOICETREE_PROJECT_PATH) return initialEnvVars;
+    return {...initialEnvVars, VOICETREE_PROJECT_PATH: projectRoot};
 }
 
 /**
  * Build the tmux -e env vector from a (possibly already prompt-file-scrubbed)
  * env map. Drops non-string entries (defensive against bad input from the
  * IPC boundary, where the TS type can't be enforced) and backfills
- * VOICETREE_VAULT_PATH if the env doesn't carry one.
+ * VOICETREE_PROJECT_PATH if the env doesn't carry one.
  */
-export function withVoicetreeVaultPath(
+export function withVoicetreeProjectPath(
     env: Record<string, string>,
-    vaultPath: string | undefined,
+    projectPath: string | undefined,
 ): Record<string, string> {
     const tmuxEnv: Record<string, string> = {};
     for (const key of Object.keys(env)) {
         const value: string = env[key];
         if (typeof value === 'string') tmuxEnv[key] = value;
     }
-    if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
+    if (projectPath && !tmuxEnv.VOICETREE_PROJECT_PATH) tmuxEnv.VOICETREE_PROJECT_PATH = projectPath;
     return tmuxEnv;
 }
 
@@ -85,7 +85,7 @@ export function resolvePromptFileWrite(
 
 /**
  * Pure planning helper — builds the tmux -e env vector with AGENT_PROMPT_FILE
- * + VOICETREE_VAULT_PATH backfill. Drops non-string entries defensively.
+ * + VOICETREE_PROJECT_PATH backfill. Drops non-string entries defensively.
  * Kept available as a primitive; not wired into the active spawn path. See
  * module docstring.
  */
@@ -100,7 +100,7 @@ export function buildTmuxEnv(
         if (typeof value === 'string') tmuxEnv[key] = value;
     }
     if (promptFilePath) tmuxEnv.AGENT_PROMPT_FILE = promptFilePath;
-    if (projectRoot && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = projectRoot;
+    if (projectRoot && !tmuxEnv.VOICETREE_PROJECT_PATH) tmuxEnv.VOICETREE_PROJECT_PATH = projectRoot;
     return tmuxEnv;
 }
 

@@ -84,13 +84,13 @@ function buildScenario(seedInput: number, randomSteps: number): Scenario {
     graph = applyGraphDeltaToGraph(graph, delta)
   }
 
-  const first = makeNode('/vault/a.md', 'create-a')
+  const first = makeNode('/project/a.md', 'create-a')
   append('create', [{ type: 'UpsertNode', nodeToUpsert: first, previousNode: O.none }])
 
-  const updatedFirst = makeNode('/vault/a.md', 'update-a')
+  const updatedFirst = makeNode('/project/a.md', 'update-a')
   append('update', [{ type: 'UpsertNode', nodeToUpsert: updatedFirst, previousNode: O.some(first) }])
 
-  const movedFirst = makeNode('/vault/moved-a.md', 'move-a', { x: 10, y: 20 })
+  const movedFirst = makeNode('/project/moved-a.md', 'move-a', { x: 10, y: 20 })
   append('move', [
     { type: 'DeleteNode', nodeId: first.absoluteFilePathIsID, deletedNode: O.some(updatedFirst) },
     { type: 'UpsertNode', nodeToUpsert: movedFirst, previousNode: O.some(updatedFirst) },
@@ -102,7 +102,7 @@ function buildScenario(seedInput: number, randomSteps: number): Scenario {
 
   for (let index = 0; index < randomSteps; index += 1) {
     seed = nextSeed(seed)
-    const nodeId: NodeIdAndFilePath = `/vault/random-${pick(seed, 5)}.md`
+    const nodeId: NodeIdAndFilePath = `/project/random-${pick(seed, 5)}.md`
     const existing = graph.nodes[nodeId]
     const nextNode = makeNode(nodeId, `seed-${seed}-step-${index}`, {
       x: pick(seed, 100),
@@ -123,7 +123,7 @@ function buildScenario(seedInput: number, randomSteps: number): Scenario {
       continue
     }
 
-    const movedId: NodeIdAndFilePath = `/vault/random-${pick(seed, 5)}-moved-${index}.md`
+    const movedId: NodeIdAndFilePath = `/project/random-${pick(seed, 5)}-moved-${index}.md`
     append('move', [
       { type: 'DeleteNode', nodeId, deletedNode: O.some(existing) },
       { type: 'UpsertNode', nodeToUpsert: makeNode(movedId, existing.contentWithoutYamlOrLinks), previousNode: O.some(existing) },

@@ -24,7 +24,7 @@ class TestLenientContentFiltering:
     def deep_markdown_tree(self):
         """Create a deep tree structure for testing distance-based filtering."""
         temp_dir = tempfile.mkdtemp()
-        markdown_dir = Path(temp_dir) / "test_vault"
+        markdown_dir = Path(temp_dir) / "test_project"
         markdown_dir.mkdir()
 
         # Create a chain of 15 nodes for testing different distance thresholds

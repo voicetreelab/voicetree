@@ -21,7 +21,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { ExtendedWindow } from './helpers/electron-markdown-editor-fixtures';
 import {
-  FIXTURE_VAULT_PATH,
+  FIXTURE_PROJECT_PATH,
   expectFrontmatterShapePreserved,
   registerStopFileWatchingAfterEach,
   test,
@@ -82,12 +82,12 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     console.log(`✓ Found node with ID: ${nodeId}`);
 
-    // nodeId may be absolute or relative to FIXTURE_VAULT_PATH.
+    // nodeId may be absolute or relative to FIXTURE_PROJECT_PATH.
     const testFilePath = path.isAbsolute(nodeId)
       ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
       : (nodeId.endsWith('.md')
-          ? path.join(FIXTURE_VAULT_PATH, nodeId)
-          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
+          ? path.join(FIXTURE_PROJECT_PATH, nodeId)
+          : path.join(FIXTURE_PROJECT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content length:', originalContent.length);
 
@@ -249,8 +249,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
     const testFilePath = path.isAbsolute(nodeId)
       ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
       : (nodeId.endsWith('.md')
-          ? path.join(FIXTURE_VAULT_PATH, nodeId)
-          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
+          ? path.join(FIXTURE_PROJECT_PATH, nodeId)
+          : path.join(FIXTURE_PROJECT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
     const editorWindowId = `window-${nodeId}-editor`;

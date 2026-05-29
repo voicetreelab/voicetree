@@ -35,11 +35,11 @@ export declare function toAbsolutePath(path: string): AbsolutePath
 export declare function buildFolderTree(
     entry: DirectoryEntry,
     loadedPaths: ReadonlySet<string>,
-    writeFolder: AbsolutePath | null,
+    writeFolderPath: AbsolutePath | null,
     graphFilePaths: ReadonlySet<string>,
 ): FolderTreeNode
 export declare function getDirectoryTree(rootPath: string, maxDepth?: number): Promise<DirectoryEntry>
-export declare function loadGraphFromDisk(vaultPaths: readonly string[]): Promise<Either<unknown, Graph>>
+export declare function loadGraphFromDisk(projectPaths: readonly string[]): Promise<Either<unknown, Graph>>
 export declare function buildGraphFromFiles(
     files: readonly { readonly absolutePath: string; readonly content: string }[],
 ): Graph

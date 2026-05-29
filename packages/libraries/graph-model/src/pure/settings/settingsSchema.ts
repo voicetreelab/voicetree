@@ -143,7 +143,7 @@ VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
 AGENT_NAME = $AGENT_NAME
 CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
-VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_PROJECT_PATH = $VOICETREE_PROJECT_PATH
 VOICETREE_HOME_PATH = $VOICETREE_HOME_PATH
 VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 DEPTH_BUDGET = $DEPTH_BUDGET
@@ -151,7 +151,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET
             AGENT_PROMPT_CORE: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
 You are being run within a graph/mindmap of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
 <VT_CLI>
-Voicetree operations are exposed as the \`vt\` CLI (available on PATH). Run \`vt manual\` for the full reference or \`vt manual <verb>\` for one tool section. There is no MCP server in this environment — every voicetree action (spawning agents, listing agents, creating progress nodes, reading nearby unseen nodes, sending messages, etc.) MUST go through \`vt <verb>\`. $VOICETREE_VAULT_PATH is already exported in your env so vt resolves against the correct vault.
+Voicetree operations are exposed as the \`vt\` CLI (available on PATH). Run \`vt manual\` for the full reference or \`vt manual <verb>\` for one tool section. There is no MCP server in this environment — every voicetree action (spawning agents, listing agents, creating progress nodes, reading nearby unseen nodes, sending messages, etc.) MUST go through \`vt <verb>\`. $VOICETREE_PROJECT_PATH is already exported in your env so vt resolves against the correct project.
 </VT_CLI>
 <utilising_mindmap>
 This mindmap is designed to help the human parse context by being able to visualise it at a higher level of abstraction (as concepts and connections). It accomplishes this by presenting a default view which only displays key details / concepts, i.e. the most important information for the user to understand pieces of information (such as an argument, codebase, task progression trace), and less important information is hidden within the within-nodes view.
@@ -183,7 +183,7 @@ VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
 AGENT_NAME = $AGENT_NAME
 CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
-VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_PROJECT_PATH = $VOICETREE_PROJECT_PATH
 VOICETREE_HOME_PATH = $VOICETREE_HOME_PATH
 VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended spend!

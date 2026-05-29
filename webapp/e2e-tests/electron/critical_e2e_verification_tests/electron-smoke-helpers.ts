@@ -45,28 +45,28 @@ export interface ExtendedWindow {
 
 export function tmuxCommandArgsForTest(
   args: readonly string[],
-  appSupportPath?: string,
+  voicetreeHomePath?: string,
 ): string[] {
-  if (!appSupportPath) return [...args];
-  return ["-S", path.join(appSupportPath, TMUX_SOCKET_NAME), ...args];
+  if (!voicetreeHomePath) return [...args];
+  return ["-S", path.join(voicetreeHomePath, TMUX_SOCKET_NAME), ...args];
 }
 
 export function resolveTmuxSessionNameForTest(
   terminalId: string,
-  appSupportPath?: string,
+  voicetreeHomePath?: string,
 ): string {
-  const matches = resolveTmuxSessionNamesForTest(terminalId, appSupportPath);
+  const matches = resolveTmuxSessionNamesForTest(terminalId, voicetreeHomePath);
   return matches.at(-1) ?? terminalId;
 }
 
 export function resolveTmuxSessionNamesForTest(
   terminalId: string,
-  appSupportPath?: string,
+  voicetreeHomePath?: string,
 ): string[] {
   try {
     const sessions = execFileSync(
       "tmux",
-      tmuxCommandArgsForTest(["list-sessions", "-F", "#S"], appSupportPath),
+      tmuxCommandArgsForTest(["list-sessions", "-F", "#S"], voicetreeHomePath),
       { encoding: "utf8" },
     )
       .split("\n")
@@ -160,10 +160,10 @@ function killProcessesMatching(predicate: (command: string) => boolean): void {
   }
 }
 
-export function stopSmokeGraphDaemonForVault(vaultPath: string): void {
+export function stopSmokeGraphDaemonForProject(projectPath: string): void {
   killProcessesMatching(
     (command) =>
-      command.includes(vaultPath) &&
+      command.includes(projectPath) &&
       (command.includes("vt-graphd.ts") ||
         command.includes("vt-graphd.mjs")),
   );

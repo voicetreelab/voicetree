@@ -1,5 +1,5 @@
 // SSE bridge from the `agent-events` topic on the in-process hub onto an
-// HTTP text/event-stream channel. Mirrors the per-vault graph SSE pattern
+// HTTP text/event-stream channel. Mirrors the per-project graph SSE pattern
 // used by `webapp/src/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription.ts`
 // (`GET /sessions/<id>/events?since=<seq>`). One SSE block per published
 // hub event; `data:` line carries the JSON envelope.
@@ -11,7 +11,7 @@
 //     seq:   <hub monotonic seq>,
 //     event: <claude-code hook event name>,
 //     data:  {terminalId, source, at, handlerResult},
-//     vault: <canonical absolute path>,
+//     project: <canonical absolute path>,
 //   }
 //
 // The route is bearer-auth-gated (caller checks `isAuthorized` before
@@ -37,14 +37,14 @@ export interface AgentEventEnvelope {
         readonly at: number
         readonly handlerResult: unknown
     }
-    readonly vault: string
+    readonly project: string
 }
 
 export interface AgentEventsGapEnvelope {
     readonly kind: 'agent-events-gap'
     readonly fromSeq: number
     readonly currentSeq: number
-    readonly vault: string
+    readonly project: string
 }
 
 export type AgentEventsFrame = AgentEventEnvelope | AgentEventsGapEnvelope
@@ -86,7 +86,7 @@ export function projectHubEventToEnvelope(
     seq: number,
     event: string,
     data: unknown,
-    vault: string,
+    project: string,
 ): AgentEventEnvelope | null {
     if (typeof data !== 'object' || data === null) return null
     const d = data as Record<string, unknown>
@@ -103,7 +103,7 @@ export function projectHubEventToEnvelope(
             at: d.at,
             handlerResult: d.handlerResult,
         },
-        vault,
+        project,
     }
 }
 
@@ -118,7 +118,7 @@ export function encodeSseBlock(envelope: AgentEventsFrame): string {
 
 export interface AgentEventsSseOptions {
     readonly hub: EventSubscriptionHub
-    readonly canonicalVault: string
+    readonly canonicalProject: string
     /** Injected for tests; defaults to the project's hub frame protocol. */
     readonly resumeSeq: number
 }
@@ -162,7 +162,7 @@ export function handleAgentEventsSse(
             const p = parsed as Record<string, unknown>
             if (p.type === 'event' && typeof p.seq === 'number' && typeof p.event === 'string') {
                 const envelope: AgentEventEnvelope | null = projectHubEventToEnvelope(
-                    p.seq, p.event, p.data, options.canonicalVault,
+                    p.seq, p.event, p.data, options.canonicalProject,
                 )
                 if (envelope) res.write(encodeSseBlock(envelope))
                 return
@@ -172,7 +172,7 @@ export function handleAgentEventsSse(
                     kind: 'agent-events-gap',
                     fromSeq: p.fromSeq,
                     currentSeq: p.currentSeq,
-                    vault: options.canonicalVault,
+                    project: options.canonicalProject,
                 }
                 res.write(encodeSseBlock(gap))
                 return

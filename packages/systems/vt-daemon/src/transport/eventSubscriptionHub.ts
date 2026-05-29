@@ -2,7 +2,7 @@
 // per-subscriber bounded outbound queue. Post-Phase-0 + Phase-2 topics:
 // `agent-events` (hook ingestion — renamed from agent-lifecycle in
 // BF-376) and `terminal-registry` (BF-376 outbound — registry mutations
-// + imperative UI-launch instructions). The pre-Phase-0 `vault-state`
+// + imperative UI-launch instructions). The pre-Phase-0 `project-state`
 // topic was deleted by BF-366; the single FS-watcher invariant lives in
 // vt-graphd. Per BF-376 design decision 2 (outbound design.md §6),
 // terminal-registry is its own narrow homogeneous topic, NOT a widening

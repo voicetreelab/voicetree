@@ -10,14 +10,14 @@ import {
 } from '../server.ts'
 import { ownerRecordFile, readOwnerRecord } from '@vt/daemon-lifecycle'
 
-function ownerRecordPathFor(vault: string, daemonKind: 'graphd' | 'vtd'): string {
-  return ownerRecordFile.pathFor(vault, daemonKind)
+function ownerRecordPathFor(project: string, daemonKind: 'graphd' | 'vtd'): string {
+  return ownerRecordFile.pathFor(project, daemonKind)
 }
 import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
 import { CONTRACT_VERSION, HealthResponseSchema } from '@vt/graph-db-server/contract'
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-test-'))
 }
 
@@ -31,21 +31,21 @@ function firstNonLoopbackIPv4(): string | null {
 }
 
 describe('startDaemon', () => {
-  let vault: string
+  let project: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    vault = await withTempVault()
+    project = await withTempProject()
     handles = []
   })
 
   afterEach(async () => {
     for (const h of handles) await h.stop().catch(() => {})
-    await rm(vault, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
   })
 
-  const start = async (opts: Omit<StartDaemonOptions, 'vault'> = {}) => {
-    const h = await startDaemon({ vault, ...opts })
+  const start = async (opts: Omit<StartDaemonOptions, 'project'> = {}) => {
+    const h = await startDaemon({ project, ...opts })
     handles.push(h)
     return h
   }
@@ -56,11 +56,11 @@ describe('startDaemon', () => {
     expect(res.status).toBe(200)
     const body = HealthResponseSchema.parse(await res.json())
     expect(body.version).toBe(CONTRACT_VERSION)
-    expect(body.vault).toBe(vault)
+    expect(body.project).toBe(project)
     expect(body.sessionCount).toBe(0)
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
     expect(body.owner).not.toBeNull()
-    expect(body.owner?.canonicalVault).toBe(vault)
+    expect(body.owner?.canonicalProject).toBe(project)
     expect(body.owner?.pid).toBe(process.pid)
     expect(body.owner?.port).toBe(h.port)
     expect(body.owner?.contractVersion).toBe(CONTRACT_VERSION)
@@ -68,42 +68,42 @@ describe('startDaemon', () => {
     expect(body.owner?.ownerNonce).toEqual(expect.any(String))
   })
 
-  test('health works before any vault is opened and reports owner=null', async () => {
-    const h = await startDaemon({ voicetreeHomePath: join(vault, 'app-support') })
+  test('health works before any project is opened and reports owner=null', async () => {
+    const h = await startDaemon({ voicetreeHomePath: join(project, 'voicetree-home') })
     handles.push(h)
 
     const res = await fetch(`http://127.0.0.1:${h.port}/health`)
     expect(res.status).toBe(200)
     const body = HealthResponseSchema.parse(await res.json())
     expect(body.version).toBe(CONTRACT_VERSION)
-    expect(body.vault).toBeNull()
+    expect(body.project).toBeNull()
     expect(body.sessionCount).toBe(0)
     expect(body.owner).toBeNull()
   })
 
-  test('closing the startup vault makes health report no open vault', async () => {
+  test('closing the startup project makes health report no open project', async () => {
     const h = await start()
 
-    const close = await fetch(`http://127.0.0.1:${h.port}/vault/close`, {
+    const close = await fetch(`http://127.0.0.1:${h.port}/project/close`, {
       method: 'POST',
     })
     const health = await fetch(`http://127.0.0.1:${h.port}/health`)
-    const vaultRead = await fetch(`http://127.0.0.1:${h.port}/vault`)
+    const projectRead = await fetch(`http://127.0.0.1:${h.port}/project`)
 
     expect(close.status).toBe(204)
-    expect(HealthResponseSchema.parse(await health.json()).vault).toBeNull()
-    expect(vaultRead.status).toBe(409)
-    expect(await vaultRead.json()).toMatchObject({
-      error: { code: 'vault_not_open' },
+    expect(HealthResponseSchema.parse(await health.json()).project).toBeNull()
+    expect(projectRead.status).toBe(409)
+    expect(await projectRead.json()).toMatchObject({
+      error: { code: 'project_not_open' },
     })
   })
 
   test('port file reflects the assigned port', async () => {
     const h = await start()
-    expect(await readPortFile(vault)).toBe(h.port)
+    expect(await readPortFile(project)).toBe(h.port)
   })
 
-  test('competing startDaemon for the same vault fails loudly with conflict', async () => {
+  test('competing startDaemon for the same project fails loudly with conflict', async () => {
     const first = await start()
     await expect(start()).rejects.toBeInstanceOf(DaemonOwnerConflictError)
     // First daemon stays alive and serves.
@@ -115,9 +115,9 @@ describe('startDaemon', () => {
     const h = await start()
     const res = await fetch(`http://127.0.0.1:${h.port}/health`)
     const body = HealthResponseSchema.parse(await res.json())
-    const onDisk = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
+    const onDisk = await readOwnerRecord(ownerRecordPathFor(project, 'graphd'))
     expect(onDisk).not.toBeNull()
-    expect(body.owner?.canonicalVault).toBe(onDisk?.canonicalVault)
+    expect(body.owner?.canonicalProject).toBe(onDisk?.canonicalProject)
     expect(body.owner?.ownerNonce).toBe(onDisk?.ownerNonce)
     expect(body.owner?.pid).toBe(onDisk?.pid)
     expect(body.owner?.port).toBe(onDisk?.port)
@@ -127,9 +127,9 @@ describe('startDaemon', () => {
     const h = await start()
     await h.stop()
     handles = handles.filter((x) => x !== h)
-    expect(await readPortFile(vault)).toBeNull()
-    expect(await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))).toBeNull()
-    await expect(stat(ownerRecordPathFor(vault, 'graphd'))).rejects.toMatchObject({
+    expect(await readPortFile(project)).toBeNull()
+    expect(await readOwnerRecord(ownerRecordPathFor(project, 'graphd'))).toBeNull()
+    await expect(stat(ownerRecordPathFor(project, 'graphd'))).rejects.toMatchObject({
       code: 'ENOENT',
     })
   })
@@ -138,7 +138,7 @@ describe('startDaemon', () => {
     let callbackFired = false
     const done = new Promise<void>((res) => {
       const h = startDaemon({
-        vault,
+        project,
         onShutdownComplete: () => {
           callbackFired = true
           res()
@@ -159,8 +159,8 @@ describe('startDaemon', () => {
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 1000)),
     ])
     expect(callbackFired).toBe(true)
-    expect(await readPortFile(vault)).toBeNull()
-    expect(await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))).toBeNull()
+    expect(await readPortFile(project)).toBeNull()
+    expect(await readOwnerRecord(ownerRecordPathFor(project, 'graphd'))).toBeNull()
     handles = [] // already torn down
   })
 

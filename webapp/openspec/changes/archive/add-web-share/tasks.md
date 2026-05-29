@@ -31,5 +31,5 @@ isContextNode: false
 - [x] 4.3 Create `shell/web/UI/pages/UploadPage.tsx` — drop zone, progress, share link
 - [x] 4.4 Create `shell/web/UI/pages/ViewerPage.tsx` — Cytoscape viewer reusing applyGraphDeltaToWebUI (read-only)
 - ~~4.5 Create `shell/web/UI/components/NodePanel.tsx`~~ — Not built (simplified: ViewerPage handles display directly)
-- [x] 4.6 Test fixture vault at `public/example_small/` (larger than originally planned 3-node structure)
+- [x] 4.6 Test fixture project at `public/example_small/` (larger than originally planned 3-node structure)
 - [ ] 4.7 Write Playwright browser E2E: upload → get link → view → verify graph — NOT BUILT (deferred to Phase 5B)

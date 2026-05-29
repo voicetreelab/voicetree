@@ -12,8 +12,8 @@ import {subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/stores
 import {getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import {TERMINAL_ACTIVE_CLASS} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {handleWorktreeDeleteEvent} from '@/shell/edge/UI-edge/graph/actions/handleWorktreeDelete';
-import {subscribeToVaultPaths, getVaultState} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
-import type {VaultPathState} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
+import {subscribeToProjectPaths, getProjectState} from '@/shell/edge/UI-edge/state/stores/ProjectPathStore';
+import type {ProjectPathState} from '@/shell/edge/UI-edge/state/stores/ProjectPathStore';
 import {triggerFullLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 
 export interface ViewSubscriptionDeps {
@@ -25,7 +25,7 @@ export interface ViewSubscriptionCleanups {
     activeTerminalSubscription: () => void;
     navigationListener: () => void;
     worktreeDeleteListener: () => void;
-    vaultPathSubscription: () => void;
+    projectPathSubscription: () => void;
 }
 
 /**
@@ -84,11 +84,11 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         document.removeEventListener('vt:request-worktree-delete', handleWorktreeDeleteEvent);
     };
 
-    // Vault path subscription - triggers full R-tree pack + Cola layout when folders are added/removed.
+    // Project path subscription - triggers full R-tree pack + Cola layout when folders are added/removed.
     // When readPaths changes, the graph topology changed substantially (bulk node add/remove),
     // so we reset the layout to run R-tree packing for global positioning followed by Cola refinement.
-    let prevReadPathCount: number = getVaultState().readPaths.length;
-    const vaultPathSubscription: () => void = subscribeToVaultPaths((state: VaultPathState) => {
+    let prevReadPathCount: number = getProjectState().readPaths.length;
+    const projectPathSubscription: () => void = subscribeToProjectPaths((state: ProjectPathState) => {
         const newCount: number = state.readPaths.length;
         if (newCount !== prevReadPathCount) {
             prevReadPathCount = newCount;
@@ -100,7 +100,7 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         activeTerminalSubscription,
         navigationListener,
         worktreeDeleteListener,
-        vaultPathSubscription,
+        projectPathSubscription,
     };
 }
 
@@ -112,5 +112,5 @@ export function cleanupViewSubscriptions(cleanups: ViewSubscriptionCleanups): vo
     cleanups.activeTerminalSubscription();
     cleanups.navigationListener();
     cleanups.worktreeDeleteListener();
-    cleanups.vaultPathSubscription();
+    cleanups.projectPathSubscription();
 }

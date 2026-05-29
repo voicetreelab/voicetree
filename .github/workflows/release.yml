@@ -200,6 +200,10 @@ jobs:
           path: ${{ github.workspace }}/out/electron/latest-mac.yml
           retention-days: 1
 
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "macOS release build failed"
+
   merge-mac-manifests:
     needs: [check-version, build-mac]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_mac) }}
@@ -326,6 +330,11 @@ jobs:
           npx electron-builder --win --publish=always
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Summarize failure
+        if: failure()
+        shell: bash
+        run: scripts/ci/write-failure-summary.sh "Windows release build failed"
+
   build-linux:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_linux) }}
@@ -412,6 +421,10 @@ jobs:
           cp out/electron/voicetree-x64.AppImage out/electron/voicetree.AppImage
           gh release upload "v${VERSION}" out/electron/voicetree.AppImage \
             --clobber --repo voicetreelab/voicetree
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Linux release build failed"
 
   publish-release:
     needs: [check-version, build-mac, build-windows, build-linux, merge-mac-manifests]

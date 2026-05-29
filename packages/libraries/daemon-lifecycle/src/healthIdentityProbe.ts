@@ -8,8 +8,8 @@
  *   to parse against the daemon-kind's schema (graphd → HealthResponse,
  *   vtd → VtDaemonHealthResponse).
  * - `mismatch`: the daemon answered with `owner === null` (no owner
- *   claim yet — happens during the vaultless startup window or on
- *   legacy paths). The pure decision treats this as "not this vault's
+ *   claim yet — happens during the projectless startup window or on
+ *   legacy paths). The pure decision treats this as "not this project's
  *   owner".
  * - `verified`: the daemon answered with a complete owner block.
  *
@@ -52,7 +52,7 @@ const DEFAULT_TIMEOUT_MS = 1500
 /**
  * Parse the response body against the appropriate daemon-kind schema,
  * returning ONLY the `owner` projection — the four fields used by every
- * downstream decision (canonicalVault, ownerNonce, pid, port). Returns
+ * downstream decision (canonicalProject, ownerNonce, pid, port). Returns
  * `undefined` on parse failure (schema mismatch, body is not the expected
  * daemon's wire shape).
  *
@@ -91,13 +91,13 @@ export async function probeOwnerHealth(
     if (owner === null) {
       return {
         kind: 'mismatch',
-        observedCanonicalVault: null,
+        observedCanonicalProject: null,
         observedOwnerNonce: null,
       }
     }
     return {
       kind: 'verified',
-      canonicalVault: owner.canonicalVault,
+      canonicalProject: owner.canonicalProject,
       ownerNonce: owner.ownerNonce,
       pid: owner.pid,
       port: owner.port,

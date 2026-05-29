@@ -8,7 +8,7 @@ import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
-import { generateVaultOnDisk } from '@vt/perf-fixtures';
+import { generateProjectOnDisk } from '@vt/perf-fixtures';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
 export const PERF_TRACES_DIR = path.join(PROJECT_ROOT, 'e2e-tests', 'perf-traces');
@@ -25,7 +25,7 @@ export interface ExtendedWindow {
 }
 
 let mainInspectPort = 0;
-let generatedVaultPath = '';
+let generatedProjectPath = '';
 let generatedProjectPath = '';
 
 function canLoadNativeGraphDbModules(nodeBin: string): boolean {
@@ -88,8 +88,8 @@ export function getMainInspectPort(): number {
   return mainInspectPort;
 }
 
-export function getGeneratedVaultPath(): string {
-  return generatedVaultPath;
+export function getGeneratedProjectPath(): string {
+  return generatedProjectPath;
 }
 
 export async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknown>> {
@@ -100,7 +100,7 @@ export async function collectLoadDiagnostics(page: Page): Promise<Record<string,
         electronAPI?: {
           main?: {
             getWatchStatus?: () => Promise<unknown>;
-            getVaultPaths?: () => Promise<unknown>;
+            getProjectPaths?: () => Promise<unknown>;
             getGraph?: () => Promise<{ nodes?: Record<string, unknown>; edges?: Record<string, unknown> }>;
           };
         };
@@ -134,11 +134,11 @@ export async function collectLoadDiagnostics(page: Page): Promise<Record<string,
       cyNodes: cy?.nodes().length ?? null,
       cyEdges: cy?.edges().length ?? null,
       watchStatus: await safeCall(api?.main?.getWatchStatus),
-      vaultPaths: await safeCall(api?.main?.getVaultPaths),
+      projectPaths: await safeCall(api?.main?.getProjectPaths),
       graphNodeCount,
       graphEdgeCount,
     };
-  }, generatedVaultPath);
+  }, generatedProjectPath);
 }
 
 export const test = base.extend<{
@@ -151,18 +151,18 @@ export const test = base.extend<{
     );
 
     generatedProjectPath = path.join(tempUserDataPath, 'perf-test-project');
-    generatedVaultPath = path.join(generatedProjectPath, 'perf-test-vault');
-    generateVaultOnDisk(generatedVaultPath, REALISTIC_PERF_NODE_COUNT);
-    console.log(`[Vault Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedVaultPath}`);
+    generatedProjectPath = path.join(generatedProjectPath, 'perf-test-project');
+    generateProjectOnDisk(generatedProjectPath, REALISTIC_PERF_NODE_COUNT);
+    console.log(`[Project Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedProjectPath}`);
 
-    // Seed projects.json pointing at the generated vault
+    // Seed projects.json pointing at the generated project
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     await fs.writeFile(
       projectsPath,
       JSON.stringify([{
         id: 'realistic-perf-project',
         path: generatedProjectPath,
-        name: 'perf-test-vault',
+        name: 'perf-test-project',
         type: 'folder',
         lastOpened: Date.now(),
         voicetreeInitialized: true,
@@ -170,16 +170,16 @@ export const test = base.extend<{
       'utf8'
     );
 
-    // Seed voicetree-config.json with vault config so the app loads ALL .md files
+    // Seed voicetree-config.json with project config so the app loads ALL .md files
     // Without this, the app creates a new voicetree-{date} subfolder and only loads that
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: generatedProjectPath,
-        vaultConfig: {
+        projectConfig: {
           [generatedProjectPath]: {
-            writeFolder: generatedVaultPath,
+            writeFolderPath: generatedProjectPath,
             readPaths: [],
           }
         }
@@ -245,7 +245,7 @@ export const test = base.extend<{
     await closeElectronAppWithTimeout(electronApp);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
 
-    // After the temp vault is gone, any leftover vt-graphd daemons spawned by
+    // After the temp project is gone, any leftover vt-graphd daemons spawned by
     // this run point at a non-existent path. Reap them so they don't hold
     // ports for the next scenario or developer iteration.
     const reaped = killOrphanVtGraphdDaemons();
@@ -274,9 +274,9 @@ export const test = base.extend<{
 
     // Click the seeded project to navigate to graph view
     await window.waitForSelector('text=Voicetree', { timeout: 15000 });
-    const projectButton = window.locator('button:has-text("perf-test-vault")').first();
+    const projectButton = window.locator('button:has-text("perf-test-project")').first();
     await projectButton.click();
-    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolder=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolderPath=${generatedProjectPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
     const watchResult = await window.evaluate(async (projectPath) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;

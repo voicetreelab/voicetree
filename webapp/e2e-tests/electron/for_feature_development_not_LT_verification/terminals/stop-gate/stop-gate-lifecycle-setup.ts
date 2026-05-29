@@ -65,19 +65,19 @@ export interface ExtendedWindow {
 // ─── Electron + SKILL.md fixture ─────────────────────────────────────────────
 
 /**
- * Creates a temp vault with a task node that references the test SKILL.md,
+ * Creates a temp project with a task node that references the test SKILL.md,
  * writes the SKILL.md to ~/brain/ so the audit can resolve it,
- * and launches Electron pointed at the temp vault.
+ * and launches Electron pointed at the temp project.
  */
 export const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    fixtureVaultPath: string;
+    fixtureProjectPath: string;
 }>({
-    fixtureVaultPath: async ({}, use) => {
-        // Create temp vault with a task node referencing the test SKILL.md
-        const tempVaultPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-stop-gate-lifecycle-vault-'));
-        const voicetreeDir: string = path.join(tempVaultPath, 'voicetree');
+    fixtureProjectPath: async ({}, use) => {
+        // Create temp project with a task node referencing the test SKILL.md
+        const tempProjectPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-stop-gate-lifecycle-project-'));
+        const voicetreeDir: string = path.join(tempProjectPath, 'voicetree');
         await fs.mkdir(voicetreeDir, { recursive: true });
 
         // Task node whose content contains the ~/brain/...SKILL.md reference.
@@ -115,7 +115,7 @@ export const test = base.extend<{
         await fs.mkdir(path.dirname(skillAbsolutePath), { recursive: true });
         await fs.writeFile(skillAbsolutePath, SKILL_FIXTURE_CONTENT);
 
-        await use(tempVaultPath);
+        await use(tempProjectPath);
 
         // Cleanup: remove test SKILL.md from ~/brain/
         try {
@@ -123,22 +123,22 @@ export const test = base.extend<{
         } catch {
             console.log('[Stop Gate Lifecycle] Note: Could not clean up test SKILL.md');
         }
-        // Cleanup: remove temp vault
+        // Cleanup: remove temp project
         try {
-            await fs.rm(tempVaultPath, { recursive: true, force: true });
+            await fs.rm(tempProjectPath, { recursive: true, force: true });
         } catch {
-            console.log('[Stop Gate Lifecycle] Note: Could not clean up temp vault');
+            console.log('[Stop Gate Lifecycle] Note: Could not clean up temp project');
         }
     },
 
-    electronApp: async ({ fixtureVaultPath }, use) => {
+    electronApp: async ({ fixtureProjectPath }, use) => {
         const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-stop-gate-lifecycle-e2e-'));
 
         const projectsPath: string = path.join(tempUserDataPath, 'projects.json');
         const savedProject = {
             id: 'stop-gate-lifecycle-test',
-            path: fixtureVaultPath,
-            name: 'stop-gate-lifecycle-vault',
+            path: fixtureProjectPath,
+            name: 'stop-gate-lifecycle-project',
             type: 'folder',
             lastOpened: Date.now(),
             voicetreeInitialized: true
@@ -146,7 +146,7 @@ export const test = base.extend<{
         await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
         const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: fixtureVaultPath }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: fixtureProjectPath }, null, 2), 'utf8');
 
         // Settings: both Claude and Codex agents.
         // --dangerously-skip-permissions / --full-auto prevents permission prompts in headless mode.
@@ -160,7 +160,7 @@ export const test = base.extend<{
         }, null, 2), 'utf8');
 
         console.log('[Stop Gate Lifecycle] Temp userData:', tempUserDataPath);
-        console.log('[Stop Gate Lifecycle] Vault:', fixtureVaultPath);
+        console.log('[Stop Gate Lifecycle] Project:', fixtureProjectPath);
 
         const electronApp: ElectronApplication = await electron.launch({
             args: [
@@ -220,7 +220,7 @@ export const test = base.extend<{
             console.log('[Stop Gate Lifecycle] Cytoscape initialized via auto-load');
         } catch {
             console.log('[Stop Gate Lifecycle] Auto-load timed out, clicking project...');
-            const projectButton = window.locator('button').filter({ hasText: 'stop-gate-lifecycle-vault' });
+            const projectButton = window.locator('button').filter({ hasText: 'stop-gate-lifecycle-project' });
             await expect(projectButton.first()).toBeVisible({ timeout: 10000 });
             await projectButton.first().click();
 

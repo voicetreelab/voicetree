@@ -5,7 +5,7 @@
 //
 // Discovery: createRpcClient resolves `$VOICETREE_DAEMON_URL` (set by the
 // spawn parent — buildTerminalEnvVars.ts §5.3) and reads the bearer token
-// from `$VOICETREE_VAULT_PATH/.voicetree/auth-token`. The McpClient
+// from `$VOICETREE_PROJECT_PATH/.voicetree/auth-token`. The McpClient
 // interface signatures are preserved verbatim so the executor (executor.ts)
 // remains untouched by transport changes.
 

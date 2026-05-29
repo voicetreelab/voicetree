@@ -13,13 +13,13 @@ import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
 import { dispatchOnNewNodeHooks } from '@vt/vt-daemon-client'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getWriteFolder, openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getWriteFolderPath, openProject } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/agent/terminals/inject-badge-refresh'
-import { stripStaleVoicetreeMcpEntries } from '@/shell/edge/main/runtime/electron/startup/vault-bootstrap/mcp-client-config'
-import { writeVaultAgentDiscoveryFile } from '@/shell/edge/main/runtime/electron/startup/vault-bootstrap/vaultAgentDiscoveryFile'
+import { stripStaleVoicetreeMcpEntries } from '@/shell/edge/main/runtime/electron/startup/project-bootstrap/mcp-client-config'
+import { writeProjectAgentDiscoveryFile } from '@/shell/edge/main/runtime/electron/startup/project-bootstrap/projectAgentDiscoveryFile'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-api'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
@@ -27,11 +27,11 @@ import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon
 import { getVtDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
 
-async function loadGraphThroughDaemon(_vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
-    // Post BF-345: there is no vaultless daemon fallback. Callers that need a
-    // graph must open a vault first; until then this hook returns Left so
-    // graph-state surfaces a clean "no vault" error instead of implicitly
-    // spawning a daemon (the cause of the May 22 vaultless fork storm).
+async function loadGraphThroughDaemon(_projectPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
+    // Post BF-345: there is no projectless daemon fallback. Callers that need a
+    // graph must open a project first; until then this hook returns Left so
+    // graph-state surfaces a clean "no project" error instead of implicitly
+    // spawning a daemon (the cause of the May 22 projectless fork storm).
     const activeClient = getActiveDaemonClient()
     return activeClient
         ? E.right(await getNormalizedDaemonGraph(activeClient))
@@ -93,10 +93,10 @@ export function initializeGraphModel(): void {
         fitViewport(): void {
             uiAPI.fitViewport()
         },
-        syncVaultState(state): void {
-            uiAPI.syncVaultState({
-                readPaths: [...state.vaultPaths],
-                writeFolder: state.writeFolder,
+        syncProjectState(state): void {
+            uiAPI.syncProjectState({
+                readPaths: [...state.projectPaths],
+                writeFolderPath: state.writeFolderPath,
                 starredFolders: [...state.starredFolders],
             })
         },
@@ -128,36 +128,36 @@ export function initializeGraphModel(): void {
             void tellSTTServerToLoadDirectory(dirPath)
         },
         async semanticSearch(query: string, topK: number): Promise<readonly string[]> {
-            const writeFolder: O.Option<string> = await getWriteFolder()
-            if (O.isNone(writeFolder)) {
+            const writeFolderPath: O.Option<string> = await getWriteFolderPath()
+            if (O.isNone(writeFolderPath)) {
                 return []
             }
 
             try {
                 const { search }: typeof import('@vt/graph-model') = await import('@vt/graph-model')
-                const hits: readonly { nodePath: string }[] = await search(writeFolder.value, query, topK)
+                const hits: readonly { nodePath: string }[] = await search(writeFolderPath.value, query, topK)
                 return hits.map((hit: { nodePath: string }) => hit.nodePath)
             } catch {
                 return []
             }
         },
-        async getWriteFolder(): Promise<string | null> {
-            const writeFolder: O.Option<string> = await getWriteFolder()
-            return O.isSome(writeFolder) ? writeFolder.value : null
+        async getWriteFolderPath(): Promise<string | null> {
+            const writeFolderPath: O.Option<string> = await getWriteFolderPath()
+            return O.isSome(writeFolderPath) ? writeFolderPath.value : null
         },
 
         // App-specific setup
-        stripStaleMcpEntries(vaultDir: string): Promise<void> {
-            return stripStaleVoicetreeMcpEntries(vaultDir)
+        stripStaleMcpEntries(projectDir: string): Promise<void> {
+            return stripStaleVoicetreeMcpEntries(projectDir)
         },
-        writeVaultAgentDiscoveryFile(vaultDir: string): Promise<void> {
-            return writeVaultAgentDiscoveryFile(vaultDir)
+        writeProjectAgentDiscoveryFile(projectDir: string): Promise<void> {
+            return writeProjectAgentDiscoveryFile(projectDir)
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)
         },
-        ensureDaemonForVault(projectRoot: string): Promise<void> {
-            return openVault(projectRoot).then(() => undefined)
+        ensureDaemonForProject(projectRoot: string): Promise<void> {
+            return openProject(projectRoot).then(() => undefined)
         },
         getOnboardingDirectory(): string {
             return getOnboardingDirectory()

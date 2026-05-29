@@ -57,13 +57,13 @@ describe('createOnNewNodeHookDispatcher', () => {
             quoteArg: (arg: string): string => `"${arg}"`,
         }))
 
-        const delta = newNodeDelta('/vault/nodes/new-node.md')
+        const delta = newNodeDelta('/project/nodes/new-node.md')
         dispatcher(delta, 'run-hook', message => logs.push(message))
         dispatcher(delta, 'run-hook', message => logs.push(message))
 
         await manualTimers.flush()
 
-        expect(writes).toEqual(['run-hook "/vault/nodes/new-node.md"'])
+        expect(writes).toEqual(['run-hook "/project/nodes/new-node.md"'])
         expect(logs).toEqual(['[onNewNode] Dispatched hook for nodes/new-node.md'])
     })
 })

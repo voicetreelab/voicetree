@@ -25,7 +25,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_SOURCE = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_SOURCE = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -40,42 +40,42 @@ const consoleLogs: string[] = [];
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
-  // Create a COPY of the fixture vault for each test to avoid modifying the original
-  testVaultPath: async ({}, use) => {
-    const tempVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-merge-vault-'));
+  // Create a COPY of the fixture project for each test to avoid modifying the original
+  testProjectPath: async ({}, use) => {
+    const tempProjectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-merge-project-'));
 
-    // Copy fixture files to temp vault (shallow copy - just the .md files)
-    const files = await fs.readdir(FIXTURE_VAULT_SOURCE);
+    // Copy fixture files to temp project (shallow copy - just the .md files)
+    const files = await fs.readdir(FIXTURE_PROJECT_SOURCE);
     for (const file of files) {
       if (file.endsWith('.md')) {
-        const srcPath = path.join(FIXTURE_VAULT_SOURCE, file);
-        const destPath = path.join(tempVaultPath, file);
+        const srcPath = path.join(FIXTURE_PROJECT_SOURCE, file);
+        const destPath = path.join(tempProjectPath, file);
         await fs.copyFile(srcPath, destPath);
       }
     }
 
-    console.log(`[Test] Created temp vault at: ${tempVaultPath}`);
+    console.log(`[Test] Created temp project at: ${tempProjectPath}`);
 
-    await use(tempVaultPath);
+    await use(tempProjectPath);
 
-    // Cleanup temp vault
-    await fs.rm(tempVaultPath, { recursive: true, force: true });
+    // Cleanup temp project
+    await fs.rm(tempProjectPath, { recursive: true, force: true });
   },
 
-  electronApp: async ({ testVaultPath }, use) => {
+  electronApp: async ({ testProjectPath }, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-merge-test-'));
 
-    // Write config to auto-load the test vault
+    // Write config to auto-load the test project
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: testVaultPath,
+      lastDirectory: testProjectPath,
       suffixes: {
-        [testVaultPath]: '' // Empty suffix means use directory directly
+        [testProjectPath]: '' // Empty suffix means use directory directly
       }
     }, null, 2), 'utf8');
-    console.log('[Test] Created config file to auto-load:', testVaultPath);
+    console.log('[Test] Created config file to auto-load:', testProjectPath);
 
     const electronApp = await electron.launch({
       args: [
@@ -254,7 +254,7 @@ async function listFiles(dirPath: string): Promise<string[]> {
 
 test.describe('Merge Nodes Feature', () => {
 
-  test('happy path: merge 2 nodes creates merged file and deletes originals', async ({ appWindow, testVaultPath }) => {
+  test('happy path: merge 2 nodes creates merged file and deletes originals', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(90000); // Increase timeout for complex test
 
     console.log('=== TEST: merge 2 nodes creates merged file and deletes originals ===');
@@ -266,7 +266,7 @@ test.describe('Merge Nodes Feature', () => {
     console.log(`Node IDs: ${allNodeIds.join(', ')}`);
 
     // List initial files
-    const initialFiles = await listFiles(testVaultPath);
+    const initialFiles = await listFiles(testProjectPath);
     console.log(`Initial files (${initialFiles.length}): ${initialFiles.join(', ')}`);
 
     // Pick 2 nodes to merge (not context nodes)
@@ -314,9 +314,9 @@ test.describe('Merge Nodes Feature', () => {
         console.log(`[E2E DEBUG] Node "${id}" exists in graph: ${exists}`);
       }
 
-      // Also check writeFolder
-      const writeFolderOption = await api.main.getWriteFolder();
-      console.log('[E2E DEBUG] writeFolder option:', JSON.stringify(writeFolderOption));
+      // Also check writeFolderPath
+      const writeFolderPathOption = await api.main.getWriteFolderPath();
+      console.log('[E2E DEBUG] writeFolderPath option:', JSON.stringify(writeFolderPathOption));
     }, selectedIds);
 
     // Take screenshot before merge
@@ -333,7 +333,7 @@ test.describe('Merge Nodes Feature', () => {
     await appWindow.screenshot({ path: 'e2e-tests/screenshots/merge-after.png' });
 
     // ASSERT: Check filesystem changes
-    const finalFiles = await listFiles(testVaultPath);
+    const finalFiles = await listFiles(testProjectPath);
     console.log(`Final files (${finalFiles.length}): ${finalFiles.join(', ')}`);
 
     // Check for merged_*.md file
@@ -357,7 +357,7 @@ test.describe('Merge Nodes Feature', () => {
       log.includes('E2E') ||
       log.includes('DEBUG') ||
       log.includes('delta') ||
-      log.includes('writeFolder')
+      log.includes('writeFolderPath')
     );
     for (const log of mergeRelatedLogs) {
       console.log(log);
@@ -372,7 +372,7 @@ test.describe('Merge Nodes Feature', () => {
     console.log('✅ TEST PASSED: Merge created new file and deleted originals');
   });
 
-  test('edge case: merge with < 2 nodes selected should do nothing', async ({ appWindow, testVaultPath }) => {
+  test('edge case: merge with < 2 nodes selected should do nothing', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(60000);
 
     console.log('=== TEST: merge with < 2 nodes selected should do nothing ===');
@@ -383,7 +383,7 @@ test.describe('Merge Nodes Feature', () => {
     console.log(`✓ Graph loaded with ${allNodeIds.length} nodes`);
 
     // List initial files
-    const initialFiles = await listFiles(testVaultPath);
+    const initialFiles = await listFiles(testProjectPath);
     console.log(`Initial files (${initialFiles.length}): ${initialFiles.join(', ')}`);
 
     // Select only 1 node
@@ -430,7 +430,7 @@ test.describe('Merge Nodes Feature', () => {
     await appWindow.waitForTimeout(500);
 
     // ASSERT: No filesystem changes
-    const finalFiles = await listFiles(testVaultPath);
+    const finalFiles = await listFiles(testProjectPath);
     const mergedFiles = finalFiles.filter(f => f.startsWith('merged_'));
 
     expect(mergedFiles.length).toBe(0);

@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   console.log(`[fake-agent] Starting: ${env.terminalId}`)
 
   // connectToMcp discovers the daemon via @vt/vt-rpc:
-  // $VOICETREE_DAEMON_URL + $VOICETREE_VAULT_PATH/.voicetree/auth-token.
+  // $VOICETREE_DAEMON_URL + $VOICETREE_PROJECT_PATH/.voicetree/auth-token.
   // The spawn parent (buildTerminalEnvVars.ts §5.3) injects both vars.
   const mcpClient = await connectToMcp()
   const inbox = createMessageInbox()

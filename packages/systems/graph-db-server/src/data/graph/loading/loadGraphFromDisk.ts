@@ -14,7 +14,7 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { linkMatchScore } from '@vt/graph-model/markdown'
 import { findFileByName } from './findFileByName'
 
-type VaultFileRecord = {
+type ProjectFileRecord = {
     readonly projectRoot: string;
     readonly relativePath: string;
 };
@@ -24,7 +24,7 @@ type FileContentRecord = {
     readonly content: string;
 };
 
-function createVaultFileRecords(projectRoot: string, files: readonly string[]): readonly VaultFileRecord[] {
+function createProjectFileRecords(projectRoot: string, files: readonly string[]): readonly ProjectFileRecord[] {
     return files.map(relativePath => ({ projectRoot, relativePath }));
 }
 
@@ -52,16 +52,16 @@ function applyFileContentsToGraph(
     );
 }
 
-function nodeIdForVaultRelativePath(projectRoot: string, relativePath: string): string {
+function nodeIdForProjectRelativePath(projectRoot: string, relativePath: string): string {
     return normalizePath(path.join(projectRoot, relativePath));
 }
 
-function selectNewVaultFiles(
+function selectNewProjectFiles(
     files: readonly string[],
     projectRoot: string,
     existingGraph: Graph
 ): readonly string[] {
-    return files.filter((relativePath: string) => !(nodeIdForVaultRelativePath(projectRoot, relativePath) in existingGraph.nodes));
+    return files.filter((relativePath: string) => !(nodeIdForProjectRelativePath(projectRoot, relativePath) in existingGraph.nodes));
 }
 
 function createUpsertDeltaForNodeIds(graph: Graph, nodeIds: readonly string[]): GraphDelta {
@@ -93,7 +93,7 @@ async function readGraphFileContent(fullPath: string): Promise<FileContentRecord
  * IO function: Performs side effects (file I/O) and returns a Promise<Graph>.
  *
  * Algorithm (progressive, order-independent):
- * 1. Scan all vault directories recursively for .md files
+ * 1. Scan all project directories recursively for .md files
  * 2. For each file, progressively add to graph using addNodeToGraph
  *    - Validates outgoing edges from new node
  *    - Heals incoming edges to new node (bidirectional validation)
@@ -103,28 +103,28 @@ async function readGraphFileContent(fullPath: string): Promise<FileContentRecord
  * Key property: Loading [A,B,C] produces same result as [C,B,A] (order-independent)
  * Node IDs are absolute paths (normalized with forward slashes).
  *
- * @param vaultPaths - Array of absolute paths to vault directories containing markdown files
+ * @param projectPaths - Array of absolute paths to project directories containing markdown files
  * @returns Promise that resolves to a Graph
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'])
+ * const graph = await loadGraphFromDisk(['/path/to/project', '/path/to/openspec'])
  * ```
  */
 export async function loadGraphFromDisk(
-    vaultPaths: readonly string[]
+    projectPaths: readonly string[]
 ): Promise<E.Either<FileLimitExceededError, Graph>> {
-    if (vaultPaths.length === 0) {
+    if (projectPaths.length === 0) {
         return E.right(createEmptyGraph());
     }
 
-    // Step 1: Scan all vault directories for markdown files
-    // Each file is stored with its vault path for correct absolute path resolution
+    // Step 1: Scan all project directories for markdown files
+    // Each file is stored with its project path for correct absolute path resolution
     const allFiles: readonly { projectRoot: string; relativePath: string }[] = (
         await Promise.all(
-            vaultPaths.map(async (projectRoot) => {
+            projectPaths.map(async (projectRoot) => {
                 const files: readonly string[] = await scanMarkdownFiles(projectRoot);
-                return createVaultFileRecords(projectRoot, files);
+                return createProjectFileRecords(projectRoot, files);
             })
         )
     ).flat();
@@ -149,9 +149,9 @@ export async function loadGraphFromDisk(
 }
 
 /**
- * Loads files from a vault path additively into an existing graph.
+ * Loads files from a project path additively into an existing graph.
  *
- * Used when adding a new vault path at runtime (via UI dropdown).
+ * Used when adding a new project path at runtime (via UI dropdown).
  * This is the bulk load path - more efficient than per-file handleFSEvent calls.
  *
  * Benefits over per-file approach:
@@ -162,19 +162,19 @@ export async function loadGraphFromDisk(
  *
  * Node IDs are absolute paths (normalized with forward slashes).
  *
- * @param projectRoot - Absolute path to the new vault directory to load
+ * @param projectRoot - Absolute path to the new project directory to load
  * @param existingGraph - The current graph to merge new nodes into
  * @returns Either FileLimitExceededError or { graph: merged graph, delta: new nodes only }
  */
-export async function loadVaultPathAdditively(
+export async function loadProjectPathAdditively(
     projectRoot: string,
     existingGraph: Graph
 ): Promise<E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }>> {
-    // Step 1: Scan the new vault path for markdown files
+    // Step 1: Scan the new project path for markdown files
     const files: readonly string[] = await scanMarkdownFiles(projectRoot);
 
     // Step 2: Filter out files already in the graph (avoid double-counting)
-    const newFiles: readonly string[] = selectNewVaultFiles(files, projectRoot, existingGraph);
+    const newFiles: readonly string[] = selectNewProjectFiles(files, projectRoot, existingGraph);
 
     // Step 3: Check file limit (existing + genuinely new files)
     const existingCount: number = Object.keys(existingGraph.nodes).length;
@@ -188,7 +188,7 @@ export async function loadVaultPathAdditively(
     const fileContents: readonly FileContentRecord[] = await Promise.all(
         newFiles.map(relativePath => readGraphFileContent(path.join(projectRoot, relativePath)))
     );
-    const newNodeIds: readonly string[] = newFiles.map(relativePath => nodeIdForVaultRelativePath(projectRoot, relativePath));
+    const newNodeIds: readonly string[] = newFiles.map(relativePath => nodeIdForProjectRelativePath(projectRoot, relativePath));
     const mergedGraph: Graph = applyFileContentsToGraph(fileContents, existingGraph);
 
     // Step 4: Apply positions only to new nodes (existing nodes keep their positions)
@@ -228,11 +228,11 @@ const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
 ])
 
 // Directories that must never be loaded into the graph even when nested inside
-// a vault. Hidden directories (names starting with '.') are also skipped — most
+// a project. Hidden directories (names starting with '.') are also skipped — most
 // notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
-// markdown files in as graph nodes when a vault root is scanned.
+// markdown files in as graph nodes when a project root is scanned.
 //
-// `build` was added so opening a project repo as a vault doesn't pull every
+// `build` was added so opening a project repo as a project doesn't pull every
 // .md under build outputs into the graph and trip the file-limit guard on
 // large monorepos.
 function isIgnoredDirectoryName(name: string): boolean {
@@ -240,13 +240,13 @@ function isIgnoredDirectoryName(name: string): boolean {
 }
 
 /**
- * Scans vault directory recursively for markdown and image files.
+ * Scans project directory recursively for markdown and image files.
  *
  * Skips hidden directories (names starting with '.') and common noise
  * directories (node_modules, dist, build, etc.), matching the behavior of the
  * folder-selector scanner.
  *
- * @param projectRoot - Absolute absolutePath to vault directory
+ * @param projectRoot - Absolute absolutePath to project directory
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md", "image.png"])
  */
 export async function scanMarkdownFiles(projectRoot: string): Promise<readonly string[]> {
@@ -414,7 +414,7 @@ async function loadFileAsNode(
  * Recursively resolves transitive links (A→B→C all get loaded).
  *
  * This is the "resolve-on-link" behavior for files in the watched folder
- * that are outside writeFolder and expanded paths.
+ * that are outside writeFolderPath and expanded paths.
  *
  * @param graph - Current graph with nodes
  * @param watchedFolder - The root folder to search for linked files

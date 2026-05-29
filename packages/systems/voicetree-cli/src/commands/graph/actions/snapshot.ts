@@ -3,7 +3,7 @@ import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {ensureDaemon, GraphDbClient, type GraphState} from '@vt/graph-db-client'
 import {fromNodeToMarkdownContent, type GraphNode} from '@vt/graph-model'
-import {resolveVault} from '../cliDeps'
+import {resolveProject} from '../cliDeps'
 import {isRecord} from '../core/util'
 
 const NONE_OPTION: {readonly _tag: 'None'} = {_tag: 'None'}
@@ -41,11 +41,11 @@ export function assertGraphRootExists(folderPath: string): void {
     }
 }
 
-export function resolveGraphVault(folderPath: string): string {
+export function resolveGraphProject(folderPath: string): string {
     try {
-        return resolveVault({cwd: folderPath})
+        return resolveProject({cwd: folderPath})
     } catch {
-        return resolveVault({cwd: process.cwd()})
+        return resolveProject({cwd: process.cwd()})
     }
 }
 
@@ -125,8 +125,8 @@ export async function withDaemonGraphSnapshot<T>(
     run: (snapshotRoot: string) => Promise<T> | T,
 ): Promise<T> {
     assertGraphRootExists(folderPath)
-    const vault: string = resolveGraphVault(folderPath)
-    const {port}: {port: number} = await ensureDaemon(vault)
+    const project: string = resolveGraphProject(folderPath)
+    const {port}: {port: number} = await ensureDaemon(project)
     const client = new GraphDbClient({
         baseUrl: `http://127.0.0.1:${port}`,
     })

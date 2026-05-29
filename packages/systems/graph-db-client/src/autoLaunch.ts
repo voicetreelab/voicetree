@@ -1,5 +1,5 @@
 import {
-  ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject,
   type EnsureGraphDaemonOptions,
   type EnsureGraphDaemonResult,
 } from './autoLaunch/ensureGraphDaemon.ts'
@@ -12,22 +12,22 @@ export type {
   EnsureGraphDaemonResult,
 } from './autoLaunch/ensureGraphDaemon.ts'
 export { resolveDaemonRuntimeCommand }
-export { ensureGraphDaemonForVault }
+export { ensureGraphDaemonForProject }
 
 /**
- * Thin delegate over {@link ensureGraphDaemonForVault} that returns the
+ * Thin delegate over {@link ensureGraphDaemonForProject} that returns the
  * legacy `EnsureDaemonResult` shape. Existing call sites (CLI commands,
  * tests, Electron) keep working through this signature while the owner
  * protocol takes over the underlying lifecycle. New code should call
- * {@link ensureGraphDaemonForVault} directly to receive the bound client
+ * {@link ensureGraphDaemonForProject} directly to receive the bound client
  * and owner identity.
  */
 export async function ensureDaemon(
-  vault: string,
+  project: string,
   opts?: { timeoutMs?: number; bin?: string },
 ): Promise<EnsureDaemonResult> {
-  const result: EnsureGraphDaemonResult = await ensureGraphDaemonForVault(
-    vault,
+  const result: EnsureGraphDaemonResult = await ensureGraphDaemonForProject(
+    project,
     'graph-db-client',
     {
       timeoutMs: opts?.timeoutMs,

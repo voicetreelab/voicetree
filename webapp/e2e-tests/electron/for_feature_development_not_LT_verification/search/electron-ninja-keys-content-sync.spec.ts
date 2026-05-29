@@ -23,7 +23,7 @@ import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -45,47 +45,47 @@ interface NinjaKeysElement extends HTMLElement {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  tempVaultPath: string;
+  tempProjectPath: string;
 }>({
-  tempVaultPath: async ({}, use) => {
-    // Create a temporary copy of the fixture vault to avoid polluting the original
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ninja-keys-test-vault-'));
-    const tempVaultPath = path.join(tempDir, 'voicetree');
+  tempProjectPath: async ({}, use) => {
+    // Create a temporary copy of the fixture project to avoid polluting the original
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ninja-keys-test-project-'));
+    const tempProjectPath = path.join(tempDir, 'voicetree');
 
-    // Copy fixture vault to temp directory
-    await fs.mkdir(tempVaultPath, { recursive: true });
-    const sourceVaultPath = path.join(FIXTURE_VAULT_PATH, 'voicetree');
-    const files = await fs.readdir(sourceVaultPath);
+    // Copy fixture project to temp directory
+    await fs.mkdir(tempProjectPath, { recursive: true });
+    const sourceProjectPath = path.join(FIXTURE_PROJECT_PATH, 'voicetree');
+    const files = await fs.readdir(sourceProjectPath);
     for (const file of files) {
-      const srcPath = path.join(sourceVaultPath, file);
-      const destPath = path.join(tempVaultPath, file);
+      const srcPath = path.join(sourceProjectPath, file);
+      const destPath = path.join(tempProjectPath, file);
       const stat = await fs.stat(srcPath);
       if (stat.isFile()) {
         await fs.copyFile(srcPath, destPath);
       }
     }
 
-    await use(tempVaultPath);
+    await use(tempProjectPath);
 
     // Cleanup
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  electronApp: async ({ tempVaultPath }, use) => {
+  electronApp: async ({ tempProjectPath }, use) => {
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ninja-keys-test-'));
 
-    // Write the config file to auto-load the test vault
+    // Write the config file to auto-load the test project
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    // Get parent directory of tempVaultPath (we use voicetree subfolder)
-    const vaultParent = path.dirname(tempVaultPath);
+    // Get parent directory of tempProjectPath (we use voicetree subfolder)
+    const projectParent = path.dirname(tempProjectPath);
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: vaultParent,
+      lastDirectory: projectParent,
       suffixes: {
-        [vaultParent]: 'voicetree' // Use voicetree subfolder
+        [projectParent]: 'voicetree' // Use voicetree subfolder
       }
     }, null, 2), 'utf8');
-    console.log('[Ninja Keys Test] Created config file to auto-load:', tempVaultPath);
+    console.log('[Ninja Keys Test] Created config file to auto-load:', tempProjectPath);
 
     const electronApp = await electron.launch({
       args: [
@@ -144,7 +144,7 @@ const test = base.extend<{
 });
 
 test.describe('Ninja Keys Content Sync', () => {
-  test('should find node by content added via external filesystem edit', async ({ appWindow, tempVaultPath }) => {
+  test('should find node by content added via external filesystem edit', async ({ appWindow, tempProjectPath }) => {
     console.log('\n=== Testing ninja-keys search finds externally-edited content ===');
 
     console.log('=== Step 1: Wait for graph to load ===');
@@ -169,7 +169,7 @@ test.describe('Ninja Keys Content Sync', () => {
     console.log('=== Step 2: Get an existing node to modify ===');
     // Target file: 1_VoiceTree_Website_Development_and_Node_Display_Bug.md
     const targetFileName = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md';
-    const targetFilePath = path.join(tempVaultPath, targetFileName);
+    const targetFilePath = path.join(tempProjectPath, targetFileName);
 
     // Read current content
     const originalContent = await fs.readFile(targetFilePath, 'utf8');

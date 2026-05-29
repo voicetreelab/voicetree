@@ -22,7 +22,7 @@ function makeState(selection: readonly string[], revision: number, mutatedAt: st
       unresolvedLinksIndex: [],
     },
     roots: {
-      loaded: ['/tmp/vault'],
+      loaded: ['/tmp/project'],
       folderTree: [],
     },
     collapseSet: [],

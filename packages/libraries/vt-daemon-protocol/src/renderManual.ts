@@ -11,7 +11,7 @@
  *   - Spawn-time injection (`@vt/vt-daemon` → `cliManualInjection.ts`)
  *     renders the `essentials` slice and splices it into the spawned
  *     agent's AGENT_PROMPT.
- *   - Webapp vault-bootstrap (`vaultAgentDiscoveryFile.ts`) renders
+ *   - Webapp project-bootstrap (`projectAgentDiscoveryFile.ts`) renders
  *     the manual to advertise the `vt` CLI inside CLAUDE.md / AGENTS.md
  *     for user-launched coding agents.
  *
@@ -84,7 +84,7 @@ export function renderManual(
 /**
  * No-argument convenience for callers that render the canonical
  * `TOOL_SPECS` set (the common case — spawn-time injection, webapp
- * vault-bootstrap, default `vt manual` output). Exists so sibling
+ * project-bootstrap, default `vt manual` output). Exists so sibling
  * packages don't need to import `TOOL_SPECS` as a separate symbol
  * alongside the renderer.
  *

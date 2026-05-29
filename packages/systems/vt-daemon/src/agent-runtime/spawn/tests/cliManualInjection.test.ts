@@ -83,8 +83,8 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
     it('always injects the CLI manual content into AGENT_PROMPT', async () => {
         configureAgentRuntime({
             env: {
-                getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWriteFolder: async (): Promise<string | null> => tempDir,
+                getProjectPaths: async (): Promise<readonly string[]> => [tempDir],
+                getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
             },
         })

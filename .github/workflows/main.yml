@@ -44,6 +44,10 @@ jobs:
       - name: Run full scheduled checks
         run: pnpm --filter @vt/measures run test:full
 
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Main CI failed"
+
       - name: Surface tier wall-clock budget breaches
         # Runs whether test:full passed or failed: even when an analyzer fails,
         # the timing gate may still have written a useful result.

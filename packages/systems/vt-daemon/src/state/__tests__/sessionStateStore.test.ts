@@ -1,5 +1,5 @@
 // BF-379 — black-box behaviour of the daemon's session state store against
-// a real vt-graphd. No internal mocks: a tmpdir vault is opened, a real
+// a real vt-graphd. No internal mocks: a tmpdir project is opened, a real
 // graph-db-server is started, and the store talks to it over HTTP.
 //
 // What we assert is the observable shape of `getCurrentSessionState` and
@@ -13,7 +13,7 @@ import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
 import {createEmptyGraph} from '@vt/graph-model'
-import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
+import {saveProjectConfigForDirectory} from '@vt/app-config/project-config'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server/server'
@@ -27,7 +27,7 @@ import {
 } from '../sessionStateStore.ts'
 
 interface Harness {
-    readonly vault: string
+    readonly project: string
     readonly voicetreeHomePath: string
     readonly root: string
     readonly fixtureNodeId: NodeIdAndFilePath
@@ -38,26 +38,26 @@ const FIXTURE_BASENAME: string = 'fixture.md'
 
 async function startHarness(): Promise<Harness> {
     const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-session-store-')))
-    const voicetreeHomePath: string = join(root, 'app-support')
-    const vault: string = join(root, 'vault')
+    const voicetreeHomePath: string = join(root, 'voicetree-home')
+    const project: string = join(root, 'project')
     await mkdir(voicetreeHomePath, {recursive: true})
-    await mkdir(vault, {recursive: true})
+    await mkdir(project, {recursive: true})
     process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     clearWatchFolderState()
     setGraph(createEmptyGraph())
 
-    const fixturePath: string = join(vault, FIXTURE_BASENAME)
+    const fixturePath: string = join(project, FIXTURE_BASENAME)
     await writeFile(fixturePath, '# fixture\n', 'utf-8')
-    await saveVaultConfigForDirectory(vault, {writeFolder: '.'})
+    await saveProjectConfigForDirectory(project, {writeFolderPath: '.'})
 
     const handle: DaemonHandle = await startDaemon({
-        vault,
+        project,
         voicetreeHomePath,
         createStarterIfEmpty: false,
     })
 
     return {
-        vault,
+        project,
         voicetreeHomePath,
         root,
         fixtureNodeId: fixturePath as NodeIdAndFilePath,
@@ -83,8 +83,8 @@ async function stopHarness(h: Harness): Promise<void> {
 async function waitForFixtureIndexed(h: Harness): Promise<void> {
     const deadline: number = Date.now() + 5000
     while (Date.now() < deadline) {
-        __resetSessionStateForTests(h.vault)
-        const state: State = await getCurrentSessionState(h.vault)
+        __resetSessionStateForTests(h.project)
+        const state: State = await getCurrentSessionState(h.project)
         if (Object.prototype.hasOwnProperty.call(state.graph.nodes, h.fixtureNodeId)) {
             return
         }
@@ -107,13 +107,13 @@ describe('sessionStateStore', (): void => {
     it('bootstraps initial state from vt-graphd on first read', async (): Promise<void> => {
         await waitForFixtureIndexed(h)
 
-        const state: State = await getCurrentSessionState(h.vault)
+        const state: State = await getCurrentSessionState(h.project)
 
         expect(state.meta.revision).toBe(0)
         expect(state.meta.schemaVersion).toBe(1)
-        // writeFolder seeded into roots.loaded mirrors live-state-store's
+        // writeFolderPath seeded into roots.loaded mirrors live-state-store's
         // bootstrapRootsFromProjectConfig.
-        expect([...state.roots.loaded]).toEqual([h.vault])
+        expect([...state.roots.loaded]).toEqual([h.project])
         expect(state.layout.positions.size).toBe(0)
         expect(state.selection.size).toBe(0)
     })
@@ -132,35 +132,35 @@ describe('sessionStateStore', (): void => {
             to: {x: 30, y: 40},
         }
 
-        const first: {state: State; delta: {revision: number}} = await applyCommandToSessionState(h.vault, moveOne)
+        const first: {state: State; delta: {revision: number}} = await applyCommandToSessionState(h.project, moveOne)
         expect(first.delta.revision).toBe(1)
         expect(first.state.meta.revision).toBe(1)
         expect(first.state.layout.positions.get(h.fixtureNodeId)).toEqual({x: 10, y: 20})
 
-        const second: {state: State; delta: {revision: number}} = await applyCommandToSessionState(h.vault, moveTwo)
+        const second: {state: State; delta: {revision: number}} = await applyCommandToSessionState(h.project, moveTwo)
         expect(second.delta.revision).toBe(2)
         expect(second.state.meta.revision).toBe(2)
         expect(second.state.layout.positions.get(h.fixtureNodeId)).toEqual({x: 30, y: 40})
 
         // The next read reflects the mutation, not a re-bootstrap.
-        const after: State = await getCurrentSessionState(h.vault)
+        const after: State = await getCurrentSessionState(h.project)
         expect(after.meta.revision).toBe(2)
         expect(after.layout.positions.get(h.fixtureNodeId)).toEqual({x: 30, y: 40})
     })
 
-    it('__resetSessionStateForTests evicts the per-vault entry so the next read re-bootstraps', async (): Promise<void> => {
+    it('__resetSessionStateForTests evicts the per-project entry so the next read re-bootstraps', async (): Promise<void> => {
         await waitForFixtureIndexed(h)
 
-        const moved: {state: State} = await applyCommandToSessionState(h.vault, {
+        const moved: {state: State} = await applyCommandToSessionState(h.project, {
             type: 'Move',
             id: h.fixtureNodeId,
             to: {x: 99, y: 99},
         })
         expect(moved.state.meta.revision).toBe(1)
 
-        __resetSessionStateForTests(h.vault)
+        __resetSessionStateForTests(h.project)
 
-        const rebootstrapped: State = await getCurrentSessionState(h.vault)
+        const rebootstrapped: State = await getCurrentSessionState(h.project)
         expect(rebootstrapped.meta.revision).toBe(0)
         expect(rebootstrapped.layout.positions.size).toBe(0)
     })

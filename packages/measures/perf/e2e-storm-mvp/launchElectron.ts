@@ -19,7 +19,7 @@ import { execFileSync } from 'node:child_process'
 export interface ElectronLaunchInputs {
     readonly repoRoot: string
     readonly projectDir: string
-    readonly vaultDir: string
+    readonly projectDir: string
     readonly voicetreeHomePath: string
     readonly logFilePath: string
     readonly inspectPort: number
@@ -66,7 +66,7 @@ function resolveGraphDaemonNodeBin(repoRoot: string): string {
     return candidates.find(bin => canLoadNativeGraphDbModules(bin, repoRoot)) ?? process.execPath
 }
 
-export function seedUserData(voicetreeHomePath: string, projectDir: string, vaultDir: string): void {
+export function seedUserData(voicetreeHomePath: string, projectDir: string, projectDir: string): void {
     const projectName = path.basename(projectDir)
     writeFileSync(
         path.join(voicetreeHomePath, 'projects.json'),
@@ -84,8 +84,8 @@ export function seedUserData(voicetreeHomePath: string, projectDir: string, vaul
         path.join(voicetreeHomePath, 'voicetree-config.json'),
         JSON.stringify({
             lastDirectory: projectDir,
-            vaultConfig: {
-                [projectDir]: { writeFolder: vaultDir, readPaths: [] },
+            projectConfig: {
+                [projectDir]: { writeFolderPath: projectDir, readPaths: [] },
             },
         }, null, 2),
         'utf8',
@@ -133,7 +133,7 @@ function readMcpPortFromJson(mcpJsonPath: string): number | null {
 export async function launchElectronAndDiscoverMcp(
     inputs: ElectronLaunchInputs,
 ): Promise<ElectronLaunchResult> {
-    seedUserData(inputs.voicetreeHomePath, inputs.projectDir, inputs.vaultDir)
+    seedUserData(inputs.voicetreeHomePath, inputs.projectDir, inputs.projectDir)
 
     const mainEntry = path.join(inputs.repoRoot, 'webapp', 'dist-electron', 'main', 'index.js')
     if (!existsSync(mainEntry)) {
@@ -175,7 +175,7 @@ export async function launchElectronAndDiscoverMcp(
     }
 
     // .mcp.json is written by voicetree-mcp at the project root (the dir
-    // registered in projects.json), NOT inside the write-folder vault.
+    // registered in projects.json), NOT inside the write-folder-path project.
     const mcpJsonPath = path.join(inputs.projectDir, '.mcp.json')
     const discoveryStart = Date.now()
     let mcpPort: number

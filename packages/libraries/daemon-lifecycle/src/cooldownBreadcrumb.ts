@@ -1,8 +1,8 @@
 /**
- * Per-vault cooldown breadcrumb at
- * `<vault>/.voicetree/${daemonKind}.cooldown.json`.
+ * Per-project cooldown breadcrumb at
+ * `<project>/.voicetree/${daemonKind}.cooldown.json`.
  *
- * BF-347: when a spawn attempt for a vault fails (the child was launched
+ * BF-347: when a spawn attempt for a project fails (the child was launched
  * but never produced a healthy owner before the deadline), we persist a
  * short-lived breadcrumb. Subsequent ensure calls within the cooldown
  * window are short-circuited via `OwnerSpawnCooldownError` before they
@@ -18,8 +18,8 @@
  *   hand-edited cooldown file cannot wedge ensure.
  *
  * Each daemon kind has its own breadcrumb file under
- * `<vault>/.voicetree/` so a graphd cooldown does not block a vtd spawn
- * for the same vault and vice versa.
+ * `<project>/.voicetree/` so a graphd cooldown does not block a vtd spawn
+ * for the same project and vice versa.
  */
 
 import { randomUUID } from 'node:crypto'
@@ -39,7 +39,7 @@ const COOLDOWN_BREADCRUMB_SCHEMA_VERSION = 1
  */
 export type CooldownBreadcrumb = {
   readonly schemaVersion: 1
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly writtenAtMs: number
   readonly untilMs: number
   readonly reason: string
@@ -51,10 +51,10 @@ export type CooldownBreadcrumb = {
 }
 
 export function cooldownBreadcrumbPathFor(
-  vaultDir: string,
+  projectDir: string,
   daemonKind: DaemonKind,
 ): string {
-  return join(getProjectDotVoicetreePath(vaultDir), `${daemonKind}.cooldown.json`)
+  return join(getProjectDotVoicetreePath(projectDir), `${daemonKind}.cooldown.json`)
 }
 
 /**
@@ -78,12 +78,12 @@ export function decideActiveCooldown(
  * window, so callers must fall back to "no active cooldown".
  */
 export async function readCooldownBreadcrumb(
-  vaultDir: string,
+  projectDir: string,
   daemonKind: DaemonKind,
 ): Promise<CooldownBreadcrumb | null> {
   let raw: string
   try {
-    raw = await readFile(cooldownBreadcrumbPathFor(vaultDir, daemonKind), 'utf8')
+    raw = await readFile(cooldownBreadcrumbPathFor(projectDir, daemonKind), 'utf8')
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
@@ -100,12 +100,12 @@ export async function readCooldownBreadcrumb(
  * record of who wrote it.
  */
 export async function writeCooldownBreadcrumb(
-  vaultDir: string,
+  projectDir: string,
   daemonKind: DaemonKind,
   breadcrumb: CooldownBreadcrumb,
   writerPid: number,
 ): Promise<void> {
-  const target = cooldownBreadcrumbPathFor(vaultDir, daemonKind)
+  const target = cooldownBreadcrumbPathFor(projectDir, daemonKind)
   const tmp = `${target}.tmp.${writerPid}.${randomUUID().slice(0, 8)}`
   await writeFile(tmp, `${JSON.stringify(breadcrumb, null, 2)}\n`, 'utf8')
   try {
@@ -118,15 +118,15 @@ export async function writeCooldownBreadcrumb(
 
 /**
  * Remove the cooldown breadcrumb. Idempotent — a missing file is not an
- * error. Called after a successful spawn so a healed vault is not held
+ * error. Called after a successful spawn so a healed project is not held
  * in cooldown for the remainder of the window.
  */
 export async function clearCooldownBreadcrumb(
-  vaultDir: string,
+  projectDir: string,
   daemonKind: DaemonKind,
 ): Promise<void> {
   try {
-    await unlink(cooldownBreadcrumbPathFor(vaultDir, daemonKind))
+    await unlink(cooldownBreadcrumbPathFor(projectDir, daemonKind))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
   }
@@ -141,7 +141,7 @@ function parseCooldownBreadcrumb(raw: string): CooldownBreadcrumb | null {
   }
   if (!isObject(value)) return null
   if (value.schemaVersion !== COOLDOWN_BREADCRUMB_SCHEMA_VERSION) return null
-  if (typeof value.canonicalVault !== 'string') return null
+  if (typeof value.canonicalProject !== 'string') return null
   if (!isFiniteNonNegative(value.writtenAtMs)) return null
   if (!isFiniteNonNegative(value.untilMs)) return null
   if (typeof value.reason !== 'string') return null
@@ -151,7 +151,7 @@ function parseCooldownBreadcrumb(raw: string): CooldownBreadcrumb | null {
   if (typeof value.lastErrorMessage !== 'string') return null
   return {
     schemaVersion: COOLDOWN_BREADCRUMB_SCHEMA_VERSION,
-    canonicalVault: value.canonicalVault,
+    canonicalProject: value.canonicalProject,
     writtenAtMs: value.writtenAtMs,
     untilMs: value.untilMs,
     reason: value.reason,

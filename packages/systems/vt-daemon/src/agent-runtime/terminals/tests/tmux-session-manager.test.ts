@@ -149,24 +149,24 @@ describe('tmux-session-manager', () => {
         expect(second).toEqual({pid: first.pid, created: false})
     })
 
-    it('scopes tmux session names by vault so parallel runtimes can reuse terminal IDs', async () => {
+    it('scopes tmux session names by project so parallel runtimes can reuse terminal IDs', async () => {
         const name: string = 'bf310-shared-terminal'
         const firstDir: string = await makeTempDir()
         const secondDir: string = await makeTempDir()
-        const firstSession: string = buildTmuxSessionName(name, {VOICETREE_VAULT_PATH: firstDir})
-        const secondSession: string = buildTmuxSessionName(name, {VOICETREE_VAULT_PATH: secondDir})
+        const firstSession: string = buildTmuxSessionName(name, {VOICETREE_PROJECT_PATH: firstDir})
+        const secondSession: string = buildTmuxSessionName(name, {VOICETREE_PROJECT_PATH: secondDir})
         sessions.add(firstSession)
         sessions.add(secondSession)
 
         await createSession(
             name,
             `sh -c 'printf first > ${join(firstDir, 'session.out')}; sleep 5'`,
-            {VOICETREE_VAULT_PATH: firstDir},
+            {VOICETREE_PROJECT_PATH: firstDir},
         )
         await createSession(
             name,
             `sh -c 'printf second > ${join(secondDir, 'session.out')}; sleep 5'`,
-            {VOICETREE_VAULT_PATH: secondDir},
+            {VOICETREE_PROJECT_PATH: secondDir},
         )
 
         expect(firstSession).not.toBe(secondSession)

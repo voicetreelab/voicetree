@@ -4,10 +4,10 @@ position:
   y: -2405
 isContextNode: false
 ---
-# Change: Add web share — upload markdown vault, get shareable link
+# Change: Add web share — upload markdown project, get shareable link
 
 ## Why
-VoiceTree graphs are local-only (Electron). Users want to share a vault as a read-only interactive graph via a URL. No existing sharing/export features exist.
+VoiceTree graphs are local-only (Electron). Users want to share a project as a read-only interactive graph via a URL. No existing sharing/export features exist.
 
 ## What Changes
 - Add `pure/web-share/` module: domain types, validation, manifest building, graph-from-files construction

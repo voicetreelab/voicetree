@@ -31,15 +31,15 @@ Options:
   --model <name>            Model to test (e.g. opus, sonnet, haiku, codex-1). Required.
   --effort <low|med|high>   Effort level. Default: medium.
   --mode <headless|headful> Run mode. Default: headless.
-                            Headful launches VoiceTree pointing at the vault and
-                            waits for the per-vault daemon before running the agent,
+                            Headful launches VoiceTree pointing at the project and
+                            waits for the per-project daemon before running the agent,
                             so you can watch the graph populate live.
   --reps <N>                Number of repetitions. Default: 1.
-  --workspace-root <path>   Stable workspace dir (vault is created at <path>/vault).
+  --workspace-root <path>   Stable workspace dir (project is created at <path>/project).
                             Optional — defaults to a fresh mkdtemp dir. Useful in
                             headful mode if you want a deterministic path to revisit.
   --headful-daemon-timeout-ms <N>
-                            How long to wait for VoiceTree's per-vault daemon to
+                            How long to wait for VoiceTree's per-project daemon to
                             come up (rpc.port appears) before failing. Default: 60000.
   --json                    Emit raw CellResult[] as JSON (for piping).
   --dry-run                 Print resolved plan as JSON and exit without invoking the runner.

@@ -3,7 +3,7 @@
 // Anything VTD owns must be reachable identically by every client. Electron
 // Main and the CLI are just two clients. This test boots the full daemon
 // stack (real vt-graphd + real vt-daemon HTTP server) against a tmpdir
-// vault, constructs two JSON-RPC clients via `createRpcClientForVault` (the
+// project, constructs two JSON-RPC clients via `createRpcClientForProject` (the
 // same constructor both Main and CLI use), and asserts that:
 //
 //   1. A Move dispatched on one client lands at revision 1 with the post-state
@@ -13,7 +13,7 @@
 //   3. A malformed command is rejected with the same JSON-RPC validation
 //      error shape on both clients.
 //
-// No internal mocks: real HTTP, real fetch, real tmpdir vault. The harness
+// No internal mocks: real HTTP, real fetch, real tmpdir project. The harness
 // here mirrors `bin/vt-mcpd.ts` minus the agent-runtime tmux wiring — the
 // live-state surface does not require terminal management.
 
@@ -23,21 +23,21 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 
 import {createEmptyGraph} from '@vt/graph-model'
-import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
+import {saveProjectConfigForDirectory} from '@vt/app-config/project-config'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server/server'
-import {createRpcClientForVault, generateAuthToken, writeAuthTokenFile, writeRpcPortFile, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
+import {createRpcClientForProject, generateAuthToken, writeAuthTokenFile, writeRpcPortFile, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
 import type {SerializedCommand} from '@vt/graph-state'
 
 import {buildDefaultToolCatalog} from '../src/transport/toolCatalog.ts'
-import {setCurrentVault} from '../src/state/currentVault.ts'
+import {setCurrentProject} from '../src/state/currentProject.ts'
 import {startHttpDaemonServer, type HttpDaemonServerHandle} from '../src/transport/httpServer.ts'
 import {__resetSessionStateForTests} from '../src/state/sessionStateStore.ts'
 import {buildDisabledMcpBridges} from './__helpers__/disabledMcpBridges.ts'
 
 interface FullStack {
-    readonly vault: string
+    readonly project: string
     readonly fixtureNodeId: string
     readonly graphd: DaemonHandle
     readonly rpc: HttpDaemonServerHandle
@@ -48,28 +48,28 @@ const FIXTURE_BASENAME: string = 'fixture.md'
 
 async function startFullStack(): Promise<FullStack> {
     const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-dualclient-')))
-    const voicetreeHomePath: string = join(root, 'app-support')
-    const vault: string = join(root, 'vault')
+    const voicetreeHomePath: string = join(root, 'voicetree-home')
+    const project: string = join(root, 'project')
     await mkdir(voicetreeHomePath, {recursive: true})
-    await mkdir(vault, {recursive: true})
+    await mkdir(project, {recursive: true})
     process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     clearWatchFolderState()
     setGraph(createEmptyGraph())
 
-    const fixturePath: string = join(vault, FIXTURE_BASENAME)
+    const fixturePath: string = join(project, FIXTURE_BASENAME)
     await writeFile(fixturePath, '# fixture\n', 'utf-8')
-    await saveVaultConfigForDirectory(vault, {writeFolder: '.'})
+    await saveProjectConfigForDirectory(project, {writeFolderPath: '.'})
 
     const graphd: DaemonHandle = await startDaemon({
-        vault,
+        project,
         voicetreeHomePath,
         createStarterIfEmpty: false,
     })
 
-    setCurrentVault(vault)
+    setCurrentProject(project)
 
     const token: string = generateAuthToken()
-    await writeAuthTokenFile(vault, token)
+    await writeAuthTokenFile(project, token)
 
     const rpc: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: buildDefaultToolCatalog(buildDisabledMcpBridges()),
@@ -78,16 +78,16 @@ async function startFullStack(): Promise<FullStack> {
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},
     })
-    await writeRpcPortFile(vault, rpc.port)
+    await writeRpcPortFile(project, rpc.port)
 
     return {
-        vault,
+        project,
         fixtureNodeId: fixturePath,
         graphd,
         rpc,
         stop: async (): Promise<void> => {
             __resetSessionStateForTests()
-            setCurrentVault(null)
+            setCurrentProject(null)
             await rpc.stop().catch((): void => {})
             await graphd.stop().catch((): void => {})
             clearWatchFolderState()
@@ -123,8 +123,8 @@ describe('vt_dispatch_live_command + vt_get_live_state — identical client surf
 
     beforeAll(async (): Promise<void> => {
         stack = await startFullStack()
-        clientMain = await createRpcClientForVault(stack.vault, {env: process.env})
-        clientCli = await createRpcClientForVault(stack.vault, {env: process.env})
+        clientMain = await createRpcClientForProject(stack.project, {env: process.env})
+        clientCli = await createRpcClientForProject(stack.project, {env: process.env})
         await waitForFixtureIndexed(clientMain, stack.fixtureNodeId)
     }, 30_000)
 

@@ -3,13 +3,13 @@
  *
  * This test validates the Ask Mode feature using the REAL Python backend.
  * Tests:
- * 1. Loads example_real_large graph with vault suffix (RPC/IPC content)
+ * 1. Loads example_real_large graph with project suffix (RPC/IPC content)
  * 2. Calls /ask endpoint with a relevant query
  * 3. Verifies we get relevant nodes back (not 0, not all nodes)
  * 4. Tests false positive: unrelated query shouldn't return RPC nodes
  * 5. Tests ACTUAL context node creation via askModeCreateAndSpawn
  *
- * CRITICAL: This test uses a vault suffix to verify the fix for node ID
+ * CRITICAL: This test uses a project suffix to verify the fix for node ID
  * format mismatch between backend (returns "file.md") and frontend
  * (stores as "suffix/file.md").
  */
@@ -22,11 +22,11 @@ import * as os from 'os';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-// Use example_folder_fixtures as base directory with suffix to test vault suffix handling
+// Use example_folder_fixtures as base directory with suffix to test project suffix handling
 const EXAMPLE_FIXTURES_BASE = path.resolve(PROJECT_ROOT, 'example_folder_fixtures');
-const VAULT_SUFFIX = 'example_real_large';
-// Full vault path for backend
-const VAULT_PATH = path.join(EXAMPLE_FIXTURES_BASE, VAULT_SUFFIX);
+const PROJECT_SUFFIX = 'example_real_large';
+// Full project path for backend
+const PROJECT_PATH = path.join(EXAMPLE_FIXTURES_BASE, PROJECT_SUFFIX);
 
 // Type definitions
 interface ExtendedWindow {
@@ -67,17 +67,17 @@ const test = base.extend<{
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ask-mode-e2e-'));
 
-    // Write config to auto-load with vault suffix to test path handling
+    // Write config to auto-load with project suffix to test path handling
     // This replicates the real-world scenario where user watches a base folder with a subfolder suffix
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
       lastDirectory: EXAMPLE_FIXTURES_BASE,
       suffixes: {
-        [EXAMPLE_FIXTURES_BASE]: VAULT_SUFFIX // Non-empty suffix to test path mismatch fix
+        [EXAMPLE_FIXTURES_BASE]: PROJECT_SUFFIX // Non-empty suffix to test path mismatch fix
       }
     }, null, 2), 'utf8');
 
-    console.log('[Ask Mode E2E] Created config to auto-load:', EXAMPLE_FIXTURES_BASE, 'with suffix:', VAULT_SUFFIX);
+    console.log('[Ask Mode E2E] Created config to auto-load:', EXAMPLE_FIXTURES_BASE, 'with suffix:', PROJECT_SUFFIX);
     console.log('[Ask Mode E2E] Using REAL Python backend server for embeddings');
 
     const electronApp = await electron.launch({
@@ -140,7 +140,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
   // Set longer timeout - Python server and embedding search takes time
   test.setTimeout(180000); // 3 minutes max
 
-  test('should return relevant nodes for RPC query and create context node with vault suffix', async ({ appWindow }) => {
+  test('should return relevant nodes for RPC query and create context node with project suffix', async ({ appWindow }) => {
     console.log('\n=== E2E Test: Ask Mode Full Pipeline ===\n');
 
     // ===== STEP 1: Get backend port and verify server is ready =====
@@ -196,7 +196,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
     console.log('✓ Backend server is healthy and ready');
 
     // ===== STEP 3: Load the example_real_large directory =====
-    console.log('\n=== STEP 3: Load example_real_large directory (with vault suffix) ===');
+    console.log('\n=== STEP 3: Load example_real_large directory (with project suffix) ===');
 
     const loadResult = await appWindow.evaluate(async (args) => {
       const [port, projectRoot] = args;
@@ -210,7 +210,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
         status: response.status,
         body: await response.json()
       };
-    }, [backendPort, VAULT_PATH] as const);
+    }, [backendPort, PROJECT_PATH] as const);
 
     expect(loadResult.ok).toBe(true);
     const totalNodes = loadResult.body.nodes_loaded;
@@ -338,7 +338,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
     console.log('='.repeat(60));
     console.log('Summary:');
     console.log(`  - Real Python backend started on port ${backendPort}`);
-    console.log(`  - Loaded example_real_large with ${totalNodes} nodes (vault suffix: ${VAULT_SUFFIX})`);
+    console.log(`  - Loaded example_real_large with ${totalNodes} nodes (project suffix: ${PROJECT_SUFFIX})`);
     console.log(`  - Vector search: ${diagnostics.vector_candidates} candidates, ${diagnostics.vector_filtered} passed threshold`);
     console.log(`  - BM25 search: ${diagnostics.bm25_candidates} candidates, ${diagnostics.bm25_filtered} passed threshold`);
     console.log(`  - Relevant query returned ${relevantNodes.length} RPC/IPC-related nodes`);
@@ -377,7 +377,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
     }
     expect(isHealthy).toBe(true);
 
-    // Load the vault
+    // Load the project
     await appWindow.evaluate(async (args) => {
       const [port, projectRoot] = args;
       await fetch(`http://localhost:${port}/load-directory`, {
@@ -385,7 +385,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ directory_path: projectRoot })
       });
-    }, [backendPort, VAULT_PATH] as const);
+    }, [backendPort, PROJECT_PATH] as const);
 
     // Query about graph/tree functionality
     const graphQuery = 'graph visualization tree nodes markdown cytoscape';

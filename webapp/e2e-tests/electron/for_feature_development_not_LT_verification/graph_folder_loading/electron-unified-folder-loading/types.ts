@@ -11,7 +11,7 @@ export type UnifiedFolderLoadingFixtures = {
   electronApp: ElectronApplication;
   appWindow: Page;
   testProjectPath: string;
-  primaryVaultPath: string;
-  secondVaultPath: string;
+  primaryProjectPath: string;
+  secondProjectPath: string;
   tempUserDataPath: string;
 };

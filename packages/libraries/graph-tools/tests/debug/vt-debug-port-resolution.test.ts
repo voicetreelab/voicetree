@@ -21,7 +21,7 @@ const repoRoot = path.resolve(testDir, '../../../../..')
 function buildInstance(overrides: Partial<DebugInstance> = {}): DebugInstance {
   return {
     pid: 4242,
-    projectRoot: '/tmp/example-vault',
+    projectRoot: '/tmp/example-project',
     cdpPort: 9222,
     startedAt: '2026-04-20T00:00:00.000Z',
     ...overrides,

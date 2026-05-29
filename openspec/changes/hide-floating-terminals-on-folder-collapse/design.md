@@ -57,7 +57,7 @@ The visual gap: floating terminal windows are absolutely-positioned DOM elements
 **Choice:** Determine "hidden by collapse" via the projection's `hiddenByCollapse: true` (or equivalent: the node exists in `state.graph.nodes` but not in the projected nodes after `filterByCollapse`). "Truly deleted" means the node is absent from `state.graph.nodes` entirely.
 
 **Rationale:**
-- Hiding a floating window whose anchor was just deleted from the vault would silently leak the window. Existing terminal-close path must keep firing.
+- Hiding a floating window whose anchor was just deleted from the project would silently leak the window. Existing terminal-close path must keep firing.
 - The model layer already makes this distinction cleanly; the UI just consumes it.
 
 **Alternatives considered:**

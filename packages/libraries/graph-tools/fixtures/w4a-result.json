@@ -29,7 +29,7 @@
       "050-two-roots-root-a-only",
       "051-two-roots-loaded",
       "054-multi-command-final",
-      "080-folder-nodes-real-vault"
+      "080-folder-nodes-real-project"
     ],
     "outDir": "/tmp/vt-debug/stress-full",
     "divergenceBaselinePath": "/Users/example/repos/voicetree-public/packages/libraries/graph-tools/fixtures/divergence-class-baseline.json",
@@ -577,7 +577,7 @@
         }
       },
       {
-        "fixtureId": "080-folder-nodes-real-vault",
+        "fixtureId": "080-folder-nodes-real-project",
         "projectionVsRenderedEqual": true,
         "classIds": [
           "dataVsProjection.edges.missing-in-projection",
@@ -587,31 +587,31 @@
           "dataVsProjection": {
             "equal": false,
             "missingInA": [
-              "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
-              "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/"
+              "/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/",
+              "/tmp/graph-state-fixtures/real-project-folder-nodes/folder-interaction-improvements/"
             ],
             "missingInB": [
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-109-linter-folder-containment.md->X",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md->voicetree-6-4/design-proposed-state-shell",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md->voicetree-6-4/review-design-refactor",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-118-wire-shell-pure.md->voicetree-6-4/design-proposed-pure-layer",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->BF-NNN-slug",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-current-architecture|Current Architecture Analysis",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-proposed-pure-layer|Phase 1 Design: Pure Layer",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-proposed-state-shell|Phases 2-4 Design: State + Shell",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-refactoring-plan|Refactoring Plan: 4 Phases",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/review-design-refactor|Review: Design Refactor Proposal",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->BF-NNN-slug",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/design|OpenSpec design (parent)",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal (parent)",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks (parent)",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->BF-NNN-slug",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->folder-architecture-refactor/kanban|Folder Architecture Refactor",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->folder-interaction-improvements/kanban|Folder Interaction Improvements",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->folder-nodes-epic-complete|Implementation notes",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/design|OpenSpec design",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal",
-              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks"
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/BF-109-linter-folder-containment.md->X",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md->voicetree-6-4/design-proposed-state-shell",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md->voicetree-6-4/review-design-refactor",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/BF-118-wire-shell-pure.md->voicetree-6-4/design-proposed-pure-layer",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/kanban.md->BF-NNN-slug",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-current-architecture|Current Architecture Analysis",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-proposed-pure-layer|Phase 1 Design: Pure Layer",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-proposed-state-shell|Phases 2-4 Design: State + Shell",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-refactoring-plan|Refactoring Plan: 4 Phases",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/review-design-refactor|Review: Design Refactor Proposal",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-interaction-improvements/kanban.md->BF-NNN-slug",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/design|OpenSpec design (parent)",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal (parent)",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks (parent)",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->BF-NNN-slug",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->folder-architecture-refactor/kanban|Folder Architecture Refactor",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->folder-interaction-improvements/kanban|Folder Interaction Improvements",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->folder-nodes-epic-complete|Implementation notes",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/design|OpenSpec design",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal",
+              "edge:/tmp/graph-state-fixtures/real-project-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks"
             ],
             "differing": []
           },

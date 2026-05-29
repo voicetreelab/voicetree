@@ -7,8 +7,8 @@ function unsupportedBridgeCall(): never {
 export function buildDisabledMcpBridges(): McpToolBridges {
     const graph: GraphBridge = {
         getGraph: async () => unsupportedBridgeCall(),
-        getVaultPaths: async () => unsupportedBridgeCall(),
-        getWriteFolder: async () => unsupportedBridgeCall(),
+        getProjectPaths: async () => unsupportedBridgeCall(),
+        getWriteFolderPath: async () => unsupportedBridgeCall(),
         applyGraphDelta: async () => unsupportedBridgeCall(),
     }
 

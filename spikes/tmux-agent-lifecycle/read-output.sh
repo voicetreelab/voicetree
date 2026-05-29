@@ -12,8 +12,8 @@ fi
 
 agent_name="$1"
 n_lines="${2:-50}"
-vault_dir="${VAULT_DIR:-./test-vault}"
-log_file="$vault_dir/.voicetree/terminals/$agent_name.log"
+project_dir="${PROJECT_DIR:-./test-project}"
+log_file="$project_dir/.voicetree/terminals/$agent_name.log"
 
 if [[ ! "$n_lines" =~ ^[0-9]+$ ]]; then
   echo "N_LINES must be a positive integer" >&2

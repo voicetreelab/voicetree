@@ -12,35 +12,35 @@ vi.mock('electron', () => ({
 import {
     clearDaemonClientCache,
     getActiveDaemonClient,
-    setActiveVaultAndEnsureDaemon,
+    setActiveProjectAndEnsureDaemon,
     shutdownActiveDaemonConnection,
 } from './graph-daemon'
 
-describe('setActiveVaultAndEnsureDaemon', () => {
-    const vaults: string[] = []
+describe('setActiveProjectAndEnsureDaemon', () => {
+    const projects: string[] = []
 
     afterEach(async () => {
         await shutdownActiveDaemonConnection().catch(() => undefined)
         clearDaemonClientCache()
         await Promise.all(
-            vaults.splice(0).map((vault) =>
-                rm(vault, { recursive: true, force: true }).catch(() => undefined),
+            projects.splice(0).map((project) =>
+                rm(project, { recursive: true, force: true }).catch(() => undefined),
             ),
         )
     })
 
-    test('ensures a vault-bound daemon and reuses it for repeated calls', async () => {
-        const vault: string = await mkdtemp(path.join(tmpdir(), 'graph-daemon-test-'))
-        vaults.push(vault)
+    test('ensures a project-bound daemon and reuses it for repeated calls', async () => {
+        const project: string = await mkdtemp(path.join(tmpdir(), 'graph-daemon-test-'))
+        projects.push(project)
 
-        const first = await setActiveVaultAndEnsureDaemon(vault)
+        const first = await setActiveProjectAndEnsureDaemon(project)
         const firstHealth = await first.client.health()
-        expect(firstHealth.vault).toBe(vault)
+        expect(firstHealth.project).toBe(project)
         expect(getActiveDaemonClient()).toBe(first.client)
         expect(first.port).toBeGreaterThan(0)
         expect(typeof first.pid).toBe('number')
 
-        const second = await setActiveVaultAndEnsureDaemon(vault)
+        const second = await setActiveProjectAndEnsureDaemon(project)
         expect(second.port).toBe(first.port)
         expect(second.pid).toBe(first.pid)
         expect(second.client).toBe(first.client)

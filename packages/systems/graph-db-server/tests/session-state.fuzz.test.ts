@@ -12,7 +12,7 @@ import {
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 import { setGraph } from '../src/state/graph-store.ts'
 import { createEmptyGraph } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 
 // Mulberry32 seeded PRNG for deterministic replay
 function mulberry32(seed: number): () => number {
@@ -54,7 +54,7 @@ const ACTIONS: Action[] = ['createSession', 'collapse', 'expand', 'setSelection'
 
 describe('session-state fuzz', () => {
   let root: string
-  let vault: string
+  let project: string
   let handle: DaemonHandle
   let baseUrl: string
   let nodeIds: string[]
@@ -62,13 +62,13 @@ describe('session-state fuzz', () => {
 
   beforeAll(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-fuzz-session-'))
-    vault = path.join(root, 'vault')
-    const voicetreeHomePath = path.join(root, 'app-support')
+    project = path.join(root, 'project')
+    const voicetreeHomePath = path.join(root, 'voicetree-home')
     process.env.VOICETREE_HOME_PATH = voicetreeHomePath
-    await mkdir(vault, { recursive: true })
+    await mkdir(project, { recursive: true })
 
-    const notes = path.join(vault, 'notes')
-    const projects = path.join(vault, 'projects')
+    const notes = path.join(project, 'notes')
+    const projects = path.join(project, 'projects')
     const projectsSub = path.join(projects, 'alpha')
     await mkdir(notes, { recursive: true })
     await mkdir(projectsSub, { recursive: true })
@@ -85,14 +85,14 @@ describe('session-state fuzz', () => {
     }
 
     nodeIds = files.map((f) => path.join(f.dir, f.name))
-    folderIds = [vault, notes, projects, projectsSub]
+    folderIds = [project, notes, projects, projectsSub]
 
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
+    await saveProjectConfigForDirectory(project, { writeFolderPath: '.' })
 
     handle = await startDaemon({
-      vault,
+      project,
       voicetreeHomePath,
       createStarterIfEmpty: false,
     })

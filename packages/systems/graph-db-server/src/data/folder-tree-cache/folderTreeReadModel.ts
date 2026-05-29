@@ -3,7 +3,7 @@
  *
  * A single, daemon-owned cache fronting filesystem discovery for the folder
  * tree. The cache is keyed by `${root}::${maxDepth}` and invalidated EXPLICITLY
- * by callers (file watcher events, vault lifecycle, etc.). The read model
+ * by callers (file watcher events, project lifecycle, etc.). The read model
  * never polls the filesystem and never decorates entries with graph state.
  *
  * Design constraints (see spec `daemon-folder-tree-read-model`):

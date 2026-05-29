@@ -81,7 +81,7 @@ async function writeMarkdownToFile(fullPath: string, markdown: string): Promise<
 // Module-scoped cache of directories we have already created (or proven to
 // exist), partitioned by project root. `fs.mkdir(..., {recursive: true})` is a
 // syscall per write (~30-100ms under storm); after the first write into a given
-// directory we can skip the mkdir entirely. Root partitioning keeps vault
+// directory we can skip the mkdir entirely. Root partitioning keeps project
 // lifecycle state out of this data module's public boundary, and the write path
 // retries on ENOENT if an external process removes a cached directory.
 const knownExistingDirectoriesByRoot: Map<string, Set<string>> = new Map()

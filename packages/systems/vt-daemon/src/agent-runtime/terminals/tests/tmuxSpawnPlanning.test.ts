@@ -4,106 +4,106 @@ import {
     buildTmuxEnv,
     resolveHeadfulPromptInjection,
     resolvePromptFileWrite,
-    resolveTmuxVaultPath,
-    withResolvedTmuxVaultPath,
-    withVoicetreeVaultPath,
+    resolveTmuxProjectPath,
+    withResolvedTmuxProjectPath,
+    withVoicetreeProjectPath,
 } from '../tmux/tmuxSpawnPlanning';
 
 const terminalId: TerminalId = 'Aki' as TerminalId;
 
 describe('tmux spawn planning', () => {
-    it('prefers terminal env vault path over inherited process env', () => {
-        expect(resolveTmuxVaultPath(
-            {VOICETREE_VAULT_PATH: '/process-vault'},
-            {VOICETREE_VAULT_PATH: '/initial-vault'},
-        )).toBe('/initial-vault');
+    it('prefers terminal env project path over inherited process env', () => {
+        expect(resolveTmuxProjectPath(
+            {VOICETREE_PROJECT_PATH: '/process-project'},
+            {VOICETREE_PROJECT_PATH: '/initial-project'},
+        )).toBe('/initial-project');
     });
 
-    it('falls back to the initial env vault path', () => {
-        expect(resolveTmuxVaultPath({}, {VOICETREE_VAULT_PATH: '/initial-vault'}))
-            .toBe('/initial-vault');
+    it('falls back to the initial env project path', () => {
+        expect(resolveTmuxProjectPath({}, {VOICETREE_PROJECT_PATH: '/initial-project'}))
+            .toBe('/initial-project');
     });
 
-    it('falls back to the runtime project root when no env vault path exists', () => {
-        expect(resolveTmuxVaultPath({}, {}, '/runtime-project-root'))
+    it('falls back to the runtime project root when no env project path exists', () => {
+        expect(resolveTmuxProjectPath({}, {}, '/runtime-project-root'))
             .toBe('/runtime-project-root');
     });
 
-    it('falls back to the runtime write path before inherited process env', () => {
-        expect(resolveTmuxVaultPath({VOICETREE_VAULT_PATH: '/process-vault'}, {}, '/runtime-write-path'))
-            .toBe('/runtime-write-path');
+    it('falls back to the runtime project root before inherited process env', () => {
+        expect(resolveTmuxProjectPath({VOICETREE_PROJECT_PATH: '/process-project'}, {}, '/runtime-project-root'))
+            .toBe('/runtime-project-root');
     });
 
-    it('falls back to inherited process env only when no runtime vault path exists', () => {
-        expect(resolveTmuxVaultPath({VOICETREE_VAULT_PATH: '/process-vault'}, {}))
-            .toBe('/process-vault');
+    it('falls back to inherited process env only when no runtime project path exists', () => {
+        expect(resolveTmuxProjectPath({VOICETREE_PROJECT_PATH: '/process-project'}, {}))
+            .toBe('/process-project');
     });
 
-    it('records the resolved vault path on terminal data env vars only when missing', () => {
-        expect(withResolvedTmuxVaultPath({}, '/runtime-project-root')).toEqual({
-            VOICETREE_VAULT_PATH: '/runtime-project-root',
+    it('records the resolved project path on terminal data env vars only when missing', () => {
+        expect(withResolvedTmuxProjectPath({}, '/runtime-project-root')).toEqual({
+            VOICETREE_PROJECT_PATH: '/runtime-project-root',
         });
-        expect(withResolvedTmuxVaultPath({VOICETREE_VAULT_PATH: '/initial-vault'}, '/runtime-project-root'))
-            .toEqual({VOICETREE_VAULT_PATH: '/initial-vault'});
-        expect(withResolvedTmuxVaultPath({}, undefined)).toBeUndefined();
+        expect(withResolvedTmuxProjectPath({VOICETREE_PROJECT_PATH: '/initial-project'}, '/runtime-project-root'))
+            .toEqual({VOICETREE_PROJECT_PATH: '/initial-project'});
+        expect(withResolvedTmuxProjectPath({}, undefined)).toBeUndefined();
     });
 
-    it('backfills VOICETREE_VAULT_PATH and drops non-string runtime values', () => {
-        const env = withVoicetreeVaultPath({
+    it('backfills VOICETREE_PROJECT_PATH and drops non-string runtime values', () => {
+        const env = withVoicetreeProjectPath({
             FOO: 'bar',
             NUMBERY: 123 as unknown as string,
-        }, '/vault');
+        }, '/project');
 
         expect(env).toEqual({
             FOO: 'bar',
-            VOICETREE_VAULT_PATH: '/vault',
+            VOICETREE_PROJECT_PATH: '/project',
         });
     });
 
-    it('keeps an explicit initial vault path', () => {
-        const env = withVoicetreeVaultPath({
-            VOICETREE_VAULT_PATH: '/initial-vault',
+    it('keeps an explicit initial project path', () => {
+        const env = withVoicetreeProjectPath({
+            VOICETREE_PROJECT_PATH: '/initial-project',
             FOO: 'bar',
-        }, '/process-vault');
+        }, '/process-project');
 
         expect(env).toEqual({
-            VOICETREE_VAULT_PATH: '/initial-vault',
+            VOICETREE_PROJECT_PATH: '/initial-project',
             FOO: 'bar',
         });
     });
 
-    it('plans a prompt file write only when both vault path and prompt exist', () => {
-        expect(resolvePromptFileWrite('/vault', terminalId, 'task body')).toEqual({
-            projectRoot: '/vault',
+    it('plans a prompt file write only when both project path and prompt exist', () => {
+        expect(resolvePromptFileWrite('/project', terminalId, 'task body')).toEqual({
+            projectRoot: '/project',
             terminalId,
             prompt: 'task body',
         });
         expect(resolvePromptFileWrite(undefined, terminalId, 'task body')).toBeNull();
-        expect(resolvePromptFileWrite('/vault', terminalId, undefined)).toBeNull();
+        expect(resolvePromptFileWrite('/project', terminalId, undefined)).toBeNull();
     });
 
-    it('buildTmuxEnv adds AGENT_PROMPT_FILE alongside AGENT_PROMPT and backfills vault path', () => {
+    it('buildTmuxEnv adds AGENT_PROMPT_FILE alongside AGENT_PROMPT and backfills project path', () => {
         const env = buildTmuxEnv({
             AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
-        }, '/vault', '/vault/.voicetree/terminals/Aki-prompt.txt');
+        }, '/project', '/project/.voicetree/terminals/Aki-prompt.txt');
 
         expect(env).toEqual({
             AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
-            AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
-            VOICETREE_VAULT_PATH: '/vault',
+            AGENT_PROMPT_FILE: '/project/.voicetree/terminals/Aki-prompt.txt',
+            VOICETREE_PROJECT_PATH: '/project',
         });
     });
 
-    it('buildTmuxEnv keeps an explicit initial vault path and drops non-string runtime values', () => {
+    it('buildTmuxEnv keeps an explicit initial project path and drops non-string runtime values', () => {
         const env = buildTmuxEnv({
-            VOICETREE_VAULT_PATH: '/initial-vault',
+            VOICETREE_PROJECT_PATH: '/initial-project',
             NUMBERY: 123 as unknown as string,
-        }, '/process-vault', null);
+        }, '/process-project', null);
 
         expect(env).toEqual({
-            VOICETREE_VAULT_PATH: '/initial-vault',
+            VOICETREE_PROJECT_PATH: '/initial-project',
         });
     });
 

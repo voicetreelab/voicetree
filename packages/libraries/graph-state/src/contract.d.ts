@@ -30,7 +30,7 @@ import type { FolderTreeNode, GraphDelta } from '@vt/graph-model'
 /** Absolute folder path with a trailing slash (matches folderCollapse.ts). */
 export type FolderId = string
 
-/** A vault / loaded root (absolute directory path, no trailing slash). */
+/** A project / loaded root (absolute directory path, no trailing slash). */
 export type RootPath = string
 
 /**

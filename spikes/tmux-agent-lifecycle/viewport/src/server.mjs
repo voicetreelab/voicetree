@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const viewportDir = path.resolve(__dirname, '..');
 const lifecycleDir = path.resolve(viewportDir, '..');
 const publicDir = path.join(viewportDir, 'public');
-const vaultDir = process.env.VAULT_DIR || path.join(viewportDir, '.runtime-vault');
+const projectDir = process.env.PROJECT_DIR || path.join(viewportDir, '.runtime-project');
 const defaultAgent = process.env.VIEWPORT_AGENT || 'BF203';
 const port = Number(process.env.PORT || 4173);
 const pollMs = Number(process.env.POLL_MS || 100);
@@ -25,7 +25,7 @@ const metrics = {
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd || lifecycleDir,
-    env: { ...process.env, VAULT_DIR: vaultDir, ...(options.env || {}) },
+    env: { ...process.env, PROJECT_DIR: projectDir, ...(options.env || {}) },
     encoding: 'utf8'
   });
   if (result.status !== 0) {
@@ -205,5 +205,5 @@ wss.on('connection', (ws, req) => {
 
 server.listen(port, () => {
   console.log(`BF-203 tmux viewport listening on http://127.0.0.1:${port}`);
-  console.log(`Default agent: ${defaultAgent}; vault: ${vaultDir}`);
+  console.log(`Default agent: ${defaultAgent}; project: ${projectDir}`);
 });

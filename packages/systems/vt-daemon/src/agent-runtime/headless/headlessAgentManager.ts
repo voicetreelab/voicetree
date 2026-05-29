@@ -137,7 +137,7 @@ export function hasHeadlessAgentOutput(terminalId: string): boolean {
  *
  * `preserve` is for host process shutdown where tmux sessions must outlive the
  * host and be reconciled on relaunch. `terminate` is for explicit destructive
- * cleanup such as closing an agent or switching vaults.
+ * cleanup such as closing an agent or switching projects.
  */
 export function cleanupHeadlessAgents(
     policy: HeadlessAgentCleanupPolicy = TERMINATE_TMUX_SESSIONS,

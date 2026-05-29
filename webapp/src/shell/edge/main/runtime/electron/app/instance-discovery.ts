@@ -91,7 +91,7 @@ export async function registerInstance(): Promise<void> {
     const cdpPort: number = await resolveCdpPort();
     assertDebugCdpPortResolved(cdpPort);
     const projectRoot: string =
-        process.env.VOICETREE_VAULT_PATH ??
+        process.env.VOICETREE_PROJECT_PATH ??
         getStartupFolderOverride() ??
         '';
     const instance: InstanceRecord = {

@@ -20,14 +20,14 @@ class ClaudeHeadlessWrapper:
             self.voicetree_root = Path(voicetree_root)
         self.common_setup_script = self.voicetree_root / "tools/common_agent_setup.sh"
         
-    def run_headless_agent(self, source_note_path, agent_prompt, vault_path, agent_color="test_blue", timeout=120):
+    def run_headless_agent(self, source_note_path, agent_prompt, project_path, agent_color="test_blue", timeout=120):
         """
         Run a claude agent headlessly with proper environment setup
         
         Args:
-            source_note_path: Path to the source markdown note (relative to vault)
+            source_note_path: Path to the source markdown note (relative to project)
             agent_prompt: The prompt to send to the agent
-            vault_path: Path to the obsidian vault
+            project_path: Path to the obsidian project
             agent_color: Color to assign to the agent
             timeout: Timeout in seconds
             
@@ -38,11 +38,11 @@ class ClaudeHeadlessWrapper:
         # Setup environment variables (mimicking common_agent_setup.sh)
         env = os.environ.copy()
         env.update({
-            'OBSIDIAN_VAULT_PATH': str(vault_path),
+            'OBSIDIAN_PROJECT_PATH': str(project_path),
             'OBSIDIAN_SOURCE_NOTE': str(source_note_path),
             'AGENT_COLOR': agent_color,
-            'OBSIDIAN_SOURCE_NOTE_CONTENT': self._read_source_note_content(vault_path / source_note_path),
-            'DEPENDENCY_GRAPH_CONTENT': self._generate_dependency_graph_content(vault_path, source_note_path)
+            'OBSIDIAN_SOURCE_NOTE_CONTENT': self._read_source_note_content(project_path / source_note_path),
+            'DEPENDENCY_GRAPH_CONTENT': self._generate_dependency_graph_content(project_path, source_note_path)
         })
         
         # Create temporary prompt file with full agent context
@@ -86,7 +86,7 @@ class ClaudeHeadlessWrapper:
         except Exception:
             return "[Error reading source note]"
             
-    def _generate_dependency_graph_content(self, vault_path, source_note_path):
+    def _generate_dependency_graph_content(self, project_path, source_note_path):
         """Generate dependency graph content (simplified for testing)"""
         # For testing, we'll use a simple mock dependency graph
         # In production this would call graph_dependency_traversal_and_accumulate_graph_content.py
@@ -97,7 +97,7 @@ BRANCH 1: Starting from {source_note_path}
 ------------------------------------------------------------
 File: {source_note_path}
 ------------------------------------------------------------
-{self._read_source_note_content(vault_path / source_note_path)}
+{self._read_source_note_content(project_path / source_note_path)}
 
 ====================
 RELEVANT NODES (Test Environment)
@@ -115,7 +115,7 @@ The task will be given after these initial instructions.
 As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
 
 ```bash
-python3 tools/add_new_node.py "{env.get('OBSIDIAN_VAULT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
+python3 tools/add_new_node.py "{env.get('OBSIDIAN_PROJECT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
 ```
 
 ## ENHANCED NODE CONTENT REQUIREMENTS:
@@ -168,7 +168,7 @@ the source note, plus any other potentially relevant files from a TF-IDF search:
 {env.get('DEPENDENCY_GRAPH_CONTENT', '[No dependency context available]')}
 === END RELEVANT_CONTEXT ===
 
-The source markdown file you've been opened from is {env.get('OBSIDIAN_SOURCE_NOTE')} in {env.get('OBSIDIAN_VAULT_PATH')}: @{env.get('OBSIDIAN_VAULT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}
+The source markdown file you've been opened from is {env.get('OBSIDIAN_SOURCE_NOTE')} in {env.get('OBSIDIAN_PROJECT_PATH')}: @{env.get('OBSIDIAN_PROJECT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}
 
 The CWD you are in is the repos directory (parent of VoiceTree)
 This allows you to access the following repos:
@@ -181,7 +181,7 @@ python3 tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summa
 ALWAYS include Mermaid diagrams showing the changes you made!
 
 To emphasize, YOUR specific task, or most relevant context (i.e. the source note you were spawned from) is:
-```{env.get('OBSIDIAN_VAULT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}
+```{env.get('OBSIDIAN_PROJECT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}
 {env.get('OBSIDIAN_SOURCE_NOTE_CONTENT', '[Source content unavailable]')}
 ```
 
@@ -195,15 +195,15 @@ Please execute this task now.
 def main():
     """CLI interface for headless wrapper"""
     if len(sys.argv) < 4:
-        print("Usage: python3 claude_headless_wrapper.py <vault_path> <source_note_relative_path> <prompt>")
+        print("Usage: python3 claude_headless_wrapper.py <project_path> <source_note_relative_path> <prompt>")
         sys.exit(1)
         
-    vault_path = Path(sys.argv[1])
+    project_path = Path(sys.argv[1])
     source_note_path = sys.argv[2]
     prompt = sys.argv[3]
     
     wrapper = ClaudeHeadlessWrapper()
-    result = wrapper.run_headless_agent(source_note_path, prompt, vault_path)
+    result = wrapper.run_headless_agent(source_note_path, prompt, project_path)
     
     print("=== STDOUT ===")
     print(result.stdout)

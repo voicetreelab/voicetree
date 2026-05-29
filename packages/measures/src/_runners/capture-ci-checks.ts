@@ -5,7 +5,7 @@
 //
 // Measure inventory is auto-detected from the tiered `checks/` tree.
 
-import {mkdir, readdir} from 'node:fs/promises'
+import {appendFile, mkdir, readdir} from 'node:fs/promises'
 import {availableParallelism} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
@@ -394,6 +394,38 @@ function formatFailuresSection(failures) {
     return `\n  failures:\n\n${blocks.join('\n')}`
 }
 
+function formatGithubFailureSummary(failures) {
+    if (failures.length === 0) return ''
+    const lines = [
+        '## CI Check Failures',
+        '',
+        `Failed checks: ${failures.length}`,
+        '',
+        ...failures.flatMap(({check, outcome}) => {
+            const body = formatFailureBody(outcome)
+                .split('\n')
+                .map(line => line.replace(/^      /, '  '))
+                .join('\n')
+            return [
+                `### ${check.id}`,
+                '',
+                `- Category: ${check.category}`,
+                `- Report: \`health-dashboard/reports/checks/${check.id}.json\``,
+                body ? '' : undefined,
+                body || undefined,
+                '',
+            ].filter(Boolean)
+        }),
+    ]
+    return `${lines.join('\n')}\n`
+}
+
+async function appendGithubFailureSummary(failures) {
+    const summaryPath = process.env.GITHUB_STEP_SUMMARY
+    if (!summaryPath || failures.length === 0) return
+    await appendFile(summaryPath, formatGithubFailureSummary(failures), 'utf8')
+}
+
 // Reports are persisted eagerly per-check by runCheckWithSkip / runChecksSequentially
 // (required so isolated-phase checks can read sibling reports during their own
 // invocation). This pass only renders the result table and counts failures.
@@ -404,7 +436,7 @@ function reportResults(results) {
         if (outcome.status === 'fail') failures.push({check, outcome})
     }
     console.log(`${formatFailuresSection(failures)}\n  done · ${failures.length} failing\n`)
-    return failures.length
+    return failures
 }
 
 async function main() {
@@ -417,8 +449,9 @@ async function main() {
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
     console.log(formatRunHeader(opts, checks))
     const results = await runAllChecks(checks, opts)
-    const failed = reportResults(results)
-    return failed === 0 ? 0 : 1
+    const failures = reportResults(results)
+    await appendGithubFailureSummary(failures)
+    return failures.length === 0 ? 0 : 1
 }
 
 main().then(code => process.exit(code)).catch(err => {

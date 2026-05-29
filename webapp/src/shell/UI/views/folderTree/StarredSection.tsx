@@ -15,7 +15,7 @@ interface StarredSectionProps {
     readonly starredFolders: readonly string[];
     readonly starredFolderTrees: Readonly<Record<string, FolderTreeNode>>;
     readonly readPaths: readonly string[];
-    readonly writeFolder: string | null;
+    readonly writeFolderPath: string | null;
     readonly expandedPaths: ReadonlySet<string>;
     readonly onFileSelect: (path: string) => void;
     readonly onToggleExpand: (path: string) => void;
@@ -25,7 +25,7 @@ interface StarredSectionProps {
     readonly onToggleGraphCollapse: (graphFolderId: string) => void;
 }
 
-export function StarredSection({ starredFolders, starredFolderTrees, readPaths, writeFolder, expandedPaths, onFileSelect, onToggleExpand, onToggleLoad, onSetWriteTarget, collapsedGraphFolderIds, onToggleGraphCollapse }: StarredSectionProps): JSX.Element | null {
+export function StarredSection({ starredFolders, starredFolderTrees, readPaths, writeFolderPath, expandedPaths, onFileSelect, onToggleExpand, onToggleLoad, onSetWriteTarget, collapsedGraphFolderIds, onToggleGraphCollapse }: StarredSectionProps): JSX.Element | null {
     const [collapsed, setCollapsed] = useState<boolean>(false);
 
     const toggleCollapsed: () => void = useCallback((): void => {
@@ -80,7 +80,7 @@ export function StarredSection({ starredFolders, starredFolderTrees, readPaths, 
 
                 // Fallback: no tree data (folder doesn't exist or hasn't been scanned)
                 const isLoaded: boolean = readPaths.includes(folder);
-                const isWriteTarget: boolean = writeFolder === folder;
+                const isWriteTarget: boolean = writeFolderPath === folder;
                 const loadState: 'loaded' | 'not-loaded' = isLoaded ? 'loaded' : 'not-loaded';
                 return (
                     <div

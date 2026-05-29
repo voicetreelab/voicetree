@@ -29,15 +29,15 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   testDir: string;
-  writeFolder: string;
-  readVaultPath: string;
+  writeFolderPath: string;
+  readProjectPath: string;
   tempUserDataPath: string;
 }>({
   // Create test directory structure:
   // testDir/
-  //   write-vault/           <- writeFolder
+  //   write-project/           <- writeFolderPath
   //     node-a.md            <- Links to [[node-b]]
-  //   read-vault/            <- readPath
+  //   read-project/            <- readPath
   //     node-b.md            <- Linked by node-a
   testDir: async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-remove-read-path-test-'));
@@ -46,36 +46,36 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  writeFolder: async ({ testDir }, use) => {
-    const writeFolder = path.join(testDir, 'write-vault');
-    await fs.mkdir(writeFolder, { recursive: true });
+  writeFolderPath: async ({ testDir }, use) => {
+    const writeFolderPath = path.join(testDir, 'write-project');
+    await fs.mkdir(writeFolderPath, { recursive: true });
 
-    // Create node-a that links to node-b in read-vault
+    // Create node-a that links to node-b in read-project
     await fs.writeFile(
-      path.join(writeFolder, 'node-a.md'),
+      path.join(writeFolderPath, 'node-a.md'),
       `# Node A
 
-This node links to [[node-b]] in the read vault.
+This node links to [[node-b]] in the read project.
 `
     );
 
-    await use(writeFolder);
+    await use(writeFolderPath);
   },
 
-  readVaultPath: async ({ testDir }, use) => {
-    const readVaultPath = path.join(testDir, 'read-vault');
-    await fs.mkdir(readVaultPath, { recursive: true });
+  readProjectPath: async ({ testDir }, use) => {
+    const readProjectPath = path.join(testDir, 'read-project');
+    await fs.mkdir(readProjectPath, { recursive: true });
 
     // Create node-b that is linked by node-a
     await fs.writeFile(
-      path.join(readVaultPath, 'node-b.md'),
+      path.join(readProjectPath, 'node-b.md'),
       `# Node B
 
-This node is in the read-vault and should be removed when vault is removed.
+This node is in the read-project and should be removed when project is removed.
 `
     );
 
-    await use(readVaultPath);
+    await use(readProjectPath);
   },
 
   tempUserDataPath: async ({}, use) => {
@@ -85,23 +85,23 @@ This node is in the read-vault and should be removed when vault is removed.
     await fs.rm(tempPath, { recursive: true, force: true });
   },
 
-  electronApp: async ({ testDir, writeFolder, readVaultPath, tempUserDataPath }, use) => {
+  electronApp: async ({ testDir, writeFolderPath, readProjectPath, tempUserDataPath }, use) => {
     // Write config with both write path and read path already configured
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: testDir,
-        vaultConfig: {
+        projectConfig: {
           [testDir]: {
-            writeFolder: writeFolder,
-            readPaths: [readVaultPath]  // Read path already configured
+            writeFolderPath: writeFolderPath,
+            readPaths: [readProjectPath]  // Read path already configured
           }
         }
       }, null, 2),
       'utf8'
     );
-    console.log('[Remove Read Path Test] Config created with read vault:', readVaultPath);
+    console.log('[Remove Read Path Test] Config created with read project:', readProjectPath);
 
     const electronApp = await electron.launch({
       args: [
@@ -164,7 +164,7 @@ This node is in the read-vault and should be removed when vault is removed.
 test.describe('Remove Read Path', () => {
   test('should remove nodes from graph when read path is removed, but NOT delete files from disk', async ({
     appWindow,
-    readVaultPath
+    readProjectPath
   }) => {
     test.setTimeout(30000);
 
@@ -180,7 +180,7 @@ test.describe('Remove Read Path', () => {
     expect(initialNodes.some(id => id.includes('node-a'))).toBe(true);
     expect(initialNodes.some(id => id.includes('node-b'))).toBe(true);
 
-    console.log('=== STEP 2: Verify readPaths includes read-vault ===');
+    console.log('=== STEP 2: Verify readPaths includes read-project ===');
 
     const initialReadPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -189,15 +189,15 @@ test.describe('Remove Read Path', () => {
     });
 
     console.log('Initial readPaths:', initialReadPaths);
-    expect(initialReadPaths.some(p => p.includes('read-vault'))).toBe(true);
+    expect(initialReadPaths.some(p => p.includes('read-project'))).toBe(true);
 
-    console.log('=== STEP 3: Remove read-vault path via API ===');
+    console.log('=== STEP 3: Remove read-project path via API ===');
 
     const removeResult = await appWindow.evaluate(async (pathToRemove: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
-    }, readVaultPath);
+    }, readProjectPath);
 
     console.log('removeReadOnLinkPath result:', removeResult);
     expect(removeResult.success).toBe(true);
@@ -217,7 +217,7 @@ test.describe('Remove Read Path', () => {
     expect(nodesAfterRemove.some(id => id.includes('node-a'))).toBe(true);
     expect(nodesAfterRemove.some(id => id.includes('node-b'))).toBe(false);
 
-    console.log('=== STEP 5: Verify readPaths no longer includes read-vault ===');
+    console.log('=== STEP 5: Verify readPaths no longer includes read-project ===');
 
     const finalReadPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -226,17 +226,17 @@ test.describe('Remove Read Path', () => {
     });
 
     console.log('Final readPaths:', finalReadPaths);
-    expect(finalReadPaths.some(p => p.includes('read-vault'))).toBe(false);
+    expect(finalReadPaths.some(p => p.includes('read-project'))).toBe(false);
 
     console.log('=== STEP 6: Verify files still exist on disk ===');
 
-    const readVaultExists = await fs.access(readVaultPath).then(() => true).catch(() => false);
-    const nodeBFileExists = await fs.access(path.join(readVaultPath, 'node-b.md')).then(() => true).catch(() => false);
+    const readProjectExists = await fs.access(readProjectPath).then(() => true).catch(() => false);
+    const nodeBFileExists = await fs.access(path.join(readProjectPath, 'node-b.md')).then(() => true).catch(() => false);
 
-    console.log('read-vault directory exists:', readVaultExists);
+    console.log('read-project directory exists:', readProjectExists);
     console.log('node-b.md file exists:', nodeBFileExists);
 
-    expect(readVaultExists).toBe(true);
+    expect(readProjectExists).toBe(true);
     expect(nodeBFileExists).toBe(true);
 
     console.log('');
@@ -249,7 +249,7 @@ test.describe('Remove Read Path', () => {
 
   test('should not allow removing the write path', async ({
     appWindow,
-    writeFolder
+    writeFolderPath
   }) => {
     test.setTimeout(30000);
 
@@ -260,7 +260,7 @@ test.describe('Remove Read Path', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
-    }, writeFolder);
+    }, writeFolderPath);
 
     console.log('Attempt to remove write path result:', removeResult);
 
@@ -271,47 +271,47 @@ test.describe('Remove Read Path', () => {
     console.log('=== VERIFIED: Write path cannot be removed ===');
   });
 
-  test('should update getVaultPaths after removal', async ({
+  test('should update getProjectPaths after removal', async ({
     appWindow,
-    readVaultPath
+    readProjectPath
   }) => {
     test.setTimeout(30000);
 
-    console.log('=== TEST: getVaultPaths updates after removal ===');
+    console.log('=== TEST: getProjectPaths updates after removal ===');
 
-    // Get initial vault paths
-    const initialVaultPaths = await appWindow.evaluate(async () => {
+    // Get initial project paths
+    const initialProjectPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.getVaultPaths();
+      return await api.main.getProjectPaths();
     });
 
-    console.log('Initial vault paths:', initialVaultPaths);
-    expect(initialVaultPaths.length).toBe(2);  // write-vault + read-vault
-    expect(initialVaultPaths.some(p => p.includes('read-vault'))).toBe(true);
+    console.log('Initial project paths:', initialProjectPaths);
+    expect(initialProjectPaths.length).toBe(2);  // write-project + read-project
+    expect(initialProjectPaths.some(p => p.includes('read-project'))).toBe(true);
 
     // Remove the read path
     await appWindow.evaluate(async (pathToRemove: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
-    }, readVaultPath);
+    }, readProjectPath);
 
     await appWindow.waitForTimeout(300);
 
-    // Get vault paths after removal
-    const finalVaultPaths = await appWindow.evaluate(async () => {
+    // Get project paths after removal
+    const finalProjectPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.getVaultPaths();
+      return await api.main.getProjectPaths();
     });
 
-    console.log('Final vault paths:', finalVaultPaths);
-    expect(finalVaultPaths.length).toBe(1);  // Only write-vault remains
-    expect(finalVaultPaths.some(p => p.includes('read-vault'))).toBe(false);
-    expect(finalVaultPaths.some(p => p.includes('write-vault'))).toBe(true);
+    console.log('Final project paths:', finalProjectPaths);
+    expect(finalProjectPaths.length).toBe(1);  // Only write-project remains
+    expect(finalProjectPaths.some(p => p.includes('read-project'))).toBe(false);
+    expect(finalProjectPaths.some(p => p.includes('write-project'))).toBe(true);
 
-    console.log('=== VERIFIED: getVaultPaths updated correctly ===');
+    console.log('=== VERIFIED: getProjectPaths updated correctly ===');
   });
 });
 

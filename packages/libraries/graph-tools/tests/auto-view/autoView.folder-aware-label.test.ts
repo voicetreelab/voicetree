@@ -68,13 +68,13 @@ describe('buildClusterDisplayLabelMap', () => {
 
 describe('renderAutoView folder-aware labels', () => {
     it('uses the basename label in the auto header for nested folder-aligned clusters', () => {
-        const vaultPath = createVault({
+        const projectPath = createProject({
             'teams/projects/a.md': 'A\n[[teams/projects/b]]\n',
             'teams/projects/b.md': 'B\n[[teams/projects/a]]\n',
             'teams/roadmap.md': 'Roadmap\n',
         })
 
-        const output = renderAutoView(vaultPath, {budget: 2}).output
+        const output = renderAutoView(projectPath, {budget: 2}).output
 
         expect(output).toContain('# cluster: ▢ projects/ [collapsed:auto 2 nodes')
         expect(output).not.toContain('# cluster: ▢ teams/projects/ [collapsed:auto 2 nodes')
@@ -98,13 +98,13 @@ function makeCluster(overrides: Partial<CollapseCluster> = {}): CollapseCluster 
     }
 }
 
-function createVault(files: Record<string, string>): string {
-    const vaultPath = fs.mkdtempSync(path.join(os.tmpdir(), 'auto-view-folder-label-'))
-    tempDirs.add(vaultPath)
+function createProject(files: Record<string, string>): string {
+    const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'auto-view-folder-label-'))
+    tempDirs.add(projectPath)
     for (const [relativePath, content] of Object.entries(files)) {
-        const absolutePath = path.join(vaultPath, relativePath)
+        const absolutePath = path.join(projectPath, relativePath)
         fs.mkdirSync(path.dirname(absolutePath), {recursive: true})
         fs.writeFileSync(absolutePath, content, 'utf8')
     }
-    return vaultPath
+    return projectPath
 }

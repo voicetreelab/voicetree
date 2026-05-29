@@ -122,7 +122,7 @@ export function resolveDaemonRuntimeCommand(
 }
 
 export function resolveCommand(
-  vault: string,
+  project: string,
   override: string | undefined,
 ): CommandSpec {
   const trimmed = override?.trim()
@@ -130,17 +130,17 @@ export function resolveCommand(
   if (trimmed) {
     const parts = trimmed.split(/\s+/)
     const [cmd, ...rest] = parts
-    return { cmd, args: [...rest, '--project-root', vault], env }
+    return { cmd, args: [...rest, '--project-root', project], env }
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
-    args: resolveDefaultDaemonArgs(vault),
+    args: resolveDefaultDaemonArgs(project),
     env,
   }
 }
 
 export function resolveDefaultDaemonArgs(
-  vault: string,
+  project: string,
   deps: DaemonEntrypointDeps = {
     exists: existsSync,
     resolveTsx: () => requireFromHere.resolve('tsx'),
@@ -152,7 +152,7 @@ export function resolveDefaultDaemonArgs(
   // so the workspace-package paths would all return undefined.
   const sibling = deps.siblingDaemonPath()
   if (sibling !== undefined && deps.exists(sibling)) {
-    return [sibling, '--project-root', vault]
+    return [sibling, '--project-root', project]
   }
 
   const fallback = fallbackBinPath()
@@ -162,19 +162,19 @@ export function resolveDefaultDaemonArgs(
 
   // Workspace dev: if dist is stale relative to source (source mtime > dist mtime),
   // running dist will execute an outdated build — exactly how the May-15 dist
-  // running `--vault` argv kept getting picked over a source that now parses
+  // running `--project` argv kept getting picked over a source that now parses
   // `--project-root`. Prefer source whenever it's newer; otherwise prefer dist
   // for the no-tsx-overhead path.
   if (fallbackExists && sourceExists && sourceIsNewerThan(source!, fallback!)) {
-    return ['--import', deps.resolveTsx(), source!, '--project-root', vault]
+    return ['--import', deps.resolveTsx(), source!, '--project-root', project]
   }
 
   if (fallbackExists) {
-    return [fallback!, '--project-root', vault]
+    return [fallback!, '--project-root', project]
   }
 
   if (sourceExists) {
-    return ['--import', deps.resolveTsx(), source!, '--project-root', vault]
+    return ['--import', deps.resolveTsx(), source!, '--project-root', project]
   }
 
   throw new Error(

@@ -35,7 +35,7 @@ The system SHALL restore the prior visibility of any floating window whose ancho
 
 The system SHALL hide a floating window only when its anchor is `hiddenByCollapse`, not when the anchor is absent from `state.graph.nodes` entirely. Anchor-deleted terminals continue to follow the existing terminal-close path.
 
-#### Scenario: Anchor context node is deleted from the vault
+#### Scenario: Anchor context node is deleted from the project
 - **WHEN** a context node `N` is removed from `state.graph.nodes` (file deleted, not folder collapsed)
 - **AND** a terminal `T` had `T.attachedToContextNodeId === N.id`
 - **THEN** `T` follows the existing close path (closeTerminalById / equivalent)

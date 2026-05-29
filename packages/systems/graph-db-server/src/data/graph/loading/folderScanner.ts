@@ -15,7 +15,7 @@ import type { DirectoryEntry } from '@vt/graph-model/folders';
 import { getAvailableFolders, parseSearchQuery } from '@vt/graph-model/folders';
 import type { ParsedQuery } from '@vt/graph-model/folders';
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store';
-import { getVaultPaths } from '@vt/graph-db-server/state/vaultAllowlist';
+import { getProjectPaths } from '@vt/graph-db-server/state/projectAllowlist';
 
 /**
  * Security validation: ensure target path is within project root.
@@ -115,8 +115,8 @@ export async function getAvailableFoldersForSelector(
     const projectRoot: string | null = getProjectRoot();
     if (!projectRoot) return [];
 
-    const vaultPaths: readonly string[] = await getVaultPaths();
-    const loadedPaths: readonly AbsolutePath[] = vaultPaths.map((p: string) => toAbsolutePath(p));
+    const projectPaths: readonly string[] = await getProjectPaths();
+    const loadedPaths: readonly AbsolutePath[] = projectPaths.map((p: string) => toAbsolutePath(p));
 
     // Parse the search query to determine scan target
     const parsed: ParsedQuery = parseSearchQuery(searchQuery);

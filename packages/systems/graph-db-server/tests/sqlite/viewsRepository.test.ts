@@ -2,7 +2,7 @@
  * BF-243 — views table CRUD + default-view initialization tests.
  *
  * Verifies view operations against real sqlite. Each test uses an isolated
- * tmpdir vault and the BF-238 open/migrate primitives.
+ * tmpdir project and the BF-238 open/migrate primitives.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -27,17 +27,17 @@ import {
 } from '../../src/data/views/viewsRepository'
 import { createViewsStore, type ViewSwitchedEvent } from '../../src/data/views/viewsStore'
 
-const tmpVaults: string[] = []
+const tmpProjects: string[] = []
 const openDbs: FolderVisibilityDatabase[] = []
 
-function makeVault(): string {
-    const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'views-repository-test-'))
-    tmpVaults.push(vault)
-    return vault
+function makeProject(): string {
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'views-repository-test-'))
+    tmpProjects.push(project)
+    return project
 }
 
 function openTestDb(): FolderVisibilityDatabase {
-    const db = openFolderVisibilityDb(makeVault(), defaultFolderVisibilityDbDeps)
+    const db = openFolderVisibilityDb(makeProject(), defaultFolderVisibilityDbDeps)
     openDbs.push(db)
     return db
 }
@@ -65,8 +65,8 @@ afterEach(() => {
     while (openDbs.length) {
         closeFolderVisibilityDb(openDbs.pop()!)
     }
-    while (tmpVaults.length) {
-        fs.rmSync(tmpVaults.pop()!, { recursive: true, force: true })
+    while (tmpProjects.length) {
+        fs.rmSync(tmpProjects.pop()!, { recursive: true, force: true })
     }
 })
 

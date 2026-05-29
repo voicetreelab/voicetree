@@ -9,9 +9,9 @@ import {
 } from '../../src/apply/markdownEdits'
 import type { State } from '../../src/contract'
 
-const SOURCE = '/vault/source.md'
-const TARGET = '/vault/target.md'
-const OTHER = '/vault/other.md'
+const SOURCE = '/project/source.md'
+const TARGET = '/project/target.md'
+const OTHER = '/project/other.md'
 
 function node(
     contentWithoutYamlOrLinks: string,

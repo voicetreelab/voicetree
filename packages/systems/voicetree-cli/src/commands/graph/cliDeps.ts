@@ -1,5 +1,5 @@
 export {callDaemon} from '../daemon-client'
 export {error, isJsonMode, output} from '../output'
-export {detectVaultFromCwd, resolveVault} from '../util/detectVault'
+export {detectProjectFromCwd, resolveProject} from '../util/detectProject'
 export {ArgValidationError, handleCliError} from '../util/exitCodes'
 export {setErrorClass, setGateRejection} from '../telemetry/recordCliInvocation'

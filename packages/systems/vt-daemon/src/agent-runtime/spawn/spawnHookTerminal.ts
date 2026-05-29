@@ -14,7 +14,7 @@ import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon/agent-runti
 import {sendTextToTerminal} from '@vt/vt-daemon/agent-runtime/inject/send-text-to-terminal.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
-import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge'
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolderPath} from '../runtime/graph-bridge'
 import {publishTerminalRegistryEvent} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-registry-publisher.ts'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
@@ -72,15 +72,15 @@ async function waitForTerminalReady(
 }
 
 async function createHookNode(): Promise<string> {
-    const writeFolderOption: O.Option<string> = await getRuntimeWriteFolder()
-    const writeFolder: string = O.getOrElse(() => '')(writeFolderOption)
-    if (!writeFolder) {
+    const writeFolderPathOption: O.Option<string> = await getRuntimeWriteFolderPath()
+    const writeFolderPath: string = O.getOrElse(() => '')(writeFolderPathOption)
+    if (!writeFolderPath) {
         throw new Error('No write path available for hook terminal node')
     }
 
     const graph: Graph = await getRuntimeGraph()
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(undefined, writeFolder, graph)
+        createNewNodeNoParent(undefined, writeFolderPath, graph)
 
     const hookNode: GraphNode = {...newNode, contentWithoutYamlOrLinks: '# Hook Terminal'}
     const hookDelta: GraphDelta = [{

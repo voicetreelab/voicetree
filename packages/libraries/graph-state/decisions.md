@@ -12,7 +12,7 @@
 
 **Decision.** Contract lives in a new package `packages/graph-state/`.
 
-**Rationale.** `@vt/graph-model` is already wide: filesystem watchers, settings IO, project management, ripgrep search, vault allowlist, etc. Adding "unified State + Command + projection" to it would further confuse the layer boundary. `@vt/graph-state` sits strictly between graph-model (pure Graph) and the cytoscape shell, and it is a pure state-machine module. It depends on graph-model for the underlying types but adds no FS coupling. L1 tasks (BF-142..BF-163) already assume this name.
+**Rationale.** `@vt/graph-model` is already wide: filesystem watchers, settings IO, project management, ripgrep search, project allowlist, etc. Adding "unified State + Command + projection" to it would further confuse the layer boundary. `@vt/graph-state` sits strictly between graph-model (pure Graph) and the cytoscape shell, and it is a pure state-machine module. It depends on graph-model for the underlying types but adds no FS coupling. L1 tasks (BF-142..BF-163) already assume this name.
 
 **Alternatives considered.**
 - Reuse `@vt/graph-model` — rejected: muddles layers; graph-model's scope is FS ↔ Graph, not UI-state.
@@ -88,11 +88,11 @@
 | `collapseSet`             | Yes       | Existing collapseState store (unchanged)   |
 | `selection`               | No        | Session-only                               |
 | `layout.positions`        | Yes       | Existing `.positions.json` (unchanged)     |
-| `layout.zoom` / `pan`     | No        | Session-only (may be cached per-vault L2)  |
+| `layout.zoom` / `pan`     | No        | Session-only (may be cached per-project L2)  |
 | `layout.fit`              | No        | Ephemeral                                  |
 | `meta.revision`           | No        | Resets to 0 on startup                     |
 
-**Rationale.** Mirrors existing behavior exactly; no migration needed at L1. L2 may add per-vault zoom persistence — that is additive (new optional field), doesn't break v1 consumers.
+**Rationale.** Mirrors existing behavior exactly; no migration needed at L1. L2 may add per-project zoom persistence — that is additive (new optional field), doesn't break v1 consumers.
 
 **Alternatives considered.**
 - Persist selection across restart — rejected: UX noise; users don't expect it.

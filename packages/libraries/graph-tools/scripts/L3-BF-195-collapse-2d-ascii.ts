@@ -29,7 +29,7 @@ type GraphNode = {
 }
 type Dataset = {
     readonly name: string
-    readonly kind: 'fixture' | 'vault'
+    readonly kind: 'fixture' | 'project'
     readonly nodes: ReadonlyMap<string, GraphNode>
     readonly edges: readonly DirectedEdge[]
 }
@@ -79,9 +79,9 @@ function nodeLabel(node: GraphNode): string {
     return node.displayTitle === node.shortId ? node.shortId : `${node.shortId}\n${node.displayTitle}`
 }
 
-function loadDatasetFromState(state: JsonState, vaultRoot: string): Dataset {
+function loadDatasetFromState(state: JsonState, projectRoot: string): Dataset {
     const ids: readonly string[] = Object.keys(state.graph.nodes).sort()
-    const footerIds: readonly string[] = ids.map(id => relId(id, vaultRoot))
+    const footerIds: readonly string[] = ids.map(id => relId(id, projectRoot))
     const nodes = new Map<string, GraphNode>()
     for (let index = 0; index < ids.length; index++) {
         const absId: string = ids[index]!
@@ -103,7 +103,7 @@ function loadDatasetFromState(state: JsonState, vaultRoot: string): Dataset {
             edges.push({src, tgt: edge.targetId, label: edge.label})
         }
     }
-    return {name: path.basename(vaultRoot), kind: 'vault', nodes, edges}
+    return {name: path.basename(projectRoot), kind: 'project', nodes, edges}
 }
 
 function loadDatasetFromFixture(fixturePath: string, labelOverride: string | null): Dataset {
@@ -346,7 +346,7 @@ function buildRecursive2dAscii(dataset: Dataset, options: RenderOptions): Recurs
     return {text: `${lines.join('\n').trimEnd()}\n`, fragments, degradedCount, maxDepth}
 }
 
-function parseArgs(argv: readonly string[]): {readonly fixturePath: string | null; readonly label: string | null; readonly vaultRoot: string | null; readonly statePath: string | null; readonly options: RenderOptions} {
+function parseArgs(argv: readonly string[]): {readonly fixturePath: string | null; readonly label: string | null; readonly projectRoot: string | null; readonly statePath: string | null; readonly options: RenderOptions} {
     let fixturePath: string | null = null
     let statePath: string | null = null
     let maxInlineEdges: number = DEFAULTS.maxInlineEdges
@@ -369,21 +369,21 @@ function parseArgs(argv: readonly string[]): {readonly fixturePath: string | nul
     if (fixturePath && statePath) throw new Error('Choose either --fixture or --state, not both.')
     if (fixturePath) {
         if (positionals.length > 1) throw new Error('Usage: L3-BF-195-collapse-2d-ascii.ts [label] --fixture <fixture.json> [--max-inline-edges N|inf] [--max-inline-nodes N|inf] [--max-depth N]')
-        return {fixturePath, label: positionals[0] ?? null, vaultRoot: null, statePath: null, options: {maxInlineEdges, maxInlineNodes, maxDepth}}
+        return {fixturePath, label: positionals[0] ?? null, projectRoot: null, statePath: null, options: {maxInlineEdges, maxInlineNodes, maxDepth}}
     }
     if (positionals.length > 1 || (positionals.length === 0 && !statePath)) {
-        throw new Error('Usage: L3-BF-195-collapse-2d-ascii.ts <vault-root> [--state <state.json>] [--max-inline-edges N|inf] [--max-inline-nodes N|inf] [--max-depth N]')
+        throw new Error('Usage: L3-BF-195-collapse-2d-ascii.ts <project-root> [--state <state.json>] [--max-inline-edges N|inf] [--max-inline-nodes N|inf] [--max-depth N]')
     }
-    return {fixturePath: null, label: null, vaultRoot: positionals[0] ? path.resolve(positionals[0]) : null, statePath, options: {maxInlineEdges, maxInlineNodes, maxDepth}}
+    return {fixturePath: null, label: null, projectRoot: positionals[0] ? path.resolve(positionals[0]) : null, statePath, options: {maxInlineEdges, maxInlineNodes, maxDepth}}
 }
 
 function main(): void {
-    const {fixturePath, label, vaultRoot, statePath, options} = parseArgs(process.argv.slice(2))
+    const {fixturePath, label, projectRoot, statePath, options} = parseArgs(process.argv.slice(2))
     const dataset: Dataset = fixturePath
         ? loadDatasetFromFixture(fixturePath, label)
         : loadDatasetFromState(
-            statePath ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : loadStateFromRoot(vaultRoot!),
-            vaultRoot ?? lcpOfIds(Object.keys((JSON.parse(fs.readFileSync(statePath!, 'utf8')) as JsonState).graph.nodes)),
+            statePath ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : loadStateFromRoot(projectRoot!),
+            projectRoot ?? lcpOfIds(Object.keys((JSON.parse(fs.readFileSync(statePath!, 'utf8')) as JsonState).graph.nodes)),
         )
     process.stdout.write(buildRecursive2dAscii(dataset, options).text)
 }
