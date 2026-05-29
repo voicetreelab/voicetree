@@ -2,7 +2,6 @@ import {describe, expect, it} from 'vitest'
 import {
     aggregateScore,
     computeCompletion,
-    computeCorrectness,
     computeCoverage,
     computeEfficiencyDim,
     computeFitness,
@@ -422,16 +421,16 @@ describe('computeFitness — black-box acceptance', () => {
     })
 })
 
-describe('computeCorrectness', () => {
+describe('aggregateScore', () => {
     it('matches OUTCOME_SCORES mean', () => {
         const attempts = [
             attempt('graph create', 'first-try-correct'),
             attempt('graph structure', 'retry-after-failure'),
         ]
-        expect(computeCorrectness(attempts)).toBeCloseTo((1.0 + 0.4) / 2)
+        expect(aggregateScore(attempts)).toBeCloseTo((1.0 + 0.4) / 2)
     })
 
     it('returns 0 on empty input', () => {
-        expect(computeCorrectness([])).toBe(0)
+        expect(aggregateScore([])).toBe(0)
     })
 })

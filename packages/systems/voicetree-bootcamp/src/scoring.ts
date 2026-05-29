@@ -109,17 +109,6 @@ export function scoreFor(outcome: ScoreOutcome): number {
 }
 
 /**
- * Mean of OUTCOME_SCORES across the per-command attempts. Thin rename of
- * aggregateScore — kept distinct so callers compose the full fitness via
- * computeCorrectness without reaching back into the per-command helpers.
- */
-export function computeCorrectness(attempts: readonly CommandAttempt[]): number {
-    if (attempts.length === 0) return 0
-    const total = attempts.reduce((sum, a) => sum + OUTCOME_SCORES[a.outcome], 0)
-    return total / attempts.length
-}
-
-/**
  * One efficiency dim: budget over actual, clamped to (EPSILON, 1]. actual ≤ 0
  * means no work was attempted — that case belongs to the gates, not this dim,
  * so return 1 (no penalty here).
@@ -204,7 +193,7 @@ export function computeFitness(input: {
 }): FitnessBreakdown {
     const {attempts, shimLog, expected, telemetry, budgets, success} = input
 
-    const correctness = clampToUnit(computeCorrectness(attempts))
+    const correctness = clampToUnit(aggregateScore(attempts))
     const vtEff = computeEfficiencyDim(budgets.vtInvocations, telemetry.vtInvocationCount)
     const tokenEff = computeEfficiencyDim(
         budgets.tokens,

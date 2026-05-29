@@ -34,8 +34,8 @@ export type CommandPattern = {
 }
 
 /**
- * Per-command outcome category. Input to computeCorrectness — kept as the
- * Phase 1 5-tier rubric; later phases may refine.
+ * Per-command outcome category. Scored via OUTCOME_SCORES and meaned by
+ * aggregateScore — kept as the Phase 1 5-tier rubric; later phases may refine.
  */
 export type ScoreOutcome =
     | 'first-try-correct'
