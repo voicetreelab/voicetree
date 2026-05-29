@@ -201,17 +201,21 @@ describe('graph create schema gate (filesystem mode)', () => {
         })
     })
 
-    it('rejects --override flags in filesystem mode (CLI gate is non-overridable)', async () => {
+    it('accepts filesystem --override for graph validation rules', async () => {
         const targetPath: string = join(vaultRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nNeeded marker.\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
-            ['work/topic.md', '--override', 'node_line_limit:reason'],
+            ['work/topic.md', '--override', 'node_must_have_edge:temporary unlinked note'],
             vaultRoot
         )
 
-        expect(result.exitCode).toBe(1)
-        expect(result.stderr).toContain('--override is only valid with live-mode')
+        expect(result.exitCode).toBeNull()
+        const payload: unknown = JSON.parse(result.stdout.trim())
+        expect(payload).toMatchObject({
+            nodes: [{path: 'work/topic.md', status: 'ok', overriddenRuleIds: ['node_must_have_edge']}],
+            summary: {ok: 1, rejected: 0, skipped: 0, warning: 0},
+        })
     })
 
     it('skips validation when no upstream folder note declares a Type', async () => {
@@ -278,7 +282,7 @@ describe('graph create schema gate (filesystem mode)', () => {
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
         expect(payload).toMatchObject({
-            nodes: [{path: 'work/topic.md', status: 'rejected'}],
+            nodes: [{path: 'work/topic.md', status: 'rejected', ruleIds: ['node_must_have_edge']}],
             summary: {ok: 0, rejected: 1, skipped: 0, warning: 0},
         })
     })

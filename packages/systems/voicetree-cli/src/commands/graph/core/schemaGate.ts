@@ -116,7 +116,7 @@ export function formatBatchReportLine(verdict: NodeVerdict): string {
             const ruleIdsLabel: string = ruleIds.length > 0 ? `  ${formatRuleIdList(ruleIds)}` : ''
             const planMessage: string = verdict.planErrorMessage ? `  ${verdict.planErrorMessage}` : ''
             const overrideHint: string =
-                ruleIds.length > 0 && verdict.typeName !== undefined
+                ruleIds.length > 0
                     ? `  (rerun with ${formatOverrideHint(ruleIds)})`
                     : ''
             return `✗ ${verdict.path}${ruleIdsLabel}${planMessage}${overrideHint}`

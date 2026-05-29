@@ -9,10 +9,12 @@ import type {
     GraphCreateSuccess,
     NodeVerdict,
 } from '../core/types'
+import type {OverridableRuleId} from '@vt/graph-validation'
 
 type PlanErrorLike = {
     readonly message: string
     readonly filename?: string
+    readonly ruleId?: OverridableRuleId
 }
 
 export function indexMcpResults(result: GraphCreateSuccess): ReadonlyMap<string, GraphCreateResult> {
@@ -82,6 +84,7 @@ export function mergePlanIntoGateVerdicts(
     gateVerdicts: readonly GatedInput[],
     writePlan: readonly FilesystemAuthoringPlanEntry[],
     planErrorsByFilename: ReadonlyMap<string, readonly PlanErrorLike[]>,
+    overriddenRuleIdsByFilename: ReadonlyMap<string, readonly OverridableRuleId[]> = new Map(),
 ): readonly NodeVerdict[] {
     const planByFilename: Map<string, FilesystemAuthoringPlanEntry> = new Map()
     for (const entry of writePlan) {
@@ -89,27 +92,33 @@ export function mergePlanIntoGateVerdicts(
     }
 
     return gateVerdicts.map((gated): NodeVerdict => {
-        // A plan-level rejection (orphan node, duplicate target, oversized body)
-        // is a structural impossibility that must override any non-rejected gate
-        // verdict, including `skipped` (schema didn't apply). A skipped verdict
-        // is not an endorsement: an orphan whose folder has no schema plugin must
-        // still be rejected, never silently dropped.
+        // Plan-level rejections must override any non-rejected gate verdict,
+        // including `skipped` (schema didn't apply). A skipped verdict is not
+        // an endorsement: an unresolved attachment rule violation whose folder
+        // has no schema plugin must still be rejected, never silently dropped.
         const planErrors: readonly PlanErrorLike[] | undefined =
             planErrorsByFilename.get(gated.path)
         if (planErrors !== undefined && planErrors.length > 0) {
+            const ruleIds: readonly OverridableRuleId[] = [
+                ...new Set(planErrors.flatMap((e) => e.ruleId === undefined ? [] : [e.ruleId])),
+            ]
             return {
                 path: gated.path,
                 status: 'rejected',
                 planErrorMessage: planErrors.map((e) => e.message).join('; '),
+                ...(ruleIds.length > 0 ? {ruleIds} : {}),
             }
         }
 
         if (gated.verdict.status !== 'ok') return gated.verdict
 
         const planEntry: FilesystemAuthoringPlanEntry | undefined = planByFilename.get(gated.path)
+        const overriddenRuleIds: readonly OverridableRuleId[] | undefined =
+            overriddenRuleIdsByFilename.get(gated.path)
         return {
             ...gated.verdict,
             ...(planEntry && planEntry.fixes.length > 0 ? {fixes: planEntry.fixes} : {}),
+            ...(overriddenRuleIds && overriddenRuleIds.length > 0 ? {overriddenRuleIds} : {}),
         }
     })
 }

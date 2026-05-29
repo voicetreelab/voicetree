@@ -182,13 +182,39 @@ describe('graph create batch reporting (filesystem mode)', () => {
         const payload = JSON.parse(result.stderr.trim())
         expect(payload).toMatchObject({
             kind: 'graph_create_batch_result',
-            nodes: [{path: 'work/lonely.md', status: 'rejected'}],
+            nodes: [{path: 'work/lonely.md', status: 'rejected', ruleIds: ['node_must_have_edge']}],
             summary: {ok: 0, rejected: 1, skipped: 0, warning: 0},
         })
         expect(payload.nodes[0].planErrorMessage).toContain('no parent edge')
         // The orphan check rejects before applyFilesystemPlan runs, so the source
         // file is left exactly as the author wrote it: no frontmatter/parent fixes applied.
         expect(await readFile(join(vaultRoot, 'work', 'lonely.md'), 'utf8')).toBe('# Lonely\n\nNeeded marker.\n')
+    })
+
+    it('case 13: orphan rule can be overridden with rationale', async () => {
+        await writeFile(join(vaultRoot, 'work', 'lonely.md'), '# Lonely\n\nNeeded marker.\n', 'utf8')
+
+        const result: CapturedRun = await captureGraphCreate(
+            ['work/lonely.md', '--override', 'node_must_have_edge:intentional inbox node'],
+            vaultRoot,
+        )
+
+        expect(result.exitCode).toBeNull()
+        const payload = JSON.parse(result.stdout)
+        expect(payload).toMatchObject({
+            nodes: [
+                {
+                    path: 'work/lonely.md',
+                    status: 'ok',
+                    overriddenRuleIds: ['node_must_have_edge'],
+                },
+            ],
+            summary: {ok: 1, rejected: 0, skipped: 0, warning: 0},
+        })
+        const written = await readFile(join(vaultRoot, 'work', 'lonely.md'), 'utf8')
+        expect(written).toContain('# Lonely')
+        expect(written).toContain('isContextNode: false')
+        expect(written).not.toContain('- parent [[')
     })
 
     it('case 12: a body parent link satisfies attachment without --parent', async () => {

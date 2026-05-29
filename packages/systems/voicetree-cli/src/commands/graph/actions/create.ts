@@ -34,7 +34,13 @@ import {
     type GatedInput,
 } from './gateVerdicts'
 import {emitBatchReport, emitMcpFailureAndExit} from './batchEmit'
-import {findOrphanNodes, type OrphanNodeError} from './orphanCheck'
+import {
+    filesystemViolationsToPlanErrors,
+    findNodeMustHaveEdgeViolations,
+    resolveFilesystemOverrides,
+    violationFilenamesByRuleId,
+    type FilesystemRuleViolation,
+} from './orphanCheck'
 import {
     indexMcpResults,
     indexPlanErrorsByFilename,
@@ -130,12 +136,15 @@ async function runFilesystem(
         return
     }
 
-    const orphanErrors: readonly OrphanNodeError[] = findOrphanNodes(
+    const attachmentViolations: readonly FilesystemRuleViolation[] = findNodeMustHaveEdgeViolations(
         planResult.writePlan,
         externalParentRef,
     )
-    if (orphanErrors.length > 0) {
-        const {byFilename} = indexPlanErrorsByFilename(orphanErrors)
+    const attachmentOverrides = resolveFilesystemOverrides(attachmentViolations, parsedArgs.overrides)
+    if (attachmentOverrides.unresolved.length > 0) {
+        const {byFilename} = indexPlanErrorsByFilename(
+            filesystemViolationsToPlanErrors(attachmentOverrides.unresolved),
+        )
         const merged: readonly NodeVerdict[] = mergePlanIntoGateVerdicts(
             gateVerdicts,
             planResult.writePlan,
@@ -149,6 +158,7 @@ async function runFilesystem(
         gateVerdicts,
         planResult.writePlan,
         new Map(),
+        violationFilenamesByRuleId(attachmentViolations, 'node_must_have_edge'),
     )
 
     if (parsedArgs.validateOnly) {
