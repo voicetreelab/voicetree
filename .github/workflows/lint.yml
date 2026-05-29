@@ -25,3 +25,7 @@ jobs:
 
       - name: Run repo lint
         run: npm run lint
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Lint failed"

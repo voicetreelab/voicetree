@@ -93,3 +93,7 @@ jobs:
           fi
           echo "Smoke-testing image: $IMAGE"
           bash docker/test/smoke.sh
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Docker image workflow failed"

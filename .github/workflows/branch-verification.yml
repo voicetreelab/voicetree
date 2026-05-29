@@ -41,6 +41,10 @@ jobs:
       - name: Run tier 2 checks
         run: npm run test:t2
 
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Static gates failed"
+
   browser-smoke:
     needs: [static-gates]
     runs-on: ubuntu-latest
@@ -90,6 +94,10 @@ jobs:
       - name: Run Electron Tier 2 E2E
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
         run: xvfb-run --auto-servernum npm --workspace webapp run test:e2e
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Browser smoke failed"
 
   electron-smoke:
     needs: [static-gates]
@@ -159,3 +167,7 @@ jobs:
             webapp/test-results/
             webapp/playwright-report-tier1-system/
           retention-days: 7
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Electron smoke failed"
