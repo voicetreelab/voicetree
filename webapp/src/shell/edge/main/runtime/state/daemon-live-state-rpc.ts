@@ -21,7 +21,7 @@ import {
     type State,
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
-import { createRpcClientForVault, type DaemonRpcClient, type JsonRpcResponse } from '@vt/vt-rpc'
+import { createRpcClientForProject, type DaemonRpcClient, type JsonRpcResponse } from '@vt/vt-rpc'
 
 import { getActiveVault } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 
@@ -89,7 +89,7 @@ async function buildClient(): Promise<DaemonRpcClient> {
             'daemon-live-state-rpc: no vault is bound. Open a vault before dispatching live commands.',
         )
     }
-    return await createRpcClientForVault(vaultPath, { env: process.env })
+    return await createRpcClientForProject(vaultPath, { env: process.env })
 }
 
 function unwrap<T>(response: JsonRpcResponse, method: string): T {

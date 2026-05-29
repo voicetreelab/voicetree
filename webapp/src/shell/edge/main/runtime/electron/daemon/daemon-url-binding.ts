@@ -182,7 +182,7 @@ export function getVtDaemonClient(): VtDaemonClient {
  * VTD child. Lets unit tests exercise consumers of `getActiveVault()` (e.g.
  * the Main-side live-state RPC client) without going through
  * `ensureVtDaemonForVault`. The client/facade fields are left as no-op stubs
- * because tests using this path point `createRpcClientForVault` at a local
+ * because tests using this path point `createRpcClientForProject` at a local
  * HTTP listener via the on-disk discovery files (`rpc.port` + `auth-token`)
  * rather than reusing the cached snapshot.
  */

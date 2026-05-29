@@ -4,7 +4,7 @@
  * Black-box: no internal mocks. The test stands up a tiny real HTTP listener
  * masquerading as the daemon's `/rpc` endpoint, writes the discovery files
  * (`.voicetree/rpc.port`, `.voicetree/auth-token`) so `@vt/vt-rpc`'s
- * `createRpcClientForVault` resolves to it, and installs a synthetic main
+ * `createRpcClientForProject` resolves to it, and installs a synthetic main
  * window so `renderer-live-state-proxy.applyRendererLiveCommand` has a
  * `webContents.executeJavaScript` boundary to push at.
  *
