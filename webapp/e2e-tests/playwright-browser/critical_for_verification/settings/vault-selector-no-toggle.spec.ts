@@ -113,7 +113,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
 
         // App support path (used by VaultPathSelector to derive home directory)
-        getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
+        getVoicetreeHomePath: async (): Promise<string> => '/Users/testuser/.voicetree',
 
         markFrontendReady: async () => { setTimeout(broadcastVaultState, 10); },
         getLiveStateSnapshot: async () => ({

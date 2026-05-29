@@ -121,7 +121,7 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         return {
-          appSupportPath: await api.main.getAppSupportPath(),
+          appSupportPath: await api.main.getVoicetreeHomePath(),
           mcpPort: await api.main.getMcpPort(),
         };
       });

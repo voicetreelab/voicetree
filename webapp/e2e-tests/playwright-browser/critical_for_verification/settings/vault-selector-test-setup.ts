@@ -225,7 +225,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         },
         createDatedVoiceTreeFolder: async () => {},
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
-        getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
+        getVoicetreeHomePath: async (): Promise<string> => '/Users/testuser/.voicetree',
         getVaultPaths: async (): Promise<readonly string[]> => [...mockVaultPaths],
         getWriteFolder: async () => ({ _tag: 'Some' as const, value: mockWriteFolder }),
         setWriteFolder: async (path: string) => {
