@@ -22,7 +22,7 @@ import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import type {CheckpointResult, ScenarioSpec, SuccessResult} from '../types.ts'
-import {listMarkdownFiles, parseWikilinks} from './_helpers.ts'
+import {listMarkdownFiles, parseWikilinks, stripMdExt} from './_helpers.ts'
 
 const FIXTURE_DIR = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -392,9 +392,6 @@ function groupBy<T, K>(items: readonly T[], key: (t: T) => K): Map<K, readonly T
     return out as Map<K, readonly T[]>
 }
 
-function stripMdExt(s: string): string {
-    return s.endsWith('.md') ? s.slice(0, -3) : s
-}
 
 async function copyDir(src: string, dst: string): Promise<void> {
     await fs.mkdir(dst, {recursive: true})

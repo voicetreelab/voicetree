@@ -12,9 +12,9 @@
  */
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
-import type {ScenarioSpec, ShimLogEntry, SuccessResult} from '../types.ts'
-import {parseShimLog, matchesVerb} from '../shim-log.ts'
-import {fileExists, writeFile} from './_helpers.ts'
+import type {ScenarioSpec, SuccessResult} from '../types.ts'
+import {matchesVerb} from '../shim-log.ts'
+import {fileExists, loadShimLog, writeFile} from './_helpers.ts'
 
 const TASK_PROMPT = `This vault has about 20 notes across several topics. Build a semantic index
 over the vault, then search it for the query "authentication flow". Open the
@@ -200,16 +200,5 @@ async function directoryNonEmpty(dir: string): Promise<boolean> {
         return false
     } catch {
         return false
-    }
-}
-
-async function loadShimLog(vaultDir: string): Promise<readonly ShimLogEntry[]> {
-    const shimLogPath = process.env.VT_BOOTCAMP_SHIM_LOG_PATH
-        ?? path.join(vaultDir, '.voicetree', 'shim-log.jsonl')
-    try {
-        const raw = await fs.readFile(shimLogPath, 'utf8')
-        return parseShimLog(raw)
-    } catch {
-        return []
     }
 }

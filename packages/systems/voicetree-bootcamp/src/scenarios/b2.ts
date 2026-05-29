@@ -4,12 +4,10 @@
  * Single-node caching vault; agent must drive the entire `vt agent *` surface
  * with a follow-up about write-behind threaded between spawn and close.
  */
-import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
 import type {ScenarioSpec, SuccessResult, ShimLogEntry} from '../types.ts'
-import {parseShimLog} from '../shim-log.ts'
 import {matchesVerb} from '../shim-log.ts'
-import {writeFile} from './_helpers.ts'
+import {loadShimLog, writeFile} from './_helpers.ts'
 
 const NODE_ID = 'caching-001'
 const NODE_FILE = 'notes-on-caching.md'
@@ -113,15 +111,4 @@ function spawnTargetsNode(entry: ShimLogEntry, nodeId: string): boolean {
     const idx = entry.argv.indexOf('--node')
     if (idx < 0 || idx + 1 >= entry.argv.length) return false
     return entry.argv[idx + 1] === nodeId
-}
-
-async function loadShimLog(vaultDir: string): Promise<readonly ShimLogEntry[]> {
-    const shimLogPath = process.env.VT_BOOTCAMP_SHIM_LOG_PATH
-        ?? path.join(vaultDir, '.voicetree', 'shim-log.jsonl')
-    try {
-        const raw = await fs.readFile(shimLogPath, 'utf8')
-        return parseShimLog(raw)
-    } catch {
-        return []
-    }
 }

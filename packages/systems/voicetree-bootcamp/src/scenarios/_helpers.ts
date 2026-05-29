@@ -6,6 +6,8 @@
  */
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
+import type {ShimLogEntry} from '../types.ts'
+import {parseShimLog} from '../shim-log.ts'
 
 export async function writeFile(filePath: string, content: string): Promise<void> {
     await fs.mkdir(path.dirname(filePath), {recursive: true})
@@ -118,6 +120,30 @@ export function stripFrontmatter(raw: string): string {
     const end = lines.indexOf('---', 1)
     if (end < 0) return raw
     return lines.slice(end + 1).join('\n')
+}
+
+/**
+ * Strip a trailing `.md` extension from a wikilink target or filename, so
+ * `[[Foo]]` and `[[Foo.md]]` both resolve to the same node basename.
+ */
+export function stripMdExt(s: string): string {
+    return s.endsWith('.md') ? s.slice(0, -3) : s
+}
+
+/**
+ * Read and parse the PATH-shim JSONL log for a vault. The shim path is the
+ * `VT_BOOTCAMP_SHIM_LOG_PATH` override or `<vaultDir>/.voicetree/shim-log.jsonl`.
+ * Returns an empty list if the file is absent/unreadable.
+ */
+export async function loadShimLog(vaultDir: string): Promise<readonly ShimLogEntry[]> {
+    const shimLogPath = process.env.VT_BOOTCAMP_SHIM_LOG_PATH
+        ?? path.join(vaultDir, '.voicetree', 'shim-log.jsonl')
+    try {
+        const raw = await fs.readFile(shimLogPath, 'utf8')
+        return parseShimLog(raw)
+    } catch {
+        return []
+    }
 }
 
 /**

@@ -7,7 +7,7 @@
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
 import type {ScenarioSpec, SuccessResult} from '../types.ts'
-import {fileExists, listMarkdownFiles, parseFrontmatter, parseWikilinks, writeFile} from './_helpers.ts'
+import {fileExists, listMarkdownFiles, parseFrontmatter, parseWikilinks, stripMdExt, writeFile} from './_helpers.ts'
 
 const COOLDOWN_PATH = ['.voicetree', 'graphd.cooldown.json'] as const
 
@@ -115,8 +115,4 @@ function countEdgesAmongNotes(notes: readonly {path: string; raw: string}[]): nu
         }
     }
     return edges
-}
-
-function stripMdExt(s: string): string {
-    return s.endsWith('.md') ? s.slice(0, -3) : s
 }

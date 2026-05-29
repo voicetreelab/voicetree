@@ -2,8 +2,8 @@
  * Codex CLI harness driver.
  *
  * Pure parseCodexStream interprets the `codex exec --json` NDJSON; impure
- * runScenario spawns `codex exec`, captures stdout to a transcript file,
- * and folds in driver-measured wall-clock time.
+ * runScenario delegates to runHarnessProcess to spawn `codex exec`, capture
+ * stdout to a transcript file, and fold in driver-measured wall-clock time.
  *
  * Token strategy (per bootcamp-impl-runner-telemetry, Codex section):
  * sum `turn.completed.usage.{input_tokens, cached_input_tokens,
@@ -27,11 +27,9 @@
  * `lastTurnSettled` is true iff the stream ended cleanly: at least one
  * `turn.completed` event was seen AND no `turn.failed` event followed it.
  */
-import {spawn} from 'node:child_process'
-import {createWriteStream} from 'node:fs'
-import {readFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import type {HarnessDriver, RunTelemetry} from '../types.ts'
+import {runHarnessProcess} from './_harnessProcess.ts'
 
 type CodexUsage = {
     input_tokens?: number
@@ -149,72 +147,34 @@ export const codexDriver: HarnessDriver = {
     // Only one Codex model exposed through this driver for v1. Subsequent
     // SKU variants land when the effort knob is wired (see TODO below).
     models: ['codex-1'],
-    runScenario: async (opts) => {
-        const transcriptPath = join(opts.artifactDir, 'transcript.jsonl')
+    runScenario: (opts) => {
         const finalMessagePath = join(opts.artifactDir, 'final-message.txt')
 
         // TODO: effort knob → model SKU swap; needs probe of
         // ~/.codex/config.toml or codex doctor before integration.
         // For now we pass `opts.model` through verbatim and ignore
         // `opts.effort` at spawn time.
-        const args = [
-            'exec',
-            '--json',
-            '--model',
-            opts.model,
-            '--cd',
-            opts.cwd,
-            '--skip-git-repo-check',
-            '--ephemeral',
-            '-a',
-            'never',
-            '-s',
-            'danger-full-access',
-            '-o',
-            finalMessagePath,
-            '--',
-            opts.prompt,
-        ]
-
-        const start = Date.now()
-        const child = spawn('codex', args, {
-            cwd: opts.cwd,
-            env: {...opts.env},
-            stdio: ['ignore', 'pipe', 'pipe'],
+        return runHarnessProcess(opts, {
+            command: 'codex',
+            args: [
+                'exec',
+                '--json',
+                '--model',
+                opts.model,
+                '--cd',
+                opts.cwd,
+                '--skip-git-repo-check',
+                '--ephemeral',
+                '-a',
+                'never',
+                '-s',
+                'danger-full-access',
+                '-o',
+                finalMessagePath,
+                '--',
+                opts.prompt,
+            ],
+            parse: parseCodexStream,
         })
-
-        const transcriptStream = createWriteStream(transcriptPath)
-        child.stdout.pipe(transcriptStream)
-        child.stderr.resume()
-
-        const timeoutHandle = setTimeout(() => {
-            child.kill('SIGKILL')
-        }, opts.timeoutMs)
-
-        const exitInfo = await new Promise<{
-            code: number | null
-            signal: NodeJS.Signals | null
-        }>((resolve) => {
-            child.on('close', (code, signal) => {
-                clearTimeout(timeoutHandle)
-                resolve({code, signal})
-            })
-        })
-
-        const wallClockMs = Date.now() - start
-
-        await new Promise<void>((resolve) => {
-            if (transcriptStream.closed) resolve()
-            else transcriptStream.end(() => resolve())
-        })
-
-        const ndjson = await readFile(transcriptPath, 'utf8')
-        const {telemetry: partial} = parseCodexStream(ndjson)
-
-        return {
-            transcriptPath,
-            telemetry: {...partial, wallClockMs},
-            exitInfo,
-        }
     },
 }
