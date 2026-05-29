@@ -34,6 +34,7 @@ import {
     type GatedInput,
 } from './gateVerdicts'
 import {emitBatchReport, emitMcpFailureAndExit} from './batchEmit'
+import {findOrphanNodes, type OrphanNodeError} from './orphanCheck'
 import {
     indexMcpResults,
     indexPlanErrorsByFilename,
@@ -126,6 +127,21 @@ async function runFilesystem(
         const {byFilename, unattached} = indexPlanErrorsByFilename(planResult.errors)
         const merged: readonly NodeVerdict[] = mergePlanIntoGateVerdicts(gateVerdicts, [], byFilename)
         emitBatchReport(buildBatchReport(merged, unattached))
+        return
+    }
+
+    const orphanErrors: readonly OrphanNodeError[] = findOrphanNodes(
+        planResult.writePlan,
+        externalParentRef,
+    )
+    if (orphanErrors.length > 0) {
+        const {byFilename} = indexPlanErrorsByFilename(orphanErrors)
+        const merged: readonly NodeVerdict[] = mergePlanIntoGateVerdicts(
+            gateVerdicts,
+            planResult.writePlan,
+            byFilename,
+        )
+        emitBatchReport(buildBatchReport(merged))
         return
     }
 

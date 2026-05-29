@@ -120,3 +120,5 @@ export {
     type FilesystemAuthoringPlanResult,
 } from './authoring/filesystemAuthoring'
 
+export {extractExistingParentRefs} from './authoring/authoringFixes'
+
