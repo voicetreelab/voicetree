@@ -3,6 +3,7 @@ import path from 'node:path'
 import {type Delta} from '@vt/graph-state'
 import {linkMatchScore} from '@vt/graph-model'
 import {removePositionForFile, writePositionForFile} from '../../livePositionPersist'
+import {liveStateDump} from '../../../src/live/live'
 import type {ParsedLiveCrudCommand} from './liveCrudParse'
 
 export interface LiveGraphNodeSnapshot {

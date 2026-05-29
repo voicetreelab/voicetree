@@ -39,15 +39,6 @@ export interface RpcRoute {
  * family's optional fields, the recovery family's Option-bearing returns)
  * write their handler bodies inline instead of going through the helper.
  */
-export function bindRoute<Req, Res>(
-    fn: (req: Req) => Promise<Res> | Res,
-): RpcHandler {
-    return async (args: Record<string, unknown>): Promise<McpToolResponse> => {
-        const result: Res = await fn(args as unknown as Req)
-        return buildJsonResponse(result ?? null)
-    }
-}
-
 export function voidRoute<Req>(
     fn: (req: Req) => Promise<void> | void,
 ): RpcHandler {

@@ -21,13 +21,6 @@ const defaultGraphFilesystemOps: GraphFilesystemOps = {
 
 let graphFilesystemOps: GraphFilesystemOps = defaultGraphFilesystemOps
 
-export function setGraphFilesystemOpsForTest(overrides?: Partial<GraphFilesystemOps>): void {
-    graphFilesystemOps = {
-        ...defaultGraphFilesystemOps,
-        ...(overrides ?? {}),
-    }
-}
-
 export function readGraphFileUtf8(filePath: string): string {
     return graphFilesystemOps.readFileSync(filePath, 'utf8')
 }

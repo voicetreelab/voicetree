@@ -94,13 +94,3 @@ export function installVtTerminalAttachBridge(deps: VtTerminalAttachBridgeDeps):
         clients.clear()
     }
 }
-
-export const __vtTerminalAttachChannels = {
-    data: DATA_CHANNEL,
-    status: STATUS_CHANNEL,
-    attach: ATTACH_INVOKE,
-    write: WRITE_INVOKE,
-    resize: RESIZE_INVOKE,
-    scroll: SCROLL_INVOKE,
-    detach: DETACH_INVOKE,
-} as const

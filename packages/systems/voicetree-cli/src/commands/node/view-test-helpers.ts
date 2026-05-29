@@ -103,13 +103,6 @@ export async function captureCommand(invoke: () => Promise<void>): Promise<Comma
     }
 }
 
-export async function runViewJson<T>(invoke: () => Promise<void>): Promise<T> {
-    const result: CommandResult = await captureCommand(invoke)
-    expect(result.exitCode).toBeNull()
-    expect(result.stderr).toBe('')
-    return parseStdoutJson<T>(result)
-}
-
 export function setStdoutIsTTY(value: boolean): void {
     Object.defineProperty(process.stdout, 'isTTY', {
         value,

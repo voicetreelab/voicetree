@@ -42,16 +42,6 @@ function parseSnapshot(value: unknown): RendererLiveStateSnapshot {
     }
 }
 
-function buildReadScript(): string {
-    return `(() => {
-  const debug = window.__vtDebug__;
-  if (!debug || typeof debug.liveState !== 'function') {
-    throw new Error('window.__vtDebug__.liveState unavailable');
-  }
-  return debug.liveState();
-})()`
-}
-
 function buildApplyScript(command: RendererOwnedLiveCommand): string {
     return `(async () => {
   const debug = window.__vtDebug__;
@@ -76,11 +66,6 @@ export function isRendererOwnedLiveCommand(
         || command.type === 'SetPan'
         || command.type === 'RequestFit'
     )
-}
-
-export async function readRendererLiveState(): Promise<RendererLiveStateSnapshot> {
-    const raw: unknown = await getWebContents().executeJavaScript(buildReadScript())
-    return parseSnapshot(raw)
 }
 
 export async function applyRendererLiveCommand(
