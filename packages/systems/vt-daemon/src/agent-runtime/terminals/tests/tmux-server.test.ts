@@ -44,9 +44,9 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
     readonly killedPids: number[]
     readonly processes: FakeProcess[]
 } {
-    const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-    const socketPath: string = join(appSupportPath, 'tmux.sock')
-    const lockPath: string = join(appSupportPath, 'tmux.ensure.lock')
+    const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+    const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
+    const lockPath: string = join(voicetreeHomePath, 'tmux.ensure.lock')
     const calls: FakeCall[] = []
     const removedPaths: string[] = []
     const warnLogs: string[] = []
@@ -220,9 +220,9 @@ function commandTuples(calls: readonly FakeCall[]): readonly string[][] {
 
 describe('tmux-server', () => {
     it('builds socket-scoped tmux args from the app support path', () => {
-        const appSupportPath: string = '/tmp/vt support'
-        expect(getTmuxSocketPath(appSupportPath)).toBe('/tmp/vt support/tmux.sock')
-        expect(getTmuxCommandArgs(['list-sessions'], getTmuxSocketPath(appSupportPath))).toEqual([
+        const voicetreeHomePath: string = '/tmp/vt support'
+        expect(getTmuxSocketPath(voicetreeHomePath)).toBe('/tmp/vt support/tmux.sock')
+        expect(getTmuxCommandArgs(['list-sessions'], getTmuxSocketPath(voicetreeHomePath))).toEqual([
             '-S',
             '/tmp/vt support/tmux.sock',
             'list-sessions',
@@ -230,12 +230,12 @@ describe('tmux-server', () => {
     })
 
     it('starts a root session when the socket-scoped tmux server is missing', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const deps = makeDeps()
 
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
 
         expect(commandTuples(deps.calls)).toEqual([
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
@@ -259,8 +259,8 @@ describe('tmux-server', () => {
     })
 
     it('starts the root tmux server through the detached command path', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const deps = makeDeps()
         const detachedCalls: FakeCall[] = []
         const execFile = deps.execFile
@@ -269,7 +269,7 @@ describe('tmux-server', () => {
             execFile(file, args, callback)
         }
 
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
 
         expect(commandTuples(detachedCalls)).toEqual([[
             '/opt/homebrew/bin/tmux',
@@ -287,11 +287,11 @@ describe('tmux-server', () => {
     })
 
     it('removes a stale socket and retries root session startup once', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const deps = makeDeps({failNextStart: true, socketExists: true})
 
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
 
         expect(deps.removedPaths).toContain(socketPath)
         expect(commandTuples(deps.calls).filter((call: readonly string[]) => call[3] === 'new-session')).toHaveLength(2)
@@ -299,10 +299,10 @@ describe('tmux-server', () => {
     })
 
     it('does not run unsupported post-start priority commands on darwin', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
         const deps = makeDeps({platform: 'darwin'})
 
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
 
         const tuples: readonly string[][] = commandTuples(deps.calls)
         expect(tuples.some((call: readonly string[]) => call[0] === 'taskpolicy')).toBe(false)
@@ -310,8 +310,8 @@ describe('tmux-server', () => {
     })
 
     it('kills an orphan tmux daemon with no user sessions before unlinking a stale socket', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         // State 3: socket file exists, but the daemon bound to it has been orphaned
         // (listener gone, process still alive, only the __voicetree_root__ keep-alive).
         const orphanPid: number = 20810
@@ -327,7 +327,7 @@ describe('tmux-server', () => {
             }],
         })
 
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
 
         expect(deps.killedPids).toContain(orphanPid)
         expect(deps.removedPaths).toContain(socketPath)
@@ -336,8 +336,8 @@ describe('tmux-server', () => {
     })
 
     it('refuses to unlink the socket when an orphan daemon holds user agent sessions', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const orphanPid: number = 20810
         const deps = makeDeps({
             failNextStart: true,
@@ -353,7 +353,7 @@ describe('tmux-server', () => {
         })
 
         await expect(
-            ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+            ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
         ).rejects.toThrow(/orphan tmux daemon.*hold user agent sessions/)
 
         expect(deps.killedPids).not.toContain(orphanPid)   // do no harm — don't kill user sessions
@@ -361,8 +361,8 @@ describe('tmux-server', () => {
     })
 
     it('ignores tmux client processes when scanning for orphan daemons', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         // A `tmux attach` client (ppid != 1) mentioning the same socket path
         // must NOT be treated as an orphan daemon.
         const deps = makeDeps({
@@ -377,7 +377,7 @@ describe('tmux-server', () => {
             }],
         })
 
-        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        await ensureTmuxServer({voicetreeHomePath, deps, cleanupLegacyLaunchAgent: false})
 
         expect(deps.killedPids).toEqual([])
         expect(deps.removedPaths).toContain(socketPath)
@@ -385,10 +385,10 @@ describe('tmux-server', () => {
     })
 
     it('removes the legacy macOS LaunchAgent instead of bootstrapping it', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
         const deps = makeDeps({platform: 'darwin', serverRunning: true, socketExists: true})
 
-        await ensureTmuxServer({appSupportPath, deps})
+        await ensureTmuxServer({voicetreeHomePath, deps})
 
         expect(commandTuples(deps.calls)).toContainEqual([
             'launchctl',
@@ -400,11 +400,11 @@ describe('tmux-server', () => {
     })
 
     it('shuts down the socket-scoped tmux server and removes its socket', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const deps = makeDeps({serverRunning: true, socketExists: true})
 
-        await shutdownTmuxServer({appSupportPath, deps})
+        await shutdownTmuxServer({voicetreeHomePath, deps})
 
         expect(commandTuples(deps.calls)).toEqual([
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
@@ -414,11 +414,11 @@ describe('tmux-server', () => {
     })
 
     it('treats a missing tmux server shutdown as a no-op', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const deps = makeDeps({serverRunning: false, socketExists: false})
 
-        await shutdownTmuxServer({appSupportPath, deps})
+        await shutdownTmuxServer({voicetreeHomePath, deps})
 
         expect(commandTuples(deps.calls)).toEqual([
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],

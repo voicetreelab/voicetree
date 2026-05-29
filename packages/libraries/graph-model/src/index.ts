@@ -32,6 +32,6 @@ export type { DirectoryEntry, ParsedQuery } from './pure/folders/transforms'
 // Pure project types
 export type { SavedProject, DiscoveredProject } from './pure/project/types'
 
-// DI initialization (callbacks only; appSupportPath now lives in per-process state modules)
+// DI initialization (callbacks only; voicetreeHomePath now lives in per-process state modules)
 export { initGraphModel, getCallbacks } from './pure/runtime/types'
 export type { GraphModelCallbacks } from './pure/runtime/types'

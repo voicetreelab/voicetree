@@ -76,7 +76,7 @@ describe('write path folder visibility seeding', () => {
         appSupportDir = path.join(testTmpDir, 'app-support')
         await fs.mkdir(appSupportDir, { recursive: true })
 
-        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        process.env.VOICETREE_HOME_PATH = appSupportDir
         initGraphModel({
             syncVaultState: vi.fn(),
             syncFolderTree: vi.fn(),

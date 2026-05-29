@@ -37,6 +37,7 @@ import {
   type CallerKind,
   type OwnerDecision,
 } from '@vt/daemon-lifecycle'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 import type {
   EnsureVtDaemonClient,
   EnsureVtDaemonDeps,
@@ -115,7 +116,7 @@ async function runEnsure<TClient extends EnsureVtDaemonClient>(
   options: EnsureVtDaemonOptions,
   deps: EnsureVtDaemonDeps<TClient>,
 ): Promise<EnsureVtDaemonResult<TClient>> {
-  await deps.mkdir(`${canonicalVault}/.voicetree`, { recursive: true })
+  await deps.mkdir(getProjectDotVoicetreePath(canonicalVault), { recursive: true })
   const ctx = makeEnsureContext(canonicalVault, caller, options, deps)
   let backoff = ctx.initialBackoffMs
 

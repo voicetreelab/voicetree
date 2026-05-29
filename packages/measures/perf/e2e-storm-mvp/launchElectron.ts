@@ -20,7 +20,7 @@ export interface ElectronLaunchInputs {
     readonly repoRoot: string
     readonly projectDir: string
     readonly vaultDir: string
-    readonly appSupportPath: string
+    readonly voicetreeHomePath: string
     readonly logFilePath: string
     readonly inspectPort: number
     readonly mcpDiscoveryTimeoutMs: number
@@ -66,10 +66,10 @@ function resolveGraphDaemonNodeBin(repoRoot: string): string {
     return candidates.find(bin => canLoadNativeGraphDbModules(bin, repoRoot)) ?? process.execPath
 }
 
-export function seedUserData(appSupportPath: string, projectDir: string, vaultDir: string): void {
+export function seedUserData(voicetreeHomePath: string, projectDir: string, vaultDir: string): void {
     const projectName = path.basename(projectDir)
     writeFileSync(
-        path.join(appSupportPath, 'projects.json'),
+        path.join(voicetreeHomePath, 'projects.json'),
         JSON.stringify([{
             id: 'e2e-storm-mvp-project',
             path: projectDir,
@@ -81,7 +81,7 @@ export function seedUserData(appSupportPath: string, projectDir: string, vaultDi
         'utf8',
     )
     writeFileSync(
-        path.join(appSupportPath, 'voicetree-config.json'),
+        path.join(voicetreeHomePath, 'voicetree-config.json'),
         JSON.stringify({
             lastDirectory: projectDir,
             vaultConfig: {
@@ -133,7 +133,7 @@ function readMcpPortFromJson(mcpJsonPath: string): number | null {
 export async function launchElectronAndDiscoverMcp(
     inputs: ElectronLaunchInputs,
 ): Promise<ElectronLaunchResult> {
-    seedUserData(inputs.appSupportPath, inputs.projectDir, inputs.vaultDir)
+    seedUserData(inputs.voicetreeHomePath, inputs.projectDir, inputs.vaultDir)
 
     const mainEntry = path.join(inputs.repoRoot, 'webapp', 'dist-electron', 'main', 'index.js')
     if (!existsSync(mainEntry)) {
@@ -145,7 +145,7 @@ export async function launchElectronAndDiscoverMcp(
         args: [
             `--inspect=${inputs.inspectPort}`,
             mainEntry,
-            `--user-data-dir=${inputs.appSupportPath}`,
+            `--user-data-dir=${inputs.voicetreeHomePath}`,
             '--open-folder',
             inputs.projectDir,
         ],

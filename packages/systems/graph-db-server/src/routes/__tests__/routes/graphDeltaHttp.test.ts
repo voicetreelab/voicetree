@@ -87,7 +87,7 @@ describe('HTTP graph delta writes', () => {
   }, 15000)
 
   test('applies a session-tagged delta and returns an ack from /graph/delta', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
     const testNodePath = join(vault, 'test-node-http.md')
@@ -133,7 +133,7 @@ describe('HTTP graph delta writes', () => {
   }, 20000)
 
   test('apply-delta returns ack, updates graph, publishes SSE, and respects recordForUndo false', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
     const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
@@ -196,7 +196,7 @@ describe('HTTP graph delta writes', () => {
   }, 20000)
 
   test('delete-node returns ack, updates graph, and publishes SSE', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
     const testNodePath = join(vault, 'delete-node-http.md')
@@ -263,7 +263,7 @@ describe('HTTP graph delta writes', () => {
   }, 20000)
 
   test('rejects invalid graph delta payloads', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
     handles.push(handle)
 
     const res = await fetch(`http://127.0.0.1:${handle.port}/graph/delta`, {

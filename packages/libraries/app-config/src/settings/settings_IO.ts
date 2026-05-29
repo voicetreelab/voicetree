@@ -1,17 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { homedir } from 'os';
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
 import {getCallbacks} from '@vt/graph-model';
+import {resolveVoicetreeHomePath} from '../paths.ts';
 
-function getSettingsPath(appSupportPath: string): string {
-  return path.join(appSupportPath, 'settings.json');
-}
-
-function resolveSettingsAppSupportPath(): string {
-  return process.env.VOICETREE_APP_SUPPORT ?? path.join(homedir(), '.voicetree');
+function getSettingsPath(voicetreeHomePath: string): string {
+  return path.join(voicetreeHomePath, 'settings.json');
 }
 
 /** Reset the settings cache. For testing only. */
@@ -20,8 +16,8 @@ export function clearSettingsCache(): void {
 }
 
 export async function loadSettings(): Promise<VTSettings> {
-  const appSupportPath: string = resolveSettingsAppSupportPath();
-  const settingsPath: string = getSettingsPath(appSupportPath);
+  const voicetreeHomePath: string = resolveVoicetreeHomePath();
+  const settingsPath: string = getSettingsPath(voicetreeHomePath);
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
@@ -50,8 +46,8 @@ export async function loadSettings(): Promise<VTSettings> {
  * Normal settings loads preserve user edits; only a version transition triggers this overwrite.
  */
 export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersion: string): Promise<boolean> {
-  const appSupportPath: string = resolveSettingsAppSupportPath();
-  const settingsPath: string = getSettingsPath(appSupportPath);
+  const voicetreeHomePath: string = resolveVoicetreeHomePath();
+  const settingsPath: string = getSettingsPath(voicetreeHomePath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -89,8 +85,8 @@ export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersio
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
-  const appSupportPath: string = resolveSettingsAppSupportPath();
-  const settingsPath: string = getSettingsPath(appSupportPath);
+  const voicetreeHomePath: string = resolveVoicetreeHomePath();
+  const settingsPath: string = getSettingsPath(voicetreeHomePath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -132,8 +128,8 @@ export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
-  const appSupportPath: string = resolveSettingsAppSupportPath();
-  const settingsPath: string = getSettingsPath(appSupportPath);
+  const voicetreeHomePath: string = resolveVoicetreeHomePath();
+  const settingsPath: string = getSettingsPath(voicetreeHomePath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -173,8 +169,8 @@ export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
-  const appSupportPath: string = resolveSettingsAppSupportPath();
-  const settingsPath: string = getSettingsPath(appSupportPath);
+  const voicetreeHomePath: string = resolveVoicetreeHomePath();
+  const settingsPath: string = getSettingsPath(voicetreeHomePath);
 
   let userSettings: Partial<VTSettings>;
   try {
@@ -211,8 +207,8 @@ export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
 }
 
 export async function saveSettings(settings: VTSettings): Promise<boolean> {
-  const appSupportPath: string = resolveSettingsAppSupportPath();
-  const settingsPath: string = getSettingsPath(appSupportPath);
+  const voicetreeHomePath: string = resolveVoicetreeHomePath();
+  const settingsPath: string = getSettingsPath(voicetreeHomePath);
   const settingsDir: string = path.dirname(settingsPath);
 
   await fs.mkdir(settingsDir, { recursive: true });

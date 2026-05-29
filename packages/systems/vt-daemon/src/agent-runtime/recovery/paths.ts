@@ -1,4 +1,5 @@
 import path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 
 /**
  * Canonical location for persisted terminal recovery metadata.
@@ -9,5 +10,5 @@ import path from 'node:path'
  * openspec/changes/fix-resume-recovery-and-surviving-agents-ux/design.md decisions 1+2.
  */
 export function getRecoveryMetadataDir(projectRoot: string): string {
-    return path.join(projectRoot, '.voicetree', 'terminals')
+    return path.join(getProjectDotVoicetreePath(projectRoot), 'terminals')
 }

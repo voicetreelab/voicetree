@@ -27,6 +27,7 @@ import type { BuildConfig } from '@/shell/edge/main/runtime/electron/app/build-c
 
 describe('build-config', () => {
   const mockUserDataPath: "/Users/test/Library/Application Support/Electron" = '/Users/test/Library/Application Support/Electron';
+  const voicetreeHomePath: string = '/tmp/voicetree-home';
   // Note: production code uses process.cwd() not app.getAppPath(), so repoRoot is derived from actual cwd
   const repoRoot: string = path.resolve(process.cwd(), '..');
 
@@ -39,6 +40,7 @@ describe('build-config', () => {
     // Reset environment
     delete process.env.NODE_ENV;
     delete process.env.HEADLESS_TEST;
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath;
   });
 
   describe('getBuildConfig - Development Mode', () => {
@@ -53,11 +55,11 @@ describe('build-config', () => {
       expect(config.backendSource).toBe(path.join(repoRoot, 'backend'));
     });
 
-    it('should use Application Support for destination', () => {
+    it('should use VOICETREE_HOME_PATH for destination', () => {
       const config: BuildConfig = getBuildConfig();
 
-      expect(config.toolsDest).toBe(path.join(mockUserDataPath, 'tools'));
-      expect(config.backendDest).toBe(path.join(mockUserDataPath, 'backend'));
+      expect(config.toolsDest).toBe(path.join(voicetreeHomePath, 'tools'));
+      expect(config.backendDest).toBe(path.join(voicetreeHomePath, 'backend'));
     });
 
     it('should configure Python to run via uv from source', () => {

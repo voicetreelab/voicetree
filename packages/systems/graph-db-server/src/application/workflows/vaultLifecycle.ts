@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 import { project } from '@vt/graph-state'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 import {
@@ -178,7 +179,7 @@ async function resolveDefaultWriteFolder(targetProjectRoot: string): Promise<str
 }
 
 async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: string): Promise<void> {
-  await mkdir(join(targetProjectRoot, '.voicetree'), { recursive: true })
+  await mkdir(getProjectDotVoicetreePath(targetProjectRoot), { recursive: true })
   setProjectRoot(targetProjectRoot)
 
   const savedConfig = await getVaultConfigForDirectory(targetProjectRoot)

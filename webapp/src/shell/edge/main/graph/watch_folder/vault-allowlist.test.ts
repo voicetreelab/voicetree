@@ -41,7 +41,7 @@ const FILE_COUNT_ABOVE_RAISED_LIMIT = 1001
 
 function resetGraphModel(): void {
   notifyWriteDirectory = vi.fn()
-  process.env.VOICETREE_APP_SUPPORT = mockUserDataPath
+  process.env.VOICETREE_HOME_PATH = mockUserDataPath
   initGraphModel({
     notifyWriteDirectory,
     fitViewport: vi.fn(),
@@ -203,7 +203,7 @@ describe('voicetree config IO', () => {
   beforeEach(async () => {
     testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-config-io-'))
     await fs.mkdir(mockUserDataPath, { recursive: true })
-    process.env.VOICETREE_APP_SUPPORT = mockUserDataPath
+    process.env.VOICETREE_HOME_PATH = mockUserDataPath
   })
 
   afterEach(async () => {

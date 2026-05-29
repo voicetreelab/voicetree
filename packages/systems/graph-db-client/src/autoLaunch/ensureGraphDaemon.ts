@@ -22,6 +22,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 import {
   boundedDelay,
   decideOwnerAction,
@@ -139,7 +140,7 @@ async function runEnsure(
   caller: CallerKind,
   options: EnsureGraphDaemonOptions,
 ): Promise<EnsureGraphDaemonResult> {
-  await mkdir(`${canonicalVault}/.voicetree`, { recursive: true })
+  await mkdir(getProjectDotVoicetreePath(canonicalVault), { recursive: true })
   const ctx = makeEnsureContext(canonicalVault, caller, options)
   let backoff = ctx.initialBackoffMs
 

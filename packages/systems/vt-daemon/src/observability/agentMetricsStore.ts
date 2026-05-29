@@ -24,7 +24,7 @@
 import {mkdir, readFile, rename, writeFile} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 
-import {VOICETREE_DIRNAME} from '@vt/vt-rpc'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 
 export interface TokenMetrics {
     readonly input: number
@@ -50,7 +50,7 @@ export interface AgentMetricsData {
 export const AGENT_METRICS_FILENAME: string = 'agent_metrics.json'
 
 function metricsFilePath(vault: string): string {
-    return join(resolve(vault), VOICETREE_DIRNAME, AGENT_METRICS_FILENAME)
+    return join(getProjectDotVoicetreePath(resolve(vault)), AGENT_METRICS_FILENAME)
 }
 
 function isValidSession(session: unknown): session is SessionMetric {

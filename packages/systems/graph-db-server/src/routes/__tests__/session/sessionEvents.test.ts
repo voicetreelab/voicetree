@@ -113,7 +113,7 @@ describe('SSE session events', () => {
   test('emits a ProjectedGraph containing a newly mutated node', async () => {
     const handle = await startDaemon({
       vault,
-      appSupportPath: appSupport,
+      voicetreeHomePath: appSupport,
       createStarterIfEmpty: false,
     })
     handles.push(handle)
@@ -175,7 +175,7 @@ describe('SSE session events', () => {
   test('returns 404 for non-existent session', async () => {
     const handle = await startDaemon({
       vault,
-      appSupportPath: appSupport,
+      voicetreeHomePath: appSupport,
       createStarterIfEmpty: false,
     })
     handles.push(handle)

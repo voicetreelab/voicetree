@@ -12,7 +12,7 @@ const settings = {
 describe('buildTerminalEnvVars', () => {
     afterEach(() => {
         configureAgentRuntime({})
-        delete process.env.VOICETREE_APP_SUPPORT
+        delete process.env.VOICETREE_HOME_PATH
     })
 
     it('expands INJECT_ENV_VARS templates against the canonical project root and aggregates vault paths', async () => {
@@ -21,7 +21,7 @@ describe('buildTerminalEnvVars', () => {
         // buildTerminalEnvVarsVaultPath.test.ts for the dedicated regression test
         // covering that contract and the rationale (CLI auth-token up-walk, hook
         // script template, tmuxPromptFile, tmux namespace builder).
-        process.env.VOICETREE_APP_SUPPORT = '/app-support'
+        process.env.VOICETREE_HOME_PATH = '/app-support'
         configureAgentRuntime({
             env: {
                 getProjectRoot: async () => '/watched-project',

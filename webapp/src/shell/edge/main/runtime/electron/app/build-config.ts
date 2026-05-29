@@ -11,6 +11,7 @@
 
 import { app } from 'electron';
 import path from 'path';
+import {resolveVoicetreeHomePath} from '@vt/app-config/paths';
 
 // ============================================================================
 // Types
@@ -22,7 +23,7 @@ type CommonEnv = {
   readonly nodeEnv: NodeEnv;
   readonly isPackaged: boolean;
   readonly isTest: boolean;
-  readonly userDataPath: string;  // Application Support directory
+  readonly userDataPath: string;
 };
 
 export type BuildConfig = {
@@ -77,7 +78,7 @@ function getCommonEnv(): CommonEnv {
   const nodeEnv: NodeEnv = (process.env.NODE_ENV ?? 'production') as NodeEnv;
   const isTest: boolean = process.env.HEADLESS_TEST === '1' || nodeEnv === 'test';
   const isPackaged: boolean = app.isPackaged;
-  const userDataPath: string = app.getPath('userData');
+  const userDataPath: string = resolveVoicetreeHomePath();
 
   return {
     nodeEnv,

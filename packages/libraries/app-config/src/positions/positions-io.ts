@@ -16,13 +16,14 @@ import { readFile } from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import {getProjectDotVoicetreePath} from '../paths.ts'
 
 interface PositionsFile {
     readonly [nodeId: string]: { readonly x: number; readonly y: number }
 }
 
 function positionsFilePath(projectRoot: string): string {
-    return path.join(projectRoot, '.voicetree', 'positions.json')
+    return path.join(getProjectDotVoicetreePath(projectRoot), 'positions.json')
 }
 
 function decodePositions(raw: string): PositionsFile {

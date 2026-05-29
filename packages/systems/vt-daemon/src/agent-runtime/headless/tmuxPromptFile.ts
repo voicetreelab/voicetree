@@ -23,6 +23,7 @@
 import {chmodSync, mkdirSync, rmSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import {join} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 import type {TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {detectCliType, type SupportedHeadlessCli} from '@vt/vt-daemon/agent-runtime/spawn/cli/headlessCli.ts'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
@@ -41,12 +42,12 @@ function tmuxOk(args: string[]): Promise<boolean> {
 }
 
 export function promptFilePath(projectRoot: string, terminalId: TerminalId): string {
-    return join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`)
+    return join(getProjectDotVoicetreePath(projectRoot), 'terminals', `${terminalId}-prompt.txt`)
 }
 
 export function writePromptFile(projectRoot: string, terminalId: TerminalId, prompt: string): string {
     const target: string = promptFilePath(projectRoot, terminalId)
-    mkdirSync(join(projectRoot, '.voicetree', 'terminals'), {recursive: true})
+    mkdirSync(join(getProjectDotVoicetreePath(projectRoot), 'terminals'), {recursive: true})
     writeFileSync(target, prompt, {encoding: 'utf8', mode: 0o600})
     // belt-and-braces: writeFileSync mode is masked by umask on some systems
     chmodSync(target, 0o600)

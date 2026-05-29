@@ -5,12 +5,12 @@
 
 import {mkdir, readFile, rename, writeFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 
-export const VOICETREE_DIRNAME: string = '.voicetree'
 export const RPC_PORT_FILENAME: string = 'rpc.port'
 
 export function rpcPortFilePath(vaultPath: string): string {
-    return join(resolve(vaultPath), VOICETREE_DIRNAME, RPC_PORT_FILENAME)
+    return join(getProjectDotVoicetreePath(resolve(vaultPath)), RPC_PORT_FILENAME)
 }
 
 export async function writeRpcPortFile(vaultPath: string, port: number): Promise<void> {
@@ -19,7 +19,7 @@ export async function writeRpcPortFile(vaultPath: string, port: number): Promise
     }
     const finalPath: string = rpcPortFilePath(vaultPath)
     const tempPath: string = `${finalPath}.${process.pid}.tmp`
-    await mkdir(join(resolve(vaultPath), VOICETREE_DIRNAME), {recursive: true})
+    await mkdir(getProjectDotVoicetreePath(resolve(vaultPath)), {recursive: true})
     await writeFile(tempPath, `${port}\n`, 'utf8')
     await rename(tempPath, finalPath)
 }

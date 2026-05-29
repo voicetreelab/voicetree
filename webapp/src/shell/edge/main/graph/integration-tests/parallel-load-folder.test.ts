@@ -41,7 +41,7 @@ const MIN_SMALL_NODE_COUNT: 10 = 10 as const
 const TIMEOUT_MS: 60000 = 60000 as const
 
 vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
-    getAppSupportPath: vi.fn(() => '/tmp/parallel-load-folder-app-support'),
+    getVoicetreeHomePath: vi.fn(() => '/tmp/parallel-load-folder-app-support'),
     getMainWindow: vi.fn(() => ({
         webContents: { send: vi.fn(), isDestroyed: vi.fn(() => false) },
         isDestroyed: vi.fn(() => false),
@@ -57,7 +57,7 @@ vi.mock('electron', () => ({
 
 let tempFixtureRoot: string | null = null
 let projectRoot: string
-let originalAppSupportPath: string | undefined
+let originalVoicetreeHomePath: string | undefined
 
 async function copyFixture(): Promise<string> {
     if (!tempFixtureRoot) throw new Error('tempFixtureRoot not initialized')
@@ -106,10 +106,10 @@ async function waitForDaemonNodeCount(vault: string): Promise<number> {
 
 describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
     beforeAll(async () => {
-        originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
+        originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
         tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'parallel-load-folder-'))
         const appSupport = path.join(tempFixtureRoot, 'app-support')
-        process.env.VOICETREE_APP_SUPPORT = appSupport
+        process.env.VOICETREE_HOME_PATH = appSupport
         initGraphModel({
             onGraphDelta: (): void => undefined,
             onGraphCleared: (): void => undefined,
@@ -134,7 +134,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
             onGraphCleared: (): void => undefined,
             onWatchingStarted: (): void => undefined,
         }
-        process.env.VOICETREE_APP_SUPPORT = path.join(tempFixtureRoot!, 'app-support')
+        process.env.VOICETREE_HOME_PATH = path.join(tempFixtureRoot!, 'app-support')
         initGraphModel(noopBroadcasts)
 
         setGraph(createGraph({}))
@@ -154,8 +154,8 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
             await fs.rm(tempFixtureRoot, { recursive: true, force: true })
             tempFixtureRoot = null
         }
-        if (originalAppSupportPath === undefined) delete process.env.VOICETREE_APP_SUPPORT
-        else process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+        if (originalVoicetreeHomePath === undefined) delete process.env.VOICETREE_HOME_PATH
+        else process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
     }, TIMEOUT_MS)
 
     it('5 concurrent openVault callers spawn ≤1 vt-graphd and leave graph populated', async () => {

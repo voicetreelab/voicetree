@@ -74,7 +74,7 @@ describe('DELETE /graph/node/:id idempotency', () => {
     setGraph(createEmptyGraph())
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
     baseUrl = `http://127.0.0.1:${handle.port}`

@@ -191,19 +191,19 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // necessary — each verb of `vt manual` calls exactly one of them.
     'voicetree-cli -> vt-daemon-protocol': 4,
     'voicetree-cli -> vt-rpc': 9,
-    // 2026-05-27: collapse-app-support-path. `resolveAppSupportPath` is now
+    // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is now
     // sourced from @vt/app-config (the canonical single-line resolver), not
     // from a CLI-local mirrored copy. The function body is 1 line — the
-    // duplicate `voicetree-cli/src/commands/util/appSupportPath.ts` shim
+    // duplicate `voicetree-cli/src/commands/util/voicetreeHomePath.ts` shim
     // (with its "must stay in sync" comment) and the second copy at
-    // `voicetree-cli/src/appSupportPath.ts` are both deleted. Net: +1 value
+    // `voicetree-cli/src/voicetreeHomePath.ts` are both deleted. Net: +1 value
     // symbol on this edge, −2 duplicate files and one human-attention
     // invariant.
     'voicetree-cli -> app-config': 1,
-    // 2026-05-27: collapse-app-support-path. `resolveAppSupportPath` is again
+    // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is again
     // imported into vt-daemon (vtd boot + spawn helpers + graph-db-server's
     // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
-    // app-support.ts` shim is deleted (the shim's `getAppSupportPath` had
+    // app-support.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
     // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
     'vt-daemon -> app-config': 2,
     'vt-daemon -> daemon-lifecycle': 9,

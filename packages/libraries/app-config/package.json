@@ -9,7 +9,7 @@
     "./vault-config": "./src/vault-config/voicetree-config-io.ts",
     "./project": "./src/project/index.ts",
     "./positions-io": "./src/positions/positions-io.ts",
-    "./app-support-path": "./src/app-support-path.ts"
+    "./paths": "./src/paths.ts"
   },
   "dependencies": {
     "@vt/graph-model": "*",

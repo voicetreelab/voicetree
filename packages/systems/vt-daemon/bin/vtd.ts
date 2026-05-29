@@ -53,7 +53,7 @@ import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import {resolveVoicetreeHomePath} from '@vt/app-config/paths'
 import {loadSettings} from '@vt/app-config/settings'
 import {
     startHttpDaemonServer,
@@ -229,10 +229,10 @@ function buildPublishTerminalRegistryEvent(
 async function main(): Promise<void> {
     tracing.init('vtd')
     const args: Args = parseArgs(process.argv.slice(2))
-    // Normalize VOICETREE_APP_SUPPORT so every leaf in this process and every
-    // child it spawns reads the same resolved path via resolveAppSupportPath().
-    const appSupportPath: string = resolveAppSupportPath()
-    process.env.VOICETREE_APP_SUPPORT = appSupportPath
+    // Normalize VOICETREE_HOME_PATH so every leaf in this process and every
+    // child it spawns reads the same resolved path via resolveVoicetreeHomePath().
+    const voicetreeHomePath: string = resolveVoicetreeHomePath()
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath
 
     // Step 1: claim the owner record FIRST, before any HTTP / GDB / tmux work.
     // On conflict (another VTD already owns this vault) die loudly with the
@@ -384,7 +384,7 @@ async function main(): Promise<void> {
 
     // Lifecycle JSONL telemetry sink — predecessor (vt-mcpd) had this; vtd keeps it.
     try {
-        agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
+        agentRuntime.installJsonlTelemetrySink(join(voicetreeHomePath, 'lifecycle-telemetry.jsonl'))
     } catch (err) {
         process.stderr.write(
             `vtd: telemetry sink install skipped: ${(err as Error).message}\n`,

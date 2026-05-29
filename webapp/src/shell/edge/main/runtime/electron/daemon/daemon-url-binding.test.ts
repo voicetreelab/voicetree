@@ -21,7 +21,7 @@
  * assertion is on a value an out-of-process consumer could read (file,
  * /health response, `kill(pid, 0)`). The `vi.mock('electron')` is
  * inherited from the global setup (`e2e-tests/setup.ts`) because
- * `app-electron-state.getAppSupportPath` is in the import graph via the
+ * `app-electron-state.getVoicetreeHomePath` is in the import graph via the
  * client's transitive deps.
  *
  * Regression guard preserved from pre-Phase-2: the writer/reader
@@ -149,7 +149,7 @@ const harness: {
         VT_DAEMON_BIN: string | undefined
         VT_GRAPHD_BIN: string | undefined
         VOICETREE_DAEMON_URL: string | undefined
-        VOICETREE_APP_SUPPORT: string | undefined
+        VOICETREE_HOME_PATH: string | undefined
         FAKE_VTD_ENV_SNAPSHOT_PATH: string | undefined
         VOICETREE_PARENT_PID: string | undefined
     }
@@ -161,7 +161,7 @@ const harness: {
         VT_DAEMON_BIN: undefined,
         VT_GRAPHD_BIN: undefined,
         VOICETREE_DAEMON_URL: undefined,
-        VOICETREE_APP_SUPPORT: undefined,
+        VOICETREE_HOME_PATH: undefined,
         FAKE_VTD_ENV_SNAPSHOT_PATH: undefined,
         VOICETREE_PARENT_PID: undefined,
     },
@@ -215,7 +215,7 @@ beforeEach(async (): Promise<void> => {
         VT_DAEMON_BIN: process.env.VT_DAEMON_BIN,
         VT_GRAPHD_BIN: process.env.VT_GRAPHD_BIN,
         VOICETREE_DAEMON_URL: process.env.VOICETREE_DAEMON_URL,
-        VOICETREE_APP_SUPPORT: process.env.VOICETREE_APP_SUPPORT,
+        VOICETREE_HOME_PATH: process.env.VOICETREE_HOME_PATH,
         FAKE_VTD_ENV_SNAPSHOT_PATH: process.env.FAKE_VTD_ENV_SNAPSHOT_PATH,
         VOICETREE_PARENT_PID: process.env.VOICETREE_PARENT_PID,
     }
@@ -228,11 +228,11 @@ beforeEach(async (): Promise<void> => {
     process.env.VT_DAEMON_BIN = buildVtDaemonBinCommand()
     // Quarantine vtd's appSupport so tests don't write into the user's
     // `~/Library/Application Support/Voicetree`. vtd respects this env
-    // var (see `defaultAppSupportPath` in `bin/vtd.ts`).
+    // var (see `defaultVoicetreeHomePath` in `bin/vtd.ts`).
     harness.appSupportTmp = await fs.mkdtemp(
         path.join(os.tmpdir(), 'daemon-url-binding-test-appsupport-'),
     )
-    process.env.VOICETREE_APP_SUPPORT = harness.appSupportTmp
+    process.env.VOICETREE_HOME_PATH = harness.appSupportTmp
     // Pin the VTD parent-pid watchdog to this test process so the spawn
     // takes itself down when the test process exits (defensive — the
     // explicit pid-kill in afterEach is the primary cleanup).
@@ -263,7 +263,7 @@ afterEach(async (): Promise<void> => {
     restoreEnv('VT_DAEMON_BIN', harness.savedEnv.VT_DAEMON_BIN)
     restoreEnv('VT_GRAPHD_BIN', harness.savedEnv.VT_GRAPHD_BIN)
     restoreEnv('VOICETREE_DAEMON_URL', harness.savedEnv.VOICETREE_DAEMON_URL)
-    restoreEnv('VOICETREE_APP_SUPPORT', harness.savedEnv.VOICETREE_APP_SUPPORT)
+    restoreEnv('VOICETREE_HOME_PATH', harness.savedEnv.VOICETREE_HOME_PATH)
     restoreEnv('FAKE_VTD_ENV_SNAPSHOT_PATH', harness.savedEnv.FAKE_VTD_ENV_SNAPSHOT_PATH)
     restoreEnv('VOICETREE_PARENT_PID', harness.savedEnv.VOICETREE_PARENT_PID)
 
@@ -466,10 +466,10 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
             await recordVtdPid(projectRoot)
 
             const snapshot: {
-                readonly VOICETREE_APP_SUPPORT: string | null
+                readonly VOICETREE_HOME_PATH: string | null
                 readonly VT_DAEMON_BIN: string | null
             } = JSON.parse(await fs.readFile(envSnapshotPath, 'utf-8'))
-            expect(snapshot.VOICETREE_APP_SUPPORT).toBe(harness.appSupportTmp)
+            expect(snapshot.VOICETREE_HOME_PATH).toBe(harness.appSupportTmp)
             expect(snapshot.VT_DAEMON_BIN).toBe(process.env.VT_DAEMON_BIN)
         },
         TEST_TIMEOUT_MS,

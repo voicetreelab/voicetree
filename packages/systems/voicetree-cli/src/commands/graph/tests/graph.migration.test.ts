@@ -26,7 +26,7 @@ class ExitCalled extends Error {
 }
 
 type Harness = {
-    appSupportPath: string
+    voicetreeHomePath: string
     docsPath: string
     root: string
     vault: string
@@ -40,14 +40,14 @@ type CommandResult = {
 
 async function createHarness(): Promise<Harness> {
     const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-cli-graph-')))
-    const appSupportPath: string = join(root, 'app-support')
+    const voicetreeHomePath: string = join(root, 'app-support')
     const vault: string = join(root, 'vault')
     const docsPath: string = join(vault, 'docs')
 
-    await mkdir(appSupportPath, {recursive: true})
+    await mkdir(voicetreeHomePath, {recursive: true})
     await mkdir(docsPath, {recursive: true})
 
-    return {root, appSupportPath, vault, docsPath}
+    return {root, voicetreeHomePath, vault, docsPath}
 }
 
 async function waitFor<T>(
@@ -117,7 +117,7 @@ function setStdoutIsTTY(value: boolean): void {
 describe('graph daemon migration', () => {
     let daemonHandle: DaemonHandle
     let harness: Harness
-    let originalAppSupportPath: string | undefined
+    let originalVoicetreeHomePath: string | undefined
     let originalCwd: string
     let stdoutIsTTYDescriptor: PropertyDescriptor | undefined
 
@@ -133,13 +133,13 @@ describe('graph daemon migration', () => {
 
     beforeAll(async () => {
         harness = await createHarness()
-        originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
-        process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
+        originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
+        process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
         originalCwd = process.cwd()
         stdoutIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
         setStdoutIsTTY(true)
 
-        process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
+        process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
         clearWatchFolderState()
         setGraph(createEmptyGraph())
 
@@ -177,10 +177,10 @@ describe('graph daemon migration', () => {
         clearWatchFolderState()
         setGraph(createEmptyGraph())
 
-        if (originalAppSupportPath === undefined) {
-            delete process.env.VOICETREE_APP_SUPPORT
+        if (originalVoicetreeHomePath === undefined) {
+            delete process.env.VOICETREE_HOME_PATH
         } else {
-            process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+            process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
         }
 
         await rm(harness.root, {recursive: true, force: true})

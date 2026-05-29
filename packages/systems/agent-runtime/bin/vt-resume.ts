@@ -147,7 +147,7 @@ function configureRuntime(paths: ResolvedPaths): void {
             // Discovery and tmux-namespace resolution read project-root and
             // write-path; the snapshot keeps spawned terminal env assembly on
             // the same resolved vault metadata if this CLI launches one.
-            getAppSupportPath: (): string => '',
+            getVoicetreeHomePath: (): string => '',
             getMcpPort: (): number => 0,
             getProjectRoot: async (): Promise<string> => paths.projectRoot,
             getVaultSnapshot: async () => ({

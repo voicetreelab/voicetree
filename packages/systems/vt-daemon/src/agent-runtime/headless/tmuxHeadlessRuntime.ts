@@ -1,5 +1,6 @@
 import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TmuxReconciliationResult} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-metadata.ts'
@@ -56,7 +57,7 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
     if (!projectRoot) {
         throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_VAULT_PATH is missing`)
     }
-    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
+    const terminalDir: string = join(getProjectDotVoicetreePath(projectRoot), 'terminals')
     mkdirSync(terminalDir, {recursive: true})
     return {
         logPath: join(terminalDir, `${terminalId}.log`),
@@ -303,10 +304,10 @@ export async function reconcileTmuxHeadlessAgents(
             registerTmuxSessionAlias(terminalId, sessionName)
             tmuxHeadlessState.sessions.set(terminalId, {
                 sessionName,
-                logPath: metadata.logFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.log`),
+                logPath: metadata.logFile ?? join(getProjectDotVoicetreePath(projectRoot), 'terminals', `${terminalId}.log`),
                 metadataPath,
-                exitCodePath: metadata.exitCodeFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.exitcode`),
-                promptFilePath: join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
+                exitCodePath: metadata.exitCodeFile ?? join(getProjectDotVoicetreePath(projectRoot), 'terminals', `${terminalId}.exitcode`),
+                promptFilePath: join(getProjectDotVoicetreePath(projectRoot), 'terminals', `${terminalId}-prompt.txt`),
                 pollTimer: startTmuxExitPoll(terminalId, sessionName, deps),
             })
         },

@@ -73,7 +73,7 @@ async function captureEventsWithRealRuntime(): Promise<void> {
     events.length = 0
     const appSupport: string = await makeTempVault()
     const writeFolder: string = await makeTempVault()
-    process.env.VOICETREE_APP_SUPPORT = appSupport
+    process.env.VOICETREE_HOME_PATH = appSupport
     configureAgentRuntime({
         env: {
             getCliManualPath: (): string | null => null,

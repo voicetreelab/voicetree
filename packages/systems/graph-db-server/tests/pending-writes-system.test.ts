@@ -99,7 +99,7 @@ describe('pending-writes suppression over daemon HTTP API', () => {
     setGraph(createEmptyGraph())
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
     // The default writeFolder is now a `voicetree-{date}` subfolder of the

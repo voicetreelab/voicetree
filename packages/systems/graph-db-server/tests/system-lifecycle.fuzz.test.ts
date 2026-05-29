@@ -21,7 +21,7 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-fuzz-system-'))
     vault = path.join(root, 'vault')
-    process.env.VOICETREE_APP_SUPPORT = path.join(root, 'app-support')
+    process.env.VOICETREE_HOME_PATH = path.join(root, 'app-support')
     await mkdir(vault, { recursive: true })
     await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
     handle = null
@@ -35,7 +35,7 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
   it('maintains invariants across 100 random command sequences', { timeout: 180_000 }, async () => {
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
     const baseUrl = `http://127.0.0.1:${handle.port}`

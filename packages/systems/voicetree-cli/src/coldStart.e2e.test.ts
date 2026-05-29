@@ -63,7 +63,7 @@ function sleep(ms: number): Promise<void> {
 function buildChildEnv(appSupport: string, overrides?: Record<string, string | undefined>): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
-        VOICETREE_APP_SUPPORT: appSupport,
+        VOICETREE_HOME_PATH: appSupport,
         TSX_TSCONFIG_PATH: CLI_TSCONFIG,
         VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         ...overrides,

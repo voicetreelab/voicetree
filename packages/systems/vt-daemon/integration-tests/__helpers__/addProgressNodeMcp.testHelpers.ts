@@ -181,7 +181,7 @@ export async function setupRealDeps(options?: {
     callerOptions?: Parameters<typeof recordCaller>[0]
 }): Promise<{appSupport: string; state: BridgeState; bridge: GraphBridge}> {
     const appSupport: string = await makeTempAppSupport()
-    process.env.VOICETREE_APP_SUPPORT = appSupport
+    process.env.VOICETREE_HOME_PATH = appSupport
     clearSettingsCache()
     await writeSettings(appSupport, {
         ...DEFAULT_SETTINGS,

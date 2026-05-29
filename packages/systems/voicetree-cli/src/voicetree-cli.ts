@@ -24,7 +24,7 @@ import {
     setInvocationContext,
 } from './commands/telemetry/recordCliInvocation.ts'
 import {CliExitError} from './commands/util/exitCodes.ts'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import {resolveVoicetreeHomePath} from '@vt/app-config/paths'
 
 type GlobalOptions = {
     terminalId: string | undefined
@@ -278,7 +278,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     // verb="(unknown)" + raw argv shape immediately; the dispatcher refines it.
     const startMs: number = Number(process.hrtime.bigint() / 1_000_000n)
     const telemetryFilePath: string = process.env.VOICETREE_TELEMETRY_PATH
-        ?? path.join(resolveAppSupportPath(), 'cli-telemetry.jsonl')
+        ?? path.join(resolveVoicetreeHomePath(), 'cli-telemetry.jsonl')
     installCliInvocationSink({
         filePath: telemetryFilePath,
         vtVersion: readVtVersion(),

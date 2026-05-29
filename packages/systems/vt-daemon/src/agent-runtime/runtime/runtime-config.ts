@@ -15,7 +15,8 @@ export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
 
 export type RuntimeEnvProvider = {
     readonly getProjectRoot?: () => Promise<string | null>;
-    readonly getVaultSnapshot: () => Promise<{
+    readonly getVaultPaths?: () => Promise<readonly string[]>;
+    readonly getVaultSnapshot?: () => Promise<{
         readonly projectRoot: string | null;
         readonly readPaths: readonly string[];
         readonly writeFolder: string | null;

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
+    "@vt/app-config": "*",
     "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",

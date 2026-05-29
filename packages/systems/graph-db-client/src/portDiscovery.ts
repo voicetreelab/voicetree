@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 import { DaemonUnreachableError } from './errors.ts'
 
 const PORT_FILENAME = 'graphd.port'
@@ -14,11 +15,11 @@ export type PortDiscoveryDeps = {
 }
 
 function portFilePath(vault: string): string {
-  return join(vault, '.voicetree', PORT_FILENAME)
+  return join(getProjectDotVoicetreePath(vault), PORT_FILENAME)
 }
 
 function lockFilePath(vault: string): string {
-  return join(vault, '.voicetree', LOCK_FILENAME)
+  return join(getProjectDotVoicetreePath(vault), LOCK_FILENAME)
 }
 
 function lockFileExists(vault: string): boolean {

@@ -69,7 +69,7 @@ describe('startDaemon', () => {
   })
 
   test('health works before any vault is opened and reports owner=null', async () => {
-    const h = await startDaemon({ appSupportPath: join(vault, 'app-support') })
+    const h = await startDaemon({ voicetreeHomePath: join(vault, 'app-support') })
     handles.push(h)
 
     const res = await fetch(`http://127.0.0.1:${h.port}/health`)

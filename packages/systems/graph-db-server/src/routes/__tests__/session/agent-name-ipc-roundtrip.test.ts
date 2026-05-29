@@ -48,7 +48,7 @@ describe('agent_name survives IPC roundtrip to daemon', () => {
   }, 15000)
 
   test('agent_name in additionalYAMLProps persists to disk frontmatter', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
     handles.push(handle)
     const testNodePath = join(vault, 'hello-from-ari.md')
 

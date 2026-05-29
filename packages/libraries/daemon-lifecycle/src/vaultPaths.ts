@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 
 /**
  * Canonical vault-state directory `<vault>/.voicetree`. Every daemon-
@@ -6,5 +6,5 @@ import { join } from 'node:path'
  * resolves to a sibling under this directory.
  */
 export function vaultStateDir(vaultPath: string): string {
-  return join(vaultPath, '.voicetree')
+  return getProjectDotVoicetreePath(vaultPath)
 }

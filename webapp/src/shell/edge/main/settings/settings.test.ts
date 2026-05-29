@@ -19,17 +19,17 @@ let originalEnv: string | undefined;
 describe('settings', () => {
   beforeEach(async () => {
     testUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'settings-test-'));
-    originalEnv = process.env.VOICETREE_APP_SUPPORT;
-    process.env.VOICETREE_APP_SUPPORT = testUserDataPath;
+    originalEnv = process.env.VOICETREE_HOME_PATH;
+    process.env.VOICETREE_HOME_PATH = testUserDataPath;
     clearSettingsCache();
   });
 
   afterEach(async () => {
     await fs.rm(testUserDataPath, { recursive: true, force: true });
     if (originalEnv === undefined) {
-      delete process.env.VOICETREE_APP_SUPPORT;
+      delete process.env.VOICETREE_HOME_PATH;
     } else {
-      process.env.VOICETREE_APP_SUPPORT = originalEnv;
+      process.env.VOICETREE_HOME_PATH = originalEnv;
     }
   });
 

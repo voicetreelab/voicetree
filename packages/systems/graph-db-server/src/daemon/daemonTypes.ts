@@ -1,4 +1,4 @@
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import {resolveVoicetreeHomePath} from '@vt/app-config/paths'
 import type { HealthOwner, HealthResponse } from '../contract.ts'
 import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 
@@ -17,7 +17,7 @@ export type StartDaemonOptions = {
   vault?: string | null
   port?: number
   logLevel?: 'info' | 'debug'
-  appSupportPath?: string
+  voicetreeHomePath?: string
   idleTimeoutMs?: number
   clock?: () => number
   logger?: DaemonLogger
@@ -58,8 +58,8 @@ const defaultDaemonLogger: DaemonLogger = {
   writeStderr: defaultDaemonWriteStderr,
 }
 
-export function resolveDaemonAppSupportPath(opts: StartDaemonOptions): string {
-  return opts.appSupportPath ?? resolveAppSupportPath()
+export function resolveDaemonVoicetreeHomePath(opts: StartDaemonOptions): string {
+  return opts.voicetreeHomePath ?? resolveVoicetreeHomePath()
 }
 
 export function resolveDaemonClock(opts: StartDaemonOptions): () => number {

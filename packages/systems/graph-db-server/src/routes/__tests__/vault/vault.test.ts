@@ -17,16 +17,16 @@ async function makeTempDir(prefix: string): Promise<string> {
 
 describe('vault routes', () => {
   let vault: string
-  let appSupportPath: string
+  let voicetreeHomePath: string
   let handles: DaemonHandle[]
-  let originalAppSupportPath: string | undefined
+  let originalVoicetreeHomePath: string | undefined
 
   beforeEach(async () => {
     vault = await makeTempDir('graphd-vault-')
-    appSupportPath = await makeTempDir('graphd-app-support-')
+    voicetreeHomePath = await makeTempDir('graphd-app-support-')
     handles = []
-    originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
-    process.env.VOICETREE_APP_SUPPORT = appSupportPath
+    originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     clearWatchFolderState()
     setGraph(createEmptyGraph())
   })
@@ -38,13 +38,13 @@ describe('vault routes', () => {
     handles = []
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    if (originalAppSupportPath === undefined) {
-      delete process.env.VOICETREE_APP_SUPPORT
+    if (originalVoicetreeHomePath === undefined) {
+      delete process.env.VOICETREE_HOME_PATH
     } else {
-      process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+      process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
     }
     await rm(vault, { recursive: true, force: true })
-    await rm(appSupportPath, { recursive: true, force: true })
+    await rm(voicetreeHomePath, { recursive: true, force: true })
   })
 
   const start = async (): Promise<DaemonHandle> => {

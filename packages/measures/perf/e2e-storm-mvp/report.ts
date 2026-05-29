@@ -30,7 +30,7 @@ export interface ReportInput {
     readonly mcpPort: number
     readonly vaultDir: string
     readonly projectDir: string
-    readonly appSupportPath: string
+    readonly voicetreeHomePath: string
     readonly electronLogPath: string
     /** Per-run dir for OTEL-scraped logs, heap snapshots, and local profile artifacts. */
     readonly perfRunDir: string
@@ -90,7 +90,7 @@ export function writeReportAndSummary(input: ReportInput): void {
             mcpPort: input.mcpPort,
             vaultDir: input.vaultDir,
             projectDir: input.projectDir,
-            appSupportPath: input.appSupportPath,
+            voicetreeHomePath: input.voicetreeHomePath,
             electronLogPath: input.electronLogPath,
             perfRunDir: input.perfRunDir,
             screenshotDir: input.screenshotDir,

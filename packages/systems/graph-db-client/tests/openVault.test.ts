@@ -22,7 +22,7 @@ describe('GraphDbClient vault lifecycle API', () => {
     setGraph(createEmptyGraph())
     handle = await startDaemon({
       vault,
-      appSupportPath: join(root, 'app-support'),
+      voicetreeHomePath: join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
   })

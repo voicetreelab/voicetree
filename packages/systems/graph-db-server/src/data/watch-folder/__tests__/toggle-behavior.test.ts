@@ -91,7 +91,7 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         syncVaultStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        process.env.VOICETREE_HOME_PATH = appSupportDir
         initGraphModel({
             syncVaultState: syncVaultStateSpy,
             syncFolderTree: syncFolderTreeSpy,
@@ -214,7 +214,7 @@ describe('Bug 1 additional: addReadPath and setWriteFolder should also complete 
         syncVaultStateSpy = vi.fn()
         syncFolderTreeSpy = vi.fn()
 
-        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        process.env.VOICETREE_HOME_PATH = appSupportDir
         initGraphModel({
             syncVaultState: syncVaultStateSpy,
             syncFolderTree: syncFolderTreeSpy,
@@ -303,7 +303,7 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
 
         syncFolderTreeSpy = vi.fn()
 
-        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        process.env.VOICETREE_HOME_PATH = appSupportDir
         initGraphModel({
             syncVaultState: vi.fn(),
             syncFolderTree: syncFolderTreeSpy,
@@ -370,7 +370,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
 
         syncVaultStateSpy = vi.fn()
 
-        process.env.VOICETREE_APP_SUPPORT = appSupportDir
+        process.env.VOICETREE_HOME_PATH = appSupportDir
         initGraphModel({
             syncVaultState: syncVaultStateSpy,
             syncFolderTree: vi.fn(),

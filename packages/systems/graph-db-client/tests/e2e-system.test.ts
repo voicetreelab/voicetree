@@ -46,7 +46,7 @@ describe('@vt/graph-db-client system contract', () => {
     setGraph(createEmptyGraph())
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
     client = await GraphDbClient.connect({ vault })

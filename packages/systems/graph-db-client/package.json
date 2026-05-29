@@ -16,13 +16,13 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
+    "@vt/app-config": "*",
     "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@vt/app-config": "*",
     "@vt/graph-model": "*",
     "typescript": "~5.8.3",
     "vitest": "^3.2.4"

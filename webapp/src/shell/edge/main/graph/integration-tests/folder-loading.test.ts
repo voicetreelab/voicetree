@@ -133,7 +133,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
     // Initialize graph model with test callbacks that mirror Electron IPC channels.
     const appSupport = path.join(tempFixtureRoot, 'app-support')
-    process.env.VOICETREE_APP_SUPPORT = appSupport
+    process.env.VOICETREE_HOME_PATH = appSupport
     initGraphModel({
       onGraphCleared: (): void => {
         broadcastCalls.push({ channel: 'graph:clear', delta: [] })

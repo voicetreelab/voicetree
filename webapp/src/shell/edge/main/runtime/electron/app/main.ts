@@ -6,7 +6,7 @@ import {isAbsolute, join} from 'node:path';
 import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/application-menu';
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
-import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
+import {getVoicetreeHomePath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {existsSync} from 'node:fs';
 import {getAuthToken, getDaemonUrl, unbindVtDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {installVtDaemonEventsBridge} from '@/shell/edge/main/runtime/electron/daemon/events/vtDaemonEventsBridge';
@@ -80,17 +80,11 @@ initializeGraphModel();
 
 const {autoUpdater} = electronUpdater;
 
-function pinProcessAppSupportPath(): void {
-    // Respect an explicit override from the parent process (test fixtures pin
-    // VOICETREE_APP_SUPPORT to their temp user-data dir before launching
-    // Electron). Without this guard, the unconditional overwrite below
-    // shadows the override with `app.getPath('userData')`, which on a fresh
-    // Electron launch may return the OS default before --user-data-dir is
-    // observable to `app.getPath`. The override path is where the test
-    // pre-seeds settings.json / talks to tmux, so silently clobbering it
-    // strands the daemon on a different socket from the test.
-    if (process.env.VOICETREE_APP_SUPPORT) return;
-    process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+function pinProcessVoicetreeHomePath(): void {
+    // Normalize the global VoiceTree home once so Electron, daemon, CLI
+    // helpers, and spawned agents inherit the same settings/config root.
+    if (process.env.VOICETREE_HOME_PATH) return;
+    process.env.VOICETREE_HOME_PATH = getVoicetreeHomePath();
 }
 
 /**
@@ -116,7 +110,7 @@ if (electronVtBinDir !== null) {
 }
 
 configureEnvironment();
-tracing.init('vt-electron-main', pinProcessAppSupportPath());
+tracing.init('vt-electron-main', pinProcessVoicetreeHomePath());
 tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });

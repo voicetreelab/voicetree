@@ -68,7 +68,7 @@ describe('decideActiveCooldown — pure', () => {
 describe('cooldown breadcrumb IO — black-box', () => {
   test('write then read round-trips the breadcrumb', async () => {
     const breadcrumb = makeBreadcrumb({ reason: 'first-attempt' })
-    await writeCooldownBreadcrumb(vault, 'graphd', breadcrumb)
+    await writeCooldownBreadcrumb(vault, 'graphd', breadcrumb, 1234)
 
     const roundtripped = await readCooldownBreadcrumb(vault, 'graphd')
     expect(roundtripped).toEqual(breadcrumb)
@@ -106,7 +106,7 @@ describe('cooldown breadcrumb IO — black-box', () => {
   })
 
   test('clearCooldownBreadcrumb removes the file and is idempotent', async () => {
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb())
+    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb(), 1234)
     await clearCooldownBreadcrumb(vault, 'graphd')
     expect(await readCooldownBreadcrumb(vault, 'graphd')).toBeNull()
     // Second clear on an absent file does not throw.
@@ -114,16 +114,16 @@ describe('cooldown breadcrumb IO — black-box', () => {
   })
 
   test('write atomically replaces an existing breadcrumb', async () => {
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'first' }))
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'second' }))
+    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'first' }), 1234)
+    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'second' }), 1234)
 
     const final = await readCooldownBreadcrumb(vault, 'graphd')
     expect(final?.reason).toBe('second')
   })
 
   test('graphd and vtd breadcrumbs are independent for the same vault', async () => {
-    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'graphd-spawn-failed' }))
-    await writeCooldownBreadcrumb(vault, 'vtd', makeBreadcrumb({ reason: 'vtd-spawn-failed' }))
+    await writeCooldownBreadcrumb(vault, 'graphd', makeBreadcrumb({ reason: 'graphd-spawn-failed' }), 1234)
+    await writeCooldownBreadcrumb(vault, 'vtd', makeBreadcrumb({ reason: 'vtd-spawn-failed' }), 1234)
 
     const graphd = await readCooldownBreadcrumb(vault, 'graphd')
     const vtd = await readCooldownBreadcrumb(vault, 'vtd')

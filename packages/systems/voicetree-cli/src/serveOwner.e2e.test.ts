@@ -96,7 +96,7 @@ function sleep(ms: number): Promise<void> {
 function buildChildEnv(appSupport: string): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
-        VOICETREE_APP_SUPPORT: appSupport,
+        VOICETREE_HOME_PATH: appSupport,
         TSX_TSCONFIG_PATH: CLI_TSCONFIG,
         VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         VT_DAEMON_BIN: VT_DAEMON_BIN_OVERRIDE,
@@ -364,7 +364,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             'warm reuse: pre-existing graphd AND vtd owners are reused',
             async () => {
-                process.env.VOICETREE_APP_SUPPORT = appSupport
+                process.env.VOICETREE_HOME_PATH = appSupport
                 process.env.VT_GRAPHD_BIN = VT_GRAPHD_BIN_OVERRIDE
                 process.env.VT_DAEMON_BIN = VT_DAEMON_BIN_OVERRIDE
 
@@ -404,7 +404,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             '--exclusive refuses when a vt-daemon owner already exists; leaves the existing daemon alive',
             async () => {
-                process.env.VOICETREE_APP_SUPPORT = appSupport
+                process.env.VOICETREE_HOME_PATH = appSupport
                 process.env.VT_GRAPHD_BIN = VT_GRAPHD_BIN_OVERRIDE
                 process.env.VT_DAEMON_BIN = VT_DAEMON_BIN_OVERRIDE
 
@@ -447,7 +447,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         it(
             '--exclusive refuses when a graph-db owner already exists; leaves the existing daemon alive',
             async () => {
-                process.env.VOICETREE_APP_SUPPORT = appSupport
+                process.env.VOICETREE_HOME_PATH = appSupport
                 process.env.VT_GRAPHD_BIN = VT_GRAPHD_BIN_OVERRIDE
                 process.env.VT_DAEMON_BIN = VT_DAEMON_BIN_OVERRIDE
 

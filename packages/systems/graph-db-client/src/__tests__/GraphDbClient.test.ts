@@ -11,20 +11,20 @@ import { GraphDbClient } from '../GraphDbClient.ts'
 import { DaemonUnreachableError, GraphDbClientError } from '../errors.ts'
 
 type Harness = {
-  appSupportPath: string
+  voicetreeHomePath: string
   root: string
   vault: string
 }
 
 async function createHarness(): Promise<Harness> {
   const root = await mkdtemp(join(tmpdir(), 'graph-db-client-test-'))
-  const appSupportPath = join(root, 'app-support')
+  const voicetreeHomePath = join(root, 'app-support')
   const vault = join(root, 'vault')
 
-  await mkdir(appSupportPath, { recursive: true })
+  await mkdir(voicetreeHomePath, { recursive: true })
   await mkdir(vault, { recursive: true })
 
-  return { appSupportPath, root, vault }
+  return { voicetreeHomePath, root, vault }
 }
 
 async function waitFor<T>(
@@ -58,13 +58,13 @@ async function addReadPath(client: GraphDbClient, p: string): Promise<void> {
 describe('GraphDbClient', () => {
   let harness: Harness
   let handles: DaemonHandle[]
-  let originalAppSupportPath: string | undefined
+  let originalVoicetreeHomePath: string | undefined
 
   beforeEach(async () => {
     harness = await createHarness()
     handles = []
-    originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
-    process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
+    originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
+    process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
     await saveVaultConfigForDirectory(harness.vault, { writeFolder: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
@@ -77,10 +77,10 @@ describe('GraphDbClient', () => {
     }
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    if (originalAppSupportPath === undefined) {
-      delete process.env.VOICETREE_APP_SUPPORT
+    if (originalVoicetreeHomePath === undefined) {
+      delete process.env.VOICETREE_HOME_PATH
     } else {
-      process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+      process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
     }
     await rm(harness.root, { recursive: true, force: true })
   })
