@@ -13,7 +13,10 @@
 //! accepted for forward-compatibility and to make the contract explicit at the
 //! call site).
 
+mod discovery;
+mod extract;
 mod output;
+mod pipeline;
 
 use output::{MassOutput, SemanticOutput, WorkflowOutput};
 use std::path::PathBuf;
@@ -27,14 +30,18 @@ enum Mode {
 }
 
 struct Args {
-    mode: Mode,
+    mode: Option<Mode>,
     root: PathBuf,
+    /// Debug/validation: dump the kept-function set (file\tline\tname\tloc\tnodes\ttokens)
+    /// instead of running a gate. Used to diff the kept set against the TS extractor.
+    dump_functions: bool,
 }
 
 fn parse_args() -> Result<Args, String> {
     let mut mode: Option<Mode> = None;
     let mut root: Option<PathBuf> = None;
     let mut json = false;
+    let mut dump_functions = false;
 
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
@@ -52,19 +59,38 @@ fn parse_args() -> Result<Args, String> {
                 root = Some(PathBuf::from(it.next().ok_or("--root requires a value")?));
             }
             "--json" => json = true,
+            "--dump-functions" => dump_functions = true,
             other => return Err(format!("unknown argument '{other}'")),
         }
     }
 
-    if !json {
-        return Err("--json is required (the only supported output format)".to_string());
-    }
-    let mode = mode.ok_or("--mode is required (mass|semantic|workflow)")?;
     let root = match root {
         Some(r) => r,
         None => std::env::current_dir().map_err(|e| format!("cannot resolve cwd: {e}"))?,
     };
-    Ok(Args { mode, root })
+    if dump_functions {
+        return Ok(Args { mode: None, root, dump_functions });
+    }
+    if !json {
+        return Err("--json is required (the only supported output format)".to_string());
+    }
+    let mode = mode.ok_or("--mode is required (mass|semantic|workflow)")?;
+    Ok(Args { mode: Some(mode), root, dump_functions })
+}
+
+fn dump_functions(root: &PathBuf) -> String {
+    let files = pipeline::extract_all(root);
+    let mut out = String::new();
+    for file in &files {
+        for func in &file.functions {
+            out.push_str(&format!(
+                "{}\t{}\t{}\t{}\t{}\t{}\n",
+                func.meta.file, func.meta.line, func.meta.name, func.meta.loc,
+                func.meta.body_node_count, func.token_stream.len(),
+            ));
+        }
+    }
+    out
 }
 
 fn run(args: &Args) -> Result<String, String> {
@@ -73,9 +99,10 @@ fn run(args: &Args) -> Result<String, String> {
     // stable interface before the engine lands.
     let _ = &args.root;
     let json = match args.mode {
-        Mode::Mass => serde_json::to_string_pretty(&MassOutput::default()),
-        Mode::Semantic => serde_json::to_string_pretty(&SemanticOutput::default()),
-        Mode::Workflow => serde_json::to_string_pretty(&WorkflowOutput::default()),
+        Some(Mode::Mass) => serde_json::to_string_pretty(&MassOutput::default()),
+        Some(Mode::Semantic) => serde_json::to_string_pretty(&SemanticOutput::default()),
+        Some(Mode::Workflow) => serde_json::to_string_pretty(&WorkflowOutput::default()),
+        None => unreachable!("mode is Some unless dump_functions short-circuits in main"),
     };
     json.map_err(|e| format!("failed to serialize output: {e}"))
 }
@@ -88,6 +115,10 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if args.dump_functions {
+        print!("{}", dump_functions(&args.root));
+        return ExitCode::SUCCESS;
+    }
     match run(&args) {
         Ok(json) => {
             println!("{json}");
