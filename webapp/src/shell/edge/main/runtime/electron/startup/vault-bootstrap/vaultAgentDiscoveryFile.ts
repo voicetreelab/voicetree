@@ -26,6 +26,7 @@
 import {promises as fs} from 'fs'
 import path from 'path'
 import {renderFullManual} from '@vt/vt-daemon-protocol'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 const SECTION_START: string = '<!-- VOICETREE_AGENT_DISCOVERY_START -->'
 const SECTION_END: string = '<!-- VOICETREE_AGENT_DISCOVERY_END -->'
@@ -110,7 +111,7 @@ export async function writeVaultAgentDiscoveryFile(
         return
     }
 
-    const dotVoicetreeDir: string = path.join(vaultDir, '.voicetree')
+    const dotVoicetreeDir: string = getProjectDotVoicetreePath(vaultDir)
     const agentsMdPath: string = path.join(dotVoicetreeDir, 'AGENTS.md')
     const existingAgentsMd: string | null = await readFileOrNull(agentsMdPath)
     const next: string = spliceVoicetreeDiscoverySection(existingAgentsMd, manualContent)

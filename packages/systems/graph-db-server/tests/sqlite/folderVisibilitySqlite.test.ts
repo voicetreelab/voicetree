@@ -10,8 +10,9 @@ import { DatabaseSync } from 'node:sqlite'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import {
-    FOLDER_VISIBILITY_DB_RELATIVE_PATH,
+    FOLDER_VISIBILITY_DB_FILENAME,
     FOLDER_VISIBILITY_SCHEMA_VERSION,
     closeFolderVisibilityDb,
     defaultFolderVisibilityDbDeps,
@@ -44,7 +45,7 @@ describe('folderVisibilitySqlite', () => {
         const db = openFolderVisibilityDb(vault, defaultFolderVisibilityDbDeps)
         try {
             const dbPath = resolveFolderVisibilityDbPath(vault)
-            expect(dbPath).toBe(path.join(vault, FOLDER_VISIBILITY_DB_RELATIVE_PATH))
+            expect(dbPath).toBe(path.join(getProjectDotVoicetreePath(vault), FOLDER_VISIBILITY_DB_FILENAME))
             expect(fs.existsSync(dbPath)).toBe(true)
             expect(fs.statSync(path.join(vault, '.voicetree')).isDirectory()).toBe(true)
         } finally {

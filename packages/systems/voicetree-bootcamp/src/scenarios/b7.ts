@@ -21,6 +21,7 @@
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {CheckpointResult, ScenarioSpec, SuccessResult} from '../types.ts'
 import {listMarkdownFiles, parseWikilinks, stripMdExt} from './_helpers.ts'
 
@@ -108,7 +109,7 @@ export const b7: ScenarioSpec = {
     id: 'B7',
     name: 'knowledge gardening: bulk-create + regroup + folder-note',
     async setup(vaultDir) {
-        await fs.mkdir(path.join(vaultDir, '.voicetree'), {recursive: true})
+        await fs.mkdir(getProjectDotVoicetreePath(vaultDir), {recursive: true})
         await copyDir(FIXTURE_DIR, vaultDir)
     },
     taskPrompt: TASK_PROMPT,

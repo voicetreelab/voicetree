@@ -28,6 +28,7 @@ import {promises as fs} from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import {computeCoverage, computeFitness, scoreScenario} from './scoring.ts'
 import {parseShimLog} from './shim-log.ts'
 import type {
@@ -292,7 +293,7 @@ async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
  * to discover a running peer.
  */
 async function waitForDaemonReadyDefault(vaultDir: string, timeoutMs: number): Promise<void> {
-    const rpcPortPath = path.join(vaultDir, '.voicetree', 'rpc.port')
+    const rpcPortPath = path.join(getProjectDotVoicetreePath(vaultDir), 'rpc.port')
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
         try {

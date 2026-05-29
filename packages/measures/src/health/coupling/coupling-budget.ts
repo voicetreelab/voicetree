@@ -156,11 +156,14 @@
 //   graph-db-client -> paths:        0 -> 1 (graphd port discovery)
 //   graph-db-protocol -> paths:      0 -> 1 (owner record filename)
 //   graph-db-server -> paths:        0 -> 2 (daemon types + port files)
-//   voicetree-cli -> paths:          0 -> 1 (home-path CLI command)
+//   graph-tools -> paths:            0 -> 1 (live CRUD positions path)
+//   perf-fixtures -> paths:          0 -> 1 (realistic vault fixture layout)
+//   voicetree-bootcamp -> paths:     0 -> 1 (scenario fixture runtime files)
+//   voicetree-cli -> paths:          0 -> 2 (home-path command + project marker)
 //   vt-daemon -> paths:              0 -> 4 (spawn env + runtime state)
 //   vt-daemon-client -> paths:       0 -> 1 (VTD owner discovery)
 //   vt-rpc -> paths:                 0 -> 1 (auth/port files)
-//   webapp -> paths:                 0 -> 1 (Electron build config)
+//   webapp -> paths:                 0 -> 2 (Electron build config + project bootstrap)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
     'app-config -> paths': 2,
@@ -188,17 +191,20 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-state -> graph-model': 8,
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
+    'graph-tools -> paths': 1,
     'graph-tools -> vt-rpc': 8,
+    'perf-fixtures -> paths': 1,
     // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
     // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
     // (one dynamic import in scenarios/b5.ts). Measured value at package
     // introduction; the bootcamp is a leaf consumer that should not grow this.
     'voicetree-bootcamp -> graph-db-client': 1,
+    'voicetree-bootcamp -> paths': 1,
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
     'voicetree-cli -> graph-tools': 11,
-    'voicetree-cli -> paths': 1,
+    'voicetree-cli -> paths': 2,
     'voicetree-cli -> voicetree-graph-validation': 1,
     'voicetree-cli -> vt-daemon': 7,
     // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
@@ -296,7 +302,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
-    'webapp -> paths': 1,
+    'webapp -> paths': 2,
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
     // cleanups above (drop in-process configureMcpServer +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix

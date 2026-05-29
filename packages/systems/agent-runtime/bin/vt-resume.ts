@@ -19,6 +19,7 @@
 import {existsSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 import {configureAgentRuntime} from '../src/application/runtime/runtime-config.ts'
 import {discoverRecoverableAgentSessions} from '../src/application/recovery/discovery.ts'
@@ -106,7 +107,7 @@ function isProjectRootVoicetreeDir(dotVoicetree: string): boolean {
 function findUpForProjectRoot(start: string): string | null {
     let dir: string = resolve(start)
     while (true) {
-        const candidate: string = join(dir, '.voicetree')
+        const candidate: string = getProjectDotVoicetreePath(dir)
         if (existsSync(candidate) && isProjectRootVoicetreeDir(candidate)) return dir
         const parent: string = dirname(dir)
         if (parent === dir) return null
@@ -135,7 +136,7 @@ function resolvePaths(args: Args): ResolvedPaths {
             ? resolve(dirname(envProjectDir))
             : findUpForProjectRoot(vault) ?? resolve(dirname(vault))
 
-    if (!existsSync(join(projectRoot, '.voicetree'))) {
+    if (!existsSync(getProjectDotVoicetreePath(projectRoot))) {
         die(`project root ${projectRoot} has no .voicetree directory.`)
     }
     return {vault, projectRoot}

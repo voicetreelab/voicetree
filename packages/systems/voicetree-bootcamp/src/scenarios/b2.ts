@@ -5,6 +5,7 @@
  * with a follow-up about write-behind threaded between spawn and close.
  */
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {ScenarioSpec, SuccessResult, ShimLogEntry} from '../types.ts'
 import {matchesVerb} from '../shim-log.ts'
 import {loadShimLog, writeFile} from './_helpers.ts'
@@ -37,7 +38,7 @@ export const b2: ScenarioSpec = {
     id: 'B2',
     name: 'agent lifecycle (spawn / observe / send / close)',
     async setup(vaultDir) {
-        await writeFile(path.join(vaultDir, '.voicetree', '.keep'), '')
+        await writeFile(path.join(getProjectDotVoicetreePath(vaultDir), '.keep'), '')
         await writeFile(path.join(vaultDir, NODE_FILE), NODE_BODY)
     },
     taskPrompt: TASK_PROMPT,

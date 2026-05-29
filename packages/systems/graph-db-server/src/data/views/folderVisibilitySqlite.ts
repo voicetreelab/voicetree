@@ -13,8 +13,9 @@
 import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
-export const FOLDER_VISIBILITY_DB_RELATIVE_PATH = '.voicetree/folder-visibility.db'
+export const FOLDER_VISIBILITY_DB_FILENAME = 'folder-visibility.db'
 
 /** Current schema version. Bump when adding a non-trivial migration step. */
 export const FOLDER_VISIBILITY_SCHEMA_VERSION = 1
@@ -48,7 +49,7 @@ export const defaultFolderVisibilityDbDeps: FolderVisibilityDbDeps = {
  * Resolve `<projectRoot>/.voicetree/folder-visibility.db`.
  */
 export function resolveFolderVisibilityDbPath(projectRoot: string): string {
-    return path.join(projectRoot, FOLDER_VISIBILITY_DB_RELATIVE_PATH)
+    return path.join(getProjectDotVoicetreePath(projectRoot), FOLDER_VISIBILITY_DB_FILENAME)
 }
 
 function assertValidVaultPath(projectRoot: string): void {

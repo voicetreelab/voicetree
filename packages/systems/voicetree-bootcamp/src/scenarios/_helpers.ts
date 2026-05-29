@@ -6,6 +6,7 @@
  */
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {ShimLogEntry} from '../types.ts'
 import {parseShimLog} from '../shim-log.ts'
 
@@ -137,7 +138,7 @@ export function stripMdExt(s: string): string {
  */
 export async function loadShimLog(vaultDir: string): Promise<readonly ShimLogEntry[]> {
     const shimLogPath = process.env.VT_BOOTCAMP_SHIM_LOG_PATH
-        ?? path.join(vaultDir, '.voicetree', 'shim-log.jsonl')
+        ?? path.join(getProjectDotVoicetreePath(vaultDir), 'shim-log.jsonl')
     try {
         const raw = await fs.readFile(shimLogPath, 'utf8')
         return parseShimLog(raw)

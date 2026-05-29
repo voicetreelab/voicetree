@@ -12,6 +12,7 @@
  */
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {ScenarioSpec, SuccessResult} from '../types.ts'
 import {matchesVerb} from '../shim-log.ts'
 import {fileExists, loadShimLog, writeFile} from './_helpers.ts'
@@ -106,8 +107,9 @@ export const b4: ScenarioSpec = {
         for (const {name, body} of allNotes) {
             await writeFile(path.join(vaultDir, name), body.endsWith('\n') ? body : body + '\n')
         }
+        const dotVoicetreePath = getProjectDotVoicetreePath(vaultDir)
         await writeFile(
-            path.join(vaultDir, '.voicetree', 'links.json'),
+            path.join(dotVoicetreePath, 'links.json'),
             JSON.stringify({
                 edges: [
                     {parent: 'db-schema.md', child: 'db-migrations.md'},
@@ -118,7 +120,7 @@ export const b4: ScenarioSpec = {
             }),
         )
         await writeFile(
-            path.join(vaultDir, '.voicetree', 'session.json'),
+            path.join(dotVoicetreePath, 'session.json'),
             JSON.stringify({
                 sessions: {default: {seen: SEEN_NODES}},
                 active: 'default',
@@ -133,7 +135,7 @@ export const b4: ScenarioSpec = {
         {verb: 'graph unseen'},
     ],
     async successCriteria(vaultDir): Promise<SuccessResult> {
-        const indexDir = path.join(vaultDir, '.voicetree', 'index')
+        const indexDir = path.join(getProjectDotVoicetreePath(vaultDir), 'index')
         if (!(await fileExists(indexDir))) {
             return {passed: false, detail: '.voicetree/index/ missing — agent did not run graph index'}
         }

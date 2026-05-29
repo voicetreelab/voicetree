@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import {hydrateState, type Delta, type SerializedCommand, type SerializedState} from '@vt/graph-state'
+import {type Delta, type SerializedCommand} from '@vt/graph-state'
 import {liveStateDump} from '../src/node'
 
 import {
@@ -16,10 +16,10 @@ import {
   type ParsedLiveCrudCommand,
   liveCrudUsage,
 } from './liveCommandsTypes'
+import {removePositionForFile, writePositionForFile} from './livePositionPersist'
 import {
   appendLineIfMissing,
   edgeLine,
-  findLoadedRootForFile,
   pathIdentitiesOverlap,
   removeEdgeLine,
   withTrailingNewline,
@@ -181,50 +181,6 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
 }
 
 // ── live graph I/O (via daemon) ────────────────────────────────────────────
-
-async function getLoadedRoots(vaultPath?: string): Promise<readonly string[]> {
-  // BF-266a: derive loaded roots via hydrateState. Post-UFV the wire shape no longer
-  // includes `roots.loaded` — that set is derived from `folderState` rows or the legacy
-  // `roots.loaded` fallback by hydrateState. Reading `parsed.roots.loaded` directly
-  // returned [] under the new wire shape, which made mv-node a no-op for positions.
-  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
-  const serialized = JSON.parse(result.json) as SerializedState
-  const state = hydrateState(serialized)
-  return [...state.roots.loaded]
-}
-
-function readJsonRecord(filePath: string): Record<string, unknown> {
-  try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'))
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : {}
-  } catch {
-    return {}
-  }
-}
-
-async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, vaultPath?: string): Promise<void> {
-  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
-  if (!root) return
-
-  const positionsPath = path.join(root, '.voicetree', 'positions.json')
-  const positions = readJsonRecord(positionsPath)
-  positions[filePath] = {x: position.x, y: position.y}
-  fs.mkdirSync(path.dirname(positionsPath), {recursive: true})
-  fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
-}
-
-async function removePositionForFile(filePath: string, vaultPath?: string): Promise<void> {
-  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
-  if (!root) return
-
-  const positionsPath = path.join(root, '.voicetree', 'positions.json')
-  const positions = readJsonRecord(positionsPath)
-  delete positions[filePath]
-  fs.mkdirSync(path.dirname(positionsPath), {recursive: true})
-  fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
-}
 
 export async function getLiveGraphNodes(vaultPath?: string): Promise<LiveGraphNodesSnapshot> {
   const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
