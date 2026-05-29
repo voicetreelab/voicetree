@@ -1,0 +1,27 @@
+[package]
+name = "vt-dup"
+version = "0.1.0"
+edition = "2021"
+description = "Native duplication detector for the @vt/measures health gates (replaces the in-process TypeScript pipeline)."
+
+[[bin]]
+name = "vt-dup"
+path = "src/main.rs"
+
+[dependencies]
+# Parser decision BF-387: oxc reproduces the tsc structural signal exactly
+# (restricted pair-Jaccard 1.0 vs tree-sitter's 0.68). Pin the version — oxc's
+# AST API churns between releases.
+oxc_allocator = "=0.133.0"
+oxc_ast = "=0.133.0"
+oxc_ast_visit = "=0.133.0"
+oxc_parser = "=0.133.0"
+oxc_span = "=0.133.0"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1

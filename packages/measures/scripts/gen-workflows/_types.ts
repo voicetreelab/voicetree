@@ -7,6 +7,7 @@ export type Step =
     | {kind: 'setup-node'; node: string}
     | {kind: 'install-deps'}
     | {kind: 'playwright-install'}
+    | {kind: 'rust-native-build'}
     | {kind: 'run'; name: string; run: string; id?: string; env?: Record<string, string>}
     | {kind: 'upload-artifact'; name: string; path: string}
     | {kind: 'download-artifact'; pattern: string; path: string}

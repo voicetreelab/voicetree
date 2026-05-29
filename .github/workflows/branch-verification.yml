@@ -34,6 +34,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
+      # tier<=2 includes the tier-1 duplication health gates, which shell out to
+      # the native vt-dup binary; build it (cached) first. ubuntu-latest ships a
+      # stable Rust toolchain.
+      - name: Cache vt-dup Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/measures/native/vt-dup/target
+          key: ${{ runner.os }}-cargo-vt-dup-${{ hashFiles('packages/measures/native/vt-dup/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-vt-dup-
+
+      - name: Build vt-dup native binary
+        run: pnpm --filter @vt/measures run measures:build-native:local
+
       - name: Install Playwright chromium
         working-directory: webapp
         run: npx playwright install --with-deps chromium

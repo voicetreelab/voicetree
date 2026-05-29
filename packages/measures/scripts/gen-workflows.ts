@@ -331,6 +331,7 @@ function commonSetupSteps(conc: ConcernSpec): readonly Step[] {
         {kind: 'install-deps'},
     ]
     if (conc.spec.setup.playwright) steps.push({kind: 'playwright-install'})
+    if (conc.spec.setup.native) steps.push({kind: 'rust-native-build'})
     return steps
 }
 
