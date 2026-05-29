@@ -89,7 +89,6 @@ export const test = baseTest.extend<{
             name: PROJECT_ID,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
         const electronApp: ElectronApplication = await electron.launch({

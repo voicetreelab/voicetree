@@ -168,7 +168,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
         loadPreviousFolder: async () => ({ success: false }),
-        getStartupProjectHint: async () => ({ kind: 'open-folder' as const, path: '/mock/watched/directory' }),
+        getStartupProjectHint: async () => ({ kind: 'open-folder' as const, projectPath: '/mock/watched/directory' }),
         openProject: async (dir: string) => {
           const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
           setTimeout(() => {
@@ -265,13 +265,11 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
           name: 'Mock Test Project',
           type: 'folder' as const,
           lastOpened: Date.now(),
-          voicetreeInitialized: true,
         }],
         saveProject: async () => {},
         removeProject: async () => {},
         getDefaultSearchDirectories: async () => [],
         scanForProjects: async () => [],
-        initializeProject: async () => '/mock/watched/directory/voicetree',
         showFolderPicker: async () => ({ success: false }),
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),

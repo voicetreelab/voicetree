@@ -137,18 +137,9 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
             name: discovered.name,
             type: discovered.type,
             lastOpened: Date.now(),
-            voicetreeInitialized: false,
         };
 
-        try {
-            await window.electronAPI.main.saveProject(newProject);
-            setSavedProjects((prev) => sortProjectsByLastOpened([...prev, newProject]));
-            setDiscoveredProjects((prev) => prev.filter((p) => p.path !== discovered.path));
-            onProjectSelected(newProject);
-        } catch (err) {
-            console.error('[ProjectSelectionScreen] Failed to add project:', err);
-            setError('Failed to add project');
-        }
+        onProjectSelected(newProject);
     };
 
     // Handle selecting a saved project
@@ -157,17 +148,7 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
     ): Promise<void> => {
         if (!window.electronAPI) return;
 
-        // Update lastOpened
-        const updated: SavedProject = { ...project, lastOpened: Date.now() };
-
-        try {
-            await window.electronAPI.main.saveProject(updated);
-            onProjectSelected(updated);
-        } catch (err) {
-            console.error('[ProjectSelectionScreen] Failed to update project:', err);
-            // Still open the project even if update fails
-            onProjectSelected(project);
-        }
+        onProjectSelected(project);
     };
 
     // Handle creating a new project — auto-creates ~/Voicetree/voicetree-{day}-{month}
@@ -183,10 +164,8 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                 name: folderName,
                 type: 'folder',
                 lastOpened: Date.now(),
-                voicetreeInitialized: false,
             };
 
-            await window.electronAPI.main.saveProject(newProject);
             onProjectSelected(newProject);
         } catch (err) {
             console.error('[ProjectSelectionScreen] Failed to create project:', err);
@@ -217,10 +196,8 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                 name: folderName,
                 type: 'folder',
                 lastOpened: Date.now(),
-                voicetreeInitialized: false,
             };
 
-            await window.electronAPI.main.saveProject(newProject);
             onProjectSelected(newProject);
         } catch (err) {
             console.error('[ProjectSelectionScreen] Failed to browse folder:', err);

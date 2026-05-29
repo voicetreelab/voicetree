@@ -27,7 +27,7 @@ interface ExtendedWindow {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory: string }>;
       saveProject: (project: {
         id: string; path: string; name: string;
-        type: 'folder'; lastOpened: number; voicetreeInitialized: boolean;
+        type: 'folder'; lastOpened: number;
       }) => Promise<void>;
     };
   };
@@ -95,7 +95,6 @@ const test = base.extend<{
         name: 'Minimap Test',
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       });
 
       await api.main.startFileWatching(projectRoot);

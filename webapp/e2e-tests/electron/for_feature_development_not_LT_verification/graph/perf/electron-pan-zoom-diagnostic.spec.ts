@@ -71,7 +71,6 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
       name: 'pan-zoom-diag-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true,
     }], null, 2), 'utf8');
 
     const app = await electron.launch({

@@ -99,7 +99,6 @@ export const test = base.extend<{
                 if (!api) throw new Error('electronAPI not available');
                 await api.main.saveProject({
                     id: crypto.randomUUID(), path: params.folderPath, name: 'test-folder-tree',
-                    type: 'folder' as const, lastOpened: Date.now(), voicetreeInitialized: false,
                 });
             }, { folderPath: testProjectPath });
             await window.waitForTimeout(500);

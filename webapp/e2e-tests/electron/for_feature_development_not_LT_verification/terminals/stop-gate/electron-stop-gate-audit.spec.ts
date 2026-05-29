@@ -58,7 +58,6 @@ const test = base.extend<{
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         };
         await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 

@@ -4,12 +4,16 @@ import path from 'path';
 import fs from 'fs';
 import { createDatedSubfolder } from './project-utils';
 
+export function getDefaultProjectsHomePath(homePath: string = os.homedir()): string {
+    return path.join(homePath, 'Voicetree');
+}
+
 /**
- * Creates a new dated project folder inside ~/Voicetree (e.g. ~/Voicetree/voicetree-18-2).
- * Creates the parent ~/Voicetree directory if it doesn't exist.
+ * Creates a new dated project root inside the default projects home
+ * (~/Voicetree/voicetree-{day}-{month}).
  */
 export async function createNewProject(): Promise<string> {
-    const parentDir: string = path.join(os.homedir(), 'Voicetree');
+    const parentDir: string = getDefaultProjectsHomePath();
     if (!fs.existsSync(parentDir)) {
         fs.mkdirSync(parentDir, { recursive: true });
     }
