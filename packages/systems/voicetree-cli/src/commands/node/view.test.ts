@@ -1,26 +1,19 @@
-import {mkdir, rm, writeFile} from 'node:fs/promises'
+import {mkdir, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import * as O from 'fp-ts/lib/Option.js'
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {GraphDbClient} from '@vt/graph-db-client'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
-import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
-import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
-import {
-    createGraph,
-    createEmptyGraph,
-    type GraphNode,
-} from '@vt/graph-model'
-import {main} from '../../voicetree-cli'
+import {createGraph, type GraphNode} from '@vt/graph-model'
 import {EXIT} from '../util/exitCodes'
 import {runViewCommand} from './view.ts'
 import {
     captureCommand,
     type CommandResult,
-    createHarness,
-    type Harness,
     parseStdoutJson,
     setStdoutIsTTY,
+    setupViewTestContext,
+    type ViewTestContext,
     waitFor,
 } from './view-test-helpers.ts'
 
@@ -31,195 +24,14 @@ async function runViewJson(argv: string[]): Promise<unknown> {
     return parseStdoutJson(result)
 }
 
-describe('runViewCommand', () => {
-    let daemonHandle: DaemonHandle
-    let harness: Harness
-    let originalVoicetreeHomePath: string | undefined
-    let originalSessionEnv: string | undefined
-    let originalCwd: string
-    let stdoutIsTTYDescriptor: PropertyDescriptor | undefined
-
-    function createClient(): GraphDbClient {
-        return new GraphDbClient({
-            baseUrl: `http://127.0.0.1:${daemonHandle.port}`,
-        })
-    }
-
-    beforeEach(async () => {
-        harness = await createHarness()
-        originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
-        originalSessionEnv = process.env.VT_SESSION
-        process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
-        delete process.env.VT_SESSION
-        originalCwd = process.cwd()
-        stdoutIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
-        setStdoutIsTTY(false)
-        clearWatchFolderState()
-        setGraph(createEmptyGraph())
-        daemonHandle = await startDaemon({project: harness.project, createStarterIfEmpty: false})
-    })
-
-    afterEach(async () => {
-        process.chdir(originalCwd)
-
-        if (stdoutIsTTYDescriptor) {
-            Object.defineProperty(process.stdout, 'isTTY', stdoutIsTTYDescriptor)
-        } else {
-            setStdoutIsTTY(true)
-        }
-
-        await daemonHandle.stop().catch(() => {})
-        clearWatchFolderState()
-        setGraph(createEmptyGraph())
-
-        if (originalVoicetreeHomePath === undefined) {
-            delete process.env.VOICETREE_HOME_PATH
-        } else {
-            process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
-        }
-
-        if (originalSessionEnv === undefined) {
-            delete process.env.VT_SESSION
-        } else {
-            process.env.VT_SESSION = originalSessionEnv
-        }
-
-        await rm(harness.root, {recursive: true, force: true})
-        vi.restoreAllMocks()
-    })
-
-    it('sets pan for a pinned session', async () => {
-        const {sessionId}: {sessionId: string} = await createClient().createSession()
-
-        const result: CommandResult = await captureCommand(() =>
-            runViewCommand([
-                'layout',
-                'set-pan',
-                '10',
-                '20',
-                '--project',
-                harness.project,
-                '--session',
-                sessionId,
-            ]),
-        )
-
-        expect(result.exitCode).toBeNull()
-        expect(result.stderr).toBe('')
-        expect(JSON.parse(result.stdout)).toMatchObject({
-            layout: {
-                pan: {x: 10, y: 20},
-                zoom: 1,
-            },
-        })
-    })
-
-    it('uses VT_SESSION when set-zoom is run without an explicit session flag', async () => {
-        const {sessionId}: {sessionId: string} = await createClient().createSession()
-        process.env.VT_SESSION = sessionId
-
-        const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['layout', 'set-zoom', '1.5', '--project', harness.project]),
-        )
-
-        expect(result.exitCode).toBeNull()
-        expect(result.stderr).toBe('')
-        expect(JSON.parse(result.stdout)).toMatchObject({
-            layout: {
-                zoom: 1.5,
-            },
-        })
-        await expect(createClient().getSessionState(sessionId)).resolves.toMatchObject({
-            layout: {
-                zoom: 1.5,
-            },
-        })
-    })
-
-    it('loads positions from a JSON file and preserves existing pan', async () => {
-        const client: GraphDbClient = createClient()
-        const {sessionId}: {sessionId: string} = await client.createSession()
-        const filePath: string = join(harness.root, 'positions.json')
-
-        await client.updateLayout(sessionId, {
-            pan: {x: 7, y: 8},
-        })
-        await writeFile(
-            filePath,
-            JSON.stringify({
-                alpha: {x: 1, y: 2},
-                beta: {x: 3, y: 4},
-            }),
-            'utf8',
-        )
-
-        const result: CommandResult = await captureCommand(() =>
-            runViewCommand([
-                'layout',
-                'set-positions',
-                filePath,
-                '--project',
-                harness.project,
-                '--session',
-                sessionId,
-            ]),
-        )
-
-        expect(result.exitCode).toBeNull()
-        expect(result.stderr).toBe('')
-        expect(JSON.parse(result.stdout)).toEqual({
-            layout: {
-                positions: {
-                    alpha: {x: 1, y: 2},
-                    beta: {x: 3, y: 4},
-                },
-                pan: {x: 7, y: 8},
-                zoom: 1,
-            },
-        })
-    })
-
-    it('exits with an argument-validation code when the positions file is invalid JSON', async () => {
-        const filePath: string = join(harness.root, 'invalid-positions.json')
-        await writeFile(filePath, '{not valid json', 'utf8')
-
-        const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['layout', 'set-positions', filePath, '--project', harness.project]),
-        )
-
-        expect(result.exitCode).toBe(EXIT.ARG_VALIDATION)
-        expect(result.stderr).toContain('error: Could not parse positions JSON')
-    })
-
-    it('dispatches view commands through the top-level CLI entrypoint', async () => {
-        const {sessionId}: {sessionId: string} = await createClient().createSession()
-
-        const result: CommandResult = await captureCommand(() =>
-            main([
-                'view',
-                'layout',
-                'set-pan',
-                '4',
-                '9',
-                '--project',
-                harness.project,
-                '--session',
-                sessionId,
-            ]),
-        )
-
-        expect(result.exitCode).toBeNull()
-        expect(JSON.parse(result.stdout)).toMatchObject({
-            layout: {
-                pan: {x: 4, y: 9},
-            },
-        })
-    })
+describe('runViewCommand (views, folders, selection, show)', () => {
+    const ctx: ViewTestContext = setupViewTestContext()
 
     it('lists named project views with the active view marked', async () => {
-        await runViewJson(['clone', 'main', 'scratch', '--project', harness.project])
+        const {project} = ctx.harness()
+        await runViewJson(['clone', 'main', 'scratch', '--project', project])
 
-        const views = await runViewJson(['list', '--project', harness.project])
+        const views = await runViewJson(['list', '--project', project])
 
         expect(views).toEqual(
             expect.arrayContaining([
@@ -238,9 +50,10 @@ describe('runViewCommand', () => {
     })
 
     it('switches views by name', async () => {
-        await runViewJson(['clone', 'main', 'scratch', '--project', harness.project])
+        const {project} = ctx.harness()
+        await runViewJson(['clone', 'main', 'scratch', '--project', project])
 
-        await expect(runViewJson(['switch', 'scratch', '--project', harness.project])).resolves.toMatchObject({
+        await expect(runViewJson(['switch', 'scratch', '--project', project])).resolves.toMatchObject({
             name: 'scratch',
             isActive: true,
             is_active: true,
@@ -248,8 +61,9 @@ describe('runViewCommand', () => {
     })
 
     it('clones a named view', async () => {
+        const {project} = ctx.harness()
         await expect(
-            runViewJson(['clone', 'main', 'scratch', '--project', harness.project]),
+            runViewJson(['clone', 'main', 'scratch', '--project', project]),
         ).resolves.toMatchObject({
             name: 'scratch',
             isActive: false,
@@ -258,8 +72,9 @@ describe('runViewCommand', () => {
     })
 
     it('rejects deletion of the active view with the daemon active-view error', async () => {
+        const {project} = ctx.harness()
         const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['delete', 'main', '--project', harness.project]),
+            runViewCommand(['delete', 'main', '--project', project]),
         )
 
         expect(result.exitCode).toBe(EXIT.DAEMON_HTTP_ERROR)
@@ -267,22 +82,24 @@ describe('runViewCommand', () => {
     })
 
     it('deletes a non-active view', async () => {
-        await runViewJson(['clone', 'main', 'scratch', '--project', harness.project])
+        const {project} = ctx.harness()
+        await runViewJson(['clone', 'main', 'scratch', '--project', project])
 
-        await expect(runViewJson(['delete', 'scratch', '--project', harness.project])).resolves.toMatchObject({
+        await expect(runViewJson(['delete', 'scratch', '--project', project])).resolves.toMatchObject({
             name: 'scratch',
             isActive: false,
             is_active: false,
         })
-        await expect(createClient().views.list()).resolves.not.toEqual(
+        await expect(ctx.createClient().views.list()).resolves.not.toEqual(
             expect.arrayContaining([expect.objectContaining({name: 'scratch'})]),
         )
     })
 
     it('sets folder state on the active view', async () => {
-        const client: GraphDbClient = createClient()
+        const {project} = ctx.harness()
+        const client: GraphDbClient = ctx.createClient()
         const {sessionId}: {sessionId: string} = await client.createSession()
-        const folderPath: string = join(harness.project, 'docs')
+        const folderPath: string = join(project, 'docs')
 
         await expect(
             runViewJson([
@@ -290,7 +107,7 @@ describe('runViewCommand', () => {
                 folderPath,
                 'collapsed',
                 '--project',
-                harness.project,
+                project,
                 '--session',
                 sessionId,
             ]),
@@ -306,14 +123,15 @@ describe('runViewCommand', () => {
     })
 
     it('omits node markdown content from show JSON output', async () => {
-        const nodePath: string = join(harness.project, 'one.md')
+        const {project} = ctx.harness()
+        const nodePath: string = join(project, 'one.md')
         await writeFile(nodePath, '# one\n\nbody text that should not be printed\n', 'utf8')
         await waitFor(async () => {
-            const graph = await createClient().getGraph()
+            const graph = await ctx.createClient().getGraph()
             return graph.nodes[nodePath] ? true : null
         })
 
-        const body = await runViewJson(['show', '--project', harness.project])
+        const body = await runViewJson(['show', '--project', project])
         expect(body).toMatchObject({
             graph: {
                 nodes: {
@@ -327,7 +145,8 @@ describe('runViewCommand', () => {
     })
 
     it('renders the projected graph for human show output', async () => {
-        const docsPath: string = join(harness.project, 'docs')
+        const {project} = ctx.harness()
+        const docsPath: string = join(project, 'docs')
         const alphaPath: string = join(docsPath, 'alpha.md')
         const betaPath: string = join(docsPath, 'beta.md')
         const makeNode = (absoluteFilePathIsID: string, title: string): GraphNode => ({
@@ -345,7 +164,7 @@ describe('runViewCommand', () => {
             [alphaPath]: makeNode(alphaPath, 'Alpha'),
             [betaPath]: makeNode(betaPath, 'Beta'),
         }))
-        const client: GraphDbClient = createClient()
+        const client: GraphDbClient = ctx.createClient()
         await mkdir(docsPath, {recursive: true})
         await writeFile(alphaPath, '# Alpha\n', 'utf8')
         await writeFile(betaPath, '# Beta\n', 'utf8')
@@ -358,7 +177,7 @@ describe('runViewCommand', () => {
 
         setStdoutIsTTY(true)
         const result: CommandResult = await captureCommand(() =>
-            runViewCommand(['show', '--project', harness.project, '--session', sessionId]),
+            runViewCommand(['show', '--project', project, '--session', sessionId]),
         )
 
         expect(result.exitCode).toBeNull()
@@ -369,7 +188,8 @@ describe('runViewCommand', () => {
     })
 
     it('sets selection for a pinned session', async () => {
-        const {sessionId}: {sessionId: string} = await createClient().createSession()
+        const {project} = ctx.harness()
+        const {sessionId}: {sessionId: string} = await ctx.createClient().createSession()
 
         await expect(
             runViewJson([
@@ -378,7 +198,7 @@ describe('runViewCommand', () => {
                 'alpha',
                 'beta',
                 '--project',
-                harness.project,
+                project,
                 '--session',
                 sessionId,
             ]),
@@ -388,7 +208,8 @@ describe('runViewCommand', () => {
     })
 
     it('adds nodes to the existing selection', async () => {
-        const client: GraphDbClient = createClient()
+        const {project} = ctx.harness()
+        const client: GraphDbClient = ctx.createClient()
         const {sessionId}: {sessionId: string} = await client.createSession()
         await client.setSelection(sessionId, {
             nodeIds: ['alpha', 'beta'],
@@ -401,7 +222,7 @@ describe('runViewCommand', () => {
                 'add',
                 'gamma',
                 '--project',
-                harness.project,
+                project,
                 '--session',
                 sessionId,
             ]),
@@ -411,7 +232,8 @@ describe('runViewCommand', () => {
     })
 
     it('removes nodes from the existing selection', async () => {
-        const client: GraphDbClient = createClient()
+        const {project} = ctx.harness()
+        const client: GraphDbClient = ctx.createClient()
         const {sessionId}: {sessionId: string} = await client.createSession()
         await client.setSelection(sessionId, {
             nodeIds: ['alpha', 'beta', 'gamma'],
@@ -424,7 +246,7 @@ describe('runViewCommand', () => {
                 'remove',
                 'alpha',
                 '--project',
-                harness.project,
+                project,
                 '--session',
                 sessionId,
             ]),
@@ -434,16 +256,17 @@ describe('runViewCommand', () => {
     })
 
     it('mints a fresh session for each show invocation when no session is provided', async () => {
-        const client: GraphDbClient = createClient()
+        const {project} = ctx.harness()
+        const client: GraphDbClient = ctx.createClient()
 
         expect((await client.health()).sessionCount).toBe(0)
-        await expect(runViewJson(['show', '--project', harness.project])).resolves.toMatchObject({
+        await expect(runViewJson(['show', '--project', project])).resolves.toMatchObject({
             activeView: {name: 'main'},
             selection: [],
         })
         expect((await client.health()).sessionCount).toBe(1)
 
-        await expect(runViewJson(['show', '--project', harness.project])).resolves.toMatchObject({
+        await expect(runViewJson(['show', '--project', project])).resolves.toMatchObject({
             activeView: {name: 'main'},
             selection: [],
         })
@@ -451,20 +274,21 @@ describe('runViewCommand', () => {
     })
 
     it('shares state across view commands when a session is pinned', async () => {
-        const {sessionId}: {sessionId: string} = await createClient().createSession()
+        const {project} = ctx.harness()
+        const {sessionId}: {sessionId: string} = await ctx.createClient().createSession()
 
         await runViewJson([
             'selection',
             'set',
             'shared-node',
             '--project',
-            harness.project,
+            project,
             '--session',
             sessionId,
         ])
 
         await expect(
-            runViewJson(['show', '--project', harness.project, '--session', sessionId]),
+            runViewJson(['show', '--project', project, '--session', sessionId]),
         ).resolves.toMatchObject({
             selection: ['shared-node'],
         })
