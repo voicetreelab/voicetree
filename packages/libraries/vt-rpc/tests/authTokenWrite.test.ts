@@ -10,7 +10,7 @@ import {describe, expect, it} from 'vitest'
 import {authTokenFilePath, readAuthTokenFile} from '../src/authTokenFile.ts'
 import {generateAuthToken, writeAuthTokenFile} from '../src/authTokenWrite.ts'
 
-async function makeVault(): Promise<string> {
+async function makeProject(): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), 'vt-authtoken-write-'))
     await mkdir(join(dir, '.voicetree'), {recursive: true})
     return dir
@@ -32,40 +32,40 @@ describe('generateAuthToken', (): void => {
 
 describe('writeAuthTokenFile', (): void => {
     it('writes the token + trailing newline and round-trips via readAuthTokenFile', async (): Promise<void> => {
-        const vault: string = await makeVault()
+        const project: string = await makeProject()
         const token: string = generateAuthToken()
-        await writeAuthTokenFile(vault, token)
-        const raw: string = await readFile(authTokenFilePath(vault), 'utf8')
+        await writeAuthTokenFile(project, token)
+        const raw: string = await readFile(authTokenFilePath(project), 'utf8')
         expect(raw).toBe(`${token}\n`)
-        expect(await readAuthTokenFile(vault)).toBe(token)
+        expect(await readAuthTokenFile(project)).toBe(token)
     })
 
     it('file mode is 0600 (owner read/write only)', async (): Promise<void> => {
-        const vault: string = await makeVault()
+        const project: string = await makeProject()
         const token: string = generateAuthToken()
-        await writeAuthTokenFile(vault, token)
-        const stats = await stat(authTokenFilePath(vault))
+        await writeAuthTokenFile(project, token)
+        const stats = await stat(authTokenFilePath(project))
         // mode includes file-type bits; mask out and compare permission bits.
         // eslint-disable-next-line no-bitwise
         expect(stats.mode & 0o777).toBe(0o600)
     })
 
     it('overwrites any prior token atomically (atomic re-key on restart)', async (): Promise<void> => {
-        const vault: string = await makeVault()
+        const project: string = await makeProject()
         const first: string = generateAuthToken()
-        await writeAuthTokenFile(vault, first)
+        await writeAuthTokenFile(project, first)
         // Loosen mode then rewrite — confirms the rewrite restores 0600.
-        await chmod(authTokenFilePath(vault), 0o644)
+        await chmod(authTokenFilePath(project), 0o644)
         const second: string = generateAuthToken()
-        await writeAuthTokenFile(vault, second)
-        expect(await readAuthTokenFile(vault)).toBe(second)
-        const stats = await stat(authTokenFilePath(vault))
+        await writeAuthTokenFile(project, second)
+        expect(await readAuthTokenFile(project)).toBe(second)
+        const stats = await stat(authTokenFilePath(project))
         // eslint-disable-next-line no-bitwise
         expect(stats.mode & 0o777).toBe(0o600)
     })
 
     it('refuses to write an empty token', async (): Promise<void> => {
-        const vault: string = await makeVault()
-        await expect(writeAuthTokenFile(vault, '')).rejects.toThrow(/empty/)
+        const project: string = await makeProject()
+        await expect(writeAuthTokenFile(project, '')).rejects.toThrow(/empty/)
     })
 })

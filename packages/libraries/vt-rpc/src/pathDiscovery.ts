@@ -1,16 +1,16 @@
-// Resolution chain (design doc §2.7) for the daemon URL + the vault path used
+// Resolution chain (design doc §2.7) for the daemon URL + the project path used
 // to locate the auth-token file. First hit wins. Failure here is *fatal at
 // the CLI* — caller maps to `daemon_unreachable` (-32000).
 //
 // Chain:
 //   1. $VOICETREE_DAEMON_URL                        — full URL override.
-//   2. <discovered-vault>/.voicetree/rpc.port       — vault discovered by up-walking
+//   2. <discovered-project>/.voicetree/rpc.port       — project discovered by up-walking
 //                                                     from `cwd` looking for `.voicetree/`.
 //   3. $VOICETREE_PROJECT_PATH/.voicetree/rpc.port    — fallback when invoked
-//                                                     outside any vault tree.
+//                                                     outside any project tree.
 //
-// The vault root (for the auth token) is whichever step's vault resolved the
-// port. Override sets the URL but not the vault — caller passes
+// The project root (for the auth token) is whichever step's project resolved the
+// port. Override sets the URL but not the project — caller passes
 // `$VOICETREE_PROJECT_PATH` explicitly in that case.
 
 import {existsSync, statSync} from 'node:fs'
@@ -21,8 +21,8 @@ import {readRpcPortFile} from './portFile.ts'
 
 export interface ResolvedDaemonEndpoint {
     readonly url: string
-    readonly vaultPath: string | null
-    readonly source: 'env_url' | 'cwd_up_walk' | 'env_vault_path'
+    readonly projectPath: string | null
+    readonly source: 'env_url' | 'cwd_up_walk' | 'env_project_path'
 }
 
 // `cwd` and `env` are required inputs. The transitive-purity gate flags
@@ -41,9 +41,9 @@ function envOr(env: Record<string, string | undefined>, key: string): string | u
 }
 
 // Up-walk: starting at `from`, climb until we hit a directory containing a
-// `.voicetree/` subdir. Returns the vault root (the directory containing
+// `.voicetree/` subdir. Returns the project root (the directory containing
 // `.voicetree/`), not `.voicetree/` itself.
-export function detectVaultFromCwd(from: string): string | null {
+export function detectProjectFromCwd(from: string): string | null {
     let dir: string = resolve(from)
     while (true) {
         const candidate: string = getProjectDotVoicetreePath(dir)
@@ -73,54 +73,54 @@ export async function discoverDaemonEndpoint(
     if (explicit) {
         return {
             url: explicit,
-            vaultPath: envOr(env, 'VOICETREE_PROJECT_PATH') ?? null,
+            projectPath: envOr(env, 'VOICETREE_PROJECT_PATH') ?? null,
             source: 'env_url',
         }
     }
 
-    const detectedVault: string | null = detectVaultFromCwd(cwd)
-    if (detectedVault) {
-        const port: number | null = await readRpcPortFile(detectedVault)
+    const detectedProject: string | null = detectProjectFromCwd(cwd)
+    if (detectedProject) {
+        const port: number | null = await readRpcPortFile(detectedProject)
         if (port !== null) {
-            return {url: urlForLocalhostPort(port), vaultPath: detectedVault, source: 'cwd_up_walk'}
+            return {url: urlForLocalhostPort(port), projectPath: detectedProject, source: 'cwd_up_walk'}
         }
     }
 
-    const fallbackVault: string | undefined = envOr(env, 'VOICETREE_PROJECT_PATH')
-    if (fallbackVault) {
-        const port: number | null = await readRpcPortFile(fallbackVault)
+    const fallbackProject: string | undefined = envOr(env, 'VOICETREE_PROJECT_PATH')
+    if (fallbackProject) {
+        const port: number | null = await readRpcPortFile(fallbackProject)
         if (port !== null) {
-            return {url: urlForLocalhostPort(port), vaultPath: resolve(fallbackVault), source: 'env_vault_path'}
+            return {url: urlForLocalhostPort(port), projectPath: resolve(fallbackProject), source: 'env_project_path'}
         }
     }
 
     return null
 }
 
-export interface VaultDiscoveryOptions {
+export interface ProjectDiscoveryOptions {
     readonly env: Record<string, string | undefined>
 }
 
-// Explicit-vault resolution. Used when the caller already knows which vault
-// to talk to (e.g. graph-tools' `createLiveTransport(vaultPath)`) and wants
+// Explicit-project resolution. Used when the caller already knows which project
+// to talk to (e.g. graph-tools' `createLiveTransport(projectPath)`) and wants
 // to bypass the cwd up-walk entirely. `$VOICETREE_DAEMON_URL` still wins —
 // it's a per-process override — but the token always comes from the
-// explicit vault, not from `$VOICETREE_PROJECT_PATH`. Replaces the
+// explicit project, not from `$VOICETREE_PROJECT_PATH`. Replaces the
 // `discoverDaemonEndpoint({cwd: '/'})` trick 9d used.
-export async function discoverDaemonEndpointForVault(
-    vaultPath: string,
-    options: VaultDiscoveryOptions,
+export async function discoverDaemonEndpointForProject(
+    projectPath: string,
+    options: ProjectDiscoveryOptions,
 ): Promise<ResolvedDaemonEndpoint | null> {
-    if (vaultPath.length === 0) return null
+    if (projectPath.length === 0) return null
     const {env} = options
-    const resolvedVault: string = resolve(vaultPath)
+    const resolvedProject: string = resolve(projectPath)
 
     const explicit: string | undefined = envOr(env, 'VOICETREE_DAEMON_URL')
     if (explicit) {
-        return {url: explicit, vaultPath: resolvedVault, source: 'env_url'}
+        return {url: explicit, projectPath: resolvedProject, source: 'env_url'}
     }
 
-    const port: number | null = await readRpcPortFile(resolvedVault)
+    const port: number | null = await readRpcPortFile(resolvedProject)
     if (port === null) return null
-    return {url: urlForLocalhostPort(port), vaultPath: resolvedVault, source: 'env_vault_path'}
+    return {url: urlForLocalhostPort(port), projectPath: resolvedProject, source: 'env_project_path'}
 }

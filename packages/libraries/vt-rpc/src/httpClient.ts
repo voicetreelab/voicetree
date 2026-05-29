@@ -14,7 +14,7 @@ import {readAuthTokenFile, redactToken} from './authTokenFile.ts'
 import {ERROR_CODES} from './errorCodes.ts'
 import {
     discoverDaemonEndpoint,
-    discoverDaemonEndpointForVault,
+    discoverDaemonEndpointForProject,
     type ResolvedDaemonEndpoint,
 } from './pathDiscovery.ts'
 
@@ -78,7 +78,7 @@ export interface CreateRpcClientOptions {
 
 // Resolve daemon URL + token via the discovery chain. Throws
 // `DaemonUnreachable` when no endpoint resolves or the token file is missing
-// at the resolved vault.
+// at the resolved project.
 export async function createRpcClient(options: CreateRpcClientOptions): Promise<DaemonRpcClient> {
     const {env, cwd} = options
     const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({cwd, env})
@@ -90,27 +90,27 @@ export async function createRpcClient(options: CreateRpcClientOptions): Promise<
     return buildClientFromEndpoint(endpoint, env)
 }
 
-export interface CreateRpcClientForVaultOptions {
+export interface CreateRpcClientForProjectOptions {
     readonly env: Record<string, string | undefined>
 }
 
-// Explicit-vault client construction. Skips the cwd up-walk and reads
-// rpc.port + auth-token directly from the named vault. `$VOICETREE_DAEMON_URL`
+// Explicit-project client construction. Skips the cwd up-walk and reads
+// rpc.port + auth-token directly from the named project. `$VOICETREE_DAEMON_URL`
 // still wins (per-process override), but the token always comes from the
-// explicit vault. Used by graph-tools' `createLiveTransport(vaultPath)`;
+// explicit project. Used by graph-tools' `createLiveTransport(projectPath)`;
 // replaces the 9d `createRpcClient({cwd: '/'})` workaround.
-export async function createRpcClientForVault(
-    vaultPath: string,
-    options: CreateRpcClientForVaultOptions,
+export async function createRpcClientForProject(
+    projectPath: string,
+    options: CreateRpcClientForProjectOptions,
 ): Promise<DaemonRpcClient> {
-    if (vaultPath.length === 0) {
-        throw new DaemonUnreachable('createRpcClientForVault: vaultPath must be a non-empty path.')
+    if (projectPath.length === 0) {
+        throw new DaemonUnreachable('createRpcClientForProject: projectPath must be a non-empty path.')
     }
     const {env} = options
-    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpointForVault(vaultPath, {env})
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpointForProject(projectPath, {env})
     if (!endpoint) {
         throw new DaemonUnreachable(
-            `No daemon for vault ${vaultPath}: rpc.port not found at ${vaultPath}/.voicetree/rpc.port and $VOICETREE_DAEMON_URL is unset.`,
+            `No daemon for project ${projectPath}: rpc.port not found at ${projectPath}/.voicetree/rpc.port and $VOICETREE_DAEMON_URL is unset.`,
         )
     }
     return buildClientFromEndpoint(endpoint, env)
@@ -120,7 +120,7 @@ async function buildClientFromEndpoint(
     endpoint: ResolvedDaemonEndpoint,
     env: Record<string, string | undefined>,
 ): Promise<DaemonRpcClient> {
-    const tokenSource: string | null = endpoint.vaultPath
+    const tokenSource: string | null = endpoint.projectPath
     const token: string | null = tokenSource ? await readAuthTokenFile(tokenSource) : null
     if (token === null) {
         throw new DaemonUnreachable(
@@ -169,7 +169,7 @@ async function callDaemon(
 
     if (res.status === 401) {
         throw new DaemonAuthRequired(
-            `Daemon at ${url} rejected the bearer token. Token may be stale — re-read \`${url}\`'s vault auth-token file.`,
+            `Daemon at ${url} rejected the bearer token. Token may be stale — re-read \`${url}\`'s project auth-token file.`,
         )
     }
     if (!res.ok) {

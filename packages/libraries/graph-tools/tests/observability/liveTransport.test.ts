@@ -46,12 +46,12 @@ describe('createLiveTransport — happy path over HTTP', () => {
         envSnapshot = snapshotEnv()
         mock = initialMockServer()
         daemon = await startStubDaemon(buildHappyCatalog(mock))
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
     })
 
     afterEach(async () => {
         await daemon.stop()
-        await rm(daemon.vaultPath, {recursive: true, force: true})
+        await rm(daemon.projectPath, {recursive: true, force: true})
         restoreEnv(envSnapshot)
     })
 
@@ -112,9 +112,9 @@ describe('createLiveTransport — happy path over HTTP', () => {
         expect(after.meta.revision).toBeGreaterThan(before.meta.revision)
     })
 
-    it('honors an explicit vaultPath argument (no cwd up-walk needed)', async () => {
+    it('honors an explicit projectPath argument (no cwd up-walk needed)', async () => {
         delete process.env.VOICETREE_PROJECT_PATH
-        const transport = createLiveTransport(daemon.vaultPath)
+        const transport = createLiveTransport(daemon.projectPath)
         const state = await transport.getLiveState()
         expect(state.meta.revision).toBe(3)
     })
@@ -134,7 +134,7 @@ describe('createLiveTransport — error envelopes', () => {
     afterEach(async () => {
         if (daemon) {
             await daemon.stop()
-            await rm(daemon.vaultPath, {recursive: true, force: true})
+            await rm(daemon.projectPath, {recursive: true, force: true})
         }
         restoreEnv(envSnapshot)
     })
@@ -147,7 +147,7 @@ describe('createLiveTransport — error envelopes', () => {
             })],
         ])
         daemon = await startStubDaemon(catalog)
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
 
         const transport = createLiveTransport()
         await expect(transport.getLiveState()).rejects.toThrow(
@@ -164,7 +164,7 @@ describe('createLiveTransport — error envelopes', () => {
             }],
         ])
         daemon = await startStubDaemon(catalog)
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
 
         const transport = createLiveTransport()
         try {
@@ -179,7 +179,7 @@ describe('createLiveTransport — error envelopes', () => {
 
     it('other JSON-RPC errors surface error.message (unknown method)', async () => {
         daemon = await startStubDaemon(new Map())
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
 
         const transport = createLiveTransport()
         await expect(transport.getLiveState()).rejects.toThrow(
@@ -202,7 +202,7 @@ describe('createLiveTransport — transport failures', () => {
     afterEach(async () => {
         if (daemon) {
             await daemon.stop()
-            await rm(daemon.vaultPath, {recursive: true, force: true})
+            await rm(daemon.projectPath, {recursive: true, force: true})
         }
         restoreEnv(envSnapshot)
     })
@@ -214,8 +214,8 @@ describe('createLiveTransport — transport failures', () => {
         daemon = await startStubDaemon(catalog)
         // Stale the on-disk token so the client sends a mismatched bearer
         // and the daemon (which still holds the original) rejects with 401.
-        await writeAuthTokenFile(daemon.vaultPath, 'wrong-token-not-the-real-one')
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        await writeAuthTokenFile(daemon.projectPath, 'wrong-token-not-the-real-one')
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
 
         const transport = createLiveTransport()
         await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonAuthRequired)
@@ -234,7 +234,7 @@ describe('createLiveTransport — transport failures', () => {
             }],
         ])
         daemon = await startStubDaemon(catalog)
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
         process.env.VOICETREE_DAEMON_TIMEOUT_MS = '100'
 
         const transport = createLiveTransport()
@@ -244,18 +244,18 @@ describe('createLiveTransport — transport failures', () => {
     }, 2_000)
 
     it('ECONNREFUSED → DaemonUnreachable', async () => {
-        const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-noport-')))
-        await mkdir(join(vaultPath, '.voicetree'), {recursive: true})
-        await writeAuthTokenFile(vaultPath, 'irrelevant-no-listener-anyway')
+        const projectPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-noport-')))
+        await mkdir(join(projectPath, '.voicetree'), {recursive: true})
+        await writeAuthTokenFile(projectPath, 'irrelevant-no-listener-anyway')
         // Port 1 is reserved on most OSes — TCP connect rejects with ECONNREFUSED.
-        await writeRpcPortFile(vaultPath, 1)
-        process.env.VOICETREE_PROJECT_PATH = vaultPath
+        await writeRpcPortFile(projectPath, 1)
+        process.env.VOICETREE_PROJECT_PATH = projectPath
 
         try {
             const transport = createLiveTransport()
             await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
         } finally {
-            await rm(vaultPath, {recursive: true, force: true})
+            await rm(projectPath, {recursive: true, force: true})
         }
     })
 })
@@ -277,12 +277,12 @@ describe('createLiveTransport — discovery chain', () => {
         process.chdir(cwdSnapshot)
         if (daemon) {
             await daemon.stop()
-            await rm(daemon.vaultPath, {recursive: true, force: true})
+            await rm(daemon.projectPath, {recursive: true, force: true})
         }
         restoreEnv(envSnapshot)
     })
 
-    it('VOICETREE_DAEMON_URL wins over a stale vault rpc.port', async () => {
+    it('VOICETREE_DAEMON_URL wins over a stale project rpc.port', async () => {
         // Live daemon at A; misleading rpc.port at B pointing at port 2.
         const catalog: Catalog = new Map([
             ['vt_get_live_state', async (): Promise<ToolResult> => ({
@@ -301,10 +301,10 @@ describe('createLiveTransport — discovery chain', () => {
         await writeAuthTokenFile(fakeVault, 'stale-token')
 
         try {
-            // Env URL aimed at the real daemon; VAULT_PATH at the real vault
+            // Env URL aimed at the real daemon; VAULT_PATH at the real project
             // (so the client reads the *correct* token, not the stale one).
             process.env.VOICETREE_DAEMON_URL = daemon.url
-            process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
 
             const state = await createLiveTransport().getLiveState()
             expect(state.meta.revision).toBe(99)
@@ -313,21 +313,21 @@ describe('createLiveTransport — discovery chain', () => {
         }
     })
 
-    it('vault rpc.port resolves when VOICETREE_DAEMON_URL is absent', async () => {
+    it('project rpc.port resolves when VOICETREE_DAEMON_URL is absent', async () => {
         const catalog: Catalog = new Map([
             ['vt_get_live_state', async (): Promise<ToolResult> => ({ok: true, payload: FIXTURE_SERIALIZED_STATE})],
         ])
         daemon = await startStubDaemon(catalog)
 
         delete process.env.VOICETREE_DAEMON_URL
-        process.env.VOICETREE_PROJECT_PATH = daemon.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = daemon.projectPath
 
         const state = await createLiveTransport().getLiveState()
         expect(state.meta.revision).toBe(3)
     })
 
     it('throws DaemonUnreachable when nothing resolves', async () => {
-        const isolated: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-no-vault-')))
+        const isolated: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-no-project-')))
         try {
             delete process.env.VOICETREE_DAEMON_URL
             delete process.env.VOICETREE_PROJECT_PATH

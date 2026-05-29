@@ -1,7 +1,7 @@
 /**
  * BF-200 — integration tests for live focus/neighbors/path (Step 9d, HTTP).
  *
- * Boots the headless HTTP daemon with a fixture vault, then calls
+ * Boots the headless HTTP daemon with a fixture project, then calls
  * liveFocus / liveNeighbors / livePath via the transport layer.
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
@@ -27,11 +27,11 @@ beforeAll(async () => {
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n') // isolated
 
-    server = await createHeadlessServer({vaultPath: VAULT})
+    server = await createHeadlessServer({projectPath: VAULT})
 
     savedVaultEnv = process.env.VOICETREE_PROJECT_PATH
     savedUrlEnv = process.env.VOICETREE_DAEMON_URL
-    process.env.VOICETREE_PROJECT_PATH = server.vaultPath
+    process.env.VOICETREE_PROJECT_PATH = server.projectPath
     delete process.env.VOICETREE_DAEMON_URL
 })
 

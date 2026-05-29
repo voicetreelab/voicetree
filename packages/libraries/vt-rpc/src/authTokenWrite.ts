@@ -1,5 +1,5 @@
 // Daemon-side generation + atomic write of the bearer auth token. The token
-// is written to `<vault>/.voicetree/auth-token` with mode 0600 at daemon
+// is written to `<project>/.voicetree/auth-token` with mode 0600 at daemon
 // startup; filesystem permissions are the trust root (design doc §2.4).
 // Daemon-restart invalidates — there's no rotation endpoint and no
 // persistence across restarts (§2.8).
@@ -22,11 +22,11 @@ export function generateAuthToken(): string {
     return randomBytes(TOKEN_BYTE_LENGTH).toString('hex')
 }
 
-export async function writeAuthTokenFile(vaultPath: string, token: string): Promise<void> {
+export async function writeAuthTokenFile(projectPath: string, token: string): Promise<void> {
     if (token.length === 0) {
         throw new Error('writeAuthTokenFile: refusing to write empty token')
     }
-    const finalPath: string = authTokenFilePath(vaultPath)
+    const finalPath: string = authTokenFilePath(projectPath)
     const tempPath: string = `${finalPath}.${process.pid}.tmp`
     await mkdir(dirname(finalPath), {recursive: true})
     await writeFile(tempPath, `${token}\n`, {encoding: 'utf8', mode: TOKEN_FILE_MODE})

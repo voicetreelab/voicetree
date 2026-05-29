@@ -165,8 +165,8 @@ function findLoadedRootForFile(loadedRoots: readonly string[], filePath: string)
       - Math.max(...left.rootCandidates.map((candidate) => candidate.length)))[0]?.root
 }
 
-export async function getLiveGraphNodes(vaultPath?: string): Promise<LiveGraphNodesSnapshot> {
-  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
+export async function getLiveGraphNodes(projectPath?: string): Promise<LiveGraphNodesSnapshot> {
+  const result = await liveStateDump({pretty: false, ...(projectPath !== undefined ? {projectPath} : {})})
   const parsed = JSON.parse(result.json) as {
     graph?: {nodes?: Record<string, LiveGraphNodeSnapshot | undefined>}
   }
@@ -277,14 +277,14 @@ export async function persistLiveCrudCommand(
       fs.mkdirSync(path.dirname(file), {recursive: true})
       fs.writeFileSync(file, withTrailingNewline(command.node.contentWithoutYamlOrLinks), 'utf8')
       if (command.node.nodeUIMetadata.position._tag === 'Some') {
-        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.vaultPath)
+        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.projectPath)
       }
       return
     }
     case 'RemoveNode': {
       if (!hasLiveNode(beforeNodes, command.id) || hasLiveNode(afterNodes, command.id)) return
       if (fs.existsSync(command.id)) fs.rmSync(command.id, {force: true})
-      await removePositionForFile(command.id, parsed.vaultPath)
+      await removePositionForFile(command.id, parsed.projectPath)
       return
     }
     case 'AddEdge': {
@@ -330,7 +330,7 @@ export async function persistLiveCrudCommand(
     }
     case 'Move': {
       if (!deltaMovedPosition(delta, command.id) && !nodeHasLivePosition(afterNodes, command.id, command.to)) return
-      await writePositionForFile(command.id, command.to, parsed.vaultPath)
+      await writePositionForFile(command.id, command.to, parsed.projectPath)
       return
     }
     default:

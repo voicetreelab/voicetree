@@ -10,7 +10,7 @@ import {
     redactToken,
 } from '../src/authTokenFile.ts'
 
-async function makeVault(): Promise<string> {
+async function makeProject(): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), 'vt-rpc-auth-'))
     await mkdir(join(dir, '.voicetree'), {recursive: true})
     return dir
@@ -18,20 +18,20 @@ async function makeVault(): Promise<string> {
 
 describe('readAuthTokenFile', (): void => {
     it('returns the token verbatim, trimmed', async (): Promise<void> => {
-        const vault: string = await makeVault()
-        await writeFile(authTokenFilePath(vault), '  abcdef0123456789\n', 'utf8')
-        expect(await readAuthTokenFile(vault)).toBe('abcdef0123456789')
+        const project: string = await makeProject()
+        await writeFile(authTokenFilePath(project), '  abcdef0123456789\n', 'utf8')
+        expect(await readAuthTokenFile(project)).toBe('abcdef0123456789')
     })
 
     it('returns null when the file is missing', async (): Promise<void> => {
-        const vault: string = await makeVault()
-        expect(await readAuthTokenFile(vault)).toBe(null)
+        const project: string = await makeProject()
+        expect(await readAuthTokenFile(project)).toBe(null)
     })
 
     it('returns null for whitespace-only content', async (): Promise<void> => {
-        const vault: string = await makeVault()
-        await writeFile(authTokenFilePath(vault), '   \n\t  ', 'utf8')
-        expect(await readAuthTokenFile(vault)).toBe(null)
+        const project: string = await makeProject()
+        await writeFile(authTokenFilePath(project), '   \n\t  ', 'utf8')
+        expect(await readAuthTokenFile(project)).toBe(null)
     })
 })
 

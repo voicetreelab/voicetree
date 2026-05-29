@@ -1,6 +1,6 @@
 // Public types for the headless HTTP daemon. Carved out so the
-// transport-only `headlessServer.ts` and the vault-backed
-// `vaultLiveCatalog.ts` can share the catalog shape without one importing
+// transport-only `headlessServer.ts` and the project-backed
+// `projectLiveCatalog.ts` can share the catalog shape without one importing
 // the other.
 
 export type ToolResult =
@@ -25,7 +25,7 @@ export class CatalogValidationError extends Error {
 }
 
 export interface HeadlessServerOptions {
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly catalog?: Catalog
     readonly host?: string
     readonly port?: number
@@ -35,6 +35,6 @@ export interface HeadlessServer {
     readonly url: string
     readonly port: number
     readonly token: string
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly close: () => Promise<void>
 }

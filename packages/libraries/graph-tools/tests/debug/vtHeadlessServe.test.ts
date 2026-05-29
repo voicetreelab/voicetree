@@ -1,6 +1,6 @@
 // Step 9d — in-process integration for vt-headless serve.
 //
-// Boots `createHeadlessServer` against a per-test temp vault (where it
+// Boots `createHeadlessServer` against a per-test temp project (where it
 // writes `rpc.port` + `auth-token` atomically), then drives
 // `createLiveTransport` through real HTTP.
 
@@ -29,24 +29,24 @@ function restoreEnv(snap: Record<string, string | undefined>): void {
 
 describe('vt-headless serve (HTTP)', () => {
     let envSnapshot: Record<string, string | undefined>
-    let vaults: string[]
+    let projects: string[]
 
     beforeEach(() => {
         envSnapshot = snapshotEnv()
-        vaults = []
+        projects = []
     })
 
     afterEach(async () => {
         restoreEnv(envSnapshot)
-        for (const vault of vaults.splice(0)) {
-            await rm(vault, {recursive: true, force: true})
+        for (const project of projects.splice(0)) {
+            await rm(project, {recursive: true, force: true})
         }
     })
 
     async function startServer(): Promise<HeadlessServer> {
-        const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-headless-')))
-        vaults.push(vaultPath)
-        return createHeadlessServer({vaultPath})
+        const projectPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-headless-')))
+        projects.push(projectPath)
+        return createHeadlessServer({projectPath})
     }
 
     it('boots on an HTTP port and responds to vt_get_live_state', async () => {
@@ -56,7 +56,7 @@ describe('vt-headless serve (HTTP)', () => {
             expect(server.port).toBeGreaterThan(0)
             expect(server.token.length).toBeGreaterThan(0)
 
-            process.env.VOICETREE_PROJECT_PATH = server.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = server.projectPath
             const state = await createLiveTransport().getLiveState()
 
             expect(state.meta.schemaVersion).toBe(1)
@@ -71,7 +71,7 @@ describe('vt-headless serve (HTTP)', () => {
     it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded + bumped revision', async () => {
         const server = await startServer()
         try {
-            process.env.VOICETREE_PROJECT_PATH = server.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = server.projectPath
             const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
@@ -92,7 +92,7 @@ describe('vt-headless serve (HTTP)', () => {
     it('round-trip: SetFolderState → getLiveState reflects collapse + bumped revision', async () => {
         const server = await startServer()
         try {
-            process.env.VOICETREE_PROJECT_PATH = server.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = server.projectPath
             const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
@@ -121,9 +121,9 @@ describe('vt-headless serve (HTTP)', () => {
             expect(srv1.port).not.toBe(srv2.port)
             expect(srv1.token).not.toBe(srv2.token)
 
-            process.env.VOICETREE_PROJECT_PATH = srv1.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = srv1.projectPath
             const t1 = createLiveTransport()
-            process.env.VOICETREE_PROJECT_PATH = srv2.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = srv2.projectPath
             const t2 = createLiveTransport()
 
             const [s1, s2] = await Promise.all([t1.getLiveState(), t2.getLiveState()])
