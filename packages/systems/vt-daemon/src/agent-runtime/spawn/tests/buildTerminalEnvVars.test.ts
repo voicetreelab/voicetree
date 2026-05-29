@@ -43,6 +43,7 @@ describe('buildTerminalEnvVars', () => {
 
         expect(env.VOICETREE_PROJECT_DIR).toBe('/watched-project/.voicetree')
         expect(env.VOICETREE_PROJECT_PATH).toBe('/watched-project')
+        expect(env.VOICETREE_WRITE_PATH).toBe('/watched-project/voicetree-25-5')
         expect(env.ALL_MARKDOWN_READ_PATHS).toBe('/watched-project/voicetree-25-5\n/watched-project/reference')
         expect(env.AGENT_PROMPT).toContain('project=/watched-project')
         expect(env.AGENT_PROMPT).toContain('project=/watched-project/.voicetree')

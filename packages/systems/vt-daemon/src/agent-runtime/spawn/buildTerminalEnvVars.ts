@@ -53,6 +53,9 @@ export async function buildTerminalEnvVars(params: {
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
+    const writeFolderPath: string | null = env.getWriteFolderPath
+        ? await env.getWriteFolderPath()
+        : null
     const daemonPort: number | null = await readDaemonPortFromProject(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
 
@@ -60,6 +63,7 @@ export async function buildTerminalEnvVars(params: {
         VOICETREE_PROJECT_DIR: voicetreeProjectDir,
         VOICETREE_HOME_PATH: voicetreeHomePath ?? '',
         VOICETREE_PROJECT_PATH: projectRoot ?? '',
+        VOICETREE_WRITE_PATH: writeFolderPath ?? '',
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: params.contextNodePath,
         TASK_NODE_PATH: params.taskNodePath,

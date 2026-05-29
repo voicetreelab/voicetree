@@ -1,4 +1,4 @@
-Use the `vt graph create` CLI with `$VOICETREE_TERMINAL_ID` exported in your environment to add progress nodes. Write each node as a markdown file under `$VOICETREE_PROJECT_PATH`, then run `vt graph create <path>` (one or more positional `.md` paths per call). The CLI handles frontmatter normalization, parent linking from `[[wikilinks]]` in the body, and graph positioning automatically.
+Use the `vt graph create` CLI with `$VOICETREE_TERMINAL_ID` exported in your environment to add progress nodes. Write each node as a markdown file under `$VOICETREE_WRITE_PATH`, then run `vt graph create <path>` (one or more positional `.md` paths per call). The CLI handles frontmatter normalization, parent linking from `[[wikilinks]]` in the body, and graph positioning automatically.
 
 ## Orchestration: Decide Before You Start
 Does this task have 2+ distinct concerns or phases?
@@ -64,19 +64,19 @@ Wire multi-node graphs by including `[[parent-basename]]` wikilinks in each chil
 
 ## CLI invocation
 
-Write the node markdown to `$VOICETREE_PROJECT_PATH/<title-sluggified>.md`, then:
+Write the node markdown to `$VOICETREE_WRITE_PATH/<title-sluggified>.md`, then:
 
 ```bash
-vt graph create "$VOICETREE_PROJECT_PATH/<title-sluggified>.md"
+vt graph create "$VOICETREE_WRITE_PATH/<title-sluggified>.md"
 ```
 
 For multiple nodes in one tree, write each file with its `[[parent-basename]]` wikilinks, then pass all paths in one call:
 
 ```bash
 vt graph create \
-  "$VOICETREE_PROJECT_PATH/root.md" \
-  "$VOICETREE_PROJECT_PATH/child-a.md" \
-  "$VOICETREE_PROJECT_PATH/child-b.md"
+  "$VOICETREE_WRITE_PATH/root.md" \
+  "$VOICETREE_WRITE_PATH/child-a.md" \
+  "$VOICETREE_WRITE_PATH/child-b.md"
 ```
 
 Add `--validate-only` to dry-run (parses + schema-gates without writing). Add `--color green` to default unspecified nodes to green.
@@ -93,4 +93,4 @@ If you are writing into a subfolder that has a folder note declaring `## Type: <
 5. `## Files Changed` populated.
 6. `[[parent-basename]]` wikilinks set on each child node.
 
-ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, `VOICETREE_PROJECT_PATH`, etc.) are environment variables already set. Check them now.
+ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, `VOICETREE_PROJECT_PATH`, `VOICETREE_WRITE_PATH`, etc.) are environment variables already set. Check them now.

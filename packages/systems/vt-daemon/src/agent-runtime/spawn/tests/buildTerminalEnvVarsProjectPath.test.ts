@@ -50,6 +50,7 @@ describe('buildTerminalEnvVars — project-path semantics', () => {
 
         expect(envVars.VOICETREE_PROJECT_PATH).toBe(CANONICAL_ROOT)
         expect(envVars.VOICETREE_PROJECT_DIR).toBe(`${CANONICAL_ROOT}/.voicetree`)
+        expect(envVars.VOICETREE_WRITE_PATH).toBe(SUBFOLDER_WRITE_FOLDER)
     })
 
     it('keeps CONTEXT_NODE_PATH and TASK_NODE_PATH subfolder-scoped (they encode node identity, not the project root)', async () => {
