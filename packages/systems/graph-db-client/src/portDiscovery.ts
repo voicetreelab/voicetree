@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import { DaemonUnreachableError } from './errors.ts'
 
 const PORT_FILENAME = 'graphd.port'

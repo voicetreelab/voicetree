@@ -24,7 +24,7 @@ import {
     setInvocationContext,
 } from './commands/telemetry/recordCliInvocation.ts'
 import {CliExitError} from './commands/util/exitCodes.ts'
-import {resolveVoicetreeHomePath} from '@vt/app-config/paths'
+import {resolveVoicetreeHomePath} from '@vt/paths'
 
 type GlobalOptions = {
     terminalId: string | undefined

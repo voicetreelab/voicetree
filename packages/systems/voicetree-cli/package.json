@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@mermaid-js/parser": "^0.6.2",
+    "@vt/paths": "*",
     "@vscode/ripgrep": "^1.15.9",
     "chokidar": "^3.6.0"
   },

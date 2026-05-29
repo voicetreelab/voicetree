@@ -8,7 +8,7 @@ import {
 import {homedir, tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
-import {getVoicetreeHomePath, VOICETREE_HOME_PATH_ENV} from '@vt/app-config/paths'
+import {getVoicetreeHomePath, VOICETREE_HOME_PATH_ENV} from '@vt/paths'
 
 type ExecFileCallback = (error: Error | null, stdout: string | Buffer, stderr: string | Buffer) => void
 

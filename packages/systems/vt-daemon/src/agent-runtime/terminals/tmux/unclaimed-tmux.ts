@@ -1,5 +1,5 @@
 import path from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {attachExistingTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/tmuxHeadlessRuntime.ts'
 import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'

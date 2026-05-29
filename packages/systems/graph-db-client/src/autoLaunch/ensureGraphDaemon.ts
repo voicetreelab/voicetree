@@ -22,7 +22,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import {
   boundedDelay,
   decideOwnerAction,

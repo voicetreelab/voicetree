@@ -48,7 +48,7 @@ import {
   type OwnerEvidence,
   type OwnerRecord,
 } from '@vt/daemon-lifecycle'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { CommandSpec } from './runtime.ts'
 
 /**

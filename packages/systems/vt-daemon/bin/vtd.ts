@@ -53,7 +53,7 @@ import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
-import {resolveVoicetreeHomePath} from '@vt/app-config/paths'
+import {resolveVoicetreeHomePath} from '@vt/paths'
 import {loadSettings} from '@vt/app-config/settings'
 import {
     startHttpDaemonServer,

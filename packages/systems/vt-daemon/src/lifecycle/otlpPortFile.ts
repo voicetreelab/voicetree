@@ -14,7 +14,7 @@
 import {mkdir, readFile, rename, unlink, writeFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export const OTLP_PORT_FILENAME: string = 'otlp.port'
 

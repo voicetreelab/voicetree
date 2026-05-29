@@ -23,7 +23,7 @@
 import {chmodSync, mkdirSync, rmSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import {join} from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {detectCliType, type SupportedHeadlessCli} from '@vt/vt-daemon/agent-runtime/spawn/cli/headlessCli.ts'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'

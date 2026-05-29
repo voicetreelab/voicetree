@@ -21,7 +21,7 @@
 
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { DaemonKind } from '@vt/graph-db-protocol'
 import { readProcessLiveness } from './processLiveness.ts'
 

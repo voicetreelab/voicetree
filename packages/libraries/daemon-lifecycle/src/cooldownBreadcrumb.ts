@@ -25,7 +25,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { CallerKind, DaemonKind } from '@vt/graph-db-protocol'
 import type { Cooldown } from './ownerDecision.ts'
 

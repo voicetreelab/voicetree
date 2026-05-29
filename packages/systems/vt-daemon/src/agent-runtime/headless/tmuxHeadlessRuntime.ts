@@ -1,6 +1,6 @@
 import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TmuxReconciliationResult} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-metadata.ts'

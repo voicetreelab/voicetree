@@ -10,7 +10,7 @@ import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjecti
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
 import {readDaemonPortFromVault} from './daemonUrlFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**

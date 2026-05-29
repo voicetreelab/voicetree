@@ -1,5 +1,5 @@
 import path from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 /**
  * Canonical location for persisted terminal recovery metadata.

@@ -4,7 +4,7 @@ import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
 import {getCallbacks} from '@vt/graph-model';
-import {resolveVoicetreeHomePath} from '../paths.ts';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 function getSettingsPath(voicetreeHomePath: string): string {
   return path.join(voicetreeHomePath, 'settings.json');

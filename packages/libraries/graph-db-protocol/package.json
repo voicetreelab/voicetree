@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vt/app-config": "*",
+    "@vt/paths": "*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 import { writeFile, rename, unlink, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export const PORT_FILENAME = 'graphd.port'
 

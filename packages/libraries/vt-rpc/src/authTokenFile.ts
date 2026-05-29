@@ -6,7 +6,7 @@
 
 import {readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export const AUTH_TOKEN_FILENAME: string = 'auth-token'
 

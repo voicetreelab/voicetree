@@ -1,4 +1,4 @@
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 /**
  * Canonical vault-state directory `<vault>/.voicetree`. Every daemon-

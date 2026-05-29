@@ -16,7 +16,7 @@ import { readFile } from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import {getProjectDotVoicetreePath} from '../paths.ts'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 interface PositionsFile {
     readonly [nodeId: string]: { readonly x: number; readonly y: number }

@@ -6,7 +6,7 @@
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt} from './cliManualInjection'
 import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'

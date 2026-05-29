@@ -245,7 +245,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon -> vt-daemon-protocol': 4,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
-    // (proposed `@vt/vault-paths` or `@vt/app-config/paths`). See #123 for
+    // (proposed `@vt/vault-paths` or `@vt/paths`). See #123 for
     // the follow-up consolidation issue. After that lands, ratchet back
     // to 2 (just `ERROR_CODES`, `redactAuthorizationHeader`).
     'vt-daemon -> vt-rpc': 3,

@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@vt/app-config": "*"
+    "@vt/paths": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

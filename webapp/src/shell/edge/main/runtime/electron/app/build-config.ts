@@ -11,7 +11,7 @@
 
 import { app } from 'electron';
 import path from 'path';
-import {resolveVoicetreeHomePath} from '@vt/app-config/paths';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 // ============================================================================
 // Types

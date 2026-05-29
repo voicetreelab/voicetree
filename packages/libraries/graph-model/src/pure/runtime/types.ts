@@ -62,7 +62,7 @@ export interface GraphModelCallbacks {
 
 // Module-level callbacks. The voicetreeHomePath that previously lived here is
 // now resolved per-call from $VOICETREE_HOME_PATH via
-// @vt/app-config/paths (see resolveVoicetreeHomePath); each
+// @vt/paths (see resolveVoicetreeHomePath); each
 // launching process normalises the env var at boot.
 let _callbacks: GraphModelCallbacks = {}
 

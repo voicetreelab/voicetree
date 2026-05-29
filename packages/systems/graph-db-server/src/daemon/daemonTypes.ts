@@ -1,4 +1,4 @@
-import {resolveVoicetreeHomePath} from '@vt/app-config/paths'
+import {resolveVoicetreeHomePath} from '@vt/paths'
 import type { HealthOwner, HealthResponse } from '../contract.ts'
 import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 

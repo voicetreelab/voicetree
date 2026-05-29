@@ -31,7 +31,7 @@
 
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 const OWNER_RECORD_SCHEMA_VERSION = 1 as const
 

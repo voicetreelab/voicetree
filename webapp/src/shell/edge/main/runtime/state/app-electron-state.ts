@@ -1,5 +1,5 @@
 import type {BrowserWindow} from "electron";
-import {resolveVoicetreeHomePath} from '@vt/app-config/paths';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 // The main application window reference
 let mainWindow: BrowserWindow | null = null;

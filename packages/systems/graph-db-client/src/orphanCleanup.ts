@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { statSync } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export interface OrphanCleanupResult {
   readonly killed: readonly { pid: number; vault: string }[]

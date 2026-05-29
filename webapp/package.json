@@ -90,6 +90,7 @@
     "@vscode/ripgrep": "^1.17.1",
     "@vt/app-config": "*",
     "@vt/observability": "*",
+    "@vt/paths": "*",
     "@xterm/addon-clipboard": "^0.2.0-beta.120",
     "@xterm/addon-fit": "^0.11.0-beta.136",
     "@xterm/addon-search": "^0.16.0-beta.136",

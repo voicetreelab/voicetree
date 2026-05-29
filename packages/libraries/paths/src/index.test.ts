@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {getProjectDotVoicetreePath, getVoicetreeHomePath, VOICETREE_HOME_PATH_ENV} from './paths.ts'
+import {getProjectDotVoicetreePath, getVoicetreeHomePath, VOICETREE_HOME_PATH_ENV} from './index.ts'
 
 describe('VoiceTree paths', () => {
     it('defaults the global home path to ~/.voicetree', () => {

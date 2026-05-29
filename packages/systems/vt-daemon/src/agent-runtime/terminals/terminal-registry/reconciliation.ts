@@ -1,6 +1,6 @@
 import {readdirSync} from 'node:fs'
 import {join} from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {TerminalData, TerminalId} from './types'
 
 // Local clone of recovery/paths.ts:getRecoveryMetadataDir — importing that

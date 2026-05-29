@@ -37,7 +37,7 @@ import {
   type CallerKind,
   type OwnerDecision,
 } from '@vt/daemon-lifecycle'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {
   EnsureVtDaemonClient,
   EnsureVtDaemonDeps,

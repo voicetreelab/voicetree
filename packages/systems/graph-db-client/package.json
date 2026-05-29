@@ -19,7 +19,8 @@
     "@vt/app-config": "*",
     "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-protocol": "*",
-    "@vt/graph-db-server": "*"
+    "@vt/graph-db-server": "*",
+    "@vt/paths": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

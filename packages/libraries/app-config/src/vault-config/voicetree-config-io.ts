@@ -11,7 +11,7 @@ import { promises as fs } from "fs";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath } from '@vt/graph-model/graph';
 import type { VaultConfig } from '@vt/graph-model/settings';
-import {resolveVoicetreeHomePath} from '../paths.ts';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 type PersistedVaultConfig = VaultConfig & {
     readonly readPaths?: unknown;

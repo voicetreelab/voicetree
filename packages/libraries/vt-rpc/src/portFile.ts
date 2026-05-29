@@ -5,7 +5,7 @@
 
 import {mkdir, readFile, rename, writeFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export const RPC_PORT_FILENAME: string = 'rpc.port'
 

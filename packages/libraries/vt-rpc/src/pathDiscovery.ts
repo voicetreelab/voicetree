@@ -16,7 +16,7 @@
 import {existsSync, statSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
 
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import {readRpcPortFile} from './portFile.ts'
 
 export interface ResolvedDaemonEndpoint {

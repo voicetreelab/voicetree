@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import { SpanStatusCode, trace, type Span } from '@opentelemetry/api'
 import { SessionRegistry } from '../application/session/registry.ts'
 import { CONTRACT_VERSION } from '../contract.ts'
