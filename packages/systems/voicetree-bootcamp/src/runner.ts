@@ -1,80 +1,199 @@
 /**
- * Runner — the impure shell that drives one (scenario × model) cell.
+ * Runner — the impure shell that drives one (scenario × model × rep) cell to
+ * a CellResult.
  *
- * Pushes all I/O (temp dirs, process spawning, file reads) here so the
- * scoring pipeline stays pure. The runner orchestrates:
- *   1. setup() into a fresh temp working dir
- *   2. spawn the harness (claude --print) with PATH prepended by the shim dir
- *   3. load + merge the per-call shim log files produced by the agent's `vt` invocations
- *   4. delegate to pure scoring + the scenario's successCriteria
- *   5. emit a RunResult
+ * One deep impure function (`runScenario`) wraps the full pipeline:
+ *   1. mkdtemp workspace (vault/, shim/, shim-log/)
+ *   2. symlink the PATH shim so the agent's `vt` flows through the logger
+ *   3. headful only: launch VoiceTree pointing at vaultDir + wait for daemon
+ *   4. scenario.setup(vaultDir) materialises fixtures (VT watcher fires if open)
+ *   5. driver.runScenario — same path for headless and headful; the diff is
+ *      whether VT is open and watching
+ *   6. merge per-call shim-log files, score, compute coverage + fitness
+ *   7. scenario.teardown(vaultDir) in finally{} so it always runs
+ *
+ * All scoring lives in pure functions (scoring.ts) — the runner just plumbs
+ * the data. The driver interface absorbs harness-specific churn; the runner
+ * stays harness-agnostic.
+ *
+ * Headful is "headless + a VT window watching the vault". The agent process
+ * is identical (external claude-code, same PATH-shim, same env); VT picks up
+ * the file writes through its normal watcher. This means full telemetry is
+ * preserved (driver returns real token counts) and there are no caller-
+ * terminal / parent-node ergonomic gaps. The user just sees the graph
+ * populate in real time.
  */
-import * as fs from 'node:fs/promises'
+import {spawn} from 'node:child_process'
+import {promises as fs} from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
+import {computeCoverage, computeFitness, scoreScenario} from './scoring.ts'
 import {parseShimLog} from './shim-log.ts'
-import {scoreScenario} from './scoring.ts'
-import type {RunResult, ScenarioSpec, ShimLogEntry} from './types.ts'
-
-export type RunOptions = {
-    readonly scenario: ScenarioSpec
-    readonly model: string                  // e.g. "sonnet", "haiku", "opus"
-    readonly effort: 'low' | 'medium' | 'high'
-    readonly realVtBin: string              // absolute path to real `vt`
-    readonly workspaceRoot?: string         // for transcript naming; defaults to os.tmpdir
-    readonly timeoutMs?: number             // hard cap per cell; defaults to 5 min
-}
+import type {
+    CellResult,
+    Effort,
+    HarnessDriver,
+    RunTelemetry,
+    ScenarioSpec,
+    ShimLogEntry,
+} from './types.ts'
 
 const PACKAGE_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const SHIM_BIN = path.join(PACKAGE_DIR, 'bin', 'vt-shim')
 
-export async function runScenario(opts: RunOptions): Promise<RunResult> {
-    const workspaceRoot = opts.workspaceRoot ?? (await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bootcamp-')))
+/**
+ * Monorepo default for the real `vt` binary the shim should delegate to.
+ * Bootcamp lives at `packages/systems/voicetree-bootcamp/`; the CLI lives at
+ * its sibling `voicetree-cli/bin/vt`. Callers can override via opts.realVtBin
+ * (e.g. tests, out-of-tree consumers).
+ */
+const DEFAULT_REAL_VT_BIN = path.resolve(PACKAGE_DIR, '..', 'voicetree-cli', 'bin', 'vt')
+
+/**
+ * Path to the in-repo webapp dir (the Electron app source). The bootcamp
+ * MUST launch the in-repo build rather than `/Applications/Voicetree.app`,
+ * because the whole point of the harness is to test the *current* CLI
+ * behavior — a stale installed app would mask any regressions in the
+ * version under test.
+ */
+const REPO_ROOT_DEFAULT = path.resolve(PACKAGE_DIR, '..', '..', '..')
+const WEBAPP_DIR_DEFAULT = path.join(REPO_ROOT_DEFAULT, 'webapp')
+
+export type RunMode = 'headless' | 'headful'
+
+export type RunOptions = {
+    readonly scenario: ScenarioSpec
+    readonly driver: HarnessDriver
+    readonly model: string
+    readonly effort: Effort
+    readonly rep?: number
+    /**
+     * Absolute path to the real `vt` binary the shim should delegate to.
+     * Defaults to the monorepo sibling `voicetree-cli/bin/vt`.
+     */
+    readonly realVtBin?: string
+    readonly mode?: RunMode
+    /**
+     * Optional pre-created workspace dir. When omitted a fresh mkdtemp dir is
+     * created. Passing one is mostly for tests that want to inspect artefacts,
+     * or for headful runs where the user wants a stable path.
+     */
+    readonly workspaceRoot?: string
+    /** Hard cap on the inner agent invocation. Defaults to 10 minutes. */
+    readonly timeoutMs?: number
+    /**
+     * Headful only — how long to wait for the per-vault VTD to write its
+     * rpc.port discovery file before giving up. Defaults to 60s; raise if
+     * the machine is slow to launch Electron.
+     */
+    readonly headfulDaemonReadyTimeoutMs?: number
+    /**
+     * Headful only — overrides for the two impure helpers, so tests can
+     * exercise the orchestration without actually launching Electron or
+     * polling the filesystem. Production callers should leave these unset
+     * and get the real implementations.
+     */
+    readonly launchVoicetreeApp?: (vaultDir: string) => Promise<void>
+    readonly waitForDaemonReady?: (vaultDir: string, timeoutMs: number) => Promise<void>
+}
+
+export async function runScenario(opts: RunOptions): Promise<CellResult> {
+    const mode: RunMode = opts.mode ?? 'headless'
+    const rep = opts.rep ?? 0
+    const timeoutMs = opts.timeoutMs ?? 10 * 60_000
+    // In-repo dev-mode launch (npm run electron → workspace build → native rebuild
+    // → electron-vite dev → app startup) can comfortably eat 60-90s on a cold
+    // tree. 180s gives headroom without making genuine failures hang too long.
+    const daemonReadyTimeoutMs = opts.headfulDaemonReadyTimeoutMs ?? 180_000
+    const realVtBin = opts.realVtBin ?? DEFAULT_REAL_VT_BIN
+    const launchApp = opts.launchVoicetreeApp ?? launchVoicetreeAppDefault
+    const waitDaemon = opts.waitForDaemonReady ?? waitForDaemonReadyDefault
+
+    const workspaceRoot =
+        opts.workspaceRoot ?? (await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bootcamp-')))
     const vaultDir = path.join(workspaceRoot, 'vault')
     const shimDir = path.join(workspaceRoot, 'shim')
     const shimLogDir = path.join(workspaceRoot, 'shim-log')
-    const transcriptPath = path.join(workspaceRoot, 'transcript.txt')
 
     await fs.mkdir(vaultDir, {recursive: true})
     await fs.mkdir(shimDir, {recursive: true})
     await fs.mkdir(shimLogDir, {recursive: true})
     await fs.symlink(SHIM_BIN, path.join(shimDir, 'vt'))
 
+    // Headful: open VT pointing at the empty vault BEFORE we copy fixtures so
+    // the user sees them appear in the graph in real time. Wait for the
+    // per-vault VTD to write rpc.port — that's the daemon-ready signal that
+    // the app's watcher is wired up. Both the bootcamp's shim'd `vt` calls
+    // and the Electron app converge on this one daemon (BF-348 single-flight),
+    // so the agent's graph mutations reach VT's renderer through the same RPC.
+    if (mode === 'headful') {
+        await launchApp(vaultDir)
+        await waitDaemon(vaultDir, daemonReadyTimeoutMs)
+    }
+
     await opts.scenario.setup(vaultDir)
 
-    const transcript = await invokeClaudeCode({
-        prompt: opts.scenario.taskPrompt,
-        model: opts.model,
-        effort: opts.effort,
-        cwd: vaultDir,
-        shimDir,
-        shimLogDir,
-        realVtBin: opts.realVtBin,
-        timeoutMs: opts.timeoutMs ?? 5 * 60_000,
-    })
-    await fs.writeFile(transcriptPath, transcript)
+    try {
+        const env: Record<string, string> = {
+            ...currentEnvAsStrings(),
+            PATH: `${shimDir}:${process.env.PATH ?? ''}`,
+            VT_SHIM_LOG_DIR: shimLogDir,
+            VT_REAL_BIN: realVtBin,
+        }
 
-    const shimEntries = await loadShimEntries(shimLogDir)
-    const {attempts, meanScore} = scoreScenario(opts.scenario.expectedCommands, shimEntries)
-    const success = await opts.scenario.successCriteria(vaultDir)
+        const driverResult = await opts.driver.runScenario({
+            model: opts.model,
+            effort: opts.effort,
+            prompt: opts.scenario.taskPrompt,
+            cwd: vaultDir,
+            env,
+            timeoutMs,
+            artifactDir: workspaceRoot,
+        })
 
-    return {
-        scenarioId: opts.scenario.id,
-        model: opts.model,
-        attempts,
-        meanScore,
-        success,
-        shimLogDir,
-        transcriptPath,
+        const shimEntries = await loadShimEntries(shimLogDir)
+        const {attempts} = scoreScenario(opts.scenario.expectedCommands, shimEntries)
+        const success = await opts.scenario.successCriteria(vaultDir)
+        const coverage = computeCoverage(opts.scenario.expectedCommands, shimEntries)
+
+        const telemetry: RunTelemetry = {
+            ...driverResult.telemetry,
+            vtInvocationCount: shimEntries.length,
+        }
+
+        const breakdown = computeFitness({
+            attempts,
+            shimLog: shimEntries,
+            expected: opts.scenario.expectedCommands,
+            telemetry,
+            budgets: opts.scenario.budgets,
+            success,
+        })
+
+        return {
+            scenarioId: opts.scenario.id,
+            model: opts.model,
+            rep,
+            telemetry,
+            shimLogPath: shimLogDir,
+            transcriptPath: driverResult.transcriptPath,
+            attempts,
+            success,
+            coverage,
+            breakdown,
+        }
+    } finally {
+        if (opts.scenario.teardown) {
+            await opts.scenario.teardown(vaultDir).catch(() => {})
+        }
     }
 }
 
 /**
- * Load and merge all per-call shim log files into a single time-ordered list
- * of entries. Each file contains exactly one JSON entry (one line). Malformed
- * files are silently skipped — `parseShimLog` handles that.
+ * Load every per-call .json file from the shim-log dir and return one
+ * time-ordered list. The shim writes one entry per file (atomic by
+ * construction), so concurrent agent calls cannot interleave.
  */
 async function loadShimEntries(shimLogDir: string): Promise<readonly ShimLogEntry[]> {
     const files = await fs.readdir(shimLogDir)
@@ -86,69 +205,110 @@ async function loadShimEntries(shimLogDir: string): Promise<readonly ShimLogEntr
     return [...entries].sort((a, b) => a.timestampMs - b.timestampMs)
 }
 
-type InvokeOptions = {
-    readonly prompt: string
-    readonly model: string
-    readonly effort: 'low' | 'medium' | 'high'
-    readonly cwd: string
-    readonly shimDir: string
-    readonly shimLogDir: string
-    readonly realVtBin: string
-    readonly timeoutMs: number
+function currentEnvAsStrings(): Record<string, string> {
+    const out: Record<string, string> = {}
+    for (const [k, v] of Object.entries(process.env)) {
+        if (typeof v === 'string') out[k] = v
+    }
+    return out
 }
 
-async function invokeClaudeCode(opts: InvokeOptions): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const args = [
-            '--print',
-            '--model', opts.model,
-            '--effort', opts.effort,
-            '--permission-mode', 'bypassPermissions',
-            '--output-format', 'text',
-            opts.prompt,
-        ]
+/**
+ * Launch the in-repo Electron build pointed at vaultDir.
+ *
+ * We deliberately do NOT use `/Applications/Voicetree.app` — that bundle is
+ * a *user-installed* version that may lag the current codebase, and the
+ * whole point of the bootcamp is to exercise the current CLI behaviour.
+ * Spawning `npm run electron` from `webapp/` runs whatever the working
+ * tree says, which is what the user is iterating on.
+ *
+ * Communication: VOICETREE_STARTUP_FOLDER env var. The webapp's
+ * environment-config.ts reads either `--open-folder <path>` from argv OR
+ * this env var, but env-var is the only channel that survives the
+ * `electron-vite dev` wrapper without depending on its argv-forwarding
+ * behavior.
+ *
+ * Lifecycle: the child is fully detached so VoiceTree survives the
+ * bootcamp process exiting — the user wants to keep watching / poking at
+ * the graph after the report prints. stdout/stderr are redirected to a
+ * sibling log file so the dev server's chatter doesn't pollute the
+ * harness's own report output.
+ */
+async function launchVoicetreeAppDefault(vaultDir: string): Promise<void> {
+    const webappDir = WEBAPP_DIR_DEFAULT
+    try {
+        await fs.stat(path.join(webappDir, 'package.json'))
+    } catch {
+        throw new Error(
+            `launchVoicetreeApp: cannot find webapp/ at ${webappDir}. ` +
+                'The harness launches the in-repo Electron build by running ' +
+                "`npm run electron` from webapp/. Override with the " +
+                'launchVoicetreeApp option if your tree layout differs.',
+        )
+    }
 
-        const childEnv = {
-            ...process.env,
-            PATH: `${opts.shimDir}:${process.env.PATH ?? ''}`,
-            VT_SHIM_LOG_DIR: opts.shimLogDir,
-            VT_REAL_BIN: opts.realVtBin,
-        }
+    const workspaceRoot = path.dirname(vaultDir)
+    const logFile = path.join(workspaceRoot, 'voicetree-app.log')
+    const out = await fs.open(logFile, 'a')
 
-        const child = spawn('claude', args, {
-            cwd: opts.cwd,
-            env: childEnv,
-            stdio: ['ignore', 'pipe', 'pipe'],
+    try {
+        const child = spawn('npm', ['run', 'electron'], {
+            cwd: webappDir,
+            env: {
+                ...process.env,
+                VOICETREE_STARTUP_FOLDER: vaultDir,
+                NODE_ENV: 'development',
+            },
+            stdio: ['ignore', out.fd, out.fd],
+            detached: true,
         })
-
-        const stdoutChunks: Buffer[] = []
-        const stderrChunks: Buffer[] = []
-        child.stdout.on('data', (chunk) => stdoutChunks.push(chunk))
-        child.stderr.on('data', (chunk) => stderrChunks.push(chunk))
-
-        const timer = setTimeout(() => {
-            child.kill('SIGKILL')
-            reject(new Error(`claude invocation timed out after ${opts.timeoutMs}ms`))
-        }, opts.timeoutMs)
-
         child.on('error', (err) => {
-            clearTimeout(timer)
-            reject(err)
+            process.stderr.write(
+                `launchVoicetreeApp: failed to spawn \`npm run electron\`: ${err.message}\n`,
+            )
         })
+        // Detach so VT keeps running after the bootcamp process exits.
+        child.unref()
+    } finally {
+        // Closing the parent's FileHandle does not affect the duplicated fd the
+        // child got from spawn — npm's subprocesses keep writing to the same
+        // inode happily.
+        await out.close()
+    }
 
-        child.on('close', (code) => {
-            clearTimeout(timer)
-            const stdout = Buffer.concat(stdoutChunks).toString('utf8')
-            const stderr = Buffer.concat(stderrChunks).toString('utf8')
-            const transcript = stdout + (stderr ? `\n--- stderr ---\n${stderr}` : '')
-            if (code !== 0) {
-                // Don't reject — a non-zero claude exit is a valid agent outcome
-                // (e.g. it gave up or hit a budget cap). We still want to score
-                // whatever ran. Surface the exit code in the transcript.
-                resolve(transcript + `\n--- claude exited with code ${code} ---\n`)
-                return
-            }
-            resolve(transcript)
-        })
-    })
+    process.stderr.write(
+        `[bootcamp] launching VoiceTree (in-repo dev build) from ${webappDir}\n` +
+            `[bootcamp] vault: ${vaultDir}\n` +
+            `[bootcamp] app log: ${logFile}\n` +
+            `[bootcamp] waiting for daemon... (cold dev start ≈ 60-90s)\n`,
+    )
+}
+
+/**
+ * Poll for the per-vault VTD's discovery file at `<vault>/.voicetree/rpc.port`.
+ * The Electron app spawns one VTD per opened vault; the daemon writes rpc.port
+ * once it's accepting connections. Appearance of that file is the canonical
+ * "daemon ready" signal — the same signal the CLI's daemon-url-binding uses
+ * to discover a running peer.
+ */
+async function waitForDaemonReadyDefault(vaultDir: string, timeoutMs: number): Promise<void> {
+    const rpcPortPath = path.join(vaultDir, '.voicetree', 'rpc.port')
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+        try {
+            await fs.stat(rpcPortPath)
+            return
+        } catch {
+            // not yet — fallthrough to sleep
+        }
+        await sleep(500)
+    }
+    throw new Error(
+        `waitForDaemonReady: ${rpcPortPath} did not appear within ${timeoutMs}ms. ` +
+            'Is the Voicetree app installed and able to open this vault path?',
+    )
+}
+
+async function sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms))
 }

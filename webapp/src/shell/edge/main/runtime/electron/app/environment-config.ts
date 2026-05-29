@@ -103,10 +103,20 @@ export function configureEnvironment(): void {
     // the active directory exists before enabling remote debugging.
     ensureUserDataDirectory();
 
-    // Parse CLI arguments for --open-folder (used by "Open Folder in New Instance")
+    // Parse CLI arguments for --open-folder (used by "Open Folder in New Instance"),
+    // with $VOICETREE_STARTUP_FOLDER as a fallback. The env var path is the more
+    // reliable channel for programmatic launchers (e.g. the bootcamp harness)
+    // because process wrappers like `electron-vite dev` do not consistently
+    // forward unknown argv to the Electron main process, while env vars
+    // propagate through every layer.
     const openFolderIndex: number = process.argv.indexOf('--open-folder');
     if (openFolderIndex !== -1 && process.argv[openFolderIndex + 1]) {
         setStartupFolderOverride(process.argv[openFolderIndex + 1]);
+    } else if (
+        typeof process.env.VOICETREE_STARTUP_FOLDER === 'string'
+        && process.env.VOICETREE_STARTUP_FOLDER.length > 0
+    ) {
+        setStartupFolderOverride(process.env.VOICETREE_STARTUP_FOLDER);
     }
 
     // Suppress Electron security warnings in development and test environments

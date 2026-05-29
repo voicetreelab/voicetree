@@ -15,9 +15,12 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bootcamp": "tsx bin/run-bootcamp.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@vt/graph-db-client": "*"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.2",

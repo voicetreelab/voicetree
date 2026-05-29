@@ -1,0 +1,16 @@
+// SYNTHETIC FIXTURE — written from the documented Codex event shape, NOT
+// from real Codex CLI output. Replace with a real codex exec capture at
+// first integration run (Phase 3 in the bootcamp plan). If real Codex
+// output diverges, this fixture and the parser are both wrong; treat any
+// divergence as the source of truth.
+{"type":"session.created","session_id":"synthetic-multi-001","model":"codex-1"}
+{"type":"item.started","item":{"id":"item-1","type":"command_execution","command":"vt graph create --label root"}}
+{"type":"item.completed","item":{"id":"item-1","type":"command_execution","exit_code":0}}
+{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":500,"output_tokens":200,"reasoning_output_tokens":50}}
+{"type":"item.started","item":{"id":"item-2","type":"mcp_tool_call","tool":"vt__create_node"}}
+{"type":"item.completed","item":{"id":"item-2","type":"mcp_tool_call"}}
+{"type":"turn.completed","usage":{"input_tokens":1500,"cached_input_tokens":2000,"output_tokens":300,"reasoning_output_tokens":120}}
+{"type":"item.started","item":{"id":"item-3","type":"command_execution","command":"vt graph lint"}}
+{"type":"item.completed","item":{"id":"item-3","type":"command_execution","exit_code":0}}
+{"type":"turn.completed","usage":{"input_tokens":800,"cached_input_tokens":1100,"output_tokens":150,"reasoning_output_tokens":30}}
+{"type":"session.closed"}
