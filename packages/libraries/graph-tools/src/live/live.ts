@@ -12,7 +12,7 @@ import type {Command, Delta} from '@vt/graph-state/contract'
 import {createLiveTransport} from './liveTransport'
 import {renderProjectedLiveView} from '../view/projectedLiveView'
 import type {ViewFormat, ViewGraphResult} from '../view/viewGraph'
-import {renderFocus, renderNeighbors, renderPath} from '../view/egoGraph'
+import {renderFocus, renderNeighbors, renderPath, type EgoRender} from '../view/egoGraph'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -162,19 +162,19 @@ export interface LivePathOptions {
     readonly projectPath?: string
 }
 
-export async function liveFocus(nodeId: string, options: LiveFocusOptions = {}): Promise<string> {
+export async function liveFocus(nodeId: string, options: LiveFocusOptions = {}): Promise<EgoRender> {
     const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     return renderFocus(state.graph, nodeId, options.hops ?? 1)
 }
 
-export async function liveNeighbors(nodeId: string, options: LiveNeighborsOptions = {}): Promise<string> {
+export async function liveNeighbors(nodeId: string, options: LiveNeighborsOptions = {}): Promise<EgoRender> {
     const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     return renderNeighbors(state.graph, nodeId, options.hops ?? 1)
 }
 
-export async function livePath(nodeA: string, nodeB: string, options: LivePathOptions = {}): Promise<string> {
+export async function livePath(nodeA: string, nodeB: string, options: LivePathOptions = {}): Promise<EgoRender> {
     const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     return renderPath(state.graph, nodeA, nodeB)

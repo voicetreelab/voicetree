@@ -79,13 +79,24 @@ export function shortestPath(graph: Graph, a: string, b: string): string[] | nul
 }
 
 // ── text renderers ─────────────────────────────────────────────────────────────
+//
+// Renderers return a discriminated EgoRender so the CLI shell can choose an exit
+// code: a typo'd / unknown node ('not-found') is a CALLER ERROR and must exit
+// non-zero, whereas a genuine 'no-path' between two real nodes is a valid query
+// result and exits 0. Both used to print a message and exit 0, making a typo
+// indistinguishable from a real no-path. See REC 5.
+
+export type EgoRender =
+    | {readonly kind: 'ok'; readonly text: string}
+    | {readonly kind: 'not-found'; readonly text: string}
+    | {readonly kind: 'no-path'; readonly text: string}
 
 function bn(id: string): string {
     return nodePath.basename(id)
 }
 
-export function renderFocus(graph: Graph, nodeId: string, hops: number = 1): string {
-    if (!graph.nodes[nodeId]) return `node not found: ${nodeId}`
+export function renderFocus(graph: Graph, nodeId: string, hops: number = 1): EgoRender {
+    if (!graph.nodes[nodeId]) return {kind: 'not-found', text: `node not found: ${nodeId}`}
     const ids = focus(graph, nodeId, hops)
     const inSet = new Set(ids)
     const lines: string[] = []
@@ -107,19 +118,26 @@ export function renderFocus(graph: Graph, nodeId: string, hops: number = 1): str
         lines.push('Also reachable:')
         for (const id of others) lines.push(`  ${bn(id)}`)
     }
-    return lines.join('\n')
+    return {kind: 'ok', text: lines.join('\n')}
 }
 
-export function renderNeighbors(graph: Graph, nodeId: string, hops: number = 1): string {
-    if (!graph.nodes[nodeId]) return `node not found: ${nodeId}`
+export function renderNeighbors(graph: Graph, nodeId: string, hops: number = 1): EgoRender {
+    if (!graph.nodes[nodeId]) return {kind: 'not-found', text: `node not found: ${nodeId}`}
     const result = neighbors(graph, nodeId, hops)
     const lines = [`Neighbors of ${bn(nodeId)} (${hops}-hop): ${result.length} found`]
     for (const id of result) lines.push(`  ${bn(id)}`)
-    return lines.join('\n')
+    return {kind: 'ok', text: lines.join('\n')}
 }
 
-export function renderPath(graph: Graph, a: string, b: string): string {
+export function renderPath(graph: Graph, a: string, b: string): EgoRender {
+    // Distinguish an unknown endpoint (typo => caller error) from a genuine
+    // disconnected pair (both endpoints exist but no path => valid result).
+    // `shortestPath` returns null for BOTH cases, so check membership first.
+    const missing = [a, b].filter((id) => !graph.nodes[id])
+    if (missing.length > 0) {
+        return {kind: 'not-found', text: `node not found: ${missing.join(', ')}`}
+    }
     const p = shortestPath(graph, a, b)
-    if (p === null) return `no path from ${bn(a)} to ${bn(b)}`
-    return p.map(bn).join(' → ')
+    if (p === null) return {kind: 'no-path', text: `no path from ${bn(a)} to ${bn(b)}`}
+    return {kind: 'ok', text: p.map(bn).join(' → ')}
 }

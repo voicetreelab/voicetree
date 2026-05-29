@@ -19,7 +19,6 @@ interface ParsedLiveViewArgs {
   readonly format: ViewFormat
   readonly collapsedFolders: readonly string[]
   readonly selectedIds: readonly string[]
-  readonly port?: number
 }
 
 export function liveUsage(): string {
@@ -41,16 +40,33 @@ export function liveUsage(): string {
   ].join('\n')
 }
 
-function parsePortFlagValue(value: string | undefined): number {
-  if (!value || value.startsWith('--')) fail('--port requires a value')
-  return parseInt(value, 10)
+// Exit code emitted by `live focus|neighbors|path` when a queried node id is
+// unknown (a typo). It is distinct from both success (0) and a genuine
+// disconnected-pair "no path" result (also 0), so callers and agents can tell a
+// typo apart from a real no-path. See REC 5.
+export const EGO_NOT_FOUND_EXIT_CODE = 3
+
+/**
+ * Emit an EgoRender from `live focus|neighbors|path`, choosing the exit code:
+ *   - 'not-found' (unknown / typo'd node id) → stderr + non-zero exit code
+ *   - 'ok' / 'no-path' (valid query results) → stdout + exit 0
+ *
+ * Uses `process.exitCode` (not `process.exit`) so the process drains naturally
+ * and the behavior is unit-testable by inspecting `process.exitCode`.
+ */
+export function emitEgoRender(render: {readonly kind: 'ok' | 'not-found' | 'no-path'; readonly text: string}): void {
+  if (render.kind === 'not-found') {
+    process.stderr.write(`${render.text}\n`)
+    process.exitCode = EGO_NOT_FOUND_EXIT_CODE
+    return
+  }
+  console.log(render.text)
 }
 
 function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
   let format: ViewFormat = 'ascii'
   const collapsedFolders: string[] = []
   const selectedIds: string[] = []
-  let port: number | undefined
 
   for (let i = 0; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
@@ -76,70 +92,43 @@ function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
       selectedIds.push(arg.slice('--select='.length))
       continue
     }
-    if (arg === '--port') {
-      port = parsePortFlagValue(liveArgs[++i])
-      continue
-    }
-    if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
-      continue
-    }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {format, collapsedFolders, selectedIds, port}
+  return {format, collapsedFolders, selectedIds}
 }
 
-function parseLiveStateDumpArgs(stateArgs: readonly string[]): {readonly pretty: boolean; readonly port?: number} {
+function parseLiveStateDumpArgs(stateArgs: readonly string[]): {readonly pretty: boolean} {
   let pretty = true
-  let port: number | undefined
   for (let i = 0; i < stateArgs.length; i++) {
     const arg = stateArgs[i]
     if (arg === '--pretty') { pretty = true; continue }
     if (arg === '--no-pretty') { pretty = false; continue }
-    if (arg === '--port') {
-      port = parsePortFlagValue(stateArgs[++i])
-      continue
-    }
-    if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
-      continue
-    }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
-  return {pretty, port}
+  return {pretty}
 }
 
-function parseLiveApplyArgs(liveArgs: readonly string[]): {readonly cmdJson: string; readonly port?: number} {
+function parseLiveApplyArgs(liveArgs: readonly string[]): {readonly cmdJson: string} {
   let cmdJson: string | undefined
-  let port: number | undefined
   for (let i = 0; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
-    if (arg === '--port') {
-      port = parsePortFlagValue(liveArgs[++i])
-      continue
-    }
-    if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
-      continue
-    }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
     if (cmdJson !== undefined) fail(`Unexpected argument: ${arg}`)
     cmdJson = arg
   }
-  if (!cmdJson) fail("Usage: vt-graph live apply '<json-cmd>' [--port N]")
-  return {cmdJson, port}
+  if (!cmdJson) fail("Usage: vt-graph live apply '<json-cmd>'")
+  return {cmdJson}
 }
 
 function parseLiveNeighborhoodArgs(
   liveArgs: readonly string[],
   usageLine: string,
-): {readonly nodeId: string; readonly hops: number; readonly port?: number} {
+): {readonly nodeId: string; readonly hops: number} {
   const nodeId = liveArgs[0]
   if (!nodeId || nodeId.startsWith('--')) fail(usageLine)
 
   let hops = 1
-  let port: number | undefined
   for (let i = 1; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
     if (arg === '--hops') {
@@ -149,36 +138,25 @@ function parseLiveNeighborhoodArgs(
       continue
     }
     if (arg.startsWith('--hops=')) { hops = parseInt(arg.slice('--hops='.length), 10); continue }
-    if (arg === '--port') {
-      port = parsePortFlagValue(liveArgs[++i])
-      continue
-    }
-    if (arg.startsWith('--port=')) { port = parseInt(arg.slice('--port='.length), 10); continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {nodeId, hops, port}
+  return {nodeId, hops}
 }
 
-function parseLivePathArgs(liveArgs: readonly string[]): {readonly nodeA: string; readonly nodeB: string; readonly port?: number} {
+function parseLivePathArgs(liveArgs: readonly string[]): {readonly nodeA: string; readonly nodeB: string} {
   const nodeA = liveArgs[0]
   const nodeB = liveArgs[1]
   if (!nodeA || nodeA.startsWith('--') || !nodeB || nodeB.startsWith('--')) {
-    fail('Usage: vt-graph live path <a> <b> [--port N]')
+    fail('Usage: vt-graph live path <a> <b>')
   }
 
-  let port: number | undefined
   for (let i = 2; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
-    if (arg === '--port') {
-      port = parsePortFlagValue(liveArgs[++i])
-      continue
-    }
-    if (arg.startsWith('--port=')) { port = parseInt(arg.slice('--port='.length), 10); continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {nodeA, nodeB, port}
+  return {nodeA, nodeB}
 }
 
 export async function runLiveCommand(args: readonly string[]): Promise<void> {
@@ -190,8 +168,8 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   }
 
   if (liveSubcommand === 'view') {
-    const {format, collapsedFolders, selectedIds, port} = parseLiveViewArgs(liveArgs)
-    const result = await liveView({format, collapsedFolders, selectedIds, port})
+    const {format, collapsedFolders, selectedIds} = parseLiveViewArgs(liveArgs)
+    const result = await liveView({format, collapsedFolders, selectedIds})
     console.log(result.output)
     if (format === 'ascii') {
       console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
@@ -202,17 +180,17 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   if (liveSubcommand === 'state') {
     const [stateSubcmd, ...stateArgs] = liveArgs
     if (stateSubcmd !== 'dump') {
-      fail('Usage: vt-graph live state dump [--no-pretty] [--port N]')
+      fail('Usage: vt-graph live state dump [--no-pretty]')
     }
-    const {pretty, port} = parseLiveStateDumpArgs(stateArgs)
-    const result = await liveStateDump({pretty, port})
+    const {pretty} = parseLiveStateDumpArgs(stateArgs)
+    const result = await liveStateDump({pretty})
     process.stdout.write(result.json)
     return
   }
 
   if (liveSubcommand === 'apply') {
-    const {cmdJson, port} = parseLiveApplyArgs(liveArgs)
-    const result = await liveApply(cmdJson, {port})
+    const {cmdJson} = parseLiveApplyArgs(liveArgs)
+    const result = await liveApply(cmdJson)
     process.stdout.write(result.output)
     return
   }
@@ -233,26 +211,26 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   }
 
   if (liveSubcommand === 'focus') {
-    const {nodeId, hops, port} = parseLiveNeighborhoodArgs(
+    const {nodeId, hops} = parseLiveNeighborhoodArgs(
       liveArgs,
-      'Usage: vt-graph live focus <node> [--hops N] [--port N]',
+      'Usage: vt-graph live focus <node> [--hops N]',
     )
-    console.log(await liveFocus(nodeId, {hops, port}))
+    emitEgoRender(await liveFocus(nodeId, {hops}))
     return
   }
 
   if (liveSubcommand === 'neighbors') {
-    const {nodeId, hops, port} = parseLiveNeighborhoodArgs(
+    const {nodeId, hops} = parseLiveNeighborhoodArgs(
       liveArgs,
-      'Usage: vt-graph live neighbors <node> [--hops N] [--port N]',
+      'Usage: vt-graph live neighbors <node> [--hops N]',
     )
-    console.log(await liveNeighbors(nodeId, {hops, port}))
+    emitEgoRender(await liveNeighbors(nodeId, {hops}))
     return
   }
 
   if (liveSubcommand === 'path') {
-    const {nodeA, nodeB, port} = parseLivePathArgs(liveArgs)
-    console.log(await livePath(nodeA, nodeB, {port}))
+    const {nodeA, nodeB} = parseLivePathArgs(liveArgs)
+    emitEgoRender(await livePath(nodeA, nodeB))
     return
   }
 

@@ -119,41 +119,65 @@ describe('shortestPath()', () => {
 describe('renderFocus()', () => {
     it('includes center and hop count', () => {
         const out = renderFocus(graph, B, 1)
-        expect(out).toContain('b.md')
-        expect(out).toContain('1-hop')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toContain('b.md')
+        expect(out.text).toContain('1-hop')
     })
 
     it('shows Incoming and Outgoing sections', () => {
         const out = renderFocus(graph, B, 1)
-        expect(out).toContain('Incoming:')
-        expect(out).toContain('Outgoing:')
+        expect(out.text).toContain('Incoming:')
+        expect(out.text).toContain('Outgoing:')
     })
 
-    it('missing node returns error string', () => {
-        expect(renderFocus(graph, '/project/missing.md')).toContain('not found')
+    it('missing node returns a not-found render', () => {
+        const out = renderFocus(graph, '/project/missing.md')
+        expect(out.kind).toBe('not-found')
+        expect(out.text).toContain('not found')
     })
 })
 
 describe('renderNeighbors()', () => {
     it('lists neighbor basenames', () => {
         const out = renderNeighbors(graph, B, 1)
-        expect(out).toContain('a.md')
-        expect(out).toContain('c.md')
-        expect(out).toContain('e.md')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toContain('a.md')
+        expect(out.text).toContain('c.md')
+        expect(out.text).toContain('e.md')
     })
 
     it('shows count in header', () => {
         const out = renderNeighbors(graph, B, 1)
-        expect(out).toContain('3 found')
+        expect(out.text).toContain('3 found')
+    })
+
+    it('missing node returns a not-found render', () => {
+        const out = renderNeighbors(graph, '/project/missing.md', 1)
+        expect(out.kind).toBe('not-found')
+        expect(out.text).toContain('not found')
     })
 })
 
 describe('renderPath()', () => {
     it('renders path with arrows', () => {
-        expect(renderPath(graph, A, C)).toBe('a.md → b.md → c.md')
+        const out = renderPath(graph, A, C)
+        expect(out.kind).toBe('ok')
+        expect(out.text).toBe('a.md → b.md → c.md')
     })
 
-    it('no path message for isolated node', () => {
-        expect(renderPath(graph, A, D)).toContain('no path')
+    it('genuine no-path between two real nodes is distinct from a typo', () => {
+        // A and D both exist but are disconnected. This is a valid query result,
+        // NOT a caller error — its kind must differ from the unknown-endpoint case.
+        const out = renderPath(graph, A, D)
+        expect(out.kind).toBe('no-path')
+        expect(out.text).toContain('no path')
+    })
+
+    it('unknown endpoint is a not-found render (distinguishable from no-path)', () => {
+        const typo = renderPath(graph, A, '/project/missing.md')
+        expect(typo.kind).toBe('not-found')
+        expect(typo.text).toContain('not found')
+        // The disconnected-but-present case and the typo case carry different kinds.
+        expect(renderPath(graph, A, D).kind).not.toBe(typo.kind)
     })
 })
