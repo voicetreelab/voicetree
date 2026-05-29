@@ -16,9 +16,9 @@ const SCRIPT = join(__dirname, 'configure-cdp.sh')
 
 /**
  * Create a real git-worktree-shaped layout. Sibling layout:
- *   <parent>/voicetree-public/         (initialised git repo with one commit)
+ *   <parent>/vtrepo/                   (initialised git repo with one commit)
  *     .mcp.json                       (template — copied by the script)
- *   <parent>/vt-wts/<wtName>/         (linked git worktree)
+ *   <parent>/vt-wts/<wtName>/          (linked git worktree)
  *     webapp/                         (needed for .cdp-port write)
  *
  * configure-cdp.sh resolves the main repo via `git worktree list --porcelain`,
@@ -26,7 +26,7 @@ const SCRIPT = join(__dirname, 'configure-cdp.sh')
  */
 function makeRepo({mcpJsonTemplate}) {
   const parent = mkdtempSync(join(tmpdir(), 'vt-configure-cdp-'))
-  const repoRoot = join(parent, 'voicetree-public')
+  const repoRoot = join(parent, 'vtrepo')
   mkdirSync(repoRoot, {recursive: true})
 
   spawnSync('git', ['init', '-q', '-b', 'main'], {cwd: repoRoot})

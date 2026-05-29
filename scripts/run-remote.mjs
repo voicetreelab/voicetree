@@ -10,8 +10,8 @@
 //   VT_REMOTE_EXEC=1 recursion guard: skip routing, just exec locally
 //
 // Two mutagen sessions back this script:
-//   * `vt-remote`  — main checkout ↔ /root/voicetree-public  (one-way-replica)
-//   * `vt-wts`     — sibling /Users/.../vt-wts/ ↔ /root/vt-wts/  (one-way-replica)
+//   * `vt-remote`  — main checkout ↔ /root/vtrepo-synced  (one-way-replica)
+//   * `vt-wts`     — sibling /Users/.../vt-wts/ ↔ /root/vt-wts-synced/  (one-way-replica)
 //
 // Worktrees live SIBLING to the main checkout: `<parent>/vt-wts/<name>/`. The
 // session is picked based on which root the cwd falls under. Blocks on the
@@ -31,8 +31,8 @@ import {promisify} from 'node:util'
 
 const execFileAsync = promisify(execFile)
 const REPO_ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..')
-const REMOTE_ROOT = '/root/voicetree-public'
-const REMOTE_WTS_ROOT = '/root/vt-wts'
+const REMOTE_ROOT = '/root/vtrepo-synced'
+const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
 const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
 const MUTAGEN_SESSION_WTS = 'vt-wts'
@@ -227,8 +227,8 @@ async function flushMutagenSession(session) {
   }
 }
 
-// On remote, cwd is either `/root/voicetree-public/...` (main) or
-// `/root/vt-wts/<name>/...` (worktree). The latter is the only case the
+// On remote, cwd is either `/root/vtrepo-synced/...` (main) or
+// `/root/vt-wts-synced/<name>/...` (worktree). The latter is the only case the
 // metadata-repair helper cares about.
 function remoteWorktreeRoot(remoteCwd) {
   const rel = ppath.relative(REMOTE_WTS_ROOT, remoteCwd)
@@ -288,7 +288,7 @@ function localWorktreeNames(repoRoot = REPO_ROOT) {
 }
 
 // Shell snippet that prints the remote worktree inventory across BOTH roots:
-// the main checkout's nested .worktrees/ (legacy) AND the sibling vt-wts/
+// the synced main checkout's nested .worktrees/ (legacy) AND the synced sibling vt-wts/
 // directory. Anything in either is considered "remote-known" for reconcile.
 // Pure: returns a string. Caller is responsible for sending it over ssh.
 function remoteWorktreeListingScript({remoteRoot = REMOTE_ROOT, remoteWtsRoot = REMOTE_WTS_ROOT} = {}) {

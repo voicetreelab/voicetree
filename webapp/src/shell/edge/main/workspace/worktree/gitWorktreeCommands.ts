@@ -9,6 +9,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 /** Shell-quote a single argument for POSIX-style hook commands. */
 export function shellQuote(arg: string): string {
@@ -82,8 +83,11 @@ export function generateWorktreeName(nodeTitle: string): string {
 
 /**
  * Worktrees live as a SIBLING of the main checkout, not nested inside it.
- * Layout:  <parent>/voicetree-public/   ← main repo
- *          <parent>/vt-wts/<name>/      ← worktrees
+ * Mac layout:     ~/repos/vtrepo/        ← main repo
+ *                 ~/repos/vt-wts/<name>/ ← Mac-owned worktrees
+ *
+ * Remote layout:  /root/vtrepo/              ← VM-owned main repo
+ *                 /root/vt-wts-remote/<name> ← VM-owned worktrees
  *
  * Reason for sibling layout: nested `.worktrees/` makes every code scanner
  * (vitest, eslint, watch-folder, package discovery, architecture-drift,
@@ -100,9 +104,38 @@ export function generateWorktreeName(nodeTitle: string): string {
  * in sync across all of them.
  */
 const WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts';
+const REMOTE_WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts-remote';
+
+function readEnvValue(envText: string, key: string): string | undefined {
+    const line: string | undefined = envText
+        .split(/\r?\n/)
+        .find((candidate: string) => candidate.startsWith(`${key}=`));
+    if (!line) return undefined;
+    const rawValue: string = line.slice(key.length + 1).trim();
+    if (
+        (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+        (rawValue.startsWith("'") && rawValue.endsWith("'"))
+    ) {
+        return rawValue.slice(1, -1);
+    }
+    return rawValue;
+}
+
+function resolveDevRole(env: NodeJS.ProcessEnv = process.env, homeDir: string = os.homedir()): string | undefined {
+    if (env.VT_DEV_ROLE) return env.VT_DEV_ROLE;
+    try {
+        return readEnvValue(fs.readFileSync(path.join(homeDir, '.env'), 'utf-8'), 'VT_DEV_ROLE');
+    } catch {
+        return undefined;
+    }
+}
+
+export function worktreeSiblingDirNameForRole(role: string | undefined): string {
+    return role === 'remote' ? REMOTE_WORKTREE_SIBLING_DIR_NAME : WORKTREE_SIBLING_DIR_NAME;
+}
 
 export function worktreeRootFor(repoRoot: string): string {
-    return path.resolve(repoRoot, '..', WORKTREE_SIBLING_DIR_NAME);
+    return path.resolve(repoRoot, '..', worktreeSiblingDirNameForRole(resolveDevRole()));
 }
 
 /**

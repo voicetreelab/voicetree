@@ -15,8 +15,8 @@ fi
 
 echo "configure-cdp: configuring $WORKTREE_NAME at $WORKTREE_PATH"
 
-# Find the main repo root via git. With sibling worktree layout (`<parent>/vt-wts/<name>/`
-# alongside `<parent>/voicetree-public/`), `$WORKTREE_PATH/../..` would point at
+# Find the main repo root via git. With sibling worktree layout (`<parent>/vt-wts[-remote]/<name>/`
+# alongside `<parent>/vtrepo[-synced]/`), `$WORKTREE_PATH/../..` would point at
 # `<parent>`, not at the main repo. `git worktree list --porcelain` always emits
 # the main worktree first with an absolute path, regardless of layout.
 REPO_ROOT="$(git -C "$WORKTREE_PATH" worktree list --porcelain | awk '/^worktree / {print $2; exit}')"

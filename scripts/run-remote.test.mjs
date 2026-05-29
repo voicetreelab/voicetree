@@ -37,13 +37,13 @@ test('rejects bidirectional mutagen modes before remote execution', () => {
   )
 })
 
-test('detects remote worktree roots from nested remote cwd under /root/vt-wts/', () => {
+test('detects remote worktree roots from nested remote cwd under /root/vt-wts-synced/', () => {
   assert.equal(
-    remoteWorktreeRoot('/root/vt-wts/wt-one/webapp'),
-    '/root/vt-wts/wt-one',
+    remoteWorktreeRoot('/root/vt-wts-synced/wt-one/webapp'),
+    '/root/vt-wts-synced/wt-one',
   )
-  assert.equal(remoteWorktreeRoot('/root/voicetree-public/webapp'), null)
-  assert.equal(remoteWorktreeRoot('/root/vt-wts'), null)
+  assert.equal(remoteWorktreeRoot('/root/vtrepo-synced/webapp'), null)
+  assert.equal(remoteWorktreeRoot('/root/vt-wts-synced'), null)
 })
 
 test('extracts local worktree name from nested cwd under vt-wts/', () => {
@@ -51,20 +51,20 @@ test('extracts local worktree name from nested cwd under vt-wts/', () => {
     localWorktreeName('/Users/x/repos/vt-wts/wt-one/webapp', '/Users/x/repos/vt-wts'),
     'wt-one',
   )
-  assert.equal(localWorktreeName('/Users/x/repos/voicetree-public/webapp', '/Users/x/repos/vt-wts'), null)
+  assert.equal(localWorktreeName('/Users/x/repos/vtrepo/webapp', '/Users/x/repos/vt-wts'), null)
   assert.equal(localWorktreeName('/Users/x/repos/vt-wts', '/Users/x/repos/vt-wts'), null)
 })
 
 test('repairs remote worktree metadata for sibling-layout worktree commands', () => {
-  const script = repairRemoteWorktreeMetadataScript('/root/vt-wts/wt-one/webapp')
+  const script = repairRemoteWorktreeMetadataScript('/root/vt-wts-synced/wt-one/webapp')
   assert.match(script, /repairing remote worktree git metadata/)
   // worktree-root .git file points up to the sibling main repo's admin dir
-  assert.match(script, /gitdir: \.\.\/\.\.\/voicetree-public\/\.git\/worktrees\/wt-one/)
+  assert.match(script, /gitdir: \.\.\/\.\.\/vtrepo-synced\/\.git\/worktrees\/wt-one/)
   // admin's gitdir points back across to the sibling vt-wts worktree
-  assert.match(script, /\.\.\/\.\.\/\.\.\/\.\.\/vt-wts\/wt-one\/\.git/)
+  assert.match(script, /\.\.\/\.\.\/\.\.\/\.\.\/vt-wts-synced\/wt-one\/\.git/)
   // commondir from admin to main .git stays `../..`
   assert.match(script, /'\.\.\/\.\.'/)
-  assert.equal(repairRemoteWorktreeMetadataScript('/root/voicetree-public/webapp'), ':')
+  assert.equal(repairRemoteWorktreeMetadataScript('/root/vtrepo-synced/webapp'), ':')
 })
 
 // --- Reconciler: stale-worktree drift cleanup ----------------------------
@@ -115,17 +115,17 @@ test('returns empty stale list when remote matches local', () => {
   )
 })
 
-test('builds a cleanup script joining .git/worktrees and sibling vt-wts targets', () => {
+test('builds a cleanup script joining .git/worktrees and synced sibling vt-wts targets', () => {
   const script = buildReconcileCleanupScript({
     staleGit: ['wt-a', 'wt-b'],
     staleWt: ['wt-a'],
-    remoteRoot: '/root/voicetree-public',
-    remoteWtsRoot: '/root/vt-wts',
+    remoteRoot: '/root/vtrepo-synced',
+    remoteWtsRoot: '/root/vt-wts-synced',
   })
   assert.match(script, /^rm -rf /)
-  assert.match(script, /'\/root\/voicetree-public\/\.git\/worktrees\/wt-a'/)
-  assert.match(script, /'\/root\/voicetree-public\/\.git\/worktrees\/wt-b'/)
-  assert.match(script, /'\/root\/vt-wts\/wt-a'/)
+  assert.match(script, /'\/root\/vtrepo-synced\/\.git\/worktrees\/wt-a'/)
+  assert.match(script, /'\/root\/vtrepo-synced\/\.git\/worktrees\/wt-b'/)
+  assert.match(script, /'\/root\/vt-wts-synced\/wt-a'/)
 })
 
 test('returns null cleanup script when nothing is stale', () => {
@@ -148,13 +148,13 @@ test('rejects unsafe worktree names from cleanup script (defense in depth)', () 
 
 test('remote listing script asks for both worktree dirs and tolerates missing dirs', () => {
   const script = remoteWorktreeListingScript({
-    remoteRoot: '/root/voicetree-public',
-    remoteWtsRoot: '/root/vt-wts',
+    remoteRoot: '/root/vtrepo-synced',
+    remoteWtsRoot: '/root/vt-wts-synced',
   })
   assert.match(script, /echo ===GIT===/)
   assert.match(script, /echo ===WT===/)
-  assert.match(script, /ls -1 '\/root\/voicetree-public\/\.git\/worktrees' 2>\/dev\/null \|\| true/)
-  assert.match(script, /ls -1 '\/root\/vt-wts' 2>\/dev\/null \|\| true/)
+  assert.match(script, /ls -1 '\/root\/vtrepo-synced\/\.git\/worktrees' 2>\/dev\/null \|\| true/)
+  assert.match(script, /ls -1 '\/root\/vt-wts-synced' 2>\/dev\/null \|\| true/)
 })
 
 // --- Reconciler orchestrator: integration with injected ssh boundary -----
@@ -183,8 +183,8 @@ test('reconciler issues cleanup script for stale remote dirs', async () => {
   const result = await reconcileRemoteWorktrees({
     host: 'fake',
     repoRoot: '/nonexistent-repo-root',
-    remoteRoot: '/root/voicetree-public',
-    remoteWtsRoot: '/root/vt-wts',
+    remoteRoot: '/root/vtrepo-synced',
+    remoteWtsRoot: '/root/vt-wts-synced',
     sshExec,
     log: SILENT_LOG,
   })
@@ -193,8 +193,8 @@ test('reconciler issues cleanup script for stale remote dirs', async () => {
   assert.deepEqual(result.staleWt, ['wt-stale'])
   assert.equal(calls.length, 2)
   assert.match(calls[1], /^rm -rf /)
-  assert.match(calls[1], /'\/root\/voicetree-public\/\.git\/worktrees\/wt-stale'/)
-  assert.match(calls[1], /'\/root\/vt-wts\/wt-stale'/)
+  assert.match(calls[1], /'\/root\/vtrepo-synced\/\.git\/worktrees\/wt-stale'/)
+  assert.match(calls[1], /'\/root\/vt-wts-synced\/wt-stale'/)
 })
 
 test('reconciler soft-fails when ssh listing throws', async () => {

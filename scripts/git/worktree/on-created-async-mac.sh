@@ -54,7 +54,7 @@ case "$WORKTREE_NAME" in
         ;;
 esac
 
-REMOTE_WORKTREE="/root/vt-wts/$WORKTREE_NAME"
+REMOTE_WORKTREE="/root/vt-wts-synced/$WORKTREE_NAME"
 REMOTE_SCRIPT="cd '$REMOTE_WORKTREE' && bash scripts/dev-setup/common/install-worktree-deps.sh ."
 
 echo "worktree async mac hook: installing remote dependencies for $WORKTREE_NAME"

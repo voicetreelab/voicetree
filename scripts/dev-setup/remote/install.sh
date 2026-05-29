@@ -9,7 +9,7 @@
 # routes git hooks through scripts/hooks.
 #
 # Prereqs (on this laptop, before running):
-#   - voicetree-public cloned locally (you are here)
+#   - voicetree-public cloned locally at ~/repos/vtrepo (you are here)
 #   - mutagen installed:  brew install mutagen-io/mutagen/mutagen
 #   - passwordless SSH:   your public key in /root/.ssh/authorized_keys on the box
 #
@@ -40,7 +40,7 @@ done
 
 : "${VT_REMOTE_HOST:?set VT_REMOTE_HOST=root@<your-devbox-host> before running (see --help)}"
 
-REMOTE_DIR="/root/voicetree-public"
+REMOTE_DIR="/root/vtrepo-synced"
 REPO_URL="${REPO_URL:-https://github.com/voicetreelab/voicetree-public.git}"
 ENV_FILE="$REPO_ROOT/.env"
 HOME_ENV_FILE="$HOME/.env"

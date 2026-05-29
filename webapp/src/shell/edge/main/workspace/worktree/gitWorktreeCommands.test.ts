@@ -2,7 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { writeFileSync, mkdtempSync, chmodSync, readFileSync, unlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { runHook } from './gitWorktreeCommands';
+import { runHook, worktreeSiblingDirNameForRole } from './gitWorktreeCommands';
+
+describe('worktree root role selection', () => {
+    it('uses vt-wts-remote for VM-owned worktrees', () => {
+        expect(worktreeSiblingDirNameForRole('remote')).toBe('vt-wts-remote');
+    });
+
+    it('uses vt-wts for Mac-owned and unspecified roles', () => {
+        expect(worktreeSiblingDirNameForRole('mac')).toBe('vt-wts');
+        expect(worktreeSiblingDirNameForRole(undefined)).toBe('vt-wts');
+    });
+});
 
 describe('runHook env plumbing', () => {
     it('forwards extraEnv vars into the child process environment', async () => {
@@ -80,4 +91,3 @@ describe('runHook env plumbing', () => {
         expect(readFileSync(outFile, 'utf-8')).toBe('/forced-override');
     });
 });
-

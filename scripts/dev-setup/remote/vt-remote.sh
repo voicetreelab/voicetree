@@ -2,7 +2,7 @@
 # vt-remote.sh — wrapper for your remote dev box
 # Usage:
 #   vt-remote.sh ssh                  # interactive shell
-#   vt-remote.sh run <cmd...>         # run a command in /root/voicetree-public
+#   vt-remote.sh run <cmd...>         # run a command in /root/vtrepo-synced
 #   vt-remote.sh sync-status          # show Mutagen sync state
 #   vt-remote.sh sync-recreate        # recreate vt-remote from repo config
 #   vt-remote.sh brain-recreate       # recreate two-way ~/brain sync
@@ -12,7 +12,8 @@
 #
 # Host resolution (high → low precedence):
 #   VT_REMOTE_HOST env var                      e.g. root@1.2.3.4
-#   VT_REMOTE_HOST in <repo-root>/.env          (matches scripts/run-remote.mjs)
+#   VT_REMOTE_HOST in ~/.env
+#   VT_REMOTE_HOST in <repo-root>/.env          (compatibility)
 #   REMOTE_USER + DROPLET_IP env vars (legacy escape hatch)
 
 set -euo pipefail
@@ -24,6 +25,12 @@ resolve_remote() {
   if [ -n "${VT_REMOTE_HOST:-}" ]; then
     printf '%s\n' "$VT_REMOTE_HOST"; return 0
   fi
+  if [ -f "$HOME/.env" ]; then
+    local v
+    v="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$HOME/.env")"
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    if [ -n "$v" ]; then printf '%s\n' "$v"; return 0; fi
+  fi
   if [ -f "$REPO_ROOT/.env" ]; then
     local v
     v="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$REPO_ROOT/.env")"
@@ -33,14 +40,14 @@ resolve_remote() {
   if [ -n "${DROPLET_IP:-}" ]; then
     printf '%s@%s\n' "${REMOTE_USER:-root}" "$DROPLET_IP"; return 0
   fi
-  echo "vt-remote.sh: VT_REMOTE_HOST not set (env or .env). See scripts/dev-setup/remote/install.sh" >&2
+  echo "vt-remote.sh: VT_REMOTE_HOST not set (env, ~/.env, or repo .env). See scripts/dev-setup/remote/install.sh" >&2
   exit 1
 }
 
 REMOTE="$(resolve_remote)"
 REMOTE_USER="${REMOTE%%@*}"
 DROPLET_IP="${REMOTE##*@}"
-REMOTE_DIR="${REMOTE_DIR:-/root/voicetree-public}"
+REMOTE_DIR="${REMOTE_DIR:-/root/vtrepo-synced}"
 MUTAGEN_CONFIG="$SCRIPT_DIR/mutagen-vt-remote.yml"
 CSV_HISTORY_CONFIG="$SCRIPT_DIR/mutagen-vt-csv-history.yml"
 CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
@@ -50,7 +57,7 @@ VT_BRAIN_LOCAL="${VT_BRAIN_LOCAL:-$HOME/brain}"
 VT_BRAIN_REMOTE="${VT_BRAIN_REMOTE:-/root/brain-checkout}"
 VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts.yml"
 VT_WTS_LOCAL="$(cd "$REPO_ROOT/.." && pwd)/vt-wts"
-VT_WTS_REMOTE="/root/vt-wts"
+VT_WTS_REMOTE="/root/vt-wts-synced"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/root/.voicetree/artifacts}"
 
 create_sync() {
@@ -258,7 +265,7 @@ vt-remote.sh — remote dev box ($REMOTE)
   htop               remote htop (use 'q' to quit)
   ip                 print public IP
 
-Host resolution: VT_REMOTE_HOST env > <repo>/.env > REMOTE_USER+DROPLET_IP.
+Host resolution: VT_REMOTE_HOST env > ~/.env > <repo>/.env > REMOTE_USER+DROPLET_IP.
 Other env overrides: REMOTE_DIR, ARTIFACT_ROOT.
 EOF
     exit ${1:+1}

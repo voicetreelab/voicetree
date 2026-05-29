@@ -14,7 +14,7 @@
 #   * Moves each `.worktrees/<name>/` directory to `../vt-wts/<name>/`.
 #   * Replaces the `.env` symlink with one targeting the new relative depth
 #     (it's a symlink to ../../.env today; needs to become
-#     ../../voicetree-public/.env in the new layout).
+#     ../../vtrepo/.env in the new layout).
 #   * Runs `git worktree repair --relative-paths` so all git pointers
 #     (`.git` files + admin `gitdir`/`commondir`) line up with the new paths.
 #   * Removes `.worktrees/` if it ends up empty.
@@ -83,13 +83,13 @@ for wt in "$OLD_WTS"/*/; do
   mv "$wt" "$dest"
 
   # Repair .env symlink: old target was ../../.env (depth 2 below repo);
-  # new layout needs ../../voicetree-public/.env (cross the sibling).
+  # new layout needs ../../vtrepo/.env (cross the sibling).
   env_link="$dest/.env"
   if [ -L "$env_link" ]; then
     rm "$env_link"
   fi
   if [ -f "$REPO_ROOT/.env" ]; then
-    ln -s "../../voicetree-public/.env" "$env_link"
+    ln -s "../../vtrepo/.env" "$env_link"
     echo "migrate:   refreshed .env symlink for $name"
   fi
 done

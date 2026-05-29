@@ -1,4 +1,4 @@
-# Agent prompt: set up the voicetree-public remote devbox
+# Agent prompt: set up the Voicetree remote devbox
 
 You are configuring this laptop to route heavy dev commands (`npm run test`,
 perf runs, e2e) to the user's own remote dev box via mutagen + ssh.
@@ -19,7 +19,7 @@ Do not assume or invent the IP. Do not share a box with another dev.
 
 ## Preconditions to verify before running the installer
 
-- `pwd` is the root of a `voicetree-public` checkout (look for `package.json`
+- `pwd` is the root of the local Mac checkout (normally `~/repos/vtrepo`; look for `package.json`
   with `"name": "voicetree-public"` and a `scripts/dev-setup/remote/` dir).
 - `mutagen` is on PATH. If not: `brew install mutagen-io/mutagen/mutagen`
   (or the platform equivalent) and `mutagen daemon start`.

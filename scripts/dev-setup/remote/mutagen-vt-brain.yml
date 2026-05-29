@@ -1,6 +1,6 @@
 # Two-way-safe sync for global VoiceTree brain coordination artifacts.
 #
-# This deliberately does NOT target /root/voicetree-public/brain because the
+# This deliberately does NOT target /root/vtrepo-synced/brain because the
 # main vt-remote session is one-way Mac -> devbox for the whole repo checkout.
 # A separate target avoids two Mutagen sessions writing the same tree.
 sync:
