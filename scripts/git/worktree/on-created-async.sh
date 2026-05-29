@@ -1,7 +1,6 @@
 #!/bin/sh
 # on-created-async.sh
-# Fire-and-forget worktree setup. This is a prewarm path only; remote command
-# execution still enforces readiness before it runs agent/test commands.
+# Fire-and-forget worktree setup router.
 #
 # Usage: on-created-async.sh <worktreePath> <worktreeName>
 
@@ -23,20 +22,29 @@ echo "worktree async hook: command-boundary readiness will retry later if this p
 # not nested inside it. The first entry in `git worktree list --porcelain` is
 # always the main worktree.
 REPO_ROOT="$(git -C "$WORKTREE_PATH" worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
-REMOTE_RUNNER="$REPO_ROOT/scripts/run-remote.mjs"
+SCRIPT_DIR="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+ENV_HELPERS="$REPO_ROOT/scripts/dev-setup/common/env.sh"
 
-if [ ! -f "$REMOTE_RUNNER" ]; then
-    echo "worktree async hook: WARNING remote runner missing at $REMOTE_RUNNER" >&2
-    echo "worktree async hook: command-boundary readiness will retry before tests or agent commands" >&2
+if [ ! -f "$ENV_HELPERS" ]; then
+    echo "worktree async hook: WARNING env helpers missing at $ENV_HELPERS" >&2
     exit 0
 fi
 
-echo "worktree async hook: ensuring dependencies on the devbox for $WORKTREE_NAME"
-echo "worktree async hook: local node_modules will not be created by default"
-if ! (cd "$WORKTREE_PATH" && node "$REMOTE_RUNNER" true); then
-    echo "worktree async hook: WARNING remote dependency readiness failed for $WORKTREE_NAME" >&2
-    echo "worktree async hook: remote command boundary will retry before tests or agent commands" >&2
-    exit 0
-fi
+. "$ENV_HELPERS"
+dev_setup_link_worktree_env "$WORKTREE_PATH" "$REPO_ROOT"
 
-echo "worktree async hook: remote dependency readiness complete for $WORKTREE_NAME"
+ROLE="$(dev_setup_resolve_dev_role || true)"
+
+case "$ROLE" in
+    mac)
+        exec "$SCRIPT_DIR/on-created-async-mac.sh" "$WORKTREE_PATH" "$WORKTREE_NAME"
+        ;;
+    remote)
+        exec "$SCRIPT_DIR/on-created-async-remote.sh" "$WORKTREE_PATH" "$WORKTREE_NAME"
+        ;;
+    *)
+        echo "worktree async hook: WARNING unsupported VT_DEV_ROLE '$ROLE'" >&2
+        echo "worktree async hook: set VT_DEV_ROLE=mac or VT_DEV_ROLE=remote in ~/.env" >&2
+        exit 0
+        ;;
+esac

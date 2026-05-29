@@ -15,13 +15,15 @@ import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../
 
 /**
  * Extract worktree directory name from a spawn path, if it's inside the
- * sibling `vt-wts/` directory.
+ * sibling `vt-wts/` or `vt-wts-remote/` directory.
  *
  * Layout: worktrees live alongside the main checkout, not nested inside it.
- *   /Users/x/repos/voicetree-public/      ← main
- *   /Users/x/repos/vt-wts/<name>/         ← worktree
+ *   ~/repos/vtrepo/              ← Mac main
+ *   ~/repos/vt-wts/<name>/       ← Mac-owned worktree
+ *   /root/vtrepo/                ← VM main
+ *   /root/vt-wts-remote/<name>/  ← VM-owned worktree
  *
- * The directory-name constant `vt-wts` is duplicated (not imported) in
+ * The directory-name constants are duplicated (not imported) in
  * webapp/.../gitWorktreeCommands.ts, scripts/run-remote.mjs, and
  * scripts/dev-setup/git-gate/git-gate.sh. Keep all four in sync.
  *
@@ -29,10 +31,10 @@ import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../
  */
 function extractWorktreeNameFromPath(spawnDirectory: string | undefined): string | undefined {
     if (!spawnDirectory) return undefined
-    // Anchor on path-segment boundaries so substrings like "my-vt-wts" don't match.
-    const marker: string = '/vt-wts/'
+    const markers: readonly string[] = ['/vt-wts/', '/vt-wts-remote/']
+    const marker: string | undefined = markers.find(candidate => spawnDirectory.includes(candidate))
+    if (!marker) return undefined
     const markerIndex: number = spawnDirectory.indexOf(marker)
-    if (markerIndex === -1) return undefined
     const afterMarker: string = spawnDirectory.slice(markerIndex + marker.length)
     // Take just the first path segment (the worktree directory name)
     const slashIndex: number = afterMarker.indexOf('/')

@@ -2,19 +2,25 @@
 # vt-remote.sh — wrapper for your remote dev box
 # Usage:
 #   vt-remote.sh ssh                  # interactive shell
-#   vt-remote.sh run <cmd...>         # run a command in /root/voicetree-public
+#   vt-remote.sh run <cmd...>         # run a command in /root/vtrepo-synced
 #   vt-remote.sh sync-status          # show Mutagen sync state
 #   vt-remote.sh sync-recreate        # recreate vt-remote from repo config
+#   vt-remote.sh brain-setup          # create standalone ~/brain clones/symlinks
 #   vt-remote.sh artifacts-pull <id>  # copy explicit Onidel artifacts to Mac
 #   vt-remote.sh htop                 # remote htop
 #   vt-remote.sh ip                   # print public IP
 #
 # Host resolution (high → low precedence):
 #   VT_REMOTE_HOST env var                      e.g. root@1.2.3.4
-#   VT_REMOTE_HOST in <repo-root>/.env          (matches scripts/run-remote.mjs)
+#   VT_REMOTE_HOST in ~/.env
+#   VT_REMOTE_HOST in <repo-root>/.env          (compatibility)
 #   REMOTE_USER + DROPLET_IP env vars (legacy escape hatch)
 
 set -euo pipefail
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
@@ -22,6 +28,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 resolve_remote() {
   if [ -n "${VT_REMOTE_HOST:-}" ]; then
     printf '%s\n' "$VT_REMOTE_HOST"; return 0
+  fi
+  if [ -f "$HOME/.env" ]; then
+    local v
+    v="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$HOME/.env")"
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    if [ -n "$v" ]; then printf '%s\n' "$v"; return 0; fi
   fi
   if [ -f "$REPO_ROOT/.env" ]; then
     local v
@@ -32,21 +44,24 @@ resolve_remote() {
   if [ -n "${DROPLET_IP:-}" ]; then
     printf '%s@%s\n' "${REMOTE_USER:-root}" "$DROPLET_IP"; return 0
   fi
-  echo "vt-remote.sh: VT_REMOTE_HOST not set (env or .env). See scripts/dev-setup/remote/install.sh" >&2
+  echo "vt-remote.sh: VT_REMOTE_HOST not set (env, ~/.env, or repo .env). See scripts/dev-setup/remote/install.sh" >&2
   exit 1
 }
 
 REMOTE="$(resolve_remote)"
 REMOTE_USER="${REMOTE%%@*}"
 DROPLET_IP="${REMOTE##*@}"
-REMOTE_DIR="${REMOTE_DIR:-/root/voicetree-public}"
+REMOTE_DIR="${REMOTE_DIR:-/root/vtrepo-synced}"
 MUTAGEN_CONFIG="$SCRIPT_DIR/mutagen-vt-remote.yml"
 CSV_HISTORY_CONFIG="$SCRIPT_DIR/mutagen-vt-csv-history.yml"
 CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
 CSV_HISTORY_REMOTE="${REMOTE_DIR}/health-dashboard/reports/scores-history"
+VT_BRAIN_REPO_URL="${VT_BRAIN_REPO_URL:-git@github.com:voicetreelab/brain.git}"
+VT_BRAIN_LOCAL="${VT_BRAIN_LOCAL:-$HOME/brain-real}"
+VT_BRAIN_REMOTE="${VT_BRAIN_REMOTE:-/root/brain-real}"
 VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts.yml"
 VT_WTS_LOCAL="$(cd "$REPO_ROOT/.." && pwd)/vt-wts"
-VT_WTS_REMOTE="/root/vt-wts"
+VT_WTS_REMOTE="/root/vt-wts-synced"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/root/.voicetree/artifacts}"
 
 create_sync() {
@@ -75,6 +90,34 @@ create_vt_wts_sync() {
     --configuration-file "$VT_WTS_CONFIG" \
     "$VT_WTS_LOCAL" \
     "${REMOTE}:${VT_WTS_REMOTE}"
+}
+
+setup_vt_brain() {
+  if [ ! -d "$VT_BRAIN_LOCAL/.git" ]; then
+    rm -rf "$VT_BRAIN_LOCAL"
+    git clone "$VT_BRAIN_REPO_URL" "$VT_BRAIN_LOCAL"
+  fi
+  if [ -L "$HOME/brain" ]; then
+    rm "$HOME/brain"
+  elif [ -e "$HOME/brain" ]; then
+    mv "$HOME/brain" "$HOME/brain.backup.$(date +%Y%m%d-%H%M%S)"
+  fi
+  ln -s "$VT_BRAIN_LOCAL" "$HOME/brain"
+
+  ssh -o StrictHostKeyChecking=no "$REMOTE" "\
+    set -e
+    if [ ! -d '$VT_BRAIN_REMOTE/.git' ]; then
+      rm -rf '$VT_BRAIN_REMOTE'
+      if git -C '$REMOTE_DIR/brain' rev-parse --show-toplevel >/dev/null 2>&1; then
+        git clone '$REMOTE_DIR/brain' '$VT_BRAIN_REMOTE'
+        git -C '$VT_BRAIN_REMOTE' remote set-url origin '$VT_BRAIN_REPO_URL'
+      else
+        git clone '$VT_BRAIN_REPO_URL' '$VT_BRAIN_REMOTE'
+      fi
+    fi
+    if [ -L /root/brain ]; then rm /root/brain; \
+    elif [ -e /root/brain ]; then mv /root/brain \"/root/brain.backup.\$(date +%Y%m%d-%H%M%S)\"; fi && \
+    ln -s '$VT_BRAIN_REMOTE' /root/brain"
 }
 
 case "${1:-}" in
@@ -149,6 +192,16 @@ case "${1:-}" in
   vt-wts-terminate)
     exec mutagen sync terminate vt-wts
     ;;
+  brain-setup)
+    setup_vt_brain
+    ;;
+  brain-status)
+    printf 'local:  '
+    git -C "$HOME/brain" rev-parse --show-toplevel --abbrev-ref HEAD
+    printf 'remote: '
+    exec ssh -o StrictHostKeyChecking=no "$REMOTE" \
+      "git -C /root/brain rev-parse --show-toplevel --abbrev-ref HEAD"
+    ;;
   artifacts-list)
     exec ssh -o StrictHostKeyChecking=no "$REMOTE" \
       "find '$ARTIFACT_ROOT' -mindepth 1 -maxdepth 1 -type d -printf '%TY-%Tm-%Td %TH:%TM %f\n' 2>/dev/null | sort"
@@ -197,12 +250,14 @@ vt-remote.sh — remote dev box ($REMOTE)
   vt-wts-resume          resume syncing
   vt-wts-monitor         live sync activity view
   vt-wts-terminate       stop the vt-wts sync session
+  brain-setup            create standalone ~/brain clones/symlinks on laptop + remote
+  brain-status           show local and remote brain clone roots/branches
   artifacts-list     list explicit artifact directories on Onidel
   artifacts-pull ID  copy /root/.voicetree/artifacts/ID back to ./artifacts/ID
   htop               remote htop (use 'q' to quit)
   ip                 print public IP
 
-Host resolution: VT_REMOTE_HOST env > <repo>/.env > REMOTE_USER+DROPLET_IP.
+Host resolution: VT_REMOTE_HOST env > ~/.env > <repo>/.env > REMOTE_USER+DROPLET_IP.
 Other env overrides: REMOTE_DIR, ARTIFACT_ROOT.
 EOF
     exit ${1:+1}

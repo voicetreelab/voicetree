@@ -94,19 +94,10 @@ worktree_add_path_arg() {
 #
 # Steps:
 #   1. Symlink .env from the main checkout (secrets the worktree needs).
-#   2. Install deps on the DEVBOX, not locally.
+#   2. Run the same async setup router VT-managed worktrees use.
 #
-# Why deps go on the devbox, not the Mac:
-#   - mutagen-vt-wts.yml excludes **/node_modules from the Mac→devbox sync,
-#     so local node_modules never reaches the remote where tests run.
-#   - postinstall rebuilds native modules for darwin/arm64 (Electron ABI),
-#     which is wrong on the Linux devbox even if it were synced.
-#   - scripts/run-remote.mjs + install-vitest-shim.mjs route `npx vitest`
-#     and tier-1 checks to ssh on the devbox; they need node_modules
-#     relative to /root/vt-wts/<name>/, not the Mac path.
-#
-# On a warm pnpm content-addressed store the remote install is sub-second
-# (hardlinks only, no network).
+# Mac-role worktrees install both local and remote deps. Remote-role worktrees
+# install only the current worktree deps.
 bootstrap_added_worktree() {
   local wt_path="$1"
   [ -n "$wt_path" ] || return 0
@@ -135,41 +126,17 @@ bootstrap_added_worktree() {
     return 0
   fi
 
-  # Resolve devbox host (env var wins, else .env in the main checkout)
-  local remote_host="${VT_REMOTE_HOST:-}"
-  if [ -z "$remote_host" ] && [ -n "$main_repo" ] && [ -f "$main_repo/.env" ]; then
-    remote_host="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$main_repo/.env")"
-    remote_host="${remote_host%\"}"; remote_host="${remote_host#\"}"
-    remote_host="${remote_host%\'}"; remote_host="${remote_host#\'}"
-  fi
-
-  if [ -z "$remote_host" ]; then
-    echo "git-gate: no VT_REMOTE_HOST found; skipping devbox pnpm install" >&2
-    echo "git-gate: run-remote.mjs will retry dependency readiness before tests" >&2
+  local async_hook="$main_repo/scripts/git/worktree/on-created-async.sh"
+  if [ ! -x "$async_hook" ]; then
+    echo "git-gate: async worktree hook missing at $async_hook; skipping dependency setup" >&2
     return 0
   fi
 
-  # Push the new worktree to the devbox before trying to install in it
-  if command -v mutagen >/dev/null 2>&1; then
-    echo "git-gate: flushing mutagen vt-wts sync so devbox sees the new worktree" >&2
-    mutagen sync flush vt-wts >/dev/null 2>&1 \
-      || echo "git-gate: warning: mutagen sync flush vt-wts failed; ssh install may race" >&2
-  fi
-
-  # Reject anything that isn't a plain worktree name. Defensive against
-  # command injection via the path argument.
   local wt_name
   wt_name="$(basename "$wt_abs")"
-  if ! [[ "$wt_name" =~ ^[A-Za-z0-9_.-]+$ ]] || [ "$wt_name" = "." ] || [ "$wt_name" = ".." ]; then
-    echo "git-gate: worktree name '$wt_name' is not a plain safe name; skipping devbox install" >&2
-    return 0
-  fi
-
-  echo "git-gate: pnpm install --prefer-offline on devbox at /root/vt-wts/$wt_name" >&2
-  if ! ssh -o BatchMode=yes -o ConnectTimeout=10 "$remote_host" \
-        "cd /root/vt-wts/$wt_name && pnpm install --prefer-offline" >&2; then
-    echo "git-gate: warning: devbox pnpm install failed for $wt_name" >&2
-    echo "git-gate: run-remote.mjs will retry dependency readiness before tests" >&2
+  echo "git-gate: running async worktree dependency setup for $wt_name" >&2
+  if ! "$async_hook" "$wt_abs" "$wt_name"; then
+    echo "git-gate: warning: async worktree dependency setup failed for $wt_name" >&2
   fi
 }
 
@@ -274,9 +241,10 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
       fi
       if [ -n "$remote_host" ]; then
         echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
-        remote_root="/root/voicetree-public"
+        remote_root="/root/vtrepo-synced"
+        remote_wts_root="/root/vt-wts-synced"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
-          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name'" \
+          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name' '$remote_wts_root/$wt_name'" \
           >/dev/null 2>&1 \
           && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
           || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-remote' to check" >&2
