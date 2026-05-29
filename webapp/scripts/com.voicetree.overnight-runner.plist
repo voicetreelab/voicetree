@@ -31,7 +31,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/bobbobby/repos/voicetree-public/webapp/scripts/trigger-overnight.sh</string>
+        <string>/Users/example/repos/voicetree-public/webapp/scripts/trigger-overnight.sh</string>
     </array>
 
     <key>StartCalendarInterval</key>

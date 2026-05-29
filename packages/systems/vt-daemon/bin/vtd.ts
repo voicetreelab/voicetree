@@ -172,17 +172,17 @@ function configureAgentRuntimeForVtd(
     publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
     graph: GraphStateBridge,
 ): void {
-    // The CLI manual and `vt` binary are both shipped inside @voicetree/cli.
-    // vtd lives next to it on disk (packages/systems/vt-daemon →
-    // packages/systems/voicetree-cli), so resolve relative to this file
-    // rather than the appSupport-tools copy.
+    // The `vt` binary is shipped inside @voicetree/cli. vtd lives next to
+    // it on disk (packages/systems/vt-daemon → packages/systems/voicetree-cli),
+    // so resolve relative to this file rather than the appSupport-tools copy.
+    // The CLI manual is rendered live from @vt/vt-daemon-protocol's TOOL_SPECS
+    // — no longer file-based — so vtd no longer needs to register a manual path.
     const voicetreeCliPackageDir: string = join(
         dirname(fileURLToPath(import.meta.url)),
         '..',
         '..',
         'voicetree-cli',
     )
-    const vtCliManualPath: string = join(voicetreeCliPackageDir, 'prompts', 'cli-manual.md')
     // `vt` lives at <voicetree-cli>/bin/vt. resolveVtBinDir verifies the
     // script exists and returns null otherwise — the spawn pipeline's
     // PATH injection then no-ops gracefully.
@@ -190,7 +190,6 @@ function configureAgentRuntimeForVtd(
 
     configureAgentRuntime({
         env: {
-            getCliManualPath: (): string => vtCliManualPath,
             getVtBinDir: (): string | null => vtBinDir,
         },
         publishTerminalRegistryEvent,

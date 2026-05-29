@@ -2,8 +2,8 @@ import {describe, expect, it} from 'vitest'
 import {matchCodexThreadId, type CodexThreadRow} from '../codex-thread-matcher'
 
 const TERMINAL = 'Eva'
-const VAULT = '/Users/bobbobby/repos/voicetree-public/voicetree-22-5'
-const TASK = '/Users/bobbobby/repos/voicetree-public/voicetree-22-5/task.md'
+const VAULT = '/Users/example/repos/voicetree-public/voicetree-22-5'
+const TASK = '/Users/example/repos/voicetree-public/voicetree-22-5/task.md'
 
 function makeRow(overrides: Partial<CodexThreadRow> = {}): CodexThreadRow {
     return {
@@ -12,7 +12,7 @@ function makeRow(overrides: Partial<CodexThreadRow> = {}): CodexThreadRow {
         cwd: VAULT,
         created_at_ms: 1779424330000,
         updated_at_ms: 1779424340000,
-        rollout_path: '/Users/bobbobby/.codex/sessions/2026/05/22/rollout-XYZ.jsonl',
+        rollout_path: '/Users/example/.codex/sessions/2026/05/22/rollout-XYZ.jsonl',
         ...overrides,
     }
 }

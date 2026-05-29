@@ -42,8 +42,6 @@ export type BuildConfig = {
   // Per-project .voicetree/ source paths (for copy-on-first-open)
   readonly promptsSource: string;      // packages/systems/voicetree-cli/prompts/*.md
   readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
-  // Canonical CLI manual file path — co-located with the @voicetree/cli source tree.
-  readonly cliManualPath: string;
   // Absolute path to the `@voicetree/cli` package root on disk. Spawn-time
   // PATH injection (resolveVtBinDir + prependVtBinToPath) reads `bin/vt`
   // from inside this directory. Null when this build cannot locate the CLI
@@ -118,7 +116,6 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
     // Per-project .voicetree/ sources
     promptsSource: path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts'),
     hookScriptsSource: path.join(rootDir, 'scripts'),
-    cliManualPath: path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts', 'cli-manual.md'),
     voicetreeCliPackageDir: path.join(rootDir, 'packages', 'systems', 'voicetree-cli'),
   };
 }
@@ -160,10 +157,6 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     ? path.join(process.resourcesPath, 'tools', 'prompts')
     : path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts');
 
-  const cliManualPath: string = commonEnv.isPackaged
-    ? path.join(process.resourcesPath, 'tools', 'prompts', 'cli-manual.md')
-    : path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts', 'cli-manual.md');
-
   // TODO(packaging-followup): wire `packages/systems/voicetree-cli/` (the bin
   // script + the `dist/voicetree-cli.js` bundle produced by `npm run build`)
   // into the packaged-app `extraResources` so this resolves under
@@ -198,7 +191,6 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     // Per-project .voicetree/ sources
     promptsSource,
     hookScriptsSource,
-    cliManualPath,
     voicetreeCliPackageDir,
   };
 }

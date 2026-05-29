@@ -1,12 +1,13 @@
 // Per-file dump of implicit-globals and boundary-width for graph-db-server/data and /application
-// Run with: node --experimental-strip-types /tmp/dump-offenders.mjs
+// Run with: node --experimental-strip-types packages/measures/scripts/dump-offenders.mjs
 import { readFile, readdir, stat } from 'node:fs/promises'
-import { join, relative, dirname } from 'node:path'
+import { join, relative, dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Project } from 'ts-morph'
-import { analyzeFile } from '/Users/bobbobby/repos/voicetree-public/packages/measures/src/_subgraph_gate/measures/behavioral/implicit-globals.ts'
-import { exportedSymbolNames } from '/Users/bobbobby/repos/voicetree-public/packages/measures/src/_shared/complexity/exported-symbols.ts'
+import { analyzeFile } from '../src/_subgraph_gate/measures/behavioral/implicit-globals.ts'
+import { exportedSymbolNames } from '../src/_shared/complexity/exported-symbols.ts'
 
-const ROOT = '/Users/bobbobby/repos/voicetree-public'
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 async function listProductionSources(dir) {
   const out = []

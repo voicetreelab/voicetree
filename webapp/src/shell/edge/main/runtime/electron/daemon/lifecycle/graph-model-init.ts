@@ -22,7 +22,6 @@ import { stripStaleVoicetreeMcpEntries } from '@/shell/edge/main/runtime/electro
 import { writeVaultAgentDiscoveryFile } from '@/shell/edge/main/runtime/electron/startup/vault-bootstrap/vaultAgentDiscoveryFile'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-api'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
-import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getVtDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
@@ -152,7 +151,7 @@ export function initializeGraphModel(): void {
             return stripStaleVoicetreeMcpEntries(vaultDir)
         },
         writeVaultAgentDiscoveryFile(vaultDir: string): Promise<void> {
-            return writeVaultAgentDiscoveryFile(vaultDir, getBuildConfig().cliManualPath)
+            return writeVaultAgentDiscoveryFile(vaultDir)
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)

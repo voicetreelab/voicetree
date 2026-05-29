@@ -34,4 +34,4 @@ Those are adjacent, but they do not fully pin the new single-owner, claim-first 
 
 [[task_u0fngg]]
 
-[[/Users/bobbobby/repos/voicetree-public/voicetree-22-5/fei-vt-graphd-single-owner-openspec-status_1.md]]
+[[/Users/example/repos/voicetree-public/voicetree-22-5/fei-vt-graphd-single-owner-openspec-status_1.md]]

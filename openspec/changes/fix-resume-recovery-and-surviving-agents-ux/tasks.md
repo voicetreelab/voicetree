@@ -64,7 +64,7 @@
 
 ## 9. Cross-cutting validation
 
-- [ ] 9.1 Manual smoke test on the affected vault (`/Users/bobbobby/Voicetree/voicetree-26-5/`): remove the temporary symlink, restart Electron, verify all 50 agents appear in Surviving Agents with worktree+title; click Resume on Jin → produces `codex resume 019e651e-...`; click Delete on a stale row → JSON gone. **Orchestrator + user — requires real vault and electron restart.**
+- [ ] 9.1 Manual smoke test on the affected vault (`/Users/example/Voicetree/voicetree-26-5/`): remove the temporary symlink, restart Electron, verify all 50 agents appear in Surviving Agents with worktree+title; click Resume on Jin → produces `codex resume 019e651e-...`; click Delete on a stale row → JSON gone. **Orchestrator + user — requires real vault and electron restart.**
 - [x] 9.2 Add an end-to-end Playwright spec covering the crash-recovery flow: spawn 3 agents → kill electron → reopen → assert all 3 surface in Surviving Agents → Resume one → assert it becomes a live terminal. **Scoped to fixture-backed discovery→render→attach (per leading comment); real SIGKILL variant deferred to follow-up since Phase 6 single-agent crash test already covers the kill primitive.**
 - [x] 9.3 Update `docs/RECOVERY.md` (or create) with the new canonical location, the migration behavior, and the resolver-miss reasons + manual-resume escape hatch.
 - [x] 9.4 Add a project memory / brain note (`~/brain/knowledge/`) capturing the projectRoot-vs-writeFolder distinction, so future agents don't re-introduce the divergence.

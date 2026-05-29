@@ -10,7 +10,7 @@ Implemented and locally verified on 2026-05-15:
 Not completed in this sandbox:
 
 - Electron close/reopen manual sweep with screenshot or video capture.
-- ESLint. The then-current direct webapp ESLint script failed because `eslint` is not installed in this checkout; `npx eslint ...` failed because `/Users/bobbobby/.npm/_cacache` contains root-owned files and cannot be written by this process.
+- ESLint. The then-current direct webapp ESLint script failed because `eslint` is not installed in this checkout; `npx eslint ...` failed because `/Users/example/.npm/_cacache` contains root-owned files and cannot be written by this process.
 - Full webapp test gate. `npm --workspace webapp run test` failed before running tests because `@vitejs/plugin-react` is missing from the installed workspace dependencies.
 
 Manual sweep still needed:
