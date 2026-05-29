@@ -10,165 +10,23 @@
  * but external changes don't interrupt their workflow by stealing focus.
  */
 
-import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
-import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
 import * as fs from 'fs/promises';
-import * as os from 'os';
-
-// Type definitions
-interface ExtendedWindow {
-  cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
-}
-
-// Extend test with Electron app
-const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-  testVaultPath: string;
-}>({
-  // Create temp userData directory with embedded vault + config
-  electronApp: async ({}, use, testInfo) => {
-    const PROJECT_ROOT = path.resolve(process.cwd());
-
-    // Create temp userData directory
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-two-path-focus-test-'));
-
-    // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
-    await fs.mkdir(watchedFolder, { recursive: true });
-
-    // Create the actual vault path with default suffix 'voicetree'
-    const projectRoot = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(projectRoot, { recursive: true });
-
-    // Create a simple initial node
-    const initialContent = '# Initial Node\n\nThis is the initial node.';
-    await fs.writeFile(path.join(projectRoot, 'initial.md'), initialContent, 'utf-8');
-
-    // Write config to auto-load the watched folder
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
-    console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
-
-    // Store projectRoot for test access via testInfo
-    (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
-
-    const electronApp = await electron.launch({
-      args: [
-        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`
-      ],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
-      },
-      timeout: 30000
-    });
-
-    await use(electronApp);
-
-    // Graceful shutdown
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('[Test] Could not stop file watching during cleanup');
-    }
-
-    await electronApp.close();
-    console.log('[Test] Electron app closed');
-
-    // Cleanup entire temp directory
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
-    console.log('[Test] Cleaned up temp directory');
-  },
-
-  testVaultPath: async ({}, use, testInfo) => {
-    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
-  },
-
-  appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow();
-
-    window.on('console', msg => {
-      console.log(`BROWSER [${msg.type()}]:`, msg.text());
-    });
-
-    window.on('pageerror', error => {
-      console.error('PAGE ERROR:', error.message);
-      console.error('Stack:', error.stack);
-    });
-
-    await window.waitForLoadState('domcontentloaded', { timeout: 60000 });
-
-    const hasErrors = await window.evaluate(() => {
-      const errors: string[] = [];
-      if (!document.querySelector('#root')) errors.push('No #root element');
-      const errorText = document.body.textContent;
-      if (errorText?.includes('Error') || errorText?.includes('error')) {
-        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
-      }
-      return errors;
-    });
-
-    if (hasErrors.length > 0) {
-      console.error('Pre-initialization errors:', hasErrors);
-    }
-
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
-    await window.waitForTimeout(500);
-
-    await use(window);
-  }
-});
+import {
+  expect,
+  clickEditorContent,
+  prepareGraphForHotkeys,
+  pressCreateNodeHotkey,
+  test,
+  type ExtendedWindow
+} from './electron-editor-two-path-focus/test-support';
 
 test.describe('Two-Path Editor Focus Behavior', () => {
   test('UI-created node editor should steal focus and allow immediate typing', async ({ appWindow }) => {
     test.setTimeout(90000);
     console.log('=== Test A: UI-initiated node creation steals focus ===');
 
-    // Wait for graph to load
-    await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return 0;
-        return cy.nodes().length;
-      });
-    }, {
-      message: 'Waiting for graph to load nodes',
-      timeout: 15000
-    }).toBeGreaterThan(0);
-
-    console.log('[Test] Graph loaded');
-
-    // Wait for loading indicator to disappear (indicates full app initialization)
-    await appWindow.waitForFunction(() => {
-      const loadingText = document.body.innerText;
-      return !loadingText.includes('Loading...');
-    }, { timeout: 10000 }).catch(() => {
-      console.log('[Test] Warning: Loading indicator still present');
-    });
-
-    // Click on the graph container to ensure it has focus for hotkeys
-    await appWindow.evaluate(() => {
-      const container = document.getElementById('cy');
-      container?.focus();
-    });
-    await appWindow.waitForTimeout(200);
+    await prepareGraphForHotkeys(appWindow);
 
     // Get initial editor count
     const initialEditorCount = await appWindow.evaluate(() => {
@@ -179,7 +37,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
 
     // Press Cmd+N to create orphan node (this goes through UI path)
     console.log('[Test] Pressing Cmd+N to create orphan node...');
-    await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+n' : 'Control+n');
+    await pressCreateNodeHotkey(appWindow);
 
     // Wait for editor to open
     await appWindow.waitForTimeout(1500);
@@ -329,38 +187,11 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     test.setTimeout(90000);
     console.log('=== Test B: External file creation does NOT steal focus ===');
 
-    // Wait for graph to load
-    await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return 0;
-        return cy.nodes().length;
-      });
-    }, {
-      message: 'Waiting for graph to load nodes',
-      timeout: 15000
-    }).toBeGreaterThan(0);
-
-    console.log('[Test] Graph loaded');
-
-    // Wait for loading indicator to disappear
-    await appWindow.waitForFunction(() => {
-      const loadingText = document.body.innerText;
-      return !loadingText.includes('Loading...');
-    }, { timeout: 10000 }).catch(() => {
-      console.log('[Test] Warning: Loading indicator still present');
-    });
-
-    // Click on the graph container to ensure it has focus for hotkeys
-    await appWindow.evaluate(() => {
-      const container = document.getElementById('cy');
-      container?.focus();
-    });
-    await appWindow.waitForTimeout(200);
+    await prepareGraphForHotkeys(appWindow);
 
     // Step 1: Create a node via UI (Cmd+N) to get a focused editor
     console.log('[Test] Step 1: Creating node via Cmd+N...');
-    await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+n' : 'Control+n');
+    await pressCreateNodeHotkey(appWindow);
     await appWindow.waitForTimeout(1500);
 
     // Get the first editor ID
@@ -386,9 +217,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     // If focus isn't automatically applied, click the editor with Playwright
     if (!firstEditorState.hasFocus && firstEditorState.editorId) {
       console.log('[Test] Focus not auto-applied, clicking editor with Playwright...');
-      const editorLocator = appWindow.locator(`#${firstEditorState.editorId.replace(/[/.]/g, '\\$&')} .cm-content`);
-      await editorLocator.click({ force: true });
-      await appWindow.waitForTimeout(300);
+      await clickEditorContent(appWindow, firstEditorState.editorId);
     }
 
     // Verify first editor now has focus (informational - we proceed regardless)
@@ -476,9 +305,7 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     // The main assertion is that the external editor didn't steal focus automatically
     if (!focusStateAfterExternal.firstEditorHasFocus && firstEditorIdForFocusCheck) {
       console.log('[Test] Re-clicking first editor to restore focus...');
-      const editorLocator = appWindow.locator(`#${firstEditorIdForFocusCheck.replace(/[/.]/g, '\\$&')} .cm-content`);
-      await editorLocator.click({ force: true });
-      await appWindow.waitForTimeout(300);
+      await clickEditorContent(appWindow, firstEditorIdForFocusCheck);
     }
 
     console.log('[Test] Step 6: Typing AFTER in first editor...');
@@ -511,38 +338,11 @@ test.describe('Two-Path Editor Focus Behavior', () => {
     test.setTimeout(90000);
     console.log('=== Test C: External change to existing editor node ===');
 
-    // Wait for graph to load
-    await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return 0;
-        return cy.nodes().length;
-      });
-    }, {
-      message: 'Waiting for graph to load nodes',
-      timeout: 15000
-    }).toBeGreaterThan(0);
-
-    console.log('[Test] Graph loaded');
-
-    // Wait for loading indicator to disappear
-    await appWindow.waitForFunction(() => {
-      const loadingText = document.body.innerText;
-      return !loadingText.includes('Loading...');
-    }, { timeout: 10000 }).catch(() => {
-      console.log('[Test] Warning: Loading indicator still present');
-    });
-
-    // Click on the graph container to ensure it has focus for hotkeys
-    await appWindow.evaluate(() => {
-      const container = document.getElementById('cy');
-      container?.focus();
-    });
-    await appWindow.waitForTimeout(200);
+    await prepareGraphForHotkeys(appWindow);
 
     // Step 1: Create a node via UI (Cmd+N) to get an editor
     console.log('[Test] Step 1: Creating node via Cmd+N...');
-    await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+n' : 'Control+n');
+    await pressCreateNodeHotkey(appWindow);
     await appWindow.waitForTimeout(1500);
 
     // Get editor count and node ID

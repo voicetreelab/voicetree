@@ -1,11 +1,10 @@
-import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
-import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
+import { getCallbacks, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { tracing } from '@vt/observability'
-import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState, ViewRecord } from '@vt/graph-db-client'
+import type { FolderState, GraphDbClient, VaultState, ViewRecord } from '@vt/graph-db-client'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
-import type { SerializedState, State } from '@vt/graph-state'
+import type { State } from '@vt/graph-state'
 
-import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/runtime/state/live-state-store'
+import { getLiveStateFromDaemon } from '@/shell/edge/main/runtime/state/daemon-live-state-rpc'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
@@ -61,25 +60,34 @@ function subscribeRendererSessionToDaemon(client: GraphDbClient, sessionId: stri
   subscribeToDaemonSSE(sessionId, client.baseUrl, mainWindow)
 }
 
-let currentRendererSession: {
+type RendererSession = {
   readonly baseUrl: string
   readonly sessionId: string
-} | null = null
+}
 
-export async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
+type RendererSessionStore = {
+  current: RendererSession | null
+}
+
+const rendererSessionStore: RendererSessionStore = { current: null }
+
+export async function getOrCreateRendererSession(
+  client: GraphDbClient,
+  sessionStore: RendererSessionStore = rendererSessionStore,
+): Promise<string> {
   return await tracing.span('electron.renderer-session.ensure', async (span) => {
     span.setAttribute('daemon.base_url', client.baseUrl)
-    if (currentRendererSession?.baseUrl === client.baseUrl) {
+    if (sessionStore.current?.baseUrl === client.baseUrl) {
       span.setAttribute('renderer_session.cached', true)
-      subscribeRendererSessionToDaemon(client, currentRendererSession.sessionId)
+      subscribeRendererSessionToDaemon(client, sessionStore.current.sessionId)
       span.addEvent('electron.renderer-session.sse-subscribed')
-      return currentRendererSession.sessionId
+      return sessionStore.current.sessionId
     }
 
     span.setAttribute('renderer_session.cached', false)
     span.addEvent('electron.renderer-session.create.start')
     const created: { sessionId: string } = await client.createSession()
-    currentRendererSession = {
+    sessionStore.current = {
       baseUrl: client.baseUrl,
       sessionId: created.sessionId,
     }
@@ -89,11 +97,6 @@ export async function getOrCreateRendererSession(client: GraphDbClient): Promise
     span.addEvent('electron.renderer-session.sse-subscribed')
     return created.sessionId
   })
-}
-
-/** Test-only: clear the cached renderer session between test cases. */
-export function __resetRendererSessionForTests(): void {
-  currentRendererSession = null
 }
 
 async function syncRendererFromDaemon(
@@ -148,12 +151,13 @@ async function syncMainGraphFromDaemonClient(client: GraphDbClient): Promise<voi
 export async function syncRendererSessionState(
   client: GraphDbClient,
   localState: State,
+  sessionStore: RendererSessionStore = rendererSessionStore,
 ): Promise<string> {
   return await tracing.span('electron.renderer-session.sync-state', async (span) => {
     span.setAttribute('state.selection.count', localState.selection.size)
     span.setAttribute('state.layout.has_pan', localState.layout.pan !== undefined)
     span.setAttribute('state.layout.has_zoom', localState.layout.zoom !== undefined)
-    const sessionId: string = await getOrCreateRendererSession(client)
+    const sessionId: string = await getOrCreateRendererSession(client, sessionStore)
     span.setAttribute('renderer_session.id', sessionId)
 
     if (localState.selection.size > 0) {
@@ -191,29 +195,6 @@ export async function syncRendererSessionState(
 
     return sessionId
   })
-}
-
-async function buildSerializedRoots(
-  graph: Graph,
-  vaultState: VaultState,
-  loadedRoots: ReadonlySet<string>,
-): Promise<LiveStateSnapshot['roots']> {
-  try {
-    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.projectRoot)
-    const rootTree: FolderTreeNode = buildFolderTree(
-      rootEntry,
-      new Set(loadedRoots),
-      toAbsolutePath(vaultState.writeFolder),
-      new Set(Object.keys(graph.nodes)),
-    )
-    return {
-      folderTree: [rootTree] as SerializedState['roots']['folderTree'],
-    }
-  } catch {
-    return {
-      folderTree: [],
-    }
-  }
 }
 
 const inflightVaultMutations: Map<string, Promise<VaultState>> = new Map()
@@ -273,16 +254,22 @@ export async function getCurrentProjectedGraphFromDaemon(): Promise<ProjectedGra
   })
 }
 
+type PostDeltaThroughDaemonOptions = {
+  readonly recordForUndo?: boolean
+  readonly rendererSessionStore?: RendererSessionStore
+}
+
 export async function postDeltaThroughDaemon(
   delta: GraphDelta,
-  recordForUndo: boolean = true,
+  options: PostDeltaThroughDaemonOptions = {},
 ): Promise<void> {
   await tracing.span('electron.graph.post-delta', async (span) => {
+    const recordForUndo: boolean = options.recordForUndo ?? true
     span.setAttribute('graph.delta.count', delta.length)
     span.setAttribute('graph.record_for_undo', recordForUndo)
     await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      const sessionId: string = await getOrCreateRendererSession(client)
+      const sessionId: string = await getOrCreateRendererSession(client, options.rendererSessionStore)
       span.setAttribute('renderer_session.id', sessionId)
       span.addEvent('electron.graph.apply-delta.start')
       await client.applyGraphDelta(delta as unknown[], { recordForUndo, sessionId })
@@ -291,16 +278,76 @@ export async function postDeltaThroughDaemon(
   })
 }
 
+function mergeFloatingEditorDeltas(deltas: readonly GraphDelta[]): GraphDelta {
+  return deltas.flatMap((delta) => delta)
+}
+
+type FloatingEditorDeltaQueue = {
+  readonly enqueue: (delta: GraphDelta) => void
+}
+
+function createFloatingEditorDeltaQueue(
+  onFlush: (delta: GraphDelta) => void,
+): FloatingEditorDeltaQueue {
+  const state: {
+    pendingDeltas: GraphDelta[]
+    flushScheduled: boolean
+  } = {
+    pendingDeltas: [],
+    flushScheduled: false,
+  }
+
+  function flush(): void {
+    state.flushScheduled = false
+    const deltas: readonly GraphDelta[] = state.pendingDeltas
+    state.pendingDeltas = []
+    if (deltas.length === 0) return
+
+    onFlush(mergeFloatingEditorDeltas(deltas))
+  }
+
+  return {
+    enqueue(delta: GraphDelta): void {
+      state.pendingDeltas.push(delta)
+      if (state.flushScheduled) return
+
+      state.flushScheduled = true
+      queueMicrotask(flush)
+    },
+  }
+}
+
+const floatingEditorDeltaQueue: FloatingEditorDeltaQueue = createFloatingEditorDeltaQueue((delta) => {
+  getCallbacks().onFloatingEditorUpdate?.(delta)
+})
+
+type PostDeltaThroughDaemonWithEditorsOptions = PostDeltaThroughDaemonOptions & {
+  readonly editorDeltaQueue?: FloatingEditorDeltaQueue
+}
+
 export async function postDeltaThroughDaemonWithEditors(
   delta: GraphDelta,
-  recordForUndo: boolean = true,
+  options: PostDeltaThroughDaemonWithEditorsOptions = {},
 ): Promise<void> {
   await tracing.span('electron.graph.post-delta-with-editors', async (span) => {
     span.setAttribute('graph.delta.count', delta.length)
-    await postDeltaThroughDaemon(delta, recordForUndo)
-    span.addEvent('electron.graph.floating-editor-update.start')
-    getCallbacks().onFloatingEditorUpdate?.(delta)
-    span.addEvent('electron.graph.floating-editor-update.complete')
+    await postDeltaThroughDaemon(delta, options)
+    span.addEvent('electron.graph.floating-editor-update.queued')
+    const editorDeltaQueue: FloatingEditorDeltaQueue = options.editorDeltaQueue ?? floatingEditorDeltaQueue
+    editorDeltaQueue.enqueue(delta)
+  })
+}
+
+export async function reconcileGraphWithDiskThroughDaemon(): Promise<GraphDelta> {
+  return await tracing.span('electron.graph.reconcile-disk', async (span) => {
+    return await callDaemon(async (client) => {
+      span.setAttribute('daemon.base_url', client.baseUrl)
+      span.addEvent('electron.graph.reconcile-disk.request.start')
+      const delta = await client.reconcileGraphWithDisk() as GraphDelta
+      span.setAttribute('graph.delta.count', delta.length)
+      span.addEvent('electron.graph.reconcile-disk.request.complete')
+      return delta
+    })
   })
 }
 
@@ -333,48 +380,11 @@ export async function getNodeFromDaemon(
   return graph.nodes[nodeId]
 }
 
-export async function getLiveStateSnapshotFromDaemon(): Promise<LiveStateSnapshot | null> {
-  try {
-    return await tracing.span('electron.live-state.snapshot-from-daemon', async (span) => {
-      return await callDaemon(async (client) => {
-        span.setAttribute('daemon.base_url', client.baseUrl)
-        span.addEvent('electron.live-state.local-state.read.start')
-        const localState: State = await getCurrentLiveState()
-        span.setAttribute('state.selection.count', localState.selection.size)
-        const sessionId: string = await syncRendererSessionState(client, localState)
-        span.setAttribute('renderer_session.id', sessionId)
-        const snapshot: LiveStateSnapshot = await client.getSessionState(sessionId)
-        const vaultState: VaultState = await client.getVault()
-
-        if (rootsWereExplicitlySet() || localState.roots.loaded.size > 0) {
-          span.addEvent('electron.live-state.roots-build.start')
-          snapshot.roots = await buildSerializedRoots(
-            await getNormalizedDaemonGraph(client),
-            vaultState,
-            localState.roots.loaded,
-          )
-          span.addEvent('electron.live-state.roots-build.complete')
-        }
-
-        if (localState.layout.fit !== undefined) {
-          snapshot.layout.fit = localState.layout.fit
-        }
-        snapshot.meta.revision = localState.meta.revision
-        span.setAttribute('state.meta.revision', localState.meta.revision)
-
-        return snapshot
-      })
-    })
-  } catch {
-    return null
-  }
-}
-
 export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   return await tracing.span('electron.renderer-session.sync-state-with-daemon', async (span) => {
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      const localState: State = await getCurrentLiveState()
+      const localState: State = await getLiveStateFromDaemon()
       span.setAttribute('state.selection.count', localState.selection.size)
       return await syncRendererSessionState(client, localState)
     })
@@ -417,7 +427,7 @@ export async function setFolderStateThroughDaemon(
     span.setAttribute('folder.state', state)
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      const sessionId: string = await syncRendererSessionState(client, await getCurrentLiveState())
+      const sessionId: string = await syncRendererSessionState(client, await getLiveStateFromDaemon())
       span.setAttribute('renderer_session.id', sessionId)
       const folderPath: string = folderId.length > 1 && folderId.endsWith('/')
         ? folderId.slice(0, -1)

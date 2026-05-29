@@ -1,11 +1,17 @@
 import type { GraphDelta } from '../graph'
 import type { FolderTreeNode } from '../folders/types'
 
-export interface GraphModelConfig {
-  appSupportPath: string  // replaces app.getPath('userData')
+// `projectRoot` is the canonical root for per-project `.voicetree/` data
+// (terminal metadata, hooks, positions). `directory` is the legacy alias for
+// the same value, retained on the renderer-bound `'watching-started'` channel
+// payload until renderer code migrates. New consumers should read
+// `projectRoot`. `writeFolder` is for markdown / vault content only.
+type WatchingStartedInfo = {
+  directory: string
+  projectRoot: string
+  writeFolder: string
+  timestamp: string
 }
-
-type WatchingStartedInfo = { directory: string; writeFolder: string; timestamp: string }
 
 export interface GraphModelCallbacks {
   // Core graph broadcasting
@@ -47,24 +53,21 @@ export interface GraphModelCallbacks {
   semanticSearch?: (query: string, topK: number) => Promise<readonly string[]>
 
   // App-specific setup callbacks (Electron)
-  enableMcpIntegration?: () => Promise<void>  // replaces mcp-server/mcp-client-config
+  stripStaleMcpEntries?: (vaultDir: string) => Promise<void>
+  writeVaultAgentDiscoveryFile?: (vaultDir: string) => Promise<void>
   ensureProjectSetup?: (projectPath: string) => Promise<void>  // replaces electron/tools-setup
   ensureDaemonForVault?: (projectRoot: string) => Promise<void>
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 
-// Module-level DI state
-let _config: GraphModelConfig | undefined
+// Module-level callbacks. The voicetreeHomePath that previously lived here is
+// now resolved per-call from $VOICETREE_HOME_PATH via
+// @vt/paths (see resolveVoicetreeHomePath); each
+// launching process normalises the env var at boot.
 let _callbacks: GraphModelCallbacks = {}
 
-export function initGraphModel(config: GraphModelConfig, callbacks?: GraphModelCallbacks): void {
-  _config = config
+export function initGraphModel(callbacks?: GraphModelCallbacks): void {
   _callbacks = callbacks ?? {}
-}
-
-export function getConfig(): GraphModelConfig {
-  if (!_config) throw new Error('GraphModel not initialized. Call initGraphModel() first.')
-  return _config
 }
 
 export function getCallbacks(): GraphModelCallbacks {

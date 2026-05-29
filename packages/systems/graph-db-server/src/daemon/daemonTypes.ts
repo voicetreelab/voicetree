@@ -1,5 +1,4 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import {resolveVoicetreeHomePath} from '@vt/paths'
 import type { HealthOwner, HealthResponse } from '../contract.ts'
 import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 
@@ -18,7 +17,7 @@ export type StartDaemonOptions = {
   vault?: string | null
   port?: number
   logLevel?: 'info' | 'debug'
-  appSupportPath?: string
+  voicetreeHomePath?: string
   idleTimeoutMs?: number
   clock?: () => number
   logger?: DaemonLogger
@@ -59,28 +58,8 @@ const defaultDaemonLogger: DaemonLogger = {
   writeStderr: defaultDaemonWriteStderr,
 }
 
-function defaultAppSupportPath(): string {
-  if (process.platform === 'darwin') {
-    return join(homedir(), 'Library', 'Application Support', 'Voicetree')
-  }
-  if (process.platform === 'win32') {
-    return join(
-      process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),
-      'Voicetree',
-    )
-  }
-  return join(
-    process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
-    'Voicetree',
-  )
-}
-
-export function resolveDaemonAppSupportPath(opts: StartDaemonOptions): string {
-  return (
-    opts.appSupportPath ??
-    process.env.VOICETREE_APP_SUPPORT ??
-    defaultAppSupportPath()
-  )
+export function resolveDaemonVoicetreeHomePath(opts: StartDaemonOptions): string {
+  return opts.voicetreeHomePath ?? resolveVoicetreeHomePath()
 }
 
 export function resolveDaemonClock(opts: StartDaemonOptions): () => number {

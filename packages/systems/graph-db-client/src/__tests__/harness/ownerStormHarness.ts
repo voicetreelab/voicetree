@@ -87,17 +87,6 @@ export async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
   return decoded
 }
 
-export async function readPersistedOwnerOrNull(
-  vault: string,
-): Promise<OwnerRecord | null> {
-  try {
-    return await readPersistedOwner(vault)
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
-    throw err
-  }
-}
-
 /**
  * Atomically write a synthetic owner record. Used by tests to set up
  * adversarial preconditions (stale dead pid, alive non-vt-graphd pid, etc.)
@@ -108,11 +97,12 @@ export async function writeOwnerRecord(
   vault: string,
   partial: Partial<OwnerRecord> & { pid: number; ownerNonce: string },
 ): Promise<OwnerRecord> {
-  const canonicalProjectRoot = resolve(vault)
+  const canonicalVault = resolve(vault)
   const now = Date.now()
   const record: OwnerRecord = {
     schemaVersion: 1,
-    canonicalProjectRoot,
+    daemonKind: 'graphd',
+    canonicalVault,
     pid: partial.pid,
     ppid: partial.ppid ?? 0,
     port: partial.port ?? null,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {RecoverableAgentSession, TerminalData} from '@vt/agent-runtime'
+import type {RecoverableAgentSession, TerminalData} from '@vt/vt-daemon-client'
 import {
     attachRecoverySession,
     clearRecoverySessions,
@@ -53,6 +53,7 @@ function makeResumable(): RecoverableAgentSession {
         metadataPath: '/vault/.voicetree/terminals/Bob.json',
         terminalData,
         isClaimed: false,
+        status: 'running',
         resume: {cliType: 'claude'},
     }
 }

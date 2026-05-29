@@ -37,11 +37,18 @@ const test = base.extend<{
     appWindow: Page;
     tempGitRepoPath: string;
 }>({
-    // Create a temporary git repo for worktree testing
+    // Create a temporary git repo for worktree testing.
+    //
+    // Sibling-worktree layout: production creates worktrees at
+    // `<parent>/vt-wts/<name>/`, alongside the main checkout. We mkdtemp a
+    // unique parent and put the repo inside it so the sibling vt-wts/ dir
+    // is also unique per test (no cross-test collisions).
     tempGitRepoPath: async ({}, use) => {
         // Resolve symlinks to avoid macOS /tmp -> /private/tmp mismatch
         // (git stores resolved paths, but mkdtemp returns the symlink path)
-        const tempDir = realpathSync(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hook-e2e-')));
+        const tempParent = realpathSync(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hook-e2e-')));
+        const tempDir = path.join(tempParent, 'voicetree-public');
+        await fs.mkdir(tempDir, { recursive: true });
 
         // Initialize git repo with initial commit (required for worktree creation)
         execSync('git init', { cwd: tempDir, stdio: 'pipe' });
@@ -61,7 +68,7 @@ const test = base.extend<{
 
         await use(tempDir);
 
-        // Cleanup: remove worktrees first, then temp directory
+        // Cleanup: remove worktrees first, then the whole parent (incl. sibling vt-wts/)
         try {
             const result = execSync('git worktree list --porcelain', {
                 cwd: tempDir, encoding: 'utf-8'
@@ -78,7 +85,7 @@ const test = base.extend<{
         } catch {
             console.log('[Cleanup] Could not clean up worktrees via git');
         }
-        await fs.rm(tempDir, { recursive: true, force: true });
+        await fs.rm(tempParent, { recursive: true, force: true });
     },
 
     electronApp: async ({ tempGitRepoPath }, use) => {
@@ -197,7 +204,7 @@ test.describe('Worktree Hook E2E', () => {
         const markerContent = (await fs.readFile(markerFile, 'utf-8')).trim();
         console.log(`Marker file content: "${markerContent}"`);
 
-        const expectedWorktreePath = path.join(tempGitRepoPath, '.worktrees', worktreeName);
+        const expectedWorktreePath = path.join(path.dirname(tempGitRepoPath), 'vt-wts', worktreeName);
         expect(markerContent).toBe(`${expectedWorktreePath} ${worktreeName}`);
 
         // Also verify the worktree itself was created

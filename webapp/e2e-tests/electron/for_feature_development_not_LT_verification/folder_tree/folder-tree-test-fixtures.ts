@@ -48,7 +48,7 @@ export const test = base.extend<{
     },
 
     tempUserDataPath: async ({}, use) => {
-        const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-folder-tree-userdata-'));
+        const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-foldertree-userdata-'));
         await use(tempUserDataPath);
         await fs.rm(tempUserDataPath, { recursive: true, force: true });
     },

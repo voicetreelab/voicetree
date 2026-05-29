@@ -1,8 +1,11 @@
 name: Main CI
 
 on:
-  push:
-    branches: [main]
+  # Scheduled-only by design. Per-merge verification happens pre-merge in
+  # `Measures (generated)`, including conditional Tier 4. Post-merge runs
+  # only exist to keep an informational drift signal on `main` and to provide
+  # the staleness denominator for `tier4-precheck` (which queries
+  # `Main CI / Full` check-runs against `origin/main` HEAD commits).
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -39,4 +42,37 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run full scheduled checks
-        run: npm run test:full
+        run: pnpm --filter @vt/measures run test:full
+
+      - name: Surface tier wall-clock budget breaches
+        # Runs whether test:full passed or failed: even when an analyzer fails,
+        # the timing gate may still have written a useful result.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          RESULT=health-dashboard/reports/gates/tier-budget.json
+          if [ ! -f "$RESULT" ]; then
+            echo "No tier-budget gate result on disk; gate may have been skipped."
+            exit 0
+          fi
+          ISSUE_LABEL='ci-timing-regression'
+          BREACH_COUNT=$(jq '.breaches | length' "$RESULT")
+          if [ "$BREACH_COUNT" -eq 0 ]; then
+            echo "Tier wall-clock budgets within limits; closing any open tracking issues."
+            gh issue list --repo "$REPO" --label "$ISSUE_LABEL" --state open --json number --jq '.[].number' \
+              | while read -r n; do gh issue close "$n" --repo "$REPO" --comment "Tier wall-clock budgets back within limits (run ${{ github.run_id }})."; done
+            exit 0
+          fi
+          SUMMARY=$(jq -r '.breaches[] | "- tier_\(.tier) \(.kind): \(.observedMs)ms > budget \(.budgetMs)ms (\((.ratio * 100) | floor)%)"' "$RESULT")
+          BODY=$(printf 'Tier wall-clock budget regression detected by [Main CI / Full run %s](https://github.com/%s/actions/runs/%s).\n\nBreaches:\n%s\n\nResult file: `%s`.\n' \
+            "${{ github.run_id }}" "$REPO" "${{ github.run_id }}" "$SUMMARY" "$RESULT")
+          OPEN=$(gh issue list --repo "$REPO" --label "$ISSUE_LABEL" --state open --json number --jq '.[0].number // ""')
+          if [ -n "$OPEN" ]; then
+            gh issue comment "$OPEN" --repo "$REPO" --body "$BODY"
+          else
+            gh issue create --repo "$REPO" --label "$ISSUE_LABEL" \
+              --title "Tier wall-clock budget regression" --body "$BODY"
+          fi

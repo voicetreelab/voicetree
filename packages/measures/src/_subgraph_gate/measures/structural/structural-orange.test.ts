@@ -12,8 +12,8 @@
  * thin adapter and the unit-level behaviour we care about IS the formula.
  */
 import {describe, expect, it} from 'vitest'
-import {structuralOrangeMeasure, STRUCTURAL_ORANGE_ABSOLUTE_BUDGET} from './structural-orange.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {structuralOrangeMeasure, STRUCTURAL_ORANGE_THRESHOLD} from './structural-orange.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 const pkg = 'pkg-x'
 const X = (name: string): FixtureFile => ({pkg, relToSrc: `x/${name}.ts`})
@@ -49,7 +49,7 @@ describe('structural-orange (subgraph measure)', () => {
         // leaves are pure sinks: 0.
         expect(result.perCommunity[`${pkg}/a`]).toBe(0)
         expect(result.perCommunity[`${pkg}/d`]).toBe(0)
-        // 16 is well under the 258 absolute budget, no baseline file in tests → no violations.
+        // 16 is well under the 340 threshold → no violations.
         expect(result.violations).toEqual([])
     })
 
@@ -87,7 +87,7 @@ describe('structural-orange (subgraph measure)', () => {
         expect(result.perCommunity[`${pkg}/b`]).toBe(0)
     })
 
-    it('fails when a community exceeds the absolute budget', async () => {
+    it('fails when a community exceeds the threshold', async () => {
         // Build a deliberately huge cross-community blast: 1 source, N targets,
         // each with K back-edges. Pick N, K so that outEdges * fanOut > 258.
         const sources: FixtureFile[] = Array.from({length: 30}, (_, i) =>
@@ -107,12 +107,12 @@ describe('structural-orange (subgraph measure)', () => {
         const hubScore = result.perCommunity[`${pkg}/hub`]
         // 30 src × 10 tgt = 300 outEdges, fanOut = 10 → 3000.
         expect(hubScore).toBe(3000)
-        expect(hubScore).toBeGreaterThan(STRUCTURAL_ORANGE_ABSOLUTE_BUDGET)
+        expect(hubScore).toBeGreaterThan(STRUCTURAL_ORANGE_THRESHOLD)
 
         const hubFails = result.violations.filter(v =>
             v.community === `${pkg}/hub` && v.severity === 'fail',
         )
         expect(hubFails.length).toBe(1)
-        expect(hubFails[0].message).toContain('absolute budget')
+        expect(hubFails[0].message).toContain('threshold')
     })
 })

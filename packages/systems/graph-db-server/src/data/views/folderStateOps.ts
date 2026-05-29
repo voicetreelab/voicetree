@@ -1,5 +1,6 @@
 import {
   closeFolderVisibilityDb,
+  defaultFolderVisibilityDbDeps,
   openFolderVisibilityDb,
   type FolderVisibilityDatabase,
 } from './folderVisibilitySqlite'
@@ -25,7 +26,7 @@ type ViewNameRow = { readonly name: string }
 type FolderStateRow = { readonly path: string; readonly state: FolderState }
 
 function withDb<T>(projectRoot: string, fn: (db: FolderVisibilityDatabase) => T): T {
-  const db = openFolderVisibilityDb(projectRoot)
+  const db = openFolderVisibilityDb(projectRoot, defaultFolderVisibilityDbDeps)
   try {
     ensureDefaultView(db)
     return fn(db)

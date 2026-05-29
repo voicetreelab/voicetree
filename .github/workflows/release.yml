@@ -28,35 +28,11 @@ on:
         default: true
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
-    env:
-      NODE_OPTIONS: '--max-old-space-size=8192'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install workspace dependencies
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
-
-      - name: Install Playwright chromium
-        working-directory: webapp
-        run: npx playwright install --with-deps chromium
-
-      - name: Run full scheduled checks
-        run: npm run test:full
-
+  # Release is deploy-only. Verification happens pre-merge in
+  # `Measures (generated)`, including conditional Tier 4. The post-merge
+  # nightly `Main CI / Full` provides the drift signal and staleness
+  # denominator. Re-running `test:full` here before deploy is redundant.
   check-version:
-    needs: [test]
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check.outputs.changed }}

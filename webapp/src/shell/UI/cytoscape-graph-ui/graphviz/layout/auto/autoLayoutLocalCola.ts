@@ -1,38 +1,38 @@
 /**
- * Local Cola layout: incremental refinement on the neighborhood of newly added nodes.
+ * Local layout: incremental refinement on the neighborhood of newly added nodes.
  *
  * Extracted from autoLayout.ts to keep file sizes manageable.
  * Run set: 10-hop BFS capped at 50 (free to move).
  * Pin set: spatial R-tree boundary (locked anchors).
- * Uses Cola (25/25/25 iterations) — packing handles disconnected components.
- * Post-Cola overlap resolution pushes run-set nodes away from non-subgraph nodes.
+ * Uses the selected layout backend — packing handles disconnected components.
+ * Post-layout overlap resolution pushes run-set nodes away from non-subgraph nodes.
  * On completion, unlocks pins and chains to onComplete.
  */
 
 import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue } from 'cytoscape';
-import { computeColaAndAnimate } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/cola-engine/computeColaAndAnimate';
 import { refreshSpatialIndex, getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
 import { findObstacles } from '@vt/graph-model/spatial';
 import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@vt/graph-model/spatial';
-import type { AutoLayoutOptions } from './autoLayoutTypes';
-import { DEFAULT_OPTIONS, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
+import type { LayoutConfig } from './autoLayoutTypes';
+import { COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
 import { getLocalNeighborhood } from './autoLayoutNeighborhood';
 import { componentsOverlap, separateOverlappingComponents } from '@vt/graph-model/spatial';
 import type { ComponentSubgraph } from '@vt/graph-model/spatial';
 import { isLayoutParticipantEdge, isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
+import { runLayoutAdapter } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/runLayoutAdapter';
 
 /**
- * Run Cola on the local neighborhood of newly added nodes.
+ * Run the selected backend on the local neighborhood of newly added nodes.
  *
  * @param cy - Cytoscape instance
  * @param newNodeIds - Set of newly added node IDs to center the local layout on
- * @param colaConfig - Current Cola layout options (from settings)
- * @param onComplete - Called when local Cola finishes
+ * @param layoutConfig - Current layout options (from settings)
+ * @param onComplete - Called when local layout finishes
  */
 export function runLocalCola(
   cy: Core,
   newNodeIds: Set<string>,
-  colaConfig: AutoLayoutOptions,
+  layoutConfig: LayoutConfig,
   onComplete: () => void,
 ): void {
   // Collect cy nodes for the new IDs, skip context nodes
@@ -62,25 +62,15 @@ export function runLocalCola(
       && allNodes.contains(edge.source()) && allNodes.contains(edge.target())
   );
 
-  // Cola (25/25/25 iterations) with 1000ms animation
-  // Higher iterations for better convergence of the overlap constraint solver
-  computeColaAndAnimate({
-    cy: cy,
+  void runLayoutAdapter({
+    cy,
     eles: allNodes.union(subgraphEdges),
-    randomize: false,
-    avoidOverlap: true,
-    handleDisconnected: false,
-    convergenceThreshold: 1.5,
-    maxSimulationTime: 1000,
-    unconstrIter: 25,
-    userConstIter: 25,
-    allConstIter: 25,
-    nodeSpacing: 120,
-    edgeLength: colaConfig.edgeLength ?? DEFAULT_OPTIONS.edgeLength,
-    centerGraph: false,
-    fit: false,
-    nodeDimensionsIncludeLabels: true,
-  }, runNodes, COLA_FAST_ANIMATE_DURATION, () => {
+    config: layoutConfig,
+    mode: 'local',
+    movableNodes: runNodes,
+    fixedNodeIds: new Set<string>(pinNodes.map((node: NodeSingular) => node.id())),
+    localAnimationDuration: COLA_FAST_ANIMATE_DURATION,
+  }).then(() => {
     pinNodes.unlock();
     refreshSpatialIndex(cy);
 
@@ -200,6 +190,10 @@ export function runLocalCola(
       refreshSpatialIndex(cy);
     }
 
+    onComplete();
+  }).catch((error: unknown) => {
+    console.error('[AutoLayout] Local layout backend failed:', error);
+    pinNodes.unlock();
     onComplete();
   });
 }

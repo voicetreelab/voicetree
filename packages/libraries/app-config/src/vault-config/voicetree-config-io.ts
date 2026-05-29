@@ -11,7 +11,7 @@ import { promises as fs } from "fs";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath } from '@vt/graph-model/graph';
 import type { VaultConfig } from '@vt/graph-model/settings';
-import {getConfig} from '@vt/graph-model';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 type PersistedVaultConfig = VaultConfig & {
     readonly readPaths?: unknown;
@@ -47,14 +47,11 @@ function preserveVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfig 
 }
 
 export function getConfigPath(): string {
-    return path.join(getConfig().appSupportPath, 'voicetree-config.json');
+    return path.join(resolveVoicetreeHomePath(), 'voicetree-config.json');
 }
 
-const CONFIG_CACHE_TTL_MS: number = 5000;
-let cachedConfig: { readonly path: string; readonly loadedAt: number; readonly config: VoiceTreeConfig } | undefined;
-
-async function loadPersistedConfig(): Promise<PersistedVoiceTreeConfig> {
-    const configPath: string = getConfigPath();
+async function loadPersistedConfig(voicetreeHomePath: string): Promise<PersistedVoiceTreeConfig> {
+    const configPath: string = path.join(voicetreeHomePath, 'voicetree-config.json');
     try {
         const data: string = await fs.readFile(configPath, 'utf8');
         return JSON.parse(data) as PersistedVoiceTreeConfig;
@@ -64,24 +61,18 @@ async function loadPersistedConfig(): Promise<PersistedVoiceTreeConfig> {
 }
 
 export async function loadConfig(): Promise<VoiceTreeConfig> {
-    const configPath: string = getConfigPath();
-    const now: number = Date.now();
-    if (cachedConfig && cachedConfig.path === configPath && now - cachedConfig.loadedAt < CONFIG_CACHE_TTL_MS) {
-        return cachedConfig.config;
-    }
-    const config: VoiceTreeConfig = preserveVaultConfig(await loadPersistedConfig());
-    cachedConfig = {path: configPath, loadedAt: now, config};
-    return config;
+    const voicetreeHomePath: string = resolveVoicetreeHomePath();
+    return preserveVaultConfig(await loadPersistedConfig(voicetreeHomePath));
 }
 
 export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
-    const configPath: string = getConfigPath();
+    const voicetreeHomePath: string = resolveVoicetreeHomePath();
+    const configPath: string = path.join(voicetreeHomePath, 'voicetree-config.json');
     try {
         const cleanConfig: VoiceTreeConfig = preserveVaultConfig(config as PersistedVoiceTreeConfig);
         // Ensure parent directory exists (needed on first run or in tests)
         await fs.mkdir(path.dirname(configPath), { recursive: true });
         await fs.writeFile(configPath, JSON.stringify(cleanConfig, null, 2), 'utf8');
-        cachedConfig = {path: configPath, loadedAt: Date.now(), config: cleanConfig};
     } catch (error) {
         console.error('[saveConfig] FAILED to save config:', error);
         throw error;  // Propagate error so callers know save failed
@@ -89,18 +80,8 @@ export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
 }
 
 export async function getLastDirectory(): Promise<O.Option<FilePath>> {
-    const configPath: string = getConfigPath();
-    return fs.readFile(configPath, 'utf8')
-        .then(data => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const config: any = JSON.parse(data);
-            return O.fromNullable(config.lastDirectory as FilePath | null | undefined);
-        })
-        .catch((error) => {
-            console.error("getLastDirectory", error);
-            // Config file doesn't exist yet (first run) - return None
-            return O.none;
-        });
+    const config: VoiceTreeConfig = await loadConfig();
+    return O.fromNullable(config.lastDirectory as FilePath | null | undefined);
 }
 
 export async function saveLastDirectory(directoryPath: string): Promise<void> {
@@ -115,7 +96,7 @@ export async function getVaultConfigForDirectory(directoryPath: string): Promise
 }
 
 export async function hasLegacyReadPathsForDirectory(directoryPath: string): Promise<boolean> {
-    const config: PersistedVoiceTreeConfig = await loadPersistedConfig();
+    const config: PersistedVoiceTreeConfig = await loadPersistedConfig(resolveVoicetreeHomePath());
     const vaultConfig: PersistedVaultConfig | undefined = config.vaultConfig?.[directoryPath];
     return vaultConfig !== undefined &&
         Object.prototype.hasOwnProperty.call(vaultConfig, 'readPaths');

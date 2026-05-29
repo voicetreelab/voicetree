@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { FilePath } from '@vt/graph-model/graph';
-import type { BoundProject, FolderTreeState } from '../projectState';
+import type { BoundProject, FolderTreeState } from '../state/projectState';
 import {
     transitionFolder,
     promoteWriteFolder,
     type FolderTransition,
     type FolderTransitionError,
-} from '../projectStateTransitions';
+} from '../state/projectStateTransitions';
 
 const WRITE_FOLDER = '/vault/write' as FilePath;
 const FOLDER_A = '/vault/a' as FilePath;
@@ -17,6 +17,8 @@ function makeState(
     return {
         root: '/vault' as FilePath,
         writeFolder: WRITE_FOLDER,
+        version: 0,
+        vaultVersion: 0,
         folders: new Map(folders),
         watcher: null,
         cleanups: [],

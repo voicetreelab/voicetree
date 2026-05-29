@@ -10,12 +10,12 @@ import {
   type ElectronDiagnostics,
   type ExtendedWindow,
   getCiElectronFlags,
-  mcpCallTool,
   resolveGraphDaemonNodeBin,
   robustElectronTeardown,
   safeStopFileWatching,
   stopSmokeGraphDaemonForVault,
 } from "./electron-smoke-helpers";
+import { rpcCallTool } from "./helpers/e2e-rpc-helpers";
 
 export const test = base.extend<{
   fixtureVaultPath: string;
@@ -113,6 +113,12 @@ export const test = base.extend<{
         MINIMIZE_TEST: "1",
         VOICETREE_PERSIST_STATE: "1",
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // Pin the daemon's app-support path to the temp user-data dir so it
+        // talks tmux on the same socket as the test (resolved from the same
+        // env). Without this, pinProcessAppSupportPath() in webapp main can
+        // race --user-data-dir resolution and the daemon ends up on
+        // /root/.voicetree/tmux.sock while the test polls a different socket.
+        VOICETREE_HOME_PATH: tempUserDataPath,
       },
       timeout: 60_000,
     });
@@ -237,7 +243,7 @@ function killTmuxSessionsForTest(terminalId: string): void {
     // tmux may not be running.
   }
 
-  for (const session of sessions) {
+  for (const session of Array.from(sessions)) {
     try {
       execFileSync("tmux", ["kill-session", "-t", session], {
         stdio: "ignore",
@@ -248,20 +254,25 @@ function killTmuxSessionsForTest(terminalId: string): void {
   }
 }
 
+export type RpcAccess = {
+  readonly rpcUrl: string;
+  readonly token: string;
+};
+
 export async function cleanupAnchorTestTerminals(
   appWindow: Page,
-  mcpUrl: string | null,
+  rpc: RpcAccess | null,
   terminalIds: ReadonlyArray<string | null | undefined>,
   callerTerminalId: string,
 ): Promise<void> {
-  const ids = [
-    ...new Set(terminalIds.filter((id): id is string => Boolean(id))),
-  ];
+  const ids = Array.from(
+    new Set(terminalIds.filter((id): id is string => Boolean(id))),
+  );
 
-  if (mcpUrl) {
+  if (rpc) {
     for (const terminalId of ids.filter((id) => id !== callerTerminalId)) {
       try {
-        await mcpCallTool(mcpUrl, "close_agent", {
+        await rpcCallTool(rpc.rpcUrl, rpc.token, "close_agent", {
           terminalId,
           callerTerminalId,
           forceWithReason:

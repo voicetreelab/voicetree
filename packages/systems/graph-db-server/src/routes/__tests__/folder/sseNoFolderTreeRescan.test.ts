@@ -1,6 +1,6 @@
 // BF-335 · SSE graph-delta projection must not rescan the filesystem per
 // delta. A burst of `publish(...)` events should arrive at the subscriber as
-// projectedGraph SSE events without invoking the folder-tree scanner.
+// one coalesced projectedGraph SSE event without invoking the folder-tree scanner.
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
@@ -78,7 +78,7 @@ function makeNode(id: string, content: string): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }
@@ -127,11 +127,11 @@ describe('SSE delta projection does not rescan the filesystem', () => {
     await rm(appSupport, { recursive: true, force: true })
   }, 15000)
 
-  test('three graph deltas emit three projection events without any folder-tree scan', async () => {
+  test('three graph deltas emit one coalesced projection without any folder-tree scan', async () => {
     const scanner = createCountingScanner()
     const handle = await startDaemon({
       vault,
-      appSupportPath: appSupport,
+      voicetreeHomePath: appSupport,
       createStarterIfEmpty: false,
       folderTreeScanner: scanner.fn,
     })
@@ -167,8 +167,12 @@ describe('SSE delta projection does not rescan the filesystem', () => {
       publish({ delta, source: 'test:sseNoRescan' })
     }
 
-    const graphs = await readUntilNGraphs(reader, 3)
-    expect(graphs.length).toBeGreaterThanOrEqual(3)
+    const graphs = await readUntilNGraphs(reader, 1)
+    expect(graphs.at(-1)?.recentNodeIds).toEqual([
+      join(vault, 'delta-0.md'),
+      join(vault, 'delta-1.md'),
+      join(vault, 'delta-2.md'),
+    ])
 
     // SSE delta projection must use graph-derived projection (pure, no fs).
     // The scanner must not have been called for any of the three deltas.

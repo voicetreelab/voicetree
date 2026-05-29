@@ -21,7 +21,7 @@ describe('createCeremonyStdinDecoder', (): void => {
             // This is exactly what the 6fc41313 regression sent:
             //   bytes := <body with embedded \n\n> + <plain CR>
             feed(decode, [
-                '[From: A] {"type":"create_node","title":"x"}\n\nIf needed, you can reply...\r',
+                '[From: A] {"type":"create_nodes","nodes":[{"title":"x","summary":"s"}]}\n\nIf needed, you can reply...\r',
             ])
             expect(messages).toEqual([])
         })
@@ -46,19 +46,19 @@ describe('createCeremonyStdinDecoder', (): void => {
             const {submit, messages} = collect()
             const decode = createCeremonyStdinDecoder(submit)
             // Exact byte sequence produced by send-text-to-terminal.ts for the
-            // body `[From: A] {"type":"create_node","title":"x"}`:
+            // body `[From: A] {"type":"create_nodes","nodes":[{"title":"x","summary":"s"}]}`:
             feed(decode, [
                 ' ',                                              // preamble dummy
                 '\x1b',                                           // ESC (vi normal)
                 'i',                                              // vi insert
                 '\x15',                                           // Ctrl-U kill-line
                 '\x1b[200~',                                      // paste begin
-                '[From: A] {"type":"create_node","title":"x"}',   // body
+                '[From: A] {"type":"create_nodes","nodes":[{"title":"x","summary":"s"}]}',   // body
                 '\x1b[201~',                                      // paste end
                 '\x1b\r',                                         // Alt+Enter submit
                 '\r',                                             // trailing plain Enter (dual submit)
             ])
-            expect(messages).toEqual(['[From: A] {"type":"create_node","title":"x"}'])
+            expect(messages).toEqual(['[From: A] {"type":"create_nodes","nodes":[{"title":"x","summary":"s"}]}'])
         })
 
         it('preserves embedded newlines inside the paste body (and still submits cleanly)', (): void => {

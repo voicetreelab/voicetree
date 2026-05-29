@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { GraphDbClient } from '@vt/graph-db-client'
 import { startDaemon, type DaemonHandle } from '@vt/graph-db-server'
+import { GraphDbClient } from '../../graph-db-client/src/index.ts'
 
 const LEGACY_VAULT_RACE_ERROR = /no vault.*open|watched directory not initialized/i
 
@@ -83,7 +83,7 @@ describe('vault open race regression', () => {
     vaultB = await createVault(root, 'vault-b')
     handle = await startDaemon({
       vault: vaultA,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
   })

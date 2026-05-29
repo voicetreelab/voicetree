@@ -6,7 +6,9 @@
   "description": "Typed HTTP client for vt-graphd. P1 skeleton — implementation lands in BF-217 (P5).",
   "main": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./autoLaunch/spawnCoordinator": "./src/autoLaunch/spawnCoordinator.ts",
+    "./autoLaunch/runtime": "./src/autoLaunch/runtime.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -14,11 +16,15 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
+    "@vt/app-config": "*",
+    "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-protocol": "*",
-    "@vt/graph-db-server": "*"
+    "@vt/graph-db-server": "*",
+    "@vt/paths": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@vt/graph-model": "*",
     "typescript": "~5.8.3",
     "vitest": "^3.2.4"
   }

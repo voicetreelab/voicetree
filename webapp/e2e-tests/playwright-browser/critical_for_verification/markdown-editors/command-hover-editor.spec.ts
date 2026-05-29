@@ -86,7 +86,7 @@ test.describe('Hover Editor (Browser)', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 500 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -194,7 +194,7 @@ test.describe('Hover Editor (Browser)', () => {
           absoluteFilePathIsID: 'node-a.md',
           contentWithoutYamlOrLinks: '# Node A\nContent for node A.',
           outgoingEdges: [],
-          nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 200, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 200, y: 200 } } as const, additionalYAMLProps: {}, isContextNode: false }
         },
         previousNode: { _tag: 'None' } as const
       },
@@ -204,7 +204,7 @@ test.describe('Hover Editor (Browser)', () => {
           absoluteFilePathIsID: 'node-b.md',
           contentWithoutYamlOrLinks: '# Node B\nContent for node B.',
           outgoingEdges: [],
-          nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 400, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
+          nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 400, y: 200 } } as const, additionalYAMLProps: {}, isContextNode: false }
         },
         previousNode: { _tag: 'None' } as const
       }

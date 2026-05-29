@@ -1,24 +1,14 @@
 /**
- * Black-box TDD test for the bug: nodes created via the MCP `create_graph`
- * tool lose their `agent_name` in the on-disk frontmatter.
- *
- * Root cause hypothesis: the MCP server constructs each node with
- * `additionalYAMLProps` as a `Map<string, string>` (because that's what
- * `parseMarkdownToGraphNode` returns). When the delta is POSTed to the
- * graph-db-server daemon via JSON (see `GraphDbClient.applyGraphDelta`),
- * `JSON.stringify(new Map([...]))` collapses to `"{}"` — every entry is
- * silently dropped. The daemon then writes the file without `agent_name`.
- *
- * This test reproduces that scenario end-to-end by POSTing a delta whose
- * `additionalYAMLProps` is a JS Map (matching the exact shape the MCP
- * server constructs), then asserts the persisted file frontmatter contains
- * `agent_name: Ari`.
+ * End-to-end test: a delta POSTed to the daemon with `agent_name` in
+ * `additionalYAMLProps` results in the persisted file frontmatter containing
+ * `agent_name: Ari`. Regression guard for the prior Map-serialization bug
+ * (now fixed by representing additionalYAMLProps as a plain Record).
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { GraphDbClient } from '@vt/graph-db-client'
+import { GraphDbClient } from '../../../../../graph-db-client/src/index.ts'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import { resetUndoState } from '../../../state/undo-store.ts'
 
@@ -57,13 +47,11 @@ describe('agent_name survives IPC roundtrip to daemon', () => {
     await rm(appSupport, { recursive: true, force: true })
   }, 15000)
 
-  test('agent_name in additionalYAMLProps Map persists to disk frontmatter', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+  test('agent_name in additionalYAMLProps persists to disk frontmatter', async () => {
+    const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
     handles.push(handle)
     const testNodePath = join(vault, 'hello-from-ari.md')
 
-    // Construct the delta exactly the way the MCP create_graph tool does:
-    // additionalYAMLProps is a *Map* (from parseMarkdownToGraphNode).
     const delta: unknown[] = [
       {
         type: 'UpsertNode',
@@ -75,7 +63,7 @@ describe('agent_name survives IPC roundtrip to daemon', () => {
           nodeUIMetadata: {
             color: { _tag: 'Some', value: 'green' },
             position: { _tag: 'None' },
-            additionalYAMLProps: new Map([['agent_name', 'Ari']]),
+            additionalYAMLProps: { agent_name: 'Ari' },
             isContextNode: false,
           },
         },

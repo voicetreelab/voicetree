@@ -18,7 +18,7 @@ export interface AutoLayoutOptions {
   edgeJaccardLength?: number | ((edge: EdgeSingular) => number);
 }
 
-export type LayoutEngine = 'cola';
+export type LayoutEngine = 'forceatlas2' | 'combocombined' | 'mindmap' | 'webcola';
 
 export interface LayoutConfig {
   engine: LayoutEngine;
@@ -48,7 +48,5 @@ export const DEFAULT_OPTIONS: AutoLayoutOptions = {
   // If user sets a static edgeLength number in settings JSON, parseLayoutConfig() uses that instead.
   edgeLength: (edge: EdgeSingular) => getEdgeDistance(edge.target().data('windowType')),
 };
-
-export const VALID_ENGINES: readonly LayoutEngine[] = ['cola'] as const;
 
 export const COLA_FAST_ANIMATE_DURATION: number = 1000;

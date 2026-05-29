@@ -17,21 +17,21 @@
               "actions": [
                 { "type": "log", "message": "Agent C working..." },
                 { "type": "delay", "ms": 3000 },
-                { "type": "create_node", "title": "C done", "summary": "Leaf agent C completed" },
+                { "type": "create_nodes", "nodes": [{ "title": "C done", "summary": "Leaf agent C completed" }] },
                 { "type": "delay", "ms": 500 },
                 { "type": "exit", "code": 0 }
               ]
             }
           },
           { "type": "wait_for_children" },
-          { "type": "create_node", "title": "B done", "summary": "Agent B completed after C finished" },
+          { "type": "create_nodes", "nodes": [{ "title": "B done", "summary": "Agent B completed after C finished" }] },
           { "type": "delay", "ms": 500 },
           { "type": "exit", "code": 0 }
         ]
       }
     },
     { "type": "wait_for_children" },
-    { "type": "create_node", "title": "A done", "summary": "Agent A completed after B→C chain finished" },
+    { "type": "create_nodes", "nodes": [{ "title": "A done", "summary": "Agent A completed after B→C chain finished" }] },
     { "type": "delay", "ms": 500 },
     { "type": "exit", "code": 0 }
   ]

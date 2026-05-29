@@ -6,7 +6,6 @@ import { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreO
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from "@vt/graph-model/settings";
-import { initGraphModel } from '@vt/graph-model';
 
 vi.mock('electron', () => ({
   app: {
@@ -15,16 +14,23 @@ vi.mock('electron', () => ({
 }));
 
 let testUserDataPath: string;
+let originalEnv: string | undefined;
 
 describe('settings', () => {
   beforeEach(async () => {
     testUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'settings-test-'));
-    initGraphModel({ appSupportPath: testUserDataPath });
+    originalEnv = process.env.VOICETREE_HOME_PATH;
+    process.env.VOICETREE_HOME_PATH = testUserDataPath;
     clearSettingsCache();
   });
 
   afterEach(async () => {
     await fs.rm(testUserDataPath, { recursive: true, force: true });
+    if (originalEnv === undefined) {
+      delete process.env.VOICETREE_HOME_PATH;
+    } else {
+      process.env.VOICETREE_HOME_PATH = originalEnv;
+    }
   });
 
   it('should create file with defaults on first run', async () => {
@@ -44,6 +50,23 @@ describe('settings', () => {
     const custom: VTSettings = { ...DEFAULT_SETTINGS, darkMode: true, vimMode: true };
     await saveSettings(custom);
     expect(await loadSettings()).toEqual(custom);
+  });
+
+  it('observes settings.json changes written outside this process immediately', async () => {
+    const initial: VTSettings = {
+      ...DEFAULT_SETTINGS,
+      agents: [{ name: 'Initial Agent', command: 'initial "$AGENT_PROMPT"' }],
+    };
+    const externallyUpdated: VTSettings = {
+      ...DEFAULT_SETTINGS,
+      agents: [{ name: 'Updated Agent', command: 'updated "$AGENT_PROMPT"' }],
+    };
+    const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+
+    await saveSettings(initial);
+    await fs.writeFile(settingsPath, JSON.stringify(externallyUpdated, null, 2), 'utf-8');
+
+    expect(await loadSettings()).toEqual(externallyUpdated);
   });
 
   it('should persist data correctly', async () => {

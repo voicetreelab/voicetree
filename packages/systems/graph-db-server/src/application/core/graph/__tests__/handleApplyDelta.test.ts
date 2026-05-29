@@ -1,9 +1,8 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { describe, expect, test } from 'vitest'
-import { createGraph, type GraphNode } from '@vt/graph-model/graph'
+import type { GraphNode } from '@vt/graph-model/graph'
 import {
   buildDeleteNodeDelta,
-  composeApplyDeltaResponse,
   normalizeAdditionalYAMLProps,
   normalizeDelta,
   normalizeGraphNode,
@@ -22,7 +21,7 @@ function graphNodeFixture(overrides: Partial<GraphNode> = {}): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
     ...overrides,
   }
@@ -31,23 +30,19 @@ function graphNodeFixture(overrides: Partial<GraphNode> = {}): GraphNode {
 describe('handleApplyDelta', () => {
   test.each([
     {
-      value: new Map([['agent_name', 'Ari']]),
-      expected: [['agent_name', 'Ari']],
-    },
-    {
-      value: [['count', 2]],
-      expected: [['count', '2']],
+      value: { agent_name: 'Ari' },
+      expected: { agent_name: 'Ari' },
     },
     {
       value: { flag: true, name: 'Jun' },
-      expected: [['flag', 'true'], ['name', 'Jun']],
+      expected: { flag: 'true', name: 'Jun' },
     },
     {
       value: 7,
-      expected: [],
+      expected: {},
     },
   ])('normalizes additional YAML props %#', ({ value, expected }) => {
-    expect([...normalizeAdditionalYAMLProps(value).entries()]).toEqual(expected)
+    expect(normalizeAdditionalYAMLProps(value)).toEqual(expected)
   })
 
   test('normalizes additional YAML props inside a graph node', () => {
@@ -55,16 +50,11 @@ describe('handleApplyDelta', () => {
       nodeUIMetadata: {
         color: O.none,
         position: O.none,
-        additionalYAMLProps: { agent_name: 'Jun' } as unknown as ReadonlyMap<
-          string,
-          string
-        >,
+        additionalYAMLProps: { agent_name: 'Jun' },
       },
     }))
 
-    expect([...node.nodeUIMetadata.additionalYAMLProps.entries()]).toEqual([
-      ['agent_name', 'Jun'],
-    ])
+    expect(node.nodeUIMetadata.additionalYAMLProps).toEqual({ agent_name: 'Jun' })
   })
 
   test('normalizes upsert deltas and preserves delete deltas', () => {
@@ -73,10 +63,7 @@ describe('handleApplyDelta', () => {
       nodeUIMetadata: {
         color: O.none,
         position: O.none,
-        additionalYAMLProps: { previous: 1 } as unknown as ReadonlyMap<
-          string,
-          string
-        >,
+        additionalYAMLProps: { previous: '1' },
       },
     })
 
@@ -87,10 +74,7 @@ describe('handleApplyDelta', () => {
           nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: [['next', 'yes']] as unknown as ReadonlyMap<
-              string,
-              string
-            >,
+            additionalYAMLProps: { next: 'yes' },
           },
         }),
         previousNode: O.some(previousNode),
@@ -109,14 +93,10 @@ describe('handleApplyDelta', () => {
 
     expect(delta[0].type).toBe('UpsertNode')
     if (delta[0].type === 'UpsertNode') {
-      expect([...delta[0].nodeToUpsert.nodeUIMetadata.additionalYAMLProps]).toEqual([
-        ['next', 'yes'],
-      ])
+      expect(delta[0].nodeToUpsert.nodeUIMetadata.additionalYAMLProps).toEqual({ next: 'yes' })
       expect(O.isSome(delta[0].previousNode)).toBe(true)
       if (O.isSome(delta[0].previousNode)) {
-        expect([
-          ...delta[0].previousNode.value.nodeUIMetadata.additionalYAMLProps,
-        ]).toEqual([['previous', '1']])
+        expect(delta[0].previousNode.value.nodeUIMetadata.additionalYAMLProps).toEqual({ previous: '1' })
       }
     }
     expect(delta[1].type).toBe('UpsertNode')
@@ -172,10 +152,9 @@ describe('handleApplyDelta', () => {
     })
   })
 
-  test('builds delete-node deltas and apply responses', () => {
+  test('builds delete-node deltas', () => {
     const node = graphNodeFixture()
     const delta = buildDeleteNodeDelta(NODE_ID, node)
-    const response = composeApplyDeltaResponse(delta, createGraph({ [NODE_ID]: node }))
 
     expect(delta).toEqual([
       {
@@ -184,11 +163,5 @@ describe('handleApplyDelta', () => {
         deletedNode: O.some(node),
       },
     ])
-    expect(response).toEqual({
-      delta,
-      graph: expect.objectContaining({
-        nodes: { [NODE_ID]: node },
-      }),
-    })
   })
 })

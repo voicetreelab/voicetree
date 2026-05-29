@@ -86,7 +86,7 @@ function makeNode(
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }
@@ -205,7 +205,7 @@ describe('graph delta HTTP API fuzz test', () => {
   it('preserves graph, markdown, and edge invariants across random delta sequences', { timeout: 60_000 }, async () => {
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
     })
     const baseUrl = `http://127.0.0.1:${handle.port}`
     const seed = 0xA11CE5

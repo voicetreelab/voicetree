@@ -34,9 +34,9 @@ type PackageContext = {
 describe('ts-morph semantic coupling canary', () => {
     it('stays within 18% of the semantic coupling ratchet baselines', async () => {
         const started = performance.now()
-        const graph = await buildCallGraph()
+        const packages = await discoverPackages(REPO_ROOT)
+        const graph = await buildCallGraph(REPO_ROOT, packages)
         const buildMs = Math.round(performance.now() - started)
-        const packages = await discoverPackages()
         const pairReports = collectSemanticCouplingPairReports(graph, packages)
         const pairs = pairReports.flatMap(report => report.pairs)
         const topPair = pairs.slice().sort(compareByTotal)[0]

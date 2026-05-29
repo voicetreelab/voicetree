@@ -1,217 +1,74 @@
-/**
- * BF-163 · Integration test for liveTransport.ts.
- *
- * Spins up an in-process MCP server (McpServer + StreamableHTTPServerTransport)
- * serving mock vt_get_live_state and vt_dispatch_live_command tools, then
- * exercises createLiveTransport against it. Same transport stack as production.
- *
- * V-L1-15/16 pass criterion: real MCP roundtrip demonstrated.
- */
-import express, {type Express} from 'express'
-import type {Server} from 'http'
-import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
-import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import {describe, it, expect, beforeEach, afterEach} from 'vitest'
-import {z} from 'zod'
+// Step 9d — HTTP round-trip for createLiveTransport (client side).
+// Bin integration lives in liveTransport.bin.test.ts (separate file so each
+// stays under the file-size hook). Shared fixtures: _fixtures/liveTransportHarness.
 
-import {createLiveTransport} from '../../src/live/liveTransport'
+import {mkdir, mkdtemp, realpath, rm} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
 
-// ── fixture state ──────────────────────────────────────────────────────────
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
-const VAULT_ROOT = '/tmp/vault'
-const SAMPLE_NODE = `${VAULT_ROOT}/sample.md`
-const TASKS_FOLDER = `${VAULT_ROOT}/tasks/`
+import {writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
-const FIXTURE_SERIALIZED_STATE = {
-    graph: {
-        nodes: {
-            [SAMPLE_NODE]: {
-                outgoingEdges: [],
-                absoluteFilePathIsID: SAMPLE_NODE,
-                contentWithoutYamlOrLinks: 'hello',
-                nodeUIMetadata: {
-                    color: {_tag: 'None'},
-                    position: {_tag: 'Some', value: {x: 1, y: 2}},
-                    additionalYAMLProps: [],
-                },
-            },
-        },
-        incomingEdgesIndex: [],
-        nodeByBaseName: [['sample.md', [SAMPLE_NODE]]],
-        unresolvedLinksIndex: [],
-    },
-    roots: {
-        loaded: [VAULT_ROOT],
-        folderTree: [
-            {
-                name: 'vault',
-                absolutePath: VAULT_ROOT,
-                children: [],
-                loadState: 'loaded' as const,
-                isWriteTarget: true,
-            },
-        ],
-    },
-    collapseSet: [] as string[],
-    selection: [] as string[],
-    layout: {positions: [[SAMPLE_NODE, {x: 1, y: 2}]] as [string, {x: number; y: number}][]},
-    meta: {schemaVersion: 1 as const, revision: 3, mutatedAt: '2026-04-17T00:00:00.000Z'},
-}
+import {
+    CatalogValidationError,
+    type Catalog,
+    type ToolResult,
+} from '../../src/live/headlessServer'
+import {
+    createLiveTransport,
+    DaemonAuthRequired,
+    DaemonUnreachable,
+} from '../../src/live/liveTransport'
 
-// ── mock MCP server ────────────────────────────────────────────────────────
+import {
+    FIXTURE_SERIALIZED_STATE,
+    SAMPLE_NODE,
+    TASKS_FOLDER,
+    VAULT_ROOT,
+    buildHappyCatalog,
+    initialMockServer,
+    restoreEnv,
+    snapshotEnv,
+    startStubDaemon,
+    type MockServer,
+    type StubDaemon,
+} from '../_fixtures/liveTransportHarness'
 
-interface TestServer {
-    port: number
-    close(): Promise<void>
-}
+// ── happy path ─────────────────────────────────────────────────────────────
 
-let mockCollapseSet: string[] = []
-let mockRevision: number = FIXTURE_SERIALIZED_STATE.meta.revision
-let mockRootsLoaded: string[] = [...FIXTURE_SERIALIZED_STATE.roots.loaded]
-let mockZoom: number | undefined
-
-function buildCurrentState() {
-    return {
-        ...FIXTURE_SERIALIZED_STATE,
-        roots: {
-            ...FIXTURE_SERIALIZED_STATE.roots,
-            loaded: [...mockRootsLoaded],
-        },
-        collapseSet: [...mockCollapseSet],
-        layout: {
-            ...FIXTURE_SERIALIZED_STATE.layout,
-            ...(mockZoom !== undefined ? {zoom: mockZoom} : {}),
-        },
-        meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: mockRevision},
-    }
-}
-
-async function startTestServer(): Promise<TestServer> {
-    const app: Express = express()
-    app.use(express.json())
-
-    app.post('/mcp', async (req, res) => {
-        const mcpServer = new McpServer({name: 'bf163-test-server', version: '1.0.0'})
-
-        mcpServer.tool('vt_get_live_state', 'Returns the live state', async () => ({
-            content: [{type: 'text' as const, text: JSON.stringify(buildCurrentState())}],
-        }))
-
-        mcpServer.tool(
-            'vt_dispatch_live_command',
-            'Dispatches a live command',
-            {command: z.object({type: z.string()}).passthrough()},
-            async ({command}) => {
-                const cmd = command as {
-                    type: string
-                    folder?: string
-                    root?: string
-                    zoom?: number
-                }
-                const delta = {
-                    revision: mockRevision,
-                    cause: command,
-                } as {
-                    revision: number
-                    cause: unknown
-                    collapseAdded?: string[]
-                    rootsUnloaded?: string[]
-                    layoutChanged?: {zoom?: number}
-                }
-
-                if (cmd.type === 'SetFolderState' && cmd.state === 'collapsed' && cmd.path) {
-                    const folder = `${cmd.path}/`
-                    if (!mockCollapseSet.includes(folder)) {
-                        mockCollapseSet = [...mockCollapseSet, folder]
-                    }
-                    mockRevision += 1
-                    delta.revision = mockRevision
-                    delta.collapseAdded = [folder]
-                }
-
-                if (cmd.type === 'SetZoom' && typeof cmd.zoom === 'number') {
-                    mockZoom = cmd.zoom
-                    mockRevision += 1
-                    delta.revision = mockRevision
-                    delta.layoutChanged = {zoom: cmd.zoom}
-                }
-                return {
-                    content: [{
-                        type: 'text' as const,
-                        text: JSON.stringify({delta, revision: mockRevision}),
-                    }],
-                }
-            },
-        )
-
-        const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true,
-        })
-        res.on('close', () => {
-            void transport.close()
-            void mcpServer.close()
-        })
-        try {
-            await mcpServer.connect(transport)
-            await transport.handleRequest(req, res, req.body as Record<string, unknown>)
-        } catch (error) {
-            if (!res.headersSent) res.status(500).json({error: String(error)})
-        }
-    })
-
-    // Find a free port
-    const port: number = await new Promise<number>((resolve) => {
-        const srv = app.listen(0, '127.0.0.1', () => {
-            const addr = srv.address()
-            srv.close(() => {
-                resolve(typeof addr === 'object' && addr ? addr.port : 4200)
-            })
-        })
-    })
-
-    const httpServer: Server = await new Promise<Server>((resolve) => {
-        const srv: Server = app.listen(port, '127.0.0.1', () => resolve(srv))
-    })
-
-    return {
-        port,
-        close: () => new Promise<void>((resolve) => httpServer.close(() => resolve())),
-    }
-}
-
-// ── tests ──────────────────────────────────────────────────────────────────
-
-describe('createLiveTransport — MCP roundtrip', () => {
-    let server: TestServer
+describe('createLiveTransport — happy path over HTTP', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon
+    let mock: MockServer
 
     beforeEach(async () => {
-        mockCollapseSet = []
-        mockRevision = FIXTURE_SERIALIZED_STATE.meta.revision
-        mockRootsLoaded = [...FIXTURE_SERIALIZED_STATE.roots.loaded]
-        mockZoom = undefined
-        server = await startTestServer()
+        envSnapshot = snapshotEnv()
+        mock = initialMockServer()
+        daemon = await startStubDaemon(buildHappyCatalog(mock))
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
     })
 
     afterEach(async () => {
-        await server?.close()
+        await daemon.stop()
+        await rm(daemon.vaultPath, {recursive: true, force: true})
+        restoreEnv(envSnapshot)
     })
 
-    it('getLiveState() returns a hydrated State via real MCP HTTP transport', async () => {
-        const transport = createLiveTransport(server.port)
+    it('getLiveState() returns a hydrated State via HTTP JSON-RPC', async () => {
+        const transport = createLiveTransport()
         const state = await transport.getLiveState()
 
         expect(state.meta.revision).toBe(3)
         expect(state.meta.schemaVersion).toBe(1)
         expect(state.roots.loaded.has(VAULT_ROOT)).toBe(true)
         expect(state.collapseSet.size).toBe(0)
-        expect(state.selection.size).toBe(0)
         expect(Object.keys(state.graph.nodes)).toContain(SAMPLE_NODE)
         expect(state.layout.positions.get(SAMPLE_NODE)).toEqual({x: 1, y: 2})
     })
 
-    it('dispatchLiveCommand() sends SetFolderState and returns a Delta', async () => {
-        const transport = createLiveTransport(server.port)
+    it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded', async () => {
+        const transport = createLiveTransport()
         const delta = await transport.dispatchLiveCommand({
             type: 'SetFolderState',
             viewId: 'main',
@@ -229,24 +86,19 @@ describe('createLiveTransport — MCP roundtrip', () => {
         })
     })
 
-    it('dispatchLiveCommand() preserves layoutChanged from the MCP delta', async () => {
-        const transport = createLiveTransport(server.port)
-        const delta = await transport.dispatchLiveCommand({
-            type: 'SetZoom',
-            zoom: 1.45,
-        })
+    it('dispatchLiveCommand preserves layoutChanged from the daemon delta', async () => {
+        const transport = createLiveTransport()
+        const delta = await transport.dispatchLiveCommand({type: 'SetZoom', zoom: 1.45})
 
         expect(delta.revision).toBe(4)
         expect(delta.layoutChanged).toEqual({zoom: 1.45})
         expect(delta.cause).toEqual({type: 'SetZoom', zoom: 1.45})
     })
 
-    it('round-trip: SetFolderState → getLiveState shows folder in collapseSet + revision bumped', async () => {
-        const transport = createLiveTransport(server.port)
-
-        const stateBefore = await transport.getLiveState()
-        expect(stateBefore.collapseSet.size).toBe(0)
-        const revBefore = stateBefore.meta.revision
+    it('round-trip: dispatch then re-read sees the mutation', async () => {
+        const transport = createLiveTransport()
+        const before = await transport.getLiveState()
+        expect(before.collapseSet.size).toBe(0)
 
         await transport.dispatchLiveCommand({
             type: 'SetFolderState',
@@ -255,9 +107,236 @@ describe('createLiveTransport — MCP roundtrip', () => {
             state: 'collapsed',
         })
 
-        const stateAfter = await transport.getLiveState()
-        expect(stateAfter.collapseSet.has(TASKS_FOLDER)).toBe(true)
-        expect(stateAfter.meta.revision).toBeGreaterThan(revBefore)
+        const after = await transport.getLiveState()
+        expect(after.collapseSet.has(TASKS_FOLDER)).toBe(true)
+        expect(after.meta.revision).toBeGreaterThan(before.meta.revision)
     })
 
+    it('honors an explicit vaultPath argument (no cwd up-walk needed)', async () => {
+        delete process.env.VOICETREE_VAULT_PATH
+        const transport = createLiveTransport(daemon.vaultPath)
+        const state = await transport.getLiveState()
+        expect(state.meta.revision).toBe(3)
+    })
+})
+
+// ── error envelopes (mapping harmonized with 9c daemon-client) ─────────────
+
+describe('createLiveTransport — error envelopes', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon | null
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        daemon = null
+    })
+
+    afterEach(async () => {
+        if (daemon) {
+            await daemon.stop()
+            await rm(daemon.vaultPath, {recursive: true, force: true})
+        }
+        restoreEnv(envSnapshot)
+    })
+
+    it('-32003 tool_handler_failed → Error with JSON.stringify(error.data)', async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({
+                ok: false,
+                payload: {error: 'Requires an Electron renderer'},
+            })],
+        ])
+        daemon = await startStubDaemon(catalog)
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const transport = createLiveTransport()
+        await expect(transport.getLiveState()).rejects.toThrow(
+            /\{"error":"Requires an Electron renderer"\}/,
+        )
+    })
+
+    it('-32602 validation_failed → Error whose message parses back to kind:validation_failed', async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async () => {
+                throw new CatalogValidationError('vt_get_live_state', [
+                    {path: 'viewId', message: 'Required', code: 'invalid_type'},
+                ])
+            }],
+        ])
+        daemon = await startStubDaemon(catalog)
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const transport = createLiveTransport()
+        try {
+            await transport.getLiveState()
+            expect.unreachable('should have thrown')
+        } catch (err) {
+            expect(err).toBeInstanceOf(Error)
+            const parsed: unknown = JSON.parse((err as Error).message)
+            expect(parsed).toMatchObject({kind: 'validation_failed', tool: 'vt_get_live_state'})
+        }
+    })
+
+    it('other JSON-RPC errors surface error.message (unknown method)', async () => {
+        daemon = await startStubDaemon(new Map())
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const transport = createLiveTransport()
+        await expect(transport.getLiveState()).rejects.toThrow(
+            /Unknown method: vt_get_live_state/,
+        )
+    })
+})
+
+// ── transport failures ─────────────────────────────────────────────────────
+
+describe('createLiveTransport — transport failures', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon | null
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        daemon = null
+    })
+
+    afterEach(async () => {
+        if (daemon) {
+            await daemon.stop()
+            await rm(daemon.vaultPath, {recursive: true, force: true})
+        }
+        restoreEnv(envSnapshot)
+    })
+
+    it("401 bad token → DaemonAuthRequired (no retry — 9c's concern)", async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({ok: true, payload: FIXTURE_SERIALIZED_STATE})],
+        ])
+        daemon = await startStubDaemon(catalog)
+        // Stale the on-disk token so the client sends a mismatched bearer
+        // and the daemon (which still holds the original) rejects with 401.
+        await writeAuthTokenFile(daemon.vaultPath, 'wrong-token-not-the-real-one')
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const transport = createLiveTransport()
+        await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonAuthRequired)
+    })
+
+    it('timeout exceeded → DaemonUnreachable; underlying fetch aborts', async () => {
+        // Daemon stalls 5s; client times out at 100ms. If abort works, the
+        // assertion resolves well before the 2s vitest timeout below.
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => {
+                await new Promise<void>((r) => {
+                    const t = setTimeout(r, 5_000)
+                    t.unref()
+                })
+                return {ok: true, payload: FIXTURE_SERIALIZED_STATE}
+            }],
+        ])
+        daemon = await startStubDaemon(catalog)
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_DAEMON_TIMEOUT_MS = '100'
+
+        const transport = createLiveTransport()
+        const startedAt: number = Date.now()
+        await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
+        expect(Date.now() - startedAt).toBeLessThan(1_000) // proves abort, not 5s wait
+    }, 2_000)
+
+    it('ECONNREFUSED → DaemonUnreachable', async () => {
+        const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-noport-')))
+        await mkdir(join(vaultPath, '.voicetree'), {recursive: true})
+        await writeAuthTokenFile(vaultPath, 'irrelevant-no-listener-anyway')
+        // Port 1 is reserved on most OSes — TCP connect rejects with ECONNREFUSED.
+        await writeRpcPortFile(vaultPath, 1)
+        process.env.VOICETREE_VAULT_PATH = vaultPath
+
+        try {
+            const transport = createLiveTransport()
+            await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
+        } finally {
+            await rm(vaultPath, {recursive: true, force: true})
+        }
+    })
+})
+
+// ── discovery chain (design doc §2.7) ──────────────────────────────────────
+
+describe('createLiveTransport — discovery chain', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon | null
+    let cwdSnapshot: string
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        cwdSnapshot = process.cwd()
+        daemon = null
+    })
+
+    afterEach(async () => {
+        process.chdir(cwdSnapshot)
+        if (daemon) {
+            await daemon.stop()
+            await rm(daemon.vaultPath, {recursive: true, force: true})
+        }
+        restoreEnv(envSnapshot)
+    })
+
+    it('VOICETREE_DAEMON_URL wins over a stale vault rpc.port', async () => {
+        // Live daemon at A; misleading rpc.port at B pointing at port 2.
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({
+                ok: true,
+                payload: {
+                    ...FIXTURE_SERIALIZED_STATE,
+                    meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: 99},
+                },
+            })],
+        ])
+        daemon = await startStubDaemon(catalog)
+
+        const fakeVault: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-fake-')))
+        await mkdir(join(fakeVault, '.voicetree'), {recursive: true})
+        await writeRpcPortFile(fakeVault, 2)
+        await writeAuthTokenFile(fakeVault, 'stale-token')
+
+        try {
+            // Env URL aimed at the real daemon; VAULT_PATH at the real vault
+            // (so the client reads the *correct* token, not the stale one).
+            process.env.VOICETREE_DAEMON_URL = daemon.url
+            process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+            const state = await createLiveTransport().getLiveState()
+            expect(state.meta.revision).toBe(99)
+        } finally {
+            await rm(fakeVault, {recursive: true, force: true})
+        }
+    })
+
+    it('vault rpc.port resolves when VOICETREE_DAEMON_URL is absent', async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({ok: true, payload: FIXTURE_SERIALIZED_STATE})],
+        ])
+        daemon = await startStubDaemon(catalog)
+
+        delete process.env.VOICETREE_DAEMON_URL
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const state = await createLiveTransport().getLiveState()
+        expect(state.meta.revision).toBe(3)
+    })
+
+    it('throws DaemonUnreachable when nothing resolves', async () => {
+        const isolated: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-no-vault-')))
+        try {
+            delete process.env.VOICETREE_DAEMON_URL
+            delete process.env.VOICETREE_VAULT_PATH
+            process.chdir(isolated)
+
+            const transport = createLiveTransport()
+            await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
+        } finally {
+            await rm(isolated, {recursive: true, force: true})
+        }
+    })
 })

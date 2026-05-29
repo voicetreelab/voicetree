@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
+import * as O from 'fp-ts/lib/Option.js'
 
 // Mock electron app before importing modules that use it
 const mockUserDataPath: string = path.join(os.tmpdir(), `test-vault-allowlist-${Date.now()}-${Math.random().toString(36).substring(7)}`)
@@ -15,7 +16,13 @@ vi.mock('electron', () => ({
 
 // Import after mocks are set up
 import { getVaultPaths, loadAndMergeVaultPath, type VaultLoadOutcome, addReadPath, setWriteFolder } from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import {
+  getConfigPath,
+  getLastDirectory,
+  getVaultConfigForDirectory,
+  saveLastDirectory,
+  saveVaultConfigForDirectory,
+} from '@vt/app-config/vault-config'
 import { setProjectRoot, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
@@ -34,14 +41,12 @@ const FILE_COUNT_ABOVE_RAISED_LIMIT = 1001
 
 function resetGraphModel(): void {
   notifyWriteDirectory = vi.fn()
-  initGraphModel(
-    { appSupportPath: mockUserDataPath },
-    {
-      notifyWriteDirectory,
-      fitViewport: vi.fn(),
-      syncVaultState: vi.fn()
-    }
-  )
+  process.env.VOICETREE_HOME_PATH = mockUserDataPath
+  initGraphModel({
+    notifyWriteDirectory,
+    fitViewport: vi.fn(),
+    syncVaultState: vi.fn()
+  })
 }
 
 async function seedMarkdownFiles(dir: string, count: number): Promise<void> {
@@ -188,6 +193,52 @@ describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
       expect(paths).toContain(writeFolderA) // A demoted to readPaths
       const uniquePaths: string[] = [...new Set(paths)]
       expect(paths.length).toBe(uniquePaths.length) // no duplicates
+    })
+  })
+})
+
+describe('voicetree config IO', () => {
+  let testTmpDir: string
+
+  beforeEach(async () => {
+    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-config-io-'))
+    await fs.mkdir(mockUserDataPath, { recursive: true })
+    process.env.VOICETREE_HOME_PATH = mockUserDataPath
+  })
+
+  afterEach(async () => {
+    await fs.rm(testTmpDir, { recursive: true, force: true })
+    await fs.rm(path.join(mockUserDataPath, 'voicetree-config.json'), { force: true })
+    vi.restoreAllMocks()
+  })
+
+  it('treats a missing voicetree-config.json as no last directory without logging startup noise', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    await expect(getLastDirectory()).resolves.toEqual(O.none)
+
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(getConfigPath()).toBe(path.join(mockUserDataPath, 'voicetree-config.json'))
+  })
+
+  it('observes voicetree-config.json changes written outside this process immediately', async () => {
+    const projectPath: string = path.join(testTmpDir, 'project')
+    const initialWriteFolder: string = path.join(projectPath, 'initial')
+    const updatedWriteFolder: string = path.join(projectPath, 'updated')
+
+    await saveLastDirectory(projectPath)
+    await saveVaultConfigForDirectory(projectPath, { writeFolder: initialWriteFolder })
+    await fs.writeFile(getConfigPath(), JSON.stringify({
+      lastDirectory: projectPath,
+      vaultConfig: {
+        [projectPath]: { writeFolder: updatedWriteFolder },
+      },
+    }, null, 2), 'utf8')
+
+    await expect(getLastDirectory()).resolves.toMatchObject({ value: projectPath })
+    await expect(getVaultConfigForDirectory(projectPath)).resolves.toEqual({
+      writeFolder: updatedWriteFolder,
+      readPaths: [],
     })
   })
 })

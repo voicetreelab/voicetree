@@ -2,7 +2,6 @@
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
-import { getMcpPort } from '@vt/voicetree-mcp';
 import { getConfiguredCdpPort } from './environment-config';
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override';
 
@@ -84,7 +83,6 @@ function assertDebugCdpPortResolved(cdpPort: number): void {
 interface InstanceRecord {
     readonly pid: number;
     readonly projectRoot: string;
-    readonly mcpPort: number;
     readonly cdpPort: number;
     readonly startedAt: string;
 }
@@ -96,11 +94,9 @@ export async function registerInstance(): Promise<void> {
         process.env.VOICETREE_VAULT_PATH ??
         getStartupFolderOverride() ??
         '';
-    const mcpPort: number = getMcpPort();
     const instance: InstanceRecord = {
         pid: process.pid,
         projectRoot,
-        mcpPort,
         cdpPort,
         startedAt: new Date().toISOString(),
     };

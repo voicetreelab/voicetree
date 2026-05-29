@@ -95,7 +95,7 @@ function createParentDelta(parentId: string, pos: { x: number; y: number }): Gra
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: pos } as const,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false,
         }
       },
@@ -237,7 +237,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: position } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false,
             }
           },
@@ -252,7 +252,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: parentPos } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false,
             }
           },
@@ -365,7 +365,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: position } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false,
             }
           },
@@ -380,7 +380,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: parentPos } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false,
             }
           },
@@ -483,7 +483,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: position } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false,
             }
           },
@@ -498,7 +498,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: parentPos } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false,
             }
           },

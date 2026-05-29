@@ -38,11 +38,13 @@ import {
     forkRecoverySession,
     killRecoverySession,
     refreshRecoverySessions,
+    removeRecoverySession,
     resumeRecoverySession,
     startRecoverySessionsPolling,
     stopRecoverySessionsPolling,
 } from '@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore';
 import {useRecoverySessions} from './survivingAgentsHooks';
+import {SurvivingAgentsTrashButton} from './SurvivingAgentsTrashButton';
 import {
     syncDisplayOrder,
 } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
@@ -54,7 +56,7 @@ import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
 import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
 import { SurvivingAgentsSection } from './SurvivingAgentsSection';
-import type { RecoverableAgentSession } from '@vt/agent-runtime';
+import type { RecoverableAgentSession } from '@vt/vt-daemon-client';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -406,6 +408,19 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                 onAttach={attachRecoverySession}
                 onKill={killRecoverySession}
                 onResume={resumeRecoverySession}
+                renderRowActions={(row: RecoverableAgentSession) => (
+                    // Trash is rendered only when the row has no live attach
+                    // capability — deleting metadata for a live tmux pane is
+                    // refused at the runtime layer anyway, but hiding the
+                    // button keeps the UI honest about which rows are safe
+                    // to nuke.
+                    row.attach ? null : (
+                        <SurvivingAgentsTrashButton
+                            terminalId={row.terminalId}
+                            onDelete={removeRecoverySession}
+                        />
+                    )
+                )}
             />
             <div ref={resizeHandleRef} className="terminal-tree-resize-handle" />
         </div>

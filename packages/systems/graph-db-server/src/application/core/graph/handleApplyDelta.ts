@@ -1,7 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { z } from 'zod'
-import type { Graph, GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
-import { GraphStateSchema } from '@vt/graph-db-server/contract'
+import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
 
 const GraphDeltaRequestSchema = z.array(
   z.discriminatedUnion('type', [
@@ -25,29 +24,14 @@ const ApplyGraphDeltaRequestSchema = z.object({
 
 export function normalizeAdditionalYAMLProps(
   value: unknown,
-): ReadonlyMap<string, string> {
-  if (value instanceof Map) return value as ReadonlyMap<string, string>
-
-  if (Array.isArray(value)) {
-    return new Map(
-      value
-        .filter((entry): entry is readonly [string, unknown] =>
-          Array.isArray(entry) && typeof entry[0] === 'string',
-        )
-        .map(([key, entryValue]) => [key, String(entryValue)]),
-    )
-  }
-
-  if (typeof value === 'object' && value !== null) {
-    return new Map(
-      Object.entries(value).map(([key, entryValue]) => [
-        key,
-        typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),
-      ]),
-    )
-  }
-
-  return new Map()
+): Record<string, string> {
+  if (typeof value !== 'object' || value === null) return {}
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entryValue]) => [
+      key,
+      typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),
+    ]),
+  )
 }
 
 export function normalizeGraphNode(node: unknown): GraphNode {
@@ -139,11 +123,4 @@ export function buildDeleteNodeDelta(
       deletedNode: O.some(existingNode),
     },
   ]
-}
-
-export function composeApplyDeltaResponse(delta: GraphDelta, graph: Graph): {
-  readonly delta: GraphDelta
-  readonly graph: unknown
-} {
-  return { delta, graph: GraphStateSchema.parse(graph) }
 }

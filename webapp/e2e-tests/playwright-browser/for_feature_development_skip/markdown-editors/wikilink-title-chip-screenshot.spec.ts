@@ -79,7 +79,7 @@ test.describe('Wikilink Title Chip Screenshot', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 600, y: 300 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },
@@ -111,7 +111,7 @@ Some more text below the link to test typing stability.`;
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 300 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },

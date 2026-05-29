@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
     closeFolderVisibilityDb,
+    defaultFolderVisibilityDbDeps,
     openFolderVisibilityDb,
     type FolderVisibilityDatabase,
 } from './folderVisibilitySqlite'
@@ -172,7 +173,7 @@ export function ensureDefaultView(
 }
 
 export function ensureDefaultFolderVisibilityView(projectRoot: string): void {
-    const folderVisibilityDb = openFolderVisibilityDb(projectRoot)
+    const folderVisibilityDb = openFolderVisibilityDb(projectRoot, defaultFolderVisibilityDbDeps)
     try {
         ensureDefaultView(folderVisibilityDb)
     } finally {

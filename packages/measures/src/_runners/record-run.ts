@@ -8,7 +8,7 @@
 // Usage:
 //   node --experimental-strip-types packages/measures/src/_runners/record-run.ts \
 //     --id=npm-test --name="npm run test" --category=Command \
-//     [--display="npm run test"] [--slow] \
+//     [--display="npm run test"] \
 //     -- <command> [args...]
 //
 // Failures recording the CheckReport never change the exit code — observation
@@ -20,17 +20,17 @@ import {fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 import {vitestFailureDetailsForCommand} from './vitest-failure-detail-reader.ts'
+import {errorSummaryForFailedOutcome} from './failure-summary.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 
 function parseArgs(argv) {
-    const opts = {id: null, name: null, category: null, display: null, slow: false}
+    const opts = {id: null, name: null, category: null, display: null}
     let i = 0
     while (i < argv.length) {
         const arg = argv[i]
         if (arg === '--') { i++; break }
-        if (arg === '--slow') { opts.slow = true; i++; continue }
         const eq = arg.indexOf('=')
         const key = eq >= 0 ? arg.slice(2, eq) : arg.slice(2)
         const value = eq >= 0 ? arg.slice(eq + 1) : argv[++i]
@@ -43,7 +43,7 @@ function parseArgs(argv) {
     }
     const cmd = argv.slice(i)
     if (!opts.id || !opts.name || !opts.category || cmd.length === 0) {
-        console.error('record-run: usage: --id=<id> --name=<name> --category=<cat> [--display=...] [--slow] -- <command> [args...]')
+        console.error('record-run: usage: --id=<id> --name=<name> --category=<cat> [--display=...] -- <command> [args...]')
         process.exit(64)
     }
     return {opts, cmd}
@@ -51,10 +51,11 @@ function parseArgs(argv) {
 
 async function runChild(cmd) {
     const [bin, ...rest] = cmd
-    const startedAt = Date.now()
+    const startedAtMs = Date.now()
+    const startedAt = new Date(startedAtMs).toISOString()
     let stdoutBuf = ''
     let stderrBuf = ''
-    const appendTail = (current, chunk) => `${current}${chunk}`.slice(-8_000)
+    const appendTail = (current, chunk) => `${current}${chunk}`.slice(-64_000)
     const result = await new Promise(resolve => {
         const child = spawn(bin, rest, {cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'], shell: false})
         child.stdout.on('data', chunk => {
@@ -70,7 +71,9 @@ async function runChild(cmd) {
         child.on('error', err => resolve({code: -1, signal: null, spawnError: String(err?.message ?? err)}))
         child.on('close', (code, signal) => resolve({code, signal, spawnError: null}))
     })
-    return {durationMs: Date.now() - startedAt, stdoutTail: summarizeTail(stdoutBuf), stderrTail: summarizeTail(stderrBuf), ...result}
+    const endedAtMs = Date.now()
+    const endedAt = new Date(endedAtMs).toISOString()
+    return {startedAt, endedAt, durationMs: endedAtMs - startedAtMs, stdoutTail: summarizeTail(stdoutBuf), stderrTail: summarizeTail(stderrBuf), ...result}
 }
 
 function statusFor(exitCode, spawnError) {
@@ -78,11 +81,18 @@ function statusFor(exitCode, spawnError) {
     return exitCode === 0 ? 'pass' : 'fail'
 }
 
-function summarizeTail(text, maxLines = 4) {
+// Sized so a structured failure report (e.g. the BAR-bracketed "Refused: …"
+// block emitted by the tier-0 gates) survives intact in the report's
+// errorSummary instead of being clipped to just the trailing remediation lines.
+function summarizeTail(text, maxLines = 200, maxChars = 16_000) {
     if (!text) return undefined
-    const lines = text.split('\n').map(l => l.replace(/\s+$/, '')).filter(Boolean)
-    if (lines.length === 0) return undefined
-    return lines.slice(-maxLines).join('\n').slice(0, 800)
+    const lines = text.split('\n').map(l => l.replace(/\s+$/, ''))
+    let end = lines.length
+    while (end > 0 && lines[end - 1] === '') end -= 1
+    if (end === 0) return undefined
+    const start = Math.max(0, end - maxLines)
+    const joined = lines.slice(start, end).join('\n')
+    return joined.length <= maxChars ? joined : joined.slice(-maxChars)
 }
 
 const {opts, cmd} = parseArgs(process.argv.slice(2))
@@ -101,9 +111,18 @@ try {
         command: display,
         status,
         durationMs: outcome.durationMs,
-        slow: opts.slow || undefined,
+        startedAt: outcome.startedAt,
+        endedAt: outcome.endedAt,
         errorSummary: status === 'fail'
-            ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail ?? `exit ${outcome.code}${outcome.signal ? ` (${outcome.signal})` : ''}`)
+            ? errorSummaryForFailedOutcome({
+                durationMs: outcome.durationMs,
+                exitCode: outcome.code,
+                signal: outcome.signal,
+                spawnError: outcome.spawnError,
+                stdoutTail: outcome.stdoutTail,
+                stderrTail: outcome.stderrTail,
+                failureDetails,
+            })
             : undefined,
         timestamp: new Date().toISOString(),
         details: {

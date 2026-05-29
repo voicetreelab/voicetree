@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import type {UnclaimedTmuxSession} from '@vt/agent-runtime'
+import type {UnclaimedTmuxSession} from '@vt/vt-daemon-client'
 import {
     attachUnclaimedTmuxSession,
     clearUnclaimedTmuxSessions,

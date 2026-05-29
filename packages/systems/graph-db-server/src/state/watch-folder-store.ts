@@ -3,7 +3,7 @@
  *
  * Legacy callers continue to use these named getters/setters; each
  * delegates to `getProject` / `updateProject` in
- * `application/workflows/projectState.ts`. The five separate `let`s and
+ * `application/workflows/state/projectState.ts`. The five separate `let`s and
  * one `Set` that used to live here are now properties of one cohesive
  * value (per design § D8 of `watch-folder-verb-consolidation`).
  */
@@ -18,7 +18,7 @@ import {
     updateProject,
     type ProjectState,
     type ReadPathsListener,
-} from '../application/workflows/projectState';
+} from '../application/workflows/state/projectState';
 
 export const getWatcher: () => FSWatcher | null = (): FSWatcher | null => {
     return getProject()?.watcher ?? null;
@@ -41,7 +41,9 @@ export const setProjectRoot: (dir: FilePath | null) => void = (dir: FilePath | n
         return;
     }
     updateProject((prev: ProjectState | null): ProjectState => (
-        prev === null ? freshProject(dir) : { ...prev, root: dir }
+        prev === null
+            ? { ...freshProject(dir), version: 1, vaultVersion: 1 }
+            : { ...prev, root: dir, version: prev.version + 1, vaultVersion: prev.vaultVersion + 1 }
     ));
 };
 
@@ -68,6 +70,11 @@ export const onReadPathsChanged: (listener: ReadPathsListener) => (() => void) =
 export const emitReadPathsChanged: (watchPaths: readonly FilePath[]) => void = (
     watchPaths: readonly FilePath[],
 ): void => {
+    mutateProject((prev: ProjectState): ProjectState => ({
+        ...prev,
+        version: prev.version + 1,
+        vaultVersion: prev.vaultVersion + 1,
+    }));
     getProject()?.readPathsListener?.(watchPaths);
 };
 

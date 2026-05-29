@@ -9,7 +9,7 @@
  *
  * This file is the single source of truth, consumed by:
  *   - `packages/measures/perf/agent-storm.ts`  (daemon-only storm harness)
- *   - `webapp/e2e-tests/.../electron-agent-storm-perf.spec.ts` (e2e storm)
+ *   - `packages/measures/perf/e2e-storm-mvp/index.ts` (headful electron + fake-agent MVP)
  *   - `webapp/e2e-tests/.../electron-500-node-realistic-perf.spec.ts` (LOAD/PAN-ZOOM/UPDATE)
  *
  * Pure data + sync fs writes. No async, no logging, no console output —
@@ -18,6 +18,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export interface VaultNode {
     readonly relativePath: string
@@ -136,7 +137,7 @@ export function planVault(nodeCount: number): VaultLayout {
  */
 export function generateVaultOnDisk(vaultPath: string, nodeCount: number): VaultLayout {
     mkdirSync(vaultPath, { recursive: true })
-    const voicetreeDir = join(vaultPath, '.voicetree')
+    const voicetreeDir = getProjectDotVoicetreePath(vaultPath)
     mkdirSync(voicetreeDir, { recursive: true })
     writeFileSync(join(voicetreeDir, 'positions.json'), '{}', 'utf8')
     mkdirSync(join(vaultPath, 'ctx-nodes'), { recursive: true })

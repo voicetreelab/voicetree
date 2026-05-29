@@ -55,3 +55,5 @@ void (contentAfterTitle satisfies ContentAfterTitle)
 void (stripMarkdownFormatting satisfies StripMarkdownFormatting)
 
 void (getNodeTitle satisfies GetNodeTitle)
+
+export { extractParentRefs, normalizeBatchFilenameKey, type ParentLineRef } from './extract/extract-parent-refs'

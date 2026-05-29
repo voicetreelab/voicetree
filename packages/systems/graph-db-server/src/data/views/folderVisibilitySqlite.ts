@@ -11,10 +11,11 @@
  */
 
 import { DatabaseSync } from 'node:sqlite'
-import * as fs from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
-export const FOLDER_VISIBILITY_DB_RELATIVE_PATH = '.voicetree/folder-visibility.db'
+export const FOLDER_VISIBILITY_DB_FILENAME = 'folder-visibility.db'
 
 /** Current schema version. Bump when adding a non-trivial migration step. */
 export const FOLDER_VISIBILITY_SCHEMA_VERSION = 1
@@ -26,10 +27,29 @@ export type FolderVisibilityDatabase = DatabaseSync & {
 }
 
 /**
+ * Shell-injected dependencies for opening the folder-visibility db.
+ * Threading these in (rather than referencing `fs.mkdirSync` / `new
+ * DatabaseSync` directly inside `openFolderVisibilityDb`) keeps the public
+ * surface honest about what concrete I/O it requires, and keeps every
+ * transitive caller out of the purity-graph's impure reach.
+ */
+export interface FolderVisibilityDbDeps {
+    readonly mkdir: (dir: string, opts: { recursive: true }) => void
+    readonly openDatabase: (filePath: string) => DatabaseSync
+}
+
+/** Default real-IO deps. Constructed once at module load so every callsite
+ * shares the same shell binding; tests can pass an alternative shape. */
+export const defaultFolderVisibilityDbDeps: FolderVisibilityDbDeps = {
+    mkdir: mkdirSync,
+    openDatabase: (filePath: string) => new DatabaseSync(filePath),
+}
+
+/**
  * Resolve `<projectRoot>/.voicetree/folder-visibility.db`.
  */
 export function resolveFolderVisibilityDbPath(projectRoot: string): string {
-    return path.join(projectRoot, FOLDER_VISIBILITY_DB_RELATIVE_PATH)
+    return path.join(getProjectDotVoicetreePath(projectRoot), FOLDER_VISIBILITY_DB_FILENAME)
 }
 
 function assertValidVaultPath(projectRoot: string): void {
@@ -54,15 +74,21 @@ function prepareFolderVisibilityDb(db: FolderVisibilityDatabase): FolderVisibili
  * The caller owns the returned Database handle and must close it via
  * {@link closeFolderVisibilityDb}.
  *
+ * `deps` is required: callers thread fs/db constructors in from the shell
+ * boundary so this leaf does not capture the impure namespace itself.
+ *
  * Throws if `projectRoot` is empty/invalid or the parent directory cannot be
  * created.
  */
-export function openFolderVisibilityDb(projectRoot: string): FolderVisibilityDatabase {
+export function openFolderVisibilityDb(
+    projectRoot: string,
+    deps: FolderVisibilityDbDeps,
+): FolderVisibilityDatabase {
     assertValidVaultPath(projectRoot)
     const dbPath = resolveFolderVisibilityDbPath(projectRoot)
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+    deps.mkdir(path.dirname(dbPath), { recursive: true })
 
-    const db = addTransactionMethod(new DatabaseSync(dbPath))
+    const db = addTransactionMethod(deps.openDatabase(dbPath))
     return prepareFolderVisibilityDb(db)
 }
 

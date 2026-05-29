@@ -9,8 +9,9 @@ import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-mode
 import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
-import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
-import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
+import {getExistingAgentNames} from '@vt/vt-daemon-client';
+import {getActiveVault, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
+import {getVoicetreeHomePath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -66,19 +67,26 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const strippedTitle: string = contextNodeResult.title.replace(/^ASK:\s*/i, '');
   // Generate unique agent name with collision handling
   const baseAgentName: string = getNextAgentName();
-  const existingNames: Set<string> = terminalRuntimeSurface.getExistingAgentNames();
+  const existingNames: ReadonlySet<string> = new Set(await getExistingAgentNames(getVtDaemonClient()));
   const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
   const title: string = `${agentName}: ${strippedTitle}`;
   // terminalId = agentName (unified identification)
   const terminalId: TerminalId = agentName as TerminalId;
 
-  const appSupportPath: string = getAppSupportPath();
+  const voicetreeHomePath: string = getVoicetreeHomePath();
 
-  let initialSpawnDirectory: string | undefined = watchedDir ?? undefined;
+  // Spawn directory is rooted at the vault, NOT the writeFolder. writeFolder
+  // can be a dated subdirectory of the vault (see watchFolder.ts
+  // createDatedVoiceTreeFolder), and the setting is
+  // `terminalSpawnPathRelativeToWatchedDirectory` — historically rooted at
+  // the watched (vault) directory. basePath above stays as writeFolder
+  // because the STT server returns paths relative to writeFolder.
+  const vaultPath: string | null = getActiveVault();
+  let initialSpawnDirectory: string | undefined = vaultPath ?? undefined;
 
-  if (watchedDir && settings.terminalSpawnPathRelativeToWatchedDirectory) {
+  if (vaultPath && settings.terminalSpawnPathRelativeToWatchedDirectory) {
     const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-    initialSpawnDirectory = path.join(watchedDir, relativePath);
+    initialSpawnDirectory = path.join(vaultPath, relativePath);
   }
 
   // Node IDs are now absolute paths, so contextNodeId is the absolute path
@@ -89,7 +97,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const taskNodeAbsolutePath: string = contextNodeResult.parentNodePath;
 
   const unexpandedEnvVars: Record<string, string> = {
-    VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+    VOICETREE_HOME_PATH: voicetreeHomePath ?? '',
     CONTEXT_NODE_PATH: contextNodeAbsolutePath,
     TASK_NODE_PATH: taskNodeAbsolutePath,
     VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME

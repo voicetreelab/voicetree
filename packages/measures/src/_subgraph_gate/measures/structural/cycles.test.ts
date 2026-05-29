@@ -12,10 +12,10 @@
 import {describe, expect, it} from 'vitest'
 import {
     cyclesMeasure,
-    CYCLES_BUDGET,
+    CYCLES_THRESHOLD,
     findNonTrivialSccs,
 } from './cycles.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 describe('findNonTrivialSccs (pure)', () => {
     it('DAG → no non-trivial SCCs', () => {
@@ -112,6 +112,6 @@ describe('cycles (subgraph measure)', () => {
         const fail = result.violations.find(v => v.community === `${pkg}/state`)!
         expect(fail.message).toContain('cross-package')
         // Must exceed budget either way.
-        expect(result.perCommunity[`${pkg}/state`]).toBeGreaterThan(CYCLES_BUDGET)
+        expect(result.perCommunity[`${pkg}/state`]).toBeGreaterThan(CYCLES_THRESHOLD)
     })
 })

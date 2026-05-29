@@ -1,8 +1,11 @@
-import {existsSync} from 'node:fs'
+import {existsSync, realpathSync} from 'node:fs'
+import {readdir} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {Project, ts, type ExportDeclaration, type ImportDeclaration, type SourceFile} from 'ts-morph'
+import {ts, type ExportDeclaration, type ImportDeclaration, type Project, type SourceFile} from 'ts-morph'
 import {beforeAll, describe, expect, it} from 'vitest'
+import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {createRepoTsMorphProject} from '../../_shared/graph/repo-ts-morph-project'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
@@ -12,17 +15,20 @@ const SERVER_PACKAGE_DIR = 'packages/systems/graph-db-server'
 const CONSUMER_PACKAGE_DIRS: readonly string[] = [
     'webapp',
     'packages/systems/agent-runtime',
-    'packages/systems/voicetree-mcp',
+    'packages/systems/vt-daemon',
+    'packages/systems/voicetree-cli',
 ] as const
 
 // Mirrors ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES in package-boundaries.test.ts.
 // Keep these in sync with the BF-271e ratchet.
 const DAEMON_OWNED_MUTATIONS_LAUNCHER_ALLOWLIST: ReadonlySet<string> = new Set([
-    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
-    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
-    'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
+    // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer embeds
+    // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
+    // SIBLING process. No allowlist entry required.
 ])
 
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET = 0
@@ -41,12 +47,20 @@ type ImportEdge = {
     readonly runtimeSymbols: readonly string[]
 }
 
+// Canonicalize through symlinks so package-manager layouts that resolve
+// workspace deps via per-package symlinks (pnpm) report the same canonical
+// path as direct hoisting (npm). Without this, `webapp/node_modules/@vt/X/...`
+// paths leak into edge data and confuse the cross-package boundary check.
+function canonical(absPath: string): string {
+    try { return realpathSync(absPath) } catch { return absPath }
+}
+
 function repoRel(absPath: string): string {
-    return relative(REPO_ROOT, absPath).replaceAll('\\', '/')
+    return relative(REPO_ROOT, canonical(absPath)).replaceAll('\\', '/')
 }
 
 function findPackageRoot(filePath: string): string {
-    let dir = dirname(filePath)
+    let dir = dirname(canonical(filePath))
     while (dir !== REPO_ROOT && dir !== dirname(dir)) {
         if (existsSync(join(dir, 'package.json'))) return repoRel(dir) || '.'
         dir = dirname(dir)
@@ -66,38 +80,54 @@ function importerIsServer(pkg: string): boolean {
     return pkg === SERVER_PACKAGE_DIR || pkg.startsWith(`${SERVER_PACKAGE_DIR}/`)
 }
 
-function buildProject(): Project {
-    const project = new Project({
-        compilerOptions: {
-            moduleResolution: ts.ModuleResolutionKind.Bundler,
-            module: ts.ModuleKind.ESNext,
-            target: ts.ScriptTarget.ES2022,
-            allowJs: false,
-            skipLibCheck: true,
-            jsx: ts.JsxEmit.Preserve,
-        },
-    })
-    project.addSourceFilesAtPaths([
-        `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
-        `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.test.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.spec.{ts,tsx}`,
-        `!${REPO_ROOT}/**/*.d.ts`,
-        `!${REPO_ROOT}/**/__tests__/**`,
-        `!${REPO_ROOT}/**/tests/**`,
-        `!${REPO_ROOT}/**/__generated__/**`,
-        `!${REPO_ROOT}/**/integration-tests/**`,
-        `!${REPO_ROOT}/**/node_modules/**`,
-        `!${REPO_ROOT}/**/dist/**`,
-        `!${REPO_ROOT}/**/build/**`,
-        `!${REPO_ROOT}/**/*.config.ts`,
-    ])
+async function buildProject(packages: readonly PackageInfo[]): Promise<Project> {
+    const project = createRepoTsMorphProject(REPO_ROOT, packages)
+    project.addSourceFilesAtPaths(await discoverProductionSourcePaths())
     if (project.getSourceFiles().length === 0) {
         throw new Error('import-graph-invariants found 0 production source files; check globs against concurrent package moves')
     }
     return project
 }
+
+async function discoverProductionSourcePaths(): Promise<string[]> {
+    const roots = [
+        resolve(REPO_ROOT, 'packages', 'libraries'),
+        resolve(REPO_ROOT, 'packages', 'systems'),
+        resolve(REPO_ROOT, 'webapp', 'src'),
+    ]
+    const nested = await Promise.all(roots.map(root => walkSourcePaths(root)))
+    return nested.flat().filter(isProductionSourcePath).sort()
+}
+
+async function walkSourcePaths(dir: string): Promise<string[]> {
+    let entries: Awaited<ReturnType<typeof readdir>>
+    try {
+        entries = await readdir(dir, {withFileTypes: true})
+    } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+        throw err
+    }
+    const nested = await Promise.all(entries.map(async entry => {
+        const path = resolve(dir, entry.name)
+        if (entry.isDirectory()) {
+            if (IGNORED_SOURCE_DIR_NAMES.has(entry.name)) return []
+            return walkSourcePaths(path)
+        }
+        if (!entry.isFile() || (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx'))) return []
+        return [path]
+    }))
+    return nested.flat()
+}
+
+const IGNORED_SOURCE_DIR_NAMES: ReadonlySet<string> = new Set([
+    'node_modules',
+    'dist',
+    'build',
+    '__tests__',
+    '__generated__',
+    'integration-tests',
+    'tests',
+])
 
 function staticImportRuntimeSymbols(decl: ImportDeclaration): readonly string[] {
     if (decl.isTypeOnly()) return []
@@ -125,6 +155,10 @@ function exportRuntimeSymbols(decl: ExportDeclaration): readonly string[] {
 
 function isProductionSourceFile(sourceFile: SourceFile): boolean {
     const file = repoRel(sourceFile.getFilePath())
+    return isProductionSourcePath(file)
+}
+
+function isProductionSourcePath(file: string): boolean {
     return !file.endsWith('.test.ts')
         && !file.endsWith('.test.tsx')
         && !file.endsWith('.spec.ts')
@@ -244,7 +278,7 @@ function formatRelativeViolation(e: ImportEdge): string {
 let edgesPromise: Promise<readonly ImportEdge[]> | undefined
 
 async function getEdges(): Promise<readonly ImportEdge[]> {
-    edgesPromise ??= Promise.resolve(collectEdges(buildProject()))
+    edgesPromise ??= discoverPackages(REPO_ROOT).then(async packages => collectEdges(await buildProject(packages)))
     return edgesPromise
 }
 
@@ -286,7 +320,7 @@ describe('import graph: daemon-owned-mutations boundary', () => {
         await recordHealthMetric({
             metricId: 'daemon-owned-mutations-graph-boundary-runtime-edges',
             metricName: 'Daemon-Owned Mutations Graph-Boundary Runtime Edges',
-            description: 'ts-morph resolved import edges from {webapp, agent-runtime, voicetree-mcp} into graph-db-server with at least one runtime binding, outside the launcher/search allowlist. Catches package-spec, deep-relative, and barrel-re-exported back-channels uniformly.',
+            description: 'ts-morph resolved import edges from {webapp, agent-runtime, vt-daemon} into graph-db-server with at least one runtime binding, outside the launcher/search allowlist. Catches package-spec, deep-relative, and barrel-re-exported back-channels uniformly.',
             category: 'Coupling',
             current: violations.length,
             budget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET,

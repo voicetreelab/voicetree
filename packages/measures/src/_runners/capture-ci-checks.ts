@@ -12,12 +12,16 @@ import {pathToFileURL, fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 import {spawnCheck} from './capture-check-runner.ts'
+import {errorSummaryForFailedOutcome, formatFailureBody} from './failure-summary.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 const CHECKS_DIR = join(MEASURES_DIR, 'checks')
-const MAX_TIER = 3
+// MAX_TIER is duplicated in health/meta/ci-coverage.test.ts. If you bump
+// this, bump that too — the test will fail loudly otherwise (it rejects
+// any `--tier<=N` workflow invocation with N > its own MAX_TIER).
+const MAX_TIER = 4
 
 const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
 
@@ -50,8 +54,16 @@ async function loadChecks(opts) {
     return checks
 }
 
+// A tier may be authored as bare `tier_N/` (legacy / no-suffix tiers) or as
+// `tier_N_pre_commit/` (explicit invocation context). Both are scheduled
+// measures; `tier_N_post_edit/` (and other non-scheduled siblings) live
+// outside this discovery pass — they are invoked by agent hooks, not
+// capture-ci.
+const SCHEDULED_TIER_SUFFIXES = ['', '_pre_commit']
+
 async function discoverScheduledMeasureFiles(tierMax) {
-    const tierDirs = Array.from({length: tierMax + 1}, (_, tier) => join(CHECKS_DIR, `tier_${tier}`))
+    const tierDirs = Array.from({length: tierMax + 1}, (_, tier) => tier)
+        .flatMap(tier => SCHEDULED_TIER_SUFFIXES.map(suffix => join(CHECKS_DIR, `tier_${tier}${suffix}`)))
     return (await Promise.all(tierDirs.map(discoverMeasureFilesIfPresent))).flat()
 }
 
@@ -101,7 +113,7 @@ function parseArgs(argv) {
     return opts
 }
 
-const CHECK_PATH = /\/checks\/tier_([0-3])\/([^/]+)\//
+const CHECK_PATH = /\/checks\/tier_(\d+)(?:_pre_commit)?\/([^/]+)\//
 
 function tierFromMeasurePath(measurePath) {
     const match = CHECK_PATH.exec(measurePath)
@@ -134,7 +146,8 @@ function printHelp(checks) {
         '',
         'Flags:',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
-        '  --tier<=N         run checks under checks/tier_0 through checks/tier_N.',
+        '  --tier<=N         run checks under checks/tier_0_pre_commit through checks/tier_N',
+        '                    (and any legacy bare `tier_K/` folders without a suffix).',
         '  --tier-max=N      shell-safe alias for --tier<=N.',
         '  --max-tier=N      shell-safe alias for --tier<=N.',
         '  --sequential      run checks sequentially; continue through failures.',
@@ -185,7 +198,7 @@ function printRow(check, outcome) {
 
 async function recordOutcome(check, outcome) {
     const errorSummary = outcome.status === 'fail'
-        ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail)
+        ? errorSummaryForFailedOutcome(outcome)
         : undefined
     /** @type {Record<string, unknown>} */
     const details = {exitCode: outcome.exitCode, measurePath: check.measurePath, measureFolder: check.measureFolder}
@@ -200,6 +213,8 @@ async function recordOutcome(check, outcome) {
         command: check.display,
         status: outcome.status,
         durationMs: outcome.durationMs,
+        startedAt: outcome.startedAt,
+        endedAt: outcome.endedAt,
         testsTotal: outcome.testsTotal,
         testsPassed: outcome.testsPassed,
         testsFailed: outcome.testsFailed,
@@ -223,10 +238,12 @@ function describeScope(opts) {
     return ''
 }
 
-function failedSpawnOutcome(err) {
+function failedSpawnOutcome(err, startedAt, endedAt) {
     return {
         status: 'fail',
-        durationMs: 0,
+        durationMs: Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)),
+        startedAt,
+        endedAt,
         exitCode: -1,
         signal: null,
         timedOut: false,
@@ -237,10 +254,11 @@ function failedSpawnOutcome(err) {
 }
 
 async function runCheck(check) {
+    const startedAt = new Date().toISOString()
     try {
         return await spawnCheck(check, process.env, REPO_ROOT)
     } catch (err) {
-        return failedSpawnOutcome(err)
+        return failedSpawnOutcome(err, startedAt, new Date().toISOString())
     }
 }
 
@@ -265,10 +283,14 @@ function shouldRunExclusivelyWithinParallelPhase(check) {
 }
 
 async function runCheckWithSkip(check, opts) {
-    return {
-        check,
-        outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
+    if (shouldSkipCheck(check, opts)) return {check, outcome: skippedOutcome()}
+    const outcome = await runCheck(check)
+    try {
+        await recordOutcome(check, outcome)
+    } catch (err) {
+        console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
     }
+    return {check, outcome}
 }
 
 async function runChecksWithConcurrency(checks, opts, concurrency = DEFAULT_PARALLELISM) {
@@ -320,64 +342,82 @@ async function runChecksSequentially(checks, opts) {
     const results = []
     let stopScheduling = false
     for (const check of checks) {
-        const outcome = shouldSkipCheck(check, opts, stopScheduling) ? skippedOutcome() : await runCheck(check)
+        if (shouldSkipCheck(check, opts, stopScheduling)) {
+            results.push({check, outcome: skippedOutcome()})
+            continue
+        }
+        const outcome = await runCheck(check)
+        try {
+            await recordOutcome(check, outcome)
+        } catch (err) {
+            console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
+        }
         results.push({check, outcome})
         if (opts.failFast && outcome.status === 'fail') stopScheduling = true
     }
     return results
 }
 
+async function printJsonManifest() {
+    const allChecks = await loadChecks({tierMax: MAX_TIER})
+    process.stdout.write(JSON.stringify(allChecks.map(checkManifestEntry)))
+}
+
+function validateOnly(opts, checks) {
+    if (!opts.only) return null
+    const ids = new Set(checks.map(c => c.id))
+    const unknown = [...opts.only].find(id => !ids.has(id))
+    if (unknown === undefined) return null
+    console.error(`unknown --only id: ${unknown}`)
+    return 2
+}
+
+function formatRunHeader(opts, checks) {
+    const scope = describeScope(opts)
+    const head = `\n  capture-ci-checks · ${checks.length} checks total${scope}\n`
+    const empty = (opts.tierMax !== null && checks.length === 0) ? `\n  no checks at tier <=${opts.tierMax}\n` : ''
+    return `${head}${empty}`
+}
+
+async function runAllChecks(checks, opts) {
+    if (opts.failFast || opts.sequential) return runChecksSequentially(checks, opts)
+    return runChecksInParallel(checks, opts)
+}
+
+function formatFailuresSection(failures) {
+    if (failures.length === 0) return ''
+    const blocks = failures.map(({check, outcome}) => {
+        const body = formatFailureBody(outcome)
+        const bodyLine = body ? `${body}\n` : ''
+        return `  ✗ ${check.id}\n${bodyLine}      report: health-dashboard/reports/checks/${check.id}.json\n`
+    })
+    return `\n  failures:\n\n${blocks.join('\n')}`
+}
+
+// Reports are persisted eagerly per-check by runCheckWithSkip / runChecksSequentially
+// (required so isolated-phase checks can read sibling reports during their own
+// invocation). This pass only renders the result table and counts failures.
+function reportResults(results) {
+    const failures = []
+    for (const {check, outcome} of results) {
+        printRow(check, outcome)
+        if (outcome.status === 'fail') failures.push({check, outcome})
+    }
+    console.log(`${formatFailuresSection(failures)}\n  done · ${failures.length} failing\n`)
+    return failures.length
+}
+
 async function main() {
     const opts = parseArgs(process.argv.slice(2))
-    if (opts.listJson) {
-        const allChecks = await loadChecks({tierMax: MAX_TIER})
-        process.stdout.write(JSON.stringify(allChecks.map(checkManifestEntry)))
-        return 0
-    }
+    if (opts.listJson) { await printJsonManifest(); return 0 }
     const checks = await loadChecks(opts)
-    if (opts.help) {
-        printHelp(checks)
-        return 0
-    }
-
-    if (opts.only) {
-        const ids = new Set(checks.map(c => c.id))
-        for (const id of opts.only) {
-            if (!ids.has(id)) {
-                console.error(`unknown --only id: ${id}`)
-                return 2
-            }
-        }
-    }
-
+    if (opts.help) { printHelp(checks); return 0 }
+    const validationError = validateOnly(opts, checks)
+    if (validationError !== null) return validationError
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
-
-    const scope = describeScope(opts)
-    console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
-    if (opts.tierMax !== null && checks.length === 0) {
-        console.log(`  no checks at tier <=${opts.tierMax}\n`)
-    }
-
-    const results = opts.failFast || opts.sequential
-        ? await runChecksSequentially(checks, opts)
-        : await runChecksInParallel(checks, opts)
-
-    let failed = 0
-    for (const {check, outcome} of results) {
-        if (outcome.status !== 'skip') {
-            try {
-                await recordOutcome(check, outcome)
-            } catch (err) {
-                console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
-            }
-        }
-        printRow(check, outcome)
-        if (outcome.status === 'fail') {
-            failed++
-        }
-    }
-
-    console.log(`\n  done · ${failed} failing\n`)
+    console.log(formatRunHeader(opts, checks))
+    const results = await runAllChecks(checks, opts)
+    const failed = reportResults(results)
     return failed === 0 ? 0 : 1
 }
 

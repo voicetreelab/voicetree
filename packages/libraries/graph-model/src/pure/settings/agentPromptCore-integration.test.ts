@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveEnvVars, expandEnvVarsInValues } from './resolve-environment-variable';
-import { DEFAULT_SETTINGS } from './DEFAULT_SETTINGS';
+import { DEFAULT_SETTINGS } from './settingsRuntime';
 import type { EnvVarValue } from './types';
 
 // ── Realistic test data ─────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ AGENT_NAME = $AGENT_NAME
 CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
 VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
-VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_HOME_PATH = $VOICETREE_HOME_PATH
 VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 </YOUR_ENV_VARS>`;
@@ -97,7 +97,7 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     // Step 2: merge with system-provided vars (simulating buildTerminalEnvVars)
     const unexpandedEnvVars: Record<string, string> = {
       VOICETREE_PROJECT_DIR: '/Users/test/project/.voicetree',
-      VOICETREE_APP_SUPPORT: '/Users/test/Library/Application Support/Voicetree',
+      VOICETREE_HOME_PATH: '/Users/test/Library/Application Support/Voicetree',
       VOICETREE_VAULT_PATH: '/Users/test/project/vault',
       ALL_MARKDOWN_READ_PATHS: '/Users/test/project/vault',
       CONTEXT_NODE_PATH: '/Users/test/project/vault/task-123.md',
@@ -105,7 +105,6 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
       VOICETREE_TERMINAL_ID: 'Ama',
       VOICETREE_CALLER_TERMINAL_ID: 'Ama',
       AGENT_NAME: 'Ama',
-      VOICETREE_MCP_PORT: '3002',
       ...resolvedEnvVars,
     };
 
@@ -127,7 +126,6 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     // Should contain the actual resolved values
     expect(result.AGENT_PROMPT).toContain('/Users/test/project/vault/task-123.md');
     expect(result.AGENT_PROMPT).toContain('Ama');
-    expect(result.AGENT_PROMPT).toContain('3002');
 
     // AGENT_PROMPT should equal AGENT_PROMPT_CORE (since default is just '$AGENT_PROMPT_CORE')
     expect(result.AGENT_PROMPT).toBe(result.AGENT_PROMPT_CORE);

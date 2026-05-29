@@ -22,7 +22,6 @@ function buildInstance(overrides: Partial<DebugInstance> = {}): DebugInstance {
   return {
     pid: 4242,
     projectRoot: '/tmp/example-vault',
-    mcpPort: 3100,
     cdpPort: 9222,
     startedAt: '2026-04-20T00:00:00.000Z',
     ...overrides,
@@ -117,7 +116,7 @@ describe('resolveDebugInstance', () => {
 
   it('launches fresh session with --new even when one exists', async () => {
     const existing = buildInstance({ pid: 1111, cdpPort: 9222 })
-    const launched = buildInstance({ pid: 5252, mcpPort: 3200, cdpPort: 9333 })
+    const launched = buildInstance({ pid: 5252, cdpPort: 9333 })
     const deps = buildDeps({
       allocatePort: vi.fn(async () => launched.cdpPort),
       listInstances: vi
@@ -133,7 +132,7 @@ describe('resolveDebugInstance', () => {
   })
 
   it('auto-launches a dev session on a free port when no registered instances exist', async () => {
-    const launched = buildInstance({ pid: 5252, mcpPort: 3200, cdpPort: 9333 })
+    const launched = buildInstance({ pid: 5252, cdpPort: 9333 })
     const deps = buildDeps({
       allocatePort: vi.fn(async () => launched.cdpPort),
       listInstances: vi

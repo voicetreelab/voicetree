@@ -36,7 +36,6 @@ export type Command =
       searchFromNode?: string
     }
   | { type: 'GetWatchedDirectory' }
-  | { type: 'InitializeGraphModel'; appSupportPath: string }
   | { type: 'PerformRedo' }
   | { type: 'PerformUndo' }
   | { type: 'ReadVaultState' }
@@ -46,6 +45,7 @@ export type Command =
   | { type: 'PublishDelta'; delta: GraphDelta; source: string }
   | { type: 'ReadGraph' }
   | { type: 'ReadGraphNode'; nodeId: string }
+  | { type: 'ReconcileGraphWithDisk' }
   | { type: 'SetGraph'; graph: Graph }
   | { type: 'SetVaultWriteFolder'; path: string }
   | {
@@ -65,13 +65,13 @@ export type CommandOutput = {
   GetPreviewContainedNodeIds: readonly string[]
   GetUnseenNodesAroundContextNode: unknown
   GetWatchedDirectory: string | null | undefined
-  InitializeGraphModel: void
   PerformRedo: boolean
   PerformUndo: boolean
   ProjectAndBroadcast: void
   PublishDelta: void
   ReadGraph: Graph
   ReadGraphNode: GraphNode | undefined
+  ReconcileGraphWithDisk: GraphDelta
   ReadVaultState: VaultState
   RegistryTouch: void
   RemoveVaultReadPath: { readonly success: boolean; readonly error?: string }

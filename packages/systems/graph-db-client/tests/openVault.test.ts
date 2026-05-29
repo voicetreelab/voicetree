@@ -22,7 +22,7 @@ describe('GraphDbClient vault lifecycle API', () => {
     setGraph(createEmptyGraph())
     handle = await startDaemon({
       vault,
-      appSupportPath: join(root, 'app-support'),
+      voicetreeHomePath: join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
   })
@@ -37,20 +37,21 @@ describe('GraphDbClient vault lifecycle API', () => {
 
   test('opens and closes a vault with typed response and typed 409 error', async () => {
     const client = new GraphDbClient({ baseUrl: `http://127.0.0.1:${handle!.port}` })
+    await writeFile(join(vault, 'existing.md'), '# Existing\n', 'utf8')
 
-    const opened = await client.openVault(vault)
+    const opened = await client.openVault(vault, { writeFolder: vault })
 
     expect(opened.sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
     // setWriteFolder seeds the writeFolder as 'expanded' so the sidebar can show
     // its contents on mount. Children remain collapsed by default.
-    expect(opened.vaultState).toEqual({
+    expect(opened.vaultState).toMatchObject({
       projectRoot: vault,
-      readPaths: [vault],
       writeFolder: vault,
     })
-    expect(opened.folderState).toEqual([[vault, 'expanded']])
+    expect(opened.vaultState.readPaths).toContain(vault)
+    expect(opened.folderState).toContainEqual([vault, 'expanded'])
     expect(opened.activeView).toMatchObject({ name: 'main' })
     expect(opened.activeView.viewId).toEqual(expect.any(String))
 

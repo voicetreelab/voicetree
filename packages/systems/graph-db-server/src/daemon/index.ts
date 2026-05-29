@@ -6,8 +6,4 @@ export {
   HEARTBEAT_INTERVAL_MS,
   type DaemonOwnerHandle,
 } from './lifecycle/daemonOwnerLifecycle.ts'
-export {
-  ownerRecordPathFor,
-  readOwnerRecord,
-} from './ownerRecord.ts'
 export { startDaemon, type DaemonHandle, type StartDaemonOptions } from './server.ts'

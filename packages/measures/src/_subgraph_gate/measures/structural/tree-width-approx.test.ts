@@ -15,9 +15,9 @@ import {describe, expect, it} from 'vitest'
 import {
     treeWidthApproxMeasure,
     treeWidthUpperBound,
-    TREE_WIDTH_ABSOLUTE_BUDGET,
+    TREE_WIDTH_THRESHOLD,
 } from './tree-width-approx.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 describe('treeWidthUpperBound (pure)', () => {
     it('returns 0 for ≤1 vertex', () => {
@@ -118,7 +118,7 @@ describe('tree-width-approx (subgraph measure)', () => {
         const sub = makeSyntheticSubgraph({files, edges})
 
         const result = await treeWidthApproxMeasure.run({changedFiles: [], parsedSubgraph: sub})
-        expect(result.perCommunity[`${pkg}/tangle`]).toBeGreaterThan(TREE_WIDTH_ABSOLUTE_BUDGET)
+        expect(result.perCommunity[`${pkg}/tangle`]).toBeGreaterThan(TREE_WIDTH_THRESHOLD)
         expect(result.violations.length).toBe(1)
         expect(result.violations[0].severity).toBe('fail')
     })

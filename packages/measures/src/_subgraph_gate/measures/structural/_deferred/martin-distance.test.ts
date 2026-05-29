@@ -19,7 +19,7 @@ import {
     martinDistanceMeasure,
     MARTIN_DISTANCE_FAIL,
 } from './martin-distance.ts'
-import {buildTempRepo, type Fixture} from '../_tempdir-fixture.ts'
+import {buildTempRepo, type Fixture} from '../test-support/tempdir-fixture.ts'
 
 const cleanups: Fixture[] = []
 afterAll(async () => {

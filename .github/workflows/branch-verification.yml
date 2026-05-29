@@ -70,7 +70,7 @@ jobs:
       - name: Run browser Tier 2 E2E (critical_for_verification)
         timeout-minutes: 10
         working-directory: webapp
-        run: npx playwright test --config=playwright-ci-smoke.config.ts --reporter=line
+        run: npx playwright test --config=playwright-ci-smoke.config.ts
 
       - name: Upload Playwright artifacts on failure
         if: failure()
@@ -85,7 +85,7 @@ jobs:
       - name: Run browser Tier 2 E2E
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
         timeout-minutes: 25
-        run: npm --workspace webapp run test:browser -- --reporter=line
+        run: npm --workspace webapp run test:browser
 
       - name: Run Electron Tier 2 E2E
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
@@ -148,8 +148,7 @@ jobs:
           PLAYWRIGHT_QUIET: 'false'
         run: |
           xvfb-run --auto-servernum npx playwright test \
-            --config=playwright-tier1-system.config.ts \
-            --reporter=list
+            --config=playwright-tier1-system.config.ts
 
       - name: Upload Electron test artifacts on failure
         if: failure()

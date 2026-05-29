@@ -1,6 +1,5 @@
 import { test as base, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
-import type { EditorView } from '@codemirror/view'
 import type { Core as CytoscapeCore } from 'cytoscape'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
@@ -15,6 +14,12 @@ import {
   robustElectronTeardown,
   safeStopFileWatching,
 } from './electron-smoke-helpers'
+import {
+  focusEditorInstance,
+  getEditorInstanceId,
+  readEditorValue,
+  waitForEditorInstance,
+} from './helpers/editor-instance'
 
 const PROJECT_ROOT = path.resolve(process.cwd())
 const ITERATIONS = 30
@@ -24,10 +29,6 @@ const P99_BUDGET_MS = 750
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore
   electronAPI?: ElectronAPI
-}
-
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: EditorView }
 }
 
 function idSelector(id: string): string {
@@ -153,23 +154,13 @@ const test = base.extend<{
   appWindow: async ({ electronApp, projectPath }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 })
     await window.waitForLoadState('domcontentloaded')
-    let autoLoaded = false
-    try {
-      await pollForCytoscape(window, 3_000)
-      autoLoaded = true
-    } catch {
-      // Fall through to manual project selection.
-    }
-    if (!autoLoaded) {
-      await window.waitForSelector('text=Recent Projects', { timeout: 10_000 })
-      await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click()
-      const watchResult = await window.evaluate(async (dir) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI
-        if (!api) throw new Error('electronAPI not available')
-        return await api.main.startFileWatching(dir)
-      }, projectPath)
-      expect(watchResult.success, 'startFileWatching failed').toBe(true)
-    }
+    const openResult = await window.evaluate(async (dir) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI
+      if (!api) throw new Error('electronAPI not available')
+      const response = await api.main.openVault(dir)
+      return { writeFolder: response.writeFolder }
+    }, projectPath)
+    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy()
     await pollForCytoscape(window, 30_000)
     await pollForCytoscapeNodes(window, 1, 20_000)
     await pollForCondition(window, async () => {
@@ -207,15 +198,17 @@ test('keystroke-to-graph-label update stays within the editor FS write latency b
   })
 
   const editorWindowId = `window-${nodeId}-editor`
+  const editorInstanceId = getEditorInstanceId(nodeId)
   const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`)
   await editorContent.waitFor({ state: 'visible', timeout: 5_000 })
+  await waitForEditorInstance(appWindow, editorInstanceId)
+  await focusEditorInstance(appWindow, editorInstanceId)
 
   await expect.poll(async () => {
     return await appWindow.evaluate((winId) => {
       const windowElement = document.getElementById(winId)
       windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null
-      editorElement?.cmView?.view.focus()
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`)
       return document.activeElement === editorElement ||
         Boolean(document.activeElement?.closest('.cm-editor'))
     }, editorWindowId)
@@ -234,12 +227,7 @@ test('keystroke-to-graph-label update stays within the editor FS write latency b
     await appWindow.keyboard.type(nextContent)
     const t0 = performance.now()
 
-    await expect.poll(async () => {
-      return await appWindow.evaluate((winId) => {
-        const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null
-        return editorElement?.cmView?.view.state.doc.toString() ?? null
-      }, editorWindowId)
-    }, {
+    await expect.poll(async () => readEditorValue(appWindow, editorInstanceId), {
       message: `Waiting for editor buffer ${expectedLabel}`,
       timeout: 3_000,
       intervals: [25, 50, 100, 200],

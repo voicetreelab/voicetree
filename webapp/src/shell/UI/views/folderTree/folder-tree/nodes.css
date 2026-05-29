@@ -1,0 +1,218 @@
+/* ============================================================================
+ * Folder Node
+ * ============================================================================ */
+
+.folder-tree-folder {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--foreground);
+    border-radius: 4px;
+    margin: 1px 4px;
+}
+
+.folder-tree-folder:hover {
+    background: var(--accent);
+}
+
+.folder-tree-folder.not-loaded {
+    opacity: 0.45;
+}
+
+.folder-tree-folder.not-loaded:hover {
+    opacity: 0.7;
+}
+
+/* Depth indentation */
+.folder-tree-folder[data-depth="1"],
+.folder-tree-file[data-depth="1"] { padding-left: 20px; }
+.folder-tree-folder[data-depth="2"],
+.folder-tree-file[data-depth="2"] { padding-left: 32px; }
+.folder-tree-folder[data-depth="3"],
+.folder-tree-file[data-depth="3"] { padding-left: 44px; }
+.folder-tree-folder[data-depth="4"],
+.folder-tree-file[data-depth="4"] { padding-left: 56px; }
+.folder-tree-folder[data-depth="5"],
+.folder-tree-file[data-depth="5"] { padding-left: 68px; }
+
+.folder-tree-expand-icon {
+    font-size: 8px;
+    width: 12px;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+}
+
+.folder-tree-folder-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* Path tag (subtle absolute path for parent folders) */
+.folder-tree-path-tag {
+    font-size: 9px;
+    color: var(--muted-foreground);
+    opacity: 0.45;
+    margin-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.folder-tree-write-icon {
+    font-size: 11px;
+    margin-left: 4px;
+    flex-shrink: 0;
+    color: #f59e0b;
+}
+
+.folder-tree-set-write-btn {
+    font-size: 11px;
+    margin-left: 4px;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.folder-tree-folder:hover .folder-tree-set-write-btn {
+    opacity: 0.5;
+}
+
+.folder-tree-set-write-btn:hover {
+    opacity: 1 !important;
+    color: #f59e0b;
+}
+
+/* Graph collapse state indicator dot */
+.folder-tree-graph-collapse-icon {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-left: 3px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.folder-tree-graph-collapse-icon.expanded {
+    background: #60a5fa;
+}
+
+.folder-tree-graph-collapse-icon.collapsed {
+    border: 1px solid #60a5fa;
+    background: transparent;
+}
+
+.folder-tree-graph-collapse-icon:hover {
+    transform: scale(1.3);
+}
+
+/* Load state indicator dot */
+.folder-tree-load-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-left: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.folder-tree-load-indicator.loaded {
+    background: #22c55e;
+}
+
+.folder-tree-load-indicator.not-loaded {
+    border: 1px solid var(--muted-foreground);
+    background: transparent;
+    opacity: 0.4;
+}
+
+.folder-tree-load-indicator:hover {
+    opacity: 1;
+    transform: scale(1.3);
+}
+
+/* ============================================================================
+ * New Folder Inline Input
+ * ============================================================================ */
+
+.folder-tree-new-folder-input-row {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    margin: 1px 4px;
+    font-size: 11px;
+}
+
+.folder-tree-new-folder-input-row[data-depth="1"] { padding-left: 20px; }
+.folder-tree-new-folder-input-row[data-depth="2"] { padding-left: 32px; }
+.folder-tree-new-folder-input-row[data-depth="3"] { padding-left: 44px; }
+.folder-tree-new-folder-input-row[data-depth="4"] { padding-left: 56px; }
+.folder-tree-new-folder-input-row[data-depth="5"] { padding-left: 68px; }
+
+.folder-tree-new-folder-input {
+    flex: 1;
+    padding: 2px 4px;
+    font-size: 11px;
+    border: 1px solid var(--ring);
+    border-radius: 3px;
+    background: var(--card);
+    color: var(--foreground);
+    outline: none;
+    min-width: 0;
+}
+
+.folder-tree-new-folder-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+}
+
+/* ============================================================================
+ * File Node
+ * ============================================================================ */
+
+.folder-tree-file {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--foreground);
+    border-radius: 4px;
+    margin: 1px 4px;
+}
+
+.folder-tree-file:hover {
+    background: var(--accent);
+}
+
+.folder-tree-file.not-loaded {
+    opacity: 0.45;
+}
+
+.folder-tree-file-icon {
+    font-size: 6px;
+    width: 12px;
+    flex-shrink: 0;
+    text-align: center;
+    color: var(--muted-foreground);
+}
+
+.folder-tree-file.in-graph .folder-tree-file-icon {
+    color: #3b82f6;
+}
+
+.folder-tree-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}

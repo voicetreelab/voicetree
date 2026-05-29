@@ -4,6 +4,9 @@ import { createRequire } from 'node:module'
 import path from 'path'
 
 const require = createRequire(import.meta.url)
+// TODO: drop the .worktrees handling below once migrate-worktrees-to-sibling.sh
+// has run and .worktrees/ is empty. Sibling vt-wts/ is outside the repo root,
+// so vitest never walks into it.
 const pathSegments = process.cwd().split(/[\\/]+/)
 const isRunningInsideWorktree = pathSegments.includes('.worktrees')
 const sharedExclude = [
@@ -25,11 +28,12 @@ const nestedGitRootExcludes = (root: string): string[] => {
   const excludedDirNames = new Set([
     'node_modules',
     '.git',
-    '.worktrees',
     'dist',
     'dist-electron',
     'out',
     'build',
+    // TODO: drop post-migration; see comment above.
+    '.worktrees',
   ])
   const found: string[] = []
   const readDirectories = (absDir: string) => {
@@ -93,6 +97,14 @@ export default defineConfig({
       'default',
       [ciCheckReporter, ciCheck],
     ],
+    // Cap concurrency: vitest defaults to availableParallelism(), which on the
+    // 14-core devbox + 15 GB RAM with no swap = ~14 workers × ~1.3 GB each =
+    // OOM cascade that reaps systemd. 4 is the safe ceiling (~6 GB peak).
+    pool: 'forks',
+    poolOptions: {
+      forks: { maxForks: 4 },
+      threads: { maxThreads: 4 },
+    },
     // Codebase-health tests parse the whole repo and can exceed the default 5s
     // budget under parallel-worker CPU contention.
     testTimeout: 30_000,

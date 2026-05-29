@@ -6,6 +6,10 @@ import { createEmptyGraph } from '@vt/graph-model'
 import { clearWatchFolderState } from '../../../state/watch-folder-store.ts'
 import { setGraph } from '../../../state/graph-store.ts'
 import { startDaemon, type DaemonHandle } from '../../../daemon/server.ts'
+import {
+  beginVaultOpen,
+  completeVaultOpen,
+} from '../../../application/workflows/vaultOpenGate.ts'
 
 async function makeTempDir(prefix: string): Promise<string> {
   return await mkdtemp(join(tmpdir(), prefix))
@@ -13,16 +17,16 @@ async function makeTempDir(prefix: string): Promise<string> {
 
 describe('vault routes', () => {
   let vault: string
-  let appSupportPath: string
+  let voicetreeHomePath: string
   let handles: DaemonHandle[]
-  let originalAppSupportPath: string | undefined
+  let originalVoicetreeHomePath: string | undefined
 
   beforeEach(async () => {
     vault = await makeTempDir('graphd-vault-')
-    appSupportPath = await makeTempDir('graphd-app-support-')
+    voicetreeHomePath = await makeTempDir('graphd-app-support-')
     handles = []
-    originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
-    process.env.VOICETREE_APP_SUPPORT = appSupportPath
+    originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     clearWatchFolderState()
     setGraph(createEmptyGraph())
   })
@@ -34,13 +38,13 @@ describe('vault routes', () => {
     handles = []
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    if (originalAppSupportPath === undefined) {
-      delete process.env.VOICETREE_APP_SUPPORT
+    if (originalVoicetreeHomePath === undefined) {
+      delete process.env.VOICETREE_HOME_PATH
     } else {
-      process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+      process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
     }
     await rm(vault, { recursive: true, force: true })
-    await rm(appSupportPath, { recursive: true, force: true })
+    await rm(voicetreeHomePath, { recursive: true, force: true })
   })
 
   const start = async (): Promise<DaemonHandle> => {
@@ -55,14 +59,13 @@ describe('vault routes', () => {
     const response = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
-    // setWriteFolder seeds the active view's folder-visibility table with the
-    // writeFolder itself (so the sidebar can show the writeFolder's contents on
-    // mount). Children default collapsed — only the writeFolder row appears.
-    expect(await response.json()).toEqual({
-      projectRoot: vault,
-      readPaths: [vault],
-      writeFolder: vault,
-    })
+    // Cold start of a fresh project root with no saved config defaults the
+    // writeFolder to a `voicetree-{day}-{month}` subfolder so we never load
+    // the whole project root as a single graph — see resolveDefaultWriteFolder.
+    const body = await response.json() as { projectRoot: string; readPaths: string[]; writeFolder: string }
+    expect(body.projectRoot).toBe(vault)
+    expect(body.writeFolder).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolder]))
   })
 
   test('PUT /vault/write-path updates the write path', async () => {
@@ -109,6 +112,49 @@ describe('vault routes', () => {
       projectRoot: vault,
       writeFolder: outPath,
     })
+  })
+
+  test('GET /vault waits for an in-flight openVaultWorkflow before reading state', async () => {
+    const handle = await start()
+
+    // Simulate an in-flight open by flipping the gate on directly. The daemon
+    // has already finished its startup open, so projectRoot IS set — but the
+    // gate forces readers to await completion regardless. This proves the
+    // wiring: a renderer landing here mid vault-switch will not race onto the
+    // bare `getProjectRoot()` check.
+    beginVaultOpen()
+
+    let readResolved = false
+    const reader = fetch(`http://127.0.0.1:${handle.port}/vault`).then(
+      async (response): Promise<unknown> => {
+        readResolved = true
+        return await response.json()
+      },
+    )
+
+    // Yield to the event loop so the read is unambiguously waiting.
+    await new Promise<void>((resolve): void => {
+      setTimeout(resolve, 50)
+    })
+    expect(readResolved).toBe(false)
+
+    completeVaultOpen()
+    const body = await reader as { projectRoot: string; readPaths: string[]; writeFolder: string }
+    expect(readResolved).toBe(true)
+    expect(body.projectRoot).toBe(vault)
+    expect(body.writeFolder).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolder]))
+  })
+
+  test('GET /vault still 409s when no vault is open and no open is pending', async () => {
+    // Start a daemon WITHOUT a vault: HTTP up, projectRoot null, gate empty.
+    const vaultless = await startDaemon({})
+    handles.push(vaultless)
+
+    const response = await fetch(`http://127.0.0.1:${vaultless.port}/vault`)
+    expect(response.status).toBe(409)
+    const body = await response.json() as { error?: { code?: string } }
+    expect(body.error?.code).toBe('vault_not_open')
   })
 
 })

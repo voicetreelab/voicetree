@@ -11,6 +11,7 @@
 
 import { app } from 'electron';
 import path from 'path';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 // ============================================================================
 // Types
@@ -22,7 +23,7 @@ type CommonEnv = {
   readonly nodeEnv: NodeEnv;
   readonly isPackaged: boolean;
   readonly isTest: boolean;
-  readonly userDataPath: string;  // Application Support directory
+  readonly userDataPath: string;
 };
 
 export type BuildConfig = {
@@ -40,8 +41,14 @@ export type BuildConfig = {
   readonly shouldCopyTools: boolean;
 
   // Per-project .voicetree/ source paths (for copy-on-first-open)
-  readonly promptsSource: string;      // tools/prompts/*.md
+  readonly promptsSource: string;      // packages/systems/voicetree-cli/prompts/*.md
   readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
+  // Absolute path to the `@voicetree/cli` package root on disk. Spawn-time
+  // PATH injection (resolveVtBinDir + prependVtBinToPath) reads `bin/vt`
+  // from inside this directory. Null when this build cannot locate the CLI
+  // (e.g. a packaged Electron build that did not bundle voicetree-cli);
+  // PATH injection then no-ops gracefully.
+  readonly voicetreeCliPackageDir: string | null;
 
   // Server binary absolutePath (production only)
   readonly serverBinaryPath: string | null;
@@ -71,7 +78,7 @@ function getCommonEnv(): CommonEnv {
   const nodeEnv: NodeEnv = (process.env.NODE_ENV ?? 'production') as NodeEnv;
   const isTest: boolean = process.env.HEADLESS_TEST === '1' || nodeEnv === 'test';
   const isPackaged: boolean = app.isPackaged;
-  const userDataPath: string = app.getPath('userData');
+  const userDataPath: string = resolveVoicetreeHomePath();
 
   return {
     nodeEnv,
@@ -108,8 +115,9 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
     shouldCopyTools: !commonEnv.isTest,
 
     // Per-project .voicetree/ sources
-    promptsSource: path.join(rootDir, 'tools', 'prompts'),
+    promptsSource: path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts'),
     hookScriptsSource: path.join(rootDir, 'scripts'),
+    voicetreeCliPackageDir: path.join(rootDir, 'packages', 'systems', 'voicetree-cli'),
   };
 }
 
@@ -141,9 +149,26 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     : path.join(rootDir, 'backend');
 
   // Per-project .voicetree/ sources
+  // TODO(milestone-d): wire `packages/systems/voicetree-cli/prompts` into the
+  // packaged-app `extraResources` so this resolves under process.resourcesPath
+  // in production. For now, packaged builds reuse the legacy `tools/prompts`
+  // copy that the build scripts staged before Milestone B; unpackaged dev/prod
+  // reads directly from the new package source tree.
   const promptsSource: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'tools', 'prompts')
-    : path.join(rootDir, 'tools', 'prompts');
+    : path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts');
+
+  // TODO(packaging-followup): wire `packages/systems/voicetree-cli/` (the bin
+  // script + the `dist/voicetree-cli.js` bundle produced by `npm run build`)
+  // into the packaged-app `extraResources` so this resolves under
+  // process.resourcesPath in production. Until that lands, packaged builds
+  // leave the CLI package dir null and spawned agents fall through the
+  // no-op PATH injection — they can still reach the daemon via
+  // VOICETREE_DAEMON_URL but cannot call `vt` as a bare command.
+  // Unpackaged dev/prod resolves directly to the monorepo source.
+  const voicetreeCliPackageDir: string | null = commonEnv.isPackaged
+    ? null
+    : path.join(rootDir, 'packages', 'systems', 'voicetree-cli');
 
   const hookScriptsSource: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'scripts')
@@ -167,5 +192,6 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     // Per-project .voicetree/ sources
     promptsSource,
     hookScriptsSource,
+    voicetreeCliPackageDir,
   };
 }

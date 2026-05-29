@@ -1,18 +1,54 @@
 import { expect } from "@playwright/test";
-import * as fs from "fs/promises";
 import {
   REPO_ROOT,
   type ExtendedWindow,
   expectNoCriticalElectronErrors,
-  mcpCallTool,
-  mcpRequest,
-  waitForMcpServer,
 } from "./electron-smoke-helpers";
 import {
   cleanupAnchorTestTerminals,
+  type RpcAccess,
   test,
-  readAnchorState,
 } from "./electron-anchor-test-fixtures";
+import {
+  getBearerToken,
+  getDaemonRpcUrl,
+  rpcCallTool,
+} from "./helpers/e2e-rpc-helpers";
+
+type WireOption<T> =
+  | { readonly _tag: "Some"; readonly value: T }
+  | { readonly _tag: "None" };
+
+type WireTerminalRecord = {
+  readonly terminalId: string;
+  readonly terminalData: {
+    readonly anchoredToNodeId: WireOption<string>;
+  };
+};
+
+async function fetchTerminalRecords(
+  rpc: RpcAccess,
+): Promise<readonly WireTerminalRecord[]> {
+  const result = await rpcCallTool(
+    rpc.rpcUrl,
+    rpc.token,
+    "getTerminalRecords",
+    {},
+  );
+  // `getTerminalRecords` returns a JSON-stringified `TerminalRecord[]` —
+  // normaliseRpcResult unwraps the MCP envelope and parses it as a single
+  // object whose shape is `{ "0": rec0, "1": rec1, ... }` only when the
+  // payload was an array (JSON.parse(JSON.stringify([...])) is still an
+  // array — the wrapper preserves arrays).
+  return result.parsed as unknown as readonly WireTerminalRecord[];
+}
+
+function findAnchoredRecord(
+  records: readonly WireTerminalRecord[],
+  terminalId: string,
+): WireTerminalRecord | undefined {
+  return records.find((record) => record.terminalId === terminalId);
+}
 
 test.describe("spawn_agent terminal anchoring", () => {
   test.describe.configure({ timeout: process.env.CI ? 120_000 : 90_000 });
@@ -22,31 +58,25 @@ test.describe("spawn_agent terminal anchoring", () => {
     fixtureVaultPath,
     electronDiagnostics,
   }) => {
-    let mcpUrl: string | null = null;
-    const callerTerminalId = "e2e-anchor-caller";
+    let rpc: RpcAccess | null = null;
+    let callerTerminalId: string | null = null;
     let spawnedTerminalId: string | null = null;
 
     try {
-      const mcpPort = await appWindow.evaluate(async () => {
+      rpc = {
+        rpcUrl: await getDaemonRpcUrl(appWindow),
+        token: await getBearerToken(appWindow),
+      };
+
+      // Bind the daemon to the fixture vault. openVault throws on failure and
+      // returns the resolved write folder on success.
+      const openResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
-        return await api.main.getMcpPort();
-      });
-      mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-      expect(await waitForMcpServer(mcpUrl)).toBe(true);
-
-      await mcpRequest(mcpUrl, "initialize", {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "spawn-anchor-e2e", version: "1.0.0" },
-      });
-
-      const watchResult = await appWindow.evaluate(async (projectRoot) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
-        return await api.main.startFileWatching(projectRoot);
+        const response = await api.main.openVault(projectRoot);
+        return { writeFolder: response.writeFolder };
       }, fixtureVaultPath);
-      expect(watchResult.success).toBe(true);
+      expect(openResult.writeFolder, "openVault returned no writeFolder").toBeTruthy();
 
       await expect
         .poll(
@@ -60,7 +90,7 @@ test.describe("spawn_agent terminal anchoring", () => {
           },
           {
             message:
-              "Waiting for graph state after explicit file watching start",
+              "Waiting for graph state after openVault bound the daemon",
             timeout: 15_000,
             intervals: [250, 500, 1000],
           },
@@ -76,64 +106,49 @@ test.describe("spawn_agent terminal anchoring", () => {
         return nodeIds[0];
       });
 
+      // Spawn the caller terminal via the daemon-owned spawn surface. The
+      // fixture registers a long-lived "Fake Agent" as the default agent, so
+      // the spawn parks a real terminal in the registry that MCP `spawn_agent`
+      // can target with the returned `callerTerminalId`.
       const callerSpawn = await appWindow.evaluate(
-        async ({ callerTerminalId, parentNodeId }) => {
+        async ({ parentNodeId }) => {
           const api = (window as ExtendedWindow).electronAPI;
-          if (!api?.terminal)
-            throw new Error("electronAPI.terminal not available");
-          return await api.terminal.spawn({
-            type: "Terminal",
-            terminalId: callerTerminalId,
-            attachedToContextNodeId: parentNodeId,
+          if (!api) throw new Error("electronAPI not available");
+          return await api.main.spawnTerminalWithContextNode({
+            taskNodeId: parentNodeId,
             terminalCount: 0,
-            title: "E2E Anchor Caller",
-            anchoredToNodeId: { _tag: "None" },
-            shadowNodeDimensions: { width: 600, height: 400 },
-            resizable: true,
-            initialCommand: "sleep 120",
-            executeCommand: true,
-            isPinned: true,
-            isDone: false,
-            lastOutputTime: Date.now(),
-            activityCount: 0,
-            parentTerminalId: null,
-            agentName: callerTerminalId,
-            worktreeName: undefined,
-            isHeadless: false,
           });
         },
-        { callerTerminalId, parentNodeId },
+        { parentNodeId },
       );
-      expect(callerSpawn.success).toBe(true);
+      callerTerminalId = callerSpawn.terminalId;
+      expect(callerTerminalId, "caller spawnTerminalWithContextNode returned no terminalId").toBeTruthy();
+      const liveCallerTerminalId: string = callerTerminalId;
 
+      // `spawn_agent` resolves the caller via `listTerminalRecords()`, which
+      // omits the `pending` state. We must wait until the caller graduates
+      // from pending to a full registry record before invoking spawn_agent.
       await expect
         .poll(
           async () => {
-            const listResult = await mcpCallTool(
-              mcpUrl as string,
-              "list_agents",
-              {},
-            );
-            const agents = (
-              listResult.parsed as { agents: Array<{ terminalId: string }> }
-            ).agents;
-            return agents.some(
-              (agent) => agent.terminalId === callerTerminalId,
+            const records = await fetchTerminalRecords(rpc!);
+            return records.some(
+              (record) => record.terminalId === liveCallerTerminalId,
             );
           },
           {
             message:
-              "Waiting for caller terminal to register before MCP spawn_agent",
-            timeout: 10_000,
-            intervals: [250, 500, 1000],
+              "Waiting for caller terminal record (non-pending) before /rpc spawn_agent",
+            timeout: 30_000,
+            intervals: [250, 500, 1000, 2000],
           },
         )
         .toBe(true);
 
-      const spawnResult = await mcpCallTool(mcpUrl, "spawn_agent", {
+      const spawnResult = await rpcCallTool(rpc.rpcUrl, rpc.token, "spawn_agent", {
         task: "E2E spawned terminal anchor task",
         parentNodeId,
-        callerTerminalId,
+        callerTerminalId: liveCallerTerminalId,
         agentName: "Fake Agent",
         spawnDirectory: REPO_ROOT,
         depthBudget: 0,
@@ -152,127 +167,40 @@ test.describe("spawn_agent terminal anchoring", () => {
       expect(spawnPayload.taskNodeId).toBeTruthy();
       spawnedTerminalId = spawnPayload.terminalId;
 
-      await appWindow.evaluate((nodeId) => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        if (!cy) throw new Error("Cytoscape not initialized");
-        const previousTimer = (
-          window as unknown as { __anchorRemovalTimer?: number }
-        ).__anchorRemovalTimer;
-        if (previousTimer) window.clearInterval(previousTimer);
-        const removeRenderedTaskNode = () => {
-          cy.remove(cy.getElementById(nodeId));
-        };
-        removeRenderedTaskNode();
-        const timer = window.setInterval(removeRenderedTaskNode, 50);
-        (
-          window as unknown as { __anchorRemovalTimer?: number }
-        ).__anchorRemovalTimer = timer;
-        window.setTimeout(() => {
-          window.clearInterval(timer);
-          (
-            window as unknown as { __anchorRemovalTimer?: number }
-          ).__anchorRemovalTimer = undefined;
-        }, 4_000);
-      }, spawnPayload.taskNodeId);
-
+      // BF-376 phase 2: the daemon owns the terminal registry. The
+      // public anchor surface is `TerminalRecord.terminalData.anchoredToNodeId`
+      // (fp-ts Option, wire-encoded as `{ _tag: 'Some'|'None', value? }`).
+      // Poll `getTerminalRecords` until the spawned terminal appears with
+      // its anchor set to the freshly created task node — this is the
+      // exact contract the renderer's anchor projection consumes.
       await expect
         .poll(
           async () => {
-            return await appWindow.evaluate((nodeId) => {
-              const cy = (window as unknown as ExtendedWindow)
-                .cytoscapeInstance;
-              return (cy?.getElementById(nodeId).length ?? 0) === 0;
-            }, spawnPayload.taskNodeId);
+            const records = await fetchTerminalRecords(rpc!);
+            const record = findAnchoredRecord(records, spawnPayload.terminalId);
+            if (!record) return null;
+            const anchor = record.terminalData.anchoredToNodeId;
+            return anchor._tag === "Some" ? anchor.value : null;
           },
           {
             message:
-              "Waiting for the task node to be absent from Cytoscape before spawn",
-            timeout: 15_000,
-            intervals: [250, 500, 1000],
-          },
-        )
-        .toBe(true);
-
-      await expect
-        .poll(
-          async () => {
-            const state = await readAnchorState(
-              appWindow,
-              spawnPayload.terminalId,
-              spawnPayload.taskNodeId,
-            );
-            return state.terminalExists;
-          },
-          {
-            message:
-              "Waiting for spawned terminal to appear while the task node is absent from Cytoscape",
-            timeout: 15_000,
-            intervals: [250, 500, 1000],
-          },
-        )
-        .toBe(true);
-
-      await appWindow.waitForTimeout(4_200);
-
-      await fs.writeFile(
-        spawnPayload.taskNodeId,
-        `# E2E spawned terminal anchor task\n\nUpdated after spawn_agent so the watcher projects this task node back into Cytoscape.\n\n${Date.now()}\n`,
-        "utf8",
-      );
-
-      await expect
-        .poll(
-          async () => {
-            const state = await readAnchorState(
-              appWindow,
-              spawnPayload.terminalId,
-              spawnPayload.taskNodeId,
-            );
-            return (
-              state.taskNodeInCy &&
-              state.terminalExists &&
-              state.left !== "100px" &&
-              state.top !== "100px" &&
-              state.shadowExists &&
-              state.edgeExists &&
-              state.edgeSource === spawnPayload.taskNodeId &&
-              state.edgeTarget ===
-                `${spawnPayload.terminalId}-anchor-shadowNode`
-            );
-          },
-          {
-            message:
-              "Waiting for spawned terminal to anchor after the task node re-enters Cytoscape",
+              "Waiting for spawned terminal record with anchoredToNodeId == taskNodeId",
             timeout: 30_000,
             intervals: [250, 500, 1000, 2000],
           },
         )
-        .toBe(true);
-
-      const anchorState = await readAnchorState(
-        appWindow,
-        spawnPayload.terminalId,
-        spawnPayload.taskNodeId,
-      );
-      expect(anchorState).toMatchObject({
-        taskNodeInCy: true,
-        terminalExists: true,
-        shadowExists: true,
-        edgeExists: true,
-        edgeSource: spawnPayload.taskNodeId,
-        edgeTarget: `${spawnPayload.terminalId}-anchor-shadowNode`,
-      });
-      expect(anchorState.left).not.toBe("100px");
-      expect(anchorState.top).not.toBe("100px");
+        .toBe(spawnPayload.taskNodeId);
 
       expectNoCriticalElectronErrors(electronDiagnostics);
     } finally {
-      await cleanupAnchorTestTerminals(
-        appWindow,
-        mcpUrl,
-        [spawnedTerminalId, callerTerminalId],
-        callerTerminalId,
-      );
+      if (callerTerminalId) {
+        await cleanupAnchorTestTerminals(
+          appWindow,
+          rpc,
+          [spawnedTerminalId, callerTerminalId],
+          callerTerminalId,
+        );
+      }
     }
   });
 });

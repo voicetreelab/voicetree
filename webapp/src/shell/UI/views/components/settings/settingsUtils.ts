@@ -2,13 +2,14 @@ import { SETTINGS_SCHEMA } from '@vt/graph-model/settings';
 import type { Section, NumberFieldConfig } from '@vt/graph-model/settings';
 
 export type { Section, NumberFieldConfig };
-export type FieldType = 'toggle' | 'number' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group';
+export type FieldType = 'toggle' | 'number' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group' | 'layout-config';
 
 export function inferFieldType(key: string, value: unknown): FieldType {
     if (key === 'hotkeys') return 'hotkey-group';
     if (key === 'agents') return 'agent-list';
     if (key === 'hooks') return 'hook-group';
     if (key === 'INJECT_ENV_VARS') return 'key-value';
+    if (key === 'layoutConfig') return 'layout-config';
     if (typeof value === 'boolean') return 'toggle';
     if (typeof value === 'number') return 'number';
     if (typeof value === 'string' && (value.includes('\n') || value.length > 100)) return 'textarea';

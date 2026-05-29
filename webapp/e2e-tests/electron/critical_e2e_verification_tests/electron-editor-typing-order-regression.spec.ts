@@ -1,6 +1,5 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
-import type { EditorView } from '@codemirror/view';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -9,6 +8,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
 import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes, pollForCondition } from './electron-smoke-helpers';
+import {
+  focusEditorInstance,
+  getEditorInstanceId,
+  readEditorValue,
+  waitForEditorInstance,
+} from './helpers/editor-instance';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -16,13 +21,13 @@ function idSelector(id: string): string {
   return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
 }
 
-async function focusEditor(page: Page, editorWindowId: string): Promise<void> {
+async function focusEditor(page: Page, editorWindowId: string, editorInstanceId: string): Promise<void> {
+  await focusEditorInstance(page, editorInstanceId);
   await expect.poll(async () => {
     return page.evaluate((winId) => {
       const windowElement = document.getElementById(winId);
       windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      editorElement?.cmView?.view.focus();
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`);
       return document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
     }, editorWindowId);
@@ -41,10 +46,6 @@ function seededDelay(seed: number, minMs = 5, maxMs = 500): number {
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
-}
-
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: EditorView };
 }
 
 async function seedProject(projectPath: string): Promise<string> {
@@ -160,23 +161,13 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
     // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
     // before the project selection screen is fully visible. Try detecting auto-load first.
-    let autoLoaded = false;
-    try {
-      await pollForCytoscape(window, 3_000);
-      autoLoaded = true;
-    } catch {
-      // Auto-load didn't happen — fall through to manual project selection
-    }
-    if (!autoLoaded) {
-      await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
-      await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
-      const watchResult = await window.evaluate(async (dir) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
-        return await api.main.startFileWatching(dir);
-      }, projectPath);
-      expect(watchResult.success, 'startFileWatching failed').toBe(true);
-    }
+    const openResult = await window.evaluate(async (dir) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const response = await api.main.openVault(dir);
+      return { writeFolder: response.writeFolder };
+    }, projectPath);
+    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await pollForCondition(window, async () => {
@@ -221,7 +212,7 @@ test('preserves character-by-character editor typing after autosave and file wat
     return appWindow.evaluate((winId) => {
       const windowElement = document.getElementById(winId);
       windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`);
       const editorFocused = document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
       return editorFocused;
@@ -259,7 +250,7 @@ test('preserves character-by-character editor typing after autosave and file wat
     const expectedPrefix = expectedContent.slice(0, i + 1);
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
-        const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+        const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as HTMLElement | null;
         const text = editorElement?.innerText;
         return text === undefined ? null : text.replace(/\n$/, '');
       }, editorWindowId);
@@ -271,7 +262,7 @@ test('preserves character-by-character editor typing after autosave and file wat
 
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as HTMLElement | null;
       const text = editorElement?.innerText;
       return text === undefined ? null : text.replace(/\n$/, '');
     }, editorWindowId);
@@ -283,7 +274,7 @@ test('preserves character-by-character editor typing after autosave and file wat
   await appWindow.waitForTimeout(1_000);
 
   const settled = await appWindow.evaluate((winId) => {
-    const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+    const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as HTMLElement | null;
     const text = editorElement?.innerText;
     return text === undefined ? null : text.replace(/\n$/, '');
   }, editorWindowId);
@@ -316,14 +307,17 @@ test('merges external daemon SSE append while the editor is focused and typing',
   });
 
   const editorWindowId = `window-${nodeId}-editor`;
+  const editorInstanceId = getEditorInstanceId(nodeId);
   const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
   await editorContent.waitFor({ state: 'visible', timeout: 5_000 });
+  await waitForEditorInstance(appWindow, editorInstanceId);
+  await focusEditorInstance(appWindow, editorInstanceId);
 
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
       const windowElement = document.getElementById(winId);
       windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`);
       const editorFocused = document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
       return editorFocused;
@@ -346,10 +340,7 @@ test('merges external daemon SSE append while the editor is focused and typing',
   await appWindow.waitForTimeout(1_000);
 
   await expect.poll(async () => {
-    const text = await appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.cmView?.view.state.doc.toString() ?? '';
-    }, editorWindowId);
+    const text = await readEditorValue(appWindow, editorInstanceId);
     return text.includes(userText) && text.includes(agentText);
   }, {
     message: 'Waiting for focused editor to contain both user typing and external agent append',
@@ -388,9 +379,11 @@ test('applies non-append external filesystem replacements while the editor is fo
   });
 
   const editorWindowId = `window-${nodeId}-editor`;
+  const editorInstanceId = getEditorInstanceId(nodeId);
   const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
   await editorContent.waitFor({ state: 'visible', timeout: 5_000 });
-  await focusEditor(appWindow, editorWindowId);
+  await waitForEditorInstance(appWindow, editorInstanceId);
+  await focusEditor(appWindow, editorWindowId, editorInstanceId);
 
   const expectedEditorContent = '# Typing Target\n\nExternal filesystem replacement should win while focused.\n';
   await fs.writeFile(
@@ -399,12 +392,7 @@ test('applies non-append external filesystem replacements while the editor is fo
     'utf8',
   );
 
-  await expect.poll(async () => {
-    return appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.cmView?.view.state.doc.toString() ?? null;
-    }, editorWindowId);
-  }, {
+  await expect.poll(async () => readEditorValue(appWindow, editorInstanceId), {
     message: 'Waiting for focused editor to accept external filesystem replacement',
     timeout: 10_000,
     intervals: [250, 500, 1000, 2000],

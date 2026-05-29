@@ -43,7 +43,7 @@ describe('apply_graph_deltas_to_db', () => {
       nodeUIMetadata: {
         color: O.none,
         position: O.none,
-        additionalYAMLProps: new Map(),
+        additionalYAMLProps: {},
         isContextNode: false
       }
     }
@@ -276,7 +276,10 @@ describe('apply_graph_deltas_to_db', () => {
       expect(nodeDelete1).toBeUndefined()
     })
 
-    it('should fail when deleting non-existent file (fail fast)', async () => {
+    it('is idempotent: DeleteNode against an already-absent file succeeds', async () => {
+      // Post-condition (file absent) already holds, so the delta is a no-op.
+      // Pre-fix this returned Left(ENOENT) and the higher-level workflow's
+      // in-memory delete aborted too — a 500 plus a leaked node.
       const action: DeleteNode = {
         type: 'DeleteNode',
         nodeId: 'non-existent',
@@ -286,11 +289,7 @@ describe('apply_graph_deltas_to_db', () => {
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
       const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
-      // Fail fast - deleting non-existent file should fail
-      expect(E.isLeft(result)).toBe(true)
-      if (E.isLeft(result)) {
-        expect(result.left.message).toContain('ENOENT')
-      }
+      expect(E.isRight(result)).toBe(true)
     })
 
     it('should return the deltas that were applied', async () => {

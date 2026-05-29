@@ -64,7 +64,7 @@ function headTrackedFiles(): Set<string> {
 }
 
 // Prefixes that are deliberately absent from the working tree on the remote dev box
-// (excluded by `get_dev_healthy/mutagen-vt-remote.yml`). A path missing from disk
+// (excluded by `scripts/dev-setup/remote/mutagen-vt-remote.yml`). A path missing from disk
 // because mutagen never synced it is not a tamper signal.
 const PARTIAL_MIRROR_PREFIXES: readonly string[] = ['webapp/workers/', 'old/']
 

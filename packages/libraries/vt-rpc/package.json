@@ -1,0 +1,29 @@
+{
+  "name": "@vt/vt-rpc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared HTTP transport primitives for the VoiceTree daemon: JSON-RPC over HTTP client, bearer-token auth-file reader, port-file discovery. No tool-catalog or graph-tools coupling — consumed by both.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./httpClient": "./src/httpClient.ts",
+    "./portFile": "./src/portFile.ts",
+    "./authTokenFile": "./src/authTokenFile.ts",
+    "./authTokenWrite": "./src/authTokenWrite.ts",
+    "./pathDiscovery": "./src/pathDiscovery.ts",
+    "./errorCodes": "./src/errorCodes.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vt/paths": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

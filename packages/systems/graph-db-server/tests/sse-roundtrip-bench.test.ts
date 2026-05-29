@@ -30,7 +30,7 @@ function makeNode(id: string, content: string): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }
@@ -80,7 +80,7 @@ describe('SSE round-trip benchmark', () => {
   }, 15_000)
 
   test('publish -> SSE consumer latency over 50 iterations', async () => {
-    handle = await startDaemon({ vault, appSupportPath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
 
     const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
@@ -167,7 +167,7 @@ describe('SSE round-trip benchmark', () => {
   }, 60_000)
 
   test('cold-start: time-to-first-delta on a freshly connected SSE consumer', async () => {
-    handle = await startDaemon({ vault, appSupportPath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
 
     setGraph(applyGraphDeltaToGraph(createEmptyGraph(), [{
@@ -244,7 +244,7 @@ describe('SSE round-trip benchmark', () => {
   }, 60_000)
 
   test('publish-before-connect: pessimistic race (delta published while SSE is still connecting)', async () => {
-    handle = await startDaemon({ vault, appSupportPath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
 
     setGraph(applyGraphDeltaToGraph(createEmptyGraph(), [{

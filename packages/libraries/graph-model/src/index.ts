@@ -8,7 +8,7 @@
 
 // Pure graph types and operations (re-exported from pure/)
 export type { Graph, GraphNode, GraphDelta, NodeDelta, UpsertNodeDelta, DeleteNode, Edge, NodeUIMetadata, NodeIdAndFilePath, FilePath, Position, FSEvent, FSUpdate, FSDelete, Env } from './pure/graph'
-export { CONTEXT_NODES_FOLDER, NODE_UI_METADATA_YAML_KEYS, applyGraphDeltaToGraph, mapNewGraphToDelta, stripDeltaForReplay, mapFSEventsToGraphDelta, setOutgoingEdges, reverseGraphEdges, makeBidirectionalEdges, getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, prettyPrintGraphDelta, deleteNodeSimple, removeContextNodes, createGraph, createEmptyGraph, buildGraphFromFiles, getFolderNotePath, isImageNode, IMAGE_EXTENSIONS, getNodesByAgentName } from './pure/graph'
+export { NODE_UI_METADATA_YAML_KEYS, applyGraphDeltaToGraph, mapNewGraphToDelta, stripDeltaForReplay, mapFSEventsToGraphDelta, setOutgoingEdges, reverseGraphEdges, makeBidirectionalEdges, getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, prettyPrintGraphDelta, deleteNodeSimple, removeContextNodes, createGraph, createEmptyGraph, buildGraphFromFiles, getFolderNotePath, isImageNode, IMAGE_EXTENSIONS, getNodesByAgentName } from './pure/graph'
 export { getNodeTitle, parseMarkdownToGraphNode } from './pure/graph/markdown-parsing'
 export { calculateInitialPositionForChild } from './pure/graph/positioning/placement/calculateInitialPosition'
 export { ensureUniqueNodeId } from './pure/graph/nodes/ensureUniqueNodeId'
@@ -32,6 +32,6 @@ export type { DirectoryEntry, ParsedQuery } from './pure/folders/transforms'
 // Pure project types
 export type { SavedProject, DiscoveredProject } from './pure/project/types'
 
-// DI initialization
-export { initGraphModel, getConfig, getCallbacks } from './pure/runtime/types'
-export type { GraphModelConfig, GraphModelCallbacks } from './pure/runtime/types'
+// DI initialization (callbacks only; voicetreeHomePath now lives in per-process state modules)
+export { initGraphModel, getCallbacks } from './pure/runtime/types'
+export type { GraphModelCallbacks } from './pure/runtime/types'

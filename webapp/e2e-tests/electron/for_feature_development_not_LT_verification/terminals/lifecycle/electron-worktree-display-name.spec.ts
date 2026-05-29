@@ -34,7 +34,11 @@ const test = base.extend<{
     tempGitRepoPath: string;
 }>({
     tempGitRepoPath: async ({}, use) => {
-        const tempDir = realpathSync(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-wt-display-e2e-')));
+        // Sibling-worktree layout: mkdtemp a unique parent so the sibling
+        // vt-wts/ dir created by production code is also unique per test.
+        const tempParent = realpathSync(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-wt-display-e2e-')));
+        const tempDir = path.join(tempParent, 'voicetree-public');
+        await fs.mkdir(tempDir, { recursive: true });
 
         // Initialize git repo with initial commit
         execSync('git init', { cwd: tempDir, stdio: 'pipe' });
@@ -58,7 +62,7 @@ const test = base.extend<{
 
         await use(tempDir);
 
-        // Cleanup worktrees then temp directory
+        // Cleanup worktrees then the whole parent (incl. sibling vt-wts/)
         try {
             const result = execSync('git worktree list --porcelain', {
                 cwd: tempDir, encoding: 'utf-8'
@@ -75,7 +79,7 @@ const test = base.extend<{
         } catch {
             console.log('[Cleanup] Could not clean up worktrees via git');
         }
-        await fs.rm(tempDir, { recursive: true, force: true });
+        await fs.rm(tempParent, { recursive: true, force: true });
     },
 
     electronApp: async ({ tempGitRepoPath }, use) => {
@@ -269,7 +273,7 @@ test.describe('Worktree Display Name E2E', () => {
         console.log('=== STEP 3: Create worktree with name different from node title ===');
         // Node title is "Test Node" or similar, worktree name is completely different
         const worktreeName = 'wt-deploy-pipeline-x4f';
-        const worktreePath = path.join(tempGitRepoPath, '.worktrees', worktreeName);
+        const worktreePath = path.join(path.dirname(tempGitRepoPath), 'vt-wts', worktreeName);
         execSync(
             `git worktree add -b "${worktreeName}" "${worktreePath}"`,
             { cwd: tempGitRepoPath, stdio: 'pipe' }
@@ -368,7 +372,7 @@ test.describe('Worktree Display Name E2E', () => {
         const slugified = nodeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         const worktreeName = `wt-${slugified}-a3k`;
         console.log(`=== STEP 3: Create worktree "${worktreeName}" matching title "${nodeTitle}" ===`);
-        const worktreePath = path.join(tempGitRepoPath, '.worktrees', worktreeName);
+        const worktreePath = path.join(path.dirname(tempGitRepoPath), 'vt-wts', worktreeName);
         execSync(
             `git worktree add -b "${worktreeName}" "${worktreePath}"`,
             { cwd: tempGitRepoPath, stdio: 'pipe' }

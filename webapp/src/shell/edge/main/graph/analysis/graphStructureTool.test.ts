@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
-import { graphStructureTool, type McpToolResponse } from '@vt/voicetree-mcp'
+import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import { graphStructureTool } from '@vt/vt-daemon/tools/graph/graphStructureTool.ts'
 let tempDir: string = ''
 
 describe('graphStructureTool', () => {

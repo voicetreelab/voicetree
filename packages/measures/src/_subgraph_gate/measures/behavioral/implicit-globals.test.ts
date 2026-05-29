@@ -27,6 +27,7 @@ function buildSubgraph(files: readonly FixtureFile[], touched: readonly string[]
         packageName: f.path.match(/^\/virtual\/([^/]+)\/src\//)?.[1] ?? 'unknown',
     }))
     const communityMap = new Map<string, string>(files.map(f => [f.path, f.community]))
+    const contents = new Map(files.map(f => [f.path, f.content]))
     return {
         files: subgraphFiles,
         communityMap,
@@ -34,6 +35,7 @@ function buildSubgraph(files: readonly FixtureFile[], touched: readonly string[]
         touchedCommunities: [...touched].sort(),
         depth: 1,
         getProject: () => project,
+        getContent: (p) => contents.get(p) ?? null,
     }
 }
 
@@ -92,7 +94,7 @@ describe('analyzeFile (implicit-globals)', () => {
         expect(ioReport.byCategory['path-io']).toBeGreaterThan(0)
     })
 
-    it('counts every `console.*` call under `console`', () => {
+    it('drops `console.*` calls (report tier — not counted)', () => {
         const project = new Project({useInMemoryFileSystem: true})
         const sf = project.createSourceFile('/virtual/a.ts', `
             export const log = (m: string) => {
@@ -102,9 +104,10 @@ describe('analyzeFile (implicit-globals)', () => {
             }
         `)
         const report = analyzeFile(sf)
-        // Free-identifier `console` resolves to the global; counted at each
-        // root identifier site (three property-access roots = three).
-        expect(report.byCategory.console).toBe(3)
+        // console is in the REPORT tier — dropped from counts entirely so
+        // that logging churn doesn't move the gated score.
+        expect(report.byCategory.console).toBeUndefined()
+        expect(report.total).toBe(0)
     })
 
     it('counts `process.env` + `process.argv` under `process`', () => {
@@ -171,6 +174,31 @@ describe('analyzeFile (implicit-globals)', () => {
         expect(report.byCategory['dynamic-import']).toBe(2)
     })
 
+    it('detects leaky-shell: strict-tier usage outside any env-taking function', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import {readFileSync} from 'node:fs'
+            // Top-level usage AND a function with no env parameter — both leaky.
+            const eagerData = readFileSync('/etc/hostname', 'utf8')
+            export const dump = (path: string) => readFileSync(path, 'utf8')
+        `)
+        const report = analyzeFile(sf)
+        // 2 usage sites (eager top-level read + dump call), both leaky.
+        expect(report.leakyStrict).toBe(2)
+    })
+
+    it('does NOT flag leaky when strict use lives inside an env-taking function', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import {readFileSync} from 'node:fs'
+            export const dump = (env: {root: string}, path: string) =>
+                readFileSync(env.root + path, 'utf8')
+        `)
+        const report = analyzeFile(sf)
+        // Usage is inside a function that takes 'env' — Pattern 3 applied.
+        expect(report.leakyStrict).toBe(0)
+    })
+
     it('does NOT count parameter shadows (param named `fs`)', () => {
         const project = new Project({useInMemoryFileSystem: true})
         const sf = project.createSourceFile('/virtual/a.ts', `
@@ -197,7 +225,7 @@ describe('implicit-globals measure', () => {
         expect(result.violations).toEqual([])
     })
 
-    it('reports breakdown by category in the violation message', async () => {
+    it('reports strict + advisory breakdown in the violation message', async () => {
         const subgraph = buildSubgraph(
             [{
                 path: '/virtual/pkg/src/shell/a.ts', community: 'pkg/shell',
@@ -214,17 +242,15 @@ describe('implicit-globals measure', () => {
             ['pkg/shell'],
         )
         const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        // perCommunity is the strict-tier sum: fs import + readFileSync usage = 2
         expect(result.perCommunity['pkg/shell']).toBeGreaterThan(0)
-        expect(result.violations).toHaveLength(1)
-        const v = result.violations[0]
-        expect(v.severity).toBe('fail')
-        expect(v.message).toMatch(/fs=/)
-        expect(v.message).toMatch(/console=/)
-        expect(v.message).toMatch(/time=/)
-        expect(v.message).toMatch(/FP pattern 3/)
+        // 2 is well below the threshold (854, set to the historical
+        // per-community max). No violation at this score; gate fires
+        // only when strict > 854.
+        expect(result.violations).toEqual([])
     })
 
-    it('aggregates per community across multiple files', async () => {
+    it('does NOT count console (report tier) in perCommunity', async () => {
         const subgraph = buildSubgraph(
             [
                 {path: '/virtual/pkg/src/shell/a.ts', community: 'pkg/shell',
@@ -235,7 +261,39 @@ describe('implicit-globals measure', () => {
             ['pkg/shell'],
         )
         const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
-        expect(result.perCommunity['pkg/shell']).toBe(2)
+        // Console alone has zero strict + zero advisory ⇒ no score, no violation.
+        expect(result.perCommunity['pkg/shell']).toBe(0)
+        expect(result.violations).toEqual([])
+    })
+
+    it('aggregates strict-tier counts per community across files', async () => {
+        const subgraph = buildSubgraph(
+            [
+                {path: '/virtual/pkg/src/shell/a.ts', community: 'pkg/shell',
+                    content: `import {readFileSync} from 'node:fs'\nexport const r1 = () => readFileSync('/a', 'utf8')\n`},
+                {path: '/virtual/pkg/src/shell/b.ts', community: 'pkg/shell',
+                    content: `import {writeFileSync} from 'node:fs'\nexport const w = () => writeFileSync('/b', 'x')\n`},
+            ],
+            ['pkg/shell'],
+        )
+        const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        // Each file: 1 import (fs) + 1 usage = 2 strict; sum = 4
+        expect(result.perCommunity['pkg/shell']).toBe(4)
+    })
+
+    it('does not gate on advisory-only communities (strict=0)', async () => {
+        const subgraph = buildSubgraph(
+            [{
+                path: '/virtual/pkg/src/util/a.ts', community: 'pkg/util',
+                content: `export const stamp = () => Date.now()\n`,
+            }],
+            ['pkg/util'],
+        )
+        const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        // perCommunity = 0 (no strict). Under the threshold-only model
+        // advisory is informational; no violation is emitted.
+        expect(result.perCommunity['pkg/util']).toBe(0)
+        expect(result.violations).toEqual([])
     })
 
     it('skips files in untouched neighbor communities', async () => {

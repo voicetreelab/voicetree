@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
+import { Plus, X } from 'lucide-react';
 import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@vt/graph-model/settings';
 import { DEFAULT_HOTKEYS } from '@vt/graph-model/settings';
 import { SECTION_MAP, HIDDEN_KEYS, NUMBER_FIELD_CONFIG, inferFieldType, keyToLabel } from './settingsUtils';
@@ -10,6 +11,7 @@ import { TextField } from './fields/TextField';
 import { HotkeyField } from './fields/HotkeyField';
 import { AgentListField } from './fields/AgentListField';
 import { StringListField } from './fields/StringListField';
+import { LayoutConfigField } from './fields/LayoutConfigField';
 
 interface SettingsSectionProps {
     settings: VTSettings;
@@ -55,10 +57,11 @@ const HOOK_LABELS: Record<string, { label: string; description: string }> = {
 };
 
 /** Collapsible textarea for a single environment variable */
-function EnvVarEntry({ envKey, value, onChange }: {
+function EnvVarEntry({ envKey, value, onChange, onRemove }: {
     envKey: string;
     value: EnvVarValue;
     onChange: (newValue: string) => void;
+    onRemove: () => void;
 }): JSX.Element {
     const [expanded, setExpanded] = useState<boolean>(false);
     const strValue: string = typeof value === 'string' ? value : (value as readonly string[]).join('\n');
@@ -66,16 +69,25 @@ function EnvVarEntry({ envKey, value, onChange }: {
 
     return (
         <div className="border border-border rounded-md overflow-hidden">
-            <button
-                type="button"
-                onClick={() => setExpanded(prev => !prev)}
-                className="flex items-center justify-between w-full px-3 py-2 text-left font-mono text-xs hover:bg-muted/50 transition-colors"
-            >
-                <span className="text-foreground">{envKey}</span>
-                <span className="text-muted-foreground">
-                    {expanded ? '▼' : '▶'} {charCount} chars
-                </span>
-            </button>
+            <div className="flex items-center font-mono text-xs hover:bg-muted/50 transition-colors">
+                <button
+                    type="button"
+                    onClick={() => setExpanded(prev => !prev)}
+                    className="flex min-w-0 flex-1 items-center justify-between px-3 py-2 text-left"
+                >
+                    <span className="truncate text-foreground">{envKey}</span>
+                    <span className="ml-2 shrink-0 text-muted-foreground">{expanded ? '▼' : '▶'} {charCount} chars</span>
+                </button>
+                <button
+                    type="button"
+                    aria-label={`Remove environment variable ${envKey}`}
+                    title={`Remove ${envKey}`}
+                    onClick={onRemove}
+                    className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                    <X size={13} aria-hidden="true" />
+                </button>
+            </div>
             {expanded && (
                 <textarea
                     value={strValue}
@@ -83,6 +95,76 @@ function EnvVarEntry({ envKey, value, onChange }: {
                     className="w-full px-3 py-2 bg-input text-foreground text-xs font-mono border-t border-border resize-y focus:outline-none focus:ring-1 focus:ring-ring"
                     rows={Math.min(Math.max(strValue.split('\n').length, 3), 20)}
                 />
+            )}
+        </div>
+    );
+}
+
+function normalizeEnvVarKey(value: string): string {
+    return value.trim();
+}
+
+function isValidEnvVarKey(value: string): boolean {
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
+}
+
+function EnvVarCreator({ existingKeys, onAdd }: {
+    existingKeys: readonly string[];
+    onAdd: (envKey: string, value: string) => void;
+}): JSX.Element {
+    const [keyInput, setKeyInput] = useState<string>('');
+    const [valueInput, setValueInput] = useState<string>('');
+    const normalizedKey: string = normalizeEnvVarKey(keyInput);
+    const isDuplicate: boolean = existingKeys.includes(normalizedKey);
+    const canAdd: boolean = isValidEnvVarKey(normalizedKey) && !isDuplicate;
+    const validationMessage: string | null = (() => {
+        if (normalizedKey.length === 0) return null;
+        if (!isValidEnvVarKey(normalizedKey)) return 'Names must start with a letter or underscore and contain only letters, numbers, and underscores.';
+        if (isDuplicate) return 'That environment variable already exists.';
+        return null;
+    })();
+
+    function addEnvVar(): void {
+        if (!canAdd) return;
+        onAdd(normalizedKey, valueInput);
+        setKeyInput('');
+        setValueInput('');
+    }
+
+    return (
+        <div className="border border-border rounded-md p-3 space-y-2">
+            <div className="grid grid-cols-1 gap-2 items-start sm:grid-cols-[minmax(10rem,16rem)_1fr_auto]">
+                <input
+                    type="text"
+                    value={keyInput}
+                    onChange={event => setKeyInput(event.target.value)}
+                    placeholder="CUSTOM_ENV_VAR"
+                    aria-label="New environment variable name"
+                    className="bg-input border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <textarea
+                    value={valueInput}
+                    onChange={event => setValueInput(event.target.value)}
+                    placeholder="value"
+                    aria-label="New environment variable value"
+                    rows={3}
+                    className="min-h-16 bg-input border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <button
+                    type="button"
+                    onClick={addEnvVar}
+                    disabled={!canAdd}
+                    title="Add environment variable"
+                    aria-label="Add environment variable"
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                >
+                    <Plus size={14} aria-hidden="true" />
+                </button>
+            </div>
+            {validationMessage !== null && (
+                <div className="text-xs text-destructive">
+                    {validationMessage}
+                </div>
             )}
         </div>
     );
@@ -108,6 +190,18 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
     const handleEnvVarUpdate: (envKey: string, value: string) => void = useCallback((envKey: string, value: string): void => {
         const currentVars: Record<string, EnvVarValue> = settings.INJECT_ENV_VARS ?? {};
         onUpdate('INJECT_ENV_VARS', { ...currentVars, [envKey]: value });
+    }, [settings.INJECT_ENV_VARS, onUpdate]);
+
+    const handleEnvVarAdd: (envKey: string, value: string) => void = useCallback((envKey: string, value: string): void => {
+        const currentVars: Record<string, EnvVarValue> = settings.INJECT_ENV_VARS ?? {};
+        if (Object.prototype.hasOwnProperty.call(currentVars, envKey)) return;
+        onUpdate('INJECT_ENV_VARS', { ...currentVars, [envKey]: value });
+    }, [settings.INJECT_ENV_VARS, onUpdate]);
+
+    const handleEnvVarRemove: (envKey: string) => void = useCallback((envKey: string): void => {
+        const currentVars: Record<string, EnvVarValue> = settings.INJECT_ENV_VARS ?? {};
+        const { [envKey]: _removed, ...remaining } = currentVars;
+        onUpdate('INJECT_ENV_VARS', remaining);
     }, [settings.INJECT_ENV_VARS, onUpdate]);
 
     return (
@@ -165,6 +259,16 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                             />
                         );
 
+                    case 'layout-config':
+                        return (
+                            <LayoutConfigField
+                                key={key}
+                                label={label}
+                                value={value as string ?? ''}
+                                onChange={v => onUpdate(key, v)}
+                            />
+                        );
+
                     case 'hotkey-group': {
                         const hotkeys: HotkeySettings = (value as HotkeySettings | undefined) ?? DEFAULT_HOTKEYS;
                         return (
@@ -207,12 +311,17 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                         return (
                             <div key={key} className="space-y-2">
                                 <div className="font-mono text-sm text-foreground font-medium">{label}</div>
+                                <EnvVarCreator
+                                    existingKeys={Object.keys(envVars)}
+                                    onAdd={handleEnvVarAdd}
+                                />
                                 {Object.entries(envVars).map(([envKey, envValue]) => (
                                     <EnvVarEntry
                                         key={envKey}
                                         envKey={envKey}
                                         value={envValue}
                                         onChange={v => handleEnvVarUpdate(envKey, v)}
+                                        onRemove={() => handleEnvVarRemove(envKey)}
                                     />
                                 ))}
                             </div>

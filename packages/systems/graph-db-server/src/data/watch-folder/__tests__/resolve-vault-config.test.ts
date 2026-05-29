@@ -11,23 +11,22 @@ vi.mock('../folder-visibility-active-view', () => ({
     getExpandedFolderPathsForVault,
 }))
 
-import { initGraphModel } from '@vt/graph-model'
 import { resolveAllowlistForProject } from '../paths/resolve-vault-config'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 describe('resolveAllowlistForProject', () => {
     let root: string
-    let appSupportPath: string
+    let voicetreeHomePath: string
     let watchedDir: string
     let writeFolder: string
 
     beforeEach(async () => {
         root = await mkdtemp(path.join(tmpdir(), 'resolve-vault-config-'))
-        appSupportPath = path.join(root, 'app-support')
+        voicetreeHomePath = path.join(root, 'app-support')
         watchedDir = path.join(root, 'project')
         writeFolder = path.join(watchedDir, 'voicetree')
         await mkdir(writeFolder, { recursive: true })
-        initGraphModel({ appSupportPath })
+        process.env.VOICETREE_HOME_PATH = voicetreeHomePath
         await saveVaultConfigForDirectory(watchedDir, { writeFolder })
         getExpandedFolderPathsForVault.mockResolvedValue([path.join(watchedDir, 'external')])
     })

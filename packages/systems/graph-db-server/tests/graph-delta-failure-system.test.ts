@@ -19,7 +19,7 @@ function makeNode(absolutePath: string, content: string): GraphNode {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }
@@ -40,7 +40,7 @@ describe('@vt/graph-db-server graph delta failure handling', () => {
     await mkdir(vault, { recursive: true })
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
     baseUrl = `http://127.0.0.1:${handle.port}`

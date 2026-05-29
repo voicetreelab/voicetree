@@ -1,19 +1,24 @@
 import type { LayoutEngine, LayoutConfig, AutoLayoutOptions } from './autoLayoutTypes';
-import { DEFAULT_OPTIONS, VALID_ENGINES } from './autoLayoutTypes';
+import { DEFAULT_OPTIONS } from './autoLayoutTypes';
+
+const VALID_ENGINES: readonly LayoutEngine[] = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
 
 /**
  * Parse layoutConfig JSON string into typed layout options.
  * Falls back to cola defaults on any parse error.
  */
 export function parseLayoutConfig(json: string | undefined): LayoutConfig {
-  const defaults: LayoutConfig = { engine: 'cola', cola: DEFAULT_OPTIONS };
+  const defaults: LayoutConfig = { engine: 'forceatlas2', cola: DEFAULT_OPTIONS };
   if (!json) {
     return defaults;
   }
 
   try {
     const parsed: Record<string, unknown> = JSON.parse(json) as Record<string, unknown>;
-    const engine: LayoutEngine = VALID_ENGINES.includes(parsed.engine as LayoutEngine) ? (parsed.engine as LayoutEngine) : 'cola';
+    const parsedEngine: unknown = parsed.engine === 'cola' ? 'webcola' : parsed.engine;
+    const engine: LayoutEngine = VALID_ENGINES.includes(parsedEngine as LayoutEngine)
+      ? (parsedEngine as LayoutEngine)
+      : defaults.engine;
 
     const cola: AutoLayoutOptions = {
       ...DEFAULT_OPTIONS,

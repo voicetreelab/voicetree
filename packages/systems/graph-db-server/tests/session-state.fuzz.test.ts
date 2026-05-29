@@ -12,6 +12,7 @@ import {
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 import { setGraph } from '../src/state/graph-store.ts'
 import { createEmptyGraph } from '@vt/graph-model'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 // Mulberry32 seeded PRNG for deterministic replay
 function mulberry32(seed: number): () => number {
@@ -62,6 +63,8 @@ describe('session-state fuzz', () => {
   beforeAll(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-fuzz-session-'))
     vault = path.join(root, 'vault')
+    const voicetreeHomePath = path.join(root, 'app-support')
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     await mkdir(vault, { recursive: true })
 
     const notes = path.join(vault, 'notes')
@@ -86,10 +89,12 @@ describe('session-state fuzz', () => {
 
     clearWatchFolderState()
     setGraph(createEmptyGraph())
+    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
 
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath,
+      createStarterIfEmpty: false,
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
 

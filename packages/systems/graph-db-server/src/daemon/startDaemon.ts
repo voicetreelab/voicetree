@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import { SpanStatusCode, trace, type Span } from '@opentelemetry/api'
 import { SessionRegistry } from '../application/session/registry.ts'
 import { CONTRACT_VERSION } from '../contract.ts'
@@ -10,7 +11,7 @@ import {
   type DaemonHandle,
   type StartDaemonOptions,
   buildHealthResponse,
-  resolveDaemonAppSupportPath,
+  resolveDaemonVoicetreeHomePath,
   resolveDaemonClock,
   resolveDaemonLogger,
 } from './daemonTypes.ts'
@@ -22,7 +23,7 @@ import {
   initDaemonGraphModel,
   resetDaemonGraphState,
 } from './lifecycle/daemonGraphLifecycle.ts'
-import { startParentWatch, type ParentWatchHandle } from './lifecycle/daemonParentWatch.ts'
+import { startParentWatch, type ParentWatchHandle } from '@vt/daemon-lifecycle'
 import { startDaemonWatcher } from './lifecycle/daemonWatcherLifecycle.ts'
 import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'
@@ -115,7 +116,12 @@ async function startOwnedDaemon(
     resetVaultLifecycle()
     resetFolderTreeReadModel()
     installFolderTreeReadModel(opts.folderTreeScanner)
-    initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
+    // Normalize VOICETREE_HOME_PATH so every leaf in this process reads
+    // the same resolved path via resolveVoicetreeHomePath(). Tests pass an
+    // explicit opts.voicetreeHomePath; production reads from the env var that
+    // the launching CLI/Electron set.
+    process.env.VOICETREE_HOME_PATH = resolveDaemonVoicetreeHomePath(opts)
+    initDaemonGraphModel()
 
     const startMs = clock()
     const registry = new SessionRegistry()
@@ -273,12 +279,12 @@ export async function startDaemon(
       const startupVault = opts.vault ? resolve(opts.vault) : null
       if (startupVault) {
         startSpan.setAttribute('vault', startupVault)
-        await mkdir(join(startupVault, '.voicetree'), { recursive: true })
+        await mkdir(getProjectDotVoicetreePath(startupVault), { recursive: true })
       }
 
       const ownerHandle = startupVault
         ? await claimDaemonOwner({
-            canonicalProjectRoot: startupVault,
+            canonicalVault: startupVault,
             callerKind: 'cli',
             contractVersion: CONTRACT_VERSION,
             commandFingerprint: commandFingerprintForProcess(),

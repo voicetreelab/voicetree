@@ -1,4 +1,3 @@
-import * as O from 'fp-ts/lib/Option.js'
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, existsSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
@@ -84,9 +83,12 @@ function tmuxHasSession(name: string): boolean {
 
 configureMcpServer({
   graph: {
-    getGraph: async () => graph,
-    getVaultPaths: async () => [vaultPath],
-    getWriteFolder: async () => vaultPath,
+    getSnapshot: async () => ({
+      graph,
+      projectRoot: vaultPath,
+      vaultPaths: [vaultPath],
+      writeFolder: vaultPath,
+    }),
     applyGraphDelta: async () => undefined,
   },
 })
@@ -98,8 +100,12 @@ const deps: any = {
   loadAgentSettings: async () => ({
     agents: [{name: 'Fake Agent', command: 'node -e "setInterval(()=>{},1000)"'}],
   }),
-  loadWriteFolder: async () => O.some(vaultPath),
-  loadGraph: async () => graph,
+  loadSnapshot: async () => ({
+    graph,
+    projectRoot: vaultPath,
+    vaultPaths: [vaultPath],
+    writeFolder: vaultPath,
+  }),
   applyDelta: async () => undefined,
   spawnTerminal: async (
     contextNodeId: string,

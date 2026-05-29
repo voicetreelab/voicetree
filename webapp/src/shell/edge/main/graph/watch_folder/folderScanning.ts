@@ -8,7 +8,9 @@ import type { DirectoryEntry } from '@vt/graph-model/folders'
 
 const IGNORED_DIRS: ReadonlySet<string> = new Set([
     'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',
-    '.tox', '.venv', 'venv', '.worktrees',
+    '.tox', '.venv', 'venv',
+    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
+    '.worktrees',
 ])
 
 export async function isValidSubdirectory(

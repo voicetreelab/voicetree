@@ -1,0 +1,31 @@
+{
+  "name": "@vt/voicetree-bootcamp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CLI ergonomics bootcamp. Runs scenarios against Claude Code and Codex CLI to verify the `vt` surface is self-describing enough for LLM agents to use without errors.",
+  "main": "src/index.ts",
+  "bin": {
+    "vt-bootcamp": "bin/run-bootcamp.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./scoring": "./src/scoring.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "bootcamp": "tsx bin/run-bootcamp.ts"
+  },
+  "dependencies": {
+    "@vt/graph-db-client": "*",
+    "@vt/paths": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

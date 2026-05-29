@@ -1,5 +1,11 @@
-import { initGraphModel } from '@vt/graph-model'
-import { applyGraphDeltaToDBThroughMemAndUI } from '@vt/graph-db-server/graph/applyGraphDelta'
+import { access } from 'node:fs/promises'
+import * as O from 'fp-ts/lib/Option.js'
+import { getCallbacks, type DeleteNode } from '@vt/graph-model'
+import {
+  applyGraphDeltaToDBThroughMemAndUI,
+  applyGraphDeltaToMemState,
+  refreshGraphChangeSideEffects,
+} from '@vt/graph-db-server/graph/applyGraphDelta'
 import { findFileByName } from '@vt/graph-db-server/graph/findFileByName'
 import { getPreviewContainedNodeIds } from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
 import { performRedo, performUndo } from '@vt/graph-db-server/graph/undoOperations'
@@ -20,6 +26,7 @@ import {
   removeReadPath,
   setWriteFolder,
 } from '@vt/graph-db-server/state/vaultAllowlist'
+import { isPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
 import type { Command, CommandOutput } from './command.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
@@ -62,6 +69,32 @@ async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
   return VaultStateSchema.parse({ projectRoot, readPaths, writeFolder })
 }
 
+async function pathExistsOnDisk(absolutePath: string): Promise<boolean> {
+  try {
+    await access(absolutePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function reconcileGraphWithDisk(): Promise<CommandOutput['ReconcileGraphWithDisk']> {
+  const currentGraph = getGraph()
+  const deletes: DeleteNode[] = []
+  for (const [nodeId, node] of Object.entries(currentGraph.nodes)) {
+    if (isPendingWrite(nodeId)) continue
+    if (await pathExistsOnDisk(nodeId)) continue
+    deletes.push({ type: 'DeleteNode', nodeId, deletedNode: O.some(node) })
+  }
+  if (deletes.length === 0) return []
+
+  const mergedDelta = await applyGraphDeltaToMemState(deletes)
+  refreshGraphChangeSideEffects()
+  publish({ delta: mergedDelta, source: 'reconcile:disk', suppressForSubscribers: [] })
+  getCallbacks().onFloatingEditorUpdate?.(mergedDelta, [])
+  return mergedDelta
+}
+
 const commandHandlers = {
   AddVaultReadPath: command => addReadPath(command.path),
   ApplyGraphDeltaToDB: async command => {
@@ -93,9 +126,6 @@ const commandHandlers = {
     command.searchFromNode,
   ),
   GetWatchedDirectory: () => getProjectRoot(),
-  InitializeGraphModel: command => {
-    initGraphModel({ appSupportPath: command.appSupportPath })
-  },
   PerformRedo: () => performRedo(),
   PerformUndo: () => performUndo(),
   ProjectAndBroadcast: async command => {
@@ -106,6 +136,7 @@ const commandHandlers = {
   },
   ReadGraph: () => getGraph(),
   ReadGraphNode: command => getNode(command.nodeId),
+  ReconcileGraphWithDisk: () => reconcileGraphWithDisk(),
   ReadVaultState: () => readVaultState(),
   RegistryTouch: (command, deps) => {
     requireRegistry(deps).touch(command.sessionId)

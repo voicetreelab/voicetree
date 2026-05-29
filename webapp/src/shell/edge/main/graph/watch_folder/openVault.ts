@@ -1,11 +1,9 @@
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
-import * as O from 'fp-ts/lib/Option.js'
 import log from 'electron-log'
 import { getCallbacks } from '@vt/graph-model'
 import { initializeProject } from '@vt/app-config/project'
 import {
-    getLastDirectory,
     getVaultConfigForDirectory,
     saveLastDirectory,
     saveVaultConfigForDirectory,
@@ -15,15 +13,27 @@ import type { OpenVaultResponse } from '@vt/graph-db-client'
 
 import { markLoadTiming, startLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
+import type { TerminalRecord } from '@vt/vt-daemon-client'
+
 import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
+import {
+    subscribeToTerminalRegistrySse,
+    unsubscribeFromTerminalRegistrySse,
+    type TerminalRegistryEnvelope,
+} from '@/shell/edge/main/runtime/electron/daemon/sync/terminal-registry-sse-subscription'
+import {
+    applyTerminalRegistryEnvelope,
+    primeTerminalRegistryCache,
+    resetTerminalRegistryCache,
+} from '@/shell/edge/main/agent/terminals/terminal-registry-bridge'
+import { bindVtDaemonForVault, getVtDaemonFacade } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
-import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
 export type StartupVaultHint =
     | { readonly kind: 'open-folder'; readonly path: string }
-    | { readonly kind: 'last-directory'; readonly path: string }
     | { readonly kind: 'none' }
 
 function pushToRenderer(
@@ -33,6 +43,29 @@ function pushToRenderer(
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed()) return
     mainWindow.webContents.send(channel, payload)
+}
+
+/**
+ * Fold one `terminal-registry` SSE envelope into Main's local cache
+ * mirror and fan-out the imperative UI events to the renderer.
+ *
+ * `applyTerminalRegistryEnvelope` updates the cache and fires the
+ * mutation listeners (renderer sync, completion notifier, recovery
+ * polling) registered at boot. UI-instruction events bypass the cache —
+ * they tell the renderer to imperatively open / register a panel.
+ */
+function handleTerminalRegistryEnvelope(envelope: TerminalRegistryEnvelope): void {
+    const outcome = applyTerminalRegistryEnvelope(envelope)
+    if (outcome.kind !== 'ui-instruction') return
+    const event = outcome.event
+    if (event.type === 'terminal-ui-launch') {
+        void uiAPI.launchTerminalOntoUI(event.nodeId, event.terminalData, event.skipFitAnimation)
+    }
+    // `terminal-ui-child-registered`: no webapp-side action. The agent-
+    // completion monitor's terminal-id table lives in vtd's process and is
+    // updated there by `buildPublishTerminalRegistryEvent` (vtd.ts) on the
+    // same event; webapp's previous in-process `registerChildIfMonitored`
+    // mutated a disjoint, empty Map (no monitor entries in webapp).
 }
 
 async function pathIsDirectory(directoryPath: string): Promise<boolean> {
@@ -74,10 +107,7 @@ export async function getStartupVaultHint(): Promise<StartupVaultHint> {
         return { kind: 'open-folder', path: startupFolder }
     }
 
-    const lastDirectory: O.Option<string> = await getLastDirectory()
-    return O.isSome(lastDirectory)
-        ? { kind: 'last-directory', path: lastDirectory.value }
-        : { kind: 'none' }
+    return { kind: 'none' }
 }
 
 export async function openVault(projectRoot: string): Promise<OpenVaultResponse> {
@@ -95,7 +125,51 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await getCallbacks().onVaultSwitching?.()
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
+        // Tear down the prior terminal-registry SSE before rebinding so
+        // the vault-switch fence has no chance to be evaluated against a
+        // half-flipped activeVault — `bindVtDaemonForVault` below will
+        // resubscribe under the new vault.
+        unsubscribeFromTerminalRegistrySse()
+        resetTerminalRegistryCache()
         await stopDaemonGraphSync()
+
+        // Rebind to the per-vault VTD child BEFORE any further
+        // renderer-visible side effect. Renderer subscriptions can fire
+        // `api.main.getDaemonUrl()` reactively on `vault:switching`
+        // (pushed above) or on startup events — if the bind sits behind
+        // the full vault-open sequence, those calls throw
+        // `daemon_unreachable` until the ensure path resolves. The
+        // ensure call is self-contained (writes its own .voicetree/
+        // files, spawns the child or adopts an existing healthy owner,
+        // and sets module state) and has no dependency on the graph
+        // daemon spawn or writeFolder resolution that follows.
+        //
+        // Cold-start tail latency is worse than the pre-Phase-2 in-process
+        // bind (spawn + readiness wait vs. an in-process listen), but the
+        // happy path (existing healthy owner discoverable on disk) is
+        // dominated by a single /health round-trip — comparable to the
+        // pre-Phase-2 numbers.
+        await bindVtDaemonForVault(projectRoot)
+
+        // Cold-start: prime the terminal-registry cache from the daemon's
+        // authoritative snapshot before opening the SSE feed. Without
+        // this, the first listeners would see an empty cache until the
+        // hub catches the renderer up via deltas — which only happens
+        // when something changes. Cold-start primes the mirror and fires
+        // every listener once so the renderer / completion notifier /
+        // recovery pollers start from a coherent state.
+        const initialRecords: readonly TerminalRecord[] =
+            await getVtDaemonFacade().terminals.getTerminalRecords({})
+        primeTerminalRegistryCache(initialRecords)
+
+        // Re-open the terminal-registry SSE against the freshly-bound
+        // VTD. The subscriber owns its own reconnect loop; vault-switch
+        // tears it down (above) and we open a fresh one here. The
+        // handler folds cache-mutation events into the local mirror via
+        // `applyTerminalRegistryEnvelope`, and forwards the imperative
+        // UI events (`terminal-ui-launch`, `terminal-ui-child-registered`)
+        // to the renderer.
+        subscribeToTerminalRegistrySse('electron-main', handleTerminalRegistryEnvelope)
 
         // Persist writeFolder BEFORE the daemon claims the vault: vt-graphd's
         // startup vault-open reads saved config, and the daemon's
@@ -118,10 +192,10 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         await startDaemonGraphSync(projectRoot)
         markLoadTiming('main:daemon-graph-sync-started')
         await saveLastDirectory(projectRoot)
-        syncWatchedProjectRoot(projectRoot)
 
         const watchingStartedInfo = {
             directory: projectRoot,
+            projectRoot,
             writeFolder: response.writeFolder,
             timestamp: new Date().toISOString(),
         }
@@ -129,8 +203,11 @@ export async function openVault(projectRoot: string): Promise<OpenVaultResponse>
         getCallbacks().onWatchingStarted?.(watchingStartedInfo)
 
         pushToRenderer('vault:ready', { path: projectRoot })
-        void getCallbacks().enableMcpIntegration?.().catch((err: unknown) => {
-            log.error('[openVault] Failed to enable MCP integration:', err)
+        void getCallbacks().stripStaleMcpEntries?.(projectRoot).catch((err: unknown) => {
+            console.error('[openVault] Failed to strip stale MCP entries:', err)
+        })
+        void getCallbacks().writeVaultAgentDiscoveryFile?.(projectRoot).catch((err: unknown) => {
+            console.error('[openVault] Failed to write vault agent discovery file:', err)
         })
         return response
     } catch (err) {

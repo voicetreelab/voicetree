@@ -1,0 +1,65 @@
+{
+  "name": "@vt/vt-daemon",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Also ships the standalone vtd binary — a per-vault per-machine daemon that talks to vt-graphd over RPC as a sibling process.",
+  "main": "src/index.ts",
+  "bin": {
+    "vtd": "bin/vtd.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./agent-runtime/terminals/terminal-registry": "./src/agent-runtime/terminals/terminal-registry/index.ts",
+    "./agent-runtime/lifecycle": "./src/agent-runtime/lifecycle/index.ts",
+    "./agent-runtime/*": "./src/agent-runtime/*",
+    "./_shared/*": "./src/_shared/*",
+    "./tools/*": "./src/tools/*",
+    "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
+    "./util/*": "./src/util/*",
+    "./config/*": "./src/config/*",
+    "./state/*": "./src/state/*",
+    "./transport/eventTypes": "./src/transport/eventTypes.ts",
+    "./transport/*": "./src/transport/*",
+    "./observability/*": "./src/observability/*",
+    "./create-graph/*": "./src/create-graph/*",
+    "./hooks/*": "./src/hooks/*",
+    "./lifecycle/*": "./src/lifecycle/*",
+    "./bin/vtd.ts": "./bin/vtd.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mermaid-js/parser": "^0.6.2",
+    "@vt/app-config": "*",
+    "@vt/daemon-lifecycle": "*",
+    "@vt/graph-db-client": "*",
+    "@vt/graph-db-protocol": "*",
+    "@vt/graph-db-server": "*",
+    "@vt/graph-model": "*",
+    "@vt/graph-state": "*",
+    "@vt/graph-tools": "*",
+    "@vt/graph-validation": "*",
+    "@vt/observability": "*",
+    "@vt/paths": "*",
+    "@vt/vt-daemon-protocol": "*",
+    "@vt/vt-rpc": "*",
+    "chokidar": "^3.6.0",
+    "express": "^4.21.2",
+    "fp-ts": "^2.16.9",
+    "node-pty": "^1.1.0",
+    "normalize-path": "^3.0.0",
+    "ws": "^8.20.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.5",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

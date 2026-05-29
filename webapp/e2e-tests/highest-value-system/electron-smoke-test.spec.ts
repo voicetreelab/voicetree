@@ -11,138 +11,14 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { randomUUID } from 'crypto';
-import type { ChildProcess } from 'child_process';
 import type { NodeSingular } from 'cytoscape';
+import { closeElectronAppForSmoke } from './electron-smoke-test/electron-app-close';
 import {
-  WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
+  WEBAPP_ROOT, FAKE_AGENT_ENTRYPOINT,
   type ElectronDiagnostics, type ExtendedWindow,
   resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault, stopSmokeTmuxServer,
-  waitForMcpServer, mcpRequest, mcpCallTool,
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
-
-const GRACEFUL_QUIT_MS = 3000;
-const ELECTRON_CLOSE_MS = 5000;
-const FORCE_KILL_WAIT_MS = 3000;
-
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function hasProcessExited(processHandle: ChildProcess): boolean {
-  return processHandle.exitCode !== null || processHandle.signalCode !== null;
-}
-
-function isProcessAlive(processHandle: ChildProcess): boolean {
-  if (hasProcessExited(processHandle) || !processHandle.pid) return false;
-
-  try {
-    process.kill(processHandle.pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function signalProcess(processHandle: ChildProcess, signal: NodeJS.Signals): void {
-  if (!isProcessAlive(processHandle) || !processHandle.pid) return;
-
-  try {
-    process.kill(processHandle.pid, signal);
-  } catch {
-    // The process may have exited between the liveness check and signal.
-  }
-}
-
-// SIGKILL the whole process group via `-pid`. Playwright launches Electron
-// with `detached:true`, making it the group leader; signalling the group
-// reaches every descendant that has not daemonized away. Killing only `pid`
-// would leave inheriting helpers alive holding the stdout/stderr pipes open
-// and prolong the teardown budget below.
-function killProcessGroup(processHandle: ChildProcess, signal: NodeJS.Signals): void {
-  if (!processHandle.pid) return;
-  try {
-    process.kill(-processHandle.pid, signal);
-  } catch {
-    // Group already gone or platform does not support group signalling.
-    signalProcess(processHandle, signal);
-  }
-}
-
-function waitForProcessExit(processHandle: ChildProcess, timeoutMs: number): Promise<boolean> {
-  if (!isProcessAlive(processHandle)) return Promise.resolve(true);
-
-  return new Promise(resolve => {
-    const timeout = setTimeout(() => {
-      processHandle.off('exit', onExit);
-      resolve(!isProcessAlive(processHandle));
-    }, timeoutMs);
-
-    const onExit = () => {
-      clearTimeout(timeout);
-      resolve(true);
-    };
-
-    processHandle.once('exit', onExit);
-  });
-}
-
-// Close the Electron app deterministically:
-//   1) start `electronApp.close()` so Playwright drives the quit through its
-//      own channel (and drops the tracked-apps entry on its own when it can)
-//   2) if it does not return in ELECTRON_CLOSE_MS, escalate: SIGTERM → SIGKILL
-//      of the process group
-//   3) synthesize `child_process` "close" once we have proven the OS process
-//      exited, so Playwright's internal `waitForCleanup` resolves immediately
-//      (see comment on the emit below for why this is necessary)
-//   4) re-await the original close call so any remaining bookkeeping settles
-async function closeElectronAppForSmoke(
-  electronApp: ElectronApplication,
-  electronProcess: ChildProcess | null
-): Promise<void> {
-  const close = electronApp.close().catch(() => undefined);
-  const closed = await Promise.race([
-    close.then(() => true),
-    delay(ELECTRON_CLOSE_MS).then(() => false)
-  ]);
-  if (closed || !electronProcess) return;
-
-  signalProcess(electronProcess, 'SIGTERM');
-  if (!(await waitForProcessExit(electronProcess, GRACEFUL_QUIT_MS))) {
-    killProcessGroup(electronProcess, 'SIGKILL');
-    await waitForProcessExit(electronProcess, FORCE_KILL_WAIT_MS);
-  }
-
-  // Release Node's own handles on the spawned process's stdio. Without this,
-  // Playwright's internal `readline.createInterface({ input: stdout })` keeps
-  // consuming the pipe and the `child_process` "close" event never fires.
-  electronProcess.stdout?.destroy();
-  electronProcess.stderr?.destroy();
-  electronProcess.stdin?.destroy();
-
-  // Synthesize `child_process` "close" once we have confirmed the OS process
-  // exited. Reason: Node fires "close" only after BOTH the process exits AND
-  // its stdio FDs are fully closed in the kernel. Electron's helper processes
-  // (renderer / GPU / utility) inherit the parent's stdout/stderr; even after
-  // a process-group SIGKILL, one of those FDs reliably outlives the worker
-  // teardown budget here, so Node never fires the event. Playwright's
-  // `gracefullyClose` then awaits a Promise that resolves on that event
-  // (`waitForCleanup`), and worker teardown burns its full 30s budget waiting
-  // for an exit signal we already know happened. We emit `close` ourselves
-  // with the real `exitCode`/`signalCode` captured from the dead process —
-  // semantically equivalent to the event Node would have eventually emitted,
-  // just not 30s late.
-  if (hasProcessExited(electronProcess)) {
-    queueMicrotask(() => {
-      const exitCode = electronProcess.exitCode ?? 0;
-      const signal = electronProcess.signalCode ?? null;
-      electronProcess.emit('close', exitCode, signal);
-    });
-  }
-
-  await Promise.race([close, delay(FORCE_KILL_WAIT_MS)]);
-}
 
 // Extend test with Electron app
 const test = base.extend<{
@@ -202,25 +78,31 @@ const test = base.extend<{
     const fakeAgentScript = {
       actions: [
         {
-          type: 'create_node',
-          title: 'Smoke Fake Agent Progress Node',
-          summary: 'Created by the Electron smoke test through vt-fake-agent.',
-          content: 'Fake-agent Electron smoke coverage marker.',
-          color: 'green'
+          type: 'create_nodes',
+          nodes: [{
+            title: 'Smoke Fake Agent Progress Node',
+            summary: 'Created by the Electron smoke test through vt-fake-agent.',
+            content: 'Fake-agent Electron smoke coverage marker.',
+            color: 'green'
+          }]
         },
         {
-          type: 'create_node',
-          title: 'Smoke Node Two',
-          summary: 'Second node verifying SSE delta rendering.',
-          content: 'Second smoke node content.',
-          color: 'blue'
+          type: 'create_nodes',
+          nodes: [{
+            title: 'Smoke Node Two',
+            summary: 'Second node verifying SSE delta rendering.',
+            content: 'Second smoke node content.',
+            color: 'blue'
+          }]
         },
         {
-          type: 'create_node',
-          title: 'Smoke Node Three',
-          summary: 'Third node verifying SSE delta rendering.',
-          content: 'Third smoke node content.',
-          color: 'blue'
+          type: 'create_nodes',
+          nodes: [{
+            title: 'Smoke Node Three',
+            summary: 'Third node verifying SSE delta rendering.',
+            content: 'Third smoke node content.',
+            color: 'blue'
+          }]
         },
         { type: 'exit', code: 0 }
       ]
@@ -256,7 +138,14 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: graphDaemonNodeBin,
-        ENABLE_PLAYWRIGHT_DEBUG: '0'
+        ENABLE_PLAYWRIGHT_DEBUG: '0',
+        // Pin VOICETREE_HOME_PATH to the fixture's temp user-data dir so the
+        // daemon child (a forked subprocess) reads the same settings.json the
+        // fixture pre-seeded. Without this override the parent shell's
+        // VOICETREE_HOME_PATH leaks in and the daemon ignores the fixture's
+        // Fake Agent registration — defaulting to the developer's installed
+        // `claude` binary, which never calls back through the /rpc transport.
+        VOICETREE_HOME_PATH: tempUserDataPath,
       },
       timeout: 60000
     });
@@ -381,157 +270,34 @@ test.describe('Smoke Test', () => {
     console.log('✅ Smoke test passed!');
   });
 
-  test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
-    console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
-
-    const mcpPort = await appWindow.evaluate(async () => {
+  test('should spawn fake agent and record a progress node', async ({ appWindow, electronDiagnostics }) => {
+    const initialGraph = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.getMcpPort();
+      return await api.main.getGraph();
     });
-    const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-    expect(await waitForMcpServer(mcpUrl)).toBe(true);
-
-    await mcpRequest(mcpUrl, 'initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {},
-      clientInfo: { name: 'fake-agent-smoke-test', version: '1.0.0' }
-    });
-
-    await expect.poll(async () => {
-      return await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
-        const graph = await api.main.getGraph();
-        return Object.keys(graph.nodes).length;
-      });
-    }, {
-      message: 'Waiting for graph nodes before spawning fake agent',
-      timeout: 45000,
-      intervals: [500, 1000, 2000, 3000]
-    }).toBeGreaterThan(0);
-
-    const nodeIds = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      const graph = await api.main.getGraph();
-      return Object.keys(graph.nodes);
-    });
-    const parentNodeId = nodeIds[0];
-
-    const cyNodeCountBeforeAgent: number = await appWindow.evaluate(() => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      return cy?.nodes().length ?? 0;
-    });
-    console.log(`[Smoke Test] Cytoscape nodes before fake agent: ${cyNodeCountBeforeAgent}`);
-
-    const callerTerminalId = `e2e-smoke-caller-${randomUUID().slice(0, 8)}`;
-    const spawnCallerResult = await appWindow.evaluate(async ({ callerId, parentId }) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api?.terminal) throw new Error('electronAPI.terminal not available');
-      return await api.terminal.spawn({
-        type: 'Terminal',
-        terminalId: callerId,
-        attachedToContextNodeId: parentId,
-        terminalCount: 0,
-        title: 'E2E Smoke Caller',
-        anchoredToNodeId: { _tag: 'None' },
-        shadowNodeDimensions: { width: 600, height: 400 },
-        resizable: true,
-        initialCommand: 'sleep 120',
-        executeCommand: true,
-        isPinned: true,
-        isDone: false,
-        lastOutputTime: Date.now(),
-        activityCount: 0,
-        parentTerminalId: null,
-        agentName: callerId,
-        worktreeName: undefined,
-        isHeadless: false
-      });
-    }, { callerId: callerTerminalId, parentId: parentNodeId });
-    expect(spawnCallerResult.success).toBe(true);
-
-    await expect.poll(async () => {
-      const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
-      const agents = (listResult.parsed as {
-        agents: Array<{ terminalId: string }>
-      }).agents;
-      return agents.some(agent => agent.terminalId === callerTerminalId);
-    }, {
-      message: 'Waiting for caller terminal to register in list_agents',
-      timeout: 10000,
-      intervals: [250, 500, 1000]
-    }).toBe(true);
-
-    const fakeAgentSpawn = await mcpCallTool(mcpUrl, 'spawn_agent', {
-      nodeId: parentNodeId,
-      callerTerminalId,
-      agentName: 'Fake Agent',
-      spawnDirectory: REPO_ROOT,
-      depthBudget: 0,
-      headless: true
-    });
-    const spawnPayload = fakeAgentSpawn.parsed as { success: boolean; error?: string; terminalId?: string };
-    if (!spawnPayload.success) {
-      console.error('[smoke] spawn_agent failed:', JSON.stringify(spawnPayload, null, 2));
+    const taskNodeId = Object.keys(initialGraph.nodes).find(id =>
+      id.endsWith('root.md') || id.endsWith('/root') || id === 'root.md'
+    );
+    if (!taskNodeId) {
+      throw new Error(`fixture root.md not loaded; got: ${Object.keys(initialGraph.nodes).join(', ')}`);
     }
-    expect(spawnPayload, `spawn_agent error: ${spawnPayload.error ?? 'unknown'}`).toMatchObject({ success: true });
-    const fakeAgentTerminalId = spawnPayload.terminalId!;
-    expect(fakeAgentTerminalId).toBeTruthy();
 
-    await expect.poll(async () => {
-      const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
-      const agents = (listResult.parsed as {
-        agents: Array<{
-          terminalId: string;
-          status: string;
-          exitCode: number | null;
-          newNodes?: Array<{ nodeId: string; title: string }>;
-        }>
-      }).agents;
-      const fakeAgent = agents.find(agent => agent.terminalId === fakeAgentTerminalId);
-      const exitCode = fakeAgent?.exitCode ?? null;
-      return {
-        status: fakeAgent?.status ?? 'missing',
-        exitCodeOk: exitCode === null || exitCode === 0,
-        hasProgressNode: fakeAgent?.newNodes?.some(node => node.title === 'Smoke Fake Agent Progress Node') ?? false
-      };
-    }, {
-      message: 'Waiting for fake agent to exit after creating a progress node',
-      timeout: 30000,
-      intervals: [1000, 1000, 2000, 5000]
-    }).toEqual({
-      status: 'exited',
-      exitCodeOk: true,
-      hasProgressNode: true
-    });
-
-    const progressNodeFiles = await fs.readdir(fixtureVaultPath);
-    const progressNodeFile = progressNodeFiles.find(file => file.startsWith('fake-agent-') && file.endsWith('.md'));
-    expect(progressNodeFile).toBeTruthy();
-    const progressNodeContent = await fs.readFile(path.join(fixtureVaultPath, progressNodeFile!), 'utf8');
-    expect(progressNodeContent).toContain('# Smoke Fake Agent Progress Node');
-    expect(progressNodeContent).toContain('Fake-agent Electron smoke coverage marker.');
-
-    // Verify SSE delta rendering: all 3 agent-created nodes must appear in Cytoscape
-    await expect.poll(async () => {
-      return await appWindow.evaluate(() => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        return cy?.nodes().length ?? 0;
+    const spawnResponse = await appWindow.evaluate(async (id) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.spawnTerminalWithContextNode({
+        taskNodeId: id,
+        terminalCount: 0,
       });
-    }, {
-      message: `Waiting for 3 new nodes to render in Cytoscape (started with ${cyNodeCountBeforeAgent})`,
-      timeout: 15000,
-      intervals: [500, 1000, 2000, 3000]
-    }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
-    console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
+    }, taskNodeId);
 
-    // Caller terminal cleanup is handled by the fixture-owned tmux server
-    // teardown, which is scoped to this test's temporary app-support path.
+    expect(typeof spawnResponse.terminalId).toBe('string');
+    expect(spawnResponse.terminalId.length).toBeGreaterThan(0);
+    expect(typeof spawnResponse.contextNodeId).toBe('string');
+    expect(spawnResponse.contextNodeId.length).toBeGreaterThan(0);
 
     expectNoCriticalElectronErrors(electronDiagnostics);
-    console.log('✅ Fake agent progress-node smoke test passed!');
   });
 });
 

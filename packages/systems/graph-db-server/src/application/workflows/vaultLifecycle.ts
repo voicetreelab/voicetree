@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import { project } from '@vt/graph-state'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 import {
@@ -15,8 +16,10 @@ import {
 } from '@vt/graph-db-server/contract'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { createDatedSubfolder, findExistingVoicetreeDir } from '@vt/app-config/project'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
+import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
 import {
   getReadPaths,
   getWriteFolder,
@@ -34,6 +37,11 @@ import {
   VaultNotOpenError,
   VaultOpenFailedError,
 } from '../errors/vaultNotOpen.ts'
+import {
+  beginVaultOpen,
+  completeVaultOpen,
+  resetVaultOpenGate,
+} from './vaultOpenGate.ts'
 
 export type VaultResource = {
   openForVault(projectRoot: string): Promise<void>
@@ -69,6 +77,7 @@ export function resetVaultLifecycle(): void {
   lifecycleState.activeSessionId = null
   lifecycleState.registry = null
   mutexTail = Promise.resolve()
+  resetVaultOpenGate()
 }
 
 export async function withVaultMutex<T>(fn: () => Promise<T>): Promise<T> {
@@ -155,15 +164,29 @@ async function openResources(projectRoot: string): Promise<void> {
   }
 }
 
+// When opening a project root with no saved config and no caller-supplied
+// writeFolder, default to an existing `voicetree-{day}-{month}` subfolder
+// or create one. Treating the project root itself as the writeFolder would
+// recursively scan every `.md` under it — fine for a small notes folder,
+// catastrophic for a source repo. The bare `targetProjectRoot` fallback
+// caused vt-graphd to die with `File limit exceeded` when started against
+// a monorepo whose nested vaults pushed the .md count past the 1000-file
+// guard.
+async function resolveDefaultWriteFolder(targetProjectRoot: string): Promise<string> {
+  const existing: string | null = await findExistingVoicetreeDir(targetProjectRoot)
+  if (existing !== null) return existing
+  return await createDatedSubfolder(targetProjectRoot)
+}
+
 async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: string): Promise<void> {
-  await mkdir(join(targetProjectRoot, '.voicetree'), { recursive: true })
+  await mkdir(getProjectDotVoicetreePath(targetProjectRoot), { recursive: true })
   setProjectRoot(targetProjectRoot)
 
   const savedConfig = await getVaultConfigForDirectory(targetProjectRoot)
   const configuredWriteFolder = input.writeFolder ?? savedConfig?.writeFolder
   const targetWriteFolder = configuredWriteFolder
     ? resolveWriteFolder(targetProjectRoot, configuredWriteFolder)
-    : targetProjectRoot
+    : await resolveDefaultWriteFolder(targetProjectRoot)
 
   const result = await setWriteFolder(targetWriteFolder, {
     createStarterIfEmpty: input.createStarterIfEmpty,
@@ -171,52 +194,58 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
   if (!result.success) {
     throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetProjectRoot}`)
   }
+  await reconcileGraphWithDisk()
 }
 
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
   return await traceGraphdSpan('daemon.open-vault', async (span) => {
     return await withVaultMutex(async () => {
-      const body = OpenVaultRequestSchema.parse(input)
-      const targetProjectRoot = resolve(body.path)
-      const currentProjectRoot = getProjectRoot()
-      span.setAttribute('targetVaultPath', targetProjectRoot)
-      span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
-
-      if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
-        await bindVault(
-          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-          targetProjectRoot,
-        )
-        span.setAttribute('outcome', 'reuse-current')
-        return await buildOpenVaultResponse(targetProjectRoot)
-      }
-
-      if (currentProjectRoot) {
-        span.setAttribute('switchedFromActive', true)
-        await closeResources()
-      }
-
-      lifecycleState.activeSessionId = null
-      setGraph(createEmptyGraph())
-
+      beginVaultOpen()
       try {
-        await bindVault(
-          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-          targetProjectRoot,
-        )
-        await openResources(targetProjectRoot)
-        span.setAttribute('outcome', 'opened')
-        return await buildOpenVaultResponse(targetProjectRoot)
-      } catch (error) {
-        span.setAttribute('outcome', 'open-failed')
-        span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
-        await closeResources()
-        clearProjectRoot()
-        throw error instanceof VaultOpenFailedError
-          ? error
-          : new VaultOpenFailedError(
-              error instanceof Error ? error.message : 'Failed to open vault',
-            )
+        const body = OpenVaultRequestSchema.parse(input)
+        const targetProjectRoot = resolve(body.path)
+        const currentProjectRoot = getProjectRoot()
+        span.setAttribute('targetVaultPath', targetProjectRoot)
+        span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
+
+        if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
+          await bindVault(
+            { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+            targetProjectRoot,
+          )
+          span.setAttribute('outcome', 'reuse-current')
+          return await buildOpenVaultResponse(targetProjectRoot)
+        }
+
+        if (currentProjectRoot) {
+          span.setAttribute('switchedFromActive', true)
+          await closeResources()
+        }
+
+        lifecycleState.activeSessionId = null
+        setGraph(createEmptyGraph())
+
+        try {
+          await bindVault(
+            { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+            targetProjectRoot,
+          )
+          await openResources(targetProjectRoot)
+          span.setAttribute('outcome', 'opened')
+          return await buildOpenVaultResponse(targetProjectRoot)
+        } catch (error) {
+          span.setAttribute('outcome', 'open-failed')
+          span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
+          await closeResources()
+          clearProjectRoot()
+          throw error instanceof VaultOpenFailedError
+            ? error
+            : new VaultOpenFailedError(
+                error instanceof Error ? error.message : 'Failed to open vault',
+              )
+        }
+      } finally {
+        completeVaultOpen()
       }
     })
   })

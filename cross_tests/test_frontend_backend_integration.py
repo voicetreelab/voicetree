@@ -40,7 +40,7 @@ class ServerManager:
 
         self.process = subprocess.Popen(
             ["python", "server.py"],
-            cwd="/Users/bobbobby/repos/VoiceTree",
+            cwd="/Users/example/repos/VoiceTree",
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE

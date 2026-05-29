@@ -151,6 +151,7 @@ tools/state/*
 /webapp/playwright-report-electron-dev/**/*
 /webapp/test-results/**/*
 /webapp/playwright-report-electron/**/*
+/webapp/playwright-report-tier1-system/**/*
 /webapp/e2e-tests/screenshots/**/*
 /webapp/dist-electron/**/*
 /webapp/native-modules/electron-trackpad-detect/build/
@@ -190,16 +191,30 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-model/tests/**/*.md
 !packages/graph-state/**/*.md
 !docker/**/*.md
+!docs/**/*.md
 !packages/measures/README.md
+!packages/systems/voicetree-cli/README.md
 !packages/measures/perf/*.md
+!packages/measures/budgets/BASELINE_BUMP_LOG.md
+!packages/measures/budgets/HOW_TO_BUMP_BASELINES.md
+!packages/measures/src/health/coupling/__tests__/**/*.md
+!infra/perf-stack/*.md
+!packages/systems/agent-runtime/src/application/terminals/tmux/README.md
+!webapp/e2e-tests/electron/README.md
 !scripts/agent-debugging/README.md
+!scripts/dev-setup/remote/AGENT_PROMPT.md
 !scripts/agent-debugging/REFERENCE.md
+!openspec/**/*.md
+!/architecture.md
 
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
 
 # Codex config (machine-local)
 **/.codex/config.toml
+
+# Agent-created nested worktree mirrors
+.claude/worktrees/
 
 # Gemini settings (machine-local)
 **/.gemini/settings.json
@@ -209,6 +224,12 @@ webapp/workers/share-worker/.wrangler/**
 
 # Node modules
 **/node_modules/**
+
+# TypeScript build state
+*.tsbuildinfo
+
+# npm pack tarballs (generated locally for publish verification)
+**/*.tgz
 
 # Web dist
 **/dist-web/**
@@ -229,12 +250,12 @@ webapp/workers/share-worker/.wrangler/**
 **/transcript_history.txt
 **/chromadb_data/*
 test_output/*
-.claude/settings.local.json
+**/.claude/settings.local.json
+**/.claude/settings.local.bak.json
 
 # Vestigial root-level files that tools/agents might recreate
 # (progress notes are already covered by **/*.md above)
 /test.db
-/pnpm-lock.yaml
 /opencode.json
 /.obsidianignore
 /.pre-commit-config.yaml
@@ -243,9 +264,16 @@ test_output/*
 /health-dashboard/reports/*.json
 /health-dashboard/reports/*.json.tmp.*
 /health-dashboard/reports/checks/*.json
+/health-dashboard/reports/scores-history/*.local.csv
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
+!/health-dashboard/reports/scores-history/
+!/health-dashboard/reports/scores-history/.gitkeep
 **/.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.json
 /test-results/
 /VoiceTree/
 .codeql/
+
+# Voicetree per-version vault dirs at repo root (runtime app state from past sessions, not source)
+/voicetree-*-*/

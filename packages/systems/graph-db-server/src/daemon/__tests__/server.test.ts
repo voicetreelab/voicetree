@@ -8,7 +8,11 @@ import {
   type DaemonHandle,
   type StartDaemonOptions,
 } from '../server.ts'
-import { ownerRecordPathFor, readOwnerRecord } from '../ownerRecord.ts'
+import { ownerRecordFile, readOwnerRecord } from '@vt/daemon-lifecycle'
+
+function ownerRecordPathFor(vault: string, daemonKind: 'graphd' | 'vtd'): string {
+  return ownerRecordFile.pathFor(vault, daemonKind)
+}
 import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
 import { CONTRACT_VERSION, HealthResponseSchema } from '@vt/graph-db-server/contract'
@@ -56,7 +60,7 @@ describe('startDaemon', () => {
     expect(body.sessionCount).toBe(0)
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
     expect(body.owner).not.toBeNull()
-    expect(body.owner?.canonicalProjectRoot).toBe(vault)
+    expect(body.owner?.canonicalVault).toBe(vault)
     expect(body.owner?.pid).toBe(process.pid)
     expect(body.owner?.port).toBe(h.port)
     expect(body.owner?.contractVersion).toBe(CONTRACT_VERSION)
@@ -65,7 +69,7 @@ describe('startDaemon', () => {
   })
 
   test('health works before any vault is opened and reports owner=null', async () => {
-    const h = await startDaemon({ appSupportPath: join(vault, 'app-support') })
+    const h = await startDaemon({ voicetreeHomePath: join(vault, 'app-support') })
     handles.push(h)
 
     const res = await fetch(`http://127.0.0.1:${h.port}/health`)
@@ -111,9 +115,9 @@ describe('startDaemon', () => {
     const h = await start()
     const res = await fetch(`http://127.0.0.1:${h.port}/health`)
     const body = HealthResponseSchema.parse(await res.json())
-    const onDisk = await readOwnerRecord(ownerRecordPathFor(vault))
+    const onDisk = await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))
     expect(onDisk).not.toBeNull()
-    expect(body.owner?.canonicalProjectRoot).toBe(onDisk?.canonicalProjectRoot)
+    expect(body.owner?.canonicalVault).toBe(onDisk?.canonicalVault)
     expect(body.owner?.ownerNonce).toBe(onDisk?.ownerNonce)
     expect(body.owner?.pid).toBe(onDisk?.pid)
     expect(body.owner?.port).toBe(onDisk?.port)
@@ -124,8 +128,8 @@ describe('startDaemon', () => {
     await h.stop()
     handles = handles.filter((x) => x !== h)
     expect(await readPortFile(vault)).toBeNull()
-    expect(await readOwnerRecord(ownerRecordPathFor(vault))).toBeNull()
-    await expect(stat(ownerRecordPathFor(vault))).rejects.toMatchObject({
+    expect(await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))).toBeNull()
+    await expect(stat(ownerRecordPathFor(vault, 'graphd'))).rejects.toMatchObject({
       code: 'ENOENT',
     })
   })
@@ -156,7 +160,7 @@ describe('startDaemon', () => {
     ])
     expect(callbackFired).toBe(true)
     expect(await readPortFile(vault)).toBeNull()
-    expect(await readOwnerRecord(ownerRecordPathFor(vault))).toBeNull()
+    expect(await readOwnerRecord(ownerRecordPathFor(vault, 'graphd'))).toBeNull()
     handles = [] // already torn down
   })
 

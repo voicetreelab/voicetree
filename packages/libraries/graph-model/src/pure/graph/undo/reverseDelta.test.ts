@@ -13,7 +13,7 @@ function createTestNode(id: string, content: string = '# Test'): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     }
 }

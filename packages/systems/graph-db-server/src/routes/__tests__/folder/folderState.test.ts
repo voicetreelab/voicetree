@@ -60,11 +60,14 @@ describe('folderState routes', () => {
 
     expect(response.status).toBe(200)
     // setWriteFolder seeds the writeFolder as 'expanded' on cold mount so the
-    // sidebar can show its contents. Children default collapsed.
-    expect(await response.json()).toMatchObject({
-      folderState: [[vault, 'expanded']],
-      activeView: { name: 'main' },
-    })
+    // sidebar can show its contents. With no saved config the default
+    // writeFolder is a `voicetree-{day}-{month}` subfolder of the vault.
+    const body = await response.json() as { folderState: [string, string][]; activeView: { name: string } }
+    expect(body.activeView.name).toBe('main')
+    const expandedRows: [string, string][] = body.folderState.filter(([, state]: [string, string]) => state === 'expanded')
+    expect(expandedRows).toHaveLength(1)
+    const [expandedPath] = expandedRows[0]
+    expect(expandedPath).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
   })
 
   test('PATCH single and batch write active-view rows', async () => {
@@ -101,17 +104,24 @@ describe('folderState routes', () => {
     )
 
     expect(batch.status).toBe(200)
-    const body = await batch.json()
-    // folderState is ordered by path ASC. The PATCHed rows are interleaved
-    // with the seeded [vault, 'expanded'] writeFolder row (children of vault
-    // sort after vault itself).
-    expect(body.folderState).toEqual([
-      [vault, 'expanded'],
+    const body = await batch.json() as { folderState: [string, string][] }
+    // The PATCHed rows are interleaved (by path ASC) with the seeded
+    // [<writeFolder>, 'expanded'] row. The default writeFolder for an
+    // unconfigured vault is a `voicetree-{day}-{month}` subfolder.
+    const patchedRows: [string, string][] = body.folderState.filter(
+      ([rowPath]: [string, string]) => rowPath === docsPath || rowPath === notesPath || rowPath === srcPath || rowPath === tmpPath,
+    )
+    expect(patchedRows).toEqual([
       [docsPath, 'collapsed'],
       [notesPath, 'collapsed'],
       [srcPath, 'expanded'],
       [tmpPath, 'hidden'],
     ])
+    const seededExpanded: [string, string][] = body.folderState.filter(
+      ([rowPath]: [string, string]) => rowPath.startsWith(`${vault}/voicetree-`),
+    )
+    expect(seededExpanded).toHaveLength(1)
+    expect(seededExpanded[0][1]).toBe('expanded')
   })
 
   test('PATCH syncs the active session collapseSet used by projection', async () => {

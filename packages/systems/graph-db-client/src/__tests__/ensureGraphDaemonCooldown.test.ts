@@ -16,11 +16,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { OwnerSpawnCooldownError } from '../errors.ts'
 import {
   cooldownBreadcrumbPathFor,
+  OwnerSpawnCooldownError,
   readCooldownBreadcrumb,
-} from '../autoLaunch/cooldownBreadcrumb.ts'
+} from '@vt/daemon-lifecycle'
 import {
   ensureGraphDaemonForVault,
   subscribeOwnerDiagnostics,
@@ -104,10 +104,10 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       expect(observer.spawnedCount()).toBe(1)
 
       // Breadcrumb is on disk with the right shape.
-      const breadcrumb = await readCooldownBreadcrumb(vault)
+      const breadcrumb = await readCooldownBreadcrumb(vault, 'graphd')
       expect(breadcrumb).not.toBeNull()
       expect(breadcrumb!.reason).toBe('spawn-failed')
-      expect(breadcrumb!.canonicalProjectRoot).toBe(vault)
+      expect(breadcrumb!.canonicalVault).toBe(vault)
       expect(breadcrumb!.untilMs).toBeGreaterThan(Date.now())
 
       // Second call: still inside the cooldown window; throws
@@ -139,7 +139,7 @@ describe('ensureGraphDaemonForVault cooldown breadcrumb (BF-347)', () => {
       spawnedPids.push(success.pid)
 
       // Successful spawn cleared the breadcrumb.
-      const cleared = await readCooldownBreadcrumb(vault)
+      const cleared = await readCooldownBreadcrumb(vault, 'graphd')
       expect(cleared).toBeNull()
     } finally {
       observer.unsubscribe()

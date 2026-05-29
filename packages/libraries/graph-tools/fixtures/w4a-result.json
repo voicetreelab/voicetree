@@ -32,8 +32,8 @@
       "080-folder-nodes-real-vault"
     ],
     "outDir": "/tmp/vt-debug/stress-full",
-    "divergenceBaselinePath": "/Users/bobbobby/repos/voicetree-public/packages/libraries/graph-tools/fixtures/divergence-class-baseline.json",
-    "flowBaselinePath": "/Users/bobbobby/repos/voicetree-public/packages/libraries/graph-tools/fixtures/int1-baseline.json"
+    "divergenceBaselinePath": "/Users/example/repos/voicetree-public/packages/libraries/graph-tools/fixtures/divergence-class-baseline.json",
+    "flowBaselinePath": "/Users/example/repos/voicetree-public/packages/libraries/graph-tools/fixtures/int1-baseline.json"
   },
   "divergenceClasses": {
     "observedCount": 10,

@@ -66,6 +66,12 @@ export const DAEMON_ROUTE_SPECS = [
   },
   { id: 'graph.delete-node', method: 'DELETE', path: '/graph/node/:encodedNodeId' },
   {
+    method: 'POST',
+    path: '/graph/reconcile-disk',
+    exemptionReason:
+      '`/graph/reconcile-disk` is a daemon maintenance endpoint used by Electron startup/tests to remove stale in-memory nodes for files already gone on disk; it is not a user-facing CLI command.',
+  },
+  {
     method: 'GET',
     path: '/graph/find-file',
     exemptionReason:

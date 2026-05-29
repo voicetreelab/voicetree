@@ -1,0 +1,24 @@
+{
+  "name": "@vt/vt-daemon-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared TypeScript types and pure formatters for the vt-daemon (VTD) RPC + SSE wire contract. Both server (vt-daemon) and client (vt-daemon-client) import shapes from here; webapp imports terminal types via the client without laundering a runtime dependency through it.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vt/graph-db-protocol": "*",
+    "@vt/graph-model": "*",
+    "fp-ts": "^2.16.9"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

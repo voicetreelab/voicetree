@@ -1,153 +1,30 @@
 /**
- * BF-161/BF-L5-205 · live State store (main process).
+ * BF-380 · Phase 3 — Main-side live-command dispatch.
  *
- * Holds only the main-owned mutable parts of `@vt/graph-state` State:
- * revision, roots, and layout. Renderer-owned `selection` is read and
- * mutated through the renderer live-state proxy. Folder visibility is owned
- * by the daemon and arrives through `folderState` + `activeView`.
+ * The legacy Main-owned mirror is gone. State is owned by the
+ * daemon (`packages/systems/vt-daemon/src/state/sessionStateStore.ts`).
+ * This module exposes a single deep function: `applyLiveCommand` decides
+ * whether a command needs renderer authority (Select/Deselect/SetZoom/
+ * SetPan/RequestFit) and, regardless, dispatches the same command to the
+ * daemon over JSON-RPC so every client (Electron Main + CLI) sees the same
+ * post-state.
  */
-import type {
-    Command,
-    Delta,
-    State,
-    StateLayout,
-    StateRoots,
-} from '@vt/graph-state'
-import { applyCommandWithDelta } from '@vt/graph-state'
-import { createEmptyGraph, type Graph } from '@vt/graph-model'
-import { getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import * as O from 'fp-ts/lib/Option.js'
-import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
-import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
+import type { Command, Delta } from '@vt/graph-state'
 
+import { dispatchLiveCommandToDaemon } from './daemon-live-state-rpc'
 import {
     applyRendererLiveCommand,
     isRendererOwnedLiveCommand,
-    readRendererLiveState,
 } from './renderer-live-state-proxy'
 
-interface MutableLiveParts {
-    revision: number
-    roots: StateRoots
-    layout: StateLayout
-}
-
-const liveParts: MutableLiveParts = {
-    revision: 0,
-    roots: { loaded: new Set(), folderTree: [] },
-    layout: { positions: new Map() },
-}
-let hasExplicitRootState: boolean = false
-
-function sameLoadedRoots(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-    if (left.size !== right.size) {
-        return false
-    }
-
-    for (const root of left) {
-        if (!right.has(root)) {
-            return false
-        }
-    }
-
-    return true
-}
-
-function commitMainOwnedState(state: State): void {
-    liveParts.revision = state.meta.revision
-    liveParts.roots = state.roots
-    liveParts.layout = state.layout
-}
-
-async function readGraphFromDaemonSessionState(): Promise<Graph> {
-    const client: ReturnType<typeof getActiveDaemonClient> = getActiveDaemonClient()
-    return client ? await getNormalizedDaemonGraph(client) : createEmptyGraph()
-}
-
-async function bootstrapRootsFromProjectConfig(): Promise<void> {
-    if (hasExplicitRootState || liveParts.roots.loaded.size > 0) {
-        return
-    }
-
-    if (!getActiveDaemonClient()) {
-        return
-    }
-
-    const writeFolder: O.Option<string> = await getWriteFolder()
-    const loadedRoots: Set<string> = new Set<string>(
-        O.isSome(writeFolder) ? [writeFolder.value] : []
-    )
-
-    if (loadedRoots.size === 0) {
-        return
-    }
-
-    liveParts.roots = {
-        loaded: loadedRoots,
-        folderTree: liveParts.roots.folderTree,
-    }
-}
-
-export async function getCurrentLiveState(): Promise<State> {
-    await bootstrapRootsFromProjectConfig()
-    const rendererState: Awaited<ReturnType<typeof readRendererLiveState>> =
-        await readRendererLiveState()
-
-    return {
-        graph: await readGraphFromDaemonSessionState(),
-        roots: liveParts.roots,
-        collapseSet: new Set(),
-        selection: new Set(rendererState.selection),
-        layout: liveParts.layout,
-        meta: {
-            schemaVersion: 1,
-            revision: liveParts.revision,
-        },
-    }
-}
-
-export function rootsWereExplicitlySet(): boolean {
-    return hasExplicitRootState
-}
-
-export function syncWatchedProjectRoot(root: string | null): void {
-    if (hasExplicitRootState) {
-        return
-    }
-
-    const nextLoaded: ReadonlySet<string> = root ? new Set([root]) : new Set()
-    if (sameLoadedRoots(liveParts.roots.loaded, nextLoaded)) {
-        return
-    }
-
-    liveParts.revision += 1
-    liveParts.roots = {
-        loaded: nextLoaded,
-        folderTree: [],
-    }
-}
-
 export async function applyLiveCommand(cmd: Command): Promise<Delta> {
-    const before: State = await getCurrentLiveState()
-    const { state, delta }: { state: State; delta: Delta } = applyCommandWithDelta(before, cmd)
-
     if (isRendererOwnedLiveCommand(cmd)) {
         await applyRendererLiveCommand(cmd)
     }
-
-    commitMainOwnedState(state)
-    return delta
+    return await dispatchLiveCommandToDaemon(cmd)
 }
 
 /** Compatibility wrapper for existing tests/callers. */
 export async function applyLiveCommandAsync(cmd: Command): Promise<Delta> {
     return applyLiveCommand(cmd)
-}
-
-/** Test-only: reset the store between test cases. */
-export function __resetLiveStoreForTests(): void {
-    hasExplicitRootState = false
-    liveParts.revision = 0
-    liveParts.roots = { loaded: new Set(), folderTree: [] }
-    liveParts.layout = { positions: new Map() }
 }

@@ -7,13 +7,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 const repoRoot = path.resolve(import.meta.dirname, '../../../../..')
 const HEADLESS_START_TIMEOUT_MS = 15_000
 
-function runCli(args: readonly string[]) {
+function runCli(args: readonly string[], env?: NodeJS.ProcessEnv) {
   return spawnSync(
     process.execPath,
     ['--import', 'tsx', 'packages/libraries/graph-tools/bin/vt-graph.ts', ...args],
     {
       cwd: repoRoot,
       encoding: 'utf8',
+      env: env ? {...process.env, ...env} : process.env,
     },
   )
 }
@@ -21,16 +22,20 @@ function runCli(args: readonly string[]) {
 function makeVault(tempDirs: string[]): string {
   const vault = mkdtempSync(path.join(tmpdir(), 'vt-tools-system-'))
   tempDirs.push(vault)
+  mkdirSync(path.join(vault, '.voicetree'))
   mkdirSync(path.join(vault, 'work'))
   writeFileSync(path.join(vault, 'index.md'), '# Index\n\n[[work/task]]\n')
   writeFileSync(path.join(vault, 'work', 'task.md'), '# Task\n\n[[index]]\n')
   return vault
 }
 
-async function startHeadless(vault: string): Promise<{
+interface HeadlessHandle {
+  readonly url: string
+  readonly vaultPath: string
   close(): Promise<void>
-  port: number
-}> {
+}
+
+async function startHeadless(vault: string): Promise<HeadlessHandle> {
   const child = spawn(
     process.execPath,
     [
@@ -38,10 +43,10 @@ async function startHeadless(vault: string): Promise<{
       'tsx',
       'packages/libraries/graph-tools/bin/vt-headless.ts',
       'serve',
+      '--vault',
+      vault,
       '--port',
       '0',
-      '--project-root',
-      vault,
     ],
     { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] },
   )
@@ -53,16 +58,16 @@ async function startHeadless(vault: string): Promise<{
   child.stdout.on('data', (chunk) => { stdout += chunk })
   child.stderr.on('data', (chunk) => { stderr += chunk })
 
-  const port = await new Promise<number>((resolve, reject) => {
+  const url = await new Promise<string>((resolve, reject) => {
     const timeout = setTimeout(() => {
       child.kill('SIGINT')
-      reject(new Error(`vt-headless did not print a port. stdout=${stdout} stderr=${stderr}`))
+      reject(new Error(`vt-headless did not announce a URL. stdout=${stdout} stderr=${stderr}`))
     }, HEADLESS_START_TIMEOUT_MS)
     child.stdout.on('data', () => {
-      const match = stdout.match(/Listening on port (\d+)/)
+      const match = stdout.match(/Listening on (http:\/\/\S+)/)
       if (!match) return
       clearTimeout(timeout)
-      resolve(Number.parseInt(match[1], 10))
+      resolve(match[1].trim())
     })
     child.once('exit', (code) => {
       clearTimeout(timeout)
@@ -71,7 +76,8 @@ async function startHeadless(vault: string): Promise<{
   })
 
   return {
-    port,
+    url,
+    vaultPath: vault,
     close: async () => {
       if (child.exitCode !== null) return
       child.kill('SIGINT')
@@ -128,11 +134,18 @@ describe('@vt/graph-tools system contract', () => {
       await Promise.all(servers.splice(0).map((server) => server.close()))
     })
 
+    function daemonEnv(server: HeadlessHandle): NodeJS.ProcessEnv {
+      return {
+        VOICETREE_DAEMON_URL: server.url,
+        VOICETREE_VAULT_PATH: server.vaultPath,
+      }
+    }
+
     it('live state dump returns the snapshot via HTTP', { timeout: 30_000 }, async () => {
       const server = await startHeadless(vault)
       servers.push(server)
 
-      const result = runCli(['live', 'state', 'dump', '--port', String(server.port)])
+      const result = runCli(['live', 'state', 'dump'], daemonEnv(server))
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout).folderState).toEqual([[vault, 'expanded']])
     })
@@ -151,9 +164,7 @@ describe('@vt/graph-tools system contract', () => {
           path: collapseFolder.slice(0, -1),
           state: 'collapsed',
         }),
-        '--port',
-        String(server.port),
-      ])
+      ], daemonEnv(server))
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout)).toMatchObject({
         collapseAdded: [collapseFolder],
@@ -164,7 +175,7 @@ describe('@vt/graph-tools system contract', () => {
       const server = await startHeadless(vault)
       servers.push(server)
 
-      const result = runCli(['live', 'view', '--port', String(server.port)])
+      const result = runCli(['live', 'view'], daemonEnv(server))
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('index')
     })

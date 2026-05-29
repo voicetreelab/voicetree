@@ -80,6 +80,7 @@ function projectNodes(
     nodeEntries: readonly (readonly [string, GraphNode])[],
     visibleEndpointByNodeId: ReadonlyMap<string, string>,
     folderNoteOwnerById: ReadonlyMap<string, FolderId>,
+    folderNoteIdByFolderId: ReadonlyMap<FolderId, string>,
     graph: State['graph'],
     positions: ReadonlyMap<string, unknown>,
     rootPath: string,
@@ -88,7 +89,7 @@ function projectNodes(
 
     for (const info of visibleFolders) {
         const collapsed = visibleCollapsedFolders.has(info.id)
-        const folderNoteId = getFolderNotePath(graph, info.id)
+        const folderNoteId = folderNoteIdByFolderId.get(info.id)
         const content = folderNoteId
             ? graph.nodes[folderNoteId]?.contentWithoutYamlOrLinks ?? ''
             : ''
@@ -117,8 +118,7 @@ function projectNodes(
         const classes: string[] = [
             ...(node.nodeUIMetadata.isContextNode === true ? ['context-node'] : []),
         ]
-        const rawProps = node.nodeUIMetadata.additionalYAMLProps
-        const additionalYAMLProps = [...(rawProps instanceof Map ? rawProps.entries() : Object.entries(rawProps))]
+        const additionalYAMLProps = Object.entries(node.nodeUIMetadata.additionalYAMLProps)
             .sort(([left], [right]) => left.localeCompare(right)) as (readonly [string, string])[]
 
         nodes.push({
@@ -145,16 +145,23 @@ function projectNodes(
     return nodes
 }
 
-function buildFolderNoteOwnerById(
+function buildFolderNoteProjection(
     visibleFolders: readonly FolderProjectionInfo[],
     graph: State['graph'],
-): ReadonlyMap<string, FolderId> {
+): {
+    readonly folderNoteOwnerById: ReadonlyMap<string, FolderId>
+    readonly folderNoteIdByFolderId: ReadonlyMap<FolderId, string>
+} {
     const folderNoteOwnerById = new Map<string, FolderId>()
+    const folderNoteIdByFolderId = new Map<FolderId, string>()
     for (const info of visibleFolders) {
         const folderNoteId = getFolderNotePath(graph, info.id)
-        if (folderNoteId !== undefined) folderNoteOwnerById.set(folderNoteId, info.id)
+        if (folderNoteId !== undefined) {
+            folderNoteOwnerById.set(folderNoteId, info.id)
+            folderNoteIdByFolderId.set(info.id, folderNoteId)
+        }
     }
-    return folderNoteOwnerById
+    return { folderNoteOwnerById, folderNoteIdByFolderId }
 }
 
 function edgeEndpointForNode(
@@ -308,10 +315,10 @@ export function project(state: State): ProjectedGraph {
     const folders = collectFolders(state)
     const { visibleFolders, visibleFolderIds, visibleCollapsedFolders, nodeEntries, visibleEndpointByNodeId } =
         filterByCollapse(folders, state.collapseSet, state.graph.nodes)
-    const folderNoteOwnerById = buildFolderNoteOwnerById(visibleFolders, state.graph)
+    const { folderNoteOwnerById, folderNoteIdByFolderId } = buildFolderNoteProjection(visibleFolders, state.graph)
     const nodes = projectNodes(
         visibleFolders, visibleFolderIds, visibleCollapsedFolders,
-        nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById,
+        nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById, folderNoteIdByFolderId,
         state.graph, state.layout.positions, rootPath,
     )
     const edges = projectEdges(nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById, state.graph.nodes)

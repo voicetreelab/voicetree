@@ -1,0 +1,203 @@
+// CLI-side daemon client. Public surface: `callDaemon(toolName, args)`.
+//
+// Discovery chain (design doc §2.7 / §3.2 — first match wins):
+//   1. $VOICETREE_DAEMON_URL                          — token from
+//      $VOICETREE_VAULT_PATH/.voicetree/auth-token.
+//   2. cwd up-walk for `.voicetree/rpc.port`          — token sibling.
+//   3. $VOICETREE_VAULT_PATH/.voicetree/rpc.port      — token sibling.
+//   4. None resolve → DaemonUnreachable naming the missing env vars.
+// Delegated to @vt/vt-rpc#discoverDaemonEndpoint; we recover the env-URL
+// tier's token path from $VOICETREE_VAULT_PATH locally because discovery
+// returns `vaultPath: null` for that tier. No `--daemon-url` CLI flag exists
+// today; brief authorised deferring that 4th-tier surface.
+//
+// On HTTP 401: re-read the token from disk ONCE and retry. Second 401 throws
+// `DaemonAuthRequired` naming the token-file path. $VOICETREE_DAEMON_TIMEOUT_MS
+// (default 30_000) caps total RTT per attempt; local `DaemonTimeout` keeps the
+// CLI able to distinguish a hung daemon from a hard network failure (brief
+// authorised the local subclass to avoid a cross-substep extension of vt-rpc).
+
+import {
+    DaemonAuthRequired,
+    DaemonUnreachable,
+    ERROR_CODES,
+    authTokenFilePath,
+    discoverDaemonEndpoint,
+    readAuthTokenFile,
+    type ResolvedDaemonEndpoint,
+} from '@vt/vt-rpc'
+
+export {DaemonAuthRequired, DaemonUnreachable}
+
+export class DaemonTimeout extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'DaemonTimeout'
+    }
+}
+
+const DEFAULT_TIMEOUT_MS: number = 30_000
+
+let requestSequence: number = 0
+
+function nextRequestId(): number {
+    requestSequence += 1
+    return requestSequence
+}
+
+function getTimeoutMs(env: Record<string, string | undefined>): number {
+    const raw: string | undefined = env.VOICETREE_DAEMON_TIMEOUT_MS
+    if (raw === undefined) return DEFAULT_TIMEOUT_MS
+    const parsed: number = Number.parseInt(raw, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS
+}
+
+interface ResolvedClient {
+    readonly endpoint: ResolvedDaemonEndpoint
+    readonly tokenVault: string
+    readonly tokenFilePath: string
+    readonly token: string
+}
+
+async function buildResolvedClient(
+    env: Record<string, string | undefined>,
+    cwd: string,
+): Promise<ResolvedClient> {
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({env, cwd})
+    if (!endpoint) {
+        throw new DaemonUnreachable(
+            'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, run inside a vault containing `.voicetree/rpc.port`, or set $VOICETREE_VAULT_PATH.',
+        )
+    }
+    const envVault: string | undefined = env.VOICETREE_VAULT_PATH && env.VOICETREE_VAULT_PATH.length > 0
+        ? env.VOICETREE_VAULT_PATH
+        : undefined
+    const tokenVault: string | null = endpoint.vaultPath ?? envVault ?? null
+    if (!tokenVault) {
+        throw new DaemonUnreachable(
+            '$VOICETREE_DAEMON_URL is set but $VOICETREE_VAULT_PATH is not. The auth-token file lives under the vault — set $VOICETREE_VAULT_PATH so the client can locate `.voicetree/auth-token`.',
+        )
+    }
+    const tokenFilePath: string = authTokenFilePath(tokenVault)
+    const token: string = await loadToken(tokenVault, tokenFilePath)
+    return {endpoint, tokenVault, tokenFilePath, token}
+}
+
+async function loadToken(vault: string, tokenFilePath: string): Promise<string> {
+    const token: string | null = await readAuthTokenFile(vault)
+    if (token === null) {
+        throw new DaemonAuthRequired(
+            `Missing or empty auth-token at ${tokenFilePath}. Daemon may not be running, or the vault path is wrong.`,
+        )
+    }
+    return token
+}
+
+interface RawRpcResponse {
+    readonly jsonrpc: '2.0'
+    readonly id: number | string | null
+    readonly result?: unknown
+    readonly error?: {readonly code: number; readonly message: string; readonly data?: unknown}
+}
+
+type PostOutcome =
+    | {readonly kind: 'ok'; readonly envelope: RawRpcResponse}
+    | {readonly kind: 'auth_required'}
+
+async function postRpc(
+    url: string,
+    token: string,
+    method: string,
+    args: Record<string, unknown>,
+    timeoutMs: number,
+): Promise<PostOutcome> {
+    const controller: AbortController = new AbortController()
+    let abortedByTimeout: boolean = false
+    const timer: NodeJS.Timeout = setTimeout((): void => {
+        abortedByTimeout = true
+        controller.abort()
+    }, timeoutMs)
+
+    const body: string = JSON.stringify({jsonrpc: '2.0', method, params: args, id: nextRequestId()})
+    let res: Response
+    try {
+        res = await fetch(`${url}/rpc`, {
+            method: 'POST',
+            headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'},
+            body,
+            signal: controller.signal,
+        })
+    } catch (cause) {
+        if (abortedByTimeout) {
+            throw new DaemonTimeout(`Daemon at ${url} did not respond within ${timeoutMs}ms (request aborted).`)
+        }
+        const message: string = cause instanceof Error ? cause.message : String(cause)
+        throw new DaemonUnreachable(`Daemon at ${url} unreachable: ${message}`)
+    } finally {
+        clearTimeout(timer)
+    }
+
+    if (res.status === 401) return {kind: 'auth_required'}
+    if (!res.ok) {
+        const text: string = await res.text().catch((): string => '')
+        throw new DaemonUnreachable(`Daemon at ${url} returned HTTP ${res.status}: ${text.slice(0, 200)}`)
+    }
+
+    let parsed: unknown
+    try {
+        parsed = await res.json()
+    } catch (cause) {
+        throw new DaemonUnreachable(
+            `Daemon at ${url} returned non-JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+        )
+    }
+    if (typeof parsed !== 'object' || parsed === null || (parsed as {jsonrpc?: unknown}).jsonrpc !== '2.0') {
+        throw new DaemonUnreachable(`Daemon at ${url} returned non-JSON-RPC body.`)
+    }
+    return {kind: 'ok', envelope: parsed as RawRpcResponse}
+}
+
+function throwForRpcError(
+    error: {readonly code: number; readonly message: string; readonly data?: unknown},
+    tokenFilePath: string,
+): never {
+    switch (error.code) {
+        case ERROR_CODES.tool_handler_failed:
+            throw new Error(JSON.stringify(error.data))
+        case ERROR_CODES.validation_failed:
+            throw new Error(JSON.stringify({kind: 'validation_failed', data: error.data}))
+        case ERROR_CODES.auth_required:
+            throw new DaemonAuthRequired(
+                `Daemon reported auth_required. Re-check ${tokenFilePath} and confirm the daemon is the one that wrote it.`,
+            )
+        case ERROR_CODES.daemon_unreachable:
+            throw new DaemonUnreachable(error.message)
+        default:
+            throw new Error(error.message)
+    }
+}
+
+export async function callDaemon(
+    toolName: string,
+    args: Record<string, unknown>,
+): Promise<unknown> {
+    const env: Record<string, string | undefined> = process.env
+    const cwd: string = process.cwd()
+    const timeoutMs: number = getTimeoutMs(env)
+    const client: ResolvedClient = await buildResolvedClient(env, cwd)
+
+    let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
+
+    if (outcome.kind === 'auth_required') {
+        const freshToken: string = await loadToken(client.tokenVault, client.tokenFilePath)
+        outcome = await postRpc(client.endpoint.url, freshToken, toolName, args, timeoutMs)
+        if (outcome.kind === 'auth_required') {
+            throw new DaemonAuthRequired(
+                `Daemon at ${client.endpoint.url} rejected the bearer token after one retry. Re-check ${client.tokenFilePath} — the daemon may have been restarted with a new token.`,
+            )
+        }
+    }
+
+    if (outcome.envelope.error) throwForRpcError(outcome.envelope.error, client.tokenFilePath)
+    return outcome.envelope.result
+}

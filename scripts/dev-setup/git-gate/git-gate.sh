@@ -25,58 +25,142 @@ for cand in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git /opt/local/bin
 done
 [ -n "$REAL_GIT" ] || { echo "git-gate: cannot find real git" >&2; exit 127; }
 
+# Preserve the original argv so we can forward it unchanged to real git later.
+# Then strip git's global options ahead of the subcommand so that callers like
+# `git -C <path> worktree add ...` or `git --git-dir=... worktree add ...` are
+# detected and gated correctly. Without this, `$1` is `-C` (not `worktree`),
+# every post-action block below is skipped, and bootstrap_added_worktree never
+# runs — that defeats the whole pnpm fast-worktree path.
+ORIG_ARGS=("$@")
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    # Global options that take a separate value
+    -C|-c|--git-dir|--work-tree|--namespace|--exec-path|--super-prefix)
+      shift 2 || break ;;
+    # Same options in --opt=value form, plus value-less global flags
+    --git-dir=*|--work-tree=*|--namespace=*|--exec-path=*|--super-prefix=*)
+      shift ;;
+    -p|-P|--paginate|--no-pager|--bare|--no-replace-objects|\
+    --literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|\
+    --no-optional-locks|--html-path|--man-path|--info-path|--version|--help)
+      shift ;;
+    # Unknown leading flag — assume it's another global option, skip it
+    -*)
+      shift ;;
+    # First positional → the subcommand
+    *)
+      break ;;
+  esac
+done
+
 sub="${1:-}"
+sub_arg="${2:-}"
 rest="${*:2}"
 reason=""
-merge_assertion=""   # non-empty → use this password instead of GIT_GATE_PASS
+suggestion=""
+
+worktree_add_path_arg() {
+  local expect_option_value=0
+  local after_separator=0
+  local arg
+  for arg in "${@:3}"; do
+    if [ "$after_separator" -eq 1 ]; then
+      printf '%s\n' "$arg"
+      return 0
+    fi
+    if [ "$expect_option_value" -eq 1 ]; then
+      expect_option_value=0
+      continue
+    fi
+    case "$arg" in
+      --)
+        after_separator=1
+        ;;
+      -b|-B|--orphan|--reason)
+        expect_option_value=1
+        ;;
+      -*)
+        ;;
+      *)
+        printf '%s\n' "$arg"
+        return 0
+        ;;
+    esac
+  done
+}
+
+# Bootstrap a freshly-added worktree.
+#
+# Steps:
+#   1. Symlink .env from the main checkout (secrets the worktree needs).
+#   2. Run the same async setup router VT-managed worktrees use.
+#
+# Mac-role worktrees install both local and remote deps. Remote-role worktrees
+# install only the current worktree deps.
+bootstrap_added_worktree() {
+  local wt_path="$1"
+  [ -n "$wt_path" ] || return 0
+
+  local wt_abs
+  case "$wt_path" in
+    /*) wt_abs="$wt_path" ;;
+    *)  wt_abs="$(pwd -P)/$wt_path" ;;
+  esac
+  wt_abs="$(cd "$wt_abs" 2>/dev/null && pwd -P || printf '%s' "$wt_abs")"
+  echo "git-gate: worktree path: $wt_abs" >&2
+
+  # Use -C against the new worktree itself, not the gate's cwd. The gate is on
+  # PATH and may be invoked from a cwd that isn't a git repo (e.g. an agent's
+  # shell rooted in an unrelated directory) — `git worktree list` without -C
+  # then returns empty and the .env lookup below silently fails.
+  local main_repo
+  main_repo="$("$REAL_GIT" -C "$wt_abs" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+
+  if [ -n "$main_repo" ] && [ -f "$main_repo/.env" ] && [ ! -e "$wt_abs/.env" ]; then
+    ln -snf "$main_repo/.env" "$wt_abs/.env"
+    echo "git-gate: linked .env from main checkout" >&2
+  fi
+
+  if [ ! -f "$wt_abs/pnpm-workspace.yaml" ]; then
+    return 0
+  fi
+
+  local async_hook="$main_repo/scripts/git/worktree/on-created-async.sh"
+  if [ ! -x "$async_hook" ]; then
+    echo "git-gate: async worktree hook missing at $async_hook; skipping dependency setup" >&2
+    return 0
+  fi
+
+  local wt_name
+  wt_name="$(basename "$wt_abs")"
+  echo "git-gate: running async worktree dependency setup for $wt_name" >&2
+  if ! "$async_hook" "$wt_abs" "$wt_name"; then
+    echo "git-gate: warning: async worktree dependency setup failed for $wt_name" >&2
+  fi
+}
 
 case "$sub" in
-  merge)
-    # --continue / --abort are conflict-resolution steps, not new merges — let through
-    if [[ ! "$rest" =~ (^|[[:space:]])(--continue|--abort|--quit)([[:space:]]|$) ]]; then
-      target_branch="$(echo "$rest" | tr -s ' ' | cut -d' ' -f1)"
-      current_branch="$(git -C "${GIT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || echo "unknown")"
-      # Only gate merges performed in the MAIN worktree (primary checkout
-      # tied directly to .git/). Merges in linked worktrees (`.worktrees/*`,
-      # created via `git worktree add`) are cheap-to-revert local integration
-      # steps and pass through.
-      # Detection: in the main worktree, --git-dir and --git-common-dir resolve
-      # to the same path. In a linked worktree, --git-dir points inside
-      # <repo>/.git/worktrees/<name>/ while --git-common-dir is the shared .git.
-      gd="$("$REAL_GIT" rev-parse --git-dir 2>/dev/null)"
-      gcd="$("$REAL_GIT" rev-parse --git-common-dir 2>/dev/null)"
-      gd_abs="$(cd "$gd" 2>/dev/null && pwd -P)"
-      gcd_abs="$(cd "$gcd" 2>/dev/null && pwd -P)"
-      if [ -n "$gd_abs" ] && [ "$gd_abs" = "$gcd_abs" ]; then
-        reason="merging ${target_branch:-branch} into ${current_branch} (main worktree)"
-        merge_assertion="yes_tests_and_measures_green"
-      fi
-    fi
-    ;;
   reset)
-    [[ "$rest" =~ (^|[[:space:]])--hard([[:space:]]|$) ]] && reason="reset --hard destroys uncommitted changes"
+    [[ "$rest" =~ (^|[[:space:]])--hard([[:space:]]|$) ]] && { reason="reset --hard destroys uncommitted changes"; suggestion="make a new commit that reverts, or use 'git restore --source=<ref> -- <file>' for specific files"; }
     ;;
   stash)
-    [[ -z "$rest" || "$rest" =~ ^(push|save|-) ]] && reason="stash hides your working-tree changes"
+    [[ -z "$rest" || "$rest" =~ ^(push|save|-) ]] && { reason="stash hides your working-tree changes"; suggestion="commit unrelated changes to a scratch branch ('git checkout -b scratch && git commit -am wip && git checkout -'), or copy files aside with cp and 'git checkout -- <file>', then restore after"; }
     ;;
   checkout|switch)
-    # branch switch: no '--' file separator => not a file restore
-    [[ ! " $rest " =~ [[:space:]]--[[:space:]] ]] && reason="$sub changes branch / overwrites working tree"
+    [[ ! " $rest " =~ [[:space:]]--[[:space:]] ]] && { reason="$sub changes branch / overwrites working tree"; suggestion="commit or copy aside any working-tree changes first, then switch"; }
     ;;
   restore)
-    reason="restore overwrites working-tree files"
+    reason="restore overwrites working-tree files"; suggestion="copy the file aside first ('cp <file> /tmp/'), then restore"
     ;;
   clean)
-    [[ "$rest" =~ -[a-zA-Z]*f ]] && reason="clean -f deletes untracked files"
-    ;;
-  rebase)
-    reason="rebase rewrites history"
+    [[ "$rest" =~ -[a-zA-Z]*f ]] && { reason="clean -f deletes untracked files"; suggestion="move untracked files to /tmp/ instead of deleting"; }
     ;;
   branch)
-    [[ "$rest" =~ -[a-zA-Z]*D ]] && reason="branch -D force-deletes a branch"
+    [[ "$rest" =~ -[a-zA-Z]*D ]] && { reason="branch -D force-deletes a branch"; suggestion="use 'git branch -d' (safe delete); if it refuses, the branch has unmerged work — merge or tag it first"; }
     ;;
   push)
-    [[ "$rest" =~ (^|[[:space:]])(--force|--force-with-lease|-f)([[:space:]]|$) ]] && reason="force-push overwrites remote history"
+    [[ "$rest" =~ (^|[[:space:]])(--force|--force-with-lease|-f)([[:space:]]|$) ]] && { reason="force-push overwrites remote history"; suggestion="pull/rebase and push normally; only force-push your own feature branch with explicit user approval"; }
     ;;
   # worktree is intentionally NOT gated — add/remove/list/prune all allowed.
   # See post-action block below for `worktree add` normalization.
@@ -88,11 +172,30 @@ esac
 # host-portable. `worktree repair --relative-paths` rewrites both sides of
 # the pointer pair and is idempotent. Best-effort: failure does not affect
 # the underlying add's exit code.
-if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
-  "$REAL_GIT" "$@"
+#
+# Dependency readiness is prewarmed asynchronously below. The command boundary
+# still enforces readiness before remote commands, so a failed prewarm cannot
+# make later execution unsafe.
+if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
+  wt_path="$(worktree_add_path_arg "$@")"
+  echo "git-gate: running git worktree add" >&2
+  "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
   if [ $ec -eq 0 ]; then
-    "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1 || true
+    echo "git-gate: normalizing worktree git metadata to relative paths" >&2
+    if "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata normalized" >&2
+    else
+      echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
+    fi
+    if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
+      echo "git-gate: skipping dependency prewarm; caller owns worktree hooks" >&2
+    else
+      bootstrap_added_worktree "$wt_path"
+    fi
+    echo "git-gate: worktree add post-setup complete" >&2
+  else
+    echo "git-gate: git worktree add failed with exit code $ec" >&2
   fi
   exit $ec
 fi
@@ -103,7 +206,7 @@ fi
 # .worktrees/<n>/{node_modules,dist,test-results,playwright-report-*}.
 # The deletion deadlocks until the stale paths on beta are cleared manually.
 # We pre-empt by ssh-rm'ing them ourselves so mutagen sees no remote conflict.
-if [ "$sub" = "worktree" ] && [ "${2:-}" = "remove" ]; then
+if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
   wt_path=""
   for arg in "${@:3}"; do
     case "$arg" in
@@ -112,71 +215,69 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "remove" ]; then
     esac
   done
 
-  "$REAL_GIT" "$@"
+  # Capture main_repo BEFORE the remove. Once the worktree is gone the
+  # path-anchored `git worktree list` lookup below can't find a git context;
+  # using -C against the to-be-removed worktree also keeps the gate working
+  # when its own cwd is not a git repo (e.g. agent shell rooted elsewhere).
+  main_repo=""
+  if [ -n "$wt_path" ]; then
+    main_repo="$("$REAL_GIT" -C "$wt_path" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  fi
+
+  "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
 
   if [ $ec -eq 0 ] && [ -n "$wt_path" ]; then
+    echo "git-gate: git worktree remove succeeded for $wt_path" >&2
     wt_name="$(basename "$wt_path")"
     # Reject anything that isn't a plain worktree name. Defensive against
     # command injection via the path argument and against accidental clobbers.
     if [[ "$wt_name" =~ ^[A-Za-z0-9_.-]+$ ]] && [ "$wt_name" != "." ] && [ "$wt_name" != ".." ]; then
       remote_host="${VT_REMOTE_HOST:-}"
       if [ -z "$remote_host" ]; then
-        main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+        # main_repo was captured above before the worktree was removed
         [ -n "$main_repo" ] && [ -f "$main_repo/.env" ] && \
           remote_host="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$main_repo/.env")"
       fi
       if [ -n "$remote_host" ]; then
-        remote_root="/root/voicetree-public"
+        echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
+        remote_root="/root/vtrepo-synced"
+        remote_wts_root="/root/vt-wts-synced"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
-          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name'" \
+          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name' '$remote_wts_root/$wt_name'" \
           >/dev/null 2>&1 \
+          && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
           || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-remote' to check" >&2
+      else
+        echo "git-gate: no VT_REMOTE_HOST found; skipping remote residue cleanup" >&2
       fi
+    else
+      echo "git-gate: worktree name '$wt_name' is not a plain safe name; skipping remote cleanup" >&2
     fi
+  elif [ $ec -ne 0 ]; then
+    echo "git-gate: git worktree remove failed with exit code $ec" >&2
+  else
+    echo "git-gate: worktree remove path not detected; skipping remote cleanup" >&2
   fi
 
   exit $ec
 fi
 
 if [ -n "$reason" ]; then
-  if [ -n "$merge_assertion" ]; then
-    {
-      echo ""
-      echo "  ╔══════════════════════════════════════════════════════════════════╗"
-      echo "  ║  git-gate: MERGE BLOCKED                                         ║"
-      echo "  ╚══════════════════════════════════════════════════════════════════╝"
-      echo "    command: git $*"
-      echo ""
-      echo "    Before merging, confirm ALL of the following:"
-      echo ""
-      echo "      1. \`npm run test\` passes in this worktree"
-      echo "      2. Tier 1 e2e tests are green"
-      echo "      3. Complexity measures have not regressed"
-      echo ""
-      echo "    If all green, type the assertion password to proceed:"
-      echo "      yes_tests_and_measures_green"
-      echo ""
-    } >&2
-    expected="$merge_assertion"
-  else
-    {
-      echo ""
-      echo "  ╔══════════════════════════════════════════════════════════════════╗"
-      echo "  ║  git-gate: BLOCKED                                               ║"
-      echo "  ╚══════════════════════════════════════════════════════════════════╝"
-      echo "    command: git $*"
-      echo "    reason:  $reason"
-      echo ""
-      echo "    Think before you run destructive git commands."
-      echo "    Other agents may be working in this repo right now."
-      echo "    Prefer multiple commits to get where you want — not destructive"
-      echo "    rewrites that stomp on parallel work."
-      echo ""
-    } >&2
-    expected="${GIT_GATE_PASS:-$(security find-generic-password -s git-gate -a "$USER" -w 2>/dev/null)}"
-    expected="${expected:-changeme}"
-  fi
+  {
+    echo ""
+    echo "  ✗ git-gate: BLOCKED"
+    echo "    command: git ${ORIG_ARGS[*]}"
+    echo "    reason:  $reason"
+    echo ""
+    echo "    Think before you run destructive git commands."
+    echo "    Other agents may be working in this repo right now."
+    echo "    Prefer multiple commits to get where you want — not destructive"
+    echo "    rewrites that stomp on parallel work."
+    echo ""
+  } >&2
+  expected="${GIT_GATE_PASS:-$(security find-generic-password -s git-gate -a "$USER" -w 2>/dev/null)}"
+  expected="${expected:-changeme}"
 
   pass=""
   if { exec 3</dev/tty; } 2>/dev/null; then
@@ -187,16 +288,19 @@ if [ -n "$reason" ]; then
     pass="$GIT_GATE_PASS_ATTEMPT"
   else
     {
-      echo "  ╔══════════════════════════════════════════════════════════════════╗"
-      echo "  ║  git-gate: BLOCKED — no TTY (agent / non-interactive context)    ║"
-      echo "  ╚══════════════════════════════════════════════════════════════════╝"
+      echo "  ✗ git-gate: BLOCKED (no TTY)"
       echo ""
-      echo "    Ask the user for the password."
+      echo "    [MESSAGE FROM USER]: achieve your goal non-destructively"
+      echo "    with other git commands — other agents share this checkout."
+      [ -n "$suggestion" ] && echo "    try: $suggestion"
+      echo ""
+      echo "    Only ask the user for the password if you have no other"
+      echo "    way of performing your goal cleanly."
       echo ""
       echo "    If the user provides it, retry the command with the password in"
       echo "    the GIT_GATE_PASS_ATTEMPT environment variable, e.g.:"
       echo ""
-      echo "      GIT_GATE_PASS_ATTEMPT='<password>' git $*"
+      echo "      GIT_GATE_PASS_ATTEMPT='<password>' git ${ORIG_ARGS[*]}"
       echo ""
       echo "    Do NOT call git through any other path or binary. Do NOT modify"
       echo "    PATH to circumvent this gate. If you cannot get the password,"
@@ -218,4 +322,4 @@ if [ -n "$reason" ]; then
   unset GIT_GATE_PASS_ATTEMPT
 fi
 
-exec "$REAL_GIT" "$@"
+exec "$REAL_GIT" "${ORIG_ARGS[@]}"

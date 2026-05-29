@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { startDaemon, type DaemonHandle } from '@vt/graph-db-server'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
@@ -19,6 +20,15 @@ async function waitFor<T>(read: () => Promise<T | null>): Promise<T> {
   throw new Error('condition not met before timeout')
 }
 
+async function addReadPath(client: GraphDbClient, p: string): Promise<void> {
+  const { sessionId } = await client.createSession()
+  try {
+    await client.setFolderState(sessionId, p, 'expanded')
+  } finally {
+    await client.deleteSession(sessionId).catch(() => {})
+  }
+}
+
 describe('@vt/graph-db-client system contract', () => {
   let root: string
   let vault: string
@@ -31,13 +41,16 @@ describe('@vt/graph-db-client system contract', () => {
     vault = path.join(root, 'vault')
     docs = path.join(vault, 'docs')
     await mkdir(docs, { recursive: true })
+    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     handle = await startDaemon({
       vault,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
+      createStarterIfEmpty: false,
     })
     client = await GraphDbClient.connect({ vault })
+    await addReadPath(client, docs)
   })
 
   afterEach(async () => {
@@ -195,7 +208,7 @@ describe('@vt/graph-db-client system contract', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' },
             position: { _tag: 'None' },
-            additionalYAMLProps: new Map([['agent_name', 'e2e']]),
+            additionalYAMLProps: { agent_name: 'e2e' },
           },
         },
         previousNode: { _tag: 'None' },

@@ -88,9 +88,14 @@ const test = base.extend<{
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    // Create temp userData directory
+    // Create temp userData directory.
+    // Prefix kept short so the resulting `<userData>/tmux.sock` path stays under
+    // macOS' 104-char AF_UNIX limit (the longer prefix used previously produced
+    // ~110-char paths that made `tmux new-session` fail with `File name too long`,
+    // which surfaced as `firstWindow: Timeout` because the main process blocked
+    // on the resulting modal error dialog).
     tempUserDataPath: async ({}, use) => {
-        const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-project-selection-userdata-'));
+        const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-projsel-userdata-'));
         await use(tempPath);
         await fs.rm(tempPath, { recursive: true, force: true });
     },
@@ -109,8 +114,9 @@ const test = base.extend<{
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
+                VOICETREE_HOME_PATH: tempUserDataPath,
                 VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
-                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+                VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
             },
             timeout: 15000
         });
@@ -351,6 +357,7 @@ test.describe('Project Selection Screen E2E', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -391,6 +398,7 @@ test.describe('Project Selection Screen E2E', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -470,6 +478,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1',
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -596,6 +605,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1',
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -836,6 +846,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1',
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },

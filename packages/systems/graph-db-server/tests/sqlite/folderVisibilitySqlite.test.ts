@@ -10,10 +10,12 @@ import { DatabaseSync } from 'node:sqlite'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import {
-    FOLDER_VISIBILITY_DB_RELATIVE_PATH,
+    FOLDER_VISIBILITY_DB_FILENAME,
     FOLDER_VISIBILITY_SCHEMA_VERSION,
     closeFolderVisibilityDb,
+    defaultFolderVisibilityDbDeps,
     openFolderVisibilityDb,
     resolveFolderVisibilityDbPath,
     runSchemaMigrations,
@@ -40,10 +42,10 @@ describe('folderVisibilitySqlite', () => {
         // Ensure the .voicetree dir does not pre-exist.
         expect(fs.existsSync(path.join(vault, '.voicetree'))).toBe(false)
 
-        const db = openFolderVisibilityDb(vault)
+        const db = openFolderVisibilityDb(vault, defaultFolderVisibilityDbDeps)
         try {
             const dbPath = resolveFolderVisibilityDbPath(vault)
-            expect(dbPath).toBe(path.join(vault, FOLDER_VISIBILITY_DB_RELATIVE_PATH))
+            expect(dbPath).toBe(path.join(getProjectDotVoicetreePath(vault), FOLDER_VISIBILITY_DB_FILENAME))
             expect(fs.existsSync(dbPath)).toBe(true)
             expect(fs.statSync(path.join(vault, '.voicetree')).isDirectory()).toBe(true)
         } finally {
@@ -53,7 +55,7 @@ describe('folderVisibilitySqlite', () => {
 
     it('sets journal_mode = WAL on cold open', () => {
         const vault = makeVault()
-        const db = openFolderVisibilityDb(vault)
+        const db = openFolderVisibilityDb(vault, defaultFolderVisibilityDbDeps)
         try {
             const mode = db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }
             expect(mode.journal_mode).toBe('wal')
@@ -64,7 +66,7 @@ describe('folderVisibilitySqlite', () => {
 
     it('creates folder_visibility + views tables and idx_fv_view index', () => {
         const vault = makeVault()
-        const db = openFolderVisibilityDb(vault)
+        const db = openFolderVisibilityDb(vault, defaultFolderVisibilityDbDeps)
         try {
             const tables = db
                 .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -104,7 +106,7 @@ describe('folderVisibilitySqlite', () => {
         const vault = makeVault()
 
         // First open: write a row.
-        const db1 = openFolderVisibilityDb(vault)
+        const db1 = openFolderVisibilityDb(vault, defaultFolderVisibilityDbDeps)
         db1.prepare('INSERT INTO views(view_id, name, is_active) VALUES (?, ?, 1)').run('main', 'main')
         db1
             .prepare('INSERT INTO folder_visibility(view_id, path, state) VALUES (?, ?, ?)')
@@ -112,7 +114,7 @@ describe('folderVisibilitySqlite', () => {
         closeFolderVisibilityDb(db1)
 
         // Second open: row still there, schema unchanged, migrations don't error.
-        const db2 = openFolderVisibilityDb(vault)
+        const db2 = openFolderVisibilityDb(vault, defaultFolderVisibilityDbDeps)
         try {
             const row = db2
                 .prepare('SELECT view_id, path, state FROM folder_visibility WHERE path = ?')
@@ -137,11 +139,11 @@ describe('folderVisibilitySqlite', () => {
 
     it('rejects bad inputs cleanly', () => {
         // Empty / wrong-typed vaultPath.
-        expect(() => openFolderVisibilityDb('')).toThrow(/non-empty string/)
+        expect(() => openFolderVisibilityDb('', defaultFolderVisibilityDbDeps)).toThrow(/non-empty string/)
         // @ts-expect-error — runtime guard for non-string input
-        expect(() => openFolderVisibilityDb(null)).toThrow(/non-empty string/)
+        expect(() => openFolderVisibilityDb(null, defaultFolderVisibilityDbDeps)).toThrow(/non-empty string/)
         // @ts-expect-error — runtime guard for non-string input
-        expect(() => openFolderVisibilityDb(undefined)).toThrow(/non-empty string/)
+        expect(() => openFolderVisibilityDb(undefined, defaultFolderVisibilityDbDeps)).toThrow(/non-empty string/)
 
         // Vault path under a non-existent, non-creatable parent (a regular file
         // instead of a directory) — fs.mkdirSync surfaces a clear error rather
@@ -151,7 +153,7 @@ describe('folderVisibilitySqlite', () => {
         fs.writeFileSync(blocker, 'not-a-dir')
         // Treat the regular file as if it were a vault path — `<blocker>/.voicetree/...`
         // cannot be created because `<blocker>` is a file.
-        expect(() => openFolderVisibilityDb(blocker)).toThrow()
+        expect(() => openFolderVisibilityDb(blocker, defaultFolderVisibilityDbDeps)).toThrow()
     })
 
     it('runSchemaMigrations is idempotent on an externally-created db', () => {

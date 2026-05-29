@@ -1,0 +1,61 @@
+# One-way-replica sync for the Mac-owned sibling vt-wts/ directory.
+#
+# Why a SECOND session (not a config on `vt-remote`):
+#   - `vt-remote` syncs the Mac checkout `~/repos/vtrepo/` ↔ `/root/vtrepo-synced/`.
+#     A single mutagen session can only sync one path pair.
+#   - Worktrees moved out of `<repo>/.worktrees/` (nested) into the sibling
+#     `<parent>/vt-wts/<name>/`. That second tree needs its own pair:
+#         ~/repos/vt-wts              ↔ /root/vt-wts-synced
+#   - Same mode as vt-remote (one-way-replica) because `scripts/run-remote.mjs`
+#     enforces that mode before remote execution.
+#   - Tuning knob: worktrees see heavier churn than the main checkout, so the
+#     ignore list below is leaner — we don't sync build outputs that the
+#     worktree won't need on remote.
+#
+# Lifecycle commands live in `scripts/dev-setup/remote/vt-remote.sh`:
+#   vt-remote.sh vt-wts-create
+#   vt-remote.sh vt-wts-status
+#   vt-remote.sh vt-wts-terminate
+sync:
+  defaults:
+    mode: "one-way-replica"
+    symlink:
+      mode: "posix-raw"
+    ignore:
+      vcs: false
+      paths:
+        - "**/node_modules"
+        - "**/node_modules*"
+        - "**/*node_modules*"
+        - "**/.node_modules-*"
+        - "**/*.node_modules-*"
+        - "**/.stryker-tmp"
+        - "**/*.stryker-tmp*"
+        - "**/dist"
+        - "**/dist*"
+        - "**/dist-electron"
+        - "**/*dist-electron*"
+        - "**/dist-web"
+        - "**/*dist-web*"
+        - "**/playwright-report*"
+        - "**/*playwright-report*"
+        - "**/test-results"
+        - "**/*test-results*"
+        - "**/.next"
+        - "**/*.next*"
+        - "**/.turbo"
+        - "**/*.turbo*"
+        - "**/.cache"
+        - "**/*.cache*"
+        - "**/.DS_Store"
+        - "**/*.DS_Store*"
+        - "**/*.log"
+        - "**/folder-visibility.db*"
+        - "**/*folder-visibility.db*"
+        - "**/.voicetree/graphd.owner.json"
+        # Worktree `.git` is a *file* (gitdir pointer), not a directory.
+        # Sync the file itself so the worktree is usable on remote, but
+        # ignore lock/index churn that would conflict with local git work.
+        - ".git/index"
+        - ".git/index.lock"
+        - ".git/*.lock"

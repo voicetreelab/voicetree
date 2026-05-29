@@ -28,7 +28,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
 
     // Notify main process to kill the tmux session and clean up registry/runtime state.
     // The renderer-local disposal below handles the floating-window DOM; main handles tmux.
-    void window.electronAPI?.main.closeAgent(terminalId);
+    void window.electronAPI?.main.closeAgent({ terminalId });
 
     // Analytics: Track terminal closed
     posthog.capture('terminal_closed', { terminalId: terminalId });

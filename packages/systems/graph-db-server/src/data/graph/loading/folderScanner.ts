@@ -186,6 +186,7 @@ const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
     '.tox',
     '.venv',
     'venv',
+    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
     '.worktrees',
 ]);
 

@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearWatchFolderState } from '@vt/graph-db-server/state/watch-folder-store'
@@ -10,20 +11,20 @@ import { GraphDbClient } from '../GraphDbClient.ts'
 import { DaemonUnreachableError, GraphDbClientError } from '../errors.ts'
 
 type Harness = {
-  appSupportPath: string
+  voicetreeHomePath: string
   root: string
   vault: string
 }
 
 async function createHarness(): Promise<Harness> {
   const root = await mkdtemp(join(tmpdir(), 'graph-db-client-test-'))
-  const appSupportPath = join(root, 'app-support')
+  const voicetreeHomePath = join(root, 'app-support')
   const vault = join(root, 'vault')
 
-  await mkdir(appSupportPath, { recursive: true })
+  await mkdir(voicetreeHomePath, { recursive: true })
   await mkdir(vault, { recursive: true })
 
-  return { appSupportPath, root, vault }
+  return { voicetreeHomePath, root, vault }
 }
 
 async function waitFor<T>(
@@ -45,16 +46,26 @@ async function waitFor<T>(
   throw new Error(`condition not met within ${timeoutMs}ms`)
 }
 
+async function addReadPath(client: GraphDbClient, p: string): Promise<void> {
+  const { sessionId } = await client.createSession()
+  try {
+    await client.setFolderState(sessionId, p, 'expanded')
+  } finally {
+    await client.deleteSession(sessionId).catch(() => {})
+  }
+}
+
 describe('GraphDbClient', () => {
   let harness: Harness
   let handles: DaemonHandle[]
-  let originalAppSupportPath: string | undefined
+  let originalVoicetreeHomePath: string | undefined
 
   beforeEach(async () => {
     harness = await createHarness()
     handles = []
-    originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
-    process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
+    originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
+    process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
+    await saveVaultConfigForDirectory(harness.vault, { writeFolder: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
   })
@@ -66,16 +77,19 @@ describe('GraphDbClient', () => {
     }
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    if (originalAppSupportPath === undefined) {
-      delete process.env.VOICETREE_APP_SUPPORT
+    if (originalVoicetreeHomePath === undefined) {
+      delete process.env.VOICETREE_HOME_PATH
     } else {
-      process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+      process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
     }
     await rm(harness.root, { recursive: true, force: true })
   })
 
   const start = async (): Promise<DaemonHandle> => {
-    const handle = await startDaemon({ vault: harness.vault })
+    const handle = await startDaemon({
+      vault: harness.vault,
+      createStarterIfEmpty: false,
+    })
     handles.push(handle)
     return handle
   }
@@ -168,7 +182,6 @@ describe('GraphDbClient', () => {
           const requestUrl = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
           const path = new URL(requestUrl).pathname
           const body = init?.body === undefined ? undefined : JSON.parse(String(init.body))
-          const applyDeltaBody = body as { delta?: unknown[] } | undefined
           calls.push({
             body,
             headers: new Headers(init?.headers),
@@ -177,7 +190,8 @@ describe('GraphDbClient', () => {
           })
 
           const responseByPath: Record<string, unknown> = {
-            '/graph/apply-delta': { delta: applyDeltaBody?.delta ?? [], graph: {} },
+            '/graph/apply-delta': { ok: true },
+            '/graph/delta': { ok: true },
             '/graph/write-markdown-file': { ok: true, absolutePath: '/vault/note.md' },
             '/graph/context-node-from-selected-nodes': { nodeId: 'ctx.md' },
             '/graph/unseen-nodes-around-context-node': {
@@ -199,6 +213,7 @@ describe('GraphDbClient', () => {
       await expect(
         client.applyGraphDelta(delta, { recordForUndo: false, sessionId: 'session-1' }),
       ).resolves.toBeUndefined()
+      await expect(client.postDelta(delta, 'session-1')).resolves.toBeUndefined()
       await expect(
         client.createContextNodeFromSelectedNodes('task.md', ['a.md', 'b.md']),
       ).resolves.toEqual({ nodeId: 'ctx.md' })
@@ -217,6 +232,11 @@ describe('GraphDbClient', () => {
           body: { delta, recordForUndo: false },
           method: 'POST',
           path: '/graph/apply-delta',
+        },
+        {
+          body: delta,
+          method: 'POST',
+          path: '/graph/delta',
         },
         {
           body: { taskNodeId: 'task.md', selectedNodeIds: ['a.md', 'b.md'] },
@@ -240,6 +260,7 @@ describe('GraphDbClient', () => {
         },
       ])
       expect(calls[0].headers.get('X-Session-Id')).toBe('session-1')
+      expect(calls[1].headers.get('X-Session-Id')).toBe('session-1')
     })
 
     test('returns graph state after watcher-driven updates', async () => {
@@ -249,6 +270,7 @@ describe('GraphDbClient', () => {
       const filePath = join(docsPath, 'hello.md')
 
       await mkdir(docsPath, { recursive: true })
+      await addReadPath(client, docsPath)
       await writeFile(filePath, '# Hello\n\nwatch me\n', 'utf8')
 
       const graph = await waitFor(async () => {

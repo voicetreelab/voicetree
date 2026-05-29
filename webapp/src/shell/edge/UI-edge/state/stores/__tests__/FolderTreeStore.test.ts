@@ -5,7 +5,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { FolderTreeNode } from '@vt/graph-model/folders'
-import type { LiveStateSnapshot } from '@vt/graph-db-client'
 import {
     folderTreeReducer,
     getFolderTreeState,
@@ -146,47 +145,6 @@ describe('FolderTreeStore dispatchers and persistence', () => {
         expect(store.getFolderTreeState().sidebarWidth).toBe(280)
         expect(localStorage.getItem('folderTree.isOpen')).toBe('false')
         expect(localStorage.getItem('folderTree.sidebarWidth')).toBe('280')
-    })
-
-    it('should initialize the folder tree from the main snapshot when empty', async () => {
-        vi.resetModules()
-
-        const tree: FolderTreeNode = makeFolderTreeNode('root')
-        const snapshot: LiveStateSnapshot = {
-            graph: {
-                nodes: {},
-                incomingEdgesIndex: [],
-                nodeByBaseName: [],
-                unresolvedLinksIndex: [],
-            },
-            roots: {
-                folderTree: [tree],
-            },
-            folderState: [],
-            activeView: { viewId: 'main', name: 'main' },
-            selection: [],
-            layout: { positions: [] },
-            meta: {
-                schemaVersion: 1,
-                revision: 0,
-            },
-        }
-        const store: typeof import('@/shell/edge/UI-edge/state/stores/FolderTreeStore') =
-            await import('@/shell/edge/UI-edge/state/stores/FolderTreeStore')
-        const getLiveStateSnapshot: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(snapshot)
-
-        window.electronAPI = {
-            main: {
-                getLiveStateSnapshot,
-            },
-        } as unknown as Window['electronAPI']
-
-        await store.initializeFromMainIfEmpty()
-
-        await vi.waitFor(() => {
-            expect(store.getFolderTreeState().tree).toEqual(tree)
-        })
-        expect(getLiveStateSnapshot).toHaveBeenCalledTimes(1)
     })
 })
 

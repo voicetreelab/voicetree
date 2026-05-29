@@ -146,11 +146,6 @@ export function closeHoverImageViewer(cy: Core): void {
     const hoverViewerOption: O.Option<ImageViewerData> = getHoverImageViewer();
     if (O.isNone(hoverViewerOption)) return;
 
-    // Restore the node's Cytoscape label
-    const nodeId: string = hoverViewerOption.value.imageNodeId;
-    // [L2-seam-residual] cy-only: CSS class manipulation on cy node
-    cy.getElementById(nodeId).removeClass('hover-editor-open');
-
     //console.log('[FloatingImageViewerCRUD] Closing hover image viewer');
     closeImageViewer(cy, hoverViewerOption.value);
 }
@@ -210,10 +205,6 @@ export async function openHoverImageViewer(
         viewer.ui.windowElement.style.top = `${graphY * zoom}px`;
         viewer.ui.windowElement.style.transformOrigin = 'top center';
         viewer.ui.windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
-
-        // Hide the node's Cytoscape label (viewer shows the name)
-        // [L2-seam-residual] cy-only: CSS class manipulation on cy node
-        cy.getElementById(nodeId).addClass('hover-editor-open');
 
         // Close on click outside (but allow clicks on menus that control this viewer)
         const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
