@@ -61,7 +61,6 @@
  *   - else → no violation
  */
 import {Node, SyntaxKind, type SourceFile as MorphSourceFile} from 'ts-morph'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 
 const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-implicit-globals.md'
@@ -457,15 +456,14 @@ function tierSums(byCategory: CategoryCounts): {strict: number, advisory: number
     return {strict, advisory}
 }
 
-function classifySeverity(
-    strict: number,
-    advisory: number,
-    baselineStrict: number | null,
-): 'pass' | 'warn' | 'fail' {
-    if (strict === 0 && advisory === 0) return 'pass'
-    if (strict > 0 && (baselineStrict === null || strict > baselineStrict)) return 'fail'
-    return 'warn'
-}
+/**
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Set to the historical per-community max (854 — webapp shell)
+ * so existing grandfathered communities can still be touched. The codebase
+ * has 39 communities with strict-tier IO usage; ratchet down as core/shell
+ * separation (FP pattern 1) is applied to push IO to the edges.
+ */
+export const IMPLICIT_GLOBALS_THRESHOLD = 854
 
 function formatTierBreakdown(byCategory: CategoryCounts): string {
     const strict: string[] = []
@@ -489,19 +487,14 @@ function buildMessage(
     strict: number,
     advisory: number,
     leakyStrict: number,
-    baselineStrict: number | null,
     breakdown: CategoryCounts,
 ): string {
-    const baselineFragment = baselineStrict === null
-        ? '(no baseline)'
-        : `strict baseline=${baselineStrict}`
     const leakyFragment = leakyStrict > 0
         ? ` leaky-shell=${leakyStrict} (strict-tier uses outside any env-taking function — Pattern 3 not applied here)`
         : ''
     return (
-        `strict=${strict} advisory=${advisory}${leakyFragment} ${baselineFragment}: ${formatTierBreakdown(breakdown)}. `
-        + 'Strict tier is the gated score — thread an `env` argument '
-        + '(FP pattern 3: Reader-env) so callers see fs/network/process dependencies. '
+        `strict=${strict} advisory=${advisory}${leakyFragment} > threshold ${IMPLICIT_GLOBALS_THRESHOLD}: ${formatTierBreakdown(breakdown)}. `
+        + 'Thread an `env` argument (FP pattern 3: Reader-env) so callers see fs/network/process dependencies. '
         + 'Advisory tier (time/random/crypto) is informational and does not affect the gate.'
         + `\nSee: ${SKILL_DOC}`
     )
@@ -538,20 +531,18 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         }
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of touched) {
         const breakdown = breakdownByCommunity[community]
         const {strict, advisory} = tierSums(breakdown)
         const leakyStrict = leakyByCommunity[community] ?? 0
-        if (strict === 0 && advisory === 0) continue
-        const baselineStrict = community in baseline ? baseline[community] : null
+        if (strict <= IMPLICIT_GLOBALS_THRESHOLD) continue
         violations.push({
             community,
             score: strict,
-            baseline: baselineStrict,
-            severity: classifySeverity(strict, advisory, baselineStrict),
-            message: buildMessage(strict, advisory, leakyStrict, baselineStrict, breakdown),
+            baseline: null,
+            severity: 'fail',
+            message: buildMessage(strict, advisory, leakyStrict, breakdown),
         })
     }
 

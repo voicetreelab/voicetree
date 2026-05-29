@@ -9,7 +9,7 @@ import {afterAll, describe, expect, it} from 'vitest'
 import {parseSubgraph} from '../../../_shared/graph/parse-subgraph.ts'
 import {
     boundaryWidthMeasure,
-    BOUNDARY_WIDTH_ABSOLUTE_BUDGET,
+    BOUNDARY_WIDTH_THRESHOLD,
 } from './boundary-width.ts'
 import {buildTempRepo, type Fixture} from './test-support/tempdir-fixture.ts'
 
@@ -35,7 +35,7 @@ describe('boundary-width (subgraph measure)', () => {
     })
 
     it('BAD: kitchen-sink module with many exports trips the budget', async () => {
-        const declarations = Array.from({length: BOUNDARY_WIDTH_ABSOLUTE_BUDGET + 5}, (_, i) =>
+        const declarations = Array.from({length: BOUNDARY_WIDTH_THRESHOLD + 5}, (_, i) =>
             `export function fn${i}(): number { return ${i} }`,
         ).join('\n') + '\n'
         const fixture = await buildTempRepo([
@@ -46,7 +46,7 @@ describe('boundary-width (subgraph measure)', () => {
         const sub = await parseSubgraph(fixture.absolutePaths, {repoRoot: fixture.repoRoot, depth: 1})
         const result = await boundaryWidthMeasure.run({changedFiles: fixture.absolutePaths, parsedSubgraph: sub})
 
-        expect(result.perCommunity['pkg-y/utils']).toBe(BOUNDARY_WIDTH_ABSOLUTE_BUDGET + 5)
+        expect(result.perCommunity['pkg-y/utils']).toBe(BOUNDARY_WIDTH_THRESHOLD + 5)
         const fails = result.violations.filter(v => v.severity === 'fail')
         expect(fails.length).toBe(1)
         expect(fails[0].message).toContain('wide public channel')

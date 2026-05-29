@@ -1,11 +1,17 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
-import type { EditorView } from '@codemirror/view';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
+import {
+  focusEditorInstance,
+  getEditorInstanceId,
+  readEditorValue,
+  tryReadEditorValue,
+  waitForEditorInstance,
+} from './helpers/editor-instance';
 import {
   getCiElectronFlags,
   pollForCondition,
@@ -25,10 +31,6 @@ export const INITIAL_PARENT_CONTENT = `# ${PARENT_TITLE}\n\nInitial body.\n`;
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
-}
-
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: EditorView };
 }
 
 function idSelector(id: string): string {
@@ -177,28 +179,23 @@ export async function openEditorForLabel(
   }, label);
 
   const editorWindowId = `window-${nodeId}-editor`;
+  const editorInstanceId = getEditorInstanceId(nodeId);
   await page.locator(`${idSelector(editorWindowId)} .cm-content`).waitFor({ state: 'visible', timeout: 5_000 });
+  await waitForEditorInstance(page, editorInstanceId);
   await focusEditor(page, editorWindowId);
   return { nodeId, editorWindowId, nodeCountBefore };
 }
 
 export async function focusEditor(page: Page, editorWindowId: string): Promise<void> {
-  await expect.poll(async () => {
-    return page.evaluate((winId) => {
-      document.getElementById(winId)?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      editorElement?.cmView?.view.focus();
-      return document.activeElement === editorElement
-        || Boolean(document.activeElement?.closest('.cm-editor'));
-    }, editorWindowId);
-  }, { message: 'Waiting for CodeMirror editor focus', timeout: 5_000 }).toBe(true);
+  const editorInstanceId = editorWindowId.replace(/^window-/, '');
+  await page.evaluate((winId) => {
+    document.getElementById(winId)?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  }, editorWindowId);
+  await focusEditorInstance(page, editorInstanceId);
 }
 
 export async function readEditorText(page: Page, editorWindowId: string): Promise<string | null> {
-  return page.evaluate((winId) => {
-    const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    return editorElement?.cmView?.view.state.doc.toString() ?? null;
-  }, editorWindowId);
+  return tryReadEditorValue(page, editorWindowId.replace(/^window-/, ''));
 }
 
 export async function selectAllInEditor(page: Page): Promise<void> {
@@ -247,10 +244,7 @@ export async function typeCharByCharVerifyingPrefix(
     }
     const expectedPrefix = content.slice(0, i + 1);
     await expect.poll(async () => {
-      return page.evaluate((winId) => {
-        const el = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-        return el?.innerText?.replace(/\n$/, '') ?? null;
-      }, editorWindowId);
+      return readEditorValue(page, editorWindowId.replace(/^window-/, ''));
     }, {
       message: `Waiting for editor to preserve typed prefix at char ${i + 1}`,
       timeout: 5_000,

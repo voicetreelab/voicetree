@@ -20,8 +20,7 @@
  * and decorators. We rely on the AST node's positions, so it is
  * trivia-aware (no string counting).
  */
-import * as ts from 'typescript'
-import type {FunctionRecord} from '../duplication-extract/extract-functions.ts'
+import type {LeanFunctionRecord} from '../duplication-extract/extract-functions.ts'
 
 export type PairSource = 'function' | 'workflow'
 
@@ -59,19 +58,16 @@ export type PairEndpointWithLoc = {
 export type ImportDistanceFn = (fromRelPath: string, toRelPath: string) => number
 
 /**
- * Compute LOC for a function record using its AST node's start/end lines.
- * Covers the WHOLE declaration (modifiers, signature, body) — this is the
- * unit a refactor would actually delete or move.
+ * LOC for a function record — whole declaration span (modifiers + signature +
+ * body) computed at extraction time and carried on the lean record. We do not
+ * recompute from the AST here because severity ranking runs AFTER the AST has
+ * been dropped (the OOM fix in duplication-mass).
  */
-export function functionLoc(record: FunctionRecord): number {
-    const node: ts.Node = record.node
-    const sourceFile = record.sourceFile
-    const startLine = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line
-    const endLine = sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line
-    return endLine - startLine + 1
+export function functionLoc(record: LeanFunctionRecord): number {
+    return record.loc
 }
 
-function endpointOf(record: FunctionRecord, loc: number): PairEndpointWithLoc {
+function endpointOf(record: LeanFunctionRecord, loc: number): PairEndpointWithLoc {
     return {
         packageName: record.packageName,
         file: record.file,
@@ -101,12 +97,12 @@ export type RankSeverityOptions = {
  */
 export function rankSeverity(
     pairs: readonly RankablePair[],
-    recordsById: ReadonlyMap<string, FunctionRecord>,
+    recordsById: ReadonlyMap<string, LeanFunctionRecord>,
     importDistance: ImportDistanceFn,
     options: RankSeverityOptions = {},
 ): SeverityRankedPair[] {
     const locCache = new Map<string, number>()
-    function locFor(record: FunctionRecord): number {
+    function locFor(record: LeanFunctionRecord): number {
         const cached = locCache.get(record.id)
         if (cached !== undefined) return cached
         const loc = functionLoc(record)

@@ -54,6 +54,18 @@ const vault = resolve(args[vaultIndex + 1])
 const ownerPath = join(vault, '.voicetree', 'vtd.owner.json')
 const portPath = join(vault, '.voicetree', 'rpc.port')
 const authTokenPath = join(vault, '.voicetree', 'auth-token')
+const envSnapshotPath = process.env.FAKE_VTD_ENV_SNAPSHOT_PATH
+
+if (envSnapshotPath) {
+  await writeFile(
+    envSnapshotPath,
+    `${JSON.stringify({
+      VOICETREE_APP_SUPPORT: process.env.VOICETREE_APP_SUPPORT ?? null,
+      VT_DAEMON_BIN: process.env.VT_DAEMON_BIN ?? null,
+    }, null, 2)}\n`,
+    'utf8',
+  )
+}
 
 // BF-374: failed-spawn knob. Tested via the cooldown suite. Fires BEFORE
 // the owner record is created so the ensure caller sees a child that

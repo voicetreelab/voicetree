@@ -2,7 +2,7 @@ import {readFile} from 'node:fs/promises'
 import {describe, it} from 'vitest'
 import {clusterCallDags} from '../../duplication-workflow/cluster-call-dags.ts'
 import {clusterDuplicates} from '../../duplication-per-function/cluster-duplicates.ts'
-import {extractFunctions} from '../../duplication-extract/extract-functions.ts'
+import {extractFunctions, type FunctionRecord, type LeanFunctionRecord} from '../../duplication-extract/extract-functions.ts'
 import {
     rankSeverity,
     severityHistogram,
@@ -181,21 +181,38 @@ describe('duplication mass health', () => {
     it('reports recoverable-LOC hard gate + high-severity warning', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
-        const records = await extractFunctions(files, path => readFile(path, 'utf8'))
-        const recordsById = new Map(records.map(record => [record.id, record]))
 
-        // Pull pairs from BOTH existing checks. Use the same threshold the
-        // per-function health test uses; admit the workflow check's fuzzy
-        // band per the workflow diagnostic so high-distance / high-edgeJ
-        // pairs are eligible for severity weighting.
-        const perFunctionPairs = clusterDuplicates(records, {
-            topK: Number.MAX_SAFE_INTEGER,
-            minScore: PER_FUNCTION_MIN_SCORE,
-        })
-        const workflowResult = clusterCallDags(records, {
-            topK: Number.MAX_SAFE_INTEGER,
-            minScore: WORKFLOW_MIN_SCORE,
-        })
+        // Fingerprint inside a scoped block so the AST-bearing FunctionRecord[]
+        // becomes unreachable as soon as the per-function and workflow checks
+        // complete. Each parsed `ts.SourceFile` carries parent pointers
+        // throughout its tree, so retaining the records past fingerprinting
+        // pins multiple GB of AST and OOMs the suite on a full-repo run. We
+        // hand the downstream ranker only the lean projection (id, file,
+        // line, name, loc) — no AST refs.
+        const {leanRecordsById, perFunctionPairs, workflowResult} = await (async () => {
+            const records = await extractFunctions(files, path => readFile(path, 'utf8'))
+            const lean = new Map<string, LeanFunctionRecord>()
+            for (const record of records) {
+                const {node: _node, sourceFile: _sourceFile, ...leanRecord} = record satisfies FunctionRecord
+                lean.set(record.id, leanRecord)
+            }
+
+            // Use the same threshold the per-function health test uses; admit
+            // the workflow check's fuzzy band per the workflow diagnostic so
+            // high-distance / high-edgeJ pairs are eligible for severity
+            // weighting.
+            const perFn = clusterDuplicates(records, {
+                topK: Number.MAX_SAFE_INTEGER,
+                minScore: PER_FUNCTION_MIN_SCORE,
+            })
+            const wf = clusterCallDags(records, {
+                topK: Number.MAX_SAFE_INTEGER,
+                minScore: WORKFLOW_MIN_SCORE,
+            })
+            return {leanRecordsById: lean, perFunctionPairs: perFn, workflowResult: wf}
+        })()
+        // `records` is now unreachable; GC can reclaim the parsed AST before
+        // we build the import graph (also memory-heavy).
 
         const importGraph = await buildImportGraph(packages)
         const importIndex = buildUndirectedImportIndex(importGraph)
@@ -205,7 +222,7 @@ describe('duplication mass health', () => {
 
         // Single rank pass; both metrics filter from the same result.
         const rankable = makeRankablePairs(perFunctionPairs, workflowResult.pairs)
-        const ranked = rankSeverity(rankable, recordsById, importDistance)
+        const ranked = rankSeverity(rankable, leanRecordsById, importDistance)
 
         // Metric 1: hard gate over the recoverable-LOC denominator.
         const aboveThreshold = ranked.filter(pair => pair.severity >= SEVERITY_THRESHOLD)

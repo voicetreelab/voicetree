@@ -13,6 +13,7 @@ import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
 import {createEmptyGraph} from '@vt/graph-model'
+import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server/server'
@@ -47,6 +48,7 @@ async function startHarness(): Promise<Harness> {
 
     const fixturePath: string = join(vault, FIXTURE_BASENAME)
     await writeFile(fixturePath, '# fixture\n', 'utf-8')
+    await saveVaultConfigForDirectory(vault, {writeFolder: '.'})
 
     const handle: DaemonHandle = await startDaemon({
         vault,

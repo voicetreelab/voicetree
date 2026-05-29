@@ -42,7 +42,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run full scheduled checks
-        run: npm run test:full
+        run: pnpm --filter @vt/measures run test:full
 
       - name: Surface tier wall-clock budget breaches
         # Runs whether test:full passed or failed: even when an analyzer fails,

@@ -12,6 +12,7 @@ import {
 } from '../src/daemon/index.ts'
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 import { setGraph } from '../src/state/graph-store.ts'
+import { addReadPath } from './e2e-system-helpers.ts'
 
 type GraphResponse = {
   nodes: Record<string, GraphNode>
@@ -101,6 +102,10 @@ describe('pending-writes suppression over daemon HTTP API', () => {
       appSupportPath: path.join(root, 'app-support'),
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
+    // The default writeFolder is now a `voicetree-{date}` subfolder of the
+    // vault (see resolveDefaultWriteFolder), so files written to vault/docs/
+    // sit outside the watcher's allowlist until we mark docs/ as expanded.
+    await addReadPath(baseUrl, docs)
   })
 
   afterEach(async () => {

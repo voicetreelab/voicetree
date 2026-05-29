@@ -1,0 +1,27 @@
+{
+  "name": "@vt/code-graph-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "cgcli": "bin/cgcli.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "cgcli": "tsx bin/cgcli.ts"
+  },
+  "dependencies": {
+    "@vt/measures": "*",
+    "ts-morph": "^28.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

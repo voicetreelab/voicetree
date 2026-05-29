@@ -24,7 +24,6 @@
  * needsTsMorph = false: edge list arithmetic only.
  */
 import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
@@ -34,7 +33,14 @@ import type {
 } from '../../_internal/subgraph-measure.ts'
 
 export const MEASURE_ID = 'cycles'
-export const CYCLES_BUDGET = 0
+/**
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Strict zero-tolerance — matches the old `CYCLES_BUDGET = 0`
+ * absolute. Cycles are categorical (infinite-recursion risk, tier-order
+ * violation). 8 grandfathered communities have cycles > 0 and now fail
+ * when touched; fix the cycle rather than persist via baseline.
+ */
+export const CYCLES_THRESHOLD = 0
 
 export type CycleClassification = 'intra-community' | 'cross-community' | 'cross-package'
 
@@ -157,32 +163,19 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         }
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
     for (const community of parsedSubgraph.touchedCommunities) {
         const current = perCommunity[community]
-        const baselineScore = community in baseline ? baseline[community] : null
-        if (current > CYCLES_BUDGET) {
-            const examples = reportsByCommunity.get(community)!.slice(0, 3)
-            const summary = examples.map(r => `${r.classification}: ${r.communities.join('+')} [${r.members.length} files]`).join('; ')
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `cycles: ${current} non-trivial SCC(s) touching ${community} — ${summary}`,
-            })
-            continue
-        }
-        if (baselineScore !== null && current > baselineScore) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `cycles regressed: ${baselineScore} -> ${current}`,
-            })
-        }
+        if (current <= CYCLES_THRESHOLD) continue
+        const examples = reportsByCommunity.get(community)!.slice(0, 3)
+        const summary = examples.map(r => `${r.classification}: ${r.communities.join('+')} [${r.members.length} files]`).join('; ')
+        violations.push({
+            community,
+            score: current,
+            baseline: null,
+            severity: 'fail',
+            message: `cycles: ${current} non-trivial SCC(s) touching ${community} > threshold ${CYCLES_THRESHOLD} — ${summary}`,
+        })
     }
     return {measureId: MEASURE_ID, perCommunity, violations}
 }

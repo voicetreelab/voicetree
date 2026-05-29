@@ -6,7 +6,6 @@ import {
   assertSessionAlive,
   buildReconcileCleanupScript,
   computeStaleWorktreeNames,
-  ensureRemoteWorktreeReadyScript,
   localWorktreeName,
   parseRemoteWorktreeListing,
   parseSessionConnectivity,
@@ -54,14 +53,6 @@ test('extracts local worktree name from nested cwd under vt-wts/', () => {
   )
   assert.equal(localWorktreeName('/Users/x/repos/voicetree-public/webapp', '/Users/x/repos/vt-wts'), null)
   assert.equal(localWorktreeName('/Users/x/repos/vt-wts', '/Users/x/repos/vt-wts'), null)
-})
-
-test('adds remote worktree readiness only for worktree commands', () => {
-  assert.match(
-    ensureRemoteWorktreeReadyScript('/root/vt-wts/wt-one/webapp'),
-    /scripts\/git\/worktree\/ensure-ready\.mjs' '\/root\/vt-wts\/wt-one'/,
-  )
-  assert.equal(ensureRemoteWorktreeReadyScript('/root/voicetree-public/webapp'), ':')
 })
 
 test('repairs remote worktree metadata for sibling-layout worktree commands', () => {

@@ -18,6 +18,7 @@ const CI_CHECK_REPORTER = resolve(
 const TIER2_PROMOTED_SPECS = [
   '**/electron-editor-disk-convergence.spec.ts',
   '**/electron-project-selection.spec.ts',
+  '**/electron-context-node-agent.spec.ts',
 ];
 
 export default defineConfig({
