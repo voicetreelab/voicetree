@@ -48,14 +48,12 @@ sync — slower but always works.
 
 ```bash
 mutagen sync list vt-remote
-mutagen sync list vt-brain
+bash scripts/dev-setup/remote/vt-remote.sh brain-status
 ```
 
-Poll until both outputs contain `Status: Watching for changes`. First repo sync
-with a pre-seeded devbox should take well under a minute; without pre-seed,
-several minutes depending on uplink. The brain sync is separate and may take
-longer on first run because it syncs global coordination artifacts under
-`~/brain` to `/root/brain-checkout`.
+Poll until `vt-remote` contains `Status: Watching for changes`. Confirm
+`brain-status` shows valid standalone Git checkouts for local `~/brain` and
+remote `/root/brain`; brain is not Mutagen-synced.
 
 ## Smoke test
 
@@ -79,7 +77,7 @@ Recommend it but don't push hard — it's a personal-safety preference.
 
 In one short message:
 - Devbox host (echo back so they can confirm)
-- Mutagen session status for `vt-remote` and `vt-brain` (`Watching for changes` or whatever it is)
+- Mutagen session status for `vt-remote` and brain checkout status
 - Smoke-test result (passed / failed + where it ran)
 - Anything you skipped or that failed
 

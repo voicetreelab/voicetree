@@ -146,15 +146,10 @@ else
   ok "session created"
 fi
 
-step "creating mutagen vt-brain session"
-if mutagen sync list vt-brain >/dev/null 2>&1; then
-  ok "session already exists (skip create)"
-else
-  bash "$SCRIPT_DIR/vt-remote.sh" brain-create &
-  create_pid=$!
-  wait "$create_pid" || fail "mutagen vt-brain sync create failed"
-  ok "session created"
-fi
+step "setting up standalone brain checkouts"
+bash "$SCRIPT_DIR/vt-remote.sh" brain-setup \
+  || fail "brain checkout setup failed"
+ok "local ~/brain and remote /root/brain point at standalone clones"
 
 step "routing git hooks through scripts/hooks"
 git -C "$REPO_ROOT" config core.hooksPath scripts/hooks
@@ -166,7 +161,7 @@ cat <<MSG
 
 Next:
   - wait for steady state:   mutagen sync list vt-remote   # expect 'Status: Watching for changes'
-  - wait for brain sync:     mutagen sync list vt-brain    # expect 'Status: Watching for changes'
+  - check brain checkout:    bash scripts/dev-setup/remote/vt-remote.sh brain-status
   - smoke test routing:      npm run test                  # expect '[run-remote] ...' lines
   - optional safety:         bash scripts/dev-setup/git-gate/install.sh
 
