@@ -2,12 +2,14 @@ import {
     extractExistingParentRefs,
     type FilesystemAuthoringPlanEntry,
 } from '@vt/graph-tools/node'
+import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 import {normalizeRef} from '../core/util'
 
-export type OrphanNodeError = {
-    readonly code: 'orphan_node'
+export type FilesystemRuleViolation = {
+    readonly ruleId: OverridableRuleId
     readonly message: string
-    readonly filename: string
+    readonly nodeFilename: string
+    readonly details: Readonly<Record<string, unknown>>
 }
 
 /**
@@ -32,21 +34,71 @@ export type OrphanNodeError = {
  * `shouldAttachExternalParent` so this check stays consistent with what is
  * actually written to disk.
  */
-export function findOrphanNodes(
+export function findNodeMustHaveEdgeViolations(
     writePlan: readonly FilesystemAuthoringPlanEntry[],
     externalParentRef: string | undefined,
-): readonly OrphanNodeError[] {
+): readonly FilesystemRuleViolation[] {
     return writePlan
         .filter((entry) => !entryWillHaveParent(entry, externalParentRef))
         .map((entry) => ({
-            code: 'orphan_node',
+            ruleId: 'node_must_have_edge',
             message:
                 `Node "${entry.filename}" has no parent edge; it would be created ` +
                 `disconnected from the graph. Add a "- parent [[<existing-node>]]" line ` +
                 `to its body, anchor it under a --manifest tree whose root links to an ` +
                 `existing node, or pass --parent <existing-node>.`,
-            filename: entry.filename,
+            nodeFilename: entry.filename,
+            details: {filename: entry.filename},
         }))
+}
+
+export function resolveFilesystemOverrides(
+    violations: readonly FilesystemRuleViolation[],
+    overrides: readonly OverrideEntry[],
+): {
+    readonly unresolved: readonly FilesystemRuleViolation[]
+    readonly accepted: readonly OverrideEntry[]
+} {
+    const overridesByRuleId: ReadonlyMap<OverridableRuleId, OverrideEntry> = new Map(
+        overrides.map((entry) => [entry.ruleId, entry]),
+    )
+    const unresolved: FilesystemRuleViolation[] = []
+    const acceptedByRuleId: Map<OverridableRuleId, OverrideEntry> = new Map()
+
+    for (const violation of violations) {
+        const override: OverrideEntry | undefined = overridesByRuleId.get(violation.ruleId)
+        if (override === undefined) {
+            unresolved.push(violation)
+            continue
+        }
+        acceptedByRuleId.set(violation.ruleId, override)
+    }
+
+    return {unresolved, accepted: [...acceptedByRuleId.values()]}
+}
+
+export function violationFilenamesByRuleId(
+    violations: readonly FilesystemRuleViolation[],
+    ruleId: OverridableRuleId,
+): ReadonlyMap<string, readonly OverridableRuleId[]> {
+    const byFilename: Map<string, OverridableRuleId[]> = new Map()
+    for (const violation of violations) {
+        if (violation.ruleId !== ruleId) continue
+        const existing: OverridableRuleId[] = byFilename.get(violation.nodeFilename) ?? []
+        existing.push(violation.ruleId)
+        byFilename.set(violation.nodeFilename, existing)
+    }
+    return byFilename
+}
+
+export function filesystemViolationsToPlanErrors(
+    violations: readonly FilesystemRuleViolation[],
+): readonly {readonly message: string; readonly filename: string; readonly ruleId: OverridableRuleId}[] {
+    return violations.map((violation) => ({
+        message: violation.message,
+        filename: violation.nodeFilename,
+        ruleId: violation.ruleId,
+    }))
 }
 
 function entryWillHaveParent(

@@ -9,6 +9,7 @@
 
 import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import {extractParentRefs} from '@vt/graph-model/markdown'
 import {countBodyLines} from '../tools/graph/addProgressNodeTool'
 import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 
@@ -230,12 +231,39 @@ const nodeLineLimitRule: ValidationRule = {
     },
 }
 
+/**
+ * Node attachment rule: each create_graph node must have an edge after the
+ * batch is applied. Live/MCP creation supplies a graph-parent fallback for
+ * root nodes, so this rule is normally a pass in daemon mode; filesystem-mode
+ * `vt graph create` reuses the same rule ID when a markdown input has neither
+ * a parent line nor an external --parent attachment.
+ */
+const nodeMustHaveEdgeRule: ValidationRule = {
+    id: 'node_must_have_edge',
+    description: 'Each created node must have at least one parent edge unless explicitly overridden.',
+    check(ctx: ValidationContext): readonly RuleViolation[] {
+        const violations: RuleViolation[] = []
+        for (const node of ctx.nodes) {
+            const hasAuthoredParent: boolean = extractParentRefs(node.content ?? '').length > 0
+            const hasGraphParentFallback: boolean = ctx.resolvedParentNodeId.length > 0
+            if (hasAuthoredParent || hasGraphParentFallback) continue
+            violations.push({
+                ruleId: 'node_must_have_edge',
+                message: `Node "${node.filename}" has no parent edge and would be disconnected from the graph.`,
+                nodeFilename: node.filename,
+                details: {filename: node.filename},
+            })
+        }
+        return violations
+    },
+}
+
 // ============================================================================
 // Export
 // ============================================================================
 
 function createValidationRules(): readonly ValidationRule[] {
-    return [grandparentAttachmentRule, nodeLineLimitRule]
+    return [grandparentAttachmentRule, nodeLineLimitRule, nodeMustHaveEdgeRule]
 }
 
 export const ALL_RULES: readonly ValidationRule[] = createValidationRules()

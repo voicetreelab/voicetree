@@ -164,10 +164,11 @@ describe('formatViolationError', () => {
         const error: string = formatViolationError([
             {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', details: {}},
             {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
+            {ruleId: 'node_must_have_edge', message: 'No edge', nodeFilename: 'lonely.md', details: {}},
         ])
         const jsonStart: number = error.indexOf('[\n')
         const parsed: unknown = JSON.parse(error.slice(jsonStart))
-        expect((parsed as readonly {ruleId: string}[]).length).toBe(2)
+        expect((parsed as readonly {ruleId: string}[]).length).toBe(3)
     })
 })
 
@@ -314,6 +315,48 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
         }))
         if (result.status === 'violations') {
             expect(result.violations.filter((v: RuleViolation) => v.ruleId === 'grandparent_attachment')).toHaveLength(0)
+        }
+    })
+})
+
+describe('nodeMustHaveEdgeRule (via ALL_RULES)', () => {
+    it('passes when daemon graph-parent fallback is present', () => {
+        const graph: Graph = mockGraph(['/vault/task.md'])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '/vault/task.md',
+            graph,
+        }))
+        if (result.status === 'violations') {
+            expect(result.violations.filter((v: RuleViolation) => v.ruleId === 'node_must_have_edge')).toHaveLength(0)
+        }
+    })
+
+    it('passes when a node authors a parent line', () => {
+        const graph: Graph = mockGraph([])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'n', title: 'T', summary: 'S', content: '- parent [[existing]]'})],
+            resolvedParentNodeId: '' as NodeIdAndFilePath,
+            graph,
+        }))
+        if (result.status === 'violations') {
+            expect(result.violations.filter((v: RuleViolation) => v.ruleId === 'node_must_have_edge')).toHaveLength(0)
+        }
+    })
+
+    it('rejects when neither parent line nor graph-parent fallback is present', () => {
+        const graph: Graph = mockGraph([])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'lonely', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '' as NodeIdAndFilePath,
+            graph,
+        }))
+        expect(result.status).toBe('violations')
+        if (result.status === 'violations') {
+            const violations: readonly RuleViolation[] =
+                result.violations.filter((v: RuleViolation) => v.ruleId === 'node_must_have_edge')
+            expect(violations).toHaveLength(1)
+            expect(violations[0].nodeFilename).toBe('lonely')
         }
     })
 })
