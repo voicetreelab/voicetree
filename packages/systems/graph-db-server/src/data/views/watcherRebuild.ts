@@ -18,7 +18,7 @@ import {
 } from '@vt/graph-db-server/application/workflows/state/projectState'
 import { onViewSwitched } from './viewsStore'
 import { getWatchRootsForActiveView } from '../watch-folder/folder-visibility-active-view'
-import { getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist'
+import { getWriteFolderPath } from '@vt/graph-db-server/state/vaultAllowlist'
 import { setupWatcher } from '../watch-folder/watching/file-watcher-setup'
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from '../watch-folder/watching/watcher-options.shared'
 import { broadcastVaultState } from '../watch-folder/broadcast/broadcast-vault-state'
@@ -42,17 +42,17 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
 
 async function getVaultPathsForRebuild(projectRoot: FilePath): Promise<readonly string[]> {
     const watchRoots = await getWatchRootsForActiveView(projectRoot)
-    let writeFolderStr: string | null = null
+    let writeFolderPathStr: string | null = null
     try {
-        const writeFolder = await getWriteFolder()
-        writeFolderStr = O.isSome(writeFolder) ? writeFolder.value : null
+        const writeFolderPath = await getWriteFolderPath()
+        writeFolderPathStr = O.isSome(writeFolderPath) ? writeFolderPath.value : null
     } catch {
-        // getWriteFolder may throw when GraphModel config is not initialized (e.g. in tests)
+        // getWriteFolderPath may throw when GraphModel config is not initialized (e.g. in tests)
     }
     const paths: string[] = []
-    if (writeFolderStr) paths.push(writeFolderStr)
+    if (writeFolderPathStr) paths.push(writeFolderPathStr)
     for (const root of watchRoots) {
-        if (root !== writeFolderStr) paths.push(root)
+        if (root !== writeFolderPathStr) paths.push(root)
     }
     return paths
 }

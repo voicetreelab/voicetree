@@ -26,7 +26,7 @@
  *
  *   Reading from `<projectRoot>/.voicetree/terminals/` is the exact contract
  *   that the canonical-location refactor (§1) makes correct. If a regression
- *   reintroduces the writeFolder fallback, the row count assertion here
+ *   reintroduces the writeFolderPath fallback, the row count assertion here
  *   fails — the test guards the post-crash discovery contract.
  */
 

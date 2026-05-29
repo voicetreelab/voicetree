@@ -19,7 +19,7 @@ import { createStarterNode } from "@vt/graph-db-server/watch-folder/create-start
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
 export interface LoadVaultPathOptions {
-  isWriteFolder: boolean;
+  isWriteFolderPath: boolean;
   createStarterIfEmpty?: boolean;
 }
 
@@ -46,7 +46,7 @@ export function describeVaultLoadFailure(
 
 export async function loadAndMergeVaultPath(
     projectRoot: FilePath,
-    options: LoadVaultPathOptions = { isWriteFolder: false },
+    options: LoadVaultPathOptions = { isWriteFolderPath: false },
     positions?: ReadonlyMap<string, Position>
 ): Promise<VaultLoadOutcome> {
     const existingGraph: Graph = getGraph();
@@ -94,7 +94,7 @@ export async function loadAndMergeVaultPath(
         }
     }
 
-    if (options.isWriteFolder && (options.createStarterIfEmpty ?? true)) {
+    if (options.isWriteFolderPath && (options.createStarterIfEmpty ?? true)) {
         await traceGraphdSpan('vault.load-and-merge.create-starter-node-if-empty', async (span) => {
             const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
                 nodeId.startsWith(projectRoot + '/') || nodeId === projectRoot
@@ -121,7 +121,7 @@ export async function loadAndMergeVaultPath(
         if (accumulatedDelta.length > 0) {
             refreshGraphChangeSideEffects();
         }
-        if (options.isWriteFolder) {
+        if (options.isWriteFolderPath) {
             notifyTextToTreeServerOfDirectory(projectRoot);
         }
     });

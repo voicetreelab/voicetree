@@ -77,7 +77,7 @@ export const test = baseTest.extend<{
             lastDirectory: vault.projectRoot,
             vaultConfig: {
                 [vault.projectRoot]: {
-                    writeFolder: vault.projectRoot,
+                    writeFolderPath: vault.projectRoot,
                     readPaths: [],
                 },
             },

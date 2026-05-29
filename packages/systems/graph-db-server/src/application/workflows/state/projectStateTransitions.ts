@@ -2,7 +2,7 @@
  * Pure transitions over ProjectState.
  *
  * Encodes the design § D6 semantics matrix: the ternary {unloaded, collapsed,
- * expanded} cross the current state of each folder, plus the writeFolder
+ * expanded} cross the current state of each folder, plus the writeFolderPath
  * invariant. Returning `Error` rather than throwing keeps the transitions
  * pure and composable; the shell branches on the result.
  *
@@ -30,8 +30,8 @@ export interface FolderTransition {
     readonly effect: FolderTransitionEffect;
 }
 
-function isWriteFolder(state: BoundProject, path: FilePath): boolean {
-    return state.writeFolder === path;
+function isWriteFolderPath(state: BoundProject, path: FilePath): boolean {
+    return state.writeFolderPath === path;
 }
 
 function withFolders(
@@ -64,14 +64,14 @@ function setFolder(
  *   unloaded         →     no-op        load + collapsed   load + expanded
  *   collapsed        →     unload       no-op              flip to expanded
  *   expanded         →     unload       flip to collapsed  no-op
- *   IS writeFolder     →     ERROR        no-op              no-op
+ *   IS writeFolderPath     →     ERROR        no-op              no-op
  */
 export function transitionFolder(
     state: BoundProject,
     path: FilePath,
     action: FolderAction,
 ): FolderTransition | FolderTransitionError {
-    if (isWriteFolder(state, path)) {
+    if (isWriteFolderPath(state, path)) {
         if (action === 'unloaded') {
             return { code: 'cannot-unload-writefolder' };
         }
@@ -109,39 +109,39 @@ export function transitionFolder(
     };
 }
 
-export type PromoteWriteFolderPlan = {
+export type PromoteWriteFolderPathPlan = {
     readonly nextState: BoundProject;
-    /** True when newWriteFolder was not in the loaded set; caller must load it. */
+    /** True when newWriteFolderPath was not in the loaded set; caller must load it. */
     readonly needsLoad: boolean;
-    /** The old writeFolder, demoted to 'collapsed' in `nextState.folders`. */
+    /** The old writeFolderPath, demoted to 'collapsed' in `nextState.folders`. */
     readonly demotedFrom: FilePath;
 };
 
 /**
- * Pure transition for `setWriteFolder(newPath)`. The previous writeFolder is
+ * Pure transition for `setWriteFolderPath(newPath)`. The previous writeFolderPath is
  * demoted to 'collapsed' (a conservative default — keep loaded, hide from
  * sidebar). If newPath was unloaded it is added to the loaded set with
  * 'collapsed' and the caller is told `needsLoad: true` so it can run the
  * load effect.
  */
-export function promoteWriteFolder(
+export function promoteWriteFolderPath(
     state: BoundProject,
-    newWriteFolder: FilePath,
-): PromoteWriteFolderPlan {
-    const demotedFrom = state.writeFolder;
+    newWriteFolderPath: FilePath,
+): PromoteWriteFolderPathPlan {
+    const demotedFrom = state.writeFolderPath;
 
-    if (newWriteFolder === demotedFrom) {
+    if (newWriteFolderPath === demotedFrom) {
         return { nextState: state, needsLoad: false, demotedFrom };
     }
 
-    const needsLoad = !state.folders.has(newWriteFolder);
+    const needsLoad = !state.folders.has(newWriteFolderPath);
 
     const folders = new Map(state.folders);
-    folders.delete(newWriteFolder);
+    folders.delete(newWriteFolderPath);
     folders.set(demotedFrom, 'collapsed');
 
     return {
-        nextState: { ...state, writeFolder: newWriteFolder, folders },
+        nextState: { ...state, writeFolderPath: newWriteFolderPath, folders },
         needsLoad,
         demotedFrom,
     };

@@ -18,7 +18,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
 import type {TerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
-import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge';
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolderPath} from '../runtime/graph-bridge';
 import {publishTerminalRegistryEvent} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-registry-publisher.ts';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
@@ -99,13 +99,13 @@ export async function spawnPlainTerminalWithNode(
     terminalCount: number
 ): Promise<void> {
     // Get write path (absolute) for new node creation
-    const writeFolderOption: O.Option<string> = await getRuntimeWriteFolder();
-    const writeFolder: string = O.getOrElse(() => '')(writeFolderOption);
+    const writeFolderPathOption: O.Option<string> = await getRuntimeWriteFolderPath();
+    const writeFolderPath: string = O.getOrElse(() => '')(writeFolderPathOption);
     const graph: Graph = await getRuntimeGraph();
 
     // Create a new orphan node (same as 'Add Node Here')
     const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(position, writeFolder, graph);
+        createNewNodeNoParent(position, writeFolderPath, graph);
 
     // Persist the node to disk and update UI
     await applyRuntimeGraphDelta(graphDelta);

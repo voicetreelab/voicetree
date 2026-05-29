@@ -141,11 +141,11 @@ export interface VTSettings {
 /**
  * Per-folder vault configuration for multi-vault support.
  *
- * writeFolder: The main vault (read + write). Can be relative to projectRoot or absolute.
+ * writeFolderPath: The main vault (read + write). Can be relative to projectRoot or absolute.
  */
 export interface VaultConfig {
     /** Main vault path where new nodes are created. Can be relative or absolute. */
-    readonly writeFolder: string;
+    readonly writeFolderPath: string;
     /** Compatibility read paths for older app builds; current active-view state is authoritative. */
     readonly readPaths?: readonly string[];
 }

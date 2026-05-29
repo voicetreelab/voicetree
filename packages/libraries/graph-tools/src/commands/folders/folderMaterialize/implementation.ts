@@ -13,7 +13,7 @@ declare global {
     }
     electronAPI?: {
       main?: {
-        getWriteFolder: () => Promise<unknown>
+        getWriteFolderPath: () => Promise<unknown>
       }
     }
   }
@@ -73,7 +73,7 @@ type FolderMaterializeResult = {
   savedContentPreview: string
   seedFilePath?: string
   projectRoot: string
-  writeFolder: string
+  writeFolderPath: string
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000
@@ -138,9 +138,9 @@ async function waitFor<T>(
   throw new Error(`timed out waiting for ${description}`)
 }
 
-async function readWriteFolder(page: SessionPageLike): Promise<string> {
-  const writeFolder = await page.evaluate(async () => {
-    const raw = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolder() : null
+async function readWriteFolderPath(page: SessionPageLike): Promise<string> {
+  const writeFolderPath = await page.evaluate(async () => {
+    const raw = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolderPath() : null
     if (typeof raw === 'string') return raw
     if (raw && typeof raw === 'object' && '_tag' in raw && (raw as { _tag?: unknown })._tag === 'Some') {
       const value = (raw as { value?: unknown }).value
@@ -149,15 +149,15 @@ async function readWriteFolder(page: SessionPageLike): Promise<string> {
     return null
   })
 
-  if (typeof writeFolder !== 'string' || writeFolder.trim() === '') {
-    throw new Error('window.electronAPI.main.getWriteFolder() unavailable')
+  if (typeof writeFolderPath !== 'string' || writeFolderPath.trim() === '') {
+    throw new Error('window.electronAPI.main.getWriteFolderPath() unavailable')
   }
 
-  return path.resolve(writeFolder)
+  return path.resolve(writeFolderPath)
 }
 
-async function createScratchFixture(writeFolder: string): Promise<ScratchFixture> {
-  const folderPath = await fs.mkdtemp(path.join(writeFolder, 'vt-debug-folder-materialize-'))
+async function createScratchFixture(writeFolderPath: string): Promise<ScratchFixture> {
+  const folderPath = await fs.mkdtemp(path.join(writeFolderPath, 'vt-debug-folder-materialize-'))
   const seedFilePath = path.join(folderPath, 'seed.md')
   await fs.writeFile(seedFilePath, '# Scratch Seed\n', 'utf8')
   return {
@@ -171,34 +171,34 @@ async function waitForGraphReady(page: SessionPageLike, timeoutMs: number): Prom
   const state = await waitFor(
     async () => await page.evaluate(async () => {
       const cy = window.cytoscapeInstance
-      const rawWriteFolder = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolder() : null
-      let writeFolder: string | null = null
-      if (typeof rawWriteFolder === 'string') {
-        writeFolder = rawWriteFolder
+      const rawWriteFolderPath = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolderPath() : null
+      let writeFolderPath: string | null = null
+      if (typeof rawWriteFolderPath === 'string') {
+        writeFolderPath = rawWriteFolderPath
       } else if (
-        rawWriteFolder &&
-        typeof rawWriteFolder === 'object' &&
-        '_tag' in rawWriteFolder &&
-        (rawWriteFolder as { _tag?: unknown })._tag === 'Some'
+        rawWriteFolderPath &&
+        typeof rawWriteFolderPath === 'object' &&
+        '_tag' in rawWriteFolderPath &&
+        (rawWriteFolderPath as { _tag?: unknown })._tag === 'Some'
       ) {
-        const value = (rawWriteFolder as { value?: unknown }).value
-        writeFolder = typeof value === 'string' ? value : null
+        const value = (rawWriteFolderPath as { value?: unknown }).value
+        writeFolderPath = typeof value === 'string' ? value : null
       }
       return {
         cyNodeCount: typeof cy?.nodes === 'function' ? cy.nodes().length : 0,
-        writeFolder,
+        writeFolderPath,
       }
     }),
-    value => value.cyNodeCount > 0 && typeof value.writeFolder === 'string' && value.writeFolder.length > 0,
+    value => value.cyNodeCount > 0 && typeof value.writeFolderPath === 'string' && value.writeFolderPath.length > 0,
     timeoutMs,
     'graph + write path readiness',
   )
 
-  if (typeof state.writeFolder !== 'string') {
-    throw new Error('window.electronAPI.main.getWriteFolder() unavailable')
+  if (typeof state.writeFolderPath !== 'string') {
+    throw new Error('window.electronAPI.main.getWriteFolderPath() unavailable')
   }
 
-  return path.resolve(state.writeFolder)
+  return path.resolve(state.writeFolderPath)
 }
 
 async function captureDomProbes(page: SessionPageLike): Promise<DomProbes> {
@@ -396,7 +396,7 @@ async function folderMaterialize(
     marker?: string
     timeoutMs?: number
     projectRoot: string
-    writeFolder?: string
+    writeFolderPath?: string
   },
 ): Promise<Response<FolderMaterializeResult>> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
@@ -407,9 +407,9 @@ async function folderMaterialize(
   let cleanupError: string | undefined
 
   try {
-    const writeFolder = path.resolve(opts.writeFolder ?? await readWriteFolder(page))
+    const writeFolderPath = path.resolve(opts.writeFolderPath ?? await readWriteFolderPath(page))
     const fixtureCreated = opts.folder === undefined
-    fixture = fixtureCreated ? await createScratchFixture(writeFolder) : null
+    fixture = fixtureCreated ? await createScratchFixture(writeFolderPath) : null
     const folderId = opts.folder ?? fixture?.folderId
 
     if (!folderId) {
@@ -459,7 +459,7 @@ async function folderMaterialize(
       savedContentPreview: truncatePreview(savedContent),
       ...(fixture?.seedFilePath ? { seedFilePath: fixture.seedFilePath } : {}),
       projectRoot: path.resolve(opts.projectRoot),
-      writeFolder,
+      writeFolderPath,
       cdpPort: 0,
       mcpPort: 0,
       pid: 0,

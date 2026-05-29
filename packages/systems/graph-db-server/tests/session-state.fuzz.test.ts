@@ -89,7 +89,7 @@ describe('session-state fuzz', () => {
 
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
+    await saveVaultConfigForDirectory(vault, { writeFolderPath: '.' })
 
     handle = await startDaemon({
       vault,

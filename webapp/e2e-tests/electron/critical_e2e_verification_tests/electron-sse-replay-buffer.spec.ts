@@ -38,14 +38,14 @@ test.describe("SSE replay buffer", () => {
       };
 
       // Bind the daemon to the fixture vault. openVault throws on failure and
-      // returns the resolved write folder on success.
+      // returns the resolved write folder path on success.
       const openResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
         const response = await api.main.openVault(projectRoot);
-        return { writeFolder: response.writeFolder };
+        return { writeFolderPath: response.writeFolderPath };
       }, fixtureVaultPath);
-      expect(openResult.writeFolder, "openVault returned no writeFolder").toBeTruthy();
+      expect(openResult.writeFolderPath, "openVault returned no writeFolderPath").toBeTruthy();
 
       await expect
         .poll(

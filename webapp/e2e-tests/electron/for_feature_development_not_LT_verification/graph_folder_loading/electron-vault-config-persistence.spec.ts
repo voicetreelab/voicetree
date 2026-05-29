@@ -33,7 +33,7 @@ interface ExtendedWindow {
  *   - read-vault/unlinked-node.md (not linked)
  *
  * Expected:
- *   - writeFolder is restored to 'write-vault'
+ *   - writeFolderPath is restored to 'write-vault'
  *   - readPaths includes 'read-vault'
  *   - Graph contains: node-a, linked-node
  *   - Graph does NOT contain: unlinked-node (lazy loading works)
@@ -153,14 +153,14 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     );
     await window1.waitForTimeout(1500);
 
-    // Configure vault: set writeFolder and add readPath
-    console.log('Setting writeFolder to:', writeVaultPath);
+    // Configure vault: set writeFolderPath and add readPath
+    console.log('Setting writeFolderPath to:', writeVaultPath);
     const setWriteResult = await window1.evaluate(async (wp: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.setWriteFolder(wp);
+      return await api.main.setWriteFolderPath(wp);
     }, writeVaultPath);
-    console.log('setWriteFolder result:', setWriteResult);
+    console.log('setWriteFolderPath result:', setWriteResult);
     expect(setWriteResult.success).toBe(true);
 
     console.log('Adding readPath:', readVaultPath);
@@ -238,12 +238,12 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     );
     await window2.waitForTimeout(2000);
 
-    // Verify writeFolder persisted
-    console.log('=== VERIFICATION: writeFolder restored ===');
-    const restoredWriteFolder = await window2.evaluate(async () => {
+    // Verify writeFolderPath persisted
+    console.log('=== VERIFICATION: writeFolderPath restored ===');
+    const restoredWriteFolderPath = await window2.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -251,8 +251,8 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
       }
       return null;
     });
-    console.log('Restored writeFolder:', restoredWriteFolder);
-    expect(restoredWriteFolder).toBe(writeVaultPath);
+    console.log('Restored writeFolderPath:', restoredWriteFolderPath);
+    expect(restoredWriteFolderPath).toBe(writeVaultPath);
 
     // Verify readPaths persisted
     console.log('=== VERIFICATION: readPaths restored ===');
@@ -274,7 +274,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     console.log('Nodes after reload:', nodesAfterReload);
 
     // Assertions for lazy loading behavior:
-    // - node-a should be loaded (from writeFolder)
+    // - node-a should be loaded (from writeFolderPath)
     const hasNodeA = nodesAfterReload.some(id => id.includes('node-a'));
     console.log('Has node-a:', hasNodeA);
     expect(hasNodeA).toBe(true);
@@ -304,7 +304,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('Vault Config Persistence test completed:');
-    console.log('- writeFolder persisted across restart: PASS');
+    console.log('- writeFolderPath persisted across restart: PASS');
     console.log('- readPaths persisted across restart: PASS');
     console.log('- Lazy loading works on reload (unlinked-node not loaded): PASS');
   });
@@ -319,7 +319,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
  *   - NO existing voicetree-config.json
  *
  * Expected:
- *   - writeFolder is set to parent directory
+ *   - writeFolderPath is set to parent directory
  *   - readPaths auto-includes 'openspec' (from defaultAllowlistPatterns)
  *   - Config is persisted to voicetree-config.json
  */
@@ -412,11 +412,11 @@ testDefaultConfig.describe('Default Vault Config Creation E2E', () => {
     );
     await window.waitForTimeout(2000);
 
-    console.log('=== VERIFICATION: writeFolder set to parent directory ===');
-    const writeFolder = await window.evaluate(async () => {
+    console.log('=== VERIFICATION: writeFolderPath set to parent directory ===');
+    const writeFolderPath = await window.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -424,9 +424,9 @@ testDefaultConfig.describe('Default Vault Config Creation E2E', () => {
       }
       return null;
     });
-    console.log('writeFolder:', writeFolder);
-    // writeFolder should be the testDir itself (parent directory)
-    expect(writeFolder).toBe(testDir);
+    console.log('writeFolderPath:', writeFolderPath);
+    // writeFolderPath should be the testDir itself (parent directory)
+    expect(writeFolderPath).toBe(testDir);
 
     console.log('=== VERIFICATION: readPaths includes openspec ===');
     const readPaths = await window.evaluate(async () => {
@@ -458,7 +458,7 @@ testDefaultConfig.describe('Default Vault Config Creation E2E', () => {
     // Verify vaultConfig was created for the testDir
     expect(savedConfig.vaultConfig).toBeDefined();
     expect(savedConfig.vaultConfig[testDir]).toBeDefined();
-    expect(savedConfig.vaultConfig[testDir].writeFolder).toBeDefined();
+    expect(savedConfig.vaultConfig[testDir].writeFolderPath).toBeDefined();
 
     // Graceful shutdown
     try {
@@ -475,7 +475,7 @@ testDefaultConfig.describe('Default Vault Config Creation E2E', () => {
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('Default Config Creation test completed:');
-    console.log('- writeFolder set to parent directory: PASS');
+    console.log('- writeFolderPath set to parent directory: PASS');
     console.log('- Config persisted to voicetree-config.json: PASS');
     if (hasOpenspec) {
       console.log('- openspec auto-added from defaultAllowlistPatterns: PASS');

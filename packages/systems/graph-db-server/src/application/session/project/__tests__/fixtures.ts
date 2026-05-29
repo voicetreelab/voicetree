@@ -199,7 +199,7 @@ function makeVault() {
   return {
     projectRoot: '/vault',
     readPaths: ['/vault/docs'],
-    writeFolder: '/vault',
+    writeFolderPath: '/vault',
   }
 }
 

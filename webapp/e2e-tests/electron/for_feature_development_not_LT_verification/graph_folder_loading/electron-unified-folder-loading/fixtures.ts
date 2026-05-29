@@ -17,7 +17,7 @@ export async function writeVaultConfig(
     lastDirectory: testProjectPath,
     vaultConfig: {
       [testProjectPath]: {
-        writeFolder: primaryVaultPath,
+        writeFolderPath: primaryVaultPath,
         readPaths: []
       }
     }

@@ -263,19 +263,19 @@ export type LiveStateSnapshot = z.infer<typeof LiveStateSnapshotSchema>
 export const VaultStateSchema = z.object({
   projectRoot: z.string(),
   readPaths: z.array(z.string()),
-  writeFolder: z.string(),
+  writeFolderPath: z.string(),
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
 
 export const OpenVaultRequestSchema = z.object({
   path: z.string(),
-  writeFolder: z.string().optional(),
+  writeFolderPath: z.string().optional(),
 })
 export type OpenVaultRequest = z.infer<typeof OpenVaultRequestSchema>
 
 export const OpenVaultResponseSchema = z.object({
   sessionId: SessionIdSchema,
-  writeFolder: z.string(),
+  writeFolderPath: z.string(),
   vaultState: VaultStateSchema,
   initialProjectedGraph: z.unknown(),
   folderState: z.array(FolderStateEntrySchema),
@@ -283,10 +283,10 @@ export const OpenVaultResponseSchema = z.object({
 })
 export type OpenVaultResponse = z.infer<typeof OpenVaultResponseSchema>
 
-export const SetWriteFolderRequestSchema = z.object({
+export const SetWriteFolderPathRequestSchema = z.object({
   path: z.string(),
 })
-export type SetWriteFolderRequest = z.infer<typeof SetWriteFolderRequestSchema>
+export type SetWriteFolderPathRequest = z.infer<typeof SetWriteFolderPathRequestSchema>
 
 export const AddReadPathRequestSchema = z.object({
   path: z.string(),

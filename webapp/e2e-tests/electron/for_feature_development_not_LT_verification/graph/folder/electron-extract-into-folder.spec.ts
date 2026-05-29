@@ -232,7 +232,7 @@ const test = base.extend<{
             lastDirectory: projectRoot,
             vaultConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: [],
                 },
             },

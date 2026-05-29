@@ -11,13 +11,13 @@ export type ElectronGraphSnapshot = {
     readonly graph: Graph
     readonly projectRoot: string | null
     readonly vaultPaths: readonly string[]
-    readonly writeFolder: string | null
+    readonly writeFolderPath: string | null
 }
 
 export function getVaultPathsFromState(vaultState: VaultState): readonly string[] {
     return [
-        vaultState.writeFolder,
-        ...vaultState.readPaths.filter((path: string) => path !== vaultState.writeFolder),
+        vaultState.writeFolderPath,
+        ...vaultState.readPaths.filter((path: string) => path !== vaultState.writeFolderPath),
     ]
 }
 
@@ -32,6 +32,6 @@ export async function buildElectronGraphSnapshot(
         graph,
         projectRoot: vaultState.projectRoot,
         vaultPaths: getVaultPathsFromState(vaultState),
-        writeFolder: vaultState.writeFolder,
+        writeFolderPath: vaultState.writeFolderPath,
     }
 }

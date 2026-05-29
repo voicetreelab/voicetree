@@ -139,7 +139,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
         configureAgentRuntime({
             env: {
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWriteFolder: async (): Promise<string | null> => tempDir,
+                getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
                 getVtBinDir: (): string => vtBinDir,
             },
@@ -166,7 +166,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
         configureAgentRuntime({
             env: {
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWriteFolder: async (): Promise<string | null> => tempDir,
+                getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
             },
         })
@@ -194,7 +194,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
         configureAgentRuntime({
             env: {
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWriteFolder: async (): Promise<string | null> => tempDir,
+                getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
                 getVtBinDir: (): string => vtBinDir,
             },

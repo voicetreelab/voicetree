@@ -145,7 +145,7 @@ describe('graph daemon migration', () => {
 
         await mkdir(join(harness.docsPath, 'nested'), {recursive: true})
         await saveVaultConfigForDirectory(harness.vault, {
-            writeFolder: harness.docsPath,
+            writeFolderPath: harness.docsPath,
             readPaths: [],
         })
 
@@ -154,7 +154,7 @@ describe('graph daemon migration', () => {
         await writeFile(join(harness.docsPath, 'nested', 'other.md'), '# Other\n', 'utf8')
 
         daemonHandle = await startDaemon({vault: harness.vault})
-        const loadResult = await loadAndMergeVaultPath(harness.docsPath, {isWriteFolder: true})
+        const loadResult = await loadAndMergeVaultPath(harness.docsPath, {isWriteFolderPath: true})
         expect(loadResult).toEqual({kind: 'ok'})
         process.chdir(harness.vault)
 

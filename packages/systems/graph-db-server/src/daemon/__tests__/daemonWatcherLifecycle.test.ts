@@ -91,7 +91,7 @@ describe('startDaemonWatcher', () => {
     const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
 
     // Simulate hiding a folder that was never explicitly expanded.
-    // getVaultPaths() returns [writeFolder, expandedPaths] — hidden folders are not included.
+    // getVaultPaths() returns [writeFolderPath, expandedPaths] — hidden folders are not included.
     // So emitReadPathsChanged fires with the same set of paths as before.
     emitReadPathsChanged(['/vault', '/vault/public'])
 

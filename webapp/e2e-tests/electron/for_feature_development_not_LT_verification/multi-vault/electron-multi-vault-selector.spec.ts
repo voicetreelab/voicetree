@@ -34,11 +34,11 @@ interface ExtendedWindow {
   electronAPI?: ElectronAPI;
 }
 
-async function getWriteFolder(page: Page): Promise<string | null> {
+async function getWriteFolderPath(page: Page): Promise<string | null> {
   return await page.evaluate(async () => {
     const api = (window as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
-    const result = await api.main.getWriteFolder();
+    const result = await api.main.getWriteFolderPath();
     if (result && typeof result === 'object' && '_tag' in result) {
       return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
     }
@@ -215,15 +215,15 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     expect(sidebarContent).toContain('openspec');
 
     console.log('=== STEP 5: Get initial default write path ===');
-    let initialDefaultPath = await getWriteFolder(appWindow);
+    let initialDefaultPath = await getWriteFolderPath(appWindow);
     if (initialDefaultPath?.includes('openspec')) {
       await appWindow.evaluate(async (fallbackPath) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        await api.main.setWriteFolder(fallbackPath);
+        await api.main.setWriteFolderPath(fallbackPath);
       }, testVaultPath);
-      await expect.poll(() => getWriteFolder(appWindow), { timeout: 5000 }).toBe(testVaultPath);
-      initialDefaultPath = await getWriteFolder(appWindow);
+      await expect.poll(() => getWriteFolderPath(appWindow), { timeout: 5000 }).toBe(testVaultPath);
+      initialDefaultPath = await getWriteFolderPath(appWindow);
     }
 
     console.log('Initial default write path:', initialDefaultPath);
@@ -242,8 +242,8 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     }, openspecPath);
 
     console.log('=== STEP 7: Verify default write path changed ===');
-    await expect.poll(() => getWriteFolder(appWindow), { timeout: 5000 }).toBe(openspecPath);
-    const newDefaultPath = await getWriteFolder(appWindow);
+    await expect.poll(() => getWriteFolderPath(appWindow), { timeout: 5000 }).toBe(openspecPath);
+    const newDefaultPath = await getWriteFolderPath(appWindow);
 
     console.log('New default write path:', newDefaultPath);
     expect(newDefaultPath).toContain('openspec');

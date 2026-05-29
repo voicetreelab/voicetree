@@ -86,8 +86,8 @@ function advanceSessionProjectionCache(
       : null,
     readPaths: cache.snapshot.readPaths,
     vaultPaths: cache.snapshot.vaultPaths,
-    writeFolder: cache.snapshot.writeFolder
-      ? toAbsolutePath(cache.snapshot.writeFolder)
+    writeFolderPath: cache.snapshot.writeFolderPath
+      ? toAbsolutePath(cache.snapshot.writeFolderPath)
       : null,
   })
 

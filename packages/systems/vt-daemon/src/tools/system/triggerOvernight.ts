@@ -6,7 +6,7 @@ import type {Graph, GraphDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '@vt/vt-daemon/config/graphBridge.ts'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {spawnContextTerminal} from '@vt/vt-daemon/agent-runtime/agent-control/agentControlRuntime.ts'
 
@@ -46,11 +46,11 @@ export async function triggerOvernight(
     bridge: GraphBridge,
     deps: TriggerOvernightDeps = defaultTriggerOvernightDeps,
 ): Promise<TriggerOvernightResult> {
-    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder(bridge)
+    const vaultPathOpt: O.Option<string> = await getMcpWriteFolderPath(bridge)
     if (O.isNone(vaultPathOpt)) {
         return {success: false, error: 'No vault loaded. Open a folder in VoiceTree first.'}
     }
-    const writeFolder: string = vaultPathOpt.value
+    const writeFolderPath: string = vaultPathOpt.value
 
     const graph: Graph = await getMcpGraph(bridge)
     const nodeIds: readonly string[] = Object.keys(graph.nodes)
@@ -68,7 +68,7 @@ export async function triggerOvernight(
         taskDescription,
         selectedNodeIds: [parentNodeId],
         graph,
-        writeFolder,
+        writeFolderPath,
     })
 
     const taskNodeId: NodeIdAndFilePath = taskNodeDelta[0].type === 'UpsertNode'

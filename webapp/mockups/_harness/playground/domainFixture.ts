@@ -218,7 +218,7 @@ export function buildPlaygroundFixture(): PlaygroundFixture {
     const folderTree: FolderTreeNode = buildFolderTree()
     const vault: VaultState = {
         projectRoot: VAULT_PATH,
-        writeFolder: VAULT_PATH,
+        writeFolderPath: VAULT_PATH,
         readPaths: [],
     }
     const positions: Map<string, { x: number; y: number }> = new Map(

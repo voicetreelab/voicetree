@@ -14,8 +14,8 @@ export async function getMcpGraph(bridge: GraphBridge): Promise<Graph> {
     return await bridge.getGraph()
 }
 
-export async function getMcpWriteFolder(bridge: GraphBridge): Promise<O.Option<string>> {
-    return O.fromNullable(await bridge.getWriteFolder())
+export async function getMcpWriteFolderPath(bridge: GraphBridge): Promise<O.Option<string>> {
+    return O.fromNullable(await bridge.getWriteFolderPath())
 }
 
 export async function getMcpVaultPaths(bridge: GraphBridge): Promise<readonly string[]> {

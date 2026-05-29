@@ -36,7 +36,7 @@ export function upsertDelta(node: GraphNode): GraphDelta {
 }
 
 // Mark `p` as an active read path on the daemon so the watcher mounts it
-// alongside the writeFolder. Implemented over the public session
+// alongside the writeFolderPath. Implemented over the public session
 // folder-state API (the legacy /vault/read-paths route is gone). Creates a
 // transient session for the PATCH and deletes it afterwards so the helper
 // leaves sessionCount untouched — tests that assert on session counts must

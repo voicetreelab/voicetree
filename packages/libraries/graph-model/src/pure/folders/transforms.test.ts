@@ -243,28 +243,28 @@ describe('reduceFolderConfig', () => {
 
     it('RESET_WRITE_TO_ROOT sets write to root', () => {
         const config: VaultConfig = {
-            writeFolder: '/Users/bob/project/notes',
+            writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = { type: 'RESET_WRITE_TO_ROOT' };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.writeFolder).toBe('/Users/bob/project');
+        expect(result.writeFolderPath).toBe('/Users/bob/project');
     });
 
     it('SET_AS_WRITE updates the write path only', () => {
         const config: VaultConfig = {
-            writeFolder: '/Users/bob/project/notes',
+            writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.writeFolder).toBe('/Users/bob/project/drafts');
+        expect(result.writeFolderPath).toBe('/Users/bob/project/drafts');
     });
 
     it('SET_AS_WRITE returns the same config if same as new write', () => {
         const config: VaultConfig = {
-            writeFolder: '/Users/bob/project/notes',
+            writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
@@ -276,7 +276,7 @@ describe('reduceFolderConfig', () => {
 
     it('ADD_AS_READ leaves config unchanged because visibility is sqlite-backed', () => {
         const config: VaultConfig = {
-            writeFolder: '/Users/bob/project/notes',
+            writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'ADD_AS_READ',
@@ -288,7 +288,7 @@ describe('reduceFolderConfig', () => {
 
     it('REMOVE_READ_FOLDER leaves config unchanged because visibility is sqlite-backed', () => {
         const config: VaultConfig = {
-            writeFolder: '/Users/bob/project/notes',
+            writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'REMOVE_READ_FOLDER',
@@ -300,7 +300,7 @@ describe('reduceFolderConfig', () => {
 
     it('returns same config for unhandled action types', () => {
         const config: VaultConfig = {
-            writeFolder: '/Users/bob/project/notes',
+            writeFolderPath: '/Users/bob/project/notes',
         };
         const action: FolderAction = { type: 'TOGGLE_DROPDOWN' };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
@@ -312,7 +312,7 @@ describe('toFolderSelectorState', () => {
     const projectRoot: AbsolutePath = toAbsolutePath('/Users/bob/project');
 
     it('converts raw data to UI state object', () => {
-        const writeFolder: AbsolutePath = toAbsolutePath('/Users/bob/project/notes');
+        const writeFolderPath: AbsolutePath = toAbsolutePath('/Users/bob/project/notes');
         const readFolders: readonly AbsolutePath[] = [
             toAbsolutePath('/Users/bob/project/drafts'),
         ];
@@ -328,7 +328,7 @@ describe('toFolderSelectorState', () => {
 
         const result: FolderSelectorState = toFolderSelectorState(
             projectRoot,
-            writeFolder,
+            writeFolderPath,
             readFolders,
             availableFolders,
             searchQuery,
@@ -336,8 +336,8 @@ describe('toFolderSelectorState', () => {
         );
 
         expect(result.projectRoot).toBe('/Users/bob/project');
-        expect(result.writeFolder?.absolutePath).toBe('/Users/bob/project/notes');
-        expect(result.writeFolder?.displayPath).toBe('notes');
+        expect(result.writeFolderPath?.absolutePath).toBe('/Users/bob/project/notes');
+        expect(result.writeFolderPath?.displayPath).toBe('notes');
         expect(result.readFolders).toHaveLength(1);
         expect(result.readFolders[0].absolutePath).toBe('/Users/bob/project/drafts');
         expect(result.readFolders[0].displayPath).toBe('drafts');
@@ -348,21 +348,21 @@ describe('toFolderSelectorState', () => {
         expect(result.error).toBeNull();
     });
 
-    it('handles project root as write folder (displayPath should be ".")', () => {
-        const writeFolder: AbsolutePath = toAbsolutePath('/Users/bob/project');
+    it('handles project root as write folder path (displayPath should be ".")', () => {
+        const writeFolderPath: AbsolutePath = toAbsolutePath('/Users/bob/project');
         const readFolders: readonly AbsolutePath[] = [];
         const availableFolders: readonly AvailableFolderItem[] = [];
 
         const result: FolderSelectorState = toFolderSelectorState(
             projectRoot,
-            writeFolder,
+            writeFolderPath,
             readFolders,
             availableFolders,
             '',
             false
         );
 
-        expect(result.writeFolder?.displayPath).toBe('.');
+        expect(result.writeFolderPath?.displayPath).toBe('.');
     });
 });
 

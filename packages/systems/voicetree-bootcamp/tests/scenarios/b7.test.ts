@@ -75,7 +75,7 @@ describe('b7 — knowledge gardening', () => {
             .filter((n) => /^\d{3}-[a-z0-9-]+\.md$/.test(n))
             .slice(0, 70)
         await groupLeavesIntoFolders(tempDir, halfLeaves, 5)
-        await writeFolderNotesFor(tempDir)
+        await writeFolderPathNotesFor(tempDir)
         const result = await b7.successCriteria(tempDir)
         expect(result.passed).toBe(false)
         const c2 = result.checkpoints?.find((c) => c.name === 'C2-regrouped')
@@ -230,7 +230,7 @@ async function gardenVault(vaultDir: string, numFolders: number): Promise<void> 
         await fs.mkdir(folderPath, {recursive: true})
         await fs.rename(path.join(vaultDir, leaves[i]), path.join(folderPath, leaves[i]))
     }
-    await writeFolderNotesFor(vaultDir)
+    await writeFolderPathNotesFor(vaultDir)
     await writeRootIndexFor(vaultDir)
 }
 
@@ -284,7 +284,7 @@ async function groupLeavesIntoFolders(
  * For every subdirectory that contains leaves, write a folder note at
  * `<folder>/<folder>.md` listing every leaf inside as a wikilink.
  */
-async function writeFolderNotesFor(vaultDir: string): Promise<void> {
+async function writeFolderPathNotesFor(vaultDir: string): Promise<void> {
     const subdirs = await listSubdirs(vaultDir)
     for (const dir of subdirs) {
         const entries = await fs.readdir(dir)

@@ -29,13 +29,13 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   testDir: string;
-  writeFolder: string;
+  writeFolderPath: string;
   readVaultPath: string;
   tempUserDataPath: string;
 }>({
   // Create test directory structure:
   // testDir/
-  //   write-vault/           <- writeFolder
+  //   write-vault/           <- writeFolderPath
   //     node-a.md            <- Links to [[node-b]]
   //   read-vault/            <- readPath
   //     node-b.md            <- Linked by node-a
@@ -46,20 +46,20 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  writeFolder: async ({ testDir }, use) => {
-    const writeFolder = path.join(testDir, 'write-vault');
-    await fs.mkdir(writeFolder, { recursive: true });
+  writeFolderPath: async ({ testDir }, use) => {
+    const writeFolderPath = path.join(testDir, 'write-vault');
+    await fs.mkdir(writeFolderPath, { recursive: true });
 
     // Create node-a that links to node-b in read-vault
     await fs.writeFile(
-      path.join(writeFolder, 'node-a.md'),
+      path.join(writeFolderPath, 'node-a.md'),
       `# Node A
 
 This node links to [[node-b]] in the read vault.
 `
     );
 
-    await use(writeFolder);
+    await use(writeFolderPath);
   },
 
   readVaultPath: async ({ testDir }, use) => {
@@ -85,7 +85,7 @@ This node is in the read-vault and should be removed when vault is removed.
     await fs.rm(tempPath, { recursive: true, force: true });
   },
 
-  electronApp: async ({ testDir, writeFolder, readVaultPath, tempUserDataPath }, use) => {
+  electronApp: async ({ testDir, writeFolderPath, readVaultPath, tempUserDataPath }, use) => {
     // Write config with both write path and read path already configured
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
@@ -94,7 +94,7 @@ This node is in the read-vault and should be removed when vault is removed.
         lastDirectory: testDir,
         vaultConfig: {
           [testDir]: {
-            writeFolder: writeFolder,
+            writeFolderPath: writeFolderPath,
             readPaths: [readVaultPath]  // Read path already configured
           }
         }
@@ -249,7 +249,7 @@ test.describe('Remove Read Path', () => {
 
   test('should not allow removing the write path', async ({
     appWindow,
-    writeFolder
+    writeFolderPath
   }) => {
     test.setTimeout(30000);
 
@@ -260,7 +260,7 @@ test.describe('Remove Read Path', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
-    }, writeFolder);
+    }, writeFolderPath);
 
     console.log('Attempt to remove write path result:', removeResult);
 

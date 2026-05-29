@@ -59,9 +59,9 @@ describe('folderState routes', () => {
     )
 
     expect(response.status).toBe(200)
-    // setWriteFolder seeds the writeFolder as 'expanded' on cold mount so the
+    // setWriteFolderPath seeds the writeFolderPath as 'expanded' on cold mount so the
     // sidebar can show its contents. With no saved config the default
-    // writeFolder is a `voicetree-{day}-{month}` subfolder of the vault.
+    // writeFolderPath is a `voicetree-{day}-{month}` subfolder of the vault.
     const body = await response.json() as { folderState: [string, string][]; activeView: { name: string } }
     expect(body.activeView.name).toBe('main')
     const expandedRows: [string, string][] = body.folderState.filter(([, state]: [string, string]) => state === 'expanded')
@@ -106,7 +106,7 @@ describe('folderState routes', () => {
     expect(batch.status).toBe(200)
     const body = await batch.json() as { folderState: [string, string][] }
     // The PATCHed rows are interleaved (by path ASC) with the seeded
-    // [<writeFolder>, 'expanded'] row. The default writeFolder for an
+    // [<writeFolderPath>, 'expanded'] row. The default writeFolderPath for an
     // unconfigured vault is a `voicetree-{day}-{month}` subfolder.
     const patchedRows: [string, string][] = body.folderState.filter(
       ([rowPath]: [string, string]) => rowPath === docsPath || rowPath === notesPath || rowPath === srcPath || rowPath === tmpPath,

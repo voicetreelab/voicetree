@@ -11,7 +11,7 @@ describe('buildElectronGraphSnapshot', () => {
         const vaultState: VaultState = {
             projectRoot: '/project',
             readPaths: ['/project/write', '/project/reference'],
-            writeFolder: '/project/write',
+            writeFolderPath: '/project/write',
         }
 
         const snapshot = await buildElectronGraphSnapshot({
@@ -30,7 +30,7 @@ describe('buildElectronGraphSnapshot', () => {
             vaultReads: 1,
         })
         expect(snapshot.projectRoot).toBe('/project')
-        expect(snapshot.writeFolder).toBe('/project/write')
+        expect(snapshot.writeFolderPath).toBe('/project/write')
         expect(snapshot.vaultPaths).toEqual(['/project/write', '/project/reference'])
     })
 })

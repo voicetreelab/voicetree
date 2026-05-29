@@ -2,10 +2,10 @@ import { describe, expect, test } from 'vitest'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
-  classifySetWriteFolderResult,
+  classifySetWriteFolderPathResult,
   composeReadPathsResponse,
   composeVaultState,
-  composeWriteFolderResponse,
+  composeWriteFolderPathResponse,
   decodeVaultPath,
 } from '../handleVault.ts'
 
@@ -29,11 +29,11 @@ describe('handleVault', () => {
     expect(composeVaultState({
       projectRoot: '/tmp/vault',
       readPaths: ['/tmp/vault/docs'],
-      writeFolderOption: { value: '/tmp/vault/out' },
+      writeFolderPathOption: { value: '/tmp/vault/out' },
     })).toEqual({
       projectRoot: '/tmp/vault',
       readPaths: ['/tmp/vault/docs'],
-      writeFolder: '/tmp/vault/out',
+      writeFolderPath: '/tmp/vault/out',
     })
   })
 
@@ -41,11 +41,11 @@ describe('handleVault', () => {
     expect(composeVaultState({
       projectRoot: '/tmp/vault',
       readPaths: [],
-      writeFolderOption: { value: null },
+      writeFolderPathOption: { value: null },
     })).toEqual({
       projectRoot: '/tmp/vault',
       readPaths: [],
-      writeFolder: '/tmp/vault',
+      writeFolderPath: '/tmp/vault',
     })
   })
 
@@ -117,15 +117,15 @@ describe('handleVault', () => {
       },
     },
   ])('classifies set write path result %#', ({ result, expected }) => {
-    expect(classifySetWriteFolderResult(result)).toEqual(expected)
+    expect(classifySetWriteFolderPathResult(result)).toEqual(expected)
   })
 
   test('composes schema-valid read and write path responses', () => {
     expect(composeReadPathsResponse(['/tmp/vault/docs'])).toEqual({
       readPaths: ['/tmp/vault/docs'],
     })
-    expect(composeWriteFolderResponse('/tmp/vault/out')).toEqual({
-      writeFolder: '/tmp/vault/out',
+    expect(composeWriteFolderPathResponse('/tmp/vault/out')).toEqual({
+      writeFolderPath: '/tmp/vault/out',
     })
   })
 })

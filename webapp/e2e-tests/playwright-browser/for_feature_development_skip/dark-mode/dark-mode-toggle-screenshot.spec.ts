@@ -173,8 +173,8 @@ test.describe('Dark Mode Toggle Screenshot', () => {
           applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
           // Vault path related APIs
           getVaultPaths: async () => ['/mock/watched/directory', '/mock/watched/directory/notes'],
-          getWriteFolder: async () => ({ _tag: 'Some', value: '/mock/watched/directory' }),
-          setWriteFolder: async () => ({ success: true }),
+          getWriteFolderPath: async () => ({ _tag: 'Some', value: '/mock/watched/directory' }),
+          setWriteFolderPath: async () => ({ success: true }),
           addVaultPathToAllowlist: async () => ({ success: true }),
           removeVaultPathFromAllowlist: async () => ({ success: true }),
         },

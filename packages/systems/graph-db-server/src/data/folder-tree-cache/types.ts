@@ -63,7 +63,7 @@ export type FolderTreeScanner = (
  * The public, deep, narrow API for daemon-owned folder-tree reads.
  *
  * Read methods return `DirectoryEntry | null`. Decoration (isInGraph,
- * isWriteFolder, loadState, etc.) is a pure downstream transform and is NOT the
+ * isWriteFolderPath, loadState, etc.) is a pure downstream transform and is NOT the
  * read model's concern — keeping it out lets us invalidate purely on FS
  * events, independent of graph mutations.
  */

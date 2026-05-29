@@ -84,7 +84,7 @@ describe('MCP create_graph tool — node creation', () => {
             expect(upserted.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe('my-agent')
         })
 
-        it('creates a node in a relative outputPath under the write folder', async () => {
+        it('creates a node in a relative outputPath under the write folder path', async () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: 'deliverables/progress',

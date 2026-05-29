@@ -1,6 +1,6 @@
 import {
   AddReadPathRequestSchema,
-  SetWriteFolderRequestSchema,
+  SetWriteFolderPathRequestSchema,
 } from '@vt/graph-db-server/contract'
 import { validateAbsolutePath } from '@vt/graph-db-server/application/core/validatePath'
 import {
@@ -10,9 +10,9 @@ import {
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
-  classifySetWriteFolderResult,
+  classifySetWriteFolderPathResult,
   composeReadPathsResponse,
-  composeWriteFolderResponse,
+  composeWriteFolderPathResponse,
   decodeVaultPath,
 } from '@vt/graph-db-server/application/core/handleVault'
 import { executeCommand } from '../dispatch.ts'
@@ -102,8 +102,8 @@ export async function removeReadPathWorkflow(
   return jsonResult(composeReadPathsResponse(vaultState.readPaths))
 }
 
-export async function setWriteFolderWorkflow(rawBody: unknown): Promise<HttpResult> {
-  const body = SetWriteFolderRequestSchema.safeParse(rawBody)
+export async function setWriteFolderPathWorkflow(rawBody: unknown): Promise<HttpResult> {
+  const body = SetWriteFolderPathRequestSchema.safeParse(rawBody)
   if (!body.success) {
     return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
   }
@@ -116,10 +116,10 @@ export async function setWriteFolderWorkflow(rawBody: unknown): Promise<HttpResu
   }
 
   const result = await executeCommand({
-    type: 'SetVaultWriteFolder',
+    type: 'SetVaultWriteFolderPath',
     path: validatedPath.path,
   })
-  const classification = classifySetWriteFolderResult(result)
+  const classification = classifySetWriteFolderPathResult(result)
   if (classification.kind === 'error') {
     return errorResult(
       classification.message,
@@ -128,5 +128,5 @@ export async function setWriteFolderWorkflow(rawBody: unknown): Promise<HttpResu
     )
   }
 
-  return jsonResult(composeWriteFolderResponse(validatedPath.path))
+  return jsonResult(composeWriteFolderPathResponse(validatedPath.path))
 }

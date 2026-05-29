@@ -148,11 +148,11 @@ function installMockElectronAPI(): void {
 
         return {
           sessionId: 'mock-session',
-          writeFolder: dir,
+          writeFolderPath: dir,
           vaultState: {
             projectRoot: dir,
             readPaths: [dir],
-            writeFolder: dir,
+            writeFolderPath: dir,
           },
           initialProjectedGraph: projectedGraph,
           folderState: [],
@@ -184,11 +184,11 @@ function installMockElectronAPI(): void {
       },
       getVoicetreeHomePath: async (): Promise<string> => '/Users/testuser/.voicetree',
       getVaultPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
-      getWriteFolder: async () => ({
+      getWriteFolderPath: async () => ({
         _tag: 'Some' as const,
         value: '/mock/watched/directory'
       }),
-      setWriteFolder: async () => ({ success: true }),
+      setWriteFolderPath: async () => ({ success: true }),
       getShowAllPaths: async (): Promise<readonly string[]> => [],
       toggleShowAll: async () => ({ success: true, showAll: false }),
       addReadOnLinkPath: async () => ({ success: true }),

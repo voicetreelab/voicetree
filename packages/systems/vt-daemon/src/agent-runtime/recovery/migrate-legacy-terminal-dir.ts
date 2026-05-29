@@ -9,7 +9,7 @@ type Logger = {
 
 export type MigrateLegacyTerminalDirArgs = {
     readonly projectRoot: string
-    readonly writeFolder: string
+    readonly writeFolderPath: string
     readonly logger?: Logger
 }
 
@@ -53,11 +53,11 @@ function writeMigratedStub(legacyDir: string, canonicalDir: string): void {
 
 /**
  * One-time, synchronous, idempotent migration of legacy
- * `<writeFolder>/.voicetree/terminals/*.json` records into the canonical
+ * `<writeFolderPath>/.voicetree/terminals/*.json` records into the canonical
  * `<projectRoot>/.voicetree/terminals/`.
  *
  * Must be invoked from `onVaultOpened` BEFORE reconciliation runs, so the
- * reconciler sees the post-move state. No-op when `writeFolder === projectRoot`
+ * reconciler sees the post-move state. No-op when `writeFolderPath === projectRoot`
  * or the legacy directory does not exist. Conflicts keep the canonical copy
  * and leave the legacy entry untouched.
  */
@@ -66,9 +66,9 @@ export function migrateLegacyTerminalDir(args: MigrateLegacyTerminalDirArgs): Mi
     const conflicts: string[] = []
     const skipped: string[] = []
 
-    if (args.writeFolder === args.projectRoot) return {moved, conflicts, skipped}
+    if (args.writeFolderPath === args.projectRoot) return {moved, conflicts, skipped}
 
-    const legacyDir: string = getRecoveryMetadataDir(args.writeFolder)
+    const legacyDir: string = getRecoveryMetadataDir(args.writeFolderPath)
     const canonicalDir: string = getRecoveryMetadataDir(args.projectRoot)
 
     if (!existsSync(legacyDir)) return {moved, conflicts, skipped}

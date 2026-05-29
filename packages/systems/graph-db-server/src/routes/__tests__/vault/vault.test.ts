@@ -60,12 +60,12 @@ describe('vault routes', () => {
 
     expect(response.status).toBe(200)
     // Cold start of a fresh project root with no saved config defaults the
-    // writeFolder to a `voicetree-{day}-{month}` subfolder so we never load
-    // the whole project root as a single graph — see resolveDefaultWriteFolder.
-    const body = await response.json() as { projectRoot: string; readPaths: string[]; writeFolder: string }
+    // writeFolderPath to a `voicetree-{day}-{month}` subfolder so we never load
+    // the whole project root as a single graph — see resolveDefaultWriteFolderPath.
+    const body = await response.json() as { projectRoot: string; readPaths: string[]; writeFolderPath: string }
     expect(body.projectRoot).toBe(vault)
-    expect(body.writeFolder).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
-    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolder]))
+    expect(body.writeFolderPath).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolderPath]))
   })
 
   test('PUT /vault/write-path updates the write path', async () => {
@@ -84,14 +84,14 @@ describe('vault routes', () => {
     const vaultState = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ writeFolder: outPath })
+    expect(await response.json()).toEqual({ writeFolderPath: outPath })
     expect(await vaultState.json()).toMatchObject({
       projectRoot: vault,
-      writeFolder: outPath,
+      writeFolderPath: outPath,
     })
   })
 
-  test('POST /vault/open applies writeFolder when re-opening the active vault', async () => {
+  test('POST /vault/open applies writeFolderPath when re-opening the active vault', async () => {
     const outPath = join(vault, 'out')
     await mkdir(outPath, { recursive: true })
     const handle = await start()
@@ -101,16 +101,16 @@ describe('vault routes', () => {
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path: vault, writeFolder: outPath }),
+        body: JSON.stringify({ path: vault, writeFolderPath: outPath }),
       },
     )
     const vaultState = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ writeFolder: outPath })
+    expect(await response.json()).toMatchObject({ writeFolderPath: outPath })
     expect(await vaultState.json()).toMatchObject({
       projectRoot: vault,
-      writeFolder: outPath,
+      writeFolderPath: outPath,
     })
   })
 
@@ -139,11 +139,11 @@ describe('vault routes', () => {
     expect(readResolved).toBe(false)
 
     completeVaultOpen()
-    const body = await reader as { projectRoot: string; readPaths: string[]; writeFolder: string }
+    const body = await reader as { projectRoot: string; readPaths: string[]; writeFolderPath: string }
     expect(readResolved).toBe(true)
     expect(body.projectRoot).toBe(vault)
-    expect(body.writeFolder).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
-    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolder]))
+    expect(body.writeFolderPath).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolderPath]))
   })
 
   test('GET /vault still 409s when no vault is open and no open is pending', async () => {

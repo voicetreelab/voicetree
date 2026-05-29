@@ -1,7 +1,7 @@
 import type { Hono } from 'hono'
 import {
   readVaultWorkflow,
-  setWriteFolderWorkflow,
+  setWriteFolderPathWorkflow,
 } from '@vt/graph-db-server/application/workflows/vault'
 import {
   closeVaultWorkflow,
@@ -46,6 +46,6 @@ export function mountVaultRoutes(app: Hono): void {
   })
 
   mountDaemonRoute(app, daemonRouteSpecById('vault.set-write-path'), async (c) => {
-    return sendHttpResult(c, await setWriteFolderWorkflow(await c.req.json()))
+    return sendHttpResult(c, await setWriteFolderPathWorkflow(await c.req.json()))
   })
 }

@@ -54,15 +54,15 @@ function vaultFilePath(filename: string): string {
     return path.join(state.tempVault, filename)
 }
 
-function createTestWindow(cy: Core, includeWriteFolder: boolean): Window {
+function createTestWindow(cy: Core, includeWriteFolderPath: boolean): Window {
     return {
         electronAPI: {
             main: {
                 getGraph: async () => state.currentGraph,
                 getNode: async (nodeId: string) => state.currentGraph?.nodes[nodeId],
-                ...(includeWriteFolder
+                ...(includeWriteFolderPath
                     ? {
-                        getWriteFolder: () => Promise.resolve(O.some(state.tempVault)),
+                        getWriteFolderPath: () => Promise.resolve(O.some(state.tempVault)),
                         getWatchStatus: () => ({ isWatching: false, directory: state.tempVault })
                     }
                     : {}),

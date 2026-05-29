@@ -117,7 +117,7 @@ describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
         })
         projectRoot = await copyFixture()
         await saveVaultConfigForDirectory(projectRoot, {
-            writeFolder: path.join(projectRoot, 'voicetree'),
+            writeFolderPath: path.join(projectRoot, 'voicetree'),
         })
     }, TIMEOUT_MS)
 

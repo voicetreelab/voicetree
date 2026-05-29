@@ -347,7 +347,7 @@ async function main() {
   try {
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       lastDirectory: projectRoot,
-      vaultConfig: {[projectRoot]: {writeFolder: projectRoot, readPaths: []}},
+      vaultConfig: {[projectRoot]: {writeFolderPath: projectRoot, readPaths: []}},
     }, null, 2), 'utf8');
     await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
       id: PROJECT_ID,

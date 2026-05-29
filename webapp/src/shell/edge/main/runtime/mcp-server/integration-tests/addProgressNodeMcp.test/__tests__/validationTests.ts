@@ -17,7 +17,7 @@ const {
     createGraphTool,
     getGraph,
     getTerminalRecords,
-    getWriteFolder,
+    getWriteFolderPath,
     mockCallerTerminal,
     parsePayload,
     setupStandardMocks,
@@ -42,7 +42,7 @@ export function describeCreateGraphToolValidationTests(): void {
 
         it('returns error when no vault is loaded', async () => {
             mockCallerTerminal()
-            vi.mocked(getWriteFolder).mockResolvedValue(O.none)
+            vi.mocked(getWriteFolderPath).mockResolvedValue(O.none)
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
@@ -72,7 +72,7 @@ export function describeCreateGraphToolValidationTests(): void {
 
         it('returns error when parent node is not found', async () => {
             mockCallerTerminal()
-            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolderPath).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue({
                 nodes: {},
                 incomingEdgesIndex: new Map(),

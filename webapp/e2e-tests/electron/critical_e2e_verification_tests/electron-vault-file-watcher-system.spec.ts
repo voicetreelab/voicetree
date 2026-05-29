@@ -18,11 +18,11 @@ interface ExtendedWindow {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writeFolder = path.join(projectPath, 'voicetree');
-  await fs.mkdir(writeFolder, { recursive: true });
+  const writeFolderPath = path.join(projectPath, 'voicetree');
+  await fs.mkdir(writeFolderPath, { recursive: true });
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true });
   await fs.writeFile(
-    path.join(writeFolder, 'Root.md'),
+    path.join(writeFolderPath, 'Root.md'),
     '# Root\n\nThis is the initial watched vault node.\n',
     'utf8',
   );
@@ -33,7 +33,7 @@ async function seedProject(projectPath: string): Promise<string> {
     }),
     'utf8',
   );
-  return writeFolder;
+  return writeFolderPath;
 }
 
 function resolveGraphdNodeBin(): string | undefined {
@@ -58,7 +58,7 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   projectPath: string;
-  writeFolder: string;
+  writeFolderPath: string;
 }>({
   projectPath: async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-project-system-'));
@@ -66,12 +66,12 @@ const test = base.extend<{
     await fs.rm(projectPath, { recursive: true, force: true });
   },
 
-  writeFolder: async ({ projectPath }, use) => {
-    const writeFolder = await seedProject(projectPath);
-    await use(writeFolder);
+  writeFolderPath: async ({ projectPath }, use) => {
+    const writeFolderPath = await seedProject(projectPath);
+    await use(writeFolderPath);
   },
 
-  electronApp: async ({ projectPath, writeFolder }, use) => {
+  electronApp: async ({ projectPath, writeFolderPath }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-app-system-'));
     const savedProject = {
       id: 'vault-file-watcher-system',
@@ -88,7 +88,7 @@ const test = base.extend<{
         lastDirectory: projectPath,
         vaultConfig: {
           [projectPath]: {
-            writeFolder,
+            writeFolderPath,
             readPaths: [],
           },
         },
@@ -130,16 +130,16 @@ const test = base.extend<{
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const response = await api.main.openVault(dir);
-      return { writeFolder: response.writeFolder };
+      return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
-    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openVault returned no writeFolderPath').toBeTruthy();
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await use(window);
   },
 });
 
-test('keeps Electron UI, graph state, and vault files converged after a disk change', async ({ appWindow, writeFolder }) => {
+test('keeps Electron UI, graph state, and vault files converged after a disk change', async ({ appWindow, writeFolderPath }) => {
   test.setTimeout(60_000);
 
   const initial = await appWindow.evaluate(async () => {
@@ -157,7 +157,7 @@ test('keeps Electron UI, graph state, and vault files converged after a disk cha
   expect(initial.uiLabels).toContain('Root');
 
   await fs.writeFile(
-    path.join(writeFolder, 'Created From Disk.md'),
+    path.join(writeFolderPath, 'Created From Disk.md'),
     '# Created From Disk\n\nThis node arrived through the watched vault boundary.\n',
     'utf8',
   );

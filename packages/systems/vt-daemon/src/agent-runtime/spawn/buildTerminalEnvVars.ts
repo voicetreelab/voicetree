@@ -44,10 +44,10 @@ export async function buildTerminalEnvVars(params: {
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
 
     // VOICETREE_PROJECT_PATH points at the canonical vault root (where `.voicetree/` lives),
-    // not the daemon's current writeFolder. Many consumers — the CLI's auth-token resolver
+    // not the daemon's current writeFolderPath. Many consumers — the CLI's auth-token resolver
     // (vt-rpc#authTokenFilePath), the agent hook script template
     // (agentHookInjection.ts), tmuxPromptFile, the tmux namespace builder — all read
-    // `$VOICETREE_PROJECT_PATH/.voicetree/...`. Pointing the var at a subfolder writeFolder
+    // `$VOICETREE_PROJECT_PATH/.voicetree/...`. Pointing the var at a subfolder writeFolderPath
     // creates stub `.voicetree/` dirs that break the CLI up-walk and the hook script.
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()

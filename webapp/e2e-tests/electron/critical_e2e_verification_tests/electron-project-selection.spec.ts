@@ -565,7 +565,7 @@ test.describe('Watched Folder Panel Regression', () => {
                 lastDirectory: projectPath,
                 vaultConfig: {
                     [projectPath]: {
-                        writeFolder: voicetreePath,
+                        writeFolderPath: voicetreePath,
                         readPaths: []
                     }
                 }
@@ -751,7 +751,7 @@ test.describe('Watched Folder Panel Regression', () => {
             const voicetreeConfig = {
                 vaultConfig: {
                     [projectWithConfig]: {
-                        writeFolder: voicetreeWithConfig,
+                        writeFolderPath: voicetreeWithConfig,
                         readPaths: []
                     }
                 }

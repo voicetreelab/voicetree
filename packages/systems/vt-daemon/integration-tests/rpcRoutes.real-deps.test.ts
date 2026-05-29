@@ -72,7 +72,7 @@ async function makeTempVault(): Promise<string> {
 async function captureEventsWithRealRuntime(): Promise<void> {
     events.length = 0
     const appSupport: string = await makeTempVault()
-    const writeFolder: string = await makeTempVault()
+    const writeFolderPath: string = await makeTempVault()
     process.env.VOICETREE_HOME_PATH = appSupport
     configureAgentRuntime({
         env: {
@@ -87,7 +87,7 @@ async function captureEventsWithRealRuntime(): Promise<void> {
                 unresolvedLinksIndex: new Map(),
             }),
             getVaultPaths: async () => [],
-            getWriteFolder: async () => O.none,
+            getWriteFolderPath: async () => O.none,
             getProjectRoot: async () => null,
             getWatchStatus: async () => ({isWatching: false, directory: undefined}),
             applyGraphDelta: async () => undefined,
@@ -101,9 +101,9 @@ async function captureEventsWithRealRuntime(): Promise<void> {
         },
     })
     // The publishOnTopic from vt-daemon's vtd.ts wires fanout — but here we
-    // just want the raw event capture. `writeFolder` is held by tempDirs so
+    // just want the raw event capture. `writeFolderPath` is held by tempDirs so
     // afterEach cleans it up.
-    void writeFolder
+    void writeFolderPath
 }
 
 beforeEach(async () => {

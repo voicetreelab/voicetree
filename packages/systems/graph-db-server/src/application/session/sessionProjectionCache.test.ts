@@ -33,7 +33,7 @@ function folderTreeFor(graph: Graph, vault: VaultState, vaultPaths: readonly str
     projectRoot: vault.projectRoot ? toAbsolutePath(vault.projectRoot) : null,
     readPaths: vault.readPaths,
     vaultPaths,
-    writeFolder: vault.writeFolder ? toAbsolutePath(vault.writeFolder) : null,
+    writeFolderPath: vault.writeFolderPath ? toAbsolutePath(vault.writeFolderPath) : null,
   })
 }
 
@@ -55,7 +55,7 @@ function snapshotFor(input: {
     vault: input.vault,
     vaultPaths: input.vaultPaths,
     vaultVersion: input.vaultVersion ?? 1,
-    writeFolder: input.vault.writeFolder,
+    writeFolderPath: input.vault.writeFolderPath,
   }
 }
 
@@ -236,18 +236,18 @@ function mutateVaultPaths(model: FuzzModel, rng: Rng): FuzzModel {
     ['/vault/docs', '/vault/public'],
     ['/vault/secret'],
   ] as const
-  const writeFolders = ['/vault', '/vault/workspace'] as const
+  const writeFolderPaths = ['/vault', '/vault/workspace'] as const
   const roots = ['/vault', '/vault-alt'] as const
 
   const projectRoot = roots[nextInt(rng, roots.length)]!
-  const writeFolder = writeFolders[nextInt(rng, writeFolders.length)]!
+  const writeFolderPath = writeFolderPaths[nextInt(rng, writeFolderPaths.length)]!
   const readPaths = [...readPathSets[nextInt(rng, readPathSets.length)]!]
-  const vault = { projectRoot, readPaths, writeFolder }
+  const vault = { projectRoot, readPaths, writeFolderPath }
   const nextModel: FuzzModel = {
     ...model,
     projectVersion: model.projectVersion + 1,
     vault,
-    vaultPaths: [vault.writeFolder, ...vault.readPaths],
+    vaultPaths: [vault.writeFolderPath, ...vault.readPaths],
     vaultVersion: model.vaultVersion + 1,
   }
 
@@ -286,7 +286,7 @@ describe('session projection cache', () => {
       ]),
     })
     const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const vaultPaths = [vault.writeFolderPath, ...vault.readPaths]
     let graph = fixtures.makeVisibilityGraph()
     let cache = sessionProjectionCache.create(snapshotFor({ graph, session, vault, vaultPaths }))
 
@@ -321,7 +321,7 @@ describe('session projection cache', () => {
       ]),
     })
     const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const vaultPaths = [vault.writeFolderPath, ...vault.readPaths]
     let graph = fixtures.makeVisibilityGraph()
     let projectVersion = 10
     const vaultVersion = 4
@@ -357,7 +357,7 @@ describe('session projection cache', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession()
     const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const vaultPaths = [vault.writeFolderPath, ...vault.readPaths]
     const cache = sessionProjectionCache.create(snapshotFor({
       graph: fixtures.makeVisibilityGraph(),
       projectVersion: 10,
@@ -394,13 +394,13 @@ describe('session projection cache', () => {
         graph: fixtures.makeVisibilityGraph(),
         session,
         vault,
-        vaultPaths: [vault.writeFolder, ...vault.readPaths],
+        vaultPaths: [vault.writeFolderPath, ...vault.readPaths],
       })),
       graph: fixtures.makeVisibilityGraph(),
       projectVersion: 1,
       session,
       vault,
-      vaultPaths: [vault.writeFolder, ...vault.readPaths],
+      vaultPaths: [vault.writeFolderPath, ...vault.readPaths],
       vaultVersion: 1,
     })
     const rng: Rng = { seed: 0xC0FFEE }
@@ -452,7 +452,7 @@ describe('session projection cache', () => {
       ]),
     })
     const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const vaultPaths = [vault.writeFolderPath, ...vault.readPaths]
     const observerCount = 4
     let graph = fixtures.makeVisibilityGraph()
     const isolatedCaches = Array.from(

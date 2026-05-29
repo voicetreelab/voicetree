@@ -25,7 +25,7 @@ export type SearchBridge = {
 export type GraphBridge = {
     readonly getGraph: () => Promise<Graph>
     readonly getVaultPaths: () => Promise<readonly string[]>
-    readonly getWriteFolder: () => Promise<string | null>
+    readonly getWriteFolderPath: () => Promise<string | null>
     readonly getProjectRoot?: () => Promise<string | null>
     readonly getUnseenNodesAroundContextNode?: (
         contextNodeId: NodeIdAndFilePath,

@@ -45,13 +45,13 @@ export type FolderVisibilityHandle = {
 export type ReadPathsListener = (watchPaths: readonly FilePath[]) => void;
 
 /**
- * Shape of an open project. Always carries a root; writeFolder is null only
+ * Shape of an open project. Always carries a root; writeFolderPath is null only
  * during the brief window between `setProjectRoot` (root binding) and
- * `setWriteFolder` (writeFolder binding) in the legacy vault-open flow.
+ * `setWriteFolderPath` (writeFolderPath binding) in the legacy vault-open flow.
  */
 export interface ProjectState {
     readonly root: FilePath | null;
-    readonly writeFolder: FilePath | null;
+    readonly writeFolderPath: FilePath | null;
     readonly version: number;
     readonly vaultVersion: number;
     readonly folders: ReadonlyMap<FilePath, FolderTreeState>;
@@ -64,13 +64,13 @@ export interface ProjectState {
 }
 
 /**
- * Project that has a bound root and writeFolder. Pure transitions over folder
- * state require both — the writeFolder invariant referenced by D6 implies a
+ * Project that has a bound root and writeFolderPath. Pure transitions over folder
+ * state require both — the writeFolderPath invariant referenced by D6 implies a
  * root is set.
  */
 export type BoundProject = ProjectState & {
     readonly root: FilePath;
-    readonly writeFolder: FilePath;
+    readonly writeFolderPath: FilePath;
 };
 
 /**
@@ -119,7 +119,7 @@ export function mutateProject(
 export function freshProject(root: FilePath | null = null): ProjectState {
     return {
         root,
-        writeFolder: null,
+        writeFolderPath: null,
         version: 0,
         vaultVersion: 0,
         folders: new Map(),

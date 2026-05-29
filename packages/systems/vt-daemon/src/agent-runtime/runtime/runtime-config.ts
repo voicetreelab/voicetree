@@ -19,9 +19,9 @@ export type RuntimeEnvProvider = {
     readonly getVaultSnapshot?: () => Promise<{
         readonly projectRoot: string | null;
         readonly readPaths: readonly string[];
-        readonly writeFolder: string | null;
+        readonly writeFolderPath: string | null;
     }>;
-    readonly getWriteFolder?: () => Promise<string | null>;
+    readonly getWriteFolderPath?: () => Promise<string | null>;
     /**
      * Absolute path to the directory containing the `vt` CLI executable
      * (the daemon's known vt-bin dir). The spawn pipeline prepends this
@@ -41,7 +41,7 @@ export type WatchStatus = {
 export type GraphStateBridge = {
     readonly getGraph: () => Promise<Graph>;
     readonly getVaultPaths: () => Promise<readonly FilePath[]>;
-    readonly getWriteFolder: () => Promise<O.Option<FilePath>>;
+    readonly getWriteFolderPath: () => Promise<O.Option<FilePath>>;
     readonly getProjectRoot: () => Promise<FilePath | null>;
     readonly getWatchStatus: () => Promise<WatchStatus>;
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>;

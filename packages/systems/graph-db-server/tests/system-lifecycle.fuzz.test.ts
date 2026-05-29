@@ -23,7 +23,7 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
     vault = path.join(root, 'vault')
     process.env.VOICETREE_HOME_PATH = path.join(root, 'app-support')
     await mkdir(vault, { recursive: true })
-    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
+    await saveVaultConfigForDirectory(vault, { writeFolderPath: '.' })
     handle = null
   })
 

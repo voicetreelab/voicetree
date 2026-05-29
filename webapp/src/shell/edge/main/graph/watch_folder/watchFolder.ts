@@ -118,8 +118,8 @@ export async function isWatching(): Promise<boolean> {
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
     const daemonVaultState: VaultState = await getVaultState()
     return [
-        daemonVaultState.writeFolder,
-        ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writeFolder),
+        daemonVaultState.writeFolderPath,
+        ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writeFolderPath),
     ]
 }
 
@@ -127,9 +127,9 @@ export async function getReadPaths(): Promise<readonly FilePath[]> {
     return (await getVaultState()).readPaths
 }
 
-export async function getWriteFolder(): Promise<O.Option<FilePath>> {
+export async function getWriteFolderPath(): Promise<O.Option<FilePath>> {
     try {
-        return O.some((await getVaultState()).writeFolder)
+        return O.some((await getVaultState()).writeFolderPath)
     } catch {
         return O.none
     }
@@ -146,15 +146,15 @@ export async function createDatedVoiceTreeFolder(): Promise<{
         const newPath: string = await createDatedSubfolder(watchedDir)
         await callDaemon(async (client) => {
             await client.addReadPath(newPath)
-            return await client.setWriteFolder(newPath)
+            return await client.setWriteFolderPath(newPath)
         })
 
         if (
-            previousVaultState.writeFolder
-            && previousVaultState.writeFolder !== newPath
-            && previousVaultState.writeFolder !== watchedDir
+            previousVaultState.writeFolderPath
+            && previousVaultState.writeFolderPath !== newPath
+            && previousVaultState.writeFolderPath !== watchedDir
         ) {
-            await callDaemon((client) => client.removeReadPath(previousVaultState.writeFolder)).catch(() => undefined)
+            await callDaemon((client) => client.removeReadPath(previousVaultState.writeFolderPath)).catch(() => undefined)
         }
 
         return { success: true, path: newPath }

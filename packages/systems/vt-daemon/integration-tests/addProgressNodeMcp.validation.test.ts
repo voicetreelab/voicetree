@@ -53,7 +53,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         })
 
         it('returns error when no vault is loaded', async () => {
-            state.writeFolder = null
+            state.writeFolderPath = null
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,

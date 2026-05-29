@@ -97,7 +97,7 @@ describe('closeAgentTool', () => {
         const bridge: GraphBridge = {
             getGraph: async (): Promise<Graph> => makeGraph(progressNodeId, terminalId),
             getVaultPaths: async (): Promise<readonly string[]> => [],
-            getWriteFolder: async (): Promise<string | null> => null,
+            getWriteFolderPath: async (): Promise<string | null> => null,
             applyGraphDelta: async (): Promise<void> => {},
         }
 

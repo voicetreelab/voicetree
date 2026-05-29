@@ -16,15 +16,15 @@ export async function buildFolderTreeSyncPayload(
 ): Promise<FolderTreeSyncPayload> {
   const loadedPaths: Set<string> = new Set<string>([
     ...vaultState.readPaths,
-    vaultState.writeFolder,
+    vaultState.writeFolderPath,
   ])
-  const writeFolder: AbsolutePath = toAbsolutePath(vaultState.writeFolder)
+  const writeFolderPath: AbsolutePath = toAbsolutePath(vaultState.writeFolderPath)
   const graphFilePaths: Set<string> = new Set<string>(Object.keys(graph.nodes))
 
   let rootTree: FolderTreeNode | null = null
   try {
     const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.projectRoot)
-    rootTree = buildFolderTree(rootEntry, loadedPaths, writeFolder, graphFilePaths)
+    rootTree = buildFolderTree(rootEntry, loadedPaths, writeFolderPath, graphFilePaths)
   } catch {
     rootTree = null
   }
@@ -38,7 +38,7 @@ export async function buildFolderTreeSyncPayload(
       starredTrees[folder] = buildFolderTree(
         entry,
         loadedPaths,
-        writeFolder,
+        writeFolderPath,
         graphFilePaths,
       )
     } catch {
@@ -53,7 +53,7 @@ export async function buildFolderTreeSyncPayload(
       externalTrees[folder] = buildFolderTree(
         entry,
         loadedPaths,
-        writeFolder,
+        writeFolderPath,
         graphFilePaths,
       )
     } catch {

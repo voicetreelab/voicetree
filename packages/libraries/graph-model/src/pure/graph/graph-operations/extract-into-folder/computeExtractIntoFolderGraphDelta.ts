@@ -207,14 +207,14 @@ function computeFolderIndexPosition(nodesToMove: readonly GraphNode[]): O.Option
     })
 }
 
-function generatedFolderName(writeFolder: string, selectedItemIds: readonly NodeIdAndFilePath[]): string {
-    return `extract_${stableIdSuffix([writeFolder, ...selectedItemIds])}`
+function generatedFolderName(writeFolderPath: string, selectedItemIds: readonly NodeIdAndFilePath[]): string {
+    return `extract_${stableIdSuffix([writeFolderPath, ...selectedItemIds])}`
 }
 
 export function computeExtractIntoFolderGraphDelta(
     selectedItemIds: readonly NodeIdAndFilePath[],
     graph: Graph,
-    writeFolder: string,
+    writeFolderPath: string,
     folderNameOverride?: string
 ): ComputeExtractIntoFolderGraphDeltaResult {
     const selectionSupport: ExtractIntoFolderSelectionSupport = getExtractIntoFolderSelectionSupport(selectedItemIds)
@@ -222,14 +222,14 @@ export function computeExtractIntoFolderGraphDelta(
         return { delta: [], newFolderId: null }
     }
 
-    const extractionBasePath: string = selectionSupport.commonParentPath ?? normalizeNodePath(writeFolder)
+    const extractionBasePath: string = selectionSupport.commonParentPath ?? normalizeNodePath(writeFolderPath)
     if (extractionBasePath.length === 0) {
         return { delta: [], newFolderId: null }
     }
 
     const folderName: string = folderNameOverride !== undefined && folderNameOverride.trim().length > 0
         ? folderNameOverride.trim()
-        : generatedFolderName(writeFolder, selectedItemIds)
+        : generatedFolderName(writeFolderPath, selectedItemIds)
     const newFolderPath: string = joinNodePath(extractionBasePath, folderName)
     const newFolderId: NodeIdAndFilePath = toFolderId(newFolderPath)
 

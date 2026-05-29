@@ -29,7 +29,7 @@
  * had a `voicetree-{day}-{month}` write subdir. The
  * `makeProjectWithDatedWriteSubdir` helper is unchanged; the assertion
  * is now that VTD's `rpc.port` writer keys off `projectRoot` (NOT the
- * writeFolder), and `getDaemonUrl` resolves correctly regardless of
+ * writeFolderPath), and `getDaemonUrl` resolves correctly regardless of
  * where the renderer would look on disk.
  *
  * Serialisation: tier-2 electron tests already serialise via
@@ -176,7 +176,7 @@ async function makeProjectWithDatedWriteSubdir(): Promise<VaultLayout> {
     // underneath the projectRoot. `bindVtDaemonForVault` is invoked
     // with projectRoot; the spawned VTD's rpc.port writer also keys
     // off the projectRoot. Pre-fix, renderer infra looked up the port
-    // under the writeFolder (this subdir) and ENOENT'd.
+    // under the writeFolderPath (this subdir) and ENOENT'd.
     const writeSubdir: string = path.join(projectRoot, 'voicetree-22-5')
     await fs.mkdir(writeSubdir, { recursive: true })
     harness.createdRoots.push(projectRoot)

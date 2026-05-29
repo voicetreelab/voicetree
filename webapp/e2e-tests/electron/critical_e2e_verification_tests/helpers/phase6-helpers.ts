@@ -115,7 +115,7 @@ export function tmuxPanePid(
 // directory and uses it as VOICETREE_PROJECT_PATH for spawned agents — that's
 // where Phase 6 writes prompt files. Resolve it once after file-watching
 // initializes the project.
-export async function resolveVaultWriteFolder(parentDir: string): Promise<string> {
+export async function resolveVaultWriteFolderPath(parentDir: string): Promise<string> {
   const entries = await fs.readdir(parentDir, { withFileTypes: true });
   const voicetreeDir = entries.find(
     (e) => e.isDirectory() && /^voicetree(-\d{1,2}-\d{1,2})?$/.test(e.name),

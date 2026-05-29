@@ -87,10 +87,10 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
     // We'll edit it to point to write-vault subfolder
 
     // Get initial write path
-    const initialWriteFolder = await appWindow.evaluate(async () => {
+    const initialWriteFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -99,8 +99,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
       return null;
     });
 
-    console.log('Initial write path:', initialWriteFolder);
-    expect(initialWriteFolder).toBeTruthy();
+    console.log('Initial write path:', initialWriteFolderPath);
+    expect(initialWriteFolderPath).toBeTruthy();
 
     // Open dropdown AND click edit on the write path (first row has checkmark)
     console.log('=== STEP 1: Open dropdown and click edit on write path ===');
@@ -119,11 +119,11 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     await appWindow.waitForTimeout(500);
 
-    console.log('=== STEP 4: Assert getWriteFolder() returns write-vault ===');
-    const finalWriteFolder = await appWindow.evaluate(async () => {
+    console.log('=== STEP 4: Assert getWriteFolderPath() returns write-vault ===');
+    const finalWriteFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -132,8 +132,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
       return null;
     });
 
-    console.log('Final write path:', finalWriteFolder);
-    expect(finalWriteFolder).toContain('write-vault');
+    console.log('Final write path:', finalWriteFolderPath);
+    expect(finalWriteFolderPath).toContain('write-vault');
 
     console.log('=== STEP 5: Assert nodes from write-vault are loaded into graph ===');
     // BUG FIX VERIFICATION: When editing write path to a new folder, nodes from that folder must be loaded

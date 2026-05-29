@@ -414,7 +414,7 @@ async function loadFileAsNode(
  * Recursively resolves transitive links (A→B→C all get loaded).
  *
  * This is the "resolve-on-link" behavior for files in the watched folder
- * that are outside writeFolder and expanded paths.
+ * that are outside writeFolderPath and expanded paths.
  *
  * @param graph - Current graph with nodes
  * @param watchedFolder - The root folder to search for linked files

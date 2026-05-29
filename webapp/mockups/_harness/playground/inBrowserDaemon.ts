@@ -78,7 +78,7 @@ function projectFromState(daemon: DaemonState): ProjectedGraph {
     return project({
         graph: daemon.graph,
         roots: {
-            loaded: new Set<string>([daemon.vault.writeFolder, ...daemon.vault.readPaths].filter((p) => p.length > 0)),
+            loaded: new Set<string>([daemon.vault.writeFolderPath, ...daemon.vault.readPaths].filter((p) => p.length > 0)),
             folderTree: [daemon.folderTree],
         },
         collapseSet: new Set(daemon.session.collapseSet),

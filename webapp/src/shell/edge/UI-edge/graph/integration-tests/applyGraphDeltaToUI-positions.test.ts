@@ -23,7 +23,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         setTestCollapseSet(new Set())
-        syncVaultStateFromMain({ readPaths: [], writeFolder: null, starredFolders: [] })
+        syncVaultStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
     })
 
     describe('Append animation behavior', () => {
@@ -96,7 +96,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     describe('Position preservation through collapse/expand cycle', () => {
         it('nodes reappearing after expand get their persisted position from spec', () => {
             syncFolderTree('/vault')
-            syncVaultStateFromMain({ readPaths: [], writeFolder: '/vault', starredFolders: [] })
+            syncVaultStateFromMain({ readPaths: [], writeFolderPath: '/vault', starredFolders: [] })
 
             const childNode: GraphNode = {
                 absoluteFilePathIsID: '/vault/auth/login-flow.md',
@@ -132,7 +132,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
         it('collapsing and expanding does not affect positions of nodes outside the folder', () => {
             syncFolderTree('/vault')
-            syncVaultStateFromMain({ readPaths: [], writeFolder: '/vault', starredFolders: [] })
+            syncVaultStateFromMain({ readPaths: [], writeFolderPath: '/vault', starredFolders: [] })
 
             const outsideNode: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',

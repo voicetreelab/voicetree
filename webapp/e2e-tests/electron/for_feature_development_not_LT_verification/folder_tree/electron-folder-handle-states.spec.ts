@@ -86,7 +86,7 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
             vaultConfig: {
-                [projectRoot]: { writeFolder: projectRoot, readPaths: [] },
+                [projectRoot]: { writeFolderPath: projectRoot, readPaths: [] },
             },
         }, null, 2), 'utf8');
 

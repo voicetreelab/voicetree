@@ -24,7 +24,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         setTestCollapseSet(new Set())
-        syncVaultStateFromMain({ readPaths: [], writeFolder: null, starredFolders: [] })
+        syncVaultStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
     })
 
     describe('Edge handling', () => {

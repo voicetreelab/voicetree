@@ -179,10 +179,10 @@ export function reduceFolderConfig(
 ): VaultConfig {
     switch (action.type) {
         case 'RESET_WRITE_TO_ROOT': {
-            // Set writeFolder to projectRoot
+            // Set writeFolderPath to projectRoot
             return {
                 ...config,
-                writeFolder: projectRoot,
+                writeFolderPath: projectRoot,
             };
         }
 
@@ -191,17 +191,17 @@ export function reduceFolderConfig(
         }
 
         case 'SET_AS_WRITE': {
-            const newWriteFolder: string = action.path;
-            const oldWriteFolder: string = config.writeFolder;
+            const newWriteFolderPath: string = action.path;
+            const oldWriteFolderPath: string = config.writeFolderPath;
 
             // If same path, no change needed
-            if (newWriteFolder === oldWriteFolder) {
+            if (newWriteFolderPath === oldWriteFolderPath) {
                 return config;
             }
 
             return {
                 ...config,
-                writeFolder: newWriteFolder,
+                writeFolderPath: newWriteFolderPath,
             };
         }
 
@@ -223,16 +223,16 @@ export function reduceFolderConfig(
  */
 export function toFolderSelectorState(
     projectRoot: AbsolutePath,
-    writeFolder: AbsolutePath,
+    writeFolderPath: AbsolutePath,
     readFolders: readonly AbsolutePath[],
     availableFolders: readonly AvailableFolderItem[],
     searchQuery: string,
     isOpen: boolean
 ): FolderSelectorState {
-    // Convert writeFolder to LoadedFolderItem
-    const writeFolderItem: LoadedFolderItem = {
-        absolutePath: writeFolder,
-        displayPath: toDisplayPath(projectRoot, writeFolder),
+    // Convert writeFolderPath to LoadedFolderItem
+    const writeFolderPathItem: LoadedFolderItem = {
+        absolutePath: writeFolderPath,
+        displayPath: toDisplayPath(projectRoot, writeFolderPath),
     };
 
     // Convert readFolders to LoadedFolderItem[]
@@ -243,7 +243,7 @@ export function toFolderSelectorState(
 
     return {
         projectRoot,
-        writeFolder: writeFolderItem,
+        writeFolderPath: writeFolderPathItem,
         readFolders: readFolderItems,
         searchQuery,
         availableFolders,
@@ -288,13 +288,13 @@ export interface DirectoryEntry {
 export function buildFolderTree(
     entry: DirectoryEntry,
     loadedPaths: ReadonlySet<string>,
-    writeFolder: AbsolutePath | null,
+    writeFolderPath: AbsolutePath | null,
     graphFilePaths: ReadonlySet<string>,
 ): FolderTreeNode {
     const children: readonly (FolderTreeNode | FileTreeNode)[] = (entry.children ?? []).map(
         (child: DirectoryEntry): FolderTreeNode | FileTreeNode => {
             if (child.isDirectory) {
-                return buildFolderTree(child, loadedPaths, writeFolder, graphFilePaths);
+                return buildFolderTree(child, loadedPaths, writeFolderPath, graphFilePaths);
             }
             return {
                 name: child.name,
@@ -325,6 +325,6 @@ export function buildFolderTree(
         absolutePath: entry.absolutePath,
         children: sorted,
         loadState: loadedPaths.has(entry.absolutePath) ? 'loaded' : 'not-loaded',
-        isWriteTarget: writeFolder === entry.absolutePath,
+        isWriteTarget: writeFolderPath === entry.absolutePath,
     };
 }

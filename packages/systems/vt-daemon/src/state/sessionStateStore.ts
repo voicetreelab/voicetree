@@ -16,7 +16,7 @@
  *     sees the same state regardless of how they reach the daemon.
  *
  * Bootstrap mirrors today's main-side `bootstrapRootsFromProjectConfig`:
- * `roots.loaded` seeds from vt-graphd's `writeFolder` on first read.
+ * `roots.loaded` seeds from vt-graphd's `writeFolderPath` on first read.
  */
 
 import {
@@ -85,8 +85,8 @@ export function __resetSessionStateForTests(vault?: AbsolutePath): void {
 // ─── Pure assembly ───────────────────────────────────────────────────────────
 
 function buildInitialState(graph: Graph, vaultState: VaultState): State {
-    const loaded: ReadonlySet<string> = vaultState.writeFolder
-        ? new Set([vaultState.writeFolder])
+    const loaded: ReadonlySet<string> = vaultState.writeFolderPath
+        ? new Set([vaultState.writeFolderPath])
         : new Set()
     return {
         graph,
@@ -109,7 +109,7 @@ function buildInitialState(graph: Graph, vaultState: VaultState): State {
 // ─── Impure shell (vt-graphd boundary) ───────────────────────────────────────
 
 async function loadOrBootstrap(vault: AbsolutePath): Promise<State> {
-    // Re-read writeFolder from vt-graphd on every call: setWriteFolder() can
+    // Re-read writeFolderPath from vt-graphd on every call: setWriteFolderPath() can
     // change it after first bootstrap, and there's no longer a
     // syncWatchedProjectRoot hook to invalidate downstream caches. Costs one
     // extra RPC per read but keeps roots.loaded honest without coupling to
@@ -128,8 +128,8 @@ async function loadOrBootstrap(vault: AbsolutePath): Promise<State> {
 }
 
 function refreshLoadedRoots(state: State, vaultState: VaultState): State {
-    const loaded: ReadonlySet<string> = vaultState.writeFolder
-        ? new Set([vaultState.writeFolder])
+    const loaded: ReadonlySet<string> = vaultState.writeFolderPath
+        ? new Set([vaultState.writeFolderPath])
         : new Set()
     if (sameLoadedRoots(state.roots.loaded, loaded)) return state
     return {

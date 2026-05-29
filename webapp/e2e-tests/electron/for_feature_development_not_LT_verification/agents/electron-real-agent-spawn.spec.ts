@@ -76,7 +76,7 @@ const test = base.extend<{
   electronApp: async ({ fixtureVaultPath, tempUserDataPath }, use) => {
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       vaultConfig: {
-        [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] },
+        [fixtureVaultPath]: { writeFolderPath: fixtureVaultPath, readPaths: [] },
       },
     }, null, 2), 'utf8');
 

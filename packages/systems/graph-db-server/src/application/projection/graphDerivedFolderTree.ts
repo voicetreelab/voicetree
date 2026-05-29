@@ -34,7 +34,7 @@ export interface ProjectGraphDerivedFolderTreeArgs {
   readonly projectRoot: AbsolutePath | null
   readonly readPaths: readonly string[]
   readonly vaultPaths: readonly string[]
-  readonly writeFolder: AbsolutePath | null
+  readonly writeFolderPath: AbsolutePath | null
 }
 
 function normalizeFolderPath(path: string): string {
@@ -168,7 +168,7 @@ function freezeMutableToDirectoryEntry(node: MutableDirectory): DirectoryEntry {
 export function projectGraphDerivedFolderTree(
   args: ProjectGraphDerivedFolderTreeArgs,
 ): FolderTreeNode | null {
-  const { graph, projectRoot, readPaths, vaultPaths, writeFolder } = args
+  const { graph, projectRoot, readPaths, vaultPaths, writeFolderPath } = args
   if (!projectRoot) return null
 
   const rootPath = normalizeFolderPath(projectRoot)
@@ -182,7 +182,7 @@ export function projectGraphDerivedFolderTree(
   const candidateRoots: readonly string[] = [
     ...readPaths,
     ...vaultPaths,
-    ...(writeFolder ? [writeFolder] : []),
+    ...(writeFolderPath ? [writeFolderPath] : []),
   ]
   for (const candidate of candidateRoots) {
     if (!candidate) continue
@@ -225,5 +225,5 @@ export function projectGraphDerivedFolderTree(
   const loadedPaths = new Set<string>([...readPaths, ...vaultPaths])
   const graphFilePathsSet = new Set<string>(graphFilePaths)
 
-  return buildFolderTree(directoryEntry, loadedPaths, writeFolder, graphFilePathsSet)
+  return buildFolderTree(directoryEntry, loadedPaths, writeFolderPath, graphFilePathsSet)
 }

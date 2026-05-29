@@ -18,16 +18,16 @@ describe('resolveAllowlistForProject', () => {
     let root: string
     let voicetreeHomePath: string
     let watchedDir: string
-    let writeFolder: string
+    let writeFolderPath: string
 
     beforeEach(async () => {
         root = await mkdtemp(path.join(tmpdir(), 'resolve-vault-config-'))
         voicetreeHomePath = path.join(root, 'app-support')
         watchedDir = path.join(root, 'project')
-        writeFolder = path.join(watchedDir, 'voicetree')
-        await mkdir(writeFolder, { recursive: true })
+        writeFolderPath = path.join(watchedDir, 'voicetree')
+        await mkdir(writeFolderPath, { recursive: true })
         process.env.VOICETREE_HOME_PATH = voicetreeHomePath
-        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
+        await saveVaultConfigForDirectory(watchedDir, { writeFolderPath })
         getExpandedFolderPathsForVault.mockResolvedValue([path.join(watchedDir, 'external')])
     })
 
@@ -40,8 +40,8 @@ describe('resolveAllowlistForProject', () => {
         await expect(
             resolveAllowlistForProject(watchedDir, { includeActiveViewExpandedPaths: false }),
         ).resolves.toEqual({
-            allowlist: [writeFolder],
-            writeFolder,
+            allowlist: [writeFolderPath],
+            writeFolderPath,
         })
 
         expect(getExpandedFolderPathsForVault).not.toHaveBeenCalled()

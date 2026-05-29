@@ -89,7 +89,7 @@ async function resolveCurrentTmuxNamespace(): Promise<string | null> {
     const projectRoot: string | null = await (runtimeEnv.getProjectRoot?.() ?? Promise.resolve(null))
     if (projectRoot) return getProjectDotVoicetreePath(projectRoot)
 
-    return await (runtimeEnv.getWriteFolder?.() ?? Promise.resolve(null))
+    return await (runtimeEnv.getWriteFolderPath?.() ?? Promise.resolve(null))
 }
 
 export async function getCurrentTmuxNamespaceHash(): Promise<string | null> {

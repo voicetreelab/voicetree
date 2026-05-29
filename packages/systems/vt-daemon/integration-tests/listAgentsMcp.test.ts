@@ -80,7 +80,7 @@ beforeEach(async () => {
     bridge = {
         getGraph: async () => currentGraph,
         getVaultPaths: async () => [],
-        getWriteFolder: async () => null,
+        getWriteFolderPath: async () => null,
         applyGraphDelta: async () => undefined,
         getUnseenNodesAroundContextNode: async () => [],
     }

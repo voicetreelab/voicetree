@@ -1,7 +1,7 @@
 /**
  * Vault config resolution utilities.
  *
- * - resolveWriteFolder: Normalize a write path to an absolute, forward-slash path.
+ * - resolveWriteFolderPath: Normalize a write path to an absolute, forward-slash path.
  * - resolveAllowlistForProject: Resolve the full vault path configuration for a project,
  *   filtering out stale paths that no longer exist on disk.
  */
@@ -17,15 +17,15 @@ import {
 } from "@vt/app-config/vault-config";
 
 /**
- * Resolve a writeFolder to an absolute path with normalized separators.
- * If writeFolder is relative, it's resolved against watchedFolder.
- * If writeFolder is absolute, it's returned unchanged.
+ * Resolve a writeFolderPath to an absolute path with normalized separators.
+ * If writeFolderPath is relative, it's resolved against watchedFolder.
+ * If writeFolderPath is absolute, it's returned unchanged.
  * Always normalizes to forward slashes for cross-platform consistency.
  */
-export function resolveWriteFolder(watchedFolder: string, writeFolder: string): string {
-    const resolved: string = path.isAbsolute(writeFolder)
-        ? writeFolder
-        : path.join(watchedFolder, writeFolder);
+export function resolveWriteFolderPath(watchedFolder: string, writeFolderPath: string): string {
+    const resolved: string = path.isAbsolute(writeFolderPath)
+        ? writeFolderPath
+        : path.join(watchedFolder, writeFolderPath);
     return normalizePath(resolved);
 }
 
@@ -33,10 +33,10 @@ export function resolveWriteFolder(watchedFolder: string, writeFolder: string): 
  * Resolved vault configuration for loading.
  */
 export interface ResolvedVaultConfig {
-    /** Combined watch roots: writeFolder plus active-view expanded folder paths. */
+    /** Combined watch roots: writeFolderPath plus active-view expanded folder paths. */
     readonly allowlist: readonly string[];
     /** Main vault path for writing new nodes */
-    readonly writeFolder: string;
+    readonly writeFolderPath: string;
 }
 
 export interface ResolveAllowlistOptions {
@@ -78,16 +78,16 @@ export async function resolveAllowlistForProject(
     await logIgnoredLegacyReadPathsIfPresent(watchedDir);
 
     // If no saved config exists, return null so caller can attempt loading directly
-    if (!savedVaultConfig?.writeFolder) {
+    if (!savedVaultConfig?.writeFolderPath) {
         return null;
     }
 
-    // Resolve writeFolder to absolute
-    const absoluteWriteFolder: string = resolveWriteFolder(watchedDir, savedVaultConfig.writeFolder);
+    // Resolve writeFolderPath to absolute
+    const absoluteWriteFolderPath: string = resolveWriteFolderPath(watchedDir, savedVaultConfig.writeFolderPath);
 
-    // Check if writeFolder still exists on disk
+    // Check if writeFolderPath still exists on disk
     try {
-        await fs.access(absoluteWriteFolder);
+        await fs.access(absoluteWriteFolderPath);
     } catch {
         // Write path no longer exists, return null to retry fresh
         return null;
@@ -95,8 +95,8 @@ export async function resolveAllowlistForProject(
 
     if (options.includeActiveViewExpandedPaths === false) {
         return {
-            allowlist: [absoluteWriteFolder],
-            writeFolder: absoluteWriteFolder,
+            allowlist: [absoluteWriteFolderPath],
+            writeFolderPath: absoluteWriteFolderPath,
         };
     }
 
@@ -109,8 +109,8 @@ export async function resolveAllowlistForProject(
                 ? expandedPath
                 : path.join(watchedDir, expandedPath)
         );
-        // Skip if same as writeFolder (deduplicate)
-        if (absolutePath === absoluteWriteFolder) continue;
+        // Skip if same as writeFolderPath (deduplicate)
+        if (absolutePath === absoluteWriteFolderPath) continue;
         try {
             await fs.access(absolutePath);
             validExpandedPaths.push(absolutePath);
@@ -120,7 +120,7 @@ export async function resolveAllowlistForProject(
     }
 
     return {
-        allowlist: [absoluteWriteFolder, ...validExpandedPaths],
-        writeFolder: absoluteWriteFolder,
+        allowlist: [absoluteWriteFolderPath, ...validExpandedPaths],
+        writeFolderPath: absoluteWriteFolderPath,
     };
 }

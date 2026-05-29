@@ -42,12 +42,12 @@ const test = base.extend<{
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-ud-'));
 
         // Create voicetree-config.json with lastDirectory + vaultConfig so loadFolder
-        // knows to use the vault root as the writeFolder (loads all files directly)
+        // knows to use the vault root as the writeFolderPath (loads all files directly)
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
             vaultConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: []
                 }
             }

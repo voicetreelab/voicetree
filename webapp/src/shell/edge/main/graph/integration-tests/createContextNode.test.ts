@@ -52,7 +52,7 @@ describe('createContextNode - Integration Tests', () => {
   beforeEach(async () => {
     originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
     process.env.VOICETREE_HOME_PATH = '/tmp/test-userdata-context-node'
-    initGraphModel({ getWriteFolder: async () => EXAMPLE_SMALL_WRITE_PATH })
+    initGraphModel({ getWriteFolderPath: async () => EXAMPLE_SMALL_WRITE_PATH })
 
     // Initialize vault path with example_small fixture
     setProjectRoot(EXAMPLE_SMALL_PATH)
@@ -164,7 +164,7 @@ describe('createContextNode - Integration Tests', () => {
       )
 
       await saveVaultConfigForDirectory(EXAMPLE_SMALL_PATH, {
-        writeFolder: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
+        writeFolderPath: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
         readPaths: [],
       })
 
@@ -316,7 +316,7 @@ describe('createContextNode - Integration Tests', () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setProjectRoot(EXAMPLE_LARGE_PATH)
       process.env.VOICETREE_HOME_PATH = '/tmp/test-userdata-context-node'
-      initGraphModel({ getWriteFolder: async () => EXAMPLE_LARGE_WRITE_PATH })
+      initGraphModel({ getWriteFolderPath: async () => EXAMPLE_LARGE_WRITE_PATH })
       const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_WRITE_PATH])
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
       const largeGraph: Graph = largeLoadResult.right

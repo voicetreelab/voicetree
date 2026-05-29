@@ -48,7 +48,7 @@ async function startHarness(): Promise<Harness> {
 
     const fixturePath: string = join(vault, FIXTURE_BASENAME)
     await writeFile(fixturePath, '# fixture\n', 'utf-8')
-    await saveVaultConfigForDirectory(vault, {writeFolder: '.'})
+    await saveVaultConfigForDirectory(vault, {writeFolderPath: '.'})
 
     const handle: DaemonHandle = await startDaemon({
         vault,
@@ -111,7 +111,7 @@ describe('sessionStateStore', (): void => {
 
         expect(state.meta.revision).toBe(0)
         expect(state.meta.schemaVersion).toBe(1)
-        // writeFolder seeded into roots.loaded mirrors live-state-store's
+        // writeFolderPath seeded into roots.loaded mirrors live-state-store's
         // bootstrapRootsFromProjectConfig.
         expect([...state.roots.loaded]).toEqual([h.vault])
         expect(state.layout.positions.size).toBe(0)

@@ -41,7 +41,7 @@ describe('@vt/graph-db-client system contract', () => {
     vault = path.join(root, 'vault')
     docs = path.join(vault, 'docs')
     await mkdir(docs, { recursive: true })
-    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
+    await saveVaultConfigForDirectory(vault, { writeFolderPath: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     handle = await startDaemon({
@@ -69,7 +69,7 @@ describe('@vt/graph-db-client system contract', () => {
 
   describe('vault write path', () => {
     it('rejects missing write paths with a typed error', async () => {
-      await expect(client.setWriteFolder(path.join(vault, 'missing'))).rejects.toMatchObject({
+      await expect(client.setWriteFolderPath(path.join(vault, 'missing'))).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
@@ -77,8 +77,8 @@ describe('@vt/graph-db-client system contract', () => {
     })
 
     it('sets an existing write path and returns the updated vault state', async () => {
-      await expect(client.setWriteFolder(docs)).resolves.toMatchObject({
-        writeFolder: docs,
+      await expect(client.setWriteFolderPath(docs)).resolves.toMatchObject({
+        writeFolderPath: docs,
         projectRoot: vault,
       })
     })

@@ -137,7 +137,7 @@ const test = base.extend<{
         lastDirectory: DEV_DEV_VAULT_PATH,
         vaultConfig: {
           [DEV_DEV_VAULT_PATH]: {
-            writeFolder: DEV_DEV_VAULT_PATH,
+            writeFolderPath: DEV_DEV_VAULT_PATH,
             readPaths: [],
           },
         },

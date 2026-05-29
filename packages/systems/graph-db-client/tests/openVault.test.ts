@@ -39,16 +39,16 @@ describe('GraphDbClient vault lifecycle API', () => {
     const client = new GraphDbClient({ baseUrl: `http://127.0.0.1:${handle!.port}` })
     await writeFile(join(vault, 'existing.md'), '# Existing\n', 'utf8')
 
-    const opened = await client.openVault(vault, { writeFolder: vault })
+    const opened = await client.openVault(vault, { writeFolderPath: vault })
 
     expect(opened.sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
-    // setWriteFolder seeds the writeFolder as 'expanded' so the sidebar can show
+    // setWriteFolderPath seeds the writeFolderPath as 'expanded' so the sidebar can show
     // its contents on mount. Children remain collapsed by default.
     expect(opened.vaultState).toMatchObject({
       projectRoot: vault,
-      writeFolder: vault,
+      writeFolderPath: vault,
     })
     expect(opened.vaultState.readPaths).toContain(vault)
     expect(opened.folderState).toContainEqual([vault, 'expanded'])

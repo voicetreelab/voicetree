@@ -93,13 +93,13 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`✓ Main process graph has ${mainProcessNodeCount} nodes`);
     expect(mainProcessNodeCount).toBeGreaterThan(0);
 
-    console.log('=== STEP 3: Verify watch directory and write folder (auto-loaded from config) ===');
+    console.log('=== STEP 3: Verify watch directory and write folder path (auto-loaded from config) ===');
     const watchDir = fixtureVaultPath;
     console.log(`✓ Watch directory: ${watchDir}`);
-    const writeFolder = await appWindow.evaluate(async () => {
+    const writeFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
           ? (result as { value: string }).value
@@ -107,8 +107,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
       }
       return null;
     });
-    if (!writeFolder) throw new Error('Expected Electron main process to expose a write folder');
-    console.log(`✓ Write folder: ${writeFolder}`);
+    if (!writeFolderPath) throw new Error('Expected Electron main process to expose a write folder path');
+    console.log(`✓ Write folder: ${writeFolderPath}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';

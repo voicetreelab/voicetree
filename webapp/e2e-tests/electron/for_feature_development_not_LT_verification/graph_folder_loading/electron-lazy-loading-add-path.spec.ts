@@ -11,7 +11,7 @@
  * defeating lazy loading. This test will FAIL until the bug is fixed.
  *
  * EXPECTED OUTCOME (when bug is fixed):
- * - Adding a readPath should only load nodes that are linked from writeFolder nodes
+ * - Adding a readPath should only load nodes that are linked from writeFolderPath nodes
  * - Unlinked nodes should remain hidden
  */
 
@@ -35,7 +35,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
   }) => {
     test.setTimeout(30000);
 
-    console.log('=== STEP 1: Verify initial state (only writeFolder nodes loaded) ===');
+    console.log('=== STEP 1: Verify initial state (only writeFolderPath nodes loaded) ===');
 
     const initialNodes = await getNodeIds(appWindow);
 
@@ -62,7 +62,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
     console.log('Nodes after addReadOnLinkPath:', nodesAfterAdd);
 
     // EXPECTED (when bug is fixed):
-    // - linking-node (from writeFolder) - LOADED
+    // - linking-node (from writeFolderPath) - LOADED
     // - linked-node (from readPath, linked by linking-node) - LOADED
     // - unlinked-node (from readPath, not linked) - NOT LOADED
 
@@ -86,7 +86,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('Lazy loading test for addReadOnLinkPath:');
-    console.log('- Initial state: only writeFolder nodes loaded');
+    console.log('- Initial state: only writeFolderPath nodes loaded');
     console.log('- After addReadOnLinkPath: only LINKED nodes from readPath loaded');
     console.log('- Unlinked nodes correctly remain hidden');
   });
@@ -94,11 +94,11 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
   test('should load transitively linked nodes when adding readPath', async ({
     appWindow,
     testDir,
-    writeFolder
+    writeFolderPath
   }) => {
     test.setTimeout(30000);
 
-    const readPath = await createTransitiveReadVault(testDir, writeFolder);
+    const readPath = await createTransitiveReadVault(testDir, writeFolderPath);
 
     await appWindow.waitForTimeout(500);
 
@@ -129,7 +129,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
 testFileChange.describe('Lazy Loading - File Change Triggers', () => {
   testFileChange('should lazy load nodes when a file change adds a new link to readPath', async ({
     appWindow,
-    writeFolder
+    writeFolderPath
   }) => {
     testFileChange.setTimeout(30000);
 
@@ -144,7 +144,7 @@ testFileChange.describe('Lazy Loading - File Change Triggers', () => {
 
     console.log('=== STEP 2: Edit source-node to add link [[target-node]] ===');
 
-    await linkSourceNodeToTarget(writeFolder);
+    await linkSourceNodeToTarget(writeFolderPath);
 
     await appWindow.waitForTimeout(2500);
 

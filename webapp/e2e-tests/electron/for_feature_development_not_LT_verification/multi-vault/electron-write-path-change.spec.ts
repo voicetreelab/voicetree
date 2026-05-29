@@ -83,12 +83,12 @@ const test = base.extend<{
       lastDirectory: testProjectPath,
       vaultConfig: {
         [testProjectPath]: {
-          writeFolder: primaryVaultPath,
+          writeFolderPath: primaryVaultPath,
           readPaths: []
         }
       }
     }, null, 2), 'utf8');
-    console.log('[Write Path Test] Created config to auto-load:', testProjectPath, 'with writeFolder:', primaryVaultPath);
+    console.log('[Write Path Test] Created config to auto-load:', testProjectPath, 'with writeFolderPath:', primaryVaultPath);
 
     const electronApp = await electron.launch({
       args: [
@@ -161,7 +161,7 @@ test.describe('Write Path Change Bug', () => {
   }) => {
     test.setTimeout(45000);
 
-    // Bug fixed: currentVaultSuffix now stays in sync with defaultWriteFolder
+    // Bug fixed: currentVaultSuffix now stays in sync with defaultWriteFolderPath
 
     console.log('=== STEP 1: Verify initial state ===');
     await appWindow.waitForTimeout(500);
@@ -180,7 +180,7 @@ test.describe('Write Path Change Bug', () => {
     const initialDefaultPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }
@@ -215,17 +215,17 @@ test.describe('Write Path Change Bug', () => {
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.setWriteFolder(secondPath);
+      return await api.main.setWriteFolderPath(secondPath);
     }, secondVaultPath);
 
     console.log('Set default write path result:', setResult);
-    expect(setResult.writeFolder).toBe(secondVaultPath);
+    expect(setResult.writeFolderPath).toBe(secondVaultPath);
 
     // Verify default write path changed
     const newDefaultPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }
@@ -325,7 +325,7 @@ test.describe('Write Path Change Bug', () => {
    *
    * This simulates the VaultPathSelector "edit path" flow:
    * 1. addReadPath(newPath)
-   * 2. setWriteFolder(newPath)
+   * 2. setWriteFolderPath(newPath)
    * 3. removeReadPath(oldPath)
    *
    * After this flow, nodes from oldPath should NOT be visible in the graph.
@@ -357,18 +357,18 @@ test.describe('Write Path Change Bug', () => {
     expect(initialNodeInPrimary).toBe(true);
 
     // Get initial write path
-    const initialWriteFolder = await appWindow.evaluate(async () => {
+    const initialWriteFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }
       return null;
     });
 
-    console.log('Initial write path:', initialWriteFolder);
-    expect(initialWriteFolder).toBe(primaryVaultPath);
+    console.log('Initial write path:', initialWriteFolderPath);
+    expect(initialWriteFolderPath).toBe(primaryVaultPath);
 
     console.log('=== STEP 2: Simulate edit flow - change write path from primary to second-vault ===');
 
@@ -386,11 +386,11 @@ test.describe('Write Path Change Bug', () => {
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.setWriteFolder(secondPath);
+      return await api.main.setWriteFolderPath(secondPath);
     }, secondVaultPath);
 
     console.log('Set write path to second-vault result:', setResult);
-    expect(setResult.writeFolder).toBe(secondVaultPath);
+    expect(setResult.writeFolderPath).toBe(secondVaultPath);
 
     // Step 2c: Remove old path (this is what should remove the nodes from graph)
     const removeResult = await appWindow.evaluate(async (primaryPath: string) => {
@@ -401,7 +401,7 @@ test.describe('Write Path Change Bug', () => {
 
     console.log('Remove primary path result:', removeResult);
     expect(removeResult.readPaths).not.toContain(primaryVaultPath);
-    expect(removeResult.writeFolder).toBe(secondVaultPath);
+    expect(removeResult.writeFolderPath).toBe(secondVaultPath);
 
     // Wait for graph update to propagate
     await appWindow.waitForTimeout(1000);

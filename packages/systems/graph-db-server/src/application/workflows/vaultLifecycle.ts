@@ -22,9 +22,9 @@ import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
 import {
   getReadPaths,
-  getWriteFolder,
-  resolveWriteFolder,
-  setWriteFolder,
+  getWriteFolderPath,
+  resolveWriteFolderPath,
+  setWriteFolderPath,
 } from '@vt/graph-db-server/state/vaultAllowlist'
 import {
   clearProjectRoot,
@@ -97,15 +97,15 @@ function getRegistry(): SessionRegistry {
   return lifecycleState.registry
 }
 
-function parseWriteFolder(writeFolderOption: Awaited<ReturnType<typeof getWriteFolder>>): string | null {
-  const maybeValue = (writeFolderOption as { value?: unknown }).value
+function parseWriteFolderPath(writeFolderPathOption: Awaited<ReturnType<typeof getWriteFolderPath>>): string | null {
+  const maybeValue = (writeFolderPathOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? maybeValue : null
 }
 
 async function readVaultState(projectRoot: string): Promise<VaultState> {
   const readPaths = [...(await getReadPaths())]
-  const writeFolder = parseWriteFolder(await getWriteFolder()) ?? projectRoot
-  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolder })
+  const writeFolderPath = parseWriteFolderPath(await getWriteFolderPath()) ?? projectRoot
+  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolderPath })
 }
 
 function readFolderVisibilitySnapshot(
@@ -135,7 +135,7 @@ async function buildOpenVaultResponse(projectRoot: string): Promise<OpenVaultRes
   const vaultState = await readVaultState(projectRoot)
   return OpenVaultResponseSchema.parse({
     sessionId: session.id,
-    writeFolder: vaultState.writeFolder,
+    writeFolderPath: vaultState.writeFolderPath,
     vaultState,
     initialProjectedGraph: project(state),
     ...readFolderVisibilitySnapshot(projectRoot),
@@ -165,14 +165,14 @@ async function openResources(projectRoot: string): Promise<void> {
 }
 
 // When opening a project root with no saved config and no caller-supplied
-// writeFolder, default to an existing `voicetree-{day}-{month}` subfolder
-// or create one. Treating the project root itself as the writeFolder would
+// writeFolderPath, default to an existing `voicetree-{day}-{month}` subfolder
+// or create one. Treating the project root itself as the writeFolderPath would
 // recursively scan every `.md` under it — fine for a small notes folder,
 // catastrophic for a source repo. The bare `targetProjectRoot` fallback
 // caused vt-graphd to die with `File limit exceeded` when started against
 // a monorepo whose nested vaults pushed the .md count past the 1000-file
 // guard.
-async function resolveDefaultWriteFolder(targetProjectRoot: string): Promise<string> {
+async function resolveDefaultWriteFolderPath(targetProjectRoot: string): Promise<string> {
   const existing: string | null = await findExistingVoicetreeDir(targetProjectRoot)
   if (existing !== null) return existing
   return await createDatedSubfolder(targetProjectRoot)
@@ -183,12 +183,12 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
   setProjectRoot(targetProjectRoot)
 
   const savedConfig = await getVaultConfigForDirectory(targetProjectRoot)
-  const configuredWriteFolder = input.writeFolder ?? savedConfig?.writeFolder
-  const targetWriteFolder = configuredWriteFolder
-    ? resolveWriteFolder(targetProjectRoot, configuredWriteFolder)
-    : await resolveDefaultWriteFolder(targetProjectRoot)
+  const configuredWriteFolderPath = input.writeFolderPath ?? savedConfig?.writeFolderPath
+  const targetWriteFolderPath = configuredWriteFolderPath
+    ? resolveWriteFolderPath(targetProjectRoot, configuredWriteFolderPath)
+    : await resolveDefaultWriteFolderPath(targetProjectRoot)
 
-  const result = await setWriteFolder(targetWriteFolder, {
+  const result = await setWriteFolderPath(targetWriteFolderPath, {
     createStarterIfEmpty: input.createStarterIfEmpty,
   })
   if (!result.success) {

@@ -5,11 +5,11 @@ import type { FolderTreeNode } from '../folders/types'
 // (terminal metadata, hooks, positions). `directory` is the legacy alias for
 // the same value, retained on the renderer-bound `'watching-started'` channel
 // payload until renderer code migrates. New consumers should read
-// `projectRoot`. `writeFolder` is for markdown / vault content only.
+// `projectRoot`. `writeFolderPath` is for markdown / vault content only.
 type WatchingStartedInfo = {
   directory: string
   projectRoot: string
-  writeFolder: string
+  writeFolderPath: string
   timestamp: string
 }
 
@@ -33,7 +33,7 @@ export interface GraphModelCallbacks {
 
   // UI state syncing
   fitViewport?: () => void  // replaces uiAPI.fitViewport
-  syncVaultState?: (state: { vaultPaths: readonly string[]; writeFolder: string | null; starredFolders: readonly string[] }) => void
+  syncVaultState?: (state: { vaultPaths: readonly string[]; writeFolderPath: string | null; starredFolders: readonly string[] }) => void
   syncFolderTree?: (tree: FolderTreeNode) => void
   syncStarredFolderTrees?: (trees: Record<string, FolderTreeNode>) => void
   syncExternalFolderTrees?: (trees: Record<string, FolderTreeNode>) => void
@@ -47,7 +47,7 @@ export interface GraphModelCallbacks {
   notifyWriteDirectory?: (dirPath: string) => void  // replaces backend-api.tellSTTServerToLoadDirectory
 
   // Active vault paths
-  getWriteFolder?: () => Promise<string | null>
+  getWriteFolderPath?: () => Promise<string | null>
 
   // Semantic search (for context nodes)
   semanticSearch?: (query: string, topK: number) => Promise<readonly string[]>

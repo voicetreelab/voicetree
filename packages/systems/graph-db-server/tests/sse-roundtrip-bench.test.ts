@@ -65,7 +65,7 @@ describe('SSE round-trip benchmark', () => {
     appSupport = await mkdtemp(join(tmpdir(), 'sse-bench-app-'))
     await writeFile(
       join(appSupport, 'voicetree-config.json'),
-      JSON.stringify({ vaultConfig: { [vault]: { writeFolder: vault } } }),
+      JSON.stringify({ vaultConfig: { [vault]: { writeFolderPath: vault } } }),
     )
     handle = null
     abort = null

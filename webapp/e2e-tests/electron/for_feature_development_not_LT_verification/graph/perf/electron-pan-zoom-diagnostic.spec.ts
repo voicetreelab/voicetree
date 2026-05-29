@@ -59,7 +59,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
       lastDirectory: projectRoot,
       vaultConfig: {
         [projectRoot]: {
-          writeFolder: projectRoot,
+          writeFolderPath: projectRoot,
           readPaths: [],
         },
       },

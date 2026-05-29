@@ -97,7 +97,7 @@ export function buildGraph(extraNodes?: Record<string, GraphNode>): Graph {
 export type BridgeState = {
     current: Graph
     vaultPaths: readonly string[]
-    writeFolder: string | null
+    writeFolderPath: string | null
     deltas: GraphDelta[]
 }
 
@@ -105,7 +105,7 @@ export function createBridgeState(): BridgeState {
     return {
         current: buildGraph(),
         vaultPaths: [WRITE_FOLDER],
-        writeFolder: WRITE_FOLDER,
+        writeFolderPath: WRITE_FOLDER,
         deltas: [],
     }
 }
@@ -126,8 +126,8 @@ export function buildBridge(state: BridgeState): GraphBridge {
     return {
         getGraph: async () => state.current,
         getVaultPaths: async () => state.vaultPaths,
-        getWriteFolder: async () => state.writeFolder,
-        getProjectRoot: async () => state.writeFolder,
+        getWriteFolderPath: async () => state.writeFolderPath,
+        getProjectRoot: async () => state.writeFolderPath,
         getUnseenNodesAroundContextNode: async () => [],
         applyGraphDelta: async (delta: GraphDelta): Promise<void> => {
             state.deltas.push(delta)

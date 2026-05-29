@@ -23,12 +23,12 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         setTestCollapseSet(new Set())
-        syncVaultStateFromMain({ readPaths: [], writeFolder: null, starredFolders: [] })
+        syncVaultStateFromMain({ readPaths: [], writeFolderPath: null, starredFolders: [] })
     })
 
     describe('Recursive folder chains within loaded roots', () => {
         it('creates nested folder parents within the loaded root and projects collapsed folders from the collapse store', () => {
-            syncVaultStateFromMain({ readPaths: [], writeFolder: '/vault', starredFolders: [] })
+            syncVaultStateFromMain({ readPaths: [], writeFolderPath: '/vault', starredFolders: [] })
             syncFolderTree('/vault')
             setTestCollapseSet(new Set(['/vault/auth/internal/']))
 

@@ -36,7 +36,7 @@ function preserveVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfig 
         cleaned.vaultConfig = {};
         for (const [folderPath, vaultConfig] of Object.entries(config.vaultConfig)) {
             cleaned.vaultConfig[folderPath] = {
-                writeFolder: vaultConfig.writeFolder,
+                writeFolderPath: vaultConfig.writeFolderPath,
                 readPaths: Array.isArray(vaultConfig.readPaths)
                     ? vaultConfig.readPaths.filter((entry): entry is string => typeof entry === 'string')
                     : [],
@@ -107,7 +107,7 @@ export async function saveVaultConfigForDirectory(directoryPath: string, vaultCo
     config.vaultConfig ??= {};
     const existingConfig: VaultConfig | undefined = config.vaultConfig[directoryPath];
     config.vaultConfig[directoryPath] = {
-        writeFolder: vaultConfig.writeFolder,
+        writeFolderPath: vaultConfig.writeFolderPath,
         readPaths: vaultConfig.readPaths ?? existingConfig?.readPaths ?? [],
     };
     await saveConfig(config);

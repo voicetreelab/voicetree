@@ -44,7 +44,7 @@ const test = base.extend<{
         lastDirectory: tempDir,
         vaultConfig: {
           [tempDir]: {
-            writeFolder: tempDir,
+            writeFolderPath: tempDir,
             readPaths: []
           }
         }

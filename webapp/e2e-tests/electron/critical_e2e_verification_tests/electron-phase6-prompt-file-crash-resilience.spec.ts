@@ -42,7 +42,7 @@ import {
   killTmuxSession,
   launchPhase6ElectronApp,
   reapStaleTestTmuxSessions,
-  resolveVaultWriteFolder,
+  resolveVaultWriteFolderPath,
   tmuxPanePid,
   tmuxSessionExists,
   writePhase6Settings,
@@ -137,12 +137,12 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
         if (!api) throw new Error("electronAPI not available");
         const response = await (
           api.main as unknown as {
-            openVault: (p: string) => Promise<{ writeFolder: string }>;
+            openVault: (p: string) => Promise<{ writeFolderPath: string }>;
           }
         ).openVault(vp);
-        return { writeFolder: response.writeFolder };
+        return { writeFolderPath: response.writeFolderPath };
       }, projectRoot);
-      expect(openResult.writeFolder, "openVault returned no writeFolder").toBeTruthy();
+      expect(openResult.writeFolderPath, "openVault returned no writeFolderPath").toBeTruthy();
 
       await expect
         .poll(
@@ -190,8 +190,8 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       // ── STEP 4: prompt file contract (existence, mode, contents) ──
       // `projectRoot` is the watched parent; production writes prompt files
       // into the voicetree-N-M subfolder it created during init.
-      const writeFolder = await resolveVaultWriteFolder(projectRoot);
-      promptFile = path.join(writeFolder, ".voicetree", "terminals", `${terminalId}-prompt.txt`);
+      const writeFolderPath = await resolveVaultWriteFolderPath(projectRoot);
+      promptFile = path.join(writeFolderPath, ".voicetree", "terminals", `${terminalId}-prompt.txt`);
       await expect
         .poll(
           async () => {
@@ -295,12 +295,12 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
                 if (!api) throw new Error("electronAPI not available");
                 const response = await (
                   api.main as unknown as {
-                    openVault: (p: string) => Promise<{ writeFolder: string }>;
+                    openVault: (p: string) => Promise<{ writeFolderPath: string }>;
                   }
                 ).openVault(vp);
-                return { writeFolder: response.writeFolder };
+                return { writeFolderPath: response.writeFolderPath };
               }, projectRoot);
-              return Boolean(wr.writeFolder);
+              return Boolean(wr.writeFolderPath);
             } catch {
               return false;
             }

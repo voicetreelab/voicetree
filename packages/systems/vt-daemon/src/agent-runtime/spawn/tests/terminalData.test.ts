@@ -57,13 +57,13 @@ describe('prepareTerminalDataInMain', () => {
             configureAgentRuntime({
                 env: {
                     getProjectRoot: async () => '/project',
-                    getWriteFolder: async () => '/project/voicetree-25-5',
+                    getWriteFolderPath: async () => '/project/voicetree-25-5',
                     getVaultPaths: async () => ['/project/voicetree-25-5'],
                 },
                 graph: {
                     getGraph: async () => graphWithOnlyTask(taskNodeId),
                     getVaultPaths: async () => ['/project/voicetree-25-5'],
-                    getWriteFolder: async () => O.some('/project/voicetree-25-5'),
+                    getWriteFolderPath: async () => O.some('/project/voicetree-25-5'),
                     getProjectRoot: async () => '/project',
                     getWatchStatus: async () => ({isWatching: false, directory: undefined}),
                     applyGraphDelta: async (_delta: GraphDelta) => undefined,
@@ -93,7 +93,7 @@ describe('prepareTerminalDataInMain', () => {
             expect(terminalData.contextContent).toBe('')
             expect(terminalData.title).toBe('Task title')
             // VOICETREE_PROJECT_PATH is the canonical project root (where `.voicetree/`
-            // lives), not the daemon's writeFolder subfolder. See
+            // lives), not the daemon's writeFolderPath subfolder. See
             // buildTerminalEnvVarsProjectPath.test.ts for the dedicated regression.
             expect(terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH).toBe('/project')
         } finally {

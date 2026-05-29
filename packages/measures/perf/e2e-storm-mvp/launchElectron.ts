@@ -85,7 +85,7 @@ export function seedUserData(voicetreeHomePath: string, projectDir: string, vaul
         JSON.stringify({
             lastDirectory: projectDir,
             vaultConfig: {
-                [projectDir]: { writeFolder: vaultDir, readPaths: [] },
+                [projectDir]: { writeFolderPath: vaultDir, readPaths: [] },
             },
         }, null, 2),
         'utf8',
@@ -175,7 +175,7 @@ export async function launchElectronAndDiscoverMcp(
     }
 
     // .mcp.json is written by voicetree-mcp at the project root (the dir
-    // registered in projects.json), NOT inside the write-folder vault.
+    // registered in projects.json), NOT inside the write-folder-path vault.
     const mcpJsonPath = path.join(inputs.projectDir, '.mcp.json')
     const discoveryStart = Date.now()
     let mcpPort: number

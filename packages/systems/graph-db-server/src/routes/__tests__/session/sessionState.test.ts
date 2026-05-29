@@ -8,27 +8,27 @@ import {
   SessionCreateResponseSchema,
 } from '@vt/graph-db-server/contract'
 
-// Files placed inside the writeFolder are always visible in the projection;
+// Files placed inside the writeFolderPath are always visible in the projection;
 // files outside it require explicit folder expansion via folderState, which a
 // fresh session does not have. We pre-create a `voicetree-1-1` subfolder so
-// the daemon's default writeFolder resolution (findExistingVoicetreeDir →
+// the daemon's default writeFolderPath resolution (findExistingVoicetreeDir →
 // createDatedSubfolder) latches onto a known path.
 const WRITE_FOLDER_NAME = 'voicetree-1-1' as const
-async function withTempVault(): Promise<{ vault: string; writeFolder: string }> {
+async function withTempVault(): Promise<{ vault: string; writeFolderPath: string }> {
   const vault = await mkdtemp(join(tmpdir(), 'graphd-session-state-test-'))
-  const writeFolder = join(vault, WRITE_FOLDER_NAME)
-  await mkdir(writeFolder, { recursive: true })
-  await writeFile(join(writeFolder, 'one.md'), '# one')
-  return { vault, writeFolder }
+  const writeFolderPath = join(vault, WRITE_FOLDER_NAME)
+  await mkdir(writeFolderPath, { recursive: true })
+  await writeFile(join(writeFolderPath, 'one.md'), '# one')
+  return { vault, writeFolderPath }
 }
 
 describe('GET /sessions/:sessionId/state', () => {
   let vault: string
-  let writeFolder: string
+  let writeFolderPath: string
   let handles: DaemonHandle[]
 
   beforeEach(async () => {
-    ({ vault, writeFolder } = await withTempVault())
+    ({ vault, writeFolderPath } = await withTempVault())
     handles = []
   })
 
@@ -54,9 +54,9 @@ describe('GET /sessions/:sessionId/state', () => {
     const body = LiveStateSnapshotSchema.parse(await res.json())
 
     expect(body.meta.schemaVersion).toBe(1)
-    // setWriteFolder seeds the writeFolder as 'expanded' so the sidebar can show
+    // setWriteFolderPath seeds the writeFolderPath as 'expanded' so the sidebar can show
     // its contents on mount. Children remain collapsed by default.
-    expect(body.folderState).toEqual([[writeFolder, 'expanded']])
+    expect(body.folderState).toEqual([[writeFolderPath, 'expanded']])
     expect(body.activeView.name).toBe('main')
     expect(body.selection).toEqual([])
     expect(Array.isArray(body.roots.folderTree)).toBe(true)
@@ -78,7 +78,7 @@ describe('GET /sessions/:sessionId/state', () => {
     )
     expect(fullRes.status).toBe(200)
     const fullBody = LiveStateSnapshotSchema.parse(await fullRes.json())
-    const notePath = join(writeFolder, 'one.md')
+    const notePath = join(writeFolderPath, 'one.md')
     expect(fullBody.graph.nodes[notePath]).toHaveProperty('contentWithoutYamlOrLinks')
 
     const omittedRes = await fetch(

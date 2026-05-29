@@ -179,7 +179,7 @@ export const test = base.extend<{
         lastDirectory: generatedProjectPath,
         vaultConfig: {
           [generatedProjectPath]: {
-            writeFolder: generatedVaultPath,
+            writeFolderPath: generatedVaultPath,
             readPaths: [],
           }
         }
@@ -276,7 +276,7 @@ export const test = base.extend<{
     await window.waitForSelector('text=Voicetree', { timeout: 15000 });
     const projectButton = window.locator('button:has-text("perf-test-vault")').first();
     await projectButton.click();
-    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolder=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolderPath=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
     const watchResult = await window.evaluate(async (projectPath) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;

@@ -73,7 +73,7 @@ export type FolderMaterializeResult = {
   savedContentPreview: string
   seedFilePath?: string
   projectRoot: string
-  writeFolder: string
+  writeFolderPath: string
 }
 
 export { createScratchFixture, folderMaterialize }
@@ -163,15 +163,15 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
     }
 
     const interactivePage = page as Parameters<typeof folderMaterialize>[0]
-    const writeFolder = await waitForGraphReady(interactivePage, parsed.timeoutMs)
-    const selectedVaultPath = parsed.vault ?? (pick.instance.projectRoot || writeFolder)
+    const writeFolderPath = await waitForGraphReady(interactivePage, parsed.timeoutMs)
+    const selectedVaultPath = parsed.vault ?? (pick.instance.projectRoot || writeFolderPath)
     const response = await folderMaterialize(interactivePage, {
       ...(parsed.folder ? { folder: parsed.folder } : {}),
       keepFixture: parsed.keepFixture,
       ...(parsed.marker ? { marker: parsed.marker } : {}),
       timeoutMs: parsed.timeoutMs,
       projectRoot: selectedVaultPath,
-      writeFolder,
+      writeFolderPath,
     })
 
     if (!response.ok) {

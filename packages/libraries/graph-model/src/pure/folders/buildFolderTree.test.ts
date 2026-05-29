@@ -79,7 +79,7 @@ describe('buildFolderTree', () => {
 
     it('sets loadState and isWriteTarget correctly', () => {
         const loadedPaths: ReadonlySet<string> = new Set(['/project', '/project/notes']);
-        const writeFolder: AbsolutePath = toAbsolutePath('/project/notes');
+        const writeFolderPath: AbsolutePath = toAbsolutePath('/project/notes');
         const entry: DirectoryEntry = {
             absolutePath: root,
             name: 'project',
@@ -89,7 +89,7 @@ describe('buildFolderTree', () => {
                 { absolutePath: toAbsolutePath('/project/other'), name: 'other', isDirectory: true, children: [] },
             ],
         };
-        const result: FolderTreeNode = buildFolderTree(entry, loadedPaths, writeFolder, new Set());
+        const result: FolderTreeNode = buildFolderTree(entry, loadedPaths, writeFolderPath, new Set());
         expect(result.loadState).toBe('loaded');
         expect(result.isWriteTarget).toBe(false);
         const notes: FolderTreeNode = result.children[0] as FolderTreeNode;

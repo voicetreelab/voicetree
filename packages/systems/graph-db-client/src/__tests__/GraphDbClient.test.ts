@@ -65,7 +65,7 @@ describe('GraphDbClient', () => {
     handles = []
     originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
     process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
-    await saveVaultConfigForDirectory(harness.vault, { writeFolder: '.' })
+    await saveVaultConfigForDirectory(harness.vault, { writeFolderPath: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
   })
@@ -139,22 +139,22 @@ describe('GraphDbClient', () => {
 
       await mkdir(outPath, { recursive: true })
 
-      // setWriteFolder seeds the writeFolder as 'expanded' on cold mount.
+      // setWriteFolderPath seeds the writeFolderPath as 'expanded' on cold mount.
       await expect(client.getVault()).resolves.toEqual({
         projectRoot: harness.vault,
         readPaths: [harness.vault],
-        writeFolder: harness.vault,
+        writeFolderPath: harness.vault,
       })
 
-      const afterWriteFolder = await client.setWriteFolder(outPath)
-      expect(afterWriteFolder).toMatchObject({
+      const afterWriteFolderPath = await client.setWriteFolderPath(outPath)
+      expect(afterWriteFolderPath).toMatchObject({
         projectRoot: harness.vault,
-        writeFolder: outPath,
+        writeFolderPath: outPath,
       })
-      // After setWriteFolder(outPath): the old writeFolder (harness.vault) is
-      // demoted to the expanded set, and the new writeFolder (outPath) is
+      // After setWriteFolderPath(outPath): the old writeFolderPath (harness.vault) is
+      // demoted to the expanded set, and the new writeFolderPath (outPath) is
       // seeded as expanded. Both appear in readPaths.
-      expect([...afterWriteFolder.readPaths].sort()).toEqual(
+      expect([...afterWriteFolderPath.readPaths].sort()).toEqual(
         [harness.vault, outPath].sort(),
       )
     })
@@ -164,7 +164,7 @@ describe('GraphDbClient', () => {
       const client = await connect()
       const missingPath = join(harness.vault, 'missing')
 
-      await expect(client.setWriteFolder(missingPath)).rejects.toMatchObject({
+      await expect(client.setWriteFolderPath(missingPath)).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
@@ -323,7 +323,7 @@ describe('GraphDbClient', () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
 
-      // setWriteFolder seeds [vault, 'expanded'] on cold mount; subsequent
+      // setWriteFolderPath seeds [vault, 'expanded'] on cold mount; subsequent
       // PATCHes are interleaved with that row by path-ASC ordering.
       await expect(client.getSession(created.sessionId)).resolves.toMatchObject({
         id: created.sessionId,

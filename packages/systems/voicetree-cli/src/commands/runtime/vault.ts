@@ -13,8 +13,8 @@ type ParsedVaultCommand = {
     vaultFlag?: string
 }
 
-type WriteFolderResult = {
-    writeFolder: string
+type WriteFolderPathResult = {
+    writeFolderPath: string
 }
 
 const VAULT_USAGE: string = `Usage:
@@ -146,15 +146,15 @@ function formatReadPaths(data: {readPaths: string[]}): string {
     return ['Read Paths:', ...data.readPaths.map((path: string): string => `  - ${path}`)].join('\n')
 }
 
-function formatWriteFolder(data: WriteFolderResult): string {
-    return `Write Path: ${data.writeFolder}`
+function formatWriteFolderPath(data: WriteFolderPathResult): string {
+    return `Write Path: ${data.writeFolderPath}`
 }
 
 function formatVaultState(data: VaultState): string {
     return [
         `Vault Path: ${data.projectRoot}`,
         formatReadPaths({readPaths: data.readPaths}),
-        formatWriteFolder({writeFolder: data.writeFolder}),
+        formatWriteFolderPath({writeFolderPath: data.writeFolderPath}),
     ].join('\n')
 }
 
@@ -173,8 +173,8 @@ export async function runVaultCommand(argv: string[]): Promise<void> {
                 return
             }
             case 'set-write-path': {
-                const vaultState: VaultState = await client.setWriteFolder(parsed.pathArg)
-                emitResult({writeFolder: vaultState.writeFolder}, formatWriteFolder, parsed.forceJson)
+                const vaultState: VaultState = await client.setWriteFolderPath(parsed.pathArg)
+                emitResult({writeFolderPath: vaultState.writeFolderPath}, formatWriteFolderPath, parsed.forceJson)
                 return
             }
         }

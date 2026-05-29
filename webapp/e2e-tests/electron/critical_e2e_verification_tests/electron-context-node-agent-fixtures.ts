@@ -92,7 +92,7 @@ export const test = base.extend<{
         // never sees the grep-probe agent.
         VOICETREE_HOME_PATH: tempUserDataPath,
         // Fallback for runtime paths before the daemon has reported the
-        // configured write folder.
+        // configured write folder path.
         VOICETREE_PROJECT_PATH: fixtureVaultPath,
         PATH: `${fakeAgentBinPath}${path.delimiter}${process.env.PATH ?? ''}`,
       },

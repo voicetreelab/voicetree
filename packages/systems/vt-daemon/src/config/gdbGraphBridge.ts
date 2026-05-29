@@ -1,6 +1,6 @@
 // Pure builder that adapts a `GraphDbClient` (vt-graphd RPC client) into the
 // `GraphBridge` shape consumed by the in-process MCP tool surface
-// (`getMcpGraph`, `getMcpVaultPaths`, `getMcpWriteFolder`,
+// (`getMcpGraph`, `getMcpVaultPaths`, `getMcpWriteFolderPath`,
 // `getMcpProjectRoot`, `getMcpUnseenNodesAroundContextNode`,
 // `applyMcpGraphDelta`). Lives here rather than inside `bin/vtd.ts` so the
 // daemon entrypoint stays a thin composition of pure helpers and so the same
@@ -44,7 +44,7 @@ export function buildGdbGraphBridge(client: GraphDbClient, projectRoot: string):
             const vs = await client.getVault()
             const seen: Set<string> = new Set<string>()
             const out: string[] = []
-            for (const p of [vs.writeFolder, ...vs.readPaths]) {
+            for (const p of [vs.writeFolderPath, ...vs.readPaths]) {
                 if (p && !seen.has(p)) {
                     seen.add(p)
                     out.push(p)
@@ -52,8 +52,8 @@ export function buildGdbGraphBridge(client: GraphDbClient, projectRoot: string):
             }
             return out
         },
-        getWriteFolder: async (): Promise<string | null> =>
-            (await client.getVault()).writeFolder ?? null,
+        getWriteFolderPath: async (): Promise<string | null> =>
+            (await client.getVault()).writeFolderPath ?? null,
         getProjectRoot: async (): Promise<string | null> => projectRoot,
         getUnseenNodesAroundContextNode: (contextNodeId, searchFromNode) =>
             client.getUnseenNodesAroundContextNode(contextNodeId, searchFromNode),

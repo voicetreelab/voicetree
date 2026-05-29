@@ -26,7 +26,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
       '/mock/read-vault-1',
       '/mock/read-vault-2'
     ];
-    let mockWriteFolder = '/mock/write-vault';
+    let mockWriteFolderPath = '/mock/write-vault';
     let mockShowAllPaths: string[] = [];
     const createEmptyProjectedGraph = () => ({
       nodes: [],
@@ -43,7 +43,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
       const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
       listeners.forEach(cb => cb(null, 'syncVaultState', [{
         readPaths: [...mockVaultPaths],
-        writeFolder: mockWriteFolder,
+        writeFolderPath: mockWriteFolderPath,
         starredFolders: [],
       }]));
     };
@@ -88,11 +88,11 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
           return {
             sessionId: 'mock-session',
-            writeFolder: mockWriteFolder,
+            writeFolderPath: mockWriteFolderPath,
             vaultState: {
               projectRoot: dir,
               readPaths: [...mockVaultPaths],
-              writeFolder: mockWriteFolder,
+              writeFolderPath: mockWriteFolderPath,
             },
             initialProjectedGraph: projectedGraph,
             folderState: [],
@@ -155,13 +155,13 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         // === VAULT METHODS (critical for VaultPathSelector) ===
         getVaultPaths: async (): Promise<readonly string[]> => mockVaultPaths,
 
-        getWriteFolder: async () => ({
+        getWriteFolderPath: async () => ({
           _tag: 'Some' as const,
-          value: mockWriteFolder
+          value: mockWriteFolderPath
         }),
 
-        setWriteFolder: async (path: string) => {
-          mockWriteFolder = path;
+        setWriteFolderPath: async (path: string) => {
+          mockWriteFolderPath = path;
           broadcastVaultState();
           return { success: true };
         },

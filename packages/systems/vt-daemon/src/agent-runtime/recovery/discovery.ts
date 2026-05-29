@@ -226,9 +226,9 @@ function detectResumeCapabilitiesFromMetadata(
 
 async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
     // Canonical location is always `<projectRoot>/.voicetree/terminals/`.
-    // `writeFolder` is intentionally NOT consulted: the historical
-    // writeFolder-based fallback wrote to the wrong place (no `.voicetree`
-    // prefix) and masked the projectRoot/writeFolder divergence bug.
+    // `writeFolderPath` is intentionally NOT consulted: the historical
+    // writeFolderPath-based fallback wrote to the wrong place (no `.voicetree`
+    // prefix) and masked the projectRoot/writeFolderPath divergence bug.
     const projectRoot: string | null = await (getRuntimeEnv().getProjectRoot?.() ?? Promise.resolve(null))
     return projectRoot ? getRecoveryMetadataDir(projectRoot) : null
 }

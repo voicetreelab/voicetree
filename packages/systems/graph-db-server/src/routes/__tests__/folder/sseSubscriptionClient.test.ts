@@ -14,7 +14,7 @@ async function createAppSupport(vault: string): Promise<string> {
     const appSupport = await mkdtemp(join(tmpdir(), 'sse-client-appsupport-'))
     const config = {
         vaultConfig: {
-            [vault]: { writeFolder: vault },
+            [vault]: { writeFolderPath: vault },
         },
     }
     await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))

@@ -108,7 +108,7 @@ async function syncRendererFromDaemon(
     span.setAttribute('daemon.base_url', client.baseUrl)
     span.setAttribute('graph.node.count', graphNodeCount(nextGraph))
     span.setAttribute('vault.read_path.count', vaultState.readPaths.length)
-    span.setAttribute('vault.write_folder', vaultState.writeFolder)
+    span.setAttribute('vault.write_folder', vaultState.writeFolderPath)
 
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
@@ -129,7 +129,7 @@ async function syncRendererFromDaemon(
     uiAPI.syncVaultState({
       readPaths: vaultState.readPaths,
       starredFolders: treePayload.starredFolders,
-      writeFolder: vaultState.writeFolder,
+      writeFolderPath: vaultState.writeFolderPath,
     })
 
     if (treePayload.rootTree) {
@@ -465,8 +465,8 @@ export async function removeReadPathThroughDaemon(path: string): Promise<unknown
   return graph
 }
 
-export async function setWriteFolderThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation(`setWriteFolder:${path}`, (client) => client.setWriteFolder(path))
+export async function setWriteFolderPathThroughDaemon(path: string): Promise<VaultState> {
+  return await runVaultMutation(`setWriteFolderPath:${path}`, (client) => client.setWriteFolderPath(path))
 }
 
 export async function refreshMainGraphFromDaemon(_vault?: string): Promise<void> {

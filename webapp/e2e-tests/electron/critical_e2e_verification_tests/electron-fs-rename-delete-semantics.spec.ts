@@ -30,7 +30,7 @@ interface ExtendedWindow {
       } | undefined>;
       getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-      openVault: (projectRoot: string) => Promise<{ writeFolder: string }>;
+      openVault: (projectRoot: string) => Promise<{ writeFolderPath: string }>;
     };
   };
 }
@@ -88,7 +88,7 @@ const test = base.extend<{
       lastDirectory: tempProjectPath,
       vaultConfig: {
         [tempProjectPath]: {
-          writeFolder: tempVaultPath,
+          writeFolderPath: tempVaultPath,
           readPaths: []
         }
       }
@@ -148,9 +148,9 @@ const test = base.extend<{
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const response = await api.main.openVault(dir);
-      return { writeFolder: response.writeFolder };
+      return { writeFolderPath: response.writeFolderPath };
     }, tempProjectPath);
-    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openVault returned no writeFolderPath').toBeTruthy();
     await pollForCytoscape(page, 15000);
     await expect.poll(async () => {
       return page.evaluate(({ sourceFilePath, targetFilePath, projectRoot }) => {

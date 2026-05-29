@@ -6,7 +6,7 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals
 
 // Mock shell/edge dependencies
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWriteFolder: vi.fn(),
+    getWriteFolderPath: vi.fn(),
     getVaultPaths: vi.fn()
 }))
 
@@ -53,7 +53,7 @@ vi.mock('@mermaid-js/parser', () => ({
 
 import {configureMcpServer, createGraphTool} from '@vt/voicetree-mcp'
 import {getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWriteFolderPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
@@ -136,7 +136,7 @@ function mockCallerTerminal(options?: {
 
 function setupStandardMocks(graphOverride?: Graph): void {
     mockCallerTerminal()
-    vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
+    vi.mocked(getWriteFolderPath).mockResolvedValue(O.some(WRITE_PATH))
     vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
     vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
     vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
@@ -149,7 +149,7 @@ function configureCreateGraphToolTestServer(): void {
                 graph: getGraph(),
                 projectRoot: WRITE_PATH,
                 vaultPaths: await getVaultPaths(),
-                writeFolder: O.toNullable(await getWriteFolder()),
+                writeFolderPath: O.toNullable(await getWriteFolderPath()),
             }),
             applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                 await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
@@ -170,7 +170,7 @@ export function createAddProgressNodeMcpTestHarness() {
         getGraph,
         getTerminalRecords,
         getVaultPaths,
-        getWriteFolder,
+        getWriteFolderPath,
         mermaidParse,
         mockCallerTerminal,
         parsePayload,

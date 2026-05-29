@@ -10,7 +10,7 @@
  *
  * Prerequisites:
  * - Phases 1-4 of the "Unify Folder Loading" refactor are complete
- * - loadAndMergeVaultPath handles isWriteFolder option correctly
+ * - loadAndMergeVaultPath handles isWriteFolderPath option correctly
  */
 
 import { expect } from '@playwright/test';
@@ -45,29 +45,29 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     await appWindow.waitForTimeout(500);
 
     // Get initial write path
-    const initialWriteFolder = await appWindow.evaluate(async () => {
+    const initialWriteFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }
       return null;
     });
 
-    console.log('Initial write path:', initialWriteFolder);
-    expect(initialWriteFolder).toBe(primaryVaultPath);
+    console.log('Initial write path:', initialWriteFolderPath);
+    expect(initialWriteFolderPath).toBe(primaryVaultPath);
 
     console.log('=== STEP 2: Verify second-vault is empty ===');
     const secondVaultFiles = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault before setWriteFolder:', secondVaultFiles);
+    console.log('Files in second-vault before setWriteFolderPath:', secondVaultFiles);
     expect(secondVaultFiles.length).toBe(0);
 
     console.log('=== STEP 3: Set write path to empty second-vault ===');
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.setWriteFolder(secondPath);
+      return await api.main.setWriteFolderPath(secondPath);
     }, secondVaultPath);
 
     console.log('Set write path result:', setResult);
@@ -78,7 +78,7 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 4: Verify starter node was created on disk ===');
     const filesAfterSet = await fs.readdir(secondVaultPath);
-    console.log('Files in second-vault after setWriteFolder:', filesAfterSet);
+    console.log('Files in second-vault after setWriteFolderPath:', filesAfterSet);
 
     // Should have exactly one starter node file
     const mdFiles = filesAfterSet.filter(f => f.endsWith('.md'));
@@ -318,7 +318,7 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.setWriteFolder(secondPath);
+      return await api.main.setWriteFolderPath(secondPath);
     }, secondVaultPath);
 
     console.log('Set write path result:', setResult);
@@ -336,18 +336,18 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     console.log('Starter node file:', mdFiles[0]);
 
     console.log('=== STEP 6: Verify write path was updated ===');
-    const newWriteFolder = await appWindow.evaluate(async () => {
+    const newWriteFolderPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWriteFolder();
+      const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }
       return null;
     });
 
-    console.log('New write path:', newWriteFolder);
-    expect(newWriteFolder).toBe(secondVaultPath);
+    console.log('New write path:', newWriteFolderPath);
+    expect(newWriteFolderPath).toBe(secondVaultPath);
 
     // Take screenshot for verification
     await appWindow.screenshot({ path: 'e2e-tests/screenshots/e2e-5c-change-write-path.png' });

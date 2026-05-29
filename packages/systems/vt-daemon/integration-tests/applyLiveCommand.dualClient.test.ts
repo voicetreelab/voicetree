@@ -58,7 +58,7 @@ async function startFullStack(): Promise<FullStack> {
 
     const fixturePath: string = join(vault, FIXTURE_BASENAME)
     await writeFile(fixturePath, '# fixture\n', 'utf-8')
-    await saveVaultConfigForDirectory(vault, {writeFolder: '.'})
+    await saveVaultConfigForDirectory(vault, {writeFolderPath: '.'})
 
     const graphd: DaemonHandle = await startDaemon({
         vault,

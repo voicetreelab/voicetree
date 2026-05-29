@@ -92,7 +92,7 @@ export function makeStormTest(projectRoot: string): ReturnType<typeof base.exten
                     lastDirectory: path.dirname(vaultPath),
                     vaultConfig: {
                         [path.dirname(vaultPath)]: {
-                            writeFolder: vaultPath,
+                            writeFolderPath: vaultPath,
                             readPaths: [],
                         },
                     },

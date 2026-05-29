@@ -154,9 +154,9 @@ function configureRuntime(paths: ResolvedPaths): void {
             getVaultSnapshot: async () => ({
                 projectRoot: paths.projectRoot,
                 readPaths: [paths.vault],
-                writeFolder: paths.vault,
+                writeFolderPath: paths.vault,
             }),
-            getWriteFolder: async (): Promise<string> => paths.vault,
+            getWriteFolderPath: async (): Promise<string> => paths.vault,
         },
     })
 }

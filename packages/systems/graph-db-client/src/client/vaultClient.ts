@@ -3,7 +3,7 @@ import {
   CloneViewRequestSchema,
   CreateViewRequestSchema,
   ListViewsResponseSchema,
-  SetWriteFolderRequestSchema,
+  SetWriteFolderPathRequestSchema,
   VaultStateSchema,
   ViewRecordSchema,
   type OpenVaultResponse,
@@ -13,7 +13,7 @@ import {
 import {
   OpenVaultResponseSchema,
   ReadPathsMutationResponseSchema,
-  WriteFolderMutationResponseSchema,
+  WriteFolderPathMutationResponseSchema,
 } from '../responseSchemas.ts'
 import type { RequestClient } from './requestCore.ts'
 
@@ -31,10 +31,10 @@ export function createVaultClient(request: RequestClient) {
 
     async openVault(
       path: string,
-      opts: { writeFolder?: string } = {},
+      opts: { writeFolderPath?: string } = {},
     ): Promise<OpenVaultResponse> {
       return await request('/vault/open', {
-        body: opts.writeFolder === undefined ? { path } : { path, writeFolder: opts.writeFolder },
+        body: opts.writeFolderPath === undefined ? { path } : { path, writeFolderPath: opts.writeFolderPath },
         method: 'POST',
         responseSchema: OpenVaultResponseSchema,
       })
@@ -64,11 +64,11 @@ export function createVaultClient(request: RequestClient) {
       return await getVault()
     },
 
-    async setWriteFolder(path: string): Promise<VaultState> {
+    async setWriteFolderPath(path: string): Promise<VaultState> {
       await request('/vault/write-path', {
-        body: SetWriteFolderRequestSchema.parse({ path }),
+        body: SetWriteFolderPathRequestSchema.parse({ path }),
         method: 'PUT',
-        responseSchema: WriteFolderMutationResponseSchema,
+        responseSchema: WriteFolderPathMutationResponseSchema,
       })
       return await getVault()
     },

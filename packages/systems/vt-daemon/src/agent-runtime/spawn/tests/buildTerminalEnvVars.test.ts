@@ -17,7 +17,7 @@ describe('buildTerminalEnvVars', () => {
 
     it('expands INJECT_ENV_VARS templates against the canonical project root and aggregates vault paths', async () => {
         // VOICETREE_PROJECT_PATH points at the canonical project root (the directory
-        // containing `.voicetree/`), NOT the daemon's writeFolder. See
+        // containing `.voicetree/`), NOT the daemon's writeFolderPath. See
         // buildTerminalEnvVarsProjectPath.test.ts for the dedicated regression test
         // covering that contract and the rationale (CLI auth-token up-walk, hook
         // script template, tmuxPromptFile, tmux namespace builder).
@@ -25,7 +25,7 @@ describe('buildTerminalEnvVars', () => {
         configureAgentRuntime({
             env: {
                 getProjectRoot: async () => '/watched-project',
-                getWriteFolder: async () => '/watched-project/voicetree-25-5',
+                getWriteFolderPath: async () => '/watched-project/voicetree-25-5',
                 getVaultPaths: async () => [
                     '/watched-project/voicetree-25-5',
                     '/watched-project/reference',

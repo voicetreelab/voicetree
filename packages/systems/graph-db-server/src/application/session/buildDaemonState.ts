@@ -3,7 +3,7 @@ import { toAbsolutePath } from '@vt/graph-model'
 import type { FolderTreeNode, Graph } from '@vt/graph-model'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
-import { getReadPaths, getVaultPaths, getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist'
+import { getReadPaths, getVaultPaths, getWriteFolderPath } from '@vt/graph-db-server/state/vaultAllowlist'
 import type { VaultState } from '@vt/graph-db-server/contract'
 import { getProject } from '../workflows/state/projectState.ts'
 import { projectGraphDerivedFolderTree } from '../projection/graphDerivedFolderTree.ts'
@@ -20,13 +20,13 @@ type DaemonStateSnapshot = {
   readonly vault: VaultState
   readonly vaultPaths: readonly string[]
   readonly vaultVersion: number
-  readonly writeFolder: string | null
+  readonly writeFolderPath: string | null
 }
 
-function resolveWriteFolder(
-  writeFolderOption: Awaited<ReturnType<typeof getWriteFolder>>,
+function resolveWriteFolderPath(
+  writeFolderPathOption: Awaited<ReturnType<typeof getWriteFolderPath>>,
 ): string | null {
-  const maybeValue = (writeFolderOption as { value?: unknown }).value
+  const maybeValue = (writeFolderPathOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? maybeValue : null
 }
 
@@ -43,7 +43,7 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
   const projectRoot = getProjectRoot()
   const projectVersion = getProjectVersion()
   const vaultVersion = getVaultVersion()
-  const writeFolder = resolveWriteFolder(await getWriteFolder())
+  const writeFolderPath = resolveWriteFolderPath(await getWriteFolderPath())
   const readPaths = [...(await getReadPaths())]
   const vaultPaths = await getVaultPaths()
 
@@ -52,13 +52,13 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
     projectRoot: projectRoot ? toAbsolutePath(projectRoot) : null,
     readPaths,
     vaultPaths,
-    writeFolder: writeFolder ? toAbsolutePath(writeFolder) : null,
+    writeFolderPath: writeFolderPath ? toAbsolutePath(writeFolderPath) : null,
   })
 
   const vault: VaultState = {
     projectRoot: projectRoot ?? '',
     readPaths,
-    writeFolder: writeFolder ?? projectRoot ?? '',
+    writeFolderPath: writeFolderPath ?? projectRoot ?? '',
   }
 
   return {
@@ -71,7 +71,7 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
     vault,
     vaultPaths,
     vaultVersion,
-    writeFolder,
+    writeFolderPath,
   }
 }
 

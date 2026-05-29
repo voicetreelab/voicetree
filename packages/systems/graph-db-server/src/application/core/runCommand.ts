@@ -22,9 +22,9 @@ import { VaultStateSchema } from '@vt/graph-db-server/contract'
 import {
   addReadPath,
   getReadPaths,
-  getWriteFolder,
+  getWriteFolderPath,
   removeReadPath,
-  setWriteFolder,
+  setWriteFolderPath,
 } from '@vt/graph-db-server/state/vaultAllowlist'
 import { isPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
 import type { Command, CommandOutput } from './command.ts'
@@ -61,12 +61,12 @@ async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
   }
 
   const readPaths = [...(await getReadPaths())]
-  const writeFolderOption = await getWriteFolder() as { readonly value?: unknown }
-  const writeFolder = typeof writeFolderOption.value === 'string'
-    ? writeFolderOption.value
+  const writeFolderPathOption = await getWriteFolderPath() as { readonly value?: unknown }
+  const writeFolderPath = typeof writeFolderPathOption.value === 'string'
+    ? writeFolderPathOption.value
     : projectRoot
 
-  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolder })
+  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolderPath })
 }
 
 async function pathExistsOnDisk(absolutePath: string): Promise<boolean> {
@@ -145,7 +145,7 @@ const commandHandlers = {
   SetGraph: command => {
     setGraph(command.graph)
   },
-  SetVaultWriteFolder: command => setWriteFolder(command.path),
+  SetVaultWriteFolderPath: command => setWriteFolderPath(command.path),
   UpdateContextNodeContainedIds: async command => {
     await updateContextNodeContainedIds(
       command.contextNodeId,

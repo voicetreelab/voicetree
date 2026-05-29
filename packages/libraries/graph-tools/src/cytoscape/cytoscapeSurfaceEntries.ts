@@ -184,7 +184,7 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
     },
     {
         surface: 'loaded-roots',
-        label: 'Persisted writeFolder/readPaths vault config',
+        label: 'Persisted writeFolderPath/readPaths vault config',
         primary: {
             relativePath: 'packages/libraries/graph-model/src/watch-folder/vault-allowlist.ts',
             contains: 'export async function getVaultPaths(): Promise<readonly FilePath[]> {',
@@ -195,14 +195,14 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
                 description: 'broadcast pushes the persisted vault state into the renderer mirror',
                 ref: {
                     relativePath: 'packages/libraries/graph-model/src/watch-folder/broadcast-vault-state.ts',
-                    contains: 'getCallbacks().syncVaultState?.({ readPaths, writeFolder, starredFolders });',
+                    contains: 'getCallbacks().syncVaultState?.({ readPaths, writeFolderPath, starredFolders });',
                 },
             },
             {
                 description: 'delta projection maps node ids back to currently loaded roots',
                 ref: {
                     relativePath: 'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts',
-                    contains: 'const { writeFolder, readPaths } = getVaultState()',
+                    contains: 'const { writeFolderPath, readPaths } = getVaultState()',
                 },
             },
             {
@@ -215,7 +215,7 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
         ],
         mutatesGraphModel: 'Yes',
         survivesRestart: 'Yes',
-        notes: 'writeFolder/readPaths are persisted in vault config and drive graph load/unload plus renderer topology changes.',
+        notes: 'writeFolderPath/readPaths are persisted in vault config and drive graph load/unload plus renderer topology changes.',
     },
     {
         surface: 'F6 aggregation call sites',
