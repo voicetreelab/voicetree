@@ -36,7 +36,20 @@ export interface VtTerminalAttachBridgeDeps {
     readonly createHandleId?: () => string
 }
 
-export function installVtTerminalAttachBridge(deps: VtTerminalAttachBridgeDeps): () => void {
+export interface VtTerminalAttachBridgeHandle {
+    /** Remove all ipcMain handlers and dispose every client. Project switch / app shutdown. */
+    readonly teardown: () => void
+    /**
+     * Dispose every live attach client WITHOUT removing the ipcMain handlers.
+     * Used on renderer reload: the navigated-away renderer cannot run
+     * `terminal:detach` for its handles, so the upstream WebSockets would
+     * otherwise leak and keep the tmux sessions falsely "claimed". The fresh
+     * renderer re-attaches via the still-registered handlers.
+     */
+    readonly disposeAllClients: () => void
+}
+
+export function installVtTerminalAttachBridge(deps: VtTerminalAttachBridgeDeps): VtTerminalAttachBridgeHandle {
     const clients: Map<string, VtTerminalAttachClient> = new Map()
     const createHandleId: () => string = deps.createHandleId ?? randomUUID
 
@@ -84,13 +97,20 @@ export function installVtTerminalAttachBridge(deps: VtTerminalAttachBridgeDeps):
         return true
     })
 
-    return (): void => {
-        ipcMain.removeHandler(ATTACH_INVOKE)
-        ipcMain.removeHandler(WRITE_INVOKE)
-        ipcMain.removeHandler(RESIZE_INVOKE)
-        ipcMain.removeHandler(SCROLL_INVOKE)
-        ipcMain.removeHandler(DETACH_INVOKE)
+    const disposeAllClients = (): void => {
         for (const client of clients.values()) client.dispose()
         clients.clear()
+    }
+
+    return {
+        teardown: (): void => {
+            ipcMain.removeHandler(ATTACH_INVOKE)
+            ipcMain.removeHandler(WRITE_INVOKE)
+            ipcMain.removeHandler(RESIZE_INVOKE)
+            ipcMain.removeHandler(SCROLL_INVOKE)
+            ipcMain.removeHandler(DETACH_INVOKE)
+            disposeAllClients()
+        },
+        disposeAllClients,
     }
 }

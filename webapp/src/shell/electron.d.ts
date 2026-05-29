@@ -53,6 +53,8 @@ export interface ElectronAPI {
     resize: (handle: string, cols: number, rows: number) => Promise<boolean>;
     scroll: (handle: string, direction: 'up' | 'down', lines: number) => Promise<boolean>;
     detach: (handle: string) => Promise<boolean>;
+    /** Re-launch floating panels for every live terminal in the registry. Called on mount + project:ready. */
+    rehydrate: () => Promise<void>;
   };
 
   // VTD /events stream — Main holds the WebSocket; renderer receives frames
