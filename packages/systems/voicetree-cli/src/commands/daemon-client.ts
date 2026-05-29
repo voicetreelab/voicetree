@@ -157,13 +157,51 @@ async function postRpc(
     return {kind: 'ok', envelope: parsed as RawRpcResponse}
 }
 
+// Pull the human-facing sentence out of a tool-handler failure payload.
+//
+// The daemon's dispatcher (rpcDispatch.ts `dispatchRpcRequest`) sets
+// `error.data` to the *parsed* tool error object — for the agent/graph tool
+// family that is `{success: false, error: '<plain sentence>'}` (some internal
+// `Result` paths spell it `{ok: false, error}`). Re-stringifying that object
+// (the previous behaviour) surfaced a raw nested-JSON blob at the CLI edge.
+// We read the sentence directly so every caller-terminal failure prints as a
+// plain sentence; we fall back to the envelope `message` when `data` carries
+// no recognisable sentence field.
+function extractToolFailureSentence(data: unknown, fallbackMessage: string): string {
+    if (typeof data === 'string' && data.length > 0) return data
+    if (typeof data === 'object' && data !== null) {
+        const record = data as Record<string, unknown>
+        const error: unknown = record.error
+        if (typeof error === 'string' && error.length > 0) return error
+        const message: unknown = record.message
+        if (typeof message === 'string' && message.length > 0) return message
+    }
+    return fallbackMessage
+}
+
+// Caller-terminal-gated tool failures ("Unknown caller terminal: …") happen
+// when a headless/CLI peer with no registered terminal tries a write tool
+// that requires a caller terminal (spawn, send, wait, create_graph live mode).
+// The filesystem-mode authoring path (`vt graph create <file.md>`) parses the
+// markdown locally and is the headless-safe write path, so we hint it here.
+const CALLER_GATED_SENTINEL: string = 'Unknown caller terminal'
+const HEADLESS_WRITE_HINT: string =
+    'For headless/CLI writes without a caller terminal, author nodes as markdown and use the ' +
+    'filesystem-mode authoring path: `vt graph create <file.md>`.'
+
+function appendHeadlessWriteHintIfCallerGated(sentence: string): string {
+    return sentence.includes(CALLER_GATED_SENTINEL) ? `${sentence} ${HEADLESS_WRITE_HINT}` : sentence
+}
+
 function throwForRpcError(
     error: {readonly code: number; readonly message: string; readonly data?: unknown},
     tokenFilePath: string,
 ): never {
     switch (error.code) {
-        case ERROR_CODES.tool_handler_failed:
-            throw new Error(JSON.stringify(error.data))
+        case ERROR_CODES.tool_handler_failed: {
+            const sentence: string = extractToolFailureSentence(error.data, error.message)
+            throw new Error(appendHeadlessWriteHintIfCallerGated(sentence))
+        }
         case ERROR_CODES.validation_failed:
             throw new Error(JSON.stringify({kind: 'validation_failed', data: error.data}))
         case ERROR_CODES.auth_required:

@@ -29,7 +29,7 @@ export function waitForAgentsTool(
     // 1. Validate caller terminal exists
     const records: TerminalRecord[] = listTerminalRecords()
     if (!records.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
-        return buildJsonResponse({success: false, error: `Unknown caller: ${callerTerminalId}`}, true)
+        return buildJsonResponse({success: false, error: `Unknown caller terminal: ${callerTerminalId}`}, true)
     }
 
     // 2. Validate all target terminals exist
