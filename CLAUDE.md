@@ -52,8 +52,9 @@ Code search & navigation tools (use over grep when applicable):
 # vt CLI Manual
 
 This is the canonical reference for the `vt` CLI surface. Generated from
-`@vt/vt-daemon-protocol/tool-specs` — do not edit by hand. Run `vt manual`
-to print the full document or `vt manual <verb>` for a single section.
+`@vt/vt-daemon-protocol` (TOOL_SPECS + CLI-local specs) — do not edit by
+hand. Run `vt manual` to print the full document or `vt manual <verb>` for
+a single section.
 
 ## Format
 
@@ -506,6 +507,7 @@ This verb is CLI-local and does not dispatch to a dedicated daemon RPC; it reads
 - `--mermaid | --ascii`: Render format. `--ascii` (default) emits a tree plus a node-count summary line; `--mermaid` emits Mermaid source with no summary.
 - `--collapse VALUE`: Collapse the named folder in the live view before rendering (repeatable). Dispatched as a `SetFolderState` (collapsed) command on viewId `main`; best-effort — a failure logs to stderr and does not block rendering.
 - `--select VALUE`: Select the named node id in the live view before rendering (repeatable). All ids are dispatched together as a single `Select` command; best-effort.
+- `--project VALUE`: Override the target project path. Defaults to the live-transport-resolved project (`$VOICETREE_DAEMON_URL` → cwd up-walk → `$VOICETREE_PROJECT_PATH`). Accepts either `--project <path>` or `--project=<path>`.
 
 ### `vt graph live add-node`
 
@@ -596,6 +598,7 @@ This verb is CLI-local and does not dispatch to a dedicated daemon RPC; it only 
 
 - `<node>` (positional): Center node id of the ego graph. An unknown / typo'd id writes `node not found: <id>` to stderr and exits non-zero (code 3).
 - `--hops VALUE`: Ego-graph radius in undirected hops (default 1). Accepts either `--hops N` or `--hops=N`.
+- `--project VALUE`: Override the target project path. Defaults to the live-transport-resolved project (`$VOICETREE_DAEMON_URL` → cwd up-walk → `$VOICETREE_PROJECT_PATH`). Accepts either `--project <path>` or `--project=<path>`.
 
 ### `vt graph live neighbors`
 
@@ -611,6 +614,7 @@ This verb is CLI-local and does not dispatch to a dedicated daemon RPC; it only 
 
 - `<node>` (positional): Target node id whose neighborhood is rendered. An unknown / typo'd id writes `node not found: <id>` to stderr and exits non-zero (code 3).
 - `--hops VALUE`: Neighborhood radius in undirected hops (default 1). Accepts either `--hops N` or `--hops=N`.
+- `--project VALUE`: Override the target project path. Defaults to the live-transport-resolved project (`$VOICETREE_DAEMON_URL` → cwd up-walk → `$VOICETREE_PROJECT_PATH`). Accepts either `--project <path>` or `--project=<path>`.
 
 ### `vt graph live path`
 
@@ -626,6 +630,7 @@ This verb is CLI-local and does not dispatch to a dedicated daemon RPC; it only 
 
 - `<a>` (positional): Start node id of the path query.
 - `<b>` (positional): End node id of the path query. If either `<a>` or `<b>` is an unknown / typo'd id, writes `node not found: <ids>` to stderr and exits non-zero (code 3); a real disconnected pair prints `no path` and exits 0.
+- `--project VALUE`: Override the target project path. Defaults to the live-transport-resolved project (`$VOICETREE_DAEMON_URL` → cwd up-walk → `$VOICETREE_PROJECT_PATH`). Accepts either `--project <path>` or `--project=<path>`.
 
 ### `vt graph index`
 
