@@ -118,7 +118,7 @@ export const test = base.extend<{
         // env). Without this, pinProcessAppSupportPath() in webapp main can
         // race --user-data-dir resolution and the daemon ends up on
         // /root/.voicetree/tmux.sock while the test polls a different socket.
-        VOICETREE_APP_SUPPORT: tempUserDataPath,
+        VOICETREE_HOME_PATH: tempUserDataPath,
       },
       timeout: 60_000,
     });

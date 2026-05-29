@@ -19,7 +19,8 @@
     "bootcamp": "tsx bin/run-bootcamp.ts"
   },
   "dependencies": {
-    "@vt/graph-db-client": "*"
+    "@vt/graph-db-client": "*",
+    "@vt/paths": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

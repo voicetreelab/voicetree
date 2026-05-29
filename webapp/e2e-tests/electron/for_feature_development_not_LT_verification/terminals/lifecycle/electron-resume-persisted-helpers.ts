@@ -105,7 +105,7 @@ export const test = baseTest.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
-                VOICETREE_APP_SUPPORT: tempUserDataPath,
+                VOICETREE_HOME_PATH: tempUserDataPath,
                 VOICETREE_CLAUDE_PROJECTS_DIR: vault.claudeProjectsRoot,
             },
             timeout: 15_000,

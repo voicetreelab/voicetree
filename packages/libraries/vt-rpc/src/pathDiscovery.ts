@@ -14,9 +14,10 @@
 // `$VOICETREE_VAULT_PATH` explicitly in that case.
 
 import {existsSync, statSync} from 'node:fs'
-import {dirname, join, resolve} from 'node:path'
+import {dirname, resolve} from 'node:path'
 
-import {readRpcPortFile, VOICETREE_DIRNAME} from './portFile.ts'
+import {getProjectDotVoicetreePath} from '@vt/paths'
+import {readRpcPortFile} from './portFile.ts'
 
 export interface ResolvedDaemonEndpoint {
     readonly url: string
@@ -45,7 +46,7 @@ function envOr(env: Record<string, string | undefined>, key: string): string | u
 export function detectVaultFromCwd(from: string): string | null {
     let dir: string = resolve(from)
     while (true) {
-        const candidate: string = join(dir, VOICETREE_DIRNAME)
+        const candidate: string = getProjectDotVoicetreePath(dir)
         try {
             if (existsSync(candidate) && statSync(candidate).isDirectory()) {
                 return dir

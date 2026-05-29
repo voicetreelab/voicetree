@@ -60,7 +60,7 @@ if (envSnapshotPath) {
   await writeFile(
     envSnapshotPath,
     `${JSON.stringify({
-      VOICETREE_APP_SUPPORT: process.env.VOICETREE_APP_SUPPORT ?? null,
+      VOICETREE_HOME_PATH: process.env.VOICETREE_HOME_PATH ?? null,
       VT_DAEMON_BIN: process.env.VT_DAEMON_BIN ?? null,
     }, null, 2)}\n`,
     'utf8',

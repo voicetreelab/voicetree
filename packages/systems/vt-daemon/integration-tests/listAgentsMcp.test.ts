@@ -68,7 +68,7 @@ let bridge: GraphBridge
 
 beforeEach(async () => {
     appSupport = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-list-agents-'))
-    process.env.VOICETREE_APP_SUPPORT = appSupport
+    process.env.VOICETREE_HOME_PATH = appSupport
     clearSettingsCache()
     await fs.writeFile(
         path.join(appSupport, 'settings.json'),

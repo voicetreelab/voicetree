@@ -131,7 +131,7 @@ describe('SSE delta projection does not rescan the filesystem', () => {
     const scanner = createCountingScanner()
     const handle = await startDaemon({
       vault,
-      appSupportPath: appSupport,
+      voicetreeHomePath: appSupport,
       createStarterIfEmpty: false,
       folderTreeScanner: scanner.fn,
     })

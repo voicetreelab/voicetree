@@ -6,10 +6,11 @@
  */
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {ScenarioSpec, SuccessResult} from '../types.ts'
 import {fileExists, listMarkdownFiles, parseFrontmatter, parseWikilinks, stripMdExt, writeFile} from './_helpers.ts'
 
-const COOLDOWN_PATH = ['.voicetree', 'graphd.cooldown.json'] as const
+const COOLDOWN_FILENAME = 'graphd.cooldown.json'
 
 const TASK_PROMPT = `You have a fresh VoiceTree vault in this directory. Your first attempt to use
 the vault will likely fail because the previous session left it in a bad
@@ -27,7 +28,7 @@ export const b1: ScenarioSpec = {
     id: 'B1',
     name: 'cold-start with daemon recovery',
     async setup(vaultDir) {
-        const cooldownPath = path.join(vaultDir, ...COOLDOWN_PATH)
+        const cooldownPath = path.join(getProjectDotVoicetreePath(vaultDir), COOLDOWN_FILENAME)
         await writeFile(
             cooldownPath,
             JSON.stringify({
@@ -48,7 +49,7 @@ export const b1: ScenarioSpec = {
         {verb: 'graph structure'},
     ],
     async successCriteria(vaultDir): Promise<SuccessResult> {
-        const cooldownExists = await fileExists(path.join(vaultDir, ...COOLDOWN_PATH))
+        const cooldownExists = await fileExists(path.join(getProjectDotVoicetreePath(vaultDir), COOLDOWN_FILENAME))
         if (cooldownExists) {
             return {passed: false, detail: 'cooldown breadcrumb still present at .voicetree/graphd.cooldown.json'}
         }

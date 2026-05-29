@@ -41,17 +41,17 @@ const defaultDeps: ClaudeHookBootstrapDeps = {
 
 /**
  * Ensure the Claude Code hook settings JSON exists at
- * `<appSupportPath>/agent-hooks/claude-code-settings.json` with current content.
+ * `<voicetreeHomePath>/agent-hooks/claude-code-settings.json` with current content.
  * Returns its absolute path.
  *
  * Rewrites the file if its contents have drifted (e.g. we updated the hook
  * command shape across VoiceTree versions). Same-content writes are skipped.
  */
 export async function ensureClaudeHookSettingsFile(
-    appSupportPath: string,
+    voicetreeHomePath: string,
     deps: ClaudeHookBootstrapDeps = defaultDeps,
 ): Promise<string> {
-    const dir: string = path.join(appSupportPath, 'agent-hooks')
+    const dir: string = path.join(voicetreeHomePath, 'agent-hooks')
     const filePath: string = path.join(dir, 'claude-code-settings.json')
     const expected: string = buildClaudeHookSettingsJson()
 

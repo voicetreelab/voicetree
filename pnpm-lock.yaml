@@ -81,6 +81,9 @@ importers:
       '@vt/graph-model':
         specifier: '*'
         version: link:../graph-model
+      '@vt/paths':
+        specifier: '*'
+        version: link:../paths
       fp-ts:
         specifier: ^2.16.9
         version: 2.16.11
@@ -128,6 +131,9 @@ importers:
       '@vt/graph-db-protocol':
         specifier: '*'
         version: link:../graph-db-protocol
+      '@vt/paths':
+        specifier: '*'
+        version: link:../paths
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -141,6 +147,9 @@ importers:
 
   packages/libraries/graph-db-protocol:
     dependencies:
+      '@vt/paths':
+        specifier: '*'
+        version: link:../paths
       zod:
         specifier: ^4.3.6
         version: 4.4.3
@@ -219,6 +228,9 @@ importers:
       '@vt/graph-state':
         specifier: '*'
         version: link:../graph-state
+      '@vt/paths':
+        specifier: '*'
+        version: link:../paths
       '@vt/vt-rpc':
         specifier: '*'
         version: link:../vt-rpc
@@ -273,6 +285,18 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
+  packages/libraries/paths:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
   packages/libraries/perf-analysis:
     dependencies:
       '@pyroscope/nodejs':
@@ -293,6 +317,10 @@ importers:
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
   packages/libraries/perf-fixtures:
+    dependencies:
+      '@vt/paths':
+        specifier: '*'
+        version: link:../paths
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -324,6 +352,10 @@ importers:
         version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@24.12.4)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
   packages/libraries/vt-rpc:
+    dependencies:
+      '@vt/paths':
+        specifier: '*'
+        version: link:../paths
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -413,6 +445,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
+      '@vt/app-config':
+        specifier: '*'
+        version: link:../../libraries/app-config
       '@vt/daemon-lifecycle':
         specifier: '*'
         version: link:../../libraries/daemon-lifecycle
@@ -422,13 +457,13 @@ importers:
       '@vt/graph-db-server':
         specifier: '*'
         version: link:../graph-db-server
+      '@vt/paths':
+        specifier: '*'
+        version: link:../../libraries/paths
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
-      '@vt/app-config':
-        specifier: '*'
-        version: link:../../libraries/app-config
       '@vt/graph-model':
         specifier: '*'
         version: link:../../libraries/graph-model
@@ -471,6 +506,9 @@ importers:
       '@vt/observability':
         specifier: '*'
         version: link:../../libraries/observability
+      '@vt/paths':
+        specifier: '*'
+        version: link:../../libraries/paths
       '@vt/perf-analysis':
         specifier: '*'
         version: link:../../libraries/perf-analysis
@@ -514,6 +552,9 @@ importers:
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../graph-db-client
+      '@vt/paths':
+        specifier: '*'
+        version: link:../../libraries/paths
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -536,6 +577,9 @@ importers:
       '@vscode/ripgrep':
         specifier: ^1.15.9
         version: 1.18.0
+      '@vt/paths':
+        specifier: '*'
+        version: link:../../libraries/paths
       chokidar:
         specifier: ^3.6.0
         version: 3.6.0
@@ -636,6 +680,9 @@ importers:
       '@vt/observability':
         specifier: '*'
         version: link:../../libraries/observability
+      '@vt/paths':
+        specifier: '*'
+        version: link:../../libraries/paths
       '@vt/vt-daemon-protocol':
         specifier: '*'
         version: link:../../libraries/vt-daemon-protocol
@@ -697,6 +744,12 @@ importers:
       '@vt/graph-db-protocol':
         specifier: '*'
         version: link:../../libraries/graph-db-protocol
+      '@vt/graph-model':
+        specifier: '*'
+        version: link:../../libraries/graph-model
+      '@vt/paths':
+        specifier: '*'
+        version: link:../../libraries/paths
       '@vt/vt-daemon':
         specifier: '*'
         version: link:../vt-daemon
@@ -813,6 +866,9 @@ importers:
       '@vt/observability':
         specifier: '*'
         version: link:../packages/libraries/observability
+      '@vt/paths':
+        specifier: '*'
+        version: link:../packages/libraries/paths
       '@xterm/addon-clipboard':
         specifier: ^0.2.0-beta.120
         version: 0.2.0

@@ -12,6 +12,7 @@ import {pathToFileURL, fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 import {spawnCheck} from './capture-check-runner.ts'
+import {errorSummaryForFailedOutcome, formatFailureBody} from './failure-summary.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
@@ -193,30 +194,11 @@ function printRow(check, outcome) {
     console.log(`${statusGlyph(outcome.status)} ${id} ${cat} ${dur.padStart(7)}  ${counts}`)
 }
 
-function formatFailureBody(outcome) {
-    const failed = outcome.failureDetails?.failedTests ?? []
-    if (failed.length > 0) {
-        const lines = failed.flatMap(t => {
-            const where = t.fileName ? `  (${t.fileName})` : ''
-            const head = `      • ${t.fullName}${where}`
-            const msg = (t.message ?? '').split('\n').slice(0, 15)
-                .map(l => `        ${l}`).join('\n')
-            return msg ? [head, msg] : [head]
-        })
-        if (outcome.failureDetails?.failedTestsTruncated) lines.push('      … (more failures truncated)')
-        return lines.join('\n')
-    }
-    if (outcome.spawnError) return `      spawn error: ${outcome.spawnError}`
-    if (outcome.timedOut) return `      timed out after ${fmtMs(outcome.durationMs)}`
-    const tail = outcome.stderrTail ?? outcome.stdoutTail
-    return tail ? tail.split('\n').map(l => `      ${l}`).join('\n') : ''
-}
-
 // ── Top-level orchestration ──────────────────────────────────────────────────
 
 async function recordOutcome(check, outcome) {
     const errorSummary = outcome.status === 'fail'
-        ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail)
+        ? errorSummaryForFailedOutcome(outcome)
         : undefined
     /** @type {Record<string, unknown>} */
     const details = {exitCode: outcome.exitCode, measurePath: check.measurePath, measureFolder: check.measureFolder}

@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { statSync } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export interface OrphanCleanupResult {
   readonly killed: readonly { pid: number; vault: string }[]
@@ -98,7 +99,7 @@ async function removeDaemonFiles(
   resolvedVault: string,
   deps: Pick<TerminateDaemonDeps, 'unlinkFile'>,
 ): Promise<void> {
-  const dotDir = join(resolvedVault, '.voicetree')
+  const dotDir = getProjectDotVoicetreePath(resolvedVault)
   await deps.unlinkFile(join(dotDir, 'graphd.lock')).catch(() => undefined)
   await deps.unlinkFile(join(dotDir, 'graphd.port')).catch(() => undefined)
 }

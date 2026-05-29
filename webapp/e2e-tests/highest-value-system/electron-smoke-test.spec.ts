@@ -139,13 +139,13 @@ const test = base.extend<{
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: graphDaemonNodeBin,
         ENABLE_PLAYWRIGHT_DEBUG: '0',
-        // Pin VOICETREE_APP_SUPPORT to the fixture's temp user-data dir so the
+        // Pin VOICETREE_HOME_PATH to the fixture's temp user-data dir so the
         // daemon child (a forked subprocess) reads the same settings.json the
         // fixture pre-seeded. Without this override the parent shell's
-        // VOICETREE_APP_SUPPORT leaks in and the daemon ignores the fixture's
+        // VOICETREE_HOME_PATH leaks in and the daemon ignores the fixture's
         // Fake Agent registration — defaulting to the developer's installed
         // `claude` binary, which never calls back through the /rpc transport.
-        VOICETREE_APP_SUPPORT: tempUserDataPath,
+        VOICETREE_HOME_PATH: tempUserDataPath,
       },
       timeout: 60000
     });

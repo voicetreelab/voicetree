@@ -1,12 +1,12 @@
 import {statSync} from 'node:fs'
-import {dirname, join, resolve} from 'node:path'
+import {dirname, resolve} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
-const VOICETREE_DIRNAME: string = '.voicetree'
 const NOT_DETECTED_MESSAGE: string = 'No vault found. Run inside a vault directory, or pass --vault <path>.'
 
 function hasVoicetreeMarker(candidatePath: string): boolean {
     try {
-        return statSync(join(candidatePath, VOICETREE_DIRNAME)).isDirectory()
+        return statSync(getProjectDotVoicetreePath(candidatePath)).isDirectory()
     } catch {
         return false
     }

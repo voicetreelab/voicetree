@@ -59,6 +59,7 @@
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",
     "@vt/observability": "*",
+    "@vt/paths": "*",
     "@vt/perf-analysis": "*",
     "chokidar": "^3.6.0",
     "fp-ts": "^2.16.9",

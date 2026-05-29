@@ -86,6 +86,65 @@ function summarizeError(message) {
     return lines.join('\n').slice(0, 800)
 }
 
+function isFailedResult(result) {
+    return result?.status === 'failed' || result?.status === 'timedOut' || result?.status === 'interrupted'
+}
+
+function isFailedTest(test) {
+    const outcome = typeof test.outcome === 'function' ? test.outcome() : undefined
+    return outcome === 'unexpected' || (test.results ?? []).some(isFailedResult)
+}
+
+function firstFailedResult(test) {
+    return (test.results ?? []).find(isFailedResult)
+}
+
+function firstErrorMessageForResult(result) {
+    for (const error of result?.errors ?? []) {
+        const message = error.message ?? error.stack ?? error.value
+        if (typeof message === 'string' && message.trim()) return message
+    }
+    return undefined
+}
+
+function fullNameForTest(test) {
+    const titlePath = typeof test.titlePath === 'function' ? test.titlePath() : []
+    const fullName = titlePath.filter(Boolean).join(' > ')
+    return fullName || test.title || '(unknown Playwright test)'
+}
+
+function failedTestDetails(suite) {
+    const tests = typeof suite?.allTests === 'function' ? suite.allTests() : []
+    const allFailedTests = tests
+        .filter(isFailedTest)
+        .map(test => {
+            const failedResult = firstFailedResult(test)
+            return {
+                fullName: fullNameForTest(test),
+                fileName: test.location?.file,
+                message: firstErrorMessageForResult(failedResult),
+            }
+        })
+    const failedTests = allFailedTests.slice(0, 10)
+    return failedTests.length === 0 ? {} : {
+        failedTests,
+        failedTestsTruncated: allFailedTests.length > failedTests.length,
+    }
+}
+
+function formatFailedTests(details) {
+    const failedTests = details.failedTests ?? []
+    if (failedTests.length === 0) return undefined
+    const lines = failedTests.flatMap(test => {
+        const where = test.fileName ? `  (${test.fileName})` : ''
+        const head = `      • ${test.fullName}${where}`
+        const message = summarizeError(test.message)
+        return message ? [head, ...message.split('\n').map(line => `        ${line}`)] : [head]
+    })
+    if (details.failedTestsTruncated) lines.push('      … (more failures truncated)')
+    return lines.join('\n')
+}
+
 function statusFromResult(result, counts) {
     if (counts.testsTotal === 0) return 'skip'
     return result.status === 'passed' ? 'pass' : 'fail'
@@ -111,8 +170,9 @@ export default class PlaywrightCiCheckReporter {
             const durationMs = endedAtMs - this.startedAt
             const counts = countTests(this.suite)
             const status = statusFromResult(result, counts)
+            const failureDetails = status === 'fail' ? failedTestDetails(this.suite) : {}
             const errorSummary = status === 'fail'
-                ? summarizeError(firstErrorMessage(this.suite))
+                ? (formatFailedTests(failureDetails) ?? summarizeError(firstErrorMessage(this.suite)))
                 : undefined
 
             await recordWithCiCheckWriter({
@@ -127,7 +187,7 @@ export default class PlaywrightCiCheckReporter {
                 ...counts,
                 errorSummary,
                 timestamp: new Date(endedAtMs).toISOString(),
-                details: {exitCode: status === 'pass' ? 0 : 1},
+                details: {exitCode: status === 'pass' ? 0 : 1, ...failureDetails},
             })
         } catch (err) {
             console.warn(`[playwright-ci-check-reporter] failed to record CI check report: ${err instanceof Error ? err.message : String(err)}`)

@@ -25,6 +25,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { CallerKind, DaemonKind } from '@vt/graph-db-protocol'
 import type { Cooldown } from './ownerDecision.ts'
 
@@ -53,7 +54,7 @@ export function cooldownBreadcrumbPathFor(
   vaultDir: string,
   daemonKind: DaemonKind,
 ): string {
-  return join(vaultDir, '.voicetree', `${daemonKind}.cooldown.json`)
+  return join(getProjectDotVoicetreePath(vaultDir), `${daemonKind}.cooldown.json`)
 }
 
 /**

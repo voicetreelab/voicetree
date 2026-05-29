@@ -10,7 +10,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import type {SavedProject} from '@vt/graph-model/project'
 import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWriteFolder, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
+import {getBackendPort, getVoicetreeHomePath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/queries/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
@@ -225,7 +225,7 @@ export const mainAPI = {
   // Position saving through daemon persistence
   saveNodePositions,
 
-  // Settings operations — renderer never sees appSupportPath; main fills it in.
+  // Settings operations — renderer never sees voicetreeHomePath; main fills it in.
   loadSettings: (): Promise<VTSettings> => loadSettings(),
 
   saveSettings: (settings: VTSettings): Promise<boolean> => saveSettings(settings),
@@ -263,7 +263,7 @@ export const mainAPI = {
   getPreviewContainedNodeIds,
 
   // App paths
-  getAppSupportPath,
+  getVoicetreeHomePath,
 
   // Undo/Redo operations
   performUndo,

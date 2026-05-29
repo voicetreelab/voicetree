@@ -88,9 +88,9 @@ export const test = base.extend<{
         // Pin the app-support path to the temp user-data dir so the daemon
         // (a forked subprocess) reads the same settings.json the fixture
         // pre-seeded. Without this override the parent shell's
-        // VOICETREE_APP_SUPPORT leaks into the test process and the daemon
+        // VOICETREE_HOME_PATH leaks into the test process and the daemon
         // never sees the grep-probe agent.
-        VOICETREE_APP_SUPPORT: tempUserDataPath,
+        VOICETREE_HOME_PATH: tempUserDataPath,
         // Fallback for runtime paths before the daemon has reported the
         // configured write folder.
         VOICETREE_VAULT_PATH: fixtureVaultPath,

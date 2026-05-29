@@ -116,12 +116,12 @@ export function tmuxSocketPath(appSupportPathOverride?: string): string {
         return path.join(appSupportPathOverride, 'tmux.sock');
     }
 
-    // Must match the LaunchAgent-managed socket used by agent-runtime's tmux-session-manager.
-    const appSupportFromEnv: string | undefined = process.env.VOICETREE_APP_SUPPORT;
-    const appSupport: string = appSupportFromEnv && appSupportFromEnv.trim().length > 0
-        ? appSupportFromEnv
-        : path.join(os.homedir(), 'Library', 'Application Support', 'Voicetree');
-    return path.join(appSupport, 'tmux.sock');
+    // Must match the home-scoped socket used by agent-runtime's tmux-session-manager.
+    const voicetreeHomeFromEnv: string | undefined = process.env.VOICETREE_HOME_PATH;
+    const voicetreeHomePath: string = voicetreeHomeFromEnv && voicetreeHomeFromEnv.trim().length > 0
+        ? voicetreeHomeFromEnv
+        : path.join(os.homedir(), '.voicetree');
+    return path.join(voicetreeHomePath, 'tmux.sock');
 }
 
 export async function createSurvivingAgentsVault(): Promise<SurvivingAgentsVault> {

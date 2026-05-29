@@ -20,6 +20,7 @@ import {fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 import {vitestFailureDetailsForCommand} from './vitest-failure-detail-reader.ts'
+import {errorSummaryForFailedOutcome} from './failure-summary.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
@@ -113,7 +114,15 @@ try {
         startedAt: outcome.startedAt,
         endedAt: outcome.endedAt,
         errorSummary: status === 'fail'
-            ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail ?? `exit ${outcome.code}${outcome.signal ? ` (${outcome.signal})` : ''}`)
+            ? errorSummaryForFailedOutcome({
+                durationMs: outcome.durationMs,
+                exitCode: outcome.code,
+                signal: outcome.signal,
+                spawnError: outcome.spawnError,
+                stdoutTail: outcome.stdoutTail,
+                stderrTail: outcome.stderrTail,
+                failureDetails,
+            })
             : undefined,
         timestamp: new Date().toISOString(),
         details: {

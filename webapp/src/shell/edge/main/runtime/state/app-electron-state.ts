@@ -1,5 +1,5 @@
 import type {BrowserWindow} from "electron";
-import {app} from 'electron';
+import {resolveVoicetreeHomePath} from '@vt/paths';
 
 // The main application window reference
 let mainWindow: BrowserWindow | null = null;
@@ -18,5 +18,4 @@ export const setBackendPort: (port: number | null) => void = (port: number | nul
 }
 export const getBackendPort: () => number | null =  (): number | null => backendPort;
 
-/** Get the Voicetree Application Support directory path */
-export const getAppSupportPath: () => string = (): string => app.getPath('userData');
+export const getVoicetreeHomePath: () => string = (): string => resolveVoicetreeHomePath();

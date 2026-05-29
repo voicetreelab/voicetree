@@ -10,7 +10,7 @@ import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjecti
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
 import {readDaemonPortFromVault} from './daemonUrlFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
@@ -130,14 +130,14 @@ export async function prepareTerminalDataInMain(
     // env / CLI args (design doc §3.3) — hook curls read it via `cat` from
     // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` at fire time.
     const env = getRuntimeEnv()
-    const appSupportPath: string = resolveAppSupportPath()
+    const voicetreeHomePath: string = resolveVoicetreeHomePath()
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
-    const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
+    const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
     const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
-    const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(appSupportPath)
+    const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(voicetreeHomePath)
     const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
     const finalCommand: string = daemonUrl !== null
         ? injectCodexHookFlags(claudeInjected, daemonUrl, terminalId)

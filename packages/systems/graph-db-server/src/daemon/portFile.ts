@@ -1,6 +1,7 @@
 import { writeFile, rename, unlink, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export const PORT_FILENAME = 'graphd.port'
 
@@ -9,7 +10,7 @@ type WritePortFileOptions = {
 }
 
 function portPathFor(vaultDir: string): string {
-  return join(vaultDir, '.voicetree', PORT_FILENAME)
+  return join(getProjectDotVoicetreePath(vaultDir), PORT_FILENAME)
 }
 
 function createDefaultTempSuffix(): string {
@@ -17,7 +18,7 @@ function createDefaultTempSuffix(): string {
 }
 
 function tmpPathFor(vaultDir: string, suffix: string): string {
-  return join(vaultDir, '.voicetree', `${PORT_FILENAME}.tmp.${suffix}`)
+  return join(getProjectDotVoicetreePath(vaultDir), `${PORT_FILENAME}.tmp.${suffix}`)
 }
 
 function isValidPort(port: number): boolean {

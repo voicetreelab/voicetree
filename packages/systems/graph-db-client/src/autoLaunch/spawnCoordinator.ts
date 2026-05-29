@@ -48,6 +48,7 @@ import {
   type OwnerEvidence,
   type OwnerRecord,
 } from '@vt/daemon-lifecycle'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { CommandSpec } from './runtime.ts'
 
 /**
@@ -59,7 +60,7 @@ import type { CommandSpec } from './runtime.ts'
  * so the launcher has to ensure the directory.
  */
 function daemonLogPath(canonicalVault: string, daemonKind: DaemonKind): string {
-  const dir = join(canonicalVault, '.voicetree')
+  const dir = getProjectDotVoicetreePath(canonicalVault)
   mkdirSync(dir, { recursive: true })
   return join(dir, `${daemonKind}.log`)
 }

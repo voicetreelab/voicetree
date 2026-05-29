@@ -100,7 +100,7 @@ describe('SSE subscription client round-trip', () => {
     }, 15000)
 
     test('client receives and can forward HTTP-posted deltas via SSE as ProjectedGraph', async () => {
-        const handle = await startDaemon({ vault, appSupportPath: appSupport })
+        const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
         handles.push(handle)
         const base = `http://127.0.0.1:${handle.port}`
 

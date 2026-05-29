@@ -100,9 +100,9 @@ async function runStorm(args: {
     const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
     const tsxImportPath = resolveTsxImportPath()
 
-    // Set VOICETREE_APP_SUPPORT so every leaf in this process resolves the
-    // perf-test app-support dir via resolveAppSupportPath().
-    process.env.VOICETREE_APP_SUPPORT = args.appSupport
+    // Set VOICETREE_HOME_PATH so every leaf in this process resolves the
+    // perf-test app-support dir via resolveVoicetreeHomePath().
+    process.env.VOICETREE_HOME_PATH = args.appSupport
 
     configureAgentRuntime({
         env: {},

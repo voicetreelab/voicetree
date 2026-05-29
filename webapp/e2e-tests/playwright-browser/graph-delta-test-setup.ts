@@ -182,7 +182,7 @@ function installMockElectronAPI(): void {
         clone: async (_srcViewId: string, name: string) => ({ viewId: `view-${name}`, name }),
         delete: async () => ({ success: true }),
       },
-      getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
+      getVoicetreeHomePath: async (): Promise<string> => '/Users/testuser/.voicetree',
       getVaultPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
       getWriteFolder: async () => ({
         _tag: 'Some' as const,

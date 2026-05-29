@@ -1,5 +1,6 @@
 import {existsSync, readFileSync} from 'node:fs'
-import {basename, dirname, join, relative, resolve, sep} from 'node:path'
+import {basename, dirname, join, resolve} from 'node:path'
+import {isWithin} from './pathWithin'
 
 export type ResolvedFolderType = {
     readonly typeName: string
@@ -34,11 +35,6 @@ function parseTypeFromFolderNote(markdown: string): string | undefined {
     }
 
     return undefined
-}
-
-function isWithin(child: string, ancestor: string): boolean {
-    const rel: string = relative(ancestor, child)
-    return rel.length === 0 || (!rel.startsWith('..') && !rel.startsWith(`..${sep}`))
 }
 
 export function resolveTypeForTarget(

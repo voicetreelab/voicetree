@@ -1,4 +1,11 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+
+const CI_CHECK_REPORTER = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../health-dashboard/reporters/playwright-ci-check-reporter.mjs',
+);
 
 const browserSmokePort = Number(process.env.PLAYWRIGHT_PORT ?? 3000);
 const browserSmokeBaseURL = `http://127.0.0.1:${browserSmokePort}`;
@@ -10,7 +17,14 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : 5,
-  reporter: 'line',
+  reporter: [
+    ['line'],
+    [CI_CHECK_REPORTER, {
+      checkId: 'e2e-browser-smoke',
+      checkName: 'E2E Browser Smoke',
+      command: 'playwright test --config=playwright-ci-smoke.config.ts',
+    }],
+  ],
   use: {
     baseURL: browserSmokeBaseURL,
     trace: 'on-first-retry',

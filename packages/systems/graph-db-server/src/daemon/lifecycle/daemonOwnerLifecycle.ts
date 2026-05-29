@@ -26,6 +26,7 @@
 import { randomBytes } from 'node:crypto'
 import { unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import { SpanStatusCode, trace } from '@opentelemetry/api'
 import type {
   CallerKind,
@@ -233,7 +234,7 @@ function makeTempSuffix(): string {
 }
 
 function legacyLockPathFor(vaultDir: string): string {
-  return join(vaultDir, '.voicetree', LEGACY_LOCK_FILENAME)
+  return join(getProjectDotVoicetreePath(vaultDir), LEGACY_LOCK_FILENAME)
 }
 
 async function writeLegacyLockSidecar(vaultDir: string, pid: number): Promise<void> {

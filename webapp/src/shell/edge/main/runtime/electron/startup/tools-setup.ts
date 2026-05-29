@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { app } from 'electron';
+import {getProjectDotVoicetreePath} from '@vt/paths';
 import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 import type { BuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 import type { Dirent } from 'fs';
@@ -226,7 +227,7 @@ async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: 
  */
 export async function ensureProjectDotVoicetree(projectRoot: string): Promise<void> {
   const config: BuildConfig = getBuildConfig();
-  const dotVoicetree: string = path.join(projectRoot, '.voicetree');
+  const dotVoicetree: string = getProjectDotVoicetreePath(projectRoot);
 
   // Ensure .voicetree/ directory exists
   await fs.mkdir(dotVoicetree, { recursive: true });

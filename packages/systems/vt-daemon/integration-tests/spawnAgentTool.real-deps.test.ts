@@ -83,9 +83,9 @@ function buildBridge(writeFolder: string): GraphBridge {
     }
 }
 
-async function writeSettingsFile(appSupportPath: string, settings: VTSettings): Promise<void> {
-    await fs.mkdir(appSupportPath, {recursive: true})
-    await fs.writeFile(path.join(appSupportPath, 'settings.json'), JSON.stringify(settings, null, 2), 'utf-8')
+async function writeSettingsFile(voicetreeHomePath: string, settings: VTSettings): Promise<void> {
+    await fs.mkdir(voicetreeHomePath, {recursive: true})
+    await fs.writeFile(path.join(voicetreeHomePath, 'settings.json'), JSON.stringify(settings, null, 2), 'utf-8')
 }
 
 function recordCaller(envVars?: Record<string, string>): void {
@@ -102,7 +102,7 @@ function recordCaller(envVars?: Record<string, string>): void {
 }
 
 beforeAll(() => {
-    process.env.VOICETREE_APP_SUPPORT = TMP_ROOT
+    process.env.VOICETREE_HOME_PATH = TMP_ROOT
 })
 
 describe('spawnAgentTool real-deps integration', () => {
@@ -112,7 +112,7 @@ describe('spawnAgentTool real-deps integration', () => {
     beforeEach(async () => {
         testTmpDir = path.join(TMP_ROOT, `t-${Date.now()}-${Math.random().toString(36).slice(2)}`)
         await fs.mkdir(testTmpDir, {recursive: true})
-        process.env.VOICETREE_APP_SUPPORT = testTmpDir
+        process.env.VOICETREE_HOME_PATH = testTmpDir
 
         clearSettingsCache()
         clearTerminalRecords()

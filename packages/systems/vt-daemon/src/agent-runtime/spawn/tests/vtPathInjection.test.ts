@@ -123,13 +123,13 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
 
     beforeEach(async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-vtbin-spawn-'))
-        process.env.VOICETREE_APP_SUPPORT = tempDir
+        process.env.VOICETREE_HOME_PATH = tempDir
     })
 
     afterEach(async () => {
         await fs.rm(tempDir, {recursive: true, force: true})
         configureAgentRuntime({})
-        delete process.env.VOICETREE_APP_SUPPORT
+        delete process.env.VOICETREE_HOME_PATH
     })
 
     it('prepends the configured vt-bin dir onto PATH', async () => {

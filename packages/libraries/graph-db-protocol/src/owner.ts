@@ -31,6 +31,7 @@
 
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 const OWNER_RECORD_SCHEMA_VERSION = 1 as const
 
@@ -186,7 +187,7 @@ function isOwnerRecord(value: unknown): value is OwnerRecord {
 }
 
 function pathFor(vaultDir: string, daemonKind: DaemonKind): string {
-  return join(vaultDir, '.voicetree', ownerRecordFilenameFor(daemonKind))
+  return join(getProjectDotVoicetreePath(vaultDir), ownerRecordFilenameFor(daemonKind))
 }
 
 function decode(raw: string): OwnerRecord | null {

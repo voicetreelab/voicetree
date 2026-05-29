@@ -23,12 +23,12 @@ const TASK_NODE_PATH = `${SUBFOLDER_WRITE_FOLDER}/task_rx33do.md`
 
 describe('buildTerminalEnvVars — vault-path semantics', () => {
     beforeEach(() => {
-        process.env.VOICETREE_APP_SUPPORT = '/tmp/app-support'
+        process.env.VOICETREE_HOME_PATH = '/tmp/app-support'
     })
 
     afterEach(() => {
         configureAgentRuntime({})
-        delete process.env.VOICETREE_APP_SUPPORT
+        delete process.env.VOICETREE_HOME_PATH
     })
 
     it('exports VOICETREE_VAULT_PATH as the canonical project root, not the writeFolder subfolder', async () => {

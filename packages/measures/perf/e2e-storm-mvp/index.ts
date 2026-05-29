@@ -124,7 +124,7 @@ function countStormOutputNodes(vaultDir: string): number {
     }).length
 }
 
-function writeStormSettings(appSupportPath: string, args: Args): void {
+function writeStormSettings(voicetreeHomePath: string, args: Args): void {
     const injectedPrompts = Object.fromEntries(
         Array.from({ length: args.agentCount }, (_, agentIndex) => [
             promptTemplateName(agentIndex),
@@ -132,7 +132,7 @@ function writeStormSettings(appSupportPath: string, args: Args): void {
         ]),
     )
     writeFileSync(
-        path.join(appSupportPath, 'settings.json'),
+        path.join(voicetreeHomePath, 'settings.json'),
         JSON.stringify({
             agents: [
                 { name: 'Storm Caller', command: STORM_CALLER_COMMAND },
@@ -608,8 +608,8 @@ async function main(): Promise<void> {
     const vaultDir = path.join(projectDir, 'mvp-vault')
     mkdirSync(vaultDir, { recursive: true })
 
-    const appSupportPath = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-app-'))
-    writeStormSettings(appSupportPath, args)
+    const voicetreeHomePath = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-app-'))
+    writeStormSettings(voicetreeHomePath, args)
     const logsDir = path.join(runContext.runDir, 'logs')
     mkdirSync(logsDir, { recursive: true })
     const outPath = args.outPath ?? path.join(runContext.runDir, 'e2e-storm-mvp-report.json')
@@ -663,7 +663,7 @@ async function main(): Promise<void> {
             repoRoot: REPO_ROOT,
             projectDir,
             vaultDir,
-            appSupportPath,
+            voicetreeHomePath,
             logFilePath: electronLogPath,
             inspectPort: args.inspectPort,
             mcpDiscoveryTimeoutMs: args.mcpDiscoveryTimeoutMs,
@@ -860,9 +860,9 @@ async function main(): Promise<void> {
 
         if (!args.keepArtifacts) {
             rmSync(projectRoot, { recursive: true, force: true })
-            rmSync(appSupportPath, { recursive: true, force: true })
+            rmSync(voicetreeHomePath, { recursive: true, force: true })
         } else {
-            process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} appSupport=${appSupportPath}\n`)
+            process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} appSupport=${voicetreeHomePath}\n`)
         }
 
         if (hostVmMetrics !== null) {
@@ -898,7 +898,7 @@ async function main(): Promise<void> {
         mcpPort,
         vaultDir,
         projectDir,
-        appSupportPath,
+        voicetreeHomePath,
         electronLogPath,
         perfRunDir: runContext.runDir,
         screenshotDir: path.join(runContext.runDir, 'screenshots'),

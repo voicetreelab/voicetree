@@ -6,12 +6,12 @@
 
 import {readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
-export const VOICETREE_DIRNAME: string = '.voicetree'
 export const AUTH_TOKEN_FILENAME: string = 'auth-token'
 
 export function authTokenFilePath(vaultPath: string): string {
-    return join(resolve(vaultPath), VOICETREE_DIRNAME, AUTH_TOKEN_FILENAME)
+    return join(getProjectDotVoicetreePath(resolve(vaultPath)), AUTH_TOKEN_FILENAME)
 }
 
 // Returns null when the file is missing or contains an obviously-invalid

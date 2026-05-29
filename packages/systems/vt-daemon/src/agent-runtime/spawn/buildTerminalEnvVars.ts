@@ -6,7 +6,7 @@
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {resolveAppSupportPath} from '@vt/app-config/app-support-path'
+import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt} from './cliManualInjection'
 import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
@@ -37,7 +37,7 @@ export async function buildTerminalEnvVars(params: {
         resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]
     }
     const env = getRuntimeEnv()
-    const appSupportPath: string = resolveAppSupportPath()
+    const voicetreeHomePath: string = resolveVoicetreeHomePath()
     const allVaultPaths: readonly string[] = env.getVaultPaths
         ? await env.getVaultPaths()
         : await getRuntimeVaultPaths()
@@ -52,13 +52,13 @@ export async function buildTerminalEnvVars(params: {
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
-    const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
+    const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
     const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
 
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_PROJECT_DIR: voicetreeProjectDir,
-        VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+        VOICETREE_HOME_PATH: voicetreeHomePath ?? '',
         VOICETREE_VAULT_PATH: projectRoot ?? '',
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: params.contextNodePath,

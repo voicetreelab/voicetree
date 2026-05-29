@@ -6,7 +6,6 @@
 export {ERROR_CODES, type ErrorCode, type ErrorKindAlias} from './errorCodes.ts'
 
 export {
-    VOICETREE_DIRNAME,
     RPC_PORT_FILENAME,
     rpcPortFilePath,
     readRpcPortFile,

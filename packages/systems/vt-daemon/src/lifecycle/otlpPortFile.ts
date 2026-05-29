@@ -14,12 +14,12 @@
 import {mkdir, readFile, rename, unlink, writeFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 
-import {VOICETREE_DIRNAME} from '@vt/vt-rpc'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 
 export const OTLP_PORT_FILENAME: string = 'otlp.port'
 
 export function otlpPortFilePath(vaultPath: string): string {
-    return join(resolve(vaultPath), VOICETREE_DIRNAME, OTLP_PORT_FILENAME)
+    return join(getProjectDotVoicetreePath(resolve(vaultPath)), OTLP_PORT_FILENAME)
 }
 
 export async function writeOtlpPortFile(vaultPath: string, port: number): Promise<void> {
@@ -28,7 +28,7 @@ export async function writeOtlpPortFile(vaultPath: string, port: number): Promis
     }
     const finalPath: string = otlpPortFilePath(vaultPath)
     const tempPath: string = `${finalPath}.${process.pid}.tmp`
-    await mkdir(join(resolve(vaultPath), VOICETREE_DIRNAME), {recursive: true})
+    await mkdir(getProjectDotVoicetreePath(resolve(vaultPath)), {recursive: true})
     await writeFile(tempPath, `${port}\n`, 'utf8')
     await rename(tempPath, finalPath)
 }

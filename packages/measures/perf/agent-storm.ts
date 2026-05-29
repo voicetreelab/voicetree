@@ -156,7 +156,7 @@ async function main(): Promise<void> {
     const graphdOffset = ndjsonFileSize(graphdNdjson)
     const electronOffset = ndjsonFileSize(electronNdjson)
 
-    process.env.VOICETREE_APP_SUPPORT = tempAppSupport
+    process.env.VOICETREE_HOME_PATH = tempAppSupport
     configureAgentRuntime({
         env: {},
     })
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
 
     let daemonHandle: DaemonHandle
     try {
-        daemonHandle = await startDaemon({ vault: tempVault, appSupportPath: tempAppSupport })
+        daemonHandle = await startDaemon({ vault: tempVault, voicetreeHomePath: tempAppSupport })
     } catch (err) {
         throw new Error(`startDaemon failed: ${(err as Error).message}`)
     }
@@ -444,7 +444,7 @@ async function main(): Promise<void> {
         timedOutCount,
         filesCreated,
         vaultPath: tempVault,
-        appSupportPath: tempAppSupport,
+        voicetreeHomePath: tempAppSupport,
         spans: { vtGraphd: graphdSummary, vtElectronDaemon: electronSummary },
         agents: agentResults,
     }

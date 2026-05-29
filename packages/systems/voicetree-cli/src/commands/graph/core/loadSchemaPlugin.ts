@@ -1,7 +1,9 @@
 import {realpathSync, statSync, type Stats} from 'node:fs'
 import {createRequire} from 'node:module'
-import {join, relative, resolve, sep} from 'node:path'
+import {join, resolve} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {Validator, ValidatorMap} from './types'
+import {isWithin} from './pathWithin'
 
 type CacheEntry = {
     readonly mtimeMs: number
@@ -13,16 +15,10 @@ type CacheEntry = {
 // (Vite/vitest's loader doesn't support dynamic `import()` of files outside its
 // module graph). Plugin authors write `module.exports = { typeName: { validate }}`.
 const SCHEMAS_FILENAME: string = 'schemas.cjs'
-const VOICETREE_DIRNAME: string = '.voicetree'
 
 const requireFromHere: NodeJS.Require = createRequire(import.meta.url)
 
 const cacheByVaultRoot: Map<string, CacheEntry> = new Map<string, CacheEntry>()
-
-function isWithin(child: string, ancestor: string): boolean {
-    const rel: string = relative(ancestor, child)
-    return rel.length === 0 || (!rel.startsWith('..') && !rel.startsWith(`..${sep}`))
-}
 
 function statSafely(targetPath: string): Stats | undefined {
     try {
@@ -50,7 +46,7 @@ export function clearLoadSchemaPluginCacheForTest(): void {
 
 export async function loadSchemaPlugin(vaultRoot: string): Promise<ValidatorMap | undefined> {
     const absoluteVault: string = resolve(vaultRoot)
-    const schemasPath: string = join(absoluteVault, VOICETREE_DIRNAME, SCHEMAS_FILENAME)
+    const schemasPath: string = join(getProjectDotVoicetreePath(absoluteVault), SCHEMAS_FILENAME)
 
     const stats: Stats | undefined = statSafely(schemasPath)
     if (stats === undefined || !stats.isFile()) {

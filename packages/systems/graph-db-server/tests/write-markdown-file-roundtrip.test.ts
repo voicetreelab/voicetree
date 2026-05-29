@@ -150,7 +150,7 @@ describe('write-markdown-file daemon roundtrip', () => {
   async function start(): Promise<string> {
     handle = await startDaemon({
       vault,
-      appSupportPath: appSupport,
+      voicetreeHomePath: appSupport,
       createStarterIfEmpty: false,
     })
     return `http://127.0.0.1:${handle.port}`

@@ -1,12 +1,13 @@
 import {readdirSync} from 'node:fs'
 import {join} from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {TerminalData, TerminalId} from './types'
 
 // Local clone of recovery/paths.ts:getRecoveryMetadataDir — importing that
 // helper from here would cross the relative-import-depth budget (../../).
 // Must stay byte-identical to the canonical helper.
 function recoveryMetadataDir(projectRoot: string): string {
-    return join(projectRoot, '.voicetree', 'terminals')
+    return join(getProjectDotVoicetreePath(projectRoot), 'terminals')
 }
 import {createTerminalData} from './types'
 import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from './terminal-metadata'

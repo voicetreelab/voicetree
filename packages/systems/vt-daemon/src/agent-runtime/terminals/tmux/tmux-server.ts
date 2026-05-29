@@ -5,7 +5,7 @@ import {createTmuxServerCore, type TmuxServerDeps} from './tmux-server-core.ts'
 
 const tmuxServerCore = createTmuxServerCore()
 const {
-    defaultAppSupportPath,
+    defaultVoicetreeHomePath,
     defaultDeps,
     execDetachedFilePromise,
     execFilePromise,
@@ -18,7 +18,7 @@ const {
 type TmuxCommandResult = Awaited<ReturnType<typeof tmuxServerCore.execFilePromise>>
 
 interface EnsureTmuxServerOptions {
-    readonly appSupportPath?: string
+    readonly voicetreeHomePath?: string
     readonly cleanupLegacyLaunchAgent?: boolean
     readonly deps?: Partial<TmuxServerDeps>
     readonly socketPath?: string
@@ -26,7 +26,7 @@ interface EnsureTmuxServerOptions {
 }
 
 interface ShutdownTmuxServerOptions {
-    readonly appSupportPath?: string
+    readonly voicetreeHomePath?: string
     readonly deps?: Partial<TmuxServerDeps>
     readonly socketPath?: string
     readonly tmuxBin?: string
@@ -183,12 +183,12 @@ async function reconcileOrphans(socketPath: string, deps: TmuxServerDeps): Promi
     }
 }
 
-function lockPath(appSupportPath: string): string {
-    return join(appSupportPath, 'tmux.ensure.lock')
+function lockPath(voicetreeHomePath: string): string {
+    return join(voicetreeHomePath, 'tmux.ensure.lock')
 }
 
-async function acquireEnsureLock(appSupportPath: string, deps: TmuxServerDeps): Promise<() => void> {
-    const target: string = lockPath(appSupportPath)
+async function acquireEnsureLock(voicetreeHomePath: string, deps: TmuxServerDeps): Promise<() => void> {
+    const target: string = lockPath(voicetreeHomePath)
     const started: number = deps.now()
 
     while (deps.now() - started < LOCK_WAIT_MS) {
@@ -271,7 +271,7 @@ async function removeLegacyLaunchAgentOnce(deps: TmuxServerDeps): Promise<void> 
 
 async function ensureLegacyLaunchAgentRemoved(options: EnsureTmuxServerOptions, deps: TmuxServerDeps): Promise<void> {
     if (options.cleanupLegacyLaunchAgent === false) return
-    if (options.deps || options.appSupportPath || options.socketPath || options.tmuxBin) {
+    if (options.deps || options.voicetreeHomePath || options.socketPath || options.tmuxBin) {
         await removeLegacyLaunchAgentOnce(deps)
         return
     }
@@ -281,17 +281,17 @@ async function ensureLegacyLaunchAgentRemoved(options: EnsureTmuxServerOptions, 
 
 async function ensureTmuxServerOnce(options: EnsureTmuxServerOptions): Promise<void> {
     const deps: TmuxServerDeps = resolveDeps(options.deps)
-    const appSupportPath: string = options.appSupportPath ?? defaultAppSupportPath(deps)
-    const socketPath: string = options.socketPath ?? getTmuxSocketPath(appSupportPath)
+    const voicetreeHomePath: string = options.voicetreeHomePath ?? defaultVoicetreeHomePath(deps)
+    const socketPath: string = options.socketPath ?? getTmuxSocketPath(voicetreeHomePath)
     const tmuxBin: string = options.tmuxBin ?? getTmuxBinaryPath(options.deps)
 
-    deps.mkdirSync(appSupportPath, {recursive: true})
+    deps.mkdirSync(voicetreeHomePath, {recursive: true})
     deps.mkdirSync(dirname(socketPath), {recursive: true})
     await ensureLegacyLaunchAgentRemoved(options, deps)
 
     if (await serverResponds(tmuxBin, socketPath, deps)) return
 
-    const release: () => void = await acquireEnsureLock(appSupportPath, deps)
+    const release: () => void = await acquireEnsureLock(voicetreeHomePath, deps)
     try {
         if (await serverResponds(tmuxBin, socketPath, deps)) return
         await startRootSessionWithStaleSocketRetry(tmuxBin, socketPath, deps)
@@ -302,8 +302,8 @@ async function ensureTmuxServerOnce(options: EnsureTmuxServerOptions): Promise<v
 
 async function shutdownTmuxServerOnce(options: ShutdownTmuxServerOptions): Promise<void> {
     const deps: TmuxServerDeps = resolveDeps(options.deps)
-    const appSupportPath: string = options.appSupportPath ?? defaultAppSupportPath(deps)
-    const socketPath: string = options.socketPath ?? getTmuxSocketPath(appSupportPath)
+    const voicetreeHomePath: string = options.voicetreeHomePath ?? defaultVoicetreeHomePath(deps)
+    const socketPath: string = options.socketPath ?? getTmuxSocketPath(voicetreeHomePath)
     const tmuxBin: string = options.tmuxBin ?? getTmuxBinaryPath(options.deps)
 
     if (!(await serverResponds(tmuxBin, socketPath, deps))) return
@@ -328,14 +328,14 @@ function platformSocketPathByteLimit(platform: NodeJS.Platform): number {
     return SOCKET_PATH_BYTE_LIMIT_DARWIN
 }
 
-function fallbackSocketPath(appSupportPath: string): string {
-    const hash: string = createHash('sha256').update(appSupportPath).digest('hex').slice(0, SOCKET_FALLBACK_HASH_HEX_LEN)
+function fallbackSocketPath(voicetreeHomePath: string): string {
+    const hash: string = createHash('sha256').update(voicetreeHomePath).digest('hex').slice(0, SOCKET_FALLBACK_HASH_HEX_LEN)
     return join(tmpdir(), `${SOCKET_FALLBACK_PREFIX}${hash}.sock`)
 }
 
 // Fallback to short hashed path when natural exceeds AF_UNIX sun_path byte cap.
-export function getTmuxSocketPath(appSupportPath?: string): string {
-    const resolved: string = appSupportPath ?? defaultAppSupportPath(defaultDeps)
+export function getTmuxSocketPath(voicetreeHomePath?: string): string {
+    const resolved: string = voicetreeHomePath ?? defaultVoicetreeHomePath(defaultDeps)
     const natural: string = join(resolved, SOCKET_NAME)
     if (Buffer.byteLength(natural, 'utf8') <= platformSocketPathByteLimit(defaultDeps.platform)) {
         return natural
@@ -352,7 +352,7 @@ export function getTmuxCommandArgs(args: readonly string[], socketPath: string =
 }
 
 export function ensureTmuxServer(options: EnsureTmuxServerOptions = {}): Promise<void> {
-    if (options.deps || options.appSupportPath || options.socketPath || options.tmuxBin || options.cleanupLegacyLaunchAgent === false) {
+    if (options.deps || options.voicetreeHomePath || options.socketPath || options.tmuxBin || options.cleanupLegacyLaunchAgent === false) {
         return ensureTmuxServerOnce(options)
     }
     if (!ensurePromise) {
@@ -364,7 +364,7 @@ export function ensureTmuxServer(options: EnsureTmuxServerOptions = {}): Promise
 }
 
 export async function shutdownTmuxServer(options: ShutdownTmuxServerOptions = {}): Promise<void> {
-    if (!options.deps && !options.appSupportPath && !options.socketPath && !options.tmuxBin) {
+    if (!options.deps && !options.voicetreeHomePath && !options.socketPath && !options.tmuxBin) {
         const inFlightEnsure: Promise<void> | null = ensurePromise
         ensurePromise = null
         if (inFlightEnsure) await inFlightEnsure.catch(() => undefined)

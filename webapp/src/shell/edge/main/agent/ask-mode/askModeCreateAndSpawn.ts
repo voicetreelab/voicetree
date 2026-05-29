@@ -11,7 +11,7 @@ import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-m
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import {getExistingAgentNames} from '@vt/vt-daemon-client';
 import {getActiveVault, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
-import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
+import {getVoicetreeHomePath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -73,7 +73,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   // terminalId = agentName (unified identification)
   const terminalId: TerminalId = agentName as TerminalId;
 
-  const appSupportPath: string = getAppSupportPath();
+  const voicetreeHomePath: string = getVoicetreeHomePath();
 
   // Spawn directory is rooted at the vault, NOT the writeFolder. writeFolder
   // can be a dated subdirectory of the vault (see watchFolder.ts
@@ -97,7 +97,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const taskNodeAbsolutePath: string = contextNodeResult.parentNodePath;
 
   const unexpandedEnvVars: Record<string, string> = {
-    VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+    VOICETREE_HOME_PATH: voicetreeHomePath ?? '',
     CONTEXT_NODE_PATH: contextNodeAbsolutePath,
     TASK_NODE_PATH: taskNodeAbsolutePath,
     VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME

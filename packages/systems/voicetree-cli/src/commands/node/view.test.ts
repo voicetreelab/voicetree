@@ -34,7 +34,7 @@ async function runViewJson(argv: string[]): Promise<unknown> {
 describe('runViewCommand', () => {
     let daemonHandle: DaemonHandle
     let harness: Harness
-    let originalAppSupportPath: string | undefined
+    let originalVoicetreeHomePath: string | undefined
     let originalSessionEnv: string | undefined
     let originalCwd: string
     let stdoutIsTTYDescriptor: PropertyDescriptor | undefined
@@ -47,9 +47,9 @@ describe('runViewCommand', () => {
 
     beforeEach(async () => {
         harness = await createHarness()
-        originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
+        originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
         originalSessionEnv = process.env.VT_SESSION
-        process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
+        process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
         delete process.env.VT_SESSION
         originalCwd = process.cwd()
         stdoutIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
@@ -72,10 +72,10 @@ describe('runViewCommand', () => {
         clearWatchFolderState()
         setGraph(createEmptyGraph())
 
-        if (originalAppSupportPath === undefined) {
-            delete process.env.VOICETREE_APP_SUPPORT
+        if (originalVoicetreeHomePath === undefined) {
+            delete process.env.VOICETREE_HOME_PATH
         } else {
-            process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+            process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
         }
 
         if (originalSessionEnv === undefined) {

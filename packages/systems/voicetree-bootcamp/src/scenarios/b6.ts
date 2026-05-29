@@ -11,6 +11,7 @@
  */
 import {promises as fs} from 'node:fs'
 import * as path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {ScenarioSpec, SuccessResult} from '../types.ts'
 import {
     fileExists,
@@ -128,7 +129,7 @@ export const b6: ScenarioSpec = {
         await writeFile(path.join(vaultDir, '_fixtures', 'long-analysis.txt'), LONG_ANALYSIS_FIXTURE)
         await writeFile(path.join(vaultDir, 'auth.ts'), AUTH_TS_BODY)
         await writeFile(
-            path.join(vaultDir, '.voicetree', 'session.json'),
+            path.join(getProjectDotVoicetreePath(vaultDir), 'session.json'),
             JSON.stringify({
                 sessions: {
                     default: {
@@ -187,7 +188,7 @@ export const b6: ScenarioSpec = {
 }
 
 async function checkSessions(vaultDir: string): Promise<SuccessResult> {
-    const sessionFile = path.join(vaultDir, '.voicetree', 'session.json')
+    const sessionFile = path.join(getProjectDotVoicetreePath(vaultDir), 'session.json')
     if (!(await fileExists(sessionFile))) {
         return {passed: false, detail: 'A: .voicetree/session.json missing after run'}
     }

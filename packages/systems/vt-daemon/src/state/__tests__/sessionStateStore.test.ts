@@ -28,7 +28,7 @@ import {
 
 interface Harness {
     readonly vault: string
-    readonly appSupportPath: string
+    readonly voicetreeHomePath: string
     readonly root: string
     readonly fixtureNodeId: NodeIdAndFilePath
     readonly handle: DaemonHandle
@@ -38,11 +38,11 @@ const FIXTURE_BASENAME: string = 'fixture.md'
 
 async function startHarness(): Promise<Harness> {
     const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-session-store-')))
-    const appSupportPath: string = join(root, 'app-support')
+    const voicetreeHomePath: string = join(root, 'app-support')
     const vault: string = join(root, 'vault')
-    await mkdir(appSupportPath, {recursive: true})
+    await mkdir(voicetreeHomePath, {recursive: true})
     await mkdir(vault, {recursive: true})
-    process.env.VOICETREE_APP_SUPPORT = appSupportPath
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     clearWatchFolderState()
     setGraph(createEmptyGraph())
 
@@ -52,13 +52,13 @@ async function startHarness(): Promise<Harness> {
 
     const handle: DaemonHandle = await startDaemon({
         vault,
-        appSupportPath,
+        voicetreeHomePath,
         createStarterIfEmpty: false,
     })
 
     return {
         vault,
-        appSupportPath,
+        voicetreeHomePath,
         root,
         fixtureNodeId: fixturePath as NodeIdAndFilePath,
         handle,

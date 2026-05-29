@@ -63,8 +63,8 @@ describe('session-state fuzz', () => {
   beforeAll(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-fuzz-session-'))
     vault = path.join(root, 'vault')
-    const appSupportPath = path.join(root, 'app-support')
-    process.env.VOICETREE_APP_SUPPORT = appSupportPath
+    const voicetreeHomePath = path.join(root, 'app-support')
+    process.env.VOICETREE_HOME_PATH = voicetreeHomePath
     await mkdir(vault, { recursive: true })
 
     const notes = path.join(vault, 'notes')
@@ -93,7 +93,7 @@ describe('session-state fuzz', () => {
 
     handle = await startDaemon({
       vault,
-      appSupportPath,
+      voicetreeHomePath,
       createStarterIfEmpty: false,
     })
     baseUrl = `http://127.0.0.1:${handle.port}`

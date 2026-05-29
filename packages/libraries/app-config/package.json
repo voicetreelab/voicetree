@@ -8,11 +8,11 @@
     "./settings": "./src/settings/settings_IO.ts",
     "./vault-config": "./src/vault-config/voicetree-config-io.ts",
     "./project": "./src/project/index.ts",
-    "./positions-io": "./src/positions/positions-io.ts",
-    "./app-support-path": "./src/app-support-path.ts"
+    "./positions-io": "./src/positions/positions-io.ts"
   },
   "dependencies": {
     "@vt/graph-model": "*",
+    "@vt/paths": "*",
     "@vscode/ripgrep": "^1.15.9",
     "fp-ts": "^2.16.9",
     "normalize-path": "^3.0.0"

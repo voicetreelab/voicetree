@@ -21,7 +21,7 @@ swallowEpipe(process.stderr)
 let handle
 try {
   handle = await startDaemon({
-    appSupportPath: process.env.VOICETREE_APP_SUPPORT,
+    voicetreeHomePath: process.env.VOICETREE_HOME_PATH,
     onShutdownComplete: () => process.exit(0),
   })
 } catch (err) {
@@ -69,8 +69,8 @@ export type VaultlessDaemonHandle = {
 }
 
 export type SpawnVaultlessDaemonOptions = {
-  /** App-support path piped through VOICETREE_APP_SUPPORT to the child. */
-  appSupportPath: string
+  /** App-support path piped through VOICETREE_HOME_PATH to the child. */
+  voicetreeHomePath: string
   /** Optional: override tsx loader path. Defaults to createRequire(import.meta.url).resolve('tsx'). */
   tsxLoaderPath?: string
   /** Optional: ready-handshake timeout (default 15_000). */
@@ -96,7 +96,7 @@ export async function spawnVaultlessDaemon(
   const child = spawn(runtimeCommand, ['--import', tsxLoader, '--eval', VAULTLESS_DAEMON_SCRIPT], {
     env: {
       ...process.env,
-      VOICETREE_APP_SUPPORT: opts.appSupportPath,
+      VOICETREE_HOME_PATH: opts.voicetreeHomePath,
       VOICETREE_PARENT_PID: String(process.pid),
     },
     stdio: ['pipe', 'pipe', 'pipe'],

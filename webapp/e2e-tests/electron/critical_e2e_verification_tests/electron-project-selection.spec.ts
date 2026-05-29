@@ -114,8 +114,9 @@ const test = base.extend<{
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
+                VOICETREE_HOME_PATH: tempUserDataPath,
                 VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
-                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+                VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
             },
             timeout: 15000
         });
@@ -356,6 +357,7 @@ test.describe('Project Selection Screen E2E', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -396,6 +398,7 @@ test.describe('Project Selection Screen E2E', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -475,6 +478,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1',
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -601,6 +605,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1',
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
@@ -841,6 +846,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
+                    VOICETREE_HOME_PATH: tempUserDataPath,
                     VOICETREE_PERSIST_STATE: '1',
                     VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },

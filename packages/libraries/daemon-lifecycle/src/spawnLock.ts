@@ -21,6 +21,7 @@
 
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { DaemonKind } from '@vt/graph-db-protocol'
 import { readProcessLiveness } from './processLiveness.ts'
 
@@ -29,7 +30,7 @@ export type SpawnLockAcquisition =
   | { readonly kind: 'held'; readonly holderPid: number | null }
 
 export function spawnLockPathFor(vaultDir: string, daemonKind: DaemonKind): string {
-  return join(vaultDir, '.voicetree', `${daemonKind}.spawn.lock`)
+  return join(getProjectDotVoicetreePath(vaultDir), `${daemonKind}.spawn.lock`)
 }
 
 /**

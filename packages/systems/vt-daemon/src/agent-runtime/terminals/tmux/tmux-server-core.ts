@@ -8,6 +8,7 @@ import {
 import {homedir, tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
+import {getVoicetreeHomePath, VOICETREE_HOME_PATH_ENV} from '@vt/paths'
 
 type ExecFileCallback = (error: Error | null, stdout: string | Buffer, stderr: string | Buffer) => void
 
@@ -98,15 +99,15 @@ function isTestRuntime(env: NodeJS.ProcessEnv): boolean {
     return env.VITEST === 'true' || env.NODE_ENV === 'test' || env.HEADLESS_TEST === '1'
 }
 
-function defaultAppSupportPath(deps: TmuxServerDeps): string {
-    const fromEnv: string | undefined = deps.env.VOICETREE_APP_SUPPORT?.trim()
+function defaultVoicetreeHomePath(deps: TmuxServerDeps): string {
+    const fromEnv: string | undefined = deps.env[VOICETREE_HOME_PATH_ENV]?.trim()
     if (fromEnv) return fromEnv
 
     if (isTestRuntime(deps.env)) {
         return join(tmpdir(), `voicetree-agent-runtime-tmux-${process.pid}`)
     }
 
-    return join(deps.homedir(), '.voicetree')
+    return getVoicetreeHomePath({env: deps.env, homePath: deps.homedir()})
 }
 
 function commandError(file: string, args: readonly string[], stdout: string, stderr: string, error: Error): TmuxCommandError {
@@ -184,7 +185,7 @@ function isMissingOrStaleServerError(error: unknown): boolean {
 
 export function createTmuxServerCore() {
     return {
-        defaultAppSupportPath,
+        defaultVoicetreeHomePath,
         defaultDeps,
         execDetachedFilePromise,
         execFilePromise,

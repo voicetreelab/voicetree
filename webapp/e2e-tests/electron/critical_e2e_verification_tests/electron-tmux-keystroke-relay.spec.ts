@@ -90,14 +90,14 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
   test('typing in a tmux-backed terminal reaches the pane via the Main-owned IPC bridge', async ({ appWindow }) => {
     test.setTimeout(240_000);
 
-    let appSupportPath: string | undefined;
+    let voicetreeHomePath: string | undefined;
     let terminalId: string | undefined;
 
     try {
-      appSupportPath = await appWindow.evaluate(async () => {
+      voicetreeHomePath = await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return api.main.getAppSupportPath();
+        return api.main.getVoicetreeHomePath();
       });
 
       await expect.poll(async () => appWindow.evaluate(async () => {
@@ -143,7 +143,7 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
 
       const liveTerminalId: string = terminalId;
 
-      await expect.poll(() => tmuxSessionExists(liveTerminalId, appSupportPath), {
+      await expect.poll(() => tmuxSessionExists(liveTerminalId, voicetreeHomePath), {
         timeout: 10_000,
         message: `tmux session ${liveTerminalId} never came up`,
       }).toBe(true);
@@ -190,12 +190,12 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
 
         await expect.poll(async () => {
           const received: string = await appWindow.evaluate(() => window.__e2eKeystrokeRelay?.received.value ?? '');
-          const onPane: string = tmuxCapturePane(liveTerminalId, appSupportPath);
+          const onPane: string = tmuxCapturePane(liveTerminalId, voicetreeHomePath);
           return received.includes(sentinel) && onPane.includes(sentinel);
         }, {
           timeout: KEYSTROKE_SETTLE_TIMEOUT_MS,
           intervals: [200, 500, 1000],
-          message: `keystrokes never produced "${sentinel}" via IPC relay. capture-pane:\n${tmuxCapturePane(liveTerminalId, appSupportPath)}`,
+          message: `keystrokes never produced "${sentinel}" via IPC relay. capture-pane:\n${tmuxCapturePane(liveTerminalId, voicetreeHomePath)}`,
         }).toBe(true);
       } finally {
         await appWindow.evaluate(async () => {
@@ -206,8 +206,8 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
     } finally {
       // Defensive cleanup — the tmux session is detached from the relay's
       // pty, so closing the IPC handle alone won't kill it.
-      if (terminalId && tmuxSessionExists(terminalId, appSupportPath)) {
-        killTmuxSession(terminalId, appSupportPath);
+      if (terminalId && tmuxSessionExists(terminalId, voicetreeHomePath)) {
+        killTmuxSession(terminalId, voicetreeHomePath);
       }
     }
   });

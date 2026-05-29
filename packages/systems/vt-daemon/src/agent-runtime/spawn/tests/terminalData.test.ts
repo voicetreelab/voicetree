@@ -44,16 +44,16 @@ const settings = {
 describe('prepareTerminalDataInMain', () => {
     afterEach(() => {
         configureAgentRuntime({})
-        delete process.env.VOICETREE_APP_SUPPORT
+        delete process.env.VOICETREE_HOME_PATH
     })
 
     it('does not fail when the freshly-created context node is not visible in the graph snapshot yet', async () => {
-        const appSupportPath = await mkdtemp(join(tmpdir(), 'vt-terminal-data-'))
+        const voicetreeHomePath = await mkdtemp(join(tmpdir(), 'vt-terminal-data-'))
         const taskNodeId = '/vault/task.md' as NodeIdAndFilePath
         const contextNodeId = '/vault/ctx-nodes/task-context.md' as NodeIdAndFilePath
 
         try {
-            process.env.VOICETREE_APP_SUPPORT = appSupportPath
+            process.env.VOICETREE_HOME_PATH = voicetreeHomePath
             configureAgentRuntime({
                 env: {
                     getProjectRoot: async () => '/project',
@@ -97,7 +97,7 @@ describe('prepareTerminalDataInMain', () => {
             // buildTerminalEnvVarsVaultPath.test.ts for the dedicated regression.
             expect(terminalData.initialEnvVars?.VOICETREE_VAULT_PATH).toBe('/project')
         } finally {
-            await rm(appSupportPath, {recursive: true, force: true})
+            await rm(voicetreeHomePath, {recursive: true, force: true})
         }
     })
 })

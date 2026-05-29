@@ -1,4 +1,5 @@
 import path from 'node:path'
+import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {attachExistingTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/tmuxHeadlessRuntime.ts'
 import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
@@ -86,7 +87,7 @@ export function parseVoicetreeTmuxSessionName(sessionName: string): ParsedVoicet
 async function resolveCurrentTmuxNamespace(): Promise<string | null> {
     const runtimeEnv = getRuntimeEnv()
     const projectRoot: string | null = await (runtimeEnv.getProjectRoot?.() ?? Promise.resolve(null))
-    if (projectRoot) return path.join(projectRoot, '.voicetree')
+    if (projectRoot) return getProjectDotVoicetreePath(projectRoot)
 
     return await (runtimeEnv.getWriteFolder?.() ?? Promise.resolve(null))
 }

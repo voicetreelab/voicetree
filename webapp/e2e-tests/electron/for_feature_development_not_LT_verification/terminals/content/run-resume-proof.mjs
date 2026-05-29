@@ -372,7 +372,7 @@ async function main() {
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '0',
         VOICETREE_PERSIST_STATE: '1',
-        VOICETREE_APP_SUPPORT: tempUserDataPath,
+        VOICETREE_HOME_PATH: tempUserDataPath,
         VOICETREE_CLAUDE_PROJECTS_DIR: claudeProjectsRoot,
       },
       timeout: 15000,

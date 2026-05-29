@@ -60,9 +60,9 @@ export interface GraphModelCallbacks {
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 
-// Module-level callbacks. The appSupportPath that previously lived here is
-// now resolved per-call from $VOICETREE_APP_SUPPORT via
-// @vt/app-config/app-support-path (see resolveAppSupportPath); each
+// Module-level callbacks. The voicetreeHomePath that previously lived here is
+// now resolved per-call from $VOICETREE_HOME_PATH via
+// @vt/paths (see resolveVoicetreeHomePath); each
 // launching process normalises the env var at boot.
 let _callbacks: GraphModelCallbacks = {}
 

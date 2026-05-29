@@ -7,7 +7,10 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const TREE_WIDTH_BUDGET = 5
+// 2026-05-29: `@vt/paths` extraction makes global/project path construction a
+// shared dependency leaf instead of scattered local constants. The package graph
+// gains one intentional hub, so the measured MCS lower bound moves 5 -> 6.
+const TREE_WIDTH_BUDGET = 6
 
 
 type ImportEdge = {

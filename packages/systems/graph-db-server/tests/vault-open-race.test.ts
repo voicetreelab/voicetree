@@ -83,7 +83,7 @@ describe('vault open race regression', () => {
     vaultB = await createVault(root, 'vault-b')
     handle = await startDaemon({
       vault: vaultA,
-      appSupportPath: path.join(root, 'app-support'),
+      voicetreeHomePath: path.join(root, 'app-support'),
       createStarterIfEmpty: false,
     })
   })

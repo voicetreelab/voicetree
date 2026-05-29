@@ -148,7 +148,7 @@ describe('SSE replay buffer', () => {
   }
 
   test('publish before subscribe: subscriber connects with since=0 and receives the missed delta on replay', async () => {
-    handle = await startDaemon({ vault, appSupportPath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
     const sessionId = await createSession(base)
 
@@ -167,7 +167,7 @@ describe('SSE replay buffer', () => {
   }, 20_000)
 
   test('reconnect with last seen seq receives only deltas missed while disconnected', async () => {
-    handle = await startDaemon({ vault, appSupportPath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
     const sessionId = await createSession(base)
 
@@ -199,7 +199,7 @@ describe('SSE replay buffer', () => {
   }, 20_000)
 
   test('ring buffer cap: subscriber with stale since receives a full snapshot reset sentinel', async () => {
-    handle = await startDaemon({ vault, appSupportPath: appSupport, createStarterIfEmpty: false })
+    handle = await startDaemon({ vault, voicetreeHomePath: appSupport, createStarterIfEmpty: false })
     const base = `http://127.0.0.1:${handle.port}`
     const sessionId = await createSession(base)
 

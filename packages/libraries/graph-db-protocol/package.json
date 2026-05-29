@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vt/paths": "*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 /**
  * Edge helper: append every recorded tier event to a JSONL file under
- * VOICETREE_APP_SUPPORT/lifecycle-telemetry.jsonl. Fire-and-forget — failures
+ * VOICETREE_HOME_PATH/lifecycle-telemetry.jsonl. Fire-and-forget — failures
  * never block the hot path.
  *
  * Useful for offline analysis once the in-memory ring (10k events) starts
