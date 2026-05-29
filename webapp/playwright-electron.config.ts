@@ -11,12 +11,15 @@ const CI_CHECK_REPORTER = resolve(
  * Tier 3 Playwright configuration for Electron subsystem verification tests.
  *
  * Tests the Electron application with real file system operations and the
- * complete IPC pipeline. Two critical specs are promoted to tier 2 and
- * `testIgnore`'d here so they don't run twice — see
+ * complete IPC pipeline. Critical specs promoted to tier 2, plus obsolete
+ * predecessors replaced by those promoted specs, are `testIgnore`'d here so
+ * coverage stays single-sourced — see
  * `playwright-tier2-electron-critical.config.ts`.
  */
 const TIER2_PROMOTED_SPECS = [
   '**/electron-editor-disk-convergence.spec.ts',
+  '**/electron-markdown-editor-external-sync.spec.ts',
+  '**/electron-markdown-editors-crud-v2.spec.ts',
   '**/electron-project-selection.spec.ts',
   '**/electron-context-node-agent.spec.ts',
 ];
