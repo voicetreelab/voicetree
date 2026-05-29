@@ -126,7 +126,7 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
   }
 
   const values = parseLiveCrudFlagValues(verb, argsForVerb)
-  const vaultPath = optionalString(values, '--vault')
+  const projectPath = optionalString(values, '--project')
 
   switch (verb) {
     case 'add-node': {
@@ -151,11 +151,11 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
           },
         },
       }
-      return {command, ...(vaultPath !== undefined ? {vaultPath} : {})}
+      return {command, ...(projectPath !== undefined ? {projectPath} : {})}
     }
     case 'rm-node': {
       const file = resolvedRequiredPath(values, '--file')
-      return {command: {type: 'RemoveNode', id: file}, ...(vaultPath !== undefined ? {vaultPath} : {})}
+      return {command: {type: 'RemoveNode', id: file}, ...(projectPath !== undefined ? {projectPath} : {})}
     }
     case 'add-edge': {
       const source = resolvedRequiredPath(values, '--src-file')
@@ -163,31 +163,31 @@ export function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly s
       const label = optionalString(values, '--label') ?? ''
       return {
         command: {type: 'AddEdge', source, edge: {targetId, label}},
-        ...(vaultPath !== undefined ? {vaultPath} : {}),
+        ...(projectPath !== undefined ? {projectPath} : {}),
       }
     }
     case 'rm-edge': {
       const source = resolvedRequiredPath(values, '--src-file')
       const targetId = resolvedRequiredPath(values, '--tgt-file')
-      return {command: {type: 'RemoveEdge', source, targetId}, ...(vaultPath !== undefined ? {vaultPath} : {})}
+      return {command: {type: 'RemoveEdge', source, targetId}, ...(projectPath !== undefined ? {projectPath} : {})}
     }
     case 'mv-node': {
       const file = resolvedRequiredPath(values, '--file')
       const x = requiredNumber(values, '--x')
       const y = requiredNumber(values, '--y')
-      return {command: {type: 'Move', id: file, to: {x, y}}, ...(vaultPath !== undefined ? {vaultPath} : {})}
+      return {command: {type: 'Move', id: file, to: {x, y}}, ...(projectPath !== undefined ? {projectPath} : {})}
     }
   }
 }
 
 // ── live graph I/O (via daemon) ────────────────────────────────────────────
 
-async function getLoadedRoots(vaultPath?: string): Promise<readonly string[]> {
+async function getLoadedRoots(projectPath?: string): Promise<readonly string[]> {
   // BF-266a: derive loaded roots via hydrateState. Post-UFV the wire shape no longer
   // includes `roots.loaded` — that set is derived from `folderState` rows or the legacy
   // `roots.loaded` fallback by hydrateState. Reading `parsed.roots.loaded` directly
   // returned [] under the new wire shape, which made mv-node a no-op for positions.
-  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
+  const result = await liveStateDump({pretty: false, ...(projectPath !== undefined ? {projectPath} : {})})
   const serialized = JSON.parse(result.json) as SerializedState
   const state = hydrateState(serialized)
   return [...state.roots.loaded]
@@ -204,8 +204,8 @@ function readJsonRecord(filePath: string): Record<string, unknown> {
   }
 }
 
-async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, vaultPath?: string): Promise<void> {
-  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
+async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, projectPath?: string): Promise<void> {
+  const root = findLoadedRootForFile(await getLoadedRoots(projectPath), filePath)
   if (!root) return
 
   const positionsPath = path.join(root, '.voicetree', 'positions.json')
@@ -215,8 +215,8 @@ async function writePositionForFile(filePath: string, position: {readonly x: num
   fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
 }
 
-async function removePositionForFile(filePath: string, vaultPath?: string): Promise<void> {
-  const root = findLoadedRootForFile(await getLoadedRoots(vaultPath), filePath)
+async function removePositionForFile(filePath: string, projectPath?: string): Promise<void> {
+  const root = findLoadedRootForFile(await getLoadedRoots(projectPath), filePath)
   if (!root) return
 
   const positionsPath = path.join(root, '.voicetree', 'positions.json')
@@ -226,8 +226,8 @@ async function removePositionForFile(filePath: string, vaultPath?: string): Prom
   fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
 }
 
-export async function getLiveGraphNodes(vaultPath?: string): Promise<LiveGraphNodesSnapshot> {
-  const result = await liveStateDump({pretty: false, ...(vaultPath !== undefined ? {vaultPath} : {})})
+export async function getLiveGraphNodes(projectPath?: string): Promise<LiveGraphNodesSnapshot> {
+  const result = await liveStateDump({pretty: false, ...(projectPath !== undefined ? {projectPath} : {})})
   const parsed = JSON.parse(result.json) as {
     graph?: {nodes?: Record<string, LiveGraphNodeSnapshot | undefined>}
   }
@@ -335,14 +335,14 @@ export async function persistLiveCrudCommand(
       fs.mkdirSync(path.dirname(file), {recursive: true})
       fs.writeFileSync(file, withTrailingNewline(command.node.contentWithoutYamlOrLinks), 'utf8')
       if (command.node.nodeUIMetadata.position._tag === 'Some') {
-        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.vaultPath)
+        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.projectPath)
       }
       return
     }
     case 'RemoveNode': {
       if (!hasLiveNode(beforeNodes, command.id) || hasLiveNode(afterNodes, command.id)) return
       if (fs.existsSync(command.id)) fs.rmSync(command.id, {force: true})
-      await removePositionForFile(command.id, parsed.vaultPath)
+      await removePositionForFile(command.id, parsed.projectPath)
       return
     }
     case 'AddEdge': {
@@ -388,7 +388,7 @@ export async function persistLiveCrudCommand(
     }
     case 'Move': {
       if (!deltaMovedPosition(delta, command.id) && !nodeHasLivePosition(afterNodes, command.id, command.to)) return
-      await writePositionForFile(command.id, command.to, parsed.vaultPath)
+      await writePositionForFile(command.id, command.to, parsed.projectPath)
       return
     }
     default:

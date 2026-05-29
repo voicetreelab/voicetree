@@ -18,7 +18,7 @@ export interface FlagSpec {
 
 export interface ParsedLiveCrudCommand {
   readonly command: SerializedCommand
-  readonly vaultPath?: string
+  readonly projectPath?: string
 }
 
 export interface LiveGraphNodeSnapshot {
@@ -39,28 +39,28 @@ export const LIVE_CRUD_FLAGS: Record<LiveCrudVerb, readonly FlagSpec[]> = {
     {name: '--label', hint: '<text>', kind: 'string', required: false},
     {name: '--x', hint: '<num>', kind: 'number', required: false},
     {name: '--y', hint: '<num>', kind: 'number', required: false},
-    {name: '--vault', hint: '<path>', kind: 'string', required: false},
+    {name: '--project', hint: '<path>', kind: 'string', required: false},
   ],
   'rm-node': [
     {name: '--file', hint: '<file-path>', kind: 'string', required: true},
-    {name: '--vault', hint: '<path>', kind: 'string', required: false},
+    {name: '--project', hint: '<path>', kind: 'string', required: false},
   ],
   'add-edge': [
     {name: '--src-file', hint: '<path>', kind: 'string', required: true},
     {name: '--tgt-file', hint: '<path>', kind: 'string', required: true},
     {name: '--label', hint: '<text>', kind: 'string', required: false},
-    {name: '--vault', hint: '<path>', kind: 'string', required: false},
+    {name: '--project', hint: '<path>', kind: 'string', required: false},
   ],
   'rm-edge': [
     {name: '--src-file', hint: '<path>', kind: 'string', required: true},
     {name: '--tgt-file', hint: '<path>', kind: 'string', required: true},
-    {name: '--vault', hint: '<path>', kind: 'string', required: false},
+    {name: '--project', hint: '<path>', kind: 'string', required: false},
   ],
   'mv-node': [
     {name: '--file', hint: '<file-path>', kind: 'string', required: true},
     {name: '--x', hint: '<num>', kind: 'number', required: true},
     {name: '--y', hint: '<num>', kind: 'number', required: true},
-    {name: '--vault', hint: '<path>', kind: 'string', required: false},
+    {name: '--project', hint: '<path>', kind: 'string', required: false},
   ],
 }
 

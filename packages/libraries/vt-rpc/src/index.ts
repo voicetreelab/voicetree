@@ -26,21 +26,21 @@ export {
 } from './authTokenWrite.ts'
 
 export {
-    detectVaultFromCwd,
+    detectProjectFromCwd,
     discoverDaemonEndpoint,
-    discoverDaemonEndpointForVault,
+    discoverDaemonEndpointForProject,
     type DiscoveryOptions,
-    type VaultDiscoveryOptions,
+    type ProjectDiscoveryOptions,
     type ResolvedDaemonEndpoint,
 } from './pathDiscovery.ts'
 
 export {
     createRpcClient,
-    createRpcClientForVault,
+    createRpcClientForProject,
     DaemonAuthRequired,
     DaemonUnreachable,
     type DaemonRpcClient,
     type CreateRpcClientOptions,
-    type CreateRpcClientForVaultOptions,
+    type CreateRpcClientForProjectOptions,
     type JsonRpcResponse,
 } from './httpClient.ts'

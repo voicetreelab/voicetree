@@ -5,11 +5,11 @@
 // NDJSON → HTTP JSON-RPC + bearer auth, design doc §2.1 + §4.2).
 //
 // Endpoint resolution:
-//   - With an explicit `vaultPath`: `createRpcClientForVault` reads rpc.port +
-//     auth-token directly from that vault. `$VOICETREE_DAEMON_URL` still
+//   - With an explicit `projectPath`: `createRpcClientForProject` reads rpc.port +
+//     auth-token directly from that project. `$VOICETREE_DAEMON_URL` still
 //     overrides the URL (per-process override) but the token comes from the
-//     named vault.
-//   - Without `vaultPath`: full design doc §2.7 chain via `createRpcClient`
+//     named project.
+//   - Without `projectPath`: full design doc §2.7 chain via `createRpcClient`
 //     (env URL → cwd up-walk → `$VOICETREE_PROJECT_PATH` → throw).
 //
 // Error mapping harmonized with the CLI client (`webapp/.../daemon-client.ts`):
@@ -20,7 +20,7 @@
 
 import {
     createRpcClient,
-    createRpcClientForVault,
+    createRpcClientForProject,
     DaemonAuthRequired,
     DaemonUnreachable,
     ERROR_CODES,
@@ -75,31 +75,31 @@ function nextRequestId(): number {
 // scripted one-shots.
 //
 // `env` is captured at construction time. Two transports created back-to-back
-// against different vaults must not share a destination just because the
+// against different projects must not share a destination just because the
 // caller mutated `process.env` between the construction and the first
 // `.call()`. The `vtHeadlessServe` "two concurrent servers" test encodes this
 // contract.
-function buildClientFactory(vaultPath: string | undefined): () => Promise<DaemonRpcClient> {
+function buildClientFactory(projectPath: string | undefined): () => Promise<DaemonRpcClient> {
     const env: Record<string, string | undefined> = {...process.env}
     const cwd: string = process.cwd()
     let pending: Promise<DaemonRpcClient> | null = null
     return (): Promise<DaemonRpcClient> => {
-        if (pending === null) pending = resolveClient(vaultPath, env, cwd)
+        if (pending === null) pending = resolveClient(projectPath, env, cwd)
         return pending
     }
 }
 
 async function resolveClient(
-    vaultPath: string | undefined,
+    projectPath: string | undefined,
     env: Record<string, string | undefined>,
     cwd: string,
 ): Promise<DaemonRpcClient> {
-    if (vaultPath !== undefined && vaultPath.length > 0) {
-        // Explicit vault: bypass cwd up-walk; vt-rpc reads rpc.port + token
-        // straight from this vault. `$VOICETREE_DAEMON_URL` still wins inside
-        // `createRpcClientForVault` (per-process override), and the token
-        // always comes from the named vault — no env-var juggling required.
-        return createRpcClientForVault(vaultPath, {env})
+    if (projectPath !== undefined && projectPath.length > 0) {
+        // Explicit project: bypass cwd up-walk; vt-rpc reads rpc.port + token
+        // straight from this project. `$VOICETREE_DAEMON_URL` still wins inside
+        // `createRpcClientForProject` (per-process override), and the token
+        // always comes from the named project — no env-var juggling required.
+        return createRpcClientForProject(projectPath, {env})
     }
     return createRpcClient({env, cwd})
 }
@@ -160,8 +160,8 @@ function hydrateDelta(serialized: SerializableDelta, cause: Command): Delta {
     }
 }
 
-export function createLiveTransport(vaultPath?: string): LiveTransport {
-    const getClient: () => Promise<DaemonRpcClient> = buildClientFactory(vaultPath)
+export function createLiveTransport(projectPath?: string): LiveTransport {
+    const getClient: () => Promise<DaemonRpcClient> = buildClientFactory(projectPath)
     return {
         async getLiveState(): Promise<State> {
             const client: DaemonRpcClient = await getClient()

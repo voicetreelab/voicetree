@@ -1,6 +1,6 @@
 // Shared test harness for `liveTransport` HTTP round-trip tests.
 //
-// Spins up `createHeadlessServer` against per-test temp vaults so the
+// Spins up `createHeadlessServer` against per-test temp projects so the
 // client under test exercises actual HTTP + bearer auth + JSON-RPC
 // envelopes. No mocks; no voicetree-mcp coupling — graph-tools' own headless
 // server speaks the same wire and gives us injectable catalogs for the
@@ -44,7 +44,7 @@ export function restoreEnv(snap: Record<string, string | undefined>): void {
 
 // ── fixture serialized state ───────────────────────────────────────────────
 
-export const VAULT_ROOT: string = '/tmp/vault'
+export const VAULT_ROOT: string = '/tmp/project'
 export const SAMPLE_NODE: string = `${VAULT_ROOT}/sample.md`
 export const TASKS_FOLDER: string = `${VAULT_ROOT}/tasks/`
 
@@ -69,7 +69,7 @@ export const FIXTURE_SERIALIZED_STATE = {
     roots: {
         loaded: [VAULT_ROOT],
         folderTree: [{
-            name: 'vault',
+            name: 'project',
             absolutePath: VAULT_ROOT,
             children: [],
             loadState: 'loaded' as const,
@@ -86,18 +86,18 @@ export const FIXTURE_SERIALIZED_STATE = {
 
 export interface StubDaemon {
     readonly url: string
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly token: string
     readonly port: number
     readonly stop: () => Promise<void>
 }
 
 export async function startStubDaemon(catalog: Catalog): Promise<StubDaemon> {
-    const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-live-transport-')))
-    const handle: HeadlessServer = await createHeadlessServer({vaultPath, catalog})
+    const projectPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-live-transport-')))
+    const handle: HeadlessServer = await createHeadlessServer({projectPath, catalog})
     return {
         url: handle.url,
-        vaultPath: handle.vaultPath,
+        projectPath: handle.projectPath,
         token: handle.token,
         port: handle.port,
         stop: handle.close,
@@ -189,14 +189,14 @@ const HEADLESS_START_TIMEOUT_MS: number = 15_000
 
 export interface SpawnedHeadless {
     readonly url: string
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly stop: () => Promise<void>
 }
 
-export async function spawnVtHeadless(vaultPath: string): Promise<SpawnedHeadless> {
+export async function spawnVtHeadless(projectPath: string): Promise<SpawnedHeadless> {
     const child: ChildProcess = spawn(
         process.execPath,
-        ['--import', 'tsx', VT_HEADLESS_BIN, 'serve', '--vault', vaultPath, '--port', '0'],
+        ['--import', 'tsx', VT_HEADLESS_BIN, 'serve', '--project', projectPath, '--port', '0'],
         {cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe']},
     )
 
@@ -226,7 +226,7 @@ export async function spawnVtHeadless(vaultPath: string): Promise<SpawnedHeadles
 
     return {
         url,
-        vaultPath,
+        projectPath,
         stop: async (): Promise<void> => {
             if (child.exitCode !== null) return
             child.kill('SIGINT')

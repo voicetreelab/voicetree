@@ -212,7 +212,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
             ],
         })
         process.env.VOICETREE_DAEMON_URL = stub.url
-        process.env.VOICETREE_PROJECT_PATH = stub.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = stub.projectPath
 
         const result: CapturedRun = await captureGraphCreate(
             [
@@ -246,7 +246,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
             ],
         })
         process.env.VOICETREE_DAEMON_URL = stub.url
-        process.env.VOICETREE_PROJECT_PATH = stub.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = stub.projectPath
 
         const result: CapturedRun = await captureGraphCreate(
             [

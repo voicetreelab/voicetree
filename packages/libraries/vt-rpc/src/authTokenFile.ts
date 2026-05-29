@@ -1,5 +1,5 @@
 // Read of the daemon's bearer auth token from
-// `<vault>/.voicetree/auth-token`. The daemon writes the token at startup
+// `<project>/.voicetree/auth-token`. The daemon writes the token at startup
 // (mode 0600, atomic). Filesystem permissions are the trust root; the value
 // returned here goes into the `Authorization: Bearer …` header on every RPC
 // and WS upgrade. Design doc §2.4.
@@ -10,8 +10,8 @@ import {getProjectDotVoicetreePath} from '@vt/app-config/paths'
 
 export const AUTH_TOKEN_FILENAME: string = 'auth-token'
 
-export function authTokenFilePath(vaultPath: string): string {
-    return join(getProjectDotVoicetreePath(resolve(vaultPath)), AUTH_TOKEN_FILENAME)
+export function authTokenFilePath(projectPath: string): string {
+    return join(getProjectDotVoicetreePath(resolve(projectPath)), AUTH_TOKEN_FILENAME)
 }
 
 // Returns null when the file is missing or contains an obviously-invalid
@@ -19,9 +19,9 @@ export function authTokenFilePath(vaultPath: string): string {
 // "daemon not running" from "daemon running with empty token" (the latter
 // indicates a daemon bug — we surface that as missing rather than passing
 // through a useless empty bearer header).
-export async function readAuthTokenFile(vaultPath: string): Promise<string | null> {
+export async function readAuthTokenFile(projectPath: string): Promise<string | null> {
     try {
-        const text: string = await readFile(authTokenFilePath(vaultPath), 'utf8')
+        const text: string = await readFile(authTokenFilePath(projectPath), 'utf8')
         const trimmed: string = text.trim()
         return trimmed.length > 0 ? trimmed : null
     } catch {

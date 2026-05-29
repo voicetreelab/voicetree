@@ -31,14 +31,14 @@ interface ParsedLiveViewArgs {
   readonly format: ViewFormat
   readonly collapsedFolders: readonly string[]
   readonly selectedIds: readonly string[]
-  readonly vaultPath?: string
+  readonly projectPath?: string
 }
 
 function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
   let format: ViewFormat = 'ascii'
   const collapsedFolders: string[] = []
   const selectedIds: string[] = []
-  let vaultPath: string | undefined
+  let projectPath: string | undefined
 
   for (let i = 0; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
@@ -64,76 +64,76 @@ function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
       selectedIds.push(arg.slice('--select='.length))
       continue
     }
-    if (arg === '--vault') {
+    if (arg === '--project') {
       const next = liveArgs[++i]
-      if (!next || next.startsWith('--')) fail('--vault requires a value')
-      vaultPath = next
+      if (!next || next.startsWith('--')) fail('--project requires a value')
+      projectPath = next
       continue
     }
-    if (arg.startsWith('--vault=')) {
-      vaultPath = arg.slice('--vault='.length)
+    if (arg.startsWith('--project=')) {
+      projectPath = arg.slice('--project='.length)
       continue
     }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {format, collapsedFolders, selectedIds, ...(vaultPath !== undefined ? {vaultPath} : {})}
+  return {format, collapsedFolders, selectedIds, ...(projectPath !== undefined ? {projectPath} : {})}
 }
 
-function parseLiveStateDumpArgs(stateArgs: readonly string[]): {readonly pretty: boolean; readonly vaultPath?: string} {
+function parseLiveStateDumpArgs(stateArgs: readonly string[]): {readonly pretty: boolean; readonly projectPath?: string} {
   let pretty = true
-  let vaultPath: string | undefined
+  let projectPath: string | undefined
   for (let i = 0; i < stateArgs.length; i++) {
     const arg = stateArgs[i]
     if (arg === '--pretty') { pretty = true; continue }
     if (arg === '--no-pretty') { pretty = false; continue }
-    if (arg === '--vault') {
+    if (arg === '--project') {
       const next = stateArgs[++i]
-      if (!next || next.startsWith('--')) fail('--vault requires a value')
-      vaultPath = next
+      if (!next || next.startsWith('--')) fail('--project requires a value')
+      projectPath = next
       continue
     }
-    if (arg.startsWith('--vault=')) {
-      vaultPath = arg.slice('--vault='.length)
+    if (arg.startsWith('--project=')) {
+      projectPath = arg.slice('--project='.length)
       continue
     }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
-  return {pretty, ...(vaultPath !== undefined ? {vaultPath} : {})}
+  return {pretty, ...(projectPath !== undefined ? {projectPath} : {})}
 }
 
-function parseLiveApplyArgs(liveArgs: readonly string[]): {readonly cmdJson: string; readonly vaultPath?: string} {
+function parseLiveApplyArgs(liveArgs: readonly string[]): {readonly cmdJson: string; readonly projectPath?: string} {
   let cmdJson: string | undefined
-  let vaultPath: string | undefined
+  let projectPath: string | undefined
   for (let i = 0; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
-    if (arg === '--vault') {
+    if (arg === '--project') {
       const next = liveArgs[++i]
-      if (!next || next.startsWith('--')) fail('--vault requires a value')
-      vaultPath = next
+      if (!next || next.startsWith('--')) fail('--project requires a value')
+      projectPath = next
       continue
     }
-    if (arg.startsWith('--vault=')) {
-      vaultPath = arg.slice('--vault='.length)
+    if (arg.startsWith('--project=')) {
+      projectPath = arg.slice('--project='.length)
       continue
     }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
     if (cmdJson !== undefined) fail(`Unexpected argument: ${arg}`)
     cmdJson = arg
   }
-  if (!cmdJson) fail("Usage: vt-graph live apply '<json-cmd>' [--vault <path>]")
-  return {cmdJson, ...(vaultPath !== undefined ? {vaultPath} : {})}
+  if (!cmdJson) fail("Usage: vt-graph live apply '<json-cmd>' [--project <path>]")
+  return {cmdJson, ...(projectPath !== undefined ? {projectPath} : {})}
 }
 
 function parseLiveNeighborhoodArgs(
   liveArgs: readonly string[],
   usageLine: string,
-): {readonly nodeId: string; readonly hops: number; readonly vaultPath?: string} {
+): {readonly nodeId: string; readonly hops: number; readonly projectPath?: string} {
   const nodeId = liveArgs[0]
   if (!nodeId || nodeId.startsWith('--')) fail(usageLine)
 
   let hops = 1
-  let vaultPath: string | undefined
+  let projectPath: string | undefined
   for (let i = 1; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
     if (arg === '--hops') {
@@ -143,50 +143,50 @@ function parseLiveNeighborhoodArgs(
       continue
     }
     if (arg.startsWith('--hops=')) { hops = parseInt(arg.slice('--hops='.length), 10); continue }
-    if (arg === '--vault') {
+    if (arg === '--project') {
       const next = liveArgs[++i]
-      if (!next || next.startsWith('--')) fail('--vault requires a value')
-      vaultPath = next
+      if (!next || next.startsWith('--')) fail('--project requires a value')
+      projectPath = next
       continue
     }
-    if (arg.startsWith('--vault=')) { vaultPath = arg.slice('--vault='.length); continue }
+    if (arg.startsWith('--project=')) { projectPath = arg.slice('--project='.length); continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {nodeId, hops, ...(vaultPath !== undefined ? {vaultPath} : {})}
+  return {nodeId, hops, ...(projectPath !== undefined ? {projectPath} : {})}
 }
 
-function parseLivePathArgs(liveArgs: readonly string[]): {readonly nodeA: string; readonly nodeB: string; readonly vaultPath?: string} {
+function parseLivePathArgs(liveArgs: readonly string[]): {readonly nodeA: string; readonly nodeB: string; readonly projectPath?: string} {
   const nodeA = liveArgs[0]
   const nodeB = liveArgs[1]
   if (!nodeA || nodeA.startsWith('--') || !nodeB || nodeB.startsWith('--')) {
-    fail('Usage: vt-graph live path <a> <b> [--vault <path>]')
+    fail('Usage: vt-graph live path <a> <b> [--project <path>]')
   }
 
-  let vaultPath: string | undefined
+  let projectPath: string | undefined
   for (let i = 2; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
-    if (arg === '--vault') {
+    if (arg === '--project') {
       const next = liveArgs[++i]
-      if (!next || next.startsWith('--')) fail('--vault requires a value')
-      vaultPath = next
+      if (!next || next.startsWith('--')) fail('--project requires a value')
+      projectPath = next
       continue
     }
-    if (arg.startsWith('--vault=')) { vaultPath = arg.slice('--vault='.length); continue }
+    if (arg.startsWith('--project=')) { projectPath = arg.slice('--project='.length); continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {nodeA, nodeB, ...(vaultPath !== undefined ? {vaultPath} : {})}
+  return {nodeA, nodeB, ...(projectPath !== undefined ? {projectPath} : {})}
 }
 
 async function runLiveCrudCommand(verb: LiveCrudVerb, liveArgs: readonly string[]): Promise<void> {
   const parsed = parseLiveCrudCommand(verb, liveArgs)
-  const beforeNodes = await getLiveGraphNodes(parsed.vaultPath)
+  const beforeNodes = await getLiveGraphNodes(parsed.projectPath)
   const resolvedParsed = resolveCommandNodeIds(parsed, beforeNodes)
   const result = await liveApply(JSON.stringify(resolvedParsed.command), {
-    ...(resolvedParsed.vaultPath !== undefined ? {vaultPath: resolvedParsed.vaultPath} : {}),
+    ...(resolvedParsed.projectPath !== undefined ? {projectPath: resolvedParsed.projectPath} : {}),
   })
-  const afterNodes = await getLiveGraphNodes(resolvedParsed.vaultPath)
+  const afterNodes = await getLiveGraphNodes(resolvedParsed.projectPath)
   await persistLiveCrudCommand(resolvedParsed, result.delta, beforeNodes, afterNodes)
   process.stdout.write(result.output)
 }
@@ -205,7 +205,7 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
       format: parsed.format,
       collapsedFolders: parsed.collapsedFolders,
       selectedIds: parsed.selectedIds,
-      ...(parsed.vaultPath !== undefined ? {vaultPath: parsed.vaultPath} : {}),
+      ...(parsed.projectPath !== undefined ? {projectPath: parsed.projectPath} : {}),
     })
     console.log(result.output)
     if (parsed.format === 'ascii') {
@@ -217,12 +217,12 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   if (liveSubcommand === 'state') {
     const [stateSubcmd, ...stateArgs] = liveArgs
     if (stateSubcmd !== 'dump') {
-      fail('Usage: vt-graph live state dump [--no-pretty] [--vault <path>]')
+      fail('Usage: vt-graph live state dump [--no-pretty] [--project <path>]')
     }
     const parsed = parseLiveStateDumpArgs(stateArgs)
     const result = await liveStateDump({
       pretty: parsed.pretty,
-      ...(parsed.vaultPath !== undefined ? {vaultPath: parsed.vaultPath} : {}),
+      ...(parsed.projectPath !== undefined ? {projectPath: parsed.projectPath} : {}),
     })
     process.stdout.write(result.json)
     return
@@ -231,7 +231,7 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   if (liveSubcommand === 'apply') {
     const parsed = parseLiveApplyArgs(liveArgs)
     const result = await liveApply(parsed.cmdJson, {
-      ...(parsed.vaultPath !== undefined ? {vaultPath: parsed.vaultPath} : {}),
+      ...(parsed.projectPath !== undefined ? {projectPath: parsed.projectPath} : {}),
     })
     process.stdout.write(result.output)
     return
@@ -243,26 +243,26 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   }
 
   if (liveSubcommand === 'focus') {
-    const {nodeId, hops, vaultPath} = parseLiveNeighborhoodArgs(
+    const {nodeId, hops, projectPath} = parseLiveNeighborhoodArgs(
       liveArgs,
-      'Usage: vt-graph live focus <node> [--hops N] [--vault <path>]',
+      'Usage: vt-graph live focus <node> [--hops N] [--project <path>]',
     )
-    console.log(await liveFocus(nodeId, {hops, ...(vaultPath !== undefined ? {vaultPath} : {})}))
+    console.log(await liveFocus(nodeId, {hops, ...(projectPath !== undefined ? {projectPath} : {})}))
     return
   }
 
   if (liveSubcommand === 'neighbors') {
-    const {nodeId, hops, vaultPath} = parseLiveNeighborhoodArgs(
+    const {nodeId, hops, projectPath} = parseLiveNeighborhoodArgs(
       liveArgs,
-      'Usage: vt-graph live neighbors <node> [--hops N] [--vault <path>]',
+      'Usage: vt-graph live neighbors <node> [--hops N] [--project <path>]',
     )
-    console.log(await liveNeighbors(nodeId, {hops, ...(vaultPath !== undefined ? {vaultPath} : {})}))
+    console.log(await liveNeighbors(nodeId, {hops, ...(projectPath !== undefined ? {projectPath} : {})}))
     return
   }
 
   if (liveSubcommand === 'path') {
-    const {nodeA, nodeB, vaultPath} = parseLivePathArgs(liveArgs)
-    console.log(await livePath(nodeA, nodeB, vaultPath !== undefined ? {vaultPath} : {}))
+    const {nodeA, nodeB, projectPath} = parseLivePathArgs(liveArgs)
+    console.log(await livePath(nodeA, nodeB, projectPath !== undefined ? {projectPath} : {}))
     return
   }
 

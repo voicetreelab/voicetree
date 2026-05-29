@@ -1,5 +1,5 @@
-// Vault-backed live-tool catalog for the headless HTTP daemon. Holds an
-// in-process `State` (loaded from the vault at startup, mutated by
+// Project-backed live-tool catalog for the headless HTTP daemon. Holds an
+// in-process `State` (loaded from the project at startup, mutated by
 // `vt_dispatch_live_command` thereafter) and exposes two handlers matching
 // the live-tools wire that the renderer/CLI clients expect.
 //
@@ -46,11 +46,11 @@ function toSerializableDelta(delta: Delta, cause: SerializedCommand): Serializab
     }
 }
 
-export async function buildVaultLiveCatalog(vaultPath?: string): Promise<Catalog> {
+export async function buildProjectLiveCatalog(projectPath?: string): Promise<Catalog> {
     configureGraphToolsRootIO()
     let state: State = emptyState()
-    if (vaultPath !== undefined && vaultPath.length > 0) {
-        const resolved: string = resolve(vaultPath)
+    if (projectPath !== undefined && projectPath.length > 0) {
+        const resolved: string = resolve(projectPath)
         state = await buildStateFromVault(resolved, resolved)
     }
     return new Map<string, CatalogHandler>([
