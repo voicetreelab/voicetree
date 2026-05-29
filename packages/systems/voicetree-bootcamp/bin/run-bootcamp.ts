@@ -1,109 +1,245 @@
 #!/usr/bin/env tsx
 /**
- * Phase 1 CLI entrypoint. Runs one (scenario × model) cell and prints a
- * human-readable report to stdout.
+ * v2 CLI entry. Runs one bootcamp scenario cell end-to-end:
  *
- * Usage:
- *   vt-bootcamp --scenario S9 --model sonnet --vt-bin /abs/path/to/vt
+ *   vt-bootcamp <scenarioId> [options]
  *
- * Phase 3 will replace this with a matrix runner.
+ * Thin shell: resolves the scenario from the registry, picks the driver
+ * from the model name, drives `runScenario` once per --reps, and prints
+ * either a rendered report or raw JSON. All real work happens behind
+ * `runScenario` (src/runner.ts) and `renderCellResults` (src/report.ts);
+ * this file is just arg parsing + orchestration + exit codes.
+ *
+ * The runner and report modules are loaded via dynamic import so --help
+ * and --dry-run never touch them — keeps the fast paths fast and isolates
+ * cross-agent integration to a single line each.
  */
-import * as path from 'node:path'
-import {runScenario, s9AtomicCreate} from '../src/index.ts'
-import type {ScenarioSpec} from '../src/types.ts'
+import {parseArgs} from 'node:util'
+import {claudeCodeDriver} from '../src/drivers/claude.ts'
+import {codexDriver} from '../src/drivers/codex.ts'
+import {SCENARIOS} from '../src/scenarios/index.ts'
+import type {CellResult, Effort, HarnessDriver, ScenarioSpec} from '../src/types.ts'
 
-const SCENARIOS: Readonly<Record<string, ScenarioSpec>> = {
-    S9: s9AtomicCreate,
-}
+const USAGE = `vt-bootcamp <scenarioId> [options]
 
-type Args = {
-    readonly scenarioId: string
+Run one bootcamp scenario cell end-to-end (setup → harness → score → report).
+
+Arguments:
+  <scenarioId>              One of ${SCENARIOS.map((s) => s.id).join(', ')} (case-insensitive)
+
+Options:
+  --model <name>            Model to test (e.g. opus, sonnet, haiku, codex-1). Required.
+  --effort <low|med|high>   Effort level. Default: medium.
+  --mode <headless|headful> Run mode. Default: headless.
+                            Headful launches VoiceTree pointing at the vault and
+                            waits for the per-vault daemon before running the agent,
+                            so you can watch the graph populate live.
+  --reps <N>                Number of repetitions. Default: 1.
+  --workspace-root <path>   Stable workspace dir (vault is created at <path>/vault).
+                            Optional — defaults to a fresh mkdtemp dir. Useful in
+                            headful mode if you want a deterministic path to revisit.
+  --headful-daemon-timeout-ms <N>
+                            How long to wait for VoiceTree's per-vault daemon to
+                            come up (rpc.port appears) before failing. Default: 60000.
+  --json                    Emit raw CellResult[] as JSON (for piping).
+  --dry-run                 Print resolved plan as JSON and exit without invoking the runner.
+  --help, -h                Show this help.
+`
+
+const DRIVERS: readonly HarnessDriver[] = [claudeCodeDriver, codexDriver]
+
+type Mode = 'headless' | 'headful'
+
+type Config = {
+    readonly scenario: ScenarioSpec
+    readonly driver: HarnessDriver
     readonly model: string
-    readonly effort: 'low' | 'medium' | 'high'
-    readonly realVtBin: string
+    readonly effort: Effort
+    readonly mode: Mode
+    readonly reps: number
+    readonly json: boolean
+    readonly dryRun: boolean
+    readonly workspaceRoot: string | undefined
+    readonly headfulDaemonReadyTimeoutMs: number | undefined
 }
 
-function parseArgs(argv: readonly string[]): Args {
-    let scenarioId = ''
-    let model = 'sonnet'
-    let effort: 'low' | 'medium' | 'high' = 'low'
-    let realVtBin = ''
+function die(msg: string, exitCode = 2): never {
+    process.stderr.write(`vt-bootcamp: ${msg}\n\n${USAGE}`)
+    process.exit(exitCode)
+}
 
-    for (let i = 0; i < argv.length; i++) {
-        const arg = argv[i]
-        const next = argv[i + 1]
-        switch (arg) {
-            case '--scenario':
-                scenarioId = requireValue(arg, next)
-                i++
-                break
-            case '--model':
-                model = requireValue(arg, next)
-                i++
-                break
-            case '--effort':
-                effort = parseEffort(requireValue(arg, next))
-                i++
-                break
-            case '--vt-bin':
-                realVtBin = path.resolve(requireValue(arg, next))
-                i++
-                break
-            default:
-                fail(`unknown arg: ${arg}`)
-        }
+function parseEffort(s: string): Effort {
+    if (s === 'low' || s === 'medium' || s === 'high') return s
+    die(`--effort must be one of: low, medium, high (got: ${s})`)
+}
+
+function parseMode(s: string): Mode {
+    if (s === 'headless' || s === 'headful') return s
+    die(`--mode must be one of: headless, headful (got: ${s})`)
+}
+
+function parseReps(s: string): number {
+    const n = Number(s)
+    if (!Number.isInteger(n) || n < 1) die(`--reps must be a positive integer (got: ${s})`)
+    return n
+}
+
+function parsePositiveInt(flag: string, s: string): number {
+    const n = Number(s)
+    if (!Number.isInteger(n) || n < 1) die(`${flag} must be a positive integer (got: ${s})`)
+    return n
+}
+
+function resolveScenario(rawId: string): ScenarioSpec {
+    const want = rawId.toUpperCase()
+    const found = SCENARIOS.find((s) => s.id.toUpperCase() === want)
+    if (!found) {
+        die(`unknown scenario: ${rawId} (available: ${SCENARIOS.map((s) => s.id).join(', ')})`)
+    }
+    return found
+}
+
+function resolveDriver(model: string): HarnessDriver {
+    const found = DRIVERS.find((d) => d.models.includes(model))
+    if (!found) {
+        const all = DRIVERS.flatMap((d) => d.models).join(', ')
+        die(`unknown model: ${model} (available: ${all})`)
+    }
+    return found
+}
+
+function parseConfig(argv: readonly string[]): Config {
+    let parsed: ReturnType<typeof parseArgs>
+    try {
+        parsed = parseArgs({
+            args: [...argv],
+            allowPositionals: true,
+            options: {
+                model: {type: 'string'},
+                effort: {type: 'string'},
+                mode: {type: 'string'},
+                reps: {type: 'string'},
+                json: {type: 'boolean'},
+                'dry-run': {type: 'boolean'},
+                help: {type: 'boolean', short: 'h'},
+                'workspace-root': {type: 'string'},
+                'headful-daemon-timeout-ms': {type: 'string'},
+            },
+        })
+    } catch (err) {
+        die(err instanceof Error ? err.message : String(err))
     }
 
-    if (!scenarioId) fail('--scenario is required')
-    if (!realVtBin) fail('--vt-bin is required (absolute path to the real `vt` binary)')
+    if (parsed.values.help) {
+        process.stdout.write(USAGE)
+        process.exit(0)
+    }
 
-    return {scenarioId, model, effort, realVtBin}
+    if (parsed.positionals.length === 0) die('missing required <scenarioId>')
+    if (parsed.positionals.length > 1) {
+        die(`unexpected positional args: ${parsed.positionals.slice(1).join(' ')}`)
+    }
+
+    const scenario = resolveScenario(parsed.positionals[0])
+
+    const modelRaw = parsed.values.model
+    if (typeof modelRaw !== 'string' || modelRaw.length === 0) die('--model is required')
+    const model = modelRaw
+    const driver = resolveDriver(model)
+
+    const effort = typeof parsed.values.effort === 'string'
+        ? parseEffort(parsed.values.effort)
+        : 'medium'
+    const mode = typeof parsed.values.mode === 'string'
+        ? parseMode(parsed.values.mode)
+        : 'headless'
+    const reps = typeof parsed.values.reps === 'string'
+        ? parseReps(parsed.values.reps)
+        : 1
+
+    const workspaceRoot = typeof parsed.values['workspace-root'] === 'string'
+        ? parsed.values['workspace-root']
+        : undefined
+    const headfulDaemonReadyTimeoutMs =
+        typeof parsed.values['headful-daemon-timeout-ms'] === 'string'
+            ? parsePositiveInt(
+                  '--headful-daemon-timeout-ms',
+                  parsed.values['headful-daemon-timeout-ms'],
+              )
+            : undefined
+
+    return {
+        scenario,
+        driver,
+        model,
+        effort,
+        mode,
+        reps,
+        json: parsed.values.json === true,
+        dryRun: parsed.values['dry-run'] === true,
+        workspaceRoot,
+        headfulDaemonReadyTimeoutMs,
+    }
 }
 
-function requireValue(flag: string, value: string | undefined): string {
-    if (!value || value.startsWith('--')) fail(`${flag} requires a value`)
-    return value
-}
-
-function parseEffort(value: string): 'low' | 'medium' | 'high' {
-    if (value === 'low' || value === 'medium' || value === 'high') return value
-    fail(`--effort must be one of: low, medium, high (got: ${value})`)
-}
-
-function fail(message: string): never {
-    console.error(`vt-bootcamp: ${message}`)
-    console.error('Usage: vt-bootcamp --scenario <id> --model <name> [--effort low|medium|high] --vt-bin <path>')
-    process.exit(2)
+function dryRunPlan(cfg: Config): string {
+    const plan = {
+        scenarioId: cfg.scenario.id,
+        scenarioName: cfg.scenario.name,
+        driver: cfg.driver.name,
+        model: cfg.model,
+        effort: cfg.effort,
+        mode: cfg.mode,
+        reps: cfg.reps,
+        json: cfg.json,
+        workspaceRoot: cfg.workspaceRoot,
+        headfulDaemonReadyTimeoutMs: cfg.headfulDaemonReadyTimeoutMs,
+    }
+    return JSON.stringify(plan, null, 2)
 }
 
 async function main(): Promise<void> {
-    const args = parseArgs(process.argv.slice(2))
-    const scenario = SCENARIOS[args.scenarioId]
-    if (!scenario) fail(`unknown scenario: ${args.scenarioId} (available: ${Object.keys(SCENARIOS).join(', ')})`)
+    const cfg = parseConfig(process.argv.slice(2))
 
-    console.log(`Running ${scenario.id} (${scenario.name}) on ${args.model} (effort=${args.effort})…\n`)
-
-    const result = await runScenario({
-        scenario,
-        model: args.model,
-        effort: args.effort,
-        realVtBin: args.realVtBin,
-    })
-
-    console.log(`Score: ${result.meanScore.toFixed(2)}`)
-    console.log(`Success criteria: ${result.success.passed ? 'PASS' : 'FAIL'} — ${result.success.detail}`)
-    console.log('\nPer-command outcomes:')
-    for (const attempt of result.attempts) {
-        console.log(`  ${attempt.expected.verb.padEnd(30)} ${attempt.outcome}`)
+    if (cfg.dryRun) {
+        process.stdout.write(`${dryRunPlan(cfg)}\n`)
+        process.exit(0)
     }
-    console.log(`\nArtifacts:`)
-    console.log(`  shim log dir: ${result.shimLogDir}`)
-    console.log(`  transcript:   ${result.transcriptPath}`)
 
-    process.exit(result.meanScore >= 0.85 && result.success.passed ? 0 : 1)
+    // Lazy: only load runner/report when we actually need to run a cell.
+    // Keeps --help / --dry-run independent of peer modules + faster startup.
+    const {runScenario} = await import('../src/runner.ts')
+    const {renderCellResults} = await import('../src/report.ts')
+
+    const results: CellResult[] = []
+    for (let rep = 1; rep <= cfg.reps; rep++) {
+        const result = await runScenario({
+            scenario: cfg.scenario,
+            driver: cfg.driver,
+            model: cfg.model,
+            effort: cfg.effort,
+            mode: cfg.mode,
+            rep,
+            workspaceRoot: cfg.workspaceRoot,
+            headfulDaemonReadyTimeoutMs: cfg.headfulDaemonReadyTimeoutMs,
+        })
+        results.push(result)
+    }
+
+    if (cfg.json) {
+        process.stdout.write(`${JSON.stringify(results, null, 2)}\n`)
+    } else {
+        const color = process.stdout.isTTY === true
+        process.stdout.write(`${renderCellResults(results, {color})}\n`)
+    }
+
+    const allPassed = results.every((r) => r.success.passed && r.coverage.passed)
+    process.exit(allPassed ? 0 : 1)
 }
 
 void main().catch((err: unknown) => {
-    console.error(err instanceof Error ? err.stack : String(err))
+    process.stderr.write(
+        `vt-bootcamp: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    )
     process.exit(1)
 })

@@ -22,15 +22,6 @@ export type RuntimeEnvProvider = {
     }>;
     readonly getWriteFolder?: () => Promise<string | null>;
     /**
-     * Absolute path to the canonical CLI manual file
-     * (`packages/systems/voicetree-cli/prompts/cli-manual.md`). The spawn pipeline reads this file
-     * and injects its contents into each spawned agent's AGENT_PROMPT so
-     * the agent learns the `vt` CLI surface. Returns null when the file
-     * cannot be located in this shell (headless tests, etc.); injection
-     * is then skipped silently.
-     */
-    readonly getCliManualPath?: () => string | null;
-    /**
      * Absolute path to the directory containing the `vt` CLI executable
      * (the daemon's known vt-bin dir). The spawn pipeline prepends this
      * directory to each spawned agent's PATH so commands like

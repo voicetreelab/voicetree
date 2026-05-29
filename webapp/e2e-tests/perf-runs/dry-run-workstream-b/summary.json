@@ -2,7 +2,7 @@
   "suite": "perf-v1",
   "status": "skipped",
   "dryRun": true,
-  "runDir": "/Users/lochlan/voicetree/webapp/e2e-tests/perf-runs/dry-run-workstream-b",
+  "runDir": "webapp/e2e-tests/perf-runs/dry-run-workstream-b",
   "startedAt": "2026-05-07T04:20:03.919Z",
   "finishedAt": "2026-05-07T04:20:03.925Z",
   "durationMs": 6,

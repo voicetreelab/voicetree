@@ -172,7 +172,7 @@ Line 3 with [[3]]`
 
   describe('path matching edge cases', () => {
     it('should match absolute paths to node IDs, preferring longer matches', () => {
-      const content: "See [[/Users/bobbobby/repos/vaults/vscode_spike/_179.md]]" = 'See [[/Users/bobbobby/repos/vaults/vscode_spike/_179.md]]'
+      const content: "See [[/Users/example/repos/vaults/vscode_spike/_179.md]]" = 'See [[/Users/example/repos/vaults/vscode_spike/_179.md]]'
       const nodes: { readonly _179: GraphNode; readonly 'vscode_spike/_179': GraphNode; } = {
         '_179': createNode('_179'),
         'vscode_spike/_179': createNode('vscode_spike/_179')
@@ -185,7 +185,7 @@ Line 3 with [[3]]`
     })
 
     it('should match absolute paths with partial path overlap', () => {
-      const content: "Link to [[/Users/bobbobby/repos/vaults/vscode_spike/_179.md]]" = 'Link to [[/Users/bobbobby/repos/vaults/vscode_spike/_179.md]]'
+      const content: "Link to [[/Users/example/repos/vaults/vscode_spike/_179.md]]" = 'Link to [[/Users/example/repos/vaults/vscode_spike/_179.md]]'
       const nodes: { readonly 'vscode_spike/_179': GraphNode; } = {
         'vscode_spike/_179': createNode('vscode_spike/_179')
       }
@@ -225,7 +225,7 @@ Line 3 with [[3]]`
     })
 
     it('should handle absolute paths without extensions, preferring longer match', () => {
-      const content: "See [[/Users/bobbobby/repos/vaults/project/_179]]" = 'See [[/Users/bobbobby/repos/vaults/project/_179]]'
+      const content: "See [[/Users/example/repos/vaults/project/_179]]" = 'See [[/Users/example/repos/vaults/project/_179]]'
       const nodes: { readonly _179: GraphNode; readonly 'project/_179': GraphNode; } = {
         '_179': createNode('_179'),
         'project/_179': createNode('project/_179')

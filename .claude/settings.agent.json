@@ -13,29 +13,5 @@
   },
   "enabledMcpjsonServers": [
     "zen"
-  ],
-
-"hooks" : {
-  "UserPromptSubmit": [
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
-        }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "description": "Summary reminder to check created nodes",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
-        }
-      ]
-    }
   ]
-}
 }

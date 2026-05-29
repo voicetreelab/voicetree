@@ -168,6 +168,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
     'graph-tools -> vt-rpc': 8,
+    // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
+    // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
+    // (one dynamic import in scenarios/b5.ts). Measured value at package
+    // introduction; the bootcamp is a leaf consumer that should not grow this.
+    'voicetree-bootcamp -> graph-db-client': 1,
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
@@ -178,6 +183,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // for non-daemon peers (BF-377); the CLI is a peer just like webapp and
     // calls `ensureVtDaemonForVault` to spawn-or-adopt the per-vault VTD.
     'voicetree-cli -> vt-daemon-client': 1,
+    // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 4. `vt manual` is a pure function of
+    // the protocol's canonical spec set, so the CLI legitimately reaches in
+    // for `TOOL_SPECS` (the data), plus three pure helpers that operate on
+    // it: `renderManual` (full / essentials), `renderManualSection` (single
+    // tool), `findSpecByCliVerb` (verb resolution). These are the minimum
+    // necessary — each verb of `vt manual` calls exactly one of them.
+    'voicetree-cli -> vt-daemon-protocol': 4,
     'voicetree-cli -> vt-rpc': 9,
     // 2026-05-27: collapse-app-support-path. `resolveAppSupportPath` is now
     // sourced from @vt/app-config (the canonical single-line resolver), not
@@ -221,7 +233,16 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon -> graph-state': 3,
     'vt-daemon -> graph-tools': 7,
     'vt-daemon -> voicetree-graph-validation': 1,
-    'vt-daemon -> vt-daemon-protocol': 1,
+    // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
+    // refactor (PR #137 + follow-up), vt-daemon-protocol owns TOOL_SPECS plus
+    // the manual renderer + the [From:] wrapper. The daemon now imports four
+    // distinct value symbols and only four: `TOOL_SPECS` (catalog.ts iterates
+    // it to bind handlers; cliManualInjection.ts re-uses it for the spawn
+    // essentials slice), `renderManual` (cliManualInjection.ts), `buildFromPrefixedMessage`
+    // (sendMessageTool.ts), and one terminal-registry constant. The earlier
+    // shape of "14 individual *_SPEC constants" was an over-export of
+    // implementation detail; those are no longer in the protocol barrel.
+    'vt-daemon -> vt-daemon-protocol': 4,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
     // (proposed `@vt/vault-paths` or `@vt/app-config/paths`). See #123 for
@@ -265,5 +286,12 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // historical agent records (dev-manu UX preserved through the dev-manu→dev
     // integration). Single new symbol on the canonical HTTP boundary.
     'webapp -> vt-daemon-client': 14,
+    // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 1. Vault-bootstrap renders the
+    // canonical CLI manual into CLAUDE.md / AGENTS.md before any daemon
+    // is up, so it must reach the renderer at the leaf protocol package
+    // directly. The single import is `renderFullManual` (no-arg helper
+    // — TOOL_SPECS stays daemon-side detail). Tests pass a literal body
+    // string and don't import anything from the protocol package.
+    'webapp -> vt-daemon-protocol': 1,
     'webapp -> vt-rpc': 3,
 }

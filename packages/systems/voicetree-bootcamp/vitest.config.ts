@@ -1,10 +1,12 @@
 import {defineConfig} from 'vitest/config'
-import {fileURLToPath} from 'node:url'
+import {createRequire} from 'node:module'
 
-const ciCheckReporter = fileURLToPath(new URL('../_vitest-ci-check-reporter.ts', import.meta.url))
+const require = createRequire(import.meta.url)
+const ciCheckReporter = require.resolve('@vt/measures/vitest-reporter')
 
 export default defineConfig({
     test: {
+        include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
         reporters: [
             'default',
             [ciCheckReporter, {

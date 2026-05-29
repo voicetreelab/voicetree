@@ -2,8 +2,8 @@ import {describe, expect, it} from 'vitest'
 import {matchClaudeSessionId, type ClaudeTranscriptRecord} from '../claude-transcript-matcher'
 
 const TERMINAL = 'Ari'
-const VAULT = '/Users/bobbobby/repos/voicetree-public/voicetree-22-5'
-const TASK = '/Users/bobbobby/repos/voicetree-public/voicetree-22-5/task.md'
+const VAULT = '/Users/example/repos/voicetree-public/voicetree-22-5'
+const TASK = '/Users/example/repos/voicetree-public/voicetree-22-5/task.md'
 
 function userRecord(content: string | ReadonlyArray<{type?: string; text?: string}>, sessionId = 'sess-claude-abc'): ClaudeTranscriptRecord {
     return {

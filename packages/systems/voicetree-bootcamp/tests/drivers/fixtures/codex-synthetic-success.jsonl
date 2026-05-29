@@ -1,0 +1,13 @@
+// SYNTHETIC FIXTURE — written from the documented Codex event shape, NOT
+// from real Codex CLI output. Replace with a real codex exec capture at
+// first integration run (Phase 3 in the bootcamp plan). If real Codex
+// output diverges, this fixture and the parser are both wrong; treat any
+// divergence as the source of truth.
+{"type":"session.created","session_id":"synthetic-success-001","model":"codex-1"}
+{"type":"item.started","item":{"id":"item-1","type":"command_execution","command":"vt graph create --label root"}}
+{"type":"item.completed","item":{"id":"item-1","type":"command_execution","command":"vt graph create --label root","exit_code":0}}
+{"type":"item.started","item":{"id":"item-2","type":"command_execution","command":"vt graph structure"}}
+{"type":"item.completed","item":{"id":"item-2","type":"command_execution","command":"vt graph structure","exit_code":0}}
+{"type":"item.completed","item":{"id":"item-3","type":"assistant_message","text":"Done."}}
+{"type":"turn.completed","usage":{"input_tokens":1200,"cached_input_tokens":3400,"output_tokens":450,"reasoning_output_tokens":80}}
+{"type":"session.closed"}

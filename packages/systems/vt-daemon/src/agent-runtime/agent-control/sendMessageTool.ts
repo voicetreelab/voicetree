@@ -18,10 +18,7 @@ import {
     type TerminalRecord,
 } from './agentControlRuntime'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-
-function buildPrefixedMessage(callerTerminalId: string, message: string): string {
-    return `[From: ${callerTerminalId}] ${message}\n\nIf you need to reply use the cli tool 'vt agent send' to ${callerTerminalId}. (DO NOT USE SendMessage or other messaging tools you may have, they won't work)`
-}
+import {buildFromPrefixedMessage} from '@vt/vt-daemon-protocol'
 
 function buildErrorResponse(error: string): McpToolResponse {
     return buildJsonResponse({
@@ -35,7 +32,7 @@ function buildHeadlessInputError(terminalId: string): McpToolResponse {
 }
 
 function queuePendingTerminalMessage(terminalId: string, callerTerminalId: string, message: string): McpToolResponse {
-    enqueuePendingTerminalMessage(terminalId, buildPrefixedMessage(callerTerminalId, message))
+    enqueuePendingTerminalMessage(terminalId, buildFromPrefixedMessage(callerTerminalId, message))
     return buildJsonResponse({
         success: true,
         terminalId,
@@ -62,7 +59,7 @@ async function sendToTmuxTerminal(
     successMessage: string,
 ): Promise<McpToolResponse> {
     try {
-        const prefixedMessage: string = buildPrefixedMessage(callerTerminalId, message)
+        const prefixedMessage: string = buildFromPrefixedMessage(callerTerminalId, message)
         const result: {success: boolean; error?: string} = await sendTerminalText(terminalId, prefixedMessage)
         if (!result.success) {
             return buildErrorResponse(result.error ?? 'Failed to send message')

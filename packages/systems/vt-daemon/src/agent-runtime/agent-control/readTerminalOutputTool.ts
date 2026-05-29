@@ -66,20 +66,20 @@ export async function readTerminalOutputTool({
         })
     }
 
-    // 3. Get output from character buffer
-    const output: string | undefined = readInteractiveTerminalOutput(terminalId, nChars)
-
-    if (output === undefined) {
-        return buildJsonResponse({
-            success: false,
-            error: `No output buffer for terminal: ${terminalId}`
-        }, true)
-    }
+    // 3. PTY output. `undefined` here means the terminal is registered but the
+    //    PTY hasn't emitted anything yet — a not-yet-available state, not an
+    //    error. We return the same `success: true` empty-output shape as a
+    //    headless terminal with an empty buffer, so callers polling for output
+    //    see "wait and retry" rather than "this command is broken". The
+    //    terminal-not-found case is handled above (line 52-55) and remains an
+    //    error.
+    const output: string = readInteractiveTerminalOutput(terminalId, nChars) ?? ''
 
     return buildJsonResponse({
         success: true,
         terminalId,
         nChars,
-        output
+        output,
+        isHeadless: false
     })
 }

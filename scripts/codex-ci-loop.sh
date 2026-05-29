@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="/Users/bobbobby/repos/voicetree-public"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 REPO="voicetreelab/voicetree"
 BRANCH="dev"
 MAX_ATTEMPTS=10
