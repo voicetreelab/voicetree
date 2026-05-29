@@ -671,7 +671,7 @@ function tryRunGit(args: string): string | null {
 }
 
 function collectGitChurn(): ReadonlyMap<string, number> {
-    const output = tryRunGit("log --since='6 months ago' --format=%H --name-only") ?? ''
+    const output = tryRunGit("log --first-parent --since='6 months ago' --format=%H --name-only") ?? ''
     const churn = new Map<string, number>()
     for (const line of output.split('\n')) {
         const file = line.trim()

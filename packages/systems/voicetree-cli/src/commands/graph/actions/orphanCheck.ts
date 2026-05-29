@@ -1,7 +1,4 @@
-import {
-    extractExistingParentRefs,
-    type FilesystemAuthoringPlanEntry,
-} from '@vt/graph-tools/node'
+import type {FilesystemAuthoringPlanEntry} from '@vt/graph-tools/node'
 import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 import {normalizeRef} from '../core/util'
 
@@ -94,21 +91,29 @@ export function violationFilenamesByRuleId(
 export function filesystemViolationsToPlanErrors(
     violations: readonly FilesystemRuleViolation[],
 ): readonly {readonly message: string; readonly filename: string; readonly ruleId: OverridableRuleId}[] {
-    return violations.map((violation) => ({
-        message: violation.message,
-        filename: violation.nodeFilename,
-        ruleId: violation.ruleId,
-    }))
+    const planErrors: {message: string; filename: string; ruleId: OverridableRuleId}[] = []
+    for (const violation of violations) {
+        planErrors.push({
+            message: violation.message,
+            filename: violation.nodeFilename,
+            ruleId: violation.ruleId,
+        })
+    }
+    return planErrors
 }
 
 function entryWillHaveParent(
     entry: FilesystemAuthoringPlanEntry,
     externalParentRef: string | undefined,
 ): boolean {
-    const hasParentLine: boolean = extractExistingParentRefs(entry.markdown).size > 0
+    const hasParentLine: boolean = hasCanonicalParentLine(entry.markdown)
     const willAttachExternal: boolean =
         externalParentRef !== undefined &&
         entry.parentFilenames.length === 0 &&
         normalizeRef(entry.filename) !== externalParentRef
     return hasParentLine || willAttachExternal
+}
+
+function hasCanonicalParentLine(markdown: string): boolean {
+    return /^- parent \[\[[^[\]\n\r]+\]\]$/m.test(markdown)
 }
