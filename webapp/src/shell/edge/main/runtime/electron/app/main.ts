@@ -18,7 +18,7 @@ import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
-import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
+import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
     refreshUnclaimedTmuxSessions,
@@ -202,9 +202,6 @@ void app.whenReady().then(async () => {
     console.time('[Startup] setupOnboardingDirectory');
     await setupOnboardingDirectory();
     console.timeEnd('[Startup] setupOnboardingDirectory');
-
-    // Refresh the shipped AGENT_PROMPT_CORE once per app version, while preserving same-version edits.
-    await migrateAgentPromptCoreOnAppUpdateIfNeeded(app.getVersion());
 
     // Start the server and store the port it's using
     // Factory automatically chooses StubServer (test) or RealServer (production)
