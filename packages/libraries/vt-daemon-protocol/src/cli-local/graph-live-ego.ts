@@ -21,6 +21,12 @@
 
 import type {ToolSpec} from '../tool-spec-types.ts'
 
+const PROJECT_FLAG_DESCRIPTION =
+    'Override the target project path. Defaults to the live-transport-resolved '
+    + 'project (`$VOICETREE_DAEMON_URL` → cwd up-walk → '
+    + '`$VOICETREE_PROJECT_PATH`). Accepts either `--project <path>` or '
+    + '`--project=<path>`.'
+
 const VT_GRAPH_LIVE_FOCUS_SPEC: ToolSpec = {
     cliVerb: 'vt graph live focus',
     tier: 'reference',
@@ -61,6 +67,11 @@ const VT_GRAPH_LIVE_FOCUS_SPEC: ToolSpec = {
                 'Ego-graph radius in undirected hops (default 1). Accepts '
                 + 'either `--hops N` or `--hops=N`.',
         },
+        {
+            cliBulletLabel: '--project VALUE',
+            annotation: '',
+            description: PROJECT_FLAG_DESCRIPTION,
+        },
     ],
 }
 
@@ -99,6 +110,11 @@ const VT_GRAPH_LIVE_NEIGHBORS_SPEC: ToolSpec = {
             description:
                 'Neighborhood radius in undirected hops (default 1). Accepts '
                 + 'either `--hops N` or `--hops=N`.',
+        },
+        {
+            cliBulletLabel: '--project VALUE',
+            annotation: '',
+            description: PROJECT_FLAG_DESCRIPTION,
         },
     ],
 }
@@ -141,6 +157,11 @@ const VT_GRAPH_LIVE_PATH_SPEC: ToolSpec = {
                 + 'unknown / typo\'d id, writes `node not found: <ids>` to '
                 + 'stderr and exits non-zero (code 3); a real disconnected pair '
                 + 'prints `no path` and exits 0.',
+        },
+        {
+            cliBulletLabel: '--project VALUE',
+            annotation: '',
+            description: PROJECT_FLAG_DESCRIPTION,
         },
     ],
 }

@@ -19,6 +19,36 @@ interface ParsedLiveViewArgs {
   readonly format: ViewFormat
   readonly collapsedFolders: readonly string[]
   readonly selectedIds: readonly string[]
+  readonly projectPath?: string
+}
+
+/**
+ * Match a `--project <path>` / `--project=<path>` flag at position `i` of
+ * `args`. Returns the parsed project path plus the index of the last token it
+ * consumed (so the caller advances its loop counter past the value when the
+ * flag used the space-separated form). Returns `null` when `args[i]` is not a
+ * `--project` flag, letting each parser fall through to its own argument rules.
+ *
+ * The underlying `live*` functions all accept `options.projectPath` and pass it
+ * to `createLiveTransport(projectPath)`, which targets that project's daemon
+ * directly (rpc.port + auth-token read from `<project>/.voicetree`).
+ */
+function matchProjectFlag(
+  args: readonly string[],
+  i: number,
+): {readonly projectPath: string; readonly consumedIndex: number} | null {
+  const arg = args[i]
+  if (arg === '--project') {
+    const next = args[i + 1]
+    if (!next || next.startsWith('--')) fail('--project requires a value')
+    return {projectPath: next, consumedIndex: i + 1}
+  }
+  if (arg.startsWith('--project=')) {
+    const value = arg.slice('--project='.length)
+    if (!value) fail('--project requires a value')
+    return {projectPath: value, consumedIndex: i}
+  }
+  return null
 }
 
 export function liveUsage(): string {
@@ -63,10 +93,11 @@ export function emitEgoRender(render: {readonly kind: 'ok' | 'not-found' | 'no-p
   console.log(render.text)
 }
 
-function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
+export function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
   let format: ViewFormat = 'ascii'
   const collapsedFolders: string[] = []
   const selectedIds: string[] = []
+  let projectPath: string | undefined
 
   for (let i = 0; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
@@ -92,43 +123,56 @@ function parseLiveViewArgs(liveArgs: readonly string[]): ParsedLiveViewArgs {
       selectedIds.push(arg.slice('--select='.length))
       continue
     }
+    const project = matchProjectFlag(liveArgs, i)
+    if (project) { projectPath = project.projectPath; i = project.consumedIndex; continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {format, collapsedFolders, selectedIds}
+  return {format, collapsedFolders, selectedIds, projectPath}
 }
 
-function parseLiveStateDumpArgs(stateArgs: readonly string[]): {readonly pretty: boolean} {
+export function parseLiveStateDumpArgs(
+  stateArgs: readonly string[],
+): {readonly pretty: boolean; readonly projectPath?: string} {
   let pretty = true
+  let projectPath: string | undefined
   for (let i = 0; i < stateArgs.length; i++) {
     const arg = stateArgs[i]
     if (arg === '--pretty') { pretty = true; continue }
     if (arg === '--no-pretty') { pretty = false; continue }
+    const project = matchProjectFlag(stateArgs, i)
+    if (project) { projectPath = project.projectPath; i = project.consumedIndex; continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
-  return {pretty}
+  return {pretty, projectPath}
 }
 
-function parseLiveApplyArgs(liveArgs: readonly string[]): {readonly cmdJson: string} {
+export function parseLiveApplyArgs(
+  liveArgs: readonly string[],
+): {readonly cmdJson: string; readonly projectPath?: string} {
   let cmdJson: string | undefined
+  let projectPath: string | undefined
   for (let i = 0; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
+    const project = matchProjectFlag(liveArgs, i)
+    if (project) { projectPath = project.projectPath; i = project.consumedIndex; continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
     if (cmdJson !== undefined) fail(`Unexpected argument: ${arg}`)
     cmdJson = arg
   }
   if (!cmdJson) fail("Usage: vt-graph live apply '<json-cmd>'")
-  return {cmdJson}
+  return {cmdJson, projectPath}
 }
 
-function parseLiveNeighborhoodArgs(
+export function parseLiveNeighborhoodArgs(
   liveArgs: readonly string[],
   usageLine: string,
-): {readonly nodeId: string; readonly hops: number} {
+): {readonly nodeId: string; readonly hops: number; readonly projectPath?: string} {
   const nodeId = liveArgs[0]
   if (!nodeId || nodeId.startsWith('--')) fail(usageLine)
 
   let hops = 1
+  let projectPath: string | undefined
   for (let i = 1; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
     if (arg === '--hops') {
@@ -138,25 +182,32 @@ function parseLiveNeighborhoodArgs(
       continue
     }
     if (arg.startsWith('--hops=')) { hops = parseInt(arg.slice('--hops='.length), 10); continue }
+    const project = matchProjectFlag(liveArgs, i)
+    if (project) { projectPath = project.projectPath; i = project.consumedIndex; continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {nodeId, hops}
+  return {nodeId, hops, projectPath}
 }
 
-function parseLivePathArgs(liveArgs: readonly string[]): {readonly nodeA: string; readonly nodeB: string} {
+export function parseLivePathArgs(
+  liveArgs: readonly string[],
+): {readonly nodeA: string; readonly nodeB: string; readonly projectPath?: string} {
   const nodeA = liveArgs[0]
   const nodeB = liveArgs[1]
   if (!nodeA || nodeA.startsWith('--') || !nodeB || nodeB.startsWith('--')) {
     fail('Usage: vt-graph live path <a> <b>')
   }
 
+  let projectPath: string | undefined
   for (let i = 2; i < liveArgs.length; i++) {
     const arg = liveArgs[i]
+    const project = matchProjectFlag(liveArgs, i)
+    if (project) { projectPath = project.projectPath; i = project.consumedIndex; continue }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
   }
 
-  return {nodeA, nodeB}
+  return {nodeA, nodeB, projectPath}
 }
 
 export async function runLiveCommand(args: readonly string[]): Promise<void> {
@@ -168,8 +219,8 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   }
 
   if (liveSubcommand === 'view') {
-    const {format, collapsedFolders, selectedIds} = parseLiveViewArgs(liveArgs)
-    const result = await liveView({format, collapsedFolders, selectedIds})
+    const {format, collapsedFolders, selectedIds, projectPath} = parseLiveViewArgs(liveArgs)
+    const result = await liveView({format, collapsedFolders, selectedIds, projectPath})
     console.log(result.output)
     if (format === 'ascii') {
       console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
@@ -180,17 +231,17 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   if (liveSubcommand === 'state') {
     const [stateSubcmd, ...stateArgs] = liveArgs
     if (stateSubcmd !== 'dump') {
-      fail('Usage: vt-graph live state dump [--no-pretty]')
+      fail('Usage: vt-graph live state dump [--no-pretty] [--project <path>]')
     }
-    const {pretty} = parseLiveStateDumpArgs(stateArgs)
-    const result = await liveStateDump({pretty})
+    const {pretty, projectPath} = parseLiveStateDumpArgs(stateArgs)
+    const result = await liveStateDump({pretty, projectPath})
     process.stdout.write(result.json)
     return
   }
 
   if (liveSubcommand === 'apply') {
-    const {cmdJson} = parseLiveApplyArgs(liveArgs)
-    const result = await liveApply(cmdJson)
+    const {cmdJson, projectPath} = parseLiveApplyArgs(liveArgs)
+    const result = await liveApply(cmdJson, {projectPath})
     process.stdout.write(result.output)
     return
   }
@@ -211,26 +262,26 @@ export async function runLiveCommand(args: readonly string[]): Promise<void> {
   }
 
   if (liveSubcommand === 'focus') {
-    const {nodeId, hops} = parseLiveNeighborhoodArgs(
+    const {nodeId, hops, projectPath} = parseLiveNeighborhoodArgs(
       liveArgs,
-      'Usage: vt-graph live focus <node> [--hops N]',
+      'Usage: vt-graph live focus <node> [--hops N] [--project <path>]',
     )
-    emitEgoRender(await liveFocus(nodeId, {hops}))
+    emitEgoRender(await liveFocus(nodeId, {hops, projectPath}))
     return
   }
 
   if (liveSubcommand === 'neighbors') {
-    const {nodeId, hops} = parseLiveNeighborhoodArgs(
+    const {nodeId, hops, projectPath} = parseLiveNeighborhoodArgs(
       liveArgs,
-      'Usage: vt-graph live neighbors <node> [--hops N]',
+      'Usage: vt-graph live neighbors <node> [--hops N] [--project <path>]',
     )
-    emitEgoRender(await liveNeighbors(nodeId, {hops}))
+    emitEgoRender(await liveNeighbors(nodeId, {hops, projectPath}))
     return
   }
 
   if (liveSubcommand === 'path') {
-    const {nodeA, nodeB} = parseLivePathArgs(liveArgs)
-    emitEgoRender(await livePath(nodeA, nodeB))
+    const {nodeA, nodeB, projectPath} = parseLivePathArgs(liveArgs)
+    emitEgoRender(await livePath(nodeA, nodeB, {projectPath}))
     return
   }
 

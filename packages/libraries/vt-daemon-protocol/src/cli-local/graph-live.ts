@@ -80,6 +80,15 @@ const VT_GRAPH_LIVE_VIEW_SPEC: ToolSpec = {
                 + '(repeatable). All ids are dispatched together as a single '
                 + '`Select` command; best-effort.',
         },
+        {
+            cliBulletLabel: '--project VALUE',
+            annotation: '',
+            description:
+                'Override the target project path. Defaults to the '
+                + 'live-transport-resolved project (`$VOICETREE_DAEMON_URL` → '
+                + 'cwd up-walk → `$VOICETREE_PROJECT_PATH`). Accepts either '
+                + '`--project <path>` or `--project=<path>`.',
+        },
     ],
 }
 
