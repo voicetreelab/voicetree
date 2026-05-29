@@ -18,6 +18,10 @@
 
 set -euo pipefail
 
+if [ "$(uname -s)" = "Darwin" ]; then
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
