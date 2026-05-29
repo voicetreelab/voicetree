@@ -25,6 +25,10 @@ CHECKOUT_ROOT="$(cd "$TARGET_PATH" && pwd)"
 
 step "installing dependencies in $CHECKOUT_ROOT"
 cd "$CHECKOUT_ROOT"
-pnpm install --frozen-lockfile
+if command -v pnpm >/dev/null; then
+  pnpm install --frozen-lockfile
+else
+  corepack pnpm install --frozen-lockfile
+fi
 
 step "complete"
