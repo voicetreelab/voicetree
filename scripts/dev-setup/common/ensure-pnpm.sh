@@ -16,6 +16,10 @@ fail() {
 CHECKOUT_ROOT="$(cd "$TARGET_PATH" && pwd)"
 [ -f "$CHECKOUT_ROOT/package.json" ] || fail "missing package.json in $CHECKOUT_ROOT"
 
+if [ "$(uname -s)" = "Darwin" ]; then
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+fi
+
 command -v node >/dev/null || fail "node is required"
 command -v corepack >/dev/null || fail "corepack is required; install Node with bundled corepack"
 
