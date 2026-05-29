@@ -73,7 +73,7 @@ describe('vt-debug <command> --help', () => {
 
     // Real per-command usage was printed.
     expect(result.stdout).toContain('Usage:')
-    expect(result.stdout).toContain('vt-debug screenshot')
+    expect(result.stdout).toContain('vt debug screenshot')
     expect(result.stdout).toContain('Shared selector flags:')
 
     // No auto-launch side effects: the auto-launch path prints the chosen CDP
@@ -90,7 +90,37 @@ describe('vt-debug <command> --help', () => {
 
     expect(result.timedOut, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(false)
     expect(result.code).toBe(0)
-    expect(result.stdout).toContain('vt-debug node-click')
+    expect(result.stdout).toContain('vt debug node-click')
     expect(result.stderr).not.toMatch(/electron:debug/i)
+  })
+
+  // The bin is invoked by users as `vt debug ...`; the internal bin name
+  // `vt-debug` must never leak into the usage/error text a user reads.
+  it('top-level --help presents the user-facing `vt debug` and never the bin-internal `vt-debug`', { timeout: 60_000 }, async () => {
+    const result = await runVtDebug(['--help'], 45_000)
+
+    expect(result.timedOut, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(false)
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('Usage: vt debug <command> [args]')
+    expect(result.stdout).not.toMatch(/vt-debug/)
+  })
+
+  it('subcommand --help presents the user-facing `vt debug` and never the bin-internal `vt-debug`', { timeout: 60_000 }, async () => {
+    const result = await runVtDebug(['eval', '--help'], 45_000)
+
+    expect(result.timedOut, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(false)
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('vt debug eval')
+    expect(result.stdout).not.toMatch(/vt-debug/)
+  })
+
+  // An unknown subcommand prints a JSON usage error on stderr. That error text
+  // is user-facing and must reference `vt debug`, never the bin-internal name.
+  it('unknown-subcommand error references `vt debug` and never the bin-internal `vt-debug`', { timeout: 60_000 }, async () => {
+    const result = await runVtDebug(['not-a-real-subcommand'], 45_000)
+
+    expect(result.timedOut, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(false)
+    expect(result.code).toBe(2)
+    expect(result.stderr).not.toMatch(/vt-debug/)
   })
 })

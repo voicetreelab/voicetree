@@ -185,7 +185,7 @@ describe('vt-debug CLI surface', () => {
       },
     )
 
-    expect(stdout).toContain('Usage: vt-debug <command> [args]')
+    expect(stdout).toContain('Usage: vt debug <command> [args]')
     expect(stdout).toContain('--port <N>')
     expect(stdout).toContain('--cdpPort <N>')
     expect(stdout).toContain('Auto-launch:')
