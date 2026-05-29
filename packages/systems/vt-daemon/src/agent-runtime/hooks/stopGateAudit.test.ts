@@ -207,9 +207,9 @@ describe('resolveSkillPathsFromContent', () => {
     })
 
     it('Case 2: extracts absolute path SKILL.md from content', () => {
-        const content: string = 'Read /Users/bobbobby/brain/workflows/orchestration/SKILL.md for guidance.'
+        const content: string = 'Read /Users/example/brain/workflows/orchestration/SKILL.md for guidance.'
         const result: string[] = resolveSkillPathsFromContent('/vault/task_123.md', content)
-        expect(result).toEqual(['/Users/bobbobby/brain/workflows/orchestration/SKILL.md'])
+        expect(result).toEqual(['/Users/example/brain/workflows/orchestration/SKILL.md'])
     })
 
     it('Case 2: matches case-insensitive skill.md in tilde content', () => {
@@ -219,9 +219,9 @@ describe('resolveSkillPathsFromContent', () => {
     })
 
     it('Case 3: extracts absolute root /brain/SKILL.md from content', () => {
-        const content: string = 'Read /Users/bobbobby/brain/SKILL.md first.'
+        const content: string = 'Read /Users/example/brain/SKILL.md first.'
         const result: string[] = resolveSkillPathsFromContent('/vault/task_456.md', content)
-        expect(result).toEqual(['/Users/bobbobby/brain/SKILL.md'])
+        expect(result).toEqual(['/Users/example/brain/SKILL.md'])
     })
 
     it('Case 3: matches case-insensitive root skill.md', () => {

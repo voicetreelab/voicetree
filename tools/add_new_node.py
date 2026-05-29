@@ -214,16 +214,6 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
     with open(new_file_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
 
-    # Mark this file as seen by the current agent to prevent hook notifications
-    try:
-        sys.path.insert(0, str(Path(__file__).parent / "hooks"))
-        from tree_update_reminder import mark_file_as_seen_by_agent
-        mark_file_as_seen_by_agent(str(vault_dir), str(new_file_path), agent_name)
-    except ImportError:
-        # Hook module not available, silently continue
-        pass
-
-
     absolute_path = str(new_file_path.resolve())
     print(f"Created new node at: {absolute_path}")
 

@@ -10,14 +10,15 @@
 #   vt-mac.sh run <cmd...>    # run a command on Mac
 #
 # Env overrides:
-#   MAC_USER   target user on Mac (default: bobbobby)
+#   MAC_USER   target user on Mac (required)
 #   MAC_PORT   tunnel port on Onidel loopback (default: 2222)
 #   MAC_KEY    SSH private key to use (default: /root/.ssh/id_ed25519_mac)
 #   MAC_HOST   tunnel host (default: localhost)
 
 set -euo pipefail
 
-MAC_USER="${MAC_USER:-bobbobby}"
+: "${MAC_USER:?MAC_USER must be set (target user on Mac)}"
+MAC_USER="${MAC_USER}"
 MAC_PORT="${MAC_PORT:-2222}"
 MAC_KEY="${MAC_KEY:-/root/.ssh/id_ed25519_mac}"
 MAC_HOST="${MAC_HOST:-localhost}"

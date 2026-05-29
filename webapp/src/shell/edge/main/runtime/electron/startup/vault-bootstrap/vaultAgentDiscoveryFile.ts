@@ -1,29 +1,31 @@
 /**
  * Vault-open advertisement of the `vt` CLI for user-launched coding agents.
  *
- * Background: spawn-time prompt injection (Step 7 §2.5) reaches only agents
- * that VoiceTree itself spawns. A user who opens Claude Code (or Codex,
- * OpenCode, …) directly in their vault never sees the manual injection.
- * Before Step 7 those user-launched agents discovered the VoiceTree tools
- * through the auto-written `.mcp.json` entry; after Step 7 there is no MCP
- * entry, so the agent has no discovery surface.
+ * Background: spawn-time prompt injection reaches only agents that
+ * VoiceTree itself spawns. A user who opens Claude Code (or Codex,
+ * OpenCode, …) directly in their vault never sees the manual
+ * injection. Before Step 7 those user-launched agents discovered the
+ * VoiceTree tools through the auto-written `.mcp.json` entry; after
+ * Step 7 there is no MCP entry, so the agent has no discovery surface.
  *
  * Mitigation (recommended by Step 7 design §7 R1):
- *   - If `<vault>/CLAUDE.md` exists, append (or replace) a fenced VoiceTree
- *     section advertising the `vt` CLI. Idempotent: the section is
- *     delimited by sentinels so subsequent vault opens overwrite the
- *     existing block rather than nesting.
- *   - Otherwise, write `<vault>/.voicetree/AGENTS.md` containing the same
- *     content. Agent runtimes that consume `AGENTS.md` (Codex, OpenCode)
- *     pick it up on session start.
+ *   - If `<vault>/CLAUDE.md` exists, append (or replace) a fenced
+ *     VoiceTree section advertising the `vt` CLI. Idempotent: the
+ *     section is delimited by sentinels so subsequent vault opens
+ *     overwrite the existing block rather than nesting.
+ *   - Otherwise, write `<vault>/.voicetree/AGENTS.md` containing the
+ *     same content. Agent runtimes that consume `AGENTS.md` (Codex,
+ *     OpenCode) pick it up on session start.
  *
- * Failure is non-fatal — if the manual file cannot be read or the disk
- * write fails, the function logs nothing and returns. Vault open must not
- * block on a stray filesystem error.
+ * The manual content is rendered live from `@vt/vt-daemon-protocol`'s
+ * canonical spec data — no on-disk manual file, no filesystem read.
+ * Whatever the protocol package says becomes the contents written into
+ * CLAUDE.md / AGENTS.md the next time the vault is opened.
  */
 
 import {promises as fs} from 'fs'
 import path from 'path'
+import {renderFullManual} from '@vt/vt-daemon-protocol'
 
 const SECTION_START: string = '<!-- VOICETREE_AGENT_DISCOVERY_START -->'
 const SECTION_END: string = '<!-- VOICETREE_AGENT_DISCOVERY_END -->'
@@ -31,18 +33,20 @@ const SECTION_BANNER: string =
     '## VoiceTree `vt` CLI (auto-generated — do not edit between sentinels)'
 
 /**
- * Build the fenced VoiceTree section ready for splicing into a CLAUDE.md /
- * AGENTS.md file. The output is delimited by stable sentinels so subsequent
- * runs can find and replace the block in place. Pure.
+ * Build the fenced VoiceTree section ready for splicing into a
+ * CLAUDE.md / AGENTS.md file. The output is delimited by stable
+ * sentinels so subsequent runs can find and replace the block in
+ * place. Pure.
  */
 export function buildVoicetreeDiscoverySection(manualContent: string): string {
     return `${SECTION_START}\n${SECTION_BANNER}\n\n${manualContent.trimEnd()}\n${SECTION_END}\n`
 }
 
 /**
- * Given the current contents of a CLAUDE.md / AGENTS.md file (or null if it
- * doesn't yet exist), return the new contents with the VoiceTree section
- * present exactly once. Pure: idempotent across repeated calls.
+ * Given the current contents of a CLAUDE.md / AGENTS.md file (or null
+ * if it doesn't yet exist), return the new contents with the
+ * VoiceTree section present exactly once. Pure: idempotent across
+ * repeated calls.
  */
 export function spliceVoicetreeDiscoverySection(
     existingContent: string | null,
@@ -76,20 +80,24 @@ async function readFileOrNull(filePath: string): Promise<string | null> {
  * Write or update the VoiceTree CLI discovery file inside `vaultDir`.
  *
  * Strategy:
- *   - If `<vaultDir>/CLAUDE.md` exists, append/replace the VoiceTree
+ *   - If `<vaultDir>/CLAUDE.md` exists, append / replace the VoiceTree
  *     section there. Other content in the file is left intact.
- *   - Otherwise, write `<vaultDir>/.voicetree/AGENTS.md` with the section
- *     as its body (creating the `.voicetree/` directory if needed).
+ *   - Otherwise, write `<vaultDir>/.voicetree/AGENTS.md` with the
+ *     section as its body (creating the `.voicetree/` directory if
+ *     needed).
  *
- * Errors reading the manual or writing the target file are swallowed —
- * vault open must not depend on this side-effect succeeding.
+ * The manual content defaults to `renderFullManual()` (the canonical
+ * `TOOL_SPECS` rendered live). Tests pass a literal string to exercise
+ * splice / idempotency behavior without depending on the canonical
+ * payload. Errors writing the target file are swallowed — vault open
+ * must not depend on this side effect succeeding.
  */
 export async function writeVaultAgentDiscoveryFile(
     vaultDir: string,
-    manualPath: string,
+    manualBody: string = renderFullManual(),
 ): Promise<void> {
-    const manualContent: string | null = await readFileOrNull(manualPath)
-    if (manualContent === null || manualContent.trim().length === 0) return
+    const manualContent: string = manualBody.trimEnd()
+    if (manualContent.length === 0) return
 
     const claudeMdPath: string = path.join(vaultDir, 'CLAUDE.md')
     const existingClaudeMd: string | null = await readFileOrNull(claudeMdPath)

@@ -9,7 +9,7 @@ Commit tested: `acab1714` (`[M1-fix4] fix: filter AGENT_PROMPT/large vars from t
 
 ## Summary
 
-`ptyBackend` was set to `tmux` in `/Users/bobbobby/Library/Application Support/Voicetree/settings.json`, backed up to `settings.json.pre-m1-rerun-4-2026-05-15T11-28-29Z`, and restored after cleanup.
+`ptyBackend` was set to `tmux` in `/Users/example/Library/Application Support/Voicetree/settings.json`, backed up to `settings.json.pre-m1-rerun-4-2026-05-15T11-28-29Z`, and restored after cleanup.
 
 Native rebuild passed, and Electron launched headfully with persistent user data and fixed CDP:
 

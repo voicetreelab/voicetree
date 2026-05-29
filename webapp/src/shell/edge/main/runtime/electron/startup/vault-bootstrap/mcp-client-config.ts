@@ -2,8 +2,8 @@
  * Stale-entry migrator for external MCP-client config files.
  *
  * VoiceTree no longer presents itself as an MCP server (Step 7). Discovery is
- * now delivered as a spawn-time prompt injection of
- * `packages/systems/voicetree-cli/prompts/cli-manual.md`.
+ * now delivered as a spawn-time prompt injection of the CLI manual,
+ * rendered live from `@vt/vt-daemon-protocol`'s `TOOL_SPECS`.
  * Existing user vaults may still contain a `voicetree` entry inside one of the
  * legacy MCP-client config files — that entry would point at an HTTP port that
  * no longer binds, surfacing as a confusing connect failure on the agent side.

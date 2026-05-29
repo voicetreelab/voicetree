@@ -82,7 +82,7 @@ const test = base.extend<{
 
     await fs.writeFile(path.join(tempUserDataPath, 'settings.json'), JSON.stringify({
       agents: [
-        { name: 'Claude Sonnet', command: '/Users/bobbobby/.local/bin/claude --dangerously-skip-permissions --model sonnet -p "$AGENT_PROMPT"; exit' },
+        { name: 'Claude Sonnet', command: '/Users/example/.local/bin/claude --dangerously-skip-permissions --model sonnet -p "$AGENT_PROMPT"; exit' },
         { name: 'Codex', command: '/opt/homebrew/bin/codex exec --dangerously-bypass-approvals-and-sandbox "$AGENT_PROMPT"; exit' },
       ],
       defaultAgent: 'Claude Sonnet',

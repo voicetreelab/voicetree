@@ -319,6 +319,9 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@24.12.4)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
   packages/libraries/vt-rpc:
     devDependencies:
@@ -560,6 +563,9 @@ importers:
       '@vt/vt-daemon-client':
         specifier: '*'
         version: link:../vt-daemon-client
+      '@vt/vt-daemon-protocol':
+        specifier: '*'
+        version: link:../../libraries/vt-daemon-protocol
       '@vt/vt-rpc':
         specifier: '*'
         version: link:../../libraries/vt-rpc
@@ -1002,6 +1008,9 @@ importers:
       '@vt/vt-daemon-client':
         specifier: '*'
         version: link:../packages/systems/vt-daemon-client
+      '@vt/vt-daemon-protocol':
+        specifier: '*'
+        version: link:../packages/libraries/vt-daemon-protocol
       '@vt/vt-rpc':
         specifier: '*'
         version: link:../packages/libraries/vt-rpc
