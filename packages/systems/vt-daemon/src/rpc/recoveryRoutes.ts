@@ -41,8 +41,16 @@ const discoverRecoverableAgentSessionsRoute: RpcRoute = {
             metadataPath: s.metadataPath,
             terminalData: s.terminalData,
             isClaimed: s.isClaimed,
-            attach: s.attach ? {sessionName: s.attach.session.sessionName} : undefined,
+            status: s.status,
+            attach: s.attach ? {session: s.attach.session} : undefined,
             resume: s.resume ? {cliType: s.resume.cliType} : undefined,
+            worktreeName: s.worktreeName,
+            title: s.title,
+            agentTypeName: s.agentTypeName,
+            startedAt: s.startedAt,
+            endedAt: s.endedAt,
+            closedAt: s.closedAt,
+            killReason: s.killReason,
         }))
         return buildJsonResponse(projected)
     },

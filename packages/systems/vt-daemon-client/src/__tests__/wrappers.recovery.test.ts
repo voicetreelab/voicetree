@@ -15,6 +15,7 @@ import type {
     ResumePersistedResult,
     TerminalData,
     TerminalId,
+    UnclaimedTmuxSession,
 } from '@vt/vt-daemon-protocol'
 
 import {bindVtDaemonClient} from '../wrappers/index.ts'
@@ -48,6 +49,17 @@ function makeTerminalData(id: string): TerminalData {
 
 describe('vt-daemon-client wrappers — recovery facade', (): void => {
     let server: FakeRpcServerHandle
+    const attachSession: UnclaimedTmuxSession = {
+        sessionName: 'voicetree-recover-1',
+        terminalId: 'recover-1',
+        hash: 'aaaaaaaaaa',
+        classification: 'this-vault',
+        attachable: true,
+        createdAt: 1_700_000_000_000,
+        panePid: 4242,
+        agentName: 'agent-recover-1',
+        projectRoot: '/var/voicetree',
+    }
 
     const sessionRows: readonly RecoverableAgentSession[] = [
         {
@@ -56,7 +68,8 @@ describe('vt-daemon-client wrappers — recovery facade', (): void => {
             metadataPath: '/var/voicetree/recover-1.json',
             terminalData: makeTerminalData('recover-1'),
             isClaimed: false,
-            attach: {sessionName: 'voicetree-recover-1'},
+            status: 'running',
+            attach: {session: attachSession},
             resume: {cliType: 'claude'},
         },
     ]
@@ -85,7 +98,8 @@ describe('vt-daemon-client wrappers — recovery facade', (): void => {
         const sessions = await vtd.recovery.discoverRecoverableAgentSessions()
         expect(sessions).toHaveLength(1)
         expect(sessions[0].terminalId).toBe('recover-1')
-        expect(sessions[0].attach?.sessionName).toBe('voicetree-recover-1')
+        expect(sessions[0].attach?.session.sessionName).toBe('voicetree-recover-1')
+        expect(sessions[0].attach?.session.classification).toBe('this-vault')
         expect(sessions[0].resume?.cliType).toBe('claude')
         expect(server.received[0].method).toBe('discoverRecoverableAgentSessions')
         expect(server.received[0].params).toEqual({})
