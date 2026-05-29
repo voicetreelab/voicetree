@@ -20,7 +20,7 @@
  */
 
 import type {ToolSpec, ToolInputSpec, ToolTier} from './tool-spec-types'
-import {TOOL_SPECS} from './tool-specs'
+import {MANUAL_SPECS} from './manual-specs.ts'
 
 export type RenderTier = 'essentials' | 'all'
 
@@ -82,17 +82,22 @@ export function renderManual(
 }
 
 /**
- * No-argument convenience for callers that render the canonical
- * `TOOL_SPECS` set (the common case — spawn-time injection, webapp
- * project-bootstrap, default `vt manual` output). Exists so sibling
- * packages don't need to import `TOOL_SPECS` as a separate symbol
- * alongside the renderer.
+ * No-argument convenience for callers that render the full documented
+ * spec set — `MANUAL_SPECS`, i.e. the daemon-dispatched `TOOL_SPECS`
+ * plus the CLI-local doc-only `CLI_LOCAL_SPECS`. This is the common case
+ * (webapp project-bootstrap, default `vt manual` output). Exists so
+ * sibling packages don't need to import `MANUAL_SPECS` as a separate
+ * symbol alongside the renderer.
+ *
+ * Spawn-time injection deliberately renders the essentials slice of
+ * `TOOL_SPECS` directly (not this set), since essentials are
+ * daemon-dispatched only.
  *
  * Tests that need a different spec set call `renderManual(specs, opts)`
  * directly; the no-arg form deliberately doesn't expose injection.
  */
 export function renderFullManual(opts: RenderManualOptions = {}): string {
-    return renderManual(TOOL_SPECS, opts)
+    return renderManual(MANUAL_SPECS, opts)
 }
 
 /**

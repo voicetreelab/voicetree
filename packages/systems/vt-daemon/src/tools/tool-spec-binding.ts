@@ -10,9 +10,11 @@
  *   - `specDescribe(spec)` returns a `(rpcPath) => string` lookup used
  *     by zod `.describe()` calls so the per-input description text is
  *     sourced from the spec rather than re-typed in the catalog.
- *   - `buildCatalogEntry(spec, inputShape, handler)` constructs the
- *     `CatalogEntry` from a spec, pulling `name` and `description`
- *     from the spec automatically.
+ *   - `buildCatalogEntry(spec, rpcName, inputShape, handler)` constructs
+ *     the `CatalogEntry` from a spec, taking the resolved `name` (the
+ *     daemon RPC dispatch key) explicitly and pulling `description` from
+ *     the spec. The caller resolves `rpcName` once (guarding the
+ *     now-optional `spec.rpcName`) and passes it through.
  */
 
 import type {ZodRawShape} from 'zod'
@@ -27,7 +29,7 @@ export function specDescribe(spec: ToolSpec): (rpcPath: string) => string {
         if (!input) {
             throw new Error(
                 `tool-spec-binding: spec '${spec.rpcName}' has no input named '${rpcPath}'. `
-                + `Known inputs: ${spec.inputs.map((entry: ToolInputSpec): string => entry.rpcName).join(', ') || '(none)'}.`,
+                + `Known inputs: ${spec.inputs.map((entry: ToolInputSpec): string => entry.rpcName ?? '(no-rpc)').join(', ') || '(none)'}.`,
             )
         }
         return input.description
@@ -36,11 +38,12 @@ export function specDescribe(spec: ToolSpec): (rpcPath: string) => string {
 
 export function buildCatalogEntry(
     spec: ToolSpec,
+    rpcName: string,
     inputShape: ZodRawShape,
     handler: BridgedCatalogHandler,
 ): CatalogEntry {
     return {
-        name: spec.rpcName,
+        name: rpcName,
         description: spec.description,
         inputShape,
         handler,

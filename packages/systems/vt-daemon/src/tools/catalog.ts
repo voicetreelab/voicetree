@@ -217,13 +217,13 @@ const HANDLERS: Readonly<Record<string, BridgedCatalogHandler>> = {
         appendSessionTool(args as unknown as AppendSessionParams),
 }
 
-function resolveInputShape(spec: ToolSpec): ZodRawShape {
-    const flat: Readonly<Record<string, FlatFieldCode>> | undefined = FLAT_INPUTS[spec.rpcName]
+function resolveInputShape(spec: ToolSpec, rpcName: string): ZodRawShape {
+    const flat: Readonly<Record<string, FlatFieldCode>> | undefined = FLAT_INPUTS[rpcName]
     if (flat !== undefined) return flatInputShape(flat, specDescribe(spec))
-    const bespoke: InputShapeBuilder | undefined = INPUT_SHAPES[spec.rpcName]
+    const bespoke: InputShapeBuilder | undefined = INPUT_SHAPES[rpcName]
     if (bespoke !== undefined) return bespoke(spec)
     throw new Error(
-        `catalog: TOOL_SPECS entry '${spec.rpcName}' has no input-shape binding. `
+        `catalog: TOOL_SPECS entry '${rpcName}' has no input-shape binding. `
         + `Add primitive fields to FLAT_INPUTS or a nested builder to INPUT_SHAPES in `
         + `packages/systems/vt-daemon/src/tools/catalog.ts when adding a new tool.`,
     )
@@ -231,14 +231,20 @@ function resolveInputShape(spec: ToolSpec): ZodRawShape {
 
 function buildToolCatalog(): readonly CatalogEntry[] {
     return TOOL_SPECS.map((spec: ToolSpec): CatalogEntry => {
-        const handler: BridgedCatalogHandler | undefined = HANDLERS[spec.rpcName]
+        const rpcName: string | undefined = spec.rpcName
+        if (rpcName === undefined) {
+            throw new Error(
+                `catalog: TOOL_SPECS entry ${spec.cliVerb} must have an rpcName`,
+            )
+        }
+        const handler: BridgedCatalogHandler | undefined = HANDLERS[rpcName]
         if (!handler) {
             throw new Error(
-                `catalog: TOOL_SPECS entry '${spec.rpcName}' has no HANDLERS binding. `
+                `catalog: TOOL_SPECS entry '${rpcName}' has no HANDLERS binding. `
                 + `Add one in packages/systems/vt-daemon/src/tools/catalog.ts when adding a new tool.`,
             )
         }
-        return buildCatalogEntry(spec, resolveInputShape(spec), handler)
+        return buildCatalogEntry(spec, rpcName, resolveInputShape(spec, rpcName), handler)
     })
 }
 

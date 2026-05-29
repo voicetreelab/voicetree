@@ -1,8 +1,10 @@
 /**
  * `vt manual` — prints the canonical CLI manual rendered from the
- * single-source `TOOL_SPECS` data in `@vt/vt-daemon-protocol`. With
+ * single-source `MANUAL_SPECS` data in `@vt/vt-daemon-protocol`
+ * (daemon-dispatched `TOOL_SPECS` plus CLI-local doc-only specs). With
  * no args, prints the whole document. With a selector, prints just
- * the matching tool section.
+ * the matching tool section — so `vt manual <cli-local-verb>` resolves
+ * even though that verb never dispatches to a daemon RPC.
  *
  * Tool lookup accepts the CLI verb in either form:
  *
@@ -18,13 +20,13 @@
  * parameter shape from a CLI verb, run `vt <verb> --help` — every flag's
  * `(RPC: <param>)` annotation makes the mapping explicit.
  *
- * No filesystem I/O: the manual is rendered from `TOOL_SPECS` at runtime
- * and is the single source of truth for the daemon's catalog
- * descriptions as well.
+ * No filesystem I/O: the manual is rendered from `MANUAL_SPECS` at
+ * runtime. The daemon-dispatched subset (`TOOL_SPECS`) is also the
+ * single source of truth for the daemon's catalog descriptions.
  */
 
 import {
-    TOOL_SPECS,
+    MANUAL_SPECS,
     findSpecByCliVerb,
     renderManual,
     renderManualSection,
@@ -33,7 +35,7 @@ import {
 import {error} from './output.ts'
 
 export function runManualCommand(args: readonly string[]): void {
-    process.stdout.write(resolveManualCommand(TOOL_SPECS, args))
+    process.stdout.write(resolveManualCommand(MANUAL_SPECS, args))
 }
 
 /**
