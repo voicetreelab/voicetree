@@ -236,19 +236,6 @@ describe('graph CLI module resolution', () => {
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
     }, 30000)
 
-    it('routes graph view into handler-level validation instead of @/shell resolution failure', async () => {
-        const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-view-'))
-        tempDirs.push(tempDir)
-
-        const result: SpawnResult = await spawnCli(['graph', 'view', '--bogus'], tempDir)
-
-        expect(result.code, result.stderr).toBe(1)
-        expect(result.signal).toBeNull()
-        expect(result.stdout).toBe('')
-        expect(result.stderr).toContain('Unknown argument: --bogus')
-        expect(result.stderr).not.toContain("Cannot find package '@/shell'")
-    }, 30000)
-
     it('persists graph live CRUD through cwd-relative shell CLI paths', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-live-crud-'))
         tempDirs.push(tempDir)

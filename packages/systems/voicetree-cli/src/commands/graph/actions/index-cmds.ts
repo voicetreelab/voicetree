@@ -1,68 +1,44 @@
-import path from 'node:path'
-import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
-import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
-import {error, output} from '../cliDeps'
-import {getErrorMessage, parseGraphIndexArgs, parseGraphSearchArgs} from '../core/args'
-import type {GraphIndexSuccess, GraphSearchSuccess} from '../core/types'
+import {error} from '../cliDeps'
+import {parseGraphIndexArgs, parseGraphSearchArgs} from '../core/args'
 
+/**
+ * Semantic graph indexing is not yet implemented. The backend `buildIndex`
+ * (graph-db-server/search/index-backend.ts) only logs a TODO and writes no
+ * index, so reporting success here — or printing an index path that does not
+ * exist on disk — would be dishonest. We parse args for early validation, then
+ * fail with an explicit "not yet available" message so an agent can tell
+ * "unimplemented" apart from "no matches".
+ */
 export async function graphIndex(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
     const projectRoot: string = parseGraphIndexArgs(args)
+    void projectRoot
 
-    try {
-        await buildIndex(projectRoot)
-    } catch (buildError: unknown) {
-        error(`graph index failed: ${getErrorMessage(buildError)}`)
-    }
-
-    const result: GraphIndexSuccess = {
-        success: true,
-        projectRoot,
-        indexPath: path.join(projectRoot, '.vt-search', 'kg.db'),
-    }
-
-    output(result, (data: unknown): string => {
-        const successData: GraphIndexSuccess = data as GraphIndexSuccess
-        return `Indexed ${successData.projectRoot}\n${successData.indexPath}`
-    })
+    error(
+        'vt graph index is not yet available: the semantic search index is unimplemented (the backend writes no index). ' +
+            'No index was built.',
+    )
 }
 
+/**
+ * Semantic graph search is not yet implemented. The backend `search`
+ * (graph-db-server/search/index-backend.ts) returns an empty array for every
+ * query regardless of project contents, so emitting `hits: []` would be
+ * indistinguishable from a genuine no-match result. We fail with an explicit
+ * "not yet available" message instead. For the daemon-backed semantic search
+ * surface, use the top-level `vt search` command.
+ */
 export async function graphSearch(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
     const {projectRoot, query, topK} = parseGraphSearchArgs(args)
+    void projectRoot
+    void query
+    void topK
 
-    let hits: readonly NodeSearchHit[]
-    try {
-        hits = await search(projectRoot, query, topK)
-    } catch (searchError: unknown) {
-        if (searchError instanceof SearchIndexNotFoundError) {
-            error(searchError.message)
-        }
-
-        error(`graph search failed: ${getErrorMessage(searchError)}`)
-    }
-
-    const result: GraphSearchSuccess = {
-        success: true,
-        projectRoot,
-        query,
-        topK,
-        hits,
-    }
-
-    output(result, (data: unknown): string => {
-        const successData: GraphSearchSuccess = data as GraphSearchSuccess
-        if (successData.hits.length === 0) {
-            return `No graph hits for "${successData.query}".`
-        }
-
-        return successData.hits
-            .map(
-                (hit: NodeSearchHit, index: number) =>
-                    `${index + 1}. [${hit.score}] ${hit.title}\n   ${hit.nodePath}${hit.snippet ? `\n   ${hit.snippet}` : ''}`,
-            )
-            .join('\n')
-    })
+    error(
+        'vt graph search is not yet available: the semantic search index is unimplemented (the backend returns no hits for any query). ' +
+            'Use `vt search` for the daemon-backed search surface.',
+    )
 }

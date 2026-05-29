@@ -66,26 +66,51 @@ function parsePositiveInteger(value: string, flag: string): number {
 }
 
 function parseGraphIndexArgs(args: string[]): string {
-    if (args.length !== 1) {
+    const positionalArgs: string[] = []
+    let endOfOptions: boolean = false
+
+    for (let index: number = 0; index < args.length; index += 1) {
+        const arg: string = args[index]
+
+        if (!endOfOptions && arg === '--') {
+            endOfOptions = true
+            continue
+        }
+
+        if (!endOfOptions && arg.startsWith('--')) {
+            error(`Unknown argument: ${arg}`)
+        }
+
+        positionalArgs.push(arg)
+    }
+
+    if (positionalArgs.length !== 1) {
         error('Usage: vt graph index <project-root>')
     }
 
-    return args[0]
+    return positionalArgs[0]
 }
 
 function parseGraphSearchArgs(args: string[]): {projectRoot: string; query: string; topK: number} {
     let topK: number = 10
     const positionalArgs: string[] = []
+    let endOfOptions: boolean = false
 
     for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
-        if (arg === '--top-k') {
+
+        if (!endOfOptions && arg === '--') {
+            endOfOptions = true
+            continue
+        }
+
+        if (!endOfOptions && arg === '--top-k') {
             topK = parsePositiveInteger(getRequiredValue(args, index + 1, '--top-k'), '--top-k')
             index += 1
             continue
         }
 
-        if (arg.startsWith('--')) {
+        if (!endOfOptions && arg.startsWith('--')) {
             error(`Unknown argument: ${arg}`)
         }
 
