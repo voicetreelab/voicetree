@@ -145,8 +145,25 @@
 // @vt/vt-daemon. All previously-budgeted agent-runtime edges drop to zero
 // and their budget entries are removed; default budget is 0, so re-adding
 // any edge to a deleted package would hard-error.
+//
+// 2026-05-29 [runtime-state/unify-voicetree-home-and-project-paths]:
+// Extract `@vt/paths` as the single source of truth for global VoiceTree home
+// and project-local `.voicetree` path construction. This intentionally moves
+// the previously scattered path constants/resolvers out of app-config,
+// vt-rpc, vt-daemon, and callers into one tiny dependency leaf:
+//   app-config -> paths:             0 -> 2 (settings/config/project IO)
+//   daemon-lifecycle -> paths:       0 -> 1 (owner cooldown/lock files)
+//   graph-db-client -> paths:        0 -> 1 (graphd port discovery)
+//   graph-db-protocol -> paths:      0 -> 1 (owner record filename)
+//   graph-db-server -> paths:        0 -> 2 (daemon types + port files)
+//   voicetree-cli -> paths:          0 -> 1 (home-path CLI command)
+//   vt-daemon -> paths:              0 -> 4 (spawn env + runtime state)
+//   vt-daemon-client -> paths:       0 -> 1 (VTD owner discovery)
+//   vt-rpc -> paths:                 0 -> 1 (auth/port files)
+//   webapp -> paths:                 0 -> 1 (Electron build config)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
+    'app-config -> paths': 2,
     // 2026-05-28 [PR #139]: @vt/code-graph-cli is a thin agent-facing wrapper
     // around `@vt/measures`' `buildCallGraph` — single value symbol
     // (`buildCallGraph`) plus a pair of type re-exports (`CallGraph`,
@@ -156,14 +173,18 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // BF-369: +1 vs base — daemonKind generalisation widened the protocol
     // surface (DaemonKind type now imported alongside the existing 2 symbols).
     'daemon-lifecycle -> graph-db-protocol': 3,
+    'daemon-lifecycle -> paths': 1,
     'graph-db-client -> daemon-lifecycle': 23,
     'graph-db-client -> graph-db-protocol': 24,
+    'graph-db-client -> paths': 1,
+    'graph-db-protocol -> paths': 1,
     'graph-db-server -> app-config': 13,
     'graph-db-server -> daemon-lifecycle': 10,
     'graph-db-server -> graph-db-protocol': 1,
     'graph-db-server -> graph-model': 42,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
+    'graph-db-server -> paths': 2,
     'graph-state -> graph-model': 8,
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
@@ -177,6 +198,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
     'voicetree-cli -> graph-tools': 11,
+    'voicetree-cli -> paths': 1,
     'voicetree-cli -> voicetree-graph-validation': 1,
     'voicetree-cli -> vt-daemon': 7,
     // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
@@ -232,6 +254,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // in webapp's process).
     'vt-daemon -> graph-state': 3,
     'vt-daemon -> graph-tools': 7,
+    'vt-daemon -> paths': 4,
     'vt-daemon -> voicetree-graph-validation': 1,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
     // refactor (PR #137 + follow-up), vt-daemon-protocol owns TOOL_SPECS plus
@@ -258,9 +281,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // boundary rather than duplicating the resolver.
     'vt-daemon-client -> graph-db-client': 4,
     'vt-daemon-client -> graph-db-protocol': 1,
+    'vt-daemon-client -> paths': 1,
     'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
+    'vt-rpc -> paths': 1,
     // 2026-05-27: ratcheted 24 -> 22. stripStaleVoicetreeMcpEntries +
     // writeVaultAgentDiscoveryFile were briefly here (ce909fdeb) but only
     // webapp's electron-main calls them; now live colocated in
@@ -271,6 +296,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
+    'webapp -> paths': 1,
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
     // cleanups above (drop in-process configureMcpServer +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix
