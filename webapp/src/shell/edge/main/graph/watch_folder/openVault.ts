@@ -1,11 +1,9 @@
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
-import * as O from 'fp-ts/lib/Option.js'
 import log from 'electron-log'
 import { getCallbacks } from '@vt/graph-model'
 import { initializeProject } from '@vt/app-config/project'
 import {
-    getLastDirectory,
     getVaultConfigForDirectory,
     saveLastDirectory,
     saveVaultConfigForDirectory,
@@ -36,7 +34,6 @@ import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-stat
 
 export type StartupVaultHint =
     | { readonly kind: 'open-folder'; readonly path: string }
-    | { readonly kind: 'last-directory'; readonly path: string }
     | { readonly kind: 'none' }
 
 function pushToRenderer(
@@ -110,10 +107,7 @@ export async function getStartupVaultHint(): Promise<StartupVaultHint> {
         return { kind: 'open-folder', path: startupFolder }
     }
 
-    const lastDirectory: O.Option<string> = await getLastDirectory()
-    return O.isSome(lastDirectory)
-        ? { kind: 'last-directory', path: lastDirectory.value }
-        : { kind: 'none' }
+    return { kind: 'none' }
 }
 
 export async function openVault(projectRoot: string): Promise<OpenVaultResponse> {
