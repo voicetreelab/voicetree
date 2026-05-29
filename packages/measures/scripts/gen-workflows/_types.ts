@@ -3,8 +3,9 @@
 
 export type Step =
     | {kind: 'checkout'}
+    | {kind: 'pnpm-setup'}
     | {kind: 'setup-node'; node: string}
-    | {kind: 'npm-ci'}
+    | {kind: 'install-deps'}
     | {kind: 'playwright-install'}
     | {kind: 'run'; name: string; run: string; id?: string; env?: Record<string, string>}
     | {kind: 'upload-artifact'; name: string; path: string}

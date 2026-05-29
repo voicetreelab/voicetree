@@ -38,7 +38,7 @@ VT_REMOTE_HOST=<value-from-user> bash scripts/dev-setup/remote/install.sh
 3. Pre-seed the devbox with `git clone` + `git submodule update --init` at
    the laptop's current branch, so the first mutagen sync reconciles by hash
 4. Create the `vt-remote` mutagen session
-5. Set `core.hooksPath=.githooks`
+5. Set `core.hooksPath=scripts/hooks`
 
 If pre-seed fails (e.g. branch doesn't exist on origin), re-run with
 `--skip-pre-seed`. Mutagen will then push the full working tree on first

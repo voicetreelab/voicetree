@@ -59,14 +59,13 @@ describe('vault routes', () => {
     const response = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
-    // setWriteFolder seeds the active view's folder-visibility table with the
-    // writeFolder itself (so the sidebar can show the writeFolder's contents on
-    // mount). Children default collapsed — only the writeFolder row appears.
-    expect(await response.json()).toEqual({
-      projectRoot: vault,
-      readPaths: [vault],
-      writeFolder: vault,
-    })
+    // Cold start of a fresh project root with no saved config defaults the
+    // writeFolder to a `voicetree-{day}-{month}` subfolder so we never load
+    // the whole project root as a single graph — see resolveDefaultWriteFolder.
+    const body = await response.json() as { projectRoot: string; readPaths: string[]; writeFolder: string }
+    expect(body.projectRoot).toBe(vault)
+    expect(body.writeFolder).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolder]))
   })
 
   test('PUT /vault/write-path updates the write path', async () => {
@@ -140,13 +139,11 @@ describe('vault routes', () => {
     expect(readResolved).toBe(false)
 
     completeVaultOpen()
-    const body = await reader
+    const body = await reader as { projectRoot: string; readPaths: string[]; writeFolder: string }
     expect(readResolved).toBe(true)
-    expect(body).toEqual({
-      projectRoot: vault,
-      readPaths: [vault],
-      writeFolder: vault,
-    })
+    expect(body.projectRoot).toBe(vault)
+    expect(body.writeFolder).toMatch(new RegExp(`^${vault}/voicetree-\\d{1,2}-\\d{1,2}(-\\d+)?$`))
+    expect(body.readPaths).toEqual(expect.arrayContaining([body.writeFolder]))
   })
 
   test('GET /vault still 409s when no vault is open and no open is pending', async () => {

@@ -94,8 +94,8 @@ export function generateWorktreeName(nodeTitle: string): string {
  *
  * The constant is duplicated (not imported) in:
  *   - packages/systems/agent-runtime/src/application/spawn/terminalData.ts
- *   - scripts/git/worktree/ensure-ready.mjs
  *   - scripts/run-remote.mjs
+ *   - scripts/dev-setup/git-gate/git-gate.sh
  * because these cross package + script boundaries. The string must stay
  * in sync across all of them.
  */

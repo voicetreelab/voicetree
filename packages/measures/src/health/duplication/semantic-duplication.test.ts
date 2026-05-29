@@ -31,8 +31,14 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   Observed 632 + 5 headroom = 637; ratchet DOWN as graph-bridge.ts is
 //   restructured (the wrappers are intentionally minimal — each provides
 //   a stable public name over the GraphStateBridge interface).
+// Re-anchored 2026-05-28 [PR #139 cgcli addition]:
+//   @vt/code-graph-cli's six command files (callers/callees/reachable/
+//   imports/find-symbol/hotspots) share a thin JSON-emitting shape over
+//   the call-graph primitives — same intentional thin-wrapper pattern as
+//   graph-bridge.ts. Observed 640 + 5 headroom = 645; ratchet DOWN as
+//   the command bodies grow past their current 1–2 call shape.
 // Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 637
+const MAX_DUPLICATE_PAIRS: number = 645
 
 const SCORE_THRESHOLD: number = 0.7
 
@@ -40,16 +46,23 @@ describe('semantic function-duplication health', () => {
     it('keeps the count of >=0.7-score duplicate pairs within budget', async () => {
         const packages = await discoverPackages()
         const files = await discoverSourceFiles(packages)
-        const records = await extractFunctions(files, path => readFile(path, 'utf8'))
-        // topK large enough to see the full distribution; details still
-        // store only the top 20. The check report (current count) needs the
-        // true number of pairs at-or-above the threshold, not a truncated one.
-        const pairs = clusterDuplicates(records, {topK: 100000})
+        // Scope the AST-bearing records so they become unreachable once
+        // clustering returns its (lean) DuplicatePair[] — full-repo ASTs are
+        // multi-GB and the suite runs in a single vitest worker, so any
+        // leftover reference here piles up across sibling health tests.
+        const {recordCount, pairs} = await (async () => {
+            const records = await extractFunctions(files, path => readFile(path, 'utf8'))
+            // topK large enough to see the full distribution; details still
+            // store only the top 20. The check report (current count) needs
+            // the true number of pairs at-or-above the threshold, not a
+            // truncated one.
+            return {recordCount: records.length, pairs: clusterDuplicates(records, {topK: 100000})}
+        })()
 
         const overThreshold = pairs.filter(pair => pair.score >= SCORE_THRESHOLD)
         const top20 = overThreshold.slice(0, 20)
 
-        console.info(`\nTotal functions analysed: ${records.length}`)
+        console.info(`\nTotal functions analysed: ${recordCount}`)
         console.info(`Pairs reported (>=2 signals): ${pairs.length}`)
         console.info(`Pairs at or above score ${SCORE_THRESHOLD}: ${overThreshold.length}\n`)
         console.info(`Top 20 semantic duplicate pairs:\n${formatDuplicateRows(top20)}`)
@@ -64,7 +77,7 @@ describe('semantic function-duplication health', () => {
             comparison: 'lte',
             unit: 'pairs',
             details: {
-                totalFunctions: records.length,
+                totalFunctions: recordCount,
                 fileCount: files.length,
                 scoreThreshold: SCORE_THRESHOLD,
                 topPairs: top20.map(pair => ({

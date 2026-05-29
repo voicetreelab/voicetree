@@ -139,15 +139,18 @@ export async function setWriteFolder(
         return { success: false, error: describeVaultLoadFailure(outcome) };
     }
 
-    // Demote old write path to the active view's expanded paths before overwriting
-    const oldWriteFolder: string = config?.writeFolder
-        ? resolveWriteFolder(watchedDir, config.writeFolder)
-        : normalizePath(watchedDir);
-
-    if (oldWriteFolder !== vaultPath) {
-        await traceGraphdSpan('daemon.set-write-folder.set-active-view-folder-state', async () => {
-            await setActiveViewFolderState(watchedDir, oldWriteFolder, 'expanded');
-        });
+    // Demote the previously-saved writeFolder to the active view's expanded
+    // paths before overwriting. Only meaningful when a prior writeFolder
+    // actually exists — on a cold open with no saved config there is no
+    // "previous" to demote, and treating the projectRoot as one would seed a
+    // spurious expanded row whenever the new writeFolder is a subfolder.
+    if (config?.writeFolder) {
+        const oldWriteFolder: string = resolveWriteFolder(watchedDir, config.writeFolder);
+        if (oldWriteFolder !== vaultPath) {
+            await traceGraphdSpan('daemon.set-write-folder.set-active-view-folder-state', async () => {
+                await setActiveViewFolderState(watchedDir, oldWriteFolder, 'expanded');
+            });
+        }
     }
 
     await traceGraphdSpan('daemon.set-write-folder.seed-write-path-folder-visibility', async () => {

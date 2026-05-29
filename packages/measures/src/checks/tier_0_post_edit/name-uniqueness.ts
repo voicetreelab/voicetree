@@ -1,27 +1,19 @@
 // Tier-0 post-edit measure: name-uniqueness.
 //
 // Conforms to the per-edit-hook contract `checkFile({filePath, content, env})
-// → {message, severity?} | null`. Internally:
-//   1. Resolve previous content via `env.gitFileAtHead` (or null for an
-//      untracked file).
-//   2. Compute the file's introduced declarations via extract-scope.
-//   3. Build (cached) name-uniqueness context, cache key = HEAD sha from
-//      `env.gitHeadSha`.
-//   4. Run `findNameUniquenessViolations`. Format any violations as a
-//      single multi-line message; return null when there are none.
-//
-// All impure capabilities (git invocations, file reads) come through
-// `env` (FP pattern 3 — Reader-env) so this file imports no fs / path /
-// child_process modules and the impurity boundary lives in the runner.
+// → {message, severity?} | null`. The check itself is the deep function
+// `checkFileForNameCollisions` in _shared/name-uniqueness; this file
+// only wires the impure git capabilities from `env` (Reader-env pattern)
+// into that call and formats the resulting violations for the runner.
 //
 // Warn-mode escalation (per design.md Decision G): the measure ships in
 // warn-only for the first 7 days post-merge (returns a warning result that
 // the runner prints without blocking). On WARN_MODE_UNTIL we flip the
 // constant to false and start exit-2-blocking.
 
-import {buildNameUniquenessContext} from '../../_shared/name-uniqueness/build-context.ts'
-import {extractScopeDeclarations} from '../../_shared/name-uniqueness/extract-scope.ts'
-import {findNameUniquenessViolations} from '../../_shared/name-uniqueness/find-violations.ts'
+import {checkFileForNameCollisions} from '../../_shared/name-uniqueness/check-file.ts'
+
+type NameUniquenessViolation = Awaited<ReturnType<typeof checkFileForNameCollisions>>[number]
 
 // Flip to false on or after WARN_MODE_UNTIL to escalate from warn to block.
 // First merged: 2026-05-26; escalate: 2026-06-02.
@@ -37,7 +29,7 @@ type Env = {
     readonly gitFileAtHead: (absOrRelPath: string) => string | null
 }
 
-function formatViolation(violation: ReturnType<typeof findNameUniquenessViolations>[number]): string {
+function formatViolation(violation: NameUniquenessViolation): string {
     const sample = violation.collidingMembers.slice(0, 6).map(m => `    • ${m.name}  ${m.filePath}`)
     const overflow = violation.collidingMembers.length > 6
         ? `\n    … +${violation.collidingMembers.length - 6} more`
@@ -51,7 +43,7 @@ function formatViolation(violation: ReturnType<typeof findNameUniquenessViolatio
     ].join('\n')
 }
 
-function formatBlockMessage(filePath: string, violations: ReturnType<typeof findNameUniquenessViolations>): string {
+function formatBlockMessage(filePath: string, violations: readonly NameUniquenessViolation[]): string {
     const bar = '\x1b[0;31m' + '═'.repeat(60) + '\x1b[0m'
     const title = WARN_MODE
         ? `\x1b[0;33m⚠ NAME-UNIQUENESS WARNING (warn-mode until ${WARN_MODE_UNTIL}): ${filePath}\x1b[0m`
@@ -73,20 +65,11 @@ export async function checkFile(args: {
     readonly env: Env
 }): Promise<{readonly message: string; readonly severity?: 'block' | 'warn'} | null> {
     if (!SOURCE_EXT_PATTERN.test(args.filePath)) return null
-    const previousContent = args.env.gitFileAtHead(args.filePath)
-    const scope = extractScopeDeclarations({
+    const violations = await checkFileForNameCollisions({
         filePath: args.filePath,
         content: args.content,
-        previousContent,
-    })
-    if (scope.length === 0) return null
-
-    const context = await buildNameUniquenessContext({cacheKey: args.env.gitHeadSha()})
-    const violations = findNameUniquenessViolations({
-        scope,
-        index: context.index,
-        allowlist: context.allowlist,
-        importGraph: context.importGraph,
+        previousContent: args.env.gitFileAtHead(args.filePath),
+        cacheKey: args.env.gitHeadSha(),
     })
     if (violations.length === 0) return null
 

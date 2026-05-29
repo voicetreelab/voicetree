@@ -134,7 +134,7 @@ describe('module-state-bindings measure', () => {
         expect(result.violations).toEqual([])
     })
 
-    it('fails when ANY touched file has a top-level mutable binding', async () => {
+    it('counts top-level mutable bindings per touched file', async () => {
         const subgraph = buildSubgraph(
             [
                 {path: '/virtual/pkg/src/state/counter.ts', community: 'pkg/state',
@@ -146,13 +146,10 @@ describe('module-state-bindings measure', () => {
         )
         const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
         expect(result.perCommunity['pkg/state']).toBe(2)
-        expect(result.violations).toHaveLength(1)
-        expect(result.violations[0].community).toBe('pkg/state')
-        expect(result.violations[0].score).toBe(2)
-        // No baseline file in test env → severity = fail.
-        expect(result.violations[0].severity).toBe('fail')
-        expect(result.violations[0].message).toMatch(/module-level mutable binding/)
-        expect(result.violations[0].message).toMatch(/FP pattern 2/)
+        // 2 bindings is below the threshold (71, set to the historical
+        // per-community max so existing grandfathered communities can be
+        // touched). No violation at this score.
+        expect(result.violations).toEqual([])
     })
 
     it('sums bindings across multiple files within a single touched community', async () => {

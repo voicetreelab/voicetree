@@ -144,6 +144,14 @@ function findCaptureInvocations(
     for (const match of workflowText.matchAll(directRe)) {
         calls.push({workflow, ...parseCaptureFlags(match[1] ?? '')})
     }
+    // Direct node invocations of capture-ci-checks.ts in workflow `run:` blocks,
+    // including bash line-continuations (`\` + newline) used by the generated
+    // measures workflow.
+    const joined = workflowText.replace(/\\\n\s*/g, ' ')
+    const nodeRe = /capture-ci-checks\.ts\s+([^\n]+)/gi
+    for (const match of joined.matchAll(nodeRe)) {
+        calls.push({workflow, ...parseCaptureFlags(match[1])})
+    }
     const indirectRe = /npm run ([a-z0-9:_-]+)/gi
     for (const match of workflowText.matchAll(indirectRe)) {
         const name = match[1]

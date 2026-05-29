@@ -31,6 +31,45 @@ function rpcErrorEnvelope(
         : {jsonrpc: '2.0', id, error: {code, message, data}}
 }
 
+type SerializedErrorLink = {
+    readonly name: string
+    readonly message: string
+    readonly code?: string | number
+    readonly errno?: number
+}
+
+// Walk an Error's .cause chain so transport-level wrappers (undici's
+// `TypeError("fetch failed")` is the canonical example) can surface the
+// underlying network reason — `ECONNREFUSED 127.0.0.1:<port>`, `ETIMEDOUT`,
+// etc. — without source-spelunking. Capped depth keeps the response small
+// and guarantees termination on cyclic causes.
+function serializeErrorCauseChain(error: Error, maxDepth: number = 4): readonly SerializedErrorLink[] {
+    const chain: SerializedErrorLink[] = []
+    let current: unknown = error.cause
+    let depth: number = 0
+    while (current !== undefined && depth < maxDepth) {
+        if (!(current instanceof Error)) {
+            chain.push({name: 'NonError', message: String(current)})
+            break
+        }
+        const withCode = current as Error & {readonly code?: unknown; readonly errno?: unknown}
+        const code: string | number | undefined =
+            typeof withCode.code === 'string' || typeof withCode.code === 'number' ? withCode.code : undefined
+        const errno: number | undefined = typeof withCode.errno === 'number' ? withCode.errno : undefined
+        chain.push({name: current.name, message: current.message, code, errno})
+        current = current.cause
+        depth++
+    }
+    return chain
+}
+
+function buildInternalErrorData(cause: unknown): unknown {
+    if (!(cause instanceof Error)) return undefined
+    const causes = serializeErrorCauseChain(cause)
+    if (causes.length === 0) return undefined
+    return {kind: 'internal_error', causes}
+}
+
 function unwrapToolResponse(
     response: McpToolResponse,
 ): {ok: true; payload: unknown} | {ok: false; payload: unknown} {
@@ -109,6 +148,7 @@ export async function dispatchRpcRequest(
                 id,
                 ERROR_CODES.internal_error,
                 cause instanceof Error ? cause.message : String(cause),
+                buildInternalErrorData(cause),
             ),
         }
     }

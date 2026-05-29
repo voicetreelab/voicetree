@@ -10,16 +10,18 @@ const CI_CHECK_REPORTER = resolve(
 /**
  * Tier 2 (critical) Playwright configuration for Electron.
  *
- * Narrowed to the two specs we want gating every PR:
+ * Narrowed to the specs we want gating every PR:
  *   - electron-editor-disk-convergence.spec.ts   (editor ↔ graph ↔ disk)
  *   - electron-project-selection.spec.ts         (launch + scanner)
+ *   - electron-context-node-agent.spec.ts        (writeFolder resolution + vt-graphd reachability + spawnTerminalWithContextNode)
  *
  * Sibling config `playwright-electron.config.ts` runs the remaining critical
- * electron specs at tier 3 (with these two `testIgnore`'d to avoid double-run).
+ * electron specs at tier 3 (with these `testIgnore`'d to avoid double-run).
  */
 const CRITICAL_TIER2_SPECS = [
   'electron-editor-disk-convergence.spec.ts',
   'electron-project-selection.spec.ts',
+  'electron-context-node-agent.spec.ts',
 ];
 
 export default defineConfig({

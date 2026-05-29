@@ -37,6 +37,7 @@
     "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",
+    "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",

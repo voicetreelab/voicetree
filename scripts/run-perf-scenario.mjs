@@ -3,7 +3,11 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const PERF_LIFECYCLE = join(REPO_ROOT, 'infra/perf-stack/scripts/lifecycle.mjs')
 
 const DEFAULT_DURATION_MS = 30_000
 const READY_TIMEOUT_MS = 15_000
@@ -55,10 +59,10 @@ function runCommand(command, args, options = {}) {
 }
 
 async function assertPerfStackUp() {
-  const result = await runCommand('npm', ['run', 'perf:check'])
+  const result = await runCommand('node', [PERF_LIFECYCLE, 'check'])
   if (result.code !== 0) {
     throw new Error([
-      'perf stack is not ready; run `npm run perf:up` with the same VOICETREE_RUN_INSTANCE_ID first',
+      'perf stack is not ready; run `node infra/perf-stack/scripts/lifecycle.mjs up` with the same VOICETREE_RUN_INSTANCE_ID first',
       result.stdout.trim(),
       result.stderr.trim(),
     ].filter(Boolean).join('\n'))

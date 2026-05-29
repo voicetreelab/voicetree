@@ -44,7 +44,6 @@
  *   Baseline-delta: any regression above baseline fails (warns if no baseline).
  */
 import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../_internal/baseline-store.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
@@ -59,7 +58,15 @@ export const MEASURE_ID = 'tree-width-approx'
  * Headline threshold. Communities with tw > 5 are pipeline-violating
  * meshes; the cost to restructure them rises super-linearly.
  */
-export const TREE_WIDTH_ABSOLUTE_BUDGET = 5
+/**
+ * Single per-measure threshold (replaces the old per-community baseline
+ * ratchet). Matches the old `TREE_WIDTH_ABSOLUTE_BUDGET = 5` and tier-1's
+ * `TREE_WIDTH_BUDGET = 5`. This tier-0 measure is an upper-bound
+ * approximation that over-estimates relative to tier-1's exact algorithm,
+ * so tier-0 fires earlier than tier-1 — the intended early-warning shape.
+ * Grandfathered communities at tw > 5 must reduce their tangle.
+ */
+export const TREE_WIDTH_THRESHOLD = 5
 
 /**
  * Compute an upper bound on the treewidth of an undirected graph by
@@ -148,32 +155,18 @@ async function run(input: SubgraphMeasureInput): Promise<SubgraphMeasureResult> 
         widthsForViolations.set(community, tw)
     }
 
-    const baseline = await loadBaseline(MEASURE_ID)
     const violations: Violation[] = []
 
     for (const community of parsedSubgraph.touchedCommunities) {
         const current = widthsForViolations.get(community)!
-        const baselineScore = community in baseline ? baseline[community] : null
-
-        if (current > TREE_WIDTH_ABSOLUTE_BUDGET) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `tree-width-approx ${current} > absolute budget ${TREE_WIDTH_ABSOLUTE_BUDGET} (community is a tangled mesh; consider pipeline/ADT refactor)`,
-            })
-            continue
-        }
-        if (baselineScore !== null && current > baselineScore) {
-            violations.push({
-                community,
-                score: current,
-                baseline: baselineScore,
-                severity: 'fail',
-                message: `tree-width-approx regressed: ${baselineScore} -> ${current}`,
-            })
-        }
+        if (current <= TREE_WIDTH_THRESHOLD) continue
+        violations.push({
+            community,
+            score: current,
+            baseline: null,
+            severity: 'fail',
+            message: `tree-width-approx ${current} > threshold ${TREE_WIDTH_THRESHOLD} (community is a tangled mesh; consider pipeline/ADT refactor)`,
+        })
     }
 
     return {measureId: MEASURE_ID, perCommunity, violations}
