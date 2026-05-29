@@ -137,4 +137,4 @@ export type {
 
 // Vault path facade — every artifact under <vault>/.voicetree resolves
 // through one function.
-export { vaultStateDir } from './vaultPaths.ts'
+export { projectStateDir } from './projectPaths.ts'

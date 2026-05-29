@@ -5,7 +5,7 @@ import path from 'node:path'
 
 vi.mock('electron', () => ({
     app: {
-        getPath: vi.fn(() => process.env.VOICETREE_APP_SUPPORT ?? os.tmpdir()),
+        getPath: vi.fn(() => process.env.VOICETREE_HOME_PATH ?? os.tmpdir()),
     },
 }))
 
@@ -14,22 +14,22 @@ import { setStartupFolderOverride } from '@/shell/edge/main/runtime/electron/sta
 import { getStartupVaultHint } from './openVault'
 
 describe('getStartupVaultHint', () => {
-    let appSupportPath: string
+    let voicetreeHomePath: string
 
     beforeEach(async () => {
-        appSupportPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-startup-hint-'))
-        process.env.VOICETREE_APP_SUPPORT = appSupportPath
+        voicetreeHomePath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-startup-hint-'))
+        process.env.VOICETREE_HOME_PATH = voicetreeHomePath
         setStartupFolderOverride(null)
     })
 
     afterEach(async () => {
         setStartupFolderOverride(null)
-        delete process.env.VOICETREE_APP_SUPPORT
-        await fs.rm(appSupportPath, { recursive: true, force: true })
+        delete process.env.VOICETREE_HOME_PATH
+        await fs.rm(voicetreeHomePath, { recursive: true, force: true })
     })
 
     it('does not turn persisted lastDirectory into a startup auto-open hint', async () => {
-        const projectPath: string = path.join(appSupportPath, 'project')
+        const projectPath: string = path.join(voicetreeHomePath, 'project')
         await fs.mkdir(projectPath)
         await saveLastDirectory(projectPath)
 
@@ -37,7 +37,7 @@ describe('getStartupVaultHint', () => {
     })
 
     it('returns an explicit startup folder override', async () => {
-        const projectPath: string = path.join(appSupportPath, 'project')
+        const projectPath: string = path.join(voicetreeHomePath, 'project')
         setStartupFolderOverride(projectPath)
 
         await expect(getStartupVaultHint()).resolves.toEqual({
