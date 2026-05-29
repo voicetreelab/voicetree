@@ -137,17 +137,6 @@ export function formatBatchReportSummary(summary: BatchReportSummary, exitCode: 
     return `Summary: ${summary.ok} ok, ${summary.rejected} rejected, ${summary.skipped} skipped, ${summary.warning} warning. Exit ${exitCode}.`
 }
 
-export function formatBatchReportHuman(report: BatchReport): readonly string[] {
-    const lines: string[] = report.nodes.map(formatBatchReportLine)
-    if (report.planErrors && report.planErrors.length > 0) {
-        for (const planError of report.planErrors) {
-            lines.push(`✗ plan-error: ${planError.message}`)
-        }
-    }
-    lines.push(formatBatchReportSummary(report.summary, reportExitCode(report)))
-    return lines
-}
-
 export function formatBatchReportJson(report: BatchReport): string {
     return JSON.stringify(report, null, 2)
 }

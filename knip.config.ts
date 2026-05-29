@@ -8,8 +8,12 @@ const config: KnipConfig = {
                 '.codex/hooks/**/*.cjs',
                 'scripts/*.mjs',
                 'scripts/*.cjs',
+                'infra/perf-stack/scripts/*.mjs',
                 'packages/measures/**/*.ts',
+                'packages/systems/agent-runtime/bin/*.ts',
                 'health-dashboard/app.js',
+                'perf-dashboard/server.mjs',
+                'perf-dashboard/app.js',
                 'vitest.config.fuzz.ts',
             ],
             ignore: [

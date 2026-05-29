@@ -4,7 +4,7 @@ export const check: CheckDef = {
     id: 'duplication',
     name: 'Code Duplication (jscpd)',
     category: 'Static',
-    display: 'npm run measures:duplication',
-    args: () => checkArgs.npmRun('measures:duplication'),
+    display: 'pnpm --filter @vt/measures run measures:duplication',
+    args: () => checkArgs.npmWorkspaceRun('@vt/measures', 'measures:duplication'),
     parser: 'none',
 }
