@@ -5,7 +5,8 @@
 
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getRuntimeEnv} from '../runtime/runtime-config'
+import * as O from 'fp-ts/lib/Option.js'
+import {getRuntimeEnv, getGraphBridge} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt} from './cliManualInjection'
@@ -55,7 +56,12 @@ export async function buildTerminalEnvVars(params: {
     const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
     const writeFolderPath: string | null = env.getWriteFolderPath
         ? await env.getWriteFolderPath()
-        : null
+        : await (async () => {
+            const bridge = getGraphBridge()
+            if (!bridge) return null
+            const o = await bridge.getWriteFolderPath()
+            return O.isSome(o) ? (o.value as string) : null
+          })()
     const daemonPort: number | null = await readDaemonPortFromProject(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
 
