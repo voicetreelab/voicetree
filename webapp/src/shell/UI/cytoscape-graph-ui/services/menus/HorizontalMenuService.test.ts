@@ -4,6 +4,7 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { getNodeMenuItems, createHorizontalMenuElement, type HorizontalMenuItem, type NodeMenuItemsInput } from '@/shell/UI/cytoscape-graph-ui/services/menus/HorizontalMenuService';
 import { createDistanceSlider } from '@/shell/UI/cytoscape-graph-ui/services/menus/DistanceSlider';
+import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
 import { Trash2, Clipboard, Plus, Play, ChevronDown } from 'lucide';
 
 // Mock dependencies that require IPC
@@ -57,6 +58,8 @@ describe('HorizontalMenuService', () => {
     });
 
     afterEach(() => {
+        vi.clearAllMocks();
+        delete (window as unknown as { electronAPI?: unknown }).electronAPI;
         if (cy) {
             cy.destroy();
         }
@@ -143,6 +146,41 @@ describe('HorizontalMenuService', () => {
 
             const items: HorizontalMenuItem[] = getNodeMenuItems(input);
             expect(items[4]?.icon).toBe(ChevronDown);
+        });
+
+        it('resolves non-default agent commands from fresh settings at click time', async () => {
+            (window as unknown as { electronAPI: unknown }).electronAPI = {
+                main: {
+                    loadSettings: vi.fn(async () => ({
+                        agents: [
+                            { name: 'Default', command: 'default "$AGENT_PROMPT"' },
+                            { name: 'Worker', command: 'current "$AGENT_PROMPT"' },
+                        ],
+                    })),
+                },
+            };
+            const input: NodeMenuItemsInput = {
+                nodeId: 'test-node.md',
+                cy,
+                agents: [
+                    { name: 'Default', command: 'default "$AGENT_PROMPT"' },
+                    { name: 'Worker', command: 'stale "$AGENT_PROMPT"' },
+                ],
+                isContextNode: false,
+            };
+
+            const items: HorizontalMenuItem[] = getNodeMenuItems(input);
+            const moreMenu: HorizontalMenuItem | undefined = items.find(item => item.label === 'More');
+            const workerItem: HorizontalMenuItem | undefined = moreMenu?.subMenu?.find(item => item.label === 'Worker');
+
+            expect(workerItem).not.toBeUndefined();
+            await workerItem!.action();
+
+            expect(spawnTerminalWithNewContextNode).toHaveBeenCalledWith(
+                'test-node.md',
+                cy,
+                'current "$AGENT_PROMPT"',
+            );
         });
     });
 

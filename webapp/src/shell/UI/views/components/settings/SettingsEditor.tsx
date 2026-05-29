@@ -24,6 +24,24 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
     const [activeTab, setActiveTab] = useState<Section>('general');
     const debounceRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null> = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isFirstRender: React.MutableRefObject<boolean> = useRef<boolean>(true);
+    const latestSettingsRef: React.MutableRefObject<VTSettings> = useRef<VTSettings>(initialSettings);
+    const dirtyRef: React.MutableRefObject<boolean> = useRef<boolean>(false);
+
+    useEffect(() => {
+        latestSettingsRef.current = settings;
+    }, [settings]);
+
+    useEffect(() => {
+        return () => {
+            if (debounceRef.current !== null) {
+                clearTimeout(debounceRef.current);
+                debounceRef.current = null;
+            }
+            if (dirtyRef.current) {
+                void onSave(latestSettingsRef.current);
+            }
+        };
+    }, [onSave]);
 
     // Debounced auto-save on settings change
     useEffect(() => {
@@ -38,6 +56,7 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
         }
 
         debounceRef.current = setTimeout(() => {
+            dirtyRef.current = false;
             void onSave(settings);
         }, DEBOUNCE_MS);
 
@@ -49,6 +68,7 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
     }, [settings, onSave]);
 
     const updateSetting: (key: string, value: unknown) => void = useCallback((key: string, value: unknown): void => {
+        dirtyRef.current = true;
         setSettings(prev => ({ ...prev, [key]: value }));
     }, []);
 
