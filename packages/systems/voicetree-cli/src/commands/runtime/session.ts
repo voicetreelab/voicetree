@@ -1,7 +1,12 @@
-import {ensureDaemon, GraphDbClient, type SessionInfo} from '@vt/graph-db-client'
+import {
+    ensureDaemon,
+    GraphDbClient,
+    GraphDbClientError,
+    type SessionInfo,
+} from '@vt/graph-db-client'
 import {isJsonMode} from '../output'
 import {resolveProject} from '../util/detectProject'
-import {ArgValidationError, handleCliError} from '../util/exitCodes'
+import {ArgValidationError, CliExitError, EXIT, handleCliError} from '../util/exitCodes'
 
 // The narrow daemon surface the session command depends on. Threading this in
 // as a dependency (rather than constructing a GraphDbClient inline) keeps the
@@ -28,10 +33,12 @@ type CommonSessionFields = {
 }
 
 // Discriminated by `subcommand` so the type reflects which branches carry a
-// session id. `create` never has one; `delete` always does (a positional <id>
-// is required); `show` may resolve its id from VT_SESSION at the shell edge, so
-// it carries an optional raw positional that the runner narrows before use.
+// session id. `help` (from --help/-h) carries nothing and prints usage on
+// stdout with a success exit. `create` never has an id; `delete` always does (a
+// positional <id> is required); `show` may resolve its id from VT_SESSION at the
+// shell edge, so it carries an optional raw positional the runner narrows.
 type ParsedSessionCommand =
+    | {subcommand: 'help'}
     | (CommonSessionFields & {subcommand: 'create'})
     | (CommonSessionFields & {subcommand: 'delete'; sessionId: string})
     | (CommonSessionFields & {subcommand: 'show'; sessionId?: string})
@@ -48,7 +55,9 @@ type SessionDeleteResult = {
 const SESSION_USAGE: string = `Usage:
   vt session create [--project <path>] [--json]
   vt session delete <id> [--project <path>] [--json]
-  vt session show [id] [--project <path>] [--json]`
+  vt session show [id] [--project <path>] [--json]
+
+delete is idempotent: deleting an unknown or already-deleted id succeeds.`
 
 function validationError(message: string): never {
     throw new ArgValidationError(`${message}\n\n${SESSION_USAGE}`)
@@ -101,7 +110,11 @@ function parseSessionCommand(argv: string[]): ParsedSessionCommand {
         }
 
         if (arg === '--help' || arg === '-h') {
-            throw new ArgValidationError(SESSION_USAGE)
+            // --help is not an error: the runner prints usage to stdout and
+            // exits 0. Returning early short-circuits any other parsing so
+            // `vt session delete --help` prints usage instead of complaining
+            // about the (intentionally absent) <id>.
+            return {subcommand: 'help'}
         }
 
         if (arg.startsWith('--')) {
@@ -181,12 +194,53 @@ function formatSessionInfo(data: SessionInfo): string {
     ].join('\n')
 }
 
+function isNotFound(err: unknown): err is GraphDbClientError {
+    return err instanceof GraphDbClientError && err.status === 404
+}
+
+// `delete` is IDEMPOTENT: deleting a session that is already gone (typo'd id,
+// repeated delete) is a success, not a failure. The daemon answers 404 for an
+// unknown id; we translate that to the same `{deleted: true}` result an actual
+// deletion produces, so an agent can `delete` without first checking existence
+// and without parsing a raw transport error. Any non-404 daemon error still
+// propagates unchanged.
+async function deleteSessionIdempotent(client: SessionDaemon, sessionId: string): Promise<void> {
+    try {
+        await client.deleteSession(sessionId)
+    } catch (err) {
+        if (!isNotFound(err)) {
+            throw err
+        }
+    }
+}
+
+// `show` of an unknown id is a clean domain error naming the id — never a raw
+// `daemon responded 404 http_404: Not Found` transport string. The exit code
+// stays in the daemon-error class (4) because the daemon is the authority that
+// reported the resource absent.
+async function showSession(client: SessionDaemon, sessionId: string): Promise<SessionInfo> {
+    try {
+        return await client.getSession(sessionId)
+    } catch (err) {
+        if (isNotFound(err)) {
+            throw new CliExitError(EXIT.DAEMON_HTTP_ERROR, `Session ${sessionId} not found`, err)
+        }
+        throw err
+    }
+}
+
 export async function runSessionCommand(
     argv: string[],
     connect: ConnectSessionDaemon = connectViaEnsuredDaemon,
 ): Promise<void> {
     try {
         const parsed: ParsedSessionCommand = parseSessionCommand(argv)
+
+        if (parsed.subcommand === 'help') {
+            console.log(SESSION_USAGE)
+            return
+        }
+
         const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd()})
         const client: SessionDaemon = await connect(project)
 
@@ -196,7 +250,7 @@ export async function runSessionCommand(
                 return
             }
             case 'delete': {
-                await client.deleteSession(parsed.sessionId)
+                await deleteSessionIdempotent(client, parsed.sessionId)
                 emitResult(
                     {deleted: true, sessionId: parsed.sessionId},
                     formatSessionDeleted,
@@ -206,7 +260,7 @@ export async function runSessionCommand(
             }
             case 'show': {
                 const sessionId: string = resolveShowSessionId(parsed.sessionId)
-                emitResult(await client.getSession(sessionId), formatSessionInfo, parsed.forceJson)
+                emitResult(await showSession(client, sessionId), formatSessionInfo, parsed.forceJson)
                 return
             }
         }

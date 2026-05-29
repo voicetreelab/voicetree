@@ -88,4 +88,54 @@ describe('session routes', () => {
 
     expect(response.status).toBe(404)
   })
+
+  test('show reports the folder-state size written via the PATCH route', async () => {
+    // Regression: `session show` previously resolved the folder-state size
+    // through a fresh independent db handle (`getFolderStateForActiveView`),
+    // whose independent active-view resolution could diverge from the handle the
+    // PATCH writer uses — pinning the reported size to 0 even after writes. This
+    // proves the reader now observes the writer's rows through the same handle.
+    const handle = await startDaemon({ project })
+    handles.push(handle)
+
+    const sessionId = SessionCreateResponseSchema.parse(
+      await (
+        await fetch(`http://127.0.0.1:${handle.port}/sessions`, { method: 'POST' })
+      ).json(),
+    ).sessionId
+
+    // Baseline: the cold-mount seed expands the writeFolderPath → one row.
+    const before = SessionInfoSchema.parse(
+      await (
+        await fetch(`http://127.0.0.1:${handle.port}/sessions/${sessionId}`)
+      ).json(),
+    )
+    expect(before.folderStateSize).toBe(1)
+
+    // Write two distinct folder-visibility rows through the PATCH writer path.
+    const docsPath = join(project, 'docs')
+    const srcPath = join(project, 'src')
+    const batch = await fetch(
+      `http://127.0.0.1:${handle.port}/sessions/${sessionId}/folder-state`,
+      {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          updates: [
+            { path: docsPath, state: 'collapsed' },
+            { path: srcPath, state: 'hidden' },
+          ],
+        }),
+      },
+    )
+    expect(batch.status).toBe(200)
+
+    // show must now observe seed(1) + the two PATCHed rows = 3.
+    const after = SessionInfoSchema.parse(
+      await (
+        await fetch(`http://127.0.0.1:${handle.port}/sessions/${sessionId}`)
+      ).json(),
+    )
+    expect(after.folderStateSize).toBe(3)
+  })
 })

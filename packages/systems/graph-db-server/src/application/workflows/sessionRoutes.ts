@@ -3,8 +3,10 @@ import {
   SessionInfoSchema,
 } from '@vt/graph-db-server/contract'
 import { type SessionRegistry } from '../session/registry.ts'
-import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
-import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
+import {
+  isFolderVisibilityOpen,
+  readCurrentFolderState,
+} from '@vt/graph-db-server/views/folderVisibilityResource'
 import { emptyResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 
 export type WorkflowSessionRegistry = SessionRegistry
@@ -40,14 +42,16 @@ export function readSessionWorkflow(
   )
 }
 
+// Read the folder-state size through the SAME long-lived db handle + active-view
+// resolution the folder-state PATCH writer uses (resource layer), rather than
+// opening an independent fresh handle (`getFolderStateForActiveView`). A fresh
+// handle re-runs `ensureDefaultView` and resolves the active view independently,
+// which can resolve a DIFFERENT active view id than the writer's handle — so a
+// session that has folder-state rows reads back as size 0. Sharing the writer's
+// handle makes the size a faithful observation of what was written.
 function readFolderStateSize(): number {
-  const projectRoot = getProjectRoot()
-  if (!projectRoot) {
+  if (!isFolderVisibilityOpen()) {
     return 0
   }
-  try {
-    return getFolderStateForActiveView(projectRoot).folderState.length
-  } catch {
-    return 0
-  }
+  return readCurrentFolderState().folderState.length
 }

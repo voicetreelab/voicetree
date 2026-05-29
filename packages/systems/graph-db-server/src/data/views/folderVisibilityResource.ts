@@ -76,6 +76,18 @@ export function getCurrentFolderVisibilityDb(): FolderVisibilityDatabase {
   return db
 }
 
+/**
+ * Whether the long-lived folder-visibility db handle is currently open.
+ *
+ * `getProjectRoot()` becomes truthy during `bindProject` BEFORE `openResources`
+ * opens this handle, so callers that read folder state outside the open
+ * lifecycle (e.g. `session show`) must gate on the handle itself, not just the
+ * project root, to avoid throwing during that transient window.
+ */
+export function isFolderVisibilityOpen(): boolean {
+  return readDb() !== null
+}
+
 function readActiveView(db: FolderVisibilityDatabase): ActiveViewInfo {
   const viewId = getActiveViewId(db)
   const row = db

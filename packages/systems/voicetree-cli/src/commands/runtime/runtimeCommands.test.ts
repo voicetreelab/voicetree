@@ -2,7 +2,7 @@ import {mkdir, mkdtemp, realpath} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
-import type {ProjectState, SessionInfo} from '@vt/graph-db-client'
+import {GraphDbClientError, type ProjectState, type SessionInfo} from '@vt/graph-db-client'
 import {CliExitError, EXIT} from '../util/exitCodes'
 import {
     runProjectCommand,
@@ -169,5 +169,171 @@ describe('runSessionCommand show', () => {
         expect(result.stdout).not.toContain('undefined')
         expect(result.stdout).toContain(`Session ID: ${sessionInfo.id}`)
         expect(result.stdout).toContain('Selection Size: 2')
+    })
+})
+
+function connecting(daemon: SessionDaemon): ConnectSessionDaemon {
+    return async (): Promise<SessionDaemon> => daemon
+}
+
+// The daemon answers an unknown session id with a 404 that the graph-db client
+// surfaces as `GraphDbClientError(404, 'http_404', 'Not Found')`. This fake
+// reproduces that exact shape so we can assert the command translates it into a
+// clean domain outcome instead of leaking the raw transport string.
+function notFoundDaemon(): SessionDaemon {
+    const notFound = (): never => {
+        throw new GraphDbClientError(404, 'http_404', 'Not Found')
+    }
+    return {
+        createSession: async (): Promise<{sessionId: string}> => notFound(),
+        getSession: async (): Promise<SessionInfo> => notFound(),
+        deleteSession: async (): Promise<void> => notFound(),
+    }
+}
+
+describe('runSessionCommand show — unknown id', () => {
+    let projectRoot: string
+    const originalCwd: string = process.cwd()
+
+    beforeEach(async () => {
+        projectRoot = await makeProject()
+        process.chdir(projectRoot)
+    })
+
+    afterEach(() => {
+        process.chdir(originalCwd)
+    })
+
+    it('maps a daemon 404 to a clean domain error naming the id, not a raw transport string', async () => {
+        const id = 'deadbeef-0000-4000-8000-000000000000'
+        const result: CommandResult = await captureCommand(() =>
+            runSessionCommand(['show', id], connecting(notFoundDaemon())),
+        )
+
+        expect(result.exitCode).toBe(EXIT.DAEMON_HTTP_ERROR)
+        expect(result.stderr).toContain(`Session ${id} not found`)
+        expect(result.stderr).not.toContain('http_404')
+        expect(result.stderr).not.toContain('daemon responded')
+        expect(result.stderr).not.toContain('Not Found')
+    })
+})
+
+describe('runSessionCommand delete — idempotent', () => {
+    let projectRoot: string
+    const originalCwd: string = process.cwd()
+
+    beforeEach(async () => {
+        projectRoot = await makeProject()
+        process.chdir(projectRoot)
+    })
+
+    afterEach(() => {
+        process.chdir(originalCwd)
+    })
+
+    it('treats a 404 (unknown / already-deleted id) as a successful deletion', async () => {
+        const id = 'cafef00d-0000-4000-8000-000000000000'
+        const result: CommandResult = await captureCommand(() =>
+            runSessionCommand(['delete', id], connecting(notFoundDaemon())),
+        )
+
+        expect(result.exitCode).toBeNull()
+        expect(result.stdout).toContain(`Deleted Session: ${id}`)
+        expect(result.stderr).not.toContain('http_404')
+        expect(result.stderr).not.toContain('daemon responded')
+    })
+
+    it('emits {deleted:true} JSON for a 404 under --json so agents get a stable shape', async () => {
+        const id = 'cafef00d-0000-4000-8000-000000000001'
+        const result: CommandResult = await captureCommand(() =>
+            runSessionCommand(['delete', id, '--json'], connecting(notFoundDaemon())),
+        )
+
+        expect(result.exitCode).toBeNull()
+        expect(JSON.parse(result.stdout)).toEqual({deleted: true, sessionId: id})
+    })
+
+    it('deletes once then repeats cleanly (real success then idempotent 404)', async () => {
+        const id = 'cafef00d-0000-4000-8000-000000000002'
+        let deleted = false
+        const daemon: SessionDaemon = {
+            createSession: async (): Promise<{sessionId: string}> => {
+                throw new Error('createSession not expected')
+            },
+            getSession: async (): Promise<SessionInfo> => {
+                throw new Error('getSession not expected')
+            },
+            deleteSession: async (): Promise<void> => {
+                if (deleted) {
+                    throw new GraphDbClientError(404, 'http_404', 'Not Found')
+                }
+                deleted = true
+            },
+        }
+
+        const first: CommandResult = await captureCommand(() =>
+            runSessionCommand(['delete', id], connecting(daemon)),
+        )
+        expect(first.exitCode).toBeNull()
+        expect(first.stdout).toContain(`Deleted Session: ${id}`)
+
+        const second: CommandResult = await captureCommand(() =>
+            runSessionCommand(['delete', id], connecting(daemon)),
+        )
+        expect(second.exitCode).toBeNull()
+        expect(second.stdout).toContain(`Deleted Session: ${id}`)
+        expect(second.stderr).not.toContain('http_404')
+    })
+
+    it('still propagates a non-404 daemon error as a daemon-http failure', async () => {
+        const id = 'cafef00d-0000-4000-8000-000000000003'
+        const daemon: SessionDaemon = {
+            createSession: async (): Promise<{sessionId: string}> => {
+                throw new Error('createSession not expected')
+            },
+            getSession: async (): Promise<SessionInfo> => {
+                throw new Error('getSession not expected')
+            },
+            deleteSession: async (): Promise<void> => {
+                throw new GraphDbClientError(409, 'project_busy', 'Project is busy')
+            },
+        }
+
+        const result: CommandResult = await captureCommand(() =>
+            runSessionCommand(['delete', id], connecting(daemon)),
+        )
+        expect(result.exitCode).toBe(EXIT.DAEMON_HTTP_ERROR)
+        expect(result.stderr).toContain('project_busy')
+    })
+})
+
+describe('runSessionCommand --help', () => {
+    let connectCalled: boolean
+    const neverConnect: ConnectSessionDaemon = async (): Promise<SessionDaemon> => {
+        connectCalled = true
+        throw new Error('daemon must not be contacted for --help')
+    }
+
+    beforeEach(() => {
+        connectCalled = false
+    })
+
+    it.each([
+        ['session --help', ['--help']],
+        ['session -h', ['-h']],
+        ['session delete --help', ['delete', '--help']],
+        ['session show --help', ['show', '--help']],
+    ])('%s prints usage on stdout and exits 0 without touching the daemon', async (_label, argv) => {
+        const result: CommandResult = await captureCommand(() =>
+            runSessionCommand(argv, neverConnect),
+        )
+
+        expect(result.exitCode).toBeNull()
+        expect(result.stdout).toContain('Usage:')
+        expect(result.stdout).toContain('vt session create')
+        expect(result.stdout).toContain('vt session delete')
+        expect(result.stdout).toContain('vt session show')
+        expect(result.stderr).toBe('')
+        expect(connectCalled).toBe(false)
     })
 })
