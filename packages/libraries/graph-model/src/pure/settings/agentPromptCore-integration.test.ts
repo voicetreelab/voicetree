@@ -43,7 +43,7 @@ VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
 AGENT_NAME = $AGENT_NAME
 CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
-VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_PROJECT_PATH = $VOICETREE_PROJECT_PATH
 VOICETREE_HOME_PATH = $VOICETREE_HOME_PATH
 VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
@@ -98,7 +98,7 @@ describe('AGENT_PROMPT_CORE end-to-end expansion (simulates buildTerminalEnvVars
     const unexpandedEnvVars: Record<string, string> = {
       VOICETREE_PROJECT_DIR: '/Users/test/project/.voicetree',
       VOICETREE_HOME_PATH: '/Users/test/Library/Application Support/Voicetree',
-      VOICETREE_VAULT_PATH: '/Users/test/project/vault',
+      VOICETREE_PROJECT_PATH: '/Users/test/project/vault',
       ALL_MARKDOWN_READ_PATHS: '/Users/test/project/vault',
       CONTEXT_NODE_PATH: '/Users/test/project/vault/task-123.md',
       TASK_NODE_PATH: '/Users/test/project/vault/task-123.md',

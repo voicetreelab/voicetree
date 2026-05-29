@@ -24,7 +24,7 @@ import {
 
 export const ENV_KEYS_OF_INTEREST: readonly string[] = [
     'VOICETREE_DAEMON_URL',
-    'VOICETREE_VAULT_PATH',
+    'VOICETREE_PROJECT_PATH',
     'VOICETREE_DAEMON_TIMEOUT_MS',
 ] as const
 

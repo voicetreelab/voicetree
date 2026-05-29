@@ -39,7 +39,7 @@ export function makeTerminalData(overrides: Partial<TerminalData> = {}): Termina
         initialCommand: 'claude',
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: TERMINAL_A,
-            VOICETREE_VAULT_PATH: VAULT_PATH,
+            VOICETREE_PROJECT_PATH: VAULT_PATH,
         },
         ...overrides,
     }
@@ -66,7 +66,7 @@ export function makeRunningCodexMetadata(overrides: Record<string, unknown> = {}
             agentName: 'Bea',
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: 'B',
-                VOICETREE_VAULT_PATH: VAULT_PATH,
+                VOICETREE_PROJECT_PATH: VAULT_PATH,
             },
         }),
         ...overrides,

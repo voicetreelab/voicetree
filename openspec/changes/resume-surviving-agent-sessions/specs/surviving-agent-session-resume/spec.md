@@ -27,14 +27,14 @@ The system SHALL read Claude/Codex provider-global stores as resolver inputs and
 
 #### Scenario: Claude resolver persists a transcript session id
 - **WHEN** a Claude agent has been spawned for terminal `A`
-- **AND** a recently modified `~/.claude/projects/**/*.jsonl` transcript contains a user message whose string content includes `VOICETREE_TERMINAL_ID = A`, the current `VOICETREE_VAULT_PATH`, and the terminal's `TASK_NODE_PATH`
+- **AND** a recently modified `~/.claude/projects/**/*.jsonl` transcript contains a user message whose string content includes `VOICETREE_TERMINAL_ID = A`, the current `VOICETREE_PROJECT_PATH`, and the terminal's `TASK_NODE_PATH`
 - **THEN** VoiceTree writes `recovery.native.cli === "claude"` to `.voicetree/terminals/A.json`
 - **AND** `recovery.native.sessionId` equals the transcript record's `sessionId`
 - **AND** `recovery.native.source === "claude-project-transcript"`
 
 #### Scenario: Codex resolver persists a thread id
 - **WHEN** a Codex agent has been spawned for terminal `B`
-- **AND** `~/.codex/state_5.sqlite` table `threads` contains a recent row whose `first_user_message` includes `VOICETREE_TERMINAL_ID = B`, the current `VOICETREE_VAULT_PATH`, and the terminal's `TASK_NODE_PATH`
+- **AND** `~/.codex/state_5.sqlite` table `threads` contains a recent row whose `first_user_message` includes `VOICETREE_TERMINAL_ID = B`, the current `VOICETREE_PROJECT_PATH`, and the terminal's `TASK_NODE_PATH`
 - **THEN** VoiceTree writes `recovery.native.cli === "codex"` to `.voicetree/terminals/B.json`
 - **AND** `recovery.native.sessionId` equals the Codex `threads.id` value
 - **AND** `recovery.native.source === "codex-state-index"`

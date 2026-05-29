@@ -48,7 +48,7 @@ describe('vt-headless serve — bin integration', () => {
         const tokenText: string = await readFile(join(vaultPath, '.voicetree', 'auth-token'), 'utf8')
         expect(tokenText.trim().length).toBeGreaterThan(0)
 
-        process.env.VOICETREE_VAULT_PATH = vaultPath
+        process.env.VOICETREE_PROJECT_PATH = vaultPath
         const transport = createLiveTransport()
         const state = await transport.getLiveState()
         // Empty headless vault: schemaVersion 1, revision 0, no nodes.

@@ -112,7 +112,7 @@ export function tmuxPanePid(
 }
 
 // Voicetree creates a `voicetree-{day}-{month}` subfolder inside the watched
-// directory and uses it as VOICETREE_VAULT_PATH for spawned agents — that's
+// directory and uses it as VOICETREE_PROJECT_PATH for spawned agents — that's
 // where Phase 6 writes prompt files. Resolve it once after file-watching
 // initializes the project.
 export async function resolveVaultWriteFolder(parentDir: string): Promise<string> {
@@ -218,7 +218,7 @@ export async function launchPhase6ElectronApp(
       ...process.env,
       NODE_ENV: "test",
       ENABLE_PLAYWRIGHT_DEBUG: "0",
-      VOICETREE_VAULT_PATH: projectRoot, // required for reconcileTmuxHeadlessAgents on startup
+      VOICETREE_PROJECT_PATH: projectRoot, // required for reconcileTmuxHeadlessAgents on startup
       VOICETREE_PERSIST_STATE: "1",
       VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
     },

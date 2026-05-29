@@ -10,7 +10,7 @@
 //     overrides the URL (per-process override) but the token comes from the
 //     named vault.
 //   - Without `vaultPath`: full design doc §2.7 chain via `createRpcClient`
-//     (env URL → cwd up-walk → `$VOICETREE_VAULT_PATH` → throw).
+//     (env URL → cwd up-walk → `$VOICETREE_PROJECT_PATH` → throw).
 //
 // Error mapping harmonized with the CLI client (`webapp/.../daemon-client.ts`):
 // `-32003 tool_handler_failed` and `-32602 validation_failed` both surface as

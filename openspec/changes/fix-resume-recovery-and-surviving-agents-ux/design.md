@@ -31,7 +31,7 @@ In addition to fixing the path bug, three adjacent gaps make the recovery UX poo
 
 ### 1. Single source of truth: `getProjectRoot()` for all `.voicetree/` paths
 
-**Decision:** `projectRoot` (from the graph bridge) becomes the only path used to derive `.voicetree/` data locations. `writeFolder` is for markdown / vault content only. `process.env.VOICETREE_VAULT_PATH` is no longer consulted at runtime for terminal-dir resolution.
+**Decision:** `projectRoot` (from the graph bridge) becomes the only path used to derive `.voicetree/` data locations. `writeFolder` is for markdown / vault content only. `process.env.VOICETREE_PROJECT_PATH` is no longer consulted at runtime for terminal-dir resolution.
 
 **Alternatives considered:**
 - *Make `writeFolder` canonical* — would require migrating every existing install's `.voicetree/` from project root to subdir vault, and breaks projects that intentionally co-locate `.voicetree/` at a parent level (`/projects/foo/.voicetree/` shared across multiple sub-vaults). Rejected.
@@ -43,7 +43,7 @@ In addition to fixing the path bug, three adjacent gaps make the recovery UX poo
 
 **Decision:** `reconcileTmuxTerminalRegistry()` reads `projectRoot` via injected `getProjectRoot` (default: graph bridge), rather than accepting it as a positional arg. Existing callers (`main.ts:262-267`, `graph-model-init.ts:75`, `serve.ts:180`, `vt-mcpd.ts:160`) drop the arg.
 
-**Why:** Today the same function takes "projectRoot" as a parameter but receives `writeFolder` / `process.env.VOICETREE_VAULT_PATH` from different sites. Making it pull from a single source removes the divergence at the type level.
+**Why:** Today the same function takes "projectRoot" as a parameter but receives `writeFolder` / `process.env.VOICETREE_PROJECT_PATH` from different sites. Making it pull from a single source removes the divergence at the type level.
 
 **Trade-off:** Adds an implicit dependency on graph-bridge availability at reconciliation time. Mitigated by gating reconcile on `onVaultOpened` (already the case) and exposing an optional `projectRoot` override for tests / headless callers.
 

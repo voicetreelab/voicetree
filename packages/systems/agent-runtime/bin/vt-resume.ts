@@ -10,7 +10,7 @@
 //
 // Vault / project root resolution (in order):
 //   --vault <path>            explicit vault path
-//   $VOICETREE_VAULT_PATH     env var set by Voicetree-spawned terminals
+//   $VOICETREE_PROJECT_PATH     env var set by Voicetree-spawned terminals
 //   walk up from cwd          looks for a `.voicetree` directory
 //
 // The discovery + resume code paths are the same ones the Electron main
@@ -49,7 +49,7 @@ function usage(): never {
             '  vt-resume resume <terminalId>           Resume an agent and attach to tmux',
             '',
             'Flags:',
-            '  --vault <path>           Vault directory (default: $VOICETREE_VAULT_PATH or auto-detect)',
+            '  --vault <path>           Vault directory (default: $VOICETREE_PROJECT_PATH or auto-detect)',
             '  --project-root <path>    Watched parent dir (default: parent of vault)',
             '  --no-attach              For `resume`: spawn the tmux session but do not exec attach',
             '',
@@ -120,14 +120,14 @@ type ResolvedPaths = {
 }
 
 function resolvePaths(args: Args): ResolvedPaths {
-    const envVault: string | undefined = process.env.VOICETREE_VAULT_PATH
+    const envVault: string | undefined = process.env.VOICETREE_PROJECT_PATH
     const envProjectDir: string | undefined = process.env.VOICETREE_PROJECT_DIR // ends in `/.voicetree`
 
     const vault: string = args.vault
         ? resolve(args.vault)
         : envVault
             ? resolve(envVault)
-            : (findUpForProjectRoot(process.cwd()) ?? die('cannot locate a vault. Pass --vault or set VOICETREE_VAULT_PATH.'))
+            : (findUpForProjectRoot(process.cwd()) ?? die('cannot locate a vault. Pass --vault or set VOICETREE_PROJECT_PATH.'))
 
     const projectRoot: string = args.projectRoot
         ? resolve(args.projectRoot)

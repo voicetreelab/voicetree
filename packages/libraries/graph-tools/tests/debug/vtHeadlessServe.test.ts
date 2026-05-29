@@ -11,7 +11,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createHeadlessServer, type HeadlessServer} from '../../src/live/headlessServer'
 import {createLiveTransport} from '../../src/live/liveTransport'
 
-const TRACKED_ENV_KEYS: readonly string[] = ['VOICETREE_DAEMON_URL', 'VOICETREE_VAULT_PATH']
+const TRACKED_ENV_KEYS: readonly string[] = ['VOICETREE_DAEMON_URL', 'VOICETREE_PROJECT_PATH']
 
 function snapshotEnv(): Record<string, string | undefined> {
     const snap: Record<string, string | undefined> = {}
@@ -56,7 +56,7 @@ describe('vt-headless serve (HTTP)', () => {
             expect(server.port).toBeGreaterThan(0)
             expect(server.token.length).toBeGreaterThan(0)
 
-            process.env.VOICETREE_VAULT_PATH = server.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = server.vaultPath
             const state = await createLiveTransport().getLiveState()
 
             expect(state.meta.schemaVersion).toBe(1)
@@ -71,7 +71,7 @@ describe('vt-headless serve (HTTP)', () => {
     it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded + bumped revision', async () => {
         const server = await startServer()
         try {
-            process.env.VOICETREE_VAULT_PATH = server.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = server.vaultPath
             const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
@@ -92,7 +92,7 @@ describe('vt-headless serve (HTTP)', () => {
     it('round-trip: SetFolderState → getLiveState reflects collapse + bumped revision', async () => {
         const server = await startServer()
         try {
-            process.env.VOICETREE_VAULT_PATH = server.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = server.vaultPath
             const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
@@ -121,9 +121,9 @@ describe('vt-headless serve (HTTP)', () => {
             expect(srv1.port).not.toBe(srv2.port)
             expect(srv1.token).not.toBe(srv2.token)
 
-            process.env.VOICETREE_VAULT_PATH = srv1.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = srv1.vaultPath
             const t1 = createLiveTransport()
-            process.env.VOICETREE_VAULT_PATH = srv2.vaultPath
+            process.env.VOICETREE_PROJECT_PATH = srv2.vaultPath
             const t2 = createLiveTransport()
 
             const [s1, s2] = await Promise.all([t1.getLiveState(), t2.getLiveState()])

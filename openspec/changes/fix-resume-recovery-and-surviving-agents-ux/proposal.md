@@ -7,7 +7,7 @@ Two adjacent gaps make recovery painful even when discovery does find rows: Surv
 ## What Changes
 
 - **BREAKING (internal):** Make `<projectRoot>/.voicetree/` the single canonical location for all VoiceTree per-project data (terminal metadata, hooks, positions, settings overrides, folder visibility). `writeFolder/.voicetree/` is deprecated as a metadata location.
-- Change `reconcileTmuxTerminalRegistry` to resolve its terminal directory from `projectRoot` (graph bridge), not from a caller-supplied path. Update all callers (`graph-model-init.ts:75`, `webapp main.ts:263`, `vt serve`, `vt-mcpd`) to stop passing `writeFolder` / `VOICETREE_VAULT_PATH`.
+- Change `reconcileTmuxTerminalRegistry` to resolve its terminal directory from `projectRoot` (graph bridge), not from a caller-supplied path. Update all callers (`graph-model-init.ts:75`, `webapp main.ts:263`, `vt serve`, `vt-mcpd`) to stop passing `writeFolder` / `VOICETREE_PROJECT_PATH`.
 - Change `discovery.ts:resolveCurrentVaultMetadataDir` to read from `<projectRoot>/.voicetree/terminals/` only. Drop the buggy `writeFolder/terminals` fallback that omits the `.voicetree` prefix.
 - Add a one-time on-startup migration that detects legacy `<writeFolder>/.voicetree/terminals/*.json` and moves files into `<projectRoot>/.voicetree/terminals/` (no-op when paths already match).
 - **Surviving Agents row parity:** render `worktreeName` and the agent's task title on each Surviving Agents row, matching live terminal tile presentation. Show `agentTypeName` (Claude / Codex) as a badge.
@@ -33,7 +33,7 @@ Two adjacent gaps make recovery painful even when discovery does find rows: Surv
   - `application/recovery/resumePersistedAgentSession.ts` — propagate resolver `reason` through `{kind: 'no-native-session', reason}`.
   - `application/headless/tmuxHeadlessRuntime.ts` and any other writer of `.voicetree/terminals/*.json` — write to `projectRoot`-based path.
 - **Webapp main process:**
-  - `webapp/src/shell/edge/main/runtime/electron/app/main.ts:262-267` — remove `process.env.VOICETREE_VAULT_PATH` arg; reconciliation pulls path from graph bridge.
+  - `webapp/src/shell/edge/main/runtime/electron/app/main.ts:262-267` — remove `process.env.VOICETREE_PROJECT_PATH` arg; reconciliation pulls path from graph bridge.
   - `webapp/src/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init.ts:75` — pass `info.projectRoot` instead of `info.writeFolder` (or call reconciliation without arg).
   - One-time migration helper invoked from startup before reconciliation: scan candidate `writeFolder/.voicetree/terminals/`, move JSONs (and sibling artifacts) into canonical location.
 - **Headless callers:**

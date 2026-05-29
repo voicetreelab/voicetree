@@ -126,7 +126,7 @@ async function runStorm(args: {
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_DAEMON_URL: args.daemonUrl,
-            VOICETREE_VAULT_PATH: args.vault,
+            VOICETREE_PROJECT_PATH: args.vault,
             TASK_NODE_PATH: `${args.vault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
         }

@@ -106,7 +106,7 @@ describe('resume capability — Claude', () => {
                     initialCommand: 'claude',
                     initialEnvVars: {
                         VOICETREE_TERMINAL_ID: 'Mira',
-                        VOICETREE_VAULT_PATH: VAULT_PATH,
+                        VOICETREE_PROJECT_PATH: VAULT_PATH,
                         TASK_NODE_PATH: '/vault/task.md',
                     },
                     isHeadless: false,
@@ -172,7 +172,7 @@ describe('session name resolution from env vars', () => {
                     initialCommand: 'claude',
                     initialEnvVars: {
                         VOICETREE_TERMINAL_ID: TERMINAL_A,
-                        VOICETREE_VAULT_PATH: VAULT_PATH,
+                        VOICETREE_PROJECT_PATH: VAULT_PATH,
                     },
                 }),
             })],
@@ -194,7 +194,7 @@ describe('session name resolution from env vars', () => {
                     initialCommand: 'claude',
                     initialEnvVars: {
                         VOICETREE_TERMINAL_ID: TERMINAL_A,
-                        VOICETREE_VAULT_PATH: VAULT_PATH,
+                        VOICETREE_PROJECT_PATH: VAULT_PATH,
                     },
                 }),
             })],

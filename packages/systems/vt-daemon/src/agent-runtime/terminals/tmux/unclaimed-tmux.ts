@@ -159,7 +159,7 @@ export async function listUnclaimedTmuxSessions(
             createdAt: session.createdAtSeconds * 1000,
             panePid: session.panePid,
             agentName: env.AGENT_NAME || parsed.terminalId,
-            projectRoot: env.VOICETREE_VAULT_PATH,
+            projectRoot: env.VOICETREE_PROJECT_PATH,
             contextNodePath: env.CONTEXT_NODE_PATH,
             taskNodePath: env.TASK_NODE_PATH,
         })

@@ -6,12 +6,12 @@
 //   1. $VOICETREE_DAEMON_URL                        — full URL override.
 //   2. <discovered-vault>/.voicetree/rpc.port       — vault discovered by up-walking
 //                                                     from `cwd` looking for `.voicetree/`.
-//   3. $VOICETREE_VAULT_PATH/.voicetree/rpc.port    — fallback when invoked
+//   3. $VOICETREE_PROJECT_PATH/.voicetree/rpc.port    — fallback when invoked
 //                                                     outside any vault tree.
 //
 // The vault root (for the auth token) is whichever step's vault resolved the
 // port. Override sets the URL but not the vault — caller passes
-// `$VOICETREE_VAULT_PATH` explicitly in that case.
+// `$VOICETREE_PROJECT_PATH` explicitly in that case.
 
 import {existsSync, statSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
@@ -73,7 +73,7 @@ export async function discoverDaemonEndpoint(
     if (explicit) {
         return {
             url: explicit,
-            vaultPath: envOr(env, 'VOICETREE_VAULT_PATH') ?? null,
+            vaultPath: envOr(env, 'VOICETREE_PROJECT_PATH') ?? null,
             source: 'env_url',
         }
     }
@@ -86,7 +86,7 @@ export async function discoverDaemonEndpoint(
         }
     }
 
-    const fallbackVault: string | undefined = envOr(env, 'VOICETREE_VAULT_PATH')
+    const fallbackVault: string | undefined = envOr(env, 'VOICETREE_PROJECT_PATH')
     if (fallbackVault) {
         const port: number | null = await readRpcPortFile(fallbackVault)
         if (port !== null) {
@@ -105,7 +105,7 @@ export interface VaultDiscoveryOptions {
 // to talk to (e.g. graph-tools' `createLiveTransport(vaultPath)`) and wants
 // to bypass the cwd up-walk entirely. `$VOICETREE_DAEMON_URL` still wins —
 // it's a per-process override — but the token always comes from the
-// explicit vault, not from `$VOICETREE_VAULT_PATH`. Replaces the
+// explicit vault, not from `$VOICETREE_PROJECT_PATH`. Replaces the
 // `discoverDaemonEndpoint({cwd: '/'})` trick 9d used.
 export async function discoverDaemonEndpointForVault(
     vaultPath: string,

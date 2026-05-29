@@ -32,7 +32,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
         contextContent: '',
         agentTypeName: '',
         initialCommand: 'claude',
-        initialEnvVars: {VOICETREE_VAULT_PATH: '/vault/current'},
+        initialEnvVars: {VOICETREE_PROJECT_PATH: '/vault/current'},
         ...overrides,
     };
 }

@@ -192,7 +192,7 @@ Path semantics:
 - The fallback `~/.voicetree/<vault-hash>.sock` exists only for the
   pathological case of `vt …` invoked outside any vault directory at all.
   In that case the daemon must have been started with `--vault <path>`
-  earlier; the CLI hashes the explicit vault arg or `$VOICETREE_VAULT_PATH`
+  earlier; the CLI hashes the explicit vault arg or `$VOICETREE_PROJECT_PATH`
   to find the right socket.
 - The hook port file is plain text (`echo "$port"`), not JSON, mirroring
   the existing `.voicetree/graphd.port` shape so callers parse it the same
@@ -210,7 +210,7 @@ the socket path in this order. First hit wins:
    "trust me, this is where it should be."
 2. **`<discovered-vault>/.voicetree/vt.sock`.** Vault discovery uses the
    same up-walk as `findRepoRoot.ts` (look for `.voicetree/` directory).
-3. **`$VOICETREE_VAULT_PATH/.voicetree/vt.sock`.** Spawned-agent
+3. **`$VOICETREE_PROJECT_PATH/.voicetree/vt.sock`.** Spawned-agent
    environments set this; honour it when set.
 4. **`~/.voicetree/<vault-hash>.sock`** where `<vault-hash>` is
    `sha256(<absolute-vault-path>).slice(0,16)`. Last-resort path for

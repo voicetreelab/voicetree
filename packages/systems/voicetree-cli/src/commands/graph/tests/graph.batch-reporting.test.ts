@@ -186,15 +186,15 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
         parentNodeId = join(vaultRoot, 'work', 'parent.md')
         await writeFile(parentNodeId, '# Parent\n\nNeeded marker.\n', 'utf8')
         originalDaemonUrl = process.env.VOICETREE_DAEMON_URL
-        originalVaultPath = process.env.VOICETREE_VAULT_PATH
+        originalVaultPath = process.env.VOICETREE_PROJECT_PATH
     })
 
     afterEach(async () => {
         if (stub) await stub.stop()
         if (originalDaemonUrl === undefined) delete process.env.VOICETREE_DAEMON_URL
         else process.env.VOICETREE_DAEMON_URL = originalDaemonUrl
-        if (originalVaultPath === undefined) delete process.env.VOICETREE_VAULT_PATH
-        else process.env.VOICETREE_VAULT_PATH = originalVaultPath
+        if (originalVaultPath === undefined) delete process.env.VOICETREE_PROJECT_PATH
+        else process.env.VOICETREE_PROJECT_PATH = originalVaultPath
         clearLoadSchemaPluginCacheForTest()
         await rm(vaultRoot, {recursive: true, force: true})
     })
@@ -212,7 +212,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
             ],
         })
         process.env.VOICETREE_DAEMON_URL = stub.url
-        process.env.VOICETREE_VAULT_PATH = stub.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = stub.vaultPath
 
         const result: CapturedRun = await captureGraphCreate(
             [
@@ -246,7 +246,7 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
             ],
         })
         process.env.VOICETREE_DAEMON_URL = stub.url
-        process.env.VOICETREE_VAULT_PATH = stub.vaultPath
+        process.env.VOICETREE_PROJECT_PATH = stub.vaultPath
 
         const result: CapturedRun = await captureGraphCreate(
             [

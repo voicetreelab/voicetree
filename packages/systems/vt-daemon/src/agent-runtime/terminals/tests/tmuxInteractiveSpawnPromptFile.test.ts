@@ -28,7 +28,7 @@ import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/head
 import {clearTerminalRecords} from '../terminal-registry'
 import {hasSession, killSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
-import {withVoicetreeVaultPath} from '../tmux/tmuxSpawnPlanning'
+import {withVoicetreeProjectPath} from '../tmux/tmuxSpawnPlanning'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminal-registry/types'
 
 const sessions: Set<string> = new Set<string>()
@@ -96,7 +96,7 @@ function makeInteractiveTerminalData(terminalId: TerminalId, vaultPath: string):
         isHeadless: false,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_PROJECT_PATH: vaultPath,
         },
     })
 }
@@ -115,7 +115,7 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
         // is the agent CLI command template from settings.agents[].command.
         const initial: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_PROJECT_PATH: vaultPath,
             AGENT_PROMPT: giantPrompt,
             // User-settings AGENT_PROMPT_* siblings are still propagated;
             // these are NOT what this test fixes — see fragility report.
@@ -132,7 +132,7 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
             command: initialCommand,
             env: initial,
         })
-        const tmuxEnv: Record<string, string> = withVoicetreeVaultPath(plan.env, vaultPath)
+        const tmuxEnv: Record<string, string> = withVoicetreeProjectPath(plan.env, vaultPath)
 
         // Sanity on the plan: prompt file path is set, command is CLI-rewritten,
         // big AGENT_PROMPT is gone from the env vector that tmux -e will receive.

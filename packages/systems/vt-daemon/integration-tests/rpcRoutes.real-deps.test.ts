@@ -265,7 +265,7 @@ describe('rpc routes — headless', () => {
             agentName: terminalId,
             isHeadless: true,
             executeCommand: true,
-            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         })
 
         await spawnTmuxBackedTerminal(
@@ -273,7 +273,7 @@ describe('rpc routes — headless', () => {
             data,
             `bash -lc 'sleep 30'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
         expect(await hasSession(terminalId)).toBe(true)
         // Re-arm the capture after the recordTerminalSpawn the spawn fired.
@@ -302,14 +302,14 @@ describe('rpc routes — headless', () => {
             agentName: terminalId,
             isHeadless: true,
             executeCommand: true,
-            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         })
         await spawnTmuxBackedTerminal(
             terminalId,
             data,
             `bash -lc 'echo hello && sleep 5'`,
             projectRoot,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         )
 
         const handler: CatalogHandler = dispatch().get('getHeadlessAgentOutput')!
@@ -336,7 +336,7 @@ describe('rpc routes — recovery', () => {
             agentName: terminalId,
             isHeadless: false,
             executeCommand: true,
-            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
+            initialEnvVars: {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
         })
 
         const handler: CatalogHandler = dispatch().get('discoverRecoverableAgentSessions')!

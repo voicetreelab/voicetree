@@ -43,7 +43,7 @@ function recordMatchesMarkers(
     const text: string = extractMessageText(record)
     if (!text) return false
     return text.includes(`VOICETREE_TERMINAL_ID = ${terminalId}`)
-        && text.includes(`VOICETREE_VAULT_PATH = ${projectRoot}`)
+        && text.includes(`VOICETREE_PROJECT_PATH = ${projectRoot}`)
         && text.includes(`TASK_NODE_PATH = ${taskNodePath}`)
 }
 

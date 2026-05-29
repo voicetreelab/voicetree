@@ -342,7 +342,7 @@ async function main(): Promise<void> {
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_DAEMON_URL: httpHandle.url,
-            VOICETREE_VAULT_PATH: tempVault,
+            VOICETREE_PROJECT_PATH: tempVault,
             TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
         }

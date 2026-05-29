@@ -163,7 +163,7 @@ test.describe('Real agent spawn E2E', () => {
     // serves tool calls as JSON-RPC over POST /rpc, authorised by a bearer
     // token. Renderer accessors mainAPI.getDaemonUrl + mainAPI.getAuthToken are
     // the canonical discovery path; spawned subprocesses use
-    // $VOICETREE_DAEMON_URL + $VOICETREE_VAULT_PATH/.voicetree/auth-token.
+    // $VOICETREE_DAEMON_URL + $VOICETREE_PROJECT_PATH/.voicetree/auth-token.
     const rpcUrl: string = await getDaemonRpcUrl(appWindow);
     const token: string = await getBearerToken(appWindow);
 

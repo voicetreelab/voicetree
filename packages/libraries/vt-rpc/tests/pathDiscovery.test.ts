@@ -41,7 +41,7 @@ describe('discoverDaemonEndpoint chain', (): void => {
 
         const endpoint = await discoverDaemonEndpoint({
             cwd: vault,
-            env: {VOICETREE_DAEMON_URL: 'http://192.168.1.50:51337', VOICETREE_VAULT_PATH: vault},
+            env: {VOICETREE_DAEMON_URL: 'http://192.168.1.50:51337', VOICETREE_PROJECT_PATH: vault},
         })
         expect(endpoint?.url).toBe('http://192.168.1.50:51337')
         expect(endpoint?.source).toBe('env_url')
@@ -58,14 +58,14 @@ describe('discoverDaemonEndpoint chain', (): void => {
         expect(endpoint?.vaultPath).toBe(vault)
     })
 
-    it('falls back to $VOICETREE_VAULT_PATH when cwd has no vault ancestor', async (): Promise<void> => {
+    it('falls back to $VOICETREE_PROJECT_PATH when cwd has no vault ancestor', async (): Promise<void> => {
         const vault: string = await makeVault()
         await writeFile(join(vault, '.voicetree', 'rpc.port'), '40404\n', 'utf8')
         const isolated: string = await mkdtemp(join(tmpdir(), 'vt-rpc-iso-'))
 
         const endpoint = await discoverDaemonEndpoint({
             cwd: isolated,
-            env: {VOICETREE_VAULT_PATH: vault},
+            env: {VOICETREE_PROJECT_PATH: vault},
         })
         expect(endpoint?.url).toBe('http://127.0.0.1:40404')
         expect(endpoint?.source).toBe('env_vault_path')
@@ -106,7 +106,7 @@ describe('discoverDaemonEndpointForVault', (): void => {
         })
         expect(endpoint?.url).toBe('http://192.168.1.50:51337')
         expect(endpoint?.source).toBe('env_url')
-        // Token vault is always the explicit vault, never $VOICETREE_VAULT_PATH.
+        // Token vault is always the explicit vault, never $VOICETREE_PROJECT_PATH.
         expect(endpoint?.vaultPath).toBe(vault)
     })
 

@@ -8,7 +8,7 @@ const TASK = '/Users/example/repos/voicetree-public/voicetree-22-5/task.md'
 function makeRow(overrides: Partial<CodexThreadRow> = {}): CodexThreadRow {
     return {
         id: '019e4ded-d566-7d52-b443-4610669da39e',
-        first_user_message: `prompt\nVOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_VAULT_PATH = ${VAULT} TASK_NODE_PATH = ${TASK}`,
+        first_user_message: `prompt\nVOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_PROJECT_PATH = ${VAULT} TASK_NODE_PATH = ${TASK}`,
         cwd: VAULT,
         created_at_ms: 1779424330000,
         updated_at_ms: 1779424340000,
@@ -50,14 +50,14 @@ describe('matchCodexThreadId — non-match cases', () => {
 
     it('returns null when the vault marker differs (reused terminal name in another vault)', () => {
         expect(matchCodexThreadId({
-            rows: [makeRow({first_user_message: `VOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_VAULT_PATH = /other VAULT TASK_NODE_PATH = ${TASK}`})],
+            rows: [makeRow({first_user_message: `VOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_PROJECT_PATH = /other VAULT TASK_NODE_PATH = ${TASK}`})],
             terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK,
         })).toBeNull()
     })
 
     it('returns null when the task path marker differs', () => {
         expect(matchCodexThreadId({
-            rows: [makeRow({first_user_message: `VOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_VAULT_PATH = ${VAULT} TASK_NODE_PATH = /other.md`})],
+            rows: [makeRow({first_user_message: `VOICETREE_TERMINAL_ID = ${TERMINAL} VOICETREE_PROJECT_PATH = ${VAULT} TASK_NODE_PATH = /other.md`})],
             terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK,
         })).toBeNull()
     })

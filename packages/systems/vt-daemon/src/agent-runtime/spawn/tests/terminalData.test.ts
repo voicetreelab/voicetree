@@ -92,10 +92,10 @@ describe('prepareTerminalDataInMain', () => {
 
             expect(terminalData.contextContent).toBe('')
             expect(terminalData.title).toBe('Task title')
-            // VOICETREE_VAULT_PATH is the canonical project root (where `.voicetree/`
+            // VOICETREE_PROJECT_PATH is the canonical project root (where `.voicetree/`
             // lives), not the daemon's writeFolder subfolder. See
-            // buildTerminalEnvVarsVaultPath.test.ts for the dedicated regression.
-            expect(terminalData.initialEnvVars?.VOICETREE_VAULT_PATH).toBe('/project')
+            // buildTerminalEnvVarsProjectPath.test.ts for the dedicated regression.
+            expect(terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH).toBe('/project')
         } finally {
             await rm(voicetreeHomePath, {recursive: true, force: true})
         }

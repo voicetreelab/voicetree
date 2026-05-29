@@ -83,7 +83,7 @@ async function fixtureClaudeTranscript({claudeProjectsRoot, terminalId, projectR
   const transcriptPath = path.join(subdir, `${sessionId}.jsonl`);
   const markerText = [
     `VOICETREE_TERMINAL_ID = ${terminalId}`,
-    `VOICETREE_VAULT_PATH = ${projectRoot}`,
+    `VOICETREE_PROJECT_PATH = ${projectRoot}`,
     `TASK_NODE_PATH = ${taskNodePath}`,
   ].join('\n');
   await fs.writeFile(transcriptPath, `${JSON.stringify({
@@ -113,7 +113,7 @@ async function fixtureRecoveryMetadata({projectRoot, terminalId, agentName, cliB
       initialEnvVars: {
         VOICETREE_TERMINAL_ID: terminalId,
         AGENT_NAME: agentName,
-        VOICETREE_VAULT_PATH: projectRoot,
+        VOICETREE_PROJECT_PATH: projectRoot,
         VOICETREE_PROJECT_DIR: projectDir,
         TASK_NODE_PATH: taskNodePath,
       },

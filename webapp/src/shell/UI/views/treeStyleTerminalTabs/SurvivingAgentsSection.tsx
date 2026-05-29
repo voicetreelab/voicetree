@@ -113,7 +113,7 @@ function rowTooltip(row: RecoverableAgentSession): string {
         if (row.endedAt) parts.push(`ended: ${row.endedAt}`);
     }
     if (row.metadataPath) parts.push(`metadata: ${row.metadataPath}`);
-    const projectRoot: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH;
+    const projectRoot: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH;
     if (projectRoot) parts.push(`project root: ${projectRoot}`);
     return parts.join('\n');
 }

@@ -1,11 +1,11 @@
 /**
- * Regression test for the VOICETREE_VAULT_PATH semantics.
+ * Regression test for the VOICETREE_PROJECT_PATH semantics.
  *
- * The exported VOICETREE_VAULT_PATH must point at the canonical vault root
+ * The exported VOICETREE_PROJECT_PATH must point at the canonical vault root
  * (the directory containing `.voicetree/`), NOT the daemon's current
  * writeFolder. Many downstream consumers — vt-rpc's `authTokenFilePath`,
  * the agent hook script template (`agentHookInjection`), tmuxPromptFile,
- * the tmux namespace builder — all read `$VOICETREE_VAULT_PATH/.voicetree/...`.
+ * the tmux namespace builder — all read `$VOICETREE_PROJECT_PATH/.voicetree/...`.
  * Pointing the var at a subfolder writeFolder breaks every one of them.
  *
  * Black-box: configure the runtime env normally (no internal mocks), call
@@ -31,7 +31,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
         delete process.env.VOICETREE_HOME_PATH
     })
 
-    it('exports VOICETREE_VAULT_PATH as the canonical project root, not the writeFolder subfolder', async () => {
+    it('exports VOICETREE_PROJECT_PATH as the canonical project root, not the writeFolder subfolder', async () => {
         configureAgentRuntime({
             env: {
                 getVaultPaths: async (): Promise<readonly string[]> =>[CANONICAL_ROOT, SUBFOLDER_WRITE_FOLDER],
@@ -48,7 +48,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
             settings: {INJECT_ENV_VARS: {}} as never,
         })
 
-        expect(envVars.VOICETREE_VAULT_PATH).toBe(CANONICAL_ROOT)
+        expect(envVars.VOICETREE_PROJECT_PATH).toBe(CANONICAL_ROOT)
         expect(envVars.VOICETREE_PROJECT_DIR).toBe(`${CANONICAL_ROOT}/.voicetree`)
     })
 
@@ -110,7 +110,7 @@ describe('buildTerminalEnvVars — vault-path semantics', () => {
             settings: {INJECT_ENV_VARS: {}} as never,
         })
 
-        expect(envVars.VOICETREE_VAULT_PATH).toBe('')
+        expect(envVars.VOICETREE_PROJECT_PATH).toBe('')
         expect(envVars.VOICETREE_PROJECT_DIR).toBe('')
     })
 })

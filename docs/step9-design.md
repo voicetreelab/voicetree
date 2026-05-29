@@ -226,7 +226,7 @@ renderer) resolve the URL via this chain, first hit wins:
    the `findRepoRoot.ts` up-walk (Step 6 / Step 7 precedent). Host
    default depends on platform (§3.2 — `127.0.0.1` for native,
    WSL2-aware on Windows).
-3. **`$VOICETREE_VAULT_PATH/.voicetree/rpc.port`** — fallback for
+3. **`$VOICETREE_PROJECT_PATH/.voicetree/rpc.port`** — fallback for
    CLI invocations outside a vault directory.
 4. None resolve → fail fast with `daemon_unreachable` (§4.6).
 
@@ -468,7 +468,7 @@ from `$VOICETREE_AUTH_TOKEN` as a command-line argument (avoids
 `ps` leak — §3.3). The hook curl template:
 
 ```bash
-TOKEN=$(cat "$VOICETREE_VAULT_PATH/.voicetree/auth-token")
+TOKEN=$(cat "$VOICETREE_PROJECT_PATH/.voicetree/auth-token")
 curl -sS -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -556,7 +556,7 @@ Assumes Step 7g (`@vt/vt-daemon` → `@vt/tool-catalog`, commit
 | `packages/systems/tool-catalog/bin/vt-mcpd.ts`                                  | Replace UDS + hook-port binds with single HTTP bind; write `rpc.port` + `auth-token` atomically; redacted access log.                                   | 9b          |
 | `webapp/.../runtime/electron/app/main.ts`                                       | Replace UDS/hook/tmux-relay startup with single HTTP bind; surface `mainAPI.getDaemonUrl()` / `getAuthToken()` (replaces `getTmuxRelayPort`).            | 9b          |
 | `webapp/.../cli/commands/runtime/serve.ts`                                      | Same swap on the headless code path.                                                                                                                    | 9b          |
-| `packages/systems/agent-runtime/.../buildTerminalEnvVars.ts`                    | Inject `$VOICETREE_DAEMON_URL` + `$VOICETREE_VAULT_PATH` into spawned-agent env. DO NOT pass the token via env — hook script reads from file (§4.4).    | 9b          |
+| `packages/systems/agent-runtime/.../buildTerminalEnvVars.ts`                    | Inject `$VOICETREE_DAEMON_URL` + `$VOICETREE_PROJECT_PATH` into spawned-agent env. DO NOT pass the token via env — hook script reads from file (§4.4).    | 9b          |
 | `packages/systems/agent-runtime/.../agentHookInjection.ts`                      | Update hook curl template per §4.4 — token via `cat`, URL via `$VOICETREE_DAEMON_URL`.                                                                  | 9b          |
 
 ### 5.4 Renderer state path
