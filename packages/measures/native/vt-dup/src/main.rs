@@ -15,6 +15,8 @@
 
 mod discovery;
 mod extract;
+mod fingerprint;
+mod minhash;
 mod output;
 mod pipeline;
 
@@ -29,19 +31,27 @@ enum Mode {
     Workflow,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum Dump {
+    None,
+    /// kept-function set: file\tline\tname\tloc\tnodes\ttokens
+    Functions,
+    /// per-function fingerprints: id\trootHash\tnSubtrees\tnShingles\tlexSig0\tnFeatures\tbehSig0
+    Fingerprints,
+}
+
 struct Args {
     mode: Option<Mode>,
     root: PathBuf,
-    /// Debug/validation: dump the kept-function set (file\tline\tname\tloc\tnodes\ttokens)
-    /// instead of running a gate. Used to diff the kept set against the TS extractor.
-    dump_functions: bool,
+    /// Debug/validation dumps (used to diff against the TS pipeline), bypassing gate output.
+    dump: Dump,
 }
 
 fn parse_args() -> Result<Args, String> {
     let mut mode: Option<Mode> = None;
     let mut root: Option<PathBuf> = None;
     let mut json = false;
-    let mut dump_functions = false;
+    let mut dump = Dump::None;
 
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
@@ -59,7 +69,8 @@ fn parse_args() -> Result<Args, String> {
                 root = Some(PathBuf::from(it.next().ok_or("--root requires a value")?));
             }
             "--json" => json = true,
-            "--dump-functions" => dump_functions = true,
+            "--dump-functions" => dump = Dump::Functions,
+            "--dump-fingerprints" => dump = Dump::Fingerprints,
             other => return Err(format!("unknown argument '{other}'")),
         }
     }
@@ -68,14 +79,14 @@ fn parse_args() -> Result<Args, String> {
         Some(r) => r,
         None => std::env::current_dir().map_err(|e| format!("cannot resolve cwd: {e}"))?,
     };
-    if dump_functions {
-        return Ok(Args { mode: None, root, dump_functions });
+    if dump != Dump::None {
+        return Ok(Args { mode: None, root, dump });
     }
     if !json {
         return Err("--json is required (the only supported output format)".to_string());
     }
     let mode = mode.ok_or("--mode is required (mass|semantic|workflow)")?;
-    Ok(Args { mode: Some(mode), root, dump_functions })
+    Ok(Args { mode: Some(mode), root, dump })
 }
 
 fn dump_functions(root: &PathBuf) -> String {
@@ -89,6 +100,20 @@ fn dump_functions(root: &PathBuf) -> String {
                 func.meta.body_node_count, func.token_stream.len(),
             ));
         }
+    }
+    out
+}
+
+fn dump_fingerprints(root: &PathBuf) -> String {
+    let records = pipeline::fingerprint_all(root);
+    let mut out = String::new();
+    for r in &records {
+        out.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            r.meta.id, r.root_hash, r.subtree_shapes.len(), r.lex_shingles.len(),
+            r.lex_sig.first().copied().unwrap_or(0), r.beh_features.len(),
+            r.beh_sig.first().copied().unwrap_or(0),
+        ));
     }
     out
 }
@@ -115,9 +140,16 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    if args.dump_functions {
-        print!("{}", dump_functions(&args.root));
-        return ExitCode::SUCCESS;
+    match args.dump {
+        Dump::Functions => {
+            print!("{}", dump_functions(&args.root));
+            return ExitCode::SUCCESS;
+        }
+        Dump::Fingerprints => {
+            print!("{}", dump_fingerprints(&args.root));
+            return ExitCode::SUCCESS;
+        }
+        Dump::None => {}
     }
     match run(&args) {
         Ok(json) => {

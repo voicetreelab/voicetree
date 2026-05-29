@@ -54,22 +54,38 @@ pub struct FnMeta {
     pub body_node_count: usize,
 }
 
+/// Signature facts captured from the typed function node (behavioral signal).
+#[derive(Clone, Copy)]
+pub struct FnSig {
+    pub arity: usize,
+    pub is_async: bool,
+    /// Arrow with a concise (non-block) body — semantically returns a value.
+    pub is_arrow_expr_body: bool,
+    /// Constructor — semantically returns void.
+    pub is_constructor: bool,
+}
+
 pub struct ExtractedFn {
     pub meta: FnMeta,
     /// Index into `ExtractedFile::nodes` of this function's body (FunctionBody).
     pub body_idx: usize,
     /// Classified tokens within the body span, source order (lexical signal input).
     pub token_stream: Vec<String>,
+    pub sig: FnSig,
 }
 
 pub struct ExtractedFile {
     pub nodes: Vec<GNode>,
     pub functions: Vec<ExtractedFn>,
+    /// File source bytes — behavioral callee-name resolution slices into this.
+    pub source: Vec<u8>,
 }
 
 struct Builder {
     nodes: Vec<GNode>,
     stack: Vec<u32>,
+    /// node idx -> signature facts, for Function/ArrowFunctionExpression nodes.
+    fn_sig: std::collections::HashMap<u32, FnSig>,
 }
 
 impl Builder {
@@ -119,6 +135,10 @@ fn accessor_of(kind: &AstKind) -> Acc {
     }
 }
 
+fn arity_of(params: &FormalParameters) -> usize {
+    params.items.len() + usize::from(params.rest.is_some())
+}
+
 impl<'a> Visit<'a> for Builder {
     fn enter_node(&mut self, kind: AstKind<'a>) {
         let span = kind.span();
@@ -126,6 +146,25 @@ impl<'a> Visit<'a> for Builder {
         let is_fn = matches!(kind, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_));
         let acc = accessor_of(&kind);
         let idx = self.push(label, span.start, span.end, is_fn, acc, false);
+        match kind {
+            AstKind::Function(f) => {
+                self.fn_sig.insert(idx, FnSig {
+                    arity: arity_of(&f.params),
+                    is_async: f.r#async,
+                    is_arrow_expr_body: false,
+                    is_constructor: false, // resolved at extraction via the MethodDefinition parent
+                });
+            }
+            AstKind::ArrowFunctionExpression(a) => {
+                self.fn_sig.insert(idx, FnSig {
+                    arity: arity_of(&a.params),
+                    is_async: a.r#async,
+                    is_arrow_expr_body: a.expression,
+                    is_constructor: false,
+                });
+            }
+            _ => {}
+        }
         self.stack.push(idx);
         if let Some(op) = operator_of(&kind) {
             self.push(op, span.start, span.start, false, Acc::Plain, true);
@@ -222,7 +261,7 @@ fn line_of(line_starts: &[u32], off: u32) -> usize {
 pub fn extract_file(abs: &Path, rel: &str, package: &str) -> ExtractedFile {
     let src = match std::fs::read(abs) {
         Ok(s) => s,
-        Err(_) => return ExtractedFile { nodes: Vec::new(), functions: Vec::new() },
+        Err(_) => return ExtractedFile { nodes: Vec::new(), functions: Vec::new(), source: Vec::new() },
     };
     let source_text = String::from_utf8_lossy(&src).to_string();
     let bytes = source_text.as_bytes();
@@ -251,9 +290,10 @@ pub fn extract_file(abs: &Path, rel: &str, package: &str) -> ExtractedFile {
         }
     }
 
-    let mut builder = Builder { nodes: Vec::new(), stack: Vec::new() };
+    let mut builder = Builder { nodes: Vec::new(), stack: Vec::new(), fn_sig: std::collections::HashMap::new() };
     builder.visit_program(&ret.program);
     let nodes = builder.nodes;
+    let fn_sig = builder.fn_sig;
 
     let mut functions = Vec::new();
     for idx in 0..nodes.len() {
@@ -283,6 +323,18 @@ pub fn extract_file(abs: &Path, rel: &str, package: &str) -> ExtractedFile {
         let start_line = line_of(&line_starts, boundary_start(&nodes, idx));
         let end_line = line_of(&line_starts, nodes[idx].end.saturating_sub(1));
         let id = format!("{rel}:{start_line}:{name}");
+
+        // Constructor: oxc boundary is the inner Function whose parent is a
+        // MethodDefinition keyed "constructor" (matches tsc's name + void return).
+        let parent = nodes[idx].parent;
+        let is_constructor = parent >= 0
+            && nodes[parent as usize].label == "MethodDefinition"
+            && name == "constructor";
+        let mut sig = fn_sig.get(&(idx as u32)).copied().unwrap_or(FnSig {
+            arity: 0, is_async: false, is_arrow_expr_body: false, is_constructor: false,
+        });
+        sig.is_constructor = is_constructor;
+
         functions.push(ExtractedFn {
             meta: FnMeta {
                 id,
@@ -295,8 +347,9 @@ pub fn extract_file(abs: &Path, rel: &str, package: &str) -> ExtractedFile {
             },
             body_idx,
             token_stream,
+            sig,
         });
     }
 
-    ExtractedFile { nodes, functions }
+    ExtractedFile { nodes, functions, source: src }
 }
