@@ -80,64 +80,71 @@ function adaptWithGraph<P>(
 // because the spec models tools at the top level and not arbitrary nested
 // object shapes.
 
+// ─── Input shapes ────────────────────────────────────────────────────────────
+//
+// Most tools take a flat record of primitive parameters, so their input shape
+// is pure data: a field-name → type-code map in `FLAT_INPUTS`. Each field's
+// zod `.describe()` text is still sourced from the matching `ToolSpec` input
+// via `specDescribe`, so docs live in one place. Tools whose input nests
+// objects/arrays keep a bespoke builder in `INPUT_SHAPES`.
+
+// Compact zod type codes. A trailing '?' marks the field optional.
+//   s = string, n = number, b = boolean, sa = string[]
+type FlatFieldCode = 's' | 's?' | 'n' | 'n?' | 'b' | 'b?' | 'sa' | 'sa?'
+
+const FLAT_INPUTS: Readonly<Record<string, Readonly<Record<string, FlatFieldCode>>>> = {
+    spawn_agent: {
+        nodeId: 's?',
+        callerTerminalId: 's',
+        task: 's?',
+        parentNodeId: 's?',
+        spawnDirectory: 's?',
+        promptTemplate: 's?',
+        agentName: 's?',
+        headless: 'b?',
+        replaceSelf: 'b?',
+        depthBudget: 'n?',
+    },
+    list_agents: {},
+    wait_for_agents: {terminalIds: 'sa', callerTerminalId: 's', pollIntervalMs: 'n?'},
+    get_unseen_nodes_nearby: {callerTerminalId: 's', search_from_node: 's?'},
+    close_agent: {terminalId: 's', callerTerminalId: 's', forceWithReason: 's?'},
+    send_message: {terminalId: 's', message: 's', callerTerminalId: 's'},
+    read_terminal_output: {terminalId: 's', callerTerminalId: 's', nChars: 'n?'},
+    graph_structure: {folderPath: 's', withSummaries: 'b?'},
+    search_nodes: {query: 's', top_k: 'n?'},
+    vt_get_live_state: {},
+    'metrics.getSessions': {},
+}
+
+function zodForFieldCode(code: FlatFieldCode): ZodTypeAny {
+    const optional: boolean = code.endsWith('?')
+    const base: string = optional ? code.slice(0, -1) : code
+    const built: ZodTypeAny =
+        base === 'n' ? z.number()
+        : base === 'b' ? z.boolean()
+        : base === 'sa' ? z.array(z.string())
+        : z.string()
+    return optional ? built.optional() : built
+}
+
+function flatInputShape(
+    fields: Readonly<Record<string, FlatFieldCode>>,
+    describe: (rpcPath: string) => string,
+): ZodRawShape {
+    return Object.fromEntries(
+        Object.entries(fields).map(
+            ([name, code]: [string, FlatFieldCode]): [string, ZodTypeAny] =>
+                [name, zodForFieldCode(code).describe(describe(name))],
+        ),
+    )
+}
+
 type InputShapeBuilder = (spec: ToolSpec) => ZodRawShape
 
+// Bespoke builders for tools whose input nests objects/arrays — these cannot
+// be expressed as a flat type-code map in FLAT_INPUTS.
 const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
-    spawn_agent: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            nodeId: z.string().optional().describe(d('nodeId')),
-            callerTerminalId: z.string().describe(d('callerTerminalId')),
-            task: z.string().optional().describe(d('task')),
-            parentNodeId: z.string().optional().describe(d('parentNodeId')),
-            spawnDirectory: z.string().optional().describe(d('spawnDirectory')),
-            promptTemplate: z.string().optional().describe(d('promptTemplate')),
-            agentName: z.string().optional().describe(d('agentName')),
-            headless: z.boolean().optional().describe(d('headless')),
-            replaceSelf: z.boolean().optional().describe(d('replaceSelf')),
-            depthBudget: z.number().optional().describe(d('depthBudget')),
-        }
-    },
-    list_agents: (): ZodRawShape => ({}),
-    wait_for_agents: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            terminalIds: z.array(z.string()).describe(d('terminalIds')),
-            callerTerminalId: z.string().describe(d('callerTerminalId')),
-            pollIntervalMs: z.number().optional().describe(d('pollIntervalMs')),
-        }
-    },
-    get_unseen_nodes_nearby: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            callerTerminalId: z.string().describe(d('callerTerminalId')),
-            search_from_node: z.string().optional().describe(d('search_from_node')),
-        }
-    },
-    close_agent: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            terminalId: z.string().describe(d('terminalId')),
-            callerTerminalId: z.string().describe(d('callerTerminalId')),
-            forceWithReason: z.string().optional().describe(d('forceWithReason')),
-        }
-    },
-    send_message: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            terminalId: z.string().describe(d('terminalId')),
-            message: z.string().describe(d('message')),
-            callerTerminalId: z.string().describe(d('callerTerminalId')),
-        }
-    },
-    read_terminal_output: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            terminalId: z.string().describe(d('terminalId')),
-            callerTerminalId: z.string().describe(d('callerTerminalId')),
-            nChars: z.number().optional().describe(d('nChars')),
-        }
-    },
     create_graph: (spec) => {
         const d: (rpcPath: string) => string = specDescribe(spec)
         return {
@@ -168,28 +175,12 @@ const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
             ),
         }
     },
-    graph_structure: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            folderPath: z.string().describe(d('folderPath')),
-            withSummaries: z.boolean().optional().describe(d('withSummaries')),
-        }
-    },
-    search_nodes: (spec) => {
-        const d: (rpcPath: string) => string = specDescribe(spec)
-        return {
-            query: z.string().describe(d('query')),
-            top_k: z.number().optional().describe(d('top_k')),
-        }
-    },
-    vt_get_live_state: (): ZodRawShape => ({}),
     vt_dispatch_live_command: (spec) => {
         const d: (rpcPath: string) => string = specDescribe(spec)
         return {
             command: z.record(z.string(), z.unknown()).describe(d('command')),
         }
     },
-    'metrics.getSessions': (): ZodRawShape => ({}),
     'metrics.appendSession': (spec) => {
         const d: (rpcPath: string) => string = specDescribe(spec)
         return {
@@ -226,23 +217,28 @@ const HANDLERS: Readonly<Record<string, BridgedCatalogHandler>> = {
         appendSessionTool(args as unknown as AppendSessionParams),
 }
 
+function resolveInputShape(spec: ToolSpec): ZodRawShape {
+    const flat: Readonly<Record<string, FlatFieldCode>> | undefined = FLAT_INPUTS[spec.rpcName]
+    if (flat !== undefined) return flatInputShape(flat, specDescribe(spec))
+    const bespoke: InputShapeBuilder | undefined = INPUT_SHAPES[spec.rpcName]
+    if (bespoke !== undefined) return bespoke(spec)
+    throw new Error(
+        `catalog: TOOL_SPECS entry '${spec.rpcName}' has no input-shape binding. `
+        + `Add primitive fields to FLAT_INPUTS or a nested builder to INPUT_SHAPES in `
+        + `packages/systems/vt-daemon/src/tools/catalog.ts when adding a new tool.`,
+    )
+}
+
 function buildToolCatalog(): readonly CatalogEntry[] {
     return TOOL_SPECS.map((spec: ToolSpec): CatalogEntry => {
-        const shapeBuilder: InputShapeBuilder | undefined = INPUT_SHAPES[spec.rpcName]
         const handler: BridgedCatalogHandler | undefined = HANDLERS[spec.rpcName]
-        if (!shapeBuilder) {
-            throw new Error(
-                `catalog: TOOL_SPECS entry '${spec.rpcName}' has no INPUT_SHAPES binding. `
-                + `Add one in packages/systems/vt-daemon/src/tools/catalog.ts when adding a new tool.`,
-            )
-        }
         if (!handler) {
             throw new Error(
                 `catalog: TOOL_SPECS entry '${spec.rpcName}' has no HANDLERS binding. `
                 + `Add one in packages/systems/vt-daemon/src/tools/catalog.ts when adding a new tool.`,
             )
         }
-        return buildCatalogEntry(spec, shapeBuilder(spec), handler)
+        return buildCatalogEntry(spec, resolveInputShape(spec), handler)
     })
 }
 
