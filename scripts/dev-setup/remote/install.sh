@@ -97,6 +97,15 @@ else
   ok "devbox at $BRANCH with submodules initialised"
 fi
 
+step "installing vt shim on $VT_REMOTE_HOST (box → Mac vt forwarder)"
+# The box has no VoiceTree daemon — the daemon + graph live on the Mac. This
+# symlinks `vt` on the box to vt-mac.sh, which forwards every invocation back to
+# the Mac's vt over the reverse SSH tunnel. Creating the link needs neither the
+# tunnel nor the key (only *using* vt does), so this never blocks install.
+ssh "$VT_REMOTE_HOST" "ln -sfn '$REMOTE_DIR/scripts/dev-setup/remote/vt-mac.sh' /usr/local/bin/vt" \
+  || fail "failed to install vt shim on devbox"
+ok "/usr/local/bin/vt -> vt-mac.sh (requires reverse tunnel + key; see /root/CLAUDE.md on the box)"
+
 step "provisioning pnpm on $VT_REMOTE_HOST via corepack"
 # corepack ships with Node 16.10+. `prepare --activate` reads the version
 # from the cloned repo's package.json `packageManager` field, so the
