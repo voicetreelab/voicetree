@@ -26,6 +26,7 @@ import {spawn, execFile, execFileSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {dirname, resolve as pathResolve, relative as pathRelative, basename} from 'node:path'
 import {posix as ppath} from 'node:path'
+import {homedir} from 'node:os'
 import {promisify} from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -56,6 +57,7 @@ function remoteHostFromEnvironment() {
   if (process.env.VT_REMOTE_HOST) return process.env.VT_REMOTE_HOST
 
   const candidateEnvFiles = [
+    pathResolve(homedir(), '.env'),
     pathResolve(REPO_ROOT, '.env'),
     pathResolve(localMainCheckoutRoot(), '.env'),
   ]

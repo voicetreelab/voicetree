@@ -6,10 +6,9 @@
 # 1. Picks a free TCP port, patches .mcp.json for Playwright MCP, and writes
 #    .cdp-port for Electron to read.
 #
-# Dep setup is handled by on-created-async.sh
-# via symlinks + a tiny cp -a of @vt; see that script's header. Running
-# `npm install` here used to clobber that setup (it'd write into main's
-# removed.
+# Dependency setup is handled by the on-created-async.sh role router. Keeping
+# it out of this blocking hook lets the worktree become available after the
+# fast CDP configuration.
 #
 # Usage: on-created.sh <worktreePath> <worktreeName>
 

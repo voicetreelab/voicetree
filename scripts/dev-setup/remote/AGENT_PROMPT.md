@@ -2,8 +2,8 @@
 
 You are configuring this laptop to route heavy dev commands (`npm run test`,
 perf runs, e2e) to the user's own remote dev box via mutagen + ssh.
-`scripts/dev-setup/remote/install.sh` does the mechanical work. Your job
-is to gather the inputs, run it, verify each step, and report cleanly.
+The scripts in `scripts/dev-setup/remote/` are the source of truth. Your job
+is to gather the inputs, run the scripts, verify the result, and report cleanly.
 
 ## Inputs to gather from the user before doing anything
 
@@ -17,7 +17,7 @@ Ask the user for:
 
 Do not assume or invent the IP. Do not share a box with another dev.
 
-## Preconditions to verify yourself before running install.sh
+## Preconditions to verify before running the installer
 
 - `pwd` is the root of a `voicetree-public` checkout (look for `package.json`
   with `"name": "voicetree-public"` and a `scripts/dev-setup/remote/` dir).
@@ -32,13 +32,13 @@ Do not assume or invent the IP. Do not share a box with another dev.
 VT_REMOTE_HOST=<value-from-user> bash scripts/dev-setup/remote/install.sh
 ```
 
-`install.sh` will:
-1. Write `VT_REMOTE_HOST` to `.env` (refuses to overwrite a different value)
-2. Verify SSH
-3. Pre-seed the devbox with `git clone` + `git submodule update --init` at
-   the laptop's current branch, so the first mutagen sync reconciles by hash
-4. Create the `vt-remote` mutagen session
-5. Set `core.hooksPath=scripts/hooks`
+`install.sh` delegates environment setup to these scripts:
+
+- `scripts/dev-setup/remote/setup-laptop-env.sh`
+- `scripts/dev-setup/remote/setup-devbox-env.sh`
+- `scripts/dev-setup/remote/write-env-value.sh`
+
+Do not duplicate their internals in the prompt or in ad hoc shell commands.
 
 If pre-seed fails (e.g. branch doesn't exist on origin), re-run with
 `--skip-pre-seed`. Mutagen will then push the full working tree on first
@@ -83,14 +83,15 @@ In one short message:
 ## Gotchas to flag if relevant
 
 - **Worktrees**: if they use VT worktrees later, the per-worktree
-  `.env -> ../../.env` symlink must exist or `run-remote.mjs` silently
-  runs locally. `scripts/git/worktree/ensure-ready.mjs` handles it for
-  VT-managed worktrees; manual `git worktree add` does not.
-- **`VT_REMOTE_HOST` is only read from `.env` or process env** — not from
-  `~/.zshrc`. Don't suggest putting it there.
+  `.env` symlink must exist for repo env compatibility. The worktree hooks and
+  `scripts/dev-setup/git-gate/git-gate.sh` handle it when they create worktrees.
+- **`VT_REMOTE_HOST` is read from process env, `~/.env`, or repo `.env`** —
+  not from `~/.zshrc`. Don't suggest putting it there.
 - **`.env` is gitignored** but **is** synced to the devbox by mutagen.
   Anything in `.env` lands on the remote box. Don't put secrets in it
   that shouldn't be on the devbox.
+- **`VT_DEV_ROLE` belongs in `~/.env`, not repo `.env`**. Repo `.env` is
+  synced to the devbox, but `VT_DEV_ROLE` must remain machine-local.
 
 ## Do not
 

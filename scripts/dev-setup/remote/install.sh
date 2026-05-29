@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # install.sh — one-shot setup for routing dev commands to a remote dev box.
 #
-# Wires up the laptop side: writes VT_REMOTE_HOST to .env, verifies SSH,
+# Wires up the laptop side: writes VT_REMOTE_HOST to .env and ~/.env,
+# marks this machine as the Mac dev role, verifies SSH,
 # (optionally) pre-seeds the devbox with a fresh GitHub clone so the first
 # mutagen sync reconciles by hash instead of streaming the whole working
 # tree over the laptop uplink, creates the mutagen vt-remote session, and
@@ -42,6 +43,7 @@ done
 REMOTE_DIR="/root/voicetree-public"
 REPO_URL="${REPO_URL:-https://github.com/voicetreelab/voicetree-public.git}"
 ENV_FILE="$REPO_ROOT/.env"
+HOME_ENV_FILE="$HOME/.env"
 BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
 
 step() { printf '\n→ %s\n' "$*"; }
@@ -53,23 +55,25 @@ command -v mutagen >/dev/null || fail "mutagen not installed (brew install mutag
 mutagen daemon start >/dev/null 2>&1 || true
 ok "mutagen present"
 
-step "writing VT_REMOTE_HOST to $ENV_FILE"
-if [ -f "$ENV_FILE" ] && grep -q '^VT_REMOTE_HOST=' "$ENV_FILE"; then
-  current="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$ENV_FILE")"
-  if [ "$current" = "$VT_REMOTE_HOST" ]; then
-    ok ".env already pins VT_REMOTE_HOST=$VT_REMOTE_HOST"
-  else
-    fail ".env already has VT_REMOTE_HOST=$current — refusing to overwrite. Edit by hand."
-  fi
-else
-  printf 'VT_REMOTE_HOST=%s\n' "$VT_REMOTE_HOST" >> "$ENV_FILE"
-  ok "appended VT_REMOTE_HOST=$VT_REMOTE_HOST"
-fi
+step "configuring laptop env"
+VT_REMOTE_HOST="$VT_REMOTE_HOST" bash "$SCRIPT_DIR/setup-laptop-env.sh" \
+  || fail "failed to configure laptop env"
+ok "$ENV_FILE and $HOME_ENV_FILE configured"
 
 step "verifying passwordless SSH to $VT_REMOTE_HOST"
 ssh -o BatchMode=yes -o ConnectTimeout=5 "$VT_REMOTE_HOST" 'hostname' \
   || fail "SSH failed. Add your public key to /root/.ssh/authorized_keys on the devbox."
 ok "SSH works"
+
+step "writing remote machine dev role to $VT_REMOTE_HOST:~/.env"
+ssh "$VT_REMOTE_HOST" "mkdir -p /tmp/vt-dev-setup-remote" \
+  || fail "failed to create remote setup temp dir"
+scp "$SCRIPT_DIR/write-env-value.sh" "$SCRIPT_DIR/setup-devbox-env.sh" \
+  "$VT_REMOTE_HOST:/tmp/vt-dev-setup-remote/" >/dev/null \
+  || fail "failed to copy remote setup scripts"
+ssh "$VT_REMOTE_HOST" "bash /tmp/vt-dev-setup-remote/setup-devbox-env.sh" \
+  || fail "failed to write remote VT_DEV_ROLE"
+ok "remote ~/.env pins VT_DEV_ROLE=remote"
 
 if [ "$SKIP_PRE_SEED" -eq 1 ]; then
   step "skipping devbox pre-seed (--skip-pre-seed); first mutagen sync will transfer the full working tree"
@@ -105,9 +109,13 @@ ssh "$VT_REMOTE_HOST" "
     echo '  (branch is not on pnpm — skipping)'
     exit 0
   fi
-  command -v corepack >/dev/null || { echo 'corepack missing on devbox (need Node 16.10+)'; exit 1; }
-  corepack enable
-  corepack prepare pnpm --activate
+  if [ -x scripts/dev-setup/common/ensure-pnpm.sh ]; then
+    bash scripts/dev-setup/common/ensure-pnpm.sh .
+  else
+    command -v corepack >/dev/null || { echo 'corepack missing on devbox (need Node 16.10+)'; exit 1; }
+    corepack enable
+    corepack prepare pnpm --activate
+  fi
   pnpm --version
 " || fail "pnpm provisioning failed"
 ok "pnpm available on devbox"
