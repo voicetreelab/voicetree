@@ -148,19 +148,61 @@ async function parseCounts(parser, vitestPath, playwrightPath) {
     if (parser === 'playwright') {
         const json = await readJsonIfExists(playwrightPath)
         if (!json?.stats) return {}
-        const s = json.stats
-        const expected = numberOrZero(s.expected)
-        const unexpected = numberOrZero(s.unexpected)
-        const skipped = numberOrZero(s.skipped)
-        const flaky = numberOrZero(s.flaky)
-        return {
-            testsTotal: expected + unexpected + skipped + flaky,
-            testsPassed: expected + flaky,
-            testsFailed: unexpected,
-            testsSkipped: skipped,
-        }
+        return playwrightReportDetails(json)
     }
     return {}
+}
+
+function playwrightReportDetails(json) {
+    const s = json.stats
+    const allFailedTests = collectFailedPlaywrightTests(json)
+    const failedTests = allFailedTests.slice(0, 10)
+    return {
+        testsTotal: numberOrZero(s.expected) + numberOrZero(s.unexpected) + numberOrZero(s.skipped) + numberOrZero(s.flaky),
+        testsPassed: numberOrZero(s.expected) + numberOrZero(s.flaky),
+        testsFailed: numberOrZero(s.unexpected),
+        testsSkipped: numberOrZero(s.skipped),
+        failureDetails: failedTests.length === 0 ? {} : {
+            failedTests,
+            failedTestsTruncated: allFailedTests.length > failedTests.length,
+        },
+    }
+}
+
+function collectFailedPlaywrightTests(json) {
+    const failed = []
+    for (const suite of json.suites ?? []) {
+        collectFailedPlaywrightTestsFromSuite(suite, [], failed)
+    }
+    return failed
+}
+
+function collectFailedPlaywrightTestsFromSuite(suite, parentTitles, failed) {
+    const titlePath = suite.title ? [...parentTitles, suite.title] : parentTitles
+    for (const spec of suite.specs ?? []) {
+        if (spec.ok !== false) continue
+        const failedResult = firstFailedPlaywrightResult(spec)
+        const message = failedResult?.errors?.[0]?.message ?? failedResult?.error?.message
+        failed.push({
+            fullName: [...titlePath, spec.title].filter(Boolean).join(' > '),
+            fileName: spec.file,
+            message,
+        })
+    }
+    for (const child of suite.suites ?? []) {
+        collectFailedPlaywrightTestsFromSuite(child, titlePath, failed)
+    }
+}
+
+function firstFailedPlaywrightResult(spec) {
+    for (const test of spec.tests ?? []) {
+        for (const result of test.results ?? []) {
+            if (result.status === 'failed' || result.status === 'timedOut' || result.status === 'interrupted') {
+                return result
+            }
+        }
+    }
+    return null
 }
 
 function numberOrUndef(n) {
