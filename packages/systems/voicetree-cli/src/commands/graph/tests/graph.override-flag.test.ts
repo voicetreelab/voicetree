@@ -31,16 +31,18 @@ function captureParse(args: string[]): {parsed?: unknown; stderr: string; exitCo
 }
 
 describe('parseGraphCreateArgs --override', () => {
-    it('accepts node_line_limit and grandparent_attachment, accumulating multiple', () => {
+    it('accepts graph validation rule overrides, accumulating multiple', () => {
         const result = captureParse([
             '--node', 'T::S',
             '--override', 'node_line_limit:large diff',
             '--override', 'grandparent_attachment:cross-team context',
+            '--override', 'node_must_have_edge:intentional parking lot',
         ])
         expect(result.exitCode).toBeNull()
         expect((result.parsed as ParsedLiveCreateArgs).overrides).toEqual([
             {ruleId: 'node_line_limit', rationale: 'large diff'},
             {ruleId: 'grandparent_attachment', rationale: 'cross-team context'},
+            {ruleId: 'node_must_have_edge', rationale: 'intentional parking lot'},
         ])
     })
 
@@ -56,10 +58,12 @@ describe('parseGraphCreateArgs --override', () => {
         expect(result.stderr).toContain('--override')
     })
 
-    it('rejects --override in filesystem mode (CLI gate is non-overridable)', () => {
+    it('accepts --override in filesystem mode for graph validation rules', () => {
         const result = captureParse(['some-file.md', '--override', 'node_line_limit:reason'])
-        expect(result.exitCode).toBe(1)
-        expect(result.stderr).toContain('only valid with live-mode')
+        expect(result.exitCode).toBeNull()
+        expect((result.parsed as {overrides: readonly OverrideSpec[]}).overrides).toEqual([
+            {ruleId: 'node_line_limit', rationale: 'reason'},
+        ])
     })
 })
 
@@ -142,6 +146,7 @@ describe('rewriteOverrideHintForCli', () => {
             '',
             '  • [node_line_limit] Node is too long (node: "x.md")',
             '  • [grandparent_attachment] Target parent is an ancestor (node: "__graph_root__")',
+            '  • [node_must_have_edge] Node has no parent edge (node: "lonely.md")',
             '',
             'To override, add "override_with_rationale" to your create_graph call:',
             '[{"ruleId":"node_line_limit","rationale":"<explain>"}]',
@@ -150,6 +155,7 @@ describe('rewriteOverrideHintForCli', () => {
         expect(rewritten).toContain('To override, re-run with:')
         expect(rewritten).toContain("--override 'node_line_limit:<rationale>'")
         expect(rewritten).toContain("--override 'grandparent_attachment:<rationale>'")
+        expect(rewritten).toContain("--override 'node_must_have_edge:<rationale>'")
         expect(rewritten).not.toContain('override_with_rationale')
     })
 

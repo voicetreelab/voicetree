@@ -1,7 +1,6 @@
 import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringPlanEntry,
-    FilesystemAuthoringValidationError,
 } from '@vt/graph-tools/node'
 import type {AppliedNode} from '../io/filesystem'
 import type {GatedInput} from './gateVerdicts'
@@ -10,6 +9,13 @@ import type {
     GraphCreateSuccess,
     NodeVerdict,
 } from '../core/types'
+import type {OverridableRuleId} from '@vt/graph-validation'
+
+type PlanErrorLike = {
+    readonly message: string
+    readonly filename?: string
+    readonly ruleId?: OverridableRuleId
+}
 
 export function indexMcpResults(result: GraphCreateSuccess): ReadonlyMap<string, GraphCreateResult> {
     const indexed: Map<string, GraphCreateResult> = new Map()
@@ -54,20 +60,20 @@ export function mergeMcpResults(
     })
 }
 
-export function indexPlanErrorsByFilename(
-    errors: readonly FilesystemAuthoringValidationError[],
+export function indexPlanErrorsByFilename<T extends PlanErrorLike>(
+    errors: readonly T[],
 ): {
-    readonly byFilename: ReadonlyMap<string, readonly FilesystemAuthoringValidationError[]>
-    readonly unattached: readonly FilesystemAuthoringValidationError[]
+    readonly byFilename: ReadonlyMap<string, readonly T[]>
+    readonly unattached: readonly T[]
 } {
-    const byFilename: Map<string, FilesystemAuthoringValidationError[]> = new Map()
-    const unattached: FilesystemAuthoringValidationError[] = []
+    const byFilename: Map<string, T[]> = new Map()
+    const unattached: T[] = []
     for (const err of errors) {
         if (err.filename === undefined) {
             unattached.push(err)
             continue
         }
-        const existing: FilesystemAuthoringValidationError[] = byFilename.get(err.filename) ?? []
+        const existing: T[] = byFilename.get(err.filename) ?? []
         existing.push(err)
         byFilename.set(err.filename, existing)
     }
@@ -77,7 +83,8 @@ export function indexPlanErrorsByFilename(
 export function mergePlanIntoGateVerdicts(
     gateVerdicts: readonly GatedInput[],
     writePlan: readonly FilesystemAuthoringPlanEntry[],
-    planErrorsByFilename: ReadonlyMap<string, readonly FilesystemAuthoringValidationError[]>,
+    planErrorsByFilename: ReadonlyMap<string, readonly PlanErrorLike[]>,
+    overriddenRuleIdsByFilename: ReadonlyMap<string, readonly OverridableRuleId[]> = new Map(),
 ): readonly NodeVerdict[] {
     const planByFilename: Map<string, FilesystemAuthoringPlanEntry> = new Map()
     for (const entry of writePlan) {
@@ -85,22 +92,33 @@ export function mergePlanIntoGateVerdicts(
     }
 
     return gateVerdicts.map((gated): NodeVerdict => {
-        if (gated.verdict.status !== 'ok') return gated.verdict
-
-        const planErrors: readonly FilesystemAuthoringValidationError[] | undefined =
+        // Plan-level rejections must override any non-rejected gate verdict,
+        // including `skipped` (schema didn't apply). A skipped verdict is not
+        // an endorsement: an unresolved attachment rule violation whose folder
+        // has no schema plugin must still be rejected, never silently dropped.
+        const planErrors: readonly PlanErrorLike[] | undefined =
             planErrorsByFilename.get(gated.path)
         if (planErrors !== undefined && planErrors.length > 0) {
+            const ruleIds: readonly OverridableRuleId[] = [
+                ...new Set(planErrors.flatMap((e) => e.ruleId === undefined ? [] : [e.ruleId])),
+            ]
             return {
                 path: gated.path,
                 status: 'rejected',
                 planErrorMessage: planErrors.map((e) => e.message).join('; '),
+                ...(ruleIds.length > 0 ? {ruleIds} : {}),
             }
         }
 
+        if (gated.verdict.status !== 'ok') return gated.verdict
+
         const planEntry: FilesystemAuthoringPlanEntry | undefined = planByFilename.get(gated.path)
+        const overriddenRuleIds: readonly OverridableRuleId[] | undefined =
+            overriddenRuleIdsByFilename.get(gated.path)
         return {
             ...gated.verdict,
             ...(planEntry && planEntry.fixes.length > 0 ? {fixes: planEntry.fixes} : {}),
+            ...(overriddenRuleIds && overriddenRuleIds.length > 0 ? {overriddenRuleIds} : {}),
         }
     })
 }
