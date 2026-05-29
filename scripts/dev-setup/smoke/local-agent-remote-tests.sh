@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+if [ "$(uname -s)" = "Darwin" ]; then
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 ENV_HELPERS="$REPO_ROOT/scripts/dev-setup/common/env.sh"
 HOOK="$REPO_ROOT/scripts/git/worktree/on-created-async.sh"
