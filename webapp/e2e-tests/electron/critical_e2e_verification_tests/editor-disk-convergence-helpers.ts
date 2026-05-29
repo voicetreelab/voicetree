@@ -80,7 +80,6 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
         name: path.basename(projectPath),
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       }], null, 2),
       'utf8',
     );

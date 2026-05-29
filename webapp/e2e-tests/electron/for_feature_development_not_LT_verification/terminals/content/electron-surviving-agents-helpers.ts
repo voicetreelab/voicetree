@@ -84,7 +84,6 @@ export interface ExtendedWindow {
                 readonly name: string;
                 readonly type: 'folder';
                 readonly lastOpened: number;
-                readonly voicetreeInitialized: boolean;
             }) => Promise<void>;
             listUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSessionShape[]>;
             refreshUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSessionShape[]>;
@@ -300,7 +299,6 @@ export const test = base.extend<{
             name: PROJECT_ID,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({

@@ -105,7 +105,6 @@ async function saveProjectForSelection(window: Page, folderPath: string, project
       name: params.projectName,
       type: 'folder' as const,
       lastOpened: Date.now(),
-      voicetreeInitialized: false,
     };
     await api.main.saveProject(project);
   }, { folderPath, projectName });

@@ -16,7 +16,6 @@ export interface SavedProject {
     readonly name: string;
     readonly type: ProjectType;
     readonly lastOpened: number;
-    readonly voicetreeInitialized: boolean;
 }
 
 /**

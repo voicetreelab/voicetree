@@ -209,7 +209,6 @@ test.describe('Project Selection Screen E2E', () => {
                 name: projectPath.split('/').pop() ?? 'test-project',
                 type: 'git' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: false
             };
 
             await api.main.saveProject(newProject);
@@ -275,7 +274,6 @@ test.describe('Project Selection Screen E2E', () => {
                 name: projectPath.split('/').pop() ?? 'test-project',
                 type: 'git' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: false
             };
             await api.main.saveProject(newProject);
         }, testProjectPath);
@@ -335,7 +333,6 @@ test.describe('Project Selection Screen E2E', () => {
             name: 'persistent-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         };
         await fs.writeFile(
             path.join(tempUserDataPath, 'projects.json'),
@@ -458,7 +455,6 @@ test.describe('Watched Folder Panel Regression', () => {
                 name: 'fresh-project',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true
             };
             await fs.writeFile(
                 path.join(tempUserDataPath, 'projects.json'),
@@ -584,7 +580,6 @@ test.describe('Watched Folder Panel Regression', () => {
                 name: 'existing-config-project',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true
             };
             await fs.writeFile(
                 path.join(tempUserDataPath, 'projects.json'),
@@ -770,7 +765,6 @@ test.describe('Watched Folder Panel Regression', () => {
                     name: 'with-config',
                     type: 'folder' as const,
                     lastOpened: Date.now(),
-                    voicetreeInitialized: true
                 },
                 {
                     id: 'without-config-id',
@@ -778,7 +772,6 @@ test.describe('Watched Folder Panel Regression', () => {
                     name: 'without-config',
                     type: 'folder' as const,
                     lastOpened: Date.now() - 1000, // Slightly older so "with-config" appears first
-                    voicetreeInitialized: true
                 }
             ];
             await fs.writeFile(

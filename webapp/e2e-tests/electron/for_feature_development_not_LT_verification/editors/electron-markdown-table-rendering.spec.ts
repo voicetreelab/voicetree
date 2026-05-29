@@ -64,7 +64,6 @@ const test = base.extend<{
       name: 'table-rendering-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 

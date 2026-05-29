@@ -76,7 +76,6 @@ export function seedUserData(voicetreeHomePath: string, projectDir: string, proj
             name: projectName,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2),
         'utf8',
     )

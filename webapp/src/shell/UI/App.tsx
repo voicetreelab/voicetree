@@ -34,7 +34,6 @@ function createFallbackProject(projectPath: string): SavedProject {
         name: getProjectNameFromPath(projectPath),
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
     };
 }
 
@@ -98,16 +97,29 @@ function App(): JSX.Element {
         if (!window.electronAPI) return;
 
         const response = await window.electronAPI.main.openProject(project.path);
-        lastKnownProjectPathRef.current = project.path;
+        const projectRoot: string = response.projectState.projectRoot;
+        const openedProject: SavedProject = {
+            ...project,
+            path: projectRoot,
+            lastOpened: Date.now(),
+        };
+
+        try {
+            await window.electronAPI.main.saveProject(openedProject);
+        } catch (err) {
+            console.error('[App] Failed to save opened project metadata:', err);
+        }
+
+        lastKnownProjectPathRef.current = projectRoot;
         pendingInitialProjectedGraphRef.current = isProjectedGraph(response.initialProjectedGraph)
             ? response.initialProjectedGraph
             : null;
         setOpenedProject({
-            path: project.path,
+            path: projectRoot,
             sessionId: response.sessionId,
         });
         setProjectError(null);
-        setCurrentProject(project);
+        setCurrentProject(openedProject);
         setCurrentView('graph-view');
     }, []);
 
@@ -115,24 +127,8 @@ function App(): JSX.Element {
     const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
         if (!window.electronAPI) return;
 
-        let selectedProject: SavedProject = project;
-
-        // Initialize project if needed (creates /voicetree-{date} folder)
-        if (!project.voicetreeInitialized) {
-            try {
-                // initializeProject returns voicetree path if created, or existing path if already exists
-                await window.electronAPI.main.initializeProject(project.path);
-                // Mark as initialized regardless of whether we created it or it existed
-                const updatedProject: SavedProject = { ...project, voicetreeInitialized: true };
-                await window.electronAPI.main.saveProject(updatedProject);
-                selectedProject = updatedProject;
-            } catch (err) {
-                console.error('[App] Failed to initialize project:', err);
-            }
-        }
-
         try {
-            await openProjectForProject(selectedProject);
+            await openProjectForProject(project);
         } catch (err) {
             console.error('[App] Failed to open project:', err);
             setProjectError(err instanceof Error ? err.message : String(err));
@@ -208,7 +204,7 @@ function App(): JSX.Element {
 
                 if (cancelled) return;
                 if (startupHint.kind === 'open-folder') {
-                    const project: SavedProject = await loadProjectForDirectory(startupHint.path);
+                    const project: SavedProject = await loadProjectForDirectory(startupHint.projectPath);
                     if (!cancelled) await openProjectForProject(project);
                 }
             } catch (err) {

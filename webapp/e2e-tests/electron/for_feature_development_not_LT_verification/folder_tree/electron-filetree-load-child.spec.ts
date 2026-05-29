@@ -23,7 +23,6 @@ interface ExtendedWindow {
                 readonly name: string;
                 readonly type: 'folder';
                 readonly lastOpened: number;
-                readonly voicetreeInitialized: boolean;
             }) => Promise<void>;
             readonly startFileWatching: (path: string) => Promise<{ success: boolean; error?: string }>;
             readonly stopFileWatching: () => Promise<void>;
@@ -98,7 +97,6 @@ const test = base.extend<{
             name: 'filetree-load-child',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -169,7 +167,6 @@ const test = base.extend<{
                     name: 'filetree-load-child',
                     type: 'folder',
                     lastOpened: Date.now(),
-                    voicetreeInitialized: true,
                 });
             }, fixture.projectPath);
             await window.waitForTimeout(500);

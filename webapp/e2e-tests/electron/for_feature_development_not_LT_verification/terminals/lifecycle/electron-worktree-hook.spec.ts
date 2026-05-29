@@ -149,7 +149,6 @@ const test = base.extend<{
                 name: 'test-hook-e2e',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true,
             });
             await api.main.startFileWatching(projectRoot);
         }, tempGitRepoPath);

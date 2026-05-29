@@ -101,7 +101,6 @@ const test = base.extend<{
       name: tempProjectName,
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     }], null, 2), 'utf8');
 
     const ciFlags = process.env.CI

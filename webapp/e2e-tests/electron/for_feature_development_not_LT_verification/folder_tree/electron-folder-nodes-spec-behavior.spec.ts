@@ -153,7 +153,6 @@ const test = base.extend<{
             name: 'folder-spec-test-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({

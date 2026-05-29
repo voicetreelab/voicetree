@@ -158,7 +158,6 @@ const test = base.extend<{
       name: 'hooks-cli-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true,
     };
     await fs.writeFile(
       path.join(tempPath, 'projects.json'),
