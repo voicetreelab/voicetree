@@ -110,7 +110,7 @@ const test = base.extend<{
                 VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 // Pin the daemon's app-support path so its tmux socket lives
                 // under the same user-data dir the test queries.
-                VOICETREE_APP_SUPPORT: tempUserDataPath,
+                VOICETREE_HOME_PATH: tempUserDataPath,
             },
             timeout: 15000
         });
