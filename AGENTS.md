@@ -12,6 +12,9 @@ functional programming philosophy)
 
 Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work, do not wait to be asked, the human wants you to always do this no matter what. 
 
+Use global `~/brain/mem` for OpenSpecs.
+Do not duplicate OpenSpecs under worktree-local `brain/mem`.
+
 Do not ask the human user too many questions if you can answer them yourself, or when you have have a work-around that is not reward hacking. If there is a way you can avoid asking the question, whilst introducing no additional complexity or tech debt, you must do so. Save the human's limited & valuable attention for high level architectural concerns only. If you ask the user architectural questions, include a simple ascii diagram that demonstrates the main code/function flow or architecture. 
 
 The user is EXTREMELY concerned about code quality, much more so than immediate results.
