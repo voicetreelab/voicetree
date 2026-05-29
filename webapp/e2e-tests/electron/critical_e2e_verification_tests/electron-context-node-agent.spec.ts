@@ -204,6 +204,13 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 6: Verify spawn request returned a terminal id ===');
     console.log(`✓ Terminal spawn returned ID: ${terminalId}`);
 
+    console.log('=== STEP 7: Verify spawned agent appears in the terminal tree sidebar ===');
+    await expect(appWindow.getByTestId('terminal-tree-sidebar')).toBeVisible({ timeout: 15000 });
+    const terminalTreeRow = appWindow.locator(`[data-testid="terminal-tree-sidebar"] [data-terminal-id="${terminalId}"]`);
+    await expect(terminalTreeRow).toBeVisible({ timeout: 15000 });
+    await expect(terminalTreeRow).toContainText(terminalId);
+    console.log(`✓ Terminal tree sidebar shows spawned agent: ${terminalId}`);
+
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('✓ Agent command configured with -p flag');
@@ -212,6 +219,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('✓ Context node created from Node 5');
     console.log('✓ Terminal spawned with CONTEXT_NODE_PATH env var');
     console.log('✓ Terminal spawned for the generated context node');
+    console.log('✓ Terminal tree sidebar rendered the spawned agent');
     console.log('✓ Needle from Node 3 (2 hops away) found in context node');
     console.log('');
     console.log('✅ CONTEXT NODE AGENT TERMINAL TEST PASSED');

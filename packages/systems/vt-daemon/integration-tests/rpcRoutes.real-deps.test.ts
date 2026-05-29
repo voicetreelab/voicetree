@@ -322,7 +322,7 @@ describe('rpc routes — headless', () => {
 // ─── Recovery ───────────────────────────────────────────────────────────────
 
 describe('rpc routes — recovery', () => {
-    it('discoverRecoverableAgentSessions projects attach.session → attach.sessionName at the wire boundary', async () => {
+    it('discoverRecoverableAgentSessions preserves attach session details for the renderer', async () => {
         // Stand up a real recoverable tmux session by spawning + dropping the
         // registry row; discovery picks it up via the metadata directory.
         const terminalId: TerminalId = makeTerminalId('recovery-disc')
@@ -345,13 +345,14 @@ describe('rpc routes — recovery', () => {
 
         // Discovery may legitimately return [] if no recoverable sessions are
         // found in the test sandbox. What matters is the wire shape: an
-        // array of records whose attach (when present) carries
-        // sessionName, not the full session object. Smoke-check both.
+        // array of records whose attach (when present) carries the same tmux
+        // session details the Surviving Agents renderer consumes.
         expect(Array.isArray(result)).toBe(true)
-        for (const session of result as readonly {attach?: {sessionName?: unknown; session?: unknown}}[]) {
+        for (const session of result as readonly {attach?: {session?: {sessionName?: unknown; classification?: unknown; panePid?: unknown}}}[]) {
             if (session.attach) {
-                expect(typeof session.attach.sessionName).toBe('string')
-                expect(session.attach.session).toBeUndefined() // narrowed by the handler
+                expect(typeof session.attach.session?.sessionName).toBe('string')
+                expect(['this-vault', 'foreign-vault']).toContain(session.attach.session?.classification)
+                expect(typeof session.attach.session?.panePid).toBe('number')
             }
         }
         // Silence "unused" diagnostics from the data variable.
