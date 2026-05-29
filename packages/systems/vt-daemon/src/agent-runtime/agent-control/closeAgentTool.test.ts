@@ -10,7 +10,7 @@ import {createTerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
-import {hasSession, killSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager'
+import {hasSession, killSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager.ts'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {closeAgentTool} from './closeAgentTool'
