@@ -7,7 +7,7 @@
 // `useAgentMetrics` hook calls `window.electronAPI.main.getMetrics()`; the
 // shape of `AgentMetricsData` is preserved end-to-end.
 
-import {createRpcClientForVault, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
+import {createRpcClientForProject, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
 import type {AgentMetricsData, SessionMetric} from '@vt/vt-daemon/observability/agentMetricsStore.ts'
 
 import {getActiveVault} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
@@ -22,7 +22,7 @@ const clientByVault: Map<string, DaemonRpcClient> = new Map()
 async function getClient(vault: string): Promise<DaemonRpcClient> {
     const cached: DaemonRpcClient | undefined = clientByVault.get(vault)
     if (cached) return cached
-    const client: DaemonRpcClient = await createRpcClientForVault(vault, {env: process.env})
+    const client: DaemonRpcClient = await createRpcClientForProject(vault, {env: process.env})
     clientByVault.set(vault, client)
     return client
 }

@@ -3,7 +3,7 @@
 // Anything VTD owns must be reachable identically by every client. Electron
 // Main and the CLI are just two clients. This test boots the full daemon
 // stack (real vt-graphd + real vt-daemon HTTP server) against a tmpdir
-// vault, constructs two JSON-RPC clients via `createRpcClientForVault` (the
+// vault, constructs two JSON-RPC clients via `createRpcClientForProject` (the
 // same constructor both Main and CLI use), and asserts that:
 //
 //   1. A Move dispatched on one client lands at revision 1 with the post-state
@@ -27,7 +27,7 @@ import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server/server'
-import {createRpcClientForVault, generateAuthToken, writeAuthTokenFile, writeRpcPortFile, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
+import {createRpcClientForProject, generateAuthToken, writeAuthTokenFile, writeRpcPortFile, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
 import type {SerializedCommand} from '@vt/graph-state'
 
 import {buildDefaultToolCatalog} from '../src/transport/toolCatalog.ts'
@@ -123,8 +123,8 @@ describe('vt_dispatch_live_command + vt_get_live_state — identical client surf
 
     beforeAll(async (): Promise<void> => {
         stack = await startFullStack()
-        clientMain = await createRpcClientForVault(stack.vault, {env: process.env})
-        clientCli = await createRpcClientForVault(stack.vault, {env: process.env})
+        clientMain = await createRpcClientForProject(stack.vault, {env: process.env})
+        clientCli = await createRpcClientForProject(stack.vault, {env: process.env})
         await waitForFixtureIndexed(clientMain, stack.fixtureNodeId)
     }, 30_000)
 
