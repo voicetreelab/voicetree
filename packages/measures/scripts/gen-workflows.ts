@@ -1,7 +1,7 @@
 // CI workflow generator. Reads the folder tree under packages/measures/src/checks/
 // and emits .github/workflows/measures-budget-gate.generated.yml — one GHA job per
-// `tier_N/<concern>/` folder, plus a final `budget-gate` job that downloads
-// every tier's check-report artifacts and runs the tier-4 budget gate.
+// `tier_N/<concern>/` folder, plus base-ref-specific budget-gate jobs that
+// download the check-report artifacts for that branch's required jobs.
 //
 // Architecture (per CLAUDE.md — functional core, imperative shell):
 //   discoverTiers()       → impure I/O, reads folder tree + check IDs
@@ -51,7 +51,7 @@ export type TierSpecs = {
     // Stable iteration order: tier ascending, concern alphabetical.
     readonly concerns: readonly ConcernSpec[]
     // All tier folder names participating (e.g. ['tier_0_pre_commit', 'tier_1', ...]).
-    // Used to compute `budget-gate.needs` and `<tier>.needs` membership.
+    // Used to compute `<tier>.needs` membership.
     readonly tierFolderNames: readonly string[]
 }
 
@@ -176,8 +176,9 @@ export function tierSpecsToWorkflow(input: TierSpecs): WorkflowYaml {
         }
     }
 
-    // Final budget-gate job: depends on every tier job, runs always.
-    jobs.push(budgetGateJob(jobs, maxTier, input))
+    // Base-ref-specific budget gates: each protected branch waits only for
+    // the jobs that are required or conditionally relevant for that branch.
+    jobs.push(...budgetGateJobs(jobs, maxTier, input))
 
     return {name: 'Measures (generated)', jobs}
 }
@@ -225,7 +226,7 @@ function requiredJobContextsByBaseRef(
             for (const context of contexts) addToMapSet(out, baseRef, context)
         }
     }
-    for (const baseRef of protectedBranches) addToMapSet(out, baseRef, 'budget-gate')
+    for (const baseRef of protectedBranches) addToMapSet(out, baseRef, budgetGateJobIdForBaseRef(baseRef))
     return out
 }
 
@@ -371,17 +372,65 @@ function perCheckMatrixJob(conc: ConcernSpec, input: TierSpecs): Job {
     }
 }
 
-function budgetGateJob(upstreamJobs: readonly Job[], maxTier: number, input: TierSpecs): Job {
-    const upstreamJobIds = upstreamJobs
-        .filter(j => j.id !== 'budget-gate')
-        .map(j => j.id)
+function budgetGateJobIdForBaseRef(baseRef: string): string {
+    // Keep the existing dev context name so the ruleset transition does not
+    // strand the PR that changes the generated workflow.
+    return baseRef === 'dev' ? 'budget-gate' : `budget-gate-${baseRef.replace(/[^A-Za-z0-9_-]/g, '-')}`
+}
+
+function budgetGateJobs(upstreamJobs: readonly Job[], maxTier: number, input: TierSpecs): readonly Job[] {
+    const requiredJobs = requiredJobIdsByBaseRef(input)
+    const conditionalJobs = conditionalJobIdsByBaseRef(input)
+    const conditionalPrechecks = conditionalPrecheckByJobId(input)
+    const baseRefs = [...new Set([
+        ...Object.keys(requiredJobs),
+        ...Object.keys(conditionalJobs),
+    ])].sort()
+
+    return baseRefs
+        .filter(baseRef => (requiredJobs[baseRef] ?? []).length > 0)
+        .map(baseRef => budgetGateJob({
+            id: budgetGateJobIdForBaseRef(baseRef),
+            baseRef,
+            maxTier,
+            input,
+            upstreamJobs,
+            requiredJobIds: requiredJobs[baseRef] ?? [],
+            conditionalJobIds: conditionalJobs[baseRef] ?? [],
+            conditionalPrecheckByJobId: conditionalPrechecks,
+        }))
+}
+
+function budgetGateJob(params: {
+    readonly id: string
+    readonly baseRef: string
+    readonly maxTier: number
+    readonly input: TierSpecs
+    readonly upstreamJobs: readonly Job[]
+    readonly requiredJobIds: readonly string[]
+    readonly conditionalJobIds: readonly string[]
+    readonly conditionalPrecheckByJobId: Record<string, string>
+}): Job {
+    const upstreamJobIds = new Set(params.upstreamJobs.map(j => j.id))
+    const requiredNeeds = params.requiredJobIds.filter(id => !isBudgetGateJobId(id))
+    const conditionalNeeds = params.conditionalJobIds
+    const conditionalPrecheckNeeds = params.conditionalJobIds
+        .map(id => params.conditionalPrecheckByJobId[id])
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    const needs = [...new Set([
+        ...requiredNeeds,
+        ...conditionalNeeds,
+        ...conditionalPrecheckNeeds,
+    ])]
+        .filter(id => upstreamJobIds.has(id))
         .sort()
+
     return {
-        id: 'budget-gate',
-        name: 'budget-gate',
+        id: params.id,
+        name: params.id,
         runsOn: 'ubuntu-latest',
-        needs: upstreamJobIds,
-        ifExpr: 'always()',
+        needs,
+        ifExpr: `always() && github.base_ref == '${params.baseRef}'`,
         strategy: null,
         outputs: null,
         steps: [
@@ -392,7 +441,7 @@ function budgetGateJob(upstreamJobs: readonly Job[], maxTier: number, input: Tie
             {kind: 'download-artifact', pattern: 'reports-*', path: 'health-dashboard/reports/checks/'},
             {
                 kind: 'run',
-                name: `Run tier budget gate (max tier ${maxTier})`,
+                name: `Run tier budget gate (max tier ${params.maxTier})`,
                 run: [
                     'node --no-warnings=ExperimentalWarning --experimental-strip-types \\',
                     '  packages/measures/scripts/check-tier-budgets.ts',
@@ -400,13 +449,17 @@ function budgetGateJob(upstreamJobs: readonly Job[], maxTier: number, input: Tie
                 env: {
                     GITHUB_BASE_REF: '${{ github.base_ref }}',
                     MEASURES_WORKFLOW_NEEDS_JSON: '${{ toJson(needs) }}',
-                    MEASURES_REQUIRED_JOBS_BY_BASE_REF: JSON.stringify(requiredJobIdsByBaseRef(input)),
-                    MEASURES_CONDITIONAL_JOBS_BY_BASE_REF: JSON.stringify(conditionalJobIdsByBaseRef(input)),
-                    MEASURES_CONDITIONAL_PRECHECK_BY_JOB_ID: JSON.stringify(conditionalPrecheckByJobId(input)),
+                    MEASURES_REQUIRED_JOBS_BY_BASE_REF: JSON.stringify(requiredJobIdsByBaseRef(params.input)),
+                    MEASURES_CONDITIONAL_JOBS_BY_BASE_REF: JSON.stringify(conditionalJobIdsByBaseRef(params.input)),
+                    MEASURES_CONDITIONAL_PRECHECK_BY_JOB_ID: JSON.stringify(conditionalPrecheckByJobId(params.input)),
                 },
             },
         ],
     }
+}
+
+function isBudgetGateJobId(id: string): boolean {
+    return id === 'budget-gate' || id.startsWith('budget-gate-')
 }
 
 // ── Shell ────────────────────────────────────────────────────────────────────

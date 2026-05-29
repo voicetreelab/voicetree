@@ -35,10 +35,10 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
     it('is deterministic: same fixture input → identical output across runs', async () => {
         const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
         try {
-            await writeTierFixture(root, 'tier_0_pre_commit', {needs: []}, {
+            await writeTierFixture(root, 'tier_0_pre_commit', {needs: [], protection: {requiredOn: ['dev'], conditionalOn: []}}, {
                 'lint/foo.ts': checkSrc('foo-check'),
             })
-            await writeTierFixture(root, 'tier_1', {needs: []}, {
+            await writeTierFixture(root, 'tier_1', {needs: [], protection: {requiredOn: ['dev'], conditionalOn: []}}, {
                 'unit/bar.ts': checkSrc('bar-check'),
                 'unit/baz.ts': checkSrc('baz-check'),
             })
@@ -124,8 +124,40 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
                 'tier-2-fuzz (b-fuzz)',
             ])
             expect(contexts.main).toContain('tier-3-e2e')
-            expect(contexts.main).toContain('budget-gate')
+            expect(contexts.main).toContain('budget-gate-main')
             expect(contexts.main).not.toContain('tier-4-analyzers')
+        } finally {
+            await rm(root, {recursive: true, force: true})
+        }
+    })
+
+    it('limits each budget gate needs graph to that base ref required jobs', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
+        try {
+            await writeTierFixture(root, 'tier_1', {needs: [], protection: {requiredOn: ['dev', 'main'], conditionalOn: []}}, {
+                'unit/fast.ts': checkSrc('fast-unit'),
+            })
+            await writeTierFixture(root, 'tier_2', {needs: ['tier_1'], protection: {requiredOn: ['dev', 'main'], conditionalOn: []}}, {
+                'contract/public-api.ts': checkSrc('public-api-contract'),
+            })
+            await writeTierFixture(root, 'tier_3', {needs: ['tier_2'], protection: {requiredOn: ['main'], conditionalOn: []}}, {
+                'e2e/heavy.ts': checkSrc('heavy-e2e'),
+            })
+
+            const text = workflowYamlToText(tierSpecsToWorkflow(await discoverTiers(root)))
+
+            expect(text).toContain(
+                '  budget-gate:\n' +
+                '    name: budget-gate\n' +
+                '    needs: [tier-1-unit, tier-2-contract]\n' +
+                '    if: "always() && github.base_ref == \'dev\'"',
+            )
+            expect(text).toContain(
+                '  budget-gate-main:\n' +
+                '    name: budget-gate-main\n' +
+                '    needs: [tier-1-unit, tier-2-contract, tier-3-e2e]\n' +
+                '    if: "always() && github.base_ref == \'main\'"',
+            )
         } finally {
             await rm(root, {recursive: true, force: true})
         }
@@ -192,13 +224,13 @@ describe('workflow ruleset sync — pure projection', () => {
     it('projects generated required contexts into dev/main ruleset plans only', () => {
         const plan = planRulesets({
             dev: ['budget-gate', 'tier-1-unit'],
-            main: ['budget-gate', 'tier-1-unit', 'tier-3-e2e'],
+            main: ['budget-gate-main', 'tier-1-unit', 'tier-3-e2e'],
             scratch: ['tier-9-experiment'],
         })
 
         expect(plan).toEqual([
             {baseRef: 'dev', name: 'Require fast CI on dev', requiredStatusChecks: ['budget-gate', 'tier-1-unit']},
-            {baseRef: 'main', name: 'Require CI green on main', requiredStatusChecks: ['budget-gate', 'tier-1-unit', 'tier-3-e2e']},
+            {baseRef: 'main', name: 'Require CI green on main', requiredStatusChecks: ['budget-gate-main', 'tier-1-unit', 'tier-3-e2e']},
         ])
     })
 
