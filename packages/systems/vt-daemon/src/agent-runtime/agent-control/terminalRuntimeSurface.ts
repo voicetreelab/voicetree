@@ -1,4 +1,4 @@
-import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/vtPathInjection.ts'
+import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/injection/vtPathInjection.ts'
 import {
     closeHeadlessAgent,
     getHeadlessAgentOutput,

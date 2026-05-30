@@ -84,8 +84,30 @@ function shouldReadContent(repoRelativePath: string): boolean {
     return TEXT_EXTENSIONS.has(extension(repoRelativePath))
 }
 
-function matchTerm(text: string): {readonly term: string; readonly index: number} | null {
+// An inline directive lets a file opt a single term out of the check when it must
+// reference an external system that owns that word (its config keys, API surface,
+// etc.). Format: `<directive> <term> — <reason>`. The exemption is scoped to the
+// file that declares it and to the exact term named — every other term and every
+// other file stays enforced, and the required reason documents the exception where
+// it is used rather than in a distant allowlist.
+const ALLOW_DIRECTIVE = 'project-vocabulary:allow'
+
+const NO_ALLOWED_TERMS: ReadonlySet<string> = new Set()
+
+function allowedTerms(content: string): ReadonlySet<string> {
+    const allowed = new Set<string>()
     for (const term of TERMS) {
+        if (content.includes(`${ALLOW_DIRECTIVE} ${term}`)) allowed.add(term)
+    }
+    return allowed
+}
+
+function matchTerm(
+    text: string,
+    allowed: ReadonlySet<string>,
+): {readonly term: string; readonly index: number} | null {
+    for (const term of TERMS) {
+        if (allowed.has(term)) continue
         const index = text.indexOf(term)
         if (index !== -1) return {term, index}
     }
@@ -125,7 +147,8 @@ function formatViolations(violations: readonly ProjectVocabularyViolation[]): st
 
 async function scanFile(repoRoot: string, absolutePath: string): Promise<readonly ProjectVocabularyViolation[]> {
     const repoRelativePath = toRepoPath(repoRoot, absolutePath)
-    const pathMatch = matchTerm(repoRelativePath)
+    // Paths cannot carry an inline directive, so no term is exempt for the path check.
+    const pathMatch = matchTerm(repoRelativePath, NO_ALLOWED_TERMS)
     const pathViolations: ProjectVocabularyViolation[] = pathMatch === null
         ? []
         : [{
@@ -140,7 +163,7 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
 
     const content = await readFile(absolutePath, 'utf8').catch(() => null)
     if (content === null) return pathViolations
-    const contentMatch = matchTerm(content)
+    const contentMatch = matchTerm(content, allowedTerms(content))
     if (contentMatch === null) return pathViolations
     const location = lineColumn(content, contentMatch.index)
     return [

@@ -94,4 +94,32 @@ describe('checkProjectVocabulary', () => {
             },
         ])
     })
+
+    it('honors an inline allow directive for the named term in the declaring file', async () => {
+        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+        const directive = `project-vocabulary:allow ${legacyTerm}`
+        await writeFile(
+            join(repoRoot, 'integration.ts'),
+            `// ${directive} — external tool owns this config key\nconst key = '${legacyTerm}'\n`,
+        )
+
+        const result = await checkProjectVocabulary(repoRoot)
+
+        expect(result.violations).toEqual([])
+    })
+
+    it('scopes an allow directive to its own file and to the named term only', async () => {
+        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+        const directive = `project-vocabulary:allow ${legacyTerm}`
+        // declares the allow → exempt
+        await writeFile(join(repoRoot, 'allowed.ts'), `// ${directive}\nconst a = '${legacyTerm}'\n`)
+        // no directive → still flagged
+        await writeFile(join(repoRoot, 'other.ts'), `const b = '${legacyTerm}'\n`)
+        // allowing one term must not exempt a different legacy term in the same file
+        await writeFile(join(repoRoot, 'mixed.ts'), `// ${directive}\nconst ${legacyHomeTerm} = 1\n`)
+
+        const result = await checkProjectVocabulary(repoRoot)
+
+        expect(result.violations.map(violation => violation.path).sort()).toEqual(['mixed.ts', 'other.ts'])
+    })
 })
