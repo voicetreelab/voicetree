@@ -1,3 +1,4 @@
+import {execFileSync} from 'node:child_process'
 import {mkdtemp, mkdir, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {tmpdir} from 'node:os'
@@ -9,11 +10,23 @@ import {checkProjectVocabulary} from './project-vocabulary.ts'
 const legacyTerm = ['v', 'ault'].join('')
 const legacyHomeTerm = ['app', 'Support'].join('')
 
+async function makeRepo(): Promise<string> {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+    execFileSync('git', ['init', '-q'], {cwd: repoRoot})
+    return repoRoot
+}
+
+/** Stage everything written so far so `git ls-files` reports it as tracked. */
+function track(repoRoot: string): void {
+    execFileSync('git', ['add', '-A'], {cwd: repoRoot})
+}
+
 describe('checkProjectVocabulary', () => {
-    it('reports legacy terms in active file contents and paths', async () => {
-        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+    it('reports legacy terms in tracked file contents and paths', async () => {
+        const repoRoot = await makeRepo()
         await mkdir(join(repoRoot, `bad-${legacyTerm}`))
         await writeFile(join(repoRoot, `bad-${legacyTerm}`, 'example.ts'), `const x = '${legacyTerm}'\n`)
+        track(repoRoot)
 
         const result = await checkProjectVocabulary(repoRoot)
 
@@ -36,19 +49,38 @@ describe('checkProjectVocabulary', () => {
         expect(result.report).toContain('Project vocabulary drift')
     })
 
-    it('ignores archived historical folders', async () => {
-        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
-        await mkdir(join(repoRoot, 'voicetree-20-5'))
-        await writeFile(join(repoRoot, 'voicetree-20-5', 'old.md'), legacyTerm)
+    it('ignores untracked files (caches like .ck/, uncommitted fixtures)', async () => {
+        const repoRoot = await makeRepo()
+        // Written to disk but never `git add`ed — the previous filesystem walk
+        // would flag these; tracked-file enumeration must not.
+        await mkdir(join(repoRoot, '.ck'))
+        await writeFile(join(repoRoot, '.ck', `${legacyTerm}NotOpen.ts.ck`), `cached ${legacyTerm}`)
+        await mkdir(join(repoRoot, `markdownTree${legacyTerm[0].toUpperCase()}${legacyTerm.slice(1)}Default`))
+        await writeFile(
+            join(repoRoot, `markdownTree${legacyTerm[0].toUpperCase()}${legacyTerm.slice(1)}Default`, 'node.md'),
+            'fixture',
+        )
 
         const result = await checkProjectVocabulary(repoRoot)
 
         expect(result.violations).toEqual([])
     })
 
-    it('reports legacy global-home terminology', async () => {
-        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+    it('ignores archived historical folders even when tracked', async () => {
+        const repoRoot = await makeRepo()
+        await mkdir(join(repoRoot, 'voicetree-20-5'))
+        await writeFile(join(repoRoot, 'voicetree-20-5', 'old.md'), legacyTerm)
+        track(repoRoot)
+
+        const result = await checkProjectVocabulary(repoRoot)
+
+        expect(result.violations).toEqual([])
+    })
+
+    it('reports legacy global-home terminology in tracked files', async () => {
+        const repoRoot = await makeRepo()
         await writeFile(join(repoRoot, 'example.ts'), `const ${legacyHomeTerm} = '/tmp/home'\n`)
+        track(repoRoot)
 
         const result = await checkProjectVocabulary(repoRoot)
 
