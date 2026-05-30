@@ -5,9 +5,25 @@ import { monitorEventLoopDelay, PerformanceObserver } from 'node:perf_hooks'
 import { randomUUID } from 'node:crypto'
 import { writeHeapSnapshot } from 'node:v8'
 
-import Pyroscope from '@pyroscope/nodejs'
 import { observabilityMetrics, tracing } from '@vt/observability'
 import { createDurableLineLog } from './durable-line-log.mjs'
+
+// Wall/CPU sampling is provided by @pyroscope/nodejs, which pulls @datadog/pprof
+// — a native addon shipping node-ABI prebuilds only (no Electron build, and the
+// npm package carries no sources to compile one). Importing it eagerly crashes
+// Electron's main process at load. We therefore load it lazily and tolerantly:
+// under Node it attaches; under Electron (or any runtime missing a matching
+// prebuild) the import fails and we return null, so the probe runs the rest of
+// its signals (metrics, log, heap snapshots) without wall profiling instead of
+// taking down the host. This is what makes lite default-on safe in electron-main.
+async function loadPyroscope() {
+  try {
+    const mod = await import('@pyroscope/nodejs')
+    return mod.default ?? mod
+  } catch {
+    return null
+  }
+}
 
 const RUN_ID_ENV = 'VOICETREE_RUN_INSTANCE_ID'
 const OTLP_ENDPOINT_ENV = 'VOICETREE_OTLP_ENDPOINT'
@@ -80,7 +96,7 @@ async function ensureRunDirs(runDir) {
   return paths
 }
 
-function createPlainLogWriter(svc, logPath) {
+function createPlainLogWriter({ pyroscope, svc, logPath }) {
   const log = createDurableLineLog(logPath)
 
   const write = (level, message) => {
@@ -96,11 +112,16 @@ function createPlainLogWriter(svc, logPath) {
       const body = () => write(level, message)
       // wrapWithLabels tags concurrent wall-CPU samples with span_name so the
       // Grafana "Profiles for this span" pivot lands on operation-aggregated
-      // CPU. Tolerate calls before Pyroscope.init() / after stopWallProfiling()
-      // so we don't crash during startup/shutdown windows.
-      try {
-        Pyroscope.wrapWithLabels({ span_name: spanName }, body)
-      } catch {
+      // CPU. Only when Pyroscope is loaded (Node runtime); tolerate calls before
+      // Pyroscope.init() / after stopWallProfiling() so we don't crash during
+      // startup/shutdown windows.
+      if (pyroscope) {
+        try {
+          pyroscope.wrapWithLabels({ span_name: spanName }, body)
+        } catch {
+          body()
+        }
+      } else {
         body()
       }
     }, {
@@ -202,8 +223,8 @@ function createOtelRuntimeMetrics() {
   }
 }
 
-function startPyroscopeWallProfiler({ svc, runUuid, samplingIntervalMicros }) {
-  Pyroscope.init({
+function startPyroscopeWallProfiler({ pyroscope, svc, runUuid, samplingIntervalMicros }) {
+  pyroscope.init({
     serverAddress: PYROSCOPE_URL,
     appName: svc,
     tags: {
@@ -220,11 +241,11 @@ function startPyroscopeWallProfiler({ svc, runUuid, samplingIntervalMicros }) {
       stackDepth: 16,
     },
   })
-  Pyroscope.startWallProfiling()
+  pyroscope.startWallProfiling()
 
   return {
     async stop() {
-      await Pyroscope.stopWallProfiling()
+      await pyroscope.stopWallProfiling()
     },
   }
 }
@@ -318,15 +339,27 @@ export async function startPerfProbe({ svc, plan, env = process.env }) {
     instanceId: runUuid,
   })
 
-  // Pyroscope must be initialised before any code that calls
-  // Pyroscope.wrapWithLabels — createPlainLogWriter emits a startup span
-  // synchronously which routes through wrapWithLabels for span_id labels.
-  const pyroscope = startPyroscopeWallProfiler({
-    svc,
-    runUuid,
-    samplingIntervalMicros: plan.wallSamplingMicros,
-  })
-  const log = createPlainLogWriter(svc, join(paths.logsDir, `${svc}.log`))
+  // Wall profiling is best-effort and runtime-dependent (see loadPyroscope). When
+  // available it must be initialised before any code that calls wrapWithLabels —
+  // createPlainLogWriter emits a startup span synchronously which routes through
+  // wrapWithLabels for span_id labels. When unavailable (e.g. electron-main), the
+  // probe still emits metrics, the durable log, and (deep) heap snapshots.
+  const Pyroscope = await loadPyroscope()
+  if (!Pyroscope) {
+    process.stderr.write(
+      `perf-probe: wall profiling unavailable in this runtime (@pyroscope/nodejs has no native build); ` +
+        `metrics + log${plan.heapSnapshots ? ' + heap snapshots' : ''} still active for service=${svc}\n`,
+    )
+  }
+  const pyroscope = Pyroscope
+    ? startPyroscopeWallProfiler({
+        pyroscope: Pyroscope,
+        svc,
+        runUuid,
+        samplingIntervalMicros: plan.wallSamplingMicros,
+      })
+    : undefined
+  const log = createPlainLogWriter({ pyroscope: Pyroscope, svc, logPath: join(paths.logsDir, `${svc}.log`) })
   const metrics = createOtelRuntimeMetrics()
   const heapSnapshots = plan.heapSnapshots
     ? scheduleHeapSnapshots({
@@ -342,7 +375,7 @@ export async function startPerfProbe({ svc, plan, env = process.env }) {
     stopped = true
     heapSnapshots?.stop()
     metrics.stop()
-    await pyroscope.stop()
+    await pyroscope?.stop()
     await log.stop()
   }
 
