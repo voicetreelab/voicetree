@@ -40,15 +40,45 @@ async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDeriva
     return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreAndDerivation
 }
 
+async function loadFolderVisibilityResource(): Promise<typeof import('../views/folderVisibilityResource')> {
+    return await import('../views/folderVisibilityResource')
+}
+
+/** Pure: the expanded folder paths from a folder-state listing. */
+function expandedFolderPaths(
+    folderState: readonly (readonly [path: string, state: string])[],
+): readonly FilePath[] {
+    return folderState
+        .filter(([, state]) => state === 'expanded')
+        .map(([folderPath]) => folderPath as FilePath)
+}
+
 export async function getExpandedFolderPathsForProject(projectRoot: FilePath): Promise<readonly FilePath[]> {
-    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    let resource: Awaited<ReturnType<typeof loadFolderVisibilityResource>>
     try {
-        dbModule = await loadFolderVisibilityDbModule()
+        resource = await loadFolderVisibilityResource()
     } catch {
-        // node:sqlite is unavailable in this runtime — safe to
-        // return empty because the daemon manages folder visibility in that mode.
+        // node:sqlite (and the resource's sqlite-backed deps) are unavailable in
+        // this runtime — safe to return empty because the daemon manages folder
+        // visibility in that mode.
         return []
     }
+    // Hot path: once the project's long-lived folder-visibility db handle is
+    // open (everything after `openResources`), reuse it. The read runs a live
+    // SELECT against the same on-disk db, so this returns data identical to a
+    // fresh open while avoiding the per-call sqlite open + schema-migration +
+    // close that otherwise blocks the graphd event loop on every GET /project.
+    if (resource.isFolderVisibilityOpen()) {
+        return expandedFolderPaths(resource.readCurrentFolderState().folderState)
+    }
+    // Open-sequence window: `bindProject` reads expanded paths (via
+    // `setWriteFolderPath`) before `openResources` installs the long-lived
+    // handle. Fall back to a one-shot open against the on-disk db.
+    return await readExpandedFolderPathsByOneShotOpen(projectRoot)
+}
+
+async function readExpandedFolderPathsByOneShotOpen(projectRoot: FilePath): Promise<readonly FilePath[]> {
+    const dbModule = await loadFolderVisibilityDbModule()
     const store = await loadFolderVisibilityStore()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
     const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot, dbModule.defaultFolderVisibilityDbDeps)
@@ -56,9 +86,7 @@ export async function getExpandedFolderPathsForProject(projectRoot: FilePath): P
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
         const activeViewId: string = getActiveViewId(db)
-        return [...store.getFolderVisibility(activeViewId)]
-            .filter(([, state]) => state === 'expanded')
-            .map(([folderPath]) => folderPath)
+        return expandedFolderPaths([...store.getFolderVisibility(activeViewId)])
     } finally {
         store.clearFolderVisibilityStoreForTests()
         dbModule.closeFolderVisibilityDb(db)
