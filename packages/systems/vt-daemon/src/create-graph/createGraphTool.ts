@@ -7,7 +7,7 @@
  * createGraphTopology.ts; markdown body construction in
  * @vt/graph-tools/node's filesystemAuthoring. Parent edges are authored as
  * `- parent [[name|edge-label]]` lines inside `content` (no separate
- * `parents:[]` field) — see mcp-server.ts for the schema description.
+ * `parents:[]` field).
  */
 
 import path from 'path'
