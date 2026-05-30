@@ -54,11 +54,30 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Leading args consumed above are git's global options (e.g. `-C <repo>`); keep
+# them so the worktree-add admission check below can re-resolve the repo even
+# when the gate is invoked from a cwd that isn't the repository.
+GATE_GLOBAL_OPTS=("${ORIG_ARGS[@]:0:${#ORIG_ARGS[@]} - $#}")
+
 sub="${1:-}"
 sub_arg="${2:-}"
 rest="${*:2}"
 reason=""
 suggestion=""
+
+# Sibling worktree dir name, matching the daemon's role mapping: VM-owned trees
+# live under vt-wts-remote/, Mac-owned under vt-wts/. Used to scope the
+# admission check to the right directory.
+gate_worktree_sibling_dir() {
+  local role="${VT_DEV_ROLE:-}"
+  if [ -z "$role" ] && [ -f "$HOME/.env" ]; then
+    role="$(awk -F= '/^VT_DEV_ROLE=/{sub(/^VT_DEV_ROLE=/,""); print; exit}' "$HOME/.env")"
+  fi
+  case "$role" in
+    remote) printf 'vt-wts-remote' ;;
+    *)      printf 'vt-wts' ;;
+  esac
+}
 
 worktree_add_path_arg() {
   local expect_option_value=0
@@ -177,6 +196,30 @@ esac
 # still enforces readiness before remote commands, so a failed prewarm cannot
 # make later execution unsafe.
 if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
+  # --- PRE-action: admission control ----------------------------------------
+  # Refuse to pile up worktrees: block the add when merged/idle trees await
+  # cleanup, so agents tidy up instead of accumulating dead worktrees. The
+  # check is detection-only and self-service (its message tells the agent to
+  # clean up itself). Opt out with VT_GIT_GATE_SKIP_ADMISSION=1.
+  if [ "${VT_GIT_GATE_SKIP_ADMISSION:-}" != "1" ]; then
+    repo_top="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --show-toplevel 2>/dev/null)"
+    admission="$repo_top/scripts/git/worktree/worktree-admission-check.sh"
+    if [ -n "$repo_top" ] && [ -x "$admission" ]; then
+      admission_ec=0
+      # Run inside the repo (the check relies on cwd) and scope it to the
+      # role-correct sibling dir.
+      ( cd "$repo_top" && VT_WT_SIBLING_DIR_NAME="$(gate_worktree_sibling_dir)" "$admission" ) >&2 \
+        || admission_ec=$?
+      if [ "$admission_ec" -eq 1 ]; then
+        echo "" >&2
+        echo "  ✗ git-gate: BLOCKED git worktree add — clean up the worktree(s) above, then retry." >&2
+        exit 1
+      fi
+      # ec >= 2 is a checker setup error (already reported); fail open so a
+      # broken check never wedges legitimate worktree creation.
+    fi
+  fi
+
   wt_path="$(worktree_add_path_arg "$@")"
   echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "${ORIG_ARGS[@]}"
