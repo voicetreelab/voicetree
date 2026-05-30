@@ -26,7 +26,7 @@ vi.mock('electron', () => ({
     },
 }))
 
-import {installVtTerminalAttachBridge} from './vtTerminalAttachBridge'
+import {installVtTerminalAttachBridge, type VtTerminalAttachBridgeHandle} from './vtTerminalAttachBridge'
 
 const TEST_TOKEN: string = 'cafef00d'
 const TERMINAL_ID: string = 't-12345'
@@ -137,7 +137,7 @@ async function waitForConnected(calls: ReadonlyArray<IpcCall>, handle: string): 
 
 describe('installVtTerminalAttachBridge', (): void => {
     let server: AttachServer
-    let teardown: (() => void) | null = null
+    let bridge: VtTerminalAttachBridgeHandle | null = null
     let handleCounter: number = 0
 
     beforeEach(async (): Promise<void> => {
@@ -147,14 +147,14 @@ describe('installVtTerminalAttachBridge', (): void => {
     })
 
     afterEach(async (): Promise<void> => {
-        teardown?.()
-        teardown = null
+        bridge?.teardown()
+        bridge = null
         ipcMainHandlers.clear()
         await server.close()
     })
 
     function install(window: SinkWindow): void {
-        teardown = installVtTerminalAttachBridge({
+        bridge = installVtTerminalAttachBridge({
             getMainWindow: () => window as unknown as Electron.BrowserWindow,
             getDaemonUrl: () => Promise.resolve(server.url),
             getAuthToken: () => Promise.resolve(TEST_TOKEN),
@@ -242,10 +242,35 @@ describe('installVtTerminalAttachBridge', (): void => {
         for (const ch of ['terminal:attach', 'terminal:write', 'terminal:resize', 'terminal:detach']) {
             expect(ipcMainHandlers.has(ch)).toBe(true)
         }
-        teardown?.()
-        teardown = null
+        bridge?.teardown()
+        bridge = null
         for (const ch of ['terminal:attach', 'terminal:write', 'terminal:resize', 'terminal:detach']) {
             expect(ipcMainHandlers.has(ch)).toBe(false)
         }
+    })
+
+    it('disposeAllClients disposes live clients but keeps the ipcMain handlers (renderer-reload path)', async (): Promise<void> => {
+        const {window, calls} = makeSink()
+        install(window)
+        const attach = ipcMainHandlers.get('terminal:attach')!
+        const write = ipcMainHandlers.get('terminal:write')!
+        const handle = (await attach({} as never, TERMINAL_ID)) as string
+        await server.waitForClient()
+        await waitForConnected(calls, handle)
+
+        // A reload orphans the renderer's handle; disposeAllClients drops the
+        // upstream client so a stale write becomes a no-op...
+        bridge!.disposeAllClients()
+        await waitFor((): true | undefined => server.activeCloseCount() >= 1 ? true : undefined)
+        expect(await write({} as never, handle, 'orphaned')).toBe(false)
+
+        // ...but the handlers stay registered so the fresh renderer re-attaches.
+        for (const ch of ['terminal:attach', 'terminal:write', 'terminal:resize', 'terminal:detach']) {
+            expect(ipcMainHandlers.has(ch)).toBe(true)
+        }
+        const handle2 = (await attach({} as never, TERMINAL_ID)) as string
+        await server.waitForClient()
+        await waitForConnected(calls, handle2)
+        expect(await write({} as never, handle2, 'fresh')).toBe(true)
     })
 })
