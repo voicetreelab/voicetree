@@ -11,6 +11,8 @@ import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-br
 import {appendCliManualToAgentPrompt} from './cliManualInjection'
 import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
 import {readDaemonPortFromProject} from './daemonUrlFile'
+import {promises as fs} from 'fs'
+import type {Dirent} from 'fs'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
@@ -32,10 +34,6 @@ export async function buildTerminalEnvVars(params: {
         params.settings.INJECT_ENV_VARS,
         selectEnvVarValueIndex
     )
-
-    if (params.promptTemplate && resolvedEnvVars[params.promptTemplate]) {
-        resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]
-    }
     const env = getRuntimeEnv()
     const voicetreeHomePath: string = resolveVoicetreeHomePath()
     const allProjectPaths: readonly string[] = env.getProjectPaths
@@ -53,6 +51,20 @@ export async function buildTerminalEnvVars(params: {
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
+
+    // AGENT_PROMPT_* templates are .md files in the project's (symlinked) prompts
+    // dir — the single source of truth. A file is authoritative over any settings
+    // default of the same name; a settings value only applies when no file exists
+    // (e.g. a test that blanks the prompt). --prompt-template selects which one
+    // becomes AGENT_PROMPT.
+    const promptTemplates: Record<string, string> = await readPromptTemplates(
+        voicetreeProjectDir ? path.join(voicetreeProjectDir, 'prompts') : ''
+    )
+    const promptVars: Record<string, string> = {...resolvedEnvVars, ...promptTemplates}
+    if (params.promptTemplate && promptVars[params.promptTemplate]) {
+        promptVars['AGENT_PROMPT'] = promptVars[params.promptTemplate]
+    }
+
     const daemonPort: number | null = await readDaemonPortFromProject(voicetreeProjectDir)
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
 
@@ -71,13 +83,42 @@ export async function buildTerminalEnvVars(params: {
         // Spawned agents always run inside WSL alongside the daemon, so
         // 127.0.0.1 works in both WSL mirrored and NAT networking modes.
         ...(daemonUrl !== null ? {VOICETREE_DAEMON_URL: daemonUrl} : {}),
-        ...resolvedEnvVars,
+        ...promptVars,
         ...(params.envOverrides ?? {}),
     }
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
     const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered)
     const vtBinDir: string | null = await readVtBinDirOrNull()
     return prependVtBinToPath(withManual, vtBinDir)
+}
+
+/**
+ * Read the AGENT_PROMPT_* templates (e.g. AGENT_PROMPT_CORE.md,
+ * AGENT_PROMPT_LIGHTWEIGHT.md) from a project's prompts dir, keyed by filename
+ * without the .md suffix. These files are symlinks to the shipped source unless
+ * overridden per-project. The single trailing newline added when the files are
+ * authored is stripped so the injected value matches the template exactly.
+ * Returns {} when the dir is absent (graceful for unprovisioned/test projects).
+ */
+export async function readPromptTemplates(promptsDir: string): Promise<Record<string, string>> {
+    if (!promptsDir) return {}
+    let entries: Dirent[]
+    try {
+        entries = await fs.readdir(promptsDir, {withFileTypes: true})
+    } catch {
+        return {}
+    }
+    const templates: Record<string, string> = {}
+    for (const entry of entries) {
+        if (!entry.isFile() && !entry.isSymbolicLink()) continue
+        if (!entry.name.startsWith('AGENT_PROMPT_') || !entry.name.endsWith('.md')) continue
+        const key: string = entry.name.slice(0, -'.md'.length)
+        const content: string | null = await fs
+            .readFile(path.join(promptsDir, entry.name), 'utf-8')
+            .catch(() => null)
+        if (content !== null) templates[key] = content.replace(/\n$/, '')
+    }
+    return templates
 }
 
 export function dropPromptTemplateVariants(env: Record<string, string>): Record<string, string> {

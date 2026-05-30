@@ -230,6 +230,10 @@
       {
         "from": "public/onboarding",
         "to": "onboarding"
+      },
+      {
+        "from": "../packages/systems/voicetree-cli/prompts",
+        "to": "prompts"
       }
     ],
     "dmg": {
