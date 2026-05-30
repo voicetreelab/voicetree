@@ -21,12 +21,18 @@ export const computeColaAndAnimate: (
   duration: number,
   onComplete: () => void
 ) => void = (colaLayoutOpts, nodes, duration, onComplete) => {
+  // Perf probe (e2e-nav-storm only): mark the cola compute+animate interval so
+  // jank can be attributed to layout vs zoom vs write. No-op when the probe is
+  // absent (the normal app), so this is a zero-cost seam.
+  (window as unknown as { __vtPerfProbe__?: { markCola: (phase: 'start' | 'end') => void } }).__vtPerfProbe__?.markCola('start');
+
   // Guard against double-completion from rAF + safety timer race
   let completed: boolean = false;
   const safeComplete: () => void = () => {
     if (completed) return;
     completed = true;
     if (safetyTimer !== null) clearTimeout(safetyTimer);
+    (window as unknown as { __vtPerfProbe__?: { markCola: (phase: 'start' | 'end') => void } }).__vtPerfProbe__?.markCola('end');
     onComplete();
   };
 

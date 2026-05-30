@@ -29,7 +29,12 @@ const perfMode: boolean =
     process.env.VOICETREE_PERF_MODE === '1'
     || process.env.NODE_ENV === 'test'
     || process.env.HEADLESS_TEST === '1';
-contextBridge.exposeInMainWorld('voicetreeEnv', {perfMode});
+// `perfProbe` is a narrower gate than `perfMode`: it activates the renderer
+// perf probe (rAF loop + PerformanceObservers + telemetry IPC) ONLY under the
+// e2e-nav-storm harness, never in normal tests or the app, so the instrument
+// can never perturb unrelated runs.
+const perfProbe: boolean = process.env.VOICETREE_PERF_PROBE === '1';
+contextBridge.exposeInMainWorld('voicetreeEnv', {perfMode, perfProbe});
 
 // Async function to build and expose the electronAPI
 // This allows us to dynamically fetch API keys from main process at runtime
