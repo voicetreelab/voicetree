@@ -121,11 +121,11 @@ Capture ideas hands-free with speech-to-graph.
 
 ## Development
 
-**Prerequisites:** Node.js 18+, Python 3.13, uv
+**Prerequisites:** Node.js 18+, pnpm 10 (`corepack enable`), Python 3.13, uv
 
 ```bash
-cd webapp && npm install && npm run electron  # App
-uv sync && uv run pytest                               # Backend
+pnpm install && pnpm --filter voicetree-webapp run electron  # App (run from repo root)
+uv sync && uv run pytest                                     # Backend
 ```
 
 ## License
