@@ -72,13 +72,14 @@ async function spawnCallerTerminal(
             electronAPI?: {
                 main?: {
                     spawnTerminalWithContextNode?: (
-                        taskNodeId: string,
-                        agentCommand: string | undefined,
-                        terminalCount?: number,
-                        skipFitAnimation?: boolean,
-                        startUnpinned?: boolean,
-                        selectedNodeIds?: readonly string[],
-                        spawnDirectory?: string,
+                        request: {
+                            taskNodeId: string
+                            agentCommand?: string
+                            terminalCount?: number
+                            skipFitAnimation?: boolean
+                            startUnpinned?: boolean
+                            spawnDirectory?: string
+                        },
                     ) => Promise<{ terminalId: string; contextNodeId: string }>
                 }
             }
@@ -86,17 +87,44 @@ async function spawnCallerTerminal(
         if (!api?.spawnTerminalWithContextNode) {
             throw new Error('window.electronAPI.main.spawnTerminalWithContextNode unavailable')
         }
-        return api.spawnTerminalWithContextNode(
-            nodeId,
-            command,
-            0,
-            true,
-            true,
-            undefined,
-            repoRoot,
-        )
+        return api.spawnTerminalWithContextNode({
+            taskNodeId: nodeId,
+            agentCommand: command,
+            terminalCount: 0,
+            skipFitAnimation: true,
+            startUnpinned: true,
+            spawnDirectory: repoRoot,
+        })
     }, { nodeId: seedNodeAbsolutePath, command: STORM_CALLER_COMMAND, repoRoot: REPO_ROOT })
     return result.terminalId
+}
+
+/**
+ * Wait until the Electron main process has finished opening the project and
+ * bound its per-project vt-daemon. Discovery's rpc.port + list_agents probe can
+ * win a small race against `openProject` → `bindVtDaemonForProject` in main —
+ * the daemon serves the test process directly a beat before main caches its
+ * active binding, so a `spawnTerminalWithContextNode` IPC (which reads that
+ * binding) would throw `no active vt-daemon binding`. `getWatchStatus` flips to
+ * `isWatching` only after the bind completes, so it is the readiness signal.
+ */
+async function waitForProjectOpened(appWindow: Page, projectDir: string, timeoutMs: number): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+    let lastStatus = 'null'
+    while (Date.now() < deadline) {
+        const status = await appWindow.evaluate(async () => {
+            const api = (window as unknown as {
+                electronAPI?: { main?: { getWatchStatus?: () => Promise<{ isWatching: boolean; directory?: string }> } }
+            }).electronAPI?.main
+            return (await api?.getWatchStatus?.()) ?? null
+        })
+        lastStatus = JSON.stringify(status)
+        if (status?.isWatching && status.directory && path.resolve(status.directory) === path.resolve(projectDir)) {
+            return
+        }
+        await new Promise(r => setTimeout(r, 200))
+    }
+    throw new Error(`project ${projectDir} not opened/bound within ${timeoutMs}ms (last watch status: ${lastStatus})`)
 }
 
 async function main(): Promise<void> {
@@ -194,6 +222,8 @@ async function main(): Promise<void> {
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
+        await waitForProjectOpened(appWindow, projectDir, 60_000)
+        process.stdout.write('[mvp] project opened + vt-daemon bound in main\n')
 
         const callerTerminalId = await spawnCallerTerminal(appWindow, seedNodeAbsolutePath)
         process.stdout.write(`[mvp] spawned real caller terminal: ${callerTerminalId}\n`)

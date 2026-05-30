@@ -218,9 +218,9 @@ async function pollForScriptComplete(
     while (Date.now() < deadline) {
         lastOutput = await appWindow.evaluate(async (id) => {
             const api = (window as unknown as {
-                electronAPI?: { main?: { getHeadlessAgentOutput?: (id: string) => Promise<string> } }
+                electronAPI?: { main?: { getHeadlessAgentOutput?: (request: { terminalId: string }) => Promise<string> } }
             }).electronAPI?.main
-            return (await api?.getHeadlessAgentOutput?.(id)) ?? ''
+            return (await api?.getHeadlessAgentOutput?.({ terminalId: id })) ?? ''
         }, terminalId)
 
         if (lastOutput.includes('[fake-agent] Executing: exit')) {

@@ -190,6 +190,13 @@ export async function launchElectronAndDiscoverDaemon(
             MINIMIZE_TEST: process.env.MINIMIZE_TEST ?? '0',
             VOICETREE_PERSIST_STATE: '1',
             VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
+            // Pin the home path to the seeded temp dir so the out-of-process
+            // vt-daemon (which validates spawn agent-commands against
+            // settings.agents) reads THIS run's settings.json — not an ambient
+            // $VOICETREE_HOME_PATH the launching shell may export. electron-main
+            // keeps a pre-set value (main.ts: `if (env.VOICETREE_HOME_PATH) return`)
+            // and the spawned vtd inherits it.
+            VOICETREE_HOME_PATH: inputs.voicetreeHomePath,
             VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(inputs.repoRoot),
             ...(inputs.extraEnv ?? {}),
         },
