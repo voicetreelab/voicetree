@@ -45,9 +45,9 @@ export interface GraphViewDisposeDependencies {
  * Handles null-safety for optional services.
  */
 export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
-    // Retire the live cy reference BEFORE any teardown so nothing (a queued
-    // launchTerminalOntoUI via whenCyReady, a synchronous getCyInstance) can
-    // hand out an instance that is about to be destroyed.
+    // Retire the live cy reference BEFORE any teardown so nothing (an
+    // IPC-driven launchTerminalOntoUI, a synchronous getCyInstance) can hand
+    // out an instance that is about to be destroyed.
     clearCyInstance();
 
     // Remove window event listeners

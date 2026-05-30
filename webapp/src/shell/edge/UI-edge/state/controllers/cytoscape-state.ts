@@ -5,13 +5,9 @@
  * dispose. UI API functions reach the instance without threading it through
  * parameters.
  *
- * Two access modes:
- * - getCyInstance() throws when no live cy exists. Use only from synchronous
- *   call sites driven by user interaction, where the graph view provably exists.
- * - whenCyReady() resolves the instant a live cy is set (immediately if one
- *   already exists). Use from IPC-driven entry points that may fire before the
- *   graph view has mounted (e.g. main replaying terminal launches on reload) —
- *   the call queues instead of throwing, and replays onto the cy once ready.
+ * getCyInstance() throws when no live cy exists; callers that may fire before
+ * the graph view mounts (IPC-driven terminal launches) guard with
+ * isCyInitialized() and no-op — rehydrate() replays them once cy is live.
  *
  * Every accessor treats a destroyed cy as absent (cy.destroyed()), so a caller
  * can never operate on a torn-down instance.
@@ -24,7 +20,6 @@ interface CytoscapeWindow {
 }
 
 let liveCy: Core | null = null;
-let readyWaiters: Array<(cy: Core) => void> = [];
 
 function isAlive(cy: Core | null): cy is Core {
     return !!cy && !cy.destroyed();
@@ -32,18 +27,11 @@ function isAlive(cy: Core | null): cy is Core {
 
 /**
  * Register the live cy instance (called from VoiceTreeGraphView on mount).
- * Mirrors onto window for the floating-window extensions that read it directly,
- * and flushes any callers parked in whenCyReady().
+ * Mirrors onto window for the floating-window extensions that read it directly.
  */
 export function setCyInstance(cy: Core): void {
     liveCy = cy;
     (window as unknown as CytoscapeWindow).cytoscapeInstance = cy;
-
-    const waiters: Array<(cy: Core) => void> = readyWaiters;
-    readyWaiters = [];
-    for (const resolve of waiters) {
-        resolve(cy);
-    }
 }
 
 /**
@@ -53,21 +41,6 @@ export function setCyInstance(cy: Core): void {
 export function clearCyInstance(): void {
     liveCy = null;
     delete (window as unknown as CytoscapeWindow).cytoscapeInstance;
-}
-
-/**
- * Resolve with the live cy — immediately if one exists, otherwise when the next
- * one mounts. Never rejects; a call made before any graph view mounts simply
- * waits for the mount (and is replayed if the view is later torn down and
- * remounted).
- */
-export function whenCyReady(): Promise<Core> {
-    if (isAlive(liveCy)) {
-        return Promise.resolve(liveCy);
-    }
-    return new Promise<Core>((resolve) => {
-        readyWaiters.push(resolve);
-    });
 }
 
 /**
@@ -86,4 +59,15 @@ export function getCyInstance(): Core {
  */
 export function isCyInitialized(): boolean {
     return isAlive(liveCy);
+}
+
+/**
+ * Read the live cy's zoom, or `fallback` when no live cy exists. For
+ * callbacks (ResizeObserver, xterm onResize) that can fire while the graph
+ * view is mid-teardown or not yet mounted, where the synchronous
+ * getCyInstance() would throw. A fallback of 1 means "no zoom scaling", which
+ * is the correct neutral value for a terminal being created or torn down.
+ */
+export function getCyZoom(fallback: number = 1): number {
+    return isAlive(liveCy) ? liveCy.zoom() : fallback;
 }

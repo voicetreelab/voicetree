@@ -3,20 +3,21 @@ import type {Core} from 'cytoscape';
 import {
     setCyInstance,
     clearCyInstance,
-    whenCyReady,
     getCyInstance,
     isCyInitialized,
+    getCyZoom,
 } from './cytoscape-state';
 
 /**
- * Minimal Core stub — only the surface the cy-state gate touches (destroyed()).
- * `kill()` flips it to the destroyed state so we can assert the gate treats a
- * torn-down instance as absent.
+ * Minimal Core stub — only the surface the cy-state gate touches (destroyed(),
+ * zoom()). `kill()` flips it to the destroyed state so we can assert the gate
+ * treats a torn-down instance as absent.
  */
-function makeFakeCy(): Core & { kill: () => void } {
+function makeFakeCy(zoom: number = 1): Core & { kill: () => void } {
     let destroyed: boolean = false;
     return {
         destroyed: () => destroyed,
+        zoom: () => zoom,
         kill: () => { destroyed = true; },
     } as unknown as Core & { kill: () => void };
 }
@@ -37,61 +38,33 @@ describe('cytoscape-state gate', () => {
         expect(getCyInstance()).toBe(cy);
     });
 
-    it('whenCyReady resolves immediately when a live cy already exists', async () => {
+    it('clearCyInstance retires the instance: getCyInstance throws again', () => {
         const cy: Core = makeFakeCy();
         setCyInstance(cy);
-
-        await expect(whenCyReady()).resolves.toBe(cy);
-    });
-
-    it('whenCyReady queues before mount and resolves on the next setCyInstance', async () => {
-        const pending: Promise<Core> = whenCyReady(); // called before any cy exists
-        const cy: Core = makeFakeCy();
-
-        setCyInstance(cy); // mount replays the queued waiter
-
-        await expect(pending).resolves.toBe(cy);
-    });
-
-    it('all waiters queued before mount resolve with the mounted cy', async () => {
-        const a: Promise<Core> = whenCyReady();
-        const b: Promise<Core> = whenCyReady();
-        const cy: Core = makeFakeCy();
-
-        setCyInstance(cy);
-
-        await expect(Promise.all([a, b])).resolves.toEqual([cy, cy]);
-    });
-
-    it('clearCyInstance retires the instance: getCyInstance throws, whenCyReady re-queues', async () => {
-        const first: Core = makeFakeCy();
-        setCyInstance(first);
         clearCyInstance();
 
         expect(isCyInitialized()).toBe(false);
         expect(() => getCyInstance()).toThrow();
-
-        const pending: Promise<Core> = whenCyReady();
-        const second: Core = makeFakeCy();
-        setCyInstance(second);
-
-        await expect(pending).resolves.toBe(second);
     });
 
-    it('a destroyed cy is treated as absent', async () => {
+    it('a destroyed cy is treated as absent', () => {
         const cy: Core & { kill: () => void } = makeFakeCy();
         setCyInstance(cy);
         cy.kill();
 
         expect(isCyInitialized()).toBe(false);
         expect(() => getCyInstance()).toThrow();
+    });
 
-        // whenCyReady must not hand back the dead instance — it queues until a
-        // fresh one mounts.
-        const pending: Promise<Core> = whenCyReady();
-        const fresh: Core = makeFakeCy();
-        setCyInstance(fresh);
+    it('getCyZoom returns the live zoom, or the fallback when no live cy exists', () => {
+        expect(getCyZoom()).toBe(1); // default fallback
+        expect(getCyZoom(0.5)).toBe(0.5);
 
-        await expect(pending).resolves.toBe(fresh);
+        const cy: Core = makeFakeCy(2.5);
+        setCyInstance(cy);
+        expect(getCyZoom()).toBe(2.5);
+
+        clearCyInstance();
+        expect(getCyZoom(0.5)).toBe(0.5);
     });
 });
