@@ -40,8 +40,10 @@ export type BuildConfig = {
   readonly backendDest: string;
   readonly shouldCopyTools: boolean;
 
-  // Per-project .voicetree/ source paths (for copy-on-first-open)
+  // Canonical (shipped) agent prompts source. Electron startup seeds the single
+  // per-machine ~/.voicetree/prompts from here (seedHomePrompts); NOT per-project.
   readonly promptsSource: string;      // packages/systems/voicetree-cli/prompts/*.md
+  // Per-project .voicetree/ hook source (copy-on-first-open).
   readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
   // Absolute path to the `@voicetree/cli` package root on disk. Spawn-time
   // PATH injection (resolveVtBinDir + prependVtBinToPath) reads `bin/vt`
@@ -148,11 +150,11 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     ? path.join(process.resourcesPath, 'backend')
     : path.join(rootDir, 'backend');
 
-  // Per-project .voicetree/ sources. `packages/systems/voicetree-cli/prompts`
-  // is bundled into the packaged app via `extraResources` (webapp/package.json),
+  // Canonical agent prompts source. `packages/systems/voicetree-cli/prompts` is
+  // bundled into the packaged app via `extraResources` (webapp/package.json),
   // landing under process.resourcesPath/prompts; unpackaged dev/prod reads the
   // package source tree directly. This is the single source of truth that
-  // ensureProjectDotVoicetree symlinks into each project's .voicetree/prompts/.
+  // seedHomePrompts mirrors into ~/.voicetree/prompts at Electron startup.
   const promptsSource: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'prompts')
     : path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts');
