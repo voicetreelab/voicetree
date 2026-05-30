@@ -18,31 +18,14 @@ import { handleFSEventWithStateAndUISides } from "@vt/graph-db-server/graph/hand
 import { getWatcher, setWatcher } from "@vt/graph-db-server/state/watch-folder-store";
 import { broadcastFolderTree } from "../broadcast/broadcast-folder-tree";
 import { clearPendingWrite, consumeBroadcastSuppression, isPendingWrite } from "../pending-writes";
+import { IGNORED_DIRECTORY_NAMES } from "@vt/graph-db-server/graph/ignoredDirectoryNames";
 
 /**
- * Directories that must never surface as graph nodes even when nested inside a
- * watched project root. Mirrors `loadGraphFromDisk`'s initial-scan exclusions so
- * watch-time filtering and initial-load filtering agree — a file the cold load
- * skips must also be skipped when added later.
- *
- * Hidden directories (names starting with `.`, most notably `.voicetree/`) are
- * handled separately by the `.`-prefix check; this set covers the dotless noise
- * directories.
+ * A path segment is excluded when it is a hidden directory (name starting with
+ * `.`, most notably `.voicetree/`) or one of the shared dotless noise
+ * directories in `IGNORED_DIRECTORY_NAMES` (shared with `loadGraphFromDisk` so
+ * watch-time and initial-load filtering agree).
  */
-const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
-    'node_modules',
-    '.next',
-    'dist',
-    '.cache',
-    '__pycache__',
-    '.tox',
-    '.venv',
-    'venv',
-    'build',
-    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
-    '.worktrees',
-]);
-
 function isExcludedDirectorySegment(segment: string): boolean {
     return segment.startsWith('.') || IGNORED_DIRECTORY_NAMES.has(segment);
 }
