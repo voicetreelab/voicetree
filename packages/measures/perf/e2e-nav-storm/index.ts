@@ -112,6 +112,25 @@ function writeMinimalSettings(voicetreeHomePath: string): void {
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
+/** Open the project via the real mainAPI path once electronAPI is exposed. */
+async function openSeededProject(
+    appWindow: import('@playwright/test').Page,
+    projectDir: string,
+): Promise<void> {
+    await appWindow.waitForFunction(
+        () => Boolean((window as unknown as { electronAPI?: { main?: { openProject?: unknown } } }).electronAPI?.main?.openProject),
+        undefined,
+        { timeout: 30_000 },
+    )
+    const result = await appWindow.evaluate(async (dir) => {
+        try {
+            await (window as unknown as { electronAPI: { main: { openProject: (d: string) => Promise<unknown> } } }).electronAPI.main.openProject(dir)
+            return 'ok'
+        } catch (e) { return `err:${(e as Error).message}` }
+    }, projectDir)
+    if (result !== 'ok') throw new Error(`openProject failed: ${result}`)
+}
+
 /** Poll until the renderer's cytoscape node count stabilises at/above target. */
 async function waitForGraphLoaded(
     appWindow: import('@playwright/test').Page,
@@ -181,15 +200,21 @@ async function main(): Promise<void> {
             voicetreeHomePath,
             logFilePath: path.join(logsDir, 'vt-electron-main.log'),
             inspectPort: args.inspectPort,
-            daemonReadyTimeoutMs: 180_000,
             extraEnv: runContext.perfEnv,
         })
         app = launched.app
-        process.stdout.write(`[nav-storm] electron booted (${launched.bootMs}ms), daemon ready (${launched.daemonReadyMs}ms)\n`)
+        process.stdout.write(`[nav-storm] electron booted (${launched.bootMs}ms)\n`)
 
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', e => process.stderr.write(`[nav-storm] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
+
+        // Open the seeded project through the real path: this honours the saved
+        // writeFolderPath (=projectDir) and loads ALL .md, spawning the daemon.
+        // (`--open-folder` would instead create a dated write-subfolder that
+        // projects only itself — see launchElectronHeadful.)
+        await openSeededProject(appWindow, projectDir)
+        process.stdout.write('[nav-storm] opened project (full .md load)\n')
 
         loadedNodeCount = await waitForGraphLoaded(appWindow, Math.floor(layout.nodes.length * 0.8), 180_000)
         process.stdout.write(`[nav-storm] graph loaded: ${loadedNodeCount} cytoscape nodes\n`)
