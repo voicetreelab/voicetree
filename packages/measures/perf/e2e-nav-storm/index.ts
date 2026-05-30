@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url'
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateProjectOnDisk, type ProjectLayout } from '@vt/perf-fixtures'
 
-import { launchElectronAndDiscoverMcp } from '../e2e-storm-mvp/launchElectron.ts'
+import { launchElectronHeadful } from './launchElectronHeadful.ts'
 import { flushAndStopVtGraphd, forceStopVtGraphd } from '../e2e-storm-mvp/perfProfile.ts'
 import { resolveRunContext } from './runContext.ts'
 import { driveNavLoop } from './navDriver.ts'
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
 
     let pass = false
     let failureReason: string | null = null
-    let app: Awaited<ReturnType<typeof launchElectronAndDiscoverMcp>>['app'] | null = null
+    let app: Awaited<ReturnType<typeof launchElectronHeadful>>['app'] | null = null
     let snapshot: ProbeSnapshot | null = null
     let navResult: Awaited<ReturnType<typeof driveNavLoop>> | null = null
     let trickleResult = { nodesWritten: 0, paths: [] as readonly string[] }
@@ -175,17 +175,17 @@ async function main(): Promise<void> {
     let loadedNodeCount = 0
 
     try {
-        const launched = await launchElectronAndDiscoverMcp({
+        const launched = await launchElectronHeadful({
             repoRoot: REPO_ROOT,
             projectDir,
             voicetreeHomePath,
             logFilePath: path.join(logsDir, 'vt-electron-main.log'),
             inspectPort: args.inspectPort,
-            mcpDiscoveryTimeoutMs: 180_000,
+            daemonReadyTimeoutMs: 180_000,
             extraEnv: runContext.perfEnv,
         })
         app = launched.app
-        process.stdout.write(`[nav-storm] electron booted (${launched.bootMs}ms), daemon up (mcp ${launched.mcpPort})\n`)
+        process.stdout.write(`[nav-storm] electron booted (${launched.bootMs}ms), daemon ready (${launched.daemonReadyMs}ms)\n`)
 
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', e => process.stderr.write(`[nav-storm] page error: ${e.message}\n`))
