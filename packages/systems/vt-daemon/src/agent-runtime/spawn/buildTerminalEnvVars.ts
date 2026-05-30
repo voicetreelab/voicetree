@@ -52,14 +52,14 @@ export async function buildTerminalEnvVars(params: {
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
 
-    // AGENT_PROMPT_* templates are .md files in the project's (symlinked) prompts
-    // dir — the single source of truth. A file is authoritative over any settings
-    // default of the same name; a settings value only applies when no file exists
-    // (e.g. a test that blanks the prompt). --prompt-template selects which one
-    // becomes AGENT_PROMPT.
-    const promptTemplates: Record<string, string> = await readPromptTemplates(
-        voicetreeProjectDir ? path.join(voicetreeProjectDir, 'prompts') : ''
-    )
+    // AGENT_PROMPT_* templates are .md files in the single per-machine prompts
+    // location ~/.voicetree/prompts (NO per-project prompts dir) — symlinks to the
+    // canonical shipped source, kept in sync at daemon/Electron startup. A file is
+    // authoritative over any settings default of the same name; a settings value
+    // only applies when no file exists (e.g. a test that blanks the prompt).
+    // --prompt-template selects which one becomes AGENT_PROMPT.
+    const voicetreePromptsDir: string = path.join(voicetreeHomePath, 'prompts')
+    const promptTemplates: Record<string, string> = await readPromptTemplates(voicetreePromptsDir)
     const promptVars: Record<string, string> = {...resolvedEnvVars, ...promptTemplates}
     if (params.promptTemplate && promptVars[params.promptTemplate]) {
         promptVars['AGENT_PROMPT'] = promptVars[params.promptTemplate]
@@ -71,6 +71,7 @@ export async function buildTerminalEnvVars(params: {
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_PROJECT_DIR: voicetreeProjectDir,
         VOICETREE_HOME_PATH: voicetreeHomePath ?? '',
+        VOICETREE_PROMPTS_DIR: voicetreePromptsDir,
         VOICETREE_PROJECT_PATH: projectRoot ?? '',
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: params.contextNodePath,
@@ -94,11 +95,12 @@ export async function buildTerminalEnvVars(params: {
 
 /**
  * Read the AGENT_PROMPT_* templates (e.g. AGENT_PROMPT_CORE.md,
- * AGENT_PROMPT_LIGHTWEIGHT.md) from a project's prompts dir, keyed by filename
- * without the .md suffix. These files are symlinks to the shipped source unless
- * overridden per-project. The single trailing newline added when the files are
- * authored is stripped so the injected value matches the template exactly.
- * Returns {} when the dir is absent (graceful for unprovisioned/test projects).
+ * AGENT_PROMPT_LIGHTWEIGHT.md) from the home prompts dir (~/.voicetree/prompts),
+ * keyed by filename without the .md suffix. These files are app-controlled
+ * symlinks to the shipped source. The single trailing newline added when the
+ * files are authored is stripped so the injected value matches the template
+ * exactly. Returns {} when the dir is absent (graceful for unprovisioned/test
+ * environments).
  */
 export async function readPromptTemplates(promptsDir: string): Promise<Record<string, string>> {
     if (!promptsDir) return {}
