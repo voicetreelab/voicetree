@@ -47,6 +47,25 @@ export class DaemonUnreachableError extends Error {
   }
 }
 
+/**
+ * A graphd RPC was reachable but did not answer within its deadline, so the
+ * in-flight request was aborted. Distinct from {@link DaemonUnreachableError}
+ * (connection refused / no listener): here the socket was accepted but the
+ * response stalled. Without this bound a stalled RPC hangs the caller's
+ * `await` forever — e.g. `openProject` never settling, which leaves the
+ * renderer's "loading workspace" spinner spinning until a manual refresh.
+ */
+export class GraphDbRequestTimeoutError extends Error {
+  constructor(
+    public readonly method: string,
+    public readonly route: string,
+    public readonly timeoutMs: number,
+  ) {
+    super(`vt-graphd request ${method} ${route} exceeded ${timeoutMs}ms and was aborted`)
+    this.name = 'GraphDbRequestTimeoutError'
+  }
+}
+
 export class DaemonLockHeldError extends Error {
   constructor(
     public readonly project: string,
