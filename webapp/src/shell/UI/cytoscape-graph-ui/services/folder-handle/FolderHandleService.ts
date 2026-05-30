@@ -87,7 +87,13 @@ function injectStylesheet(): void {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 1101; /* Above the macOS title-bar drag region (1099). */
+    /* Orders the chip strip above the (transparent) cy canvas within the graph
+       layer only. The graph container (App.tsx Layer 1) is an isolated stacking
+       context, so this value never competes with Layer 2 chrome — chips are
+       always occluded by side panels, terminal panes, the title bar and tabs,
+       exactly like the graph nodes they annotate. Do NOT raise this to escape
+       the graph layer (that regression put the chips on top of every panel). */
+    z-index: 5;
 }
 .${CHIP_CLASS} {
     position: absolute;
