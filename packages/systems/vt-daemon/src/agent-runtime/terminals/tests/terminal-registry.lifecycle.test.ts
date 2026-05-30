@@ -9,7 +9,7 @@
  *   - terminal states (completed/errored) are sticky against further isDone updates
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { createTerminalData } from '../terminal-registry/types';
 import type { TerminalData, TerminalId } from '../terminal-registry/types';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
@@ -22,6 +22,10 @@ import {
     markTerminalKillReason,
     updateTerminalAgentEvent,
 } from '../terminal-registry';
+import {
+    setPublishTerminalRegistryEvent,
+} from '../terminal-registry/terminal-registry-publisher';
+import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol';
 
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true });
 vi.mock('@vt/vt-daemon/agent-runtime/inject/send-text-to-terminal.ts', () => ({
@@ -268,6 +272,65 @@ describe('terminal-registry lifecycle wiring', () => {
             markTerminalExited('t1', 1, null);
             updateTerminalIsDone('t1', false);
             expect(lifecycleOf('t1')).toBe('errored');
+        });
+    });
+
+    // =========================================================================
+    // SSE broadcast — every lifecycle transition must reach the renderer's
+    // cache mirror as a `terminal-record-changed` / `lifecycle` patch.
+    // `notifyRegistrySubscribers` only fans out to in-daemon listeners, so
+    // without these the sidebar icon froze at the spawn-time 'spawning' dot
+    // for every terminal regardless of true state (the reported regression).
+    //
+    // The publisher is the runtime's public output edge; we capture it rather
+    // than asserting on internal calls.
+    // =========================================================================
+    describe('lifecycle transitions are broadcast over the SSE topic', () => {
+        const published: TerminalRegistryEvent[] = [];
+
+        beforeEach(() => {
+            published.length = 0;
+            setPublishTerminalRegistryEvent((event: TerminalRegistryEvent): void => {
+                published.push(event);
+            });
+        });
+
+        afterEach(() => {
+            setPublishTerminalRegistryEvent(undefined);
+        });
+
+        function lifecyclePatchesFor(id: string): string[] {
+            return published
+                .filter((e): e is Extract<TerminalRegistryEvent, {type: 'terminal-record-changed'}> =>
+                    e.type === 'terminal-record-changed' && e.terminalId === id)
+                .filter(e => e.patch.kind === 'lifecycle')
+                .map(e => (e.patch as {kind: 'lifecycle'; value: string}).value);
+        }
+
+        it('output-driven flip (isDone=false) broadcasts lifecycle "active"', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', false);
+            expect(lifecyclePatchesFor('t1')).toContain('active');
+        });
+
+        it('agent hook "awaiting" broadcasts lifecycle "awaiting_input"', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', false);
+            updateTerminalAgentEvent('t1', 'awaiting');
+            expect(lifecyclePatchesFor('t1')).toContain('awaiting_input');
+        });
+
+        it('process exit broadcasts the classified terminal lifecycle', () => {
+            spawn('t1');
+            markTerminalExited('t1', 0, null);
+            expect(lifecyclePatchesFor('t1')).toContain('completed');
+        });
+
+        it('no redundant lifecycle patch when the value does not change', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', false);      // spawning → active (1 patch)
+            updateTerminalAgentEvent('t1', 'working'); // active → active (no change)
+            expect(lifecyclePatchesFor('t1')).toEqual(['active']);
         });
     });
 });
