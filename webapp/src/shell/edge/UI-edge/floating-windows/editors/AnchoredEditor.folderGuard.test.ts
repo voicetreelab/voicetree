@@ -50,7 +50,7 @@ describe('AnchoredEditor visual style — folder cy node guard', () => {
         expect(folder.style('shape')).toBe('roundrectangle');
     });
 
-    it('open style leaves folder events enabled (so dbltap-to-collapse keeps working)', () => {
+    it('open style leaves folder events enabled (so folder hover/chip interactions keep working)', () => {
         const { folder } = setup();
 
         applyAnchoredEditorOpenStyle(folder);
