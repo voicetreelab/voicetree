@@ -182,11 +182,22 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
   "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
   if [ $ec -eq 0 ]; then
-    echo "git-gate: normalizing worktree git metadata to relative paths" >&2
-    if "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1; then
-      echo "git-gate: worktree git metadata normalized" >&2
+    echo "git-gate: normalizing worktree git metadata" >&2
+    # Repair the new worktree's admin pointers. Two robustness points:
+    #  1. Run with `-C <worktree>`, not the gate's cwd: callers commonly invoke
+    #     `git -C <repo> worktree add <abs-path>` from a cwd that is not a git
+    #     repo (agent/login shells rooted at $HOME), where a bare repair no-ops.
+    #  2. `--relative-paths` (host-portable pointers, needed for mutagen
+    #     cross-host sync) only exists on git >= 2.48. Try it first, then fall
+    #     back to a plain repair — absolute pointers are fine for worktrees that
+    #     never sync across hosts (e.g. the VM-local /root/vt-wts-remote trees).
+    repair_dir="${wt_path:-.}"
+    if "$REAL_GIT" -C "$repair_dir" worktree repair --relative-paths >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata normalized (relative paths)" >&2
+    elif "$REAL_GIT" -C "$repair_dir" worktree repair >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata repaired (this git lacks --relative-paths; pointers left absolute)" >&2
     else
-      echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
+      echo "git-gate: warning: git worktree repair failed; command-boundary repair will retry" >&2
     fi
     if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
       echo "git-gate: skipping dependency prewarm; caller owns worktree hooks" >&2
