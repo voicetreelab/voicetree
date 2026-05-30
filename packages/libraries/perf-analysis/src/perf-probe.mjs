@@ -9,15 +9,49 @@ import Pyroscope from '@pyroscope/nodejs'
 import { observabilityMetrics, tracing } from '@vt/observability'
 import { createDurableLineLog } from './durable-line-log.mjs'
 
-const PROFILE_ENABLED = '1'
 const RUN_ID_ENV = 'VOICETREE_RUN_INSTANCE_ID'
 const OTLP_ENDPOINT_ENV = 'VOICETREE_OTLP_ENDPOINT'
-const PERF_PROFILE_ENV = 'VOICETREE_PERF_PROFILE'
+const PERF_TIER_ENV = 'VOICETREE_PERF_TIER'
 const PYROSCOPE_URL = 'http://localhost:2995'
 const SAMPLE_INTERVAL_MS = 1_000
 const HEAP_SNAPSHOT_OFFSETS_MS = [0, 5_000, 10_000]
 
+// Wall/CPU sampling periods, in microseconds.
+//   lite = 100 Hz (10 ms) — the conventional statistical-profiler rate, cheap
+//          enough for always-on interactive use; ~100 samples/s/thread, which
+//          over a minutes-long session is far more total signal than a bounded
+//          storm window yet issues 10x fewer interrupts than `deep`.
+//   deep = 1 kHz (1 ms)   — fine resolution for a bounded ~10s storm/deep run.
+const LITE_WALL_SAMPLING_MICROS = 10_000
+const DEEP_WALL_SAMPLING_MICROS = 1_000
+
 const nsToMs = (value) => value / 1_000_000
+
+/**
+ * @typedef {'off' | 'lite' | 'deep'} PerfTier
+ * @typedef {{ tier: 'off' }
+ *         | { tier: 'lite' | 'deep', wallSamplingMicros: number, heapSnapshots: boolean }} PerfProbePlan
+ */
+
+// Pure, total: resolve the perf-probe execution plan from the environment.
+// A single env var (`VOICETREE_PERF_TIER`) is the whole tier contract; any value
+// that is not 'lite' or 'deep' (unset, '', 'off', garbage) yields the off plan.
+// `lite` is the always-on-safe feature set; `deep` adds stop-the-world heap
+// snapshots and a higher sampling rate for bounded captures.
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {PerfProbePlan}
+ */
+export function perfProbePlan(env = process.env) {
+  switch (env[PERF_TIER_ENV]) {
+    case 'lite':
+      return { tier: 'lite', wallSamplingMicros: LITE_WALL_SAMPLING_MICROS, heapSnapshots: false }
+    case 'deep':
+      return { tier: 'deep', wallSamplingMicros: DEEP_WALL_SAMPLING_MICROS, heapSnapshots: true }
+    default:
+      return { tier: 'off' }
+  }
+}
 
 function appendTraceContext(message, traceContext) {
   if (!traceContext) return message
@@ -168,7 +202,7 @@ function createOtelRuntimeMetrics() {
   }
 }
 
-function startPyroscopeWallProfiler({ svc, runUuid }) {
+function startPyroscopeWallProfiler({ svc, runUuid, samplingIntervalMicros }) {
   Pyroscope.init({
     serverAddress: PYROSCOPE_URL,
     appName: svc,
@@ -179,7 +213,7 @@ function startPyroscopeWallProfiler({ svc, runUuid }) {
     wall: {
       collectCpuTime: true,
       samplingDurationMs: SAMPLE_INTERVAL_MS,
-      samplingIntervalMicros: 1_000,
+      samplingIntervalMicros,
     },
     heap: {
       samplingIntervalBytes: 64 * 1024 * 1024,
@@ -195,28 +229,48 @@ function startPyroscopeWallProfiler({ svc, runUuid }) {
   }
 }
 
-function writeNamedHeapSnapshot({ heapSnapshotsDir, svc, label }) {
-  writeHeapSnapshot(join(heapSnapshotsDir, `${svc}.${label}.heapsnapshot`))
-}
-
-function scheduleHeapSnapshots({ heapSnapshotsDir, svc, log }) {
+// Schedule stop-the-world heap snapshots at fixed offsets (deep tier only).
+// The snapshot write and the timer are injected ports so the scheduler can be
+// exercised against a real temp dir (assert files appear) without a profiler in
+// the loop. The offset==0 snapshot is written synchronously; the rest deferred.
+/**
+ * @param {{
+ *   heapSnapshotsDir: string,
+ *   svc: string,
+ *   offsetsMs?: readonly number[],
+ *   writeSnapshot?: (path: string) => void,
+ *   schedule?: (cb: () => void, ms: number) => unknown,
+ *   onError?: (message: string) => void,
+ * }} options
+ */
+export function scheduleHeapSnapshots({
+  heapSnapshotsDir,
+  svc,
+  offsetsMs = HEAP_SNAPSHOT_OFFSETS_MS,
+  writeSnapshot = writeHeapSnapshot,
+  schedule = setTimeout,
+  onError,
+}) {
   const timers = []
+  const snapshotPath = (offsetMs) =>
+    join(heapSnapshotsDir, `${svc}.t${Math.round(offsetMs / 1000)}.heapsnapshot`)
 
-  for (const offsetMs of HEAP_SNAPSHOT_OFFSETS_MS) {
-    const label = `t${Math.round(offsetMs / 1000)}`
+  for (const offsetMs of offsetsMs) {
     if (offsetMs === 0) {
-      writeNamedHeapSnapshot({ heapSnapshotsDir, svc, label })
-    } else {
-      const timer = setTimeout(() => {
-        try {
-          writeNamedHeapSnapshot({ heapSnapshotsDir, svc, label })
-        } catch (err) {
-          log.write('ERROR', `perf-probe heap-snapshot failed label=${label} error=${err instanceof Error ? err.message : String(err)}`)
-        }
-      }, offsetMs)
-      timer.unref()
-      timers.push(timer)
+      writeSnapshot(snapshotPath(offsetMs))
+      continue
     }
+    const timer = schedule(() => {
+      try {
+        writeSnapshot(snapshotPath(offsetMs))
+      } catch (err) {
+        onError?.(`perf-probe heap-snapshot failed offsetMs=${offsetMs} error=${err instanceof Error ? err.message : String(err)}`)
+      }
+    }, offsetMs)
+    if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
+      timer.unref()
+    }
+    timers.push(timer)
   }
 
   return {
@@ -244,39 +298,58 @@ function createStopOnce(stop) {
   return stopOnce
 }
 
-export async function perfProbeFromEnv(svc) {
-  if (process.env[PERF_PROFILE_ENV] !== PROFILE_ENABLED) return undefined
+// Impure edge: execute a perf-probe plan. `off` is a complete no-op (returns
+// undefined). `lite`/`deep` start wall sampling at the plan's rate, OTel runtime
+// metrics, and the durable log/heartbeat; heap snapshots run iff plan.heapSnapshots.
+// Returns an idempotent stop handle that flushes Pyroscope/metrics/log on call.
+/**
+ * @param {{ svc: string, plan: PerfProbePlan, env?: NodeJS.ProcessEnv }} options
+ * @returns {Promise<undefined | (() => Promise<void>)>}
+ */
+export async function startPerfProbe({ svc, plan, env = process.env }) {
+  if (plan.tier === 'off') return undefined
 
-  const runUuid = resolveRunUuid()
+  const runUuid = resolveRunUuid(env)
   const runDir = resolveRunDir(runUuid)
   const paths = await ensureRunDirs(runDir)
 
   observabilityMetrics.init(svc, {
-    otlpEndpoint: process.env[OTLP_ENDPOINT_ENV],
+    otlpEndpoint: env[OTLP_ENDPOINT_ENV],
     instanceId: runUuid,
   })
 
   // Pyroscope must be initialised before any code that calls
   // Pyroscope.wrapWithLabels — createPlainLogWriter emits a startup span
   // synchronously which routes through wrapWithLabels for span_id labels.
-  const pyroscope = startPyroscopeWallProfiler({ svc, runUuid })
+  const pyroscope = startPyroscopeWallProfiler({
+    svc,
+    runUuid,
+    samplingIntervalMicros: plan.wallSamplingMicros,
+  })
   const log = createPlainLogWriter(svc, join(paths.logsDir, `${svc}.log`))
   const metrics = createOtelRuntimeMetrics()
-  const heapSnapshots = scheduleHeapSnapshots({
-    heapSnapshotsDir: paths.heapSnapshotsDir,
-    svc,
-    log,
-  })
+  const heapSnapshots = plan.heapSnapshots
+    ? scheduleHeapSnapshots({
+        heapSnapshotsDir: paths.heapSnapshotsDir,
+        svc,
+        onError: (message) => log.write('ERROR', message),
+      })
+    : undefined
 
   let stopped = false
   const stop = async () => {
     if (stopped) return
     stopped = true
-    heapSnapshots.stop()
+    heapSnapshots?.stop()
     metrics.stop()
     await pyroscope.stop()
     await log.stop()
   }
 
   return createStopOnce(stop)
+}
+
+// Env-driven shell over startPerfProbe: resolve the plan, then execute it.
+export function perfProbeFromEnv(svc, env = process.env) {
+  return startPerfProbe({ svc, plan: perfProbePlan(env), env })
 }
