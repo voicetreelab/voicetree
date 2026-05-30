@@ -67,6 +67,14 @@ sync:
         - "**/.voicetree/devbox-outputs"
         - "**/.voicetree/devbox-outputs/**"
         - "**/*devbox-outputs*"
+        # Machine-local build caches (e.g. the name-uniqueness declaration
+        # index). These are keyed to the machine's absolute checkout paths
+        # and rebuilt on demand — syncing them between the local mac and the
+        # devbox makes a check read another machine's cache and (with the old
+        # behaviour) flag a file as colliding with its own cross-root copy.
+        # Each machine must own its own cache.
+        - "**/.voicetree/cache"
+        - "**/.voicetree/cache/**"
         # health-dashboard/reports/ is owned by two SEPARATE sessions:
         #   - vt-csv-history (two-way-safe) owns scores-history/
         #   - vt-reports (one-way-replica, remote-alpha) owns the generated
