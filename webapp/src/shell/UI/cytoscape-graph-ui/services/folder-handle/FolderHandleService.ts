@@ -53,6 +53,19 @@ import {getHoverEditor} from '@/shell/edge/UI-edge/state/stores/EditorStore';
 
 const CHIP_PX = 22;
 
+// Measure the folder's drawn BODY box (the roundrectangle / pill), excluding the
+// title label and selection overlays. The default bounding box includes the
+// folder label, which floats *above* the compound body (text-valign:top,
+// text-margin-y:-16) and can be wider than the box — anchoring the chip strip to
+// it left the chips hovering above-and-left of the folder instead of snug in its
+// top-left corner. Same convention as the folder-handle e2e specs and
+// runLayoutAdapter. Listed as a named constant so the chip anchor and the hover
+// editor anchor stay in lock-step.
+const BODY_BBOX_OPTIONS: cytoscape.BoundingBoxOptions = {
+    includeLabels: false,
+    includeOverlays: false,
+};
+
 // Debounce duration for closing the hover editor after the cursor leaves the
 // eye chip. Long enough for the cursor to traverse from chip to editor
 // (~18px), short enough that dismissal stays responsive.
@@ -195,14 +208,15 @@ export function setupFolderHandles(cy: Core): void {
         const folderNoteId: NodeIdAndFilePath | null = await resolveFolderNoteId(folder.id());
         if (folderNoteId === null) return;
         const eyeBtn: HTMLButtonElement | undefined = chips.get(folder.id())?.eyeBtn;
-        // Anchor the editor to the chip strip (folder bbox TL), not folder.position().
+        // Anchor the editor to the chip strip (folder BODY bbox TL), not folder.position().
         // For a collapsed pill, position() ≈ bbox center ≈ strip — they coincide.
         // For an expanded compound, position() is the centroid of all descendants,
         // which floats in the middle of the folder body, far from the chip strip in
-        // the TL corner. Using bbox TL keeps the editor pinned just-below-strip in
-        // both states. Strip is 44×22 graph units (CHIP_PX=22 × two chips, scaled
-        // by zoom in CSS so size matches across zooms).
-        const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = folder.boundingBox();
+        // the TL corner. Using the body bbox TL (same BODY_BBOX_OPTIONS as the strip
+        // itself) keeps the editor pinned just-below-strip in both states. Strip is
+        // 44×22 graph units (CHIP_PX=22 × two chips, scaled by zoom in CSS so size
+        // matches across zooms).
+        const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = folder.boundingBox(BODY_BBOX_OPTIONS);
         const stripAnchor: cytoscape.Position = {
             x: bbox.x1 + CHIP_PX,  // strip horizontal center (half of 44 wide strip)
             y: bbox.y1 + CHIP_PX,  // strip bottom edge (22 tall)
@@ -289,10 +303,12 @@ export function setupFolderHandles(cy: Core): void {
         const node: cytoscape.CollectionReturnValue = cy.getElementById(folderId);
         if (node.length === 0) return;
 
-        const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = (node as NodeSingular).renderedBoundingBox();
-        // Anchor strip to TL of the bbox. Container is the cy host; chip is a
-        // child of the overlay (sibling-positioned), so direct canvas coords
-        // map 1:1 onto offset coords.
+        const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH =
+            (node as NodeSingular).renderedBoundingBox(BODY_BBOX_OPTIONS);
+        // Anchor the strip to the TL corner of the folder BODY box so the chevron
+        // sits flush against the folder's top and left edges (eye snug to its
+        // right). Container is the cy host; chip is a child of the overlay
+        // (sibling-positioned), so direct canvas coords map 1:1 onto offset coords.
         entry.el.style.left = `${bbox.x1}px`;
         entry.el.style.top = `${bbox.y1}px`;
 
