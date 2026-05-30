@@ -13,7 +13,7 @@
 
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import {buildClaudeHookSettingsJson} from './agentHookInjection'
+import {buildClaudeHookSettingsJson} from './injection/agentHookInjection'
 
 export type ClaudeHookBootstrapDeps = {
     readonly mkdir: (dir: string) => Promise<void>

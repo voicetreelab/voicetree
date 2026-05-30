@@ -137,9 +137,10 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     INJECT_ENV_VARS: {
         default: {
             // AGENT_PROMPT_CORE / AGENT_PROMPT_LIGHTWEIGHT now live as .md files in
-            // packages/systems/voicetree-cli/prompts/ (single source of truth, symlinked
-            // into each project's .voicetree/prompts/). buildTerminalEnvVars reads them
-            // from there at spawn; AGENT_PROMPT points at the resolved core template.
+            // packages/systems/voicetree-cli/prompts/ (single source of truth, mirrored
+            // as symlinks into the one per-machine ~/.voicetree/prompts).
+            // buildTerminalEnvVars reads them from there at spawn; AGENT_PROMPT points
+            // at the resolved core template.
             AGENT_PROMPT: '$AGENT_PROMPT_CORE',
             DEPTH_BUDGET: '12',
         } as Record<string, EnvVarValue>,
