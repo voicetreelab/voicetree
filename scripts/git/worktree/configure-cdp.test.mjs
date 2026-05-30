@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs'
 import {tmpdir} from 'node:os'
@@ -46,8 +47,8 @@ function makeRepo({mcpJsonTemplate}) {
     repoRoot,
     wtName,
     wtPath,
+    cdpPortPath: join(wtPath, 'webapp', '.cdp-port'),
     mcpJsonPath: join(wtPath, '.mcp.json'),
-    codexCfgPath: join(wtPath, '.codex', 'config.toml'),
   }
 }
 
@@ -64,56 +65,18 @@ function runScript(wtPath, wtName, env = {}) {
   return result
 }
 
-test('writes voicetree URL into .codex/config.toml when VOICETREE_MCP_PORT is set', () => {
-  const tpl = JSON.stringify({mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:9999/mcp'}}}, null, 2)
-  const fixture = makeRepo({mcpJsonTemplate: tpl})
-
-  runScript(fixture.wtPath, fixture.wtName, {VOICETREE_MCP_PORT: '4242'})
-
-  const codex = readFileSync(fixture.codexCfgPath, 'utf-8')
-  assert.match(codex, /\[mcp_servers\.voicetree\]/)
-  assert.match(codex, /url\s*=\s*"http:\/\/localhost:4242\/mcp"/)
-})
-
-test('updates an existing stale voicetree section in .codex/config.toml (preserves other sections)', () => {
-  const tpl = JSON.stringify({mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:9999/mcp'}}}, null, 2)
-  const fixture = makeRepo({mcpJsonTemplate: tpl})
-
-  mkdirSync(join(fixture.wtPath, '.codex'), {recursive: true})
-  writeFileSync(
-    fixture.codexCfgPath,
-    '[other]\nkey = "value"\n\n[mcp_servers.voicetree]\nurl = "http://localhost:9999/mcp"\n',
-    'utf-8',
-  )
-
-  runScript(fixture.wtPath, fixture.wtName, {VOICETREE_MCP_PORT: '4242'})
-
-  const codex = readFileSync(fixture.codexCfgPath, 'utf-8')
-  assert.match(codex, /\[other\]\s*\nkey = "value"/, 'other section preserved')
-  assert.match(codex, /url\s*=\s*"http:\/\/localhost:4242\/mcp"/, 'voicetree url updated')
-  assert.doesNotMatch(codex, /9999/, 'stale port gone')
-})
-
-test('appends voicetree section when .codex/config.toml has unrelated content only', () => {
-  const tpl = JSON.stringify({mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:9999/mcp'}}}, null, 2)
-  const fixture = makeRepo({mcpJsonTemplate: tpl})
-
-  mkdirSync(join(fixture.wtPath, '.codex'), {recursive: true})
-  writeFileSync(fixture.codexCfgPath, '[model]\nname = "gpt-5"\n', 'utf-8')
-
-  runScript(fixture.wtPath, fixture.wtName, {VOICETREE_MCP_PORT: '4242'})
-
-  const codex = readFileSync(fixture.codexCfgPath, 'utf-8')
-  assert.match(codex, /\[model\]\s*\nname = "gpt-5"/, 'unrelated section preserved')
-  assert.match(codex, /\[mcp_servers\.voicetree\]\s*\nurl = "http:\/\/localhost:4242\/mcp"/, 'voicetree section appended')
-})
-
-test('patches voicetree URL in .mcp.json (preserving the surrounding structure)', () => {
+test('writes a free CDP port to webapp/.cdp-port and patches the Playwright endpoint in .mcp.json', () => {
+  // Template already carries a localhost CDP endpoint so both the jq path
+  // (rewrites the whole args array) and the sed fallback (substitutes the
+  // existing http://localhost:* token) converge on the selected port.
   const tpl = JSON.stringify(
     {
       mcpServers: {
-        playwright: {type: 'stdio', command: 'npx', args: ['@playwright/mcp@latest']},
-        voicetree: {type: 'http', url: 'http://127.0.0.1:9999/mcp'},
+        playwright: {
+          type: 'stdio',
+          command: 'npx',
+          args: ['@playwright/mcp@latest', '--cdp-endpoint', 'http://localhost:1'],
+        },
       },
     },
     null,
@@ -121,28 +84,37 @@ test('patches voicetree URL in .mcp.json (preserving the surrounding structure)'
   )
   const fixture = makeRepo({mcpJsonTemplate: tpl})
 
-  runScript(fixture.wtPath, fixture.wtName, {VOICETREE_MCP_PORT: '4242'})
+  runScript(fixture.wtPath, fixture.wtName)
 
-  const mcp = JSON.parse(readFileSync(fixture.mcpJsonPath, 'utf-8'))
-  assert.equal(mcp.mcpServers.voicetree.url, 'http://localhost:4242/mcp')
-  assert.equal(mcp.mcpServers.voicetree.type, 'http')
-  assert.equal(mcp.mcpServers.playwright.command, 'npx', 'other server preserved')
+  const cdpPort = readFileSync(fixture.cdpPortPath, 'utf-8').trim()
+  assert.match(cdpPort, /^\d+$/, 'a numeric CDP port is written to .cdp-port')
+  const portNum = Number(cdpPort)
+  assert.ok(portNum >= 9222 && portNum <= 9322, `CDP port ${portNum} within range 9222-9322`)
+
+  const mcp = readFileSync(fixture.mcpJsonPath, 'utf-8')
+  assert.match(
+    mcp,
+    new RegExp(`http://localhost:${cdpPort}\\b`),
+    'Playwright CDP endpoint patched to the selected port',
+  )
 })
 
-test('silently skips MCP-URL sync when VOICETREE_MCP_PORT is unset (back-compat / manual invocation)', () => {
-  const tpl = JSON.stringify({mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:9999/mcp'}}}, null, 2)
-  const fixture = makeRepo({mcpJsonTemplate: tpl})
+test('still selects a CDP port and exits 0 without patching .mcp.json when the repo has no template', () => {
+  // The CDP port is allocated before the template check, so it is written even
+  // when the repo has no .mcp.json to copy. The worktree's committed .mcp.json
+  // is then left untouched (no Playwright endpoint patch).
+  const fixture = makeRepo({mcpJsonTemplate: '{}'})
+  unlinkSync(join(fixture.repoRoot, '.mcp.json'))
 
-  // Explicitly unset
-  const env = {...process.env}
-  delete env.VOICETREE_MCP_PORT
-
-  const result = spawnSync('sh', [SCRIPT, fixture.wtPath, fixture.wtName], {env, encoding: 'utf-8'})
+  const result = spawnSync('sh', [SCRIPT, fixture.wtPath, fixture.wtName], {
+    env: process.env,
+    encoding: 'utf-8',
+  })
   assert.equal(result.status, 0, `script should still succeed; stderr:\n${result.stderr}`)
-  // No .codex written
-  assert.equal(
-    spawnSync('test', ['-f', fixture.codexCfgPath]).status,
-    1,
-    '.codex/config.toml should NOT exist when port is unset',
-  )
+
+  const cdpPort = readFileSync(fixture.cdpPortPath, 'utf-8').trim()
+  assert.match(cdpPort, /^\d+$/, '.cdp-port is written even without an .mcp.json template')
+
+  const mcp = readFileSync(fixture.mcpJsonPath, 'utf-8')
+  assert.doesNotMatch(mcp, /cdp-endpoint/, 'no Playwright patch is applied when the template is missing')
 })
