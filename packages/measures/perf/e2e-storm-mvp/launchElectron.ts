@@ -19,7 +19,6 @@ import { execFileSync } from 'node:child_process'
 export interface ElectronLaunchInputs {
     readonly repoRoot: string
     readonly projectDir: string
-    readonly projectDir: string
     readonly voicetreeHomePath: string
     readonly logFilePath: string
     readonly inspectPort: number
@@ -66,7 +65,7 @@ function resolveGraphDaemonNodeBin(repoRoot: string): string {
     return candidates.find(bin => canLoadNativeGraphDbModules(bin, repoRoot)) ?? process.execPath
 }
 
-export function seedUserData(voicetreeHomePath: string, projectDir: string, projectDir: string): void {
+export function seedUserData(voicetreeHomePath: string, projectDir: string): void {
     const projectName = path.basename(projectDir)
     writeFileSync(
         path.join(voicetreeHomePath, 'projects.json'),
@@ -132,7 +131,7 @@ function readMcpPortFromJson(mcpJsonPath: string): number | null {
 export async function launchElectronAndDiscoverMcp(
     inputs: ElectronLaunchInputs,
 ): Promise<ElectronLaunchResult> {
-    seedUserData(inputs.voicetreeHomePath, inputs.projectDir, inputs.projectDir)
+    seedUserData(inputs.voicetreeHomePath, inputs.projectDir)
 
     const mainEntry = path.join(inputs.repoRoot, 'webapp', 'dist-electron', 'main', 'index.js')
     if (!existsSync(mainEntry)) {
