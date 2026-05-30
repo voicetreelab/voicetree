@@ -1,7 +1,7 @@
 import { refreshMainGraphFromDaemon } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
-const DAEMON_GRAPH_POLL_INTERVAL_MS = 750
-const DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS = 5_000
+const DAEMON_GRAPH_POLL_INTERVAL_MS = 7_500
+const DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS = 15_000
 const DAEMON_GRAPH_POLL_IDLE_INTERVAL_MS = 60_000
 
 export type AppActivityTier = 'active' | 'background' | 'idle'

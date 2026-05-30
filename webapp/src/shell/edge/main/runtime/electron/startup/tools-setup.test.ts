@@ -1,7 +1,9 @@
 /**
- * Black-box tests for mirrorDirAsSymlinks — the single-source-of-truth prompt
- * provisioning. Asserts on the observable filesystem result (symlink targets,
- * preserved overrides, pruned dangles), not on internal calls.
+ * Black-box tests for ensureProjectDotVoicetree. Asserts on the observable
+ * filesystem: prompts are NO LONGER provisioned per-project (they live solely at
+ * ~/.voicetree/prompts — see ensureHomePrompts), while hooks/.version/.gitignore
+ * are still set up. The home-prompts mirror+backup is covered by
+ * vt-daemon's ensureHomePrompts.test.ts.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -9,76 +11,57 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-// tools-setup imports build-config which imports electron at module load.
+// tools-setup imports build-config (which imports electron) and @vt/vt-daemon's
+// ensureHomePrompts. Stub electron's app and the build config so getBuildConfig()
+// returns hook sources under a temp dir with no dependence on cwd/packaging.
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test', isPackaged: false } }));
 
-import { mirrorDirAsSymlinks } from '@/shell/edge/main/runtime/electron/startup/tools-setup';
+const stub = vi.hoisted(() => ({ hookScriptsSource: '' as string }));
+vi.mock('@/shell/edge/main/runtime/electron/app/build-config', () => ({
+  getBuildConfig: () => ({ hookScriptsSource: stub.hookScriptsSource }),
+}));
+
+import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 
 let root: string;
-let source: string;
-let dest: string;
+let projectRoot: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-mirror-'));
-  source = path.join(root, 'source');
-  dest = path.join(root, 'dest');
-  await fs.mkdir(source, { recursive: true });
-  await fs.writeFile(path.join(source, 'a.md'), 'AAA');
-  await fs.writeFile(path.join(source, 'b.md'), 'BBB');
+  root = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-tools-setup-'));
+  projectRoot = path.join(root, 'project');
+  await fs.mkdir(projectRoot, { recursive: true });
+  // An (empty) hook source dir is enough — copySpecificFiles skips missing files.
+  stub.hookScriptsSource = path.join(root, 'scripts');
+  await fs.mkdir(stub.hookScriptsSource, { recursive: true });
 });
 
 afterEach(async () => {
   await fs.rm(root, { recursive: true, force: true });
 });
 
-describe('mirrorDirAsSymlinks', () => {
-  it('creates symlinks to the source so source edits propagate without re-copy', async () => {
-    await mirrorDirAsSymlinks(source, dest);
+describe('ensureProjectDotVoicetree', () => {
+  it('does NOT create a per-project prompts dir', async () => {
+    await ensureProjectDotVoicetree(projectRoot);
 
-    expect((await fs.lstat(path.join(dest, 'a.md'))).isSymbolicLink()).toBe(true);
-    expect(await fs.readlink(path.join(dest, 'a.md'))).toBe(path.join(source, 'a.md'));
-    // Reading through the link returns source content...
-    expect(await fs.readFile(path.join(dest, 'a.md'), 'utf-8')).toBe('AAA');
-    // ...and a later source edit is visible immediately (no drift).
-    await fs.writeFile(path.join(source, 'a.md'), 'AAA-edited');
-    expect(await fs.readFile(path.join(dest, 'a.md'), 'utf-8')).toBe('AAA-edited');
+    await expect(fs.access(path.join(projectRoot, '.voicetree', 'prompts'))).rejects.toThrow();
   });
 
-  it('repoints a stale symlink at the current source', async () => {
-    await fs.mkdir(dest, { recursive: true });
-    const elsewhere: string = path.join(root, 'elsewhere.md');
-    await fs.writeFile(elsewhere, 'OLD');
-    await fs.symlink(elsewhere, path.join(dest, 'a.md'));
+  it('still sets up hooks, .version, and .gitignore', async () => {
+    await ensureProjectDotVoicetree(projectRoot);
 
-    await mirrorDirAsSymlinks(source, dest);
-
-    expect(await fs.readlink(path.join(dest, 'a.md'))).toBe(path.join(source, 'a.md'));
-    expect(await fs.readFile(path.join(dest, 'a.md'), 'utf-8')).toBe('AAA');
+    const dotVoicetree: string = path.join(projectRoot, '.voicetree');
+    expect((await fs.lstat(path.join(dotVoicetree, 'hooks'))).isDirectory()).toBe(true);
+    expect(await fs.readFile(path.join(dotVoicetree, '.version'), 'utf-8')).toBe('0.0.0-test');
+    expect(await fs.readFile(path.join(dotVoicetree, '.gitignore'), 'utf-8')).toContain('positions.json');
   });
 
-  it('preserves a real file as a per-project override', async () => {
-    await fs.mkdir(dest, { recursive: true });
-    await fs.writeFile(path.join(dest, 'a.md'), 'OVERRIDE');
+  it('preserves a user-customized .gitignore on re-open', async () => {
+    const dotVoicetree: string = path.join(projectRoot, '.voicetree');
+    await fs.mkdir(dotVoicetree, { recursive: true });
+    await fs.writeFile(path.join(dotVoicetree, '.gitignore'), 'custom-entry\n');
 
-    await mirrorDirAsSymlinks(source, dest);
+    await ensureProjectDotVoicetree(projectRoot);
 
-    expect((await fs.lstat(path.join(dest, 'a.md'))).isSymbolicLink()).toBe(false);
-    expect(await fs.readFile(path.join(dest, 'a.md'), 'utf-8')).toBe('OVERRIDE');
-    // Sibling without an override is still linked.
-    expect((await fs.lstat(path.join(dest, 'b.md'))).isSymbolicLink()).toBe(true);
-  });
-
-  it('prunes a dangling symlink whose source file was removed', async () => {
-    await mirrorDirAsSymlinks(source, dest);
-    await fs.rm(path.join(source, 'b.md'));
-
-    await mirrorDirAsSymlinks(source, dest);
-
-    await expect(fs.lstat(path.join(dest, 'b.md'))).rejects.toThrow();
-    expect((await fs.lstat(path.join(dest, 'a.md'))).isSymbolicLink()).toBe(true);
-  });
-
-  it('is a silent no-op when the source dir is absent', async () => {
-    await expect(mirrorDirAsSymlinks(path.join(root, 'nope'), dest)).resolves.toBeUndefined();
+    expect(await fs.readFile(path.join(dotVoicetree, '.gitignore'), 'utf-8')).toBe('custom-entry\n');
   });
 });

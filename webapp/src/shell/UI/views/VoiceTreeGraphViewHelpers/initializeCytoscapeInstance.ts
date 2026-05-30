@@ -5,6 +5,7 @@
 import cytoscape, {type Core, type CytoscapeOptions, type StylesheetCSS} from 'cytoscape';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {installCollectionCache, installTextureCacheSkip} from '@/shell/UI/cytoscape-graph-ui/services/animation/largegraphPerformance';
+import {installAtlasGcFix} from '@/shell/UI/cytoscape-graph-ui/services/animation/atlasGcFix';
 
 export interface CytoscapeInitConfig {
     container: HTMLElement;
@@ -96,6 +97,9 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
         patchWebglRenderEvent(cy);
         installCollectionCache(cy);
         installTextureCacheSkip(cy);
+        // Prevent the WebGL atlas garbage collector from evicting still-live
+        // label textures (causes labels to render blank until hovered).
+        installAtlasGcFix(cy);
         return {cy, isHeadless: false};
     } catch (_error) {
         // Fallback to headless mode (e.g., JSDOM without proper layout)

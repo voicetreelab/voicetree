@@ -19,7 +19,7 @@ import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
-import {prependVtBinToPath, resolveVtBinDir} from '../vtPathInjection'
+import {prependVtBinToPath, resolveVtBinDir} from '../injection/vtPathInjection'
 
 describe('prependVtBinToPath (pure)', () => {
     it('passes through unchanged when vtBinDir is null', () => {

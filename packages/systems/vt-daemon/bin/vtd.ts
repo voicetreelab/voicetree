@@ -68,7 +68,8 @@ import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-contro
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
-import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/vtPathInjection.ts'
+import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/injection/vtPathInjection.ts'
+import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
@@ -168,21 +169,26 @@ function callerKindFromEnv(): CallerKind {
     return 'vtd'
 }
 
+/**
+ * Resolve the canonical `@voicetree/cli` package dir relative to this binary on
+ * disk: packages/systems/vt-daemon/bin → packages/systems/voicetree-cli. It is
+ * the source of both the `vt` bin (spawn-time PATH injection) and the shipped
+ * agent prompts (the home-prompts sync). This source-tree resolver is the
+ * standalone/dev/eval path; the packaged Electron build instead seeds the home
+ * prompts from `resourcesPath/prompts` via build-config.
+ */
+function resolveVoicetreeCliPackageDir(): string {
+    return join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'voicetree-cli')
+}
+
 function configureAgentRuntimeForVtd(
     publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
     graph: GraphStateBridge,
 ): void {
-    // The `vt` binary is shipped inside @voicetree/cli. vtd lives next to
-    // it on disk (packages/systems/vt-daemon → packages/systems/voicetree-cli),
-    // so resolve relative to this file rather than the voicetreeHome-tools copy.
-    // The CLI manual is rendered live from @vt/vt-daemon-protocol's TOOL_SPECS
-    // — no longer file-based — so vtd no longer needs to register a manual path.
-    const voicetreeCliPackageDir: string = join(
-        dirname(fileURLToPath(import.meta.url)),
-        '..',
-        '..',
-        'voicetree-cli',
-    )
+    // The `vt` binary is shipped inside @voicetree/cli. The CLI manual is
+    // rendered live from @vt/vt-daemon-protocol's TOOL_SPECS — no longer
+    // file-based — so vtd no longer needs to register a manual path.
+    const voicetreeCliPackageDir: string = resolveVoicetreeCliPackageDir()
     // `vt` lives at <voicetree-cli>/bin/vt. resolveVtBinDir verifies the
     // script exists and returns null otherwise — the spawn pipeline's
     // PATH injection then no-ops gracefully.
@@ -290,6 +296,30 @@ async function main(): Promise<void> {
     // getProject()). agent-runtime is configured later (step 4.5) once we
     // have the SSE hub the publish sink targets.
     setCurrentProject(args.project)
+
+    // Provision the single per-machine prompts location BEFORE any agent can be
+    // spawned — the spawn pipeline's buildTerminalEnvVars reads ~/.voicetree/prompts.
+    // The shipped prompts always win; a user override is stashed under
+    // ~/.voicetree/.backup/prompts/<ts>/. Standalone/headless daemons (which run no
+    // Electron) depend on this call; the GUI app idempotently seeds the same dir at
+    // Electron startup. Non-fatal: a sync failure degrades to empty prompts, not a
+    // dead daemon (mirrors the OTLP/telemetry log-and-continue boot steps below).
+    try {
+        const promptSync = await ensureHomePrompts({
+            promptsSource: join(resolveVoicetreeCliPackageDir(), 'prompts'),
+            voicetreeHome: voicetreeHomePath,
+            now: new Date(),
+        })
+        if (promptSync.backedUp.length > 0) {
+            process.stderr.write(
+                `vtd: stashed ${promptSync.backedUp.length} user-overridden prompt(s) under `
+                + `${join(voicetreeHomePath, '.backup', 'prompts')}/<timestamp>: ${promptSync.backedUp.join(', ')}\n`,
+            )
+        }
+    } catch (err) {
+        process.stderr.write(`vtd: home prompts sync failed (continuing): ${(err as Error).message}\n`)
+    }
+
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 

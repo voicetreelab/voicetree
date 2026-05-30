@@ -1,8 +1,8 @@
 import { SETTINGS_SCHEMA } from '@vt/graph-model/settings';
-import type { Section, NumberFieldConfig } from '@vt/graph-model/settings';
+import type { Section, NumberFieldConfig, SelectOption } from '@vt/graph-model/settings';
 
-export type { Section, NumberFieldConfig };
-export type FieldType = 'toggle' | 'number' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group' | 'layout-config';
+export type { Section, NumberFieldConfig, SelectOption };
+export type FieldType = 'toggle' | 'number' | 'select' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group' | 'layout-config';
 
 export function inferFieldType(key: string, value: unknown): FieldType {
     if (key === 'hotkeys') return 'hotkey-group';
@@ -10,6 +10,7 @@ export function inferFieldType(key: string, value: unknown): FieldType {
     if (key === 'hooks') return 'hook-group';
     if (key === 'INJECT_ENV_VARS') return 'key-value';
     if (key === 'layoutConfig') return 'layout-config';
+    if (SELECT_FIELD_OPTIONS[key]) return 'select';
     if (typeof value === 'boolean') return 'toggle';
     if (typeof value === 'number') return 'number';
     if (typeof value === 'string' && (value.includes('\n') || value.length > 100)) return 'textarea';
@@ -41,3 +42,9 @@ export const NUMBER_FIELD_CONFIG: Record<string, NumberFieldConfig> = Object.fro
         .filter(([, v]) => 'number' in v && v.number)
         .map(([k, v]) => [k, v.number])
 ) as Record<string, NumberFieldConfig>;
+
+export const SELECT_FIELD_OPTIONS: Record<string, readonly SelectOption[]> = Object.fromEntries(
+    Object.entries(SETTINGS_SCHEMA)
+        .filter(([, v]) => 'options' in v && v.options)
+        .map(([k, v]) => [k, v.options])
+) as Record<string, readonly SelectOption[]>;

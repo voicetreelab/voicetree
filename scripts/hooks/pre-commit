@@ -66,5 +66,5 @@ fi
 # Skip cheaply if no authored TS/TSX path is staged — those commits have
 # nothing for the AST-based measures to score.
 if printf '%s\n' "$subgraph_files" | grep -qE '\.(ts|tsx)$'; then
-    npm run health:subgraph-gate
+    node scripts/run-remote.mjs pnpm --filter @vt/measures run health:subgraph-gate
 fi

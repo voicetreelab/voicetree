@@ -1,5 +1,7 @@
-import {readdir, readFile} from 'node:fs/promises'
+import {readFile} from 'node:fs/promises'
 import {join, relative, sep} from 'node:path'
+
+import {listGitTrackedFiles} from '../discovery/git-tracked-files.ts'
 
 export type ProjectVocabularyViolation = {
     readonly path: string
@@ -406,23 +408,30 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
     return [...pathViolations, ...contentViolations]
 }
 
-async function scanDirectory(repoRoot: string, absoluteDir: string): Promise<readonly ProjectVocabularyViolation[]> {
-    const entries = await readdir(absoluteDir, {withFileTypes: true})
-    const violations: ProjectVocabularyViolation[] = []
-    for (const entry of entries) {
-        if (entry.isDirectory() && isExcludedDir(entry.name)) continue
-        const absolutePath = join(absoluteDir, entry.name)
-        if (entry.isDirectory()) {
-            violations.push(...await scanDirectory(repoRoot, absolutePath))
-        } else if (entry.isFile() && !isExcludedFile(entry.name)) {
-            violations.push(...await scanFile(repoRoot, absolutePath))
-        }
-    }
-    return violations
+// A git-tracked path is excluded when any directory segment is an excluded dir
+// (by exact name or prefix — e.g. `playwright-report-*`) or its filename is an
+// excluded file (dependency lockfiles, whose integrity hashes coincidentally
+// contain banned terms). Build/cache dirs are untracked by construction, so the
+// tracked enumeration in checkProjectVocabulary needs no other path filter.
+function isExcludedTrackedPath(repoRelativePath: string): boolean {
+    const segments = repoRelativePath.split('/')
+    const fileName = segments[segments.length - 1]
+    const dirSegments = segments.slice(0, -1)
+    return dirSegments.some(isExcludedDir) || isExcludedFile(fileName)
 }
 
 export async function checkProjectVocabulary(repoRoot: string): Promise<ProjectVocabularyReport> {
-    const violations = await scanDirectory(repoRoot, repoRoot)
+    // Enumerate git-tracked files only. A filesystem walk sweeps up untracked
+    // caches (`.ck/`), generated fixtures, and `.gitignore`d output — none of
+    // which are the committed codebase the vocabulary policy governs. Tracked
+    // enumeration leaves only the archived/report-dir denylist and lockfile
+    // filter (build/cache dirs are untracked by construction).
+    const trackedPaths = listGitTrackedFiles(repoRoot)
+        .filter(repoRelativePath => !isExcludedTrackedPath(repoRelativePath))
+    const perFile = await Promise.all(
+        trackedPaths.map(repoRelativePath => scanFile(repoRoot, join(repoRoot, repoRelativePath))),
+    )
+    const violations = perFile.flat()
     const sorted = [...violations].sort((a, b) =>
         a.path.localeCompare(b.path)
         || (a.line ?? 0) - (b.line ?? 0)

@@ -6,7 +6,8 @@ import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
-import type { VTSettings } from '@vt/graph-model/settings';
+import type { VTSettings, TerminalScrollStrategy } from '@vt/graph-model/settings';
+import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
 import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
@@ -71,6 +72,8 @@ export class TerminalVanilla {
   private resizeObserver: ResizeObserver | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
+  private scrollStrategy: TerminalScrollStrategy = 'app';
+  private settingsUnsub: (() => void) | null = null;
   private zoomEndUnsubscribe: (() => void) | null = null;
   private hasWebGLContext: boolean = false;
   private webglAddon: WebglAddon | null = null;
@@ -93,6 +96,17 @@ export class TerminalVanilla {
 
     void this.settingsPromise.then((settings: VTSettings | null) => {
       this.shiftEnterSendsOptionEnter = settings?.shiftEnterSendsOptionEnter ?? true;
+      this.scrollStrategy = settings?.terminalScrollStrategy ?? 'app';
+    });
+
+    // Live-update the scroll strategy so the user can A/B the wheel behaviours
+    // from Settings without respawning terminals.
+    this.settingsUnsub = onSettingsChange((): void => {
+      void window.electronAPI?.main.loadSettings()
+        .then((settings: VTSettings) => {
+          this.scrollStrategy = settings?.terminalScrollStrategy ?? 'app';
+        })
+        .catch(() => { /* keep last known strategy */ });
     });
 
     void this.mount();
@@ -123,23 +137,68 @@ export class TerminalVanilla {
     // Open terminal in the DOM
     term.open(this.container);
 
-    // Wheel routing on the alt buffer (which tmux always occupies):
-    //   • xterm's default wheel→arrow translation corrupts TUIs that read ↑/↓
-    //     as prompt-history navigation (e.g. codex).
-    //   • tmux's own mouse-mode scrolling would force users to hold Shift to
-    //     select text in the browser.
-    // Instead, forward wheel deltas to the relay as an explicit scroll RPC, which
-    // drives tmux copy-mode without enabling mouse mode. Return false so xterm
-    // stays out of it. On the normal buffer (rare for tmux but possible if tmux
-    // ever drops the alt screen), return true so xterm's local scrollback works.
+    // Wheel routing for agent terminals. tmux always occupies xterm's *alternate*
+    // buffer, so `buffer.active.type` is essentially always 'alternate' here — it
+    // can't tell us whether the foreground app (claude TUI, codex, ssh) owns the
+    // screen. The reliable signal is the app's OWN mouse-tracking state, which
+    // xterm exposes as `term.modes.mouseTrackingMode`.
+    //
+    // The behaviour is user-selectable via the `terminalScrollStrategy` setting so
+    // it can be A/B-tested on real agents:
+    //   'app'       — app tracks mouse → return true so xterm encodes the wheel as
+    //                 an SGR mouse event and the app scrolls its OWN view; else tmux
+    //                 copy-mode. (recommended)
+    //   'sgr'       — app tracks mouse → inject SGR wheel bytes into the PTY
+    //                 directly (same effect, explicit); else tmux copy-mode.
+    //   'suppress'  — alt-screen → do nothing (stops wheel-scrolls-into-shell-history).
+    //   'copy-mode' — always tmux copy-mode (legacy behaviour, for comparison).
+    //
+    // On the normal buffer we always return true so xterm's local scrollback works.
     term.attachCustomWheelEventHandler((event: WheelEvent): boolean => {
       if (term.buffer.active.type !== 'alternate') return true;
+
+      const appTracksMouse: boolean = term.modes.mouseTrackingMode !== 'none';
       const lines: number = Math.max(1, Math.round(Math.abs(event.deltaY) / 40));
       const direction: 'up' | 'down' = event.deltaY < 0 ? 'up' : 'down';
-      if (this.relayHandle) {
-        void window.electronAPI?.terminal.scroll(this.relayHandle, direction, lines);
+
+      switch (this.scrollStrategy) {
+        case 'suppress':
+          // Don't let xterm translate wheel→arrows; don't scroll the pre-app
+          // tmux scrollback either. Stop the event so it can't fall through.
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+
+        case 'sgr':
+          if (appTracksMouse) {
+            this.writeSgrWheel(direction, lines);
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+          this.copyModeScroll(direction, lines);
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+
+        case 'copy-mode':
+          this.copyModeScroll(direction, lines);
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+
+        case 'app':
+        default:
+          if (appTracksMouse) {
+            // Let xterm encode the wheel as an SGR mouse event → the app scrolls
+            // itself. Returning true means xterm handles (and cancels) the event.
+            return true;
+          }
+          this.copyModeScroll(direction, lines);
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
       }
-      return false;
     });
 
     // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)
@@ -428,10 +487,34 @@ export class TerminalVanilla {
   /**
    * Cleanup and destroy the terminal
    */
+  /** Scroll tmux's pane scrollback via the relay's copy-mode RPC (mouse-mode-agnostic). */
+  private copyModeScroll(direction: 'up' | 'down', lines: number): void {
+    if (this.relayHandle) {
+      void window.electronAPI?.terminal.scroll(this.relayHandle, direction, lines);
+    }
+  }
+
+  /**
+   * Inject SGR mouse-wheel events straight into the PTY so a mouse-tracking app
+   * (claude TUI, codex, ssh, …) scrolls its own view. SGR button 64 = wheel-up,
+   * 65 = wheel-down; `M` = press (wheel has no release). One sequence per line,
+   * capped so a big trackpad fling can't flood the app.
+   */
+  private writeSgrWheel(direction: 'up' | 'down', lines: number): void {
+    if (!this.relayHandle) return;
+    const button: number = direction === 'up' ? 64 : 65;
+    const count: number = Math.min(lines, 10);
+    const seq: string = `\x1b[<${button};1;1M`.repeat(count);
+    void window.electronAPI?.terminal.write(this.relayHandle, seq);
+  }
+
   dispose(): void {
     if (this.terminalId) {
       vtTerminalBufferDebug()?.clearTerminalBufferReader?.(this.terminalId);
     }
+
+    this.settingsUnsub?.();
+    this.settingsUnsub = null;
 
     if (this.onVisibilityChange) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);

@@ -20,7 +20,7 @@ import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
-import {appendCliManualToAgentPrompt} from '../cliManualInjection'
+import {appendCliManualToAgentPrompt} from '../injection/cliManualInjection'
 
 describe('appendCliManualToAgentPrompt (pure)', () => {
     it('appends the manual inside <vt_cli_manual> sentinels', () => {

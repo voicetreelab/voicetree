@@ -126,6 +126,12 @@ export function resolveCommand(
   override: string | undefined,
 ): CommandSpec {
   const trimmed = override?.trim()
+  // Inherit the launcher's full environment. This is the channel by which
+  // VOICETREE_OTLP_ENDPOINT + VOICETREE_RUN_INSTANCE_ID (set by the
+  // ensure-perf-stack preflight on the electron-main process) reach the spawned
+  // vt-graphd, where bin/vt-graphd.ts reads them to attach the OTLP exporter.
+  // Keep this a full pass-through: narrowing it to an allowlist would silently
+  // drop vt-graphd's spans from the perf stack while electron-main's still flow.
   const env: NodeJS.ProcessEnv = { ...process.env }
   if (trimmed) {
     const parts = trimmed.split(/\s+/)

@@ -111,7 +111,17 @@ if (electronVtBinDir !== null) {
 }
 
 configureEnvironment();
-tracing.init('vt-electron-main', pinProcessVoicetreeHomePath());
+// Pin the VoiceTree home before tracing so it (and the daemon/CLI it spawns)
+// share one settings root. The OTLP gRPC exporter only attaches when
+// VOICETREE_OTLP_ENDPOINT is present — set by the ensure-perf-stack preflight
+// that wraps `npm run electron(:prod)`; absent it, only the NDJSON exporter
+// runs. tracing.init reads this once at startup, so the env must already be set
+// by the launching process (it is: the preflight exports it before spawn).
+pinProcessVoicetreeHomePath();
+tracing.init('vt-electron-main', {
+    otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
+    instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
+});
 tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });

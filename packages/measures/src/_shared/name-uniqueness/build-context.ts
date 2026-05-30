@@ -15,7 +15,7 @@
 // callers don't need additional type imports.
 
 import {readFile, readdir, mkdir, unlink, writeFile} from 'node:fs/promises'
-import {extname, join, resolve} from 'node:path'
+import {extname, join, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 import {discoverPackages, DEFAULT_REPO_ROOT} from '../discovery/discover-packages.ts'
@@ -100,11 +100,30 @@ function cachePathFor(repoRoot: string, cacheKey: string): string {
     return join(cacheDirFor(repoRoot), `name-index-${cacheKey}.json`)
 }
 
-async function loadCachedDeclarations(cachePath: string): Promise<readonly DeclaredName[] | null> {
+/**
+ * A name-index cache is only valid for the checkout it was built in. A
+ * declaration's identity (used to dedupe and cluster) is its absolute file
+ * path, so a cache whose paths don't sit under the current repo root was
+ * built somewhere else — a different checkout, or copied in — and must be
+ * rebuilt rather than trusted: its foreign paths would make a file appear
+ * to collide with its own out-of-tree copy. The cache lives under
+ * `<repoRoot>/.voicetree/cache/` and is rebuilt on demand, so this only
+ * fires when a stale cache is left behind by a checkout move.
+ */
+export function isCacheBuiltForRoot(
+    declarations: readonly DeclaredName[],
+    repoRoot: string,
+): boolean {
+    const prefix = repoRoot.endsWith(sep) ? repoRoot : repoRoot + sep
+    return declarations.every(d => d.filePath.startsWith(prefix))
+}
+
+async function loadCachedDeclarations(cachePath: string, repoRoot: string): Promise<readonly DeclaredName[] | null> {
     try {
         const raw = JSON.parse(await readFile(cachePath, 'utf8')) as {
             readonly declarations: readonly DeclaredName[]
         }
+        if (!isCacheBuiltForRoot(raw.declarations, repoRoot)) return null
         return raw.declarations
     } catch {
         return null
@@ -123,7 +142,7 @@ async function writeCacheAndGc(repoRoot: string, cacheKey: string, declarations:
 
 async function loadOrBuildDeclarations(repoRoot: string, cacheKey: string | null): Promise<readonly DeclaredName[]> {
     if (cacheKey !== null) {
-        const cached = await loadCachedDeclarations(cachePathFor(repoRoot, cacheKey))
+        const cached = await loadCachedDeclarations(cachePathFor(repoRoot, cacheKey), repoRoot)
         if (cached !== null) return cached
     }
     const declarations = await scanRepoDeclarations(repoRoot)
