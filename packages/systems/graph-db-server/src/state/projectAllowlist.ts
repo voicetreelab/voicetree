@@ -56,6 +56,7 @@ import {
     seedActiveViewExpandedFolderStates,
     setActiveViewFolderState,
 } from "../data/watch-folder/folder-visibility-active-view";
+import { getFolderStateForActiveView } from "../data/views/folderStateOps";
 
 /**
  * Get all project paths (writeFolderPath + active-view expanded paths).
@@ -355,6 +356,48 @@ export async function removeReadPath(
 
     await broadcastProjectState();
     return { success: true, removedNodeCount };
+}
+
+/**
+ * Reconcile-on-load purge: enforce INV-1 across the whole project after a
+ * (re)load. Drops every graph node that belongs to a `'hidden'` folder and is
+ * not kept alive by a loaded ancestor (the write folder or a still-expanded
+ * read path) — healing any drift where a hidden folder's nodes lingered (e.g.
+ * dragged back in by link resolution).
+ *
+ * This is the unload transition's removal rule (`nodesUnderFolderNotKept`)
+ * lifted from "the one folder being unloaded" to "every hidden folder", applied
+ * once as a single memory-only delta. Returns the number of nodes removed.
+ *
+ * Must run AFTER read-path expansion so an expanded sub-path of an otherwise
+ * hidden tree is respected by the kept-paths set.
+ */
+export async function reconcileHiddenFolders(): Promise<{ removedNodeCount: number }> {
+    const watchedDir: FilePath | null = getProjectRoot();
+    if (!watchedDir) return { removedNodeCount: 0 };
+
+    const { folderState } = getFolderStateForActiveView(watchedDir);
+    const hiddenFolders: readonly string[] = folderState
+        .filter(([, state]) => state === 'hidden')
+        .map(([folderPath]) => folderPath);
+    if (hiddenFolders.length === 0) return { removedNodeCount: 0 };
+
+    const config: ProjectConfig | undefined = await getProjectConfigForDirectory(watchedDir);
+    const resolvedWriteFolderPath: string = resolveWriteFolderPath(watchedDir, config?.writeFolderPath ?? watchedDir);
+    const expandedPaths: readonly string[] = await getReadPaths();
+    const pathsToKeep: readonly string[] = [resolvedWriteFolderPath, ...expandedPaths];
+
+    const currentGraph: Graph = getGraph();
+    const nodesToRemove: readonly string[] = [
+        ...new Set(
+            hiddenFolders.flatMap((folder: string) =>
+                nodesUnderFolderNotKept(currentGraph, folder, pathsToKeep),
+            ),
+        ),
+    ];
+
+    const removedNodeCount: number = await purgeNodesFromGraph(nodesToRemove);
+    return { removedNodeCount };
 }
 
 /**
