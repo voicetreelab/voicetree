@@ -16,7 +16,7 @@ import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/Grap
  * Only one terminal is allowed per context node. If a terminal already exists
  * for this context node, focus it instead of creating a new one.
  *
- * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
+ * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for agent spawns)
  */
 export async function launchTerminalOntoUI(
     contextNodeId: string,
@@ -37,7 +37,7 @@ export async function launchTerminalOntoUI(
         // Only skip creation if floating window actually exists
         if (vanillaInstance) {
             //console.log('[uiAPI] Floating window already exists for context node, focusing:', existingTerminalId);
-            // Don't steal focus for MCP/background spawns
+            // Don't steal focus for background/agent spawns
             if (!skipFitAnimation && vanillaInstance.focus) {
                 vanillaInstance.focus();
             }
@@ -66,7 +66,7 @@ export async function launchTerminalOntoUI(
 
         // Navigate to terminal neighborhood twice with delays to handle IPC race condition
         // (context node may not exist in Cytoscape yet when this runs)
-        // Skip navigation for MCP spawns to avoid interrupting user's viewport
+        // Skip navigation for agent spawns to avoid interrupting user's viewport
         if (!skipFitAnimation) {
             const navigationService = new GraphNavigationService(cy);
             setTimeout(() => navigationService.fitToTerminal(terminalWithUI), 600);
@@ -74,7 +74,7 @@ export async function launchTerminalOntoUI(
         }
 
         // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
-        // Don't steal focus for MCP/background spawns
+        // Don't steal focus for background/agent spawns
         if (!skipFitAnimation) {
             setTimeout(() => {
                 const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);

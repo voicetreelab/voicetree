@@ -185,7 +185,7 @@ export function updateTerminalRunningState(
     const updated: TerminalData = { ...existing, ...updates };
     terminals.set(terminalId, updated);
 
-    // Sync isDone changes to main process for MCP list_agents
+    // Sync isDone changes to main process for the list_agents tool
     if (updates.isDone !== undefined && updates.isDone !== previousIsDone) {
         void window.electronAPI?.main.updateTerminalIsDone(terminalId, updates.isDone);
     }

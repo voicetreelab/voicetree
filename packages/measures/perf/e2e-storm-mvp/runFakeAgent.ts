@@ -1,7 +1,7 @@
 /**
  * Spawn ONE vt-fake-agent through the normal MCP `spawn_agent` flow.
  *
- * Why not plain child_process: vt-mcpd's `create_graph` tool requires a
+ * Why not plain child_process: the daemon's `create_graph` tool requires a
  * caller terminal registered in Electron's `agent-runtime` singleton. A
  * test-process child is invisible to that registry.
  *

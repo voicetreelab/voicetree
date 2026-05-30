@@ -223,7 +223,10 @@ webapp/workers/share-worker/.wrangler/**
 # Wrangler
 **/.wrangler/**
 
-# Node modules
+# Node modules — ignore both the contents AND the entry itself. The latter
+# matters in git worktrees, where node_modules is a SYMLINK (a single file the
+# `/**` content globs do not match), which `git add -A` would otherwise stage.
+**/node_modules
 **/node_modules/**
 
 # TypeScript build state

@@ -2,7 +2,7 @@
 
 Voicetree has two primitives: nodes and edges. A node is either a markdown file, a set of nodes (folder), or a terminal based agent (Claude code, Codex, OpenCode, Gemini etc. ). 
 
-There's a small API (& MCP) for interacting with them. From this, agent swarms, recursive task decomposition, shared human-agent memory, and self-improving workflows all fall out as consequences. 
+There's a small API (& `vt` CLI) for interacting with them. From this, agent swarms, recursive task decomposition, shared human-agent memory, and self-improving workflows all fall out as consequences. 
 The system is expressive enough to restructure itself at runtime, and because agents and humans share the same API, that self-modification stays stable and observable.
 
 Think of it as a game engine for agentic systems. Unity gives you GameObjects, a lifecycle, and an API you write C# against. 

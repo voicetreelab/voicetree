@@ -173,7 +173,7 @@ export async function launchElectronAndDiscoverMcp(
         try { writeFileSync(inputs.logFilePath, logChunks.join(''), 'utf8') } catch { /* best effort */ }
     }
 
-    // .mcp.json is written by voicetree-mcp at the project root (the dir
+    // .mcp.json is written by vtd at the project root (the dir
     // registered in projects.json), NOT inside the write-folder-path project.
     const mcpJsonPath = path.join(inputs.projectDir, '.mcp.json')
     const discoveryStart = Date.now()

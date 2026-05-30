@@ -165,7 +165,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         });
         terminalIds.push(parentTerminalId);
 
-        // 2. Spawn child terminal (mocks MCP spawn_agent)
+        // 2. Spawn child terminal (mocks the spawn_agent tool)
         if (candidates.length > 1) {
             const { terminalId: childTerminalId } = await facade.terminals.spawnTerminalWithContextNode({
                 taskNodeId: candidates[1],

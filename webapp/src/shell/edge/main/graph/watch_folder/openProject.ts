@@ -204,7 +204,7 @@ export async function openProject(projectRoot: string): Promise<OpenProjectRespo
 
         pushToRenderer('project:ready', { path: projectRoot })
         void getCallbacks().stripStaleMcpEntries?.(projectRoot).catch((err: unknown) => {
-            console.error('[openProject] Failed to strip stale MCP entries:', err)
+            console.error('[openProject] Failed to strip stale VoiceTree client-config entries:', err)
         })
         void getCallbacks().writeProjectAgentDiscoveryFile?.(projectRoot).catch((err: unknown) => {
             console.error('[openProject] Failed to write project agent discovery file:', err)

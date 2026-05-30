@@ -72,7 +72,7 @@ if (app.isPackaged) {
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Note: vt-daemon's MCP server runs out-of-process inside the per-project VTD
+// Note: vt-daemon's tool server runs out-of-process inside the per-project VTD
 // child. The in-process `configureMcpServer` call that used to live here
 // wired in-process bridges (`getMcpGraph`, `getLiveStateBridge`, …) against
 // vt-daemon's module-level state. After BF-375/BF-376 those bridges are
