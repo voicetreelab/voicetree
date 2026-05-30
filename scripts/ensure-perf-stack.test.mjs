@@ -58,7 +58,22 @@ test('cold start: installs binaries then brings the stack up', async () => {
     enabled: true,
     endpoint: 'http://localhost:2994',
     instanceId: 'run-cold',
+    tier: 'lite',
   })
+})
+
+test('an enabled preflight selects the always-on lite perf tier', async () => {
+  const stack = fakePerfStack({ installed: true, running: true })
+
+  const result = await ensurePerfStack({
+    env: {},
+    run: stack.run,
+    binHasContents: stack.binHasContents,
+    log: silent,
+    newRunId: () => 'run-tier',
+  })
+
+  assert.equal(result.tier, 'lite', 'interactive launches profile at the lite tier')
 })
 
 test('first-run install emits the one-time progress line', async () => {

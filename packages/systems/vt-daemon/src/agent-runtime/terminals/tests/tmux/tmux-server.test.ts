@@ -5,8 +5,8 @@ import {
     getTmuxCommandArgs,
     getTmuxSocketPath,
     shutdownTmuxServer,
-} from '../tmux/tmux-server.ts'
-import type {TmuxServerDeps} from '../tmux/tmux-server-core.ts'
+} from '../../tmux/tmux-server.ts'
+import type {TmuxServerDeps} from '../../tmux/tmux-server-core.ts'
 
 type FakeCall = {
     readonly args: readonly string[]
@@ -101,6 +101,9 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
             if (path !== lockPath || !mutable.lockExists) throw errno('ENOENT')
             return {mtimeMs: mutable.lockMtimeMs}
         },
+        readdirSync: (): readonly string[] => [],
+        tmpdir: (): string => '/tmp',
+        processAlive: (): boolean => true,
         execFileSync: (file: string, args?: readonly string[] | undefined): string => {
             if (file === 'which' && args?.[0] === 'tmux') return '/opt/homebrew/bin/tmux\n'
             return ''
@@ -421,16 +424,14 @@ describe('tmux-server', () => {
         expect(deps.removedPaths).toContain(socketPath)
     })
 
-    it('treats a missing tmux server shutdown as a no-op', async () => {
+    it('treats a missing tmux server shutdown as a no-op without spawning tmux', async () => {
         const voicetreeHomePath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(voicetreeHomePath, 'tmux.sock')
         const deps = makeDeps({serverRunning: false, socketExists: false})
 
         await shutdownTmuxServer({voicetreeHomePath, deps})
 
-        expect(commandTuples(deps.calls)).toEqual([
-            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
-        ])
+        // No socket file ⇒ no reachable server: short-circuit before the tmux probe.
+        expect(commandTuples(deps.calls)).toEqual([])
         expect(deps.removedPaths).toEqual([])
     })
 })

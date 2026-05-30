@@ -25,11 +25,11 @@ import {afterAll, afterEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {applyPromptFileToTmuxSpawn} from '@vt/vt-daemon/agent-runtime/headless/tmuxPromptFile.ts'
 import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
-import {clearTerminalRecords} from '../terminal-registry'
-import {hasSession, killSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
-import {withVoicetreeProjectPath} from '../tmux/tmuxSpawnPlanning'
-import {createTerminalData, type TerminalData, type TerminalId} from '../terminal-registry/types'
+import {clearTerminalRecords} from '../../terminal-registry'
+import {hasSession, killSession, resolveTmuxSessionName} from '../../tmux/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../tmux/tmux-server'
+import {withVoicetreeProjectPath} from '../../tmux/tmuxSpawnPlanning'
+import {createTerminalData, type TerminalData, type TerminalId} from '../../terminal-registry/types'
 
 const sessions: Set<string> = new Set<string>()
 const tempDirs: Set<string> = new Set<string>()

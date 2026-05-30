@@ -244,7 +244,10 @@ async function panFolderHandleIntoInteractiveViewport(appWindow: Page, folderId:
         const sidebarRight = (document.querySelector('[data-testid="folder-tree-sidebar"]') as HTMLElement | null)
             ?.getBoundingClientRect().right ?? 0;
         const containerRect = container.getBoundingClientRect();
-        const folderBbox = (folder as import('cytoscape').NodeSingular).renderedBoundingBox();
+        // Body-only bbox: the chip strip anchors to the folder body's TL corner,
+        // not the default bbox (which includes the title label floating above it).
+        const folderBbox = (folder as import('cytoscape').NodeSingular)
+            .renderedBoundingBox({includeLabels: false, includeOverlays: false});
         const chipPx = 22;
         const eyeCenterX = containerRect.left + folderBbox.x1 + chipPx + (chipPx / 2);
         const eyeCenterY = containerRect.top + folderBbox.y1 + (chipPx / 2);
@@ -281,7 +284,10 @@ async function getFolderHandleSnapshot(appWindow: Page, folderId: string): Promi
 
         const containerRect = container.getBoundingClientRect();
         const chipRect = chip.getBoundingClientRect();
-        const folderBbox = (folder as import('cytoscape').NodeSingular).renderedBoundingBox();
+        // Body-only bbox: the chip strip anchors to the folder body's TL corner,
+        // not the default bbox (which includes the title label floating above it).
+        const folderBbox = (folder as import('cytoscape').NodeSingular)
+            .renderedBoundingBox({includeLabels: false, includeOverlays: false});
         const chipOffsetX = chipRect.x - containerRect.x;
         const chipOffsetY = chipRect.y - containerRect.y;
         const toRectSnapshot = (rect: DOMRect): RectSnapshot => ({
@@ -407,6 +413,10 @@ test.describe('Folder-note DOM affordance', () => {
         });
 
         const expandedHandle = await getFolderHandleSnapshot(appWindow, authFolderId);
+        // Chip strip is snug in the folder body's top-left corner (chevron flush
+        // against the top & left edges), not floating above the box on the label.
+        expect(Math.abs(expandedHandle.chipOffsetFromFolder.dx)).toBeLessThanOrEqual(3);
+        expect(Math.abs(expandedHandle.chipOffsetFromFolder.dy)).toBeLessThanOrEqual(3);
         await expectEyeReceivesPointer(appWindow, expandedHandle.eye);
         await clickEyeAndWaitForFolderNote(appWindow, expandedHandle.eye);
         await closeHoverEditor(appWindow);

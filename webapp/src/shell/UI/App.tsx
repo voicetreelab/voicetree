@@ -353,8 +353,11 @@ function App(): JSX.Element {
         <div className="fixed inset-0 overflow-clip bg-background">
             {/* Layer 0: Dot-grid underlay - sits behind the transparent Cytoscape canvas */}
             <div ref={dotGridRef} className="absolute inset-0 pb-14 dot-grid pointer-events-none"/>
-            {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
-            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden"/>
+            {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow.
+                `isolate` makes this an isolated stacking context: DOM overlays appended into the cy
+                container (the folder-handle chevron/eye chips) are confined to the graph layer and can
+                never paint over Layer 2 chrome, regardless of their own z-index. */}
+            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden isolate"/>
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
             <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 

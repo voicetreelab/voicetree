@@ -199,24 +199,6 @@ export interface IVoiceTreeGraphView {
   onNodeSelected(callback: (nodeId: string) => void): () => void;
 
   /**
-   * Subscribe to node double-click events
-   *
-   * Behavior:
-   * - Fires when user double-clicks on a node
-   * - Provides the node ID
-   * - Multiple subscribers allowed
-   *
-   * @param callback - Function to call when node double-clicked
-   * @returns Unsubscribe function
-   *
-   * @example
-   * graphView.onNodeDoubleClick((nodeId) => {
-   *   //console.log('Double-clicked:', nodeId);
-   * });
-   */
-  onNodeDoubleClick(callback: (nodeId: string) => void): () => void;
-
-  /**
    * Subscribe to edge selection events
    *
    * Behavior:

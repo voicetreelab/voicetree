@@ -132,6 +132,10 @@ export type ActiveView = z.infer<typeof ActiveViewSchema>
 export const FolderStateResponseSchema = z.object({
   folderState: z.array(FolderStateEntrySchema),
   activeView: ActiveViewSchema,
+  // Number of graph nodes the unload transition removed. Present only on a
+  // `'hidden'` set so a caller/UI can detect a no-op purge (a folder that is
+  // non-empty on disk yet removed zero nodes is a detectable anomaly).
+  removedNodeCount: z.number().int().nonnegative().optional(),
 })
 export type FolderStateResponse = z.infer<typeof FolderStateResponseSchema>
 

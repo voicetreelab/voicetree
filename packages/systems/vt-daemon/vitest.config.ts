@@ -6,6 +6,9 @@ const ciCheckReporter = require.resolve('@vt/measures/vitest-reporter')
 
 export default defineConfig({
     test: {
+        // Reap tmux servers leaked by crashed prior workers and tear down this
+        // worker's ephemeral tmux server on completion. See vitest.setup.ts.
+        setupFiles: ['./vitest.setup.ts'],
         reporters: [
             'default',
             [ciCheckReporter, {

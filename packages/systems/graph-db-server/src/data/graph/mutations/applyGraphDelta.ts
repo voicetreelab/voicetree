@@ -8,7 +8,7 @@ import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
-import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
+import {resolveAbsoluteLinkedNodes} from "../loading/loadGraphFromDisk";
 import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
@@ -24,7 +24,6 @@ interface PreparedMemState {
 async function prepareGraphDeltaMemState(
     currentGraph: Graph,
     delta: GraphDelta,
-    watchedDir: string | null,
 ): Promise<PreparedMemState> {
     let appliedDelta: GraphDelta = delta
     let newGraph: Graph = await traceGraphdSpan('daemon.apply-delta.mem.apply-to-graph', async span => {
@@ -34,14 +33,17 @@ async function prepareGraphDeltaMemState(
         return next
     });
 
-    // Only resolve wikilinks when delta contains UpsertNode (which might introduce new links)
-    // Skip for delete-only deltas - we don't want to re-add deleted nodes via link resolution
+    // Resolution is delta-scoped: relative links are healed against loaded nodes
+    // by the graph-model edge indexes during applyGraphDeltaToGraph above; the
+    // only genuinely-new file loading left is following this delta's *absolute*
+    // links (existsSync, loads from anywhere on disk). Skip delete-only deltas —
+    // we don't want to re-add a deleted node via its own resolved links.
     const hasAddOrUpdate: boolean = appliedDelta.some(d => d.type === 'UpsertNode');
 
-    if (hasAddOrUpdate && watchedDir && newGraph.unresolvedLinksIndex.size > 0) {
+    if (hasAddOrUpdate) {
         const resolutionDelta: GraphDelta = await traceGraphdSpan('daemon.apply-delta.mem.resolve-links', async span => {
             span.setAttribute('vt.unresolved.size', newGraph.unresolvedLinksIndex.size)
-            const r = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
+            const r = await resolveAbsoluteLinkedNodes(newGraph, appliedDelta);
             span.setAttribute('vt.resolved.delta.size', r.length)
             return r
         });
@@ -59,22 +61,30 @@ function commitGraphDeltaMemState(prepared: PreparedMemState): GraphDelta {
     setGraph(prepared.graph);
 
     // Fire onNewNode hook (fire-and-forget). Runs for both UI and FS-event paths.
-    // dispatchOnNewNodeHooks filters for UpsertNode with previousNode=None, so
-    // delete-only deltas (e.g. removeReadPath) are no-ops.
-    void loadSettings().then(settings => {
-        const hookPath: string | undefined = settings.hooks?.onNewNode
-        if (hookPath && !hookPath.startsWith('#')) {
-            const callbacks = getCallbacks()
-            if (callbacks.onNewNodeHook) {
-                // Dispatch for each new node upsert
-                for (const d of prepared.appliedDelta) {
-                    if (d.type === 'UpsertNode' && O.isNone(d.previousNode)) {
-                        callbacks.onNewNodeHook(d.nodeToUpsert.absoluteFilePathIsID, prepared.appliedDelta)
-                    }
+    // The hook only ever fires for brand-new node upserts (UpsertNode with
+    // previousNode=None) — the registered dispatcher itself filters to those, so
+    // delete-only and edit-only deltas are already no-ops. Gate the settings
+    // read on that condition FIRST: loadSettings() hits disk + parses on every
+    // call by design, and in steady state edits/deletes/position-writes vastly
+    // outnumber node creations, so reading settings on every commit just to
+    // discover there is nothing to dispatch is wasted per-mutation IO.
+    const introducesNewNode: boolean = prepared.appliedDelta.some(
+        d => d.type === 'UpsertNode' && O.isNone(d.previousNode),
+    )
+    if (introducesNewNode) {
+        void loadSettings().then(settings => {
+            const hookPath: string | undefined = settings.hooks?.onNewNode
+            if (!hookPath || hookPath.startsWith('#')) return
+            const onNewNodeHook = getCallbacks().onNewNodeHook
+            if (!onNewNodeHook) return
+            // Dispatch for each new node upsert
+            for (const d of prepared.appliedDelta) {
+                if (d.type === 'UpsertNode' && O.isNone(d.previousNode)) {
+                    onNewNodeHook(d.nodeToUpsert.absoluteFilePathIsID, prepared.appliedDelta)
                 }
             }
-        }
-    })
+        })
+    }
 
     return prepared.appliedDelta
 }
@@ -93,7 +103,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const currentGraph: Graph = getGraph();
     delta = rebaseStaleEdgeAdditionDeltas(currentGraph, delta);
     const {delta: resolvedDelta, anyResolved} = resolveInitialPositionsForDelta(currentGraph, delta);
-    const prepared = await prepareGraphDeltaMemState(currentGraph, resolvedDelta, getProjectRoot());
+    const prepared = await prepareGraphDeltaMemState(currentGraph, resolvedDelta);
     const appliedDelta = commitGraphDeltaMemState(prepared);
 
     // Persist newly-computed positions synchronously so they survive a daemon
@@ -137,7 +147,6 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
         async () => await prepareGraphDeltaMemState(
             currentGraph,
             deltaToApply,
-            watchedDirectory,
         ),
     )
 
