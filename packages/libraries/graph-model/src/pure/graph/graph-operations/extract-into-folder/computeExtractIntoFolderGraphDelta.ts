@@ -4,6 +4,7 @@ import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position } from '
 import { getIncomingEdgesToSubgraph } from '../merge/getIncomingEdgesToSubgraph'
 import { redirectEdgeTarget } from '../merge/redirectEdgeTarget'
 import { getFolderDescendantNodeIds, getFolderParent, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
+import { getPathComponents } from '../../markdown-parsing/extract-edges'
 
 export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean
@@ -129,10 +130,23 @@ function replaceTargetPlaceholders(
         return content
     }
 
+    // A bare-basename wikilink (`[[foo]]`, one path component) is
+    // location-independent: it resolves by name, and a moved file keeps its name,
+    // so the link still resolves after the move. Rewriting it to the new absolute
+    // path is unnecessary and fragile (breaks on folder rename / project relocation)
+    // and pollutes the markdown. Preserve it; only links that encode a location —
+    // path-qualified file links, or links to a moved *folder* (folders don't
+    // resolve through the file-basename index) — are redirected.
+    const targetIsFolder: boolean = oldTargetId.endsWith('/')
+
     return content.replace(/\[([^\]]+)\]\*/g, (match: string, linkText: string): string => {
-        return linkMatchScore(linkText, oldTargetId) > 0
-            ? `[${newTargetId}]*`
-            : match
+        if (linkMatchScore(linkText, oldTargetId) <= 0) {
+            return match
+        }
+        if (!targetIsFolder && getPathComponents(linkText).length <= 1) {
+            return match
+        }
+        return `[${newTargetId}]*`
     })
 }
 
