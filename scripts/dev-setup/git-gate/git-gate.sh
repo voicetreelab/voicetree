@@ -65,18 +65,12 @@ rest="${*:2}"
 reason=""
 suggestion=""
 
-# Sibling worktree dir name, matching the daemon's role mapping: VM-owned trees
-# live under vt-wts-remote/, Mac-owned under vt-wts/. Used to scope the
-# admission check to the right directory.
-gate_worktree_sibling_dir() {
-  local role="${VT_DEV_ROLE:-}"
-  if [ -z "$role" ] && [ -f "$HOME/.env" ]; then
-    role="$(awk -F= '/^VT_DEV_ROLE=/{sub(/^VT_DEV_ROLE=/,""); print; exit}' "$HOME/.env")"
-  fi
-  case "$role" in
-    remote) printf 'vt-wts-remote' ;;
-    *)      printf 'vt-wts' ;;
-  esac
+# Per-machine worktree root. This wrapper is the ONE place that owns worktree
+# PLACEMENT: callers pass a bare name and we put the tree here. The default
+# matches the admission checker's default basename (vt-wts); install.sh writes
+# the per-machine value (Linux: $HOME/vt-wts, macOS: $HOME/repos/vt-wts-synced).
+gate_worktree_root() {
+  printf '%s' "${VT_WORKTREE_ROOT:-$HOME/vt-wts}"
 }
 
 worktree_add_path_arg() {
@@ -106,6 +100,36 @@ worktree_add_path_arg() {
         return 0
         ;;
     esac
+  done
+}
+
+# Like worktree_add_path_arg, but prints the 1-based index of the destination
+# positional within the passed args (the stripped `worktree add ...` argv), so
+# the caller can REWRITE that element for placement enforcement. Empty if none.
+# Scanning starts at $3 (after the `worktree add` tokens).
+worktree_add_path_index() {
+  local i=3 n=$#
+  local expect_option_value=0
+  local after_separator=0
+  local arg
+  while [ "$i" -le "$n" ]; do
+    arg="${!i}"
+    if [ "$after_separator" -eq 1 ]; then
+      printf '%s\n' "$i"
+      return 0
+    fi
+    if [ "$expect_option_value" -eq 1 ]; then
+      expect_option_value=0
+      i=$((i + 1))
+      continue
+    fi
+    case "$arg" in
+      --)            after_separator=1 ;;
+      -b|-B|--orphan|--reason) expect_option_value=1 ;;
+      -*)            ;;
+      *)             printf '%s\n' "$i"; return 0 ;;
+    esac
+    i=$((i + 1))
   done
 }
 
@@ -207,8 +231,8 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
     if [ -n "$repo_top" ] && [ -x "$admission" ]; then
       admission_ec=0
       # Run inside the repo (the check relies on cwd) and scope it to the
-      # role-correct sibling dir.
-      ( cd "$repo_top" && VT_WT_SIBLING_DIR_NAME="$(gate_worktree_sibling_dir)" "$admission" ) >&2 \
+      # basename of this machine's worktree root.
+      ( cd "$repo_top" && VT_WT_SIBLING_DIR_NAME="$(basename "$(gate_worktree_root)")" "$admission" ) >&2 \
         || admission_ec=$?
       if [ "$admission_ec" -eq 1 ]; then
         echo "" >&2
@@ -220,7 +244,32 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
     fi
   fi
 
-  wt_path="$(worktree_add_path_arg "$@")"
+  # --- PLACEMENT enforcement ------------------------------------------------
+  # The wrapper owns WHERE worktrees live: rewrite the destination to
+  # <worktree-root>/<basename-of-given-path> so callers (the VoiceTree app,
+  # agents, plain `git worktree add -b x x`) never need to know the convention.
+  # Escape hatch: VT_GIT_GATE_NO_PLACEMENT=1 honors the caller's explicit path.
+  if [ "${VT_GIT_GATE_NO_PLACEMENT:-}" = "1" ]; then
+    wt_path="$(worktree_add_path_arg "$@")"
+  else
+    given_idx="$(worktree_add_path_index "$@")"
+    if [ -n "$given_idx" ]; then
+      given_path="${!given_idx}"
+      wt_root="$(gate_worktree_root)"
+      wt_path="$wt_root/$(basename "$given_path")"
+      mkdir -p "$wt_root"
+      # Replace the destination positional in the stripped argv, then rebuild
+      # the full real-git argv as <global opts> + <rewritten subcommand args>.
+      rewritten=("$@")
+      rewritten[$((given_idx - 1))]="$wt_path"
+      ORIG_ARGS=("${GATE_GLOBAL_OPTS[@]}" "${rewritten[@]}")
+      echo "git-gate: placement → $wt_path" >&2
+    else
+      # No destination positional found — leave argv untouched (real git will
+      # error on its own, which is the correct surface for a malformed add).
+      wt_path="$(worktree_add_path_arg "$@")"
+    fi
+  fi
   echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
@@ -233,7 +282,7 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
     #  2. `--relative-paths` (host-portable pointers, needed for mutagen
     #     cross-host sync) only exists on git >= 2.48. Try it first, then fall
     #     back to a plain repair — absolute pointers are fine for worktrees that
-    #     never sync across hosts (e.g. the VM-local /root/vt-wts-remote trees).
+    #     never sync across hosts (e.g. the VM-local /root/vt-wts trees).
     repair_dir="${wt_path:-.}"
     if "$REAL_GIT" -C "$repair_dir" worktree repair --relative-paths >/dev/null 2>&1; then
       echo "git-gate: worktree git metadata normalized (relative paths)" >&2
