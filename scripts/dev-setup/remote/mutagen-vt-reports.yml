@@ -1,0 +1,39 @@
+# One-way-replica sync for the generated codebase-health report files.
+#
+# Scope: `health-dashboard/reports/` EXCLUDING `scores-history/`.
+# Direction: REMOTE (alpha) → LOCAL (beta).
+#
+# Why remote is alpha:
+#   Tests and measure runs execute on the devbox. The health-report-writer
+#   lands reports in health-dashboard/reports/{latest.json,*.json} on the
+#   remote. The local dashboard reads those files. Remote must be the source
+#   of truth so local always reflects the latest devbox run — not the other
+#   way around.
+#
+# Why this is a THIRD session (not merged into vt-remote or vt-csv-history):
+#   - `vt-remote` is one-way-replica LOCAL→REMOTE (local is alpha). We
+#     cannot flip its direction — that would push remote code to the Mac.
+#   - Mutagen sessions have a single mode for the whole session; we can't
+#     do "one-way-replica in both directions" for different sub-paths.
+#   - `vt-csv-history` is two-way-safe (scores-history/ is conflict-free
+#     because each machine writes its own UUID-named file). Generated JSON
+#     reports are NOT two-way-safe: both sides could produce a latest.json.
+#   - Three disjoint sessions, three disjoint concerns, disjoint paths.
+#
+# scores-history/ is excluded here — it is owned by vt-csv-history.
+#
+# Lifecycle commands live in `scripts/dev-setup/remote/vt-remote.sh`:
+#   vt-remote.sh reports-create
+#   vt-remote.sh reports-status
+#   vt-remote.sh reports-terminate
+sync:
+  defaults:
+    mode: "one-way-replica"
+    symlink:
+      mode: "posix-raw"
+    ignore:
+      vcs: false
+      paths:
+        - "scores-history"
+        - "scores-history/**"
+        - "**/.DS_Store"

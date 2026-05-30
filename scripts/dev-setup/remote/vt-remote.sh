@@ -56,6 +56,9 @@ MUTAGEN_CONFIG="$SCRIPT_DIR/mutagen-vt-remote.yml"
 CSV_HISTORY_CONFIG="$SCRIPT_DIR/mutagen-vt-csv-history.yml"
 CSV_HISTORY_LOCAL="$REPO_ROOT/health-dashboard/reports/scores-history"
 CSV_HISTORY_REMOTE="${REMOTE_DIR}/health-dashboard/reports/scores-history"
+REPORTS_CONFIG="$SCRIPT_DIR/mutagen-vt-reports.yml"
+REPORTS_LOCAL="$REPO_ROOT/health-dashboard/reports"
+REPORTS_REMOTE="${REMOTE_DIR}/health-dashboard/reports"
 VT_BRAIN_REPO_URL="${VT_BRAIN_REPO_URL:-git@github.com:voicetreelab/brain.git}"
 VT_BRAIN_LOCAL="${VT_BRAIN_LOCAL:-$HOME/brain-real}"
 VT_BRAIN_REMOTE="${VT_BRAIN_REMOTE:-/root/brain-real}"
@@ -80,6 +83,18 @@ create_csv_history_sync() {
     --configuration-file "$CSV_HISTORY_CONFIG" \
     "$CSV_HISTORY_LOCAL" \
     "${REMOTE}:${CSV_HISTORY_REMOTE}"
+}
+
+create_reports_sync() {
+  # Remote is alpha (source of truth) — arg order is REVERSED vs vt-remote:
+  # remote path comes first so mutagen treats it as alpha.
+  ssh -o StrictHostKeyChecking=no "$REMOTE" "mkdir -p '$REPORTS_REMOTE'"
+  mkdir -p "$REPORTS_LOCAL"
+  exec mutagen sync create \
+    --name vt-reports \
+    --configuration-file "$REPORTS_CONFIG" \
+    "${REMOTE}:${REPORTS_REMOTE}" \
+    "$REPORTS_LOCAL"
 }
 
 create_vt_wts_sync() {
@@ -167,6 +182,22 @@ case "${1:-}" in
   csv-history-terminate)
     exec mutagen sync terminate vt-csv-history
     ;;
+  reports-create)
+    create_reports_sync
+    ;;
+  reports-recreate)
+    mutagen sync terminate vt-reports >/dev/null 2>&1 || true
+    create_reports_sync
+    ;;
+  reports-status)
+    exec mutagen sync list vt-reports
+    ;;
+  reports-flush)
+    exec mutagen sync flush vt-reports
+    ;;
+  reports-terminate)
+    exec mutagen sync terminate vt-reports
+    ;;
   vt-wts-create)
     create_vt_wts_sync
     ;;
@@ -242,6 +273,11 @@ vt-remote.sh — remote dev box ($REMOTE)
   csv-history-status     mutagen sync list vt-csv-history
   csv-history-flush      force a sync now
   csv-history-terminate  stop the two-way sync session
+  reports-create         create vt-reports one-way sync (remote→local) for health-dashboard/reports/
+  reports-recreate       terminate any existing vt-reports and recreate
+  reports-status         mutagen sync list vt-reports
+  reports-flush          force a sync now
+  reports-terminate      stop the vt-reports sync session
   vt-wts-create          create vt-wts one-way sync for sibling worktrees
   vt-wts-recreate        terminate any existing vt-wts and recreate
   vt-wts-status          mutagen sync list vt-wts
