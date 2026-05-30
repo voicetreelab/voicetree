@@ -7,10 +7,21 @@ import {
 } from '@opentelemetry/api'
 import {
   GraphDbClientError,
+  GraphDbRequestTimeoutError,
   ProjectNotOpenError,
   ProjectOpenFailedError,
 } from '../errors.ts'
 import type { Schema } from '../responseSchemas.ts'
+
+/**
+ * Hard ceiling for a single graphd request when the caller does not supply
+ * one. Generous enough to never abort a legitimate cold-start project parse,
+ * but bounded so a daemon that accepts the socket and then stalls converts
+ * into a thrown {@link GraphDbRequestTimeoutError} instead of an `await`
+ * that never settles. Mirrors `VtDaemonClient`'s `DEFAULT_TIMEOUT_MS` — the
+ * sibling client already had this guard; graphd's transport did not.
+ */
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 
 export type RequestOptions<T> = {
   body?: unknown
@@ -18,6 +29,13 @@ export type RequestOptions<T> = {
   headers?: Record<string, string>
   method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
   responseSchema?: Schema<T>
+  /**
+   * Override the per-request deadline. Defaults to
+   * {@link DEFAULT_REQUEST_TIMEOUT_MS}. The timer covers the whole exchange
+   * (connect, response headers, and body read) — aborting the signal errors
+   * an in-flight body stream too.
+   */
+  timeoutMs?: number
 }
 
 export type RequestClient = <T>(
@@ -110,6 +128,9 @@ export function createRequest(baseUrl: string): RequestClient {
         },
       },
       async (span): Promise<T> => {
+        const timeoutMs = opts.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), timeoutMs)
         try {
           const body = opts.body === undefined ? undefined : JSON.stringify(opts.body)
           const headers: Record<string, string> = {
@@ -125,6 +146,7 @@ export function createRequest(baseUrl: string): RequestClient {
             body,
             headers,
             method,
+            signal: controller.signal,
           })
           span.setAttribute('http.status_code', response.status)
           span.addEvent('graphdb.response.received')
@@ -148,13 +170,21 @@ export function createRequest(baseUrl: string): RequestClient {
           span.addEvent('graphdb.response.parsed')
           return parsed
         } catch (error) {
-          span.recordException(error instanceof Error ? error : String(error))
+          // A fetch/body-read rejection caused by our own deadline surfaces
+          // as an opaque AbortError; rewrite it to the typed timeout so the
+          // caller (e.g. openProject) can distinguish "daemon stalled" from
+          // a real protocol error and react instead of hanging.
+          const surfaced = controller.signal.aborted
+            ? new GraphDbRequestTimeoutError(method, route, timeoutMs)
+            : error
+          span.recordException(surfaced instanceof Error ? surfaced : String(surfaced))
           span.setStatus({
             code: SpanStatusCode.ERROR,
-            message: error instanceof Error ? error.message : String(error),
+            message: surfaced instanceof Error ? surfaced.message : String(surfaced),
           })
-          throw error
+          throw surfaced
         } finally {
+          clearTimeout(timer)
           span.end()
         }
       },
