@@ -291,10 +291,16 @@ function App(): JSX.Element {
     }, []);
 
 
-    // Initialize VoiceTreeGraphView when container is ready and in graph view
-    // Settings loaded async before init so showFps can be passed to the WebGL renderer at creation time
+    // Initialize VoiceTreeGraphView when container is ready and a project session exists.
+    // Settings loaded async before init so showFps can be passed to the WebGL renderer at creation time.
+    //
+    // The session gate is load-bearing: onProjectReady -> syncProjectFromDirectory flips
+    // currentView to 'graph-view' before openProjectForProject's await resolves and sets
+    // sessionId. Without this gate the view mounts once with no session, then tears down and
+    // remounts when sessionId lands — churning cy, orphaning a loading overlay, and racing
+    // terminal launches. Waiting for sessionId collapses that into a single mount.
     useEffect(() => {
-        if (currentView !== 'graph-view' || !graphContainerRef.current || !uiContainerRef.current) return;
+        if (currentView !== 'graph-view' || !openedProject?.sessionId || !graphContainerRef.current || !uiContainerRef.current) return;
 
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
