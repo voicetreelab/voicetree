@@ -544,7 +544,7 @@ function resolveRunContext(env: NodeJS.ProcessEnv = process.env): RunContext {
         : undefined
     const perfEnv: Record<string, string> = {
         VOICETREE_RUN_INSTANCE_ID: runUuid,
-        VOICETREE_PERF_PROFILE: '1',
+        VOICETREE_PERF_TIER: 'deep',
     }
     if (otlpEndpoint !== undefined) perfEnv.VOICETREE_OTLP_ENDPOINT = otlpEndpoint
     env.VOICETREE_RUN_INSTANCE_ID = runUuid
