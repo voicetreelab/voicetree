@@ -13,7 +13,7 @@ export interface ReportInput {
     readonly pass: boolean
     readonly failureReason: string | null
     readonly electronBootMs: number
-    readonly mcpDiscoveryMs: number
+    readonly daemonDiscoveryMs: number
     readonly agentCount: number
     readonly nodesPerAgent: number
     readonly agentsSucceeded: number
@@ -27,8 +27,7 @@ export interface ReportInput {
     readonly nodesCreated: number
     readonly filesBefore: number
     readonly filesAfter: number
-    readonly mcpPort: number
-    readonly projectDir: string
+    readonly daemonUrl: string
     readonly projectDir: string
     readonly voicetreeHomePath: string
     readonly electronLogPath: string
@@ -65,7 +64,7 @@ export function writeReportAndSummary(input: ReportInput): void {
         timing: {
             totalWallMs: input.totalWallMs,
             electronBootMs: input.electronBootMs,
-            mcpDiscoveryMs: input.mcpDiscoveryMs,
+            daemonDiscoveryMs: input.daemonDiscoveryMs,
             agentWallMsP50: input.agentWallMsP50,
             agentWallMsP99: input.agentWallMsP99,
             agentWallMsMax: input.agentWallMsMax,
@@ -87,8 +86,7 @@ export function writeReportAndSummary(input: ReportInput): void {
             delta: input.filesAfter - input.filesBefore,
         },
         artifacts: {
-            mcpPort: input.mcpPort,
-            projectDir: input.projectDir,
+            daemonUrl: input.daemonUrl,
             projectDir: input.projectDir,
             voicetreeHomePath: input.voicetreeHomePath,
             electronLogPath: input.electronLogPath,
@@ -106,7 +104,7 @@ export function writeReportAndSummary(input: ReportInput): void {
     process.stdout.write(
         `\n${sep}\n`
         + `  e2e-storm-mvp: ${status}${input.failureReason ? ` — ${input.failureReason}` : ''}\n`
-        + `  electron boot: ${input.electronBootMs}ms   mcp discovery: ${input.mcpDiscoveryMs}ms\n`
+        + `  electron boot: ${input.electronBootMs}ms   daemon discovery: ${input.daemonDiscoveryMs}ms\n`
         + `  storm:         agents=${input.agentsSucceeded}/${input.agentCount} nodes=${input.nodesCreated}/${input.agentCount * input.nodesPerAgent} timedOut=${input.agentsTimedOut}\n`
         + `  spawn wall:    p50=${input.agentSpawnMsP50}ms p99=${input.agentSpawnMsP99}ms max=${input.agentSpawnMsMax}ms\n`
         + `  agent wall:    p50=${input.agentWallMsP50}ms p99=${input.agentWallMsP99}ms max=${input.agentWallMsMax}ms\n`

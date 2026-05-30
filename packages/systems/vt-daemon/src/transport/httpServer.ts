@@ -82,7 +82,7 @@ export interface StartHttpDaemonOptions {
      * Owner-identity projector consulted on every GET /health request
      * (BF-372). Optional during the Phase-1 decomposition: callers that
      * have not yet wired the projector (Electron embedding, harness
-     * fixtures, the existing vt-mcpd shim) will see GET /health return
+     * fixtures) will see GET /health return
      * 503 with a json error body so the unwired state is observable
      * rather than silently presenting an empty `/health`. The vtd
      * binary (Leaf C / Bob's post-merge wiring) supplies this and

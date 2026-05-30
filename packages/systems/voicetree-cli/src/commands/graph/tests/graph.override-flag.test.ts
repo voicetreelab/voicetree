@@ -140,7 +140,7 @@ describe('mergeOverrideSpecs (last-wins by ruleId)', () => {
 })
 
 describe('rewriteOverrideHintForCli', () => {
-    it('rewrites the MCP override hint into a --override flag suggestion', () => {
+    it('rewrites the daemon override hint into a --override flag suggestion', () => {
         const mcpError: string = [
             'Validation failed. The following rules were violated:',
             '',

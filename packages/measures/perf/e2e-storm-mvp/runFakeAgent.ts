@@ -1,16 +1,24 @@
 /**
- * Spawn ONE vt-fake-agent through the normal MCP `spawn_agent` flow.
+ * Spawn ONE vt-fake-agent through the daemon's `spawn_agent` tool.
  *
- * Why not plain child_process: vt-mcpd's `create_graph` tool requires a
- * caller terminal registered in Electron's `agent-runtime` singleton. A
- * test-process child is invisible to that registry.
+ * Why not plain child_process: the daemon's `create_graph` tool requires a
+ * caller terminal registered in the agent-runtime registry. A test-process
+ * child is invisible to that registry.
  *
  * Right answer: create one real caller terminal in Electron, then ask the
- * running MCP server to spawn child agents exactly as production agents do.
- * That path calls spawnTerminalWithContextNode -> launchTerminalOntoUI, so
- * headful fake agents get real floating terminal windows.
+ * running daemon to spawn child agents exactly as production agents do. That
+ * path calls spawnTerminalWithContextNode -> launchTerminalOntoUI, so headful
+ * fake agents get real floating terminal windows.
+ *
+ * Transport: post-MCP-cutover the daemon exposes its tools as plain JSON-RPC
+ * over `/rpc` (bearer-authenticated). We drive them through `@vt/vt-rpc`'s
+ * `DaemonRpcClient` — the same transport the `vt` CLI uses — rather than
+ * re-hand-rolling the wire. The daemon UNWRAPS each tool's response: a success
+ * arrives as `result` = the parsed payload, an `isError` tool result arrives
+ * as a JSON-RPC error whose `data` carries the `{success:false, error}` payload.
  */
 import type { Page } from '@playwright/test'
+import type { DaemonRpcClient } from '@vt/vt-rpc'
 import type { FakeAgentScript } from '../../../../tools/vt-fake-agent/src/types.ts'
 import { createRequire } from 'node:module'
 import * as path from 'node:path'
@@ -24,7 +32,7 @@ const require = createRequire(import.meta.url)
 export interface FakeAgentInputs {
     readonly appWindow: Page
     readonly repoRoot: string
-    readonly mcpPort: number
+    readonly daemonClient: DaemonRpcClient
     readonly seedNodeAbsolutePath: string
     readonly callerTerminalId: string
     readonly promptTemplate: string
@@ -42,18 +50,10 @@ export interface FakeAgentResult {
     readonly terminalOutput: string
 }
 
-type McpJsonResponse = {
-    readonly result?: {
-        readonly content?: readonly { readonly type: string; readonly text: string }[]
-        readonly isError?: boolean
-    }
-    readonly error?: { readonly message: string }
-}
-
-type McpToolResult = {
+interface ToolCallOutcome {
     readonly success: boolean
-    readonly parsed?: Record<string, unknown>
-    readonly isError?: boolean
+    readonly parsed: Record<string, unknown> | undefined
+    readonly error: string | undefined
 }
 
 export function buildStormAgentPrompt(script: FakeAgentScript): string {
@@ -105,51 +105,57 @@ export function buildMultiCreateNodeScript(agentIndex: number, nodeCount: number
 /** Mark `__dirname` as referenced so noUnusedLocals stays happy under tsx. */
 export const __sourceDir = __dirname
 
-async function mcpRequest(mcpPort: number, method: string, params: Record<string, unknown> = {}, id = 1): Promise<McpJsonResponse> {
-    const response = await fetch(`http://127.0.0.1:${mcpPort}/mcp`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/event-stream',
-        },
-        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
-    })
-    return JSON.parse(await response.text()) as McpJsonResponse
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-async function mcpCallTool(mcpPort: number, toolName: string, args: Record<string, unknown>): Promise<McpToolResult> {
-    const response = await mcpRequest(mcpPort, 'tools/call', {
-        name: toolName,
-        arguments: args,
-    })
-    if (response.error) throw new Error(`MCP error: ${response.error.message}`)
-
-    const text = response.result?.content?.[0]?.text
-    const parsed = text ? JSON.parse(text) as Record<string, unknown> : undefined
-    return {
-        success: parsed?.success === true,
-        parsed,
-        isError: response.result?.isError,
+// Recover the human-facing failure sentence from a tool error payload. The
+// daemon's dispatcher sets `error.data` to the *parsed* tool error object —
+// for the agent/graph tool family that is `{success:false, error:'<sentence>'}`.
+// Mirrors the CLI daemon-client's `extractToolFailureSentence`.
+function extractToolFailureSentence(data: unknown, fallback: string): string {
+    if (typeof data === 'string' && data.length > 0) return data
+    if (isRecord(data)) {
+        const err = data.error
+        if (typeof err === 'string' && err.length > 0) return err
+        const msg = data.message
+        if (typeof msg === 'string' && msg.length > 0) return msg
     }
+    return fallback
 }
 
-export async function initializeMcpClient(mcpPort: number): Promise<void> {
-    const response = await mcpRequest(mcpPort, 'initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'e2e-storm-mvp', version: '1.0.0' },
-    }, 0)
-    if (response.error) throw new Error(`MCP initialize failed: ${response.error.message}`)
+/**
+ * Invoke a daemon tool over `/rpc` and normalize the unwrapped envelope into a
+ * uniform `{success, parsed, error}` outcome. A JSON-RPC error (the daemon's
+ * representation of a tool that set `isError`) becomes `success:false` with the
+ * recovered sentence; a transport failure (unreachable / auth) propagates as a
+ * thrown error, exactly as the old MCP path did.
+ */
+async function callTool(
+    client: DaemonRpcClient,
+    toolName: string,
+    args: Record<string, unknown>,
+): Promise<ToolCallOutcome> {
+    const response = await client.call(toolName, args)
+    if ('error' in response) {
+        return {
+            success: false,
+            parsed: isRecord(response.error.data) ? response.error.data : undefined,
+            error: extractToolFailureSentence(response.error.data, response.error.message),
+        }
+    }
+    const payload = isRecord(response.result) ? response.result : undefined
+    return { success: payload?.success === true, parsed: payload, error: undefined }
 }
 
 export async function waitForAgentListed(
-    mcpPort: number,
+    client: DaemonRpcClient,
     terminalId: string,
     timeoutMs: number,
 ): Promise<boolean> {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
-        const result = await mcpCallTool(mcpPort, 'list_agents', {})
+        const result = await callTool(client, 'list_agents', {})
         const agents = result.parsed?.agents
         if (Array.isArray(agents) && agents.some(agent => (
             typeof agent === 'object'
@@ -212,9 +218,9 @@ async function pollForScriptComplete(
     while (Date.now() < deadline) {
         lastOutput = await appWindow.evaluate(async (id) => {
             const api = (window as unknown as {
-                electronAPI?: { main?: { getHeadlessAgentOutput?: (id: string) => Promise<string> } }
+                electronAPI?: { main?: { getHeadlessAgentOutput?: (request: { terminalId: string }) => Promise<string> } }
             }).electronAPI?.main
-            return (await api?.getHeadlessAgentOutput?.(id)) ?? ''
+            return (await api?.getHeadlessAgentOutput?.({ terminalId: id })) ?? ''
         }, terminalId)
 
         if (lastOutput.includes('[fake-agent] Executing: exit')) {
@@ -231,7 +237,7 @@ async function pollForScriptComplete(
 export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentResult> {
     const wallStart = Date.now()
     const spawnStart = Date.now()
-    const spawnResult = await mcpCallTool(inputs.mcpPort, 'spawn_agent', {
+    const spawnResult = await callTool(inputs.daemonClient, 'spawn_agent', {
         nodeId: inputs.seedNodeAbsolutePath,
         callerTerminalId: inputs.callerTerminalId,
         agentName: 'Fake Agent',
@@ -246,7 +252,8 @@ export async function runFakeAgent(inputs: FakeAgentInputs): Promise<FakeAgentRe
         return {
             terminalId: null,
             spawnSuccess: false,
-            spawnError: typeof spawnResult.parsed?.error === 'string' ? spawnResult.parsed.error : 'unknown spawn error',
+            spawnError: spawnResult.error
+                ?? (typeof spawnResult.parsed?.error === 'string' ? spawnResult.parsed.error : 'unknown spawn error'),
             exitedCleanly: false,
             spawnWallMs,
             wallMs: Date.now() - wallStart,

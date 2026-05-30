@@ -303,6 +303,14 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'webapp -> graph-tools': 14,
     'webapp -> observability': 1,
     'webapp -> paths': 2,
+    // 2026-05-30 [BF-435]: 0 -> 1. The tiered perf-probe is started once at
+    // electron-main boot via the single facade `perfProbeFromEnv('vt-electron-main')`
+    // and stopped on `will-quit`. electron-main is the impure shell/edge — the
+    // correct home for best-effort profiling startup (a probe failure only logs
+    // and never blocks boot). This mirrors the `webapp -> observability: 1`
+    // tracing-facade line exactly: one value symbol for one cohesive
+    // observability capability owned by a leaf package. Should not grow.
+    'webapp -> perf-analysis': 1,
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
     // cleanups above (drop in-process configureMcpServer +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix

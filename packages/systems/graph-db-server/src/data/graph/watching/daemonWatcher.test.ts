@@ -6,7 +6,7 @@ import type { FSDelete, FSUpdate } from '@vt/graph-model'
 import { mountWatcher, type Watcher, type MountWatcherDependencies } from './daemonWatcher.ts'
 
 /**
- * Regression test for the vt-mcpd "hangs against empty temp project" bug.
+ * Regression test for the vtd "hangs against empty temp project" bug.
  *
  * Before the fix, the chokidar `ignored` predicate branched on
  * `path.extname()` when chokidar invoked it without stats. `path.extname()`
@@ -20,10 +20,10 @@ import { mountWatcher, type Watcher, type MountWatcherDependencies } from './dae
  * skipped — the second `_emitReady()` was never called, so `_readyCount`
  * was never satisfied, and `watcher.ready` never resolved. Anything
  * awaiting ready (`startDaemonWatcher` inside `openProjectWorkflow`,
- * inside `startDaemon`, inside `bin/vt-mcpd.ts`) hung forever.
+ * inside `startDaemon`, inside `bin/vtd.ts`) hung forever.
  *
  * These tests drive the real chokidar+fsevents pipeline with NODE_ENV unset
- * so polling is disabled (matching production vt-mcpd). If the predicate
+ * so polling is disabled (matching production vtd). If the predicate
  * regresses, `watcher.ready` hangs and the per-test deadline fails.
  */
 describe('mountWatcher: ready resolves with the real chokidar+fsevents backend', () => {

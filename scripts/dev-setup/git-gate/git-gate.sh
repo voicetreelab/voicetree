@@ -54,11 +54,30 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Leading args consumed above are git's global options (e.g. `-C <repo>`); keep
+# them so the worktree-add admission check below can re-resolve the repo even
+# when the gate is invoked from a cwd that isn't the repository.
+GATE_GLOBAL_OPTS=("${ORIG_ARGS[@]:0:${#ORIG_ARGS[@]} - $#}")
+
 sub="${1:-}"
 sub_arg="${2:-}"
 rest="${*:2}"
 reason=""
 suggestion=""
+
+# Sibling worktree dir name, matching the daemon's role mapping: VM-owned trees
+# live under vt-wts-remote/, Mac-owned under vt-wts/. Used to scope the
+# admission check to the right directory.
+gate_worktree_sibling_dir() {
+  local role="${VT_DEV_ROLE:-}"
+  if [ -z "$role" ] && [ -f "$HOME/.env" ]; then
+    role="$(awk -F= '/^VT_DEV_ROLE=/{sub(/^VT_DEV_ROLE=/,""); print; exit}' "$HOME/.env")"
+  fi
+  case "$role" in
+    remote) printf 'vt-wts-remote' ;;
+    *)      printf 'vt-wts' ;;
+  esac
+}
 
 worktree_add_path_arg() {
   local expect_option_value=0
@@ -177,16 +196,51 @@ esac
 # still enforces readiness before remote commands, so a failed prewarm cannot
 # make later execution unsafe.
 if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
+  # --- PRE-action: admission control ----------------------------------------
+  # Refuse to pile up worktrees: block the add when merged/idle trees await
+  # cleanup, so agents tidy up instead of accumulating dead worktrees. The
+  # check is detection-only and self-service (its message tells the agent to
+  # clean up itself). Opt out with VT_GIT_GATE_SKIP_ADMISSION=1.
+  if [ "${VT_GIT_GATE_SKIP_ADMISSION:-}" != "1" ]; then
+    repo_top="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --show-toplevel 2>/dev/null)"
+    admission="$repo_top/scripts/git/worktree/worktree-admission-check.sh"
+    if [ -n "$repo_top" ] && [ -x "$admission" ]; then
+      admission_ec=0
+      # Run inside the repo (the check relies on cwd) and scope it to the
+      # role-correct sibling dir.
+      ( cd "$repo_top" && VT_WT_SIBLING_DIR_NAME="$(gate_worktree_sibling_dir)" "$admission" ) >&2 \
+        || admission_ec=$?
+      if [ "$admission_ec" -eq 1 ]; then
+        echo "" >&2
+        echo "  ✗ git-gate: BLOCKED git worktree add — clean up the worktree(s) above, then retry." >&2
+        exit 1
+      fi
+      # ec >= 2 is a checker setup error (already reported); fail open so a
+      # broken check never wedges legitimate worktree creation.
+    fi
+  fi
+
   wt_path="$(worktree_add_path_arg "$@")"
   echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
   if [ $ec -eq 0 ]; then
-    echo "git-gate: normalizing worktree git metadata to relative paths" >&2
-    if "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1; then
-      echo "git-gate: worktree git metadata normalized" >&2
+    echo "git-gate: normalizing worktree git metadata" >&2
+    # Repair the new worktree's admin pointers. Two robustness points:
+    #  1. Run with `-C <worktree>`, not the gate's cwd: callers commonly invoke
+    #     `git -C <repo> worktree add <abs-path>` from a cwd that is not a git
+    #     repo (agent/login shells rooted at $HOME), where a bare repair no-ops.
+    #  2. `--relative-paths` (host-portable pointers, needed for mutagen
+    #     cross-host sync) only exists on git >= 2.48. Try it first, then fall
+    #     back to a plain repair — absolute pointers are fine for worktrees that
+    #     never sync across hosts (e.g. the VM-local /root/vt-wts-remote trees).
+    repair_dir="${wt_path:-.}"
+    if "$REAL_GIT" -C "$repair_dir" worktree repair --relative-paths >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata normalized (relative paths)" >&2
+    elif "$REAL_GIT" -C "$repair_dir" worktree repair >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata repaired (this git lacks --relative-paths; pointers left absolute)" >&2
     else
-      echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
+      echo "git-gate: warning: git worktree repair failed; command-boundary repair will retry" >&2
     fi
     if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
       echo "git-gate: skipping dependency prewarm; caller owns worktree hooks" >&2

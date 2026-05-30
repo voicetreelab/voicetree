@@ -13,8 +13,8 @@ import {
     listSessions,
     pipePaneToFile,
     sendKeys,
-} from '../tmux/tmux-session-manager.ts'
-import {shellQuote} from '../util/shellQuote.ts'
+} from '../../tmux/tmux-session-manager.ts'
+import {shellQuote} from '../../util/shellQuote.ts'
 
 const sessions: Set<string> = new Set<string>()
 const tempDirs: Set<string> = new Set<string>()

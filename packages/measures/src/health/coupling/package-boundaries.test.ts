@@ -52,7 +52,7 @@ const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
     'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
-    // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer imports
+    // BF-371: bin/vtd.ts no longer imports
     // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
     // SIBLING process. No allowlist entry required.
 ] as const

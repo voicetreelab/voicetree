@@ -16,10 +16,15 @@
 # Usage:
 #   VT_REMOTE_HOST=root@1.2.3.4 bash scripts/dev-setup/remote/install.sh
 #   VT_REMOTE_HOST=root@1.2.3.4 bash scripts/dev-setup/remote/install.sh --skip-pre-seed
+#   VT_REMOTE_HOST=root@1.2.3.4 VT_GIT_GATE_PASS=secret bash scripts/dev-setup/remote/install.sh
 #
 # Flags:
 #   --skip-pre-seed   skip the devbox-side `git clone` optimization
 #                     (mutagen will then push the entire working tree on first sync)
+#
+# Env (optional):
+#   VT_GIT_GATE_PASS  password for git-gate on the devbox (else installed without one)
+#   VT_SKIP_GIT_GATE  set to 1 to skip installing git-gate entirely
 
 set -euo pipefail
 
@@ -169,6 +174,24 @@ step "routing git hooks through scripts/hooks"
 git -C "$REPO_ROOT" config core.hooksPath scripts/hooks
 ok "core.hooksPath = scripts/hooks"
 
+step "installing git-gate on $VT_REMOTE_HOST (destructive-git gate + worktree admission/auto-deps)"
+# git-gate shadows `git` with a wrapper that (a) gates destructive subcommands
+# behind a password and (b) on `git worktree add` runs the admission check and
+# auto-installs deps under the role's sibling worktree dir. The password is
+# operator-supplied via VT_GIT_GATE_PASS so no secret lives in the repo; without
+# it the gate falls back to its built-in default. Set VT_SKIP_GIT_GATE=1 to skip.
+if [ "${VT_SKIP_GIT_GATE:-0}" = "1" ]; then
+  ok "git-gate skipped (VT_SKIP_GIT_GATE=1)"
+elif [ -n "${VT_GIT_GATE_PASS:-}" ]; then
+  ssh "$VT_REMOTE_HOST" "GIT_GATE_SETUP_PASS=$(printf %q "$VT_GIT_GATE_PASS") bash $REMOTE_DIR/scripts/dev-setup/git-gate/install.sh" \
+    || fail "git-gate install failed"
+  ok "git-gate installed (password set from VT_GIT_GATE_PASS)"
+else
+  ssh "$VT_REMOTE_HOST" "bash $REMOTE_DIR/scripts/dev-setup/git-gate/install.sh --no-password" \
+    || fail "git-gate install failed"
+  ok "git-gate installed (no password — pass VT_GIT_GATE_PASS to set one)"
+fi
+
 cat <<MSG
 
 ✔ remote routing installed.
@@ -177,6 +200,8 @@ Next:
   - wait for steady state:   mutagen sync list vt-remote   # expect 'Status: Watching for changes'
   - check brain checkout:    bash scripts/dev-setup/remote/vt-remote.sh brain-status
   - smoke test routing:      npm run test                  # expect '[run-remote] ...' lines
-  - optional safety:         bash scripts/dev-setup/git-gate/install.sh
+  - git-gate:                installed; new shells route git through it. Set/rotate the
+                             password with  VT_GIT_GATE_PASS=<pw> bash scripts/dev-setup/remote/install.sh
+                             (or skip entirely with VT_SKIP_GIT_GATE=1).
 
 MSG

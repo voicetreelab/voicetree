@@ -355,21 +355,21 @@ Parent:
 
   describe('parent-declaration edge label syntax', () => {
     it('splits [[name|label]] on a parent line into target + label', () => {
-      const content: string = '- parent [[mcp-plan|implements]]'
-      const nodes: Record<string, GraphNode> = { 'mcp-plan': createNode('mcp-plan') }
+      const content: string = '- parent [[rename-plan|implements]]'
+      const nodes: Record<string, GraphNode> = { 'rename-plan': createNode('rename-plan') }
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
-      expect(result).toEqual([{ targetId: 'mcp-plan', label: 'implements' }])
+      expect(result).toEqual([{ targetId: 'rename-plan', label: 'implements' }])
     })
 
     it('uses literal "parent" label when parent line has no pipe', () => {
-      const content: string = '- parent [[mcp-plan]]'
-      const nodes: Record<string, GraphNode> = { 'mcp-plan': createNode('mcp-plan') }
+      const content: string = '- parent [[rename-plan]]'
+      const nodes: Record<string, GraphNode> = { 'rename-plan': createNode('rename-plan') }
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
-      expect(result).toEqual([{ targetId: 'mcp-plan', label: 'parent' }])
+      expect(result).toEqual([{ targetId: 'rename-plan', label: 'parent' }])
     })
 
     it('preserves multi-word labels with spaces after the pipe', () => {

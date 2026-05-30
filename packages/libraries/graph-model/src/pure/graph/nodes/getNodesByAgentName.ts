@@ -6,7 +6,7 @@ import type {Graph, GraphNode} from '..'
  *
  * This is used for:
  * - Blue dotted edges from terminal to created nodes (applyGraphDeltaToUI)
- * - Tracking agent progress (list_agents, wait_for_agents MCP tools)
+ * - Tracking agent progress (list_agents, wait_for_agents tools)
  */
 export function getNodesByAgentName(
     graph: Graph,

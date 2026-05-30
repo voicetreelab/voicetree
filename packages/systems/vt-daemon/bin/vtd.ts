@@ -412,7 +412,7 @@ async function main(): Promise<void> {
         )
     }
 
-    // Lifecycle JSONL telemetry sink — predecessor (vt-mcpd) had this; vtd keeps it.
+    // Lifecycle JSONL telemetry sink — predecessor (the headless daemon binary) had this; vtd keeps it.
     try {
         agentRuntime.installJsonlTelemetrySink(join(voicetreeHomePath, 'lifecycle-telemetry.jsonl'))
     } catch (err) {

@@ -7,7 +7,7 @@ import type {GraphCreateNode, NodeVerdict} from '../core/types'
 /**
  * `path` is the user-facing relative-to-cwd path that appears in the emitted
  * verdict (and in `verdict.path`). `absoluteTargetForMerge` is the absolute
- * filesystem path the MCP response keys off of in live mode — held separately
+ * filesystem path the daemon response keys off of in live mode — held separately
  * so the merge step doesn't need to round-trip through the display string.
  */
 export type GatedInput = {

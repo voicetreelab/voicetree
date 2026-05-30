@@ -96,11 +96,11 @@ vt-graphd: listening on http://127.0.0.1:<dynamic-port> for project /abs/path/to
 node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts project show --project /abs/path/to/project --json
 ```
 
-### MCP
+### Agent tool layer
 
-- graph/live-state MCP tools proxy to `vt-graphd` in v1
-- agent-control MCP tools do not move in this phase
-- do not document v1 as "MCP moved into the daemon"
+- graph/live-state tools proxy to `vt-graphd` in v1
+- agent-control tools do not move in this phase
+- do not document v1 as "agent-control moved into the daemon"
 
 ## Practical Smoke Commands
 

@@ -57,7 +57,7 @@ describe('readSessionWorkflow folderStateSize reads the writer handle', () => {
 
     updateCurrentFolderState(join(project, 'docs'), 'collapsed')
     updateCurrentFolderState(join(project, 'src'), 'expanded')
-    updateCurrentFolderState(join(project, 'tmp'), 'hidden')
+    updateCurrentFolderState(join(project, 'tmp'), 'collapsed')
 
     expect(showFolderStateSize(registry, session.id)).toBe(3)
   })
@@ -86,7 +86,7 @@ describe('readSessionWorkflow folderStateSize reads the writer handle', () => {
     switchActiveView(db, viewId)
 
     updateCurrentFolderState(join(project, 'docs'), 'expanded')
-    updateCurrentFolderState(join(project, 'src'), 'hidden')
+    updateCurrentFolderState(join(project, 'src'), 'collapsed')
 
     // Active view is now the secondary view (2 rows), not the default (1 row).
     expect(showFolderStateSize(registry, session.id)).toBe(2)

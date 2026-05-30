@@ -120,7 +120,7 @@ async function driftHandler(argv: string[]): Promise<Response<unknown>> {
     return err(
       'drift',
       String(e),
-      'verify the dev instance is running with MCP + CDP enabled and cy is initialized',
+      'verify the dev instance is running with CDP enabled and cy is initialized',
       3,
     )
   } finally {

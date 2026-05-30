@@ -39,7 +39,7 @@
       "id": 1,
       "options": {
         "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
-        "content": "# Storm Run Overview\n\nOne row per producer service. Select a `run_id` above. Backends: VictoriaMetrics (metrics), Loki (logs), Tempo (traces), Pyroscope (profiles). Canonical per-run files live under `~/.voicetree/perf/$run_id/`.\n\n`vt-mcpd` is intentionally not shown — producer is not OTEL-wired in this checkout.",
+        "content": "# Storm Run Overview\n\nOne row per producer service. Select a `run_id` above. Backends: VictoriaMetrics (metrics), Loki (logs), Tempo (traces), Pyroscope (profiles). Canonical per-run files live under `~/.voicetree/perf/$run_id/`.\n\n`vtd` is intentionally not shown — producer is not OTEL-wired in this checkout.",
         "mode": "markdown"
       },
       "pluginVersion": "13.0.1",
@@ -694,17 +694,17 @@
     },
     {
       "datasource": null,
-      "description": "vt-mcpd is not OTEL-wired in this checkout (calls tracing.init('vt-graphd') without OTLP env). No section is shown for it.",
+      "description": "vtd is not OTEL-wired in this checkout (calls tracing.init('vt-graphd') without OTLP env). No section is shown for it.",
       "fieldConfig": { "defaults": {}, "overrides": [] },
       "gridPos": { "h": 4, "w": 24, "x": 0, "y": 144 },
       "id": 54,
       "options": {
         "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
-        "content": "_`vt-mcpd` is intentionally omitted — producer is not OTEL-wired in this branch. Wiring is tracked in [`next-steps-wt-perf-profiling-60z-2026-05-27_4`]._",
+        "content": "_`vtd` is intentionally omitted — producer is not OTEL-wired in this branch. Wiring is tracked in [`next-steps-wt-perf-profiling-60z-2026-05-27_4`]._",
         "mode": "markdown"
       },
       "pluginVersion": "13.0.1",
-      "title": "vt-mcpd not wired",
+      "title": "vtd not wired",
       "type": "text"
     }
   ],

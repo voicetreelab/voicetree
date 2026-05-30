@@ -44,6 +44,7 @@ import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/li
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
 import {tracing} from '@vt/observability';
+import {perfProbeFromEnv} from '@vt/perf-analysis/perf-probe';
 import {shutdownActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
@@ -72,7 +73,7 @@ if (app.isPackaged) {
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Note: vt-daemon's MCP server runs out-of-process inside the per-project VTD
+// Note: vt-daemon's tool server runs out-of-process inside the per-project VTD
 // child. The in-process `configureMcpServer` call that used to live here
 // wired in-process bridges (`getMcpGraph`, `getLiveStateBridge`, …) against
 // vt-daemon's module-level state. After BF-375/BF-376 those bridges are
@@ -123,6 +124,20 @@ tracing.init('vt-electron-main', {
     instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
 });
 tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
+
+// Start the perf probe at the tier the launcher selected (ensure-perf-stack sets
+// VOICETREE_PERF_TIER=lite for interactive runs; storm runs set deep; PERF_STACK=0
+// leaves it unset → no-op). Lite emits wall/CPU profiles + runtime metrics — the
+// metrics are what populate the VT Runs dashboard. Electron keeps the event loop
+// alive so the probe's beforeExit self-stop never fires; we stop it explicitly on
+// will-quit so Pyroscope flushes and the durable log closes.
+let stopPerfProbe: (() => Promise<void>) | undefined;
+perfProbeFromEnv('vt-electron-main').then(
+    (stop) => { stopPerfProbe = stop; },
+    // Profiling is best-effort: a probe failure (e.g. Pyroscope unreachable)
+    // must never take down app startup — log and continue uninstrumented.
+    (err: unknown) => { log.warn(`[perf-probe] failed to start: ${err instanceof Error ? err.message : String(err)}`); },
+);
 validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
@@ -303,6 +318,7 @@ app.on('will-quit', () => {
     teardownVtDaemonEventsBridge();
     vtTerminalAttachBridge.teardown();
     void unbindVtDaemon();
+    void stopPerfProbe?.();
 });
 
 app.on('activate', () => {

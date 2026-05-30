@@ -62,12 +62,12 @@
 - Pure event log (Redux-style) — rejected: equivalent information to delta, but forces consumers to re-project; throws away the `project()` seam we want.
 - Reactive observables (RxJS) — rejected: heavy dep for what is effectively "fn(delta)". Shells can wrap as needed.
 
-## Decision 5 — IPC transport: MCP (v1), transport-agnostic `LiveTransport`
+## Decision 5 — IPC transport: agent-tool server (v1), transport-agnostic `LiveTransport`
 
-**Decision.** v1 ships over MCP (we already run an MCP server at port 3002 for agent tools). The contract defines `LiveTransport` as a plain interface; swapping to unix socket or HTTP later does not break L1 consumers.
+**Decision.** v1 ships over the existing agent-tool server (already running at port 3002 for agent tools). The contract defines `LiveTransport` as a plain interface; swapping to unix socket or HTTP later does not break L1 consumers.
 
 **Rationale.**
-- MCP is already wired end-to-end (VOICETREE_MCP_PORT=3002). Adding two tools (`getLiveState`, `dispatchLiveCommand`) is small and reuses agent auth.
+- The agent-tool server is already wired end-to-end (port 3002). Adding two tools (`getLiveState`, `dispatchLiveCommand`) is small and reuses agent auth.
 - File-based transport (write snapshot to disk, re-read) — too slow for delta streaming; stale reads likely; loses revision ordering.
 - Unix socket / HTTP — more setup; useful later if we need cross-process performance.
 - The `LiveTransport` seam is the indirection. An L1 agent swapping transports changes one file.

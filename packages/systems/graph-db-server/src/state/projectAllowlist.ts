@@ -52,9 +52,11 @@ import { broadcastProjectState } from "../data/watch-folder/broadcast/broadcast-
 import {getCallbacks} from '@vt/graph-model';
 import {
     getExpandedFolderPathsForProject,
+    markActiveViewFolderHidden,
     seedActiveViewExpandedFolderStates,
     setActiveViewFolderState,
 } from "../data/watch-folder/folder-visibility-active-view";
+import { getFolderStateForActiveView } from "../data/views/folderStateOps";
 
 /**
  * Get all project paths (writeFolderPath + active-view expanded paths).
@@ -246,18 +248,66 @@ export async function addReadPath(projectPath: FilePath): Promise<{ success: boo
 }
 
 /**
- * Remove a path from the active view's expanded folder paths.
- * Cannot remove the write path.
- * Immediately removes nodes from that path from the graph.
+ * Pure predicate: the ids of all graph nodes that live under `folder` and are
+ * not kept alive by a loaded ancestor in `keptPaths` (the write folder + the
+ * still-expanded read paths).
+ *
+ * This is the single removal rule for the unload transition (`removeReadPath`)
+ * and the reconcile-on-load purge (`reconcileHiddenFolders`). Node ids are
+ * absolute file paths normalized with forward slashes.
+ */
+export function nodesUnderFolderNotKept(
+    graph: Graph,
+    folder: FilePath,
+    keptPaths: readonly FilePath[],
+): readonly string[] {
+    const normalizedFolder: string = normalizePath(folder);
+    const normalizedKept: readonly string[] = keptPaths.map((p: string) => normalizePath(p));
+    const isKept: (nodeId: string) => boolean = (nodeId: string): boolean =>
+        normalizedKept.some((keep: string) => nodeId.startsWith(keep + '/') || nodeId === keep);
+    return Object.keys(graph.nodes).filter((nodeId: string) =>
+        (nodeId.startsWith(normalizedFolder + '/') || nodeId === normalizedFolder) &&
+        !isKept(nodeId)
+    );
+}
+
+/**
+ * Remove `nodeIds` from the in-memory graph and broadcast the deletion.
+ * Memory-only by design (the backing files survive an unload — unload ≠ delete).
+ * Returns the number of nodes actually removed.
+ */
+async function purgeNodesFromGraph(nodeIds: readonly string[]): Promise<number> {
+    if (nodeIds.length === 0) return 0;
+    const currentGraph: Graph = getGraph();
+    const deleteDelta: GraphDelta = nodeIds.map((nodeId): DeleteNode => ({
+        type: 'DeleteNode',
+        nodeId,
+        deletedNode: O.some(currentGraph.nodes[nodeId]),
+    }));
+    await applyGraphDeltaToMemState(deleteDelta);
+    refreshGraphChangeSideEffects();
+    return nodeIds.length;
+}
+
+/**
+ * Unload transition: the single funnel through which a folder reaches the
+ * `'hidden'` visibility state. It purges the folder's graph nodes (memory-only)
+ * and writes `'hidden'` to folder-visibility as one unit, returning the count of
+ * nodes removed so a caller/UI can detect a no-op purge.
+ *
+ * Cannot unload the write path. Also used to clear an old write path when it is
+ * relocated, so it does not require the path to currently be expanded.
  *
  * @deprecated Use `setFolderState(path, 'unloaded')` from
  * `watch-folder/watchFolder` instead. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
  */
-export async function removeReadPath(projectPath: FilePath): Promise<{ success: boolean; error?: string }> {
+export async function removeReadPath(
+    projectPath: FilePath,
+): Promise<{ success: boolean; removedNodeCount: number; error?: string }> {
     const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
-        return { success: false, error: 'No directory is being watched' };
+        return { success: false, removedNodeCount: 0, error: 'No directory is being watched' };
     }
 
     // Normalize input path for consistent comparisons (nodeIds use forward slashes)
@@ -265,58 +315,27 @@ export async function removeReadPath(projectPath: FilePath): Promise<{ success: 
 
     const config: ProjectConfig | undefined = await getProjectConfigForDirectory(watchedDir);
     if (!config) {
-        return { success: false, error: 'No project config found' };
+        return { success: false, removedNodeCount: 0, error: 'No project config found' };
     }
 
     const resolvedWriteFolderPath: string = resolveWriteFolderPath(watchedDir, config.writeFolderPath);
 
     // Cannot remove the current write path
     if (normalizedProjectPath === resolvedWriteFolderPath) {
-        return { success: false, error: 'Cannot remove write path' };
+        return { success: false, removedNodeCount: 0, error: 'Cannot remove write path' };
     }
 
-    // Note: We don't check if path is expanded because this function
-    // is also used to clear the old write path when editing it to a new location.
-    // The old write path may never have been expanded, so we must allow removing it.
-
-    // Remove nodes from the graph that belong to this project path
-    const currentGraph: Graph = getGraph();
-
-    // Build list of paths that should be KEPT (current writeFolderPath + remaining expanded paths)
-    // Exclude the path we're removing so its nodes can be deleted
-    // Normalize all paths for consistent comparison with nodeIds (which use forward slashes)
+    // Build the set of paths whose nodes must be KEPT (write folder + the
+    // expanded read paths other than the one being removed) and purge every
+    // node under the removed folder that is not held alive by one of them.
     const remainingExpandedPaths: readonly string[] = (await getReadPaths())
-        .filter((p: string) => normalizePath(p) !== normalizedProjectPath)
-        .map((p: string) => normalizePath(p));
+        .filter((p: string) => normalizePath(p) !== normalizedProjectPath);
     const pathsToKeep: readonly string[] = [resolvedWriteFolderPath, ...remainingExpandedPaths];
+    const nodesToRemove: readonly string[] = nodesUnderFolderNotKept(getGraph(), projectPath, pathsToKeep);
 
-    // Helper to check if a nodeId is inside any of the paths to keep
-    const isInPathToKeep: (nodeId: string) => boolean = (nodeId: string): boolean => {
-        return pathsToKeep.some(keepPath =>
-            nodeId.startsWith(keepPath + '/') || nodeId === keepPath
-        );
-    };
-
-    // Find nodes whose ID starts with this project's absolute path (node IDs are absolute file paths)
-    // BUT exclude nodes that are inside paths we want to keep
-    const nodesToRemove: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-        (nodeId.startsWith(normalizedProjectPath + '/') || nodeId === normalizedProjectPath) &&
-        !isInPathToKeep(nodeId)
-    );
-
-    if (nodesToRemove.length > 0) {
-        // Create delete deltas for each node
-        const deleteDelta: GraphDelta = nodesToRemove.map((nodeId): DeleteNode => ({
-            type: 'DeleteNode',
-            nodeId,
-            deletedNode: O.some(currentGraph.nodes[nodeId])
-        }));
-
-        // Apply to memory state and broadcast to UI (but NOT to DB - files still exist)
-        await applyGraphDeltaToMemState(deleteDelta);
-        refreshGraphChangeSideEffects();
-
-        // Fit viewport to remaining nodes after project removal
+    const removedNodeCount: number = await purgeNodesFromGraph(nodesToRemove);
+    if (removedNodeCount > 0) {
+        // Fit viewport to remaining nodes after the purge
         getCallbacks().fitViewport?.();
     }
 
@@ -326,7 +345,7 @@ export async function removeReadPath(projectPath: FilePath): Promise<{ success: 
         currentWatcher.unwatch(projectPath);
     }
 
-    await setActiveViewFolderState(watchedDir, projectPath, 'hidden');
+    await markActiveViewFolderHidden(watchedDir, projectPath);
 
     // Save write path to config (visibility is sqlite-backed)
     await saveProjectConfigForDirectory(watchedDir, {
@@ -336,7 +355,49 @@ export async function removeReadPath(projectPath: FilePath): Promise<{ success: 
     emitReadPathsChanged(await getProjectPaths());
 
     await broadcastProjectState();
-    return { success: true };
+    return { success: true, removedNodeCount };
+}
+
+/**
+ * Reconcile-on-load purge: enforce INV-1 across the whole project after a
+ * (re)load. Drops every graph node that belongs to a `'hidden'` folder and is
+ * not kept alive by a loaded ancestor (the write folder or a still-expanded
+ * read path) — healing any drift where a hidden folder's nodes lingered (e.g.
+ * dragged back in by link resolution).
+ *
+ * This is the unload transition's removal rule (`nodesUnderFolderNotKept`)
+ * lifted from "the one folder being unloaded" to "every hidden folder", applied
+ * once as a single memory-only delta. Returns the number of nodes removed.
+ *
+ * Must run AFTER read-path expansion so an expanded sub-path of an otherwise
+ * hidden tree is respected by the kept-paths set.
+ */
+export async function reconcileHiddenFolders(): Promise<{ removedNodeCount: number }> {
+    const watchedDir: FilePath | null = getProjectRoot();
+    if (!watchedDir) return { removedNodeCount: 0 };
+
+    const { folderState } = getFolderStateForActiveView(watchedDir);
+    const hiddenFolders: readonly string[] = folderState
+        .filter(([, state]) => state === 'hidden')
+        .map(([folderPath]) => folderPath);
+    if (hiddenFolders.length === 0) return { removedNodeCount: 0 };
+
+    const config: ProjectConfig | undefined = await getProjectConfigForDirectory(watchedDir);
+    const resolvedWriteFolderPath: string = resolveWriteFolderPath(watchedDir, config?.writeFolderPath ?? watchedDir);
+    const expandedPaths: readonly string[] = await getReadPaths();
+    const pathsToKeep: readonly string[] = [resolvedWriteFolderPath, ...expandedPaths];
+
+    const currentGraph: Graph = getGraph();
+    const nodesToRemove: readonly string[] = [
+        ...new Set(
+            hiddenFolders.flatMap((folder: string) =>
+                nodesUnderFolderNotKept(currentGraph, folder, pathsToKeep),
+            ),
+        ),
+    ];
+
+    const removedNodeCount: number = await purgeNodesFromGraph(nodesToRemove);
+    return { removedNodeCount };
 }
 
 /**

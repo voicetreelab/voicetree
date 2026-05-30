@@ -29,9 +29,18 @@ export type ActiveViewInfo = {
 
 export type FolderStateEntry = readonly [path: string, state: FolderState]
 
+/**
+ * The folder states this resource may write. `'hidden'` is excluded on purpose:
+ * a folder reaches `'hidden'` only through the unload transition
+ * (`projectAllowlist.removeReadPath`), which purges its graph nodes in the same
+ * step (INV-1). Routing a `'hidden'` write through this DB-only resource would
+ * reopen the drift this funnel closes.
+ */
+export type LoadedFolderState = Exclude<FolderState, 'hidden'>
+
 export type FolderStateUpdate = {
   readonly path: string
-  readonly state: FolderState
+  readonly state: LoadedFolderState
 }
 
 type ViewNameRow = { readonly name: string }
@@ -113,7 +122,7 @@ export function readCurrentFolderState(): {
 
 export function updateCurrentFolderState(
   path: string,
-  state: FolderState,
+  state: LoadedFolderState,
 ): {
   folderState: FolderStateEntry[]
   activeView: ActiveViewInfo

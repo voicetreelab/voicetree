@@ -140,7 +140,7 @@ async function runGraphdScenario({ runUuid, durationMs, projectRoot }) {
     ...process.env,
     VOICETREE_RUN_INSTANCE_ID: runUuid,
     VOICETREE_OTLP_ENDPOINT: OTLP_ENDPOINT,
-    VOICETREE_PERF_PROFILE: '1',
+    VOICETREE_PERF_TIER: 'deep',
   }
 
   const child = spawn(process.execPath, [
