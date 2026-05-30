@@ -1,7 +1,7 @@
 /**
  * Refactor regression for BF-371: VTD must NOT embed vt-graphd.
  *
- * Before BF-371, `bin/vt-mcpd.ts` started graph-db-server in-process via
+ * Before BF-371, the daemon entry binary started graph-db-server in-process via
  * `startDaemon({project, voicetreeHomePath})`. After BF-371, `bin/vtd.ts` calls
  * `ensureGraphDaemonForProject('vtd')` which spawns vt-graphd as a SIBLING
  * process (or adopts an existing one). This test asserts that observable

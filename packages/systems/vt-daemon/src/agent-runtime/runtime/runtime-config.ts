@@ -1,5 +1,5 @@
 // Late-bound runtime dependencies. The per-project VTD (and headless
-// vt-mcpd) register their own implementations at boot. Webapp/Electron
+// vtd) register their own implementations at boot. Webapp/Electron
 // is a client of VTD post-BF-376 and never configures agent-runtime
 // directly.
 

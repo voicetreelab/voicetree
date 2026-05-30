@@ -8,7 +8,7 @@
  *
  * Layout invariant — depth >= 2 is both necessary and sufficient.
  * In the monorepo scope (webapp/src, packages/systems/<X>/src,
- * packages/libraries/<X>/src, packages/systems/voicetree-mcp/bin),
+ * packages/libraries/<X>/src, packages/systems/vt-daemon/bin),
  * `../y` from any in-scope file resolves inside the importer's own
  * package. Crossing a package boundary requires at least `../../`.
  * So we don't need to resolve specifiers on disk to determine cross-
@@ -63,7 +63,7 @@ type BannedImport = {
 
 function isInScope(relativePath: string): boolean {
     if (relativePath.startsWith('webapp/src/')) return true
-    if (relativePath.startsWith('packages/systems/voicetree-mcp/bin/')) return true
+    if (relativePath.startsWith('packages/systems/vt-daemon/bin/')) return true
     if (/^packages\/systems\/[^/]+\/src\//.test(relativePath)) return true
     if (/^packages\/libraries\/[^/]+\/src\//.test(relativePath)) return true
     return false

@@ -18,7 +18,7 @@
  *
  * Design points:
  * - The vt-bin directory is supplied by the runtime env
- *   (`getVtBinDir`). Each shell (Electron main, vt-mcpd, test rig)
+ *   (`getVtBinDir`). Each shell (Electron main, vtd, test rig)
  *   wires its own location.
  * - When the env returns null (unconfigured), the function is a no-op
  *   and the child inherits PATH unchanged.
@@ -78,7 +78,7 @@ export type FileExistsCheck = (absolutePath: string) => boolean
  * Resolve the vt-bin directory for a shell.
  *
  * Each shell knows where the `voicetree-cli` package lives on disk —
- * either by walking up from `import.meta.url` (vt-mcpd, vt serve) or by
+ * either by walking up from `import.meta.url` (vtd, vt serve) or by
  * reading a build-config-derived path (Electron, which already encodes
  * the dev vs. packaged split). The shell passes that candidate package
  * directory in; this function verifies the package actually ships a

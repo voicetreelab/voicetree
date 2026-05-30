@@ -2,7 +2,7 @@
 //
 // Spins up `createHeadlessServer` against per-test temp projects so the
 // client under test exercises actual HTTP + bearer auth + JSON-RPC
-// envelopes. No mocks; no voicetree-mcp coupling — graph-tools' own headless
+// envelopes. No mocks; no vt-daemon coupling — graph-tools' own headless
 // server speaks the same wire and gives us injectable catalogs for the
 // error-envelope scenarios.
 
