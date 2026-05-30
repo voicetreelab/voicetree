@@ -6,8 +6,8 @@ the graph-view stuck-overlay bug is just one instance.
 
 ## The loop
 
-1. **Find the session.** `vt debug ls` → pick the `pid` whose `startedAt`/vault
-   matches the window you're looking at.
+1. **Find the session.** `vt debug ls` → pick the `pid` whose `startedAt`/project
+   path matches the window you're looking at.
 2. **Triage.** `vt debug why-blank --pid <pid>` (one-line verdict) and
    `vt debug log --pid <pid>` (uncaught exceptions + recent console errors).
 3. **Close DevTools first.** An open DevTools window is a *second* CDP target on
