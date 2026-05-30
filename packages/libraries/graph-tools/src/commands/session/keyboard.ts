@@ -72,7 +72,7 @@ const READ_ACTIVE_ELEMENT_SOURCE = String.raw`(() => {
 function usage(message?: string): Response<never> {
   return err(
     'keyboard',
-    message ?? 'usage: vt-debug keyboard <type|press> ...',
+    message ?? 'usage: vt debug keyboard <type|press> ...',
     [
       "type <text> [--selector <css>] [--delay-ms <ms>]",
       "press <chord> [--selector <css>]",

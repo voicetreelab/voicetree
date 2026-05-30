@@ -1,4 +1,3 @@
-import { Stats } from 'node:fs'
 import chokidar from 'chokidar'
 import type { FSWatcher } from 'chokidar'
 import {
@@ -7,7 +6,10 @@ import {
   type FSUpdate,
 } from '@vt/graph-model'
 import { handleFSEventWithStateAndUISides } from './handleFSEvent.ts'
-import { readFileWithRetry } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
+import {
+  readFileWithRetry,
+  createWatchIgnorePredicate,
+} from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
 import type { FileWatcherLogger } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
 import { consumeBroadcastSuppression } from '@vt/graph-db-server/watch-folder/pending-writes'
 
@@ -54,7 +56,7 @@ function waitForReady(watcher: FSWatcher): Promise<void> {
   })
 }
 
-function buildWatcherOptions() {
+function buildWatcherOptions(watchRoots: readonly string[]) {
   // fsevents on macOS silently drops 'add' events for some project paths
   // (reproduced deterministically: chokidar 3.6.0 + fsevents 2.3.3, dir under
   // ~/Voicetree/voicetree-…/voicetree-…/). Polling is the only reliable
@@ -65,38 +67,12 @@ function buildWatcherOptions() {
     process.env.NODE_ENV === 'development'
 
   return {
-    // KEEP IN SYNC WITH packages/systems/graph-db-server/src/data/watch-folder/watching/file-watcher-setup.ts
-    //
-    // When chokidar invokes this predicate WITHOUT stats (notably from
-    // FsEventsHandler._watchWithFsEvents at chokidar/lib/fsevents-handler.js
-    // line 305 — the gate that decides whether to set up the macOS fsevents
-    // listener at all), it must NOT use `path.extname()` as a "this is a file"
-    // heuristic: `path.extname()` returns a non-empty string for any directory
-    // whose basename contains a dot (e.g. `mktemp -d /tmp/vt-project.XXXX`,
-    // user projects like `My Project.notes`, …). Treating such a directory as a
-    // file and ignoring it causes chokidar to skip the fsevents subscription
-    // — which leaves `_readyCount` half-decremented, so `watcher.ready`
-    // never resolves and any caller that awaits it (e.g. startDaemonWatcher)
-    // hangs forever. The pre-existing `setupWatcher` path in
-    // file-watcher-setup.ts has the same shape but did not surface the bug
-    // because it never awaits `ready`.
-    //
-    // The safe default when stats are unavailable is "don't ignore" —
-    // chokidar will reinvoke the predicate during the directory scan with
-    // stats populated, where the real file/dir filtering happens. Files
-    // that slip through are then filtered by extension in the `add` /
-    // `change` event handlers below.
-    ignored: [
-      (filePath: string, stats?: Stats) => {
-        if (!stats) {
-          return false
-        }
-        if (stats.isDirectory()) {
-          return false
-        }
-        return !filePath.endsWith('.md') && !isImageNode(filePath)
-      },
-    ],
+    // Shared single-source-of-truth predicate (see createWatchIgnorePredicate):
+    // accepts .md/image files below a watch root, excludes hidden/noise dirs
+    // such as `.voicetree/`, and preserves the fsevents-readiness invariant
+    // (never ignore a directory or a stats-less path) that prevents
+    // `watcher.ready` from hanging on dotted-basename project roots.
+    ignored: [createWatchIgnorePredicate(watchRoots)],
     persistent: true,
     ignoreInitial: true,
     followSymlinks: false,
@@ -116,7 +92,7 @@ export function mountWatcher(
   watchedDir: string,
   dependencies: MountWatcherDependencies = defaultMountWatcherDependencies,
 ): Watcher {
-  const watcher: FSWatcher = chokidar.watch([...readPaths], buildWatcherOptions())
+  const watcher: FSWatcher = chokidar.watch([...readPaths], buildWatcherOptions(readPaths))
   const ready = waitForReady(watcher)
 
   watcher.on('add', (filePath: string) => {

@@ -1,9 +1,14 @@
-import {mkdir, mkdtemp} from 'node:fs/promises'
+import {mkdir, mkdtemp, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {expect, vi, type MockInstance} from 'vitest'
-import {CliError} from '../output'
-import {CliExitError} from '../util/exitCodes'
+import {afterEach, beforeEach, expect, vi, type MockInstance} from 'vitest'
+import {GraphDbClient} from '@vt/graph-db-client'
+import {setGraph} from '@vt/graph-db-server/state/graph-store'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
+import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
+import {createEmptyGraph} from '@vt/graph-model'
+import {CliError} from '../../output'
+import {CliExitError} from '../../util/exitCodes'
 
 export class ExitCalled extends Error {
     constructor(public readonly code: number) {
@@ -108,4 +113,81 @@ export function setStdoutIsTTY(value: boolean): void {
         value,
         configurable: true,
     })
+}
+
+export type ViewTestContext = {
+    /** The temp harness (root/project/voicetreeHomePath) for the current test. */
+    harness: () => Harness
+    /** The daemon handle backing the current test. */
+    daemonHandle: () => DaemonHandle
+    /** A fresh client bound to the current test's daemon port. */
+    createClient: () => GraphDbClient
+}
+
+/**
+ * Registers the shared `vt view` integration lifecycle (temp project, env
+ * pinning, fresh in-process daemon, graph/watch-folder reset) via Vitest's
+ * beforeEach/afterEach and returns getters scoped to the current test.
+ *
+ * Both `view.test.ts` and `view.layout.test.ts` consume this so the lifecycle
+ * is defined exactly once. Getters (rather than captured values) are returned
+ * because the underlying handles are re-created per test.
+ */
+export function setupViewTestContext(): ViewTestContext {
+    let harness: Harness
+    let daemonHandle: DaemonHandle
+    let originalVoicetreeHomePath: string | undefined
+    let originalSessionEnv: string | undefined
+    let originalCwd: string
+    let stdoutIsTTYDescriptor: PropertyDescriptor | undefined
+
+    beforeEach(async () => {
+        harness = await createHarness()
+        originalVoicetreeHomePath = process.env.VOICETREE_HOME_PATH
+        originalSessionEnv = process.env.VT_SESSION
+        process.env.VOICETREE_HOME_PATH = harness.voicetreeHomePath
+        delete process.env.VT_SESSION
+        originalCwd = process.cwd()
+        stdoutIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
+        setStdoutIsTTY(false)
+        clearWatchFolderState()
+        setGraph(createEmptyGraph())
+        daemonHandle = await startDaemon({project: harness.project, createStarterIfEmpty: false})
+    })
+
+    afterEach(async () => {
+        process.chdir(originalCwd)
+
+        if (stdoutIsTTYDescriptor) {
+            Object.defineProperty(process.stdout, 'isTTY', stdoutIsTTYDescriptor)
+        } else {
+            setStdoutIsTTY(true)
+        }
+
+        await daemonHandle.stop().catch(() => {})
+        clearWatchFolderState()
+        setGraph(createEmptyGraph())
+
+        if (originalVoicetreeHomePath === undefined) {
+            delete process.env.VOICETREE_HOME_PATH
+        } else {
+            process.env.VOICETREE_HOME_PATH = originalVoicetreeHomePath
+        }
+
+        if (originalSessionEnv === undefined) {
+            delete process.env.VT_SESSION
+        } else {
+            process.env.VT_SESSION = originalSessionEnv
+        }
+
+        await rm(harness.root, {recursive: true, force: true})
+        vi.restoreAllMocks()
+    })
+
+    return {
+        harness: () => harness,
+        daemonHandle: () => daemonHandle,
+        createClient: () =>
+            new GraphDbClient({baseUrl: `http://127.0.0.1:${daemonHandle.port}`}),
+    }
 }

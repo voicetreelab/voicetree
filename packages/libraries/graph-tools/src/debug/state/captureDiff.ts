@@ -31,15 +31,19 @@ function stripSelectionClasses(classes: readonly string[]): string[] {
 }
 
 function normalizeState(state: SerializedState): unknown {
+  // `roots.loaded` and `collapseSet` are OPTIONAL in the on-disk SerializedState:
+  // serializeState() omits them entirely and lets hydrateState() derive them from
+  // folderState. Guarding with `?? []` mirrors serializeState's own treatment of the
+  // same fields and keeps the diff resilient to captures written by any code path.
   return {
     graph: state.graph,
     roots: {
-      loaded: sortStrings(state.roots.loaded),
+      loaded: sortStrings(state.roots.loaded ?? []),
       folderTree: state.roots.folderTree,
     },
-    collapseSet: sortStrings(state.collapseSet),
+    collapseSet: sortStrings(state.collapseSet ?? []),
     layout: {
-      positions: [...state.layout.positions].sort(([left], [right]) => left.localeCompare(right)),
+      positions: [...(state.layout.positions ?? [])].sort(([left], [right]) => left.localeCompare(right)),
       ...(state.layout.fit !== undefined ? { fit: state.layout.fit } : {}),
     },
     // Revision and mutatedAt change on every live-state read; selection/viewport also have

@@ -84,8 +84,8 @@ interface PageLike {
 function usage(message?: string): Response<never> {
   return err(
     'node-click',
-    message ?? 'usage: vt-debug node click <id> <label|index>',
-    'usage: vt-debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--project PATH]',
+    message ?? 'usage: vt debug node click <id> <label|index>',
+    'usage: vt debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--project PATH]',
     2,
   )
 }
@@ -283,7 +283,7 @@ async function clickButton(
       selection.error,
       buttons.length > 0
         ? `available buttons: ${listAvailableButtons(buttons)}`
-        : `try: vt-debug node ${JSON.stringify(options.nodeId)}`,
+        : `try: vt debug node ${JSON.stringify(options.nodeId)}`,
       1,
     )
   }
@@ -297,7 +297,7 @@ async function clickButton(
     return err(
       'node-click',
       `button selector not found: ${selection.button.selector}`,
-      `try: vt-debug node ${JSON.stringify(options.nodeId)} to refresh available buttons`,
+      `try: vt debug node ${JSON.stringify(options.nodeId)} to refresh available buttons`,
       1,
     )
   }

@@ -81,7 +81,7 @@ export { createScratchFixture, folderMaterialize }
 function usage(message?: string): Response<never> {
   return err(
     'folder-materialize',
-    message ?? 'usage: vt-debug folder materialize [flags]',
+    message ?? 'usage: vt debug folder materialize [flags]',
     [
       '[--folder <absolute-folder-id>]',
       '[--marker <text>]',

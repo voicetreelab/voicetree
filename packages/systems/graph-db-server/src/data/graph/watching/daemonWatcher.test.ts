@@ -1,8 +1,9 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, test } from 'vitest'
-import { mountWatcher, type Watcher } from './daemonWatcher.ts'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import type { FSDelete, FSUpdate } from '@vt/graph-model'
+import { mountWatcher, type Watcher, type MountWatcherDependencies } from './daemonWatcher.ts'
 
 /**
  * Regression test for the vt-mcpd "hangs against empty temp project" bug.
@@ -101,3 +102,66 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, message: string):
     if (timer) clearTimeout(timer)
   }
 }
+
+/**
+ * Regression test for REC 4: `.voicetree/` daemon-internal markdown must not
+ * surface as a spurious graph node. Drives the real chokidar pipeline against a
+ * temp project containing both a normal `.md` file and a `.voicetree/prompts/*.md`
+ * file, and asserts on the OBSERVABLE side effect — the FS events that flow to
+ * the graph-state handler. The `.voicetree` file must never produce an event;
+ * the normal file must.
+ */
+describe('mountWatcher: excludes .voicetree/ files from the graph', () => {
+  const created: string[] = []
+  const originalHeadlessTest: string | undefined = process.env.HEADLESS_TEST
+
+  beforeEach(() => {
+    // Force polling so the watch-time 'add' is reliably observed in CI/macOS.
+    process.env.HEADLESS_TEST = '1'
+  })
+
+  afterEach(async () => {
+    if (originalHeadlessTest === undefined) delete process.env.HEADLESS_TEST
+    else process.env.HEADLESS_TEST = originalHeadlessTest
+    for (const dir of created.splice(0)) {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('a .voicetree/prompts/*.md add yields no graph node; a normal .md add does', async () => {
+    const parent: string = await mkdtemp(join(tmpdir(), 'vt-voicetree-scope-'))
+    created.push(parent)
+    const project: string = join(parent, 'project')
+    await mkdir(join(project, '.voicetree', 'prompts'), { recursive: true })
+    await mkdir(join(project, 'notes'), { recursive: true })
+
+    const addedPaths: string[] = []
+    const deps: MountWatcherDependencies = {
+      readFileWithRetry: async () => '# content\n',
+      handleFSEvent: (event: FSUpdate | FSDelete) => {
+        if ('eventType' in event && event.eventType === 'Added') {
+          addedPaths.push(event.absolutePath)
+        }
+      },
+      logger: { error: () => undefined },
+    }
+
+    const watcher: Watcher = mountWatcher([project], project, deps)
+    try {
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve')
+
+      // Trigger watch-time 'add' events for both files.
+      await writeFile(join(project, '.voicetree', 'prompts', 'leak.md'), '# leak\n')
+      await writeFile(join(project, 'notes', 'keep.md'), '# keep\n')
+
+      await expect
+        .poll(() => addedPaths.some((p) => p.endsWith('/notes/keep.md')), { timeout: 4000 })
+        .toBe(true)
+
+      // The normal file produced a node; the .voicetree file produced none.
+      expect(addedPaths.some((p) => p.includes('/.voicetree/'))).toBe(false)
+    } finally {
+      await watcher.unmount()
+    }
+  }, 12000)
+})

@@ -87,15 +87,20 @@ async function readFileOrNull(filePath: string): Promise<string | null> {
  *     section as its body (creating the `.voicetree/` directory if
  *     needed).
  *
- * The manual content defaults to `renderFullManual()` (the canonical
- * `TOOL_SPECS` rendered live). Tests pass a literal string to exercise
- * splice / idempotency behavior without depending on the canonical
- * payload. Errors writing the target file are swallowed — project open
- * must not depend on this side effect succeeding.
+ * The manual content defaults to the lean `overview` slice
+ * (`renderFullManual({tier: 'overview'})`): the preamble plus the
+ * Essentials section, whose header points agents at `vt manual <verb>`
+ * for everything else. CLAUDE.md / AGENTS.md is injected into every
+ * agent's context on every run, so the block stays compact — the full
+ * per-verb reference lives one `vt manual <verb>` away rather than being
+ * inlined here. Tests pass a literal string to exercise splice /
+ * idempotency behavior without depending on the canonical payload.
+ * Errors writing the target file are swallowed — project open must not
+ * depend on this side effect succeeding.
  */
 export async function writeProjectAgentDiscoveryFile(
     projectDir: string,
-    manualBody: string = renderFullManual(),
+    manualBody: string = renderFullManual({tier: 'overview'}),
 ): Promise<void> {
     const manualContent: string = manualBody.trimEnd()
     if (manualContent.length === 0) return

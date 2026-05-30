@@ -1,17 +1,40 @@
 import {resolve as resolvePath} from 'node:path'
 import {ensureDaemon, GraphDbClient, type ProjectState} from '@vt/graph-db-client'
 import {isJsonMode} from '../output'
+import {isWithin} from '../graph/core/pathWithin'
 import {resolveProject} from '../util/detectProject'
 import {ArgValidationError, handleCliError} from '../util/exitCodes'
 
+// The narrow daemon surface the project command depends on. Threading this in
+// as a dependency (rather than constructing a GraphDbClient inline) keeps the
+// runner a pure shell over an injectable edge: tests supply a real-shaped fake
+// and assert on the observable console output, no internal mocking required.
+export type ProjectDaemon = {
+    getProject(): Promise<ProjectState>
+    setWriteFolderPath(path: string): Promise<ProjectState>
+}
+
+export type ConnectProjectDaemon = (project: string) => Promise<ProjectDaemon>
+
+const connectViaEnsuredDaemon: ConnectProjectDaemon = async (
+    project: string,
+): Promise<ProjectDaemon> => {
+    const {port}: {port: number} = await ensureDaemon(project)
+    return new GraphDbClient({baseUrl: `http://127.0.0.1:${port}`})
+}
+
 type ProjectSubcommand = 'show' | 'set-write-path'
 
-type ParsedProjectCommand = {
+type CommonProjectFields = {
     forceJson: boolean
-    pathArg?: string
-    subcommand: ProjectSubcommand
     projectFlag?: string
 }
+
+// Discriminated by `subcommand` so the type reflects that only `set-write-path`
+// carries a (required) path argument.
+type ParsedProjectCommand =
+    | (CommonProjectFields & {subcommand: 'show'})
+    | (CommonProjectFields & {subcommand: 'set-write-path'; pathArg: string})
 
 type WriteFolderPathResult = {
     writeFolderPath: string
@@ -49,6 +72,19 @@ function normalizePathArg(pathArg: string, subcommand: ProjectSubcommand): strin
     }
 
     return resolvePath(pathArg)
+}
+
+// The write folder must live inside the project root. Without this guard the
+// daemon would happily set a write path like /tmp, leaving graph writes
+// scattered outside the project. `writePath` is already absolute (resolved by
+// normalizePathArg) and `projectRoot` comes from resolveProject.
+function assertWritePathWithinProject(writePath: string, projectRoot: string): void {
+    if (!isWithin(writePath, projectRoot)) {
+        validationError(
+            `Write path "${writePath}" is outside the project root "${projectRoot}". ` +
+                'The write folder must live inside the project.',
+        )
+    }
 }
 
 function parseProjectCommand(argv: string[]): ParsedProjectCommand {
@@ -158,14 +194,22 @@ function formatProjectState(data: ProjectState): string {
     ].join('\n')
 }
 
-export async function runProjectCommand(argv: string[]): Promise<void> {
+export async function runProjectCommand(
+    argv: string[],
+    connect: ConnectProjectDaemon = connectViaEnsuredDaemon,
+): Promise<void> {
     try {
         const parsed: ParsedProjectCommand = parseProjectCommand(argv)
         const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd()})
-        const {port}: {port: number} = await ensureDaemon(project)
-        const client = new GraphDbClient({
-            baseUrl: `http://127.0.0.1:${port}`,
-        })
+
+        // Validate containment before touching the daemon: a write path outside
+        // the project must fail fast with a clear message and never reach the
+        // daemon (which would otherwise accept it).
+        if (parsed.subcommand === 'set-write-path') {
+            assertWritePathWithinProject(parsed.pathArg, project)
+        }
+
+        const client: ProjectDaemon = await connect(project)
 
         switch (parsed.subcommand) {
             case 'show': {

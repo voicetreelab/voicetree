@@ -13,6 +13,7 @@ import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@vt/graph-model/graph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { linkMatchScore } from '@vt/graph-model/markdown'
 import { findFileByName } from './findFileByName'
+import { IGNORED_DIRECTORY_NAMES } from '../ignoredDirectoryNames'
 
 type ProjectFileRecord = {
     readonly projectRoot: string;
@@ -213,28 +214,11 @@ function isSupportedFile(filename: string): boolean {
   return filename.endsWith('.md') || isImageNode(filename)
 }
 
-const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
-  'node_modules',
-  '.next',
-  'dist',
-  '.cache',
-  '__pycache__',
-  '.tox',
-  '.venv',
-  'venv',
-  'build',
-  // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
-  '.worktrees',
-])
-
 // Directories that must never be loaded into the graph even when nested inside
 // a project. Hidden directories (names starting with '.') are also skipped — most
 // notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
-// markdown files in as graph nodes when a project root is scanned.
-//
-// `build` was added so opening a project repo as a project doesn't pull every
-// .md under build outputs into the graph and trip the file-limit guard on
-// large monorepos.
+// markdown files in as graph nodes when a project root is scanned. The ignored
+// names live in `IGNORED_DIRECTORY_NAMES` (shared with the folder watcher).
 function isIgnoredDirectoryName(name: string): boolean {
   return IGNORED_DIRECTORY_NAMES.has(name)
 }
