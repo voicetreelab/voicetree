@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "postinstall": "node scripts/install-vitest-shim.mjs",
+    "gen:agent-discovery": "node --import tsx scripts/regen-agent-discovery.ts",
     "install:devbox": "node scripts/run-remote.mjs npm install",
     "test": "node scripts/run-remote.mjs npm run test:local",
     "test:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=npm-test --name=\"npm run test\" --category=Command -- npm run test:t1",
