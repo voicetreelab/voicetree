@@ -16,67 +16,87 @@ export type ProjectVocabularyReport = {
 
 // --- Banned terms ----------------------------------------------------------
 // Legacy project-path vocabulary: replaced by "project" / "writeFolderPath" /
-// "voicetreeHomePath". Spelled split-then-joined so this guard file does not
-// itself trip the guard.
+// "voicetreeHomePath". Spelled split-then-joined so this guard module does not
+// itself trip the guard (this module is also self-excluded from scanning, but
+// the split keeps the legacy precedent intact).
 const LEGACY_TERM = ['v', 'ault'].join('')
 const LEGACY_HOME_TERM = ['app', 'Support'].join('')
 const LEGACY_HOME_KEBAB_TERM = ['app', 'support'].join('-')
 const LEGACY_HOME_ENV_TERM = ['APP', 'SUPPORT'].join('_')
-
-// "mcp": VoiceTree migrated off being an MCP server to the `vt` CLI +
-// vt-daemon `/rpc`, so "mcp" must not appear in VoiceTree-owned code. The
-// case variants below are the only ones the codebase actually uses
-// (`mcp`, `Mcp`, `MCP`); listing them explicitly avoids matching incidental
-// mixed-case noise (e.g. base64 blobs containing "MCp"). Legitimate remaining
-// uses are enumerated in ALLOWANCES below.
-const MCP_TERMS: readonly string[] = ['mcp', 'Mcp', 'MCP']
-
-const TERMS: readonly string[] = [
+const PATH_TERMS: readonly string[] = [
     LEGACY_TERM,
     `${LEGACY_TERM[0].toUpperCase()}${LEGACY_TERM.slice(1)}`,
     LEGACY_TERM.toUpperCase(),
     LEGACY_HOME_TERM,
     LEGACY_HOME_KEBAB_TERM,
     LEGACY_HOME_ENV_TERM,
-    ...MCP_TERMS,
 ]
 
+// "mcp": VoiceTree migrated off being an MCP server to the `vt` CLI +
+// vt-daemon `/rpc`, so "mcp" must not appear in VoiceTree-owned code. Only the
+// three case forms the codebase actually uses are listed, so incidental
+// mixed-case noise (e.g. base64 blobs containing "MCp") is not matched.
+const MCP_TERMS: ReadonlySet<string> = new Set(['mcp', 'Mcp', 'MCP'])
+
+const TERMS: readonly string[] = [...PATH_TERMS, ...MCP_TERMS]
+
 // --- Allowances ------------------------------------------------------------
-// A banned term is suppressed where it sits inside one of these context
-// substrings. This is the "mcp" purge ratchet: each entry is a legitimate
-// remaining use, and the list shrinks as cleanup proceeds. New stray "mcp"
-// usages (prose, new identifiers) are NOT covered and fail the gate.
+// The "mcp" purge ratchet. Each allowance is a legitimate remaining use; the
+// set shrinks as cleanup proceeds (notably the planned vt-daemon `Mcp*` rename,
+// documented under ~/brain/mem). New stray "mcp" (prose, a new identifier, a
+// new file/package) is NOT covered and fails the gate.
+//
+// Two shapes:
+//  - CONTEXT_ALLOWANCES suppress "mcp" wherever it sits inside the given
+//    substring (used for cross-cutting identifiers and external-protocol
+//    vocabulary that appear throughout the tree).
+//  - PATH_ALLOWANCES suppress the "mcp" terms (only — `vault`/`appSupport`
+//    stay enforced) inside a repo-relative file or directory prefix (used for
+//    cohesive subsystems that are wholly MCP-named and slated for a later
+//    purge pass or the planned rename).
 //
 // Categories:
-//  - 'protocol'  : external MCP-ecosystem vocabulary VoiceTree must speak to
-//                  configure agents / Playwright (permanent).
-//  - 'stripper'  : the migration cleanup that strips stale VoiceTree entries
-//                  from users' MCP client config on open (permanent).
-//  - 'daemon-tool-layer' : the live vt-daemon `Mcp*` tool layer, pending the
-//                  rename planned under ~/brain/mem (shrinks to zero on rename).
+//  - 'protocol'          : external MCP-ecosystem vocabulary VoiceTree must
+//                          speak to configure agents / Playwright (permanent).
+//  - 'stripper'          : the migration cleanup that strips stale VoiceTree
+//                          entries from users' MCP client config (permanent).
+//  - 'daemon-tool-layer' : the live vt-daemon `Mcp*` tool layer + its direct
+//                          consumers, pending the rename (shrinks to zero).
 //  - 'client-machinery'  : agent/test/perf machinery that drives the daemon
-//                  and reads MCP client config; out of scope for the current
-//                  purge, tracked for a later pass.
+//                          and reads MCP client config; out of scope for the
+//                          current purge, tracked for a later pass.
+//  - 'suspected-dead'    : MCP-server-era scripts that appear to depend on the
+//                          removed `/mcp` endpoint; allowed (not deleted)
+//                          pending review — see the rename-plan node.
 export type VocabularyAllowanceCategory =
     | 'protocol'
     | 'stripper'
     | 'daemon-tool-layer'
     | 'client-machinery'
+    | 'suspected-dead'
 
-export type VocabularyAllowance = {
+export type ContextAllowance = {
     readonly context: string
     readonly category: VocabularyAllowanceCategory
     readonly reason: string
 }
 
-export const ALLOWANCES: readonly VocabularyAllowance[] = [
+export type PathAllowance = {
+    readonly pathPrefix: string
+    readonly category: VocabularyAllowanceCategory
+    readonly reason: string
+}
+
+export const CONTEXT_ALLOWANCES: readonly ContextAllowance[] = [
     // --- protocol (external MCP ecosystem) ---------------------------------
     {context: '.mcp.json', category: 'protocol', reason: 'MCP client config filename (Claude/Playwright agents)'},
     {context: 'mcpServers', category: 'protocol', reason: 'MCP client config schema key'},
     {context: 'mcp_servers', category: 'protocol', reason: 'MCP client config schema key (snake_case driver)'},
     {context: 'mcp__', category: 'protocol', reason: 'MCP tool-name namespacing convention (mcp__server__tool)'},
+    {context: 'mcp_tool_call', category: 'protocol', reason: 'MCP tool-call event name (agent driver)'},
     {context: '@modelcontextprotocol', category: 'protocol', reason: 'MCP SDK package scope'},
     {context: '@playwright/mcp', category: 'protocol', reason: 'Playwright MCP package (third-party, powers playwright-debug)'},
+    {context: 'voicetreelab/lazy-mcp', category: 'protocol', reason: 'external repo reference (a separate VoiceTree tool repo)'},
     {context: 'PLAYWRIGHT_MCP_CDP_ENDPOINT', category: 'protocol', reason: 'Playwright MCP CDP endpoint env var'},
     {context: 'Playwright MCP', category: 'protocol', reason: 'Playwright MCP prose in playwright-debug plugin/skill'},
     {context: 'enabledMcpjsonServers', category: 'protocol', reason: 'Claude Code agent config key enabling MCP servers'},
@@ -88,26 +108,74 @@ export const ALLOWANCES: readonly VocabularyAllowance[] = [
     {context: 'mcp-client-config', category: 'stripper', reason: 'module hosting the stale-entry stripper'},
     {context: 'VOICETREE_MCP_SERVER_NAME', category: 'stripper', reason: 'name of the stale VoiceTree entry the stripper removes'},
 
-    // --- daemon-tool-layer (① pending rename) ------------------------------
-    {context: 'McpToolResponse', category: 'daemon-tool-layer', reason: 'live vt-daemon tool response type — rename planned'},
+    // --- daemon-tool-layer (① pending rename) — cross-package symbols ------
+    {context: 'McpToolResponse', category: 'daemon-tool-layer', reason: 'live vt-daemon tool response type, imported repo-wide — rename planned'},
     {context: 'McpToolBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge type — rename planned'},
     {context: 'McpToolResult', category: 'daemon-tool-layer', reason: 'live vt-daemon tool result type — rename planned'},
-    {context: 'mcpBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge module — rename planned'},
     {context: 'getMcpGraph', category: 'daemon-tool-layer', reason: 'live vt-daemon graph bridge accessor — rename planned'},
-    {context: 'getMcpProjectPaths', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
+    {context: 'getMcpProjectPaths', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor (referenced in docs) — rename planned'},
     {context: 'getMcpProjectRoot', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
     {context: 'getMcpWriteFolderPath', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
-    {context: 'getMcpWritePath', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
+    {context: 'getMcpWritePath', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor (referenced in docs) — rename planned'},
     {context: 'getMcpUnseenNodesAroundContextNode', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
+    {context: 'getMcpPort', category: 'daemon-tool-layer', reason: 'live runtime-config interface method (daemon port) — rename planned'},
     {context: 'configureMcpServer', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge configurator — rename planned'},
-    {context: 'configureHeadlessMcpBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge configurator — rename planned'},
-    {context: 'buildDisabledMcpBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge builder — rename planned'},
-    {context: 'disabledMcpBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge fixture — rename planned'},
-    {context: 'applyMcpGraphDelta', category: 'daemon-tool-layer', reason: 'live vt-daemon graph-delta applier — rename planned'},
-    {context: 'addProgressNodeMcp', category: 'daemon-tool-layer', reason: 'live vt-daemon create-graph integration test — rename planned'},
-    {context: 'mcp-graph-bridge', category: 'daemon-tool-layer', reason: 'live vt-daemon graph bridge module — rename planned'},
-    {context: 'mcp-config', category: 'daemon-tool-layer', reason: 'live vt-daemon tool config module — rename planned'},
+    {context: 'configureHeadlessMcpBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge configurator (called from Electron main) — rename planned'},
+    {context: 'mcp-graph-bridge', category: 'daemon-tool-layer', reason: 'live vt-daemon graph bridge module (referenced in eslint + export tests) — rename planned'},
+    {context: 'mcp-config', category: 'daemon-tool-layer', reason: 'live vt-daemon tool config module (mcp-config-public) — rename planned'},
+
+    // --- daemon-tool-layer consumers (voicetree-cli result processing) -----
+    {context: 'mcpError', category: 'daemon-tool-layer', reason: 'CLI handling of daemon tool-error responses — renames with the tool layer'},
+    {context: 'mcpResult', category: 'daemon-tool-layer', reason: 'CLI handling of daemon tool results — renames with the tool layer'},
+    {context: 'indexMcpResults', category: 'daemon-tool-layer', reason: 'CLI tool-result indexer — renames with the tool layer'},
+    {context: 'mergeMcpResults', category: 'daemon-tool-layer', reason: 'CLI tool-result merger — renames with the tool layer'},
+    {context: 'emitMcpFailureAndExit', category: 'daemon-tool-layer', reason: 'CLI tool-failure exit path — renames with the tool layer'},
+
+    // --- client-machinery (scattered product/lib identifiers) --------------
+    {context: 'mcpPort', category: 'client-machinery', reason: 'daemon port discovery field — later purge pass'},
+    {context: 'McpClient', category: 'client-machinery', reason: 'daemon client wrapper — later purge pass'},
 ]
+
+export const PATH_ALLOWANCES: readonly PathAllowance[] = [
+    // ① the live vt-daemon Mcp* tool layer: symbols AND their describing prose,
+    // pending the rename planned under ~/brain/mem. This whole package flips to
+    // gated once the rename lands.
+    {pathPrefix: 'packages/systems/vt-daemon/', category: 'daemon-tool-layer', reason: 'live vt-daemon Mcp* tool layer — pending rename plan'},
+    {pathPrefix: 'packages/libraries/graph-db-protocol/src/owner.ts', category: 'daemon-tool-layer', reason: 'graph-state owner-identity union holds a legacy \'mcp\' owner value — rename with the tool layer'},
+
+    // ④ MCP client-config bootstrap (the stale-entry stripper + agent discovery file writer).
+    {pathPrefix: 'webapp/src/shell/edge/main/runtime/electron/startup/project-bootstrap/', category: 'stripper', reason: 'MCP client-config stripper + agent discovery bootstrap'},
+
+    // ③ Playwright MCP CDP / .mcp.json worktree setup.
+    {pathPrefix: 'scripts/git/worktree/', category: 'protocol', reason: 'Playwright MCP CDP + .mcp.json worktree provisioning'},
+
+    // client/test/perf machinery that drives the daemon via MCP-named discovery
+    // and spawn paths — out of scope for this purge, tracked for a later pass.
+    {pathPrefix: 'tools/vt-fake-agent/', category: 'client-machinery', reason: 'fake-agent MCP test client harness'},
+    {pathPrefix: 'packages/measures/perf/', category: 'client-machinery', reason: 'perf storm harness: MCP discovery/spawn machinery'},
+    {pathPrefix: 'webapp/e2e-tests/', category: 'client-machinery', reason: 'Electron e2e tests exercising MCP-named spawn/discovery flows'},
+    {pathPrefix: 'spikes/', category: 'client-machinery', reason: 'experimental spikes — point-in-time records, not shipping code'},
+
+    // MCP-server-era hook/trigger scripts that POST to the removed `/mcp`
+    // endpoint or read the stale `.mcpServers.voicetree` entry. Likely dead;
+    // allowed (not deleted) pending review — see the rename-plan node.
+    {pathPrefix: 'scripts/on-new-node.cjs', category: 'suspected-dead', reason: 'onNewNode hook POSTs to removed /mcp endpoint — verify before deleting'},
+    {pathPrefix: 'webapp/scripts/trigger-overnight.sh', category: 'suspected-dead', reason: 'reads stale .mcpServers.voicetree.url — verify before deleting'},
+    {pathPrefix: 'webapp/scripts/com.voicetree.overnight-runner.plist', category: 'suspected-dead', reason: 'overnight runner requires the removed MCP server — verify before deleting'},
+
+    // Historical migration design docs (LOCKED, Lochlan-ratified) and OpenSpec
+    // change records: point-in-time records that accurately use the vocabulary
+    // of their time. Allowed pending Lochlan's archive/delete decision — see
+    // the rename-plan node. (NOT a permanent home for "mcp".)
+    {pathPrefix: 'docs/step7-design.md', category: 'suspected-dead', reason: 'historical "Full MCP Removal" design doc — pending archive/delete decision'},
+    {pathPrefix: 'docs/step9-design.md', category: 'suspected-dead', reason: 'historical design doc (post Step 7) — pending archive/delete decision'},
+    {pathPrefix: 'docs/headless-migration.md', category: 'suspected-dead', reason: 'historical headless-migration completion record — pending archive/delete decision'},
+    {pathPrefix: 'openspec/changes/', category: 'suspected-dead', reason: 'OpenSpec change records — point-in-time proposals, pending archive decision'},
+]
+
+// The vocabulary gate's own module names every term it governs; exempt it from
+// scanning (a dictionary of banned words cannot list itself).
+const SELF_MODULE_DIR = 'packages/measures/src/_shared/vocabulary'
 
 const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
     '.git',
@@ -129,9 +197,34 @@ const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
 // banned terms by coincidence. They are build artifacts, not source.
 const EXCLUDED_DIR_PREFIXES: readonly string[] = ['playwright-report']
 
+// Dependency lockfiles are generated and full of integrity hashes that match
+// banned terms by coincidence (e.g. a sha512 containing "Mcp").
+const EXCLUDED_FILE_NAMES: ReadonlySet<string> = new Set([
+    'package-lock.json',
+    'pnpm-lock.yaml',
+    'yarn.lock',
+])
+
 function isExcludedDir(name: string): boolean {
     return EXCLUDED_DIR_NAMES.has(name)
         || EXCLUDED_DIR_PREFIXES.some(prefix => name.startsWith(prefix))
+}
+
+function isExcludedFile(name: string): boolean {
+    return EXCLUDED_FILE_NAMES.has(name)
+}
+
+function isUnderPrefix(repoRelativePath: string, prefix: string): boolean {
+    return repoRelativePath === prefix
+        || repoRelativePath.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`)
+}
+
+function isSelfModule(repoRelativePath: string): boolean {
+    return isUnderPrefix(repoRelativePath, SELF_MODULE_DIR)
+}
+
+function isMcpPathAllowed(repoRelativePath: string): boolean {
+    return PATH_ALLOWANCES.some(allowance => isUnderPrefix(repoRelativePath, allowance.pathPrefix))
 }
 
 const TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
@@ -174,10 +267,10 @@ function shouldReadContent(repoRelativePath: string): boolean {
 
 type Span = {readonly start: number; readonly end: number}
 
-// All [start, end) ranges in `text` covered by an allowance context.
+// All [start, end) ranges in `text` covered by a context allowance.
 function allowedSpans(text: string): readonly Span[] {
     const spans: Span[] = []
-    for (const {context} of ALLOWANCES) {
+    for (const {context} of CONTEXT_ALLOWANCES) {
         let from = 0
         for (;;) {
             const index = text.indexOf(context, from)
@@ -189,23 +282,26 @@ function allowedSpans(text: string): readonly Span[] {
     return spans
 }
 
-function isAllowed(spans: readonly Span[], start: number, end: number): boolean {
+function isWithinAllowedSpan(spans: readonly Span[], start: number, end: number): boolean {
     return spans.some(span => span.start <= start && end <= span.end)
 }
 
 type TermMatch = {readonly term: string; readonly index: number}
 
-// Every banned-term occurrence in `text` not covered by an allowance, ordered
-// by position so cleanup output is deterministic.
-function disallowedMatches(text: string): readonly TermMatch[] {
+// Every banned-term occurrence in `text` that is not covered by an allowance,
+// ordered by position so cleanup output is deterministic. When `mcpPathAllowed`
+// is set, the "mcp" terms are suppressed wholesale (the file lives in a
+// path-allowed subsystem) while `vault`/`appSupport` stay enforced.
+function disallowedMatches(text: string, mcpPathAllowed: boolean): readonly TermMatch[] {
     const spans = allowedSpans(text)
     const matches: TermMatch[] = []
     for (const term of TERMS) {
+        if (mcpPathAllowed && MCP_TERMS.has(term)) continue
         let from = 0
         for (;;) {
             const index = text.indexOf(term, from)
             if (index === -1) break
-            if (!isAllowed(spans, index, index + term.length)) {
+            if (!isWithinAllowedSpan(spans, index, index + term.length)) {
                 matches.push({term, index})
             }
             from = index + 1
@@ -241,7 +337,7 @@ function formatViolations(violations: readonly ProjectVocabularyViolation[]): st
         'Path terms: use "project" for root paths, "writeFolderPath" for write targets, "voicetreeHomePath" for global state.',
         '"mcp": VoiceTree no longer is an MCP server — use the vt CLI / vt-daemon /rpc vocabulary. A genuinely',
         'legitimate use (external MCP ecosystem, the stale-entry stripper, the pending daemon rename) must be added',
-        'to ALLOWANCES in project-vocabulary.ts with a rationale.',
+        'to CONTEXT_ALLOWANCES or PATH_ALLOWANCES in project-vocabulary.ts with a rationale.',
         ...details,
         ...overflow,
         '',
@@ -250,7 +346,10 @@ function formatViolations(violations: readonly ProjectVocabularyViolation[]): st
 
 async function scanFile(repoRoot: string, absolutePath: string): Promise<readonly ProjectVocabularyViolation[]> {
     const repoRelativePath = toRepoPath(repoRoot, absolutePath)
-    const pathViolations: ProjectVocabularyViolation[] = disallowedMatches(repoRelativePath).map(match => ({
+    if (isSelfModule(repoRelativePath)) return []
+    const mcpPathAllowed = isMcpPathAllowed(repoRelativePath)
+
+    const pathViolations: ProjectVocabularyViolation[] = disallowedMatches(repoRelativePath, mcpPathAllowed).map(match => ({
         path: repoRelativePath,
         line: null,
         column: null,
@@ -262,7 +361,7 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
 
     const content = await readFile(absolutePath, 'utf8').catch(() => null)
     if (content === null) return pathViolations
-    const contentViolations: ProjectVocabularyViolation[] = disallowedMatches(content).map(match => {
+    const contentViolations: ProjectVocabularyViolation[] = disallowedMatches(content, mcpPathAllowed).map(match => {
         const location = lineColumn(content, match.index)
         return {
             path: repoRelativePath,
@@ -283,7 +382,7 @@ async function scanDirectory(repoRoot: string, absoluteDir: string): Promise<rea
         const absolutePath = join(absoluteDir, entry.name)
         if (entry.isDirectory()) {
             violations.push(...await scanDirectory(repoRoot, absolutePath))
-        } else if (entry.isFile()) {
+        } else if (entry.isFile() && !isExcludedFile(entry.name)) {
             violations.push(...await scanFile(repoRoot, absolutePath))
         }
     }
