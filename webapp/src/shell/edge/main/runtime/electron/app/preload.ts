@@ -83,7 +83,7 @@ async function exposeElectronAPI(): Promise<void> {
         },
 
         onProjectReady: (callback) => {
-            type ProjectReadyData = { path: string };
+            type ProjectReadyData = { path: string; sessionId: string };
             const handler: (_event: Electron.IpcRendererEvent, data: ProjectReadyData) => void = (_event, data) => callback(data);
             ipcRenderer.on('project:ready', handler);
             return () => ipcRenderer.off('project:ready', handler);

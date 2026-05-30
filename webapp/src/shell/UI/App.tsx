@@ -87,9 +87,15 @@ function App(): JSX.Element {
         return matchingProject ?? createFallbackProject(directory);
     }, []);
 
-    const syncProjectFromDirectory: (directory: string) => Promise<void> = useCallback(async (directory: string): Promise<void> => {
+    const syncProjectFromDirectory: (directory: string, sessionId: string) => Promise<void> = useCallback(async (directory: string, sessionId: string): Promise<void> => {
         const project: SavedProject = await loadProjectForDirectory(directory);
         setCurrentProject(project);
+        // project:ready means a session already exists in Main; record it so the
+        // graph-view mount gate (openedProject?.sessionId) is satisfied on the
+        // reopen / project-switch path too — not only on openProjectForProject.
+        // Same sessionId as openProjectForProject's response for renderer-driven
+        // opens, so this is idempotent and triggers no extra mount churn.
+        setOpenedProject({ path: directory, sessionId });
         setCurrentView('graph-view');
     }, [loadProjectForDirectory]);
 
@@ -226,11 +232,11 @@ function App(): JSX.Element {
             setProjectSwitching(true);
             setProjectError(null);
         }) ?? (() => {});
-        const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string }) => {
+        const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string; sessionId: string }) => {
             lastKnownProjectPathRef.current = data.path;
             setProjectSwitching(false);
             setProjectError(null);
-            void syncProjectFromDirectory(data.path);
+            void syncProjectFromDirectory(data.path, data.sessionId);
             // Reopen / project-switch re-primes the registry but never replays
             // the spawn-time launch events; rehydrate so panels for already-
             // running agents reappear. Idempotent with the mount-time trigger.
