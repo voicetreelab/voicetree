@@ -10,7 +10,7 @@ export type DebugInstance = {
 };
 
 export type PickOpts = {
-    port?: number;   // match cdpPort (legacy CLI flag historically accepted MCP port too — that port is gone in 7f)
+    port?: number;   // match cdpPort (legacy CLI flag historically accepted the daemon tool-server port too — that port is gone in 7f)
     pid?: number;
     project?: string;  // match resolved projectRoot prefix
     forceNew?: boolean;  // --new: skip existing instances, always launch fresh

@@ -3,14 +3,14 @@ import {extractParentRefs, normalizeBatchFilenameKey} from './extract-parent-ref
 
 describe('extractParentRefs', () => {
     it('extracts a single parent line with no edge label', () => {
-        expect(extractParentRefs('- parent [[mcp-plan]]')).toEqual([
-            {filename: 'mcp-plan', edgeLabel: undefined},
+        expect(extractParentRefs('- parent [[rename-plan]]')).toEqual([
+            {filename: 'rename-plan', edgeLabel: undefined},
         ])
     })
 
     it('extracts the edge label after the pipe', () => {
-        expect(extractParentRefs('- parent [[mcp-plan|implements]]')).toEqual([
-            {filename: 'mcp-plan', edgeLabel: 'implements'},
+        expect(extractParentRefs('- parent [[rename-plan|implements]]')).toEqual([
+            {filename: 'rename-plan', edgeLabel: 'implements'},
         ])
     })
 

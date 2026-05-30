@@ -4,7 +4,7 @@
  * Uses on-disk tempdir fixtures with the `packages/libraries` layer
  * prefix — the measure scopes by relativePath (matching the full-graph
  * scope: webapp/src + packages/systems/<X>/src + packages/libraries/<X>/src
- * + voicetree-mcp/bin). Without that prefix, the fixture files fall
+ * + vt-daemon/bin). Without that prefix, the fixture files fall
  * outside scope and the measure reports zero.
  *
  * The measure registers itself by side effect (no exported constant), so

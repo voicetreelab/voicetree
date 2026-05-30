@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { createGraph } from '../../construction/createGraph'
+import { applyGraphDeltaToGraph } from '../../graphDelta/applyGraphDeltaToGraph'
+import { reverseDelta } from '../../undo/reverseDelta'
 import type { Graph, GraphNode } from '../..'
 import { computeExtractIntoFolderGraphDelta, getExtractIntoFolderSelectionSupport } from './computeExtractIntoFolderGraphDelta'
 
@@ -179,6 +181,41 @@ describe('computeExtractIntoFolderGraphDelta', () => {
             '/tmp/project/foo/alpha.md',
             '/tmp/project/bar/beta.md'
         ]))
+    })
+
+    it('is fully invertible: applying the extract delta then its reverse restores the original graph', () => {
+        // Cross-linked nodes plus an external linker — the real-world shape that the
+        // link-free e2e fixtures never exercise. Undoing the extraction (the user
+        // pressed Ctrl+Z) must round-trip back to the original graph: no duplicate
+        // files left inside the folder, no orphaned index.md.
+        const nodes: Record<string, GraphNode> = {
+            '/tmp/project/defects.md': createTestNode('/tmp/project/defects.md', {
+                position: { x: 100, y: 100 },
+                outgoingEdges: [{ targetId: 'rootcause', label: '' }],
+                contentWithoutYamlOrLinks: '# Defects\n\n- parent [[rootcause]]'
+            }),
+            '/tmp/project/rootcause.md': createTestNode('/tmp/project/rootcause.md', {
+                position: { x: 200, y: 100 }
+            }),
+            '/tmp/project/index-readme.md': createTestNode('/tmp/project/index-readme.md', {
+                position: { x: 300, y: 100 },
+                outgoingEdges: [{ targetId: 'defects', label: 'see' }],
+                contentWithoutYamlOrLinks: '# Readme\n\nSee [defects]* for details.'
+            })
+        }
+        const original: Graph = createGraph(nodes)
+
+        const { delta } = computeExtractIntoFolderGraphDelta(
+            ['/tmp/project/defects.md', '/tmp/project/rootcause.md'],
+            original,
+            '/tmp/project'
+        )
+
+        const afterExtract: Graph = applyGraphDeltaToGraph(original, delta)
+        const afterUndo: Graph = applyGraphDeltaToGraph(afterExtract, reverseDelta(delta))
+
+        expect(Object.keys(afterUndo.nodes).sort()).toEqual(Object.keys(nodes).sort())
+        expect(afterUndo.nodes).toEqual(original.nodes)
     })
 
     it('honors the folderName override when provided', () => {

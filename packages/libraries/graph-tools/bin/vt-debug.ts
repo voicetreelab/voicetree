@@ -28,7 +28,7 @@ const argv = process.argv.slice(2)
 
 const SELECTOR_FLAGS_HELP = [
   'Shared selector flags:',
-  '  --port <N>      Target a specific registered dev session by CDP/MCP port.',
+  '  --port <N>      Target a specific registered dev session by CDP port.',
   '  --cdpPort <N>   Backward-compatible alias for --port.',
   '  --pid <N>       Target a specific registered dev process.',
   '  --project <path>  Target a specific registered dev project path.',

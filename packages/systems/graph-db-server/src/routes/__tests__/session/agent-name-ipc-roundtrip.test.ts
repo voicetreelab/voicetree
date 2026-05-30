@@ -71,14 +71,14 @@ describe('agent_name survives IPC roundtrip to daemon', () => {
       },
     ]
 
-    // Use the real GraphDbClient — same code path as the MCP create_graph tool.
+    // Use the real GraphDbClient — same code path as the create_graph tool.
     const client = new GraphDbClient({
       baseUrl: `http://127.0.0.1:${handle.port}`,
-      sessionId: 'mcp-roundtrip-session',
+      sessionId: 'rpc-roundtrip-session',
     })
     await client.applyGraphDelta(delta, {
       recordForUndo: false,
-      sessionId: 'mcp-roundtrip-session',
+      sessionId: 'rpc-roundtrip-session',
     })
 
     const fileContent: string = await readFile(testNodePath, 'utf8')

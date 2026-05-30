@@ -14,7 +14,7 @@
 //      error shape on both clients.
 //
 // No internal mocks: real HTTP, real fetch, real tmpdir project. The harness
-// here mirrors `bin/vt-mcpd.ts` minus the agent-runtime tmux wiring — the
+// here mirrors `bin/vtd.ts` minus the agent-runtime tmux wiring — the
 // live-state surface does not require terminal management.
 
 import {beforeAll, afterAll, describe, expect, it} from 'vitest'

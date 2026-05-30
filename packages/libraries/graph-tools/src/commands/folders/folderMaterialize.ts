@@ -191,7 +191,7 @@ async function folderMaterializeHandler(argv: string[]): Promise<Response<unknow
     return err(
       'folder-materialize',
       String(e),
-      'verify the dev instance is running with MCP + CDP enabled and the graph is loaded',
+      'verify the dev instance is running with CDP enabled and the graph is loaded',
       3,
     )
   } finally {

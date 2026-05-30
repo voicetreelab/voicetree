@@ -21,7 +21,7 @@ Wire dialect: JSON-RPC 2.0 over POST `/rpc` on the daemon's existing HTTP pipeli
 
 ## 0. Bundling assumption — Phase 2 ships with Phase 3
 
-**Phase 2 ships bundled with Phase 3.** Phase 2 retires the in-process `@vt/agent-runtime` from webapp; as part of that retirement the `onFSNodeWithAgentName` callback in `webapp/src/shell/edge/main/graph/graph-model-init.ts` is deleted with no in-webapp replacement (M1, commit `44282b93f`). Today that callback is the only path that feeds agent-name FS edges (those that arrive *outside* the MCP `create_graph` flow) into the completion gate.
+**Phase 2 ships bundled with Phase 3.** Phase 2 retires the in-process `@vt/agent-runtime` from webapp; as part of that retirement the `onFSNodeWithAgentName` callback in `webapp/src/shell/edge/main/graph/graph-model-init.ts` is deleted with no in-webapp replacement (M1, commit `44282b93f`). Today that callback is the only path that feeds agent-name FS edges (those that arrive *outside* the `create_graph` flow) into the completion gate.
 
 Phase 3 lands the FS watcher in VTD, which republishes those edges through the daemon-side hook pipeline (`dispatchOnNewNodeHooks` consumer side). That closes the gap.
 
@@ -47,7 +47,7 @@ Request / response shapes live in `packages/libraries/vt-daemon-protocol/src/rpc
 
 | Route | Request | Response | Why kept as RPC |
 |---|---|---|---|
-| `sendTextToTerminal` | `{terminalId, text}` | `TerminalOperationResult` | Renderer / hook / MCP-side input → tmux send-keys ceremony. |
+| `sendTextToTerminal` | `{terminalId, text}` | `TerminalOperationResult` | Renderer / hook / tool-side input → tmux send-keys ceremony. |
 | `injectNodesIntoTerminal` | `{terminalId, nodeIds}` | `{success, injectedCount}` | Renderer "share these unseen nodes with the agent" gesture. |
 
 ### Read state (3)
