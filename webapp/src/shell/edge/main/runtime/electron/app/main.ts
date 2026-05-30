@@ -132,9 +132,12 @@ tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 // alive so the probe's beforeExit self-stop never fires; we stop it explicitly on
 // will-quit so Pyroscope flushes and the durable log closes.
 let stopPerfProbe: (() => Promise<void>) | undefined;
-void perfProbeFromEnv('vt-electron-main').then((stop) => {
-    stopPerfProbe = stop;
-});
+perfProbeFromEnv('vt-electron-main').then(
+    (stop) => { stopPerfProbe = stop; },
+    // Profiling is best-effort: a probe failure (e.g. Pyroscope unreachable)
+    // must never take down app startup — log and continue uninstrumented.
+    (err: unknown) => { log.warn(`[perf-probe] failed to start: ${err instanceof Error ? err.message : String(err)}`); },
+);
 validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
