@@ -43,11 +43,12 @@ function artifactDir(runUuid) {
   return join(homedir(), '.voicetree', 'perf', runUuid)
 }
 
-function profileEnv({ baseEnv = process.env, runUuid, otlpEnabled }) {
+export function profileEnv({ baseEnv = process.env, runUuid, otlpEnabled }) {
   const env = {
     ...baseEnv,
     VOICETREE_RUN_INSTANCE_ID: runUuid,
-    VOICETREE_PERF_PROFILE: '1',
+    // Storm runs profile at the deep tier: 1 kHz wall sampling + heap snapshots.
+    VOICETREE_PERF_TIER: 'deep',
   }
 
   if (otlpEnabled) {
@@ -65,7 +66,7 @@ function printHelp() {
   process.stdout.write([
     'Usage: pnpm --filter voicetree-webapp run electron:profile -- [e2e-storm-mvp args]',
     '',
-    'Profiles the Electron e2e-storm MVP harness with VOICETREE_PERF_PROFILE=1.',
+    'Profiles the Electron e2e-storm MVP harness at the deep tier (VOICETREE_PERF_TIER=deep).',
     'By default it verifies the local perf stack, stamps VOICETREE_RUN_INSTANCE_ID,',
     `and exports VOICETREE_OTLP_ENDPOINT=${DEFAULT_OTLP_ENDPOINT}.`,
     '',

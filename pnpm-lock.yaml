@@ -869,6 +869,9 @@ importers:
       '@vt/paths':
         specifier: '*'
         version: link:../packages/libraries/paths
+      '@vt/perf-analysis':
+        specifier: '*'
+        version: link:../packages/libraries/perf-analysis
       '@xterm/addon-clipboard':
         specifier: ^0.2.0-beta.120
         version: 0.2.0
