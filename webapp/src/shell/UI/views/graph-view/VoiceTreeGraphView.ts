@@ -303,7 +303,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Event emitters
     private nodeSelectedEmitter = new EventEmitter<string>();
-    private nodeDoubleClickEmitter = new EventEmitter<string>();
     private edgeSelectedEmitter = new EventEmitter<{ source: string; target: string }>();
     private layoutCompleteEmitter = new EventEmitter<void>();
 
@@ -561,10 +560,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         return this.nodeSelectedEmitter.on(callback);
     }
 
-    onNodeDoubleClick(callback: (nodeId: string) => void): () => void {
-        return this.nodeDoubleClickEmitter.on(callback);
-    }
-
     onEdgeSelected(callback: (sourceId: string, targetId: string) => void): () => void {
         return this.edgeSelectedEmitter.on((data) => callback(data.source, data.target));
     }
@@ -596,7 +591,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             animationService: this.animationService,
             navigator: this.navigator,
             nodeSelectedEmitter: this.nodeSelectedEmitter,
-            nodeDoubleClickEmitter: this.nodeDoubleClickEmitter,
             edgeSelectedEmitter: this.edgeSelectedEmitter,
             layoutCompleteEmitter: this.layoutCompleteEmitter,
         });

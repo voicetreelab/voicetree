@@ -35,7 +35,6 @@ export interface GraphViewDisposeDependencies {
     navigator: { destroy: () => void } | null;
     cleanupSettingsListener: (() => void) | null;
     nodeSelectedEmitter: EventEmitter<string>;
-    nodeDoubleClickEmitter: EventEmitter<string>;
     edgeSelectedEmitter: EventEmitter<{ source: string; target: string }>;
     layoutCompleteEmitter: EventEmitter<void>;
 }
@@ -111,7 +110,6 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
 
     // Clear event emitters
     deps.nodeSelectedEmitter.clear();
-    deps.nodeDoubleClickEmitter.clear();
     deps.edgeSelectedEmitter.clear();
     deps.layoutCompleteEmitter.clear();
 }
