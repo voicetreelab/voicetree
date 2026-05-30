@@ -46,7 +46,6 @@
 // per-process surface, `--project` becomes optional. See
 // docs/daemon-first-architecture.md.
 
-import {existsSync} from 'node:fs'
 import {unlink} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -64,20 +63,17 @@ import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
-import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
-import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
-import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/injection/vtPathInjection.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
-import type {GraphStateBridge} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
-    TERMINAL_REGISTRY_TOPIC,
-    type TerminalRegistryEvent,
-} from '@vt/vt-daemon-protocol'
+    buildPublishTerminalRegistryEvent,
+    configureAgentRuntimeForVtd,
+} from '../src/config/vtdAgentRuntimeWiring.ts'
+import {TERMINAL_REGISTRY_TOPIC} from '@vt/vt-daemon-protocol'
 import {generateAuthToken, rpcPortFilePath, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {VTD_CONTRACT_VERSION, type VtDaemonHealthResponse} from '../src/contract.ts'
 import {buildVtDaemonHealthResponse} from '../src/lifecycle/buildHealthResponse.ts'
@@ -181,57 +177,6 @@ function resolveVoicetreeCliPackageDir(): string {
     return join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'voicetree-cli')
 }
 
-function configureAgentRuntimeForVtd(
-    publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
-    graph: GraphStateBridge,
-): void {
-    // The `vt` binary is shipped inside @voicetree/cli. The CLI manual is
-    // rendered live from @vt/vt-daemon-protocol's TOOL_SPECS — no longer
-    // file-based — so vtd no longer needs to register a manual path.
-    const voicetreeCliPackageDir: string = resolveVoicetreeCliPackageDir()
-    // `vt` lives at <voicetree-cli>/bin/vt. resolveVtBinDir verifies the
-    // script exists and returns null otherwise — the spawn pipeline's
-    // PATH injection then no-ops gracefully.
-    const vtBinDir: string | null = resolveVtBinDir(voicetreeCliPackageDir, existsSync)
-
-    configureAgentRuntime({
-        env: {
-            getVtBinDir: (): string | null => vtBinDir,
-        },
-        publishTerminalRegistryEvent,
-        graph,
-    })
-}
-
-/**
- * Build the publish sink injected into agent-runtime. Two concerns fan out
- * from a single event:
- *
- *   1. Wire publish onto the new `terminal-registry` SSE topic so renderer
- *      clients learn about registry mutations and the imperative UI-launch
- *      instructions that used to fire as in-process UI callbacks.
- *   2. In-process side effect for `terminal-ui-child-registered`: VTD owns
- *      the agent-completion monitor (`@vt/vt-daemon`'s
- *      `registerChildIfMonitored`); when a spawn announces a new child of a
- *      monitored parent, the monitor's terminal-id table must learn about
- *      it before the child's first poll. Pre-S2-R this happened through an
- *      in-process callback; that callback is gone, so we route the same
- *      data through the publish sink instead.
- *
- * The sink is the canonical place to do both because it sits at the boundary
- * where every event passes through exactly once.
- */
-function buildPublishTerminalRegistryEvent(
-    publishOnTopic: (event: string, data: unknown) => void,
-): (event: TerminalRegistryEvent) => void {
-    return (event: TerminalRegistryEvent): void => {
-        publishOnTopic(event.type, event)
-        if (event.type === 'terminal-ui-child-registered') {
-            registerChildIfMonitored(event.parentTerminalId, event.childTerminalId)
-        }
-    }
-}
-
 async function main(): Promise<void> {
     tracing.init('vtd')
     const args: Args = parseArgs(process.argv.slice(2))
@@ -270,10 +215,17 @@ async function main(): Promise<void> {
     // `VT_GRAPHD_BIN` is honored as an override (used by tests pointing at a
     // fake vt-graphd; also useful in dev to point at a freshly built binary).
     // Mirrors `ensureDaemon` in @vt/graph-db-client.
+    // Budget parity (startup-hang fix): electron waits up to 30s for THIS VTD to
+    // report healthy, and VTD reports healthy only after this graphd-ensure
+    // resolves. Graphd's 5s default here is a budget inversion — a slow-but-
+    // healthy graphd would `die()` VTD at 5s while electron would have waited,
+    // leaving the renderer spinning on "loading workspace". Match electron's 30s.
+    const GRAPHD_ENSURE_TIMEOUT_MS = 30_000
     let gdb: EnsureGraphDaemonResult
     try {
         gdb = await ensureGraphDaemonForProject(args.project, 'vtd', {
             bin: process.env.VT_GRAPHD_BIN,
+            timeoutMs: GRAPHD_ENSURE_TIMEOUT_MS,
         })
     } catch (err) {
         await ownerHandle.release().catch(() => undefined)
@@ -392,6 +344,7 @@ async function main(): Promise<void> {
     // Both must be wired or the spawn pipeline throws "graph bridge not configured"
     // on the first Run-Agent click.
     configureAgentRuntimeForVtd(
+        resolveVoicetreeCliPackageDir(),
         buildPublishTerminalRegistryEvent(
             (event: string, data: unknown): void =>
                 httpHandle.hub.publish(TERMINAL_REGISTRY_TOPIC, event, data),
