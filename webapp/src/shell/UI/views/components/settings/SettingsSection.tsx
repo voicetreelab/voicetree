@@ -3,9 +3,10 @@ import type { JSX } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@vt/graph-model/settings';
 import { DEFAULT_HOTKEYS } from '@vt/graph-model/settings';
-import { SECTION_MAP, HIDDEN_KEYS, NUMBER_FIELD_CONFIG, inferFieldType, keyToLabel } from './settingsUtils';
-import type { Section, FieldType, NumberFieldConfig } from './settingsUtils';
+import { SECTION_MAP, HIDDEN_KEYS, NUMBER_FIELD_CONFIG, SELECT_FIELD_OPTIONS, inferFieldType, keyToLabel } from './settingsUtils';
+import type { Section, FieldType, NumberFieldConfig, SelectOption } from './settingsUtils';
 import { ToggleField } from './fields/ToggleField';
+import { SelectField } from './fields/SelectField';
 import { NumberField } from './fields/NumberField';
 import { TextField } from './fields/TextField';
 import { HotkeyField } from './fields/HotkeyField';
@@ -233,6 +234,19 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                                 max={config?.max}
                                 step={config?.step}
                                 slider={config?.slider}
+                                onChange={v => onUpdate(key, v)}
+                            />
+                        );
+                    }
+
+                    case 'select': {
+                        const options: readonly SelectOption[] = SELECT_FIELD_OPTIONS[key] ?? [];
+                        return (
+                            <SelectField
+                                key={key}
+                                label={label}
+                                value={value as string ?? (options[0]?.value ?? '')}
+                                options={options}
                                 onChange={v => onUpdate(key, v)}
                             />
                         );
