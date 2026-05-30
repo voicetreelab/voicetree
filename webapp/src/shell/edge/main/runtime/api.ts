@@ -14,6 +14,7 @@ import {getBackendPort, getVoicetreeHomePath} from "@/shell/edge/main/runtime/st
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/queries/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
+import {recordRendererTelemetry} from '@/shell/edge/main/observability/recordRendererTelemetry';
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/queries/daemon-graph-queries'
 import {getVtDaemonFacade} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import type {
@@ -189,6 +190,10 @@ function listUnclaimedTmuxSessions(): ReturnType<ReturnType<typeof getVtDaemonFa
 }
 
 export const mainAPI = {
+  // Perf-probe MELT sink: renderer batches frame/longtask/INP/interaction
+  // telemetry here; main forwards it to the OTLP exporter (perf runs only).
+  recordRendererTelemetry,
+
   // Graph operations - daemon-only write path
   applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 

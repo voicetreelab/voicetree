@@ -6,6 +6,7 @@ import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
+import { installRendererPerfProbe } from '@/shell/perf/installRendererPerfProbe'
 import type { VTSettings } from '@vt/graph-model/settings'
 import { ringBuffer } from '@/shell/edge/renderer/debug/consoleBuffer'
 import { snapshot as buttonSnapshot, _register, _unregister } from '@/shell/edge/renderer/debug/buttonRegistry'
@@ -105,6 +106,11 @@ if (!analyticsDisabled) {
     }
   })()
 }
+
+// Start the renderer perf probe when the e2e-nav-storm harness requests it
+// (VOICETREE_PERF_PROBE=1 → window.voicetreeEnv.perfProbe). No-op otherwise, so
+// the rAF loop / PerformanceObservers never run in the normal app.
+installRendererPerfProbe();
 
 // Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)
 setupUIRpcHandler();
