@@ -171,6 +171,30 @@
 }
 
 /* =============================================================================
+ * Dark Mode Editor Surface
+ *
+ * In dark mode the editor loads the `oneDark` theme, which paints the editor
+ * body a blue-tinted slate (#282c34) and the caret a dim blue (#528bff). That
+ * slate sits on top of the neutral floating-window card (var(--card)), so an
+ * open editor reads as "slightly gray/blue" next to every other node, and the
+ * caret is hard to spot while typing.
+ *
+ * Neutralize both: let the card show through (so editor nodes match the
+ * neutral dark of the rest of the graph) and force a clearly visible caret.
+ * oneDark's syntax colors are untouched — only the chrome is overridden, which
+ * is the same pattern already used for selection/gutters above.
+ * ============================================================================= */
+
+.dark .cm-editor {
+  background-color: transparent !important;
+}
+
+.dark .cm-editor .cm-cursor,
+.dark .cm-editor .cm-dropCursor {
+  border-left-color: #ffffff !important;
+}
+
+/* =============================================================================
  * Dark Mode Gutter Styling
  * Force dark background and light text for gutters in dark mode
  * ============================================================================= */
