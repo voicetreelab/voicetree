@@ -132,6 +132,27 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
         expect(cached?.terminalData.isPinned).toBe(true)
     })
 
+    it('terminal-record-changed lifecycle patch updates the daemon-authoritative lifecycle', (): void => {
+        // Regression: a freshly-registered row carries lifecycle 'spawning'.
+        // Without applying lifecycle patches the sidebar icon stays frozen on
+        // the grey 'spawning' dot for every terminal regardless of true state.
+        applyTerminalRegistryEnvelope({
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
+            event: {type: 'terminal-registered', record: makeRecord('T1')},
+        })
+        expect(getCachedTerminalRecord('T1' as TerminalId)?.terminalData.lifecycle).toBe('spawning')
+
+        applyTerminalRegistryEnvelope({
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
+            event: {
+                type: 'terminal-record-changed',
+                terminalId: 'T1' as TerminalId,
+                patch: {kind: 'lifecycle', value: 'awaiting_input'},
+            },
+        })
+        expect(getCachedTerminalRecord('T1' as TerminalId)?.terminalData.lifecycle).toBe('awaiting_input')
+    })
+
     it('terminal-record-changed activity patch merges lastOutputTime + activityCount', (): void => {
         applyTerminalRegistryEnvelope({
             kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,

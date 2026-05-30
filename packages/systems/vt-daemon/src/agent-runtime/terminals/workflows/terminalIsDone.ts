@@ -1,6 +1,6 @@
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import type {TerminalId} from '@vt/vt-daemon-protocol'
+import type {TerminalId, TerminalLifecycle} from '@vt/vt-daemon-protocol'
 import {getRuntimeGraph} from '@vt/vt-daemon/agent-runtime/runtime/graph-bridge.ts'
 import {
     STOP_HOOK_DELAY_MS,
@@ -30,6 +30,7 @@ export function updateTerminalIsDoneWorkflow(
     if (!record) return
 
     const wasDone: boolean = record.terminalData.isDone
+    const previousLifecycle: TerminalLifecycle = record.terminalData.lifecycle
     const result = handleTerminalIsDone(record, {
         isDone,
         records: Array.from(terminalRecords.values()),
@@ -48,6 +49,18 @@ export function updateTerminalIsDoneWorkflow(
             type: 'terminal-record-changed',
             terminalId: terminalId as TerminalId,
             patch: {kind: 'done', value: isDone},
+        })
+    }
+
+    // The done signal drives a lifecycle transition (e.g. spawning/idle →
+    // active when output resumes, active → idle/awaiting on inactivity). The
+    // `done` patch above carries only the boolean; broadcast the recomputed
+    // lifecycle separately so the sidebar icon tracks daemon-derived state.
+    if (result.response.lifecycle !== previousLifecycle) {
+        publishTerminalRegistryEvent({
+            type: 'terminal-record-changed',
+            terminalId: terminalId as TerminalId,
+            patch: {kind: 'lifecycle', value: result.response.lifecycle},
         })
     }
 }
