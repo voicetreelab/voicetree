@@ -10,7 +10,7 @@ import {
     type CommandResult,
     setupViewTestContext,
     type ViewTestContext,
-} from './view-test-helpers.ts'
+} from './__tests__/view-test-helpers.ts'
 
 describe('runViewCommand layout (set-pan / set-zoom / set-positions)', () => {
     const ctx: ViewTestContext = setupViewTestContext()

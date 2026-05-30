@@ -64,7 +64,7 @@ import {
     waitForVtdFailureExit,
     type ServeHandle,
     type ServeReady,
-} from './serveOwner.e2e.harness'
+} from './__tests__/serveOwner.e2e.harness'
 
 describe.skipIf(process.env.CI_SANDBOX === '1')(
     'vt serve two-ensure wrapper',

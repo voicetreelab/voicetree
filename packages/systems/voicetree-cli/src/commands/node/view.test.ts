@@ -15,7 +15,7 @@ import {
     setupViewTestContext,
     type ViewTestContext,
     waitFor,
-} from './view-test-helpers.ts'
+} from './__tests__/view-test-helpers.ts'
 
 async function runViewJson(argv: string[]): Promise<unknown> {
     const result: CommandResult = await captureCommand(() => runViewCommand(argv))

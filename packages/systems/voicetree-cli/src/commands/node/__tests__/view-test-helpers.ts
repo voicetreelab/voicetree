@@ -7,8 +7,8 @@ import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
 import {createEmptyGraph} from '@vt/graph-model'
-import {CliError} from '../output'
-import {CliExitError} from '../util/exitCodes'
+import {CliError} from '../../output'
+import {CliExitError} from '../../util/exitCodes'
 
 export class ExitCalled extends Error {
     constructor(public readonly code: number) {
