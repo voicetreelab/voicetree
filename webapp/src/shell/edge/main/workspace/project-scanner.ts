@@ -1,2 +1,2 @@
 // Re-export shim — actual implementation in @vt/app-config
-export { scanForProjects, getDefaultSearchDirectories, selectObsidianVaultPaths } from '@vt/app-config/project'
+export { scanForProjects, getDefaultSearchDirectories, selectObsidianProjectPaths } from '@vt/app-config/project'

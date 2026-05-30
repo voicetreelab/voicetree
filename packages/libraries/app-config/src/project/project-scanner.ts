@@ -104,8 +104,11 @@ function isWithinSearchDirs(targetPath: string, searchDirs: readonly string[]): 
  * construction — it never throws regardless of the value's shape. A missing or
  * non-object `vaults` key yields no paths; individual malformed entries (missing or
  * non-string `path`) are skipped rather than failing the whole read.
+ *
+ * project-vocabulary:allow vault — Obsidian owns this term: obsidian.json keys the
+ * vault map literally as "vaults", so correctly reading it requires the word here.
  */
-export function selectObsidianVaultPaths(
+export function selectObsidianProjectPaths(
     config: unknown,
     searchDirs: readonly string[],
     pathExists: (candidate: string) => boolean
@@ -125,7 +128,7 @@ export function selectObsidianVaultPaths(
  * Reads the Obsidian config file and returns the configured vault paths within the
  * given search directories. Best-effort: an unreadable or malformed config yields an
  * empty list (logged) rather than throwing — shape robustness lives in the total
- * {@link selectObsidianVaultPaths}; this shell only guards file I/O and JSON parsing.
+ * {@link selectObsidianProjectPaths}; this shell only guards file I/O and JSON parsing.
  */
 async function getObsidianProjectPaths(searchDirs: readonly string[]): Promise<string[]> {
     const configPath: string = getObsidianConfigPath();
@@ -136,7 +139,7 @@ async function getObsidianProjectPaths(searchDirs: readonly string[]): Promise<s
         }
 
         const configData: string = await fs.promises.readFile(configPath, 'utf-8');
-        return selectObsidianVaultPaths(JSON.parse(configData), searchDirs, fs.existsSync);
+        return selectObsidianProjectPaths(JSON.parse(configData), searchDirs, fs.existsSync);
     } catch (err) {
         console.error('[project-scanner] Failed to read Obsidian config:', err);
         return [];

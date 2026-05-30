@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { selectObsidianVaultPaths } from './project-scanner';
+import { selectObsidianProjectPaths } from './project-scanner';
 
+// project-vocabulary:allow vault — these fixtures mirror Obsidian's real config,
+// which keys its vault map "vaults"; the term is Obsidian's, not VoiceTree's.
+//
 // `pathExists` is injected as a function input (not a mocked internal dependency),
-// so these stay pure black-box tests: parsed-config in, vault-paths out.
+// so these stay pure black-box tests: parsed-config in, project-paths out.
 const EXISTS = (): boolean => true;
 const MISSING = (): boolean => false;
 
-describe('selectObsidianVaultPaths', () => {
+describe('selectObsidianProjectPaths', () => {
     it('reads vault paths from the `vaults` key (regression: code read a non-existent `projects` key)', () => {
         const config = {
             vaults: {
@@ -14,7 +17,7 @@ describe('selectObsidianVaultPaths', () => {
                 h2: { path: '/repos/work', ts: 2 },
             },
         };
-        expect(selectObsidianVaultPaths(config, ['/repos'], EXISTS)).toEqual([
+        expect(selectObsidianProjectPaths(config, ['/repos'], EXISTS)).toEqual([
             '/repos/notes',
             '/repos/work',
         ]);
@@ -23,18 +26,18 @@ describe('selectObsidianVaultPaths', () => {
     it('returns [] without throwing when `vaults` is absent — the original crash scenario', () => {
         // A fresh Obsidian install has no `vaults` key; the old code threw
         // "Cannot convert undefined or null to object" on Object.values(undefined).
-        expect(selectObsidianVaultPaths({}, ['/repos'], EXISTS)).toEqual([]);
+        expect(selectObsidianProjectPaths({}, ['/repos'], EXISTS)).toEqual([]);
         // The historically (wrongly) assumed shape must also be inert, not fatal.
         expect(
-            selectObsidianVaultPaths({ projects: { h1: { path: '/repos/x' } } }, ['/repos'], EXISTS)
+            selectObsidianProjectPaths({ projects: { h1: { path: '/repos/x' } } }, ['/repos'], EXISTS)
         ).toEqual([]);
     });
 
     it('never throws on a malformed config of any shape', () => {
         const bad: unknown[] = [null, undefined, 42, 'str', [], { vaults: null }, { vaults: 'nope' }];
         for (const value of bad) {
-            expect(() => selectObsidianVaultPaths(value, ['/repos'], EXISTS)).not.toThrow();
-            expect(selectObsidianVaultPaths(value, ['/repos'], EXISTS)).toEqual([]);
+            expect(() => selectObsidianProjectPaths(value, ['/repos'], EXISTS)).not.toThrow();
+            expect(selectObsidianProjectPaths(value, ['/repos'], EXISTS)).toEqual([]);
         }
     });
 
@@ -48,7 +51,7 @@ describe('selectObsidianVaultPaths', () => {
                 emptyPath: { path: '' },
             },
         };
-        expect(selectObsidianVaultPaths(config, ['/repos'], EXISTS)).toEqual(['/repos/good']);
+        expect(selectObsidianProjectPaths(config, ['/repos'], EXISTS)).toEqual(['/repos/good']);
     });
 
     it('filters out vaults outside the search directories', () => {
@@ -58,11 +61,11 @@ describe('selectObsidianVaultPaths', () => {
                 b: { path: '/elsewhere/outside', ts: 2 },
             },
         };
-        expect(selectObsidianVaultPaths(config, ['/repos'], EXISTS)).toEqual(['/repos/inside']);
+        expect(selectObsidianProjectPaths(config, ['/repos'], EXISTS)).toEqual(['/repos/inside']);
     });
 
     it('filters out vaults whose path no longer exists on disk', () => {
         const config = { vaults: { a: { path: '/repos/deleted', ts: 1 } } };
-        expect(selectObsidianVaultPaths(config, ['/repos'], MISSING)).toEqual([]);
+        expect(selectObsidianProjectPaths(config, ['/repos'], MISSING)).toEqual([]);
     });
 });
