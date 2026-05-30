@@ -33,6 +33,7 @@
  */
 
 import {delimiter, isAbsolute, join} from 'node:path'
+import os from 'node:os'
 import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 
 /**
@@ -65,6 +66,33 @@ export function prependVtBinToPath(
  */
 export async function readVtBinDirOrNull(): Promise<string | null> {
     return getRuntimeEnv().getVtBinDir?.() ?? null
+}
+
+/**
+ * Pure: returns a new env-var map with `$HOME/bin` prepended to `PATH`.
+ *
+ * On Unix systems (Mac, Linux), `~/bin` is the conventional location for
+ * user-local executables — in particular the `git-gate` shim that intercepts
+ * `git worktree add` and runs `pnpm install` on the new worktree. Agent
+ * shells inherit PATH from the daemon process, which itself inherits from
+ * its launch context (e.g. macOS Dock). If the user's shell profile
+ * adds `~/bin` via `~/.zprofile` but Electron was not launched from a
+ * login shell, the entry is absent and the git-gate shim is bypassed.
+ *
+ * Injecting `$HOME/bin` here, at spawn time, ensures the shim is always
+ * reachable regardless of how Electron was started — same idempotency
+ * guarantee as `prependVtBinToPath`.
+ *
+ * No-op on Windows (where there is no `~/bin` convention).
+ */
+export function prependHomeBinToPath(
+    envVars: Record<string, string>,
+    platform: string = process.platform,
+    homeDir: string = os.homedir(),
+): Record<string, string> {
+    if (platform === 'win32') return envVars
+    const homeBin: string = join(homeDir, 'bin')
+    return prependVtBinToPath(envVars, homeBin)
 }
 
 /**
