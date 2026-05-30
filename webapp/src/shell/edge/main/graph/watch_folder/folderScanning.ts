@@ -30,32 +30,36 @@ export async function isValidSubdirectory(
     }
 }
 
+type SubfolderModifiedAt = { path: AbsolutePath; modifiedAt: number }
+
 export async function getSubfoldersWithModifiedAt(
     projectRoot: AbsolutePath,
-): Promise<readonly { path: AbsolutePath; modifiedAt: number }[]> {
-    const results: { path: AbsolutePath; modifiedAt: number }[] = []
-
+): Promise<readonly SubfolderModifiedAt[]> {
     try {
         const rootStat: Stats = await fs.stat(projectRoot)
-        results.push({ path: projectRoot, modifiedAt: rootStat.mtime.getTime() })
-
         const entries: Dirent[] = await fs.readdir(projectRoot, { withFileTypes: true })
-        for (const entry of entries) {
-            if (!entry.isDirectory() || entry.name.startsWith('.')) {
-                continue
-            }
-            const fullPath: string = normalizePath(path.join(projectRoot, entry.name))
-            try {
-                const stat: Stats = await fs.stat(fullPath)
-                results.push({
-                    path: toAbsolutePath(fullPath),
-                    modifiedAt: stat.mtime.getTime(),
-                })
-            } catch {
-                // Skip folders we cannot stat.
-            }
-        }
 
+        // Each subfolder stat is independent; run them concurrently rather
+        // than awaiting one at a time. The final sort makes the result order
+        // independent of stat completion order, so this is output-identical.
+        const subfolders: readonly (SubfolderModifiedAt | null)[] = await Promise.all(
+            entries
+                .filter((entry: Dirent) => entry.isDirectory() && !entry.name.startsWith('.'))
+                .map(async (entry: Dirent): Promise<SubfolderModifiedAt | null> => {
+                    const fullPath: string = normalizePath(path.join(projectRoot, entry.name))
+                    try {
+                        const stat: Stats = await fs.stat(fullPath)
+                        return { path: toAbsolutePath(fullPath), modifiedAt: stat.mtime.getTime() }
+                    } catch {
+                        return null // Skip folders we cannot stat.
+                    }
+                }),
+        )
+
+        const results: SubfolderModifiedAt[] = [
+            { path: projectRoot, modifiedAt: rootStat.mtime.getTime() },
+            ...subfolders.filter((s: SubfolderModifiedAt | null): s is SubfolderModifiedAt => s !== null),
+        ]
         results.sort((a, b) => b.modifiedAt - a.modifiedAt)
         return results
     } catch {

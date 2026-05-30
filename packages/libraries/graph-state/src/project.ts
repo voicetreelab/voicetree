@@ -51,8 +51,10 @@ function filterByCollapse(
 
     const visibleFolderIds = new Set(visibleFolders.map((info) => info.id))
 
+    // Object.entries already returns a fresh array, so sort it in place directly — the prior
+    // identity .map (rewrapping each entry as a const tuple) allocated N tuples + an array per
+    // projection purely to widen the static type, which the annotation already covers.
     const nodeEntries: Array<readonly [string, GraphNode]> = Object.entries<GraphNode>(graphNodes)
-        .map(([nodeId, node]) => [nodeId, node] as const)
         .sort(([left], [right]) => left.localeCompare(right))
         .filter(([, node]) => isProjectableGraphNode(node))
 
