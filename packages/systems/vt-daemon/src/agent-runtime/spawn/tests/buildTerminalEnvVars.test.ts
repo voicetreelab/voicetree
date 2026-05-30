@@ -92,11 +92,17 @@ describe('buildTerminalEnvVars prompt templates from ~/.voicetree/prompts', () =
         })
 
     it('sources AGENT_PROMPT_CORE from the home prompts dir and expands nested vars', async () => {
-        await fs.writeFile(path.join(homePromptsDir, 'AGENT_PROMPT_CORE.md'), 'CORE_BODY_TOKEN ctx=$CONTEXT_NODE_PATH\n')
+        await fs.writeFile(
+            path.join(homePromptsDir, 'AGENT_PROMPT_CORE.md'),
+            'CORE_BODY_TOKEN ctx=$CONTEXT_NODE_PATH read $VOICETREE_PROMPTS_DIR/addProgressTree.md\n',
+        )
 
         const env = await spawn()
 
         expect(env.AGENT_PROMPT).toContain('CORE_BODY_TOKEN ctx=/ctx.md')
+        // The template's $VOICETREE_PROMPTS_DIR resolves to the home prompts dir
+        // (this is exactly how the shipped AGENT_PROMPT_CORE points at addProgressTree.md).
+        expect(env.AGENT_PROMPT).toContain(`read ${homePromptsDir}/addProgressTree.md`)
         // VOICETREE_PROMPTS_DIR points at the home prompts dir agents read.
         expect(env.VOICETREE_PROMPTS_DIR).toBe(homePromptsDir)
         // The intermediate template var must not leak into the agent's env.
