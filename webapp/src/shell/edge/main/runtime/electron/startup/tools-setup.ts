@@ -1,8 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { app } from 'electron';
-import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths';
-import { ensureHomePrompts } from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts';
+import {getProjectDotVoicetreePath} from '@vt/paths';
 import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 import type { BuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 
@@ -46,34 +45,10 @@ async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: 
 }
 
 /**
- * Seed the single per-machine prompts location, ~/.voicetree/prompts, from the
- * canonical shipped source (build-config resolves dev=repo vs packaged=
- * resourcesPath). Call ONCE at Electron startup, before any project opens / daemon
- * spawns. The shipped prompts always win; a user override is stashed under
- * ~/.voicetree/.backup/prompts/<timestamp>/ rather than honored. Idempotent.
- *
- * Standalone/headless daemons (which run no Electron) seed the same dir at their
- * own boot via the shared ensureHomePrompts — this is the GUI app's call site.
- */
-export async function seedHomePrompts(): Promise<void> {
-  const config: BuildConfig = getBuildConfig();
-  const result = await ensureHomePrompts({
-    promptsSource: config.promptsSource,
-    voicetreeHome: resolveVoicetreeHomePath(),
-    now: new Date(),
-  });
-  if (result.backedUp.length > 0) {
-    console.info(
-      `[Startup] Stashed ${result.backedUp.length} user-overridden prompt(s) and realigned to shipped: `
-      + result.backedUp.join(', '),
-    );
-  }
-}
-
-/**
  * Ensure {projectRoot}/.voicetree/ has hook scripts and bookkeeping files.
  * Prompts are NOT provisioned per-project — they live solely at
- * ~/.voicetree/prompts (see seedHomePrompts).
+ * ~/.voicetree/prompts, seeded by the vtd daemon at boot (see
+ * @vt/vt-daemon's ensureHomePrompts).
  *
  * Idempotent on every open:
  * - Hooks are copied per-file (fills gaps, preserves user-customized files).

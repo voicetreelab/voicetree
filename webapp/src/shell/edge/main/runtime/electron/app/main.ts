@@ -17,7 +17,6 @@ import type {TerminalRecord} from '@vt/vt-daemon-client';
 import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
-import {seedHomePrompts} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
@@ -179,15 +178,6 @@ void app.whenReady().then(async () => {
     setupRPCHandlers();
     registerGraphIpcHandlers();
     setupApplicationMenu();
-
-    // Seed ~/.voicetree/prompts from the shipped source before any project opens
-    // (project-open spawns a per-project VTD whose spawn pipeline reads the home
-    // prompts). The shipped prompts always win; a user override is stashed under
-    // ~/.voicetree/.backup/prompts/<timestamp>/. Non-fatal — a failure degrades to
-    // empty prompts, never blocks startup.
-    await seedHomePrompts().catch((err: unknown): void => {
-        log.error(`[Startup] seedHomePrompts failed (continuing): ${(err as Error).message}`);
-    });
 
     // The per-project VTD child is spawned (or adopted) on-demand by
     // openProject → bindVtDaemonForProject; tmux preflight / server ensure /

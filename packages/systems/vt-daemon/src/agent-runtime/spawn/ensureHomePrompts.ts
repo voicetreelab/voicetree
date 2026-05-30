@@ -7,9 +7,11 @@
  * real file into a timestamped backup dir rather than honoring it going forward.
  *
  * This is the ONLY runtime location agents read (no per-project `.voicetree/prompts`).
- * Callable from both the standalone `vtd` daemon boot (the headless/eval path that
- * runs no Electron) and Electron startup (which resolves the packaged source via
- * build-config) — hence its home in the daemon package that both depend on.
+ * The `vtd` daemon owns this: it runs the sync at boot, before any agent can spawn
+ * (the spawn pipeline's buildTerminalEnvVars is the sole prompt consumer). The
+ * daemon boots on every path that spawns agents — GUI (Electron spawns a per-project
+ * vtd), headless, and eval — so seeding here covers them all without coupling the
+ * Electron app to this daemon package.
  */
 
 import {promises as fs} from 'fs'
