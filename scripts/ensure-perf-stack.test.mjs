@@ -126,6 +126,32 @@ test('install failure aborts before attempting up', async () => {
   assert.equal(stack.world.running, false, 'up was never attempted')
 })
 
+test('PERF_STACK=0 is a complete no-op: no install, no up, exporter left detached', async () => {
+  // failInstallIfPresent + a down stack means any install OR up attempt would
+  // mutate world-state; assert nothing happened.
+  const stack = fakePerfStack({ installed: false, running: false })
+  let installs = 0
+  let ups = 0
+  const countingRun = (action) => {
+    if (action === 'install') installs += 1
+    if (action === 'up') ups += 1
+    return stack.run(action)
+  }
+
+  const result = await ensurePerfStack({
+    env: { PERF_STACK: '0' },
+    run: countingRun,
+    binHasContents: stack.binHasContents,
+    log: silent,
+  })
+
+  assert.deepEqual(result, { enabled: false })
+  assert.equal(installs, 0, 'no install subprocess ran')
+  assert.equal(ups, 0, 'no up subprocess ran')
+  assert.equal(stack.world.installed, false)
+  assert.equal(stack.world.running, false)
+})
+
 test('honors a caller-provided endpoint and run instance id from env', async () => {
   const stack = fakePerfStack({ installed: true, running: true })
 

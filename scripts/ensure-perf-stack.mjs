@@ -18,13 +18,18 @@ import { readdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { DEFAULT_OTLP_ENDPOINT } from './perf-stack-endpoints.mjs'
+import { DEFAULT_OTLP_ENDPOINT, GRAFANA_BASE_URL } from './perf-stack-endpoints.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PERF_BIN_DIR = join(REPO_ROOT, 'infra/perf-stack/bin')
 const INSTALL_SCRIPT = join(REPO_ROOT, 'infra/perf-stack/scripts/install-binaries.mjs')
 const LIFECYCLE_SCRIPT = join(REPO_ROOT, 'infra/perf-stack/scripts/lifecycle.mjs')
 const INSTALL_MANIFEST = '.install-manifest.json'
+
+// Opt-out lever: PERF_STACK=0 makes the preflight a complete no-op so the
+// launched process runs exactly as it does today (NDJSON-only, no collector).
+// Default-on is what makes "just run the app" work; this is the escape hatch.
+export const PERF_STACK_DISABLED = '0'
 
 // The only two actions the preflight drives against the perf stack. Kept as a
 // closed vocabulary so the injected `run` port has a precise, testable contract.
@@ -41,7 +46,7 @@ const INSTALL_MANIFEST = '.install-manifest.json'
 
 /**
  * @param {EnsurePerfStackPorts} ports
- * @returns {Promise<{ enabled: true, endpoint: string, instanceId: string }>}
+ * @returns {Promise<{ enabled: false } | { enabled: true, endpoint: string, instanceId: string }>}
  */
 export async function ensurePerfStack({
   env,
@@ -50,6 +55,10 @@ export async function ensurePerfStack({
   log = (message) => process.stderr.write(`${message}\n`),
   newRunId = randomUUID,
 }) {
+  if (env.PERF_STACK === PERF_STACK_DISABLED) {
+    return { enabled: false }
+  }
+
   if (!(await binHasContents())) {
     log('installing perf stack (first run only)…')
     const install = await run('install')
@@ -136,12 +145,19 @@ async function main(argv = process.argv.slice(2), baseEnv = process.env) {
   })
 
   const [command, ...commandArgs] = argv
-  const launchEnv = {
-    ...baseEnv,
-    VOICETREE_OTLP_ENDPOINT: result.endpoint,
-    VOICETREE_RUN_INSTANCE_ID: result.instanceId,
+  const launchEnv = { ...baseEnv }
+  if (result.enabled) {
+    launchEnv.VOICETREE_OTLP_ENDPOINT = result.endpoint
+    launchEnv.VOICETREE_RUN_INSTANCE_ID = result.instanceId
+    process.stdout.write(
+      `Grafana: ${GRAFANA_BASE_URL}\nPerf run: ${result.instanceId}\nOTLP: ${result.endpoint}\n`,
+    )
+  } else {
+    // Opt-out: guarantee the exporter stays detached even if the endpoint was
+    // already present in the inherited env — PERF_STACK=0 means no collector.
+    delete launchEnv.VOICETREE_OTLP_ENDPOINT
+    process.stdout.write('Perf stack disabled (PERF_STACK=0); OTLP export off, NDJSON unaffected\n')
   }
-  process.stdout.write(`Perf run: ${result.instanceId}\nOTLP: ${result.endpoint}\n`)
 
   const { code, signal } = await launch(command, commandArgs, launchEnv)
   if (signal) {
