@@ -80,19 +80,6 @@ function getObsidianConfigPath(): string {
     }
 }
 
-// Mirrors the on-disk shape of Obsidian's global config
-// (~/Library/Application Support/obsidian/obsidian.json on macOS).
-// The top-level container is `vaults`, keyed by an opaque vault id.
-interface ObsidianVault {
-    path: string;
-    ts: number;
-    open?: boolean;
-}
-
-interface ObsidianConfig {
-    vaults: Record<string, ObsidianVault>;
-}
-
 /**
  * Checks if a path is within any of the given search directories.
  */
@@ -105,8 +92,40 @@ function isWithinSearchDirs(targetPath: string, searchDirs: readonly string[]): 
 }
 
 /**
- * Reads Obsidian project paths directly from Obsidian's config file.
- * Only returns projects within the specified search directories.
+ * Obsidian's global config (`obsidian.json` — under `~/Library/Application Support/obsidian/`
+ * on macOS, `~/.config/obsidian/` on Linux, `%APPDATA%/obsidian/` on Windows) stores every
+ * known vault under a top-level `vaults` map, keyed by an opaque id:
+ *
+ *     { "vaults": { "<id>": { "path": "/abs/path", "ts": 1700000000000, "open": true } } }
+ *
+ * Selects the vault paths that exist (per `pathExists`) and fall within `searchDirs`.
+ *
+ * The config is user-controlled external data we do not own, so this is total by
+ * construction — it never throws regardless of the value's shape. A missing or
+ * non-object `vaults` key yields no paths; individual malformed entries (missing or
+ * non-string `path`) are skipped rather than failing the whole read.
+ */
+export function selectObsidianVaultPaths(
+    config: unknown,
+    searchDirs: readonly string[],
+    pathExists: (candidate: string) => boolean
+): string[] {
+    const vaults: unknown = (config as { vaults?: unknown } | null)?.vaults;
+    if (vaults === null || typeof vaults !== 'object') {
+        return [];
+    }
+
+    return Object.values(vaults as Record<string, unknown>)
+        .map((entry) => (entry as { path?: unknown } | null)?.path)
+        .filter((candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0)
+        .filter((candidate) => pathExists(candidate) && isWithinSearchDirs(candidate, searchDirs));
+}
+
+/**
+ * Reads the Obsidian config file and returns the configured vault paths within the
+ * given search directories. Best-effort: an unreadable or malformed config yields an
+ * empty list (logged) rather than throwing — shape robustness lives in the total
+ * {@link selectObsidianVaultPaths}; this shell only guards file I/O and JSON parsing.
  */
 async function getObsidianProjectPaths(searchDirs: readonly string[]): Promise<string[]> {
     const configPath: string = getObsidianConfigPath();
@@ -117,27 +136,7 @@ async function getObsidianProjectPaths(searchDirs: readonly string[]): Promise<s
         }
 
         const configData: string = await fs.promises.readFile(configPath, 'utf-8');
-        const config: ObsidianConfig = JSON.parse(configData) as ObsidianConfig;
-
-        const projectPaths: string[] = [];
-
-        // `vaults` is absent in a fresh Obsidian install; default to {} so we
-        // return no paths instead of throwing on Object.values(undefined).
-        for (const vault of Object.values(config.vaults ?? {})) {
-            // Skip if path doesn't exist anymore
-            if (!fs.existsSync(vault.path)) {
-                continue;
-            }
-
-            // Only include vaults within search directories
-            if (!isWithinSearchDirs(vault.path, searchDirs)) {
-                continue;
-            }
-
-            projectPaths.push(vault.path);
-        }
-
-        return projectPaths;
+        return selectObsidianVaultPaths(JSON.parse(configData), searchDirs, fs.existsSync);
     } catch (err) {
         console.error('[project-scanner] Failed to read Obsidian config:', err);
         return [];
@@ -305,6 +304,20 @@ async function getProjectActivityTime(projectPath: string, type: 'git' | 'obsidi
 }
 
 /**
+ * Awaits a single best-effort discovery source. On failure it logs and yields an
+ * empty result, so one failing source (a crashed ripgrep, an unreadable config)
+ * can never reject the surrounding Promise.all or abort the other sources.
+ */
+async function discoverOrEmpty(label: string, source: Promise<string[]>): Promise<string[]> {
+    try {
+        return await source;
+    } catch (err) {
+        console.warn(`[project-scanner] ${label} discovery failed, skipping:`, err);
+        return [];
+    }
+}
+
+/**
  * Scans for git repositories and discovers Obsidian projects.
  * Returns projects sorted by last activity time (most recent first).
  *
@@ -318,11 +331,14 @@ async function getProjectActivityTime(projectPath: string, type: 'git' | 'obsidi
 export async function scanForProjects(
     searchDirs: readonly string[]
 ): Promise<DiscoveredProject[]> {
-    // Run all discovery methods in parallel
+    // Run all discovery methods in parallel. Each source is best-effort and
+    // failure-isolated: one source throwing (a crashed ripgrep, an unreadable
+    // Obsidian config) yields [] for that source alone and never aborts the
+    // others or the scan, so the screen degrades to fewer results, never an error.
     const [gitMarkers, obsidianMarkers, obsidianProjectPaths] = await Promise.all([
-        findMarkerFiles('**/.git/HEAD', searchDirs),
-        findMarkerFiles('**/.obsidian/app.json', searchDirs),
-        getObsidianProjectPaths(searchDirs),
+        discoverOrEmpty('git', findMarkerFiles('**/.git/HEAD', searchDirs)),
+        discoverOrEmpty('obsidian-marker', findMarkerFiles('**/.obsidian/app.json', searchDirs)),
+        discoverOrEmpty('obsidian-config', getObsidianProjectPaths(searchDirs)),
     ]);
 
     // Collect all unique project paths with their types

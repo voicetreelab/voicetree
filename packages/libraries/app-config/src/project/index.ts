@@ -6,5 +6,5 @@ export {
   findExistingVoicetreeDir,
   createDatedSubfolder,
 } from './project-utils.ts'
-export { scanForProjects, getDefaultSearchDirectories } from './project-scanner.ts'
+export { scanForProjects, getDefaultSearchDirectories, selectObsidianVaultPaths } from './project-scanner.ts'
 export { loadProjects, saveProject, removeProject } from './project-store.ts'
