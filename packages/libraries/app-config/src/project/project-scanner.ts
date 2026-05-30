@@ -80,14 +80,17 @@ function getObsidianConfigPath(): string {
     }
 }
 
-interface ObsidianProject {
+// Mirrors the on-disk shape of Obsidian's global config
+// (~/Library/Application Support/obsidian/obsidian.json on macOS).
+// The top-level container is `vaults`, keyed by an opaque vault id.
+interface ObsidianVault {
     path: string;
     ts: number;
     open?: boolean;
 }
 
 interface ObsidianConfig {
-    projects: Record<string, ObsidianProject>;
+    vaults: Record<string, ObsidianVault>;
 }
 
 /**
@@ -118,18 +121,20 @@ async function getObsidianProjectPaths(searchDirs: readonly string[]): Promise<s
 
         const projectPaths: string[] = [];
 
-        for (const project of Object.values(config.projects)) {
+        // `vaults` is absent in a fresh Obsidian install; default to {} so we
+        // return no paths instead of throwing on Object.values(undefined).
+        for (const vault of Object.values(config.vaults ?? {})) {
             // Skip if path doesn't exist anymore
-            if (!fs.existsSync(project.path)) {
+            if (!fs.existsSync(vault.path)) {
                 continue;
             }
 
-            // Only include projects within search directories
-            if (!isWithinSearchDirs(project.path, searchDirs)) {
+            // Only include vaults within search directories
+            if (!isWithinSearchDirs(vault.path, searchDirs)) {
                 continue;
             }
 
-            projectPaths.push(project.path);
+            projectPaths.push(vault.path);
         }
 
         return projectPaths;
