@@ -23,4 +23,9 @@ export * from './tool-spec-types.ts'
 // array and re-exporting each one duplicates coupling on every
 // consumer that only ever needs the whole catalog.
 export {TOOL_SPECS} from './tool-specs.ts'
+// CLI-local doc-only specs (verbs documented in the manual that do NOT
+// dispatch to a daemon RPC) and the combined `MANUAL_SPECS` the manual
+// renders. Daemon dispatch still binds `TOOL_SPECS` alone.
+export {CLI_LOCAL_SPECS} from './cli-local/index.ts'
+export {MANUAL_SPECS} from './manual-specs.ts'
 export * from './renderManual.ts'

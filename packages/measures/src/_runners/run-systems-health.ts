@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {spawn} from 'node:child_process'
 import {mkdtemp, readdir, readFile, rm, writeFile} from 'node:fs/promises'
-import {tmpdir} from 'node:os'
+import {availableParallelism, tmpdir, totalmem} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
@@ -47,7 +47,11 @@ function runVitest(testFile: string, outputFile: string): Promise<number> {
     return new Promise(resolve => {
         const child = spawn(
             'pnpm',
-            ['exec', 'vitest', 'run', testFile, '--reporter=json', `--outputFile=${outputFile}`],
+            // `default` reporter → inherited stdout so real assertion failures
+            // and diffs surface even under parallel execution; `json` → file for
+            // count merging (its stacks are masked as STACK_TRACE_ERROR, which is
+            // why the human-readable reporter is also required).
+            ['exec', 'vitest', 'run', testFile, '--reporter=default', '--reporter=json', `--outputFile.json=${outputFile}`],
             {
                 cwd: MEASURES_DIR,
                 env: process.env,
@@ -64,6 +68,53 @@ function runVitest(testFile: string, outputFile: string): Promise<number> {
 
 function numberOrZero(value: unknown): number {
     return Number.isFinite(value) ? Number(value) : 0
+}
+
+// Each test file runs in its own isolated `vitest run` process (these health
+// checks scan the whole repo and must not share module/global state). The files
+// are mutually independent, so run them through a bounded worker pool instead of
+// serially.
+//
+// These checks are memory-heavy: each process parses large swathes of the repo
+// (call graph, complexity, duplication) and peaks around PER_PROCESS_GB. The
+// concurrency ceiling is therefore the MIN of CPU and memory budgets, so the
+// same code is safe on a 188 GB / 64-core devbox (→ MAX_CONCURRENCY), a 16 GB /
+// 4-core GitHub runner (→ ~4), and a 7 GB runner (→ ~1, matching the old serial
+// behaviour) without ever oversubscribing RAM. VT_HEALTH_CONCURRENCY overrides
+// the computed value for manual tuning.
+const PER_PROCESS_GB = 2
+const MEMORY_UTILISATION = 0.75
+const MAX_CONCURRENCY = 16
+
+function resolveConcurrency(fileCount: number): number {
+    const fromEnv = Number(process.env.VT_HEALTH_CONCURRENCY)
+    if (Number.isFinite(fromEnv) && fromEnv > 0) {
+        return Math.max(1, Math.min(Math.floor(fromEnv), fileCount))
+    }
+    const totalGb = totalmem() / 1024 ** 3
+    const memoryBudget = Math.floor((totalGb * MEMORY_UTILISATION) / PER_PROCESS_GB)
+    const computed = Math.min(availableParallelism(), memoryBudget, MAX_CONCURRENCY)
+    return Math.max(1, Math.min(computed, fileCount))
+}
+
+// Bounded-concurrency map: at most `concurrency` workers pull from a shared
+// index, each awaiting `task(item, index)`. Results are returned in input order.
+async function mapWithConcurrency<T, R>(
+    items: readonly T[],
+    concurrency: number,
+    task: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+    const results = Array<R>(items.length)
+    let nextIndex = 0
+    const workers = Array.from({length: Math.min(concurrency, items.length)}, async () => {
+        while (nextIndex < items.length) {
+            const index = nextIndex
+            nextIndex += 1
+            results[index] = await task(items[index], index)
+        }
+    })
+    await Promise.all(workers)
+    return results
 }
 
 function mergeVitestJson(reports: any[]): any {
@@ -99,44 +150,6 @@ function mergeVitestJson(reports: any[]): any {
     return merged
 }
 
-// Vitest's own run time for a single-file shard report: the span between the
-// file suite's start and end. Subtracting this from the measured wall time of
-// the spawn isolates per-process startup (pnpm + vitest cold start + transform).
-function vitestFileDurationMs(report: any): number {
-    const results = Array.isArray(report?.testResults) ? report.testResults : []
-    let span = 0
-    for (const r of results) {
-        const start = numberOrZero(r.startTime)
-        const end = numberOrZero(r.endTime)
-        if (end > start) span += end - start
-    }
-    return span
-}
-
-type FileTiming = {readonly file: string; readonly wallMs: number; readonly testMs: number; readonly ok: boolean}
-
-// Render the long poles. systems-health runs files sequentially in their own
-// vitest process, so its wall time is the SUM of per-file walls — making the
-// slowest files (and the cold-start tax) the only levers on total duration.
-function formatSlowestTable(timings: readonly FileTiming[], topN: number): string {
-    const sorted = [...timings].sort((a, b) => b.wallMs - a.wallMs)
-    const totalWall = timings.reduce((s, t) => s + t.wallMs, 0)
-    const totalTest = timings.reduce((s, t) => s + t.testMs, 0)
-    const startup = Math.max(0, totalWall - totalTest)
-    const sec = (ms: number) => `${(ms / 1000).toFixed(1)}s`
-    const lines = [
-        '',
-        `── systems-health long poles · ${timings.length} files, each in its own vitest process ──`,
-        `   total wall ${sec(totalWall)} = vitest ${sec(totalTest)} + per-process startup ${sec(startup)}`,
-        `   slowest files (wall = whole spawn; test = vitest's own run; startup = the rest):`,
-    ]
-    for (const t of sorted.slice(0, topN)) {
-        const s = Math.max(0, t.wallMs - t.testMs)
-        lines.push(`     ${sec(t.wallMs).padStart(7)}  (test ${sec(t.testMs)}, startup ${sec(s)})${t.ok ? '' : '  ✗'}  ${t.file}`)
-    }
-    return lines.join('\n')
-}
-
 const {outputFile} = parseArgs(process.argv.slice(2))
 const tmpDir = await mkdtemp(join(tmpdir(), 'systems-health-'))
 
@@ -148,28 +161,35 @@ try {
         .map(path => relativePath(relative(MEASURES_DIR, path)))
         .sort()
 
-    const reports: any[] = []
-    const timings: FileTiming[] = []
-    let failed = false
-    for (let i = 0; i < files.length; i += 1) {
-        const file = files[i]
+    const concurrency = resolveConcurrency(files.length)
+    console.log(`[systems-health] running ${files.length} test files, ${concurrency} at a time`)
+    let completed = 0
+    const outcomes = await mapWithConcurrency(files, concurrency, async (file, i) => {
         const shardOut = join(tmpDir, `${String(i).padStart(3, '0')}.json`)
-        console.log(`\n[systems-health ${i + 1}/${files.length}] ${file}`)
-        const startedAt = Date.now()
+        const startedAt = performance.now()
         const code = await runVitest(file, shardOut)
-        const wallMs = Date.now() - startedAt
+        const durationMs = Math.round(performance.now() - startedAt)
         const report = await readJson(shardOut)
-        if (report) reports.push(report)
-        if (code !== 0 || !report) failed = true
-        timings.push({file, wallMs, testMs: report ? vitestFileDurationMs(report) : 0, ok: code === 0 && !!report})
+        completed += 1
+        const ok = code === 0 && report !== null
+        console.log(`[systems-health ${completed}/${files.length}] ${ok ? '✓' : '✗'} ${(durationMs / 1000).toFixed(1)}s  ${file}`)
+        return {file, durationMs, report, ok}
+    })
+
+    // Surface the long pole: per-file wall time observed under parallel load
+    // (inflated by CPU contention, but it reveals which files gate completion).
+    const slowest = [...outcomes].sort((a, b) => b.durationMs - a.durationMs).slice(0, 10)
+    console.log('\n[systems-health] slowest files (wall time under load):')
+    for (const o of slowest) {
+        console.log(`  ${(o.durationMs / 1000).toFixed(1)}s  ${o.ok ? '✓' : '✗'} ${o.file}`)
     }
 
-    console.log(formatSlowestTable(timings, 15))
+    const reports = outcomes.map(o => o.report).filter(report => report !== null)
+    const failed = outcomes.some(o => !o.ok)
 
     const merged = mergeVitestJson(reports)
     merged.success = merged.success && !failed
-    const output = {...merged, fileTimings: [...timings].sort((a, b) => b.wallMs - a.wallMs)}
-    if (outputFile) await writeFile(outputFile, `${JSON.stringify(output)}\n`)
+    if (outputFile) await writeFile(outputFile, `${JSON.stringify(merged)}\n`)
     process.exit(failed ? 1 : 0)
 } finally {
     await rm(tmpDir, {recursive: true, force: true}).catch(() => {})

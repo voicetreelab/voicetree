@@ -126,7 +126,6 @@ const test = base.extend<{
         name: 'dev-dev',
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       }], null, 2),
       'utf8'
     );

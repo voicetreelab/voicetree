@@ -81,7 +81,7 @@ function isErrorResponse<T>(value: T | Response<never>): value is Response<never
 function usage(message?: string): Response<never> {
   return err(
     'run',
-    message ?? 'usage: vt-debug run <spec-file|inline-json> [flags]',
+    message ?? 'usage: vt debug run <spec-file|inline-json> [flags]',
     [
       '--screenshot-each',
       '--console-each',

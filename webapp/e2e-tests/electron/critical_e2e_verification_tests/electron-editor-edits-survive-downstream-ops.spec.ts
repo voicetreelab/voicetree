@@ -194,7 +194,6 @@ const test = base.extend<{
           name: path.basename(projectPath),
           type: 'folder',
           lastOpened: Date.now(),
-          voicetreeInitialized: true,
         },
       ], null, 2),
       'utf8',

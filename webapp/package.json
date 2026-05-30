@@ -21,7 +21,7 @@
     "prepare:vite-build": "node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/record-run.ts --id=webapp-vite-build --name=\"Webapp electron-vite build\" --category=Other --display=\"electron-vite build\" -- pnpm --filter voicetree-webapp exec electron-vite build",
     "prepare:native-rebuild": "node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/record-run.ts --id=native-rebuild --name=\"Native module rebuild (Electron ABI)\" --category=Other --display=\"scripts/rebuild-native.sh\" -- scripts/rebuild-native.sh",
     "test:e2e:tier1": "npm run prepare:vite-build && npm run prepare:native-rebuild && node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/record-run.ts --id=playwright-tier1 --name=\"Playwright Tier 1 (electron smoke, no rebuild)\" --category=E2E --display=\"playwright test --config=playwright-tier1-system.config.ts\" -- pnpm --filter voicetree-webapp run test:e2e:tier1:run",
-    "test:e2e:tier1:ci": "npm run prepare:vite-build && npm run prepare:native-rebuild && node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/run-with-xvfb-if-needed.ts playwright test --config=playwright-tier1-system.config.ts --reporter=json",
+    "test:e2e:tier1:ci": "node scripts/prepare-e2e-incremental.mjs && node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/run-with-xvfb-if-needed.ts playwright test --config=playwright-tier1-system.config.ts --reporter=json",
     "test:e2e:tier1:run": "node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/run-with-xvfb-if-needed.ts playwright test --config=playwright-tier1-system.config.ts",
     "test:e2e:tier2": "npm run prepare:vite-build && npm run prepare:native-rebuild && playwright test --config=playwright-tier2-system.config.ts",
     "test:e2e:tier2:electron": "npm run prepare:vite-build && npm run prepare:native-rebuild && node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/run-with-xvfb-if-needed.ts playwright test --config=playwright-electron.config.ts",
@@ -230,6 +230,10 @@
       {
         "from": "public/onboarding",
         "to": "onboarding"
+      },
+      {
+        "from": "../packages/systems/voicetree-cli/prompts",
+        "to": "prompts"
       }
     ],
     "dmg": {

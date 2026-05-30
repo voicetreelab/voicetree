@@ -33,7 +33,6 @@ describe('filterDiscoveredProjects', () => {
                 name: 'project1',
                 type: 'git',
                 lastOpened: 1000,
-                voicetreeInitialized: false,
             },
             {
                 id: '2',
@@ -41,7 +40,6 @@ describe('filterDiscoveredProjects', () => {
                 name: 'project3',
                 type: 'git',
                 lastOpened: 2000,
-                voicetreeInitialized: true,
             },
         ];
         const result: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, saved);
@@ -59,7 +57,6 @@ describe('filterDiscoveredProjects', () => {
                 name: 'already-saved',
                 type: 'folder',
                 lastOpened: 1000,
-                voicetreeInitialized: false,
             },
         ];
         const result: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, saved);
@@ -77,7 +74,6 @@ describe('filterDiscoveredProjects', () => {
                 name: 'project1',
                 type: 'git',
                 lastOpened: 1000,
-                voicetreeInitialized: false,
             },
         ];
         const result: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, saved);
@@ -95,7 +91,6 @@ describe('filterDiscoveredProjects', () => {
                 name: 'project1',
                 type: 'git',
                 lastOpened: 1000,
-                voicetreeInitialized: false,
             },
         ];
         const discoveredCopy: readonly DiscoveredProject[] = [...discovered];

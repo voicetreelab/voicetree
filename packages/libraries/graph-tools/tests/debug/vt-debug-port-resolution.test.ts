@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { createServer } from 'node:http'
+import { createServer, type RequestListener } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -44,7 +44,7 @@ function buildDeps(overrides: Partial<ResolveDebugInstanceDeps> = {}) {
 }
 
 async function withProbeServer(
-  handler: Parameters<typeof createServer>[0],
+  handler: RequestListener,
   run: (port: number) => Promise<void>,
 ): Promise<void> {
   const server = createServer(handler)
@@ -185,7 +185,7 @@ describe('vt-debug CLI surface', () => {
       },
     )
 
-    expect(stdout).toContain('Usage: vt-debug <command> [args]')
+    expect(stdout).toContain('Usage: vt debug <command> [args]')
     expect(stdout).toContain('--port <N>')
     expect(stdout).toContain('--cdpPort <N>')
     expect(stdout).toContain('Auto-launch:')

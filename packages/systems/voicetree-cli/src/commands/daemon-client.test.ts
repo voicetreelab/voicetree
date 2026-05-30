@@ -193,20 +193,77 @@ describe('callDaemon — black-box HTTP wire', () => {
         expect(result).toEqual(expectedPayload)
     })
 
-    it('-32003 tool_handler_failed envelope: throws Error whose message is JSON.stringify(error.data)', async () => {
-        const failurePayload = {kind: 'tool_failure_envelope', detail: 'cannot apply'}
+    it('-32003 tool_handler_failed envelope: surfaces the tool error sentence as plain text (no nested JSON blob)', async () => {
+        // The daemon dispatcher sets error.data to the PARSED tool error object,
+        // which for the agent/graph tool family is `{success:false, error:'<sentence>'}`.
+        // The CLI must print the sentence, never a re-stringified JSON object.
+        const sentence: string = 'Node a.md already exists in the graph'
         const daemon = await startStubDaemon('create_graph', async () => ({
             type: 'error',
             code: ERROR_CODES.tool_handler_failed,
-            message: 'tool handler failed',
-            data: failurePayload,
+            message: 'Tool handler returned an error response',
+            data: {success: false, error: sentence},
+        }))
+        cleanups.push(daemon.stop)
+        tempDirs.push(daemon.projectPath)
+        process.chdir(daemon.projectPath)
+
+        const err: unknown = await callDaemon('create_graph', {batch: []}).catch((e: unknown) => e)
+        const message: string = (err as Error).message
+        expect(message).toBe(sentence)
+        expect(message).not.toContain('{')
+        expect(message).not.toContain('"success"')
+    })
+
+    it('-32003 tool_handler_failed envelope: reads the sentence from a {ok:false,error} payload too', async () => {
+        const sentence: string = 'cannot apply graph delta'
+        const daemon = await startStubDaemon('create_graph', async () => ({
+            type: 'error',
+            code: ERROR_CODES.tool_handler_failed,
+            message: 'Tool handler returned an error response',
+            data: {ok: false, error: sentence},
+        }))
+        cleanups.push(daemon.stop)
+        tempDirs.push(daemon.projectPath)
+        process.chdir(daemon.projectPath)
+
+        await expect(callDaemon('create_graph', {batch: []})).rejects.toMatchObject({message: sentence})
+    })
+
+    it('-32003 tool_handler_failed envelope: caller-gated failure hints the headless-safe .md authoring path', async () => {
+        const sentence: string = 'Unknown caller terminal: term-xyz'
+        const daemon = await startStubDaemon('spawn_agent', async () => ({
+            type: 'error',
+            code: ERROR_CODES.tool_handler_failed,
+            message: 'Tool handler returned an error response',
+            data: {success: false, error: sentence},
+        }))
+        cleanups.push(daemon.stop)
+        tempDirs.push(daemon.projectPath)
+        process.chdir(daemon.projectPath)
+
+        const err: unknown = await callDaemon('spawn_agent', {}).catch((e: unknown) => e)
+        const message: string = (err as Error).message
+        expect(message).toContain(sentence)
+        // Hints the filesystem-mode authoring path as the headless-safe write path.
+        expect(message).toContain('vt graph create <file.md>')
+        // Still a plain sentence — no nested JSON blob.
+        expect(message).not.toContain('{"')
+    })
+
+    it('-32003 tool_handler_failed envelope: falls back to the envelope message when data carries no sentence', async () => {
+        const daemon = await startStubDaemon('create_graph', async () => ({
+            type: 'error',
+            code: ERROR_CODES.tool_handler_failed,
+            message: 'Tool handler returned an error response',
+            data: {success: false},
         }))
         cleanups.push(daemon.stop)
         tempDirs.push(daemon.projectPath)
         process.chdir(daemon.projectPath)
 
         await expect(callDaemon('create_graph', {batch: []})).rejects.toMatchObject({
-            message: JSON.stringify(failurePayload),
+            message: 'Tool handler returned an error response',
         })
     })
 

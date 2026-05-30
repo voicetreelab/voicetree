@@ -33,7 +33,7 @@ import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
 export type StartupProjectHint =
-    | { readonly kind: 'open-folder'; readonly path: string }
+    | { readonly kind: 'open-folder'; readonly projectPath: string }
     | { readonly kind: 'none' }
 
 function pushToRenderer(
@@ -104,7 +104,7 @@ async function resolveOrCreateWriteFolderPath(projectPath: string): Promise<stri
 export async function getStartupProjectHint(): Promise<StartupProjectHint> {
     const startupFolder: string | null = getStartupFolderOverride()
     if (startupFolder !== null) {
-        return { kind: 'open-folder', path: startupFolder }
+        return { kind: 'open-folder', projectPath: startupFolder }
     }
 
     return { kind: 'none' }

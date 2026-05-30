@@ -47,49 +47,61 @@ afterAll(async () => {
 describe('liveFocus()', () => {
     it('returns ASCII with center and neighbors', async () => {
         const out = await liveFocus(B, {hops: 1})
-        expect(out).toContain('b.md')
-        expect(out).toContain('a.md')
-        expect(out).toContain('c.md')
-        expect(out.length).toBeGreaterThan(10)
+        expect(out.kind).toBe('ok')
+        expect(out.text).toContain('b.md')
+        expect(out.text).toContain('a.md')
+        expect(out.text).toContain('c.md')
+        expect(out.text.length).toBeGreaterThan(10)
     })
 
     it('missing node reports not found', async () => {
         const out = await liveFocus('/nonexistent/x.md')
-        expect(out).toContain('not found')
+        expect(out.kind).toBe('not-found')
+        expect(out.text).toContain('not found')
     })
 })
 
 describe('liveNeighbors()', () => {
     it('1-hop returns direct neighbors', async () => {
         const out = await liveNeighbors(B, {hops: 1})
-        expect(out).toContain('a.md')
-        expect(out).toContain('c.md')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toContain('a.md')
+        expect(out.text).toContain('c.md')
     })
 
     it('2-hop from a reaches c', async () => {
         const out = await liveNeighbors(A, {hops: 2})
-        expect(out).toContain('c.md')
+        expect(out.text).toContain('c.md')
     })
 
     it('isolated node has 0 neighbors', async () => {
         const out = await liveNeighbors(D, {hops: 1})
-        expect(out).toContain('0 found')
+        expect(out.text).toContain('0 found')
     })
 })
 
 describe('livePath()', () => {
     it('finds path a → b → c', async () => {
         const out = await livePath(A, C)
-        expect(out).toBe('a.md → b.md → c.md')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toBe('a.md → b.md → c.md')
     })
 
-    it('no path from a to isolated d', async () => {
+    it('no path from a to isolated d is distinct from an unknown endpoint', async () => {
         const out = await livePath(A, D)
-        expect(out).toContain('no path')
+        expect(out.kind).toBe('no-path')
+        expect(out.text).toContain('no path')
+    })
+
+    it('unknown endpoint reports not found (distinct from no-path)', async () => {
+        const out = await livePath(A, '/nonexistent/x.md')
+        expect(out.kind).toBe('not-found')
+        expect(out.text).toContain('not found')
     })
 
     it('self path is just the node', async () => {
         const out = await livePath(B, B)
-        expect(out).toBe('b.md')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toBe('b.md')
     })
 })

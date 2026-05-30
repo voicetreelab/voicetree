@@ -70,6 +70,14 @@ function isProjectNotDetectedError(err: unknown): err is ProjectNotDetectedError
 }
 
 export function handleCliError(err: unknown): never {
+    // A CliExitError is already classified (exit code + clean message). Commands
+    // that map a daemon/transport error into a clean domain error throw one of
+    // these directly; pass it through untouched so the classification + message
+    // survive instead of being re-wrapped as an UNKNOWN failure.
+    if (err instanceof CliExitError) {
+        throw err
+    }
+
     if (isProjectNotDetectedError(err)) {
         throw new CliExitError(EXIT.ARG_VALIDATION, err.message, err)
     }

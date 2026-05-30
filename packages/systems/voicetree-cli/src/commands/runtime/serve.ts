@@ -12,27 +12,59 @@
 //     deliberately does NOT tear down either daemon — other CLI peers and
 //     the Electron Main may still be using them, and each daemon's own
 //     watchdog handles eventual shutdown.
-//   - If `ensureGraphDaemonForProject` succeeds and then
-//     `ensureVtDaemonForProject` fails, the graph-db daemon is left running
-//     (BF-346: graph-db is a cross-process resource available to peers).
-//     This is intentional behaviour but differs from the pre-BF-377
-//     in-process boot that tore everything down on any failure.
+//   - If `ensureGraphDaemonForProject` succeeds and then the vt-daemon ensure
+//     fails, the graph-db daemon WAS just spawned by this same `vt serve`
+//     invocation and has no other peer — leaving it running would orphan a
+//     daemon that nobody asked to outlive the failed launch. So on a
+//     vt-daemon ensure failure we tear the graph-db daemon down via its
+//     /shutdown endpoint, but ONLY when this invocation launched it. A
+//     graph-db owner we merely reused belongs to other peers and is left
+//     untouched.
 //   - Ordering: graph-db ensure runs BEFORE vt-daemon ensure. `bin/vtd.ts`
 //     internally also calls `ensureGraphDaemonForProject`; this ordering means
 //     the graph-db owner record already exists by the time vt-daemon starts,
 //     so VTD's ensure call hits the reuse branch immediately.
+//
+// vt-daemon ensure is routed through the HIGH-LEVEL
+// `ensureNodeVtDaemonForProject(runtime, project, caller, options)` entry,
+// which builds the per-process single-flight state and the Node-side deps
+// (filesystem, module resolution, clock) internally from the small runtime
+// literal built below. The low-level `ensureVtDaemonForProject(state, deps,
+// …)` takes those as its first two positional args and must NOT be called
+// from here.
 
+import {randomUUID} from 'node:crypto'
+import {readFileSync} from 'node:fs'
+import {mkdir} from 'node:fs/promises'
+import {createRequire} from 'node:module'
 import {resolve} from 'node:path'
 import {
     ensureGraphDaemonForProject,
     type EnsureGraphDaemonResult,
 } from '@vt/graph-db-client'
 import {
-    ensureVtDaemonForProject,
-    type EnsureVtDaemonResult,
-} from '@vt/vt-daemon-client'
+    ensureNodeVtDaemonForProject,
+    type NodeEnsureVtDaemonRuntime,
+} from '@vt/vt-daemon-client/nodeEnsureVtDaemonForProject'
+import type {EnsureVtDaemonResult, VtDaemonClient} from '@vt/vt-daemon-client'
 import {error} from '../output'
 import {emitInvocationStart} from '../telemetry/recordCliInvocation'
+
+const requireFromHere: NodeJS.Require = createRequire(import.meta.url)
+
+// Node-side runtime for the high-level vt-daemon ensure entry. Every field is
+// the real platform primitive; impurity (filesystem, clock, module
+// resolution, randomness) lives here at the edge so the ensure machinery
+// stays a pure orchestration over injected effects.
+const NODE_ENSURE_RUNTIME: NodeEnsureVtDaemonRuntime = {
+    env: process.env,
+    mkdir,
+    newAttemptId: randomUUID,
+    now: Date.now,
+    readTextFileSync: readFileSync,
+    resolveModule: (specifier: string): string => requireFromHere.resolve(specifier),
+    resolvePath: resolve,
+}
 
 type ServeArgs = {
     readonly project: string
@@ -106,6 +138,22 @@ function exclusiveConflictMessage(
 const verb = (result: {readonly launched: boolean}): string =>
     result.launched ? 'launched' : 'reused'
 
+// Tear down a graph-db daemon that THIS invocation just launched, used when a
+// subsequent vt-daemon ensure fails and the freshly-spawned graph-db would
+// otherwise be orphaned. A reused owner (launched === false) belongs to other
+// peers and is left untouched. Best-effort: a /shutdown that itself fails must
+// not mask the original vt-daemon ensure error, so failures are swallowed.
+async function teardownLaunchedGraphd(graphd: EnsureGraphDaemonResult): Promise<void> {
+    if (!graphd.launched) return
+    try {
+        await graphd.client.shutdown()
+    } catch {
+        // The graph-db daemon may already be gone, or /shutdown may be
+        // unreachable; either way the caller is about to exit non-zero with
+        // the vt-daemon ensure failure as the surfaced error.
+    }
+}
+
 export async function runServeCommand(argv: string[]): Promise<void> {
     const args: ServeArgs = parseServeArgs(argv)
 
@@ -122,19 +170,28 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         error(exclusiveConflictMessage('graph-db', args.project, graphd))
     }
 
-    let vtd: EnsureVtDaemonResult
+    let vtd: EnsureVtDaemonResult<VtDaemonClient>
     try {
-        vtd = await ensureVtDaemonForProject(args.project, 'cli', {
+        vtd = await ensureNodeVtDaemonForProject(NODE_ENSURE_RUNTIME, args.project, 'cli', {
             bin: process.env.VT_DAEMON_BIN,
         })
     } catch (cause) {
-        // Per BF-346: graph-db remains a cross-process resource; we do NOT
-        // tear it down on a vt-daemon ensure failure. Operators stop daemons
-        // explicitly via /shutdown or by terminating the recorded owner pid.
+        // The vt-daemon ensure failed. If THIS invocation launched the
+        // graph-db daemon a moment ago, it now has no peer and tearing it
+        // down here is the only way to avoid orphaning a daemon nobody asked
+        // to outlive the failed launch. A reused graph-db owner belongs to
+        // other peers and is left running.
+        await teardownLaunchedGraphd(graphd)
         error(`failed to ensure vt-daemon owner: ${(cause as Error).message}`)
     }
 
     if (args.exclusive && !vtd.launched) {
+        // --exclusive refused: a vt-daemon owner already existed. That owner
+        // belongs to other peers and is left running, but a graph-db daemon
+        // THIS invocation launched a moment ago has no peer — tear it down so
+        // the refusal does not leave it orphaned. (A reused graph-db owner is
+        // left untouched by teardownLaunchedGraphd.)
+        await teardownLaunchedGraphd(graphd)
         error(exclusiveConflictMessage('vt-daemon', args.project, vtd))
     }
 

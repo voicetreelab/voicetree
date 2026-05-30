@@ -72,7 +72,6 @@ const test = base.extend<{
                         name: 'l5-205-store-consolidation',
                         type: 'folder',
                         lastOpened: Date.now(),
-                        voicetreeInitialized: true,
                     },
                 ],
                 null,

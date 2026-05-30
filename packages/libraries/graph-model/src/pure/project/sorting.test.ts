@@ -15,7 +15,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'project',
             type: 'git',
             lastOpened: 1000,
-            voicetreeInitialized: false,
         };
         const result: readonly SavedProject[] = sortProjectsByLastOpened([project]);
         expect(result).toEqual([project]);
@@ -28,7 +27,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'oldest',
             type: 'git',
             lastOpened: 1000,
-            voicetreeInitialized: false,
         };
         const middle: SavedProject = {
             id: '2',
@@ -36,7 +34,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'middle',
             type: 'obsidian',
             lastOpened: 2000,
-            voicetreeInitialized: true,
         };
         const newest: SavedProject = {
             id: '3',
@@ -44,7 +41,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'newest',
             type: 'folder',
             lastOpened: 3000,
-            voicetreeInitialized: false,
         };
 
         const result: readonly SavedProject[] = sortProjectsByLastOpened([oldest, middle, newest]);
@@ -58,7 +54,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'a',
             type: 'git',
             lastOpened: 1000,
-            voicetreeInitialized: false,
         };
         const projectB: SavedProject = {
             id: 'b',
@@ -66,7 +61,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'b',
             type: 'git',
             lastOpened: 1000,
-            voicetreeInitialized: false,
         };
 
         const result: readonly SavedProject[] = sortProjectsByLastOpened([projectA, projectB]);
@@ -82,7 +76,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'oldest',
             type: 'git',
             lastOpened: 1000,
-            voicetreeInitialized: false,
         };
         const newest: SavedProject = {
             id: '2',
@@ -90,7 +83,6 @@ describe('sortProjectsByLastOpened', () => {
             name: 'newest',
             type: 'git',
             lastOpened: 2000,
-            voicetreeInitialized: false,
         };
 
         const original: readonly SavedProject[] = [oldest, newest];

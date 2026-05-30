@@ -1,5 +1,4 @@
 import {existsSync, readFileSync, renameSync, rmSync, writeFileSync} from 'fs'
-import type {NodeSearchHit} from '@vt/graph-db-server/search/types'
 import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringValidationError,
@@ -92,20 +91,6 @@ export type GraphUnseenSuccess = {
 export type ToolFailure = {
     success: false
     error: string
-}
-
-export type GraphIndexSuccess = {
-    success: true
-    projectPath: string
-    indexPath: string
-}
-
-export type GraphSearchSuccess = {
-    success: true
-    projectPath: string
-    query: string
-    topK: number
-    hits: readonly NodeSearchHit[]
 }
 
 export type GraphCreatePayload = {

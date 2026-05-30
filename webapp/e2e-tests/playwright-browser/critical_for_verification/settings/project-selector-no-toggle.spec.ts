@@ -78,7 +78,7 @@ async function setupMockElectronAPIWithProject(page: Page): Promise<void> {
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/write-project' }),
         loadPreviousFolder: async () => ({ success: false }),
-        getStartupProjectHint: async () => ({ kind: 'open-folder' as const, path: '/mock/write-project' }),
+        getStartupProjectHint: async () => ({ kind: 'open-folder' as const, projectPath: '/mock/write-project' }),
         openProject: async (dir: string) => {
           const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
           setTimeout(() => {
@@ -227,13 +227,11 @@ async function setupMockElectronAPIWithProject(page: Page): Promise<void> {
           name: 'Mock Test Project',
           type: 'folder' as const,
           lastOpened: Date.now(),
-          voicetreeInitialized: true,
         }],
         saveProject: async () => {},
         removeProject: async () => {},
         getDefaultSearchDirectories: async () => [],
         scanForProjects: async () => [],
-        initializeProject: async () => '/mock/write-project/voicetree',
         showFolderPicker: async () => ({ success: false }),
 
         // Terminal state mutations

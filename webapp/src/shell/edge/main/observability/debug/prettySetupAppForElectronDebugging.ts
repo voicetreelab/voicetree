@@ -116,7 +116,6 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
             name: projectName,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         };
         await saveProject(project);
         console.log('[DebugSetup] Saved project:', project.id);

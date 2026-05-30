@@ -35,6 +35,10 @@ type WorkflowSetup = {
     readonly xvfb: boolean
     // Node major version passed to actions/setup-node@v4.
     readonly node: string
+    // Build the native `vt-dup` Rust binary before running checks (the
+    // duplication health gates shell out to it). Cached across runs; scoped to
+    // the concern that needs it. Defaults to false.
+    readonly native?: boolean
 }
 
 type WorkflowTrigger = {

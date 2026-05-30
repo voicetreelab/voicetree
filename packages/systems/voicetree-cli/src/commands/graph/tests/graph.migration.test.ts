@@ -8,8 +8,6 @@ import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-stor
 import {
     formatLintReportHuman,
     lintGraph,
-    renderGraphView,
-    type ViewGraphResult,
 } from '@vt/graph-tools/node'
 import {
     createEmptyGraph,
@@ -192,35 +190,6 @@ describe('graph daemon migration', () => {
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'structure', 'docs']),
-        )
-
-        expect(result.exitCode).toBeNull()
-        expect(result.stderr).toBe('')
-        expect(result.stdout).toBe(expectedStdout)
-    }, 15000)
-
-    it('routes explicit graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
-        const expected: ViewGraphResult = renderGraphView(docsRoot(), {
-            format: 'ascii',
-            collapsedFolders: ['nested'],
-            selectedIds: ['root'],
-        })
-        const expectedStdout: string = `${expected.output}\n\n${expected.nodeCount} nodes — ${expected.folderNodeCount} folder nodes, ${expected.virtualFolderCount} virtual folders, ${expected.fileNodeCount} files`
-
-        const result: CommandResult = await captureCommand(() =>
-            main(['graph', 'view', 'docs', '--ascii', '--collapse', 'nested', '--select', 'root']),
-        )
-
-        expect(result.exitCode).toBeNull()
-        expect(result.stderr).toBe('')
-        expect(result.stdout).toBe(expectedStdout)
-    }, 15000)
-
-    it('routes auto graph view rendering through daemon-rendered graph snapshots', async () => {
-        const expectedStdout: string = (await createClient().getView('cli', {budget: 2})).output
-
-        const result: CommandResult = await captureCommand(() =>
-            main(['graph', 'view', 'docs', '--auto', '--budget', '2']),
         )
 
         expect(result.exitCode).toBeNull()

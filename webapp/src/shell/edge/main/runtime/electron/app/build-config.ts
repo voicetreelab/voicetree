@@ -148,14 +148,13 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     ? path.join(process.resourcesPath, 'backend')
     : path.join(rootDir, 'backend');
 
-  // Per-project .voicetree/ sources
-  // TODO(milestone-d): wire `packages/systems/voicetree-cli/prompts` into the
-  // packaged-app `extraResources` so this resolves under process.resourcesPath
-  // in production. For now, packaged builds reuse the legacy `tools/prompts`
-  // copy that the build scripts staged before Milestone B; unpackaged dev/prod
-  // reads directly from the new package source tree.
+  // Per-project .voicetree/ sources. `packages/systems/voicetree-cli/prompts`
+  // is bundled into the packaged app via `extraResources` (webapp/package.json),
+  // landing under process.resourcesPath/prompts; unpackaged dev/prod reads the
+  // package source tree directly. This is the single source of truth that
+  // ensureProjectDotVoicetree symlinks into each project's .voicetree/prompts/.
   const promptsSource: string = commonEnv.isPackaged
-    ? path.join(process.resourcesPath, 'tools', 'prompts')
+    ? path.join(process.resourcesPath, 'prompts')
     : path.join(rootDir, 'packages', 'systems', 'voicetree-cli', 'prompts');
 
   // TODO(packaging-followup): wire `packages/systems/voicetree-cli/` (the bin

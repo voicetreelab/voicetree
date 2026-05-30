@@ -12,6 +12,8 @@
     "test": "vitest run src/health/ src/checks/ src/_subgraph_gate/",
     "test:full": "node ../../scripts/run-remote.mjs pnpm --filter @vt/measures run test:full:local",
     "test:full:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types src/_runners/capture-ci-checks.ts",
+    "measures:build-native": "node ../../scripts/run-remote.mjs pnpm --filter @vt/measures run measures:build-native:local",
+    "measures:build-native:local": "cargo build --release --manifest-path native/vt-dup/Cargo.toml",
     "gen:workflows": "node ../../scripts/run-remote.mjs pnpm --filter @vt/measures run gen:workflows:local",
     "gen:workflows:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/gen-workflows.ts",
     "sync:workflow-rulesets": "node ../../scripts/run-remote.mjs pnpm --filter @vt/measures run sync:workflow-rulesets:local",

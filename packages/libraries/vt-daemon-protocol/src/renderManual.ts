@@ -12,23 +12,35 @@
  *     renders the `essentials` slice and splices it into the spawned
  *     agent's AGENT_PROMPT.
  *   - Webapp project-bootstrap (`projectAgentDiscoveryFile.ts`) renders
- *     the manual to advertise the `vt` CLI inside CLAUDE.md / AGENTS.md
- *     for user-launched coding agents.
+ *     the `overview` slice (preamble + Essentials + a pointer to
+ *     `vt manual <verb>`, no full Reference dump) to advertise the `vt`
+ *     CLI inside CLAUDE.md / AGENTS.md for user-launched coding agents.
+ *     That block is injected into every agent's context on every run, so
+ *     it stays lean; the full per-verb reference is one `vt manual <verb>`
+ *     away.
  *
  * Pure: no I/O, no env reads. Deterministic for a given spec set so
  * tests can compare against literal expected output.
  */
 
 import type {ToolSpec, ToolInputSpec, ToolTier} from './tool-spec-types'
-import {TOOL_SPECS} from './tool-specs'
+import {MANUAL_SPECS} from './manual-specs.ts'
 
-export type RenderTier = 'essentials' | 'all'
+export type RenderTier = 'essentials' | 'overview' | 'all'
 
 export interface RenderManualOptions {
     /**
-     * `'essentials'` emits only the essentials-tier specs (no preamble,
-     * no Reference section, no Essentials wrapper headers). `'all'`
-     * emits the full manual.
+     * - `'essentials'` emits only the essentials-tier specs — no
+     *   preamble, no Reference section, no Essentials wrapper headers.
+     *   Used by spawn-time AGENT_PROMPT injection, where compactness is
+     *   paramount.
+     * - `'overview'` emits the preamble + the Essentials section (whose
+     *   header points readers at `vt manual <verb>` for anything else)
+     *   but omits the full Reference dump. Used for the always-on
+     *   CLAUDE.md / AGENTS.md discovery block: enough to orient an agent,
+     *   lean enough to inject into every context.
+     * - `'all'` emits the full manual (preamble + Essentials +
+     *   Reference). Used by `vt manual` for complete, on-demand lookup.
      */
     readonly tier?: RenderTier
 }
@@ -37,8 +49,9 @@ const PREAMBLE: string = [
     '# vt CLI Manual',
     '',
     'This is the canonical reference for the `vt` CLI surface. Generated from',
-    '`@vt/vt-daemon-protocol/tool-specs` — do not edit by hand. Run `vt manual`',
-    'to print the full document or `vt manual <verb>` for a single section.',
+    '`@vt/vt-daemon-protocol` (TOOL_SPECS + CLI-local specs) — do not edit by',
+    'hand. Run `vt manual` to print the full document or `vt manual <verb>` for',
+    'a single section.',
     '',
     '## Format',
     '',
@@ -59,10 +72,13 @@ const ESSENTIALS_HEADER: string = '## Essentials\n\nThese are the core verbs eve
 const REFERENCE_HEADER: string = '## Reference\n'
 
 /**
- * Render the full manual (or only the essentials slice when
- * `opts.tier === 'essentials'`). Specs are emitted in input order;
- * within `'all'` mode, essentials are listed first under an
- * "## Essentials" header, then everything else under "## Reference".
+ * Render the manual at one of three breadths (see `RenderTier`):
+ *   - `'essentials'`: the bare essentials slice, no headers.
+ *   - `'overview'`: preamble + Essentials section only.
+ *   - `'all'` (default): the full manual — Essentials then Reference.
+ * Specs are emitted in input order; in `'overview'`/`'all'` modes the
+ * essentials are listed first under an "## Essentials" header, and in
+ * `'all'` mode everything else follows under "## Reference".
  */
 export function renderManual(
     specs: readonly ToolSpec[],
@@ -75,24 +91,31 @@ export function renderManual(
         PREAMBLE,
         ESSENTIALS_HEADER,
         renderTierBlock(specs, 'essentials'),
-        REFERENCE_HEADER,
-        renderTierBlock(specs, 'reference'),
     ]
+    if (tier === 'all') {
+        body.push(REFERENCE_HEADER, renderTierBlock(specs, 'reference'))
+    }
     return body.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
 }
 
 /**
- * No-argument convenience for callers that render the canonical
- * `TOOL_SPECS` set (the common case — spawn-time injection, webapp
- * project-bootstrap, default `vt manual` output). Exists so sibling
- * packages don't need to import `TOOL_SPECS` as a separate symbol
- * alongside the renderer.
+ * Convenience for callers that render from the full documented spec
+ * set — `MANUAL_SPECS`, i.e. the daemon-dispatched `TOOL_SPECS` plus the
+ * CLI-local doc-only `CLI_LOCAL_SPECS`. The `tier` opt still selects the
+ * breadth: `vt manual` calls this with the default `'all'`; webapp
+ * project-bootstrap calls it with `{tier: 'overview'}` for the lean
+ * CLAUDE.md / AGENTS.md block. Exists so sibling packages don't need to
+ * import `MANUAL_SPECS` as a separate symbol alongside the renderer.
+ *
+ * Spawn-time injection deliberately renders the essentials slice of
+ * `TOOL_SPECS` directly (not this set), since essentials are
+ * daemon-dispatched only.
  *
  * Tests that need a different spec set call `renderManual(specs, opts)`
  * directly; the no-arg form deliberately doesn't expose injection.
  */
 export function renderFullManual(opts: RenderManualOptions = {}): string {
-    return renderManual(TOOL_SPECS, opts)
+    return renderManual(MANUAL_SPECS, opts)
 }
 
 /**

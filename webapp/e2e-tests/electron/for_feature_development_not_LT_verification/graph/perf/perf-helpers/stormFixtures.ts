@@ -68,7 +68,6 @@ export function makeStormTest(projectRoot: string): ReturnType<typeof base.exten
 
         electronApp: async ({ args, projectPath, voicetreeHomePath, projectLayout: _projectLayout }, use) => {
             // Seed projects.json so the picker shows the project project. We point
-            // `path` AND `voicetreeInitialized: true` at the project so the app
             // opens straight into graph view on click.
             const projectsPath = path.join(voicetreeHomePath, 'projects.json')
             const projectName = path.basename(path.dirname(projectPath))
@@ -80,7 +79,6 @@ export function makeStormTest(projectRoot: string): ReturnType<typeof base.exten
                     name: projectName,
                     type: 'folder',
                     lastOpened: Date.now(),
-                    voicetreeInitialized: true,
                 }], null, 2),
                 'utf8',
             )

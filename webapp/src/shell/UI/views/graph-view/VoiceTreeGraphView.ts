@@ -113,13 +113,13 @@ const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCal
     updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),
 });
 
-type StartupProjectHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly path: string};
+type StartupProjectHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly projectPath: string};
 
 type StartGraphUpdateSubscriptionInput = {
     hasInitialProjectedGraph: boolean;
     isDisposed: () => boolean;
     getStartupProjectHint: (() => Promise<StartupProjectHint>) | undefined;
-    openProject: ((path: string) => Promise<unknown>) | undefined;
+    openProject: ((projectPath: string) => Promise<unknown>) | undefined;
     subscribeToGraphUpdates: () => void;
 };
 
@@ -140,7 +140,7 @@ const startGraphUpdateSubscription = ({
             try {
                 const hint = await getStartupProjectHint?.();
                 if (hint && hint.kind !== 'none') {
-                    await openProject?.(hint.path);
+                    await openProject?.(hint.projectPath);
                 }
             } catch (err: unknown) {
                 console.error('[VoiceTreeGraphView] startup project open failed:', err);

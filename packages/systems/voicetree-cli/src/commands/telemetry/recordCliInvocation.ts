@@ -103,7 +103,7 @@ export const defaultSinkDeps: SinkDeps = {
     now: (): number => Number(process.hrtime.bigint() / 1_000_000n),
     nowIso: (): string => new Date().toISOString(),
     getEnv: (name: string): string | undefined => process.env[name],
-    getExitCode: (): number => process.exitCode ?? 0,
+    getExitCode: (): number => Number(process.exitCode ?? 0),
 }
 
 interface SinkState {

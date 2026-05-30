@@ -216,7 +216,11 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
 
     const newNodeIds: string[] = []
     const nodesWithoutPositions: string[] = []
-    const agentNameByNewNodeId: Map<string, string> = new Map()
+    // agent_name → node, collected across BOTH new and updated file nodes. `vt graph
+    // create` often injects agent_name via frontmatter-completion AFTER the node first
+    // appears, so the delta carrying agent_name is an UPDATE, not a create. Collecting
+    // on both branches lets the (idempotent) indicator-edge reconcile fire either way.
+    const agentNameByNodeId: Map<string, string> = new Map()
 
     cy.batch(() => {
         // PASS 1 — remove cy nodes no longer in spec
@@ -263,7 +267,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 // file-node
                 newNodeIds.push(specNode.id)
                 const agentName: string | undefined = getAgentNameFromNode(specNode)
-                if (agentName) agentNameByNewNodeId.set(specNode.id, agentName)
+                if (agentName) agentNameByNodeId.set(specNode.id, agentName)
 
                 const color: string | undefined = colorForNode(specNode)
                 const position: { x: number; y: number } = specNode.position
@@ -310,6 +314,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 existing.data('color', nextColor)
             }
             existing.data('isContextNode', false)
+            // agent_name may arrive on an update delta (frontmatter-completion after the
+            // node first appeared) — collect it here too so the indicator edge can form.
+            const updatedAgentName: string | undefined = getAgentNameFromNode(specNode)
+            if (updatedAgentName) agentNameByNodeId.set(specNode.id, updatedAgentName)
             if (hasActualContentChanged(previousContent, nextContent)) {
                 existing.emit('content-changed')
             }
@@ -369,8 +377,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
         repairTerminalAnchorsForNode(cy, nodeId)
     }
 
-    // Terminal→node indicator edges driven by agent_name YAML on new nodes.
-    for (const [nodeId, agentName] of agentNameByNewNodeId) {
+    // Terminal→node indicator edges driven by agent_name YAML (new + updated nodes).
+    // createTerminalIndicatorEdge is idempotent, so re-running it for already-edged
+    // nodes is a no-op.
+    for (const [nodeId, agentName] of agentNameByNodeId) {
         createTerminalIndicatorEdge(cy, nodeId, agentName)
     }
 

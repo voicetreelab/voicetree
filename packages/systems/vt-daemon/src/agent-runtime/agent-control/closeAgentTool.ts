@@ -3,8 +3,11 @@
  * Closes an agent terminal — same path as clicking the red traffic light button.
  *
  * Self-close (agent closing itself): no checks, always allowed.
- * Cross-close (agent closing another): requires the target to have created
- * at least one progress node, so work isn't silently discarded.
+ * Cross-close (agent closing another): by default requires the target to have
+ * created at least one progress node, so work isn't silently discarded.
+ * Passing `forceWithReason` bypasses both the running gate and the
+ * no-progress-nodes gate (for genuinely no-output agents, e.g. turn-based
+ * simulation actors), matching the documented `--force` behavior.
  */
 
 import type {Graph} from '@vt/graph-model/graph'
@@ -162,7 +165,7 @@ function decideCloseAction(state: CloseAgentState, {terminalId, forceWithReason}
     }
 
     const progressNodes: readonly AgentNode[] = state.progressNodes ?? []
-    if (progressNodes.length === 0) {
+    if (progressNodes.length === 0 && !forceWithReason) {
         return {kind: 'reject-no-progress-nodes', terminalId}
     }
 

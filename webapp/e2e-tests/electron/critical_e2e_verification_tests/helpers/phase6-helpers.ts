@@ -185,7 +185,6 @@ export async function writePhase6Settings(
           name: path.basename(projectRoot),
           type: "folder",
           lastOpened: Date.now(),
-          voicetreeInitialized: true,
         },
       ],
       null,

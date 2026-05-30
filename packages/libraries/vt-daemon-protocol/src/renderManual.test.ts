@@ -111,6 +111,18 @@ describe('renderManual', () => {
         expect(output).not.toContain('## Reference')
     })
 
+    it('emits preamble + Essentials but no Reference dump when tier is "overview"', () => {
+        const output: string = renderManual(FIXTURES, {tier: 'overview'})
+        // Preamble + Essentials header (with the vt manual <verb> pointer) + the essentials verb...
+        expect(output).toContain('# vt CLI Manual')
+        expect(output).toContain('## Essentials')
+        expect(output).toContain('vt manual <verb>')
+        expect(output).toContain('vt agent fake-spawn')
+        // ...but NOT the Reference section or any reference-tier verb.
+        expect(output).not.toContain('## Reference')
+        expect(output).not.toContain('vt agent fake-close')
+    })
+
     it('renders the real TOOL_SPECS without throwing and includes every cliVerb', () => {
         const output: string = renderManual(TOOL_SPECS)
         for (const spec of TOOL_SPECS) {

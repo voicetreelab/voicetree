@@ -366,16 +366,16 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     } else if (arg === '--new') {
       forceNew = true
     } else if (arg.startsWith('--')) {
-      return err('node', `unknown flag: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
+      return err('node', `unknown flag: ${arg}`, 'usage: vt debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
     } else if (!nodeId) {
       nodeId = arg
     } else {
-      return err('node', `unexpected argument: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
+      return err('node', `unexpected argument: ${arg}`, 'usage: vt debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
     }
   }
 
   if (!nodeId) {
-    return err('node', 'missing node id', 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
+    return err('node', 'missing node id', 'usage: vt debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
   }
 
   const pick = await resolveDebugInstance({ port, pid, project, forceNew })
@@ -398,7 +398,7 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
 
   const graphNode = state.graph.nodes[nodeId]
   if (!graphNode) {
-    return err('node', `node not found: ${nodeId}`, 'try: vt-debug cy dump --source data', 1)
+    return err('node', `node not found: ${nodeId}`, 'try: vt debug cy dump --source data', 1)
   }
 
   let chromium: ChromiumLike

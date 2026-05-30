@@ -56,9 +56,7 @@ import {runAgentOnSelectedNodes} from '@/shell/edge/main/agent/runAgentOnSelecte
 import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/workspace/project-scanner';
 import {loadProjects, saveProject, removeProject} from '@/shell/edge/main/workspace/project-store';
-import {initializeProject as initializeProjectCore} from '@/shell/edge/main/workspace/project-initializer';
 import {showFolderPicker, createNewProject} from '@/shell/edge/main/workspace/show-folder-picker';
-import {getOnboardingDirectory} from './electron/startup/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from '@/shell/edge/main/observability/debug/prettySetupAppForElectronDebugging';
 import {
   checkMicrophonePermission,
@@ -90,21 +88,10 @@ import {
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/sync/daemon-sse-subscription';
 import { stopDaemonGraphSync } from './electron/daemon/sync/daemon-watch-sync';
 import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/lifecycle/graph-daemon';
-import path from 'path';
 
 async function __debugStopDaemonGraphSync(): Promise<void> {
   if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API');
   await stopDaemonGraphSync();
-}
-
-/**
- * Wrapper for initializeProject that provides the onboarding source directory.
- * Copies onboarding .md files from Application Support into the project's voicetree folder.
- * Returns the path to the voicetree subfolder (existing or newly created).
- */
-async function initializeProject(projectPath: string): Promise<string | null> {
-    const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
-    return initializeProjectCore(projectPath, onboardingSourceDir);
 }
 
 /**
@@ -348,7 +335,6 @@ export const mainAPI = {
   loadProjects: (): Promise<SavedProject[]> => loadProjects(),
   saveProject: (project: SavedProject): Promise<void> => saveProject(project),
   removeProject: (id: string): Promise<void> => removeProject(id),
-  initializeProject,
   showFolderPicker,
   createNewProject,
 

@@ -141,7 +141,6 @@ export const test = base.extend<{
             name: 'stop-gate-lifecycle-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         };
         await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 

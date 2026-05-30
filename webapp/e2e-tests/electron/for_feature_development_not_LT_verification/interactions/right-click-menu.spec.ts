@@ -79,7 +79,6 @@ const test = base.extend<TestFixtures>({
                     name: 'bf250-test-project',
                     type: 'folder' as const,
                     lastOpened: Date.now(),
-                    voicetreeInitialized: false,
                 });
             }, { folderPath: testProjectPath });
             await win.waitForTimeout(500);

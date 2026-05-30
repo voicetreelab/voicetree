@@ -25,6 +25,7 @@
     "./graph/folderScanner": "./src/data/graph/loading/folderScanner.ts",
     "./graph/graphActionsToDBEffects": "./src/data/graph/mutations/graphActionsToDBEffects.ts",
     "./graph/handleFSEvent": "./src/data/graph/watching/handleFSEvent.ts",
+    "./graph/ignoredDirectoryNames": "./src/data/graph/ignoredDirectoryNames.ts",
     "./graph/loadAndMergeProjectPath": "./src/data/graph/loading/loadAndMergeProjectPath.ts",
     "./graph/loadGraphFromDisk": "./src/data/graph/loading/loadGraphFromDisk.ts",
     "./graph/notifyTextToTreeServer": "./src/data/graph/loading/notifyTextToTreeServer.ts",

@@ -354,7 +354,7 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
   }
 
   if (sourceParts.length === 0) {
-    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--cdpPort N|--pid N|--project PATH|--new]')
+    return err('eval', 'no JavaScript expression given', 'usage: vt debug eval <js> [--port N|--cdpPort N|--pid N|--project PATH|--new]')
   }
 
   return {

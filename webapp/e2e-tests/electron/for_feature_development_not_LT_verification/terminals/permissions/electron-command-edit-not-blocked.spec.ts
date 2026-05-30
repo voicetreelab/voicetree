@@ -97,7 +97,6 @@ const test = base.extend<{
                 name: 'test-cmd-edit',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true
             });
             await api.main.startFileWatching(projectRoot);
         }, FIXTURE_PROJECT_PATH);
