@@ -38,9 +38,11 @@ export async function startRendererCpuProfile(
     const profilesDir = path.join(runDir, 'profiles')
     mkdirSync(profilesDir, { recursive: true })
 
-    // 1ms sampling (V8 default). A 90s nav window at 100µs produced a pprof
-    // over Pyroscope's 4MB ingest limit; 1ms keeps the profile rich but small.
-    await cdp.send('Profiler.setSamplingInterval', { interval: 1000 })
+    // 4ms sampling. A 90s nav window at 1ms still produced a 12MB V8 profile
+    // whose pprof exceeds Pyroscope's 4MB ingest limit; 4ms keeps the pprof
+    // under the limit while still resolving the dominant self-time frames
+    // (cola solver + style recalc) that this tool exists to surface.
+    await cdp.send('Profiler.setSamplingInterval', { interval: 4000 })
     await cdp.send('Profiler.enable')
     await cdp.send('Profiler.start')
 
