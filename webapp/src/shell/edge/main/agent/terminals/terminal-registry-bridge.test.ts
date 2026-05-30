@@ -13,8 +13,8 @@
  */
 
 import {createServer, type Server} from 'node:http'
-import {AddressInfo} from 'node:net'
-import {Option} from 'fp-ts/lib/Option.js'
+import type {AddressInfo} from 'node:net'
+import type {Option} from 'fp-ts/lib/Option.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
@@ -238,7 +238,7 @@ async function startFakeHubEmitting(blocks: readonly string[]): Promise<void> {
         // Leave the response open — the subscriber's silence timeout
         // would close it eventually. For tests we close after a short
         // delay so the subscriber doesn't keep the test alive.
-        setTimeout((): void => res.end(), 50)
+        setTimeout((): void => { res.end() }, 50)
     })
     await new Promise<void>((resolve) => hub!.listen(0, '127.0.0.1', resolve))
     const port: number = (hub.address() as AddressInfo).port
