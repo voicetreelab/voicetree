@@ -1,8 +1,9 @@
 /**
  * E2E Test: Folder Node Collapsability
  *
- * Verifies that double-tapping a folder compound node collapses/expands it.
- * Collapse removes children from Cytoscape; expand re-derives from Graph via IPC.
+ * Verifies that toggling a folder compound node (via its chevron chip)
+ * collapses/expands it. Collapse removes children from Cytoscape; expand
+ * re-derives from Graph via IPC.
  *
  * Tests:
  * 1. Collapse: children removed from cy, folder.data('collapsed') set, childCount set
@@ -19,6 +20,7 @@ import {
     type ExtendedWindow,
     createFolderTestProject,
     waitForGraphLoaded,
+    toggleFolderViaChevron,
 } from './folder-test-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -117,21 +119,6 @@ const test = base.extend<{
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/** Emit a dbltap event on the folder compound node ending with the given suffix */
-async function emitDblTapOnFolder(page: Page, folderSuffix: string): Promise<string> {
-    return page.evaluate((suffix: string) => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        if (!cy) throw new Error('No cytoscapeInstance');
-        const folder = cy.nodes()
-            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
-            .first();
-        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
-        const id = folder.id();
-        folder.emit('dbltap');
-        return id;
-    }, folderSuffix);
-}
-
 interface FolderState {
     collapsed: boolean;
     childCount: number | undefined;
@@ -168,8 +155,8 @@ test.describe('Folder Node Collapsability', () => {
         expect(before.collapsed).toBe(false);
         expect(before.cyChildrenLength).toBeGreaterThanOrEqual(2);
 
-        // Trigger collapse via dbltap
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        // Trigger collapse via the chevron chip
+        await toggleFolderViaChevron(appWindow, '/auth/');
 
         // Wait for children to be removed
         await expect.poll(
@@ -190,14 +177,14 @@ test.describe('Folder Node Collapsability', () => {
         await waitForGraphLoaded(appWindow, 3);
 
         // Collapse auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderState(appWindow, '/auth/').then(s => s.cyChildrenLength),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
         ).toBe(0);
 
-        // Expand via second dbltap
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        // Expand via a second chevron toggle
+        await toggleFolderViaChevron(appWindow, '/auth/');
 
         // Wait for children to reappear
         await expect.poll(
@@ -251,7 +238,7 @@ test.describe('Folder Node Collapsability', () => {
         expect(edgesBefore).toBeGreaterThan(0);
 
         // Collapse auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderState(appWindow, '/auth/').then(s => s.cyChildrenLength),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
@@ -272,7 +259,7 @@ test.describe('Folder Node Collapsability', () => {
         expect(nonSyntheticAfterCollapse).toBe(0);
 
         // Expand
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderState(appWindow, '/auth/').then(s => s.cyChildrenLength),
             { message: 'Waiting for auth/ to expand', timeout: 10000 }
@@ -304,7 +291,7 @@ test.describe('Folder Node Collapsability', () => {
         await appWindow.screenshot({ path: 'e2e-tests/screenshots/folder-collapse-before.png' });
 
         // Collapse auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderState(appWindow, '/auth/').then(s => s.cyChildrenLength),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
