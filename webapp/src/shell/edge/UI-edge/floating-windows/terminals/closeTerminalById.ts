@@ -7,7 +7,7 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import {closeTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal";
 
 /**
- * Close a terminal by ID from main process (e.g., MCP close_agent tool).
+ * Close a terminal by ID from main process (e.g., the close_agent tool).
  * Mimics what happens when user clicks the red traffic light button:
  * - Removes from registry
  * - Disposes floating window

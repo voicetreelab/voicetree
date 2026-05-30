@@ -450,7 +450,7 @@ async function runHandler(argv: string[]): Promise<Response<RunResult>> {
     return err(
       'run',
       String(e),
-      'verify the dev instance is running with MCP + CDP enabled',
+      'verify the dev instance is running with CDP enabled',
       3,
     )
   } finally {

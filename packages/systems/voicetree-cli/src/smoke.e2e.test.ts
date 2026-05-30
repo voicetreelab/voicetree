@@ -2,7 +2,7 @@
 //
 // Catches the "vt CLI broken at the wrapper level" class of regression at the
 // cheapest possible cost. Spawns the real package `bin/vt` script as a child
-// process — no Electron, no playwright, no MCP daemon roundtrip. Three
+// process — no Electron, no playwright, no daemon roundtrip. Three
 // scenarios that exercise the layers most likely to break:
 //
 //   1. `vt --help`: proves the wrapper loads tsx, resolves package-local imports

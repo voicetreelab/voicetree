@@ -75,7 +75,7 @@ describe('daemon CLI route parity', () => {
                 method: 'POST',
                 path: '/graph/apply-delta',
                 reason:
-                    '`/graph/apply-delta` is the option-aware mutation endpoint used by Electron/MCP bridges; the user-facing CLI remains covered by `/graph/delta`.',
+                    '`/graph/apply-delta` is the option-aware mutation endpoint used by Electron/daemon bridges; the user-facing CLI remains covered by `/graph/delta`.',
             },
             {
                 method: 'POST',
@@ -117,13 +117,13 @@ describe('daemon CLI route parity', () => {
                 method: 'POST',
                 path: '/graph/unseen-nodes-around-context-node',
                 reason:
-                    '`/graph/unseen-nodes-around-context-node` collects agent context for MCP orchestration; it is not a user-facing CLI command.',
+                    '`/graph/unseen-nodes-around-context-node` collects agent context for agent orchestration; it is not a user-facing CLI command.',
             },
             {
                 method: 'PATCH',
                 path: '/graph/context-node-contained-ids',
                 reason:
-                    '`/graph/context-node-contained-ids` updates MCP context-node bookkeeping; it is not a user-facing CLI command.',
+                    '`/graph/context-node-contained-ids` updates context-node bookkeeping; it is not a user-facing CLI command.',
             },
             {
                 method: 'POST',

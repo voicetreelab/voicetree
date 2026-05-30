@@ -319,7 +319,7 @@ describe('graph create schema gate (live mode)', () => {
         await rm(projectRoot, {recursive: true, force: true})
     })
 
-    it('rejects an invalid live-mode node before invoking MCP', async () => {
+    it('rejects an invalid live-mode node before invoking the daemon', async () => {
         const parentNodeId: string = join(projectRoot, 'work', 'parent.md')
 
         const result: CapturedRun = await captureGraphCreate(
