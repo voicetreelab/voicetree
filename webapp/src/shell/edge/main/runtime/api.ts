@@ -53,7 +53,8 @@ import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClip
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from '@/shell/edge/main/agent/runAgentOnSelectedNodes';
-import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
+import {listWorktrees, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
+import {createWorktreeWithHooks as createWorktree} from '@/shell/edge/main/workspace/worktree/createWorktreeWithHooks';
 import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/workspace/project-scanner';
 import {loadProjects, saveProject, removeProject} from '@/shell/edge/main/workspace/project-store';
 import {showFolderPicker, createNewProject} from '@/shell/edge/main/workspace/show-folder-picker';
@@ -92,19 +93,6 @@ import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electro
 async function __debugStopDaemonGraphSync(): Promise<void> {
   if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API');
   await stopDaemonGraphSync();
-}
-
-/**
- * Wrapper for createWorktree that reads hooks.onWorktreeCreated from settings
- * and passes it to the core function. Hook failure is non-blocking.
- */
-async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
-    const settings: VTSettings = await loadSettings();
-    const blockingHook: string | undefined = settings.hooks?.onWorktreeCreatedBlocking;
-    const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
-    const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
-    const effectiveAsync: string | undefined = asyncHook?.startsWith('#') ? undefined : asyncHook ?? undefined;
-    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
 // ---------------------------------------------------------------------------
