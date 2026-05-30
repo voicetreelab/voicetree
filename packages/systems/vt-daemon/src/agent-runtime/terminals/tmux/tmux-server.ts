@@ -242,6 +242,25 @@ async function verifyServer(tmuxBin: string, socketPath: string, deps: TmuxServe
     throw new Error(`tmux server did not respond after ensure: ${socketPath}`)
 }
 
+// OSC 52 clipboard bridge — the difference between "copy lands in the remote box's
+// clipboard" and "copy reaches the user's machine".
+//
+// tmux's `set-clipboard` defaults to `external`, which makes tmux IGNORE OSC 52
+// escape sequences emitted by programs running *inside* a pane (e.g. an editor or
+// tmux copy-mode on a remote host the agent has SSH'd into). Only `on` accepts
+// those sequences and forwards them to the attached client terminal. The relay
+// attaches as `xterm-256color`, which tmux's built-in `terminal-features` already
+// tags with the `clipboard` capability — but we append it explicitly so the bridge
+// holds even on a host whose terminfo/tmux build omits it. The forwarded sequence
+// reaches @xterm/addon-clipboard in the renderer, which writes the LOCAL system
+// clipboard. Server-scoped options (`-s`), so this is a one-time server invariant.
+const CLIPBOARD_TERMINAL_FEATURE: string = ',xterm-256color:clipboard'
+
+async function applyServerOptions(tmuxBin: string, socketPath: string, deps: TmuxServerDeps): Promise<void> {
+    await execFilePromise(deps, tmuxBin, getTmuxCommandArgs(['set', '-s', 'set-clipboard', 'on'], socketPath))
+    await execFilePromise(deps, tmuxBin, getTmuxCommandArgs(['set', '-as', 'terminal-features', CLIPBOARD_TERMINAL_FEATURE], socketPath))
+}
+
 async function startRootSessionWithStaleSocketRetry(tmuxBin: string, socketPath: string, deps: TmuxServerDeps): Promise<void> {
     try {
         await startRootSession(tmuxBin, socketPath, deps)
@@ -295,6 +314,7 @@ async function ensureTmuxServerOnce(options: EnsureTmuxServerOptions): Promise<v
     try {
         if (await serverResponds(tmuxBin, socketPath, deps)) return
         await startRootSessionWithStaleSocketRetry(tmuxBin, socketPath, deps)
+        await applyServerOptions(tmuxBin, socketPath, deps)
     } finally {
         release()
     }
