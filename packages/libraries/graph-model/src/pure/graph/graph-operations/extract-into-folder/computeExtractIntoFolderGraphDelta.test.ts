@@ -183,26 +183,65 @@ describe('computeExtractIntoFolderGraphDelta', () => {
         ]))
     })
 
-    it('is fully invertible: applying the extract delta then its reverse restores the original graph', () => {
-        // Cross-linked nodes plus an external linker — the real-world shape that the
-        // link-free e2e fixtures never exercise. Undoing the extraction (the user
-        // pressed Ctrl+Z) must round-trip back to the original graph: no duplicate
-        // files left inside the folder, no orphaned index.md.
-        const nodes: Record<string, GraphNode> = {
+    // Cross-linked nodes plus an external linker — the real-world shape that the
+    // link-free e2e fixtures never exercise. Edge targetIds are resolved absolute
+    // ids and the inline links are `[basename]*` placeholders, exactly as the
+    // markdown parser produces them.
+    function crossLinkedProject(): Record<string, GraphNode> {
+        return {
             '/tmp/project/defects.md': createTestNode('/tmp/project/defects.md', {
                 position: { x: 100, y: 100 },
-                outgoingEdges: [{ targetId: 'rootcause', label: '' }],
-                contentWithoutYamlOrLinks: '# Defects\n\n- parent [[rootcause]]'
+                outgoingEdges: [{ targetId: '/tmp/project/rootcause.md', label: '' }],
+                contentWithoutYamlOrLinks: '# Defects\n\n- parent [rootcause]*'
             }),
             '/tmp/project/rootcause.md': createTestNode('/tmp/project/rootcause.md', {
                 position: { x: 200, y: 100 }
             }),
-            '/tmp/project/index-readme.md': createTestNode('/tmp/project/index-readme.md', {
+            '/tmp/project/readme.md': createTestNode('/tmp/project/readme.md', {
                 position: { x: 300, y: 100 },
-                outgoingEdges: [{ targetId: 'defects', label: 'see' }],
+                outgoingEdges: [{ targetId: '/tmp/project/defects.md', label: 'see' }],
                 contentWithoutYamlOrLinks: '# Readme\n\nSee [defects]* for details.'
             })
         }
+    }
+
+    it('preserves bare-basename links across the move instead of absolutising them', () => {
+        const original: Graph = createGraph(crossLinkedProject())
+
+        const { delta, newFolderId } = computeExtractIntoFolderGraphDelta(
+            ['/tmp/project/defects.md', '/tmp/project/rootcause.md'],
+            original,
+            '/tmp/project'
+        )
+
+        const upserts = delta
+            .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
+            .map((nodeDelta) => nodeDelta.nodeToUpsert)
+
+        // Intra-folder link: defects -> rootcause. Both moved together; the bare
+        // basename still resolves, so the inline link text must stay `[rootcause]*`,
+        // never the absolute folder path.
+        const movedDefects = upserts.find((node) => node.absoluteFilePathIsID === `${newFolderId}defects.md`)
+        expect(movedDefects).toBeDefined()
+        expect(movedDefects!.contentWithoutYamlOrLinks).toContain('[rootcause]*')
+        expect(movedDefects!.contentWithoutYamlOrLinks).not.toContain(newFolderId)
+        // The graph edge is still retargeted to the moved node (connectivity intact).
+        expect(movedDefects!.outgoingEdges).toEqual([{ targetId: `${newFolderId}rootcause.md`, label: '' }])
+
+        // External link into the moved set: readme -> defects. The basename still
+        // resolves to the moved node, so readme's inline text stays `[defects]*`.
+        const externalReadme = upserts.find((node) => node.absoluteFilePathIsID === '/tmp/project/readme.md')
+        expect(externalReadme).toBeDefined()
+        expect(externalReadme!.contentWithoutYamlOrLinks).toContain('[defects]*')
+        expect(externalReadme!.contentWithoutYamlOrLinks).not.toContain(newFolderId)
+        expect(externalReadme!.outgoingEdges).toEqual([{ targetId: `${newFolderId}defects.md`, label: 'see' }])
+    })
+
+    it('is fully invertible: applying the extract delta then its reverse restores the original graph', () => {
+        // Undoing the extraction (the user pressed Ctrl+Z) must round-trip back to
+        // the original graph: no duplicate files left inside the folder, no orphaned
+        // index.md.
+        const nodes: Record<string, GraphNode> = crossLinkedProject()
         const original: Graph = createGraph(nodes)
 
         const { delta } = computeExtractIntoFolderGraphDelta(
