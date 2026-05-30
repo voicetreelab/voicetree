@@ -98,7 +98,7 @@ export async function buildTerminalEnvVars(params: {
  * without the .md suffix. These files are symlinks to the shipped source unless
  * overridden per-project. The single trailing newline added when the files are
  * authored is stripped so the injected value matches the template exactly.
- * Returns {} when the dir is absent (graceful for unprovisioned/test vaults).
+ * Returns {} when the dir is absent (graceful for unprovisioned/test projects).
  */
 export async function readPromptTemplates(promptsDir: string): Promise<Record<string, string>> {
     if (!promptsDir) return {}
