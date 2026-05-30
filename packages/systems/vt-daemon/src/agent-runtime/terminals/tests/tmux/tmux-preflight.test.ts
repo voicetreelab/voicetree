@@ -6,7 +6,7 @@ import {
     formatMissingTmuxMessage,
     resetTmuxPreflightCache,
     type TmuxPreflightDeps,
-} from '../tmux/tmux-preflight.ts'
+} from '../../tmux/tmux-preflight.ts'
 
 type FakeChildOpts = {
     exitCode?: number | null

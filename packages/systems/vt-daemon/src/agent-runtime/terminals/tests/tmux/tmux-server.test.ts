@@ -5,8 +5,8 @@ import {
     getTmuxCommandArgs,
     getTmuxSocketPath,
     shutdownTmuxServer,
-} from '../tmux/tmux-server.ts'
-import type {TmuxServerDeps} from '../tmux/tmux-server-core.ts'
+} from '../../tmux/tmux-server.ts'
+import type {TmuxServerDeps} from '../../tmux/tmux-server-core.ts'
 
 type FakeCall = {
     readonly args: readonly string[]

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import type {TerminalId} from '../terminal-registry/types';
+import type {TerminalId} from '../../terminal-registry/types';
 import {
     buildTmuxEnv,
     resolveHeadfulPromptInjection,
@@ -7,7 +7,7 @@ import {
     resolveTmuxProjectPath,
     withResolvedTmuxProjectPath,
     withVoicetreeProjectPath,
-} from '../tmux/tmuxSpawnPlanning';
+} from '../../tmux/tmuxSpawnPlanning';
 
 const terminalId: TerminalId = 'Aki' as TerminalId;
 

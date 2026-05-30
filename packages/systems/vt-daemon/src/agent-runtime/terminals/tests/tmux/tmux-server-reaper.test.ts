@@ -1,7 +1,7 @@
 import {join} from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {reapStaleEphemeralTmuxServers, teardownEphemeralTmuxServerForThisProcess} from '../tmux/tmux-server.ts'
-import type {TmuxServerDeps} from '../tmux/tmux-server-core.ts'
+import {reapStaleEphemeralTmuxServers, teardownEphemeralTmuxServerForThisProcess} from '../../tmux/tmux-server.ts'
+import type {TmuxServerDeps} from '../../tmux/tmux-server-core.ts'
 
 type ExecFileCallback = (error: Error | null, stdout: string, stderr: string) => void
 
