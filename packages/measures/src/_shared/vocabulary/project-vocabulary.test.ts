@@ -147,3 +147,45 @@ describe('checkProjectVocabulary — mcp ban + allowances', () => {
         expect(result.violations).toEqual([])
     })
 })
+
+describe('checkProjectVocabulary — inline project-vocabulary:allow directive', () => {
+    it('exempts only the named term for the declaring file', async () => {
+        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+        // Directive exempts vault for this file; the bare MCP is still flagged.
+        await writeFile(
+            join(repoRoot, 'config-reader.ts'),
+            `// project-vocabulary:allow ${legacyTerm} — external system owns this key\nconst k = '${legacyTerm}'\nMCP\n`,
+        )
+
+        const result = await checkProjectVocabulary(repoRoot)
+
+        expect(result.violations).toEqual([
+            {path: 'config-reader.ts', line: 3, column: 1, source: 'content', term: 'MCP'},
+        ])
+    })
+
+    it('does not leak the exemption to other files', async () => {
+        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+        await writeFile(join(repoRoot, 'has-directive.ts'), `// project-vocabulary:allow ${legacyTerm}\n${legacyTerm}\n`)
+        await writeFile(join(repoRoot, 'no-directive.ts'), `${legacyTerm}\n`)
+
+        const result = await checkProjectVocabulary(repoRoot)
+
+        expect(result.violations).toEqual([
+            {path: 'no-directive.ts', line: 1, column: 1, source: 'content', term: legacyTerm},
+        ])
+    })
+
+    it('ignores directives for the path check (paths cannot carry one)', async () => {
+        const repoRoot = await mkdtemp(join(tmpdir(), 'project-vocabulary-'))
+        await mkdir(join(repoRoot, `bad-${legacyTerm}`))
+        await writeFile(join(repoRoot, `bad-${legacyTerm}`, 'f.ts'), `// project-vocabulary:allow ${legacyTerm}\n${legacyTerm}\n`)
+
+        const result = await checkProjectVocabulary(repoRoot)
+
+        // Content vault is directive-exempt; the vault in the PATH is not.
+        expect(result.violations).toEqual([
+            {path: `bad-${legacyTerm}/f.ts`, line: null, column: null, source: 'path', term: legacyTerm},
+        ])
+    })
+})

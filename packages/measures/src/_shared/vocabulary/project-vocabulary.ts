@@ -159,7 +159,7 @@ export const PATH_ALLOWANCES: readonly PathAllowance[] = [
     // MCP-server-era hook/trigger scripts that POST to the removed `/mcp`
     // endpoint or read the stale `.mcpServers.voicetree` entry. Likely dead;
     // allowed (not deleted) pending review — see the rename-plan node.
-    {pathPrefix: 'scripts/on-new-node.cjs', category: 'suspected-dead', reason: 'onNewNode hook POSTs to removed /mcp endpoint — verify before deleting'},
+    {pathPrefix: 'scripts/on-new-node.cjs', category: 'suspected-dead', reason: 'onNewNode hook is live-wired (copied into projects by tools-setup.ts) but POSTs to the removed /mcp endpoint via VOICETREE_MCP_PORT — a live-broken dead-MCP ref; Lochlan to repoint-vs-remove'},
     {pathPrefix: 'webapp/scripts/trigger-overnight.sh', category: 'suspected-dead', reason: 'reads stale .mcpServers.voicetree.url — verify before deleting'},
     {pathPrefix: 'webapp/scripts/com.voicetree.overnight-runner.plist', category: 'suspected-dead', reason: 'overnight runner requires the removed MCP server — verify before deleting'},
 
@@ -286,16 +286,47 @@ function isWithinAllowedSpan(spans: readonly Span[], start: number, end: number)
     return spans.some(span => span.start <= start && end <= span.end)
 }
 
+// An inline directive lets a file opt a single term out of the check when it must
+// reference an external system that owns that word (its config keys, API surface,
+// etc.). Format: `<directive> <term> — <reason>`. The exemption is scoped to the
+// file that declares it and to the exact term named — every other term and every
+// other file stays enforced, and the required reason documents the exception where
+// it is used rather than in a distant allowlist.
+//
+// (Ported verbatim from `fix/obsidian-config-vaults-key`@7649b3e60 so the two
+// branches merge to an identical primitive; here it composes with the CONTEXT_
+// and PATH_ALLOWANCES below — see disallowedMatches.)
+const ALLOW_DIRECTIVE = 'project-vocabulary:allow'
+
+const NO_ALLOWED_TERMS: ReadonlySet<string> = new Set()
+
+function allowedTerms(content: string): ReadonlySet<string> {
+    const allowed = new Set<string>()
+    for (const term of TERMS) {
+        if (content.includes(`${ALLOW_DIRECTIVE} ${term}`)) allowed.add(term)
+    }
+    return allowed
+}
+
 type TermMatch = {readonly term: string; readonly index: number}
 
-// Every banned-term occurrence in `text` that is not covered by an allowance,
-// ordered by position so cleanup output is deterministic. When `mcpPathAllowed`
-// is set, the "mcp" terms are suppressed wholesale (the file lives in a
-// path-allowed subsystem) while `vault`/`appSupport` stay enforced.
-function disallowedMatches(text: string, mcpPathAllowed: boolean): readonly TermMatch[] {
+// Every banned-term occurrence in `text` not covered by ANY exemption, ordered
+// by position so cleanup output is deterministic. The three exemptions compose
+// orthogonally — a term occurrence is allowed iff:
+//   1. an inline `project-vocabulary:allow <term>` directive exempts it for this
+//      file (`directiveAllowed`; content only — paths cannot carry a directive), OR
+//   2. it sits inside a CONTEXT_ALLOWANCE span, OR
+//   3. it is an mcp term AND the file is under a PATH_ALLOWANCE (`mcpPathAllowed`).
+// `vault`/`appSupport` are never path-allowed, so (3) only ever relaxes "mcp".
+function disallowedMatches(
+    text: string,
+    mcpPathAllowed: boolean,
+    directiveAllowed: ReadonlySet<string>,
+): readonly TermMatch[] {
     const spans = allowedSpans(text)
     const matches: TermMatch[] = []
     for (const term of TERMS) {
+        if (directiveAllowed.has(term)) continue
         if (mcpPathAllowed && MCP_TERMS.has(term)) continue
         let from = 0
         for (;;) {
@@ -349,7 +380,8 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
     if (isSelfModule(repoRelativePath)) return []
     const mcpPathAllowed = isMcpPathAllowed(repoRelativePath)
 
-    const pathViolations: ProjectVocabularyViolation[] = disallowedMatches(repoRelativePath, mcpPathAllowed).map(match => ({
+    // Paths cannot carry an inline directive, so no term is directive-exempt for the path check.
+    const pathViolations: ProjectVocabularyViolation[] = disallowedMatches(repoRelativePath, mcpPathAllowed, NO_ALLOWED_TERMS).map(match => ({
         path: repoRelativePath,
         line: null,
         column: null,
@@ -361,7 +393,7 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
 
     const content = await readFile(absolutePath, 'utf8').catch(() => null)
     if (content === null) return pathViolations
-    const contentViolations: ProjectVocabularyViolation[] = disallowedMatches(content, mcpPathAllowed).map(match => {
+    const contentViolations: ProjectVocabularyViolation[] = disallowedMatches(content, mcpPathAllowed, allowedTerms(content)).map(match => {
         const location = lineColumn(content, match.index)
         return {
             path: repoRelativePath,
