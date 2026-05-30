@@ -11,6 +11,8 @@ import {
     type TerminalRegistryTimers,
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
+import {publishTerminalRegistryEvent} from './terminal-registry-publisher'
+import type {TerminalId} from '@vt/vt-daemon-protocol'
 
 export function incrementAuditRetryCount(terminalId: string): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
@@ -63,6 +65,14 @@ export function markTerminalExited(
         terminalData: { ...record.terminalData, lifecycle, isDone: true },
     })
     notifyRegistrySubscribers()
+    // Broadcast the terminal-state transition (completed/errored) to SSE
+    // consumers — `notifyRegistrySubscribers` only reaches in-daemon
+    // listeners, not the renderer's cache mirror in the Electron process.
+    publishTerminalRegistryEvent({
+        type: 'terminal-record-changed',
+        terminalId: terminalId as TerminalId,
+        patch: {kind: 'lifecycle', value: lifecycle},
+    })
 }
 
 /**
@@ -126,4 +136,13 @@ export function updateTerminalAgentEvent(terminalId: string, kind: AgentEventKin
         terminalData: { ...record.terminalData, lifecycle: nextLifecycle },
     })
     notifyRegistrySubscribers()
+    // Agent-hook transitions (awaiting_input / idle / active / completed) are
+    // the sole driver of `awaiting_input` and never flow through the renderer
+    // poller, so they must be broadcast explicitly — without this the sidebar
+    // icon stays frozen at its last output-driven value.
+    publishTerminalRegistryEvent({
+        type: 'terminal-record-changed',
+        terminalId: terminalId as TerminalId,
+        patch: {kind: 'lifecycle', value: nextLifecycle},
+    })
 }

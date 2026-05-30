@@ -203,6 +203,11 @@ function applyPatch(record: TerminalRecord, patch: TerminalRecordPatch): Termina
                 ...record,
                 terminalData: {...record.terminalData, isDone: patch.value},
             }
+        case 'lifecycle':
+            return {
+                ...record,
+                terminalData: {...record.terminalData, lifecycle: patch.value},
+            }
         case 'activity': {
             const next = {...record.terminalData}
             if (patch.value.lastOutputTime !== undefined) {

@@ -180,11 +180,18 @@ export interface TerminalOperationResult {
 // ---------------------------------------------------------------------------
 // Polymorphic record patch
 //
-// `patchTerminalRecord` collapses four state mutations
+// `patchTerminalRecord` collapses four renderer-driven state mutations
 // (`updateTerminalPinned`, `updateTerminalMinimized`,
 // `updateTerminalActivityState`, `updateTerminalIsDone`) into one
 // RPC. The discriminant `kind` selects the field; `value` carries the
 // new value with kind-specific shape.
+//
+// `lifecycle` is the one OUTBOUND-ONLY kind: the daemon computes it
+// authoritatively (idle timer, agent hooks, process exit) and broadcasts
+// it over the `terminal-registry` SSE topic. The renderer never sends a
+// `lifecycle` patch — the inbound `patchTerminalRecord` RPC rejects it —
+// so the sidebar icon always reflects daemon-derived state rather than a
+// renderer-side re-derivation that lacks those inputs.
 // ---------------------------------------------------------------------------
 
 export type TerminalRecordPatch =
@@ -198,3 +205,4 @@ export type TerminalRecordPatch =
         }
     }
     | { readonly kind: 'done'; readonly value: boolean }
+    | { readonly kind: 'lifecycle'; readonly value: TerminalLifecycle }
