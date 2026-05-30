@@ -19,6 +19,36 @@ export interface CytoscapeInitResult {
 }
 
 /**
+ * WebGL texture-atlas size (px) for the label atlas, chosen to keep node-title
+ * text crisp. Paired with `webglTexRows: 24` this gives a per-label atlas row of
+ * 4096/24 ≈ 170px.
+ *
+ * Why this matters: cytoscape's experimental WebGL renderer rasterizes every
+ * node label once into a single atlas row of height `webglTexSize / webglTexRows`
+ * — and a multi-line title's *whole* bounding box must fit that one row (see
+ * cytoscape's `atlas.mjs` getScale, which also flags "TODO what about
+ * pixelRatio?"). The stock 2048 → 85px row downscales the taller titles measured
+ * on the live graph (single line ≈40px up to a 6-line title ≈132px) into far too
+ * few texels, so they read soft even at zoom 1 — confirmed by an A/B against
+ * cy.png()'s canvas path, which renders the same titles vector-sharp.
+ *
+ * 4096 (row ≈170px) exceeds the tallest measured title, so labels are no longer
+ * downscaled in the atlas: titles are crisp on a standard (DPR 1) display and
+ * roughly twice as sharp on HiDPI. Verified on the real WebGL renderer (Chromium
+ * + cytoscape) at DPR 1 and DPR 2.
+ *
+ * Why not larger / DPR-scaled: scaling texSize (rather than cutting texRows) was
+ * chosen because it raises the per-label texel budget WITHOUT increasing the
+ * atlas *count* — atlas count, not size, drives the per-frame texture binds, so
+ * the WebGL batching win the renderer was enabled for is preserved. 8192 would
+ * fully sharpen 6-line titles on retina too, but it equals the MAX_TEXTURE_SIZE
+ * of lower-end GPUs and rendered *blank* at DPR 2 in testing (a hard texture-size
+ * limit), for a marginal gain at 4× the VRAM. 4096 is the measured sweet spot:
+ * well within every tested GPU's limits while fixing the reported blur.
+ */
+const WEBGL_LABEL_ATLAS_SIZE = 4096;
+
+/**
  * Cytoscape's WebGL render path (overrideCanvasRendererFunctions) doesn't emit the
  * 'render' event that the canvas path emits. This breaks cytoscape-navigator's
  * onRender-based thumbnail updates. Patch the renderer to emit 'render' — but
@@ -87,7 +117,7 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
                 webgl: true,
                 showFps,
                 webglDebug: false,
-                webglTexSize: 2048,
+                webglTexSize: WEBGL_LABEL_ATLAS_SIZE, // crisp multi-line titles; see constant doc
                 webglTexRows: 24,
                 webglBatchSize: 2048,
                 webglTexPerBatch: 16
