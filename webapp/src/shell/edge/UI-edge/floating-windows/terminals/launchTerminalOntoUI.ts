@@ -1,6 +1,6 @@
 import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import type {Core} from "cytoscape";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
+import {whenCyReady} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal";
 import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/stores/UIAppState";
@@ -24,7 +24,10 @@ export async function launchTerminalOntoUI(
     skipFitAnimation?: boolean
 ): Promise<void> {
     //console.log("BEFORE LAUNCH UI")
-    const cy: Core = getCyInstance();
+    // Gate on a live cy instead of throwing. On reload, main replays
+    // terminal-ui-launch before the graph view has mounted; this call queues
+    // and resolves the instant VoiceTreeGraphView registers its cy.
+    const cy: Core = await whenCyReady();
 
     // Check if a floating window already exists for this context node - only one allowed
     // Phase 3: Terminal data may already be in store (via syncFromMain), but we check

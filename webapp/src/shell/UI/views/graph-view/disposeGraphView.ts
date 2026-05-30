@@ -19,6 +19,7 @@ import {disposeFolderTreeSidebar} from '@/shell/UI/views/folderTree/FolderTreeSi
 import {destroyHeadlessBadges} from '@/shell/edge/UI-edge/floating-windows/anchoring/headless-badge-overlay';
 import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/stores/GraphViewUIStore';
 import {resetLargeGraphPerformanceState} from '@/shell/UI/cytoscape-graph-ui/services/animation/largegraphPerformance';
+import {clearCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 
 export interface GraphViewDisposeDependencies {
     cy: Core;
@@ -44,6 +45,11 @@ export interface GraphViewDisposeDependencies {
  * Handles null-safety for optional services.
  */
 export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
+    // Retire the live cy reference BEFORE any teardown so nothing (a queued
+    // launchTerminalOntoUI via whenCyReady, a synchronous getCyInstance) can
+    // hand out an instance that is about to be destroyed.
+    clearCyInstance();
+
     // Remove window event listeners
     window.removeEventListener('resize', deps.handleResize);
 

@@ -87,6 +87,7 @@ import {
     isDarkMode as isDarkModeState
 } from '@/shell/edge/UI-edge/state/controllers/DarkModeManager';
 import {disposeGraphView} from './disposeGraphView';
+import {setCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
 import {setupGraphViewEventListeners} from './setupGraphViewEventListeners';
 
@@ -211,7 +212,7 @@ const renderGraphView = ({
 
     guardCytoscapeResize(cy);
 
-    (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = cy;
+    setCyInstance(cy);
     (window as unknown as { voiceTreeGraphView: unknown }).voiceTreeGraphView = graphView;
 
     const navigatorResult: NavigatorMinimapResult = initializeNavigatorMinimap(cy);
