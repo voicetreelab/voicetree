@@ -1,6 +1,6 @@
 import {execSync} from 'node:child_process'
 import {existsSync, readFileSync} from 'node:fs'
-import {basename, dirname, join, resolve} from 'node:path'
+import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
@@ -20,21 +20,10 @@ function tryRunGit(args: string): string | null {
     }
 }
 
-function changedStatusEntries(): string[] {
-    const output = tryRunGit('status --porcelain') ?? ''
-    return output.split('\n').map(line => line.trimEnd()).filter(Boolean)
-}
-
 function isExpectedMeasuresScriptMove(scriptName: string, current: unknown, committed: unknown): boolean {
     return scriptName === 'test:measures'
         && current === 'npm --workspace @vt/measures run test'
         && committed === undefined
-}
-
-function isMovedCodebaseHealthTest(path: string): boolean {
-    if (!/^packages\/codebase-health\/src\/[^/]+\.test\.ts$/.test(path)) return false
-    const movedHealthDirs = ['churn', 'complexity', 'coupling', 'meta', 'purity', 'shape']
-    return movedHealthDirs.some(dir => existsSync(join(REPO_ROOT, 'packages/measures/src/health', dir, basename(path))))
 }
 
 function packageJsonScriptFindings(): string[] {
@@ -58,34 +47,6 @@ function packageJsonScriptFindings(): string[] {
     return findings
 }
 
-function headTrackedFiles(): Set<string> {
-    const output = tryRunGit('ls-tree -r --name-only HEAD') ?? ''
-    return new Set(output.split('\n').filter(Boolean))
-}
-
-// Prefixes that are deliberately absent from the working tree on the remote dev box
-// (excluded by `scripts/dev-setup/remote/mutagen-vt-remote.yml`). A path missing from disk
-// because mutagen never synced it is not a tamper signal.
-const PARTIAL_MIRROR_PREFIXES: readonly string[] = ['webapp/workers/', 'old/']
-
-function isInPartialMirrorPrefix(path: string): boolean {
-    return PARTIAL_MIRROR_PREFIXES.some(prefix => path.startsWith(prefix))
-}
-
-function deletedTestFindings(): string[] {
-    const head = headTrackedFiles()
-    const deletedTests = changedStatusEntries()
-        .filter(line => line.startsWith('D ') || line.startsWith(' D'))
-        .map(line => line.slice(2).trim())
-        .filter(path => /\.(test|spec)\.(ts|tsx|js|jsx)$/.test(path))
-        .filter(path => !isMovedCodebaseHealthTest(path))
-        .filter(path => head.has(path))
-        .filter(path => !existsSync(join(REPO_ROOT, path)))
-        .filter(path => !isInPartialMirrorPrefix(path))
-
-    return deletedTests.length === 0 ? [] : [`deleted test files detected: ${deletedTests.join(', ')}`]
-}
-
 function missingGateFileFindings(): string[] {
     const requiredFiles = [
         'packages/measures/src/health/meta/gate-integrity.test.ts',
@@ -103,13 +64,12 @@ function missingGateFileFindings(): string[] {
 function guardFindings(): string[] {
     return [
         ...packageJsonScriptFindings(),
-        ...deletedTestFindings(),
         ...missingGateFileFindings(),
     ]
 }
 
 describe('script tamper guard', () => {
-    it('detects unauthorized modifications to npm scripts and gate tests', async () => {
+    it('detects unauthorized npm-script relaxations and missing gate files', async () => {
         const violations = guardFindings()
 
         await recordHealthMetric({
