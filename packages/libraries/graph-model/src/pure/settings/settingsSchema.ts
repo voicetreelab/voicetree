@@ -13,6 +13,12 @@ export interface NumberFieldConfig {
     readonly slider?: boolean;
 }
 
+/** One choice in a dropdown-rendered setting (see `options` in the schema). */
+export interface SelectOption {
+    readonly value: string;
+    readonly label: string;
+}
+
 /**
  * Schema entry for a single setting. Every VTSettings key must have one.
  * - `default`: value used in DEFAULT_SETTINGS. Omit for optional settings with no default.
@@ -20,6 +26,7 @@ export interface NumberFieldConfig {
  * - `hidden`: true = not shown in settings UI.
  * - `label`: human-readable label. Auto-generated from key if omitted.
  * - `number`: constraints for number fields (min/max/step/slider).
+ * - `options`: choices for a dropdown-rendered setting.
  */
 export type SettingsSchema = {
     readonly [K in keyof Required<VTSettings>]: {
@@ -28,6 +35,7 @@ export type SettingsSchema = {
         readonly hidden?: true;
         readonly label?: string;
         readonly number?: NumberFieldConfig;
+        readonly options?: readonly SelectOption[];
     };
 };
 
@@ -115,6 +123,12 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
     terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
     terminalTmuxMouseMode:     { default: false, section: 'general', label: 'Terminal tmux Mouse Mode' },
+    terminalScrollStrategy:    { default: 'app', section: 'general', label: 'Terminal Scroll Strategy', options: [
+        { value: 'app',       label: 'App scroll (recommended) — wheel drives the TUI app itself' },
+        { value: 'sgr',       label: 'SGR inject — renderer sends wheel events to the app' },
+        { value: 'suppress',  label: 'Suppress — no wheel in TUIs (stops shell-history scroll)' },
+        { value: 'copy-mode', label: 'tmux copy-mode (legacy) — current behaviour' },
+    ] },
     shell:                     { section: 'general', label: 'Shell Override' },
     emptyFolderTemplate:       { default: `# {{DATE}}\n\nHighest priority task: `, section: 'general', label: 'Empty Folder Template' },
 

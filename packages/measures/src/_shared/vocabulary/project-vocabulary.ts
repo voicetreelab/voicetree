@@ -1,5 +1,7 @@
-import {readdir, readFile} from 'node:fs/promises'
+import {readFile} from 'node:fs/promises'
 import {join, relative, sep} from 'node:path'
+
+import {listGitTrackedFiles} from '../discovery/git-tracked-files.ts'
 
 export type ProjectVocabularyViolation = {
     readonly path: string
@@ -176,23 +178,22 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
     ]
 }
 
-async function scanDirectory(repoRoot: string, absoluteDir: string): Promise<readonly ProjectVocabularyViolation[]> {
-    const entries = await readdir(absoluteDir, {withFileTypes: true})
-    const violations: ProjectVocabularyViolation[] = []
-    for (const entry of entries) {
-        if (entry.isDirectory() && EXCLUDED_DIR_NAMES.has(entry.name)) continue
-        const absolutePath = join(absoluteDir, entry.name)
-        if (entry.isDirectory()) {
-            violations.push(...await scanDirectory(repoRoot, absolutePath))
-        } else if (entry.isFile()) {
-            violations.push(...await scanFile(repoRoot, absolutePath))
-        }
-    }
-    return violations
+function isUnderExcludedDir(repoRelativePath: string): boolean {
+    return repoRelativePath.split('/').some(segment => EXCLUDED_DIR_NAMES.has(segment))
 }
 
 export async function checkProjectVocabulary(repoRoot: string): Promise<ProjectVocabularyReport> {
-    const violations = await scanDirectory(repoRoot, repoRoot)
+    // Enumerate git-tracked files only. A filesystem walk sweeps up untracked
+    // caches (`.ck/`), generated fixtures, and `.gitignore`d output — none of
+    // which are the committed codebase the vocabulary policy governs. Tracked
+    // enumeration also makes the archived-dir denylist below the only path
+    // filter still needed (build/cache dirs are untracked by construction).
+    const trackedPaths = listGitTrackedFiles(repoRoot)
+        .filter(repoRelativePath => !isUnderExcludedDir(repoRelativePath))
+    const perFile = await Promise.all(
+        trackedPaths.map(repoRelativePath => scanFile(repoRoot, join(repoRoot, repoRelativePath))),
+    )
+    const violations = perFile.flat()
     const sorted = [...violations].sort((a, b) =>
         a.path.localeCompare(b.path)
         || (a.line ?? 0) - (b.line ?? 0)

@@ -160,6 +160,11 @@ bash "$SCRIPT_DIR/vt-remote.sh" brain-setup \
   || fail "brain checkout setup failed"
 ok "local ~/brain and remote /root/brain point at standalone clones"
 
+step "symlinking CLAUDE.md and AGENTS.md on devbox"
+ssh "$VT_REMOTE_HOST" "bash $REMOTE_DIR/scripts/dev-setup/vm_prompts/install.sh $REMOTE_DIR" \
+  || fail "vm_prompts symlink failed"
+ok "~/CLAUDE.md and ~/AGENTS.md symlinked"
+
 step "routing git hooks through scripts/hooks"
 git -C "$REPO_ROOT" config core.hooksPath scripts/hooks
 ok "core.hooksPath = scripts/hooks"

@@ -43,6 +43,9 @@ export function getUniqueAgentName(baseName: string, existingNames: ReadonlySet<
 
 export type EnvVarValue = string | readonly string[];
 
+/** Mouse-wheel scroll strategy for agent terminals. See `terminalScrollStrategy` in VTSettings. */
+export type TerminalScrollStrategy = 'app' | 'sgr' | 'suppress' | 'copy-mode';
+
 // Hotkey configuration types
 export type HotkeyModifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
@@ -126,6 +129,14 @@ export interface VTSettings {
     readonly shell?: string;
     /** Enable tmux mouse handling in Voicetree terminals. Off by default so browser text selection works normally. */
     readonly terminalTmuxMouseMode?: boolean;
+    /**
+     * How the mouse wheel scrolls an agent terminal (the alt-screen / TUI case).
+     * - 'app'       : if the foreground app tracks the mouse, let xterm forward the wheel so the app scrolls its own view; otherwise tmux copy-mode. (recommended)
+     * - 'sgr'       : if the app tracks the mouse, the renderer injects SGR wheel events into the PTY directly; otherwise tmux copy-mode.
+     * - 'suppress'  : do nothing on the alt-screen (kills wheel-scrolls-into-shell-history; scroll the app with its own keys).
+     * - 'copy-mode' : always drive tmux copy-mode (the legacy behaviour — for A/B comparison).
+     */
+    readonly terminalScrollStrategy?: TerminalScrollStrategy;
     /** Name of the default agent (matched against agents[].name). Falls back to first agent if unset or not found. */
     readonly defaultAgent?: string;
     /** Notify via OS notification when an agent completes or errors (only when app is unfocused) */

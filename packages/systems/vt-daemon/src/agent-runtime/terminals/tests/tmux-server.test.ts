@@ -199,6 +199,12 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(null, '', '')
                 return
             }
+            if (command === 'set') {
+                // Server-scoped options (set-clipboard, terminal-features) applied
+                // once after the root session starts. tmux returns empty on success.
+                callback(null, '', '')
+                return
+            }
             callback(new Error(`unexpected tmux args: ${args.join(' ')}`), '', '')
         },
         logger: {
@@ -254,6 +260,8 @@ describe('tmux-server', () => {
                 'while :; do sleep 2147483647; done',
             ],
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'set', '-s', 'set-clipboard', 'on'],
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'set', '-as', 'terminal-features', ',xterm-256color:clipboard'],
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
         ])
     })

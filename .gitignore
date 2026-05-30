@@ -278,3 +278,8 @@ test_output/*
 
 # Voicetree per-version vault dirs at repo root (runtime app state from past sessions, not source)
 /voicetree-*-*/
+
+# ck semantic-search index/cache (not source; must never be committed or scanned)
+.ck/
+.ckignore
+.ckignore.backup

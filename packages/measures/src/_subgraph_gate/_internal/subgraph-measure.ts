@@ -27,7 +27,12 @@ export type Severity = 'pass' | 'warn' | 'fail'
 export type Violation = {
     readonly community: string
     readonly score: number
-    /** Baseline score from the last full-graph pre-push run; null if this community has no baseline yet. */
+    /**
+     * High-water-mark budget the runner compared this score against — the
+     * worst score across all communities in the last full-graph capture.
+     * Stamped by the runner (measures emit `null`); null when nothing has
+     * been captured for the measure yet.
+     */
     readonly baseline: number | null
     readonly severity: Severity
     readonly message: string
