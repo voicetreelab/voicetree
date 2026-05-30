@@ -231,6 +231,10 @@ function App(): JSX.Element {
             setProjectSwitching(false);
             setProjectError(null);
             void syncProjectFromDirectory(data.path);
+            // Reopen / project-switch re-primes the registry but never replays
+            // the spawn-time launch events; rehydrate so panels for already-
+            // running agents reappear. Idempotent with the mount-time trigger.
+            void window.electronAPI?.terminal?.rehydrate?.();
         }) ?? (() => {});
         const cleanupLost = window.electronAPI.onProjectLost?.((data: { path?: string; error?: string }) => {
             if (data.path) lastKnownProjectPathRef.current = data.path;
@@ -312,6 +316,17 @@ function App(): JSX.Element {
                     initialProjectedGraph: initialProjectedGraph ?? undefined,
                 }
             );
+
+            // The constructor sets the cytoscape instance synchronously, so the
+            // launchTerminalOntoUI calls this triggers (via getCyInstance) are now
+            // safe. Ask main to re-launch a floating panel for every live terminal
+            // in the registry. This runs on every fresh renderer mount — crucially
+            // including a Cmd+R reload, after which the spawn-time
+            // `terminal-ui-launch` events are never replayed — so panels for
+            // still-running agents reappear instead of vanishing. Idempotent; the
+            // project:ready handler triggers the same path for reopen and the
+            // cold-boot race where the registry is primed after this point.
+            void window.electronAPI?.terminal?.rehydrate?.();
         })();
 
         // Cleanup on unmount or view change

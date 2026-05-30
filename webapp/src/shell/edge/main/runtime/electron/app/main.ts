@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, nativeImage} from 'electron';
+import {app, BrowserWindow, ipcMain, nativeImage} from 'electron';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {isAbsolute, join} from 'node:path';
@@ -10,7 +10,8 @@ import {getVoicetreeHomePath} from '@/shell/edge/main/runtime/state/app-electron
 import {existsSync} from 'node:fs';
 import {getAuthToken, getDaemonUrl, unbindVtDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {installVtDaemonEventsBridge} from '@/shell/edge/main/runtime/electron/daemon/events/vtDaemonEventsBridge';
-import {installVtTerminalAttachBridge} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachBridge';
+import {installVtTerminalAttachBridge, type VtTerminalAttachBridgeHandle} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachBridge';
+import {rehydrateTerminalPanels} from '@/shell/edge/main/agent/terminals/rehydrateTerminalPanels';
 import {getMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
 import type {TerminalRecord} from '@vt/vt-daemon-client';
 import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
@@ -142,10 +143,20 @@ const teardownVtDaemonEventsBridge: () => void = installVtDaemonEventsBridge({
     getDaemonUrl,
     getAuthToken,
 });
-const teardownVtTerminalAttachBridge: () => void = installVtTerminalAttachBridge({
+const vtTerminalAttachBridge: VtTerminalAttachBridgeHandle = installVtTerminalAttachBridge({
     getMainWindow,
     getDaemonUrl,
     getAuthToken,
+});
+
+// Rehydrate the floating terminal panels on demand. The renderer invokes this
+// once its cytoscape view is mounted (every fresh load, including a Cmd+R
+// reload) and again on every `project:ready`. Panels are derived from the
+// durable terminal registry rather than the transient spawn-time
+// `terminal-ui-launch` events, so reloading the UI no longer loses the panels
+// for still-running agents. Idempotent (see rehydrateTerminalPanels).
+ipcMain.handle('terminal:rehydrate', (): void => {
+    rehydrateTerminalPanels();
 });
 
 // Bridge terminal-registry cache mutations (driven by SSE deltas + the
@@ -214,6 +225,16 @@ void app.whenReady().then(async () => {
 
     console.time('[Startup] createWindow');
     createWindow({isQuitting: () => isQuitting});
+
+    // On a renderer reload (Cmd+R), the old page is torn down without running
+    // its `terminal:detach` cleanup, orphaning the main-side attach clients and
+    // leaving the tmux sessions falsely "claimed". Dispose them as the new
+    // document begins loading; the fresh renderer then re-attaches via
+    // `terminal:rehydrate`. The first load disposes an empty set (no-op).
+    getMainWindow()?.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame): void => {
+        if (isMainFrame) vtTerminalAttachBridge.disposeAllClients();
+    });
+
     startUnclaimedTmuxSessionPolling();
     startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
@@ -270,7 +291,7 @@ app.on('will-quit', () => {
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
     teardownVtDaemonEventsBridge();
-    teardownVtTerminalAttachBridge();
+    vtTerminalAttachBridge.teardown();
     void unbindVtDaemon();
 });
 

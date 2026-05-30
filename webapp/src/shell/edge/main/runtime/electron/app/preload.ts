@@ -142,6 +142,8 @@ async function exposeElectronAPI(): Promise<void> {
                 ipcRenderer.invoke('terminal:scroll', handle, direction, lines) as Promise<boolean>,
             detach: (handle: string): Promise<boolean> =>
                 ipcRenderer.invoke('terminal:detach', handle) as Promise<boolean>,
+            rehydrate: (): Promise<void> =>
+                ipcRenderer.invoke('terminal:rehydrate') as Promise<void>,
         },
 
         // VTD /events stream — Main owns the WebSocket; renderer reads via IPC.
@@ -204,6 +206,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:resize',
                 'terminal:scroll',
                 'terminal:detach',
+                'terminal:rehydrate',
                 'vt:events:resnapshot',
             ]);
             if (!ALLOWED_INVOKE_CHANNELS.has(channel)) {
