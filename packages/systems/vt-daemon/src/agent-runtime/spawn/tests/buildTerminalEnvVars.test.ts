@@ -53,15 +53,17 @@ describe('buildTerminalEnvVars', () => {
     })
 })
 
-describe('buildTerminalEnvVars prompt templates from .voicetree/prompts', () => {
+describe('buildTerminalEnvVars prompt templates from ~/.voicetree/prompts', () => {
     let root: string
-    let promptsDir: string
+    let home: string
+    let homePromptsDir: string
 
     beforeEach(async () => {
         root = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bt-'))
-        promptsDir = path.join(root, '.voicetree', 'prompts')
-        await fs.mkdir(promptsDir, {recursive: true})
-        process.env.VOICETREE_HOME_PATH = '/voicetree-home'
+        home = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bt-home-'))
+        homePromptsDir = path.join(home, 'prompts')
+        await fs.mkdir(homePromptsDir, {recursive: true})
+        process.env.VOICETREE_HOME_PATH = home
         configureAgentRuntime({
             env: {
                 getProjectRoot: async () => root,
@@ -74,6 +76,7 @@ describe('buildTerminalEnvVars prompt templates from .voicetree/prompts', () => 
         configureAgentRuntime({})
         delete process.env.VOICETREE_HOME_PATH
         await fs.rm(root, {recursive: true, force: true})
+        await fs.rm(home, {recursive: true, force: true})
     })
 
     const spawn = (overrides: {promptTemplate?: string; injectExtra?: Record<string, string>} = {}) =>
@@ -88,18 +91,39 @@ describe('buildTerminalEnvVars prompt templates from .voicetree/prompts', () => 
             } as VTSettings,
         })
 
-    it('sources AGENT_PROMPT_CORE from the prompts dir and expands nested vars', async () => {
-        await fs.writeFile(path.join(promptsDir, 'AGENT_PROMPT_CORE.md'), 'CORE_BODY_TOKEN ctx=$CONTEXT_NODE_PATH\n')
+    it('sources AGENT_PROMPT_CORE from the home prompts dir and expands nested vars', async () => {
+        await fs.writeFile(
+            path.join(homePromptsDir, 'AGENT_PROMPT_CORE.md'),
+            'CORE_BODY_TOKEN ctx=$CONTEXT_NODE_PATH read $VOICETREE_PROMPTS_DIR/addProgressTree.md\n',
+        )
 
         const env = await spawn()
 
         expect(env.AGENT_PROMPT).toContain('CORE_BODY_TOKEN ctx=/ctx.md')
+        // The template's $VOICETREE_PROMPTS_DIR resolves to the home prompts dir
+        // (this is exactly how the shipped AGENT_PROMPT_CORE points at addProgressTree.md).
+        expect(env.AGENT_PROMPT).toContain(`read ${homePromptsDir}/addProgressTree.md`)
+        // VOICETREE_PROMPTS_DIR points at the home prompts dir agents read.
+        expect(env.VOICETREE_PROMPTS_DIR).toBe(homePromptsDir)
         // The intermediate template var must not leak into the agent's env.
         expect(env.AGENT_PROMPT_CORE).toBeUndefined()
     })
 
+    it('reads from home only — a per-project .voicetree/prompts is never consulted', async () => {
+        // A leftover per-project prompts dir must NOT shadow the home source.
+        const projectPromptsDir: string = path.join(root, '.voicetree', 'prompts')
+        await fs.mkdir(projectPromptsDir, {recursive: true})
+        await fs.writeFile(path.join(projectPromptsDir, 'AGENT_PROMPT_CORE.md'), 'FROM_PROJECT_TOKEN\n')
+        await fs.writeFile(path.join(homePromptsDir, 'AGENT_PROMPT_CORE.md'), 'FROM_HOME_TOKEN\n')
+
+        const env = await spawn()
+
+        expect(env.AGENT_PROMPT).toContain('FROM_HOME_TOKEN')
+        expect(env.AGENT_PROMPT).not.toContain('FROM_PROJECT_TOKEN')
+    })
+
     it('lets a file template override a settings default of the same name', async () => {
-        await fs.writeFile(path.join(promptsDir, 'AGENT_PROMPT_CORE.md'), 'FROM_FILE_TOKEN\n')
+        await fs.writeFile(path.join(homePromptsDir, 'AGENT_PROMPT_CORE.md'), 'FROM_FILE_TOKEN\n')
 
         const env = await spawn({injectExtra: {AGENT_PROMPT_CORE: 'FROM_SETTINGS_TOKEN'}})
 
@@ -108,8 +132,8 @@ describe('buildTerminalEnvVars prompt templates from .voicetree/prompts', () => 
     })
 
     it('honors --prompt-template by selecting that file as AGENT_PROMPT', async () => {
-        await fs.writeFile(path.join(promptsDir, 'AGENT_PROMPT_CORE.md'), 'CORE_BODY_TOKEN\n')
-        await fs.writeFile(path.join(promptsDir, 'AGENT_PROMPT_LIGHTWEIGHT.md'), 'LIGHT_BODY_TOKEN ctx=$CONTEXT_NODE_PATH\n')
+        await fs.writeFile(path.join(homePromptsDir, 'AGENT_PROMPT_CORE.md'), 'CORE_BODY_TOKEN\n')
+        await fs.writeFile(path.join(homePromptsDir, 'AGENT_PROMPT_LIGHTWEIGHT.md'), 'LIGHT_BODY_TOKEN ctx=$CONTEXT_NODE_PATH\n')
 
         const env = await spawn({promptTemplate: 'AGENT_PROMPT_LIGHTWEIGHT'})
 

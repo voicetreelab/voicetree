@@ -12,6 +12,7 @@ import {
   readCurrentFolderState,
   updateCurrentFolderState,
   updateCurrentFolderStateBatch,
+  type LoadedFolderState,
 } from '@vt/graph-db-server/views/folderVisibilityResource'
 import { errorResult, jsonResult, notFoundResult } from '@vt/graph-db-server/application/workflows/httpResult'
 import { executeCommand } from '@vt/graph-db-server/application/workflows/dispatch'
@@ -58,14 +59,25 @@ function syncSessionCollapseSetBatch(
   }
 }
 
-async function syncGraphLoadedState(path: string, state: FolderState): Promise<void> {
+/**
+ * Apply the graph-loaded-state side of a folder-state change and report how many
+ * nodes a `'hidden'` transition purged. `'hidden'` is routed exclusively through
+ * the unload transition (`RemoveProjectReadPath`), which is the single funnel
+ * that writes `'hidden'` visibility AND purges the folder's nodes (INV-1).
+ */
+async function syncGraphLoadedState(
+  path: string,
+  state: FolderState,
+): Promise<{ removedNodeCount: number }> {
   if (state === 'expanded') {
     await executeCommand({ type: 'AddProjectReadPath', path })
-    return
+    return { removedNodeCount: 0 }
   }
   if (state === 'hidden') {
-    await executeCommand({ type: 'RemoveProjectReadPath', path })
+    const result = await executeCommand({ type: 'RemoveProjectReadPath', path })
+    return { removedNodeCount: result.removedNodeCount }
   }
+  return { removedNodeCount: 0 }
 }
 
 export function mountFolderStateRoutes(
@@ -102,14 +114,16 @@ export function mountFolderStateRoutes(
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
-    await syncGraphLoadedState(path, body.data.state)
-    syncSessionCollapseSet(session, path, body.data.state)
-    return sendHttpResult(
-      c,
-      jsonResult(
-        FolderStateResponseSchema.parse(updateCurrentFolderState(path, body.data.state)),
-      ),
-    )
+    const state = body.data.state
+    const { removedNodeCount } = await syncGraphLoadedState(path, state)
+    syncSessionCollapseSet(session, path, state)
+    // The unload transition is the sole writer of `'hidden'` visibility; route
+    // only the loaded states through the DB-only resource writer.
+    const snapshot =
+      state === 'hidden'
+        ? { ...readCurrentFolderState(), removedNodeCount }
+        : updateCurrentFolderState(path, state)
+    return sendHttpResult(c, jsonResult(FolderStateResponseSchema.parse(snapshot)))
   })
 
   mountDaemonRoute(app, daemonRouteSpecById('session.folder-state.batch'), async (c) => {
@@ -125,15 +139,25 @@ export function mountFolderStateRoutes(
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
+    let removedNodeCount = 0
     for (const update of body.data.updates) {
-      await syncGraphLoadedState(update.path, update.state)
+      const synced = await syncGraphLoadedState(update.path, update.state)
+      removedNodeCount += synced.removedNodeCount
     }
     syncSessionCollapseSetBatch(session, body.data.updates)
+    // `'hidden'` updates already had their visibility written by the unload
+    // transition; only the loaded states go through the DB-only batch writer.
+    const loadedUpdates = body.data.updates.filter(
+      (update): update is FolderStateBatchUpdate & { state: LoadedFolderState } =>
+        update.state !== 'hidden',
+    )
+    const snapshot =
+      loadedUpdates.length > 0
+        ? updateCurrentFolderStateBatch(loadedUpdates)
+        : readCurrentFolderState()
     return sendHttpResult(
       c,
-      jsonResult(
-        FolderStateResponseSchema.parse(updateCurrentFolderStateBatch(body.data.updates)),
-      ),
+      jsonResult(FolderStateResponseSchema.parse({ ...snapshot, removedNodeCount })),
     )
   })
 }

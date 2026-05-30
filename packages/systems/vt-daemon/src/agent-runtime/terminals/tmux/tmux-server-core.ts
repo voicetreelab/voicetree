@@ -1,4 +1,4 @@
-import {execFile, execFileSync, spawn} from 'node:child_process'
+import {type ExecFileSyncOptionsWithStringEncoding, execFile, execFileSync, spawn} from 'node:child_process'
 import {
     existsSync,
     mkdirSync,
@@ -33,11 +33,14 @@ export interface TmuxServerDeps {
     readonly platform: NodeJS.Platform
     readonly homedir: () => string
     readonly getuid: () => number
-    readonly existsSync: typeof existsSync
-    readonly mkdirSync: typeof mkdirSync
-    readonly rmSync: typeof rmSync
+    // Narrowed to the string-path surface this module actually uses (like
+    // `statSync`/`execFile` below) so test doubles are typeable. The real
+    // `node:fs` functions remain assignable — they accept wider `PathLike`.
+    readonly existsSync: (path: string) => boolean
+    readonly mkdirSync: (path: string, options?: {readonly recursive?: boolean}) => void
+    readonly rmSync: (path: string, options?: {readonly force?: boolean; readonly recursive?: boolean}) => void
     readonly statSync: (path: string) => {readonly mtimeMs: number}
-    readonly execFileSync: typeof execFileSync
+    readonly execFileSync: (file: string, args: readonly string[], options: ExecFileSyncOptionsWithStringEncoding) => string
     readonly execFile: (file: string, args: readonly string[], callback: ExecFileCallback) => void
     readonly execFileDetached?: (file: string, args: readonly string[], callback: ExecFileCallback) => void
     readonly logger: TmuxServerLogger

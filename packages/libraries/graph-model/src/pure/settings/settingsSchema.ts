@@ -13,6 +13,12 @@ export interface NumberFieldConfig {
     readonly slider?: boolean;
 }
 
+/** One choice in a dropdown-rendered setting (see `options` in the schema). */
+export interface SelectOption {
+    readonly value: string;
+    readonly label: string;
+}
+
 /**
  * Schema entry for a single setting. Every VTSettings key must have one.
  * - `default`: value used in DEFAULT_SETTINGS. Omit for optional settings with no default.
@@ -20,6 +26,7 @@ export interface NumberFieldConfig {
  * - `hidden`: true = not shown in settings UI.
  * - `label`: human-readable label. Auto-generated from key if omitted.
  * - `number`: constraints for number fields (min/max/step/slider).
+ * - `options`: choices for a dropdown-rendered setting.
  */
 export type SettingsSchema = {
     readonly [K in keyof Required<VTSettings>]: {
@@ -28,6 +35,7 @@ export type SettingsSchema = {
         readonly hidden?: true;
         readonly label?: string;
         readonly number?: NumberFieldConfig;
+        readonly options?: readonly SelectOption[];
     };
 };
 
@@ -115,6 +123,12 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
     terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
     terminalTmuxMouseMode:     { default: false, section: 'general', label: 'Terminal tmux Mouse Mode' },
+    terminalScrollStrategy:    { default: 'app', section: 'general', label: 'Terminal Scroll Strategy', options: [
+        { value: 'app',       label: 'App scroll (recommended) — wheel drives the TUI app itself' },
+        { value: 'sgr',       label: 'SGR inject — renderer sends wheel events to the app' },
+        { value: 'suppress',  label: 'Suppress — no wheel in TUIs (stops shell-history scroll)' },
+        { value: 'copy-mode', label: 'tmux copy-mode (legacy) — current behaviour' },
+    ] },
     shell:                     { section: 'general', label: 'Shell Override' },
     emptyFolderTemplate:       { default: `# {{DATE}}\n\nHighest priority task: `, section: 'general', label: 'Empty Folder Template' },
 
@@ -137,9 +151,10 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     INJECT_ENV_VARS: {
         default: {
             // AGENT_PROMPT_CORE / AGENT_PROMPT_LIGHTWEIGHT now live as .md files in
-            // packages/systems/voicetree-cli/prompts/ (single source of truth, symlinked
-            // into each project's .voicetree/prompts/). buildTerminalEnvVars reads them
-            // from there at spawn; AGENT_PROMPT points at the resolved core template.
+            // packages/systems/voicetree-cli/prompts/ (single source of truth, mirrored
+            // as symlinks into the one per-machine ~/.voicetree/prompts).
+            // buildTerminalEnvVars reads them from there at spawn; AGENT_PROMPT points
+            // at the resolved core template.
             AGENT_PROMPT: '$AGENT_PROMPT_CORE',
             DEPTH_BUDGET: '12',
         } as Record<string, EnvVarValue>,

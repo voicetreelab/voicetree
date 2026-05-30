@@ -23,6 +23,7 @@ beforeAll(() => {
 import { CodeMirrorEditorView } from "@/shell/UI/floating-windows/editors/CodeMirrorEditorView";
 import { describeHasFrontmatterTests } from "./CodeMirrorEditorView.test/__tests__/hasFrontmatter";
 import { describeImagePasteHandlerTests } from "./CodeMirrorEditorView.test/__tests__/imagePasteHandler";
+import { describeDarkModeThemeReactivityTests } from "./CodeMirrorEditorView.test/__tests__/darkModeThemeReactivity";
 
 interface CodeMirrorElement extends HTMLElement {
   cmView?: {
@@ -417,3 +418,4 @@ describe("JSON language mode", () => {
 });
 
 describeImagePasteHandlerTests();
+describeDarkModeThemeReactivityTests();

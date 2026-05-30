@@ -31,6 +31,7 @@ import {execFileSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
 import {readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {DEFAULT_REPO_ROOT} from '../_shared/discovery/discover-packages.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
 import {appendScore} from '../_shared/writers/scores-history-writer.ts'
@@ -219,35 +220,62 @@ function makeStagedContentLoader(
 /**
  * For most measures, score is lower-is-better — boundary-width, cycles,
  * cognitive complexity, etc. Modularity-Q is the outlier (higher is
- * better — a clean partition has Q closer to 1). Used by the
- * delta-vs-baseline filter so an inherited bad Q is not re-reported as a
- * violation on every commit.
+ * better — a clean partition has Q closer to 1). `isWithinBudget` answers
+ * "does this score stay within the high-water-mark budget?" in the
+ * correct direction for the measure.
  */
-function isWithinBaseline(measureId: string, score: number, baseline: number): boolean {
-    if (measureId === 'modularity-q') return score >= baseline
-    return score <= baseline
+function isWithinBudget(measureId: string, score: number, budget: number): boolean {
+    if (measureId === 'modularity-q') return score >= budget
+    return score <= budget
 }
 
 /**
- * Decorate each violation with its per-community baseline (if any) AND
- * drop violations that the commit did not worsen. A community with score
- * equal to or better than its baseline contributes no violation — the
- * debt was already there. Only commits that increase the touched
- * community's score above its baseline produce visible violations.
+ * High-water-mark budget for a measure: the worst score across ALL
+ * communities in the last full-graph capture — the ceiling the codebase
+ * is currently permitted to reach. Lower-is-better measures take the max;
+ * modularity-q (higher-is-better) takes the min. Returns null when nothing
+ * has been captured yet (the measure's own emitted violations then stand
+ * unfiltered).
+ *
+ * The comparison is each touched community against the GLOBAL worst, not
+ * against its own past value: a commit is blocked only if it makes a
+ * community worse than the worst part of the codebase ("no new record"),
+ * never for merely nudging an already-healthy community up by one. That is
+ * what unfreezes communities sitting above a measure's flat trigger
+ * threshold without having regressed — the failure mode of the old
+ * per-community ratchet and of the baseline-less flat absolutes.
  */
+export function highWaterMark(
+    measureId: string,
+    byCommunity: Readonly<Record<string, number>>,
+): number | null {
+    const values = Object.values(byCommunity)
+    if (values.length === 0) return null
+    return measureId === 'modularity-q' ? Math.min(...values) : Math.max(...values)
+}
+
+/**
+ * Drop violations that stay within the high-water-mark budget; keep only
+ * those that would push a touched community past the worst-in-repo
+ * ceiling. Pure (no I/O) so it is black-box testable against a captured
+ * map. The budget is stamped onto each surviving violation for the report
+ * (`null` when uncaptured → every emitted violation is kept).
+ */
+export function filterByHighWaterMark(
+    measureId: string,
+    violations: readonly Violation[],
+    byCommunity: Readonly<Record<string, number>>,
+): Violation[] {
+    const budget = highWaterMark(measureId, byCommunity)
+    return violations
+        .map(v => ({...v, baseline: budget}))
+        .filter(v => budget === null || !isWithinBudget(measureId, v.score, budget))
+}
+
 async function decorateWithBaselines(result: SubgraphMeasureResult): Promise<SubgraphMeasureResult> {
     if (result.violations.length === 0) return result
-    const baseline = await loadBaseline(result.measureId)
-    const decorated: Violation[] = result.violations
-        .map(v => ({
-            ...v,
-            baseline: v.baseline ?? (v.community in baseline ? baseline[v.community] : null),
-        }))
-        .filter(v => {
-            if (v.baseline === null) return true
-            return !isWithinBaseline(result.measureId, v.score, v.baseline)
-        })
-    return {...result, violations: decorated}
+    const byCommunity = await loadBaseline(result.measureId)
+    return {...result, violations: filterByHighWaterMark(result.measureId, result.violations, byCommunity)}
 }
 
 async function runGate(args: Args): Promise<GateOutcome> {
@@ -380,10 +408,17 @@ async function main(): Promise<{output: string; exitCode: number}> {
     return renderReport(outcome)
 }
 
-main().then(({output, exitCode}) => {
-    if (output) process.stderr.write(output)
-    process.exit(exitCode)
-}).catch(err => {
-    process.stderr.write(`subgraph-gate: fatal error\n${err?.stack ?? err}\n`)
-    process.exit(1)
-})
+// Run the gate only when invoked as the entry script — not when imported
+// (e.g. by tests exercising the pure budget helpers above).
+const isEntrypoint = process.argv[1] !== undefined
+    && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (isEntrypoint) {
+    main().then(({output, exitCode}) => {
+        if (output) process.stderr.write(output)
+        process.exit(exitCode)
+    }).catch(err => {
+        process.stderr.write(`subgraph-gate: fatal error\n${err?.stack ?? err}\n`)
+        process.exit(1)
+    })
+}

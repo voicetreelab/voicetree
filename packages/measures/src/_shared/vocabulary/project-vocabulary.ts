@@ -1,5 +1,7 @@
-import {readdir, readFile} from 'node:fs/promises'
+import {readFile} from 'node:fs/promises'
 import {join, relative, sep} from 'node:path'
+
+import {listGitTrackedFiles} from '../discovery/git-tracked-files.ts'
 
 export type ProjectVocabularyViolation = {
     readonly path: string
@@ -82,8 +84,30 @@ function shouldReadContent(repoRelativePath: string): boolean {
     return TEXT_EXTENSIONS.has(extension(repoRelativePath))
 }
 
-function matchTerm(text: string): {readonly term: string; readonly index: number} | null {
+// An inline directive lets a file opt a single term out of the check when it must
+// reference an external system that owns that word (its config keys, API surface,
+// etc.). Format: `<directive> <term> — <reason>`. The exemption is scoped to the
+// file that declares it and to the exact term named — every other term and every
+// other file stays enforced, and the required reason documents the exception where
+// it is used rather than in a distant allowlist.
+const ALLOW_DIRECTIVE = 'project-vocabulary:allow'
+
+const NO_ALLOWED_TERMS: ReadonlySet<string> = new Set()
+
+function allowedTerms(content: string): ReadonlySet<string> {
+    const allowed = new Set<string>()
     for (const term of TERMS) {
+        if (content.includes(`${ALLOW_DIRECTIVE} ${term}`)) allowed.add(term)
+    }
+    return allowed
+}
+
+function matchTerm(
+    text: string,
+    allowed: ReadonlySet<string>,
+): {readonly term: string; readonly index: number} | null {
+    for (const term of TERMS) {
+        if (allowed.has(term)) continue
         const index = text.indexOf(term)
         if (index !== -1) return {term, index}
     }
@@ -123,7 +147,8 @@ function formatViolations(violations: readonly ProjectVocabularyViolation[]): st
 
 async function scanFile(repoRoot: string, absolutePath: string): Promise<readonly ProjectVocabularyViolation[]> {
     const repoRelativePath = toRepoPath(repoRoot, absolutePath)
-    const pathMatch = matchTerm(repoRelativePath)
+    // Paths cannot carry an inline directive, so no term is exempt for the path check.
+    const pathMatch = matchTerm(repoRelativePath, NO_ALLOWED_TERMS)
     const pathViolations: ProjectVocabularyViolation[] = pathMatch === null
         ? []
         : [{
@@ -138,7 +163,7 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
 
     const content = await readFile(absolutePath, 'utf8').catch(() => null)
     if (content === null) return pathViolations
-    const contentMatch = matchTerm(content)
+    const contentMatch = matchTerm(content, allowedTerms(content))
     if (contentMatch === null) return pathViolations
     const location = lineColumn(content, contentMatch.index)
     return [
@@ -153,23 +178,22 @@ async function scanFile(repoRoot: string, absolutePath: string): Promise<readonl
     ]
 }
 
-async function scanDirectory(repoRoot: string, absoluteDir: string): Promise<readonly ProjectVocabularyViolation[]> {
-    const entries = await readdir(absoluteDir, {withFileTypes: true})
-    const violations: ProjectVocabularyViolation[] = []
-    for (const entry of entries) {
-        if (entry.isDirectory() && EXCLUDED_DIR_NAMES.has(entry.name)) continue
-        const absolutePath = join(absoluteDir, entry.name)
-        if (entry.isDirectory()) {
-            violations.push(...await scanDirectory(repoRoot, absolutePath))
-        } else if (entry.isFile()) {
-            violations.push(...await scanFile(repoRoot, absolutePath))
-        }
-    }
-    return violations
+function isUnderExcludedDir(repoRelativePath: string): boolean {
+    return repoRelativePath.split('/').some(segment => EXCLUDED_DIR_NAMES.has(segment))
 }
 
 export async function checkProjectVocabulary(repoRoot: string): Promise<ProjectVocabularyReport> {
-    const violations = await scanDirectory(repoRoot, repoRoot)
+    // Enumerate git-tracked files only. A filesystem walk sweeps up untracked
+    // caches (`.ck/`), generated fixtures, and `.gitignore`d output — none of
+    // which are the committed codebase the vocabulary policy governs. Tracked
+    // enumeration also makes the archived-dir denylist below the only path
+    // filter still needed (build/cache dirs are untracked by construction).
+    const trackedPaths = listGitTrackedFiles(repoRoot)
+        .filter(repoRelativePath => !isUnderExcludedDir(repoRelativePath))
+    const perFile = await Promise.all(
+        trackedPaths.map(repoRelativePath => scanFile(repoRoot, join(repoRoot, repoRelativePath))),
+    )
+    const violations = perFile.flat()
     const sorted = [...violations].sort((a, b) =>
         a.path.localeCompare(b.path)
         || (a.line ?? 0) - (b.line ?? 0)

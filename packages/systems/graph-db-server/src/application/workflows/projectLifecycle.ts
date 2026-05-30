@@ -23,6 +23,7 @@ import { reconcileGraphWithDisk } from './project/reconcileGraphWithDisk.ts'
 import {
   getReadPaths,
   getWriteFolderPath,
+  reconcileHiddenFolders,
   resolveWriteFolderPath,
   setWriteFolderPath,
 } from '@vt/graph-db-server/state/projectAllowlist'
@@ -195,6 +196,10 @@ async function bindProject(input: OpenProjectWorkflowInput, targetProjectRoot: s
     throw new ProjectOpenFailedError(result.error ?? `Failed to open project ${targetProjectRoot}`)
   }
   await reconcileGraphWithDisk()
+  // Enforce INV-1 after load + expansion: purge any node belonging to a folder
+  // the user has unloaded ('hidden'), healing drift that would otherwise persist
+  // (e.g. nodes dragged back in by link resolution).
+  await reconcileHiddenFolders()
 }
 
 export async function openProjectWorkflow(input: OpenProjectWorkflowInput): Promise<OpenProjectResponse> {

@@ -61,7 +61,7 @@ import {
     clearWatchFolderState,
 } from '../../../state/watch-folder-store'
 import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
-import { setActiveViewFolderState } from '../folder-visibility-active-view'
+import { markActiveViewFolderHidden } from '../folder-visibility-active-view'
 import { setWriteFolderPath, getReadPaths } from '../../../state/projectAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
@@ -128,7 +128,7 @@ describe('write path folder visibility seeding', () => {
         await fs.mkdir(newChild, { recursive: true })
         setProjectRoot(watchedDir)
         await saveProjectConfigForDirectory(watchedDir, { writeFolderPath })
-        await setActiveViewFolderState(watchedDir, hiddenChild, 'hidden')
+        await markActiveViewFolderHidden(watchedDir, hiddenChild)
 
         const result = await setWriteFolderPath(writeFolderPath, { createStarterIfEmpty: false })
 

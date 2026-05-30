@@ -17,11 +17,6 @@ export type ActiveViewInfo = {
 
 export type FolderStateEntry = readonly [path: string, state: FolderState]
 
-export type FolderStateBatchUpdate = {
-  readonly path: string
-  readonly state: FolderState
-}
-
 type ViewNameRow = { readonly name: string }
 type FolderStateRow = { readonly path: string; readonly state: FolderState }
 
@@ -58,19 +53,6 @@ function readFolderState(
   return rows.map((row): FolderStateEntry => [row.path, row.state])
 }
 
-function upsertOne(
-  db: FolderVisibilityDatabase,
-  viewId: string,
-  path: string,
-  state: FolderState,
-): void {
-  db.prepare(
-    `INSERT INTO folder_visibility (view_id, path, state)
-     VALUES (?, ?, ?)
-     ON CONFLICT(view_id, path) DO UPDATE SET state = excluded.state`,
-  ).run(viewId, path, state)
-}
-
 export function getActiveView(projectRoot: string): ActiveViewInfo {
   return withDb(projectRoot, (db) => readActiveView(db))
 }
@@ -90,42 +72,3 @@ export function getFolderStateForActiveView(
   })
 }
 
-export function setFolderStateForActiveView(
-  projectRoot: string,
-  path: string,
-  state: FolderState,
-): {
-  folderState: FolderStateEntry[]
-  activeView: ActiveViewInfo
-} {
-  return withDb(projectRoot, (db) => {
-    const activeView = readActiveView(db)
-    upsertOne(db, activeView.viewId, path, state)
-    return {
-      folderState: readFolderState(db, activeView.viewId),
-      activeView,
-    }
-  })
-}
-
-export function setFolderStateBatchForActiveView(
-  projectRoot: string,
-  updates: readonly FolderStateBatchUpdate[],
-): {
-  folderState: FolderStateEntry[]
-  activeView: ActiveViewInfo
-} {
-  return withDb(projectRoot, (db) => {
-    const activeView = readActiveView(db)
-    const applyAll = db.transaction((batch: readonly FolderStateBatchUpdate[]) => {
-      for (const update of batch) {
-        upsertOne(db, activeView.viewId, update.path, update.state)
-      }
-    })
-    applyAll(updates)
-    return {
-      folderState: readFolderState(db, activeView.viewId),
-      activeView,
-    }
-  })
-}

@@ -3,6 +3,14 @@ import type { FilePath } from '@vt/graph-model/graph'
 import normalizePath from 'normalize-path'
 
 type FolderState = 'expanded' | 'collapsed' | 'hidden'
+/**
+ * The folder states that keep (or leave) a folder's nodes loaded in the graph.
+ * Writing `'hidden'` is deliberately excluded here: a folder may only reach
+ * `'hidden'` through the unload transition (`projectAllowlist.removeReadPath`),
+ * which purges the folder's graph nodes in the same step. That single funnel is
+ * what enforces INV-1 (`hidden ⟹ no loaded nodes`).
+ */
+export type LoadedFolderState = Exclude<FolderState, 'hidden'>
 type FolderVisibilityState = ReadonlyMap<string, FolderState>
 
 type FolderVisibilityStoreApi = {
@@ -83,7 +91,7 @@ export async function getWatchRootsForActiveView(projectRoot: FilePath): Promise
     }
 }
 
-export async function setActiveViewFolderState(
+async function writeActiveViewFolderState(
     projectRoot: FilePath,
     folderPath: FilePath,
     state: FolderState,
@@ -105,6 +113,30 @@ export async function setActiveViewFolderState(
         store.clearFolderVisibilityStoreForTests()
         dbModule.closeFolderVisibilityDb(db)
     }
+}
+
+/**
+ * Set a folder to a *loaded* state (`'expanded'` or `'collapsed'`). The type
+ * forbids `'hidden'`: see {@link LoadedFolderState}.
+ */
+export async function setActiveViewFolderState(
+    projectRoot: FilePath,
+    folderPath: FilePath,
+    state: LoadedFolderState,
+): Promise<void> {
+    await writeActiveViewFolderState(projectRoot, folderPath, state)
+}
+
+/**
+ * Mark a folder `'hidden'` in the active view. The DB-write half of the unload
+ * transition — call only from `projectAllowlist.removeReadPath`, which purges
+ * the folder's graph nodes in the same step so INV-1 holds.
+ */
+export async function markActiveViewFolderHidden(
+    projectRoot: FilePath,
+    folderPath: FilePath,
+): Promise<void> {
+    await writeActiveViewFolderState(projectRoot, folderPath, 'hidden')
 }
 
 export async function seedActiveViewExpandedFolderStates(

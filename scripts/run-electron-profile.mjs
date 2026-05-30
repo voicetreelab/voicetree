@@ -5,11 +5,10 @@ import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { DEFAULT_OTLP_ENDPOINT, GRAFANA_RUNS_DASHBOARD } from './perf-stack-endpoints.mjs'
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PERF_LIFECYCLE = join(REPO_ROOT, 'infra/perf-stack/scripts/lifecycle.mjs')
-
-const DEFAULT_OTLP_ENDPOINT = 'http://localhost:2994'
-const GRAFANA_RUNS_DASHBOARD = 'http://localhost:2999/d/vt-runs/vt-runs'
 
 function resolveRunUuid(env = process.env) {
   return env.VOICETREE_RUN_INSTANCE_ID && env.VOICETREE_RUN_INSTANCE_ID.length > 0

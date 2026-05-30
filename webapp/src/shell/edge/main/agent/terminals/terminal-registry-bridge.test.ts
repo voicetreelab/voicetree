@@ -13,8 +13,8 @@
  */
 
 import {createServer, type Server} from 'node:http'
-import {AddressInfo} from 'node:net'
-import {Option} from 'fp-ts/lib/Option.js'
+import type {AddressInfo} from 'node:net'
+import type {Option} from 'fp-ts/lib/Option.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
@@ -132,6 +132,27 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
         expect(cached?.terminalData.isPinned).toBe(true)
     })
 
+    it('terminal-record-changed lifecycle patch updates the daemon-authoritative lifecycle', (): void => {
+        // Regression: a freshly-registered row carries lifecycle 'spawning'.
+        // Without applying lifecycle patches the sidebar icon stays frozen on
+        // the grey 'spawning' dot for every terminal regardless of true state.
+        applyTerminalRegistryEnvelope({
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
+            event: {type: 'terminal-registered', record: makeRecord('T1')},
+        })
+        expect(getCachedTerminalRecord('T1' as TerminalId)?.terminalData.lifecycle).toBe('spawning')
+
+        applyTerminalRegistryEnvelope({
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
+            event: {
+                type: 'terminal-record-changed',
+                terminalId: 'T1' as TerminalId,
+                patch: {kind: 'lifecycle', value: 'awaiting_input'},
+            },
+        })
+        expect(getCachedTerminalRecord('T1' as TerminalId)?.terminalData.lifecycle).toBe('awaiting_input')
+    })
+
     it('terminal-record-changed activity patch merges lastOutputTime + activityCount', (): void => {
         applyTerminalRegistryEnvelope({
             kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
@@ -217,7 +238,7 @@ async function startFakeHubEmitting(blocks: readonly string[]): Promise<void> {
         // Leave the response open — the subscriber's silence timeout
         // would close it eventually. For tests we close after a short
         // delay so the subscriber doesn't keep the test alive.
-        setTimeout((): void => res.end(), 50)
+        setTimeout((): void => { res.end() }, 50)
     })
     await new Promise<void>((resolve) => hub!.listen(0, '127.0.0.1', resolve))
     const port: number = (hub.address() as AddressInfo).port
