@@ -61,22 +61,30 @@ function commitGraphDeltaMemState(prepared: PreparedMemState): GraphDelta {
     setGraph(prepared.graph);
 
     // Fire onNewNode hook (fire-and-forget). Runs for both UI and FS-event paths.
-    // dispatchOnNewNodeHooks filters for UpsertNode with previousNode=None, so
-    // delete-only deltas (e.g. removeReadPath) are no-ops.
-    void loadSettings().then(settings => {
-        const hookPath: string | undefined = settings.hooks?.onNewNode
-        if (hookPath && !hookPath.startsWith('#')) {
-            const callbacks = getCallbacks()
-            if (callbacks.onNewNodeHook) {
-                // Dispatch for each new node upsert
-                for (const d of prepared.appliedDelta) {
-                    if (d.type === 'UpsertNode' && O.isNone(d.previousNode)) {
-                        callbacks.onNewNodeHook(d.nodeToUpsert.absoluteFilePathIsID, prepared.appliedDelta)
-                    }
+    // The hook only ever fires for brand-new node upserts (UpsertNode with
+    // previousNode=None) — the registered dispatcher itself filters to those, so
+    // delete-only and edit-only deltas are already no-ops. Gate the settings
+    // read on that condition FIRST: loadSettings() hits disk + parses on every
+    // call by design, and in steady state edits/deletes/position-writes vastly
+    // outnumber node creations, so reading settings on every commit just to
+    // discover there is nothing to dispatch is wasted per-mutation IO.
+    const introducesNewNode: boolean = prepared.appliedDelta.some(
+        d => d.type === 'UpsertNode' && O.isNone(d.previousNode),
+    )
+    if (introducesNewNode) {
+        void loadSettings().then(settings => {
+            const hookPath: string | undefined = settings.hooks?.onNewNode
+            if (!hookPath || hookPath.startsWith('#')) return
+            const onNewNodeHook = getCallbacks().onNewNodeHook
+            if (!onNewNodeHook) return
+            // Dispatch for each new node upsert
+            for (const d of prepared.appliedDelta) {
+                if (d.type === 'UpsertNode' && O.isNone(d.previousNode)) {
+                    onNewNodeHook(d.nodeToUpsert.absoluteFilePathIsID, prepared.appliedDelta)
                 }
             }
-        }
-    })
+        })
+    }
 
     return prepared.appliedDelta
 }

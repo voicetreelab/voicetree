@@ -50,9 +50,11 @@ export function updateIndexForUpsert(
 ): IncomingEdgesIndex {
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
 
-  // Defensive: handle undefined index
-  const indexEntries: readonly (readonly [NodeIdAndFilePath, readonly NodeIdAndFilePath[]])[] =
-    index ? Array.from(index.entries()) : []
+  // Shallow-copy the index. Value arrays are immutable: every mutation below replaces an
+  // entry with a freshly-allocated array (filter/spread), never mutating one in place, so
+  // sharing the untouched arrays with the previous index is safe. This avoids cloning every
+  // entry's array on each delta (this runs on every node upsert). `index ?? []` keeps the
+  // prior defensive behaviour of treating a missing index as empty.
 
   // Step 1: Remove old references if this is an update
   const indexAfterRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = O.isSome(previousNode)
@@ -70,9 +72,9 @@ export function updateIndexForUpsert(
           }
           return acc
         },
-        new Map(indexEntries.map(([k, v]) => [k, [...v]]))
+        new Map(index ?? [])
       )
-    : new Map(indexEntries.map(([k, v]) => [k, [...v]]))
+    : new Map(index ?? [])
 
   // Step 2: Add new references
   return node.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
@@ -101,9 +103,8 @@ export function updateIndexForDelete(
 ): IncomingEdgesIndex {
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
 
-  // Defensive: handle undefined index
-  const indexEntries: readonly (readonly [NodeIdAndFilePath, readonly NodeIdAndFilePath[]])[] =
-    index ? Array.from(index.entries()) : []
+  // Shallow-copy the index (see updateIndexForUpsert): value arrays are immutable, so the
+  // untouched arrays can be shared with the previous index instead of cloned per entry.
 
   // Step 1: Remove references from this node's outgoing edges
   const indexAfterEdgeRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =
@@ -121,7 +122,7 @@ export function updateIndexForDelete(
         }
         return acc
       },
-      new Map(indexEntries.map(([k, v]) => [k, [...v]]))
+      new Map(index ?? [])
     )
 
   // Step 2: Also remove the deleted node's own entry (nodes pointing to it)

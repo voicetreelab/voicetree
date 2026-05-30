@@ -9,9 +9,12 @@ from backend.markdown_tree_manager.markdown_to_tree.comprehensive_parser import 
 from backend.markdown_tree_manager.markdown_to_tree.comprehensive_parser import (
     parse_relationships_from_links,
 )
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import (
+    read_markdown_file,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.markdown_tree_ds import Node
-from backend.types import ParsedNodeKeys, RelationshipKeys
+from backend.types import ParsedNodeKeys, ParsedRelationships, RelationshipKeys
 
 
 class MarkdownToTreeConverter:
@@ -64,26 +67,25 @@ class MarkdownToTreeConverter:
         if not os.path.exists(markdown_dir):
             raise ValueError(f"Markdown directory does not exist: {markdown_dir}")
 
-        # First pass: Load all nodes and build filename mapping (recursively scan subfolders)
+        # First pass: Load all nodes and build filename mapping (recursively scan subfolders).
+        # Each file is read from disk exactly once; its content is reused for both node
+        # parsing and relationship parsing (resolved in the second pass below).
         markdown_dir_path = Path(markdown_dir)
         all_md_files = list(markdown_dir_path.rglob('*.md'))
         # Filter out excluded directories
         markdown_files = [f for f in all_md_files if not self._should_exclude_path(f, markdown_dir_path)]
 
+        relationships_by_path: dict[str, ParsedRelationships] = {}
         next_generated_id = 1
         for filepath in markdown_files:
             # Use relative path from markdown_dir as the filename
             relative_path = str(filepath.relative_to(markdown_dir_path))
             try:
-                node = self._parse_markdown_file(str(filepath), relative_path)
+                content = read_markdown_file(filepath)
+                node = self._build_node_from_content(filepath, relative_path, content)
                 if node:
-                    # Assign integer ID if node has None ID (no node_id in frontmatter)
-                    # if node.id is None:
                     node.id = next_generated_id
                     next_generated_id += 1
-                    # elif isinstance(node.id, int):
-                    #     Track max to avoid collisions with generated IDs
-                        # next_generated_id = max(next_generated_id, node.id + 1)
 
                     self.tree_data[node.id] = node
                     self.filename_to_node_id[relative_path] = node.id
@@ -91,14 +93,15 @@ class MarkdownToTreeConverter:
                     basename = filepath.name
                     if basename not in self._basename_to_relative_path:
                         self._basename_to_relative_path[basename] = relative_path
+                    # Parse relationships from the same content (resolved in second pass)
+                    relationships_by_path[relative_path] = parse_relationships_from_links(content)
             except Exception as e:
                 logging.error(f"Error parsing file {relative_path}: {e}")
 
-        # Second pass: Resolve relationships
-        for filepath in markdown_files:
-            relative_path = str(filepath.relative_to(markdown_dir_path))
+        # Second pass: Resolve relationships using the already-parsed link data
+        for relative_path, relationships in relationships_by_path.items():
             try:
-                self._parse_relationships(str(filepath), relative_path)
+                self._apply_relationships(relative_path, relationships)
             except Exception as e:
                 logging.error(f"Error parsing relationships in {relative_path}: {e}")
 
@@ -107,8 +110,7 @@ class MarkdownToTreeConverter:
 
     def _parse_markdown_file(self, filepath: str, filename: str) -> Optional[Node]:
         """
-        Parse a single markdown file to extract node data.
-        This is now a thin wrapper around the comprehensive parser.
+        Parse a single markdown file to extract node data (reads the file once).
 
         Args:
             filepath: Full path to the markdown file
@@ -117,8 +119,22 @@ class MarkdownToTreeConverter:
         Returns:
             Node object or None if parsing fails
         """
-        # Use the comprehensive parser from the module
-        parsed_data = parse_markdown_file_complete(Path(filepath))
+        path = Path(filepath)
+        return self._build_node_from_content(path, filename, read_markdown_file(path))
+
+    def _build_node_from_content(self, filepath: Path, filename: str, content: str) -> Optional[Node]:
+        """
+        Build a Node from already-read markdown content (no disk read).
+
+        Args:
+            filepath: Path to the markdown file (used for filename/mtime fallback)
+            filename: Relative filename to assign to the node
+            content: Raw markdown content
+
+        Returns:
+            Node object or None if parsing fails
+        """
+        parsed_data = parse_markdown_file_complete(filepath, content)
         if not parsed_data:
             logging.warning(f"Could not parse file {filename}")
             return None
@@ -145,30 +161,22 @@ class MarkdownToTreeConverter:
         return node
 
 
-    def _parse_relationships(self, filepath: str, filename: str) -> None:
-
-        # this new method looks super sus. can't we just set
-
+    def _apply_relationships(self, filename: str, relationships: ParsedRelationships) -> None:
         """
-        Parse relationships from the Links section of markdown file.
-        This is now a thin wrapper around the module's relationship parser.
+        Wire up parent/child relationships parsed from a node's Links section.
+
+        Relationships are parsed once (from the content read in the first pass) and
+        applied here, after all nodes and the filename->id mapping are built.
 
         Args:
-            filepath: Full path to the markdown file
-            filename: Name of the file
+            filename: Relative filename of the node whose relationships to apply
+            relationships: Parsed relationships from the node's Links section
         """
         if filename not in self.filename_to_node_id:
             return
 
         node_id = self.filename_to_node_id[filename]
         node = self.tree_data[node_id]
-
-        # Read the file content
-        with open(filepath, encoding='utf-8') as f:
-            content = f.read()
-
-        # Use the module's relationship parser
-        relationships = parse_relationships_from_links(content)
 
         # Process parent relationship
         if relationships[RelationshipKeys.PARENT]:
