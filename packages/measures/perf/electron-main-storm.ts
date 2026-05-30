@@ -2,9 +2,9 @@
  * Perf harness: electron-main-storm.
  *
  * Spawns the prebuilt VoiceTree Electron app with `--inspect=0`, lets it boot
- * its own graph-db daemon + MCP server against a freshly seeded temp project,
- * then storms it with N tmux-backed `vt-fake-agent` subprocesses pointed at
- * the app-owned MCP port — all while capturing a sampling CPU profile of the
+ * its own graph-db daemon against a freshly seeded temp project, then storms
+ * it with N tmux-backed `vt-fake-agent` subprocesses pointed at the app-owned
+ * daemon `/rpc` endpoint — all while capturing a sampling CPU profile of the
  * Electron *main* process via the V8 Inspector (CDP `Profiler` domain).
  *
  * Output:
@@ -23,17 +23,15 @@
  *   - Only the main process is profiled. Renderer is out of scope (would need
  *     CDP Tracing + a renderer page handle — Playwright territory).
  *   - The fake-agent script is the same `create_node` × N flow agent-storm.ts
- *     uses; only the *fake-agent* is mocked, the daemon + MCP + watch-folder
+ *     uses; only the *fake-agent* is mocked, the daemon + watch-folder
  *     are real.
  *
- * Pre-existing damage (out of scope for the getMcpPort → /rpc migration):
- *   The MCP→CLI cutover (commits 2651ade78, fab76e7d4, 15595a854) removed
- *   the in-process MCP server and replaced its `.mcp.json` handshake with
- *   `.voicetree/daemon-url` + `.voicetree/auth-token`. This harness still
- *   discovers via `waitForMcpPort` (`.mcp.json` poll) and will time out
- *   against a post-cutover app. The env-var swap below makes the
- *   *spawned-fake-agent* contract correct; fixing the boot-path handshake
- *   is a follow-up.
+ * Discovery (post-MCP-cutover):
+ *   The MCP→CLI cutover (commits 2651ade78, fab76e7d4, 15595a854) removed the
+ *   in-process MCP server and replaced its `.mcp.json` handshake with
+ *   `.voicetree/rpc.port` + `.voicetree/auth-token`. Boot discovery resolves
+ *   the daemon URL through `waitForDaemonUrl` (rpc.port poll via `@vt/vt-rpc`);
+ *   the spawned fake-agents self-authenticate from `VOICETREE_PROJECT_PATH`.
  *
  * Run:
  *   npm run perf:main-storm:local -- --agents 5 --nodes-per-agent 5
@@ -81,7 +79,7 @@ import {
     spawnElectron,
     stopElectron,
     waitForExitOrTimeout,
-    waitForMcpPort,
+    waitForDaemonUrl,
     type AgentResult,
 } from './electron-main-storm-helpers.ts'
 
@@ -208,14 +206,10 @@ async function main(): Promise<void> {
         const inspectPort = spawned.inspectPort
         process.stdout.write(`[main-storm] electron pid=${electronProc.pid} inspect=${inspectPort}\n`)
 
-        // NOTE: waitForMcpPort still polls `.mcp.json`, which the post-cutover
-        // Electron app no longer writes — discovery will time out against
-        // current main. Replacing the discovery primitive (poll
-        // `.voicetree/rpc.port` + `.voicetree/auth-token` via @vt/vt-rpc) is
-        // tracked as follow-up. This harness only carries the field rename;
-        // the boot-path handshake fix is a separate scope.
-        const mcpPort = await waitForMcpPort(tempProject, args.bootTimeoutMs)
-        const daemonUrl = `http://127.0.0.1:${mcpPort}`
+        // Discover the daemon URL from `<project>/.voicetree/rpc.port` (waiting
+        // for the sibling auth-token too). The fake-agents storm against this
+        // URL and self-authenticate from VOICETREE_PROJECT_PATH.
+        const daemonUrl = await waitForDaemonUrl(tempProject, args.bootTimeoutMs)
         process.stdout.write(`[main-storm] discovered daemon at ${daemonUrl}\n`)
 
         // Start the CPU profiler *before* the storm so all spawn-time cost is
