@@ -1,8 +1,0 @@
-Return exactly this markdown content and no extra explanation:
-BF301_LOG_START
-This node-pty attach capture should remain readable after ANSI cleanup.
-```ts
-const bridge = "node-pty(tmux attach)";
-console.log(bridge);
-```
-BF301_LOG_END

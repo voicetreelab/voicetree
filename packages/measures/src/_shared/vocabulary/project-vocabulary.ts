@@ -156,7 +156,6 @@ export const PATH_ALLOWANCES: readonly PathAllowance[] = [
     {pathPrefix: 'tools/vt-fake-agent/', category: 'client-machinery', reason: 'fake-agent MCP test client harness'},
     {pathPrefix: 'packages/measures/perf/', category: 'client-machinery', reason: 'perf storm harness: MCP discovery/spawn machinery'},
     {pathPrefix: 'webapp/e2e-tests/', category: 'client-machinery', reason: 'Electron e2e tests exercising MCP-named spawn/discovery flows'},
-    {pathPrefix: 'spikes/', category: 'client-machinery', reason: 'experimental spikes — point-in-time records, not shipping code'},
 
     // MCP-server-era hook/trigger scripts that POST to the removed `/mcp`
     // endpoint or read the stale `.mcpServers.voicetree` entry. Likely dead;
