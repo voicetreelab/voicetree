@@ -136,6 +136,12 @@ interface ChipEntry {
     readonly el: HTMLDivElement;
     readonly chevronBtn: HTMLButtonElement;
     readonly eyeBtn: HTMLButtonElement;
+    /**
+     * Last-rendered chevron collapsed state. positionChip() runs on every
+     * pan/zoom frame but the chevron glyph only changes on collapse/expand;
+     * this lets us skip the innerHTML SVG re-parse when nothing changed.
+     */
+    chevronCollapsed: boolean | undefined;
 }
 
 export function setupFolderHandles(cy: Core): void {
@@ -266,7 +272,7 @@ export function setupFolderHandles(cy: Core): void {
         el.appendChild(chevronBtn);
         el.appendChild(eyeBtn);
         overlay.appendChild(el);
-        chips.set(folderId, {el, chevronBtn, eyeBtn});
+        chips.set(folderId, {el, chevronBtn, eyeBtn, chevronCollapsed: undefined});
         positionChip(folderId);
     }
 
@@ -299,9 +305,14 @@ export function setupFolderHandles(cy: Core): void {
         entry.el.style.transformOrigin = '0 0';
 
         // Chevron glyph reflects state: down (expanded — "click to collapse"),
-        // right (collapsed — "click to expand").
+        // right (collapsed — "click to expand"). Setting innerHTML re-parses the
+        // SVG; positionChip runs every pan/zoom frame, so only rewrite the glyph
+        // when the collapsed state actually changed.
         const isCollapsed: boolean = (node as NodeSingular).data('collapsed') === true;
-        entry.chevronBtn.innerHTML = isCollapsed ? CHEVRON_RIGHT_SVG : CHEVRON_DOWN_SVG;
+        if (entry.chevronCollapsed !== isCollapsed) {
+            entry.chevronBtn.innerHTML = isCollapsed ? CHEVRON_RIGHT_SVG : CHEVRON_DOWN_SVG;
+            entry.chevronCollapsed = isCollapsed;
+        }
     }
 
     function positionAllChips(): void {
