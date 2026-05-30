@@ -7,9 +7,12 @@ const tmuxServerCore = createTmuxServerCore()
 const {
     defaultVoicetreeHomePath,
     defaultDeps,
+    ephemeralTestHomeDir,
     execDetachedFilePromise,
     execFilePromise,
+    isEphemeralTestHome,
     isMissingOrStaleServerError,
+    parseEphemeralHomeOwnerPid,
     resolveDeps,
     resolveTmuxBinaryPath,
     tmuxErrorText,
@@ -326,6 +329,12 @@ async function shutdownTmuxServerOnce(options: ShutdownTmuxServerOptions): Promi
     const socketPath: string = options.socketPath ?? getTmuxSocketPath(voicetreeHomePath)
     const tmuxBin: string = options.tmuxBin ?? getTmuxBinaryPath(options.deps)
 
+    // No socket file ⇒ no reachable server. Skip before spawning tmux so the
+    // common "tear down a server that was never started" path (e.g. a test file
+    // that imported the module but never created a session) costs one stat, not
+    // a tmux process launch.
+    if (!deps.existsSync(socketPath)) return
+
     if (!(await serverResponds(tmuxBin, socketPath, deps))) return
 
     try {
@@ -334,6 +343,77 @@ async function shutdownTmuxServerOnce(options: ShutdownTmuxServerOptions): Promi
         if (!isMissingOrStaleServerError(error)) throw error
     } finally {
         deps.rmSync(socketPath, {force: true})
+    }
+}
+
+interface ReapEphemeralTmuxServersOptions {
+    readonly deps?: Partial<TmuxServerDeps>
+}
+
+interface ReapedEphemeralTmuxServer {
+    readonly homeDir: string
+    readonly ownerPid: number
+}
+
+// Reap tmux servers leaked by test processes that exited without tearing down.
+// Each test process owns an ephemeral home `…/voicetree-agent-runtime-tmux-<pid>`
+// whose tmux server is deliberately detached (tmux daemonizes) and therefore
+// outlives its creator. On a clean exit `shutdownTmuxServer` kills it; on a crash
+// or SIGKILL it is orphaned — a daemon running `while :; do sleep …` forever.
+//
+// This is the startup/backstop reaper: scan tmpdir for ephemeral homes whose
+// owning pid is gone and kill those servers + remove their dirs. The current
+// process's own home (owner alive) is left untouched. Production never creates
+// these homes (it uses a stable ~/.voicetree home), so this never touches a real
+// server. Conservative on pid reuse: if a dead owner's pid was recycled by an
+// unrelated live process we skip this round rather than risk a wrong kill; the
+// orphan is reaped on a later pass once that pid is also free.
+async function reapStaleEphemeralTmuxServersOnce(
+    options: ReapEphemeralTmuxServersOptions,
+): Promise<readonly ReapedEphemeralTmuxServer[]> {
+    const deps: TmuxServerDeps = resolveDeps(options.deps)
+    let entries: readonly string[]
+    try {
+        entries = deps.readdirSync(deps.tmpdir())
+    } catch {
+        return []
+    }
+
+    const reaped: ReapedEphemeralTmuxServer[] = []
+    for (const entry of entries) {
+        const ownerPid: number | null = parseEphemeralHomeOwnerPid(entry)
+        if (ownerPid === null) continue
+        if (deps.processAlive(ownerPid)) continue
+
+        const homeDir: string = ephemeralTestHomeDir(deps, ownerPid)
+        deps.logger.warn(`[tmux-server] reaping orphaned ephemeral tmux home ${homeDir} (owner pid ${ownerPid} gone)`)
+        await shutdownTmuxServerOnce({voicetreeHomePath: homeDir, deps: options.deps})
+        deps.rmSync(homeDir, {force: true, recursive: true})
+        reaped.push({homeDir, ownerPid})
+    }
+    return reaped
+}
+
+export function reapStaleEphemeralTmuxServers(
+    options: ReapEphemeralTmuxServersOptions = {},
+): Promise<readonly ReapedEphemeralTmuxServer[]> {
+    return reapStaleEphemeralTmuxServersOnce(options)
+}
+
+// Clean-exit counterpart to the reaper: fully remove THIS process's tmux
+// footprint. Shuts down the server, and — only when the resolved home is an
+// ephemeral per-process test home — removes its directory too, so a normally
+// completing test worker leaves nothing behind (the reaper handles workers that
+// crashed before reaching this). In production the home is the stable
+// ~/.voicetree, so the directory is left intact; only the socket is removed.
+export async function teardownEphemeralTmuxServerForThisProcess(
+    options: ShutdownTmuxServerOptions = {},
+): Promise<void> {
+    const deps: TmuxServerDeps = resolveDeps(options.deps)
+    const voicetreeHomePath: string = options.voicetreeHomePath ?? defaultVoicetreeHomePath(deps)
+    await shutdownTmuxServerOnce({...options, voicetreeHomePath})
+    if (isEphemeralTestHome(deps, voicetreeHomePath)) {
+        deps.rmSync(voicetreeHomePath, {force: true, recursive: true})
     }
 }
 
