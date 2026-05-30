@@ -17,7 +17,7 @@
 
 import {spawn, type ChildProcess} from 'node:child_process'
 import {randomUUID} from 'node:crypto'
-import {readFileSync} from 'node:fs'
+import {existsSync, readFileSync} from 'node:fs'
 import {mkdir, readFile, rm} from 'node:fs/promises'
 import {createRequire} from 'node:module'
 import {dirname, join, resolve} from 'node:path'
@@ -49,7 +49,24 @@ import {
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const PACKAGE_DIR: string = resolve(TEST_FILE_DIR, '..')
-export const REPO_ROOT: string = resolve(PACKAGE_DIR, '../../..')
+
+// Walk up to the monorepo root (the dir that holds pnpm-workspace.yaml) instead
+// of hardcoding a fixed-depth `..`-chain. A literal `../../..` is fragile to
+// package moves and is banned by the relative-path-depth health check; this
+// mirrors the findUp idiom in agent-runtime/bin/vt-resume.ts and is also
+// worktree-safe (every git worktree checks out pnpm-workspace.yaml at its root).
+function findRepoRoot(start: string): string {
+    let dir: string = resolve(start)
+    while (true) {
+        if (existsSync(join(dir, 'pnpm-workspace.yaml'))) return dir
+        const parent: string = dirname(dir)
+        if (parent === dir) {
+            throw new Error(`repo root (pnpm-workspace.yaml) not found above ${start}`)
+        }
+        dir = parent
+    }
+}
+export const REPO_ROOT: string = findRepoRoot(PACKAGE_DIR)
 const CLI_ENTRYPOINT: string = join(PACKAGE_DIR, 'src/voicetree-cli.ts')
 // Resolve the tsx CLI through Node's own module lookup. The worktree layout
 // keeps the bulk of dependencies in the main repo's node_modules and only
