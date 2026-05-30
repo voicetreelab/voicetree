@@ -104,8 +104,7 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
     const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
     const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
     const effectiveAsync: string | undefined = asyncHook?.startsWith('#') ? undefined : asyncHook ?? undefined;
-    const hookEnv: Record<string, string> = { VOICETREE_MCP_PORT: String(getMcpPort()) };
-    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync, hookEnv);
+    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
 // ---------------------------------------------------------------------------
