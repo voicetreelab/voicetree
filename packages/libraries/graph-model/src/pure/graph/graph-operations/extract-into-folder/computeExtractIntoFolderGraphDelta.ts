@@ -3,8 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position } from '../..'
 import { getIncomingEdgesToSubgraph } from '../merge/getIncomingEdgesToSubgraph'
 import { redirectEdgeTarget } from '../merge/redirectEdgeTarget'
-import { getFolderDescendantNodeIds, getFolderParent, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
-import { getPathComponents } from '../../markdown-parsing/extract-edges'
+import { getFolderDescendantNodeIds, getFolderParent, getPathComponents, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
 
 export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean
