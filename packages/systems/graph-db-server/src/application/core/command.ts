@@ -74,7 +74,7 @@ export type CommandOutput = {
   ReconcileGraphWithDisk: GraphDelta
   ReadProjectState: ProjectState
   RegistryTouch: void
-  RemoveProjectReadPath: { readonly success: boolean; readonly error?: string }
+  RemoveProjectReadPath: { readonly success: boolean; readonly removedNodeCount: number; readonly error?: string }
   SetGraph: void
   SetProjectWriteFolderPath: { readonly success: boolean; readonly error?: string }
   UpdateContextNodeContainedIds: void

@@ -10,11 +10,10 @@ import {
 } from "../mutations/applyGraphDelta";
 import {
     loadProjectPathAdditively,
-    resolveLinkedNodesInWatchedFolder,
+    resolveAbsoluteLinkedNodes,
 } from "./loadGraphFromDisk";
 import { notifyTextToTreeServerOfDirectory } from "./notifyTextToTreeServer";
 import { setGraph, getGraph } from "@vt/graph-db-server/state/graph-store";
-import { getProjectRoot } from "@vt/graph-db-server/state/watch-folder-store";
 import { createStarterNode } from "@vt/graph-db-server/watch-folder/create-starter-node";
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
@@ -50,7 +49,6 @@ export async function loadAndMergeProjectPath(
     positions?: ReadonlyMap<string, Position>
 ): Promise<ProjectLoadOutcome> {
     const existingGraph: Graph = getGraph();
-    const watchedFolderPath: FilePath | null = getProjectRoot();
 
     const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
         await traceGraphdSpan('project.load-and-merge.load-project-path-additively', async (span) => {
@@ -83,10 +81,13 @@ export async function loadAndMergeProjectPath(
         });
     }
 
-    if (watchedFolderPath) {
+    // Follow the absolute links of the just-loaded folder nodes (delta-scoped).
+    // Relative links are healed against loaded nodes by the graph-model indexes
+    // during loadProjectPathAdditively; only absolute targets need disk loading.
+    {
         const resolutionDelta: GraphDelta = await traceGraphdSpan('project.load-and-merge.resolve-linked-nodes', async (span) => {
-            span.setAttribute('watchedFolderPath', watchedFolderPath);
-            return await resolveLinkedNodesInWatchedFolder(currentGraph, watchedFolderPath);
+            span.setAttribute('delta.count', accumulatedDelta.length);
+            return await resolveAbsoluteLinkedNodes(currentGraph, accumulatedDelta);
         });
         if (resolutionDelta.length > 0) {
             currentGraph = applyGraphDeltaToGraph(currentGraph, resolutionDelta);

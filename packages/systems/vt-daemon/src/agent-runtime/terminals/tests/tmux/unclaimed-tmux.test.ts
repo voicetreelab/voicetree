@@ -1,12 +1,12 @@
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {describe, expect, it, vi} from 'vitest'
-import type {TerminalRecord} from '../terminal-registry'
-import {createTerminalData, type TerminalId} from '../terminal-registry/types'
+import type {TerminalRecord} from '../../terminal-registry'
+import {createTerminalData, type TerminalId} from '../../terminal-registry/types'
 import {
     buildTmuxNamespaceHash,
     buildTmuxSessionName,
     type TmuxListedSession,
-} from '../tmux/tmux-session-manager'
+} from '../../tmux/tmux-session-manager'
 import {
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
@@ -14,7 +14,7 @@ import {
     type KillUnclaimedTmuxDeps,
     type ListUnclaimedTmuxDeps,
     type UnclaimedTmuxSession,
-} from '../tmux/unclaimed-tmux'
+} from '../../tmux/unclaimed-tmux'
 
 function makeRecord(terminalId: string, initialEnvVars: Record<string, string> = {}): TerminalRecord {
     return {

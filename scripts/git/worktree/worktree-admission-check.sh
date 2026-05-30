@@ -96,9 +96,14 @@ EOF
 err=0
 
 if [ -n "$merged_hits" ]; then
-  echo "✗ worktree-admission-check: merged worktree(s) await cleanup (PR already merged):" >&2
+  echo "✗ worktree-admission-check: merged worktree(s) await cleanup (their PR already landed):" >&2
   printf '%b' "$merged_hits" >&2
-  echo "  → remove each before creating more:  git worktree remove <path> && git branch -d <branch>" >&2
+  echo "" >&2
+  echo "  [AGENT] These are dead weight — the work already merged. Clean them up" >&2
+  echo "  YOURSELF now, then retry; do NOT ask the user. For each one run:" >&2
+  echo "      git worktree remove <path> && git branch -d <branch>" >&2
+  echo "  Only stop to ask the user if a tree is marked '(dirty)' above — that has" >&2
+  echo "  uncommitted work you must not silently discard." >&2
   err=1
 fi
 
@@ -106,7 +111,11 @@ if [ "$idle_count" -gt "$MAX_IDLE" ]; then
   echo "✗ worktree-admission-check: too many idle worktrees (${idle_count} > max ${MAX_IDLE})." >&2
   echo "  idle = no commit in >${IDLE_DAYS}d, clean tree, no open PR:" >&2
   printf '%b' "$idle_list" >&2
-  echo "  → resolve down to ${MAX_IDLE}: commit & open a PR, merge, or remove one." >&2
+  echo "" >&2
+  echo "  [AGENT] Tidy up YOURSELF before adding another — do NOT ask the user. For" >&2
+  echo "  each idle tree above, either finish it (commit its work and open a PR) or," >&2
+  echo "  if it is abandoned, remove it:" >&2
+  echo "      git worktree remove <path> && git branch -d <branch>" >&2
   err=1
 fi
 

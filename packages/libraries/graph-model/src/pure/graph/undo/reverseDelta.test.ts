@@ -57,6 +57,37 @@ describe('reverseDelta', () => {
         })
     })
 
+    describe('MOVE/RENAME reversal (upsert at a new id whose previous lived at a different id)', () => {
+        // A move is encoded as Upsert(node@newId, previousNode=node@oldId) + Delete(oldId).
+        // Its inverse must remove the new file AND restore the old one. Restoring the
+        // previous node alone (the in-place-update inverse) leaves the new file behind —
+        // the duplicate-on-disk seen when undoing extract-into-folder.
+        it('deletes the new id and restores the previous node at its old id', () => {
+            const oldNode: GraphNode = createTestNode('/p/x.md', '# X')
+            const movedNode: GraphNode = createTestNode('/p/folder/x.md', '# X')
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: movedNode, previousNode: O.some(oldNode) },
+                { type: 'DeleteNode', nodeId: '/p/x.md', deletedNode: O.some(oldNode) }
+            ]
+
+            const reversed: GraphDelta = reverseDelta(delta)
+
+            const deletesNewId: boolean = reversed.some(
+                (d): d is DeleteNode => d.type === 'DeleteNode' && d.nodeId === '/p/folder/x.md'
+            )
+            const restoresOldId: boolean = reversed.some(
+                (d): d is UpsertNodeDelta => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === '/p/x.md'
+            )
+            const leavesMovedCopyAlive: boolean = reversed.some(
+                (d): d is UpsertNodeDelta => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === '/p/folder/x.md'
+            )
+
+            expect(deletesNewId).toBe(true)
+            expect(restoresOldId).toBe(true)
+            expect(leavesMovedCopyAlive).toBe(false)
+        })
+    })
+
     describe('DeleteNode reversal', () => {
         it('reverses DELETE (has deletedNode) to CREATE', () => {
             const deletedNode: GraphNode = createTestNode('deleted.md', '# Deleted Content')
