@@ -7,21 +7,18 @@
 
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
-import path from 'path';
 import fs from 'fs';
-import os from 'os';
 
 /** Shell-quote a single argument for POSIX-style hook commands. */
 export function shellQuote(arg: string): string {
     return "'" + arg.replace(/'/g, "'\\''") + "'";
 }
 
-const execFileAsync: (file: string, args: readonly string[], options?: { cwd?: string }) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
-
-/** Normalize path separators to forward slashes (for cross-platform comparison) */
-function toForwardSlashes(p: string): string {
-    return p.replace(/\\/g, '/');
-}
+const execFileAsync: (
+    file: string,
+    args: readonly string[],
+    options?: { cwd?: string; env?: NodeJS.ProcessEnv },
+) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
 
 /**
  * Execute a user-defined hook command, appending arguments.
@@ -75,80 +72,57 @@ export function generateWorktreeName(nodeTitle: string): string {
 }
 
 /**
- * Worktrees live as a SIBLING of the main checkout, not nested inside it.
- * Mac layout:     ~/repos/vtrepo/        ← main repo
- *                 ~/repos/vt-wts/<name>/ ← Mac-owned worktrees
+ * Discover the absolute path of the worktree checked out on `branch`, by asking
+ * git itself rather than computing it from any placement convention.
  *
- * Remote layout:  /root/vtrepo/              ← VM-owned main repo
- *                 /root/vt-wts-remote/<name> ← VM-owned worktrees
+ * This is the read-the-truth-back half of the "app makes no claim about WHERE
+ * the worktree lives" design: `createWorktree` passes a bare name to
+ * `git worktree add` and whatever layer sits below (the git-gate wrapper, or
+ * plain git for external users) decides the actual location; we then parse
+ * `git worktree list --porcelain` to find where it landed.
  *
- * Reason for sibling layout: nested `.worktrees/` makes every code scanner
- * (vitest, eslint, watch-folder, package discovery, architecture-drift,
- * graph-db loader…) walk into peer worktrees by default. Each new scanner
- * has to remember to exclude `.worktrees/`. Sibling layout sidesteps that
- * entire class of bug — worktrees are outside the repo root, so scanners
- * naturally never see them.
- *
- * The constant is duplicated (not imported) in:
- *   - packages/systems/agent-runtime/src/application/spawn/terminalData.ts
- *   - scripts/run-remote.mjs
- *   - scripts/dev-setup/git-gate/git-gate.sh
- * because these cross package + script boundaries. The string must stay
- * in sync across all of them.
+ * @throws Error if no worktree for `branch` is found in git's listing.
  */
-const WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts';
-const REMOTE_WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts-remote';
-
-function readEnvValue(envText: string, key: string): string | undefined {
-    const line: string | undefined = envText
-        .split(/\r?\n/)
-        .find((candidate: string) => candidate.startsWith(`${key}=`));
-    if (!line) return undefined;
-    const rawValue: string = line.slice(key.length + 1).trim();
-    if (
-        (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
-        (rawValue.startsWith("'") && rawValue.endsWith("'"))
-    ) {
-        return rawValue.slice(1, -1);
+async function discoverWorktreePathForBranch(repoRoot: string, branch: string): Promise<string> {
+    const { stdout }: { stdout: string } = await execFileAsync(
+        'git',
+        ['worktree', 'list', '--porcelain'],
+        { cwd: repoRoot },
+    );
+    // Porcelain output is blank-line-separated blocks; each block carries a
+    // `worktree <path>` line and (for non-detached entries) a `branch
+    // refs/heads/<name>` line.
+    const branchLine: string = `branch refs/heads/${branch}`;
+    for (const block of stdout.split('\n\n')) {
+        const lines: string[] = block.trim().split('\n');
+        if (!lines.includes(branchLine)) continue;
+        const worktreeLine: string | undefined = lines.find((l: string) => l.startsWith('worktree '));
+        if (worktreeLine) return worktreeLine.slice('worktree '.length);
     }
-    return rawValue;
-}
-
-function resolveDevRole(env: NodeJS.ProcessEnv = process.env, homeDir: string = os.homedir()): string | undefined {
-    if (env.VT_DEV_ROLE) return env.VT_DEV_ROLE;
-    try {
-        return readEnvValue(fs.readFileSync(path.join(homeDir, '.env'), 'utf-8'), 'VT_DEV_ROLE');
-    } catch {
-        return undefined;
-    }
-}
-
-export function worktreeSiblingDirNameForRole(role: string | undefined): string {
-    return role === 'remote' ? REMOTE_WORKTREE_SIBLING_DIR_NAME : WORKTREE_SIBLING_DIR_NAME;
-}
-
-export function worktreeRootFor(repoRoot: string): string {
-    return path.resolve(repoRoot, '..', worktreeSiblingDirNameForRole(resolveDevRole()));
+    throw new Error(`Created worktree on branch '${branch}' but could not locate it in 'git worktree list'`);
 }
 
 /**
- * Get the worktree directory path for a given worktree name.
+ * Create a new git worktree with a corresponding branch, then return the
+ * absolute path git actually placed it at.
  *
- * @param repoRoot - The root directory of the git repository
- * @param worktreeName - The worktree name
- * @returns The absolute path to the worktree directory
- */
-export function getWorktreePath(repoRoot: string, worktreeName: string): string {
-    return path.join(worktreeRootFor(repoRoot), worktreeName);
-}
-
-/**
- * Create a new git worktree with a corresponding branch.
- * Optionally runs a user-defined hook script after successful creation.
+ * The app makes NO claim about WHERE the worktree lives. We pass a BARE name as
+ * the destination path and let the layer below decide placement:
+ *   - the machine-level git wrapper (git-gate) rewrites the bare name to its
+ *     per-machine worktree root, or
+ *   - plain git (external users, no wrapper) creates it nested under the repo.
+ * Either way we read the resulting path back from git via
+ * `discoverWorktreePathForBranch` rather than computing it here.
+ *
+ * `VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1`: this caller owns the worktree
+ * lifecycle hooks (the async hook installs deps + links .env), so the wrapper
+ * must NOT also run its own dependency bootstrap — that would double-install
+ * and race on `node_modules`. The flag is a no-op for plain git.
  *
  * @param repoRoot - The root directory of the git repository
  * @param worktreeName - The name for the worktree and branch
- * @param hookScriptPath - Optional path to a shell script to run after worktree creation
+ * @param blockingHookCommand - Optional command awaited after creation, before returning
+ * @param asyncHookCommand - Optional fire-and-forget command run after creation
  * @returns The absolute path to the created worktree directory
  * @throws Error if worktree creation fails (hook failure does NOT throw)
  */
@@ -158,20 +132,20 @@ export async function createWorktree(
     blockingHookCommand?: string,
     asyncHookCommand?: string,
 ): Promise<string> {
-    const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
-
-    // Create the worktree with a new branch based on current HEAD
-    // -b creates a new branch with the worktree name
+    // -b creates a new branch with the worktree name; the bare name is the
+    // destination path argument (placement is decided one layer down).
     try {
         await execFileAsync(
-            'env',
-            ['VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1', 'git', 'worktree', 'add', '-b', worktreeName, worktreePath],
-            { cwd: repoRoot },
+            'git',
+            ['worktree', 'add', '-b', worktreeName, worktreeName],
+            { cwd: repoRoot, env: { ...process.env, VT_GIT_GATE_SKIP_WORKTREE_PREWARM: '1' } },
         );
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
     }
+
+    const worktreePath: string = await discoverWorktreePathForBranch(repoRoot, worktreeName);
 
     // Blocking hook: awaited after creation, before returning worktreePath to caller
     if (blockingHookCommand) {
@@ -205,20 +179,18 @@ export interface WorktreeInfo {
 }
 
 /**
- * List existing git worktrees under the sibling `vt-wts/` directory.
- * Returns up to 5 most recently modified worktrees, sorted newest first.
+ * List the repository's linked git worktrees (everything except the main
+ * checkout), as reported by git itself. Returns up to 5 most recently modified
+ * worktrees, sorted newest first.
+ *
+ * Git-driven on purpose: the app holds no placement convention, so it does not
+ * filter by any sibling directory — it simply trusts git's inventory and drops
+ * the main worktree (always the first porcelain block).
  *
  * @param repoRoot - The root directory of the git repository
  * @returns Array of worktree info objects, empty if none exist
  */
 export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
-    const worktreesDir: string = worktreeRootFor(repoRoot);
-
-    // Gracefully handle missing sibling worktree dir
-    if (!fs.existsSync(worktreesDir)) {
-        return [];
-    }
-
     let stdout: string;
     try {
         const result: { stdout: string; stderr: string } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot });
@@ -227,29 +199,26 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
         return [];
     }
 
-    // Parse porcelain output: blocks separated by blank lines
-    // Each block: "worktree <path>\nHEAD <hash>\nbranch refs/heads/<name>\n"
+    // Parse porcelain output: blocks separated by blank lines.
+    // Each block: "worktree <path>\nHEAD <hash>\nbranch refs/heads/<name>\n".
+    // The first block is always the main worktree — exclude it; we only surface
+    // linked (agent) worktrees.
     const blocks: string[] = stdout.split('\n\n').filter((b: string) => b.trim());
+    const linkedBlocks: string[] = blocks.slice(1);
     const worktrees: WorktreeInfo[] = [];
-    // Normalize worktreesDir to forward slashes for cross-platform comparison
-    // (git on Windows may output forward-slash paths while path.join uses backslashes)
-    const normalizedWorktreesDir: string = toForwardSlashes(worktreesDir);
 
-    for (const block of blocks) {
+    for (const block of linkedBlocks) {
         const lines: string[] = block.trim().split('\n');
         const worktreeLine: string | undefined = lines.find((l: string) => l.startsWith('worktree '));
         const headLine: string | undefined = lines.find((l: string) => l.startsWith('HEAD '));
         const branchLine: string | undefined = lines.find((l: string) => l.startsWith('branch '));
 
+        // Skip detached / bare entries (no branch line).
         if (!worktreeLine || !headLine || !branchLine) continue;
 
         const wtPath: string = worktreeLine.slice('worktree '.length);
         const head: string = headLine.slice('HEAD '.length);
         const branch: string = branchLine.slice('branch refs/heads/'.length);
-
-        // Filter: only include worktrees under the sibling vt-wts/ dir
-        // Normalize both sides for cross-platform comparison
-        if (!toForwardSlashes(wtPath).startsWith(normalizedWorktreesDir)) continue;
 
         // Extract display name: strip "wt-" prefix if present
         const name: string = branch.startsWith('wt-') ? branch.slice(3) : branch;

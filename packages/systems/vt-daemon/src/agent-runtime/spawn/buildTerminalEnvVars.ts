@@ -10,7 +10,7 @@ import {getRuntimeEnv, getGraphBridge} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt} from './injection/cliManualInjection'
-import {prependVtBinToPath, readVtBinDirOrNull} from './injection/vtPathInjection'
+import {prependVtBinToPath, prependHomeBinToPath, readVtBinDirOrNull} from './injection/vtPathInjection'
 import {readDaemonPortFromProject} from './daemonUrlFile'
 import {promises as fs} from 'fs'
 import type {Dirent} from 'fs'
@@ -99,7 +99,10 @@ export async function buildTerminalEnvVars(params: {
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
     const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered)
     const vtBinDir: string | null = await readVtBinDirOrNull()
-    return prependVtBinToPath(withManual, vtBinDir)
+    // $HOME/bin is prepended first so the daemon's vt-bin can sit in front of it.
+    // Final order: vtBinDir : $HOME/bin : ...inherited PATH
+    const withHomeBin: Record<string, string> = prependHomeBinToPath(withManual)
+    return prependVtBinToPath(withHomeBin, vtBinDir)
 }
 
 /**

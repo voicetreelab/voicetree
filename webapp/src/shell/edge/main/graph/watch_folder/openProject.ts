@@ -202,7 +202,7 @@ export async function openProject(projectRoot: string): Promise<OpenProjectRespo
         await getCallbacks().onProjectOpened?.(watchingStartedInfo)
         getCallbacks().onWatchingStarted?.(watchingStartedInfo)
 
-        pushToRenderer('project:ready', { path: projectRoot })
+        pushToRenderer('project:ready', { path: projectRoot, sessionId: response.sessionId })
         void getCallbacks().stripStaleMcpEntries?.(projectRoot).catch((err: unknown) => {
             console.error('[openProject] Failed to strip stale VoiceTree client-config entries:', err)
         })

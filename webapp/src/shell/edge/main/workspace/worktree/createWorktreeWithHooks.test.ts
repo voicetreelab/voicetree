@@ -67,8 +67,11 @@ function trackTempDir(prefix: string): string {
 }
 
 /**
- * Real sibling-layout git repo: <parent>/repo with one commit, so the core's
- * `git worktree add` lands at <parent>/vt-wts/<name> (both under one tmp dir).
+ * Real git repo with one commit. With plain git (no git-gate wrapper on PATH),
+ * the core's `git worktree add <bare-name>` lands the worktree nested under the
+ * repo; the wrapper rewrites placement in production. Either way the test
+ * asserts against the path `createWorktree` reads back from git, so it does not
+ * depend on where the worktree lands.
  */
 function makeRepo(): string {
     const repoRoot: string = join(trackTempDir('vt-wt-wrapper-'), 'repo')
@@ -88,8 +91,6 @@ function withSettings(settings: Record<string, unknown>): void {
     const home: string = trackTempDir('vt-wt-home-')
     writeFileSync(join(home, 'settings.json'), JSON.stringify(settings), 'utf-8')
     setEnv('VOICETREE_HOME_PATH', home)
-    // Pin the sibling-dir role so the test never reads ~/.env (resolveDevRole).
-    setEnv('VT_DEV_ROLE', 'mac')
 }
 
 /** A hook script that records its two positional args ($1 $2) to a marker. */

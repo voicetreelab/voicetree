@@ -9,7 +9,7 @@ import './terminal-chrome.css'; // Terminal title bar, context badge, active sta
 import type { VTSettings, TerminalScrollStrategy } from '@vt/graph-model/settings';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
-import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
+import { getCyZoom } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -115,7 +115,7 @@ export class TerminalVanilla {
   private async mount(): Promise<void> {
     // Initial font: always css-transform (= base font size).
     // dimension-scaling is applied on user interaction (pointerdown).
-    const initialFontSize: number = getTerminalFontSize(getCyInstance().zoom(), 'css-transform');
+    const initialFontSize: number = getTerminalFontSize(getCyZoom(), 'css-transform');
 
     // Create terminal instance with zoom-scaled font size
     const term: XTerm = new XTerm({
@@ -261,7 +261,7 @@ export class TerminalVanilla {
       // Debug: warn when xterm reports unreasonably large dimensions
       if (cols > 500 || rows > 200) {
         const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
-        const zoom: number = getCyInstance().zoom();
+        const zoom: number = getCyZoom();
         console.warn(
           `[TerminalVanilla] OVERSIZED xterm resize: ${cols}×${rows} (cols×rows)`,
           {
@@ -297,7 +297,7 @@ export class TerminalVanilla {
       const zoomActive: boolean = isZoomActive();
 
       // Read effective strategy from DOM (written by updateWindowFromZoom)
-      const zoom: number = getCyInstance().zoom();
+      const zoom: number = getCyZoom();
       const storedStrategy: string | undefined = windowElement?.dataset.activeStrategy;
       const strategy: 'css-transform' | 'dimension-scaling' =
           storedStrategy === 'dimension-scaling' ? 'dimension-scaling' : 'css-transform';

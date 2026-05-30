@@ -160,7 +160,17 @@ export function installCollectionCache(cy: Core): void {
     cyAny.edges = (selector?: string) => cached('edges', orig.edges, selector);
     cyAny.elements = (selector?: string) => cached('elements', orig.elements, selector);
 
-    cy.on('add remove', () => { collectionCache!.clear(); });
+    // Capture the cache in the closure rather than reading the module-level
+    // `collectionCache`: the handler outlives a dispose (it is removed only when
+    // cy.destroy() tears down listeners), and by then resetLargeGraphPerformanceState
+    // has nulled the module field — or a new graph view has installed a fresh
+    // cache for a different cy. Clearing the captured map is always correct and
+    // never dereferences null. The destroyed() guard skips work during teardown.
+    const cache: Map<string, unknown> = collectionCache; // non-null: guarded + assigned above
+    cy.on('add remove', () => {
+        if (cy.destroyed()) return;
+        cache.clear();
+    });
 }
 
 /**
