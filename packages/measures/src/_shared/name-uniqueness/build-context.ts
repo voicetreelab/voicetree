@@ -15,7 +15,7 @@
 // callers don't need additional type imports.
 
 import {readFile, readdir, mkdir, unlink, writeFile} from 'node:fs/promises'
-import {extname, join, resolve} from 'node:path'
+import {extname, isAbsolute, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 import {discoverPackages, DEFAULT_REPO_ROOT} from '../discovery/discover-packages.ts'
@@ -100,12 +100,40 @@ function cachePathFor(repoRoot: string, cacheKey: string): string {
     return join(cacheDirFor(repoRoot), `name-index-${cacheKey}.json`)
 }
 
-async function loadCachedDeclarations(cachePath: string): Promise<readonly DeclaredName[] | null> {
+/**
+ * The on-disk cache stores repo-relative paths so it is portable across
+ * checkout roots. Declarations live in memory as ABSOLUTE paths (the
+ * reachability graph keys on absolute paths), but the cache may be built
+ * on one root (e.g. a dev's `/Users/...` tree) and consumed on another
+ * (e.g. the mutagen-synced devbox `/root/vtrepo-synced/...`). If absolute
+ * paths were persisted, the same file would carry two different identities
+ * across roots — so `findNameUniquenessViolations` would see a file
+ * "collide" with its own cached copy and block the commit. Relativising
+ * the cache makes a file's identity root-independent.
+ */
+export function relativizeDeclarationPaths(
+    repoRoot: string,
+    declarations: readonly DeclaredName[],
+): readonly DeclaredName[] {
+    return declarations.map(d => ({...d, filePath: relative(repoRoot, d.filePath)}))
+}
+
+export function absolutizeDeclarationPaths(
+    repoRoot: string,
+    declarations: readonly DeclaredName[],
+): readonly DeclaredName[] {
+    return declarations.map(d => ({...d, filePath: resolve(repoRoot, d.filePath)}))
+}
+
+async function loadCachedDeclarations(cachePath: string, repoRoot: string): Promise<readonly DeclaredName[] | null> {
     try {
         const raw = JSON.parse(await readFile(cachePath, 'utf8')) as {
             readonly declarations: readonly DeclaredName[]
         }
-        return raw.declarations
+        // Legacy/poisoned caches stored ABSOLUTE paths and are not portable
+        // across roots — treat as a miss so they are rebuilt root-relative.
+        if (raw.declarations.some(d => isAbsolute(d.filePath))) return null
+        return absolutizeDeclarationPaths(repoRoot, raw.declarations)
     } catch {
         return null
     }
@@ -115,7 +143,8 @@ async function writeCacheAndGc(repoRoot: string, cacheKey: string, declarations:
     const dir = cacheDirFor(repoRoot)
     await mkdir(dir, {recursive: true})
     const target = cachePathFor(repoRoot, cacheKey)
-    await writeFile(target, JSON.stringify({cacheKey, declarations}), 'utf8')
+    const portable = relativizeDeclarationPaths(repoRoot, declarations)
+    await writeFile(target, JSON.stringify({cacheKey, declarations: portable}), 'utf8')
     const stale = (await readdir(dir).catch(() => [] as string[]))
         .filter(name => name.startsWith('name-index-') && name.endsWith('.json') && name !== `name-index-${cacheKey}.json`)
     await Promise.all(stale.map(name => unlink(join(dir, name)).catch(() => undefined)))
@@ -123,7 +152,7 @@ async function writeCacheAndGc(repoRoot: string, cacheKey: string, declarations:
 
 async function loadOrBuildDeclarations(repoRoot: string, cacheKey: string | null): Promise<readonly DeclaredName[]> {
     if (cacheKey !== null) {
-        const cached = await loadCachedDeclarations(cachePathFor(repoRoot, cacheKey))
+        const cached = await loadCachedDeclarations(cachePathFor(repoRoot, cacheKey), repoRoot)
         if (cached !== null) return cached
     }
     const declarations = await scanRepoDeclarations(repoRoot)
