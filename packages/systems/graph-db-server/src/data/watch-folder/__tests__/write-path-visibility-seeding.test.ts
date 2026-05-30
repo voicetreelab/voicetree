@@ -26,7 +26,7 @@ vi.mock('../../graph/loading/loadGraphFromDisk', () => ({
         _tag: 'Right',
         right: { graph: { nodes: {} }, delta: [] },
     }),
-    resolveLinkedNodesInWatchedFolder: vi.fn().mockResolvedValue([]),
+    resolveAbsoluteLinkedNodes: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('./create-starter-node', () => ({
