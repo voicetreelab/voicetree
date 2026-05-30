@@ -56,6 +56,22 @@ export function initializeNavigatorMinimap(cy: Core): NavigatorMinimapResult {
 
         //console.log('[initializeNavigatorMinimap] Navigator minimap initialized');
 
+        // cytoscape-navigator's destroy() unbinds its cy listeners but never
+        // cancels the throttled render timer (_onRenderHandler). A render queued
+        // just before teardown therefore fires up to rerenderDelay later and
+        // calls cy.elements().boundingBox() on an already-destroyed cy →
+        // "Cannot read properties of null (reading 'isHeadless')". Wrap destroy
+        // to cancel that timer first. Optional-chained so a library version
+        // without the field degrades to a no-op rather than throwing.
+        if (navigatorInstance) {
+            const inner: { destroy: () => void } = navigatorInstance;
+            const nativeDestroy: () => void = inner.destroy.bind(inner);
+            inner.destroy = (): void => {
+                (inner as { _onRenderHandler?: { cancel?: () => void } })._onRenderHandler?.cancel?.();
+                nativeDestroy();
+            };
+        }
+
         // Initially hide minimap if there's only one node or less
         updateVisibility();
     } catch (error) {
