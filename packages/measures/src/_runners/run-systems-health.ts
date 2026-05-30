@@ -99,6 +99,44 @@ function mergeVitestJson(reports: any[]): any {
     return merged
 }
 
+// Vitest's own run time for a single-file shard report: the span between the
+// file suite's start and end. Subtracting this from the measured wall time of
+// the spawn isolates per-process startup (pnpm + vitest cold start + transform).
+function vitestFileDurationMs(report: any): number {
+    const results = Array.isArray(report?.testResults) ? report.testResults : []
+    let span = 0
+    for (const r of results) {
+        const start = numberOrZero(r.startTime)
+        const end = numberOrZero(r.endTime)
+        if (end > start) span += end - start
+    }
+    return span
+}
+
+type FileTiming = {readonly file: string; readonly wallMs: number; readonly testMs: number; readonly ok: boolean}
+
+// Render the long poles. systems-health runs files sequentially in their own
+// vitest process, so its wall time is the SUM of per-file walls — making the
+// slowest files (and the cold-start tax) the only levers on total duration.
+function formatSlowestTable(timings: readonly FileTiming[], topN: number): string {
+    const sorted = [...timings].sort((a, b) => b.wallMs - a.wallMs)
+    const totalWall = timings.reduce((s, t) => s + t.wallMs, 0)
+    const totalTest = timings.reduce((s, t) => s + t.testMs, 0)
+    const startup = Math.max(0, totalWall - totalTest)
+    const sec = (ms: number) => `${(ms / 1000).toFixed(1)}s`
+    const lines = [
+        '',
+        `── systems-health long poles · ${timings.length} files, each in its own vitest process ──`,
+        `   total wall ${sec(totalWall)} = vitest ${sec(totalTest)} + per-process startup ${sec(startup)}`,
+        `   slowest files (wall = whole spawn; test = vitest's own run; startup = the rest):`,
+    ]
+    for (const t of sorted.slice(0, topN)) {
+        const s = Math.max(0, t.wallMs - t.testMs)
+        lines.push(`     ${sec(t.wallMs).padStart(7)}  (test ${sec(t.testMs)}, startup ${sec(s)})${t.ok ? '' : '  ✗'}  ${t.file}`)
+    }
+    return lines.join('\n')
+}
+
 const {outputFile} = parseArgs(process.argv.slice(2))
 const tmpDir = await mkdtemp(join(tmpdir(), 'systems-health-'))
 
@@ -111,20 +149,27 @@ try {
         .sort()
 
     const reports: any[] = []
+    const timings: FileTiming[] = []
     let failed = false
     for (let i = 0; i < files.length; i += 1) {
         const file = files[i]
         const shardOut = join(tmpDir, `${String(i).padStart(3, '0')}.json`)
         console.log(`\n[systems-health ${i + 1}/${files.length}] ${file}`)
+        const startedAt = Date.now()
         const code = await runVitest(file, shardOut)
+        const wallMs = Date.now() - startedAt
         const report = await readJson(shardOut)
         if (report) reports.push(report)
         if (code !== 0 || !report) failed = true
+        timings.push({file, wallMs, testMs: report ? vitestFileDurationMs(report) : 0, ok: code === 0 && !!report})
     }
+
+    console.log(formatSlowestTable(timings, 15))
 
     const merged = mergeVitestJson(reports)
     merged.success = merged.success && !failed
-    if (outputFile) await writeFile(outputFile, `${JSON.stringify(merged)}\n`)
+    const output = {...merged, fileTimings: [...timings].sort((a, b) => b.wallMs - a.wallMs)}
+    if (outputFile) await writeFile(outputFile, `${JSON.stringify(output)}\n`)
     process.exit(failed ? 1 : 0)
 } finally {
     await rm(tmpDir, {recursive: true, force: true}).catch(() => {})
