@@ -38,7 +38,9 @@ export async function startRendererCpuProfile(
     const profilesDir = path.join(runDir, 'profiles')
     mkdirSync(profilesDir, { recursive: true })
 
-    await cdp.send('Profiler.setSamplingInterval', { interval: 100 })
+    // 1ms sampling (V8 default). A 90s nav window at 100µs produced a pprof
+    // over Pyroscope's 4MB ingest limit; 1ms keeps the profile rich but small.
+    await cdp.send('Profiler.setSamplingInterval', { interval: 1000 })
     await cdp.send('Profiler.enable')
     await cdp.send('Profiler.start')
 
@@ -53,14 +55,23 @@ export async function startRendererCpuProfile(
             const cpuprofilePath = path.join(profilesDir, 'renderer-nav.cpuprofile')
             const profileJson = JSON.stringify(response.profile)
             writeFileSync(cpuprofilePath, profileJson, 'utf8')
-            const upload = await uploadV8CpuProfileToPyroscope({
-                cpuprofilePath,
-                serviceName: 'vt-renderer',
-                runUuid,
-                stoppedAtMs: Date.now(),
-            })
+            // Top self-time frames come from the LOCAL profile — always available
+            // even if the Pyroscope upload fails. A telemetry-upload hiccup must
+            // not invalidate an otherwise-good measurement run, so it is non-fatal.
             const analysis = analyzeMainProcessProfile(profileJson)
-            return { cpuprofilePath, pyroscopeQuery: upload.renderQuery, topFrames: analysis.topFunctions }
+            let pyroscopeQuery = ''
+            try {
+                const upload = await uploadV8CpuProfileToPyroscope({
+                    cpuprofilePath,
+                    serviceName: 'vt-renderer',
+                    runUuid,
+                    stoppedAtMs: Date.now(),
+                })
+                pyroscopeQuery = upload.renderQuery
+            } catch (e) {
+                process.stderr.write(`[nav-storm] WARN renderer profile Pyroscope upload failed: ${(e as Error).message}\n`)
+            }
+            return { cpuprofilePath, pyroscopeQuery, topFrames: analysis.topFunctions }
         },
     }
 }
@@ -90,7 +101,7 @@ export async function startScreenshots(
     const capture = async (reason: 'sample' | 'final'): Promise<void> => {
         const paddedIndex = String(index++).padStart(3, '0')
         const screenshotPath = path.join(dir, `nav-${paddedIndex}-${reason}.png`)
-        const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5000 })
+        const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 15000 })
         if (pngLooksNonBlank(Buffer.from(bytes))) nonBlank += 1
         else process.stderr.write(`[nav-storm] WARN blank screenshot: ${screenshotPath}\n`)
     }
