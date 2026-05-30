@@ -68,7 +68,8 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
 }
 
 function collectPositions(cyNodes: readonly NodeDefinition[]): Record<string, Position> {
-    return cyNodes.reduce((acc: Record<string, Position>, node: NodeDefinition) => {
+    const positions: Record<string, Position> = {};
+    for (const node of cyNodes) {
         const id: unknown = node.data.id;
         const position: Position | undefined = node.position as Position | undefined;
         if (
@@ -77,12 +78,10 @@ function collectPositions(cyNodes: readonly NodeDefinition[]): Record<string, Po
             || !Number.isFinite(position.x)
             || !Number.isFinite(position.y)
         ) {
-            return acc;
+            continue;
         }
 
-        return {
-            ...acc,
-            [id]: position,
-        };
-    }, {});
+        positions[id] = position;
+    }
+    return positions;
 }

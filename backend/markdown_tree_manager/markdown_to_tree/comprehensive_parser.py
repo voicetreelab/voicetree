@@ -16,16 +16,9 @@ from backend.types import (
     ParsedNode,
     ParsedNodeKeys,
     ParsedRelationships,
-    ParentRelationship,
     RelationshipKeys,
 )
 
-from backend.markdown_tree_manager.markdown_to_tree.file_operations import (
-    read_markdown_file,
-)
-from backend.markdown_tree_manager.markdown_to_tree.link_extraction import (
-    extract_markdown_links,
-)
 from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import (
     extract_node_id,
 )
@@ -35,20 +28,22 @@ from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import (
 from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import extract_tags
 
 
-def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
+def parse_markdown_file_complete(filepath: Path, content: str) -> Optional[ParsedNode]:
     """
-    Completely parse a markdown file extracting all metadata and content.
+    Completely parse already-read markdown content extracting all metadata.
+
+    Content is supplied by the caller (read once) rather than read here, so the
+    same content can be reused for relationship parsing without a second disk read.
 
     Args:
-        filepath: Path to the markdown file
+        filepath: Path to the markdown file (used for filename and mtime/ctime fallback)
+        content: Raw markdown file content
 
     Returns:
         Dictionary with all parsed data including:
         - node_id, title, summary, content
         - tags, created_at, modified_at, color
-        - links, parent_info
     """
-    content = read_markdown_file(filepath)
     if not content:
         return None
 
@@ -90,12 +85,6 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
     if isinstance(modified_at, str):
         modified_at = datetime.fromisoformat(modified_at)
 
-    # Extract links
-    links = extract_markdown_links(content)
-
-    # Parse parent relationship from Links section
-    parent_info = extract_parent_relationship(content) # DEPRECATED
-
     return {
         ParsedNodeKeys.NODE_ID: node_id,
         ParsedNodeKeys.TITLE: title,
@@ -105,8 +94,6 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
         ParsedNodeKeys.CREATED_AT: created_at,
         ParsedNodeKeys.MODIFIED_AT: modified_at,
         ParsedNodeKeys.COLOR: metadata.get('color'),
-        ParsedNodeKeys.LINKS: links,
-        ParsedNodeKeys.PARENT_INFO: parent_info,
         ParsedNodeKeys.FILENAME: filepath.name
     }
 
@@ -156,35 +143,6 @@ def extract_title_summary_and_content(markdown_content: str) -> tuple[str, str, 
     content = '\n'.join(content_lines).strip()
 
     return title, summary, content
-
-
-def extract_parent_relationship(content: str) -> Optional[ParentRelationship]:
-    """
-    Extract parent relationship from the Links section.
-
-    Args:
-        content: Full markdown content
-
-    Returns:
-        Dictionary with parent_filename and relationship_type, or None
-    """
-    links_match = re.search(r'_Links:_\s*\n(.*?)(?:\n\n|$)', content, re.DOTALL)
-    if not links_match:
-        return None
-
-    links_content = links_match.group(1)
-
-    # Parse parent relationship
-    parent_match = re.search(r'Parent:\s*\n.*?-\s*(.+?)\s*\[\[(.*?)\]\]', links_content)
-    if parent_match:
-        relationship_type = parent_match.group(1).strip()
-        parent_filename = parent_match.group(2).strip()
-        return {
-            RelationshipKeys.PARENT_FILENAME: parent_filename,
-            RelationshipKeys.RELATIONSHIP_TYPE: relationship_type.replace('_', ' ')
-        }
-
-    return None
 
 
 def parse_relationships_from_links(content: str) -> ParsedRelationships:

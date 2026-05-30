@@ -39,27 +39,30 @@ export function graphWithUpdatedPositions(
   positions: GraphNodePositions,
 ): { graph: Graph; written: number } {
   let written = 0
-  const nodes: Record<string, GraphNode> = Object.entries(graph.nodes).reduce(
-    (acc: Record<string, GraphNode>, [nodeId, node]: [string, GraphNode]) => {
-      const position = positions[nodeId]
-      if (!position) {
-        return { ...acc, [nodeId]: node }
-      }
+  // Build the next nodes record in a single O(N) pass. The previous
+  // `reduce(..., { ...acc, [nodeId]: node })` spread the whole accumulator on
+  // every iteration, making this O(N^2) in the node count for every position
+  // write. Assigning into one fresh object is O(N) and preserves the exact
+  // semantics: unchanged nodes keep their original reference, only nodes with
+  // a supplied position are rebuilt, and `written` still counts graph nodes
+  // that received a position.
+  const nodes: Record<string, GraphNode> = {}
+  for (const [nodeId, node] of Object.entries(graph.nodes)) {
+    const position = positions[nodeId]
+    if (!position) {
+      nodes[nodeId] = node
+      continue
+    }
 
-      written += 1
-      return {
-        ...acc,
-        [nodeId]: {
-          ...node,
-          nodeUIMetadata: {
-            ...node.nodeUIMetadata,
-            position: O.some(position),
-          },
-        },
-      }
-    },
-    {},
-  )
+    written += 1
+    nodes[nodeId] = {
+      ...node,
+      nodeUIMetadata: {
+        ...node.nodeUIMetadata,
+        position: O.some(position),
+      },
+    }
+  }
 
   return {
     graph: {

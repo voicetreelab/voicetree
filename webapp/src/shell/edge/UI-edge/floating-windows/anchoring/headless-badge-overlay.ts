@@ -213,6 +213,11 @@ function repositionBadges(): void {
     const zoom: number = cy.zoom();
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
 
+    // Transform + origin depend only on zoom, which is constant for this frame —
+    // compute once instead of rebuilding the same strings for every badge.
+    const badgeTransform: string = getWindowTransform('css-transform', zoom, 'top-center');
+    const badgeTransformOrigin: string = getTransformOrigin('top-center');
+
     for (const [terminalId, badge] of badgeOverlayState.badgeElements) {
         const terminal: TerminalData | undefined = terminals.get(terminalId);
         if (!terminal || !O.isSome(terminal.anchoredToNodeId)) continue;
@@ -231,8 +236,8 @@ function repositionBadges(): void {
         const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition(graphPos, zoom);
         badge.style.left = `${screenPos.x}px`;
         badge.style.top = `${screenPos.y}px`;
-        badge.style.transform = getWindowTransform('css-transform', zoom, 'top-center');
-        badge.style.transformOrigin = getTransformOrigin('top-center');
+        badge.style.transform = badgeTransform;
+        badge.style.transformOrigin = badgeTransformOrigin;
     }
 }
 

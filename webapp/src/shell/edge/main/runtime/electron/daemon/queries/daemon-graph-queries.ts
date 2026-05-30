@@ -135,13 +135,12 @@ export async function writeCurrentPositionsThroughDaemon(): Promise<{ written: n
 }
 
 function collectPositionsFromGraph(graph: Graph): PositionMap {
-    return Object.entries(graph.nodes).reduce(
-        (acc: PositionMap, [nodeId, node]: [string, GraphNode]) => {
-            const position: O.Option<Position> = node.nodeUIMetadata.position
-            return O.isSome(position)
-                ? { ...acc, [nodeId]: position.value }
-                : acc
-        },
-        {},
-    )
+    const positions: PositionMap = {}
+    for (const [nodeId, node] of Object.entries(graph.nodes)) {
+        const position: O.Option<Position> = node.nodeUIMetadata.position
+        if (O.isSome(position)) {
+            positions[nodeId] = position.value
+        }
+    }
+    return positions
 }

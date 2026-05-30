@@ -167,6 +167,20 @@ describe('nodeByBaseNameIndex', () => {
       expect(fooNodes).toContain('/project/a/foo.md')
       expect(fooNodes).toContain('/project/b/foo.md')
     })
+
+    it('should not mutate the input index when adding to a colliding basename', () => {
+      // The updater shallow-copies the index and shares value arrays; adding a colliding
+      // entry must replace the array, not push into the shared original.
+      const fooNodes: readonly NodeIdAndFilePath[] = ['/project/a/foo.md']
+      const index: NodeByBaseNameIndex = new Map([['foo', fooNodes]])
+      const newNode: GraphNode = createTestNode('/project/b/foo.md')
+
+      updateNodeByBaseNameIndexForUpsert(index, newNode, O.none)
+
+      // Original index and its array must be untouched (shallow-copy correctness).
+      expect(index.get('foo')).toEqual(['/project/a/foo.md'])
+      expect(fooNodes).toEqual(['/project/a/foo.md'])
+    })
   })
 
   describe('updateNodeByBaseNameIndexForDelete', () => {
