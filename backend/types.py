@@ -119,8 +119,6 @@ class ParsedNode(TypedDict):
     created_at: datetime
     modified_at: datetime
     color: Optional[str]
-    links: List[str]
-    parent_info: Optional[ParentRelationship]
     filename: str
 
 
@@ -140,8 +138,6 @@ class ParsedNodeKeys:
     CREATED_AT = "created_at"
     MODIFIED_AT = "modified_at"
     COLOR = "color"
-    LINKS = "links"
-    PARENT_INFO = "parent_info"
     FILENAME = "filename"
 
 
