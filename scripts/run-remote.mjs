@@ -35,9 +35,12 @@ const execFileAsync = promisify(execFile)
 const REPO_ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REMOTE_ROOT = '/root/vtrepo-synced'
 const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
-// Mac-side worktree root basename. Mirrors the remote end (same `-synced`
-// basename); the local Mac path is `<parent>/vt-wts-synced/<name>`.
-const WORKTREE_SIBLING_DIR_NAME = 'vt-wts-synced'
+// Mac-side worktree root basename — the local Mac path is `<parent>/vt-wts`,
+// the live mutagen `vt-wts` alpha AND where the app / git-gate place worktrees.
+// The basename DIFFERS across the mirror (Mac `vt-wts` ↔ devbox `vt-wts-synced`,
+// REMOTE_WTS_ROOT above); mutagen syncs contents, not names. Must equal the
+// session alpha, else a worktree cwd fails to map and run-remote throws.
+const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
 const MUTAGEN_SESSION_WTS = 'vt-wts'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'

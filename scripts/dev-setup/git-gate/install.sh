@@ -35,9 +35,12 @@ case "$(uname -s)" in
     # shadowed too, so $HOME/bin is placed ahead of it.
     SHELL_INIT_FILES=("$HOME/.zshrc" "$HOME/.zprofile")
     PATH_LINE='export PATH="$HOME/bin:/opt/homebrew/bin:$PATH:$HOME/.claude/local"'
-    # Mac-authored worktrees join the mutagen mirror, so they live under the
-    # `-synced` root (same basename on both ends of the sync).
-    VT_WORKTREE_ROOT_VALUE="$HOME/repos/vt-wts-synced"
+    # Mac-authored worktrees live at the canonical sibling root $HOME/vt-wts —
+    # this is the live mutagen `vt-wts` alpha (Mac $HOME/vt-wts ↔ devbox
+    # /root/vt-wts-synced; mutagen syncs CONTENTS, so the two ends differ in
+    # basename) AND git-gate's own built-in default. The app computes the same
+    # root when git-gate is absent, so app / git-gate / mirror all converge here.
+    VT_WORKTREE_ROOT_VALUE="$HOME/vt-wts"
     ;;
   *)
     # Linux/dev boxes default to bash; the real git already lives on PATH under
