@@ -434,6 +434,20 @@ if [ -n "$reason" ]; then
     echo "    command: git ${ORIG_ARGS[*]}"
     echo "    reason:  $reason"
     echo ""
+    # When the destructive command targets the read-only base cache, the real
+    # fix is not "do it non-destructively here" — it is "do not work here at
+    # all". Redirect the agent to a worktree off the base before anything else.
+    if in_voicetree_base; then
+      echo "    This checkout is the read-only origin cache (base) — you must NOT"
+      echo "    edit, rewrite, or discard changes in it. Move your work onto a"
+      echo "    worktree off the base and make the change there instead:"
+      echo "      vt-worktree <name>            # new worktree off origin/$(gate_base_branch)"
+      echo "      cd <printed path>             # then redo your change + vt-land \"msg\""
+      echo "    If a stray edit is already sitting in the base, do not try to"
+      echo "    restore/checkout it away — re-pin the whole base to origin:"
+      echo "      VT_SYNC=1 git reset --hard origin/$(gate_base_branch)"
+      echo ""
+    fi
     echo "    Think before you run destructive git commands."
     echo "    Other agents may be working in this repo right now."
     echo "    Prefer multiple commits to get where you want — not destructive"
