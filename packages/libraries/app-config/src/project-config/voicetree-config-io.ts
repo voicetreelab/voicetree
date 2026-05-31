@@ -12,6 +12,7 @@ import * as O from "fp-ts/lib/Option.js";
 import type { FilePath } from '@vt/graph-model/graph';
 import type { ProjectConfig } from '@vt/graph-model/settings';
 import {resolveVoicetreeHomePath} from '@vt/paths';
+import {VOICETREE_CONFIG_FILENAME} from '../config-files.ts';
 
 type PersistedProjectConfig = ProjectConfig & {
     readonly readPaths?: unknown;
@@ -47,11 +48,11 @@ function preserveProjectConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfi
 }
 
 export function getConfigPath(): string {
-    return path.join(resolveVoicetreeHomePath(), 'voicetree-config.json');
+    return path.join(resolveVoicetreeHomePath(), VOICETREE_CONFIG_FILENAME);
 }
 
 async function loadPersistedConfig(voicetreeHomePath: string): Promise<PersistedVoiceTreeConfig> {
-    const configPath: string = path.join(voicetreeHomePath, 'voicetree-config.json');
+    const configPath: string = path.join(voicetreeHomePath, VOICETREE_CONFIG_FILENAME);
     try {
         const data: string = await fs.readFile(configPath, 'utf8');
         return JSON.parse(data) as PersistedVoiceTreeConfig;
@@ -67,7 +68,7 @@ export async function loadConfig(): Promise<VoiceTreeConfig> {
 
 export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
     const voicetreeHomePath: string = resolveVoicetreeHomePath();
-    const configPath: string = path.join(voicetreeHomePath, 'voicetree-config.json');
+    const configPath: string = path.join(voicetreeHomePath, VOICETREE_CONFIG_FILENAME);
     try {
         const cleanConfig: VoiceTreeConfig = preserveProjectConfig(config as PersistedVoiceTreeConfig);
         // Ensure parent directory exists (needed on first run or in tests)

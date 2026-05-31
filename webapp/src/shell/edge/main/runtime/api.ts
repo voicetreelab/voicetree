@@ -59,6 +59,7 @@ import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/wo
 import {loadProjects, saveProject, removeProject} from '@/shell/edge/main/workspace/project-store';
 import {showFolderPicker, createNewProject} from '@/shell/edge/main/workspace/show-folder-picker';
 import {prettySetupAppForElectronDebugging} from '@/shell/edge/main/observability/debug/prettySetupAppForElectronDebugging';
+import {consumeUserDataMigrationNotice} from '@/shell/edge/main/runtime/electron/startup/user-data-migration';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -238,6 +239,11 @@ export const mainAPI = {
 
   // App paths
   getVoicetreeHomePath,
+
+  // One-time 2.9.x→3.0 import notice. The migration already ran in main at
+  // startup; the renderer consumes this once after the window loads to show a
+  // non-blocking toast. Returns null once consumed or when nothing was imported.
+  consumeUserDataMigrationNotice,
 
   // Undo/Redo operations
   performUndo,
