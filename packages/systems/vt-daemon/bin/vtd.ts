@@ -62,6 +62,7 @@ import {
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
+import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/corsHeaders.ts'
 import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
@@ -324,6 +325,13 @@ async function main(): Promise<void> {
                 owner: ownerHandle.health(),
                 canonicalProject: args.project,
             }),
+            // Browser-mode CORS: only localhost origins pass validation — anything
+            // that is not http://localhost:<port> or http://127.0.0.1:<port> is
+            // silently dropped. Set VOICETREE_CORS_ORIGINS to opt in, e.g.
+            //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+            allowedOrigins: parseLocalhostCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
+            graphdUrl: `http://127.0.0.1:${gdb.port}`,
+            projectPath: args.project,
         })
         await writeRpcPortFile(args.project, httpHandle.port)
         await ownerHandle.bindPort(httpHandle.port)

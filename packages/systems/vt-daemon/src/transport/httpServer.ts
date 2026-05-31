@@ -50,6 +50,9 @@ import {createTmuxAttachWiring, type TmuxAttachWiring} from './tmuxAttachWiring.
 import {buildAccessLogLine} from './accessLog.ts'
 import {readBodyWithCap} from './bodyReader.ts'
 import {handleRpc} from './rpcDispatch.ts'
+import {applyCorsHeaders, applyPreflightCorsHeaders} from './browser/corsHeaders.ts'
+import {handleBrowserToken} from './browser/browserTokenHandler.ts'
+import {handleHealth} from './browser/healthHandler.ts'
 import type {
     AccessLogger,
     HookHandler,
@@ -78,6 +81,25 @@ export interface StartHttpDaemonOptions {
     readonly bindHost?: string
     readonly port?: number
     readonly logger?: AccessLogger
+    /**
+     * Origins allowed for cross-origin browser requests (Vite dev server,
+     * Chrome browser mode). Only exact localhost origins are accepted —
+     * wildcard CORS is never set. When absent/empty, no CORS headers are
+     * added and the /browser-token endpoint returns 403.
+     *
+     * Example: `['http://localhost:3000', 'http://127.0.0.1:3000']`
+     */
+    readonly allowedOrigins?: readonly string[]
+    /**
+     * Graphd URL forwarded through /browser-token so the browser adapter
+     * can discover the graphd endpoint without reading the filesystem.
+     */
+    readonly graphdUrl?: string
+    /**
+     * Canonical project path forwarded through /browser-token.
+     * Falls back to canonicalProject when unset.
+     */
+    readonly projectPath?: string
     /**
      * Owner-identity projector consulted on every GET /health request
      * (BF-372). Optional during the Phase-1 decomposition: callers that
@@ -115,6 +137,7 @@ const RPC_PATH: string = '/rpc'
 const HOOK_PATH_PREFIX: string = '/hook/'
 const EVENTS_PATH: string = '/events'
 const HEALTH_PATH: string = '/health'
+const BROWSER_TOKEN_PATH: string = '/browser-token'
 
 function defaultLogger(): AccessLogger {
     return {
@@ -219,28 +242,6 @@ function rejectUpgradeNotFound(socket: Duplex): void {
     socket.destroy()
 }
 
-function handleHealth(
-    req: IncomingMessage,
-    res: ServerResponse,
-    readHealth: (() => VtDaemonHealthResponse) | undefined,
-    logger: AccessLogger,
-): void {
-    res.setHeader('Content-Type', 'application/json')
-    if (readHealth === undefined) {
-        // Optional during Phase-1 decomposition (see StartHttpDaemonOptions).
-        // 503 is the correct signal: the daemon is up but cannot answer the
-        // identity question, so a probe should treat the daemon as not yet
-        // claimable rather than fall through to a generic 404.
-        res.statusCode = 503
-        res.end(JSON.stringify({error: 'health probe not wired'}))
-        logger.logRequest(buildAccessLogLine(req, 503))
-        return
-    }
-    res.statusCode = 200
-    res.end(JSON.stringify(readHealth()))
-    logger.logRequest(buildAccessLogLine(req, 200))
-}
-
 function buildRequestHandler(
     catalog: ToolCatalog,
     hookHandler: HookHandler,
@@ -249,10 +250,23 @@ function buildRequestHandler(
     logger: AccessLogger,
     readHealth: (() => VtDaemonHealthResponse) | undefined,
     canonicalProject: string | undefined,
+    allowedOrigins: readonly string[],
+    graphdUrl: string | undefined,
+    projectPath: string | undefined,
 ): (req: IncomingMessage, res: ServerResponse) => void {
     return (req: IncomingMessage, res: ServerResponse): void => {
         const method: string = req.method ?? 'GET'
         const url: string = req.url ?? '/'
+
+        // Apply CORS headers early — safe to call before any res.end().
+        // For preflight (OPTIONS) we also set the method/header allow lists.
+        if (allowedOrigins.length > 0) {
+            if (method === 'OPTIONS') {
+                applyPreflightCorsHeaders(req, res, allowedOrigins)
+            } else {
+                applyCorsHeaders(req, res, allowedOrigins)
+            }
+        }
 
         if (method === 'OPTIONS') {
             res.statusCode = 204
@@ -260,15 +274,23 @@ function buildRequestHandler(
             logger.logRequest(buildAccessLogLine(req, 204))
             return
         }
-        // /health is the ONLY unauthenticated route. Placement BEFORE the
-        // isAuthorized gate is intentional and load-bearing: BF-373's
-        // ensure path invokes probeOwnerHealth BEFORE it has read
-        // <project>/.voicetree/auth-token — that probe IS the gate that
-        // decides whether to read the token. Gating /health on auth would
-        // chicken-and-egg the discovery path. Mirrors graphd's
+        // /health is the ONLY unauthenticated route (aside from /browser-token
+        // below). Placement BEFORE the isAuthorized gate is intentional and
+        // load-bearing: BF-373's ensure path invokes probeOwnerHealth BEFORE
+        // it has read <project>/.voicetree/auth-token. Gating /health on auth
+        // would chicken-and-egg the discovery path. Mirrors graphd's
         // unauthenticated /health.
         if (method === 'GET' && url === HEALTH_PATH) {
             handleHealth(req, res, readHealth, logger)
+            return
+        }
+        // /browser-token is unauthenticated but origin-gated (see browserTokenHandler.ts).
+        if (method === 'GET' && url === BROWSER_TOKEN_PATH && allowedOrigins.length > 0) {
+            handleBrowserToken(req, res, {
+                token,
+                graphdUrl: graphdUrl ?? null,
+                projectPath: projectPath ?? canonicalProject ?? null,
+            }, allowedOrigins, logger)
             return
         }
         if (!isAuthorized(req, token)) {
@@ -409,8 +431,11 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
 
     const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring({getTmuxMouseMode: options.getTmuxMouseMode})
 
+    const allowedOrigins: readonly string[] = options.allowedOrigins ?? []
     const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth, options.canonicalProject,
+        options.catalog, options.hookHandler, hub, options.token, logger,
+        options.readHealth, options.canonicalProject,
+        allowedOrigins, options.graphdUrl, options.projectPath,
     ))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 

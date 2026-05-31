@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { context, propagation } from '@opentelemetry/api'
 import {
   HealthResponseSchema,
@@ -23,6 +24,8 @@ export type CreateDaemonAppOptions = {
   onShutdown: () => void
   readHealth: () => HealthResponse
   registry: SessionRegistry
+  /** Exact localhost origins allowed for browser CORS (Vite dev server). Never wildcard. */
+  allowedOrigins?: readonly string[]
 }
 
 /**
@@ -46,6 +49,15 @@ export function mountDaemonRoutes(
   app: Hono,
   opts: CreateDaemonAppOptions,
 ): void {
+  if (opts.allowedOrigins && opts.allowedOrigins.length > 0) {
+    const allowed = opts.allowedOrigins
+    app.use('*', cors({
+      origin: (origin) => (allowed.includes(origin) ? origin : null),
+      allowHeaders: ['Authorization', 'Content-Type', 'X-Session-Id'],
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      maxAge: 86400,
+    }))
+  }
   attachIncomingTraceContext(app)
   mountSessionRoutes(app, opts.registry)
   mountSessionEventsRoute(app, opts.registry)

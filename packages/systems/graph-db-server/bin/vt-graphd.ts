@@ -82,10 +82,17 @@ async function main() {
   // any orchestrator can react.
   let handle
   try {
+    // Browser-mode CORS: only localhost origins are accepted (validated by startDaemon).
+    // Set VOICETREE_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 to opt in.
+    const corsRaw = process.env.VOICETREE_CORS_ORIGINS ?? ''
+    const allowedOrigins = corsRaw
+      ? corsRaw.split(',').map(s => s.trim()).filter(s => /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d{1,5}$/.test(s))
+      : []
     handle = await startDaemon({
       project: args.projectRoot,
       logLevel: args.logLevel,
       idleTimeoutMs: args.idleTimeoutMs,
+      allowedOrigins,
       onShutdownComplete: async () => {
         await stopPerfProbe?.()
         process.exit(0)

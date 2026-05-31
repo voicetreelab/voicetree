@@ -39,6 +39,8 @@ export type StartDaemonOptions = {
   // leaves this unset and the daemon installs a scanner that wraps
   // `getDirectoryTree` (returning null on missing/unreadable roots).
   folderTreeScanner?: FolderTreeScanner
+  /** Exact localhost origins allowed for CORS. Set VOICETREE_CORS_ORIGINS in env. */
+  allowedOrigins?: readonly string[]
 }
 
 function defaultClock(): number {
