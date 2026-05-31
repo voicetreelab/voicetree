@@ -33,6 +33,7 @@ export function parseLayoutConfig(json: string | undefined): LayoutConfig {
       ks: numberOr(parsed.ks, DEFAULT_FORCEATLAS2_OPTIONS.ks),
       maxIteration: numberOr(parsed.maxIteration, DEFAULT_FORCEATLAS2_OPTIONS.maxIteration),
       spacing: numberOr(parsed.spacing, DEFAULT_FORCEATLAS2_OPTIONS.spacing),
+      edgeLength: numberOr(parsed.edgeLength, DEFAULT_FORCEATLAS2_OPTIONS.edgeLength),
     };
 
     const cola: AutoLayoutOptions = {

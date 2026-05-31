@@ -19,18 +19,18 @@ describe('parseLayoutConfig', () => {
 
   it('reads ForceAtlas2 tuning knobs from the config JSON', () => {
     const { forceatlas2 } = parseLayoutConfig(
-      '{"engine":"forceatlas2","kr":50,"kg":2,"ks":0.3,"maxIteration":400,"spacing":80}',
+      '{"engine":"forceatlas2","kr":50,"kg":2,"ks":0.3,"maxIteration":400,"spacing":80,"edgeLength":450}',
     );
-    expect(forceatlas2).toEqual({ kr: 50, kg: 2, ks: 0.3, maxIteration: 400, spacing: 80 });
+    expect(forceatlas2).toEqual({ kr: 50, kg: 2, ks: 0.3, maxIteration: 400, spacing: 80, edgeLength: 450 });
   });
 
   it('defaults each ForceAtlas2 knob independently when absent or non-numeric', () => {
     const { forceatlas2 } = parseLayoutConfig('{"engine":"forceatlas2","kr":50,"spacing":"wide"}');
-    expect(forceatlas2).toEqual({ kr: 50, kg: 1, ks: 0.1, maxIteration: 0, spacing: 20 });
+    expect(forceatlas2).toEqual({ kr: 50, kg: 1, ks: 0.1, maxIteration: 0, spacing: 20, edgeLength: 0 });
   });
 
   it('supplies default ForceAtlas2 knobs when the JSON is missing or invalid', () => {
-    const defaults = { kr: 5, kg: 1, ks: 0.1, maxIteration: 0, spacing: 20 };
+    const defaults = { kr: 5, kg: 1, ks: 0.1, maxIteration: 0, spacing: 20, edgeLength: 0 };
     expect(parseLayoutConfig(undefined).forceatlas2).toEqual(defaults);
     expect(parseLayoutConfig('not json').forceatlas2).toEqual(defaults);
   });

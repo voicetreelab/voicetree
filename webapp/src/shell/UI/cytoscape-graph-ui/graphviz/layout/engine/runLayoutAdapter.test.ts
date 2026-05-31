@@ -36,6 +36,33 @@ const createDenseGraph = (nodeCount: number): Core => cytoscape({
   })),
 });
 
+const createChain = (nodeCount: number): Core => cytoscape({
+  headless: true,
+  styleEnabled: true,
+  style: [{ selector: 'node', style: { width: 80, height: 80 } }],
+  elements: [
+    ...Array.from({ length: nodeCount }, (_, index) => ({
+      data: { id: `node-${index}` },
+      position: { x: index, y: 0 },
+    })),
+    ...Array.from({ length: Math.max(0, nodeCount - 1) }, (_, index) => ({
+      data: { id: `edge-${index}`, source: `node-${index}`, target: `node-${index + 1}` },
+    })),
+  ],
+});
+
+const medianEdgeLength = (cy: Core): number => {
+  const lengths = cy.edges()
+    .map((edge) => {
+      const source = edge.source().position();
+      const target = edge.target().position();
+      return Math.hypot(target.x - source.x, target.y - source.y);
+    })
+    .filter((length) => length > 1e-6)
+    .sort((left, right) => left - right);
+  return lengths.length ? lengths[Math.floor(lengths.length / 2)] : 0;
+};
+
 const configFor = (engine: LayoutEngine): LayoutConfig => ({
   engine,
   cola: {
@@ -116,4 +143,37 @@ describe('runLayoutAdapter', () => {
       }
     },
   );
+
+  it('scales ForceAtlas2 output so the median edge approaches the configured edgeLength', async () => {
+    const target = 600;
+    const layoutChain = async (edgeLength: number): Promise<number> => {
+      const cy = createChain(12);
+      try {
+        await runLayoutAdapter({
+          cy,
+          eles: cy.elements(),
+          config: {
+            engine: 'forceatlas2',
+            cola: configFor('forceatlas2').cola,
+            forceatlas2: { ...DEFAULT_FORCEATLAS2_OPTIONS, edgeLength },
+          },
+          mode: 'full',
+        });
+        return medianEdgeLength(cy);
+      } finally {
+        cy.destroy();
+      }
+    };
+
+    const scaledMedian = await layoutChain(target);
+    const rawMedian = await layoutChain(0);
+
+    // With scaling the median edge lands near the target (VPSC may nudge a few
+    // edges, hence the band); without it the raw FA2 + finisher output is far
+    // tighter. The contrast proves scale-then-separate, not the finisher, sets
+    // the layout's scale.
+    expect(scaledMedian).toBeGreaterThan(target * 0.6);
+    expect(scaledMedian).toBeLessThan(target * 1.6);
+    expect(scaledMedian).toBeGreaterThan(rawMedian * 2);
+  });
 });

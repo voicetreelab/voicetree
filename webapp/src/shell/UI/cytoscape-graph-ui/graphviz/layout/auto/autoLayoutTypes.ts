@@ -40,6 +40,15 @@ export interface ForceAtlas2Options {
   maxIteration: number;
   /** Minimum gap (px) between node bounding boxes enforced by the VPSC overlap finisher. */
   spacing: number;
+  /**
+   * Target median edge length (px). After the simulation settles, the whole
+   * point cloud is uniformly scaled about its centroid so the median edge
+   * reaches this length — bridging FA2's dimensionless ~`sqrt(kr)`px scale up
+   * to the card-relative scale the cards actually occupy. `0` disables scaling
+   * (raw FA2 output). Only applied to a fully-free full layout, never to a
+   * pinned incremental (local) layout.
+   */
+  edgeLength: number;
 }
 
 export const DEFAULT_FORCEATLAS2_OPTIONS: ForceAtlas2Options = {
@@ -48,6 +57,7 @@ export const DEFAULT_FORCEATLAS2_OPTIONS: ForceAtlas2Options = {
   ks: 0.1,
   maxIteration: 0,
   spacing: 20,
+  edgeLength: 0,
 };
 
 export interface LayoutConfig {

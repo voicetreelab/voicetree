@@ -190,10 +190,62 @@ const finishOverlaps = (
   const resolved = removeRectangularOverlaps(rects, spacing);
   applyLayoutEnginePositions(cy, resolved.filter((position) => movableIds.has(position.id)), movableIds);
 };
+// FA2 settles into a dimensionless point cloud whose equilibrium edge length is
+// only ~sqrt(kr·deg^2) px — orders of magnitude below the node cards, so the raw
+// output is a blob that the VPSC finisher then packs at minimum gap. This bridges
+// that scale gap: uniformly scale the movable nodes about the layout centroid so
+// the MEDIAN edge reaches `targetEdgeLength`, restoring a card-relative scale
+// before the finisher does its non-overlap touch-up. A uniform scale preserves
+// FA2's relational structure exactly. Caller must only invoke this on a fully
+// free layout (no pinned nodes) — scaling about a centroid is invalid when some
+// nodes are anchored, since it would move free nodes relative to the fixed ones.
+const scaleToTargetEdgeLength = (
+  cy: Core,
+  graph: LayoutGraph,
+  movableIds: ReadonlySet<string>,
+  targetEdgeLength: number,
+): void => {
+  if (targetEdgeLength <= 0 || graph.edges.length === 0) return;
+  const positionOf = (id: string): { readonly x: number; readonly y: number } | null => {
+    const node = cy.getElementById(id);
+    if (node.length === 0) return null;
+    const position = node.position();
+    return Number.isFinite(position.x) && Number.isFinite(position.y) ? position : null;
+  };
+  const edgeLengths = graph.edges
+    .map((edge): number => {
+      const source = positionOf(edge.source);
+      const target = positionOf(edge.target);
+      return source && target ? Math.hypot(target.x - source.x, target.y - source.y) : 0;
+    })
+    .filter((length): boolean => length > 1e-6)
+    .sort((left, right) => left - right);
+  if (edgeLengths.length === 0) return;
+  const medianEdge = edgeLengths[Math.floor(edgeLengths.length / 2)];
+  const scale = targetEdgeLength / medianEdge;
+  if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 0.05) return;
+  const centers = graph.nodes
+    .map((node) => positionOf(node.id))
+    .filter((position): position is { readonly x: number; readonly y: number } => position !== null);
+  if (centers.length === 0) return;
+  const centerX = centers.reduce((sum, position) => sum + position.x, 0) / centers.length;
+  const centerY = centers.reduce((sum, position) => sum + position.y, 0) / centers.length;
+  const scaled = graph.nodes
+    .filter((node) => movableIds.has(node.id))
+    .map((node): PositionedNode | null => {
+      const position = positionOf(node.id);
+      return position
+        ? { id: node.id, x: centerX + (position.x - centerX) * scale, y: centerY + (position.y - centerY) * scale }
+        : null;
+    })
+    .filter((position): position is PositionedNode => position !== null);
+  applyLayoutEnginePositions(cy, scaled, movableIds);
+};
 const runForceAtlas2 = async ({
   cy,
   eles,
   config,
+  mode,
   fixedNodeIds = new Set<string>(),
   movableNodes,
 }: RunLayoutAdapterOptions): Promise<void> => {
@@ -217,6 +269,11 @@ const runForceAtlas2 = async ({
   await layout.execute(graph);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
+  // Only rescale a fully-free full layout; a pinned local layout is anchored to
+  // its fixed neighbours and must keep their established scale.
+  if (mode === 'full' && fixedNodeIds.size === 0) {
+    scaleToTargetEdgeLength(cy, graph, movableIds, fa2.edgeLength);
+  }
   finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(0, fa2.spacing));
   layout.destroy();
 };
