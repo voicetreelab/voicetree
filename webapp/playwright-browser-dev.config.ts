@@ -21,7 +21,15 @@ export default defineConfig({
         permissions: ['microphone'],
         headless: true,
         launchOptions: {
-          args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+          args: [
+            '--use-fake-ui-for-media-stream',
+            '--use-fake-device-for-media-stream',
+            // Required for SSE streaming from VTD/graphd when daemons predate native CORS support.
+            // Playwright's route.fetch() buffers streaming responses, deadlocking SSE connections.
+            // With --disable-web-security the browser accepts SSE from old daemons without
+            // Access-Control-Allow-Origin. CORS correctness is unit-tested in corsHeaders.test.ts.
+            '--disable-web-security',
+          ],
         },
       },
     },
