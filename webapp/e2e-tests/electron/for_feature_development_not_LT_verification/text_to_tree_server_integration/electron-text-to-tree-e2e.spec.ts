@@ -1,15 +1,29 @@
 /**
- * E2E Test: True Text-to-Tree Integration (End-to-End)
+ * E2E Test: Voice → Tree, full REAL loop (mock mic input only)
  *
- * This test validates the COMPLETE text-to-graph pipeline using the REAL Python backend.
- * Unlike other tests that use stub servers, this test:
- * 1. Starts the real Python text-to-tree server (via USE_REAL_SERVER=1)
- * 2. Sends text input via /send-text endpoint (mimics typing text to add to graph)
- * 3. Performs 3 iterations with different topics
- * 4. Verifies 2-8 nodes and 1-15 edges appear
- * 5. Takes a screenshot of the final graph state
+ * This is the confidence test for "voice mode": it drives the COMPLETE pipeline
+ * end-to-end with the ONLY mock being the microphone input (there is no mic in an
+ * automated run). Everything downstream is real:
  *
- * Expected runtime: ~2 minutes (LLM processing takes time)
+ *   window.__VOICE_TEST__.emitVoiceResult(tokens)   <- the SAME callback the Soniox
+ *        |                                             SDK invokes via onPartialResult
+ *        v
+ *   onVoiceResult (TranscriptionStore)  ->  useTranscriptionSender
+ *        |
+ *        v  POST /send-text   (REAL renderer send path, no stub)
+ *   server.py (USE_REAL_SERVER=1)  ->  deployed cloud-function agents (REAL LLM)
+ *        |
+ *        v  writes REAL markdown nodes  ->  electron file-watch  ->  graph delta
+ *        v
+ *   assert REAL nodes appear in Cytoscape
+ *
+ * We deliberately do NOT POST /load-directory ourselves — the app's own
+ * project-open wiring (via --open-folder) must notify the backend. If that wiring
+ * is broken (the suspected "no nodes appear" bug), this test fails and reproduces it.
+ *
+ * Requirements to run: network access to the cloud agents + .env GEMINI_API_KEY
+ * (server.py load_dotenv). Renderer must be built with VITE_E2E_TEST=true so the
+ * mock-Soniox seam is present. Expected runtime up to ~2 min (real LLM).
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -17,14 +31,22 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
+import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
+import {
+  pollForCytoscape,
+  resolveGraphDaemonNodeBin,
+  robustElectronTeardown,
+  safeStopFileWatching,
+  getCiElectronFlags,
+} from '@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers';
 
-// Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
 
-// Type definitions
+interface FakeToken { text: string; is_final: boolean }
+
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
+  __VOICE_TEST__?: { emitVoiceResult: (result: { tokens: FakeToken[] }) => void };
   electronAPI?: {
     main: {
       getBackendPort: () => Promise<number>;
@@ -33,380 +55,179 @@ interface ExtendedWindow {
   };
 }
 
-interface GraphState {
-  nodeCount: number;
-  edgeCount: number;
-  nodeLabels: string[];
-}
-
-// Extend test with Electron app using REAL server
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   tempProjectPath: string;
 }>({
   tempProjectPath: async ({}, use) => {
-    // Create a temporary project directory for this test
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-text-to-tree-e2e-'));
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-voice-to-tree-e2e-'));
     const projectRoot = path.join(tempDir, 'test-project');
     await fs.mkdir(projectRoot, { recursive: true });
-
-    // Create minimal root.md to initialize the project
     await fs.writeFile(
       path.join(projectRoot, 'root.md'),
-      '# Root\n\nTest project for text-to-tree E2E test.\n',
+      '# Root\n\nVoice-to-tree real-loop E2E test.\n',
       'utf8'
     );
-
     await use(projectRoot);
-
-    // Cleanup
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
   electronApp: async ({ tempProjectPath }, use) => {
-    // Create a temporary userData directory for this test
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-text2tree-userdata-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-voice2tree-userdata-'));
+    // Persist config for project-config reads; startup project comes from --open-folder.
+    await fs.writeFile(
+      path.join(tempUserDataPath, 'voicetree-config.json'),
+      JSON.stringify({ lastDirectory: tempProjectPath }, null, 2),
+      'utf8'
+    );
 
-    // Write config to auto-load the test project
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: tempProjectPath,
-      suffixes: {
-        [tempProjectPath]: '' // Empty suffix means use directory directly
-      }
-    }, null, 2), 'utf8');
-
-    console.log('[Text-to-Tree E2E] Created test project at:', tempProjectPath);
-    console.log('[Text-to-Tree E2E] Using REAL Python backend server');
+    console.log('[Voice-to-Tree E2E] Test project:', tempProjectPath);
+    console.log('[Voice-to-Tree E2E] REAL Python backend + REAL cloud-agent LLM');
 
     const electronApp = await electron.launch({
       args: [
+        ...getCiElectronFlags(),
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`
+        `--user-data-dir=${tempUserDataPath}`,
+        '--open-folder',
+        tempProjectPath,
       ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
-        USE_REAL_SERVER: '1',  // Force real Python server (critical for this test!)
+        USE_REAL_SERVER: '1',
         HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1'
+        MINIMIZE_TEST: '1',
+        VOICETREE_PERSIST_STATE: '1',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       },
-      timeout: 30000 // 30 second timeout for app launch (Python server needs time)
+      timeout: 45000,
     });
 
     await use(electronApp);
 
-    // Graceful shutdown
+    // DIAGNOSTIC: copy the backend debug log out before cleanup.
     try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(500);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
-    }
+      const log = await fs.readFile(path.join(tempUserDataPath, 'server-debug.log'), 'utf8');
+      console.log('\n===== server-debug.log (tail) =====\n' + log.split('\n').slice(-60).join('\n'));
+    } catch (e) { console.log('no server-debug.log:', String(e)); }
 
-    await electronApp.close();
-    console.log('[Text-to-Tree E2E] Electron app closed');
-
-    // Cleanup temp userData directory
+    await safeStopFileWatching(electronApp);
+    await robustElectronTeardown(electronApp);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 30000 });
-
-    // Log console messages for debugging
-    window.on('console', msg => {
-      console.log(`BROWSER [${msg.type()}]:`, msg.text());
-    });
-
-    window.on('pageerror', error => {
-      console.error('PAGE ERROR:', error.message);
-    });
-
+    const window = await electronApp.firstWindow({ timeout: 45000 });
+    window.on('console', msg => console.log(`BROWSER [${msg.type()}]:`, msg.text()));
+    window.on('pageerror', error => console.error('PAGE ERROR:', error.message));
     await window.waitForLoadState('domcontentloaded');
-
-    // Wait for cytoscape to initialize
-    await window.waitForFunction(
-      () => (window as unknown as ExtendedWindow).cytoscapeInstance,
-      { timeout: 30000 }
-    );
-
+    await pollForCytoscape(window, 45000);
+    await window.waitForTimeout(500); // let the startup project-open settle
     await use(window);
   }
 });
 
-test.describe('Text-to-Tree End-to-End Integration', () => {
-  // Set longer timeout - LLM processing takes time (~2 minutes expected)
-  test.setTimeout(180000); // 3 minutes max
+async function backendNodeCount(page: Page, port: number): Promise<number> {
+  return page.evaluate(async (p) => {
+    const res = await fetch(`http://localhost:${p}/health`);
+    const h = await res.json();
+    return (h.nodes as number) || 0;
+  }, port);
+}
 
-  test.skip('should create nodes from text input via real Python backend', async ({ appWindow, tempProjectPath }) => {
-    // SKIPPED: This test requires external infrastructure (real Python backend with LLM capabilities)
-    // The test sets USE_REAL_SERVER=1 to spawn the Python backend, but this requires:
-    // - Python backend dependencies installed (uv sync)
-    // - Backend code available and functional
-    // - LLM API keys configured (for text-to-tree processing)
-    // - The /send-text endpoint to actually create nodes via LLM
-    // Without these, the test will fail because the stub server returns 404 for /send-text.
-    // To run this test manually: ensure Python backend is running with proper LLM config.
-    console.log('\n=== E2E Test: Text-to-Tree Full Pipeline ===\n');
+function cytoscapeRealNodeCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+    if (!cy) return 0;
+    return cy.nodes().filter((n: NodeSingular) => {
+      const id = n.id();
+      return !id.startsWith('GHOST') && !id.includes('virtual');
+    }).length;
+  });
+}
 
-    // ===== STEP 1: Get backend port and verify server is ready =====
-    console.log('=== STEP 1: Get backend port from Electron main process ===');
+test.describe('Voice → Tree (real backend, mock mic only)', () => {
+  test.setTimeout(180000);
 
-    const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.getBackendPort();
-    });
-
-    console.log(`Backend port: ${backendPort}`);
+  test('emitted Soniox tokens create real nodes through the live pipeline', async ({ appWindow }) => {
+    // ---- backend up (real Python server) ----
+    const backendPort = await appWindow.evaluate(async () =>
+      (window as unknown as ExtendedWindow).electronAPI!.main.getBackendPort()
+    );
     expect(backendPort).toBeGreaterThan(8000);
-    expect(backendPort).toBeLessThan(9000);
-    console.log(`✓ Backend running on port ${backendPort}`);
+    console.log(`[E2E] Backend port: ${backendPort}`);
 
-    // ===== STEP 2: Wait for backend server health check =====
-    console.log('\n=== STEP 2: Wait for backend server health check (Python startup) ===');
-
-    const maxRetries = 60; // Up to 60 seconds for Python server
-    const retryDelay = 1000;
-    let healthCheck: { ok: boolean; status?: number; error?: string } | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      healthCheck = await appWindow.evaluate(async (port) => {
-        try {
-          const response = await fetch(`http://localhost:${port}/health`);
-          return {
-            ok: response.ok,
-            status: response.status
-          };
-        } catch (error: unknown) {
-          return {
-            ok: false,
-            error: error instanceof Error ? error.message : String(error)
-          };
-        }
+    let healthy = false;
+    for (let i = 0; i < 60 && !healthy; i++) {
+      healthy = await appWindow.evaluate(async (p) => {
+        try { return (await fetch(`http://localhost:${p}/health`)).ok; } catch { return false; }
       }, backendPort);
+      if (!healthy) await appWindow.waitForTimeout(1000);
+    }
+    expect(healthy).toBe(true);
+    console.log('[E2E] Backend healthy');
 
-      if (healthCheck.ok) {
-        console.log(`✓ Backend server healthy after ${attempt} attempt(s) (${attempt}s)`);
+    // ---- test seam present (proves VITE_E2E_TEST build) ----
+    await appWindow.waitForFunction(
+      () => (window as unknown as ExtendedWindow).__VOICE_TEST__ !== undefined,
+      { timeout: 15000 }
+    );
+
+    // Give the app's project-open flow time to notify the backend of the directory.
+    await appWindow.waitForTimeout(3000);
+    const initialBackendNodes = await backendNodeCount(appWindow, backendPort);
+    const initialCyNodes = await cytoscapeRealNodeCount(appWindow);
+    console.log(`[E2E] Initial: backend nodes=${initialBackendNodes}, cytoscape nodes=${initialCyNodes}`);
+
+    // ---- emit fake Soniox tokens (the only mock: the mic) ----
+    // >133 chars so the server buffer threshold flushes promptly (else 15s auto-flush).
+    const spokenText =
+      'I am researching machine learning for image classification. ' +
+      'Convolutional neural networks are very effective at computer vision tasks ' +
+      'like object detection and image segmentation, and transfer learning speeds this up.';
+
+    await appWindow.evaluate((text) => {
+      (window as unknown as ExtendedWindow).__VOICE_TEST__!.emitVoiceResult({
+        tokens: [{ text, is_final: true }]
+      });
+    }, spokenText);
+    console.log(`[E2E] Emitted ${spokenText.length} chars of fake transcription`);
+
+    // ---- wait for the REAL pipeline to create a node ----
+    const deadline = Date.now() + 150000;
+    let backendNodes = initialBackendNodes;
+    while (Date.now() < deadline) {
+      backendNodes = await backendNodeCount(appWindow, backendPort);
+      if (backendNodes > initialBackendNodes) {
+        console.log(`[E2E] Backend created node(s): ${initialBackendNodes} → ${backendNodes}`);
         break;
       }
-
-      if (attempt < maxRetries) {
-        if (attempt % 10 === 0) {
-          console.log(`Attempt ${attempt}/${maxRetries}: ${healthCheck?.error || 'not ready'}, waiting...`);
-        }
-        await appWindow.waitForTimeout(retryDelay);
-      }
+      await appWindow.waitForTimeout(2000);
     }
+    expect(backendNodes,
+      'real /send-text → cloud-agent pipeline should create at least one node'
+    ).toBeGreaterThan(initialBackendNodes);
 
-    expect(healthCheck).not.toBeNull();
-    expect(healthCheck?.ok).toBe(true);
-    console.log('✓ Backend server is healthy and ready');
+    // ---- the node should surface in the renderer via file-watch ----
+    let cyNodes = initialCyNodes;
+    const cyDeadline = Date.now() + 30000;
+    while (Date.now() < cyDeadline) {
+      cyNodes = await cytoscapeRealNodeCount(appWindow);
+      if (cyNodes > initialCyNodes) break;
+      await appWindow.waitForTimeout(1000);
+    }
+    console.log(`[E2E] Cytoscape nodes: ${initialCyNodes} → ${cyNodes}`);
+    expect(cyNodes,
+      'new backend node should propagate to the renderer graph via file-watch'
+    ).toBeGreaterThan(initialCyNodes);
 
-    // ===== STEP 3: Load the test project directory =====
-    console.log('\n=== STEP 3: Load test project directory ===');
-
-    const loadResult = await appWindow.evaluate(async (args) => {
-      const [port, projectRoot] = args;
-      const response = await fetch(`http://localhost:${port}/load-directory`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory_path: projectRoot })
-      });
-      return {
-        ok: response.ok,
-        status: response.status,
-        body: await response.json()
-      };
-    }, [backendPort, tempProjectPath] as const);
-
-    expect(loadResult.ok).toBe(true);
-    console.log('✓ Test project loaded into backend:', loadResult.body);
-
-    // ===== STEP 4: Get initial graph state =====
-    console.log('\n=== STEP 4: Get initial graph state ===');
-
-    // Wait for graph to initialize with root node
-    await appWindow.waitForTimeout(2000);
-
-    const initialState: GraphState = await appWindow.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      return {
-        nodeCount: cy.nodes().length,
-        edgeCount: cy.edges().length,
-        nodeLabels: cy.nodes().map((n: NodeSingular) => n.data('label') || n.id())
-      };
+    await appWindow.screenshot({
+      path: path.join(PROJECT_ROOT, 'e2e-tests/test-results/voice-to-tree-e2e-final.png'),
+      fullPage: true
     });
-
-    console.log(`Initial graph state: ${initialState.nodeCount} nodes, ${initialState.edgeCount} edges`);
-    console.log(`Initial labels: ${initialState.nodeLabels.join(', ')}`);
-
-    // ===== STEP 5: Send text inputs (3 different topics) =====
-    console.log('\n=== STEP 5: Send text inputs via /send-text endpoint ===');
-
-    const textInputs = [
-      // Topic 1: Machine Learning
-      `I'm researching machine learning algorithms for image classification.
-       Deep neural networks have shown remarkable results in computer vision tasks.
-       Convolutional neural networks are particularly effective for image recognition.`,
-
-      // Topic 2: Web Development
-      `Building a modern web application requires careful architecture decisions.
-       React and TypeScript provide a solid foundation for frontend development.
-       Backend services often use Node.js or Python for API implementation.`,
-
-      // Topic 3: Project Management
-      `Effective project management is essential for software development success.
-       Agile methodologies like Scrum help teams deliver value incrementally.
-       Regular retrospectives improve team collaboration and processes.`
-    ];
-
-    // Send each text input
-    for (let i = 0; i < textInputs.length; i++) {
-      const text = textInputs[i];
-      console.log(`\n--- Sending text ${i + 1}/${textInputs.length} ---`);
-      console.log(`Text preview: "${text.substring(0, 60)}..."`);
-
-      const sendResult = await appWindow.evaluate(async (args) => {
-        const [port, inputText] = args;
-        const response = await fetch(`http://localhost:${port}/send-text`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: inputText })
-        });
-        return {
-          ok: response.ok,
-          status: response.status,
-          body: await response.json()
-        };
-      }, [backendPort, text] as const);
-
-      expect(sendResult.ok).toBe(true);
-      console.log(`✓ Text ${i + 1} sent successfully:`, sendResult.body);
-
-      // Wait between sends to allow processing
-      if (i < textInputs.length - 1) {
-        await appWindow.waitForTimeout(2000);
-      }
-    }
-
-    console.log('\n✓ All text inputs sent');
-
-    // ===== STEP 6: Wait for processing to complete =====
-    console.log('\n=== STEP 6: Wait for backend processing to complete ===');
-
-    // Poll health endpoint to wait for node count to stabilize
-    const processingTimeout = 120000; // 2 minutes for LLM processing
-    const startTime = Date.now();
-    let lastNodeCount = -1;
-    let stableCount = 0;
-    const requiredStableChecks = 6; // 3 seconds of stability
-
-    while (Date.now() - startTime < processingTimeout) {
-      const healthStatus = await appWindow.evaluate(async (port) => {
-        const response = await fetch(`http://localhost:${port}/health`);
-        return response.json();
-      }, backendPort);
-
-      const nodeCount = healthStatus.nodes || 0;
-
-      if (nodeCount === lastNodeCount) {
-        stableCount++;
-        if (stableCount % 4 === 0) {
-          console.log(`Node count stable at ${nodeCount} (${stableCount}/${requiredStableChecks} checks)`);
-        }
-        if (nodeCount >= 1 && stableCount >= requiredStableChecks) {
-          console.log(`✓ Processing complete: ${nodeCount} nodes created`);
-          break;
-        }
-      } else {
-        if (lastNodeCount !== -1) {
-          console.log(`Node count changed: ${lastNodeCount} → ${nodeCount}`);
-        }
-        stableCount = 0;
-      }
-
-      lastNodeCount = nodeCount;
-      await appWindow.waitForTimeout(500);
-    }
-
-    // ===== STEP 7: Verify final graph state =====
-    console.log('\n=== STEP 7: Verify final graph state ===');
-
-    // Wait for UI to sync with backend
-    await appWindow.waitForTimeout(3000);
-
-    // Trigger a graph refresh from backend state
-    await appWindow.evaluate(async (port) => {
-      // Force refresh the graph view
-      const response = await fetch(`http://localhost:${port}/health`);
-      const health = await response.json();
-      console.log('[E2E] Backend health after processing:', health);
-    }, backendPort);
-
-    await appWindow.waitForTimeout(2000);
-
-    const finalState: GraphState = await appWindow.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-
-      // Filter out virtual/ghost nodes for accurate count
-      const realNodes = cy.nodes().filter((n: NodeSingular) => {
-        const id = n.id();
-        return !id.startsWith('GHOST') && !id.includes('virtual');
-      });
-
-      const realEdges = cy.edges().filter((e: EdgeSingular) => {
-        return !e.data('isGhostEdge');
-      });
-
-      return {
-        nodeCount: realNodes.length,
-        edgeCount: realEdges.length,
-        nodeLabels: realNodes.map((n: NodeSingular) => n.data('label') || n.id())
-      };
-    });
-
-    console.log(`\nFinal graph state:`);
-    console.log(`  Nodes: ${finalState.nodeCount} (expected: 2-8)`);
-    console.log(`  Edges: ${finalState.edgeCount} (expected: 1-15)`);
-    console.log(`  Labels: ${finalState.nodeLabels.join(', ')}`);
-
-    // Verify expected ranges (with generous tolerance for LLM variability)
-    expect(finalState.nodeCount).toBeGreaterThanOrEqual(2);
-    expect(finalState.nodeCount).toBeLessThanOrEqual(15); // Slightly expanded upper bound
-    expect(finalState.edgeCount).toBeGreaterThanOrEqual(0); // At least some structure
-    expect(finalState.edgeCount).toBeLessThanOrEqual(30); // Reasonable upper bound
-
-    console.log('✓ Node and edge counts within expected ranges');
-
-    // ===== STEP 8: Take screenshot of final graph =====
-    console.log('\n=== STEP 8: Take screenshot of final graph ===');
-
-    const screenshotPath = path.join(PROJECT_ROOT, 'e2e-tests/test-results/text-to-tree-e2e-final.png');
-    await appWindow.screenshot({ path: screenshotPath, fullPage: true });
-    console.log(`✓ Screenshot saved to: ${screenshotPath}`);
-
-    // ===== Summary =====
-    console.log('\n' + '='.repeat(60));
-    console.log('✅ Text-to-Tree E2E Test PASSED!');
-    console.log('='.repeat(60));
-    console.log('Summary:');
-    console.log(`  - Real Python backend started on port ${backendPort}`);
-    console.log(`  - Backend health check succeeded`);
-    console.log(`  - Sent ${textInputs.length} text inputs covering different topics`);
-    console.log(`  - Created ${finalState.nodeCount} nodes and ${finalState.edgeCount} edges`);
-    console.log(`  - Screenshot captured for visual verification`);
-    console.log('='.repeat(60) + '\n');
+    console.log('✅ Voice → Tree real-loop E2E passed');
   });
 });
 

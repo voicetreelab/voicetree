@@ -8,7 +8,7 @@ on:
     branches: [main]
     paths:
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'knip.config.ts'
       - 'webapp/package.json'
       - '.github/workflows/release.yml'
@@ -94,12 +94,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -156,11 +161,10 @@ jobs:
           cp backend/settings.py out/resources/backend/
           cp backend/logging_config.py out/resources/backend/
 
-      - name: Install frontend dependencies
-        working-directory: webapp
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Update file timestamps for codesign
         run: |
@@ -259,12 +263,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -300,15 +309,14 @@ jobs:
           Copy-Item -Force "backend\settings.py" "out\resources\backend\"
           Copy-Item -Force "backend\logging_config.py" "out\resources\backend\"
 
-      - name: Install frontend dependencies
-        working-directory: webapp
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Rebuild native modules
         working-directory: webapp
-        run: npx electron-rebuild
+        run: pnpm exec electron-rebuild
 
       - name: Build & Publish Electron
         working-directory: webapp
@@ -353,12 +361,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -390,11 +403,10 @@ jobs:
           cp backend/settings.py out/resources/backend/
           cp backend/logging_config.py out/resources/backend/
 
-      - name: Install frontend dependencies
-        working-directory: webapp
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build & Publish Electron
         working-directory: webapp

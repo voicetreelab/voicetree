@@ -26,7 +26,6 @@ export interface ExtendedWindow {
 
 let mainInspectPort = 0;
 let generatedProjectPath = '';
-let generatedProjectPath = '';
 
 function canLoadNativeGraphDbModules(nodeBin: string): boolean {
   try {
@@ -151,7 +150,6 @@ export const test = base.extend<{
     );
 
     generatedProjectPath = path.join(tempUserDataPath, 'perf-test-project');
-    generatedProjectPath = path.join(generatedProjectPath, 'perf-test-project');
     generateProjectOnDisk(generatedProjectPath, REALISTIC_PERF_NODE_COUNT);
     console.log(`[Project Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedProjectPath}`);
 
@@ -186,6 +184,21 @@ export const test = base.extend<{
       'utf8'
     );
 
+    // Seed settings.json with the ForceAtlas2 layout engine. The app resolves its
+    // home (settings.json, recent projects, project config) from VOICETREE_HOME_PATH
+    // — NOT Electron's --user-data-dir — so we point that at the isolated temp dir
+    // below. Without this the app would read the developer's real ~/.voicetree
+    // (showing their real projects and default 'cola' engine) and never reach the
+    // generated graph under the ForceAtlas2 engine.
+    const settingsPath = path.join(tempUserDataPath, 'settings.json');
+    await fs.writeFile(
+      settingsPath,
+      JSON.stringify({
+        layoutConfig: JSON.stringify({ engine: 'forceatlas2', nodeSpacing: 120, edgeLength: 350 }),
+      }, null, 2),
+      'utf8'
+    );
+
     const INSPECT_PORT = 9231; // Different port from synthetic test
     const electronApp = await electron.launch({
       args: [
@@ -201,6 +214,11 @@ export const test = base.extend<{
         VOICETREE_PERSIST_STATE: '1',
         VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // Isolate app home to the seeded temp dir, and auto-open the generated
+        // project on startup (getStartupProjectHint → 'open-folder') so we skip
+        // the project picker entirely.
+        VOICETREE_HOME_PATH: tempUserDataPath,
+        VOICETREE_STARTUP_FOLDER: generatedProjectPath,
       },
       timeout: 30000,
     });
@@ -271,17 +289,16 @@ export const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
-    // Click the seeded project to navigate to graph view
-    await window.waitForSelector('text=Voicetree', { timeout: 15000 });
-    const projectButton = window.locator('button:has-text("perf-test-project")').first();
-    await projectButton.click();
-    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolderPath=${generatedProjectPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+    // VOICETREE_STARTUP_FOLDER makes the app auto-open the generated project
+    // straight into graph view (daemon opens the project and starts graph sync),
+    // so no project picker click and no manual file-watching kick are needed.
+    // If the renderer still exposes startFileWatching, call it best-effort to
+    // re-arm watching; otherwise the auto-open path has already handled it.
+    console.log(`[Realistic Perf] App auto-opening startup folder (project=${generatedProjectPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
-    const watchResult = await window.evaluate(async (projectPath) => {
+    const watchResult: { success: boolean; error?: string } = await window.evaluate(async (projectPath) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api?.main?.startFileWatching) {
-        throw new Error('electronAPI.main.startFileWatching is unavailable');
-      }
+      if (!api?.main?.startFileWatching) return { success: true };
       return api.main.startFileWatching(projectPath);
     }, generatedProjectPath);
     console.log('[Realistic Perf] startFileWatching result:', JSON.stringify(watchResult));

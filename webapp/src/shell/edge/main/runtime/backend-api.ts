@@ -42,38 +42,60 @@ export interface BackendApiError {
  * @returns Response with status and number of nodes loaded
  * @throws Error if the request fails or returns an error
  */
+// The Python server's port is allocated and returned before uvicorn is actually
+// accepting connections (the process is spawned, then a health check is scheduled
+// asynchronously — see RealTextToTreeServerManager). Project-open fires this
+// notification right after window creation, often inside that boot window. A single
+// fire-and-forget POST that lands during boot is refused and silently lost, leaving
+// the backend with no directory (`processor is None`) — it then drops every
+// /send-text forever ("Skipping buffer processing - no directory loaded yet"), so
+// voice/typed text never becomes nodes. We therefore retry on *connection* failure
+// until the server is accepting requests. Real HTTP errors (4xx/5xx) still fail fast.
+const LOAD_DIRECTORY_MAX_ATTEMPTS = 30;
+const LOAD_DIRECTORY_RETRY_DELAY_MS = 1000;
+
+const sleep = (ms: number): Promise<void> => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 export async function tellSTTServerToLoadDirectory(directoryPath: string): Promise<LoadDirectoryResponse> {
   if (!directoryPath || directoryPath.trim() === '') {
     throw new Error('Directory absolutePath cannot be empty');
   }
 
-  try {
+  let lastConnectionError: unknown;
+  for (let attempt = 1; attempt <= LOAD_DIRECTORY_MAX_ATTEMPTS; attempt++) {
     const baseUrl: string = await getBackendBaseUrl();
-    const response: Response = await fetch(`${baseUrl}/load-directory`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        directory_path: directoryPath
-      } as LoadDirectoryRequest),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/load-directory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          directory_path: directoryPath
+        } as LoadDirectoryRequest),
+      });
+    } catch (connectionError) {
+      // Server not accepting connections yet (still booting). Retry.
+      lastConnectionError = connectionError;
+      await sleep(LOAD_DIRECTORY_RETRY_DELAY_MS);
+      continue;
+    }
 
     if (!response.ok) {
-      const errorData: BackendApiError = await response.json() as BackendApiError;
+      // The server is up and rejected the request — a real error, do not retry.
+      const errorData: BackendApiError = await response.json().catch(() => ({ detail: '' })) as BackendApiError;
       throw new Error(`Backend error: ${errorData.detail || response.statusText}`);
     }
 
-    const data: LoadDirectoryResponse = await response.json() as LoadDirectoryResponse;
-    //console.log(`[Backend API] Load directory success:`, data);
-    return data;
-  } catch (error) {
-    console.error('[Backend API] Load directory failed:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to load directory in backend');
+    return await response.json() as LoadDirectoryResponse;
   }
+
+  console.error(
+    `[Backend API] Load directory failed: server unreachable after ${LOAD_DIRECTORY_MAX_ATTEMPTS} attempts`,
+    lastConnectionError
+  );
+  throw new Error('Failed to load directory in backend: server unreachable');
 }
 
 export interface SearchSimilarResult {

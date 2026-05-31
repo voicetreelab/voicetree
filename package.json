@@ -16,6 +16,7 @@
     "test": "node scripts/run-remote.mjs npm run test:local",
     "test:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=npm-test --name=\"npm run test\" --category=Command -- npm run test:t1",
     "check": "pnpm run test:t1",
+    "typecheck": "pnpm --filter voicetree-webapp run check",
     "test:t0": "node scripts/run-remote.mjs pnpm run test:t0:local",
     "test:t0:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=0'",
     "test:t1": "node scripts/run-remote.mjs pnpm run test:t1:local",

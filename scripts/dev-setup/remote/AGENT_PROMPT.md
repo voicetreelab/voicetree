@@ -65,6 +65,43 @@ Look for `[run-remote] ...` lines in the output proving the command actually
 ran on the devbox. If you see no such lines, routing is broken — most
 likely `VT_REMOTE_HOST` isn't being read from `.env`. Re-check the file.
 
+## Verify code-search tools
+
+`install.sh` installs the code-navigation tools CLAUDE.md / AGENTS.md tell
+agents to prefer over grep. Confirm all three resolve on the devbox PATH:
+
+```bash
+ssh "$VT_REMOTE_HOST" 'for t in ast-grep ck cgcli; do command -v "$t" || echo "MISSING: $t"; done'
+ssh "$VT_REMOTE_HOST" 'ast-grep --version && ck --version'
+```
+
+Expect a path for each (no `MISSING:` lines) and version strings for
+`ast-grep` and `ck`. Notes:
+
+- `ast-grep` is linked from an isolated prefix so it does **not** shadow the
+  system `sg` (group) command — `command -v sg` should still be `/usr/bin/sg`.
+- `cgcli` is a shim over the in-repo `@vt/code-graph-cli`; it runs under `tsx`,
+  so it needs the worktree's `node_modules` installed. A bare `cgcli --help`
+  proves the shim resolves; a `cgcli find-symbol <name>` proves deps are in
+  place. If it reports `tsx missing`, run the package manager install in the
+  repo first.
+- `ck` on a non-x86_64 box has no prebuilt binary — the installer prints a
+  manual-install note (`cargo install ck-search`) instead of failing.
+
+## Verify SSH multiplexing to the Mac
+
+`setup-devbox-env.sh` writes `~/.ssh/config` on the devbox that multiplexes the
+reverse-tunnel connection to the Mac and adds a `mac` host alias. Without it,
+**every** `ssh` to the Mac — and every `vt` command, which shells out to ssh —
+pays a fresh ~3s handshake. Confirm it landed:
+
+```bash
+ssh "$VT_REMOTE_HOST" 'grep -q "vt-devbox ssh-mux" ~/.ssh/config && echo OK || echo MISSING'
+```
+
+Expect `OK`. From then on `ssh mac` works flag-free, and only the first call per
+10-minute window pays the handshake — the rest reuse one connection (~instant).
+
 ## Optional: destructive-git prompt
 
 ```bash
@@ -79,6 +116,7 @@ In one short message:
 - Devbox host (echo back so they can confirm)
 - Mutagen session status for `vt-remote` and brain checkout status
 - Smoke-test result (passed / failed + where it ran)
+- Code-search tools present on PATH (`ast-grep`, `ck`, `cgcli`)
 - Anything you skipped or that failed
 
 ## Gotchas to flag if relevant

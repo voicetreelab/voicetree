@@ -30,14 +30,18 @@ import {dirname, resolve as pathResolve, relative as pathRelative, basename} fro
 import {posix as ppath} from 'node:path'
 import {homedir} from 'node:os'
 import {promisify} from 'node:util'
+import {ensureDepsFresh} from './dev-setup/common/ensure-deps-fresh.mjs'
 
 const execFileAsync = promisify(execFile)
 const REPO_ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REMOTE_ROOT = '/root/vtrepo-synced'
 const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
-// Mac-side worktree root basename. Mirrors the remote end (same `-synced`
-// basename); the local Mac path is `<parent>/vt-wts-synced/<name>`.
-const WORKTREE_SIBLING_DIR_NAME = 'vt-wts-synced'
+// Mac-side worktree root basename — the local Mac path is `<parent>/vt-wts`,
+// the live mutagen `vt-wts` alpha AND where the app / git-gate place worktrees.
+// The basename DIFFERS across the mirror (Mac `vt-wts` ↔ devbox `vt-wts-synced`,
+// REMOTE_WTS_ROOT above); mutagen syncs contents, not names. Must equal the
+// session alpha, else a worktree cwd fails to map and run-remote throws.
+const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
 const MUTAGEN_SESSION_WTS = 'vt-wts'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
@@ -140,6 +144,11 @@ function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd()} = {}) {
 }
 
 function runLocal(cmd, args) {
+  // Deps-freshness guard (D5): the executing env's node_modules must match the
+  // committed lockfile before the command runs. Idempotent — a fresh env hashes
+  // two files and returns. Covers both the no-VT_REMOTE_HOST local path and the
+  // VT_REMOTE_EXEC re-entry on the devbox (where the ssh payload already ran it).
+  ensureDepsFresh()
   const child = spawn(cmd, args, {
     stdio: 'inherit',
     env: {
@@ -403,10 +412,24 @@ function runRemote(host, cmd, args, syncContext) {
   }
   const remoteCwd = ppath.join(remoteRoot, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')
+
+  // Deps-freshness guard (D5): prepend the guard to the ssh payload so commands
+  // ssh'd directly to the devbox (not re-entering run-remote) still get a
+  // node_modules consistent with the synced lockfile. run-remote flushes mutagen
+  // before this, so the remote lockfile is current. Mapped through the same
+  // localRoot→remoteRoot transform as remoteCwd, so it is correct for the main
+  // checkout and each worktree.
+  const guardRel = pathRelative(
+    localRoot,
+    pathResolve(REPO_ROOT, 'scripts/dev-setup/common/ensure-deps-fresh.mjs'),
+  )
+  const guardRemotePath = ppath.join(remoteRoot, guardRel.split(/[\\/]/).join('/'))
+
   const remoteScript = [
     repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
     `export ${RECURSION_GUARD}=1`,
+    `node ${shq(guardRemotePath)}`,
     `exec ${quotedCmd}`,
   ].join(' && ')
 

@@ -1,0 +1,13 @@
+#!/bin/bash
+# post-checkout runs after `git checkout` / `git switch` (and on worktree
+# creation). git passes: $1 = previous HEAD, $2 = new HEAD, $3 = flag
+# (1 = branch checkout, 0 = file checkout). Per D6 we only act on a branch
+# checkout — a file checkout cannot change the lockfile. Switching branches can
+# bring in a different pnpm-lock.yaml, leaving node_modules stale for a command
+# run directly afterwards; the guard reconciles it (near-instant no-op when
+# unchanged).
+set -e
+is_branch_checkout="$3"
+[ "$is_branch_checkout" = "1" ] || exit 0
+repo_root="$(git rev-parse --show-toplevel)"
+node "$repo_root/scripts/dev-setup/common/ensure-deps-fresh.mjs"

@@ -33,7 +33,7 @@ class CONFIG:
     """Central configuration for LLM integration"""
 
     # Model selection
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    DEFAULT_MODEL = "gemini-3.5-flash"
 
     # Generation parameters
     TEMPERATURE = 0.5
@@ -162,12 +162,7 @@ async def call_llm_structured(
 
     # Call the model with structured output
     # Pass Pydantic models directly as per Google's documentation
-    if stage_type== "single_abstraction_optimizer":
-        print("Running local graph optimization stage with model: gemini-2.5-flash")
-
-    else:
-        print(f"Running {stage_type} with model: {model_name}")
-
+    print(f"Running {stage_type} with model: {model_name}")
     logging.info(f"Running {stage_type} LLM with model: {model_name}")
 
     config = types.GenerateContentConfig(

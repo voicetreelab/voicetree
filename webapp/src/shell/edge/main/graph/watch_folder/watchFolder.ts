@@ -149,6 +149,11 @@ export async function createDatedVoiceTreeFolder(): Promise<{
             return await client.setWriteFolderPath(newPath)
         })
 
+        // Re-point the Python text-to-tree server at the new dated write folder, so
+        // voice/typed text lands in the freshly created folder rather than the old one.
+        // (The daemon's own notify no-ops — see openProject / setWriteFolderPathThroughDaemon.)
+        getCallbacks().notifyWriteDirectory?.(newPath)
+
         if (
             previousProjectState.writeFolderPath
             && previousProjectState.writeFolderPath !== newPath
