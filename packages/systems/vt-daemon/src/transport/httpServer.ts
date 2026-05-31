@@ -33,12 +33,12 @@ import {
     handleAgentEventsSse,
     matchAgentEventsPath,
     parseSinceQuery,
-} from './agentEventsSse.ts'
+} from './sse/agentEventsSse.ts'
 import {
     handleTerminalRegistrySse,
     matchTerminalRegistryPath,
-} from './terminalRegistrySse.ts'
-import {createEventSubscriptionHub, type EventSubscriptionHub} from './eventSubscriptionHub.ts'
+} from './sse/terminalRegistrySse.ts'
+import {createEventSubscriptionHub, type EventSubscriptionHub} from './sse/eventSubscriptionHub.ts'
 import {
     authorizeWsUpgrade,
     isAuthorized,

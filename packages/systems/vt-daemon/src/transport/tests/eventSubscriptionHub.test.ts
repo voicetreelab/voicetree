@@ -11,7 +11,7 @@ import {
     type Subscriber,
     type SubscriberHandle,
     type TopicName,
-} from '../eventSubscriptionHub.ts'
+} from '../sse/eventSubscriptionHub.ts'
 
 interface CapturingSubscriber {
     readonly subscriber: Subscriber
