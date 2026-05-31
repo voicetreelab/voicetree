@@ -56,9 +56,14 @@ log() {
 git_base() { git -C "$BASE" "$@"; }
 
 # --- alert delivery (D7) ----------------------------------------------------
-# OS notification is the GUARANTEED channel; the graph node is best-effort (the
-# daemon has no VoiceTree task context, so a root node needs VT_ALERT_PARENT_NODE
-# to attach cleanly — otherwise the create may be refused and we just log it).
+# There is NO single guaranteed real-time channel; delivery is best-effort on
+# every path, so the durable record is always the log line in $LOG (see alert()).
+#   - On the Mac, the OS notification (osascript) is the primary live channel.
+#   - On a headless VM, OS notification is effectively silent (notify-send needs
+#     a DISPLAY; wall reaches no logged-in TTY), so the graph node is the primary
+#     channel — but a root `vt graph create` with no parent may be refused, hence
+#     set VT_ALERT_PARENT_NODE (configure-base threads it into the timer unit).
+# Both notify_os and notify_graph swallow their own failures; alert() logs first.
 notify_os() {
   local title="$1" body="$2"
   if [ "$(uname -s)" = "Darwin" ]; then
@@ -167,7 +172,8 @@ if git_base merge-base --is-ancestor "$local_sha" "$remote_sha"; then
   exit 0
 fi
 
-# local is not an ancestor of origin → diverged (should be impossible with the
-# guard, but we never reset over local commits).
-alert diverged "base '$BASE' branch '$BRANCH' has DIVERGED from origin/$BRANCH — manual review; the cache will not be reset over local commits"
+# local is not an ancestor of origin → diverged. The PATH-shim guard makes the
+# common bypasses hard, but an out-of-band real-git/libgit2 commit can still
+# stick on the ref, so this is reachable; we never reset over local commits.
+alert diverged "base '$BASE' branch '$BRANCH' has DIVERGED from origin/$BRANCH — manual review; the cache will not be reset over local commits. To re-pin (discards the local divergence): VT_SYNC=1 git -C '$BASE' reset --hard origin/$BRANCH"
 exit 0

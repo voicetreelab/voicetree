@@ -24,6 +24,12 @@
 #   VT_WORKTREE_ROOT   worktree placement root           (default: per platform)
 #   VT_SYNC_INTERVAL   timer cadence, seconds            (default: 150)
 #   VT_DAILY_BRANCH    daily-driver branch name          (default: daily-<role>)
+#   VT_ALERT_PARENT_NODE  VoiceTree node id the daemon attaches alert nodes under.
+#                      STRONGLY recommended on a headless VM: there OS notifications
+#                      are silent (no DISPLAY for notify-send; wall reaches no one),
+#                      so the graph node is the primary alert channel — but a root
+#                      `vt graph create` with no parent may be refused. Threaded into
+#                      the timer unit so timer-detected dirty/divergence alerts land.
 #   VT_SKIP_TIMER=1    configure base but do NOT install the live timer
 set -euo pipefail
 
@@ -34,6 +40,7 @@ SYNC_BASE="$(cd "$SCRIPT_DIR/../remote" && pwd)/vt-sync-base.sh"
 BASE="${VT_BASE_DIR:?configure-base: set VT_BASE_DIR to the base checkout}"
 BRANCH="${VT_BASE_BRANCH:-dev-manu}"
 INTERVAL="${VT_SYNC_INTERVAL:-150}"
+ALERT_PARENT_NODE="${VT_ALERT_PARENT_NODE:-}"
 
 [ -d "$BASE/.git" ] || { echo "configure-base: $BASE is not a git repository" >&2; exit 1; }
 
@@ -113,6 +120,10 @@ install_timer_systemd() {
     echo "→ configure-base: no write access to /etc/systemd/system — skipping timer (run as root to install)" >&2
     return 0
   fi
+  # On the headless VM, the graph node is the primary alert channel (OS notifs
+  # are silent there) — thread the parent node through so the daemon can attach.
+  local alert_env=""
+  [ -n "$ALERT_PARENT_NODE" ] && alert_env="Environment=VT_ALERT_PARENT_NODE=$ALERT_PARENT_NODE"
   cat > "$svc" <<EOF
 [Unit]
 Description=VoiceTree single-source base fast-forward (vt-sync-base)
@@ -122,6 +133,7 @@ After=network-online.target
 Type=oneshot
 Environment=VT_BASE_DIR=$BASE
 Environment=VT_BASE_BRANCH=$BRANCH
+${alert_env}
 ExecStart=$SYNC_BASE
 EOF
   cat > "$tmr" <<EOF
@@ -145,6 +157,8 @@ install_timer_launchd() {
   local label=com.voicetree.vt-sync-base
   local plist="$HOME/Library/LaunchAgents/$label.plist"
   mkdir -p "$HOME/Library/LaunchAgents"
+  local alert_kv=""
+  [ -n "$ALERT_PARENT_NODE" ] && alert_kv="    <key>VT_ALERT_PARENT_NODE</key><string>$ALERT_PARENT_NODE</string>"
   cat > "$plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -157,6 +171,7 @@ install_timer_launchd() {
   <dict>
     <key>VT_BASE_DIR</key><string>$BASE</string>
     <key>VT_BASE_BRANCH</key><string>$BRANCH</string>
+${alert_kv}
   </dict>
   <key>StartInterval</key><integer>${INTERVAL}</integer>
   <key>RunAtLoad</key><true/>
