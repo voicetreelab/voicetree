@@ -37,6 +37,13 @@ export VT_SYNC=1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE="${VT_BASE_DIR:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
 BRANCH="${VT_BASE_BRANCH:-dev-manu}"
+# systemd runs services with a minimal env that has NO $HOME; with `set -u`
+# that aborts the daemon every tick (the timer never ff's the base). launchd
+# and ssh both set HOME, so this only bites the systemd path. Default it from
+# the passwd db (Linux), then fall back to /root.
+HOME="${HOME:-$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)}"
+HOME="${HOME:-/root}"
+export HOME
 STATE_DIR="${VT_SYNC_STATE_DIR:-$HOME/.cache/vt-sync-base}"
 LOG="$STATE_DIR/vt-sync-base.log"
 

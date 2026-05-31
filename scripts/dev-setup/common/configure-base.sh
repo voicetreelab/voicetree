@@ -151,6 +151,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+Environment=HOME=$HOME
 Environment=VT_BASE_DIR=$BASE
 Environment=VT_BASE_BRANCH=$BRANCH
 ${alert_env}
