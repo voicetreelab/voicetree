@@ -148,12 +148,20 @@ const test = base.extend<{
       JSON.stringify([{ id: 'scorecard', path: SCORECARD_VAULT_PATH, name: PROJECT_NAME, type: 'folder', lastOpened: Date.now() }], null, 2),
       'utf8',
     );
+    // projectConfig.writeFolderPath = the vault root makes the app load ALL of
+    // its .md files. Without it the app spins up a fresh voicetree-{date}
+    // subfolder and only loads that (a handful of nodes).
     await fs.writeFile(
       path.join(tempUserDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: SCORECARD_VAULT_PATH,
         projectConfig: { [SCORECARD_VAULT_PATH]: { writeFolderPath: SCORECARD_VAULT_PATH, readPaths: [] } },
       }, null, 2),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(tempUserDataPath, 'settings.json'),
+      JSON.stringify({ layoutConfig: JSON.stringify({ engine: 'webcola' }) }, null, 2),
       'utf8',
     );
 
@@ -171,6 +179,12 @@ const test = base.extend<{
         VOICETREE_PERSIST_STATE: '1',
         VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // The app resolves its home (settings, recent projects, project config)
+        // from VOICETREE_HOME_PATH — NOT Electron's --user-data-dir — so isolate
+        // it to the seeded temp dir, then auto-open the vault straight into graph
+        // view (getStartupProjectHint → 'open-folder'), skipping the picker.
+        VOICETREE_HOME_PATH: tempUserDataPath,
+        VOICETREE_STARTUP_FOLDER: SCORECARD_VAULT_PATH,
       },
       timeout: 30000,
     });
@@ -193,23 +207,30 @@ const test = base.extend<{
 
   appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow({ timeout: 30000 });
+    window.on('console', (msg) => {
+      if (msg.type() === 'warning' || msg.type() === 'error') console.log(`BROWSER [${msg.type()}]:`, msg.text());
+    });
     window.on('pageerror', (error) => console.error('PAGE ERROR:', error.message));
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForSelector('text=Voicetree', { timeout: 15000 });
-    await window.locator(`button:has-text("${PROJECT_NAME}")`).first().click();
 
+    // VOICETREE_STARTUP_FOLDER makes the app auto-open the vault straight into
+    // graph view (daemon opens the project + starts graph sync) — no picker
+    // click. startFileWatching was removed from the API; call it best-effort to
+    // re-arm watching if present, otherwise the auto-open path already handled
+    // loading.
     const watchResult = await window.evaluate(async (projectPath) => {
-      const api = (window as unknown as ScorecardWindow).electronAPI;
-      if (!api?.main?.startFileWatching) throw new Error('electronAPI.main.startFileWatching is unavailable');
-      return api.main.startFileWatching(projectPath);
+      const api = (window as unknown as ScorecardWindow).electronAPI?.main;
+      if (!api?.startFileWatching) return { success: true } as { success: boolean; error?: string };
+      return api.startFileWatching(projectPath);
     }, SCORECARD_VAULT_PATH);
     expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
 
     await window.waitForFunction(
       () => Boolean((window as unknown as ScorecardWindow).cytoscapeInstance),
       undefined,
-      { timeout: 30000 },
+      { timeout: 60000 },
     );
+
     await use(window);
   },
 });
