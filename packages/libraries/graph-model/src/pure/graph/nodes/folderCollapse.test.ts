@@ -6,6 +6,8 @@ import {
     getFolderChildNodeIds,
     getFolderDescendantNodeIds,
     getSubFolderPaths,
+    getFolderIdentityNoteId,
+    isFolderIdentityNote,
     computeSyntheticEdgeSpecs,
     computeExpandPlan,
     findCollapsedAncestor,
@@ -425,5 +427,33 @@ describe('absolutePathToGraphFolderId', () => {
             '/Users/bob/project/src-extras',
             '/Users/bob/project/src'
         )).toBeNull()
+    })
+})
+
+describe('getFolderIdentityNoteId', () => {
+    it('maps a folder path to its identity note', () => {
+        expect(getFolderIdentityNoteId('foo/')).toBe('foo/foo.md')
+        expect(getFolderIdentityNoteId('a/b/')).toBe('a/b/b.md')
+    })
+
+    it('tolerates a folder path without a trailing slash', () => {
+        expect(getFolderIdentityNoteId('foo')).toBe('foo/foo.md')
+    })
+
+    it('handles absolute folder paths', () => {
+        expect(getFolderIdentityNoteId('/x/y/wt-z/')).toBe('/x/y/wt-z/wt-z.md')
+    })
+})
+
+describe('isFolderIdentityNote', () => {
+    it('recognises a folder identity note (foo/foo.md, a/b/b.md)', () => {
+        expect(isFolderIdentityNote('foo/foo.md')).toBe(true)
+        expect(isFolderIdentityNote('a/b/b.md')).toBe(true)
+        expect(isFolderIdentityNote('/x/y/wt-z/wt-z.md')).toBe(true)
+    })
+
+    it('rejects an ordinary leaf and a root-level node', () => {
+        expect(isFolderIdentityNote('foo/bar.md')).toBe(false)
+        expect(isFolderIdentityNote('root.md')).toBe(false)
     })
 })

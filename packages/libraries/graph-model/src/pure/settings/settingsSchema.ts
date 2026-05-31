@@ -1,4 +1,5 @@
 import type { VTSettings, HotkeySettings, AgentConfig, HookSettings, EnvVarValue } from './types';
+import { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD } from './types';
 
 // ============================================================================
 // Types
@@ -182,6 +183,8 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     showFps:                { default: false, label: 'Show FPS (WebGL)' },
     layoutConfig:           { default: JSON.stringify({ engine: 'forceatlas2', kr: 5, kg: 1, ks: 0.1, maxIteration: 0, spacing: 60, edgeLength: 450, nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true }, null, 2), label: 'Layout Config' },
     nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },
+    subgraphWarnThreshold:  { default: DEFAULT_SUBGRAPH_WARN_THRESHOLD,  section: 'general', label: 'Subgraph Warn Threshold',  number: { min: 2, max: 20, step: 1 } },
+    subgraphErrorThreshold: { default: DEFAULT_SUBGRAPH_ERROR_THRESHOLD, section: 'general', label: 'Subgraph Block Threshold', number: { min: 3, max: 30, step: 1 } },
 
     // ── Hidden (not shown in UI — rendered inside agent-list field) ──────
     defaultAgent:              { hidden: true },
