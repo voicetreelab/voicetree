@@ -11,7 +11,7 @@
 #   D9  creates a blessed daily-driver worktree (daily-mac / daily-vm) as the
 #       stable "local dev" home
 #       + installs the dev-flow commands (vt-land/vt-sync/vt-pr/vt-worktree)
-#       + installs the 2-3 min sync timer (systemd on Linux / launchd on macOS)
+#       + installs the ~10s sync timer (systemd on Linux / launchd on macOS)
 #
 # Run AFTER git-gate is on PATH. This script supplies VT_SYNC=1 to its own
 # gated git calls (checkout/merge in the base) so the read-only guard lets the
@@ -22,7 +22,7 @@
 #   VT_BASE_DIR        base checkout to configure        (REQUIRED)
 #   VT_BASE_BRANCH     pinned branch                     (default: dev-manu)
 #   VT_WORKTREE_ROOT   worktree placement root           (default: per platform)
-#   VT_SYNC_INTERVAL   timer cadence, seconds            (default: 150)
+#   VT_SYNC_INTERVAL   timer cadence, seconds            (default: 10)
 #   VT_DAILY_BRANCH    daily-driver branch name          (default: daily-<role>)
 #   VT_ALERT_PARENT_NODE  VoiceTree node id the daemon attaches alert nodes under.
 #                      STRONGLY recommended on a headless VM: there OS notifications
@@ -31,6 +31,13 @@
 #                      `vt graph create` with no parent may be refused. Threaded into
 #                      the timer unit so timer-detected dirty/divergence alerts land.
 #   VT_SKIP_TIMER=1    configure base but do NOT install the live timer
+#
+# Sync cadence (VT_SYNC_INTERVAL, default 10s): a `git fetch` with no new commits
+# is one cheap negotiation, so a 10s tick is the PRIMARY cross-machine propagation
+# path — a change landed on one machine reaches the other's base within ~10s with
+# zero user action. The explicit `vt-land` cross-machine nudge (nudge_both) is now
+# an OPTIONAL latency optimisation (instant instead of <=10s), NOT a correctness
+# requirement; if the nudge ssh fails, the timer still converges within one tick.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,7 +46,7 @@ SYNC_BASE="$(cd "$SCRIPT_DIR/../remote" && pwd)/vt-sync-base.sh"
 
 BASE="${VT_BASE_DIR:?configure-base: set VT_BASE_DIR to the base checkout}"
 BRANCH="${VT_BASE_BRANCH:-dev-manu}"
-INTERVAL="${VT_SYNC_INTERVAL:-150}"
+INTERVAL="${VT_SYNC_INTERVAL:-10}"
 ALERT_PARENT_NODE="${VT_ALERT_PARENT_NODE:-}"
 
 [ -d "$BASE/.git" ] || { echo "configure-base: $BASE is not a git repository" >&2; exit 1; }
@@ -112,7 +119,8 @@ fi
 # --- dev-flow commands on PATH ----------------------------------------------
 bash "$DEV_FLOW_INSTALL"
 
-# --- 2-3 min sync timer (the backstop for GitHub-web PR merges) -------------
+# --- ~10s sync timer (the backstop for GitHub-web PR merges + the primary
+#     cross-machine propagation path; cadence = VT_SYNC_INTERVAL) ------------
 install_timer_systemd() {
   local svc=/etc/systemd/system/vt-sync-base.service
   local tmr=/etc/systemd/system/vt-sync-base.timer
@@ -136,14 +144,16 @@ Environment=VT_BASE_BRANCH=$BRANCH
 ${alert_env}
 ExecStart=$SYNC_BASE
 EOF
+  # AccuracySec=1s is required: systemd's default accuracy (1min) would batch a
+  # 10s timer up to ~1min, defeating the fast cadence. Keep it tight.
   cat > "$tmr" <<EOF
 [Unit]
 Description=Run vt-sync-base every ${INTERVAL}s (single-source base cache)
 
 [Timer]
 OnBootSec=60
-OnUnitActiveSec=${INTERVAL}
-AccuracySec=15
+OnUnitActiveSec=${INTERVAL}s
+AccuracySec=1s
 
 [Install]
 WantedBy=timers.target

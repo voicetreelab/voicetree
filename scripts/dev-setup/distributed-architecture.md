@@ -75,7 +75,7 @@ ssh (`ssh mac …` / `ssh $VT_REMOTE_HOST …`), never via the `vt` name.
 2. **Pinned-branch ff-only (the base ref's only legitimate writer):** the base's
    `dev-manu` is advanced ONLY by the daemon's `merge --ff-only`. There is nothing
    for a user command to push that wouldn't be a no-op ff.
-3. **Self-heal (the daemon, `vt-sync-base.sh`):** every ~2-3 min (and on demand
+3. **Self-heal (the daemon, `vt-sync-base.sh`):** every ~10s (and on demand
    via `vt-sync` / `vt-land`) it runs `git fetch origin --prune` then
    `git merge --ff-only origin/$VT_BASE_BRANCH`. It NEVER resets over data: on a
    dirty / diverged / ff-collision base it raises an alert and retries
@@ -95,7 +95,7 @@ ssh (`ssh mac …` / `ssh $VT_REMOTE_HOST …`), never via the `vt` name.
 | read-only guard | `git-gate/git-gate.sh` | both | refuse ref-moves in the base |
 | base config | `common/configure-base.sh` (via `setup-{devbox,laptop}-env.sh --configure-base`) | both | pin branch ff, migration guard, daily worktree, timer |
 | sync daemon | `remote/vt-sync-base.sh` | both | fetch + ff the base (self-heal + alert) |
-| timer | systemd (VM) / launchd (Mac), written by configure-base | both | run the daemon every ~2-3 min |
+| timer | systemd (VM) / launchd (Mac), written by configure-base | both | run the daemon every ~10s |
 | `vt-sync` | `dev-flow/vt-sync` | both | ff this base now + nudge the other |
 | `vt-land` / `vt-pr` | `dev-flow/` | both | the dev-flow one-liners above |
 | `vt-worktree` | `dev-flow/vt-worktree` | both | make a writable worktree off origin |
