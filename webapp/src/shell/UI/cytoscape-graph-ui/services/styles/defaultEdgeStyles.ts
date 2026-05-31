@@ -88,6 +88,10 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
     },
 
     // terminal -> created nodes indicator edges (hidden by default, shown when terminal active)
+    // Width + opacity are weighted by recency (recencyWeight: 0 = oldest, 1 = newest),
+    // so the agent's most recent node reads as the thickest / most solid line and its
+    // oldest node as the thinnest / most faded. recencyWeight is computed in
+    // applyGraphDeltaToUI.createTerminalIndicatorEdge per terminal's set of edges.
     {
         selector: 'edge.terminal-progres-nodes-indicator',
         style: {
@@ -96,8 +100,8 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
             'line-dash-pattern': [1, 8],
             'line-cap': 'round',
             'line-color': colors.agentEdgeColor,
-            'line-opacity': 0.5,
-            'width': 10, // 2.5x scale (was 4)
+            'line-opacity': 'mapData(recencyWeight, 0, 1, 0.15, 0.9)',
+            'width': 'mapData(recencyWeight, 0, 1, 2.5, 10)', // oldest → newest (2.5x scale)
             'target-arrow-shape': 'none',
             'curve-style': 'straight',
         }

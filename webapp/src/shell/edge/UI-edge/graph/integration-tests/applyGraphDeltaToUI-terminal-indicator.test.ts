@@ -32,6 +32,20 @@ function makeNode(agentName?: string): GraphNode {
     }
 }
 
+function makeNodeWithId(nodeId: string, agentName?: string): GraphNode {
+    return {
+        absoluteFilePathIsID: nodeId,
+        contentWithoutYamlOrLinks: '# Progress Node',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+            color: O.none,
+            position: O.some({ x: 0, y: 0 }),
+            additionalYAMLProps: agentName ? { agent_name: agentName } : {},
+            isContextNode: false,
+        },
+    }
+}
+
 function deltaWith(node: GraphNode): GraphDelta {
     return [upsert(node)]
 }
@@ -104,5 +118,32 @@ describe('applyGraphDeltaToUI — terminal→progress indicator edge', () => {
         applyDeltaToUI(cy, deltaWith(makeNode(AGENT)))
         applyDeltaToUI(cy, deltaWith(makeNode(AGENT)))
         expect(indicatorEdgeCount()).toBe(1)
+    })
+
+    it('weights edges by recency: newest = 1 (thickest/solid), oldest = 0 (thin/faded)', () => {
+        // Three nodes authored by the same agent, in creation order: oldest → newest.
+        applyDeltaToUI(cy, deltaWith(makeNodeWithId('/project/n1.md', AGENT)))
+        applyDeltaToUI(cy, deltaWith(makeNodeWithId('/project/n2.md', AGENT)))
+        applyDeltaToUI(cy, deltaWith(makeNodeWithId('/project/n3.md', AGENT)))
+        expect(indicatorEdgeCount()).toBe(3)
+
+        const shadowNodeId: string = getShadowNodeId(AGENT as TerminalId)
+        const edgeId = (target: string): string => `terminal-progress-${shadowNodeId}->${target}`
+        const weightOf = (target: string): number =>
+            cy.getElementById(edgeId(target)).data('recencyWeight') as number
+
+        // Oldest = 0, newest = 1, evenly spaced in between. The stylesheet maps this onto
+        // width (2.5 → 10) and line-opacity (0.15 → 0.9).
+        expect(weightOf('/project/n1.md')).toBe(0)
+        expect(weightOf('/project/n2.md')).toBeCloseTo(0.5)
+        expect(weightOf('/project/n3.md')).toBe(1)
+    })
+
+    it('a single authored node is treated as fully recent (weight 1)', () => {
+        applyDeltaToUI(cy, deltaWith(makeNode(AGENT)))
+        const shadowNodeId: string = getShadowNodeId(AGENT as TerminalId)
+        expect(
+            cy.getElementById(`terminal-progress-${shadowNodeId}->${NODE_ID}`).data('recencyWeight'),
+        ).toBe(1)
     })
 })
