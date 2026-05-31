@@ -36,7 +36,7 @@ import { getFocusedEditorNodeId, getFocusedTerminalShadowNodeId } from '@/shell/
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import type { AutoLayoutOptions, LayoutConfig } from './autoLayoutTypes';
-import { DEFAULT_OPTIONS } from './autoLayoutTypes';
+import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS } from './autoLayoutTypes';
 import { parseLayoutConfig } from './autoLayoutConfig';
 import { registerAutoLayoutTriggers, unregisterAutoLayoutTriggers } from './autoLayoutTriggers';
 import { runLayoutAdapter } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/runLayoutAdapter';
@@ -57,7 +57,7 @@ export { triggerColaLayout, markNodeDirty, triggerFullLayout } from './autoLayou
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
   // Mutable config that gets updated when settings change
-  let currentConfig: LayoutConfig = { engine: 'forceatlas2', cola: { ...DEFAULT_OPTIONS, ...options } };
+  let currentConfig: LayoutConfig = { engine: 'forceatlas2', cola: { ...DEFAULT_OPTIONS, ...options }, forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS };
 
   // Load initial config from settings
   void window.electronAPI?.main.loadSettings().then(settings => {

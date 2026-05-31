@@ -466,7 +466,13 @@ export async function removeReadPathThroughDaemon(path: string): Promise<unknown
 }
 
 export async function setWriteFolderPathThroughDaemon(path: string): Promise<ProjectState> {
-  return await runProjectMutation(`setWriteFolderPath:${path}`, (client) => client.setWriteFolderPath(path))
+  const state: ProjectState = await runProjectMutation(`setWriteFolderPath:${path}`, (client) => client.setWriteFolderPath(path))
+  // Keep the Python text-to-tree server pointed at the active write folder. The
+  // daemon's own loadAndMergeProjectPath notify no-ops (no callback wired there),
+  // so main must re-point the server whenever the write folder changes — otherwise
+  // /send-text keeps writing to the previous directory. See openProject for context.
+  getCallbacks().notifyWriteDirectory?.(state.writeFolderPath)
+  return state
 }
 
 export async function refreshMainGraphFromDaemon(_project?: string): Promise<void> {

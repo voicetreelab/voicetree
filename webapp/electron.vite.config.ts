@@ -20,7 +20,7 @@ import {
 
 // Detect if building for tests (npm run test:*, build:test, etc.)
 const npmScript = process.env.npm_lifecycle_event || ''
-const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
+const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test' || process.env.VITE_E2E_TEST === 'true'
 const devServerHost: true | string = process.env.DEV_SERVER_HOST || true
 const webappDir = __dirname
 

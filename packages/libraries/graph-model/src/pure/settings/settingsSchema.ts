@@ -180,7 +180,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },
     starredFolders:         { default: starredFolders, label: 'Starred Folders' },
     showFps:                { default: false, label: 'Show FPS (WebGL)' },
-    layoutConfig:           { default: JSON.stringify({ engine: 'cola', nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true, tile: true, tilingPaddingVertical: 10, tilingPaddingHorizontal: 10, edgeElasticity: 0.45, edgeLength: 350 }, null, 2), label: 'Layout Config' },
+    layoutConfig:           { default: JSON.stringify({ engine: 'forceatlas2', kr: 5, kg: 1, ks: 0.1, maxIteration: 0, spacing: 60, edgeLength: 450, nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true }, null, 2), label: 'Layout Config' },
     nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },
 
     // ── Hidden (not shown in UI — rendered inside agent-list field) ──────

@@ -268,7 +268,7 @@ test_output/*
 /health-dashboard/reports/*.json
 /health-dashboard/reports/*.json.tmp.*
 /health-dashboard/reports/checks/*.json
-/health-dashboard/reports/scores-history/*.local.csv
+/health-dashboard/reports/scores-history/*.csv
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
 !/health-dashboard/reports/scores-history/
@@ -284,5 +284,7 @@ test_output/*
 
 # ck semantic-search index/cache (not source; must never be committed or scanned)
 .ck/
-.ckignore
 .ckignore.backup
+# NOTE: .ckignore itself IS committed — it's a curated config that scopes ck's
+# index to production TypeScript (mirrors @vt/measures isProductionSourcePath),
+# not the auto-generated default. ck won't overwrite an existing .ckignore.

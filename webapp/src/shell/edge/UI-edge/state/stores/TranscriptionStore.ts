@@ -81,15 +81,27 @@ function notifyListeners(): void {
     listeners.forEach(l => l());
 }
 
-// Expose store for e2e testing
-if (typeof window !== 'undefined') {
-    (window as unknown as { __TRANSCRIPTION_STORE__: {
-        appendManualText: typeof appendManualText;
-        reset: typeof reset;
-        getDisplayTokenCount: typeof getDisplayTokenCount;
-    } }).__TRANSCRIPTION_STORE__ = {
-        appendManualText,
-        reset,
-        getDisplayTokenCount,
+// Test-only window seams. Present in dev and in explicit e2e/test builds
+// (`VITE_E2E_TEST`, the repo's test-build signal — see electron.vite.config.ts and
+// main.tsx). Normal production builds set neither, so Vite's dead-code elimination
+// strips the whole block (and these globals) from production bundles.
+if ((import.meta.env.VITE_E2E_TEST === 'true' || !import.meta.env.PROD) && typeof window !== 'undefined') {
+    const testWindow = window as unknown as {
+        __TRANSCRIPTION_STORE__: {
+            appendManualText: typeof appendManualText;
+            reset: typeof reset;
+            getDisplayTokenCount: typeof getDisplayTokenCount;
+        };
+        __VOICE_TEST__: {
+            /**
+             * Inject a fake Soniox token stream into the renderer. This calls the
+             * EXACT callback the Soniox SDK invokes (onVoiceResult / onPartialResult),
+             * so the real downstream path runs with no mic or network:
+             *   emitVoiceResult -> store -> useTranscriptionSender -> POST /send-text.
+             */
+            emitVoiceResult: typeof onVoiceResult;
+        };
     };
+    testWindow.__TRANSCRIPTION_STORE__ = { appendManualText, reset, getDisplayTokenCount };
+    testWindow.__VOICE_TEST__ = { emitVoiceResult: onVoiceResult };
 }

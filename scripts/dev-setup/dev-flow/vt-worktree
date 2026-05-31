@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# vt-worktree — create a writable worktree off origin/<branch> (the ONLY place
+# you edit, since the base is read-only). Branch defaults to $VT_BASE_BRANCH.
+# git-gate owns placement (under this machine's worktree root) and auto-installs
+# deps, so just pass a name.
+#
+# The command that takes you INTO a worktree must work from ANY cwd — you do not
+# live in the base — so it resolves the base (VT_BASE_DIR, else this machine's
+# repo) and runs every git against it with `git -C "$base"`, rather than assuming
+# the cwd is a checkout.
+#
+# Usage:
+#   vt-worktree <name> [<branch>]    # branch defaults to dev-manu (VT_BASE_BRANCH)
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+  _t="$(readlink "$_self")"
+  case "$_t" in /*) _self="$_t" ;; *) _self="$(cd "$(dirname "$_self")" && pwd)/$_t" ;; esac
+done
+_DIR="$(cd "$(dirname "$_self")" && pwd)"
+# shellcheck source=_common.sh
+. "$_DIR/_common.sh"
+
+name="${1:-}"
+branch="${2:-${VT_BASE_BRANCH:-dev-manu}}"
+if [ -z "$name" ] || [ "$name" = "-h" ] || [ "$name" = "--help" ]; then
+  echo "usage: vt-worktree <name> [<branch>]   (branch defaults to ${VT_BASE_BRANCH:-dev-manu})" >&2
+  [ -z "$name" ] && exit 64 || exit 0
+fi
+
+# Resolve the base checkout; never depend on the caller's cwd being a repo.
+base="${VT_BASE_DIR:-$(self_repo)}"
+[ -d "$base/.git" ] || {
+  echo "vt-worktree: base '$base' is not a git repository." >&2
+  echo "  Set VT_BASE_DIR to your base checkout (the read-only cache of origin)." >&2
+  exit 1
+}
+
+# Refresh origin so we branch off the latest (the base may be mid-tick).
+git -C "$base" fetch origin "$branch" >/dev/null 2>&1 || git -C "$base" fetch origin >/dev/null 2>&1 || true
+
+# git-gate rewrites the destination into this machine's worktree root and runs
+# the dep bootstrap; we pass a bare name and read the resulting path back.
+git -C "$base" worktree add -b "$name" "$name" "origin/$branch"
+
+path="$(git -C "$base" worktree list --porcelain | awk -v b="refs/heads/$name" '
+  /^worktree /{p=$2} $0=="branch "b{print p; exit}')"
+echo ""
+echo "vt-worktree: created '$name' off origin/$branch"
+[ -n "$path" ] && echo "  cd $path     # edit + run there; then: vt-land \"msg\"  (or vt-pr)"

@@ -1,14 +1,21 @@
-import type { LayoutEngine, LayoutConfig, AutoLayoutOptions } from './autoLayoutTypes';
-import { DEFAULT_OPTIONS } from './autoLayoutTypes';
+import type { LayoutEngine, LayoutConfig, AutoLayoutOptions, ForceAtlas2Options } from './autoLayoutTypes';
+import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS } from './autoLayoutTypes';
 
 const VALID_ENGINES: readonly LayoutEngine[] = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
+
+const numberOr = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
 /**
  * Parse layoutConfig JSON string into typed layout options.
  * Falls back to cola defaults on any parse error.
  */
 export function parseLayoutConfig(json: string | undefined): LayoutConfig {
-  const defaults: LayoutConfig = { engine: 'forceatlas2', cola: DEFAULT_OPTIONS };
+  const defaults: LayoutConfig = {
+    engine: 'forceatlas2',
+    cola: DEFAULT_OPTIONS,
+    forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS,
+  };
   if (!json) {
     return defaults;
   }
@@ -19,6 +26,15 @@ export function parseLayoutConfig(json: string | undefined): LayoutConfig {
     const engine: LayoutEngine = VALID_ENGINES.includes(parsedEngine as LayoutEngine)
       ? (parsedEngine as LayoutEngine)
       : defaults.engine;
+
+    const forceatlas2: ForceAtlas2Options = {
+      kr: numberOr(parsed.kr, DEFAULT_FORCEATLAS2_OPTIONS.kr),
+      kg: numberOr(parsed.kg, DEFAULT_FORCEATLAS2_OPTIONS.kg),
+      ks: numberOr(parsed.ks, DEFAULT_FORCEATLAS2_OPTIONS.ks),
+      maxIteration: numberOr(parsed.maxIteration, DEFAULT_FORCEATLAS2_OPTIONS.maxIteration),
+      spacing: numberOr(parsed.spacing, DEFAULT_FORCEATLAS2_OPTIONS.spacing),
+      edgeLength: numberOr(parsed.edgeLength, DEFAULT_FORCEATLAS2_OPTIONS.edgeLength),
+    };
 
     const cola: AutoLayoutOptions = {
       ...DEFAULT_OPTIONS,
@@ -32,7 +48,7 @@ export function parseLayoutConfig(json: string | undefined): LayoutConfig {
         : DEFAULT_OPTIONS.edgeLength,
     };
 
-    return { engine, cola };
+    return { engine, cola, forceatlas2 };
   } catch {
     return defaults;
   }

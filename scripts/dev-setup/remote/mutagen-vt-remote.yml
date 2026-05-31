@@ -31,6 +31,13 @@ sync:
         - "**/*.cache*"
         - "**/.DS_Store"
         - "**/*.DS_Store*"
+        # .env is machine-local config — notably VT_REMOTE_HOST. Mirroring the
+        # Mac's .env into the devbox replica makes run-remote, when invoked from
+        # the replica, resolve a remote host and try to route to itself (a
+        # self-routing loop waiting on a phantom mutagen session). Each machine
+        # owns its own .env; never sync it.
+        - ".env"
+        - "**/.env"
         - "**/*.log"
         - "**/*.db"
         - "**/*.db-*"

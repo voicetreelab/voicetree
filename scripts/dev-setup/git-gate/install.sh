@@ -103,10 +103,47 @@ ensure_vt_worktree_root_env() {
   } >> "$shell_file"
 }
 
+# Close the non-login / non-interactive gap. The shell-init files above only
+# prepend $HOME/bin for interactive & login shells, but agents are spawned via
+# `ssh host "<cmd>"` — a non-login, non-interactive shell that never sources
+# them, so the gate is invisible to them. On Linux, /etc/environment is applied
+# by pam_env to EVERY ssh session (including bare command execution), so it is
+# the one lever that reaches spawned agents. Prepend $HOME/bin to its PATH.
+# (macOS has no /etc/environment and its agents run in shells that source the
+# init files above, so this is Linux-only.)
+ensure_git_gate_path_etc_environment() {
+  [ "$(uname -s)" = "Linux" ] || return 0
+  local env_file="/etc/environment" bindir="$HOME/bin"
+  if ! { [ -w "$env_file" ] || [ -w "$(dirname "$env_file")" ]; }; then
+    echo "→ install.sh: cannot write $env_file (need root); skipping non-login PATH setup" >&2
+    return 0
+  fi
+  local current
+  current="$(grep -E '^[[:space:]]*PATH=' "$env_file" 2>/dev/null | head -1 \
+    | sed -E 's/^[[:space:]]*PATH=//; s/^"//; s/"$//')"
+  [ -n "$current" ] || current="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  case "$current:" in
+    "$bindir:"*)
+      echo "→ install.sh: $bindir already first in $env_file PATH (skip)"
+      return 0 ;;
+  esac
+  # Drop any non-leading occurrence of bindir, then prepend it (idempotent:
+  # repeated runs converge to bindir-first without duplicates).
+  local deduped
+  deduped="$(printf ':%s:' "$current" | sed "s#:$bindir:#:#g; s#^:##; s#:\$##")"
+  local tmp="$env_file.gitgate.tmp"
+  grep -vE '^[[:space:]]*PATH=' "$env_file" 2>/dev/null > "$tmp" || true
+  echo "PATH=\"$bindir:$deduped\"" >> "$tmp"
+  cat "$tmp" > "$env_file"   # cat (not mv) to preserve $env_file's perms/owner
+  rm -f "$tmp"
+  echo "→ install.sh: prepended $bindir to PATH in $env_file (gates non-login/agent shells)"
+}
+
 for init_file in "${SHELL_INIT_FILES[@]}"; do
   ensure_git_gate_path "$init_file"
   ensure_vt_worktree_root_env "$init_file" "$VT_WORKTREE_ROOT_VALUE"
 done
+ensure_git_gate_path_etc_environment
 echo "→ install.sh: set VT_WORKTREE_ROOT=$VT_WORKTREE_ROOT_VALUE in ${SHELL_INIT_FILES[*]}"
 
 # Idempotently maintain a single managed `export GIT_GATE_PASS=...` line in a
