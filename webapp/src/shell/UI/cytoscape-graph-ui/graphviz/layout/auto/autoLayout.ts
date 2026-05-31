@@ -174,12 +174,19 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     const components: CollectionReturnValue[] = participants.components();
     if (components.length <= 1) return;
     const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
-      nodes: comp.nodes().map((n: NodeSingular) => ({
-        x: n.position('x'),
-        y: n.position('y'),
-        width: n.outerWidth(),
-        height: n.outerHeight(),
-      })),
+      nodes: comp.nodes().map((n: NodeSingular) => {
+        // Pack on the LABEL-INCLUSIVE box so the inter-component gap clears titles
+        // (labels extend below/around the node, so the node position is not the
+        // box center). The returned shift is a pure translation, so applying it to
+        // node positions remains correct despite the center offset.
+        const bb = n.boundingBox({ includeLabels: true, includeOverlays: false, includeEdges: false });
+        return {
+          x: (bb.x1 + bb.x2) / 2,
+          y: (bb.y1 + bb.y2) / 2,
+          width: bb.w,
+          height: bb.h,
+        };
+      }),
       edges: comp.edges()
         .filter((e: EdgeSingular): boolean => e.sourceEndpoint() != null && e.targetEndpoint() != null)
         .map((e: EdgeSingular) => ({
