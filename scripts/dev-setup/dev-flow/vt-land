@@ -4,6 +4,15 @@
 # check, push to origin, and nudge BOTH caches. No PR, no CI — use vt-pr for
 # reviewed work.
 #
+# "No CI" is enforced: the push is --no-verify, so the heavy tier<=1 pre-push
+# hook (scripts/hooks/pre-push, which ships the worktree to the VM via
+# run-remote) never fires. vt-land's gate is the FAST LOCAL check below — that
+# is the D8 contract. The remote pre-push path also cannot work for a Mac-
+# authored worktree (the worktree's `.git` pointer, mirrored verbatim by the
+# vt-wts one-way-replica, points at the Mac base and is continually reverted by
+# mutagen on the VM), so honouring D8 here is also what makes Mac-worktree
+# authoring work at all. Reviewed work that wants full CI uses vt-pr (PR CI).
+#
 # Usage:
 #   vt-land "message"               # land onto the worktree's upstream (else dev-manu)
 #   vt-land --onto <branch> "msg"   # land onto an explicit branch
@@ -47,7 +56,10 @@ require_worktree
 if [ -n "$(git status --porcelain)" ]; then
   [ -n "$msg" ] || { echo "vt-land: working tree has changes — give a commit message: vt-land [--onto BR] \"msg\"" >&2; exit 1; }
   git add -A
-  git commit -m "$msg"
+  # --no-verify: skip the pre-commit hook (it routes tier-0 + subgraph-gate to
+  # the VM via run-remote, which cannot operate on a Mac-authored worktree — see
+  # the header note). The quick path's gate is the explicit local check below.
+  git commit --no-verify -m "$msg"
 elif [ -n "$msg" ]; then
   echo "vt-land: nothing to commit; landing the existing HEAD (message ignored)" >&2
 fi
@@ -80,6 +92,10 @@ if [ "$head_sha" = "$onto_before" ]; then
 fi
 
 # Fast local sanity gate (OD-3): keep a broken commit off the shared branch.
+# Runs LOCALLY on this machine (no remote round-trip) — it is the ONLY gate for
+# the quick path, since the push below is --no-verify. The root `typecheck`
+# script maps to CI's actual type gate (`webapp-check` = `tsc --noEmit` +
+# e2e-taxonomy), so a green local check means the same thing CI's type job means.
 # Override with VT_LAND_CHECK="<command>"; set VT_LAND_CHECK= (empty) to skip.
 run_local_check() {
   if [ "${VT_LAND_CHECK+set}" = set ]; then
@@ -90,7 +106,7 @@ run_local_check() {
   fi
   local root; root="$(git rev-parse --show-toplevel)"
   if [ -f "$root/package.json" ] && grep -q '"typecheck"' "$root/package.json" 2>/dev/null; then
-    echo "vt-land: running 'pnpm -s typecheck'" >&2
+    echo "vt-land: running 'pnpm -s typecheck' (CI's type gate, run locally)" >&2
     ( cd "$root" && pnpm -s typecheck ) || { echo "vt-land: typecheck failed — NOT landing" >&2; exit 1; }
   else
     echo "vt-land: no 'typecheck' script and no VT_LAND_CHECK — skipping local gate (set VT_LAND_CHECK to enforce one)" >&2
@@ -98,8 +114,10 @@ run_local_check() {
 }
 run_local_check
 
-echo "vt-land: pushing HEAD → origin/$onto"
-git push origin "HEAD:$onto"
+# --no-verify: the quick path's gate is the LOCAL check above (D8 "no CI"). The
+# tier<=1 pre-push hook is bypassed deliberately — see the header note.
+echo "vt-land: pushing HEAD → origin/$onto (--no-verify; local gate already ran)"
+git push --no-verify origin "HEAD:$onto"
 
 # A successful push updates the local refs/remotes/origin/$onto. Assert the ref
 # actually advanced to our HEAD before claiming success — never report "landed"

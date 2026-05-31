@@ -39,10 +39,25 @@ The one rule to hold, identical on Mac and VM:
 vt-worktree feat            # git worktree add -b feat … origin/dev-manu (gate places + installs deps)
 cd <printed path>           # edit + run the app here (the base rejects commits)
 # quick / solo:
-vt-land "msg"               # commit → fetch → rebase origin/dev-manu → fast check → push HEAD:dev-manu → nudge both caches
+vt-land "msg"               # commit → fetch → rebase origin/dev-manu → fast LOCAL check → push --no-verify HEAD:dev-manu → nudge both caches
 # reviewed:
-vt-pr  "msg"                # push feature branch + gh pr create --base dev-manu → CI → merge
+vt-pr  "msg"                # push feature branch --no-verify + gh pr create --base dev-manu → CI → merge
 ```
+
+**The gate (D8).** `vt-land`'s only gate is a FAST LOCAL check — the root
+`typecheck` script (`pnpm --filter voicetree-webapp run check` = `tsc --noEmit`
++ e2e-taxonomy, exactly CI's `webapp-check` type job), run on this machine.
+Override per-invocation with `VT_LAND_CHECK="<cmd>"` (empty = skip). Both helpers
+commit AND push with `--no-verify`, bypassing the repo git hooks — pre-commit
+(`tier<=0` + subgraph-health) and pre-push (`tier<=1`) — by design: `vt-land` is
+the "no CI" quick path and `vt-pr`'s CI is the PR's. This is also load-bearing
+for Mac-authored worktrees: both hooks run git INSIDE the worktree on the VM (via
+`run-remote`), but the worktree's `.git` pointer is mirrored verbatim by the
+`vt-wts` one-way-replica (it points at the Mac base) and mutagen continually
+reverts any VM-side repair → git in the mirrored worktree fails. Bypassing the
+hooks side-steps that; the full tiers still run in real CI on the PR (`vt-pr`).
+Trade-off: the quick path no longer runs the pre-commit `pnpm-lock` sync check,
+so add dependencies via `vt-pr` (CI catches lock drift), not `vt-land`.
 
 The **daily-driver worktree** (`$VT_WORKTREE_ROOT/daily` on `daily-mac` /
 `daily-vm`, created by the installer) is the stable "local dev" home so you never
@@ -105,9 +120,27 @@ ssh (`ssh mac …` / `ssh $VT_REMOTE_HOST …`), never via the `vt` name.
 | `vt-worktree` | `dev-flow/vt-worktree` | both | make a writable worktree off origin |
 
 Kept mutagen sessions (created via `vt-remote.sh`): `vt-wts` (Mac→VM worktree
-mirror for remote test runs) and the health-dashboard data syncs (`vt-csv-history`,
-`vt-reports`). The retired `vt-remote` full-repo replica (`/root/vtrepo-synced`)
-is gone — teardown with `mutagen sync terminate vt-remote`.
+mirror) and the health-dashboard data syncs (`vt-csv-history`, `vt-reports`).
+
+`vt-remote` (the `/root/vtrepo-synced` full-repo replica) is **retired in code**
+— `install.sh` no longer creates it and `git-gate.sh` no longer references it —
+but **the live session is not yet terminated**, because `scripts/run-remote.mjs`
+still hard-codes `/root/vtrepo-synced` as the git-admin home for worktree remote
+test runs (`REMOTE_ROOT`). Until `run-remote` is reworked to resolve worktree git
+against a non-replica base, terminating `vt-remote` breaks `run-remote` from a
+worktree. Since the dev-flow (`vt-land`/`vt-pr`) no longer touches `run-remote`
+(it pushes `--no-verify` and checks locally), the only thing still depending on
+the replica is `pnpm test`-style remote test runs. Teardown when that is reworked
+or no agent needs remote test runs: `mutagen sync terminate vt-remote`.
+
+**Deleting a PR branch under git-gate.** `gh pr close --delete-branch` shells
+`git branch -D` with no TTY → git-gate blocks it (force-delete is a destructive
+op the gate guards). For a **merged** PR the branch is fully merged, so the safe,
+ungated `git branch -d <branch>` works — prefer it. For a closed-unmerged branch,
+do the two steps explicitly (the force-delete is intentionally gated): close +
+delete the remote branch with `gh pr close <pr>` then `git push origin --delete
+<branch>`, and remove the local branch with an authorized `git branch -D` (the
+gate prompts) only if you truly mean to discard unmerged work.
 
 ## Worktree placement (owned by the git wrapper, not the app)
 

@@ -3,6 +3,13 @@
 # and open a PR against the integration branch via gh. Slower on purpose (CI +
 # review); use vt-land for quick solo changes.
 #
+# The branch push is --no-verify: the gate for reviewed work is the PR's CI
+# (measures-budget-gate runs on pull_request), not the local tier<=1 pre-push
+# hook. That hook ships the worktree to the VM via run-remote and cannot work
+# for a Mac-authored worktree anyway (mutagen reverts the worktree's `.git`
+# pointer on the VM), so bypassing it is what makes vt-pr work from a Mac
+# worktree. CI still gates the merge.
+#
 # Usage:
 #   vt-pr ["message"]               # PR against the worktree's upstream (else dev-manu)
 #   vt-pr --onto <branch> ["msg"]   # PR against an explicit base branch
@@ -39,15 +46,22 @@ if [ "$branch" = "$onto" ]; then
   exit 1
 fi
 
-if { ! git diff --quiet || ! git diff --cached --quiet; } && [ -n "$msg" ]; then
-  git commit -am "$msg"
-elif { ! git diff --quiet || ! git diff --cached --quiet; }; then
+# Stage EVERYTHING (git add -A) — tracked edits AND brand-new files — so a PR
+# that introduces a new file does the obvious thing. (`git commit -am` staged
+# only tracked edits, silently dropping new files — the same footgun vt-land
+# already fixed.) git-ignored files are excluded by git add -A.
+if [ -n "$(git status --porcelain)" ] && [ -n "$msg" ]; then
+  git add -A
+  # --no-verify: the pre-commit hook routes to the VM via run-remote (broken for
+  # a Mac-authored worktree); CI on the PR is the real gate. See the header note.
+  git commit --no-verify -m "$msg"
+elif [ -n "$(git status --porcelain)" ]; then
   echo "vt-pr: uncommitted changes present — commit them first, or pass a message: vt-pr \"msg\"" >&2
   exit 1
 fi
 
-echo "vt-pr: pushing $branch to origin"
-git push -u origin "$branch"
+echo "vt-pr: pushing $branch to origin (--no-verify; CI gates the PR/merge)"
+git push --no-verify -u origin "$branch"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "vt-pr: pushed '$branch'. gh CLI not found — open the PR manually against '$onto'." >&2
