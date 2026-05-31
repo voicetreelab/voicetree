@@ -1,5 +1,0 @@
-[?2004hbash-5.3$ printf '\033[32mPIPE_PANE_SMOKE_ANSI\033[0m\n'; claude --print 'Reply with PIPE_PANE_RENDER_PASS and nothing else.'; echo PIPE_PANE_SMOKE_DONE
-[?2004l[32mPIPE_PANE_SMOKE_ANSI[0m
-PIPE_PANE_RENDER_PASS
-[?1006l[?1003l[?1002l[?1000l[>4m[<u[?1004l[?2031l[?2004l[?25h7[r8]0;[?25hPIPE_PANE_SMOKE_DONE
-[?2004hbash-5.3$ 
