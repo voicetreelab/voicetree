@@ -88,6 +88,20 @@ Expect a path for each (no `MISSING:` lines) and version strings for
 - `ck` on a non-x86_64 box has no prebuilt binary — the installer prints a
   manual-install note (`cargo install ck-search`) instead of failing.
 
+## Verify SSH multiplexing to the Mac
+
+`setup-devbox-env.sh` writes `~/.ssh/config` on the devbox that multiplexes the
+reverse-tunnel connection to the Mac and adds a `mac` host alias. Without it,
+**every** `ssh` to the Mac — and every `vt` command, which shells out to ssh —
+pays a fresh ~3s handshake. Confirm it landed:
+
+```bash
+ssh "$VT_REMOTE_HOST" 'grep -q "vt-devbox ssh-mux" ~/.ssh/config && echo OK || echo MISSING'
+```
+
+Expect `OK`. From then on `ssh mac` works flag-free, and only the first call per
+10-minute window pays the handshake — the rest reuse one connection (~instant).
+
 ## Optional: destructive-git prompt
 
 ```bash

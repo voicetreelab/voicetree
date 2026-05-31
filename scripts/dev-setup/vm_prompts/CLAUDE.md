@@ -3,10 +3,15 @@
 ## SSH to Mac (bobbobby's machine)
 
 ```bash
+ssh mac        # alias from setup-devbox-env.sh — multiplexed, no flags needed
+# explicit equivalent:
 ssh -i ~/.ssh/id_ed25519_mac -p 2222 bobbobby@localhost
 ```
 
 - Port 2222 on localhost (reverse tunnel from Mac)
+- `ssh mac` reuses one multiplexed connection (ControlMaster), so only the first
+  call per 10-min window pays the ~3s handshake — the rest are ~instant. Every
+  `vt` command rides the same shared connection.
 - Passwordless auth set up (server key in Mac's authorized_keys)
 - Mac public key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMoI+zoCn1wM87rmFoWeqEZoSl31uUOQassVdja98McH orbstack`
 
