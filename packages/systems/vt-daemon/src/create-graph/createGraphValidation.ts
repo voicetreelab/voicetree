@@ -40,6 +40,8 @@ export interface ValidationContext {
     readonly callerTaskNodeId: NodeIdAndFilePath | null
     readonly graph: Graph
     readonly lineLimit: number
+    readonly subgraphWarnThreshold: number
+    readonly subgraphErrorThreshold: number
 }
 
 // ============================================================================

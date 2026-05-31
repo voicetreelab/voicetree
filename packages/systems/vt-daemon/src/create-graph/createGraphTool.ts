@@ -18,6 +18,7 @@ import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
+import {DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
     ALL_RULES,
@@ -186,6 +187,8 @@ async function validateOverridableRules(
         callerTaskNodeId,
         graph,
         lineLimit: settings.nodeLineLimit ?? 70,
+        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
+        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
     })
     if (validationResult.status !== 'violations') return null
 
