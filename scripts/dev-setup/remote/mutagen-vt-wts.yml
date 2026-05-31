@@ -58,9 +58,15 @@ sync:
         - "**/folder-visibility.db*"
         - "**/*folder-visibility.db*"
         - "**/.voicetree/graphd.owner.json"
-        # Worktree `.git` is a *file* (gitdir pointer), not a directory.
-        # Sync the file itself so the worktree is usable on remote, but
-        # ignore lock/index churn that would conflict with local git work.
-        - ".git/index"
-        - ".git/index.lock"
-        - ".git/*.lock"
+        # Each worktree's `.git` is a *file* (gitdir pointer), not a directory,
+        # and it is MACHINE-SPECIFIC: it names the main checkout by basename
+        # (`gitdir: ../../vtrepo/...` on the Mac vs `../../vtrepo-synced/...` on
+        # the devbox, whose main checkout dir differs). Mirroring it writes the
+        # Mac path onto the devbox — breaking `git -C <worktree>` there — and a
+        # one-way-replica cycle would re-clobber any remote repair. So never
+        # sync it: scripts/run-remote.mjs materializes the correct devbox
+        # pointer (repairRemoteWorktreeMetadataScript) before each command.
+        # The admin-side gitdir/commondir under the main checkout's
+        # .git/worktrees/<name>/ ARE relative + identical across the mirror, so
+        # they sync correctly via the vt-remote session.
+        - "**/.git"
