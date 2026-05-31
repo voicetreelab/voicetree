@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -193,6 +193,13 @@ const BINARIES = [
   },
 ]
 
+// The filenames a complete install writes into BIN_DIR — one per binary
+// (installArchive/installSourceBuild both target `join(BIN_DIR, binary.name)`).
+// Exported so the preflight (ensure-perf-stack.mjs) can test install
+// *completeness* against the same source of truth the installer produces,
+// rather than guessing from directory non-emptiness. The two can never drift.
+export const BINARY_NAMES = BINARIES.map((binary) => binary.name)
+
 const exists = async (path) => access(path).then(() => true, () => false)
 
 const readManifest = async () => {
@@ -354,6 +361,28 @@ const copyTree = async (from, to) => {
   await import('node:fs/promises').then((fs) => fs.cp(from, to, { recursive: true }))
 }
 
+// "go version go1.20.1 darwin/arm64" -> [1, 20, 1]; unrecognized output -> null.
+export const parseGoVersion = (stdout) => {
+  const match = /go(\d+)\.(\d+)(?:\.(\d+))?/.exec(stdout ?? '')
+  if (!match) return null
+  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)]
+}
+
+// True iff version triple `a` is >= `b`, each being [major, minor, patch].
+export const versionGte = (a, b) => {
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] !== b[i]) return a[i] > b[i]
+  }
+  return true
+}
+
+// The source builds lean on GOTOOLCHAIN=auto (below) to download whatever
+// toolchain a dependency's go.mod requests — Tempo's go.mod declares go 1.26.2.
+// That mechanism was introduced in Go 1.21; on older Go it silently doesn't
+// exist and the build dies with a misattributed "invalid go version" go.mod
+// parse error. So the real, load-bearing precondition is Go >= 1.21.
+const MIN_GO_VERSION = [1, 21, 0]
+
 const installSourceBuild = async (binary, manifest) => {
   const pinnedSha = binary.sha256[PLATFORM]
   if (!pinnedSha) {
@@ -367,6 +396,15 @@ const installSourceBuild = async (binary, manifest) => {
 
   const goVersion = spawnSync('go', ['version'], { encoding: 'utf8' })
   if (goVersion.status !== 0) throw new Error(`${binary.name} requires go for the ${PLATFORM} source build`)
+
+  const installedGo = parseGoVersion(goVersion.stdout)
+  if (!installedGo || !versionGte(installedGo, MIN_GO_VERSION)) {
+    const found = installedGo ? installedGo.join('.') : `unrecognized (${goVersion.stdout?.trim()})`
+    throw new Error(
+      `${binary.name} needs Go >= ${MIN_GO_VERSION.join('.')} to bootstrap the toolchain its ` +
+        `go.mod requests; found ${found}. Install a newer Go (e.g. \`brew install go\`) and re-run perf:install.`,
+    )
+  }
 
   const tempDir = await mkdtemp(join(tmpdir(), `vt-perf-${binary.name}-`))
   try {
@@ -434,7 +472,15 @@ const main = async () => {
   }
 }
 
-main().catch((err) => {
-  console.error(err.message)
-  process.exit(1)
-})
+// Run the installer only when invoked as a script. Guarding the entrypoint
+// keeps the module importable (e.g. for BINARY_NAMES / the pure helpers) without
+// triggering a full install as a side effect of `import`.
+// `process.argv[1]` is absent under `node -e`, workers, and some test runners;
+// guard it so an import in those contexts can't crash on pathToFileURL(undefined).
+const isEntrypoint = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isEntrypoint) {
+  main().catch((err) => {
+    console.error(err.message)
+    process.exit(1)
+  })
+}

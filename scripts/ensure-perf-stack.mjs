@@ -2,7 +2,9 @@
 // Idempotent preflight that makes the local LGTM perf stack ready and resolves
 // the OTLP endpoint a launched process should export to.
 //
-//   - installs the native binaries if infra/perf-stack/bin/ is empty (first run)
+//   - installs the native binaries if any expected binary is missing (first run,
+//     or recovery from an interrupted install — install-binaries.mjs is
+//     idempotent and only does work for the binaries not already in place)
 //   - brings the stack up (lifecycle.mjs `up` is itself idempotent: its ps-scan
 //     skips services that are already running, so a warm stack is a fast no-op)
 //   - returns the OTLP gRPC endpoint + a per-run service.instance.id
@@ -19,12 +21,12 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { DEFAULT_OTLP_ENDPOINT, GRAFANA_BASE_URL } from './perf-stack-endpoints.mjs'
+import { BINARY_NAMES } from '../infra/perf-stack/scripts/install-binaries.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PERF_BIN_DIR = join(REPO_ROOT, 'infra/perf-stack/bin')
 const INSTALL_SCRIPT = join(REPO_ROOT, 'infra/perf-stack/scripts/install-binaries.mjs')
 const LIFECYCLE_SCRIPT = join(REPO_ROOT, 'infra/perf-stack/scripts/lifecycle.mjs')
-const INSTALL_MANIFEST = '.install-manifest.json'
 
 // Opt-out lever: PERF_STACK=0 makes the preflight a complete no-op so the
 // launched process runs exactly as it does today (NDJSON-only, no collector).
@@ -44,7 +46,7 @@ export const INTERACTIVE_PERF_TIER = 'lite'
  * @typedef {object} EnsurePerfStackPorts
  * @property {NodeJS.ProcessEnv} env                                    base environment (read-only)
  * @property {(action: PerfStackAction) => Promise<{ code: number, stdout?: string, stderr?: string }>} run  effect boundary
- * @property {() => Promise<boolean>} binHasContents                    true when binaries are already installed
+ * @property {() => Promise<boolean>} installIsComplete                 true when every expected binary is present
  * @property {(message: string) => void} [log]                          progress sink (defaults to stderr)
  * @property {() => string} [newRunId]                                  fresh run id factory (defaults to uuid v4)
  */
@@ -56,7 +58,7 @@ export const INTERACTIVE_PERF_TIER = 'lite'
 export async function ensurePerfStack({
   env,
   run,
-  binHasContents,
+  installIsComplete,
   log = (message) => process.stderr.write(`${message}\n`),
   newRunId = randomUUID,
 }) {
@@ -64,8 +66,12 @@ export async function ensurePerfStack({
     return { enabled: false }
   }
 
-  if (!(await binHasContents())) {
-    log('installing perf stack (first run only)…')
+  // Re-runs whenever the install is incomplete — a partial/interrupted install
+  // converges here rather than wedging. The installer is idempotent, so on a
+  // complete stack this branch is skipped and on a partial one it only fills
+  // in the missing binaries.
+  if (!(await installIsComplete())) {
+    log('installing perf stack…')
     const install = await run('install')
     if (install.code !== 0) {
       throw new Error(perfStackFailure('install perf stack binaries', install))
@@ -109,12 +115,15 @@ function perfStackFailure(action, result) {
 // CLI shell — real ports + command launch. Everything below is the impure edge.
 // ---------------------------------------------------------------------------
 
-async function realBinHasContents() {
+async function realInstallIsComplete() {
   try {
-    const entries = await readdir(PERF_BIN_DIR)
-    return entries.some((entry) => entry !== INSTALL_MANIFEST)
+    const present = new Set(await readdir(PERF_BIN_DIR))
+    // Complete iff every binary the installer produces is on disk. A partial
+    // install (some names missing) reads as incomplete, so the preflight
+    // re-runs the idempotent installer instead of proceeding to a doomed `up`.
+    return BINARY_NAMES.every((name) => present.has(name))
   } catch {
-    // ENOENT (dir absent) → binaries not installed.
+    // ENOENT (dir absent) → nothing installed yet.
     return false
   }
 }
@@ -147,7 +156,7 @@ async function main(argv = process.argv.slice(2), baseEnv = process.env) {
   const result = await ensurePerfStack({
     env: baseEnv,
     run: realRun,
-    binHasContents: realBinHasContents,
+    installIsComplete: realInstallIsComplete,
   })
 
   const [command, ...commandArgs] = argv
@@ -179,7 +188,9 @@ async function main(argv = process.argv.slice(2), baseEnv = process.env) {
   return code ?? 1
 }
 
-const isEntrypoint = import.meta.url === pathToFileURL(process.argv[1]).href
+// `process.argv[1]` is absent under `node -e`, workers, and some test runners;
+// guard it so an import in those contexts can't crash on pathToFileURL(undefined).
+const isEntrypoint = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
 if (isEntrypoint) {
   main().then(
     (code) => {
