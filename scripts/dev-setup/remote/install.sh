@@ -150,6 +150,46 @@ ssh "$VT_REMOTE_HOST" "
 " || fail "earlyoom install failed"
 ok "earlyoom active (kills heaviest user proc before kernel-OOM)"
 
+step "installing agent code-search tools on $VT_REMOTE_HOST (ast-grep, ck, cgcli)"
+# The code-navigation tools CLAUDE.md / AGENTS.md tell agents to prefer over grep:
+#   - ast-grep : AST-precise structural search/rewrite (npm @ast-grep/cli)
+#   - ck       : local semantic / BM25 code search (prebuilt GitHub release binary)
+#   - cgcli    : in-repo symbol-resolved call-graph CLI, exposed via a PATH shim
+# ast-grep installs into an isolated prefix and we link ONLY its `ast-grep`
+# binary into PATH — its bundled `sg` alias would otherwise clobber the
+# shadow-utils `sg` (group) command at /usr/bin/sg. ck ships a prebuilt
+# x86_64-linux binary, so no Rust toolchain is needed; other arches get a
+# clear manual-install note rather than a silent failure. All three are
+# idempotent (guarded by `command -v` / `ln -sfn`).
+CK_VERSION="0.7.11"
+ssh "$VT_REMOTE_HOST" "
+  set -e
+  # ast-grep — isolated prefix, expose only the ast-grep binary
+  if ! command -v ast-grep >/dev/null; then
+    npm install -g --prefix /usr/local/ast-grep @ast-grep/cli
+  fi
+  ln -sfn /usr/local/ast-grep/bin/ast-grep /usr/local/bin/ast-grep
+  # ck — prebuilt linux x86_64 release binary (avoids a Rust build)
+  if ! command -v ck >/dev/null; then
+    arch=\$(uname -m)
+    if [ \"\$arch\" = x86_64 ]; then
+      tmp=\$(mktemp -d)
+      curl -fsSL -o \"\$tmp/ck.tgz\" \
+        https://github.com/BeaconBay/ck/releases/download/$CK_VERSION/ck-$CK_VERSION-x86_64-unknown-linux-gnu.tar.gz
+      tar xzf \"\$tmp/ck.tgz\" -C \"\$tmp\"
+      install -m 0755 \"\$tmp/ck\" /usr/local/bin/ck
+      rm -rf \"\$tmp\"
+    else
+      echo \"  (ck: no prebuilt linux binary for \$arch — install manually: cargo install ck-search)\" >&2
+    fi
+  fi
+  # cgcli — PATH shim to the in-repo @vt/code-graph-cli (runs under tsx)
+  ln -sfn $REMOTE_DIR/scripts/dev-setup/remote/cgcli.sh /usr/local/bin/cgcli
+  ast-grep --version
+  command -v ck >/dev/null && ck --version || true
+" || fail "code-search tools install failed"
+ok "ast-grep, ck, cgcli on PATH (cgcli needs node_modules; resolves per-worktree)"
+
 step "creating mutagen vt-remote session"
 if mutagen sync list vt-remote >/dev/null 2>&1; then
   ok "session already exists (skip create)"
