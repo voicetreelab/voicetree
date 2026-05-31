@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# vt-worktree — create a writable worktree off origin/<branch> (the ONLY place
+# you edit, since the base is read-only). Branch defaults to $VT_BASE_BRANCH.
+# git-gate owns placement (under this machine's worktree root) and auto-installs
+# deps, so just pass a name.
+#
+# Usage:
+#   vt-worktree <name> [<branch>]    # branch defaults to dev-manu (VT_BASE_BRANCH)
+set -euo pipefail
+
+name="${1:-}"
+branch="${2:-${VT_BASE_BRANCH:-dev-manu}}"
+if [ -z "$name" ] || [ "$name" = "-h" ] || [ "$name" = "--help" ]; then
+  echo "usage: vt-worktree <name> [<branch>]   (branch defaults to ${VT_BASE_BRANCH:-dev-manu})" >&2
+  [ -z "$name" ] && exit 64 || exit 0
+fi
+
+# Refresh origin so we branch off the latest (the base may be mid-tick).
+git fetch origin "$branch" >/dev/null 2>&1 || git fetch origin >/dev/null 2>&1 || true
+
+# git-gate rewrites the destination into this machine's worktree root and runs
+# the dep bootstrap; we pass a bare name and read the resulting path back.
+git worktree add -b "$name" "$name" "origin/$branch"
+
+path="$(git worktree list --porcelain | awk -v b="refs/heads/$name" '
+  /^worktree /{p=$2} $0=="branch "b{print p; exit}')"
+echo ""
+echo "vt-worktree: created '$name' off origin/$branch"
+[ -n "$path" ] && echo "  cd $path     # edit + run there; then: vt-land \"msg\"  (or vt-pr)"

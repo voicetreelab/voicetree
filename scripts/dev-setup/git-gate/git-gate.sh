@@ -25,6 +25,16 @@ for cand in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git /opt/local/bin
 done
 [ -n "$REAL_GIT" ] || { echo "git-gate: cannot find real git" >&2; exit 127; }
 
+# VT_SYNC=1 short-circuits the ENTIRE gate (D3). The read-only-base sync daemon
+# (vt-sync-base.sh) and the first-run base configuration run their own git with
+# this set: they must never hit the read-only base guard, the checkout/reset
+# reason logic, or any password prompt (they run with no TTY and would deadlock).
+# This is the single blessed bypass — and it is intentionally the very first
+# thing the gate does, before any argv parsing or reason logic.
+if [ "${VT_SYNC:-}" = "1" ]; then
+  exec "$REAL_GIT" "$@"
+fi
+
 # Preserve the original argv so we can forward it unchanged to real git later.
 # Then strip git's global options ahead of the subcommand so that callers like
 # `git -C <path> worktree add ...` or `git --git-dir=... worktree add ...` are
@@ -64,6 +74,56 @@ sub_arg="${2:-}"
 rest="${*:2}"
 reason=""
 suggestion=""
+
+# --- D5 read-only base guard ------------------------------------------------
+# The MAIN worktree of a voicetree clone is the read-only fast-forward cache of
+# origin (the "base"). All editing happens in linked worktrees; integration
+# happens via origin. Refuse ref-moving subcommands in the base with a helpful
+# message. Detection is structural and machine-independent:
+#   - main worktree:   git-dir == git-common-dir
+#   - linked worktree: they differ → always allowed (never gated here)
+# and confirmed to be a voicetree clone via the origin URL, so unrelated repos
+# (e.g. brain) are untouched. The sync daemon is already exempt via VT_SYNC=1.
+gate_base_branch() { printf '%s' "${VT_BASE_BRANCH:-dev-manu}"; }
+
+in_voicetree_base() {
+  local gd cd url
+  gd="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --git-dir 2>/dev/null)" || return 1
+  cd="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$gd" ] && [ "$gd" = "$cd" ] || return 1
+  url="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" remote get-url origin 2>/dev/null)" || return 1
+  # Match the voicetree[-public] repo at a path boundary (covers https, ssh, and
+  # local-path origins) so a repo merely ending in "...voicetree.git" can't false
+  # positive. The trailing .git is optional (local clones may omit it).
+  case "$url" in
+    */voicetree.git|*/voicetree|*/voicetree-public.git|*/voicetree-public) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+case "$sub" in
+  commit|merge|rebase|reset|cherry-pick|am|apply)
+    if in_voicetree_base; then
+      {
+        echo ""
+        echo "  ✗ git-gate: BLOCKED — this checkout is the origin cache (read-only base)."
+        echo "    command: git ${ORIG_ARGS[*]}"
+        echo ""
+        echo "    The base is a read-only fast-forward cache of origin/$(gate_base_branch)."
+        echo "    Editing happens in a worktree; integration happens via origin —"
+        echo "    the base only ever fast-forwards. Never commit/merge/rebase here."
+        echo ""
+        echo "    Work in a worktree instead:"
+        echo "      vt-worktree <name> [<branch>]   # or: git worktree add -b <name> <name> origin/<branch>"
+        echo "    Then land it:"
+        echo "      vt-land \"msg\"                   # quick fast-forward push to the integration branch"
+        echo "      vt-pr                           # open a PR for reviewed work"
+        echo ""
+      } >&2
+      exit 1
+    fi
+    ;;
+esac
 
 # Per-machine worktree root. This wrapper is the ONE place that owns worktree
 # PLACEMENT: callers pass a bare name and we put the tree here. The default
@@ -344,13 +404,14 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
       fi
       if [ -n "$remote_host" ]; then
         echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
-        remote_root="/root/vtrepo-synced"
+        # The vt-remote full-repo mutagen replica (/root/vtrepo-synced) is retired
+        # under the single-source model; only the vt-wts worktree mirror remains.
         remote_wts_root="/root/vt-wts-synced"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
-          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name' '$remote_wts_root/$wt_name'" \
+          "rm -rf '$remote_wts_root/$wt_name'" \
           >/dev/null 2>&1 \
           && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
-          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-remote' to check" >&2
+          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-wts' to check" >&2
       else
         echo "git-gate: no VT_REMOTE_HOST found; skipping remote residue cleanup" >&2
       fi

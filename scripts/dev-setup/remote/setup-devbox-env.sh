@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
-# Configure machine-local env on the remote devbox.
+# Configure machine-local env on the remote devbox (VM).
+#
+# Default run: writes VT_DEV_ROLE + the ssh-mux block (safe to run early, before
+# git-gate exists — used by install.sh's first pass).
+# With --configure-base: ALSO turns the VM base ($VT_BASE_DIR, default
+# /root/vtrepo) into a read-only fast-forward cache of origin, creates the daily
+# worktree, installs the dev-flow commands + the systemd sync timer. Must run
+# AFTER git-gate is on PATH. See scripts/dev-setup/common/configure-base.sh.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOME_ENV_FILE="$HOME/.env"
+
+CONFIGURE_BASE=0
+for arg in "$@"; do
+  case "$arg" in
+    --configure-base) CONFIGURE_BASE=1 ;;
+    *) echo "setup-devbox-env.sh: unknown arg: $arg" >&2; exit 64 ;;
+  esac
+done
 
 bash "$SCRIPT_DIR/write-env-value.sh" "$HOME_ENV_FILE" VT_DEV_ROLE remote
 
@@ -45,3 +60,10 @@ EOF
   echo "setup-devbox-env: $cfg has ssh multiplexing + 'mac' host alias"
 }
 setup_ssh_mux
+
+# --- single-source base configuration (opt-in; needs git-gate on PATH) -------
+if [ "$CONFIGURE_BASE" = "1" ]; then
+  VT_BASE_DIR="${VT_BASE_DIR:-/root/vtrepo}" \
+  VT_WORKTREE_ROOT="${VT_WORKTREE_ROOT:-$HOME/vt-wts}" \
+    bash "$SCRIPT_DIR/../common/configure-base.sh"
+fi
