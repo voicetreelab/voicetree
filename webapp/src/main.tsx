@@ -113,8 +113,12 @@ setupUIRpcHandler();
 // Surface the one-time 2.9.x→3.0 import notice, if any. The migration already ran
 // silently in electron-main at startup; this just shows the non-blocking toast now
 // that the renderer (and document.body) is ready. Consumed once — null thereafter.
-if (window.electronAPI) {
-  void window.electronAPI.main.consumeUserDataMigrationNotice().then((message: string | null) => {
+// Feature-detected + best-effort: browser-mode e2e tests mount a partial electronAPI
+// mock, so a missing method must never throw during app boot.
+const consumeMigrationNotice: (() => Promise<string | null>) | undefined =
+  window.electronAPI?.main.consumeUserDataMigrationNotice;
+if (consumeMigrationNotice) {
+  void consumeMigrationNotice().then((message: string | null) => {
     if (message) {
       showUserDataMigrationNotice(message);
     }
