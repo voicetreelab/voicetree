@@ -86,16 +86,20 @@ else
   step "pre-seeding $VT_REMOTE_HOST:$REMOTE_DIR at branch $BRANCH"
   ssh "$VT_REMOTE_HOST" "
     set -e
+    # git-gate (installed later in this script) shadows git with a PATH shim that
+    # blocks branch switches. This trusted installer must switch branches
+    # non-interactively, so resolve the real git and use it for checkout.
+    real_git=\$(PATH=/usr/bin:/bin command -v git)
     if [ -d $REMOTE_DIR/.git ]; then
       echo '  (devbox already has a clone — fetching + checkout $BRANCH)'
       cd $REMOTE_DIR
       git fetch origin
-      git checkout $BRANCH
+      \"\$real_git\" checkout $BRANCH
       git pull --ff-only origin $BRANCH || true
     else
       git clone $REPO_URL $REMOTE_DIR
       cd $REMOTE_DIR
-      git checkout $BRANCH
+      \"\$real_git\" checkout $BRANCH
     fi
     git submodule update --init
   " || fail "pre-seed failed. Re-run with --skip-pre-seed to push via mutagen instead."
