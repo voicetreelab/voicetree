@@ -1,5 +1,6 @@
 import type { CollectionReturnValue, Core } from 'cytoscape';
 import { ComboCombinedLayout, ForceAtlas2Layout } from '@antv/layout';
+import type { GraphData, NodeData } from '@antv/layout';
 import {
   removeRectangularOverlaps,
   type OverlapRect,
@@ -139,7 +140,7 @@ const runForceAtlas2 = async ({
     ks: fa2.ks,
     nodeSize: nodeDataSize,
   });
-  await layout.execute(graph);
+  await layout.execute(graph as unknown as GraphData);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
   // Only rescale a fully-free full layout; a pinned local layout is anchored to
@@ -197,18 +198,18 @@ const runComboCombined = async ({
     nodeSize: nodeDataSize,
     comboPadding: Math.max(24, nodeSpacing / 3),
     comboSpacing: Math.max(60, nodeSpacing),
-    layout: (comboId: string | null) => comboId
+    layout: (comboId: string | number | null) => comboId
       ? { type: 'force-atlas2', barnesHut: true, preventOverlap: false, maxIteration: 80 }
       : { type: 'force-atlas2', barnesHut: true, preventOverlap: false, maxIteration: 160 },
-    node: (datum: AntvNodeData) => ({
-      id: datum.id,
-      x: datum.x,
-      y: datum.y,
-      parentId: datum.parentId,
-      isCombo: datum.isCombo,
+    node: (datum: NodeData) => ({
+      id: datum.id as string,
+      x: datum.x as number,
+      y: datum.y as number,
+      parentId: datum.parentId as string | null | undefined,
+      isCombo: datum.isCombo as boolean | undefined,
     }),
   });
-  await layout.execute(graph);
+  await layout.execute(graph as unknown as GraphData);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
   finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, nodeSpacing / 6));

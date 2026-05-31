@@ -59,9 +59,11 @@ export const labelInclusiveSize = (node: NodeSingular): readonly [number, number
   return [Math.max(1, finiteOr(bb.w, 1)), Math.max(1, finiteOr(bb.h, 1))];
 };
 
+// Returns a MUTABLE tuple: @antv/layout's `nodeSize` option is typed `Size =
+// number | number[]` (mutable), so a readonly tuple is not assignable there.
 export const nodeDataSize = (
   node: { readonly data?: { readonly size?: readonly [number, number] }; readonly size?: readonly number[] },
-): readonly [number, number] => {
+): [number, number] => {
   const size = node.data?.size ?? node.size;
   return [
     typeof size?.[0] === 'number' && Number.isFinite(size[0]) ? size[0] : 24,
