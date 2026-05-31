@@ -55,14 +55,19 @@ const expectFinitePositions = (cy: Core): void => {
   });
 };
 
-const countOverlaps = (cy: Core, minDistance: number): number => {
-  const positions = cy.nodes().map((node) => node.position());
+// Counts pairs of nodes whose true label-inclusive bounding boxes overlap by
+// more than `epsilon` on BOTH axes (a real rectangular intersection, not the
+// circular proxy the old finisher was tuned against).
+const countBoundingBoxOverlaps = (cy: Core, epsilon: number): number => {
+  const boxes = cy.nodes().map((node) => (
+    node.boundingBox({ includeLabels: true, includeOverlays: false, includeEdges: false })
+  ));
   let overlaps = 0;
-  for (let left = 0; left < positions.length; left += 1) {
-    for (let right = left + 1; right < positions.length; right += 1) {
-      const dx = positions[left].x - positions[right].x;
-      const dy = positions[left].y - positions[right].y;
-      if (Math.hypot(dx, dy) < minDistance) overlaps += 1;
+  for (let left = 0; left < boxes.length; left += 1) {
+    for (let right = left + 1; right < boxes.length; right += 1) {
+      const overlapX = Math.min(boxes[left].x2, boxes[right].x2) - Math.max(boxes[left].x1, boxes[right].x1);
+      const overlapY = Math.min(boxes[left].y2, boxes[right].y2) - Math.max(boxes[left].y1, boxes[right].y1);
+      if (overlapX > epsilon && overlapY > epsilon) overlaps += 1;
     }
   }
   return overlaps;
@@ -88,20 +93,26 @@ describe('runLayoutAdapter', () => {
     },
   );
 
-  it('keeps the ForceAtlas2 backend from leaving dense nodes piled up', async () => {
-    const cy = createDenseGraph(24);
-    try {
-      await runLayoutAdapter({
-        cy,
-        eles: cy.elements(),
-        config: configFor('forceatlas2'),
-        mode: 'full',
-      });
+  it.each<LayoutEngine>(['forceatlas2', 'combocombined'])(
+    'leaves zero overlapping bounding boxes after the %s backend de-overlaps dense nodes',
+    async (engine) => {
+      const cy = createDenseGraph(24);
+      try {
+        await runLayoutAdapter({
+          cy,
+          eles: cy.elements(),
+          config: configFor(engine),
+          mode: 'full',
+        });
 
-      expectFinitePositions(cy);
-      expect(countOverlaps(cy, 40)).toBeLessThan(10);
-    } finally {
-      cy.destroy();
-    }
-  });
+        expectFinitePositions(cy);
+        // The rectangular VPSC finisher converges to hard non-overlap; a 1px
+        // epsilon only tolerates float noise, not the residual pile-ups the old
+        // soft circular pass left behind.
+        expect(countBoundingBoxOverlaps(cy, 1)).toBe(0);
+      } finally {
+        cy.destroy();
+      }
+    },
+  );
 });

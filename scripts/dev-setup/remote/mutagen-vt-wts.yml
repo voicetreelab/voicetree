@@ -50,6 +50,10 @@ sync:
         - "**/*.cache*"
         - "**/.DS_Store"
         - "**/*.DS_Store*"
+        # .env is machine-local config (notably VT_REMOTE_HOST) — never mirror it
+        # to the replica (see mutagen-vt-remote.yml for the self-routing footgun).
+        - ".env"
+        - "**/.env"
         - "**/*.log"
         - "**/folder-visibility.db*"
         - "**/*folder-visibility.db*"
