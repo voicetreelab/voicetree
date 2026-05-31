@@ -3,12 +3,9 @@ import { ComboCombinedLayout, ForceAtlas2Layout } from '@antv/layout';
 import { hierarchy, tree } from 'd3-hierarchy';
 import type { HierarchyPointNode } from 'd3-hierarchy';
 import {
-  forceCollide,
-  forceSimulation,
-  forceX,
-  forceY,
-  type SimulationNodeDatum,
-} from 'd3-force';
+  removeRectangularOverlaps,
+  type OverlapRect,
+} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/removeRectangularOverlaps';
 import ColaLayout from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/cola-engine/cola';
 import { computeColaAndAnimate } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/cola-engine/computeColaAndAnimate';
 import type { AutoLayoutOptions, LayoutConfig } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
@@ -48,13 +45,6 @@ type TreeDatum = {
   readonly children: readonly TreeDatum[];
 };
 type PositionedNode = { readonly id: string; readonly x: number; readonly y: number };
-type CollisionNode = SimulationNodeDatum & {
-  readonly id: string;
-  readonly radius: number;
-  readonly movable: boolean;
-  readonly anchorX: number;
-  readonly anchorY: number;
-};
 const finiteOr = (value: number, fallback: number): number => Number.isFinite(value) ? value : fallback;
 const numericOption = (value: unknown, fallback: number): number => (
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -171,46 +161,34 @@ const applyLayoutEnginePositions = (
     });
   });
 };
-const collisionRadius = (node: NodeSingular, fallbackSize: readonly [number, number], spacing: number): number => {
-  const bb = node.boundingBox({ includeLabels: true, includeOverlays: false, includeEdges: false });
-  const width = Math.max(fallbackSize[0], finiteOr(bb.w, fallbackSize[0]));
-  const height = Math.max(fallbackSize[1], finiteOr(bb.h, fallbackSize[1]));
-  return Math.max(width, height) / 2 + spacing / 2;
-};
-const relaxNodeOverlaps = (
+// Overlap finisher for the point-mass engines (ForceAtlas2 / ComboCombined).
+// Those engines place nodes by simulated repulsion of dimensionless points, so
+// their output has overlapping rectangular cards. We resolve that here with a
+// hard rectangular non-overlap projection (VPSC) rather than enabling FA2's own
+// preventOverlap (which would silently force its O(n^2) all-pairs path and is
+// only circular anyway). Movable nodes minimise displacement, preserving the
+// engine's global structure; fixed/locked nodes stay put and act as obstacles.
+const finishOverlaps = (
   cy: Core,
   graphNodes: readonly LayoutNodeData[],
   movableIds: ReadonlySet<string>,
   fixedNodeIds: ReadonlySet<string>,
   spacing: number,
 ): void => {
-  const nodes = graphNodes
-    .map((node): CollisionNode | null => {
+  const rects = graphNodes
+    .map((node): OverlapRect | null => {
       const cyNode = cy.getElementById(node.id);
       if (cyNode.length === 0 || cyNode.isParent()) return null;
       const position = cyNode.position();
       if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      const [width, height] = node.data.size;
       const movable = movableIds.has(node.id) && !fixedNodeIds.has(node.id) && !cyNode.locked();
-      return {
-        id: node.id,
-        x: position.x,
-        y: position.y,
-        ...(movable ? {} : { fx: position.x, fy: position.y }),
-        radius: collisionRadius(cyNode, node.data.size, spacing),
-        movable,
-        anchorX: position.x,
-        anchorY: position.y,
-      };
+      return { id: node.id, x: position.x, y: position.y, width, height, movable };
     })
-    .filter((node): node is CollisionNode => node !== null);
-  if (nodes.length < 2) return;
-  forceSimulation<CollisionNode>(nodes)
-    .force('collide', forceCollide<CollisionNode>((node) => node.radius).strength(1).iterations(3))
-    .force('x', forceX<CollisionNode>((node) => node.anchorX).strength(0.08))
-    .force('y', forceY<CollisionNode>((node) => node.anchorY).strength(0.08))
-    .stop()
-    .tick(80);
-  applyLayoutEnginePositions(cy, nodes.filter((node) => node.movable), movableIds);
+    .filter((rect): rect is OverlapRect => rect !== null);
+  if (rects.length < 2) return;
+  const resolved = removeRectangularOverlaps(rects, spacing);
+  applyLayoutEnginePositions(cy, resolved.filter((position) => movableIds.has(position.id)), movableIds);
 };
 const runForceAtlas2 = async ({
   cy,
@@ -238,7 +216,7 @@ const runForceAtlas2 = async ({
   await layout.execute(graph);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
-  relaxNodeOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, (config.cola.nodeSpacing ?? 120) / 6));
+  finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, (config.cola.nodeSpacing ?? 120) / 6));
   layout.destroy();
 };
 const rootComboIdFor = (
@@ -302,7 +280,7 @@ const runComboCombined = async ({
   await layout.execute(graph);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
-  relaxNodeOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, nodeSpacing / 6));
+  finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, nodeSpacing / 6));
   layout.destroy();
 };
 const wouldCreateCycle = (
