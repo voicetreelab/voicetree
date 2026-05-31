@@ -111,7 +111,7 @@ export function scoreLayout(
   const title = titleLegibilityPillar(nodes, boxes, segs);
   const length = edgeLengthPillar(edges, byId, cfg);
   const whitespace = whitespacePillar(boxes, segs, cfg);
-  const separation = componentSeparationPillar(componentsOf(nodes, edges), byId, boxById, medianExtent, cfg);
+  const separation = componentSeparationPillar(componentsOf(nodes, edges), boxById, medianExtent, cfg);
   const bbox = bboxAreaPillar(overlap.totalNodeArea, whitespace.bboxArea, cfg);
 
   const pillars: Pillars = {

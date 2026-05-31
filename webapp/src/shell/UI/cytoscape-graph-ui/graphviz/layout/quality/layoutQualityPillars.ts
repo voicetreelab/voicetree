@@ -159,7 +159,7 @@ export function whitespacePillar(
 
 // ── Pillar 6: component separation goldilocks ───────────────────────────────
 
-function boundingBoxOf(ids: readonly string[], byId: Map<string, LayoutNode>, boxById: Map<string, LayoutBox>): LayoutBox {
+function boundingBoxOf(ids: readonly string[], boxById: Map<string, LayoutBox>): LayoutBox {
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
   for (const id of ids) {
     const b = boxById.get(id);
@@ -172,12 +172,11 @@ function boundingBoxOf(ids: readonly string[], byId: Map<string, LayoutNode>, bo
 
 export function componentSeparationPillar(
   groups: Map<string, string[]>,
-  byId: Map<string, LayoutNode>,
   boxById: Map<string, LayoutBox>,
   medianExtent: number,
   config: LayoutScoringConfig,
 ): { score: number | null; componentCount: number; pairCount: number; meanGap: number } {
-  const boxes = [...groups.values()].map((ids) => boundingBoxOf(ids, byId, boxById));
+  const boxes = [...groups.values()].map((ids) => boundingBoxOf(ids, boxById));
   const componentCount = boxes.length;
   if (componentCount < 2) return { score: null, componentCount, pairCount: 0, meanGap: 0 };
   const [loF, hiF] = config.componentGapBandFactors;
