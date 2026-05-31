@@ -292,7 +292,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     expect(hasEventsApi).toBe(true)
   })
 
-  test('spawnTerminalWithContextNode RPC is wired (returns a response)', async ({ page }) => {
+  test('spawnTerminalWithContextNode creates a terminal with valid node (headless, immediate cleanup)', async ({ page }) => {
     const cfg = skipIfNoDaemons()
     if (!cfg) return test.skip(true, SKIP_MSG)
 
@@ -301,26 +301,106 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await page.goto('/')
     await waitForElectronApiReady(page)
 
-    // Call spawnTerminalWithContextNode with an invalid node to verify the RPC
-    // path reaches VTD (we expect an error response, not a network failure).
-    const errorMessage = await page.evaluate(async () => {
-      const api = (window as unknown as { electronAPI?: {
-        main?: { spawnTerminalWithContextNode?: (req: unknown) => Promise<unknown> }
-      } }).electronAPI
-      try {
-        await api?.main?.spawnTerminalWithContextNode?.({
-          contextNodeId: { id: 'non-existent-node', filePath: '/dev/null' },
-          callerTerminalId: 'browser-test',
-          agentName: 'Claude Sonnet',
-        })
-        return null
-      } catch (err) {
-        return (err as Error).message
-      }
+    // Get a real leaf node ID from graphd to use as taskNodeId
+    const taskNodeId = await page.evaluate(async () => {
+      const api = (window as unknown as { electronAPI?: { main?: { getGraph?: () => Promise<unknown> } } }).electronAPI
+      const graph = await api?.main?.getGraph?.() as { nodes?: Record<string, unknown> } | undefined
+      if (!graph?.nodes) return null
+      // Find first non-folder node (leaf nodes don't end with '/')
+      return Object.keys(graph.nodes).find(id => !id.endsWith('/')) ?? null
     })
-    // Either success or a daemon-level error — either way the RPC reached VTD
-    // (a network/CORS failure would produce a different error shape)
-    expect(typeof errorMessage === 'string' || errorMessage === null).toBe(true)
+    expect(typeof taskNodeId).toBe('string')
+
+    // Call spawn with the correct VTD protocol param (taskNodeId, not contextNodeId).
+    // headless: true avoids a PTY. Immediately close the agent to avoid side effects.
+    const spawnResult = await page.evaluate(
+      async ({ taskNodeId }) => {
+        const api = (window as unknown as { electronAPI?: {
+          main?: {
+            spawnTerminalWithContextNode?: (req: unknown) => Promise<{terminalId: string; contextNodeId: string}>
+            closeHeadlessAgent?: (req: unknown) => Promise<unknown>
+          }
+        } }).electronAPI
+        const result = await api?.main?.spawnTerminalWithContextNode?.({
+          taskNodeId,
+          headless: true,
+          callerTerminalId: 'browser-vt-test',
+        })
+        if (!result?.terminalId) return { ok: false as const, terminalId: null }
+        // Clean up immediately — we verified the path works; no need to leave an agent running
+        await api?.main?.closeHeadlessAgent?.({ terminalId: result.terminalId })
+        return { ok: true as const, terminalId: result.terminalId }
+      },
+      { taskNodeId: taskNodeId as string },
+    )
+    expect(spawnResult.ok).toBe(true)
+    expect(typeof spawnResult.terminalId).toBe('string')
+  })
+
+  test('editor opens via node tap and closes via traffic-light button', async ({ page }) => {
+    const cfg = skipIfNoDaemons()
+    if (!cfg) return test.skip(true, SKIP_MSG)
+
+    await injectConfig(page, cfg)
+    await injectCorsHeaders(page, 'http://localhost:3000', [cfg.vtdUrl, cfg.graphdUrl])
+    await page.goto('/')
+    await waitForElectronApiReady(page)
+
+    // Trigger the project:ready event so the app transitions to the graph view
+    await page.evaluate(async (projectPath) => {
+      const api = (window as unknown as { electronAPI?: { main?: { openProject?: (p: string) => Promise<unknown> } } }).electronAPI
+      await api?.main?.openProject?.(projectPath)
+    }, cfg.projectPath)
+
+    // Wait for Cytoscape to mount — it sets window.cytoscapeInstance on mount
+    await page.waitForFunction(
+      () => (window as unknown as { cytoscapeInstance?: unknown }).cytoscapeInstance !== undefined,
+      { timeout: 20_000 },
+    )
+
+    // Emit a tap event on the first non-folder leaf node.
+    // The setupCytoscape.ts tap handler (cy.on('tap', 'node[!isFolderNode]', ...))
+    // calls applyNodeSelectionSideEffects → createAnchoredFloatingEditor.
+    const nodeWasTapped = await page.evaluate(() => {
+      type CyNode = { emit: (ev: string) => void }
+      type CyInstance = { nodes: (sel: string) => { length: number; first: () => CyNode } }
+      const cy = (window as unknown as { cytoscapeInstance?: CyInstance }).cytoscapeInstance
+      if (!cy) return false
+      const leaves = cy.nodes('[!isFolderNode]')
+      if (leaves.length === 0) return false
+      leaves.first().emit('tap')
+      return true
+    })
+    expect(nodeWasTapped).toBe(true)
+
+    // Wait for the floating editor window to appear in the DOM
+    await page.waitForSelector('.cy-floating-window', { timeout: 10_000 })
+
+    // Close the editor: the traffic-light-close button is a DOM button that dispatches
+    // 'traffic-light-close' on the window element. In headless Playwright the button
+    // may be under the Cytoscape pointer-events layer, so call .click() via JS directly
+    // rather than via Playwright's actionability-checked page.click().
+    const editorClosed = await page.evaluate(() => {
+      const win = document.querySelector('.cy-floating-window')
+      if (!win) return false
+      const btn = win.querySelector('button.traffic-light-close') as HTMLButtonElement | null
+      if (btn) {
+        btn.click()
+        return true
+      }
+      // Fallback: dispatch the close event the button would have fired
+      win.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }))
+      return true
+    })
+    expect(editorClosed).toBe(true)
+
+    // Verify the floating window is gone
+    await page.waitForFunction(
+      () => document.querySelectorAll('.cy-floating-window').length === 0,
+      { timeout: 5_000 },
+    )
+    const remaining = await page.$$('.cy-floating-window')
+    expect(remaining.length).toBe(0)
   })
 
   test('terminal attach WebSocket connects with vt-bearer subprotocol', async ({ page }) => {
