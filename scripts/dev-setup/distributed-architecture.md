@@ -136,3 +136,5 @@ on older git (e.g. the VM's 2.43) it falls back to a plain `worktree repair` and
 the pointers stay absolute. That is harmless for VM-local `/root/vt-wts` trees
 (they never sync across hosts), but the host-portable-pointer benefit for the
 Mac's mirrored `vt-wts-synced` trees is unavailable until git is upgraded.
+
+<!-- vt-pr flow verified 2026-05-31 (VM) -->
