@@ -5,9 +5,10 @@ import type { VTSettings } from '@vt/graph-model/settings';
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
 import {getCallbacks} from '@vt/graph-model';
 import {resolveVoicetreeHomePath} from '@vt/paths';
+import {SETTINGS_FILENAME} from '../config-files.ts';
 
 function getSettingsPath(voicetreeHomePath: string): string {
-  return path.join(voicetreeHomePath, 'settings.json');
+  return path.join(voicetreeHomePath, SETTINGS_FILENAME);
 }
 
 /** Reset the settings cache. For testing only. */

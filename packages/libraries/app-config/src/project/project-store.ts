@@ -2,9 +2,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { SavedProject } from '@vt/graph-model/project';
 import {resolveVoicetreeHomePath} from '@vt/paths';
+import {PROJECTS_FILENAME} from '../config-files.ts';
 
 function getProjectsFilePath(voicetreeHomePath: string): string {
-    return path.join(voicetreeHomePath, 'projects.json');
+    return path.join(voicetreeHomePath, PROJECTS_FILENAME);
 }
 
 /**
