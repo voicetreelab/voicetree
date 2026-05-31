@@ -62,7 +62,7 @@ import {
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
-import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/corsHeaders.ts'
+import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
 import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
