@@ -15,6 +15,7 @@ import {
     runValidations,
     resolveOverrides,
     formatViolationError,
+    partitionViolationsBySeverity,
 } from './createGraphValidation'
 import type {OverrideEntry, OverridableRuleId} from '@vt/graph-validation'
 import {mockGraph, mockNode, linesOfText, buildCtx} from './createGraphValidation.testHelpers'
@@ -65,6 +66,36 @@ describe('runValidations', () => {
 })
 
 // ============================================================================
+// partitionViolationsBySeverity
+// ============================================================================
+
+describe('partitionViolationsBySeverity', () => {
+    const blockingViolation: RuleViolation = {
+        ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n', severity: 'violation', details: {},
+    }
+    const warningViolation: RuleViolation = {
+        ruleId: 'node_line_limit', message: 'Approaching limit', nodeFilename: '__graph_root__', severity: 'warning', details: {},
+    }
+
+    it('splits warnings from blocking violations', () => {
+        const {warnings, blocking} = partitionViolationsBySeverity([blockingViolation, warningViolation])
+        expect(warnings).toEqual([warningViolation])
+        expect(blocking).toEqual([blockingViolation])
+    })
+
+    it('returns empty partitions for an empty input', () => {
+        const {warnings, blocking} = partitionViolationsBySeverity([])
+        expect(warnings).toHaveLength(0)
+        expect(blocking).toHaveLength(0)
+    })
+
+    it('keeps all results when they share one severity', () => {
+        expect(partitionViolationsBySeverity([blockingViolation, blockingViolation]).warnings).toHaveLength(0)
+        expect(partitionViolationsBySeverity([warningViolation, warningViolation]).blocking).toHaveLength(0)
+    })
+})
+
+// ============================================================================
 // resolveOverrides
 // ============================================================================
 
@@ -73,6 +104,7 @@ describe('resolveOverrides', () => {
         ruleId: 'node_line_limit',
         message: 'Too long',
         nodeFilename: 'big-node',
+        severity: 'violation',
         details: {bodyLines: 80, lineLimit: 70},
     }
 
@@ -100,7 +132,7 @@ describe('resolveOverrides', () => {
     it('handles partial override: resolves only matching violations', () => {
         const violations: RuleViolation[] = [
             sampleViolation,
-            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
+            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', severity: 'violation', details: {}},
         ]
         const {unresolved, accepted} = resolveOverrides(violations, [
             {ruleId: 'node_line_limit', rationale: 'Large code block'},
@@ -113,7 +145,7 @@ describe('resolveOverrides', () => {
     it('resolves all violations when all have matching overrides', () => {
         const violations: RuleViolation[] = [
             sampleViolation,
-            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
+            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', severity: 'violation', details: {}},
         ]
         const {unresolved, accepted} = resolveOverrides(violations, [
             {ruleId: 'node_line_limit', rationale: 'Large code block'},
@@ -131,7 +163,7 @@ describe('resolveOverrides', () => {
 describe('formatViolationError', () => {
     it('includes rule ID, node filename, and "Validation failed" header', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long (80 lines)', nodeFilename: 'my-progress.md', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long (80 lines)', nodeFilename: 'my-progress.md', severity: 'violation', details: {}},
         ])
         expect(error).toContain('node_line_limit')
         expect(error).toContain('my-progress.md')
@@ -140,7 +172,7 @@ describe('formatViolationError', () => {
 
     it('includes parseable JSON override example', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', severity: 'violation', details: {}},
         ])
         expect(error).toContain('override_with_rationale')
         expect(error).toContain('"ruleId"')
@@ -150,8 +182,8 @@ describe('formatViolationError', () => {
 
     it('deduplicates rule IDs in override example', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'a', details: {}},
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'b', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'a', severity: 'violation', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'b', severity: 'violation', details: {}},
         ])
         // Extract JSON after the "override_with_rationale" instruction line
         const jsonStart: number = error.indexOf('[\n')
@@ -162,9 +194,9 @@ describe('formatViolationError', () => {
 
     it('lists multiple distinct rule IDs in override example', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', details: {}},
-            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
-            {ruleId: 'node_must_have_edge', message: 'No edge', nodeFilename: 'lonely.md', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', severity: 'violation', details: {}},
+            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', severity: 'violation', details: {}},
+            {ruleId: 'node_must_have_edge', message: 'No edge', nodeFilename: 'lonely.md', severity: 'violation', details: {}},
         ])
         const jsonStart: number = error.indexOf('[\n')
         const parsed: unknown = JSON.parse(error.slice(jsonStart))

@@ -17,10 +17,17 @@ import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 // Types
 // ============================================================================
 
+/**
+ * `severity` splits the two tiers, mirroring the linter's `LintResult.severity`:
+ * - `'violation'` blocks the create (overridable via `override_with_rationale`).
+ * - `'warning'` never blocks; it is surfaced in the create_graph success response
+ *   and is not subject to override.
+ */
 export interface RuleViolation {
     readonly ruleId: OverridableRuleId
     readonly message: string
     readonly nodeFilename: string // '__graph_root__' for graph-level rules
+    readonly severity: 'violation' | 'warning'
     readonly details: Record<string, unknown>
 }
 
@@ -64,6 +71,20 @@ export function runValidations(
     return violations.length === 0
         ? { status: 'pass' }
         : { status: 'violations', violations }
+}
+
+/**
+ * Split rule results by severity. Only `'violation'` results block (and are then
+ * subject to override); `'warning'` results are surfaced non-blockingly. Pure.
+ */
+export function partitionViolationsBySeverity(violations: readonly RuleViolation[]): {
+    readonly warnings: readonly RuleViolation[]
+    readonly blocking: readonly RuleViolation[]
+} {
+    return {
+        warnings: violations.filter((v: RuleViolation) => v.severity === 'warning'),
+        blocking: violations.filter((v: RuleViolation) => v.severity === 'violation'),
+    }
 }
 
 /**
@@ -195,6 +216,7 @@ const grandparentAttachmentRule: ValidationRule = {
                 ruleId: 'grandparent_attachment',
                 message: `Target parent "${ctx.resolvedParentNodeId}" is an ancestor of your task node "${ctx.callerTaskNodeId}". Attach to your task node or its descendants instead.`,
                 nodeFilename: '__graph_root__',
+                severity: 'violation',
                 details: {
                     resolvedParentNodeId: ctx.resolvedParentNodeId,
                     callerTaskNodeId: ctx.callerTaskNodeId,
@@ -222,6 +244,7 @@ const nodeLineLimitRule: ValidationRule = {
                     ruleId: 'node_line_limit',
                     message: `Node is too long (${bodyLines} lines, limit is ${ctx.lineLimit}). Do NOT shorten or remove any content — split into a TREE of nodes that mirrors the conceptual structure of your content, declaring parents via \`- parent [[other-filename|edge-label]]\` lines inside each child's \`content\` body to create branching, not a linear chain.`,
                     nodeFilename: node.filename,
+                    severity: 'violation',
                     details: {
                         bodyLines,
                         lineLimit: ctx.lineLimit,
@@ -253,6 +276,7 @@ const nodeMustHaveEdgeRule: ValidationRule = {
                 ruleId: 'node_must_have_edge',
                 message: `Node "${node.filename}" has no parent edge and would be disconnected from the graph.`,
                 nodeFilename: node.filename,
+                severity: 'violation',
                 details: {filename: node.filename},
             })
         }

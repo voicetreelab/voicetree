@@ -21,10 +21,12 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
+    type RuleViolation,
     ALL_RULES,
     runValidations,
     resolveOverrides,
     formatViolationError,
+    partitionViolationsBySeverity,
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
 import {registerAgentNodes} from '../agent-runtime/agent-control/completion/agentNodeIndex.ts'
@@ -56,6 +58,21 @@ export interface CreateGraphParams {
 
 function errorResponse(error: string): McpToolResponse {
     return buildJsonResponse({success: false, error}, true)
+}
+
+interface ResponseWarning {
+    readonly ruleId: string
+    readonly message: string
+    readonly details: Record<string, unknown>
+}
+
+/** Shape non-blocking validation warnings for the create_graph success response. */
+function formatWarnings(warnings: readonly RuleViolation[]): readonly ResponseWarning[] {
+    return warnings.map((w: RuleViolation): ResponseWarning => ({
+        ruleId: w.ruleId,
+        message: w.message,
+        details: w.details,
+    }))
 }
 
 function isPathWithinDirectory(targetPath: string, directoryPath: string): boolean {
@@ -171,13 +188,20 @@ function resolveGraphParent(
     }
 }
 
+interface OverridableRuleOutcome {
+    /** Blocking error message for unresolved violations, or null if the create may proceed. */
+    readonly error: string | null
+    /** Non-blocking warnings to surface in the success response. */
+    readonly warnings: readonly RuleViolation[]
+}
+
 async function validateOverridableRules(
     nodes: readonly CreateGraphNodeInput[],
     callerRecord: TerminalRecord,
     graph: Graph,
     resolvedParentNodeId: NodeIdAndFilePath,
     overrides: readonly OverrideEntry[] | undefined
-): Promise<string | null> {
+): Promise<OverridableRuleOutcome> {
     const callerTaskNodeId: NodeIdAndFilePath | null =
         O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
     const settings: VTSettings = await loadSettings()
@@ -190,10 +214,11 @@ async function validateOverridableRules(
         subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
         subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
     })
-    if (validationResult.status !== 'violations') return null
+    if (validationResult.status !== 'violations') return {error: null, warnings: []}
 
-    const {unresolved} = resolveOverrides(validationResult.violations, overrides ?? [])
-    return unresolved.length > 0 ? formatViolationError(unresolved) : null
+    const {warnings, blocking} = partitionViolationsBySeverity(validationResult.violations)
+    const {unresolved} = resolveOverrides(blocking, overrides ?? [])
+    return {error: unresolved.length > 0 ? formatViolationError(unresolved) : null, warnings}
 }
 
 function createdAgentNodeRecords(
@@ -268,10 +293,10 @@ export async function createGraphTool(
     const agentName: string = callerRecord.terminalData.agentName
     const defaultColor: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
-    const validationError: string | null = await validateOverridableRules(
+    const validation: OverridableRuleOutcome = await validateOverridableRules(
         nodes, callerRecord, graph, graphParent.resolvedGraphParentId, override_with_rationale
     )
-    if (validationError) return errorResponse(validationError)
+    if (validation.error) return errorResponse(validation.error)
 
     const sortedNodes: CreateGraphNodeInput[] = topologicalSort(nodes)
     const batchResult: BatchBuildResult = await buildNodeBatch(
@@ -290,6 +315,7 @@ export async function createGraphTool(
     return buildJsonResponse({
         success: true,
         nodes: batchResult.results,
+        warnings: formatWarnings(validation.warnings),
         hint: 'To update a node, edit the file directly at its path. Do not call create_graph again for updates.',
     })
 }
