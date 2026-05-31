@@ -59,5 +59,6 @@ export function buildCtx(
         lineLimit: overrides.lineLimit ?? 70,
         subgraphWarnThreshold: overrides.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
         subgraphErrorThreshold: overrides.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+        destinationFolderPath: overrides.destinationFolderPath ?? '',
     }
 }

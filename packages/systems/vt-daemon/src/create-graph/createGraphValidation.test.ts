@@ -351,6 +351,74 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
     })
 })
 
+// ============================================================================
+// subgraphSizeLimitRule
+// ============================================================================
+
+describe('subgraphSizeLimitRule (via ALL_RULES)', () => {
+    /** A folder f/ whose node A has `childCount` children that all point to A (child -> A). */
+    function folderGraph(childCount: number): Graph {
+        const children: string[] = Array.from({length: childCount}, (_, i) => `f/child${i}.md`)
+        const incoming: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =
+            new Map([['f/A.md', children]])
+        return mockGraph(['f/A.md', ...children], incoming)
+    }
+
+    function subgraphCtx(graph: Graph, batchSize: number): ValidationContext {
+        return buildCtx({
+            nodes: Array.from({length: batchSize}, (_, i) =>
+                mockNode({filename: `new${i}`, title: 'T', summary: 'S'})),
+            resolvedParentNodeId: 'f/A.md',
+            callerTaskNodeId: 'f/A.md', // attaching to own task node — no grandparent violation
+            graph,
+            destinationFolderPath: 'f/',
+            subgraphWarnThreshold: 4,
+            subgraphErrorThreshold: 6,
+        })
+    }
+
+    function subgraphViolations(result: ValidationResult): readonly RuleViolation[] {
+        return result.status === 'violations'
+            ? result.violations.filter((v: RuleViolation) => v.ruleId === 'subgraph_size_limit')
+            : []
+    }
+
+    it('passes (no subgraph result) below the warn threshold', () => {
+        // existing component = 1 (A) + batch 1 = 2 < warn(4)
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(0), 1))
+        expect(subgraphViolations(result)).toHaveLength(0)
+    })
+
+    it('emits a non-blocking warning in [warn, error)', () => {
+        // existing component = 3 (A + 2 children) + batch 1 = 4 == warn(4)
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 1))
+        const sg: readonly RuleViolation[] = subgraphViolations(result)
+        expect(sg).toHaveLength(1)
+        expect(sg[0].severity).toBe('warning')
+        expect(sg[0].message).toContain('"f"')
+        expect(sg[0].details).toMatchObject({size: 4, folder: 'f/'})
+    })
+
+    it('emits a blocking violation at the error threshold, evaluated over the whole batch', () => {
+        // existing component = 3 (A + 2 children) + batch 3 = 6 == error(6)
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 3))
+        const sg: readonly RuleViolation[] = subgraphViolations(result)
+        expect(sg).toHaveLength(1)
+        expect(sg[0].severity).toBe('violation')
+        expect(sg[0].details).toMatchObject({size: 6})
+    })
+
+    it('is admitted by a matching override_with_rationale', () => {
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 3))
+        const {blocking} = partitionViolationsBySeverity(
+            result.status === 'violations' ? result.violations : [],
+        )
+        const override: OverrideEntry = {ruleId: 'subgraph_size_limit', rationale: 'Cohesive cluster, splitting would harm legibility'}
+        const {unresolved} = resolveOverrides(blocking, [override])
+        expect(unresolved.filter((v: RuleViolation) => v.ruleId === 'subgraph_size_limit')).toHaveLength(0)
+    })
+})
+
 describe('nodeMustHaveEdgeRule (via ALL_RULES)', () => {
     it('passes when daemon graph-parent fallback is present', () => {
         const graph: Graph = mockGraph(['/project/task.md'])

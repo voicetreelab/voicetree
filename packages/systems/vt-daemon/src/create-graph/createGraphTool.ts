@@ -200,6 +200,7 @@ async function validateOverridableRules(
     callerRecord: TerminalRecord,
     graph: Graph,
     resolvedParentNodeId: NodeIdAndFilePath,
+    destinationFolderPath: string,
     overrides: readonly OverrideEntry[] | undefined
 ): Promise<OverridableRuleOutcome> {
     const callerTaskNodeId: NodeIdAndFilePath | null =
@@ -213,6 +214,7 @@ async function validateOverridableRules(
         lineLimit: settings.nodeLineLimit ?? 70,
         subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
         subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+        destinationFolderPath,
     })
     if (validationResult.status !== 'violations') return {error: null, warnings: []}
 
@@ -293,8 +295,11 @@ export async function createGraphTool(
     const agentName: string = callerRecord.terminalData.agentName
     const defaultColor: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
+    // The destination folder (graph folder id) is the output directory the batch
+    // lands in, with a trailing slash — the component the gardening gate counts.
+    const destinationFolderPath: string = `${outputDirectory}/`
     const validation: OverridableRuleOutcome = await validateOverridableRules(
-        nodes, callerRecord, graph, graphParent.resolvedGraphParentId, override_with_rationale
+        nodes, callerRecord, graph, graphParent.resolvedGraphParentId, destinationFolderPath, override_with_rationale
     )
     if (validation.error) return errorResponse(validation.error)
 

@@ -11,6 +11,7 @@ import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {extractParentRefs} from '@vt/graph-model/markdown'
 import {countBodyLines} from '../tools/graph/addProgressNodeTool'
+import {countFolderBoundedComponent} from './subgraphComponent'
 import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 
 // ============================================================================
@@ -49,6 +50,11 @@ export interface ValidationContext {
     readonly lineLimit: number
     readonly subgraphWarnThreshold: number
     readonly subgraphErrorThreshold: number
+    /**
+     * The folder (id with trailing slash) the batch's nodes will land in — the
+     * component the subgraph_size_limit rule gardens. See design.md Decision 1a.
+     */
+    readonly destinationFolderPath: string
 }
 
 // ============================================================================
@@ -284,12 +290,63 @@ const nodeMustHaveEdgeRule: ValidationRule = {
     },
 }
 
+/**
+ * Subgraph size limit rule (auto folder gardening). Counts the folder-bounded
+ * component the batch's nodes will join (post-insertion) and pushes back as the
+ * cluster grows: a non-blocking `warning` at `subgraphWarnThreshold`, an
+ * overridable `violation` at `subgraphErrorThreshold`. The destination folder is
+ * the component that is actually growing (design Decision 1a).
+ */
+function folderNameOf(folderPath: string): string {
+    const trimmed: string = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath
+    return trimmed.slice(trimmed.lastIndexOf('/') + 1) || folderPath
+}
+
+const subgraphSizeLimitRule: ValidationRule = {
+    id: 'subgraph_size_limit',
+    description: 'Garden folder size: warn as a folder-bounded component approaches the limit, block (overridable) once it crosses it.',
+    check(ctx: ValidationContext): readonly RuleViolation[] {
+        const existingSize: number = countFolderBoundedComponent(
+            ctx.graph, ctx.resolvedParentNodeId, ctx.destinationFolderPath,
+        )
+        const size: number = existingSize + ctx.nodes.length
+        const folderName: string = folderNameOf(ctx.destinationFolderPath)
+        const details: Record<string, unknown> = {
+            folder: ctx.destinationFolderPath,
+            folderName,
+            size,
+            warnThreshold: ctx.subgraphWarnThreshold,
+            errorThreshold: ctx.subgraphErrorThreshold,
+        }
+
+        if (size >= ctx.subgraphErrorThreshold) {
+            return [{
+                ruleId: 'subgraph_size_limit',
+                message: `Folder "${folderName}" would reach ${size} nodes, at or above the block threshold of ${ctx.subgraphErrorThreshold}. Split this cluster into a sub-folder (e.g. give a child its own folder), or override with a rationale if this density is justified.`,
+                nodeFilename: '__graph_root__',
+                severity: 'violation',
+                details,
+            }]
+        }
+        if (size >= ctx.subgraphWarnThreshold) {
+            return [{
+                ruleId: 'subgraph_size_limit',
+                message: `Folder "${folderName}" is reaching ${size} nodes (warn threshold ${ctx.subgraphWarnThreshold}, block at ${ctx.subgraphErrorThreshold}). Consider splitting into a sub-folder before it grows harder to navigate.`,
+                nodeFilename: '__graph_root__',
+                severity: 'warning',
+                details,
+            }]
+        }
+        return []
+    },
+}
+
 // ============================================================================
 // Export
 // ============================================================================
 
 function createValidationRules(): readonly ValidationRule[] {
-    return [grandparentAttachmentRule, nodeLineLimitRule, nodeMustHaveEdgeRule]
+    return [grandparentAttachmentRule, nodeLineLimitRule, nodeMustHaveEdgeRule, subgraphSizeLimitRule]
 }
 
 export const ALL_RULES: readonly ValidationRule[] = createValidationRules()
