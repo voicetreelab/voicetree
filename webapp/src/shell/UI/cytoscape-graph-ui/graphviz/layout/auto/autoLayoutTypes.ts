@@ -20,9 +20,40 @@ export interface AutoLayoutOptions {
 
 export type LayoutEngine = 'forceatlas2' | 'combocombined' | 'mindmap' | 'webcola';
 
+/**
+ * Tuning knobs for the ForceAtlas2 engine, read from the layoutConfig JSON.
+ *
+ * FA2 lays out dimensionless points: its repulsion `kr` sets the equilibrium
+ * edge length as `d ≈ sqrt(kr·(deg_i+1)(deg_j+1))`, so spread grows with the
+ * square root of `kr` — reaching an edge length of L needs `kr ≈ L²/(deg+1)²`.
+ * `spacing` is the hard minimum gap the post-layout VPSC finisher enforces
+ * between node bounding boxes (the only size-aware step in the pipeline).
+ */
+export interface ForceAtlas2Options {
+  /** Repulsion coefficient. Final edge length grows as sqrt(kr). */
+  kr: number;
+  /** Gravity coefficient pulling nodes toward the layout center; higher = tighter cluster. */
+  kg: number;
+  /** Per-iteration speed (step-size) multiplier. */
+  ks: number;
+  /** Iteration cap. 0 = auto by node count (120 below 100 nodes, 250 at or above). */
+  maxIteration: number;
+  /** Minimum gap (px) between node bounding boxes enforced by the VPSC overlap finisher. */
+  spacing: number;
+}
+
+export const DEFAULT_FORCEATLAS2_OPTIONS: ForceAtlas2Options = {
+  kr: 5,
+  kg: 1,
+  ks: 0.1,
+  maxIteration: 0,
+  spacing: 20,
+};
+
 export interface LayoutConfig {
   engine: LayoutEngine;
   cola: AutoLayoutOptions;
+  forceatlas2: ForceAtlas2Options;
 }
 
 /**

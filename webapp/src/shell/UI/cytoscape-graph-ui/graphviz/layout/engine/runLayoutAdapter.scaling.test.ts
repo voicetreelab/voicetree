@@ -2,7 +2,7 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { describe, expect, it } from 'vitest';
 import type { LayoutConfig } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
-import { DEFAULT_OPTIONS } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
+import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
 import { runLayoutAdapter } from './runLayoutAdapter';
 
 // Wide rectangular cards (w >> h), the realistic VoiceTree node shape, packed
@@ -27,6 +27,7 @@ const createDenseChainedGraph = (nodeCount: number): Core => cytoscape({
 const config: LayoutConfig = {
   engine: 'forceatlas2',
   cola: { ...DEFAULT_OPTIONS, animate: false, nodeSpacing: 80, edgeLength: 180, maxSimulationTime: 250 },
+  forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS,
 };
 
 const countBoundingBoxOverlaps = (cy: Core, epsilon: number): number => {

@@ -199,6 +199,7 @@ const runForceAtlas2 = async ({
 }: RunLayoutAdapterOptions): Promise<void> => {
   const graph = stripContainment(toAntvGraph(eles, fixedNodeIds));
   if (graph.nodes.length === 0) return;
+  const fa2 = config.forceatlas2;
   const center = elementCenter(eles);
   const layout = new ForceAtlas2Layout({
     center: [center[0], center[1]],
@@ -207,16 +208,16 @@ const runForceAtlas2 = async ({
     barnesHut: true,
     preventOverlap: false,
     prune: false,
-    maxIteration: graph.nodes.length < 100 ? 120 : 250,
-    kg: 1,
-    kr: 5,
-    ks: 0.1,
+    maxIteration: fa2.maxIteration > 0 ? fa2.maxIteration : (graph.nodes.length < 100 ? 120 : 250),
+    kg: fa2.kg,
+    kr: fa2.kr,
+    ks: fa2.ks,
     nodeSize: nodeDataSize,
   });
   await layout.execute(graph);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
-  finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, (config.cola.nodeSpacing ?? 120) / 6));
+  finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(0, fa2.spacing));
   layout.destroy();
 };
 const rootComboIdFor = (

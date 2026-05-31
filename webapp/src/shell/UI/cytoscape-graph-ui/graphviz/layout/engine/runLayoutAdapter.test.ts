@@ -2,7 +2,7 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { describe, expect, it } from 'vitest';
 import type { LayoutEngine, LayoutConfig } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
-import { DEFAULT_OPTIONS } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
+import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
 import { runLayoutAdapter } from './runLayoutAdapter';
 
 const createGraph = (): Core => cytoscape({
@@ -45,6 +45,7 @@ const configFor = (engine: LayoutEngine): LayoutConfig => ({
     edgeLength: 180,
     maxSimulationTime: 250,
   },
+  forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS,
 });
 
 const expectFinitePositions = (cy: Core): void => {
