@@ -81,9 +81,11 @@ function notifyListeners(): void {
     listeners.forEach(l => l());
 }
 
-// Test-only window seams. Gated on `!import.meta.env.PROD` so Vite's dead-code
-// elimination strips the whole block (and these globals) from production bundles.
-if (!import.meta.env.PROD && typeof window !== 'undefined') {
+// Test-only window seams. Present in dev and in explicit e2e/test builds
+// (`VITE_E2E_TEST`, the repo's test-build signal — see electron.vite.config.ts and
+// main.tsx). Normal production builds set neither, so Vite's dead-code elimination
+// strips the whole block (and these globals) from production bundles.
+if ((import.meta.env.VITE_E2E_TEST === 'true' || !import.meta.env.PROD) && typeof window !== 'undefined') {
     const testWindow = window as unknown as {
         __TRANSCRIPTION_STORE__: {
             appendManualText: typeof appendManualText;
