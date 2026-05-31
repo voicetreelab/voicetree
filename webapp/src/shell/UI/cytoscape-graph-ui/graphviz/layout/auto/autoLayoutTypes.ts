@@ -1,5 +1,6 @@
 import type { EdgeSingular } from 'cytoscape';
 import { getEdgeDistance } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/viewport/cytoscape-graph-constants';
+import { sizeAwareEdgeLength } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/sizeAwareEdgeLength';
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings';
 
 export interface AutoLayoutOptions {
@@ -85,9 +86,17 @@ export const DEFAULT_OPTIONS: AutoLayoutOptions = {
   convergenceThreshold: S.convergenceThreshold as number,
   unconstrIter: S.unconstrIter as number, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
   allConstIter: S.allConstIter as number,
-  // Per-edge function: 350 for content nodes, 125 for editors.
-  // If user sets a static edgeLength number in settings JSON, parseLayoutConfig() uses that instead.
-  edgeLength: (edge: EdgeSingular) => getEdgeDistance(edge.target().data('windowType')),
+  // Per-edge rest length. Editor/terminal shadow windows keep their fixed anchor
+  // distance (getEdgeDistance, a product decision that pins a window near its
+  // owner); every other (content↔content) edge gets a size-aware length derived
+  // from the endpoint box geometry, so tiny nodes get short edges and large ones
+  // get edges that clear their boxes — the size-blind single length is the
+  // root-cause defect this replaces (approach C).
+  // If a user sets a static edgeLength number in settings JSON, parseLayoutConfig() uses that instead.
+  edgeLength: (edge: EdgeSingular): number => {
+    const windowType: string | undefined = edge.target().data('windowType');
+    return windowType !== undefined ? getEdgeDistance(windowType) : sizeAwareEdgeLength(edge);
+  },
 };
 
 export const COLA_FAST_ANIMATE_DURATION: number = 1000;

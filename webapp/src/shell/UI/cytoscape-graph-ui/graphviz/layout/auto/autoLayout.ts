@@ -165,43 +165,60 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     });
   };
 
-  /** Full ultimate layout chain: R-tree pack → selected backend → animated cy.fit() */
-  const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
-    // Element membership cannot change between component packing and the post-Cola
-    // fit (Cola only mutates positions; no cy.add/cy.remove in between), so compute
-    // the participant collection once and reuse it.
-    const participants: CollectionReturnValue = getLayoutParticipantElements();
-    // R-tree packing: pack disconnected components before Cola
+  /**
+   * R-tree pack of disconnected components, applied to their CURRENT positions.
+   * Each component is shifted as a rigid body so its internal layout is preserved
+   * while the components are tiled tightly without overlap.
+   */
+  const packDisconnectedComponents: (participants: CollectionReturnValue) => void = (participants) => {
     const components: CollectionReturnValue[] = participants.components();
-    if (components.length > 1) {
-      const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
-        nodes: comp.nodes().map((n: NodeSingular) => ({
-          x: n.position('x'),
-          y: n.position('y'),
-          width: n.outerWidth(),
-          height: n.outerHeight(),
+    if (components.length <= 1) return;
+    const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
+      nodes: comp.nodes().map((n: NodeSingular) => ({
+        x: n.position('x'),
+        y: n.position('y'),
+        width: n.outerWidth(),
+        height: n.outerHeight(),
+      })),
+      edges: comp.edges()
+        .filter((e: EdgeSingular): boolean => e.sourceEndpoint() != null && e.targetEndpoint() != null)
+        .map((e: EdgeSingular) => ({
+          startX: e.sourceEndpoint().x,
+          startY: e.sourceEndpoint().y,
+          endX: e.targetEndpoint().x,
+          endY: e.targetEndpoint().y,
         })),
-        edges: comp.edges()
-          .filter((e: EdgeSingular): boolean => e.sourceEndpoint() != null && e.targetEndpoint() != null)
-          .map((e: EdgeSingular) => ({
-            startX: e.sourceEndpoint().x,
-            startY: e.sourceEndpoint().y,
-            endX: e.targetEndpoint().x,
-            endY: e.targetEndpoint().y,
-          })),
-      }));
+    }));
 
-      const { shifts } = packComponents(subgraphs);
+    const { shifts } = packComponents(subgraphs);
 
-      components.forEach((comp: CollectionReturnValue, i: number): void => {
-        const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
-        if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
-          comp.nodes().shift({ x: shift.dx, y: shift.dy });
-        }
-      });
-    }
+    components.forEach((comp: CollectionReturnValue, i: number): void => {
+      const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
+      if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
+        comp.nodes().shift({ x: shift.dx, y: shift.dy });
+      }
+    });
+  };
+
+  /**
+   * Full ultimate layout chain: selected backend → R-tree pack → animated cy.fit().
+   *
+   * Layout-then-pack (linchpin fix): the backend runs FIRST, laying out each
+   * component compactly, then we pack the settled components. Packing *before*
+   * the backend was futile — the engine's own disconnected-component handling
+   * re-dispersed the packed components (cola grid-stacks them into a very tall
+   * bbox), wrecking the component-separation and bbox-compactness pillars.
+   * Packing last collapses that gap without disturbing the within-component
+   * layout (each component shifts rigidly).
+   */
+  const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
+    // Element membership cannot change between the backend run and the post-pack
+    // fit (the backend only mutates positions; no cy.add/cy.remove in between),
+    // so compute the participant collection once and reuse it.
+    const participants: CollectionReturnValue = getLayoutParticipantElements();
 
     runConfiguredLayout(participants, () => {
+      packDisconnectedComponents(participants);
       const padding: number = getResponsivePadding(cy, 15);
       cyFitIntoVisibleViewport(cy, participants, padding, {
         duration: 300,
