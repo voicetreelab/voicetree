@@ -14,7 +14,9 @@ import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import {getFolderIdentityNoteId} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
+import {slugify} from '../tools/graph/addProgressNodeTool'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
@@ -111,6 +113,52 @@ function findCallerRecord(callerTerminalId: string): Result<TerminalRecord> {
     )
     if (!callerRecord) return {ok: false, error: `Unknown caller terminal: ${callerTerminalId}`}
     return {ok: true, value: callerRecord}
+}
+
+export interface WorktreeRouting {
+    /** Effective output path to resolve (worktree folder name, or the caller's outputPath). */
+    readonly outputPath: string | undefined
+    /** True when nodes are being routed into a per-worktree folder. */
+    readonly active: boolean
+    /** The originating worktree name (for the folder identity note title), else null. */
+    readonly worktreeName: string | null
+}
+
+/**
+ * Route a worktree agent's nodes into a `<writeFolder>/<worktreeName>/` folder.
+ * An explicit `outputPath` always wins (deliberate placement is respected); a
+ * caller with no `worktreeName` is unaffected. The folder segment is `slugify`d
+ * so it matches the folder identity note's slugified filename (the `foo/foo.md`
+ * convention) — identical to the raw name for conventional worktree names.
+ */
+export function resolveWorktreeRouting(outputPath: string | undefined, worktreeName: string | undefined): WorktreeRouting {
+    const hasExplicitOutput: boolean = !!outputPath && outputPath.trim() !== ''
+    if (hasExplicitOutput || !worktreeName || worktreeName.trim() === '') {
+        return {outputPath, active: false, worktreeName: null}
+    }
+    return {outputPath: slugify(worktreeName), active: true, worktreeName}
+}
+
+/**
+ * The folder identity note for a worktree folder: a node `<folder>/<folder>.md`
+ * (title = worktree name) that makes the folder a real, collapsible folder node
+ * and exempts it from the gardening child-count. Returns null when routing is
+ * inactive or the folder note already exists (convergence: a second agent in the
+ * same worktree must not duplicate it).
+ */
+export function worktreeFolderNoteInput(
+    routing: WorktreeRouting,
+    outputDirectory: string,
+    graph: Graph,
+): CreateGraphNodeInput | null {
+    if (!routing.active || routing.worktreeName === null) return null
+    const folderNoteId: NodeIdAndFilePath = getFolderIdentityNoteId(`${outputDirectory}/`)
+    if (graph.nodes[folderNoteId] !== undefined) return null
+    return {
+        filename: routing.worktreeName,
+        title: routing.worktreeName,
+        summary: `Folder for nodes created by agents in the ${routing.worktreeName} worktree.`,
+    }
 }
 
 async function resolveConfiguredOutputDirectory(outputPath: string | undefined, bridge: GraphBridge): Promise<Result<string>> {
@@ -279,7 +327,8 @@ export async function createGraphTool(
     if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
     const callerRecord: TerminalRecord = callerRecordResult.value
 
-    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(outputPath, bridge)
+    const worktreeRouting: WorktreeRouting = resolveWorktreeRouting(outputPath, callerRecord.terminalData.worktreeName)
+    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(worktreeRouting.outputPath, bridge)
     if (!outputDirectoryResult.ok) return errorResponse(outputDirectoryResult.error)
     const outputDirectory: string = outputDirectoryResult.value
 
@@ -303,9 +352,14 @@ export async function createGraphTool(
     )
     if (validation.error) return errorResponse(validation.error)
 
+    // Worktree routing manufactures the bounded component the gate counts: the
+    // folder identity note is created in the same batch (once per worktree folder),
+    // making <writeFolder>/<worktree>/ a real folder node before the agent's nodes land.
+    const folderNote: CreateGraphNodeInput | null = worktreeFolderNoteInput(worktreeRouting, outputDirectory, graph)
     const sortedNodes: CreateGraphNodeInput[] = topologicalSort(nodes)
+    const batchInputNodes: readonly CreateGraphNodeInput[] = folderNote ? [folderNote, ...sortedNodes] : sortedNodes
     const batchResult: BatchBuildResult = await buildNodeBatch(
-        sortedNodes, graph, outputDirectory, graphParent, agentName, defaultColor
+        batchInputNodes, graph, outputDirectory, graphParent, agentName, defaultColor
     )
 
     if (batchResult.batchDelta.length > 0) {
