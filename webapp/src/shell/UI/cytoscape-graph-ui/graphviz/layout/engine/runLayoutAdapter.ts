@@ -1,5 +1,6 @@
 import type { CollectionReturnValue, Core, EdgeSingular, NodeSingular } from 'cytoscape';
 import { ComboCombinedLayout, ForceAtlas2Layout } from '@antv/layout';
+import type { GraphData, ID, NodeData } from '@antv/layout';
 import { computeForestLayout } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/mindmapForest';
 import {
   removeRectangularOverlaps,
@@ -52,10 +53,10 @@ const labelInclusiveSize = (node: NodeSingular): readonly [number, number] => {
   const bb = node.boundingBox({ includeLabels: true, includeOverlays: false, includeEdges: false });
   return [Math.max(1, finiteOr(bb.w, 1)), Math.max(1, finiteOr(bb.h, 1))];
 };
-const nodeDataSize = (
-  node: { readonly data?: { readonly size?: readonly [number, number] }; readonly size?: readonly number[] },
-): readonly [number, number] => {
-  const size = node.data?.size ?? node.size;
+// @antv's nodeSize callback: maps a node to a mutable [w, h] Size. Param is the
+// library's loose NodeData (PlainObject); we read our own data.size / size keys.
+const nodeDataSize = (node: NodeData): [number, number] => {
+  const size: readonly number[] | undefined = node.data?.size ?? node.size;
   return [
     typeof size?.[0] === 'number' && Number.isFinite(size[0]) ? size[0] : 24,
     typeof size?.[1] === 'number' && Number.isFinite(size[1]) ? size[1] : 24,
@@ -261,7 +262,9 @@ const runForceAtlas2 = async ({
     ks: fa2.ks,
     nodeSize: nodeDataSize,
   });
-  await layout.execute(graph);
+  // Boundary cast: our deeply-readonly functional graph → @antv's mutable
+  // GraphData. execute() only reads node geometry; it never mutates our arrays.
+  await layout.execute(graph as unknown as GraphData);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
   // Only rescale a fully-free full layout; a pinned local layout is anchored to
@@ -319,18 +322,19 @@ const runComboCombined = async ({
     nodeSize: nodeDataSize,
     comboPadding: Math.max(24, nodeSpacing / 3),
     comboSpacing: Math.max(60, nodeSpacing),
-    layout: (comboId: string | null) => comboId
+    layout: (comboId: ID | null) => comboId
       ? { type: 'force-atlas2', barnesHut: true, preventOverlap: false, maxIteration: 80 }
       : { type: 'force-atlas2', barnesHut: true, preventOverlap: false, maxIteration: 160 },
-    node: (datum: LayoutNodeData) => ({
-      id: datum.id,
-      x: datum.x,
-      y: datum.y,
-      parentId: datum.parentId,
-      isCombo: datum.isCombo,
+    node: (datum: NodeData) => ({
+      id: datum.id as string,
+      x: datum.x as number,
+      y: datum.y as number,
+      parentId: datum.parentId as string | null | undefined,
+      isCombo: datum.isCombo as boolean | undefined,
     }),
   });
-  await layout.execute(graph);
+  // Boundary cast: see runForceAtlas2 — execute() reads, never mutates our arrays.
+  await layout.execute(graph as unknown as GraphData);
   const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
   applyAntvPositions(cy, layout, movableIds);
   finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(16, nodeSpacing / 6));
