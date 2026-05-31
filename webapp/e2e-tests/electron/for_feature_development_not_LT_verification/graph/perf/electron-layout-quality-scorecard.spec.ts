@@ -27,9 +27,17 @@ import {
 // the fit-to-viewport graph, and write a machine-readable scorecard JSON.
 //
 // Parameterized by env:
-//   SCORECARD_VAULT_PATH  vault to load (default: voicetree-15-5, ~270 nodes)
-//   SCORECARD_ENGINE      one engine, or "all" (default: webcola + forceatlas2)
-//   SCORECARD_OUT_DIR     output dir for scorecard JSON + PNG
+//   SCORECARD_VAULT_PATH    vault to load (default: voicetree-15-5, ~270 nodes)
+//   SCORECARD_ENGINE        one engine, or "all" (default: webcola + forceatlas2)
+//   SCORECARD_LAYOUT_CONFIG JSON object merged into settings.layoutConfig before
+//                           each run (e.g. '{"nodeSpacing":160,"edgeLength":420}')
+//                           — lets a fan-out score an arbitrary (engine, config).
+//   SCORECARD_OUT_DIR       output dir for scorecard JSON + PNG
+//   SCORECARD_LABEL         filename stem (default: the engine id); set a unique
+//                           label to score several configs of one engine without
+//                           overwriting (e.g. forceatlas2-tight).
+//   SCORECARD_INSPECT_PORT  electron --inspect port (default 9233); give each
+//                           concurrent worktree agent a distinct port.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
@@ -38,6 +46,7 @@ const SCORECARD_VAULT_PATH: string = process.env.SCORECARD_VAULT_PATH
 const PROJECT_NAME = 'scorecard-vault';
 const OUT_DIR: string = process.env.SCORECARD_OUT_DIR
   ?? path.join(PROJECT_ROOT, 'layout-scorecards');
+const INSPECT_PORT = Number.parseInt(process.env.SCORECARD_INSPECT_PORT ?? '9233', 10);
 
 const ALL_ENGINES = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
 const BASELINE_ENGINES = ['webcola', 'forceatlas2'] as const;
@@ -48,6 +57,18 @@ function selectedEngines(): readonly string[] {
     return requested === 'all' ? ALL_ENGINES : BASELINE_ENGINES;
   }
   return [requested];
+}
+
+// Extra layout-config fields (nodeSpacing, edgeLength, …) merged under the
+// selected engine. Lets a fan-out score an arbitrary (engine, config) pair.
+function customLayoutConfig(): Record<string, unknown> {
+  const raw = process.env.SCORECARD_LAYOUT_CONFIG?.trim();
+  if (!raw) return {};
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('SCORECARD_LAYOUT_CONFIG must be a JSON object');
+  }
+  return parsed as Record<string, unknown>;
 }
 
 const MIN_EXPECTED_NODES = 100;
@@ -167,7 +188,7 @@ const test = base.extend<{
 
     const electronApp: ElectronApplication = await electron.launch({
       args: [
-        '--inspect=9233',
+        `--inspect=${INSPECT_PORT}`,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
       ],
@@ -246,14 +267,19 @@ async function waitForLoadedGraph(appWindow: Page, markdownFileCount: number): P
     .toBeGreaterThanOrEqual(Math.min(markdownFileCount, MIN_EXPECTED_NODES));
 }
 
-async function setLayoutEngine(appWindow: Page, engine: string): Promise<void> {
-  await appWindow.evaluate(async (nextEngine) => {
+// Applies { ...current, ...extraConfig, engine } to settings.layoutConfig and
+// returns the exact config object that was persisted (recorded in the scorecard
+// so a fan-out knows which (engine, config) produced the score).
+async function applyLayoutConfig(appWindow: Page, engine: string, extraConfig: Record<string, unknown>): Promise<Record<string, unknown>> {
+  return appWindow.evaluate(async ({ nextEngine, extra }) => {
     const api = (window as unknown as ScorecardWindow).electronAPI?.main;
     if (!api?.loadSettings || !api.saveSettings) throw new Error('settings API is unavailable');
     const settings: VTSettings = await api.loadSettings();
     const currentLayout = settings.layoutConfig ? JSON.parse(settings.layoutConfig) as Record<string, unknown> : {};
-    await api.saveSettings({ ...settings, layoutConfig: JSON.stringify({ ...currentLayout, engine: nextEngine }, null, 2) });
-  }, engine);
+    const merged = { ...currentLayout, ...extra, engine: nextEngine };
+    await api.saveSettings({ ...settings, layoutConfig: JSON.stringify(merged, null, 2) });
+    return merged;
+  }, { nextEngine: engine, extra: extraConfig });
 }
 
 async function installPerfProbe(appWindow: Page): Promise<void> {
@@ -332,8 +358,9 @@ test.describe('layout-quality scorecard', () => {
     await waitForLoadedGraph(appWindow, markdownFileCount);
     await waitForLayoutStable(appWindow, 180000);
 
+    const extraConfig = customLayoutConfig();
     for (const engine of selectedEngines()) {
-      await setLayoutEngine(appWindow, engine);
+      const appliedConfig = await applyLayoutConfig(appWindow, engine, extraConfig);
       await installPerfProbe(appWindow);
 
       const startedAt = Date.now();
@@ -344,11 +371,13 @@ test.describe('layout-quality scorecard', () => {
       const geometry = await extractGeometry(appWindow);
       const quality = scoreLayout(geometry.nodes, geometry.edges);
 
-      const screenshotPath = path.join(OUT_DIR, `scorecard-${engine}.png`);
+      const label = process.env.SCORECARD_LABEL?.trim() || engine;
+      const screenshotPath = path.join(OUT_DIR, `scorecard-${label}.png`);
       await fitAndScreenshot(appWindow, screenshotPath);
 
       const scorecard: EngineScorecard = {
         engine,
+        layoutConfig: appliedConfig,
         vaultPath: SCORECARD_VAULT_PATH,
         nodeCount: geometry.nodes.length,
         edgeCount: geometry.edges.length,
@@ -357,7 +386,7 @@ test.describe('layout-quality scorecard', () => {
         screenshotPath,
         capturedAtIso: new Date(startedAt).toISOString(),
       };
-      await fs.writeFile(path.join(OUT_DIR, `scorecard-${engine}.json`), JSON.stringify(scorecard, null, 2), 'utf8');
+      await fs.writeFile(path.join(OUT_DIR, `scorecard-${label}.json`), JSON.stringify(scorecard, null, 2), 'utf8');
 
       console.log(`[scorecard] ${engine}: composite=${quality.composite.toFixed(4)} ` +
         `nodes=${scorecard.nodeCount} edges=${scorecard.edgeCount} ` +

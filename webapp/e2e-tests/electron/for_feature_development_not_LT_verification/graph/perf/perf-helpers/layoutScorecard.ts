@@ -30,6 +30,9 @@ export type LayoutPerformance = {
 
 export type EngineScorecard = {
   readonly engine: string;
+  // The exact layoutConfig object applied before this run (engine + any
+  // SCORECARD_LAYOUT_CONFIG overrides) — identifies the scored (engine, config).
+  readonly layoutConfig: Record<string, unknown>;
   readonly vaultPath: string;
   readonly nodeCount: number;
   readonly edgeCount: number;
