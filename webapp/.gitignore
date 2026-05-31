@@ -15,3 +15,5 @@ src/fixtures/example_real_large/**/*
 /feature_editor_race/**/*
 /monday/**/*
 e2e-tests/perf-traces/**/*
+# Generated layout-quality scorecards (JSON + PNG) from the scorecard harness
+layout-scorecards/**/*
