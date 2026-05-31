@@ -110,9 +110,21 @@ if base_git show-ref --verify --quiet "refs/heads/$DAILY_BRANCH"; then
   echo "→ configure-base: daily worktree branch '$DAILY_BRANCH' already exists (skip)"
 else
   mkdir -p "$WT_ROOT"
-  # Leave this ungated so git-gate does placement + dependency bootstrap.
-  VT_WORKTREE_ROOT="$WT_ROOT" git -C "$BASE" worktree add -b "$DAILY_BRANCH" "$WT_ROOT/daily" "origin/$BRANCH"
+  # The blessed daily worktree is INFRASTRUCTURE, not a user feature worktree, so
+  # it must NOT be subject to git-gate's worktree-admission-check (which exists to
+  # limit accumulation of *user* worktrees). On a shared box with lingering
+  # merged/idle worktrees that check refuses every \`worktree add\` — which would
+  # make configure-base fail to create the one worktree the model depends on.
+  # Create it via the whole-gate bypass (VT_SYNC=1 — the same lever our other
+  # admin git calls above use). That bypass also skips git-gate's automatic
+  # dependency bootstrap, so invoke the same async hook explicitly afterwards.
+  VT_SYNC=1 VT_WORKTREE_ROOT="$WT_ROOT" git -C "$BASE" worktree add -b "$DAILY_BRANCH" "$WT_ROOT/daily" "origin/$BRANCH"
   git -C "$WT_ROOT/daily" branch --set-upstream-to="origin/$BRANCH" "$DAILY_BRANCH" >/dev/null 2>&1 || true
+  async_hook="$BASE/scripts/git/worktree/on-created-async.sh"
+  if [ -x "$async_hook" ]; then
+    "$async_hook" "$WT_ROOT/daily" "daily" \
+      || echo "→ configure-base: daily worktree dep bootstrap failed (non-fatal; the remote-command boundary retries before tests)" >&2
+  fi
   echo "→ configure-base: created daily worktree $WT_ROOT/daily on $DAILY_BRANCH (falls behind origin until its next land/rebase)"
 fi
 
