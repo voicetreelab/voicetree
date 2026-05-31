@@ -202,6 +202,16 @@ export async function openProject(projectRoot: string): Promise<OpenProjectRespo
         await getCallbacks().onProjectOpened?.(watchingStartedInfo)
         getCallbacks().onWatchingStarted?.(watchingStartedInfo)
 
+        // Tell the Python text-to-tree server which directory to read/write. The
+        // graph daemon also runs loadAndMergeProjectPath (which calls
+        // notifyTextToTreeServerOfDirectory), but the daemon process has no
+        // notifyWriteDirectory callback wired, so that call no-ops there. This must
+        // happen here in main — the process that owns the Python server lifecycle and
+        // knows its port. Without it the server's `processor` stays None and every
+        // /send-text is silently dropped ("no directory loaded yet"), so transcribed
+        // or typed text never becomes nodes (the "voice mode stopped working" bug).
+        getCallbacks().notifyWriteDirectory?.(response.writeFolderPath)
+
         pushToRenderer('project:ready', { path: projectRoot, sessionId: response.sessionId })
         void getCallbacks().stripStaleMcpEntries?.(projectRoot).catch((err: unknown) => {
             console.error('[openProject] Failed to strip stale VoiceTree client-config entries:', err)
