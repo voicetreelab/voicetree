@@ -115,23 +115,47 @@ const spanningTreeDatum = (
   return build(chooseRoot(component));
 };
 
-// Lay out one component as a size-aware horizontal tidy tree. Depth grows along
-// +x with a uniform gap that clears the widest card; siblings spread along y
-// with a per-pair gap that clears their two half-heights — so no two boxes in
-// the tree can overlap. Returns local coordinates (caller packs them).
+// The screen-x (depth axis) coordinate of each depth level, spaced so adjacent
+// levels clear their own half-widths plus the gap. Using the PER-DEPTH max card
+// width (not one global max) keeps tiny-circle levels tight while still clearing
+// the rare wide editor card — compact without ever overlapping across depths.
+const depthCentersByLevel = (
+  maxWidthByDepth: ReadonlyMap<number, number>,
+  maxDepth: number,
+  gap: number,
+): ReadonlyMap<number, number> => {
+  const centers = new Map<number, number>();
+  let cursor = 0;
+  for (let depth = 0; depth <= maxDepth; depth += 1) {
+    if (depth > 0) {
+      const previousWidth = maxWidthByDepth.get(depth - 1) ?? 0;
+      const currentWidth = maxWidthByDepth.get(depth) ?? 0;
+      cursor += previousWidth / 2 + gap + currentWidth / 2;
+    }
+    centers.set(depth, cursor);
+  }
+  return centers;
+};
+
+// Lay out one component as a size-aware horizontal tidy tree. Siblings spread
+// along screen-y with a per-pair gap that clears their two half-heights; depth
+// grows along screen-x at per-depth spacing (see depthCentersByLevel) — so no
+// two boxes in the tree can overlap. Returns local coordinates (caller packs).
 const layoutComponentTree = (
   datum: SizedTreeDatum,
   gap: number,
 ): readonly ForestPosition[] => {
-  const root = hierarchy<SizedTreeDatum>(datum);
-  const maxWidth = Math.max(...root.descendants().map((node) => node.data.width));
-  const depthGap = maxWidth + gap;
   const positioned = tree<SizedTreeDatum>()
-    .nodeSize([1, depthGap])
-    .separation((left, right) => (left.data.height + right.data.height) / 2 + gap)(root);
-  return positioned.descendants().map((node): ForestPosition => ({
+    .nodeSize([1, 1])
+    .separation((left, right) => (left.data.height + right.data.height) / 2 + gap)(hierarchy(datum));
+  const nodes = positioned.descendants();
+  const maxWidthByDepth = new Map<number, number>();
+  nodes.forEach((node) => maxWidthByDepth.set(node.depth, Math.max(maxWidthByDepth.get(node.depth) ?? 0, node.data.width)));
+  const maxDepth = Math.max(...nodes.map((node) => node.depth));
+  const depthCenters = depthCentersByLevel(maxWidthByDepth, maxDepth, gap);
+  return nodes.map((node): ForestPosition => ({
     id: node.data.id,
-    x: node.y, // depth → screen x (root at left, children to the right)
+    x: depthCenters.get(node.depth) ?? 0, // depth → screen x (root at left)
     y: node.x, // sibling axis → screen y
   }));
 };
