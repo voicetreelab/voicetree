@@ -38,11 +38,16 @@ msg="${positional[0]:-}"
 require_worktree
 [ -n "$onto" ] || onto="$(default_onto)"
 
-# Commit the change being landed, if there is one. Untracked files are left
-# alone (they are not "the change"); only tracked edits are landed.
-if ! git diff --quiet || ! git diff --cached --quiet; then
+# Commit the change being landed, if there is one. Stage EVERYTHING under the
+# worktree (git add -A) — tracked edits AND brand-new files — so landing a new
+# file does the obvious thing. (The old `commit -am` staged only tracked edits,
+# silently dropping new files while still printing "landed".) git-ignored files
+# are excluded by git add -A, so the read-only base's ignored report data etc.
+# never get swept in.
+if [ -n "$(git status --porcelain)" ]; then
   [ -n "$msg" ] || { echo "vt-land: working tree has changes — give a commit message: vt-land [--onto BR] \"msg\"" >&2; exit 1; }
-  git commit -am "$msg"
+  git add -A
+  git commit -m "$msg"
 elif [ -n "$msg" ]; then
   echo "vt-land: nothing to commit; landing the existing HEAD (message ignored)" >&2
 fi
@@ -55,6 +60,21 @@ if ! git rebase "origin/$onto"; then
     echo "vt-land: rebase onto origin/$onto hit a conflict — git will not guess."
     echo "  resolve the conflict, then:  git rebase --continue && vt-land --onto $onto"
     echo "  or back out:                 git rebase --abort"
+  } >&2
+  exit 1
+fi
+
+# After rebasing onto the freshly-fetched tip, HEAD == origin/$onto means there
+# is nothing of ours to push. Refuse loudly rather than printing a misleading
+# "landed" on a no-op push (the new-file footgun, and any empty land).
+onto_before="$(git rev-parse "origin/$onto")"
+head_sha="$(git rev-parse HEAD)"
+if [ "$head_sha" = "$onto_before" ]; then
+  {
+    echo ""
+    echo "vt-land: nothing to land — HEAD is already at origin/$onto (no new commits)."
+    echo "  Nothing was pushed. If you meant to land local work, check 'git log origin/$onto..HEAD';"
+    echo "  vt-land stages all changes (git add -A) before committing, so a new file should land."
   } >&2
   exit 1
 fi
@@ -80,5 +100,13 @@ run_local_check
 
 echo "vt-land: pushing HEAD → origin/$onto"
 git push origin "HEAD:$onto"
-echo "vt-land: landed on origin/$onto — nudging both caches"
+
+# A successful push updates the local refs/remotes/origin/$onto. Assert the ref
+# actually advanced to our HEAD before claiming success — never report "landed"
+# when the remote did not move (e.g. a silent "Everything up-to-date").
+if [ "$(git rev-parse "origin/$onto")" != "$head_sha" ]; then
+  echo "vt-land: push did not advance origin/$onto to ${head_sha:0:9} — NOT landed." >&2
+  exit 1
+fi
+echo "vt-land: landed on origin/$onto (${onto_before:0:9} → ${head_sha:0:9}) — nudging both caches"
 nudge_both
