@@ -1,21 +1,23 @@
 /**
- * Black-box coverage for the placement-convention-free `gitWorktreeCommands`.
+ * Black-box coverage for `gitWorktreeCommands`.
  *
- * The app makes NO claim about where a worktree lives: `createWorktree` passes a
- * bare name to `git worktree add` and reads the real path back from git. These
- * tests run against a throwaway repo with PLAIN git (no git-gate wrapper on
- * PATH), so worktrees land nested under the repo — and the suite asserts the
- * observable outcome (worktree exists at the path git reports, branch created,
- * listing reflects it) without hardcoding any directory convention.
+ * Placement: when git-gate (the machine-level git wrapper) is on PATH it owns
+ * where worktrees live and `createWorktree` passes the bare name through; when
+ * git-gate is absent the app owns placement and creates the worktree at an
+ * absolute path under `VT_WORKTREE_ROOT ?? <parent-of-main-checkout>/vt-wts`.
+ * The decision is unit-tested via the pure `isGitGateActive` /
+ * `planWorktreePlacement`; the impure `createWorktree` is exercised against
+ * throwaway repos (with HOME pinned to a git-gate-free temp so the app-owned
+ * path is deterministic), reading the real path back from git.
  */
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync, mkdirSync, realpathSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {basename, delimiter, dirname, join} from 'node:path';
 
-import {createWorktree, listWorktrees} from './gitWorktreeCommands';
+import {createWorktree, isGitGateActive, listWorktrees, planWorktreePlacement} from './gitWorktreeCommands';
 
 const cleanups: Array<() => void> = [];
 
@@ -25,6 +27,27 @@ afterEach(() => {
 
 function git(repoRoot: string, args: readonly string[]): string {
     return execFileSync('git', args, {cwd: repoRoot, stdio: 'pipe', encoding: 'utf-8'});
+}
+
+// Set an env var for the duration of one test, restoring it in afterEach.
+function setEnvUntilCleanup(key: string, value: string | undefined): void {
+    const had: boolean = key in process.env;
+    const prev: string | undefined = process.env[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+    cleanups.push(() => {
+        if (had) process.env[key] = prev as string;
+        else delete process.env[key];
+    });
+}
+
+// A temp HOME with no `bin/git`, so isGitGateActive() is deterministically false
+// regardless of whether the test machine actually has git-gate installed (e.g. a
+// dev with ~/bin/git). This pins createWorktree onto the app-owned placement path.
+function gitGateFreeHome(): string {
+    const home: string = realpathSync(mkdtempSync(join(tmpdir(), 'vt-wt-home-')));
+    cleanups.push(() => rmSync(home, {recursive: true, force: true}));
+    return home;
 }
 
 function makeRepo(): string {
@@ -99,5 +122,143 @@ describe('listWorktrees (git-driven)', () => {
     it('returns an empty array when there are no linked worktrees', async () => {
         const repoRoot: string = makeRepo();
         expect(await listWorktrees(repoRoot)).toEqual([]);
+    });
+});
+
+describe('isGitGateActive (resolves git on PATH like execFile does)', () => {
+    const homeDir = '/Users/dev';
+    const shim = '/Users/dev/bin/git';
+    const execIn = (paths: readonly string[]) => {
+        const set: Set<string> = new Set(paths);
+        return (candidate: string): boolean => set.has(candidate);
+    };
+
+    it('true when ~/bin/git resolves first on PATH', () => {
+        expect(isGitGateActive({
+            pathEnv: ['/Users/dev/bin', '/opt/homebrew/bin', '/usr/bin'].join(delimiter),
+            homeDir,
+            isExecutable: execIn([shim, '/opt/homebrew/bin/git', '/usr/bin/git']),
+        })).toBe(true);
+    });
+
+    it('false when the real git resolves first and the shim is absent', () => {
+        expect(isGitGateActive({
+            pathEnv: ['/opt/homebrew/bin', '/usr/bin'].join(delimiter),
+            homeDir,
+            isExecutable: execIn(['/opt/homebrew/bin/git', '/usr/bin/git']),
+        })).toBe(false);
+    });
+
+    it('false when a stale ~/bin/git exists but is shadowed earlier on PATH', () => {
+        // /opt/homebrew/bin precedes ~/bin → execFile would run the real git.
+        expect(isGitGateActive({
+            pathEnv: ['/opt/homebrew/bin', '/Users/dev/bin'].join(delimiter),
+            homeDir,
+            isExecutable: execIn(['/opt/homebrew/bin/git', shim]),
+        })).toBe(false);
+    });
+
+    it('false when PATH is empty or undefined', () => {
+        expect(isGitGateActive({pathEnv: '', homeDir, isExecutable: () => true})).toBe(false);
+        expect(isGitGateActive({pathEnv: undefined, homeDir, isExecutable: () => true})).toBe(false);
+    });
+
+    it('false when no git is found anywhere on PATH', () => {
+        expect(isGitGateActive({
+            pathEnv: ['/Users/dev/bin', '/usr/bin'].join(delimiter),
+            homeDir,
+            isExecutable: () => false,
+        })).toBe(false);
+    });
+});
+
+describe('planWorktreePlacement', () => {
+    const mainCheckout = '/Users/dev/voicetree';
+
+    // No-op proof: when git-gate is active the destination argument passed to
+    // `git worktree add` is the BARE name, unchanged — placement is delegated to
+    // git-gate exactly as before, so git-gate users (Manu) see no change.
+    it('git-gate active → bare name, app does not own placement', () => {
+        expect(planWorktreePlacement({
+            gitGateActive: true,
+            worktreeName: 'wt-x-abc',
+            mainCheckout,
+            worktreeRootEnv: '/whatever/ignored',
+        })).toEqual({destination: 'wt-x-abc', appOwned: false});
+    });
+
+    it('git-gate absent → absolute dest under <parent-of-main>/vt-wts', () => {
+        expect(planWorktreePlacement({
+            gitGateActive: false,
+            worktreeName: 'wt-x-abc',
+            mainCheckout,
+            worktreeRootEnv: undefined,
+        })).toEqual({destination: '/Users/dev/vt-wts/wt-x-abc', appOwned: true});
+    });
+
+    it('git-gate absent + VT_WORKTREE_ROOT → absolute dest under that root', () => {
+        expect(planWorktreePlacement({
+            gitGateActive: false,
+            worktreeName: 'wt-x-abc',
+            mainCheckout,
+            worktreeRootEnv: '/custom/wts',
+        })).toEqual({destination: '/custom/wts/wt-x-abc', appOwned: true});
+    });
+
+    it('git-gate absent + blank VT_WORKTREE_ROOT → treated as unset', () => {
+        expect(planWorktreePlacement({
+            gitGateActive: false,
+            worktreeName: 'wt-x-abc',
+            mainCheckout,
+            worktreeRootEnv: '   ',
+        })).toEqual({destination: '/Users/dev/vt-wts/wt-x-abc', appOwned: true});
+    });
+});
+
+describe('createWorktree placement (no git-gate → app owns placement)', () => {
+    it('lands under VT_WORKTREE_ROOT, never nested inside the watched repo', async () => {
+        const repoRoot: string = makeRepo();
+        const parent: string = dirname(repoRoot);
+        const wtsRoot: string = join(parent, 'custom-wts');
+        setEnvUntilCleanup('HOME', gitGateFreeHome());
+        setEnvUntilCleanup('VT_WORKTREE_ROOT', wtsRoot);
+
+        const worktreePath: string = await createWorktree(repoRoot, 'wt-placed');
+
+        expect(basename(worktreePath)).toBe('wt-placed');
+        expect(basename(dirname(worktreePath))).toBe('custom-wts');
+        // NOT nested under the watched repo — the bug this change fixes.
+        expect(worktreePath.startsWith(repoRoot + '/')).toBe(false);
+        expect(statSync(worktreePath).isDirectory()).toBe(true);
+        expect((await listWorktrees(repoRoot)).map(w => w.branch)).toContain('wt-placed');
+    });
+
+    it('defaults to <parent-of-main-checkout>/vt-wts when VT_WORKTREE_ROOT is unset', async () => {
+        const repoRoot: string = makeRepo();
+        const parent: string = dirname(repoRoot);
+        setEnvUntilCleanup('HOME', gitGateFreeHome());
+        setEnvUntilCleanup('VT_WORKTREE_ROOT', undefined);
+
+        const worktreePath: string = await createWorktree(repoRoot, 'wt-default');
+
+        // main checkout = repoRoot; parent-of-main = parent; root = parent/vt-wts.
+        expect(worktreePath).toBe(join(parent, 'vt-wts', 'wt-default'));
+        expect(statSync(worktreePath).isDirectory()).toBe(true);
+    });
+
+    it('normalizes the new worktree git pointer to a relative (host-portable) path', async () => {
+        const repoRoot: string = makeRepo();
+        const parent: string = dirname(repoRoot);
+        setEnvUntilCleanup('HOME', gitGateFreeHome());
+        setEnvUntilCleanup('VT_WORKTREE_ROOT', join(parent, 'wts'));
+
+        const worktreePath: string = await createWorktree(repoRoot, 'wt-relative');
+
+        // App-owned placement runs `worktree repair --relative-paths`, so the
+        // worktree's `.git` gitdir pointer is relative, not an absolute
+        // host-specific path that would break the mutagen mac↔devbox mirror.
+        const gitPointer: string = readFileSync(join(worktreePath, '.git'), 'utf-8').trim();
+        expect(gitPointer.startsWith('gitdir: ')).toBe(true);
+        expect(gitPointer.startsWith('gitdir: /')).toBe(false);
     });
 });

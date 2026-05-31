@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import normalizePath from 'normalize-path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import type { FSDelete, FSUpdate } from '@vt/graph-model'
 import { mountWatcher, type Watcher, type MountWatcherDependencies } from './daemonWatcher.ts'
@@ -144,6 +145,11 @@ describe('mountWatcher: excludes .voicetree/ files from the graph', () => {
         }
       },
       logger: { error: () => undefined },
+      // In production the cold scan loads `notes/` before the watcher mounts, so
+      // a loose file appearing there ingests. Seed one loaded node under it so
+      // the "new folders unloaded by default" gate sees `notes/` as loaded —
+      // this test exercises the `.voicetree` IGNORE rule, not the load gate.
+      getGraphNodes: () => ({ [`${normalizePath(join(project, 'notes'))}/seed.md`]: {} }),
     }
 
     const watcher: Watcher = mountWatcher([project], project, deps)
@@ -164,4 +170,87 @@ describe('mountWatcher: excludes .voicetree/ files from the graph', () => {
       await watcher.unmount()
     }
   }, 12000)
+})
+
+/**
+ * "New folders unloaded by default" (the worktree-flood fix). Drives the real
+ * chokidar pipeline and asserts on the OBSERVABLE side effect — which 'add'
+ * events reach the graph handler. A brand-new folder dropped under a loaded
+ * project (e.g. a `git worktree add` checkout) must NOT ingest its markdown;
+ * loose new files in already-loaded folders must still ingest instantly.
+ */
+describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
+  const created: string[] = []
+  const originalHeadlessTest: string | undefined = process.env.HEADLESS_TEST
+
+  beforeEach(() => {
+    // Force polling so watch-time 'add' events are reliably observed in CI/macOS.
+    process.env.HEADLESS_TEST = '1'
+  })
+
+  afterEach(async () => {
+    if (originalHeadlessTest === undefined) delete process.env.HEADLESS_TEST
+    else process.env.HEADLESS_TEST = originalHeadlessTest
+    for (const dir of created.splice(0)) {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('a brand-new folder of many .md does not ingest; loose files in loaded folders do', async () => {
+    const parent: string = await mkdtemp(join(tmpdir(), 'vt-unload-new-folders-'))
+    created.push(parent)
+    const project: string = join(parent, 'project')
+    await mkdir(join(project, 'loaded'), { recursive: true })
+
+    // The loaded project as the daemon sees it after the cold scan: the root is
+    // a watch root, and `loaded/` already holds a node.
+    const graphNodes: Record<string, unknown> = {
+      [`${normalizePath(join(project, 'loaded'))}/existing.md`]: {},
+    }
+
+    const addedPaths: string[] = []
+    const deps: MountWatcherDependencies = {
+      readFileWithRetry: async () => '# content\n',
+      handleFSEvent: (event: FSUpdate | FSDelete) => {
+        if ('eventType' in event && event.eventType === 'Added') {
+          addedPaths.push(normalizePath(event.absolutePath))
+        }
+      },
+      logger: { error: () => undefined },
+      getGraphNodes: () => graphNodes,
+    }
+
+    const watcher: Watcher = mountWatcher([project], project, deps)
+    try {
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve')
+
+      // A brand-new nested folder tree appears (simulating a worktree checkout).
+      // Written FIRST so its 'add' events are surfaced no later than the loose
+      // files below — making the absence assertion deterministic under polling.
+      await mkdir(join(project, 'wt-feature', 'packages', 'app'), { recursive: true })
+      await writeFile(join(project, 'wt-feature', 'README.md'), '# readme\n')
+      await writeFile(join(project, 'wt-feature', 'architecture.md'), '# arch\n')
+      await writeFile(join(project, 'wt-feature', 'packages', 'app', 'index.md'), '# idx\n')
+
+      // Loose new files that MUST still load: one in an already-loaded subfolder,
+      // one directly at the (watch-root) project root.
+      await writeFile(join(project, 'loaded', 'fresh.md'), '# fresh\n')
+      await writeFile(join(project, 'root-note.md'), '# root\n')
+
+      // Both loose files ingest...
+      await expect
+        .poll(
+          () =>
+            addedPaths.some((p) => p.endsWith('/loaded/fresh.md')) &&
+            addedPaths.some((p) => p.endsWith('/root-note.md')),
+          { timeout: 5000 },
+        )
+        .toBe(true)
+
+      // ...and not a single file from the brand-new folder did.
+      expect(addedPaths.some((p) => p.includes('/wt-feature/'))).toBe(false)
+    } finally {
+      await watcher.unmount()
+    }
+  }, 15000)
 })

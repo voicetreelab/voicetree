@@ -1,7 +1,36 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { SavedProject } from '@vt/graph-model/project';
-import {resolveVoicetreeHomePath} from '@vt/paths';
+import {normalizeProjectPath, resolveVoicetreeHomePath} from '@vt/paths';
+
+/**
+ * Collapse projects that point at the same on-disk directory.
+ *
+ * Two entries can differ only by path casing (e.g. `~/Voicetree` vs
+ * `~/voicetree` on a case-insensitive filesystem) or by symlink, yet refer to
+ * one directory. Grouping by canonical path keeps a single entry per real
+ * directory — the most-recently-opened one — so the recent-projects list never
+ * shows a directory twice and re-opening with a different casing never forks a
+ * second record.
+ *
+ * `canonicalize` is injected so this stays a pure, platform-independent
+ * transform that is black-box testable without touching disk; production passes
+ * {@link normalizeProjectPath}.
+ */
+export function dedupeProjectsByCanonicalPath(
+    projects: readonly SavedProject[],
+    canonicalize: (projectPath: string) => string,
+): SavedProject[] {
+    const byCanonicalPath: Map<string, SavedProject> = new Map();
+    for (const project of projects) {
+        const key: string = canonicalize(project.path);
+        const existing: SavedProject | undefined = byCanonicalPath.get(key);
+        if (!existing || project.lastOpened >= existing.lastOpened) {
+            byCanonicalPath.set(key, project);
+        }
+    }
+    return [...byCanonicalPath.values()];
+}
 
 function getProjectsFilePath(voicetreeHomePath: string): string {
     return path.join(voicetreeHomePath, 'projects.json');
@@ -64,8 +93,11 @@ export async function loadProjects(): Promise<SavedProject[]> {
     // Filter out projects with missing paths
     const existenceChecks: Promise<boolean>[] = projects.map((p) => pathExists(p.path));
     const exists: boolean[] = await Promise.all(existenceChecks);
+    const present: SavedProject[] = projects.filter((_, index) => exists[index]);
 
-    return projects.filter((_, index) => exists[index]);
+    // Collapse casing/symlink variants so legacy records written before path
+    // normalization still surface as one entry per real directory.
+    return dedupeProjectsByCanonicalPath(present, normalizeProjectPath);
 }
 
 /**
@@ -75,16 +107,17 @@ export async function loadProjects(): Promise<SavedProject[]> {
 export async function saveProject(project: SavedProject): Promise<void> {
     const voicetreeHomePath: string = resolveVoicetreeHomePath();
     const projects: SavedProject[] = await readProjectsFile(voicetreeHomePath);
+    const canonicalPath: string = normalizeProjectPath(project.path);
 
-    const existingIndex: number = projects.findIndex((p) => p.id === project.id);
+    // Drop the prior record of this project — matched by id (an update) or by
+    // canonical path (a casing/symlink variant of the same directory) — so the
+    // freshly-opened project becomes the single entry for that directory.
+    const others: SavedProject[] = projects.filter(
+        (p) => p.id !== project.id && normalizeProjectPath(p.path) !== canonicalPath,
+    );
+    others.push(project);
 
-    if (existingIndex >= 0) {
-        projects[existingIndex] = project;
-    } else {
-        projects.push(project);
-    }
-
-    await writeProjectsFile(voicetreeHomePath, projects);
+    await writeProjectsFile(voicetreeHomePath, others);
 }
 
 /**

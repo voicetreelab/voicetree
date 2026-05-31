@@ -2,6 +2,7 @@ import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import log from 'electron-log'
 import { getCallbacks } from '@vt/graph-model'
+import { normalizeProjectPath } from '@vt/paths'
 import { initializeProject } from '@vt/app-config/project'
 import {
     getProjectConfigForDirectory,
@@ -110,7 +111,16 @@ export async function getStartupProjectHint(): Promise<StartupProjectHint> {
     return { kind: 'none' }
 }
 
-export async function openProject(projectRoot: string): Promise<OpenProjectResponse> {
+export async function openProject(rawProjectRoot: string): Promise<OpenProjectResponse> {
+    // Single normalization edge: fix the path to its true on-disk casing (and
+    // resolve symlinks) so the watched dir, the daemon's node-ID base, the
+    // worktree spawn cwd, the persisted project record (derived downstream from
+    // `response.projectState.projectRoot`), and the project:* events the
+    // renderer matches against all agree. `/Users/x/Voicetree` and
+    // `/Users/x/voicetree` are one directory on a case-insensitive filesystem;
+    // without this they string-compare as two projects and scatter worktrees.
+    const projectRoot: string = normalizeProjectPath(rawProjectRoot)
+
     if (!(await pathIsDirectory(projectRoot))) {
         throw new Error(`Path is not a directory: ${projectRoot}`)
     }
