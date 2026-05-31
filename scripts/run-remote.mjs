@@ -30,6 +30,7 @@ import {dirname, resolve as pathResolve, relative as pathRelative, basename} fro
 import {posix as ppath} from 'node:path'
 import {homedir} from 'node:os'
 import {promisify} from 'node:util'
+import {ensureDepsFresh} from './dev-setup/common/ensure-deps-fresh.mjs'
 
 const execFileAsync = promisify(execFile)
 const REPO_ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -140,6 +141,11 @@ function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd()} = {}) {
 }
 
 function runLocal(cmd, args) {
+  // Deps-freshness guard (D5): the executing env's node_modules must match the
+  // committed lockfile before the command runs. Idempotent — a fresh env hashes
+  // two files and returns. Covers both the no-VT_REMOTE_HOST local path and the
+  // VT_REMOTE_EXEC re-entry on the devbox (where the ssh payload already ran it).
+  ensureDepsFresh()
   const child = spawn(cmd, args, {
     stdio: 'inherit',
     env: {
@@ -403,10 +409,24 @@ function runRemote(host, cmd, args, syncContext) {
   }
   const remoteCwd = ppath.join(remoteRoot, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')
+
+  // Deps-freshness guard (D5): prepend the guard to the ssh payload so commands
+  // ssh'd directly to the devbox (not re-entering run-remote) still get a
+  // node_modules consistent with the synced lockfile. run-remote flushes mutagen
+  // before this, so the remote lockfile is current. Mapped through the same
+  // localRoot→remoteRoot transform as remoteCwd, so it is correct for the main
+  // checkout and each worktree.
+  const guardRel = pathRelative(
+    localRoot,
+    pathResolve(REPO_ROOT, 'scripts/dev-setup/common/ensure-deps-fresh.mjs'),
+  )
+  const guardRemotePath = ppath.join(remoteRoot, guardRel.split(/[\\/]/).join('/'))
+
   const remoteScript = [
     repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
     `export ${RECURSION_GUARD}=1`,
+    `node ${shq(guardRemotePath)}`,
     `exec ${quotedCmd}`,
   ].join(' && ')
 
