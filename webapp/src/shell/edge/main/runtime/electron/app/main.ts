@@ -17,6 +17,7 @@ import type {TerminalRecord} from '@vt/vt-daemon-client';
 import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
+import {runUserDataMigrationAtStartup} from '@/shell/edge/main/runtime/electron/startup/user-data-migration';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
@@ -199,6 +200,13 @@ subscribeToTerminalRegistryCache((records: readonly TerminalRecord[]): void => {
 // App event handlers
 void app.whenReady().then(async () => {
     console.time('[Startup] Total time to window');
+
+    // Migrate a returning 2.9.x user's durable config (settings.json, projects.json,
+    // voicetree-config.json) from the old Electron userData dir to ~/.voicetree. This
+    // MUST be the first awaited step: it has to win the race against the first
+    // loadSettings(), which writes DEFAULT_SETTINGS at the new path on ENOENT and would
+    // otherwise defeat the absent-at-new guard. Non-blocking and never throws.
+    await runUserDataMigrationAtStartup();
 
     setupRPCHandlers();
     registerGraphIpcHandlers();
