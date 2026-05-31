@@ -104,7 +104,7 @@ function fitViewport(): void {
  * Called from main process after any terminal registry mutation.
  * Phase 3: Main process is source of truth, renderer is display-only cache.
  */
-function syncTerminals(records: TerminalRecord[]): void {
+function syncTerminals(records: readonly TerminalRecord[]): void {
     syncFromMain(records);
     // Update headless agent badge overlays on task nodes
     updateHeadlessBadges();

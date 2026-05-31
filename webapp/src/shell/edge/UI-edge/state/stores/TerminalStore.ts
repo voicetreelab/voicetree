@@ -73,7 +73,7 @@ function notifySubscribers(): void {
  * Preserves renderer-local UI references while updating data from main.
  * Phase 3: Renderer is display-only, main is source of truth.
  */
-export function syncFromMain(records: TerminalRecord[]): void {
+export function syncFromMain(records: readonly TerminalRecord[]): void {
     // Build set of incoming terminal IDs for removal detection
     const incomingIds: Set<string> = new Set(records.map(r => r.terminalId));
 
