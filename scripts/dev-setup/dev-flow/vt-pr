@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# vt-pr — the reviewed path (D8). Commit (optional), push the feature branch,
+# and open a PR against the integration branch via gh. Slower on purpose (CI +
+# review); use vt-land for quick solo changes.
+#
+# Usage:
+#   vt-pr ["message"]               # PR against the worktree's upstream (else dev-manu)
+#   vt-pr --onto <branch> ["msg"]   # PR against an explicit base branch
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+  _t="$(readlink "$_self")"
+  case "$_t" in /*) _self="$_t" ;; *) _self="$(cd "$(dirname "$_self")" && pwd)/$_t" ;; esac
+done
+_DIR="$(cd "$(dirname "$_self")" && pwd)"
+# shellcheck source=_common.sh
+. "$_DIR/_common.sh"
+
+onto=""
+positional=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --onto|--base) onto="${2:-}"; shift 2 ;;
+    --onto=*)      onto="${1#--onto=}"; shift ;;
+    --base=*)      onto="${1#--base=}"; shift ;;
+    -h|--help)     sed -n '2,/^set -euo/p' "$_self" | sed 's/^# \{0,1\}//;/^set -euo/d'; exit 0 ;;
+    *)             positional+=("$1"); shift ;;
+  esac
+done
+msg="${positional[0]:-}"
+
+require_worktree
+[ -n "$onto" ] || onto="$(default_onto)"
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+if [ "$branch" = "$onto" ]; then
+  echo "vt-pr: HEAD is on '$onto' (the base of the PR) — create the worktree on a feature branch instead" >&2
+  exit 1
+fi
+
+if { ! git diff --quiet || ! git diff --cached --quiet; } && [ -n "$msg" ]; then
+  git commit -am "$msg"
+elif { ! git diff --quiet || ! git diff --cached --quiet; }; then
+  echo "vt-pr: uncommitted changes present — commit them first, or pass a message: vt-pr \"msg\"" >&2
+  exit 1
+fi
+
+echo "vt-pr: pushing $branch to origin"
+git push -u origin "$branch"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "vt-pr: pushed '$branch'. gh CLI not found — open the PR manually against '$onto'." >&2
+  exit 0
+fi
+gh pr create --base "$onto" --head "$branch" --fill

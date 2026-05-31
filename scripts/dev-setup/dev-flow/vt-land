@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# vt-land — the quick "make it stick" path (D8). Commit the current change,
+# rebase onto the integration branch so it fast-forwards, run a fast local
+# check, push to origin, and nudge BOTH caches. No PR, no CI — use vt-pr for
+# reviewed work.
+#
+# Usage:
+#   vt-land "message"               # land onto the worktree's upstream (else dev-manu)
+#   vt-land --onto <branch> "msg"   # land onto an explicit branch
+#
+# Safety:
+#   - refuses to run in the read-only base (must be a worktree)
+#   - a real rebase conflict HALTS and asks you to resolve (git won't guess)
+#   - a failed local check aborts BEFORE pushing (keeps the branch green)
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+  _t="$(readlink "$_self")"
+  case "$_t" in /*) _self="$_t" ;; *) _self="$(cd "$(dirname "$_self")" && pwd)/$_t" ;; esac
+done
+_DIR="$(cd "$(dirname "$_self")" && pwd)"
+# shellcheck source=_common.sh
+. "$_DIR/_common.sh"
+
+onto=""
+positional=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --onto)    onto="${2:-}"; shift 2 ;;
+    --onto=*)  onto="${1#--onto=}"; shift ;;
+    -h|--help) sed -n '2,/^set -euo/p' "$_self" | sed 's/^# \{0,1\}//;/^set -euo/d'; exit 0 ;;
+    *)         positional+=("$1"); shift ;;
+  esac
+done
+msg="${positional[0]:-}"
+
+require_worktree
+[ -n "$onto" ] || onto="$(default_onto)"
+
+# Commit the change being landed, if there is one. Stage EVERYTHING under the
+# worktree (git add -A) — tracked edits AND brand-new files — so landing a new
+# file does the obvious thing. (The old `commit -am` staged only tracked edits,
+# silently dropping new files while still printing "landed".) git-ignored files
+# are excluded by git add -A, so the read-only base's ignored report data etc.
+# never get swept in.
+if [ -n "$(git status --porcelain)" ]; then
+  [ -n "$msg" ] || { echo "vt-land: working tree has changes — give a commit message: vt-land [--onto BR] \"msg\"" >&2; exit 1; }
+  git add -A
+  git commit -m "$msg"
+elif [ -n "$msg" ]; then
+  echo "vt-land: nothing to commit; landing the existing HEAD (message ignored)" >&2
+fi
+
+echo "vt-land: fetching origin and rebasing onto origin/$onto"
+git fetch origin
+if ! git rebase "origin/$onto"; then
+  {
+    echo ""
+    echo "vt-land: rebase onto origin/$onto hit a conflict — git will not guess."
+    echo "  resolve the conflict, then:  git rebase --continue && vt-land --onto $onto"
+    echo "  or back out:                 git rebase --abort"
+  } >&2
+  exit 1
+fi
+
+# After rebasing onto the freshly-fetched tip, HEAD == origin/$onto means there
+# is nothing of ours to push. Refuse loudly rather than printing a misleading
+# "landed" on a no-op push (the new-file footgun, and any empty land).
+onto_before="$(git rev-parse "origin/$onto")"
+head_sha="$(git rev-parse HEAD)"
+if [ "$head_sha" = "$onto_before" ]; then
+  {
+    echo ""
+    echo "vt-land: nothing to land — HEAD is already at origin/$onto (no new commits)."
+    echo "  Nothing was pushed. If you meant to land local work, check 'git log origin/$onto..HEAD';"
+    echo "  vt-land stages all changes (git add -A) before committing, so a new file should land."
+  } >&2
+  exit 1
+fi
+
+# Fast local sanity gate (OD-3): keep a broken commit off the shared branch.
+# Override with VT_LAND_CHECK="<command>"; set VT_LAND_CHECK= (empty) to skip.
+run_local_check() {
+  if [ "${VT_LAND_CHECK+set}" = set ]; then
+    [ -n "$VT_LAND_CHECK" ] || { echo "vt-land: VT_LAND_CHECK empty — skipping local gate" >&2; return 0; }
+    echo "vt-land: local check: $VT_LAND_CHECK" >&2
+    bash -c "$VT_LAND_CHECK" || { echo "vt-land: local check failed — NOT landing" >&2; exit 1; }
+    return 0
+  fi
+  local root; root="$(git rev-parse --show-toplevel)"
+  if [ -f "$root/package.json" ] && grep -q '"typecheck"' "$root/package.json" 2>/dev/null; then
+    echo "vt-land: running 'pnpm -s typecheck'" >&2
+    ( cd "$root" && pnpm -s typecheck ) || { echo "vt-land: typecheck failed — NOT landing" >&2; exit 1; }
+  else
+    echo "vt-land: no 'typecheck' script and no VT_LAND_CHECK — skipping local gate (set VT_LAND_CHECK to enforce one)" >&2
+  fi
+}
+run_local_check
+
+echo "vt-land: pushing HEAD → origin/$onto"
+git push origin "HEAD:$onto"
+
+# A successful push updates the local refs/remotes/origin/$onto. Assert the ref
+# actually advanced to our HEAD before claiming success — never report "landed"
+# when the remote did not move (e.g. a silent "Everything up-to-date").
+if [ "$(git rev-parse "origin/$onto")" != "$head_sha" ]; then
+  echo "vt-land: push did not advance origin/$onto to ${head_sha:0:9} — NOT landed." >&2
+  exit 1
+fi
+echo "vt-land: landed on origin/$onto (${onto_before:0:9} → ${head_sha:0:9}) — nudging both caches"
+nudge_both
