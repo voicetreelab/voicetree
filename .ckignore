@@ -1,0 +1,48 @@
+# .ckignore — scope ck's semantic/lexical index to production TypeScript only.
+#
+# Mirrors @vt/measures' isProductionSourcePath — the repo's canonical
+# "production source" definition, used by the call-graph and health metrics
+# (packages/measures/src/_shared/graph/call-graph.ts). Keeping ck's index in
+# lock-step means `ck --sem` searches the same code the graph reasons about:
+# core .ts/.tsx, minus tests, fixtures, generated, config, build output, and
+# shell/edge code under scripts/ and bin/.
+#
+# Syntax is gitignore-compatible. This is a whitelist: ignore everything, keep
+# traversing directories, re-include TypeScript, then re-exclude the
+# non-production TypeScript that slips through.
+
+# 1. Ignore everything by default.
+*
+# 2. Keep descending into directories (so the re-includes below are reachable).
+!*/
+# 3. Re-include TypeScript sources.
+!*.ts
+!*.tsx
+
+# 4. Re-exclude non-production TypeScript files (later patterns win).
+*.d.ts
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+*.config.ts
+
+# 5. Re-exclude non-production directories anywhere in the tree.
+#    A file under an excluded directory cannot be re-included, so these
+#    override the *.ts re-inclusion above for everything they contain.
+**/__tests__/
+**/__generated__/
+**/integration-tests/
+**/tests/
+**/scripts/
+**/bin/
+**/dist/
+**/build/
+**/node_modules/
+
+# 6. Foreign trees mounted in the worktree but NOT part of the product source —
+#    each is its own nested git repo (untracked by this repo, so isProductionSourcePath
+#    never sees them): the standalone `brain` automation/agent repo and the
+#    vendored Quartz static-site generator for the website.
+/brain/
+/vt-website-quartz/
