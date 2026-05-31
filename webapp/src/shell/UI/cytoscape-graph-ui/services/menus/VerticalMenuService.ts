@@ -257,7 +257,7 @@ export class VerticalMenuService {
             action: async () => {
                 const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
                 const terminalCount: number = getNextTerminalCount(terminalsMap, 'plain-terminal');
-                await window.electronAPI?.main.spawnPlainTerminalWithNode(position, terminalCount);
+                await window.electronAPI?.main.spawnPlainTerminalWithNode({ position, terminalCount });
             },
         });
 
