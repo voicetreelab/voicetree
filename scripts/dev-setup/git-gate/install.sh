@@ -35,12 +35,18 @@ case "$(uname -s)" in
     # shadowed too, so $HOME/bin is placed ahead of it.
     SHELL_INIT_FILES=("$HOME/.zshrc" "$HOME/.zprofile")
     PATH_LINE='export PATH="$HOME/bin:/opt/homebrew/bin:$PATH:$HOME/.claude/local"'
+    # Mac-authored worktrees join the mutagen mirror, so they live under the
+    # `-synced` root (same basename on both ends of the sync).
+    VT_WORKTREE_ROOT_VALUE="$HOME/repos/vt-wts-synced"
     ;;
   *)
     # Linux/dev boxes default to bash; the real git already lives on PATH under
     # /usr/bin, so prepending $HOME/bin is sufficient to shadow it.
     SHELL_INIT_FILES=("$HOME/.bashrc" "$HOME/.profile")
     PATH_LINE='export PATH="$HOME/bin:$PATH"'
+    # Remote/dev-box worktrees are locally authored and NOT mirrored, so they
+    # live under the plain (suffix-less) root.
+    VT_WORKTREE_ROOT_VALUE="$HOME/vt-wts"
     ;;
 esac
 
@@ -79,9 +85,29 @@ ensure_git_gate_path() {
   } >> "$shell_file"
 }
 
+# Idempotently maintain a single managed `export VT_WORKTREE_ROOT=...` line so
+# the git-gate wrapper knows WHERE to place worktrees on this machine. The
+# marker comment lets re-runs replace the value in place rather than appending.
+ensure_vt_worktree_root_env() {
+  local shell_file="$1" root="$2"
+  local marker="# git-gate worktree root (managed by install.sh)"
+  touch "$shell_file"
+  if grep -qF "$marker" "$shell_file"; then
+    grep -vF "$marker" "$shell_file" | grep -v '^export VT_WORKTREE_ROOT=' > "$shell_file.gitgate.tmp"
+    mv "$shell_file.gitgate.tmp" "$shell_file"
+  fi
+  {
+    echo ""
+    echo "$marker"
+    printf 'export VT_WORKTREE_ROOT=%q\n' "$root"
+  } >> "$shell_file"
+}
+
 for init_file in "${SHELL_INIT_FILES[@]}"; do
   ensure_git_gate_path "$init_file"
+  ensure_vt_worktree_root_env "$init_file" "$VT_WORKTREE_ROOT_VALUE"
 done
+echo "→ install.sh: set VT_WORKTREE_ROOT=$VT_WORKTREE_ROOT_VALUE in ${SHELL_INIT_FILES[*]}"
 
 # Idempotently maintain a single managed `export GIT_GATE_PASS=...` line in a
 # shell-init file (Linux password storage). The marker comment lets re-runs

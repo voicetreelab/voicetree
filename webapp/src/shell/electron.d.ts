@@ -33,7 +33,7 @@ export interface ElectronAPI {
   // File system event listeners (returns cleanup function)
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => () => void;
   onProjectSwitching: (callback: (data: { path: string }) => void) => () => void;
-  onProjectReady: (callback: (data: { path: string }) => void) => () => void;
+  onProjectReady: (callback: (data: { path: string; sessionId: string }) => void) => () => void;
   onProjectLost: (callback: (data: { path?: string; error?: string; pid?: number | null }) => void) => () => void;
   onViewSwitched: (callback: (data: { activeViewId: string }) => void) => () => void;
   removeAllListeners: (channel: string) => void;

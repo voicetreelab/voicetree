@@ -63,7 +63,10 @@ VT_BRAIN_REPO_URL="${VT_BRAIN_REPO_URL:-git@github.com:voicetreelab/brain.git}"
 VT_BRAIN_LOCAL="${VT_BRAIN_LOCAL:-$HOME/brain-real}"
 VT_BRAIN_REMOTE="${VT_BRAIN_REMOTE:-/root/brain-real}"
 VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts.yml"
-VT_WTS_LOCAL="$(cd "$REPO_ROOT/.." && pwd)/vt-wts"
+# Mac-authored worktrees live under the `-synced` root (the mutagen mirror uses
+# the SAME basename on both ends). Matches VT_WORKTREE_ROOT written by
+# scripts/dev-setup/git-gate/install.sh on macOS.
+VT_WTS_LOCAL="$HOME/repos/vt-wts-synced"
 VT_WTS_REMOTE="/root/vt-wts-synced"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/root/.voicetree/artifacts}"
 

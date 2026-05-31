@@ -65,8 +65,10 @@ export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMEleme
     const statsOverlay: HTMLElement = createStatsOverlay();
     uiContainer.appendChild(statsOverlay);
 
-    // Initialize overlay store and show loading state
-    initGraphViewOverlays(loadingOverlay, loadingMessageElement, emptyStateOverlay);
+    // Initialize overlay store and show loading state. Error/stats overlays are
+    // registered too so dispose removes every element appended here, not just
+    // the stateful loading/empty pair.
+    initGraphViewOverlays(loadingOverlay, loadingMessageElement, emptyStateOverlay, errorOverlay, statsOverlay);
     setLoadingState(true, 'Loading Voicetree...');
 
     return {

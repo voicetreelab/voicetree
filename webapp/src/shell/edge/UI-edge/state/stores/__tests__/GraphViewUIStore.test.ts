@@ -54,4 +54,30 @@ describe('GraphViewUIStore', () => {
         setEmptyStateVisible(false)
         expect(empty.style.display).toBe('none')
     })
+
+    it('dispose removes every registered overlay from the DOM so a remount does not orphan them', () => {
+        const loading: HTMLDivElement = document.createElement('div')
+        const message: HTMLParagraphElement = document.createElement('p')
+        const empty: HTMLDivElement = document.createElement('div')
+        const error: HTMLDivElement = document.createElement('div')
+        const stats: HTMLDivElement = document.createElement('div')
+        loading.appendChild(message)
+        document.body.append(loading, empty, error, stats)
+        initGraphViewOverlays(loading, message, empty, error, stats)
+
+        expect(loading.isConnected).toBe(true)
+        expect(error.isConnected).toBe(true)
+        expect(stats.isConnected).toBe(true)
+
+        disposeGraphViewOverlays()
+
+        expect(loading.isConnected).toBe(false)
+        expect(empty.isConnected).toBe(false)
+        expect(error.isConnected).toBe(false)
+        expect(stats.isConnected).toBe(false)
+
+        // After dispose the store no longer drives a detached element.
+        setLoadingState(true, 'Loading Voicetree...')
+        expect(loading.style.display).toBe('')
+    })
 })

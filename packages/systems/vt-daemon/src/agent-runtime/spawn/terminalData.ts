@@ -14,24 +14,20 @@ import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
- * Extract worktree directory name from a spawn path, if it's inside the
- * sibling `vt-wts/` or `vt-wts-remote/` directory.
+ * Extract worktree directory name from a spawn path, if it sits under a
+ * worktree root directory.
  *
- * Layout: worktrees live alongside the main checkout, not nested inside it.
- *   ~/repos/vtrepo/              ← Mac main
- *   ~/repos/vt-wts/<name>/       ← Mac-owned worktree
- *   /root/vtrepo/                ← VM main
- *   /root/vt-wts-remote/<name>/  ← VM-owned worktree
+ * Worktree placement is owned by the machine-level git wrapper, not this app,
+ * so we only recognise the two ROOT BASENAMES the wrapper uses — we never
+ * COMPUTE a path from them:
+ *   `vt-wts`        — locally-authored worktrees (not mirrored)
+ *   `vt-wts-synced` — part of the mutagen mirror (same basename on Mac + remote)
  *
- * The directory-name constants are duplicated (not imported) in
- * webapp/.../gitWorktreeCommands.ts, scripts/run-remote.mjs, and
- * scripts/dev-setup/git-gate/git-gate.sh. Keep all four in sync.
- *
- * Example: "/Users/x/repos/vt-wts/wt-fix-auth-bug-a3k" -> "wt-fix-auth-bug-a3k"
+ * Example: "/Users/x/repos/vt-wts-synced/wt-fix-auth-bug-a3k" -> "wt-fix-auth-bug-a3k"
  */
 function extractWorktreeNameFromPath(spawnDirectory: string | undefined): string | undefined {
     if (!spawnDirectory) return undefined
-    const markers: readonly string[] = ['/vt-wts/', '/vt-wts-remote/']
+    const markers: readonly string[] = ['/vt-wts/', '/vt-wts-synced/']
     const marker: string | undefined = markers.find(candidate => spawnDirectory.includes(candidate))
     if (!marker) return undefined
     const markerIndex: number = spawnDirectory.indexOf(marker)

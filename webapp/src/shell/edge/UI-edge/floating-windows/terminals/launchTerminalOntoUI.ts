@@ -1,6 +1,6 @@
 import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import type {Core} from "cytoscape";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
+import {getCyInstance, isCyInitialized} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal";
 import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/stores/UIAppState";
@@ -24,6 +24,11 @@ export async function launchTerminalOntoUI(
     skipFitAnimation?: boolean
 ): Promise<void> {
     //console.log("BEFORE LAUNCH UI")
+    // On reload, main replays terminal-ui-launch before the graph view has
+    // mounted. Rather than throw (getCyInstance) or queue, no-op: rehydrate()
+    // replays every live terminal once cy is mounted, so a dropped pre-mount
+    // launch reappears via that single canonical path.
+    if (!isCyInitialized()) return;
     const cy: Core = getCyInstance();
 
     // Check if a floating window already exists for this context node - only one allowed

@@ -11,11 +11,13 @@
 //
 // Two mutagen sessions back this script:
 //   * `vt-remote`  — main checkout ↔ /root/vtrepo-synced  (one-way-replica)
-//   * `vt-wts`     — sibling /Users/.../vt-wts/ ↔ /root/vt-wts-synced/  (one-way-replica)
+//   * `vt-wts`     — Mac /Users/.../vt-wts-synced/ ↔ /root/vt-wts-synced/  (one-way-replica)
 //
-// Worktrees live SIBLING to the main checkout: `<parent>/vt-wts/<name>/`. The
-// session is picked based on which root the cwd falls under. Blocks on the
-// chosen session reaching `Status: Watching for changes` before invoking ssh.
+// Worktrees live OUTSIDE the main checkout, under the Mac `-synced` worktree
+// root `<parent>/vt-wts-synced/<name>/` (the `-synced` basename is shared with
+// the remote end of the mirror). The session is picked based on which root the
+// cwd falls under. Blocks on the chosen session reaching `Status: Watching for
+// changes` before invoking ssh.
 //
 // The remote .git/index IS synced (see mutagen-vt-remote.yml), so commands run
 // here see the same staged tree as local git. This is what lets pre-commit
@@ -33,7 +35,9 @@ const execFileAsync = promisify(execFile)
 const REPO_ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REMOTE_ROOT = '/root/vtrepo-synced'
 const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
-const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
+// Mac-side worktree root basename. Mirrors the remote end (same `-synced`
+// basename); the local Mac path is `<parent>/vt-wts-synced/<name>`.
+const WORKTREE_SIBLING_DIR_NAME = 'vt-wts-synced'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
 const MUTAGEN_SESSION_WTS = 'vt-wts'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
@@ -89,9 +93,9 @@ function localWtsRoot(mainCheckoutRoot = localMainCheckoutRoot()) {
 }
 
 // Pick the sync session + roots that govern `cwd`.
-//   - cwd inside `<main>/`             → vt-remote session, REMOTE_ROOT
-//   - cwd inside `<parent>/vt-wts/`    → vt-wts session, REMOTE_WTS_ROOT
-//   - cwd elsewhere                    → null (caller throws)
+//   - cwd inside `<main>/`                  → vt-remote session, REMOTE_ROOT
+//   - cwd inside `<parent>/vt-wts-synced/`  → vt-wts session, REMOTE_WTS_ROOT
+//   - cwd elsewhere                         → null (caller throws)
 function resolveSyncContext(cwd = process.cwd()) {
   const mainCheckoutRoot = localMainCheckoutRoot()
   const wtsRoot = localWtsRoot(mainCheckoutRoot)
@@ -288,8 +292,9 @@ function localWorktreeNames(repoRoot = REPO_ROOT) {
 }
 
 // Shell snippet that prints the remote worktree inventory across BOTH roots:
-// the synced main checkout's nested .worktrees/ (legacy) AND the synced sibling vt-wts/
-// directory. Anything in either is considered "remote-known" for reconcile.
+// the synced main checkout's nested .worktrees/ (legacy) AND the synced
+// vt-wts-synced/ worktree root. Anything in either is considered "remote-known"
+// for reconcile.
 // Pure: returns a string. Caller is responsible for sending it over ssh.
 function remoteWorktreeListingScript({remoteRoot = REMOTE_ROOT, remoteWtsRoot = REMOTE_WTS_ROOT} = {}) {
   return [

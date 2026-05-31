@@ -19,7 +19,7 @@ import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
-import {prependVtBinToPath, resolveVtBinDir} from '../injection/vtPathInjection'
+import {prependVtBinToPath, prependHomeBinToPath, resolveVtBinDir} from '../injection/vtPathInjection'
 
 describe('prependVtBinToPath (pure)', () => {
     it('passes through unchanged when vtBinDir is null', () => {
@@ -162,7 +162,7 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
         expect(envVars.PATH).toContain('/usr/bin')
     })
 
-    it('leaves PATH untouched when getVtBinDir is not registered', async () => {
+    it('prepends $HOME/bin even when getVtBinDir is not registered', async () => {
         configureAgentRuntime({
             env: {
                 getProjectPaths: async (): Promise<readonly string[]> => [tempDir],
@@ -184,7 +184,12 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
             } as never,
         })
 
-        expect(envVars.PATH).toBe('/usr/bin:/bin')
+        // $HOME/bin is always injected (unless Windows) so git-gate shim is reachable
+        if (process.platform !== 'win32') {
+            const homeBin: string = path.join(os.homedir(), 'bin')
+            expect(envVars.PATH.startsWith(homeBin + path.delimiter)).toBe(true)
+        }
+        expect(envVars.PATH).toContain('/usr/bin')
     })
 
     it('sets PATH from scratch when no PATH is injected and vt-bin is configured', async () => {
@@ -210,6 +215,36 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
             } as never,
         })
 
-        expect(envVars.PATH).toBe(vtBinDir)
+        // PATH = vtBinDir : $HOME/bin (or just vtBinDir on Windows)
+        if (process.platform !== 'win32') {
+            const homeBin: string = path.join(os.homedir(), 'bin')
+            expect(envVars.PATH).toBe(vtBinDir + path.delimiter + homeBin)
+        } else {
+            expect(envVars.PATH).toBe(vtBinDir)
+        }
+    })
+})
+
+describe('prependHomeBinToPath (pure)', () => {
+    it('prepends $HOME/bin on non-Windows platforms', () => {
+        const result = prependHomeBinToPath({PATH: '/usr/bin'}, 'linux', '/home/alice')
+        expect(result.PATH).toBe('/home/alice/bin' + path.delimiter + '/usr/bin')
+    })
+
+    it('is a no-op on Windows', () => {
+        const input = {PATH: 'C:\\Windows\\System32'}
+        expect(prependHomeBinToPath(input, 'win32', 'C:\\Users\\alice')).toEqual(input)
+    })
+
+    it('is idempotent — does not double-prepend on repeated calls', () => {
+        const first = prependHomeBinToPath({PATH: '/usr/bin'}, 'darwin', '/home/alice')
+        const second = prependHomeBinToPath(first, 'darwin', '/home/alice')
+        expect(second.PATH).toBe(first.PATH)
+    })
+
+    it('sets PATH when it is absent', () => {
+        const result = prependHomeBinToPath({OTHER: 'x'}, 'linux', '/home/alice')
+        expect(result.PATH).toBe('/home/alice/bin')
+        expect(result.OTHER).toBe('x')
     })
 })
