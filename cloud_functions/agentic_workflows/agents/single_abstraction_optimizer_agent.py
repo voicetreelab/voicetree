@@ -25,7 +25,7 @@ class SingleAbstractionOptimizerAgent(Agent):
         self.add_prompt_node(
             "single_abstraction_optimizer",
             OptimizationResponse,
-            model_name="gemini-2.5-flash"
+            model_name="gemini-3.5-flash"
         )
         self.add_dataflow("single_abstraction_optimizer", END)
 
