@@ -1,4 +1,4 @@
-import type {Core, Position as CyPosition, EventObject, NodeSingular} from 'cytoscape';
+import type {Core, NodeCollection, Position as CyPosition, EventObject, NodeSingular} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/actions/mergeSelectedNodesFromUI";
 import {extractIntoFolderFromUI} from "@/shell/edge/UI-edge/graph/actions/extractIntoFolderFromUI";
@@ -100,10 +100,10 @@ export class VerticalMenuService {
         const menuItems: MenuItem[] = [];
 
         // Check if click position is inside a folder node's bounding box
-        const folderAtPosition: NodeSingular = this.cy!.nodes('[?isFolderNode]').filter(node => {
+        const folderAtPosition: NodeSingular = (this.cy!.nodes('[?isFolderNode]') as NodeCollection).filter(node => {
             const bb: ReturnType<NodeSingular['boundingBox']> = node.boundingBox()
             return position.x >= bb.x1 && position.x <= bb.x2 && position.y >= bb.y1 && position.y <= bb.y2
-        }).sort((a, b) => b.ancestors().length - a.ancestors().length).first()
+        }).sort((a, b) => (b as NodeSingular).ancestors().length - (a as NodeSingular).ancestors().length).first() as NodeSingular
 
         if (folderAtPosition.length) {
             const folderId: string = folderAtPosition.id()
