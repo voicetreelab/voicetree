@@ -21,7 +21,6 @@ const sharedExclude = [
   '**/native-modules/**',
   '**/workers/share-worker/**',
   'tests/system/**',
-  'old/**',
 ]
 const repoRoot = process.cwd()
 const nestedGitRootExcludes = (root: string): string[] => {

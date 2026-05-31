@@ -64,18 +64,6 @@ export interface VoiceTreeGraphViewOptions {
 // FileWatcherService interface removed - VoiceTreeGraphView uses window.electronAPI directly
 
 /**
- * Event emitter for typed events
- *
- * Simple event system with unsubscribe support
- */
-export interface EventEmitter<T> {
-  /** Subscribe to event, returns unsubscribe function */
-  on(callback: (data: T) => void): () => void;
-  /** Emit event to all subscribers */
-  emit(data: T): void;
-}
-
-/**
  * Main interface for VoiceTreeGraphView
  *
  * This class is responsible for:
