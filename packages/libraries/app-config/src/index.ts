@@ -1,3 +1,7 @@
+export * from './config-files.ts'
 export * from './settings/settings_IO.ts'
 export * from './project-config/voicetree-config-io.ts'
 export * from './project/index.ts'
+export * from './migration/plan-user-data-migration.ts'
+export * from './migration/execute-user-data-migration.ts'
+export * from './migration/user-data-migration-notice.ts'
