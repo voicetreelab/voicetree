@@ -120,6 +120,7 @@ export class TerminalManager {
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
         terminalId,
         terminalData.initialCommand,
+        projectRoot,
       );
       if (promptInjection) {
         await injectAgentCommandHeadful(promptInjection);
