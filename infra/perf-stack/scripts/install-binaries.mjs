@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -192,6 +192,13 @@ const BINARIES = [
     binaryCandidates: ['otelcol-contrib'],
   },
 ]
+
+// The filenames a complete install writes into BIN_DIR — one per binary
+// (installArchive/installSourceBuild both target `join(BIN_DIR, binary.name)`).
+// Exported so the preflight (ensure-perf-stack.mjs) can test install
+// *completeness* against the same source of truth the installer produces,
+// rather than guessing from directory non-emptiness. The two can never drift.
+export const BINARY_NAMES = BINARIES.map((binary) => binary.name)
 
 const exists = async (path) => access(path).then(() => true, () => false)
 
@@ -434,7 +441,15 @@ const main = async () => {
   }
 }
 
-main().catch((err) => {
-  console.error(err.message)
-  process.exit(1)
-})
+// Run the installer only when invoked as a script. Guarding the entrypoint
+// keeps the module importable (e.g. for BINARY_NAMES / the pure helpers) without
+// triggering a full install as a side effect of `import`.
+// `process.argv[1]` is absent under `node -e`, workers, and some test runners;
+// guard it so an import in those contexts can't crash on pathToFileURL(undefined).
+const isEntrypoint = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isEntrypoint) {
+  main().catch((err) => {
+    console.error(err.message)
+    process.exit(1)
+  })
+}
