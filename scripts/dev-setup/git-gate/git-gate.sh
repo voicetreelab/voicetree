@@ -101,27 +101,58 @@ in_voicetree_base() {
   esac
 }
 
+# Emit the read-only-base block message (with a divergence-recovery hint) and exit.
+deny_base_edit() {
+  local base_top
+  base_top="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --show-toplevel 2>/dev/null || true)"
+  {
+    echo ""
+    echo "  ✗ git-gate: BLOCKED — this checkout is the origin cache (read-only base)."
+    echo "    command: git ${ORIG_ARGS[*]}"
+    echo ""
+    echo "    The base is a read-only fast-forward cache of origin/$(gate_base_branch)."
+    echo "    Editing happens in a worktree; integration happens via origin —"
+    echo "    the base only ever fast-forwards. Never commit/merge/rebase/pull/revert here."
+    echo ""
+    echo "    Work in a worktree instead:"
+    echo "      vt-worktree <name> [<branch>]   # or: git worktree add -b <name> <name> origin/<branch>"
+    echo "    Then land it:"
+    echo "      vt-land \"msg\"                   # quick fast-forward push to the integration branch"
+    echo "      vt-pr                           # open a PR for reviewed work"
+    echo ""
+    echo "    If the base has already diverged from origin, re-pin it with:"
+    echo "      VT_SYNC=1 git -C ${base_top:-<base>} reset --hard origin/$(gate_base_branch)"
+    echo ""
+  } >&2
+  exit 1
+}
+
+# `git apply` cannot move a ref, but a real apply dirties the read-only base (the
+# daemon then refuses to fast-forward). Treat apply as mutating UNLESS it carries
+# only a read-only inspection flag — `--check` / `--stat` / `--numstat` /
+# `--summary` touch nothing, so tooling that probes patches must stay unblocked.
+# A bare `-R` (reverse-apply) DOES write the tree, so it remains gated.
+apply_is_readonly() {
+  local a
+  for a in "$@"; do
+    case "$a" in
+      --check|--stat|--numstat|--summary) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# D5 read-only base guard. `pull` (= fetch+merge) and `revert` (= a commit) both
+# move the base ref and were the everyday muscle-memory bypasses of the original
+# list; `update-ref` rewrites the ref directly. All are gated here. The sync
+# daemon and configure-base reach these paths with VT_SYNC=1 (whole-gate bypass,
+# handled at the very top) so the legitimate fast-forward is never blocked.
 case "$sub" in
-  commit|merge|rebase|reset|cherry-pick|am|apply)
-    if in_voicetree_base; then
-      {
-        echo ""
-        echo "  ✗ git-gate: BLOCKED — this checkout is the origin cache (read-only base)."
-        echo "    command: git ${ORIG_ARGS[*]}"
-        echo ""
-        echo "    The base is a read-only fast-forward cache of origin/$(gate_base_branch)."
-        echo "    Editing happens in a worktree; integration happens via origin —"
-        echo "    the base only ever fast-forwards. Never commit/merge/rebase here."
-        echo ""
-        echo "    Work in a worktree instead:"
-        echo "      vt-worktree <name> [<branch>]   # or: git worktree add -b <name> <name> origin/<branch>"
-        echo "    Then land it:"
-        echo "      vt-land \"msg\"                   # quick fast-forward push to the integration branch"
-        echo "      vt-pr                           # open a PR for reviewed work"
-        echo ""
-      } >&2
-      exit 1
-    fi
+  commit|merge|rebase|reset|cherry-pick|am|pull|revert|update-ref)
+    in_voicetree_base && deny_base_edit
+    ;;
+  apply)
+    if in_voicetree_base && ! apply_is_readonly "${@:2}"; then deny_base_edit; fi
     ;;
 esac
 
@@ -133,40 +164,10 @@ gate_worktree_root() {
   printf '%s' "${VT_WORKTREE_ROOT:-$HOME/vt-wts}"
 }
 
-worktree_add_path_arg() {
-  local expect_option_value=0
-  local after_separator=0
-  local arg
-  for arg in "${@:3}"; do
-    if [ "$after_separator" -eq 1 ]; then
-      printf '%s\n' "$arg"
-      return 0
-    fi
-    if [ "$expect_option_value" -eq 1 ]; then
-      expect_option_value=0
-      continue
-    fi
-    case "$arg" in
-      --)
-        after_separator=1
-        ;;
-      -b|-B|--orphan|--reason)
-        expect_option_value=1
-        ;;
-      -*)
-        ;;
-      *)
-        printf '%s\n' "$arg"
-        return 0
-        ;;
-    esac
-  done
-}
-
-# Like worktree_add_path_arg, but prints the 1-based index of the destination
-# positional within the passed args (the stripped `worktree add ...` argv), so
-# the caller can REWRITE that element for placement enforcement. Empty if none.
-# Scanning starts at $3 (after the `worktree add` tokens).
+# Print the 1-based index of the destination positional within the passed args
+# (the stripped `worktree add ...` argv). The caller reads the value back with
+# `${!idx}` and can REWRITE that element for placement enforcement. Empty if no
+# destination positional is present. Scanning starts at $3 (after `worktree add`).
 worktree_add_path_index() {
   local i=3 n=$#
   local expect_option_value=0
@@ -309,26 +310,25 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
   # <worktree-root>/<basename-of-given-path> so callers (the VoiceTree app,
   # agents, plain `git worktree add -b x x`) never need to know the convention.
   # Escape hatch: VT_GIT_GATE_NO_PLACEMENT=1 honors the caller's explicit path.
+  given_idx="$(worktree_add_path_index "$@")"
   if [ "${VT_GIT_GATE_NO_PLACEMENT:-}" = "1" ]; then
-    wt_path="$(worktree_add_path_arg "$@")"
+    # Honor the caller's explicit destination path (no placement rewrite).
+    wt_path="${given_idx:+${!given_idx}}"
+  elif [ -n "$given_idx" ]; then
+    given_path="${!given_idx}"
+    wt_root="$(gate_worktree_root)"
+    wt_path="$wt_root/$(basename "$given_path")"
+    mkdir -p "$wt_root"
+    # Replace the destination positional in the stripped argv, then rebuild
+    # the full real-git argv as <global opts> + <rewritten subcommand args>.
+    rewritten=("$@")
+    rewritten[$((given_idx - 1))]="$wt_path"
+    ORIG_ARGS=("${GATE_GLOBAL_OPTS[@]}" "${rewritten[@]}")
+    echo "git-gate: placement → $wt_path" >&2
   else
-    given_idx="$(worktree_add_path_index "$@")"
-    if [ -n "$given_idx" ]; then
-      given_path="${!given_idx}"
-      wt_root="$(gate_worktree_root)"
-      wt_path="$wt_root/$(basename "$given_path")"
-      mkdir -p "$wt_root"
-      # Replace the destination positional in the stripped argv, then rebuild
-      # the full real-git argv as <global opts> + <rewritten subcommand args>.
-      rewritten=("$@")
-      rewritten[$((given_idx - 1))]="$wt_path"
-      ORIG_ARGS=("${GATE_GLOBAL_OPTS[@]}" "${rewritten[@]}")
-      echo "git-gate: placement → $wt_path" >&2
-    else
-      # No destination positional found — leave argv untouched (real git will
-      # error on its own, which is the correct surface for a malformed add).
-      wt_path="$(worktree_add_path_arg "$@")"
-    fi
+    # No destination positional found — leave argv untouched (real git will
+    # error on its own, which is the correct surface for a malformed add).
+    wt_path=""
   fi
   echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "${ORIG_ARGS[@]}"
