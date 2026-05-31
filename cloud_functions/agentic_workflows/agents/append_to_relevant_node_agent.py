@@ -36,7 +36,7 @@ class AppendToRelevantNodeAgent(Agent):
             "segmentation",
             SegmentationResponse,
             post_processor=self._segmentation_post_processor,
-            model_name="gemini-2.5-flash-lite"
+            model_name="gemini-3.1-flash-lite"
         )
 
         # Step 2: Identify target nodes for each segment
