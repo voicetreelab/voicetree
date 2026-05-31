@@ -88,6 +88,10 @@ ssh (`ssh mac …` / `ssh $VT_REMOTE_HOST …`), never via the `vt` name.
    reverse ssh tunnel to the Mac (where the graph lives), so VM alerting depends
    on that tunnel being up.
 
+   _Verified 2026-05-31 (VM): a no-nudge push to origin/dev-manu reaches the
+   other machine's base via the ~10s timer alone — confirmed cross-machine by
+   the rollout orchestrator (VM→Mac ff in ~10s, self-heal in ~8s)._
+
 ## Components
 
 | Component | Where | Runs on | Does |
