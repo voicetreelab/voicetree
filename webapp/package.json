@@ -148,6 +148,7 @@
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",
+    "@vt/measures": "*",
     "@vt/perf-fixtures": "*",
     "@vt/vt-daemon": "*",
     "@vt/vt-daemon-client": "*",
