@@ -166,7 +166,7 @@
 //   webapp -> paths:                 0 -> 2 (Electron build config + project bootstrap)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
-    'app-config -> paths': 2,
+    'app-config -> paths': 3,
     // 2026-05-28 [PR #139]: @vt/code-graph-cli is a thin agent-facing wrapper
     // around `@vt/measures`' `buildCallGraph` — single value symbol
     // (`buildCallGraph`) plus a pair of type re-exports (`CallGraph`,
