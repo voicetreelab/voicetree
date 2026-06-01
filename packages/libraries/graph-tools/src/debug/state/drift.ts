@@ -1,6 +1,5 @@
 import type { GraphNode } from '@vt/graph-model'
 import type { State } from '@vt/graph-state'
-import { compareEdges } from '@vt/graph-state/project-helpers'
 import type { CyDump, CyDumpEdge, CyDumpNode } from './cyStateShape'
 
 export type Divergence =
@@ -68,7 +67,7 @@ function buildDataCyDump(data: State): CyDump {
   const sources = [...nodeEntries].sort(([left], [right]) => left.localeCompare(right))
   for (const [sourceId, node] of sources) {
     const outgoing = [...node.outgoingEdges]
-      .sort(compareEdges)
+      .sort((a, b) => a.targetId.localeCompare(b.targetId) || a.label.localeCompare(b.label))
     for (const edge of outgoing) {
       const id = `${sourceId}->${edge.targetId}`
       if (seenEdges.has(id)) continue

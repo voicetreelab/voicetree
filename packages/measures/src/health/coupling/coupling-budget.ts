@@ -265,7 +265,15 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // absorbed into vt-daemon and overlap by 5 with the prior 10. The 18 are
     // the same call sites that previously crossed a sibling boundary; they
     // now cross the same (vt-daemon → graph-model) boundary instead.
-    'vt-daemon -> graph-model': 18,
+    //
+    // 2026-06-01 [create-graph feature]: +5. The create-graph RPC tool
+    // (createGraphTool.ts, createGraphBatch.ts, createGraphTopology.ts,
+    // createGraphValidation.ts) added graph-model value symbols:
+    // extractParentRefs, normalizeBatchFilenameKey (markdown parsing),
+    // getFolderIdentityNoteId, findBestMatchingNode, getFolderParent,
+    // isFolderIdentityNote (graph queries), DEFAULT_SUBGRAPH_{WARN,ERROR}_THRESHOLD
+    // (settings). Observed 23; ratchet DOWN as create-graph is refactored.
+    'vt-daemon -> graph-model': 23,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
@@ -313,7 +321,10 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
-    'webapp -> observability': 1,
+    // 2026-06-01 [app-metrics]: 1 -> 2. `observabilityMetrics` added for
+    // Electron-main OTel metrics sampler (appMetricsSampler.ts) + main.ts init.
+    // Ratchet DOWN as metrics sampler is stabilized.
+    'webapp -> observability': 2,
     // 2026-05-31 [worktree-placement-unload]: 2 -> 3 (+1 normalizeProjectPath,
     // openProject canonicalization edge — see paths header block above).
     'webapp -> paths': 3,
