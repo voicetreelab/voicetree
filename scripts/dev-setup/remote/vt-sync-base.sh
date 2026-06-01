@@ -14,8 +14,9 @@
 #   git fetch origin --prune                     (keeps ALL origin/* refs fresh)
 #   then advance the pinned local base branch (default dev-manu) by
 #   git merge --ff-only origin/$VT_BASE_BRANCH   (never reset; never destroy data)
-# On a dirty / diverged / ff-collision base it raises an ALERT — a red VoiceTree
-# node (best-effort) AND an OS notification — and retries idempotently next tick.
+# A dirty base is allowed to fast-forward when git can preserve the local edits;
+# if the incoming tree would overwrite a dirty tracked or untracked path, git
+# refuses the merge and we raise an ALERT. Diverged refs are also refused.
 # Transient fetch / ref-lock failures (shared object store with worktrees) are
 # tolerated: the tick exits 0 and the next tick retries; it never wedges.
 #
@@ -146,19 +147,14 @@ if ! git_base fetch origin --prune >>"$LOG" 2>&1; then
   exit 0
 fi
 
-# Never fast-forward over uncommitted work — alert and stop (D7).
-if ! git_base diff --quiet || ! git_base diff --cached --quiet; then
-  alert dirty "base '$BASE' has uncommitted changes — move work to a worktree; the cache cannot fast-forward while dirty"
-  exit 0
-fi
-
 if ! git_base show-ref --verify --quiet "refs/heads/$BRANCH"; then
   alert no-branch "base '$BASE' has no local '$BRANCH' branch — run the base configuration (setup-*-env.sh --configure-base)"
   exit 0
 fi
 
-# Keep HEAD pinned to the base branch (D1). Tree is clean (checked above), so a
-# re-pin is safe if a stray checkout left HEAD elsewhere.
+# Keep HEAD pinned to the base branch (D1). If a stray checkout left HEAD
+# elsewhere and local edits would be overwritten by the checkout, git refuses
+# and we alert instead of forcing it.
 cur="$(git_base symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
 if [ "$cur" != "$BRANCH" ]; then
   if ! git_base checkout "$BRANCH" >>"$LOG" 2>&1; then
@@ -187,8 +183,9 @@ if git_base merge-base --is-ancestor "$local_sha" "$remote_sha"; then
     clear_alerts
     exit 0
   fi
-  # ff blocked while clean → almost always an untracked path origin now adds (G5).
-  alert collision "base '$BASE' could not fast-forward '$BRANCH' to origin/$BRANCH (an untracked file would be overwritten?) — resolve manually"
+  # ff blocked while the ref is an ancestor → dirty tracked/untracked paths
+  # overlap the incoming tree, or git hit another working-tree collision.
+  alert collision "base '$BASE' could not fast-forward '$BRANCH' to origin/$BRANCH because local working-tree changes would be overwritten — move those edits to a worktree or remove the colliding paths"
   exit 0
 fi
 
