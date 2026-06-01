@@ -1,9 +1,9 @@
 import {execFileSync} from 'node:child_process'
-import {stat} from 'node:fs/promises'
 import {basename, isAbsolute, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {type PackageInfo} from '../../../_shared/discovery/discover-packages'
 import {buildImportGraph} from '../../../_shared/graph/import-graph'
+import {statOrNull} from '../../../_shared/stat-or-null'
 import {type DiagramSpec, parseArchitectureMd} from './architecture-contract'
 
 export type ParsedArchitectureFile = DiagramSpec & {
@@ -68,29 +68,6 @@ const ARCHITECTURE_FILE_NAME = 'architecture.md'
 function relativePath(absPath: string, repoRoot: string): string {
     const path = relative(repoRoot, absPath).split(sep).join('/')
     return path === '' ? '.' : path
-}
-
-async function pathExists(absPath: string): Promise<boolean> {
-    try {
-        await stat(absPath)
-        return true
-    } catch (cause) {
-        if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return false
-        throw cause
-    }
-}
-
-async function isDirectory(absPath: string): Promise<boolean> {
-    return (await stat(absPath)).isDirectory()
-}
-
-async function statOrNull(absPath: string) {
-    try {
-        return await stat(absPath)
-    } catch (cause) {
-        if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return null
-        throw cause
-    }
 }
 
 function isExcludedRelPath(rel: string): boolean {
@@ -212,7 +189,7 @@ async function validateClickTargets(file: ParsedArchitectureFile): Promise<reado
             continue
         }
         const absTarget = resolve(file.repoRoot, clickPath)
-        if (!(await pathExists(absTarget))) {
+        if ((await statOrNull(absTarget)) === null) {
             failures.push(
                 `Node '${nodeId}' in ${relFile} points at missing click target '${clickPath}'. Reconcile by restoring the file/directory or updating the diagram.`,
             )
@@ -278,10 +255,11 @@ export function buildRefinementTree(files: readonly ParsedArchitectureFile[]): R
 async function validateRefinementSubtree(link: RefinementLink): Promise<readonly string[]> {
     const relFile = relativePath(link.child.absPath, link.child.repoRoot)
     const parentAbsTarget = resolve(link.child.repoRoot, link.parentClickTarget)
-    if (!(await pathExists(parentAbsTarget))) {
+    const parentStat = await statOrNull(parentAbsTarget)
+    if (!parentStat) {
         return [`Descendant file ${relFile} refines node '${link.parentNodeId}', but the parent click target '${link.parentClickTarget}' does not exist. Reconcile the parent diagram or restore the code path before validating descendants.`]
     }
-    const parentSubtree = await isDirectory(parentAbsTarget) ? parentAbsTarget : resolve(parentAbsTarget, '..')
+    const parentSubtree = parentStat.isDirectory() ? parentAbsTarget : resolve(parentAbsTarget, '..')
     const failures: string[] = []
     for (const [nodeId, clickPath] of link.child.clickPaths.entries()) {
         const absClickTarget = resolve(link.child.repoRoot, clickPath)
