@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import normalizePath from 'normalize-path'
@@ -201,11 +201,13 @@ describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
     created.push(parent)
     const project: string = join(parent, 'project')
     await mkdir(join(project, 'loaded'), { recursive: true })
+    await writeFile(join(project, 'README.md'), '# existing readme\n')
 
     // The loaded project as the daemon sees it after the cold scan: the root is
     // a watch root, and `loaded/` already holds a node.
     const graphNodes: Record<string, unknown> = {
       [`${normalizePath(join(project, 'loaded'))}/existing.md`]: {},
+      [normalizePath(join(project, 'README.md'))]: {},
     }
 
     const addedPaths: string[] = []
@@ -253,4 +255,52 @@ describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
       await watcher.unmount()
     }
   }, 15000)
+
+  test('a loaded note moved into a brand-new folder still ingests as a move', async () => {
+    const parent: string = await mkdtemp(join(tmpdir(), 'vt-move-loaded-note-'))
+    created.push(parent)
+    const project: string = join(parent, 'project')
+    const targetPath: string = join(project, 'target.md')
+    const movedTargetPath: string = join(project, 'archive', 'target.md')
+    await mkdir(project, { recursive: true })
+    await writeFile(targetPath, '# target\n')
+
+    const graphNodes: Record<string, unknown> = {
+      [normalizePath(targetPath)]: {
+        absoluteFilePathIsID: normalizePath(targetPath),
+      },
+    }
+    const addedPaths: string[] = []
+
+    const deps: MountWatcherDependencies = {
+      readFileWithRetry: async () => '# target\n',
+      handleFSEvent: (event: FSUpdate | FSDelete) => {
+        if ('type' in event && event.type === 'Delete') {
+          delete graphNodes[normalizePath(event.absolutePath)]
+          return
+        }
+        if ('eventType' in event && event.eventType === 'Added') {
+          const nodeId: string = normalizePath(event.absolutePath)
+          graphNodes[nodeId] = { absoluteFilePathIsID: nodeId }
+          addedPaths.push(nodeId)
+        }
+      },
+      logger: { error: () => undefined },
+      getGraphNodes: () => graphNodes,
+    }
+
+    const watcher: Watcher = mountWatcher([project], project, deps)
+    try {
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve')
+
+      await mkdir(join(project, 'archive'), { recursive: true })
+      await rename(targetPath, movedTargetPath)
+
+      await expect
+        .poll(() => addedPaths.includes(normalizePath(movedTargetPath)), { timeout: 5000 })
+        .toBe(true)
+    } finally {
+      await watcher.unmount()
+    }
+  }, 12000)
 })

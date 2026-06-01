@@ -1,7 +1,9 @@
+import { access } from 'node:fs/promises'
 import chokidar from 'chokidar'
 import type { FSWatcher } from 'chokidar'
 import normalizePath from 'normalize-path'
 import {
+  type GraphNode,
   isImageNode,
   type FSDelete,
   type FSUpdate,
@@ -17,6 +19,8 @@ import { shouldIngestAddedFile } from '@vt/graph-db-server/watch-folder/watching
 import { consumeBroadcastSuppression } from '@vt/graph-db-server/watch-folder/pending-writes'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store'
+
+const RECENT_LOADED_DELETE_TTL_MS = 15_000
 
 export type Watcher = {
   readonly ready: Promise<void>
@@ -96,6 +100,88 @@ function buildWatcherOptions(watchRoots: readonly string[]) {
   }
 }
 
+function getBasenameKey(filePath: string): string {
+  const components: readonly string[] = normalizePath(filePath)
+    .split('/')
+    .filter((p) => p !== '' && p !== '.' && p !== '..')
+  if (components.length === 0) return ''
+  return components[components.length - 1].replace(/\.md$/i, '').toLowerCase()
+}
+
+function pruneRecentLoadedDeletes(
+  recentLoadedDeleteBasenames: Map<string, number>,
+  now = Date.now(),
+): void {
+  for (const [basename, expiresAt] of recentLoadedDeleteBasenames) {
+    if (expiresAt <= now) recentLoadedDeleteBasenames.delete(basename)
+  }
+}
+
+function isGraphNodeLike(value: unknown): value is Pick<GraphNode, 'absoluteFilePathIsID'> {
+  const record = value as { readonly absoluteFilePathIsID?: unknown } | null
+  return typeof value === 'object' &&
+    value !== null &&
+    'absoluteFilePathIsID' in value &&
+    typeof record?.absoluteFilePathIsID === 'string'
+}
+
+function rememberLoadedDelete(
+  filePath: string,
+  graphNodes: Readonly<Record<string, unknown>>,
+  recentLoadedDeleteBasenames: Map<string, number>,
+): void {
+  const nodeId: string = normalizePath(filePath)
+  if (!isGraphNodeLike(graphNodes[nodeId])) return
+  const basename: string = getBasenameKey(filePath)
+  if (basename === '') return
+  pruneRecentLoadedDeletes(recentLoadedDeleteBasenames)
+  recentLoadedDeleteBasenames.set(basename, Date.now() + RECENT_LOADED_DELETE_TTL_MS)
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function hasMissingLoadedSameBasenameSource(
+  addedFilePath: string,
+  graphNodes: Readonly<Record<string, unknown>>,
+): Promise<boolean> {
+  const addedBasename: string = getBasenameKey(addedFilePath)
+  if (addedBasename === '') return false
+
+  const normalizedAddedPath: string = normalizePath(addedFilePath)
+  for (const [nodeId, node] of Object.entries(graphNodes)) {
+    const nodePath: string = normalizePath(
+      isGraphNodeLike(node) ? node.absoluteFilePathIsID : nodeId,
+    )
+    if (nodePath === normalizedAddedPath) continue
+    if (getBasenameKey(nodePath) !== addedBasename) continue
+    if (!(await pathExists(nodePath))) return true
+  }
+
+  return false
+}
+
+async function shouldIngestAddedFileOrLoadedMove(
+  filePath: string,
+  mountedRoots: ReadonlySet<string>,
+  graphNodes: Readonly<Record<string, unknown>>,
+  recentLoadedDeleteBasenames: Map<string, number>,
+): Promise<boolean> {
+  if (shouldIngestAddedFile(filePath, mountedRoots, graphNodes)) return true
+
+  pruneRecentLoadedDeletes(recentLoadedDeleteBasenames)
+  const basename: string = getBasenameKey(filePath)
+  if (basename !== '' && recentLoadedDeleteBasenames.has(basename)) return true
+
+  return hasMissingLoadedSameBasenameSource(filePath, graphNodes)
+}
+
 export function mountWatcher(
   readPaths: readonly string[],
   watchedDir: string,
@@ -109,6 +195,7 @@ export function mountWatcher(
   // user just loaded becomes a root and its files start ingesting; an unloaded
   // folder stops being one.
   const mountedRoots = new Set<string>(readPaths.map((p) => normalizePath(p)))
+  const recentLoadedDeleteBasenames = new Map<string, number>()
 
   watcher.on('add', (filePath: string) => {
     // "New folders unloaded by default": an external file appearing inside a
@@ -116,27 +203,34 @@ export function mountWatcher(
     // ingest as a graph node — otherwise the whole nested tree floods the
     // workspace. Skip it and refresh the folder tree so the folder still
     // surfaces in the sidebar as unloaded (one-click loadable).
-    if (!shouldIngestAddedFile(filePath, mountedRoots, dependencies.getGraphNodes())) {
-      getFolderTreeReadModel().invalidate({
-        kind: 'pathChanged',
-        absolutePath: toAbsolutePath(normalizePath(filePath)),
-      })
-      return
-    }
-
-    const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath)
-    const contentPromise = isImageNode(filePath)
-      ? Promise.resolve('')
-      : dependencies.readFileWithRetry(filePath)
-
-    void contentPromise
-      .then((content: string) => {
-        const fsUpdate: FSUpdate = {
-          absolutePath: filePath,
-          content,
-          eventType: 'Added',
+    void shouldIngestAddedFileOrLoadedMove(
+      filePath,
+      mountedRoots,
+      dependencies.getGraphNodes(),
+      recentLoadedDeleteBasenames,
+    )
+      .then((shouldIngest: boolean) => {
+        if (!shouldIngest) {
+          getFolderTreeReadModel().invalidate({
+            kind: 'pathChanged',
+            absolutePath: toAbsolutePath(normalizePath(filePath)),
+          })
+          return Promise.resolve(undefined)
         }
-        dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo)
+
+        const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath)
+        const contentPromise = isImageNode(filePath)
+          ? Promise.resolve('')
+          : dependencies.readFileWithRetry(filePath)
+
+        return contentPromise.then((content: string) => {
+          const fsUpdate: FSUpdate = {
+            absolutePath: filePath,
+            content,
+            eventType: 'Added',
+          }
+          dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo)
+        })
       })
       .catch((error: unknown) => {
         dependencies.logger.error(`graphd watcher add failed for ${filePath}:`, error)
@@ -172,6 +266,7 @@ export function mountWatcher(
   })
 
   watcher.on('unlink', (filePath: string) => {
+    rememberLoadedDelete(filePath, dependencies.getGraphNodes(), recentLoadedDeleteBasenames)
     const fsDelete: FSDelete = {
       type: 'Delete',
       absolutePath: filePath,
