@@ -105,6 +105,20 @@ run_local_check() {
 }
 run_local_check
 
+print_cleanup_reminder() {
+  local wt branch quoted_wt quoted_branch
+  wt="$(git rev-parse --show-toplevel)"
+  branch="$(git branch --show-current)"
+  printf -v quoted_wt '%q' "$wt"
+  echo "vt-land: if this worktree is no longer needed, clean it up from another checkout:" >&2
+  if [ -n "$branch" ]; then
+    printf -v quoted_branch '%q' "$branch"
+    echo "  git worktree remove $quoted_wt && git branch -d $quoted_branch" >&2
+  else
+    echo "  git worktree remove $quoted_wt" >&2
+  fi
+}
+
 echo "vt-land: pushing HEAD → origin/$onto (running configured push hooks)"
 git push origin "HEAD:$onto"
 
@@ -117,3 +131,4 @@ if [ "$(git rev-parse "origin/$onto")" != "$head_sha" ]; then
 fi
 echo "vt-land: landed on origin/$onto (${onto_before:0:9} → ${head_sha:0:9}) — nudging both caches"
 nudge_both
+print_cleanup_reminder
