@@ -192,7 +192,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --mac --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }}
+          npx electron-builder --mac --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -340,7 +340,7 @@ jobs:
             Write-Error "Build failed: dist\index.html not found"
             exit 1
           }
-          npx electron-builder --win --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }}
+          npx electron-builder --win --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Summarize failure
@@ -423,7 +423,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --linux --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }}
+          npx electron-builder --linux --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
 
       # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)
       # pointing at the x64 build so existing consumers (the docker.yml
