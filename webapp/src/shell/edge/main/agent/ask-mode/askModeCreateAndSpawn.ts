@@ -7,7 +7,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph';
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
-import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
+import {getUniqueAgentName, getDefaultAgent, pickAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import {getExistingAgentNames} from '@vt/vt-daemon-client';
 import {getActiveProject, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
@@ -66,7 +66,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   );
   const strippedTitle: string = contextNodeResult.title.replace(/^ASK:\s*/i, '');
   // Generate unique agent name with collision handling
-  const baseAgentName: string = getNextAgentName();
+  const baseAgentName: string = pickAgentName(settings);
   const existingNames: ReadonlySet<string> = new Set(await getExistingAgentNames(getVtDaemonClient()));
   const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
   const title: string = `${agentName}: ${strippedTitle}`;

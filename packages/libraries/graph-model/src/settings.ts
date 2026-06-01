@@ -2,6 +2,17 @@ export type { VTSettings, AgentConfig, EnvVarValue, HotkeyModifier, HotkeyBindin
 export { getUniqueAgentName } from './pure/settings/types'
 export { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD } from './pure/settings/types'
 export { AGENT_NAMES, getNextAgentName, getDefaultAgent } from './pure/settings/types'
+export {
+    type Persona,
+    SILICON_VALLEY_ROSTER,
+    SILICON_VALLEY_IDS,
+    baseIdFromAgentName,
+    lookupPersona,
+    renderPersonaSoul,
+    getAgentNamePool,
+    pickAgentName,
+    appendPersonaToAgentPrompt,
+} from './pure/agents/siliconValleyRoster'
 export { expandEnvVarsInValues, resolveEnvVars, resolveEnvVarsWithSelection } from './pure/settings/resolve-environment-variable'
 export {
     agentPromptVariableForPlatform,
