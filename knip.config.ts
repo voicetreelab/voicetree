@@ -37,6 +37,10 @@ const config: KnipConfig = {
                 'vite.web.config.ts',
                 'src/utils/empty-node-module.ts',
                 'src/utils/types/*.d.ts',
+                // Sidecar type declaration for the vendored ctxmenu.js (imported as
+                // ctxmenu.js + via window.ctxmenu). Knip tracks the .js import, not the
+                // co-located .d.ts, so without this it false-flags the file as unused.
+                'src/shell/UI/lib/ctxmenu.d.ts',
                 'src/web-main.tsx',
                 'src/shell/edge/main/runtime/electron/app/main.ts',
                 'src/shell/edge/main/runtime/electron/app/preload.ts',
