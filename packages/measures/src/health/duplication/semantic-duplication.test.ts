@@ -37,8 +37,15 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   the call-graph primitives — same intentional thin-wrapper pattern as
 //   graph-bridge.ts. Observed 640 + 5 headroom = 645; ratchet DOWN as
 //   the command bodies grow past their current 1–2 call shape.
+// Re-anchored 2026-06-01 [semantic dedup cleanup]:
+//   8 genuine duplicate eliminations (pathExists, sortStrings×3, rectArea,
+//   edge factory, makeNodeExtensionChecker, compareEdges×3, findRootNodeIds,
+//   buildSearchRect delegation) reduced the population from 5173 to 5146 functions
+//   and the >=0.7 pair count from 658 to 626.
+//   Observed 626 + 5 headroom = 631; ratchet DOWN as remaining intentional
+//   thin-wrapper clusters (subscribeX, isCallerKind/isDaemonKind) are consolidated.
 // Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 645
+const MAX_DUPLICATE_PAIRS: number = 631
 
 const SCORE_THRESHOLD: number = 0.7
 
