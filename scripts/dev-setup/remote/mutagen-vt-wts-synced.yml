@@ -14,9 +14,9 @@
 #     worktree won't need on remote.
 #
 # Lifecycle commands live in `scripts/dev-setup/remote/vt-remote.sh`:
-#   vt-remote.sh vt-wts-create
-#   vt-remote.sh vt-wts-status
-#   vt-remote.sh vt-wts-terminate
+#   vt-remote.sh vt-wts-synced-create
+#   vt-remote.sh vt-wts-synced-status
+#   vt-remote.sh vt-wts-synced-terminate
 sync:
   defaults:
     mode: "one-way-replica"

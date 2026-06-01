@@ -411,13 +411,13 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
       if [ -n "$remote_host" ]; then
         echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
         # The vt-remote full-repo mutagen replica (/root/vtrepo-synced) is retired
-        # under the single-source model; only the vt-wts worktree mirror remains.
+        # under the single-source model; only the vt-wts-synced worktree mirror remains.
         remote_wts_root="/root/vt-wts-synced"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
           "rm -rf '$remote_wts_root/$wt_name'" \
           >/dev/null 2>&1 \
           && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
-          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-wts' to check" >&2
+          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-wts-synced' to check" >&2
       else
         echo "git-gate: no VT_REMOTE_HOST found; skipping remote residue cleanup" >&2
       fi

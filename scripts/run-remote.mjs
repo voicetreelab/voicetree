@@ -11,7 +11,7 @@
 //
 // Two mutagen sessions back this script:
 //   * `vt-remote`  — main checkout ↔ /root/vtrepo-synced  (one-way-replica)
-//   * `vt-wts`     — Mac /Users/.../vt-wts-synced/ ↔ /root/vt-wts-synced/  (one-way-replica)
+//   * `vt-wts-synced` — Mac /Users/.../vt-wts-synced/ ↔ /root/vt-wts-synced/  (one-way-replica)
 //
 // Worktrees live OUTSIDE the main checkout, under the Mac `-synced` worktree
 // root `<parent>/vt-wts-synced/<name>/` (the `-synced` basename is shared with
@@ -44,7 +44,7 @@ const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
 // run-remote throws.
 const WORKTREE_SIBLING_DIR_NAME = 'vt-wts-synced'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
-const MUTAGEN_SESSION_WTS = 'vt-wts'
+const MUTAGEN_SESSION_WTS = 'vt-wts-synced'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
 
 function loadEnvFile(p) {
@@ -99,7 +99,7 @@ function localWtsRoot(mainCheckoutRoot = localMainCheckoutRoot()) {
 
 // Pick the sync session + roots that govern `cwd`.
 //   - cwd inside `<main>/`                  → vt-remote session, REMOTE_ROOT
-//   - cwd inside `<parent>/vt-wts-synced/`  → vt-wts session, REMOTE_WTS_ROOT
+//   - cwd inside `<parent>/vt-wts-synced/`  → vt-wts-synced session, REMOTE_WTS_ROOT
 //   - cwd elsewhere                         → null (caller throws)
 function resolveSyncContext(cwd = process.cwd()) {
   const mainCheckoutRoot = localMainCheckoutRoot()
@@ -265,8 +265,8 @@ function repairRemoteWorktreeMetadataScript(remoteCwd) {
 
   // The worktree-root `.git` pointer is MACHINE-SPECIFIC: it names the main
   // checkout by basename (`vtrepo` on the Mac, `vtrepo-synced` here), so it is
-  // deliberately NOT mirrored by the vt-wts mutagen session (see
-  // mutagen-vt-wts.yml). We materialize the correct devbox pointer here on
+  // deliberately NOT mirrored by the vt-wts-synced mutagen session (see
+  // mutagen-vt-wts-synced.yml). We materialize the correct devbox pointer here on
   // every routed command. Because the file is sync-ignored, nothing clobbers
   // it afterward — no race with the one-way-replica cycle.
   //

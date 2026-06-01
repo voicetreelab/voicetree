@@ -62,7 +62,9 @@ REPORTS_REMOTE="${REMOTE_DIR}/health-dashboard/reports"
 VT_BRAIN_REPO_URL="${VT_BRAIN_REPO_URL:-git@github.com:voicetreelab/brain.git}"
 VT_BRAIN_LOCAL="${VT_BRAIN_LOCAL:-$HOME/brain-real}"
 VT_BRAIN_REMOTE="${VT_BRAIN_REMOTE:-/root/brain-real}"
-VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts.yml"
+VT_WTS_SESSION="vt-wts-synced"
+VT_WTS_OLD_SESSION="vt-wts"
+VT_WTS_CONFIG="$SCRIPT_DIR/mutagen-vt-wts-synced.yml"
 # Mac-authored worktrees live under the `-synced` root (the mutagen mirror uses
 # the SAME basename on both ends). Matches VT_WORKTREE_ROOT written by
 # scripts/dev-setup/git-gate/install.sh on macOS.
@@ -104,7 +106,7 @@ create_vt_wts_sync() {
   ssh -o StrictHostKeyChecking=no "$REMOTE" "mkdir -p '$VT_WTS_REMOTE'"
   mkdir -p "$VT_WTS_LOCAL"
   exec mutagen sync create \
-    --name vt-wts \
+    --name "$VT_WTS_SESSION" \
     --configuration-file "$VT_WTS_CONFIG" \
     "$VT_WTS_LOCAL" \
     "${REMOTE}:${VT_WTS_REMOTE}"
@@ -201,30 +203,31 @@ case "${1:-}" in
   reports-terminate)
     exec mutagen sync terminate vt-reports
     ;;
-  vt-wts-create)
+  vt-wts-synced-create)
     create_vt_wts_sync
     ;;
-  vt-wts-recreate)
-    mutagen sync terminate vt-wts >/dev/null 2>&1 || true
+  vt-wts-synced-recreate)
+    mutagen sync terminate "$VT_WTS_SESSION" >/dev/null 2>&1 || true
+    mutagen sync terminate "$VT_WTS_OLD_SESSION" >/dev/null 2>&1 || true
     create_vt_wts_sync
     ;;
-  vt-wts-status)
-    exec mutagen sync list vt-wts
+  vt-wts-synced-status)
+    exec mutagen sync list "$VT_WTS_SESSION"
     ;;
-  vt-wts-flush)
-    exec mutagen sync flush vt-wts
+  vt-wts-synced-flush)
+    exec mutagen sync flush "$VT_WTS_SESSION"
     ;;
-  vt-wts-pause)
-    exec mutagen sync pause vt-wts
+  vt-wts-synced-pause)
+    exec mutagen sync pause "$VT_WTS_SESSION"
     ;;
-  vt-wts-resume)
-    exec mutagen sync resume vt-wts
+  vt-wts-synced-resume)
+    exec mutagen sync resume "$VT_WTS_SESSION"
     ;;
-  vt-wts-monitor)
-    exec mutagen sync monitor vt-wts
+  vt-wts-synced-monitor)
+    exec mutagen sync monitor "$VT_WTS_SESSION"
     ;;
-  vt-wts-terminate)
-    exec mutagen sync terminate vt-wts
+  vt-wts-synced-terminate)
+    exec mutagen sync terminate "$VT_WTS_SESSION"
     ;;
   brain-setup)
     setup_vt_brain
@@ -281,14 +284,14 @@ vt-remote.sh — remote dev box ($REMOTE)
   reports-status         mutagen sync list vt-reports
   reports-flush          force a sync now
   reports-terminate      stop the vt-reports sync session
-  vt-wts-create          create vt-wts one-way sync for sibling worktrees
-  vt-wts-recreate        terminate any existing vt-wts and recreate
-  vt-wts-status          mutagen sync list vt-wts
-  vt-wts-flush           force a sync now
-  vt-wts-pause           pause syncing
-  vt-wts-resume          resume syncing
-  vt-wts-monitor         live sync activity view
-  vt-wts-terminate       stop the vt-wts sync session
+  vt-wts-synced-create       create vt-wts-synced one-way sync for sibling worktrees
+  vt-wts-synced-recreate     terminate vt-wts-synced/old vt-wts and recreate
+  vt-wts-synced-status       mutagen sync list vt-wts-synced
+  vt-wts-synced-flush        force a sync now
+  vt-wts-synced-pause        pause syncing
+  vt-wts-synced-resume       resume syncing
+  vt-wts-synced-monitor      live sync activity view
+  vt-wts-synced-terminate    stop the vt-wts-synced sync session
   brain-setup            create standalone ~/brain clones/symlinks on laptop + remote
   brain-status           show local and remote brain clone roots/branches
   artifacts-list     list explicit artifact directories on Onidel

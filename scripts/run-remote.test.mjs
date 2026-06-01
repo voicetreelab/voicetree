@@ -32,7 +32,7 @@ test('accepts one-way replica before remote execution', () => {
 
 test('rejects bidirectional mutagen modes before remote execution', () => {
   assert.throws(
-    () => assertOneWayReplica('vt-wts', 'Synchronization mode: Default (Two Way Safe)\n'),
+    () => assertOneWayReplica('vt-wts-synced', 'Synchronization mode: Default (Two Way Safe)\n'),
     /must be one-way-replica/,
   )
 })
@@ -66,7 +66,7 @@ test('repairs remote worktree metadata for sibling-layout worktree commands', ()
   assert.match(script, /'\.\.\/\.\.'/)
   // The repair is gated ONLY on the admin dir (synced by vt-remote). It must
   // NOT require the worktree `.git` pointer to pre-exist — that pointer is
-  // sync-ignored by the vt-wts session (machine-specific), so materializing it
+  // sync-ignored by the vt-wts-synced session (machine-specific), so materializing it
   // when absent is the whole point of the repair.
   assert.match(script, /if \[ -d '[^']*\/\.git\/worktrees\/wt-one' \]; then/)
   assert.doesNotMatch(script, /-f '[^']*\/\.git'/)
