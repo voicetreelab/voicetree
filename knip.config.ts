@@ -23,6 +23,13 @@ const config: KnipConfig = {
                 'tools/**',
                 '.venv-server/**',
                 'health-dashboard/mockups/**',
+                // Gitignored vendored/runtime data under the perf stack (Grafana's
+                // own source under bin/grafana-home, Tempo WAL under storage/). Knip
+                // does not honor the nested infra/perf-stack/.gitignore, so it would
+                // otherwise report unused exports in third-party Grafana .tsx files
+                // whenever the devbox has the stack vendored. Not our code to analyze.
+                'infra/perf-stack/bin/**',
+                'infra/perf-stack/storage/**',
             ],
         },
         'webapp': {
