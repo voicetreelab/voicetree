@@ -45,7 +45,7 @@ type LogOptions = {
   sinceMs?: number
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 type RendererSnapshot = {
@@ -172,14 +172,14 @@ function parseLogOptions(argv: string[]): Response<never> | LogOptions {
       const parsed = parseIntFlag('log', '--pid', arg.slice('--pid='.length))
       if (typeof parsed !== 'number') return parsed
       options.pid = parsed
-    } else if (arg === '--vault') {
-      options.vault = argv[++i]
-      if (!options.vault || options.vault.startsWith('--')) {
-        return err('log', '--vault requires a value')
+    } else if (arg === '--project') {
+      options.project = argv[++i]
+      if (!options.project || options.project.startsWith('--')) {
+        return err('log', '--project requires a value')
       }
-    } else if (arg.startsWith('--vault=')) {
-      options.vault = arg.slice('--vault='.length)
-      if (!options.vault) return err('log', '--vault requires a value')
+    } else if (arg.startsWith('--project=')) {
+      options.project = arg.slice('--project='.length)
+      if (!options.project) return err('log', '--project requires a value')
     } else {
       return err('log', `unknown arg: ${arg}`)
     }
@@ -322,7 +322,7 @@ async function logHandler(argv: string[]): Promise<Response<unknown>> {
   const pick = await resolveDebugInstance({
     port: parsed.port,
     pid: parsed.pid,
-    vault: parsed.vault,
+    project: parsed.project,
   })
 
   if ('message' in pick) {

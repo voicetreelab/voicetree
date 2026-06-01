@@ -19,7 +19,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 const TEST_FILE_NAME = 'table-rendering-fixture.md';
 const TEST_NODE_LABEL = 'Table Rendering Fixture';
 const TEST_CONTENT = `# Table Rendering Fixture
@@ -54,7 +54,7 @@ const test = base.extend<{
     const projectRoot = path.join(watchedFolder, 'voicetree');
 
     await fs.mkdir(watchedFolder, { recursive: true });
-    await fs.cp(FIXTURE_VAULT_PATH, projectRoot, { recursive: true });
+    await fs.cp(FIXTURE_PROJECT_PATH, projectRoot, { recursive: true });
     await fs.writeFile(path.join(projectRoot, TEST_FILE_NAME), TEST_CONTENT, 'utf8');
 
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
@@ -64,7 +64,6 @@ const test = base.extend<{
       name: 'table-rendering-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 

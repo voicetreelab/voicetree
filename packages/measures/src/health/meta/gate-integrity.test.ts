@@ -24,12 +24,18 @@ const GATE_FILES: readonly GateFile[] = [
     },
     {
         currentPath: 'packages/measures/src/health/purity/purity-ratio-ast.test.ts',
-        committedPath: 'packages/systems/purity-ratio-ast.test.ts',
+        committedPath: 'packages/measures/src/health/purity/purity-ratio-ast.test.ts',
     },
     {
         currentPath: 'packages/measures/src/health/meta/script-tamper-guard.test.ts',
         committedPath: 'packages/measures/src/health/meta/script-tamper-guard.test.ts',
     },
+]
+
+const BUDGET_FILES: readonly string[] = [
+    'packages/measures/budgets/coupling/cross-package-value-symbol-budgets.ts',
+    'packages/measures/budgets/complexity/cognitive-complexity.json',
+    'packages/measures/budgets/purity/purity-ratio-ast.json',
 ]
 
 const SHARED_FILES: readonly string[] = [
@@ -48,6 +54,7 @@ const SHARED_FILES: readonly string[] = [
     'packages/measures/src/_shared/writers/report-writer.ts',
     'packages/measures/src/_shared/graph/runtime-fan-in.ts',
     'packages/measures/src/_shared/writers/vitest-ci-check-reporter.ts',
+    'packages/measures/src/_shared/budgets/read-budget.ts',
 ]
 
 const RUNNER_FILES: readonly string[] = [
@@ -79,23 +86,19 @@ function extractRecordBudgets(source: string, pattern: RegExp): Map<string, numb
     return entries
 }
 
-function extractMapBudgets(source: string, pattern: RegExp): Map<string, number> {
-    const match = source.match(pattern)
-    if (!match) return new Map()
-
-    const block = match[0]
-    const entries = new Map<string, number>()
-    const entryPattern = /\['(.+?)',\s*(\d+)\]/g
-    let m: RegExpExecArray | null
-    while ((m = entryPattern.exec(block)) !== null) {
-        entries.set(m[1], Number(m[2]))
-    }
-    return entries
-}
-
 function extractNumericConst(source: string, name: string): number | null {
     const match = source.match(new RegExp(`const\\s+${name}\\s*[=:]\\s*(\\d+)`))
     return match ? Number(match[1]) : null
+}
+
+function extractJsonField(source: string, field: string): number | null {
+    try {
+        const parsed = JSON.parse(source) as Record<string, unknown>
+        const value = parsed[field]
+        return typeof value === 'number' ? value : null
+    } catch {
+        return null
+    }
 }
 
 type BudgetCheck = {
@@ -141,6 +144,22 @@ describe('gate integrity — budgets only ratchet down', () => {
         expect(missing, `Gate files missing: ${missing.join(', ')}`).toEqual([])
     })
 
+    it('all budget data files exist on disk', async () => {
+        const missing = BUDGET_FILES.filter(f => !existsSync(resolve(REPO_ROOT, f)))
+        await recordHealthMetric({
+            metricId: 'budget-files-exist',
+            metricName: 'Budget Data Files Exist',
+            description: 'Required budget data files missing from disk.',
+            category: 'Other',
+            current: missing.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'files',
+            details: {missing, budgetFiles: BUDGET_FILES},
+        })
+        expect(missing, `Budget files missing: ${missing.join(', ')}`).toEqual([])
+    })
+
     it('all shared and runner support files exist on disk', async () => {
         const supportFiles = [...SHARED_FILES, ...RUNNER_FILES]
         const missing = supportFiles.filter(f => !existsSync(resolve(REPO_ROOT, f)))
@@ -161,15 +180,15 @@ describe('gate integrity — budgets only ratchet down', () => {
     })
 
     it('coupling budgets have not increased vs committed version', async () => {
-        const file = GATE_FILES[0]
-        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
+        const budgetFile = 'packages/measures/budgets/coupling/cross-package-value-symbol-budgets.ts'
+        const committed = gitShow(budgetFile)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
-        const pattern = /COUPLING_BUDGET[\s\S]*?\{[\s\S]*?\}/
+        const current = readFileSync(resolve(REPO_ROOT, budgetFile), 'utf8')
+        const pattern = /CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS[\s\S]*?\{[\s\S]*?\}/
         const committedBudgets = extractRecordBudgets(committed, pattern)
         const currentBudgets = extractRecordBudgets(current, pattern)
-        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, file.currentPath)
+        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, budgetFile)
 
         await recordHealthMetric({
             metricId: 'gate-coupling-budget-ratchet',
@@ -190,14 +209,14 @@ describe('gate integrity — budgets only ratchet down', () => {
     })
 
     it('cognitive complexity threshold has not increased vs committed version', async () => {
-        const file = GATE_FILES[1]
-        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
+        const budgetFile = 'packages/measures/budgets/complexity/cognitive-complexity.json'
+        const committed = gitShow(budgetFile)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
+        const current = readFileSync(resolve(REPO_ROOT, budgetFile), 'utf8')
 
-        const committedMax = extractNumericConst(committed, 'MAX_COGNITIVE_COMPLEXITY')
-        const currentMax = extractNumericConst(current, 'MAX_COGNITIVE_COMPLEXITY')
+        const committedMax = extractJsonField(committed, 'maxCognitiveComplexity')
+        const currentMax = extractJsonField(current, 'maxCognitiveComplexity')
 
         if (committedMax !== null && currentMax !== null) {
             await recordHealthMetric({
@@ -209,22 +228,32 @@ describe('gate integrity — budgets only ratchet down', () => {
                 budget: committedMax,
                 comparison: 'lte',
                 unit: 'score',
-                details: {file: file.currentPath, committedMax, currentMax},
+                details: {file: budgetFile, committedMax, currentMax},
             })
-            expect(currentMax, `MAX_COGNITIVE_COMPLEXITY raised from ${committedMax} to ${currentMax}`).toBeLessThanOrEqual(committedMax)
+            expect(currentMax, `maxCognitiveComplexity raised from ${committedMax} to ${currentMax}`).toBeLessThanOrEqual(committedMax)
         }
     })
 
     it('cognitive complexity baseline budgets have not increased vs committed version', async () => {
-        const file = GATE_FILES[1]
-        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
+        const budgetFile = 'packages/measures/budgets/complexity/cognitive-complexity.json'
+        const committed = gitShow(budgetFile)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
-        const pattern = /BASELINE_COMPLEXITY_BUDGETS[\s\S]*?new Map\(\[[\s\S]*?\]\)/
-        const committedBudgets = extractMapBudgets(committed, pattern)
-        const currentBudgets = extractMapBudgets(current, pattern)
-        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, file.currentPath)
+        const current = readFileSync(resolve(REPO_ROOT, budgetFile), 'utf8')
+
+        function extractBaselineBudgets(source: string): Map<string, number> {
+            try {
+                const parsed = JSON.parse(source) as {baselineComplexityBudgets?: Record<string, number>}
+                const raw = parsed.baselineComplexityBudgets ?? {}
+                return new Map(Object.entries(raw).map(([k, v]) => [k, v] as const))
+            } catch {
+                return new Map()
+            }
+        }
+
+        const committedBudgets = extractBaselineBudgets(committed)
+        const currentBudgets = extractBaselineBudgets(current)
+        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, budgetFile)
 
         await recordHealthMetric({
             metricId: 'gate-cognitive-baseline-ratchet',
@@ -245,13 +274,13 @@ describe('gate integrity — budgets only ratchet down', () => {
     })
 
     it('purity ratio threshold has not decreased vs committed version', async () => {
-        const file = GATE_FILES[2]
-        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
+        const budgetFile = 'packages/measures/budgets/purity/purity-ratio-ast.json'
+        const committed = gitShow(budgetFile)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
-        const committedMin = extractNumericConst(committed, 'MIN_PURITY_PERCENT')
-        const currentMin = extractNumericConst(current, 'MIN_PURITY_PERCENT')
+        const current = readFileSync(resolve(REPO_ROOT, budgetFile), 'utf8')
+        const committedMin = extractJsonField(committed, 'minimumPurityRatio')
+        const currentMin = extractJsonField(current, 'minimumPurityRatio')
 
         if (committedMin !== null && currentMin !== null) {
             await recordHealthMetric({
@@ -262,10 +291,10 @@ describe('gate integrity — budgets only ratchet down', () => {
                 current: currentMin,
                 budget: committedMin,
                 comparison: 'gte',
-                unit: 'percent',
-                details: {file: file.currentPath, committedMin, currentMin},
+                unit: 'ratio',
+                details: {file: budgetFile, committedMin, currentMin},
             })
-            expect(currentMin, `MIN_PURITY_PERCENT lowered from ${committedMin} to ${currentMin}`).toBeGreaterThanOrEqual(committedMin)
+            expect(currentMin, `minimumPurityRatio lowered from ${committedMin} to ${currentMin}`).toBeGreaterThanOrEqual(committedMin)
         }
     })
 })

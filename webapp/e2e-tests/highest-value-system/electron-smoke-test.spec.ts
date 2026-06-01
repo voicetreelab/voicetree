@@ -16,42 +16,42 @@ import { closeElectronAppForSmoke } from './electron-smoke-test/electron-app-clo
 import {
   WEBAPP_ROOT, FAKE_AGENT_ENTRYPOINT,
   type ElectronDiagnostics, type ExtendedWindow,
-  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault, stopSmokeTmuxServer,
+  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForProject, stopSmokeTmuxServer,
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
 
 // Extend test with Electron app
 const test = base.extend<{
-  fixtureVaultPath: string;
+  fixtureProjectPath: string;
   tempUserDataPath: string;
   electronDiagnostics: ElectronDiagnostics;
   electronApp: ElectronApplication;
   appWindow: Page;
 }>({
-  fixtureVaultPath: async ({}, use) => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-vault-'));
-    const tempVaultPath = path.join(tempRoot, 'example_small');
-    await fs.mkdir(tempVaultPath, { recursive: true });
-    await fs.writeFile(path.join(tempVaultPath, 'root.md'), [
+  fixtureProjectPath: async ({}, use) => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-project-'));
+    const tempProjectPath = path.join(tempRoot, 'example_small');
+    await fs.mkdir(tempProjectPath, { recursive: true });
+    await fs.writeFile(path.join(tempProjectPath, 'root.md'), [
       '# Smoke Root',
       '',
       'Links to [[first-child.md]] and [[second-child.md]].',
       ''
     ].join('\n'), 'utf8');
-    await fs.writeFile(path.join(tempVaultPath, 'first-child.md'), [
+    await fs.writeFile(path.join(tempProjectPath, 'first-child.md'), [
       '# First Child',
       '',
       'Smoke fixture child node.',
       ''
     ].join('\n'), 'utf8');
-    await fs.writeFile(path.join(tempVaultPath, 'second-child.md'), [
+    await fs.writeFile(path.join(tempProjectPath, 'second-child.md'), [
       '# Second Child',
       '',
       'Smoke fixture child node.',
       ''
     ].join('\n'), 'utf8');
 
-    await use(tempVaultPath);
+    await use(tempProjectPath);
 
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
@@ -66,12 +66,12 @@ const test = base.extend<{
     await use({ mainOutput: [], rendererErrors: [] });
   },
 
-  electronApp: async ({ fixtureVaultPath, tempUserDataPath, electronDiagnostics }, use) => {
-    // Pin writeFolder to vault root so the daemon indexes the fixture .md files
+  electronApp: async ({ fixtureProjectPath, tempUserDataPath, electronDiagnostics }, use) => {
+    // Pin writeFolderPath to project root so the daemon indexes the fixture .md files
     // (without this, initializeProject creates a voicetree-{date} subfolder)
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-      vaultConfig: {
-        [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] }
+      projectConfig: {
+        [fixtureProjectPath]: { writeFolderPath: fixtureProjectPath, readPaths: [] }
       }
     }, null, 2), 'utf8');
 
@@ -121,16 +121,22 @@ const test = base.extend<{
     const graphDaemonNodeBin = resolveGraphDaemonNodeBin();
     console.log('[Smoke Test] vt-graphd Node:', graphDaemonNodeBin);
 
-    const ciFlags = process.env.CI
+    // Headless-Linux Electron — both GitHub CI and the remote devbox (which
+    // often runs as root, where Electron refuses to start without --no-sandbox)
+    // — needs these flags + software GL. macOS / local dev with a real display
+    // does not. Key off the platform, NOT CI: the remote runs the suite without
+    // CI=1 set, which is also what lets the fast-remote incremental build path
+    // (prepare-e2e-incremental.mjs) engage.
+    const linuxFlags = process.platform === 'linux'
       ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
       : [];
 
     const electronApp = await electron.launch({
       args: [
-        ...ciFlags,
+        ...linuxFlags,
         path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
-        '--open-folder', fixtureVaultPath
+        '--open-folder', fixtureProjectPath
       ],
       env: {
         ...process.env,
@@ -167,7 +173,7 @@ const test = base.extend<{
     await use(electronApp);
 
     await closeElectronAppForSmoke(electronApp, electronProcess);
-    stopSmokeGraphDaemonForVault(fixtureVaultPath);
+    stopSmokeGraphDaemonForProject(fixtureProjectPath);
     stopSmokeTmuxServer(tempUserDataPath);
     electronProcess?.stdout?.off('data', stdoutHandler);
     electronProcess?.stderr?.off('data', stderrHandler);
@@ -214,7 +220,7 @@ const test = base.extend<{
 test.describe('Smoke Test', () => {
   test.describe.configure({ timeout: process.env.CI ? 120000 : 60000 });
 
-  test('should start app and load graph after project selection', async ({ appWindow, electronDiagnostics }) => {
+  test('should start app, load graph, and spawn a fake agent that records a node', async ({ appWindow, electronDiagnostics }) => {
     console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and loads graph ===');
 
     const appReady = await appWindow.evaluate(() => {
@@ -267,10 +273,12 @@ test.describe('Smoke Test', () => {
     console.log('✓ Back button visible (confirms graph view with project selection integration)');
 
     expectNoCriticalElectronErrors(electronDiagnostics);
-    console.log('✅ Smoke test passed!');
-  });
+    console.log('✅ Graph-load smoke checks passed!');
 
-  test('should spawn fake agent and record a progress node', async ({ appWindow, electronDiagnostics }) => {
+    // Merged with the former 'spawn fake agent and record a progress node' test
+    // so the ~13s Electron + daemon + graph cold-boot (the fixtures are
+    // test-scoped, so each test re-launches the whole app) is paid ONCE per run
+    // instead of twice. Same coverage; removes a full app boot from tier-1.
     const initialGraph = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');

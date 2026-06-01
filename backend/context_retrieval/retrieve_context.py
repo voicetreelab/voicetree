@@ -44,7 +44,7 @@ def retrieve_context(markdown_dir: str, query: str) -> str:
     5. Output result
 
     Args:
-        markdown_dir: Path to markdown tree vault
+        markdown_dir: Path to markdown tree project
         query: User's search query string
 
     Returns:

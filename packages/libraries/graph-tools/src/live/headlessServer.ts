@@ -1,7 +1,7 @@
 // Headless HTTP daemon for graph-tools' live tooling. A minimal cousin of
 // `@vt/vt-daemon`'s `startHttpDaemonServer` (no `/hook/:source`, no
 // `/events` WS, no tmux relay). Serves `POST /rpc` with bearer-token auth and
-// writes `<vault>/.voicetree/rpc.port` + `auth-token` atomically so a sibling
+// writes `<project>/.voicetree/rpc.port` + `auth-token` atomically so a sibling
 // `liveTransport` client can discover it via the standard chain.
 //
 // Why not import `@vt/vt-daemon`'s server here: vt-daemon depends on
@@ -23,9 +23,9 @@ import {
     type HeadlessServerOptions,
     type ToolResult,
 } from './headlessServerTypes'
-import {buildVaultLiveCatalog} from './vaultLiveCatalog'
+import {buildProjectLiveCatalog} from './projectLiveCatalog'
 
-export {buildVaultLiveCatalog, CatalogValidationError}
+export {buildProjectLiveCatalog, CatalogValidationError}
 export type {
     Catalog,
     CatalogHandler,
@@ -163,12 +163,12 @@ function buildRequestHandler(catalog: Catalog, token: string): http.RequestListe
 // ── public API ────────────────────────────────────────────────────────────────
 
 export async function createHeadlessServer(options: HeadlessServerOptions): Promise<HeadlessServer> {
-    const vaultPath: string = resolve(options.vaultPath)
-    const catalog: Catalog = options.catalog ?? await buildVaultLiveCatalog(vaultPath)
+    const projectPath: string = resolve(options.projectPath)
+    const catalog: Catalog = options.catalog ?? await buildProjectLiveCatalog(projectPath)
     const token: string = generateAuthToken()
     const host: string = options.host ?? '127.0.0.1'
 
-    await writeAuthTokenFile(vaultPath, token)
+    await writeAuthTokenFile(projectPath, token)
 
     const server: Server = http.createServer(buildRequestHandler(catalog, token))
     const port: number = await new Promise<number>((resolveListen, rejectListen): void => {
@@ -184,13 +184,13 @@ export async function createHeadlessServer(options: HeadlessServerOptions): Prom
         })
     })
 
-    await writeRpcPortFile(vaultPath, port)
+    await writeRpcPortFile(projectPath, port)
 
     return {
         url: `http://${host}:${port}`,
         port,
         token,
-        vaultPath,
+        projectPath,
         close: (): Promise<void> => new Promise<void>((resolveClose, rejectClose): void => {
             server.close((cause?: Error): void => {
                 if (cause) rejectClose(cause)

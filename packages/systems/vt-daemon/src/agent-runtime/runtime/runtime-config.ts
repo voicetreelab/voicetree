@@ -1,5 +1,5 @@
-// Late-bound runtime dependencies. The per-vault VTD (and headless
-// vt-mcpd) register their own implementations at boot. Webapp/Electron
+// Late-bound runtime dependencies. The per-project VTD (and headless
+// vtd) register their own implementations at boot. Webapp/Electron
 // is a client of VTD post-BF-376 and never configures agent-runtime
 // directly.
 
@@ -15,13 +15,13 @@ export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
 
 export type RuntimeEnvProvider = {
     readonly getProjectRoot?: () => Promise<string | null>;
-    readonly getVaultPaths?: () => Promise<readonly string[]>;
-    readonly getVaultSnapshot?: () => Promise<{
+    readonly getProjectPaths?: () => Promise<readonly string[]>;
+    readonly getProjectSnapshot?: () => Promise<{
         readonly projectRoot: string | null;
         readonly readPaths: readonly string[];
-        readonly writeFolder: string | null;
+        readonly writeFolderPath: string | null;
     }>;
-    readonly getWriteFolder?: () => Promise<string | null>;
+    readonly getWriteFolderPath?: () => Promise<string | null>;
     /**
      * Absolute path to the directory containing the `vt` CLI executable
      * (the daemon's known vt-bin dir). The spawn pipeline prepends this
@@ -40,8 +40,8 @@ export type WatchStatus = {
 
 export type GraphStateBridge = {
     readonly getGraph: () => Promise<Graph>;
-    readonly getVaultPaths: () => Promise<readonly FilePath[]>;
-    readonly getWriteFolder: () => Promise<O.Option<FilePath>>;
+    readonly getProjectPaths: () => Promise<readonly FilePath[]>;
+    readonly getWriteFolderPath: () => Promise<O.Option<FilePath>>;
     readonly getProjectRoot: () => Promise<FilePath | null>;
     readonly getWatchStatus: () => Promise<WatchStatus>;
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>;

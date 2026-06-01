@@ -33,20 +33,20 @@ interface CodeMirrorElement extends HTMLElement {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
-  // Create temp userData directory with embedded vault + config
-  // The config auto-loads the vault during app initialization
-  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix
+  // Create temp userData directory with embedded project + config
+  // The config auto-loads the project during app initialization
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default projectSuffix
   electronApp: async ({}, use, testInfo) => {
     // Create temp userData directory
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-wikilink-sync-'));
 
     // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Create the actual vault path with default suffix 'voicetree'
+    // Create the actual project path with default suffix 'voicetree'
     // The app looks for .md files in {watchedFolder}/voicetree/
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });
@@ -55,11 +55,11 @@ const test = base.extend<{
     const parentContent = '# Parent Node\n\nThis is the parent node content.\n\nSome more text here.';
     await fs.writeFile(path.join(projectRoot, 'parent.md'), parentContent, 'utf-8');
 
-    // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
+    // Write config to auto-load the watched folder (project = watchedFolder + 'voicetree')
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     // Store projectRoot for test access via testInfo (the actual path where .md files live)
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
@@ -97,13 +97,13 @@ const test = base.extend<{
     await electronApp.close();
     console.log('[Test] Electron app closed');
 
-    // Cleanup entire temp directory (includes vault)
+    // Cleanup entire temp directory (includes project)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
     console.log('[Test] Cleaned up temp directory');
   },
 
-  // Get vault path from testInfo (set by electronApp fixture)
-  testVaultPath: async ({}, use, testInfo) => {
+  // Get project path from testInfo (set by electronApp fixture)
+  testProjectPath: async ({}, use, testInfo) => {
     // Wait for electronApp fixture to set projectRoot
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
@@ -128,16 +128,16 @@ const test = base.extend<{
 });
 
 test.describe('Child Node Wikilink Sync', () => {
-  test('parent editor should show wikilink when child is created, and preserve it on edit', async ({ appWindow, testVaultPath }) => {
+  test('parent editor should show wikilink when child is created, and preserve it on edit', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(120000);
     console.log('=== Testing child wikilink sync to parent editor ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
     // Create screenshots directory
     const screenshotsDir = path.join(PROJECT_ROOT, 'e2e-tests/screenshots/wikilink-sync');
     await fs.mkdir(screenshotsDir, { recursive: true });
 
-    // Vault is auto-loaded via config - wait for graph to have nodes
+    // Project is auto-loaded via config - wait for graph to have nodes
     // The appWindow fixture already waits for cytoscapeInstance, but we need nodes loaded too
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
@@ -329,17 +329,17 @@ test.describe('Child Node Wikilink Sync', () => {
     console.log('[Test] PASS: Wikilink preserved after edit!');
 
     // Verify file on disk also has the wikilink
-    const fileContent = await fs.readFile(path.join(testVaultPath, 'parent.md'), 'utf-8');
+    const fileContent = await fs.readFile(path.join(testProjectPath, 'parent.md'), 'utf-8');
     console.log('[Test] File content on disk:', fileContent);
     expect(fileContent).toContain('[[voicetree/parent.md_0.md]]');
     expect(fileContent).toContain('User added this text.');
     console.log('[Test] PASS: File on disk has wikilink and user edit!');
 
     // Verify child file was created
-    // childNodeId is voicetree/parent.md_0.md, but testVaultPath already includes voicetree/
+    // childNodeId is voicetree/parent.md_0.md, but testProjectPath already includes voicetree/
     // So we need to strip the voicetree/ prefix
     const childFilename = childNodeId.replace(/^voicetree\//, '');
-    const childFileContent = await fs.readFile(path.join(testVaultPath, childFilename), 'utf-8');
+    const childFileContent = await fs.readFile(path.join(testProjectPath, childFilename), 'utf-8');
     expect(childFileContent).toContain('# Child Node');
     console.log('[Test] PASS: Child file created on disk!');
 

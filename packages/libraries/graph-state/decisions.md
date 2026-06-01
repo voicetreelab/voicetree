@@ -12,7 +12,7 @@
 
 **Decision.** Contract lives in a new package `packages/graph-state/`.
 
-**Rationale.** `@vt/graph-model` is already wide: filesystem watchers, settings IO, project management, ripgrep search, vault allowlist, etc. Adding "unified State + Command + projection" to it would further confuse the layer boundary. `@vt/graph-state` sits strictly between graph-model (pure Graph) and the cytoscape shell, and it is a pure state-machine module. It depends on graph-model for the underlying types but adds no FS coupling. L1 tasks (BF-142..BF-163) already assume this name.
+**Rationale.** `@vt/graph-model` is already wide: filesystem watchers, settings IO, project management, ripgrep search, project allowlist, etc. Adding "unified State + Command + projection" to it would further confuse the layer boundary. `@vt/graph-state` sits strictly between graph-model (pure Graph) and the cytoscape shell, and it is a pure state-machine module. It depends on graph-model for the underlying types but adds no FS coupling. L1 tasks (BF-142..BF-163) already assume this name.
 
 **Alternatives considered.**
 - Reuse `@vt/graph-model` — rejected: muddles layers; graph-model's scope is FS ↔ Graph, not UI-state.
@@ -62,12 +62,12 @@
 - Pure event log (Redux-style) — rejected: equivalent information to delta, but forces consumers to re-project; throws away the `project()` seam we want.
 - Reactive observables (RxJS) — rejected: heavy dep for what is effectively "fn(delta)". Shells can wrap as needed.
 
-## Decision 5 — IPC transport: MCP (v1), transport-agnostic `LiveTransport`
+## Decision 5 — IPC transport: agent-tool server (v1), transport-agnostic `LiveTransport`
 
-**Decision.** v1 ships over MCP (we already run an MCP server at port 3002 for agent tools). The contract defines `LiveTransport` as a plain interface; swapping to unix socket or HTTP later does not break L1 consumers.
+**Decision.** v1 ships over the existing agent-tool server (already running at port 3002 for agent tools). The contract defines `LiveTransport` as a plain interface; swapping to unix socket or HTTP later does not break L1 consumers.
 
 **Rationale.**
-- MCP is already wired end-to-end (VOICETREE_MCP_PORT=3002). Adding two tools (`getLiveState`, `dispatchLiveCommand`) is small and reuses agent auth.
+- The agent-tool server is already wired end-to-end (port 3002). Adding two tools (`getLiveState`, `dispatchLiveCommand`) is small and reuses agent auth.
 - File-based transport (write snapshot to disk, re-read) — too slow for delta streaming; stale reads likely; loses revision ordering.
 - Unix socket / HTTP — more setup; useful later if we need cross-process performance.
 - The `LiveTransport` seam is the indirection. An L1 agent swapping transports changes one file.
@@ -88,11 +88,11 @@
 | `collapseSet`             | Yes       | Existing collapseState store (unchanged)   |
 | `selection`               | No        | Session-only                               |
 | `layout.positions`        | Yes       | Existing `.positions.json` (unchanged)     |
-| `layout.zoom` / `pan`     | No        | Session-only (may be cached per-vault L2)  |
+| `layout.zoom` / `pan`     | No        | Session-only (may be cached per-project L2)  |
 | `layout.fit`              | No        | Ephemeral                                  |
 | `meta.revision`           | No        | Resets to 0 on startup                     |
 
-**Rationale.** Mirrors existing behavior exactly; no migration needed at L1. L2 may add per-vault zoom persistence — that is additive (new optional field), doesn't break v1 consumers.
+**Rationale.** Mirrors existing behavior exactly; no migration needed at L1. L2 may add per-project zoom persistence — that is additive (new optional field), doesn't break v1 consumers.
 
 **Alternatives considered.**
 - Persist selection across restart — rejected: UX noise; users don't expect it.

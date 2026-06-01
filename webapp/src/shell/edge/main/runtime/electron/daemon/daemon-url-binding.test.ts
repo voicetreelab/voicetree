@@ -1,8 +1,8 @@
 /**
- * Black-box test for the per-vault VTD binding (post-Phase-2 / BF-375).
+ * Black-box test for the per-project VTD binding (post-Phase-2 / BF-375).
  *
  * Spawns a REAL VTD child (`packages/systems/vt-daemon/bin/vtd.ts`, BF-371)
- * via `bindVtDaemonForVault`, then asserts on observable side effects:
+ * via `bindVtDaemonForProject`, then asserts on observable side effects:
  *   - the spawned child's `/health` response,
  *   - the on-disk `rpc.port` + `auth-token` files VTD wrote,
  *   - the spawned child's process liveness (via `kill(pid, 0)`),
@@ -25,11 +25,11 @@
  * client's transitive deps.
  *
  * Regression guard preserved from pre-Phase-2: the writer/reader
- * path-divergence bug that ENOENT'd the renderer when the bound vault
+ * path-divergence bug that ENOENT'd the renderer when the bound project
  * had a `voicetree-{day}-{month}` write subdir. The
  * `makeProjectWithDatedWriteSubdir` helper is unchanged; the assertion
  * is now that VTD's `rpc.port` writer keys off `projectRoot` (NOT the
- * writeFolder), and `getDaemonUrl` resolves correctly regardless of
+ * writeFolderPath), and `getDaemonUrl` resolves correctly regardless of
  * where the renderer would look on disk.
  *
  * Serialisation: tier-2 electron tests already serialise via
@@ -39,7 +39,7 @@
  * vitest itself runs in singleFork + fileParallelism: false (see
  * `webapp/vite.config.ts`) so within a single process there is no
  * intra-file race; the flock guards cross-test-suite collisions on
- * fixed ports + shared appSupport.
+ * fixed ports + shared voicetreeHome.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -59,13 +59,14 @@ vi.mock('electron', () => ({
 }))
 
 import {
-    bindVtDaemonForVault,
+    bindVtDaemonForProject,
     getAuthToken,
     getDaemonUrl,
     unbindVtDaemon,
 } from './daemon-url-binding'
+import {shutdownTmuxServer} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
 
-interface VaultLayout {
+interface ProjectLayout {
     readonly projectRoot: string
     readonly writeSubdir: string
 }
@@ -97,7 +98,7 @@ function resolveTsxLoaderPath(): string {
 function buildVtDaemonBinCommand(): string {
     // The `VT_DAEMON_BIN` env var is parsed by `@vt/vt-daemon-client`'s
     // command resolver as `<cmd> <args...>` (split on whitespace, with
-    // `--vault <vault>` appended). We avoid spaces in any path component
+    // `--project <project>` appended). We avoid spaces in any path component
     // by sanity-checking; if the repo lives under a path with spaces,
     // a more sophisticated quoting protocol would be needed.
     const node: string = process.execPath
@@ -138,13 +139,13 @@ function buildFakeVtDaemonBinCommand(): string {
 
 interface SpawnedVtdRecord {
     pid: number
-    vaultPath: string
+    projectPath: string
 }
 
 const harness: {
     spawnedVtdPids: SpawnedVtdRecord[]
     createdRoots: string[]
-    appSupportTmp: string | null
+    voicetreeHomeTmp: string | null
     savedEnv: {
         VT_DAEMON_BIN: string | undefined
         VT_GRAPHD_BIN: string | undefined
@@ -156,7 +157,7 @@ const harness: {
 } = {
     spawnedVtdPids: [],
     createdRoots: [],
-    appSupportTmp: null,
+    voicetreeHomeTmp: null,
     savedEnv: {
         VT_DAEMON_BIN: undefined,
         VT_GRAPHD_BIN: undefined,
@@ -167,16 +168,16 @@ const harness: {
     },
 }
 
-async function makeProjectWithDatedWriteSubdir(): Promise<VaultLayout> {
+async function makeProjectWithDatedWriteSubdir(): Promise<ProjectLayout> {
     const projectRoot: string = await fs.mkdtemp(
         path.join(os.tmpdir(), 'daemon-url-binding-test-'),
     )
     // Reproduce the on-disk shape that surfaced the writer/reader
     // path-divergence bug: a `voicetree-{day}-{month}` write subdir
-    // underneath the projectRoot. `bindVtDaemonForVault` is invoked
+    // underneath the projectRoot. `bindVtDaemonForProject` is invoked
     // with projectRoot; the spawned VTD's rpc.port writer also keys
     // off the projectRoot. Pre-fix, renderer infra looked up the port
-    // under the writeFolder (this subdir) and ENOENT'd.
+    // under the writeFolderPath (this subdir) and ENOENT'd.
     const writeSubdir: string = path.join(projectRoot, 'voicetree-22-5')
     await fs.mkdir(writeSubdir, { recursive: true })
     harness.createdRoots.push(projectRoot)
@@ -222,17 +223,17 @@ beforeEach(async (): Promise<void> => {
     delete process.env.VOICETREE_DAEMON_URL
     // Point the ensure path at the real vtd.ts binary. The spec's
     // recipe uses `VT_DAEMON_BIN` rather than the (private) `bin`
-    // option of `ensureVtDaemonForVault` because `bindVtDaemonForVault`
+    // option of `ensureVtDaemonForProject` because `bindVtDaemonForProject`
     // intentionally exposes no options pass-through — the env var is
     // the only sanctioned override surface for non-default vtd paths.
     process.env.VT_DAEMON_BIN = buildVtDaemonBinCommand()
-    // Quarantine vtd's appSupport so tests don't write into the user's
+    // Quarantine vtd's voicetreeHome so tests don't write into the user's
     // `~/Library/Application Support/Voicetree`. vtd respects this env
     // var (see `defaultVoicetreeHomePath` in `bin/vtd.ts`).
-    harness.appSupportTmp = await fs.mkdtemp(
+    harness.voicetreeHomeTmp = await fs.mkdtemp(
         path.join(os.tmpdir(), 'daemon-url-binding-test-appsupport-'),
     )
-    process.env.VOICETREE_HOME_PATH = harness.appSupportTmp
+    process.env.VOICETREE_HOME_PATH = harness.voicetreeHomeTmp
     // Pin the VTD parent-pid watchdog to this test process so the spawn
     // takes itself down when the test process exits (defensive — the
     // explicit pid-kill in afterEach is the primary cleanup).
@@ -243,13 +244,13 @@ afterEach(async (): Promise<void> => {
     // Clear the binding cache so it cannot survive into the next test.
     await unbindVtDaemon().catch((): void => {})
 
-    // Kill each spawned VTD child by recorded pid. `bindVtDaemonForVault`
+    // Kill each spawned VTD child by recorded pid. `bindVtDaemonForProject`
     // intentionally never kills children (BF-346 invariant: VTD outlives
     // any single Electron Main), so the test owns this cleanup. Also
     // reap the sibling vt-graphd that vtd spawns by looking up its
     // owner record.
     for (const record of harness.spawnedVtdPids) {
-        const graphdPid: number | null = await readGraphdPidIfPresent(record.vaultPath)
+        const graphdPid: number | null = await readGraphdPidIfPresent(record.projectPath)
         tryKill(record.pid, 'SIGTERM')
         if (graphdPid !== null) tryKill(graphdPid, 'SIGTERM')
         await waitForExit(record.pid, 5_000)
@@ -267,9 +268,10 @@ afterEach(async (): Promise<void> => {
     restoreEnv('FAKE_VTD_ENV_SNAPSHOT_PATH', harness.savedEnv.FAKE_VTD_ENV_SNAPSHOT_PATH)
     restoreEnv('VOICETREE_PARENT_PID', harness.savedEnv.VOICETREE_PARENT_PID)
 
-    if (harness.appSupportTmp !== null) {
-        await fs.rm(harness.appSupportTmp, { recursive: true, force: true }).catch(() => undefined)
-        harness.appSupportTmp = null
+    if (harness.voicetreeHomeTmp !== null) {
+        await shutdownTmuxServer({ voicetreeHomePath: harness.voicetreeHomeTmp }).catch(() => undefined)
+        await fs.rm(harness.voicetreeHomeTmp, { recursive: true, force: true }).catch(() => undefined)
+        harness.voicetreeHomeTmp = null
     }
 
     while (harness.createdRoots.length > 0) {
@@ -283,10 +285,10 @@ function restoreEnv(key: string, prior: string | undefined): void {
     else process.env[key] = prior
 }
 
-async function readGraphdPidIfPresent(vaultPath: string): Promise<number | null> {
+async function readGraphdPidIfPresent(projectPath: string): Promise<number | null> {
     try {
         const raw: string = await fs.readFile(
-            path.join(vaultPath, '.voicetree', 'graphd.owner.json'),
+            path.join(projectPath, '.voicetree', 'graphd.owner.json'),
             'utf-8',
         )
         const parsed: unknown = JSON.parse(raw)
@@ -304,30 +306,30 @@ async function readGraphdPidIfPresent(vaultPath: string): Promise<number | null>
     }
 }
 
-async function recordVtdPid(vaultPath: string): Promise<void> {
+async function recordVtdPid(projectPath: string): Promise<void> {
     const raw: string = await fs.readFile(
-        path.join(vaultPath, '.voicetree', 'vtd.owner.json'),
+        path.join(projectPath, '.voicetree', 'vtd.owner.json'),
         'utf-8',
     )
     const parsed: { pid: number; port: number | null } = JSON.parse(raw)
     if (!Number.isInteger(parsed.pid) || parsed.pid <= 0) {
         throw new Error(`recordVtdPid: invalid pid in owner record: ${parsed.pid}`)
     }
-    harness.spawnedVtdPids.push({ pid: parsed.pid, vaultPath })
+    harness.spawnedVtdPids.push({ pid: parsed.pid, projectPath })
 }
 
-// 60s per test: real vtd cold-start includes ensureGraphDaemonForVault
+// 60s per test: real vtd cold-start includes ensureGraphDaemonForProject
 // (sibling graphd spawn), tmux server start, BF-371's auth + HTTP bind,
 // plus heartbeats. Local hot runs settle in <10s; this leaves headroom
 // for slow CI workers.
 const TEST_TIMEOUT_MS: number = 60_000
 
-describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
+describe('bindVtDaemonForProject — real VTD child via ensure path', () => {
     test(
         'after bind: getDaemonUrl resolves to the spawned VTD, /health round-trips with daemonKind: vtd',
         async (): Promise<void> => {
             const { projectRoot } = await makeProjectWithDatedWriteSubdir()
-            const snapshot = await bindVtDaemonForVault(projectRoot)
+            const snapshot = await bindVtDaemonForProject(projectRoot)
             await recordVtdPid(projectRoot)
 
             const url: string = await getDaemonUrl()
@@ -345,10 +347,10 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
     )
 
     test(
-        'after bind: getAuthToken returns a 64-hex token matching <vault>/.voicetree/auth-token on disk',
+        'after bind: getAuthToken returns a 64-hex token matching <project>/.voicetree/auth-token on disk',
         async (): Promise<void> => {
             const { projectRoot } = await makeProjectWithDatedWriteSubdir()
-            await bindVtDaemonForVault(projectRoot)
+            await bindVtDaemonForProject(projectRoot)
             await recordVtdPid(projectRoot)
 
             const token: string = await getAuthToken()
@@ -367,7 +369,7 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
         'writer/reader path-divergence regression: rpc.port lands at projectRoot, ENOENT under writeSubdir',
         async (): Promise<void> => {
             const { projectRoot, writeSubdir } = await makeProjectWithDatedWriteSubdir()
-            const snapshot = await bindVtDaemonForVault(projectRoot)
+            const snapshot = await bindVtDaemonForProject(projectRoot)
             await recordVtdPid(projectRoot)
 
             const rpcPortAtProjectRoot: string = await fs.readFile(
@@ -399,7 +401,7 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
         'after unbind: accessors reject with daemon_unreachable, but the spawned VTD child is still alive (BF-346 invariant)',
         async (): Promise<void> => {
             const { projectRoot } = await makeProjectWithDatedWriteSubdir()
-            const snapshot = await bindVtDaemonForVault(projectRoot)
+            const snapshot = await bindVtDaemonForProject(projectRoot)
             await recordVtdPid(projectRoot)
 
             await unbindVtDaemon()
@@ -429,13 +431,13 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
     )
 
     test(
-        'idempotent re-bind for the same vault returns the same pid/port (no respawn)',
+        'idempotent re-bind for the same project returns the same pid/port (no respawn)',
         async (): Promise<void> => {
             const { projectRoot } = await makeProjectWithDatedWriteSubdir()
-            const first = await bindVtDaemonForVault(projectRoot)
+            const first = await bindVtDaemonForProject(projectRoot)
             await recordVtdPid(projectRoot)
 
-            const second = await bindVtDaemonForVault(projectRoot)
+            const second = await bindVtDaemonForProject(projectRoot)
 
             expect(second.pid).toBe(first.pid)
             expect(second.url).toBe(first.url)
@@ -457,45 +459,45 @@ describe('bindVtDaemonForVault — real VTD child via ensure path', () => {
     test(
         'bind uses the current process env when spawning VTD after startup pins app support',
         async (): Promise<void> => {
-            const envSnapshotPath: string = path.join(harness.appSupportTmp!, 'fake-vtd-env.json')
+            const envSnapshotPath: string = path.join(harness.voicetreeHomeTmp!, 'fake-vtd-env.json')
             process.env.VT_DAEMON_BIN = buildFakeVtDaemonBinCommand()
             process.env.FAKE_VTD_ENV_SNAPSHOT_PATH = envSnapshotPath
 
             const { projectRoot } = await makeProjectWithDatedWriteSubdir()
-            await bindVtDaemonForVault(projectRoot)
+            await bindVtDaemonForProject(projectRoot)
             await recordVtdPid(projectRoot)
 
             const snapshot: {
                 readonly VOICETREE_HOME_PATH: string | null
                 readonly VT_DAEMON_BIN: string | null
             } = JSON.parse(await fs.readFile(envSnapshotPath, 'utf-8'))
-            expect(snapshot.VOICETREE_HOME_PATH).toBe(harness.appSupportTmp)
+            expect(snapshot.VOICETREE_HOME_PATH).toBe(harness.voicetreeHomeTmp)
             expect(snapshot.VT_DAEMON_BIN).toBe(process.env.VT_DAEMON_BIN)
         },
         TEST_TIMEOUT_MS,
     )
 
     test(
-        'vault-swap leaves the prior VTD child alive (BF-346 invariant)',
+        'project-swap leaves the prior VTD child alive (BF-346 invariant)',
         async (): Promise<void> => {
-            const { projectRoot: vaultA } = await makeProjectWithDatedWriteSubdir()
-            const first = await bindVtDaemonForVault(vaultA)
-            await recordVtdPid(vaultA)
+            const { projectRoot: projectA } = await makeProjectWithDatedWriteSubdir()
+            const first = await bindVtDaemonForProject(projectA)
+            await recordVtdPid(projectA)
 
-            const { projectRoot: vaultB } = await makeProjectWithDatedWriteSubdir()
-            const second = await bindVtDaemonForVault(vaultB)
-            await recordVtdPid(vaultB)
+            const { projectRoot: projectB } = await makeProjectWithDatedWriteSubdir()
+            const second = await bindVtDaemonForProject(projectB)
+            await recordVtdPid(projectB)
 
             expect(second.pid).not.toBe(first.pid)
-            expect(second.vaultPath).toBe(vaultB)
+            expect(second.projectPath).toBe(projectB)
 
             // The first VTD child is still alive — Main does not own
             // its lifetime; the bounded cleanup is VTD's parent-pid
             // watchdog (BF-369), which fires when this test process
-            // exits, not when we swap vaults.
+            // exits, not when we swap projects.
             expect(isAlive(first.pid)).toBe(true)
 
-            // /health on vaultA's VTD still responds.
+            // /health on projectA's VTD still responds.
             const healthResponse: Response = await fetch(`${first.url}/health`)
             expect(healthResponse.status).toBe(200)
             const body: { owner: { pid: number } | null } = await healthResponse.json()

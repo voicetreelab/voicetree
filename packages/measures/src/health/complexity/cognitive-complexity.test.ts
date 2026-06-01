@@ -5,13 +5,13 @@ import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/disco
 import {discoverSourceFiles, type SourceFileInfo} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 import {scoreFunction} from '../../_shared/complexity/cogcx-scorer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_COGNITIVE_COMPLEXITY = 103
+const {maxCognitiveComplexity: MAX_COGNITIVE_COMPLEXITY, baselineComplexityBudgets: _baselineBudgetsRaw} =
+    readBudgetSync<{maxCognitiveComplexity: number; baselineComplexityBudgets: Record<string, number>}>('complexity/cognitive-complexity.json')
 const HIGH_COMPLEXITY_THRESHOLD = 15
-const BASELINE_COMPLEXITY_BUDGETS: ReadonlyMap<string, number> = new Map([
-])
+const BASELINE_COMPLEXITY_BUDGETS: ReadonlyMap<string, number> = new Map(Object.entries(_baselineBudgetsRaw))
 
 
 type FunctionComplexity = {

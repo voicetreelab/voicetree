@@ -106,7 +106,7 @@ function extractAdditionalYAMLProps(
     }, {})
 }
 
-// filename can be relative or absolute, prefer relative to watched vault.
+// filename can be relative or absolute, prefer relative to watched project.
 export function parseMarkdownToGraphNode(content: string, filename: string, graph : Graph): GraphNode {
     // Parse markdown and extract YAML frontmatter (with error handling for invalid YAML)
     const parseResult: E.Either<unknown, matter.GrayMatterFile<string>> = E.tryCatch(

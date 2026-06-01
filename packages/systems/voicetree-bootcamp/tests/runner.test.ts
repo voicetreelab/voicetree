@@ -67,14 +67,14 @@ function makeScenario(overrides: Partial<ScenarioSpec> = {}): ScenarioSpec {
     return {
         id: 'TEST',
         name: 'fake scenario',
-        setup: async (vaultDir) => {
-            await fs.writeFile(path.join(vaultDir, 'a.md'), '# a\n')
+        setup: async (projectDir) => {
+            await fs.writeFile(path.join(projectDir, 'a.md'), '# a\n')
         },
         taskPrompt: 'do the thing',
         expectedCommands: [{verb: 'graph create'}, {verb: 'graph structure'}],
-        successCriteria: async (vaultDir) => {
+        successCriteria: async (projectDir) => {
             const exists = await fs
-                .stat(path.join(vaultDir, 'a.md'))
+                .stat(path.join(projectDir, 'a.md'))
                 .then(() => true)
                 .catch(() => false)
             return {passed: exists, detail: exists ? 'a.md present' : 'a.md missing'}
@@ -336,11 +336,11 @@ describe('runScenario — headful', () => {
         })
 
         const callSequence: string[] = []
-        const launchVoicetreeApp = async (vault: string): Promise<void> => {
-            callSequence.push(`launch:${vault}`)
+        const launchVoicetreeApp = async (project: string): Promise<void> => {
+            callSequence.push(`launch:${project}`)
         }
-        const waitForDaemonReady = async (vault: string, timeoutMs: number): Promise<void> => {
-            callSequence.push(`wait:${vault}:${timeoutMs}`)
+        const waitForDaemonReady = async (project: string, timeoutMs: number): Promise<void> => {
+            callSequence.push(`wait:${project}:${timeoutMs}`)
         }
 
         const result = await runScenario({
@@ -355,10 +355,10 @@ describe('runScenario — headful', () => {
             waitForDaemonReady,
         })
 
-        const expectedVault = path.join(workspaceRoot, 'vault')
+        const expectedProject = path.join(workspaceRoot, 'project')
         expect(callSequence).toEqual([
-            `launch:${expectedVault}`,
-            `wait:${expectedVault}:5000`,
+            `launch:${expectedProject}`,
+            `wait:${expectedProject}:5000`,
         ])
         // Driver was actually invoked (headful uses the same driver path as headless).
         expect(result.telemetry.vtInvocationCount).toBe(1)

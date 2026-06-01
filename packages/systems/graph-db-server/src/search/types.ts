@@ -17,7 +17,7 @@ export class SearchIndexNotFoundError extends Error {
     readonly indexPath: string
 
     constructor(projectRoot: string, indexPath: string) {
-        super(`No search index found for vault "${projectRoot}" at "${indexPath}"`)
+        super(`No search index found for project "${projectRoot}" at "${indexPath}"`)
         this.name = 'SearchIndexNotFoundError'
         this.projectRoot = projectRoot
         this.indexPath = indexPath

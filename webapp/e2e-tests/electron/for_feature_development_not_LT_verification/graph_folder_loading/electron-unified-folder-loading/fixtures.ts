@@ -7,17 +7,17 @@ import type { ExtendedWindow, UnifiedFolderLoadingFixtures } from './types';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
-export async function writeVaultConfig(
+export async function writeProjectConfig(
   userDataPath: string,
   testProjectPath: string,
-  primaryVaultPath: string
+  primaryProjectPath: string
 ): Promise<void> {
   const configPath = path.join(userDataPath, 'voicetree-config.json');
   await fs.writeFile(configPath, JSON.stringify({
     lastDirectory: testProjectPath,
-    vaultConfig: {
+    projectConfig: {
       [testProjectPath]: {
-        writeFolder: primaryVaultPath,
+        writeFolderPath: primaryProjectPath,
         readPaths: []
       }
     }
@@ -52,17 +52,17 @@ export async function stopFileWatching(electronApp: ElectronApplication): Promis
   await window.waitForTimeout(300);
 }
 
-async function createProjectWithVaults(): Promise<string> {
+async function createProjectWithProjects(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-unified-loading-test-'));
-  const primaryVault = path.join(tempDir, 'primary');
-  const secondVault = path.join(tempDir, 'second-vault');
+  const primaryProject = path.join(tempDir, 'primary');
+  const secondProject = path.join(tempDir, 'second-project');
 
-  await fs.mkdir(primaryVault, { recursive: true });
-  await fs.mkdir(secondVault, { recursive: true });
+  await fs.mkdir(primaryProject, { recursive: true });
+  await fs.mkdir(secondProject, { recursive: true });
 
   await fs.writeFile(
-    path.join(primaryVault, 'initial-node.md'),
-    '# Initial Node\n\nThis is the starting node in primary vault.'
+    path.join(primaryProject, 'initial-node.md'),
+    '# Initial Node\n\nThis is the starting node in primary project.'
   );
 
   return tempDir;
@@ -89,21 +89,21 @@ export const test = base.extend<UnifiedFolderLoadingFixtures>({
   },
 
   testProjectPath: async ({}, use) => {
-    const tempDir = await createProjectWithVaults();
+    const tempDir = await createProjectWithProjects();
     await use(tempDir);
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  primaryVaultPath: async ({ testProjectPath }, use) => {
+  primaryProjectPath: async ({ testProjectPath }, use) => {
     await use(path.join(testProjectPath, 'primary'));
   },
 
-  secondVaultPath: async ({ testProjectPath }, use) => {
-    await use(path.join(testProjectPath, 'second-vault'));
+  secondProjectPath: async ({ testProjectPath }, use) => {
+    await use(path.join(testProjectPath, 'second-project'));
   },
 
-  electronApp: async ({ testProjectPath, tempUserDataPath, primaryVaultPath }, use) => {
-    await writeVaultConfig(tempUserDataPath, testProjectPath, primaryVaultPath);
+  electronApp: async ({ testProjectPath, tempUserDataPath, primaryProjectPath }, use) => {
+    await writeProjectConfig(tempUserDataPath, testProjectPath, primaryProjectPath);
 
     const electronApp = await launchElectronApp(tempUserDataPath);
     await use(electronApp);

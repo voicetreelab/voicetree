@@ -15,8 +15,8 @@ class TestServerSystem:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up test environment with temporary directories and server process"""
-        # Use hardcoded test vault (absolute path)
-        self.test_output_dir = os.path.abspath("backend/tests/system_test/testVault")
+        # Use hardcoded test project (absolute path)
+        self.test_output_dir = os.path.abspath("backend/tests/system_test/testProject")
         self.server_process = None
         self.server_port = 8002  # Use different port to avoid conflicts
         self.server_url = f"http://localhost:{self.server_port}"

@@ -21,9 +21,9 @@ import {
     type State,
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
-import { createRpcClientForVault, type DaemonRpcClient, type JsonRpcResponse } from '@vt/vt-rpc'
+import { createRpcClientForProject, type DaemonRpcClient, type JsonRpcResponse } from '@vt/vt-rpc'
 
-import { getActiveVault } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import { getActiveProject } from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 
 interface SerializableLayoutChanged {
     readonly zoom?: number
@@ -83,13 +83,13 @@ function hydrateDelta(serializable: SerializableDelta): Delta {
 }
 
 async function buildClient(): Promise<DaemonRpcClient> {
-    const vaultPath: string | null = getActiveVault()
-    if (!vaultPath) {
+    const projectPath: string | null = getActiveProject()
+    if (!projectPath) {
         throw new Error(
-            'daemon-live-state-rpc: no vault is bound. Open a vault before dispatching live commands.',
+            'daemon-live-state-rpc: no project is bound. Open a project before dispatching live commands.',
         )
     }
-    return await createRpcClientForVault(vaultPath, { env: process.env })
+    return await createRpcClientForProject(projectPath, { env: process.env })
 }
 
 function unwrap<T>(response: JsonRpcResponse, method: string): T {

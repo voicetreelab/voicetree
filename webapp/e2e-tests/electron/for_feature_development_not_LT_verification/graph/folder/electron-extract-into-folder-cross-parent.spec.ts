@@ -46,8 +46,8 @@ async function shot(appWindow: Page, name: string): Promise<string> {
     return fullPath;
 }
 
-async function createCrossParentVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'extract-cross-parent-vault');
+async function createCrossParentProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'extract-cross-parent-project');
 
     await fs.mkdir(path.join(projectRoot, 'docs'), { recursive: true });
     await fs.mkdir(path.join(projectRoot, 'research'), { recursive: true });
@@ -150,7 +150,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-extract-cross-parent-'));
-        const projectRoot = await createCrossParentVault(tempDir);
+        const projectRoot = await createCrossParentProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -160,9 +160,9 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: [],
                 },
             },
@@ -171,10 +171,9 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'extract-cross-parent-test',
             path: projectRoot,
-            name: 'extract-cross-parent-test-vault',
+            name: 'extract-cross-parent-test-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -235,7 +234,7 @@ const test = base.extend<{
 
         await appWindow.waitForLoadState('domcontentloaded');
         await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await appWindow.locator('button:has-text("extract-cross-parent-test-vault")').first().click();
+        await appWindow.locator('button:has-text("extract-cross-parent-test-project")').first().click();
 
         await appWindow.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -305,7 +304,7 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         await expect.poll(async () => {
             return fs.access(newFolderPath).then(() => true).catch(() => false);
         }, {
-            message: 'Waiting for my_collection/ to appear at vault root',
+            message: 'Waiting for my_collection/ to appear at project root',
             timeout: 10000,
             intervals: [250, 500, 1000],
         }).toBe(true);

@@ -38,7 +38,7 @@ function idSelector(id: string): string {
   return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
 }
 
-async function seedVault(projectRoot: string): Promise<void> {
+async function seedProject(projectRoot: string): Promise<void> {
   await fs.mkdir(projectRoot, { recursive: true });
   await fs.writeFile(
     path.join(projectRoot, 'parent-node.md'),
@@ -73,8 +73,8 @@ const test = base.extend<{
 }>({
   projectRoot: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-child-title-'));
-    const projectRoot = path.join(tempRoot, 'vault');
-    await seedVault(projectRoot);
+    const projectRoot = path.join(tempRoot, 'project');
+    await seedProject(projectRoot);
     await use(projectRoot);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
@@ -87,16 +87,15 @@ const test = base.extend<{
       name: 'child-title-test',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true,
     };
 
     await fs.writeFile(path.join(userDataPath, 'projects.json'), JSON.stringify([savedProject], null, 2), 'utf8');
     await fs.writeFile(
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
-        vaultConfig: {
+        projectConfig: {
           [projectRoot]: {
-            writeFolder: projectRoot,
+            writeFolderPath: projectRoot,
             readPaths: [],
           },
         },
@@ -135,13 +134,13 @@ const test = base.extend<{
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
-    const openResult = await window.evaluate(async (vault: string) => {
+    const openResult = await window.evaluate(async (project: string) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const response = await api.main.openVault(vault);
-      return { writeFolder: response.writeFolder };
+      const response = await api.main.openProject(project);
+      return { writeFolderPath: response.writeFolderPath };
     }, projectRoot);
-    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy();
 
     await pollForCytoscape(window, 15_000);
 

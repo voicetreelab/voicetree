@@ -8,7 +8,7 @@
  * server keeps exactly one cross-package edge to protocol for its entire
  * public-protocol surface.
  *
- * Historically this file had a duplicate `OpenVaultRequest/Response`
+ * Historically this file had a duplicate `OpenProjectRequest/Response`
  * declaration that diverged from the protocol package's version. The
  * canonical definition lives in `@vt/graph-db-protocol`; the duplicate
  * has been removed.

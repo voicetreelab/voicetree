@@ -24,7 +24,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder-test-helpers';
 
@@ -38,7 +38,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-trackpad-pan-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestProject(tempDir);
         await fs.writeFile(
             path.join(projectRoot, 'auth', 'index.md'),
             `---\nposition:\n  x: 50\n  y: 120\n---\n# Auth Folder Note\n`,
@@ -52,18 +52,17 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
-                [projectRoot]: { writeFolder: projectRoot, readPaths: [] },
+            projectConfig: {
+                [projectRoot]: { writeFolderPath: projectRoot, readPaths: [] },
             },
         }, null, 2), 'utf8');
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'trackpad-pan-test',
             path: projectRoot,
-            name: 'trackpad-pan-test-vault',
+            name: 'trackpad-pan-test-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -109,7 +108,7 @@ const test = base.extend<{
         const window = await electronApp.firstWindow({ timeout: 20000 });
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await window.locator('button:has-text("trackpad-pan-test-vault")').first().click();
+        await window.locator('button:has-text("trackpad-pan-test-project")').first().click();
         await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
             { timeout: 30000 },

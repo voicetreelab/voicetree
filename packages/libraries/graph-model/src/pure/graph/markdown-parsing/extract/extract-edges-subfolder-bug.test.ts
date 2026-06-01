@@ -19,9 +19,9 @@ describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', 
 
   it('should resolve [[Parent-Slug]] to parent-slug.md (case insensitive)', () => {
     const nodes: Record<string, GraphNode> = {
-      '/vault/parent-slug.md': createNode('/vault/parent-slug.md')
+      '/project/parent-slug.md': createNode('/project/parent-slug.md')
     }
-    expect(findBestMatchingNode('Parent-Slug', nodes)).toBe('/vault/parent-slug.md')
+    expect(findBestMatchingNode('Parent-Slug', nodes)).toBe('/project/parent-slug.md')
   })
 })
 
@@ -41,11 +41,11 @@ describe('findBestMatchingNode - full path match requirement', () => {
 
   it('should not match when link has more specific path than any node', () => {
     // Link: openspec/changes/add-run-agent-on-selection/tasks.md (4 components)
-    // Node: only simplify-vault-path-architecture/tasks.md exists (only "tasks" matches = score 1)
+    // Node: only simplify-project-path-architecture/tasks.md exists (only "tasks" matches = score 1)
     // Expected: undefined (no match) because 1 < 4 components required
     const link: string = 'openspec/changes/add-run-agent-on-selection/tasks.md'
     const nodes: Record<string, GraphNode> = {
-      '/path/to/simplify-vault-path-architecture/tasks.md': createNode('/path/to/simplify-vault-path-architecture/tasks.md')
+      '/path/to/simplify-project-path-architecture/tasks.md': createNode('/path/to/simplify-project-path-architecture/tasks.md')
     }
     expect(findBestMatchingNode(link, nodes)).toBeUndefined()
   })
@@ -182,36 +182,36 @@ describe('findBestMatchingNode - stale absolute path healing (Bug 2 Option B)', 
 
   it('should resolve stale mount point path to current node', () => {
     const nodes: Record<string, GraphNode> = {
-      '/new-mount/vault/parent.md': createNode('/new-mount/vault/parent.md')
+      '/new-mount/project/parent.md': createNode('/new-mount/project/parent.md')
     }
-    expect(findBestMatchingNode('/old-mount/vault/parent.md', nodes))
-      .toBe('/new-mount/vault/parent.md')
+    expect(findBestMatchingNode('/old-mount/project/parent.md', nodes))
+      .toBe('/new-mount/project/parent.md')
   })
 
-  it('should prefer higher suffix match in multi-vault', () => {
+  it('should prefer higher suffix match in multi-project', () => {
     const nodes: Record<string, GraphNode> = {
-      '/new-mount/vault1/note.md': createNode('/new-mount/vault1/note.md'),
-      '/new-mount/vault2/note.md': createNode('/new-mount/vault2/note.md')
+      '/new-mount/project1/note.md': createNode('/new-mount/project1/note.md'),
+      '/new-mount/project2/note.md': createNode('/new-mount/project2/note.md')
     }
-    expect(findBestMatchingNode('/old-mount/vault1/note.md', nodes))
-      .toBe('/new-mount/vault1/note.md')
+    expect(findBestMatchingNode('/old-mount/project1/note.md', nodes))
+      .toBe('/new-mount/project1/note.md')
   })
 
   it('should NOT relax scoring for relative paths', () => {
     const nodes: Record<string, GraphNode> = {
-      '/vault/a/note.md': createNode('/vault/a/note.md')
+      '/project/a/note.md': createNode('/project/a/note.md')
     }
     expect(findBestMatchingNode('b/note', nodes)).toBe(undefined)
   })
 
   it('should resolve deep AppImage path changes', () => {
     const nodes: Record<string, GraphNode> = {
-      '/tmp/.mount_VoiceXYZ/resources/app/vault/parent.md':
-        createNode('/tmp/.mount_VoiceXYZ/resources/app/vault/parent.md')
+      '/tmp/.mount_VoiceXYZ/resources/app/project/parent.md':
+        createNode('/tmp/.mount_VoiceXYZ/resources/app/project/parent.md')
     }
     expect(findBestMatchingNode(
-      '/tmp/.mount_VoiceABC/resources/app/vault/parent.md', nodes
-    )).toBe('/tmp/.mount_VoiceXYZ/resources/app/vault/parent.md')
+      '/tmp/.mount_VoiceABC/resources/app/project/parent.md', nodes
+    )).toBe('/tmp/.mount_VoiceXYZ/resources/app/project/parent.md')
   })
 })
 

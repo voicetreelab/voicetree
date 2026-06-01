@@ -11,10 +11,9 @@ import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforc
 import { applyPositions, rebaseNewClusterPositions } from '@vt/graph-model/spatial'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@vt/graph-model/graph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
-import { linkMatchScore } from '@vt/graph-model/markdown'
-import { findFileByName } from './findFileByName'
+import { IGNORED_DIRECTORY_NAMES } from '../ignoredDirectoryNames'
 
-type VaultFileRecord = {
+type ProjectFileRecord = {
     readonly projectRoot: string;
     readonly relativePath: string;
 };
@@ -24,7 +23,7 @@ type FileContentRecord = {
     readonly content: string;
 };
 
-function createVaultFileRecords(projectRoot: string, files: readonly string[]): readonly VaultFileRecord[] {
+function createProjectFileRecords(projectRoot: string, files: readonly string[]): readonly ProjectFileRecord[] {
     return files.map(relativePath => ({ projectRoot, relativePath }));
 }
 
@@ -52,16 +51,16 @@ function applyFileContentsToGraph(
     );
 }
 
-function nodeIdForVaultRelativePath(projectRoot: string, relativePath: string): string {
+function nodeIdForProjectRelativePath(projectRoot: string, relativePath: string): string {
     return normalizePath(path.join(projectRoot, relativePath));
 }
 
-function selectNewVaultFiles(
+function selectNewProjectFiles(
     files: readonly string[],
     projectRoot: string,
     existingGraph: Graph
 ): readonly string[] {
-    return files.filter((relativePath: string) => !(nodeIdForVaultRelativePath(projectRoot, relativePath) in existingGraph.nodes));
+    return files.filter((relativePath: string) => !(nodeIdForProjectRelativePath(projectRoot, relativePath) in existingGraph.nodes));
 }
 
 function createUpsertDeltaForNodeIds(graph: Graph, nodeIds: readonly string[]): GraphDelta {
@@ -70,14 +69,6 @@ function createUpsertDeltaForNodeIds(graph: Graph, nodeIds: readonly string[]): 
         nodeToUpsert: graph.nodes[nodeId],
         previousNode: O.none
     }));
-}
-
-function chooseBestLinkMatch(linkTarget: string, matchingFiles: readonly string[]): string {
-    return matchingFiles.reduce((bestMatch, candidate) => {
-        const bestScore: number = linkMatchScore(linkTarget, bestMatch);
-        const candidateScore: number = linkMatchScore(linkTarget, candidate);
-        return candidateScore > bestScore ? candidate : bestMatch;
-    }, matchingFiles[0]);
 }
 
 async function readGraphFileContent(fullPath: string): Promise<FileContentRecord> {
@@ -93,7 +84,7 @@ async function readGraphFileContent(fullPath: string): Promise<FileContentRecord
  * IO function: Performs side effects (file I/O) and returns a Promise<Graph>.
  *
  * Algorithm (progressive, order-independent):
- * 1. Scan all vault directories recursively for .md files
+ * 1. Scan all project directories recursively for .md files
  * 2. For each file, progressively add to graph using addNodeToGraph
  *    - Validates outgoing edges from new node
  *    - Heals incoming edges to new node (bidirectional validation)
@@ -103,28 +94,28 @@ async function readGraphFileContent(fullPath: string): Promise<FileContentRecord
  * Key property: Loading [A,B,C] produces same result as [C,B,A] (order-independent)
  * Node IDs are absolute paths (normalized with forward slashes).
  *
- * @param vaultPaths - Array of absolute paths to vault directories containing markdown files
+ * @param projectPaths - Array of absolute paths to project directories containing markdown files
  * @returns Promise that resolves to a Graph
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'])
+ * const graph = await loadGraphFromDisk(['/path/to/project', '/path/to/openspec'])
  * ```
  */
 export async function loadGraphFromDisk(
-    vaultPaths: readonly string[]
+    projectPaths: readonly string[]
 ): Promise<E.Either<FileLimitExceededError, Graph>> {
-    if (vaultPaths.length === 0) {
+    if (projectPaths.length === 0) {
         return E.right(createEmptyGraph());
     }
 
-    // Step 1: Scan all vault directories for markdown files
-    // Each file is stored with its vault path for correct absolute path resolution
+    // Step 1: Scan all project directories for markdown files
+    // Each file is stored with its project path for correct absolute path resolution
     const allFiles: readonly { projectRoot: string; relativePath: string }[] = (
         await Promise.all(
-            vaultPaths.map(async (projectRoot) => {
+            projectPaths.map(async (projectRoot) => {
                 const files: readonly string[] = await scanMarkdownFiles(projectRoot);
-                return createVaultFileRecords(projectRoot, files);
+                return createProjectFileRecords(projectRoot, files);
             })
         )
     ).flat();
@@ -149,9 +140,9 @@ export async function loadGraphFromDisk(
 }
 
 /**
- * Loads files from a vault path additively into an existing graph.
+ * Loads files from a project path additively into an existing graph.
  *
- * Used when adding a new vault path at runtime (via UI dropdown).
+ * Used when adding a new project path at runtime (via UI dropdown).
  * This is the bulk load path - more efficient than per-file handleFSEvent calls.
  *
  * Benefits over per-file approach:
@@ -162,19 +153,19 @@ export async function loadGraphFromDisk(
  *
  * Node IDs are absolute paths (normalized with forward slashes).
  *
- * @param projectRoot - Absolute path to the new vault directory to load
+ * @param projectRoot - Absolute path to the new project directory to load
  * @param existingGraph - The current graph to merge new nodes into
  * @returns Either FileLimitExceededError or { graph: merged graph, delta: new nodes only }
  */
-export async function loadVaultPathAdditively(
+export async function loadProjectPathAdditively(
     projectRoot: string,
     existingGraph: Graph
 ): Promise<E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }>> {
-    // Step 1: Scan the new vault path for markdown files
+    // Step 1: Scan the new project path for markdown files
     const files: readonly string[] = await scanMarkdownFiles(projectRoot);
 
     // Step 2: Filter out files already in the graph (avoid double-counting)
-    const newFiles: readonly string[] = selectNewVaultFiles(files, projectRoot, existingGraph);
+    const newFiles: readonly string[] = selectNewProjectFiles(files, projectRoot, existingGraph);
 
     // Step 3: Check file limit (existing + genuinely new files)
     const existingCount: number = Object.keys(existingGraph.nodes).length;
@@ -188,7 +179,7 @@ export async function loadVaultPathAdditively(
     const fileContents: readonly FileContentRecord[] = await Promise.all(
         newFiles.map(relativePath => readGraphFileContent(path.join(projectRoot, relativePath)))
     );
-    const newNodeIds: readonly string[] = newFiles.map(relativePath => nodeIdForVaultRelativePath(projectRoot, relativePath));
+    const newNodeIds: readonly string[] = newFiles.map(relativePath => nodeIdForProjectRelativePath(projectRoot, relativePath));
     const mergedGraph: Graph = applyFileContentsToGraph(fileContents, existingGraph);
 
     // Step 4: Apply positions only to new nodes (existing nodes keep their positions)
@@ -213,40 +204,23 @@ function isSupportedFile(filename: string): boolean {
   return filename.endsWith('.md') || isImageNode(filename)
 }
 
-const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
-  'node_modules',
-  '.next',
-  'dist',
-  '.cache',
-  '__pycache__',
-  '.tox',
-  '.venv',
-  'venv',
-  'build',
-  // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
-  '.worktrees',
-])
-
 // Directories that must never be loaded into the graph even when nested inside
-// a vault. Hidden directories (names starting with '.') are also skipped — most
+// a project. Hidden directories (names starting with '.') are also skipped — most
 // notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
-// markdown files in as graph nodes when a vault root is scanned.
-//
-// `build` was added so opening a project repo as a vault doesn't pull every
-// .md under build outputs into the graph and trip the file-limit guard on
-// large monorepos.
+// markdown files in as graph nodes when a project root is scanned. The ignored
+// names live in `IGNORED_DIRECTORY_NAMES` (shared with the folder watcher).
 function isIgnoredDirectoryName(name: string): boolean {
   return IGNORED_DIRECTORY_NAMES.has(name)
 }
 
 /**
- * Scans vault directory recursively for markdown and image files.
+ * Scans project directory recursively for markdown and image files.
  *
  * Skips hidden directories (names starting with '.') and common noise
  * directories (node_modules, dist, build, etc.), matching the behavior of the
  * folder-selector scanner.
  *
- * @param projectRoot - Absolute absolutePath to vault directory
+ * @param projectRoot - Absolute absolutePath to project directory
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md", "image.png"])
  */
 export async function scanMarkdownFiles(projectRoot: string): Promise<readonly string[]> {
@@ -293,96 +267,6 @@ export function isReadPath(nodeId: string, expandedPaths: readonly string[]): bo
 }
 
 /**
- * Extracts link targets from a node's outgoing edges.
- * Pure function - no I/O.
- *
- * @param node - Graph node to extract links from
- * @returns Array of target IDs from outgoing edges
- */
-export function extractLinkTargets(node: GraphNode): readonly string[] {
-    return node.outgoingEdges.map(edge => edge.targetId);
-}
-
-/**
- * Resolves a single link target to an absolute file path.
- * I/O function - checks filesystem for file existence and searches for matches.
- *
- * - Absolute path links (start with /): check if file exists using fs.existsSync
- * - Relative path links: use findFileByName() to suffix-match in watchedFolder
- *
- * Uses linkMatchScore to pick the best match when multiple files match.
- *
- * @param linkTarget - The link target to resolve (from wikilink)
- * @param watchedFolder - The root folder to search for linked files
- * @returns Absolute file path if resolved, undefined if not found
- */
-export async function resolveLinkTarget(
-    linkTarget: string,
-    watchedFolder: string
-): Promise<string | undefined> {
-    // Case 1: Absolute path - check if file exists
-    if (linkTarget.startsWith('/')) {
-        // Ensure .md extension
-        const targetPath: string = linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`;
-        if (fsSync.existsSync(targetPath)) {
-            return targetPath;
-        }
-        return undefined;
-    }
-
-    // Case 2: Relative path - use findFileByName to suffix-match
-    // Extract the filename from the link (last component)
-    const linkComponents: readonly string[] = linkTarget.split(/[/\\]/);
-    const searchPattern: string = linkComponents[linkComponents.length - 1].replace(/\.md$/, '');
-
-    if (!searchPattern) return undefined;
-
-    const matchingFiles: readonly string[] = await findFileByName(searchPattern, watchedFolder);
-
-    if (matchingFiles.length === 0) return undefined;
-
-    return chooseBestLinkMatch(linkTarget, matchingFiles);
-}
-
-/**
- * Finds all unresolved links from nodes in the graph.
- * Returns the set of file paths that need to be loaded.
- *
- * @param currentGraph - Graph to scan for unresolved links
- * @param processedNodeIds - Set of node IDs already processed (mutated)
- * @param watchedFolder - The root folder to search for linked files
- * @returns Set of absolute file paths to load
- */
-async function findUnresolvedLinks(
-    currentGraph: Graph,
-    processedNodeIds: Set<string>,
-    watchedFolder: string
-): Promise<Set<string>> {
-    const filesToLoad: Set<string> = new Set();
-
-    for (const nodeId of Object.keys(currentGraph.nodes)) {
-        if (processedNodeIds.has(nodeId)) continue;
-        processedNodeIds.add(nodeId);
-
-        const node: GraphNode = currentGraph.nodes[nodeId];
-        const linkTargets: readonly string[] = extractLinkTargets(node);
-
-        for (const target of linkTargets) {
-            // Skip if already in graph
-            if (currentGraph.nodes[target]) continue;
-
-            // Try to resolve the link
-            const resolvedPath: string | undefined = await resolveLinkTarget(target, watchedFolder);
-            if (resolvedPath && !currentGraph.nodes[resolvedPath]) {
-                filesToLoad.add(resolvedPath);
-            }
-        }
-    }
-
-    return filesToLoad;
-}
-
-/**
  * Loads a single file and returns the delta.
  * I/O function - reads file from disk.
  *
@@ -403,56 +287,110 @@ async function loadFileAsNode(
     }
 }
 
+/** The nodes introduced (or healed) by a delta — the seeds whose links we follow. */
+function upsertedNodesOf(delta: GraphDelta): readonly GraphNode[] {
+    return delta.flatMap(d => (d.type === 'UpsertNode' ? [d.nodeToUpsert] : []));
+}
+
 /**
- * Resolves wikilinks in the graph by searching the watched folder.
+ * Resolves an *absolute* wikilink target to an on-disk markdown file path that
+ * is not yet in the graph, or `undefined` otherwise.
  *
- * For each unresolved wikilink in the graph:
- * - Absolute path links (start with /): check if file exists using fs.existsSync
- * - Relative path links: use findFileByName() to suffix-match in watchedFolder
+ * Returns undefined when the link is relative (relative links are healed against
+ * loaded nodes by the graph-model edge indexes, never loaded from disk), when
+ * the target is already loaded, when it was already attempted this pass, or when
+ * it does not exist on disk.
  *
- * Uses linkMatchScore to pick the best match when multiple files match.
- * Recursively resolves transitive links (A→B→C all get loaded).
+ * Absolute targets intentionally escape folder-visibility and project
+ * boundaries: an absolute link to a file in an unloaded folder or a sibling
+ * repo still loads, via a single `existsSync`.
  *
- * This is the "resolve-on-link" behavior for files in the watched folder
- * that are outside writeFolder and expanded paths.
- *
- * @param graph - Current graph with nodes
- * @param watchedFolder - The root folder to search for linked files
- * @returns GraphDelta containing all resolved nodes (caller applies to graph)
+ * @param attemptedTargets - Per-pass set of normalized paths already considered (mutated).
  */
-export async function resolveLinkedNodesInWatchedFolder(
+function resolveAbsoluteTargetPath(
+    linkTarget: string,
     graph: Graph,
-    watchedFolder: string
+    attemptedTargets: Set<string>
+): string | undefined {
+    if (!linkTarget.startsWith('/')) return undefined;
+
+    const withExtension: string = linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`;
+    const targetPath: string = normalizePath(withExtension);
+
+    if (graph.nodes[targetPath]) return undefined;
+    if (attemptedTargets.has(targetPath)) return undefined;
+    attemptedTargets.add(targetPath);
+
+    return fsSync.existsSync(targetPath) ? targetPath : undefined;
+}
+
+/** Collects the loadable absolute targets across a frontier of nodes (deduped). */
+function collectLoadableAbsoluteTargets(
+    nodes: readonly GraphNode[],
+    graph: Graph,
+    attemptedTargets: Set<string>
+): readonly string[] {
+    const targets: Set<string> = new Set();
+    for (const node of nodes) {
+        for (const edge of node.outgoingEdges) {
+            const resolved: string | undefined = resolveAbsoluteTargetPath(edge.targetId, graph, attemptedTargets);
+            if (resolved) targets.add(resolved);
+        }
+    }
+    return [...targets];
+}
+
+/**
+ * Loads the *absolute*-path wikilink targets referenced by an upsert delta.
+ *
+ * Relative wikilinks are intentionally NOT handled here. The graph-model edge
+ * indexes (`nodeByBaseName` / `unresolvedLinksIndex`) already resolve a relative
+ * link the instant its basename matches a loaded node, in both directions
+ * (a new node's links to loaded targets, and existing nodes waiting for a newly
+ * loaded target — see `addNodeToGraphWithEdgeHealingFromFSEvent`). A relative
+ * link with no loaded match stays dangling by design: the resolver must not
+ * crawl disk and resurrect files from folders the user has unloaded.
+ *
+ * Absolute wikilinks keep their precise-load semantics: an absolute target is
+ * loaded from wherever it lives on disk — including outside every loaded folder
+ * and outside the project root — via a single `existsSync`. This is the only
+ * genuinely-new file loading the resolver still performs.
+ *
+ * Resolution is delta-scoped and transitive: it follows the absolute edges of
+ * the upserted nodes, then of any file those edges loaded, until no new
+ * absolute target appears. It performs zero directory crawls.
+ *
+ * @param graph - Current graph (already includes the upserted delta).
+ * @param delta - The upserted delta whose absolute links to follow.
+ * @returns GraphDelta of newly-loaded absolute-target nodes (caller applies it).
+ */
+export async function resolveAbsoluteLinkedNodes(
+    graph: Graph,
+    delta: GraphDelta
 ): Promise<GraphDelta> {
-    // Track which nodes we've already processed to avoid infinite loops
-    const processedNodeIds: Set<string> = new Set();
-    // Accumulate all deltas from resolution (mutable array, returned as GraphDelta)
     const accumulatedDelta: GraphDelta[number][] = [];
-    // Working copy of graph for resolution
+    // Normalized target paths already considered, across the whole transitive pass.
+    const attemptedTargets: Set<string> = new Set();
     let workingGraph: Graph = graph;
+    let frontier: readonly GraphNode[] = upsertedNodesOf(delta);
 
-    // Initial pass: find all unresolved links
-    let filesToLoad: Set<string> = await findUnresolvedLinks(workingGraph, processedNodeIds, watchedFolder);
+    while (frontier.length > 0) {
+        const targetsToLoad: readonly string[] = collectLoadableAbsoluteTargets(frontier, workingGraph, attemptedTargets);
+        const newlyLoaded: GraphNode[] = [];
 
-    // Iteratively load files and resolve their transitive links
-    while (filesToLoad.size > 0) {
-        const pathsToLoad: readonly string[] = [...filesToLoad];
+        for (const targetPath of targetsToLoad) {
+            if (workingGraph.nodes[targetPath]) continue; // Already loaded (e.g. by an earlier target this pass)
 
-        // Load each file
-        for (const filePath of pathsToLoad) {
-            if (workingGraph.nodes[filePath]) continue; // Already loaded
-
-            const delta: GraphDelta = await loadFileAsNode(filePath, workingGraph);
-            if (delta.length > 0) {
-                workingGraph = applyGraphDeltaToGraph(workingGraph, delta);
-                accumulatedDelta.push(...delta);
+            const loadDelta: GraphDelta = await loadFileAsNode(targetPath, workingGraph);
+            if (loadDelta.length > 0) {
+                workingGraph = applyGraphDeltaToGraph(workingGraph, loadDelta);
+                accumulatedDelta.push(...loadDelta);
+                newlyLoaded.push(...upsertedNodesOf(loadDelta));
             }
         }
 
-        // Find new unresolved links from the nodes we just loaded
-        filesToLoad = await findUnresolvedLinks(workingGraph, processedNodeIds, watchedFolder);
+        frontier = newlyLoaded;
     }
 
-    // Return accumulated delta (caller handles positioning and applying to state)
     return accumulatedDelta;
 }

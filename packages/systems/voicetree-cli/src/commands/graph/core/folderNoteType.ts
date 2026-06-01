@@ -39,22 +39,22 @@ function parseTypeFromFolderNote(markdown: string): string | undefined {
 
 export function resolveTypeForTarget(
     targetPath: string,
-    vaultRoot: string
+    projectRoot: string
 ): ResolvedFolderType | undefined {
     const absoluteTarget: string = resolve(targetPath)
-    const absoluteVault: string = resolve(vaultRoot)
+    const absoluteProject: string = resolve(projectRoot)
 
-    if (!isWithin(absoluteTarget, absoluteVault)) {
+    if (!isWithin(absoluteTarget, absoluteProject)) {
         return undefined
     }
 
     let currentDir: string = dirname(absoluteTarget)
 
-    while (isWithin(currentDir, absoluteVault)) {
+    while (isWithin(currentDir, absoluteProject)) {
         const candidate: ResolvedFolderType | undefined = inspectFolderNote(currentDir, absoluteTarget)
         if (candidate !== undefined) return candidate
 
-        if (currentDir === absoluteVault) break
+        if (currentDir === absoluteProject) break
 
         const parentDir: string = dirname(currentDir)
         if (parentDir === currentDir) break

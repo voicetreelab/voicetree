@@ -34,12 +34,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
+      # tier<=2 includes the tier-1 duplication health gates, which shell out to
+      # the native vt-dup binary; build it (cached) first. ubuntu-latest ships a
+      # stable Rust toolchain.
+      - name: Cache vt-dup Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/measures/native/vt-dup/target
+          key: ${{ runner.os }}-cargo-vt-dup-${{ hashFiles('packages/measures/native/vt-dup/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-vt-dup-
+
+      - name: Build vt-dup native binary
+        run: pnpm --filter @vt/measures run measures:build-native:local
+
       - name: Install Playwright chromium
         working-directory: webapp
         run: npx playwright install --with-deps chromium
 
       - name: Run tier 2 checks
         run: npm run test:t2
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Static gates failed"
 
   browser-smoke:
     needs: [static-gates]
@@ -91,6 +112,10 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
         run: xvfb-run --auto-servernum npm --workspace webapp run test:e2e
 
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Browser smoke failed"
+
   electron-smoke:
     needs: [static-gates]
     runs-on: ubuntu-latest
@@ -137,7 +162,7 @@ jobs:
           TSX_PATH=$(node -e "console.log(require.resolve('tsx'))")
           timeout 30 node --import "$TSX_PATH" \
             packages/systems/graph-db-server/bin/vt-graphd.ts \
-            --vault /tmp/daemon-warmup --idle-timeout-ms 3000 || true
+            --project /tmp/daemon-warmup --idle-timeout-ms 3000 || true
           rm -rf /tmp/daemon-warmup
 
       - name: Run Electron Tier 1 smoke tests
@@ -159,3 +184,7 @@ jobs:
             webapp/test-results/
             webapp/playwright-report-tier1-system/
           retention-days: 7
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Electron smoke failed"

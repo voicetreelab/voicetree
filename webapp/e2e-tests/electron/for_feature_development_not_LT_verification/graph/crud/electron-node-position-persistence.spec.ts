@@ -3,8 +3,8 @@
  *
  * BUG: When opening a folder, nodes all load on top of each other.
  * This test verifies the full e2e flow:
- * 1. Create a vault with markdown files and a positions.json with distinct positions
- * 2. Launch the app and load the vault
+ * 1. Create a project with markdown files and a positions.json with distinct positions
+ * 2. Launch the app and load the project
  * 3. Verify nodes in Cytoscape have the saved positions (not all stacked at origin)
  *
  * The positions flow:
@@ -37,9 +37,9 @@ const SAVED_POSITIONS: Record<string, { x: number; y: number }> = {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
-  testVaultPath: async ({}, use) => {
+  testProjectPath: async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-position-test-'));
     const projectRoot = path.join(tempDir, 'voicetree');
     const voicetreeDir = path.join(tempDir, '.voicetree');
@@ -72,7 +72,7 @@ const test = base.extend<{
       JSON.stringify(positionsWithAbsolutePaths, null, 2)
     );
 
-    console.log('[Position Test] Created vault at:', tempDir);
+    console.log('[Position Test] Created project at:', tempDir);
     console.log('[Position Test] positions.json:', JSON.stringify(positionsWithAbsolutePaths, null, 2));
 
     await use(tempDir);
@@ -80,23 +80,22 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  electronApp: async ({ testVaultPath }, use) => {
+  electronApp: async ({ testProjectPath }, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-position-userdata-'));
 
-    // Create projects.json so app auto-loads the vault
+    // Create projects.json so app auto-loads the project
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     const savedProject = {
       id: 'position-test-project',
-      path: testVaultPath,
+      path: testProjectPath,
       name: 'position-test',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testVaultPath }, null, 2), 'utf8');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testProjectPath }, null, 2), 'utf8');
 
     const electronApp = await electron.launch({
       args: [
@@ -174,13 +173,13 @@ const test = base.extend<{
 });
 
 test.describe('Node Position Persistence', () => {
-  test('nodes should load with saved positions from positions.json, not stacked at origin', async ({ appWindow, testVaultPath }) => {
+  test('nodes should load with saved positions from positions.json, not stacked at origin', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(45000);
 
-    const projectRoot = path.join(testVaultPath, 'voicetree');
+    const projectRoot = path.join(testProjectPath, 'voicetree');
 
     // Get all node positions from Cytoscape
-    const nodePositions = await appWindow.evaluate((vaultDir: string) => {
+    const nodePositions = await appWindow.evaluate((projectDir: string) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
@@ -188,7 +187,7 @@ test.describe('Node Position Persistence', () => {
       cy.nodes().forEach((node: NodeSingular) => {
         const id: string = node.id();
         // Only check real nodes (skip virtual/compound nodes)
-        if (id.includes(vaultDir)) {
+        if (id.includes(projectDir)) {
           const pos = node.position();
           positions[id] = { x: pos.x, y: pos.y };
         }
@@ -224,10 +223,10 @@ test.describe('Node Position Persistence', () => {
     }
   });
 
-  test('moved node positions should propagate to in-memory graph state', async ({ appWindow, testVaultPath }) => {
+  test('moved node positions should propagate to in-memory graph state', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(45000);
 
-    const projectRoot = path.join(testVaultPath, 'voicetree');
+    const projectRoot = path.join(testProjectPath, 'voicetree');
 
     // Move a node to a new position via the Cytoscape API + saveNodePositions IPC
     const newPosition = { x: 999, y: 888 };

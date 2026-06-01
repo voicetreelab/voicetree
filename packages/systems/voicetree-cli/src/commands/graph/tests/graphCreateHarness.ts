@@ -122,17 +122,17 @@ export const SCHEMAS_TWO_RULES: string = `module.exports = {
 
 export const FOLDER_NOTE_BODY: string = '# Work\n\n## Type: my-kind\n\nfolder note body\n'
 
-export async function setupGatedVault(
+export async function setupGatedProject(
     schemaPlugin: string = SCHEMAS_REQUIRES_NEEDED_MARKER,
 ): Promise<string> {
-    const vaultRoot: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-batch-')))
-    await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-    await writeFile(join(vaultRoot, '.voicetree', 'schemas.cjs'), schemaPlugin, 'utf8')
-    const workDir: string = join(vaultRoot, 'work')
+    const projectRoot: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-batch-')))
+    await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
+    await writeFile(join(projectRoot, '.voicetree', 'schemas.cjs'), schemaPlugin, 'utf8')
+    const workDir: string = join(projectRoot, 'work')
     await mkdir(workDir, {recursive: true})
     await writeFile(join(workDir, 'work.md'), FOLDER_NOTE_BODY, 'utf8')
     clearLoadSchemaPluginCacheForTest()
-    return vaultRoot
+    return projectRoot
 }
 
 // Spins up a minimal HTTP JSON-RPC responder so daemon-client.ts exercises
@@ -142,7 +142,7 @@ export async function setupGatedVault(
 // is a faithful black-box stand-in: any drift from the wire contract would
 // surface as a `callDaemon` test failure.
 export interface StubDaemon {
-    readonly vaultPath: string
+    readonly projectPath: string
     readonly url: string
     readonly stop: () => Promise<void>
 }
@@ -159,11 +159,11 @@ async function readBody(req: IncomingMessage): Promise<string> {
 }
 
 export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> {
-    const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-http-stub-')))
-    await mkdir(join(vaultPath, '.voicetree'), {recursive: true})
+    const projectPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-http-stub-')))
+    await mkdir(join(projectPath, '.voicetree'), {recursive: true})
 
     const token: string = generateAuthToken()
-    await writeAuthTokenFile(vaultPath, token)
+    await writeAuthTokenFile(projectPath, token)
 
     const server: Server = createServer((req: IncomingMessage, res: ServerResponse): void => {
         void readBody(req).then((raw: string): void => {
@@ -198,10 +198,10 @@ export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> 
         throw new Error('startStubDaemon: server.listen did not yield an address')
     }
     const port: number = address.port
-    await writeRpcPortFile(vaultPath, port)
+    await writeRpcPortFile(projectPath, port)
 
     return {
-        vaultPath,
+        projectPath,
         url: `http://127.0.0.1:${port}`,
         stop: (): Promise<void> => new Promise<void>((resolveClose, rejectClose): void => {
             server.closeAllConnections?.()

@@ -1,8 +1,8 @@
 /**
- * Filesystem I/O for the vault-scoped owner record.
+ * Filesystem I/O for the project-scoped owner record.
  *
- * The owner record at `<vault>/.voicetree/${daemonKind}.owner.json` is the
- * cross-process arbiter for "which daemon of this kind owns this vault".
+ * The owner record at `<project>/.voicetree/${daemonKind}.owner.json` is the
+ * cross-process arbiter for "which daemon of this kind owns this project".
  * Atomic create (POSIX O_CREAT | O_EXCL via Node's `wx` flag) is the only
  * primitive needed to serialise concurrent claims: the winner writes the
  * record, every loser sees EEXIST and reads the existing record to decide
@@ -93,19 +93,19 @@ export async function tryAtomicCreate(
  * schema. A corrupt record is treated as absent: it cannot identify the
  * owner, so discovery must fall back to the no-owner branch.
  *
- * The two-argument overload accepts `(vaultDir, daemonKind)` and resolves
+ * The two-argument overload accepts `(projectDir, daemonKind)` and resolves
  * the path internally; the single-argument form takes a precomputed path
  * (used by the server's claim path which already holds the path).
  */
 export async function readOwnerRecord(path: string): Promise<OwnerRecord | null>
-export async function readOwnerRecord(vaultDir: string, daemonKind: DaemonKind): Promise<OwnerRecord | null>
+export async function readOwnerRecord(projectDir: string, daemonKind: DaemonKind): Promise<OwnerRecord | null>
 export async function readOwnerRecord(
-  pathOrVault: string,
+  pathOrProject: string,
   daemonKind?: DaemonKind,
 ): Promise<OwnerRecord | null> {
   const path = daemonKind === undefined
-    ? pathOrVault
-    : ownerRecordFile.pathFor(pathOrVault, daemonKind)
+    ? pathOrProject
+    : ownerRecordFile.pathFor(pathOrProject, daemonKind)
   let raw: string
   try {
     raw = await readFile(path, 'utf8')
@@ -142,17 +142,17 @@ export async function atomicReplaceOwnerRecord(
  * cleared the same record.
  *
  * Path can be provided directly (server path-with-claim) or computed
- * from `(vaultDir, daemonKind)` for the client launcher.
+ * from `(projectDir, daemonKind)` for the client launcher.
  */
 export async function deleteOwnerRecord(path: string): Promise<void>
-export async function deleteOwnerRecord(vaultDir: string, daemonKind: DaemonKind): Promise<void>
+export async function deleteOwnerRecord(projectDir: string, daemonKind: DaemonKind): Promise<void>
 export async function deleteOwnerRecord(
-  pathOrVault: string,
+  pathOrProject: string,
   daemonKind?: DaemonKind,
 ): Promise<void> {
   const path = daemonKind === undefined
-    ? pathOrVault
-    : ownerRecordFile.pathFor(pathOrVault, daemonKind)
+    ? pathOrProject
+    : ownerRecordFile.pathFor(pathOrProject, daemonKind)
   try {
     await unlink(path)
   } catch (err) {

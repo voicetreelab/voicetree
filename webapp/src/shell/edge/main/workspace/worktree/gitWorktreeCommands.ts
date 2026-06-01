@@ -7,21 +7,20 @@
 
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
-import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 
 /** Shell-quote a single argument for POSIX-style hook commands. */
 export function shellQuote(arg: string): string {
     return "'" + arg.replace(/'/g, "'\\''") + "'";
 }
 
-const execFileAsync: (file: string, args: readonly string[], options?: { cwd?: string }) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
-
-/** Normalize path separators to forward slashes (for cross-platform comparison) */
-function toForwardSlashes(p: string): string {
-    return p.replace(/\\/g, '/');
-}
+const execFileAsync: (
+    file: string,
+    args: readonly string[],
+    options?: { cwd?: string; env?: NodeJS.ProcessEnv },
+) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
 
 /**
  * Execute a user-defined hook command, appending arguments.
@@ -37,16 +36,9 @@ export async function runHook(
     command: string,
     args: string[],
     cwd: string,
-    extraEnv?: Record<string, string>,
 ): Promise<{ success: boolean; error?: string; stdout?: string; stderr?: string }> {
     const quotedArgs: string = args.map(shellQuote).join(' ')
-    // Inject extra env vars via a shell prefix instead of mutating env-object —
-    // keeps the parent's env intact (exec inherits when `env` is unset) and
-    // avoids reading process.env here.
-    const envPrefix: string = extraEnv
-        ? Object.entries(extraEnv).map(([k, v]) => `${k}=${shellQuote(v)}`).join(' ') + ' '
-        : ''
-    const fullCommand: string = envPrefix + (quotedArgs ? `${command} ${quotedArgs}` : command)
+    const fullCommand: string = quotedArgs ? `${command} ${quotedArgs}` : command
     return new Promise((resolve) => {
         exec(fullCommand, { cwd, timeout: 30000 }, (error: Error | null, stdout: string, stderr: string) => {
             if (error) {
@@ -82,80 +74,195 @@ export function generateWorktreeName(nodeTitle: string): string {
 }
 
 /**
- * Worktrees live as a SIBLING of the main checkout, not nested inside it.
- * Mac layout:     ~/repos/vtrepo/        ← main repo
- *                 ~/repos/vt-wts/<name>/ ← Mac-owned worktrees
+ * Decide whether the `git` binary this process will invoke is the git-gate
+ * shim, by replicating Node's PATH lookup (`execFile('git', …)` runs the first
+ * executable `git` on PATH) and comparing the winner to git-gate's install
+ * location, `$HOME/bin/git`.
  *
- * Remote layout:  /root/vtrepo/              ← VM-owned main repo
- *                 /root/vt-wts-remote/<name> ← VM-owned worktrees
+ * git-gate (scripts/dev-setup/git-gate) is the machine-level wrapper that owns
+ * worktree PLACEMENT: it rewrites a bare worktree name to its per-machine root.
+ * When it is the resolved `git`, this app must NOT also compute a path — it
+ * passes the bare name through and lets git-gate place the tree (a strict
+ * no-op vs. the wrapper-owns-placement design). When it is absent, this app
+ * owns placement instead.
  *
- * Reason for sibling layout: nested `.worktrees/` makes every code scanner
- * (vitest, eslint, watch-folder, package discovery, architecture-drift,
- * graph-db loader…) walk into peer worktrees by default. Each new scanner
- * has to remember to exclude `.worktrees/`. Sibling layout sidesteps that
- * entire class of bug — worktrees are outside the repo root, so scanners
- * naturally never see them.
+ * Resolving the binary — rather than merely testing whether `$HOME/bin/git`
+ * exists — is deliberate: a stale `$HOME/bin/git` shadowed by an earlier PATH
+ * entry is correctly reported inactive, because `execFile` would run that
+ * earlier real git, not the shim.
  *
- * The constant is duplicated (not imported) in:
- *   - packages/systems/agent-runtime/src/application/spawn/terminalData.ts
- *   - scripts/run-remote.mjs
- *   - scripts/dev-setup/git-gate/git-gate.sh
- * because these cross package + script boundaries. The string must stay
- * in sync across all of them.
+ * Pure: the filesystem probe is injected via `isExecutable`.
  */
-const WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts';
-const REMOTE_WORKTREE_SIBLING_DIR_NAME: string = 'vt-wts-remote';
-
-function readEnvValue(envText: string, key: string): string | undefined {
-    const line: string | undefined = envText
-        .split(/\r?\n/)
-        .find((candidate: string) => candidate.startsWith(`${key}=`));
-    if (!line) return undefined;
-    const rawValue: string = line.slice(key.length + 1).trim();
-    if (
-        (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
-        (rawValue.startsWith("'") && rawValue.endsWith("'"))
-    ) {
-        return rawValue.slice(1, -1);
+export function isGitGateActive({
+    pathEnv,
+    homeDir,
+    isExecutable,
+}: {
+    pathEnv: string | undefined;
+    homeDir: string;
+    isExecutable: (candidate: string) => boolean;
+}): boolean {
+    const shim: string = path.join(homeDir, 'bin', 'git');
+    const dirs: string[] = (pathEnv ?? '').split(path.delimiter).filter((dir: string) => dir !== '');
+    for (const dir of dirs) {
+        const candidate: string = path.join(dir, 'git');
+        if (isExecutable(candidate)) {
+            // First match wins, exactly as execFile's PATH search does.
+            return candidate === shim;
+        }
     }
-    return rawValue;
+    return false;
 }
 
-function resolveDevRole(env: NodeJS.ProcessEnv = process.env, homeDir: string = os.homedir()): string | undefined {
-    if (env.VT_DEV_ROLE) return env.VT_DEV_ROLE;
+/**
+ * Decide the destination passed to `git worktree add`, and whether THIS app
+ * owns placement (and must therefore normalize the worktree's git metadata
+ * afterwards):
+ *
+ *   git-gate active → BARE name (argv unchanged): git-gate rewrites it to its
+ *                     per-machine root. `appOwned` is false.
+ *   git-gate absent → ABSOLUTE path under `VT_WORKTREE_ROOT`, or — absent that
+ *                     shared override — the canonical sibling of the main
+ *                     checkout, `<parent-of-main-checkout>/vt-wts`. Never nested
+ *                     inside the watched project. `appOwned` is true.
+ *
+ * Pure.
+ */
+export function planWorktreePlacement({
+    gitGateActive,
+    worktreeName,
+    mainCheckout,
+    worktreeRootEnv,
+}: {
+    gitGateActive: boolean;
+    worktreeName: string;
+    mainCheckout: string;
+    worktreeRootEnv: string | undefined;
+}): { destination: string; appOwned: boolean } {
+    if (gitGateActive) {
+        return { destination: worktreeName, appOwned: false };
+    }
+    const root: string = (worktreeRootEnv !== undefined && worktreeRootEnv.trim() !== '')
+        ? worktreeRootEnv
+        : path.join(path.dirname(mainCheckout), 'vt-wts');
+    return { destination: path.join(root, worktreeName), appOwned: true };
+}
+
+/**
+ * Probe whether `candidate` is an executable regular file. Impure (fs);
+ * injected into the pure `isGitGateActive`.
+ */
+function isExecutableFile(candidate: string): boolean {
     try {
-        return readEnvValue(fs.readFileSync(path.join(homeDir, '.env'), 'utf-8'), 'VT_DEV_ROLE');
+        if (!fs.statSync(candidate).isFile()) return false;
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
     } catch {
-        return undefined;
+        return false;
     }
 }
 
-export function worktreeSiblingDirNameForRole(role: string | undefined): string {
-    return role === 'remote' ? REMOTE_WORKTREE_SIBLING_DIR_NAME : WORKTREE_SIBLING_DIR_NAME;
-}
-
-export function worktreeRootFor(repoRoot: string): string {
-    return path.resolve(repoRoot, '..', worktreeSiblingDirNameForRole(resolveDevRole()));
-}
-
 /**
- * Get the worktree directory path for a given worktree name.
- *
- * @param repoRoot - The root directory of the git repository
- * @param worktreeName - The worktree name
- * @returns The absolute path to the worktree directory
+ * Resolve the absolute path of the repository's MAIN checkout from any path
+ * inside the repo — the watched dir, which may be a subdirectory of the
+ * checkout or even a linked worktree. `--path-format=absolute` is required: a
+ * bare `--git-common-dir` may be returned relative to cwd (or, from a linked
+ * worktree, surface the per-worktree git dir on some setups). With the flag,
+ * git always yields the shared `<main>/.git`, whose parent is the main checkout.
  */
-export function getWorktreePath(repoRoot: string, worktreeName: string): string {
-    return path.join(worktreeRootFor(repoRoot), worktreeName);
+async function resolveMainCheckout(repoDir: string): Promise<string> {
+    const { stdout }: { stdout: string } = await execFileAsync(
+        'git',
+        ['-C', repoDir, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    );
+    return path.dirname(stdout.trim());
 }
 
 /**
- * Create a new git worktree with a corresponding branch.
- * Optionally runs a user-defined hook script after successful creation.
+ * Make the new worktree's admin pointers relative, so they are host-portable
+ * across the mutagen mac↔devbox mirror — the same normalization git-gate does
+ * after its own add. `--relative-paths` needs git >= 2.48; fall back to a plain
+ * repair on older git (absolute pointers are fine for trees that never sync).
+ * Best-effort: a repair failure never fails worktree creation.
+ */
+async function repairWorktreeMetadata(worktreePath: string): Promise<void> {
+    try {
+        await execFileAsync('git', ['-C', worktreePath, 'worktree', 'repair', '--relative-paths']);
+        return;
+    } catch {
+        // Older git without --relative-paths — fall through to a plain repair.
+    }
+    try {
+        await execFileAsync('git', ['-C', worktreePath, 'worktree', 'repair']);
+    } catch {
+        // Best-effort: leave pointers exactly as `git worktree add` wrote them.
+    }
+}
+
+/**
+ * Discover the absolute path of the worktree checked out on `branch`, by asking
+ * git itself rather than computing it from any placement convention.
  *
- * @param repoRoot - The root directory of the git repository
+ * This is the read-the-truth-back half of the "app makes no claim about WHERE
+ * the worktree lives" design: `createWorktree` passes a bare name to
+ * `git worktree add` and whatever layer sits below (the git-gate wrapper, or
+ * plain git for external users) decides the actual location; we then parse
+ * `git worktree list --porcelain` to find where it landed.
+ *
+ * @throws Error if no worktree for `branch` is found in git's listing.
+ */
+async function discoverWorktreePathForBranch(repoRoot: string, branch: string): Promise<string> {
+    const { stdout }: { stdout: string } = await execFileAsync(
+        'git',
+        ['worktree', 'list', '--porcelain'],
+        { cwd: repoRoot },
+    );
+    // Porcelain output is blank-line-separated blocks; each block carries a
+    // `worktree <path>` line and (for non-detached entries) a `branch
+    // refs/heads/<name>` line.
+    const branchLine: string = `branch refs/heads/${branch}`;
+    for (const block of stdout.split('\n\n')) {
+        const lines: string[] = block.trim().split('\n');
+        if (!lines.includes(branchLine)) continue;
+        const worktreeLine: string | undefined = lines.find((l: string) => l.startsWith('worktree '));
+        if (worktreeLine) return worktreeLine.slice('worktree '.length);
+    }
+    throw new Error(`Created worktree on branch '${branch}' but could not locate it in 'git worktree list'`);
+}
+
+/**
+ * Create a new git worktree with a corresponding branch, then return the
+ * absolute path git actually placed it at.
+ *
+ * Placement depends on whether git-gate is the resolved `git`:
+ *   - git-gate ACTIVE → pass the BARE name through unchanged; git-gate rewrites
+ *     it to its per-machine worktree root and normalizes the metadata. A strict
+ *     no-op vs. the wrapper-owns-placement design.
+ *   - git-gate ABSENT → THIS app owns placement: the worktree is created at an
+ *     absolute path under `VT_WORKTREE_ROOT ?? <parent-of-main-checkout>/vt-wts`
+ *     (a sibling of the main checkout, never nested inside the watched project),
+ *     with `VT_GIT_GATE_NO_PLACEMENT=1` set so a git-gate we failed to detect
+ *     would still honour the explicit path. The app then runs
+ *     `worktree repair --relative-paths` itself — the normalization git-gate
+ *     would otherwise have done.
+ *
+ * Either way we read the resulting path back from git via
+ * `discoverWorktreePathForBranch` rather than trusting the computed path.
+ *
+ * `repoRoot` may be any directory inside the repository (the watched dir, a
+ * subdirectory of it, or a linked worktree); the true main checkout is resolved
+ * from it for placement.
+ *
+ * `VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1`: this caller owns the worktree
+ * lifecycle hooks (the async hook installs deps + links .env), so the wrapper
+ * must NOT also run its own dependency bootstrap — that would double-install
+ * and race on `node_modules`. The flag is a no-op for plain git.
+ *
+ * @param repoRoot - A directory inside the git repository (placement is
+ *   resolved against the repo's main checkout)
  * @param worktreeName - The name for the worktree and branch
- * @param hookScriptPath - Optional path to a shell script to run after worktree creation
+ * @param blockingHookCommand - Optional command awaited after creation, before returning
+ * @param asyncHookCommand - Optional fire-and-forget command run after creation
  * @returns The absolute path to the created worktree directory
  * @throws Error if worktree creation fails (hook failure does NOT throw)
  */
@@ -164,26 +271,52 @@ export async function createWorktree(
     worktreeName: string,
     blockingHookCommand?: string,
     asyncHookCommand?: string,
-    hookEnv?: Record<string, string>,
 ): Promise<string> {
-    const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
+    const mainCheckout: string = await resolveMainCheckout(repoRoot);
+    const gitGateActive: boolean = isGitGateActive({
+        pathEnv: process.env.PATH,
+        homeDir: os.homedir(),
+        isExecutable: isExecutableFile,
+    });
+    const placement: { destination: string; appOwned: boolean } = planWorktreePlacement({
+        gitGateActive,
+        worktreeName,
+        mainCheckout,
+        worktreeRootEnv: process.env.VT_WORKTREE_ROOT,
+    });
 
-    // Create the worktree with a new branch based on current HEAD
-    // -b creates a new branch with the worktree name
+    // SKIP_WORKTREE_PREWARM: the app owns the worktree hooks (below), so git-gate
+    // must not also bootstrap deps. NO_PLACEMENT (app-owned only): pins our
+    // explicit path so an undetected git-gate would still honour it.
+    const env: NodeJS.ProcessEnv = placement.appOwned
+        ? { ...process.env, VT_GIT_GATE_SKIP_WORKTREE_PREWARM: '1', VT_GIT_GATE_NO_PLACEMENT: '1' }
+        : { ...process.env, VT_GIT_GATE_SKIP_WORKTREE_PREWARM: '1' };
+
+    // -b creates a new branch named after the worktree; `placement.destination`
+    // is either the bare name (git-gate places it) or an absolute path (app
+    // places it). Run from the main checkout so placement is anchored there.
     try {
         await execFileAsync(
-            'env',
-            ['VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1', 'git', 'worktree', 'add', '-b', worktreeName, worktreePath],
-            { cwd: repoRoot },
+            'git',
+            ['worktree', 'add', '-b', worktreeName, placement.destination],
+            { cwd: mainCheckout, env },
         );
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
     }
 
+    const worktreePath: string = await discoverWorktreePathForBranch(mainCheckout, worktreeName);
+
+    // App-owned placement: normalize the metadata git-gate would have normalized
+    // (host-portable relative pointers for the mutagen mirror).
+    if (placement.appOwned) {
+        await repairWorktreeMetadata(worktreePath);
+    }
+
     // Blocking hook: awaited after creation, before returning worktreePath to caller
     if (blockingHookCommand) {
-        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot, hookEnv);
+        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot);
         if (result.success) {
             console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
         } else {
@@ -193,7 +326,7 @@ export async function createWorktree(
 
     // Async hook: fire-and-forget after creation, does not block terminal spawn
     if (asyncHookCommand) {
-        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot, hookEnv).then(result => {
+        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot).then(result => {
             if (result.success) {
                 console.log(`[createWorktree] Async hook succeeded for ${worktreeName}`);
             } else {
@@ -213,20 +346,18 @@ export interface WorktreeInfo {
 }
 
 /**
- * List existing git worktrees under the sibling `vt-wts/` directory.
- * Returns up to 5 most recently modified worktrees, sorted newest first.
+ * List the repository's linked git worktrees (everything except the main
+ * checkout), as reported by git itself. Returns up to 5 most recently modified
+ * worktrees, sorted newest first.
+ *
+ * Git-driven on purpose: the app holds no placement convention, so it does not
+ * filter by any sibling directory — it simply trusts git's inventory and drops
+ * the main worktree (always the first porcelain block).
  *
  * @param repoRoot - The root directory of the git repository
  * @returns Array of worktree info objects, empty if none exist
  */
 export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
-    const worktreesDir: string = worktreeRootFor(repoRoot);
-
-    // Gracefully handle missing sibling worktree dir
-    if (!fs.existsSync(worktreesDir)) {
-        return [];
-    }
-
     let stdout: string;
     try {
         const result: { stdout: string; stderr: string } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot });
@@ -235,29 +366,26 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
         return [];
     }
 
-    // Parse porcelain output: blocks separated by blank lines
-    // Each block: "worktree <path>\nHEAD <hash>\nbranch refs/heads/<name>\n"
+    // Parse porcelain output: blocks separated by blank lines.
+    // Each block: "worktree <path>\nHEAD <hash>\nbranch refs/heads/<name>\n".
+    // The first block is always the main worktree — exclude it; we only surface
+    // linked (agent) worktrees.
     const blocks: string[] = stdout.split('\n\n').filter((b: string) => b.trim());
+    const linkedBlocks: string[] = blocks.slice(1);
     const worktrees: WorktreeInfo[] = [];
-    // Normalize worktreesDir to forward slashes for cross-platform comparison
-    // (git on Windows may output forward-slash paths while path.join uses backslashes)
-    const normalizedWorktreesDir: string = toForwardSlashes(worktreesDir);
 
-    for (const block of blocks) {
+    for (const block of linkedBlocks) {
         const lines: string[] = block.trim().split('\n');
         const worktreeLine: string | undefined = lines.find((l: string) => l.startsWith('worktree '));
         const headLine: string | undefined = lines.find((l: string) => l.startsWith('HEAD '));
         const branchLine: string | undefined = lines.find((l: string) => l.startsWith('branch '));
 
+        // Skip detached / bare entries (no branch line).
         if (!worktreeLine || !headLine || !branchLine) continue;
 
         const wtPath: string = worktreeLine.slice('worktree '.length);
         const head: string = headLine.slice('HEAD '.length);
         const branch: string = branchLine.slice('branch refs/heads/'.length);
-
-        // Filter: only include worktrees under the sibling vt-wts/ dir
-        // Normalize both sides for cross-platform comparison
-        if (!toForwardSlashes(wtPath).startsWith(normalizedWorktreesDir)) continue;
 
         // Extract display name: strip "wt-" prefix if present
         const name: string = branch.startsWith('wt-') ? branch.slice(3) : branch;

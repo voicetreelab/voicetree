@@ -14,12 +14,12 @@ export interface ExtendedWindow {
 export const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
   electronApp: async ({}, use, testInfo) => {
     const PROJECT_ROOT = path.resolve(process.cwd());
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-two-path-focus-test-'));
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     const projectRoot = path.join(watchedFolder, 'voicetree');
 
     await fs.mkdir(projectRoot, { recursive: true });
@@ -31,7 +31,7 @@ export const test = base.extend<{
     );
 
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
     const electronApp = await electron.launch({
@@ -71,7 +71,7 @@ export const test = base.extend<{
     console.log('[Test] Cleaned up temp directory');
   },
 
-  testVaultPath: async ({}, use, testInfo) => {
+  testProjectPath: async ({}, use, testInfo) => {
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 

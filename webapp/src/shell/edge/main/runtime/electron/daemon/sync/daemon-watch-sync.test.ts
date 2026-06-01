@@ -21,13 +21,13 @@ describe('startDaemonGraphSync — circuit breaker', () => {
     test('stops polling after a bounded number of consecutive failures', async () => {
         // First call (initial sync) succeeds, every subsequent interval fires fail.
         let callCount: number = 0
-        const syncFn = async (_vault: string): Promise<void> => {
+        const syncFn = async (_project: string): Promise<void> => {
             callCount += 1
             if (callCount === 1) return
             throw new Error('simulated daemon failure')
         }
 
-        await startDaemonGraphSync('vault', {
+        await startDaemonGraphSync('project', {
             syncFn,
             pollIntervalMs: 100,
         })
@@ -76,7 +76,7 @@ describe('setDaemonGraphSyncTier — three-tier polling', () => {
         let callCount = 0
         const syncFn = async (): Promise<void> => { callCount++ }
 
-        await startDaemonGraphSync('vault', { syncFn, pollIntervalMs: 750 })
+        await startDaemonGraphSync('project', { syncFn, pollIntervalMs: 750 })
         expect(callCount).toBe(1) // initial sync
 
         setDaemonGraphSyncTier('active')
@@ -96,7 +96,7 @@ describe('setDaemonGraphSyncTier — three-tier polling', () => {
         let callCount = 0
         const syncFn = async (): Promise<void> => { callCount++ }
 
-        await startDaemonGraphSync('vault', { syncFn, pollIntervalMs: 750 })
+        await startDaemonGraphSync('project', { syncFn, pollIntervalMs: 750 })
         callCount = 0
 
         setDaemonGraphSyncTier('background')
@@ -117,7 +117,7 @@ describe('setDaemonGraphSyncTier — three-tier polling', () => {
         let callCount = 0
         const syncFn = async (): Promise<void> => { callCount++ }
 
-        await startDaemonGraphSync('vault', { syncFn, pollIntervalMs: 750 })
+        await startDaemonGraphSync('project', { syncFn, pollIntervalMs: 750 })
         callCount = 0
 
         setDaemonGraphSyncTier('idle')
@@ -135,7 +135,7 @@ describe('setDaemonGraphSyncTier — three-tier polling', () => {
         let callCount = 0
         const syncFn = async (): Promise<void> => { callCount++ }
 
-        await startDaemonGraphSync('vault', { syncFn, pollIntervalMs: 750 })
+        await startDaemonGraphSync('project', { syncFn, pollIntervalMs: 750 })
         callCount = 0
 
         setDaemonGraphSyncTier('idle')

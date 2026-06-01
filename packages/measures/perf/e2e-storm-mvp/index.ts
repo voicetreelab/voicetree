@@ -2,152 +2,67 @@
  * e2e-storm-mvp orchestrator.
  *
  * Minimal end-to-end perf-architecture smoke: launches the real Electron
- * VoiceTree main bundle, lets it boot the daemon + MCP server against a
- * freshly seeded vault, discovers the MCP port from `.mcp.json`, spawns 30
- * vt-fake-agents that each create 5 nodes via real MCP, then asserts the
- * expected markdown files landed on disk.
+ * VoiceTree main bundle, lets it boot the daemon against a freshly seeded
+ * project, discovers the daemon's `/rpc` endpoint via `<project>/.voicetree/`
+ * (rpc.port + auth-token), spawns fake-agents that each create N nodes via the
+ * daemon's `spawn_agent` tool, then asserts the expected markdown files landed
+ * on disk.
  *
  * The harness captures one process at a time. vt-graphd uses the in-process
  * perf probe; Electron main is captured externally through its Node inspector
  * port so production Electron source stays out of the measurement contract.
+ *
+ * Stats, run-config, and process-observation machinery live in sibling
+ * modules (stormStats / runConfig / captures); this file owns only the
+ * orchestration + lifecycle.
  *
  * Run:
  *   node --import tsx packages/measures/perf/e2e-storm-mvp/index.ts
  *
  * Exit code: 0 on pass, 1 on fail.
  */
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import * as path from 'node:path'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
-import { inflateSync } from 'node:zlib'
 import type { Page } from '@playwright/test'
+import type { DaemonRpcClient } from '@vt/vt-rpc'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
-import { generateVaultOnDisk } from '@vt/perf-fixtures'
+import { generateProjectOnDisk } from '@vt/perf-fixtures'
+import { shutdownTmuxServer } from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
 
-import { launchElectronAndDiscoverMcp } from './launchElectron.ts'
+import { launchElectronAndDiscoverDaemon } from './launchElectron.ts'
 import {
-    buildFakeAgentCommand,
-    buildMultiCreateNodeScript,
-    buildStormAgentPrompt,
-    initializeMcpClient,
     promptTemplateName,
     runFakeAgent,
     waitForAgentListed,
     waitForInteractiveTerminalMounted,
-    type FakeAgentResult,
 } from './runFakeAgent.ts'
 import { countMarkdownFiles, writeReportAndSummary } from './report.ts'
 import { flushAndStopVtGraphd, forceStopVtGraphd } from './perfProfile.ts'
 import { startHostVmMetricsSampler, type HostVmMetricsSummary, type HostVmMetricsSampler } from './hostVmMetrics.ts'
 import { uploadV8CpuProfileToPyroscope } from './pyroscopeProfile.ts'
-import { createOtelMetricSink } from './otelMetricSink.ts'
 import {
     startMainProcessProfile,
     stopMainProcessProfileAndSave,
     type MainProcessCdpHandle,
 } from '../_shared/main-process-cdp.ts'
+import {
+    startMainProcessMetricsSampler,
+    startRendererProfileCapture,
+    startRendererScreenshotCapture,
+    type RendererProfileCapture,
+    type RendererScreenshotCapture,
+} from './captures.ts'
+import { countStormOutputNodes, spawnTimeStats, wallTimeStats } from './stormStats.ts'
+import { parseArgs, resolveRunContext, writeStormSettings, STORM_CALLER_COMMAND } from './runConfig.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // measures/perf/e2e-storm-mvp -> measures/perf -> measures -> packages -> repo root
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
-const DEFAULT_AGENT_COUNT = 30
-const DEFAULT_NODES_PER_AGENT = 5
-const STORM_CALLER_COMMAND = 'sleep 120'
-
-interface Args {
-    readonly keepArtifacts: boolean
-    readonly mcpDiscoveryTimeoutMs: number
-    readonly agentTimeoutMs: number
-    readonly inspectPort: number
-    readonly outPath: string | null
-    readonly agentCount: number
-    readonly nodesPerAgent: number
-}
-
-interface RunContext {
-    readonly runUuid: string
-    readonly runDir: string
-    readonly otlpEndpoint?: string
-    readonly perfEnv: Readonly<Record<string, string>>
-}
-
-function percentile(sorted: readonly number[], p: number): number {
-    if (sorted.length === 0) return 0
-    const index = Math.ceil((p / 100) * sorted.length) - 1
-    return sorted[Math.max(0, Math.min(index, sorted.length - 1))]
-}
-
-function durationStats(values: readonly number[]) {
-    const sorted = [...values].sort((a, b) => a - b)
-    return {
-        p50: percentile(sorted, 50),
-        p99: percentile(sorted, 99),
-        max: sorted[sorted.length - 1] ?? 0,
-    }
-}
-
-function wallTimeStats(results: readonly FakeAgentResult[]) {
-    return durationStats(results.map(r => r.wallMs))
-}
-
-function spawnTimeStats(results: readonly FakeAgentResult[]) {
-    return durationStats(results.map(r => r.spawnWallMs))
-}
-
-function walkMarkdownFiles(dir: string): readonly string[] {
-    const result: string[] = []
-    const walk = (d: string): void => {
-        let entries: readonly string[]
-        try { entries = readdirSync(d) } catch { return }
-        for (const entry of entries) {
-            if (entry.startsWith('.')) continue
-            const full = path.join(d, entry)
-            let stat
-            try { stat = statSync(full) } catch { continue }
-            if (stat.isDirectory()) walk(full)
-            else if (stat.isFile() && entry.endsWith('.md')) result.push(full)
-        }
-    }
-    walk(dir)
-    return result
-}
-
-function countStormOutputNodes(vaultDir: string): number {
-    const marker = 'MVP storm node mvp-agent-'
-    return walkMarkdownFiles(vaultDir).filter(file => {
-        try { return readFileSync(file, 'utf8').includes(marker) } catch { return false }
-    }).length
-}
-
-function writeStormSettings(voicetreeHomePath: string, args: Args): void {
-    const injectedPrompts = Object.fromEntries(
-        Array.from({ length: args.agentCount }, (_, agentIndex) => [
-            promptTemplateName(agentIndex),
-            buildStormAgentPrompt(buildMultiCreateNodeScript(agentIndex, args.nodesPerAgent)),
-        ]),
-    )
-    writeFileSync(
-        path.join(voicetreeHomePath, 'settings.json'),
-        JSON.stringify({
-            agents: [
-                { name: 'Storm Caller', command: STORM_CALLER_COMMAND },
-                { name: 'Fake Agent', command: buildFakeAgentCommand(REPO_ROOT) },
-            ],
-            defaultAgent: 'Storm Caller',
-            terminalSpawnPathRelativeToWatchedDirectory: '/',
-            INJECT_ENV_VARS: {
-                AGENT_PROMPT: '',
-                ...injectedPrompts,
-            },
-        }, null, 2),
-        'utf8',
-    )
-}
 
 async function spawnCallerTerminal(
     appWindow: Page,
@@ -158,13 +73,14 @@ async function spawnCallerTerminal(
             electronAPI?: {
                 main?: {
                     spawnTerminalWithContextNode?: (
-                        taskNodeId: string,
-                        agentCommand: string | undefined,
-                        terminalCount?: number,
-                        skipFitAnimation?: boolean,
-                        startUnpinned?: boolean,
-                        selectedNodeIds?: readonly string[],
-                        spawnDirectory?: string,
+                        request: {
+                            taskNodeId: string
+                            agentCommand?: string
+                            terminalCount?: number
+                            skipFitAnimation?: boolean
+                            startUnpinned?: boolean
+                            spawnDirectory?: string
+                        },
                     ) => Promise<{ terminalId: string; contextNodeId: string }>
                 }
             }
@@ -172,430 +88,44 @@ async function spawnCallerTerminal(
         if (!api?.spawnTerminalWithContextNode) {
             throw new Error('window.electronAPI.main.spawnTerminalWithContextNode unavailable')
         }
-        return api.spawnTerminalWithContextNode(
-            nodeId,
-            command,
-            0,
-            true,
-            true,
-            undefined,
-            repoRoot,
-        )
+        return api.spawnTerminalWithContextNode({
+            taskNodeId: nodeId,
+            agentCommand: command,
+            terminalCount: 0,
+            skipFitAnimation: true,
+            startUnpinned: true,
+            spawnDirectory: repoRoot,
+        })
     }, { nodeId: seedNodeAbsolutePath, command: STORM_CALLER_COMMAND, repoRoot: REPO_ROOT })
     return result.terminalId
 }
 
-async function focusTerminalForScreenshot(appWindow: Page): Promise<void> {
-    const hasTerminalWindow = await appWindow.evaluate(() => (
-        document.querySelector('.cy-floating-window-terminal') !== null
-    ))
-    if (!hasTerminalWindow) return
-
-    await appWindow.keyboard.press('Meta+]')
-    await appWindow.waitForTimeout(350)
-    await appWindow.evaluate(() => {
-        const cy = (window as unknown as {
-            cytoscapeInstance?: {
-                getElementById: (id: string) => { length: number }
-                fit: (eles: unknown, padding?: number) => void
-            }
-        }).cytoscapeInstance
-        if (!cy) return
-
-        const terminals = Array.from(document.querySelectorAll<HTMLElement>('.cy-floating-window-terminal'))
-        const terminal = terminals.find(el => el.querySelector('.xterm')) ?? terminals.at(-1)
-        const shadowNodeId = terminal?.dataset.shadowNodeId
-        if (!shadowNodeId) return
-
-        const shadowNode = cy.getElementById(shadowNodeId)
-        if (shadowNode.length > 0) cy.fit(shadowNode, 180)
-    })
-    await appWindow.waitForTimeout(350)
-}
-
-interface MainProcessSnapshot {
-    readonly cpu: {
-        readonly user: number
-        readonly system: number
-    }
-    readonly memory: {
-        readonly rss: number
-        readonly heapUsed: number
-        readonly heapTotal: number
-        readonly external: number
-        readonly arrayBuffers: number
-    }
-}
-
-async function readMainProcessSnapshot(handle: MainProcessCdpHandle): Promise<MainProcessSnapshot> {
-    const response = await handle.send('Runtime.evaluate', {
-        expression: 'JSON.stringify({ cpu: process.cpuUsage(), memory: process.memoryUsage() })',
-        returnByValue: true,
-    })
-    const value = response.result?.result
-    if (!value || typeof value !== 'object' || !('value' in value) || typeof value.value !== 'string') {
-        throw new Error(`Runtime.evaluate returned no process snapshot (${response.error?.message ?? 'unknown'})`)
-    }
-    return JSON.parse(value.value) as MainProcessSnapshot
-}
-
-async function startMainProcessMetricsSampler(
-    handle: MainProcessCdpHandle,
-    env: { readonly otlpEndpoint?: string; readonly instanceId?: string },
-): Promise<() => Promise<void>> {
-    const managedMeter = createOtelMetricSink({
-        serviceName: 'vt-electron-main',
-        meterName: 'vt-e2e-storm-mvp',
-        otlpEndpoint: env.otlpEndpoint,
-        instanceId: env.instanceId,
-    })
-    const meter = managedMeter.meter
-    const cpuCounter = meter.createCounter('process.cpu.time', {
-        description: 'Electron main CPU time consumed between e2e-storm CDP samples.',
-        unit: 's',
-    })
-    let latestSnapshot: MainProcessSnapshot | null = null
-    meter.createObservableGauge('process.memory.usage', {
-        description: 'Electron main memory usage sampled via CDP Runtime.evaluate.',
-        unit: 'By',
-    }).addCallback((result) => {
-        const memory = latestSnapshot?.memory
-        if (!memory) return
-        result.observe(memory.rss, { type: 'rss' })
-        result.observe(memory.heapUsed, { type: 'heap_used' })
-        result.observe(memory.heapTotal, { type: 'heap_total' })
-        result.observe(memory.external, { type: 'external' })
-        result.observe(memory.arrayBuffers, { type: 'array_buffers' })
-    })
-
-    let previousCpu = (await readMainProcessSnapshot(handle)).cpu
-    let stopped = false
-
-    const writeRow = async (): Promise<void> => {
-        if (stopped) return
-        const snapshot = await readMainProcessSnapshot(handle)
-        cpuCounter.add((snapshot.cpu.user - previousCpu.user) / 1_000_000, { type: 'user' })
-        cpuCounter.add((snapshot.cpu.system - previousCpu.system) / 1_000_000, { type: 'system' })
-        previousCpu = snapshot.cpu
-        latestSnapshot = snapshot
-    }
-
-    const interval = setInterval(() => {
-        void writeRow().catch((error: unknown) => {
-            process.stderr.write(`[mvp] electron-main metrics sample failed: ${(error as Error).message}\n`)
+/**
+ * Wait until the Electron main process has finished opening the project and
+ * bound its per-project vt-daemon. Discovery's rpc.port + list_agents probe can
+ * win a small race against `openProject` → `bindVtDaemonForProject` in main —
+ * the daemon serves the test process directly a beat before main caches its
+ * active binding, so a `spawnTerminalWithContextNode` IPC (which reads that
+ * binding) would throw `no active vt-daemon binding`. `getWatchStatus` flips to
+ * `isWatching` only after the bind completes, so it is the readiness signal.
+ */
+async function waitForProjectOpened(appWindow: Page, projectDir: string, timeoutMs: number): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+    let lastStatus = 'null'
+    while (Date.now() < deadline) {
+        const status = await appWindow.evaluate(async () => {
+            const api = (window as unknown as {
+                electronAPI?: { main?: { getWatchStatus?: () => Promise<{ isWatching: boolean; directory?: string }> } }
+            }).electronAPI?.main
+            return (await api?.getWatchStatus?.()) ?? null
         })
-    }, 1000)
-    interval.unref()
-
-    return async () => {
-        if (stopped) return
-        clearInterval(interval)
-        await writeRow()
-        stopped = true
-        await managedMeter.forceFlush()
-        await managedMeter.shutdown()
-    }
-}
-
-interface RendererCdpHandle {
-    send(method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>>
-    detach(): Promise<void>
-}
-
-type RendererMetric = {
-    readonly name: string
-    readonly value: number
-}
-
-type RendererProfileCapture = {
-    readonly stop: () => Promise<void>
-}
-
-type RendererScreenshotCapture = {
-    readonly dir: string
-    readonly stop: () => Promise<void>
-}
-
-function rendererMetricValue(metrics: readonly RendererMetric[], name: string): number | undefined {
-    return metrics.find(metric => metric.name === name)?.value
-}
-
-function pngLooksNonBlank(buffer: Buffer): boolean {
-    if (buffer.subarray(0, 8).compare(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) !== 0) return false
-    let offset = 8
-    let width = 0
-    let height = 0
-    let colorType = 0
-    const idat: Buffer[] = []
-
-    while (offset + 12 <= buffer.length) {
-        const length = buffer.readUInt32BE(offset)
-        const type = buffer.subarray(offset + 4, offset + 8).toString('ascii')
-        const data = buffer.subarray(offset + 8, offset + 8 + length)
-        offset += 12 + length
-
-        if (type === 'IHDR') {
-            width = data.readUInt32BE(0)
-            height = data.readUInt32BE(4)
-            const bitDepth = data[8]
-            colorType = data[9] ?? 0
-            if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) return false
-        } else if (type === 'IDAT') {
-            idat.push(data)
-        } else if (type === 'IEND') {
-            break
+        lastStatus = JSON.stringify(status)
+        if (status?.isWatching && status.directory && path.resolve(status.directory) === path.resolve(projectDir)) {
+            return
         }
+        await new Promise(r => setTimeout(r, 200))
     }
-
-    if (width === 0 || height === 0 || idat.length === 0) return false
-    const bytesPerPixel = colorType === 6 ? 4 : 3
-    const rowBytes = width * bytesPerPixel
-    const inflated = inflateSync(Buffer.concat(idat))
-    let read = 0
-    let previous = Buffer.alloc(rowBytes)
-    let darkest = 255
-    let brightest = 0
-    let sampled = 0
-
-    for (let y = 0; y < height; y++) {
-        const filter = inflated[read++] ?? 0
-        const row = Buffer.from(inflated.subarray(read, read + rowBytes))
-        read += rowBytes
-
-        for (let x = 0; x < rowBytes; x++) {
-            const left = x >= bytesPerPixel ? row[x - bytesPerPixel] ?? 0 : 0
-            const up = previous[x] ?? 0
-            const upLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] ?? 0 : 0
-            const p = left + up - upLeft
-            const pa = Math.abs(p - left)
-            const pb = Math.abs(p - up)
-            const pc = Math.abs(p - upLeft)
-            const paeth = pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft
-            const predictor =
-                filter === 1 ? left
-                    : filter === 2 ? up
-                        : filter === 3 ? Math.floor((left + up) / 2)
-                            : filter === 4 ? paeth
-                                : 0
-            row[x] = ((row[x] ?? 0) + predictor) & 0xff
-        }
-
-        const stride = Math.max(1, Math.floor(width / 32))
-        for (let x = 0; x < width; x += stride) {
-            const i = x * bytesPerPixel
-            const luminance = Math.round(
-                ((row[i] ?? 0) * 0.2126) + ((row[i + 1] ?? 0) * 0.7152) + ((row[i + 2] ?? 0) * 0.0722),
-            )
-            darkest = Math.min(darkest, luminance)
-            brightest = Math.max(brightest, luminance)
-            sampled += 1
-        }
-        previous = row
-    }
-
-    return sampled > 0 && brightest > 20 && (brightest - darkest) > 10
-}
-
-async function startRendererProfileCapture(
-    appWindow: Page,
-    runContext: RunContext,
-): Promise<RendererProfileCapture> {
-    const cdp = await appWindow.context().newCDPSession(appWindow) as RendererCdpHandle
-    const managedMeter = createOtelMetricSink({
-        serviceName: 'vt-renderer',
-        meterName: 'vt-e2e-storm-mvp',
-        otlpEndpoint: runContext.otlpEndpoint,
-        instanceId: runContext.runUuid,
-    })
-    const profilesDir = path.join(runContext.runDir, 'profiles')
-    mkdirSync(profilesDir, { recursive: true })
-    let latestMetrics: readonly RendererMetric[] = []
-    let stopped = false
-
-    const meter = managedMeter.meter
-    meter.createObservableGauge('process.memory.usage', {
-        description: 'Renderer JavaScript heap memory sampled via CDP Performance.getMetrics.',
-        unit: 'By',
-    }).addCallback((result) => {
-        result.observe(rendererMetricValue(latestMetrics, 'JSHeapUsedSize') ?? 0, { type: 'heap_used' })
-        result.observe(rendererMetricValue(latestMetrics, 'JSHeapTotalSize') ?? 0, { type: 'heap_total' })
-    })
-    meter.createObservableGauge('browser.renderer.metric', {
-        description: 'Renderer CDP Performance.getMetrics values for DOM and layout health.',
-    }).addCallback((result) => {
-        result.observe(rendererMetricValue(latestMetrics, 'Nodes') ?? 0, { metric: 'nodes' })
-        result.observe(rendererMetricValue(latestMetrics, 'Documents') ?? 0, { metric: 'documents' })
-        result.observe(rendererMetricValue(latestMetrics, 'LayoutCount') ?? 0, { metric: 'layout_count' })
-        result.observe(rendererMetricValue(latestMetrics, 'RecalcStyleCount') ?? 0, { metric: 'recalc_style_count' })
-        result.observe((rendererMetricValue(latestMetrics, 'LayoutDuration') ?? 0) * 1000, { metric: 'layout_duration_ms' })
-        result.observe((rendererMetricValue(latestMetrics, 'RecalcStyleDuration') ?? 0) * 1000, { metric: 'recalc_style_duration_ms' })
-        result.observe((rendererMetricValue(latestMetrics, 'ScriptDuration') ?? 0) * 1000, { metric: 'script_duration_ms' })
-        result.observe((rendererMetricValue(latestMetrics, 'TaskDuration') ?? 0) * 1000, { metric: 'task_duration_ms' })
-    })
-
-    await cdp.send('Performance.enable')
-    await cdp.send('Profiler.setSamplingInterval', { interval: 100 })
-    await cdp.send('Profiler.enable')
-    await cdp.send('Profiler.start')
-
-    const writeRow = async (): Promise<void> => {
-        if (stopped) return
-        const response = await cdp.send('Performance.getMetrics') as { readonly metrics?: readonly RendererMetric[] }
-        latestMetrics = response.metrics ?? []
-    }
-
-    const interval = setInterval(() => {
-        void writeRow().catch((error: unknown) => {
-            process.stderr.write(`[mvp] renderer metrics sample failed: ${(error as Error).message}\n`)
-        })
-    }, 1000)
-    interval.unref()
-
-    return {
-        stop: async () => {
-            if (stopped) return
-            clearInterval(interval)
-            await writeRow()
-            stopped = true
-            const response = await cdp.send('Profiler.stop') as { readonly profile?: unknown }
-            await cdp.send('Performance.disable').catch(() => undefined)
-            await cdp.detach().catch(() => undefined)
-            await managedMeter.forceFlush()
-            await managedMeter.shutdown()
-            if (!response.profile) throw new Error('Renderer Profiler.stop returned no profile')
-            const cpuprofilePath = path.join(profilesDir, 'renderer.cpuprofile')
-            writeFileSync(cpuprofilePath, JSON.stringify(response.profile), 'utf8')
-            const upload = await uploadV8CpuProfileToPyroscope({
-                cpuprofilePath,
-                serviceName: 'vt-renderer',
-                runUuid: runContext.runUuid,
-                stoppedAtMs: Date.now(),
-            })
-            process.stdout.write(`[mvp] uploaded renderer profile to Pyroscope: ${upload.renderQuery}\n`)
-        },
-    }
-}
-
-async function startRendererScreenshotCapture(
-    appWindow: Page,
-    runDir: string,
-    intervalMs: number = 5_000,
-): Promise<RendererScreenshotCapture> {
-    const dir = path.join(runDir, 'screenshots')
-    mkdirSync(dir, { recursive: true })
-    let stopped = false
-    let activeCapture: Promise<void> | null = null
-    let index = 0
-
-    const runCapture = async (reason: 'sample' | 'final'): Promise<void> => {
-        const paddedIndex = String(index++).padStart(3, '0')
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-        const screenshotPath = path.join(dir, `renderer-${paddedIndex}-${reason}-${timestamp}.png`)
-        await focusTerminalForScreenshot(appWindow).catch((error: unknown) => {
-            process.stderr.write(`[mvp] terminal screenshot focus failed: ${(error as Error).message}\n`)
-        })
-        const bytes = await appWindow.screenshot({ path: screenshotPath, timeout: 5_000 })
-        if (!pngLooksNonBlank(Buffer.from(bytes))) throw new Error(`blank renderer screenshot: ${screenshotPath}`)
-        process.stdout.write(`[mvp] screenshot: ${screenshotPath}\n`)
-    }
-
-    const capture = async (reason: 'sample' | 'final'): Promise<void> => {
-        if (activeCapture) {
-            if (reason === 'sample') return
-            await activeCapture
-        }
-        activeCapture = runCapture(reason).finally(() => {
-            activeCapture = null
-        })
-        await activeCapture
-    }
-
-    void capture('sample').catch((error: unknown) => {
-        process.stderr.write(`[mvp] initial renderer screenshot failed: ${(error as Error).message}\n`)
-    })
-    const interval = setInterval(() => {
-        if (stopped) return
-        void capture('sample').catch((error: unknown) => {
-            process.stderr.write(`[mvp] renderer screenshot failed: ${(error as Error).message}\n`)
-        })
-    }, intervalMs)
-    interval.unref()
-
-    return {
-        dir,
-        stop: async () => {
-            if (stopped) return
-            stopped = true
-            clearInterval(interval)
-            await capture('final').catch((error: unknown) => {
-                process.stderr.write(`[mvp] final renderer screenshot failed: ${(error as Error).message}\n`)
-            })
-        },
-    }
-}
-
-function resolveRunContext(env: NodeJS.ProcessEnv = process.env): RunContext {
-    const runUuid = env.VOICETREE_RUN_INSTANCE_ID && env.VOICETREE_RUN_INSTANCE_ID.length > 0
-        ? env.VOICETREE_RUN_INSTANCE_ID
-        : randomUUID()
-    const runDir = path.join(homedir(), '.voicetree', 'perf', runUuid)
-    const otlpEndpoint = env.VOICETREE_OTLP_ENDPOINT && env.VOICETREE_OTLP_ENDPOINT.length > 0
-        ? env.VOICETREE_OTLP_ENDPOINT
-        : undefined
-    const perfEnv: Record<string, string> = {
-        VOICETREE_RUN_INSTANCE_ID: runUuid,
-        VOICETREE_PERF_PROFILE: '1',
-    }
-    if (otlpEndpoint !== undefined) perfEnv.VOICETREE_OTLP_ENDPOINT = otlpEndpoint
-    env.VOICETREE_RUN_INSTANCE_ID = runUuid
-
-    return { runUuid, runDir, otlpEndpoint, perfEnv }
-}
-
-function parseArgs(argv: readonly string[]): Args {
-    let keepArtifacts = false
-    let mcpDiscoveryTimeoutMs = 120_000
-    let agentTimeoutMs = 60_000
-    let inspectPort = 9244
-    let outPath: string | null = null
-    let agentCount = DEFAULT_AGENT_COUNT
-    let nodesPerAgent = DEFAULT_NODES_PER_AGENT
-
-    const intArg = (raw: string | undefined, name: string): number => {
-        const n = Number.parseInt(raw ?? '', 10)
-        if (!Number.isInteger(n) || n < 0) throw new Error(`bad --${name}: ${raw}`)
-        return n
-    }
-
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i]
-        switch (a) {
-            case '--keep-artifacts': keepArtifacts = true; break
-            case '--mcp-discovery-timeout-ms': mcpDiscoveryTimeoutMs = intArg(argv[++i], 'mcp-discovery-timeout-ms'); break
-            case '--agent-timeout-ms': agentTimeoutMs = intArg(argv[++i], 'agent-timeout-ms'); break
-            case '--inspect-port': inspectPort = intArg(argv[++i], 'inspect-port'); break
-            case '--out': outPath = argv[++i] ?? null; break
-            case '--agents': agentCount = intArg(argv[++i], 'agents'); break
-            case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
-            case '--help':
-            case '-h':
-                process.stdout.write(
-                    'e2e-storm-mvp: prove headful-Electron + daemon + MCP + fake-agent end-to-end.\n'
-                    + '  --agents N                    parallel fake-agents (default 30)\n'
-                    + '  --nodes-per-agent N           nodes created per fake agent (default 5)\n'
-                    + '  --mcp-discovery-timeout-ms MS   default 120000\n'
-                    + '  --agent-timeout-ms MS           default 60000\n'
-                    + '  --inspect-port N                default 9244\n'
-                    + '  --keep-artifacts                keep temp dirs after the run\n'
-                    + '  --out PATH                      report path (default ~/.voicetree/perf/<run-id>/e2e-storm-mvp-report.json)\n',
-                )
-                process.exit(0)
-            default:
-                throw new Error(`unknown argument: ${a}`)
-        }
-    }
-
-    return { keepArtifacts, mcpDiscoveryTimeoutMs, agentTimeoutMs, inspectPort, outPath, agentCount, nodesPerAgent }
+    throw new Error(`project ${projectDir} not opened/bound within ${timeoutMs}ms (last watch status: ${lastStatus})`)
 }
 
 async function main(): Promise<void> {
@@ -605,11 +135,10 @@ async function main(): Promise<void> {
     const overallStart = Date.now()
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-project-'))
     const projectDir = path.join(projectRoot, 'mvp-project')
-    const vaultDir = path.join(projectDir, 'mvp-vault')
-    mkdirSync(vaultDir, { recursive: true })
+    mkdirSync(projectDir, { recursive: true })
 
     const voicetreeHomePath = mkdtempSync(path.join(tmpdir(), 'vt-e2e-mvp-app-'))
-    writeStormSettings(voicetreeHomePath, args)
+    writeStormSettings(voicetreeHomePath, args, REPO_ROOT)
     const logsDir = path.join(runContext.runDir, 'logs')
     mkdirSync(logsDir, { recursive: true })
     const outPath = args.outPath ?? path.join(runContext.runDir, 'e2e-storm-mvp-report.json')
@@ -617,19 +146,19 @@ async function main(): Promise<void> {
     process.stdout.write(`[mvp] run id: ${runContext.runUuid}\n`)
     process.stdout.write(`[mvp] perf run dir: ${runContext.runDir}\n`)
 
-    // Seed a small realistic vault so the daemon has nodes to attach to. The
-    // single-agent MVP doesn't dogpile, but we still want the seed vault to
-    // exercise the daemon's full vault-scan + index-build path.
-    const vaultLayout = generateVaultOnDisk(vaultDir, 5)
-    process.stdout.write(`[mvp] seeded vault: ${vaultLayout.nodes.length} nodes at ${vaultDir}\n`)
+    // Seed a small realistic project so the daemon has nodes to attach to. The
+    // single-agent MVP doesn't dogpile, but we still want the seed project to
+    // exercise the daemon's full project-scan + index-build path.
+    const projectLayout = generateProjectOnDisk(projectDir, 5)
+    process.stdout.write(`[mvp] seeded project: ${projectLayout.nodes.length} nodes at ${projectDir}\n`)
 
-    const filesBefore = countMarkdownFiles(vaultDir)
+    const filesBefore = countMarkdownFiles(projectDir)
 
     let pass = false
     let failureReason: string | null = null
-    let mcpPort = 0
+    let daemonClient: DaemonRpcClient | null = null
     let electronBootMs = 0
-    let mcpDiscoveryMs = 0
+    let daemonDiscoveryMs = 0
     let agentsSucceeded = 0
     let agentsTimedOut = 0
     let agentWallMsP50 = 0
@@ -640,7 +169,7 @@ async function main(): Promise<void> {
     let agentSpawnMsMax = 0
     let nodesCreated = 0
     let filesAfter = filesBefore
-    let app: Awaited<ReturnType<typeof launchElectronAndDiscoverMcp>>['app'] | null = null
+    let app: Awaited<ReturnType<typeof launchElectronAndDiscoverDaemon>>['app'] | null = null
     let electronMainProfile: MainProcessCdpHandle | null = null
     let stopElectronMainMetrics: (() => Promise<void>) | null = null
     let rendererProfile: RendererProfileCapture | null = null
@@ -659,23 +188,23 @@ async function main(): Promise<void> {
             process.stderr.write(`[mvp] devbox-vm metrics sampler disabled: ${(error as Error).message}\n`)
         }
 
-        const launched = await launchElectronAndDiscoverMcp({
+        const launched = await launchElectronAndDiscoverDaemon({
             repoRoot: REPO_ROOT,
             projectDir,
-            vaultDir,
             voicetreeHomePath,
             logFilePath: electronLogPath,
             inspectPort: args.inspectPort,
-            mcpDiscoveryTimeoutMs: args.mcpDiscoveryTimeoutMs,
+            daemonDiscoveryTimeoutMs: args.daemonDiscoveryTimeoutMs,
             extraEnv: runContext.perfEnv,
         })
         app = launched.app
-        mcpPort = launched.mcpPort
+        const client = launched.daemonClient
+        daemonClient = client
         electronBootMs = launched.bootMs
-        mcpDiscoveryMs = launched.mcpDiscoveryMs
+        daemonDiscoveryMs = launched.daemonDiscoveryMs
         process.stdout.write(
-            `[mvp] electron booted (${electronBootMs}ms), mcp port=${mcpPort} `
-            + `(discovered in ${mcpDiscoveryMs}ms)\n`,
+            `[mvp] electron booted (${electronBootMs}ms), daemon ${client.endpoint.url} `
+            + `(discovered in ${daemonDiscoveryMs}ms)\n`,
         )
         electronMainProfile = await startMainProcessProfile(args.inspectPort)
         stopElectronMainMetrics = await startMainProcessMetricsSampler(
@@ -687,22 +216,22 @@ async function main(): Promise<void> {
         // Pick the first cluster node as the agent's parent — anchors the new
         // node under a real existing node, the way real agents work.
         const seedNodeAbsolutePath = path.join(
-            vaultDir,
-            vaultLayout.firstClusterNodePaths[0] ?? vaultLayout.nodes[0].relativePath,
+            projectDir,
+            projectLayout.firstClusterNodePaths[0] ?? projectLayout.nodes[0].relativePath,
         )
 
         const appWindow = await app.firstWindow({ timeout: 30_000 })
         appWindow.on('pageerror', (e) => process.stderr.write(`[mvp] page error: ${e.message}\n`))
         await appWindow.waitForLoadState('domcontentloaded')
-        await initializeMcpClient(mcpPort)
-        process.stdout.write('[mvp] initialized MCP client\n')
+        await waitForProjectOpened(appWindow, projectDir, 60_000)
+        process.stdout.write('[mvp] project opened + vt-daemon bound in main\n')
 
         const callerTerminalId = await spawnCallerTerminal(appWindow, seedNodeAbsolutePath)
         process.stdout.write(`[mvp] spawned real caller terminal: ${callerTerminalId}\n`)
-        if (!await waitForAgentListed(mcpPort, callerTerminalId, 10_000)) {
+        if (!await waitForAgentListed(client, callerTerminalId, 10_000)) {
             throw new Error(`caller terminal ${callerTerminalId} did not appear in list_agents`)
         }
-        process.stdout.write(`[mvp] caller terminal visible to MCP: ${callerTerminalId}\n`)
+        process.stdout.write(`[mvp] caller terminal visible to daemon: ${callerTerminalId}\n`)
         if (!await waitForInteractiveTerminalMounted(appWindow, callerTerminalId, 10_000)) {
             throw new Error(`caller terminal ${callerTerminalId} did not mount a headful xterm floating window`)
         }
@@ -717,7 +246,7 @@ async function main(): Promise<void> {
             runFakeAgent({
                 appWindow,
                 repoRoot: REPO_ROOT,
-                mcpPort,
+                daemonClient: client,
                 seedNodeAbsolutePath,
                 callerTerminalId,
                 promptTemplate: promptTemplateName(agentIndex),
@@ -741,8 +270,8 @@ async function main(): Promise<void> {
             }
         }
 
-        filesAfter = countMarkdownFiles(vaultDir)
-        nodesCreated = countStormOutputNodes(vaultDir)
+        filesAfter = countMarkdownFiles(projectDir)
+        nodesCreated = countStormOutputNodes(projectDir)
 
         const spawnFailure = agentResults.find(result => !result.spawnSuccess)
         const scriptFailure = agentResults.find(result => result.spawnSuccess && !result.exitedCleanly && !result.timedOut)
@@ -858,11 +387,13 @@ async function main(): Promise<void> {
             process.stdout.write(`[mvp] reaped orphan vt-graphd daemons: ${JSON.stringify(reaped.killed)}\n`)
         }
 
+        await shutdownTmuxServer({ voicetreeHomePath }).catch(() => undefined)
+
         if (!args.keepArtifacts) {
             rmSync(projectRoot, { recursive: true, force: true })
             rmSync(voicetreeHomePath, { recursive: true, force: true })
         } else {
-            process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} appSupport=${voicetreeHomePath}\n`)
+            process.stdout.write(`[mvp] artifacts kept: project=${projectRoot} voicetreeHome=${voicetreeHomePath}\n`)
         }
 
         if (hostVmMetrics !== null) {
@@ -881,7 +412,7 @@ async function main(): Promise<void> {
         pass,
         failureReason,
         electronBootMs,
-        mcpDiscoveryMs,
+        daemonDiscoveryMs,
         agentCount: args.agentCount,
         nodesPerAgent: args.nodesPerAgent,
         agentsSucceeded,
@@ -895,8 +426,7 @@ async function main(): Promise<void> {
         nodesCreated,
         filesBefore,
         filesAfter,
-        mcpPort,
-        vaultDir,
+        daemonUrl: daemonClient?.endpoint.url ?? '',
         projectDir,
         voicetreeHomePath,
         electronLogPath,

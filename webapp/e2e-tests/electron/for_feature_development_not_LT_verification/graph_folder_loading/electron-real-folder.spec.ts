@@ -12,7 +12,7 @@
 
 import { expect, test } from './electron-real-folder/fixtures';
 import * as realFolder from './electron-real-folder/helpers';
-import * as vault from './electron-real-folder/fs-helpers';
+import * as project from './electron-real-folder/fs-helpers';
 import {
   COMPLEX_LINKS_CONTENT,
   INCREMENTAL_TEST_FILES,
@@ -21,7 +21,7 @@ import {
 import type { GraphState, ViewportState } from './electron-real-folder/types';
 
 test.describe('Real Folder E2E Tests', () => {
-  test('should load and visualize a real markdown vault', async ({ appWindow }) => {
+  test('should load and visualize a real markdown project', async ({ appWindow }) => {
     const appReady = await realFolder.isAppReady(appWindow);
     expect(appReady).toBe(true);
     await expect.poll(() => realFolder.getNodeCount(appWindow), {
@@ -41,7 +41,7 @@ test.describe('Real Folder E2E Tests', () => {
     const edgeLabelCheck = await realFolder.getEdgeLabelCheck(appWindow);
     expect(edgeLabelCheck.totalEdges).toBeGreaterThan(0);
     const nodeCountBeforeAdd = await realFolder.getNodeCount(appWindow);
-    const newFilePath = await vault.writeVaultFile('new-concept.md', NEW_CONCEPT_CONTENT);
+    const newFilePath = await project.writeProjectFile('new-concept.md', NEW_CONCEPT_CONTENT);
     await expect.poll(() => realFolder.hasNodeLabel(appWindow, 'New Concept'), {
       message: 'Waiting for new-concept node to appear',
       timeout: 10000
@@ -53,7 +53,7 @@ test.describe('Real Folder E2E Tests', () => {
       e.source === 'New Concept' || e.target === 'New Concept'
     );
     expect(newConceptEdges.length).toBeGreaterThan(0);
-    await vault.deleteFilePath(newFilePath);
+    await project.deleteFilePath(newFilePath);
     await expect.poll(() => realFolder.lacksNodeLabel(appWindow, 'New Concept'), {
       message: 'Waiting for new-concept node to be removed',
       timeout: 10000
@@ -84,7 +84,7 @@ test.describe('Real Folder E2E Tests', () => {
       timeout: 15000,
       intervals: [500, 1000, 1000]
     }).toBeGreaterThan(0);
-    const complexLinkFile = await vault.writeVaultFile('complex-links.md', COMPLEX_LINKS_CONTENT);
+    const complexLinkFile = await project.writeProjectFile('complex-links.md', COMPLEX_LINKS_CONTENT);
     await expect.poll(() => realFolder.hasNodeLabel(appWindow, 'Complex Links Test'), {
       message: 'Waiting for complex-links file to be processed',
       timeout: 10000
@@ -94,7 +94,7 @@ test.describe('Real Folder E2E Tests', () => {
     expect(graphWithComplexLinks).not.toBeNull();
     expect(graphWithComplexLinks!.nodeExists).toBe(true);
     expect(graphWithComplexLinks!.connectedEdgeCount).toBeGreaterThan(2);
-    await vault.deleteFilePath(complexLinkFile);
+    await project.deleteFilePath(complexLinkFile);
     await appWindow.waitForTimeout(500);
     const stopResult = await realFolder.stopFileWatching(appWindow);
 
@@ -102,8 +102,8 @@ test.describe('Real Folder E2E Tests', () => {
   });
 
   test('should bulk load then incrementally add nodes with proper layout', async ({ appWindow }) => {
-    const testFileNames = vault.INCREMENTAL_TEST_FILE_NAMES;
-    await vault.deleteVaultFilesIfPresent(testFileNames);
+    const testFileNames = project.INCREMENTAL_TEST_FILE_NAMES;
+    await project.deleteProjectFilesIfPresent(testFileNames);
     await expect.poll(() => realFolder.getNodeCount(appWindow), {
       message: 'Waiting for bulk load to complete',
       timeout: 15000,
@@ -118,7 +118,7 @@ test.describe('Real Folder E2E Tests', () => {
     const newFiles = INCREMENTAL_TEST_FILES;
     for (let i = 0; i < newFiles.length; i++) {
       const file = newFiles[i];
-      await vault.writeVaultFile(file.name, file.content);
+      await project.writeProjectFile(file.name, file.content);
       await expect.poll(() => realFolder.hasIncrementalNode(appWindow, i), {
         message: `Waiting for ${file.name} to appear in graph`,
         timeout: 10000
@@ -133,7 +133,7 @@ test.describe('Real Folder E2E Tests', () => {
     );
     expect(uniqueNewPositions.size).toBeGreaterThanOrEqual(1);
     for (const file of newFiles) {
-      await vault.deleteVaultFile(file.name);
+      await project.deleteProjectFile(file.name);
     }
   });
 
@@ -200,18 +200,18 @@ test.describe('Real Folder E2E Tests', () => {
     const editorValue = await realFolder.getEditorValue(appWindow, editorId);
     expect(editorValue).toContain('Updated Content');
     const expectedFileName = `${newNodeId}.md`;
-    const filePath = vault.filePathInVault(expectedFileName);
-    await test.expect.poll(() => vault.fileExists(filePath), {
+    const filePath = project.filePathInProject(expectedFileName);
+    await test.expect.poll(() => project.fileExists(filePath), {
       message: `Waiting for file ${expectedFileName} to be created`,
       timeout: 5000,
       intervals: [100, 200, 500] // Check frequently at first, then less often
     }).toBe(true);
 
-    const fileContent = await vault.readTextFile(filePath);
+    const fileContent = await project.readTextFile(filePath);
 
     expect(fileContent).toContain('Updated Content');
     expect(fileContent).toContain('This content was added by the E2E test');
-    await vault.deleteFilePath(filePath);
+    await project.deleteFilePath(filePath);
   });
 
   test('should open search with cmd-f and navigate to selected node', async ({ appWindow }) => {

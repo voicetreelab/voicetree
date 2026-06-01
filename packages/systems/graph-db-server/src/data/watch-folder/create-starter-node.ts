@@ -94,7 +94,7 @@ export function buildStarterNodePlan(
  * Creates a starter node when opening an empty folder.
  * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
  *
- * @param projectRoot - The vault path where the node file will be created
+ * @param projectRoot - The project path where the node file will be created
  * @returns Graph containing the new starter node
  */
 export async function createStarterNode(

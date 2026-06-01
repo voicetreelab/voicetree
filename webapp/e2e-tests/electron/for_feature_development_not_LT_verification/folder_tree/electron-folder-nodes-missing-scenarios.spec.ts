@@ -78,8 +78,8 @@ async function writeMarkdownAtomically(filePath: string, body: string): Promise<
     await fs.rename(tempPath, filePath);
 }
 
-async function createMissingScenarioVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'folder-missing-scenarios-vault');
+async function createMissingScenarioProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'folder-missing-scenarios-project');
 
     await writeMarkdown(path.join(projectRoot, 'auth', 'login-flow.md'),
         `---\nposition:\n  x: 100\n  y: 100\n---\n# Login Flow\nHandles user login.\n[[auth/jwt-token]]\n`);
@@ -110,7 +110,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-missing-scenarios-'));
-        const projectRoot = await createMissingScenarioVault(tempDir);
+        const projectRoot = await createMissingScenarioProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -120,9 +120,9 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: []
                 }
             }
@@ -131,10 +131,9 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-missing-scenarios-test',
             path: projectRoot,
-            name: 'folder-missing-scenarios-test-vault',
+            name: 'folder-missing-scenarios-test-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -207,7 +206,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-missing-scenarios-test-vault")').first());
+        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-missing-scenarios-test-project")').first());
 
         const hasCytoscape = await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,

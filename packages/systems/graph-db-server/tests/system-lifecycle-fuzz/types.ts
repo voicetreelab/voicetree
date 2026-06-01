@@ -21,7 +21,7 @@ export interface TrackedState {
   // Every node id the test has touched this sequence (via createFile,
   // upsertNodeDelta, upsertNodeWithEdges). Never removed — used by the drainer
   // to scope cleanup to test-owned ids and ignore daemon-managed nodes
-  // (e.g. today/inbox scaffolding) that share the vault.
+  // (e.g. today/inbox scaffolding) that share the project.
   testOwnedNodeIds: Set<string>
 }
 

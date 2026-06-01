@@ -21,7 +21,7 @@ import {getRecoveryMetadataDir} from './paths'
 import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type DiscoverRecoveryDeps = {
-    readonly readVaultMetadataDir: () => Promise<readonly MetadataRecord[]>
+    readonly readProjectMetadataDir: () => Promise<readonly MetadataRecord[]>
     readonly listLiveUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSession[]>
     readonly getRegistryTerminalIds: () => ReadonlySet<string>
     readonly getCurrentNamespaceHash: () => Promise<string | null>
@@ -88,11 +88,11 @@ function applyHorizon(
 /**
  * Impure discovery entry point.
  *
- * Reads vault terminal metadata, live tmux state, the in-memory terminal
- * registry, and the current vault namespace hash. Decides resume capability
+ * Reads project terminal metadata, live tmux state, the in-memory terminal
+ * registry, and the current project namespace hash. Decides resume capability
  * purely from metadata shape: a record carries `resume: {cliType}` when its
  * `initialCommand` parses to a supported CLI (`claude`/`codex`) and the
- * record has a `VOICETREE_VAULT_PATH`. The actual native session id is NOT
+ * record has a `VOICETREE_PROJECT_PATH`. The actual native session id is NOT
  * resolved here — that would require scanning `~/.claude/projects/**\/*.jsonl`
  * (~1 GB for heavy users) on every 10s poll. The resolver runs lazily inside
  * `resumePersistedAgentSession` / `forkAgentSession` at click time.
@@ -111,7 +111,7 @@ export async function discoverRecoverableAgentSessions(
 ): Promise<readonly RecoverableAgentSession[]> {
     const resolvedDeps: DiscoverRecoveryDeps = deps ?? defaultDiscoverRecoveryDeps()
     const [metadataRecords, liveUnclaimed, currentNamespaceHash] = await Promise.all([
-        resolvedDeps.readVaultMetadataDir(),
+        resolvedDeps.readProjectMetadataDir(),
         resolvedDeps.listLiveUnclaimedTmuxSessions(),
         resolvedDeps.getCurrentNamespaceHash(),
     ])
@@ -143,7 +143,7 @@ export async function discoverRecoverableAgentSessions(
     }
     // Surface live unclaimed tmux sessions that have no matching metadata
     // file. Pre-OpenSpec listUnclaimedTmuxSessions behavior: a tmux session
-    // can outlive its metadata (deleted vault, app crash before writeMetadata,
+    // can outlive its metadata (deleted project, app crash before writeMetadata,
     // manual `tmux new-session`) but still be attachable. These rows carry
     // only the `attach` capability — no metadataPath, no terminalData beyond
     // what the session itself provides.
@@ -172,7 +172,7 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
             title,
             agentName: title,
             initialEnvVars: {
-                ...(session.projectRoot ? {VOICETREE_VAULT_PATH: session.projectRoot} : {}),
+                ...(session.projectRoot ? {VOICETREE_PROJECT_PATH: session.projectRoot} : {}),
                 ...(session.contextNodePath ? {CONTEXT_NODE_PATH: session.contextNodePath} : {}),
                 ...(session.taskNodePath ? {TASK_NODE_PATH: session.taskNodePath} : {}),
             },
@@ -187,7 +187,7 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
  * Decide resume capability for each metadata record from metadata shape alone.
  *
  * Surfaces `{cliType}` when the record targets a supported CLI and carries the
- * minimum env (`VOICETREE_VAULT_PATH`) required for the resolver to run later
+ * minimum env (`VOICETREE_PROJECT_PATH`) required for the resolver to run later
  * at click time. No filesystem IO, no transcript scans — this runs on every
  * 10s poll and must stay cheap.
  *
@@ -208,7 +208,7 @@ function detectResumeCapabilitiesFromMetadata(
         if (typeof obj.name !== 'string' || !obj.name) continue
         if (obj.status !== 'running' && obj.status !== 'exited' && obj.status !== 'killed') continue
         const metadata = data as TmuxTerminalMetadata
-        // Skip foreign vaults early — won't be surfaced anyway.
+        // Skip foreign projects early — won't be surfaced anyway.
         if (currentNamespaceHash !== null) {
             const sessionName: string = metadata.session
                 ?? buildTmuxSessionName(metadata.name, metadata.terminalData?.initialEnvVars ?? {})
@@ -217,18 +217,18 @@ function detectResumeCapabilitiesFromMetadata(
         }
         const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
         if (!cliType) continue
-        const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
+        const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_PROJECT_PATH
         if (!projectRoot) continue
         out.set(metadata.name, {cliType})
     }
     return out
 }
 
-async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
+async function resolveCurrentProjectMetadataDir(): Promise<string | null> {
     // Canonical location is always `<projectRoot>/.voicetree/terminals/`.
-    // `writeFolder` is intentionally NOT consulted: the historical
-    // writeFolder-based fallback wrote to the wrong place (no `.voicetree`
-    // prefix) and masked the projectRoot/writeFolder divergence bug.
+    // `writeFolderPath` is intentionally NOT consulted: the historical
+    // writeFolderPath-based fallback wrote to the wrong place (no `.voicetree`
+    // prefix) and masked the projectRoot/writeFolderPath divergence bug.
     const projectRoot: string | null = await (getRuntimeEnv().getProjectRoot?.() ?? Promise.resolve(null))
     return projectRoot ? getRecoveryMetadataDir(projectRoot) : null
 }
@@ -258,8 +258,8 @@ function readMetadataDir(dir: string): readonly MetadataRecord[] {
 
 export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
     return {
-        readVaultMetadataDir: async (): Promise<readonly MetadataRecord[]> => {
-            const dir: string | null = await resolveCurrentVaultMetadataDir()
+        readProjectMetadataDir: async (): Promise<readonly MetadataRecord[]> => {
+            const dir: string | null = await resolveCurrentProjectMetadataDir()
             return dir ? readMetadataDir(dir) : []
         },
         listLiveUnclaimedTmuxSessions: (): Promise<readonly UnclaimedTmuxSession[]> => listUnclaimedTmuxSessions(),

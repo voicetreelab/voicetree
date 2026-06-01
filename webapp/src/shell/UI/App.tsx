@@ -4,7 +4,7 @@ import {useEventSubscriptionConnection} from "@/shell/edge/renderer/live/useEven
 import {VoiceTreeGraphView} from "@/shell/UI/views/graph-view/VoiceTreeGraphView";
 import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBackground";
 import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
-import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
+import {ProjectPathSelector} from "@/shell/UI/views/components/ProjectPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
 import {ViewSwitcher} from "@/shell/edge/UI-edge/components/ViewSwitcher";
 import {useEffect, useRef, useState, useCallback} from "react";
@@ -17,7 +17,7 @@ import type { ProjectedGraph } from "@vt/graph-state/contract";
 
 type AppView = 'project-selection' | 'graph-view';
 
-interface OpenedVaultState {
+interface OpenedProjectState {
     readonly path: string;
     readonly sessionId: string;
 }
@@ -34,7 +34,6 @@ function createFallbackProject(projectPath: string): SavedProject {
         name: getProjectNameFromPath(projectPath),
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
     };
 }
 
@@ -50,12 +49,12 @@ function App(): JSX.Element {
     // App navigation state
     const [currentView, setCurrentView] = useState<AppView>('project-selection');
     const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
-    const [openedVault, setOpenedVault] = useState<OpenedVaultState | null>(null);
+    const [openedProject, setOpenedProject] = useState<OpenedProjectState | null>(null);
     const pendingInitialProjectedGraphRef = useRef<ProjectedGraph | null>(null);
-    const [vaultSwitching, setVaultSwitching] = useState<boolean>(false);
-    const [vaultError, setVaultError] = useState<string | null>(null);
+    const [projectSwitching, setProjectSwitching] = useState<boolean>(false);
+    const [projectError, setProjectError] = useState<string | null>(null);
     const hasBootstrappedStartupProjectRef = useRef(false);
-    const lastKnownVaultPathRef = useRef<string | null>(null);
+    const lastKnownProjectPathRef = useRef<string | null>(null);
 
     // Use the folder watcher hook for file watching
     const {
@@ -88,26 +87,45 @@ function App(): JSX.Element {
         return matchingProject ?? createFallbackProject(directory);
     }, []);
 
-    const syncProjectFromDirectory: (directory: string) => Promise<void> = useCallback(async (directory: string): Promise<void> => {
+    const syncProjectFromDirectory: (directory: string, sessionId: string) => Promise<void> = useCallback(async (directory: string, sessionId: string): Promise<void> => {
         const project: SavedProject = await loadProjectForDirectory(directory);
         setCurrentProject(project);
+        // project:ready means a session already exists in Main; record it so the
+        // graph-view mount gate (openedProject?.sessionId) is satisfied on the
+        // reopen / project-switch path too — not only on openProjectForProject.
+        // Same sessionId as openProjectForProject's response for renderer-driven
+        // opens, so this is idempotent and triggers no extra mount churn.
+        setOpenedProject({ path: directory, sessionId });
         setCurrentView('graph-view');
     }, [loadProjectForDirectory]);
 
-    const openVaultForProject: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
+    const openProjectForProject: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
         if (!window.electronAPI) return;
 
-        const response = await window.electronAPI.main.openVault(project.path);
-        lastKnownVaultPathRef.current = project.path;
+        const response = await window.electronAPI.main.openProject(project.path);
+        const projectRoot: string = response.projectState.projectRoot;
+        const openedProject: SavedProject = {
+            ...project,
+            path: projectRoot,
+            lastOpened: Date.now(),
+        };
+
+        try {
+            await window.electronAPI.main.saveProject(openedProject);
+        } catch (err) {
+            console.error('[App] Failed to save opened project metadata:', err);
+        }
+
+        lastKnownProjectPathRef.current = projectRoot;
         pendingInitialProjectedGraphRef.current = isProjectedGraph(response.initialProjectedGraph)
             ? response.initialProjectedGraph
             : null;
-        setOpenedVault({
-            path: project.path,
+        setOpenedProject({
+            path: projectRoot,
             sessionId: response.sessionId,
         });
-        setVaultError(null);
-        setCurrentProject(project);
+        setProjectError(null);
+        setCurrentProject(openedProject);
         setCurrentView('graph-view');
     }, []);
 
@@ -115,42 +133,26 @@ function App(): JSX.Element {
     const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
         if (!window.electronAPI) return;
 
-        let selectedProject: SavedProject = project;
-
-        // Initialize project if needed (creates /voicetree-{date} folder)
-        if (!project.voicetreeInitialized) {
-            try {
-                // initializeProject returns voicetree path if created, or existing path if already exists
-                await window.electronAPI.main.initializeProject(project.path);
-                // Mark as initialized regardless of whether we created it or it existed
-                const updatedProject: SavedProject = { ...project, voicetreeInitialized: true };
-                await window.electronAPI.main.saveProject(updatedProject);
-                selectedProject = updatedProject;
-            } catch (err) {
-                console.error('[App] Failed to initialize project:', err);
-            }
-        }
-
         try {
-            await openVaultForProject(selectedProject);
+            await openProjectForProject(project);
         } catch (err) {
-            console.error('[App] Failed to open vault:', err);
-            setVaultError(err instanceof Error ? err.message : String(err));
+            console.error('[App] Failed to open project:', err);
+            setProjectError(err instanceof Error ? err.message : String(err));
         }
-    }, [openVaultForProject]);
+    }, [openProjectForProject]);
 
-    const retryLastKnownVault: () => Promise<void> = useCallback(async (): Promise<void> => {
-        if (!lastKnownVaultPathRef.current) return;
-        const project: SavedProject = await loadProjectForDirectory(lastKnownVaultPathRef.current);
-        await openVaultForProject(project);
-    }, [loadProjectForDirectory, openVaultForProject]);
+    const retryLastKnownProject: () => Promise<void> = useCallback(async (): Promise<void> => {
+        if (!lastKnownProjectPathRef.current) return;
+        const project: SavedProject = await loadProjectForDirectory(lastKnownProjectPathRef.current);
+        await openProjectForProject(project);
+    }, [loadProjectForDirectory, openProjectForProject]);
 
     // Handle returning to project selection
     const handleBackToProjects: () => Promise<void> = useCallback(async (): Promise<void> => {
         // Stop watching the current folder
         await stopWatching();
         setCurrentProject(null);
-        setOpenedVault(null);
+        setOpenedProject(null);
         setCurrentView('project-selection');
     }, [stopWatching]);
 
@@ -196,50 +198,54 @@ function App(): JSX.Element {
     // Recover programmatic loads even if they happened before React attached IPC listeners.
     useEffect(() => {
         if (!electronReady || !window.electronAPI || hasBootstrappedStartupProjectRef.current) return;
-        const getStartupVaultHint = window.electronAPI.main.getStartupVaultHint;
-        if (typeof getStartupVaultHint !== 'function') return;
+        const getStartupProjectHint = window.electronAPI.main.getStartupProjectHint;
+        if (typeof getStartupProjectHint !== 'function') return;
 
         hasBootstrappedStartupProjectRef.current = true;
         let cancelled = false;
 
         void (async () => {
             try {
-                const startupHint = await getStartupVaultHint();
+                const startupHint = await getStartupProjectHint();
 
                 if (cancelled) return;
                 if (startupHint.kind === 'open-folder') {
-                    const project: SavedProject = await loadProjectForDirectory(startupHint.path);
-                    if (!cancelled) await openVaultForProject(project);
+                    const project: SavedProject = await loadProjectForDirectory(startupHint.projectPath);
+                    if (!cancelled) await openProjectForProject(project);
                 }
             } catch (err) {
                 console.error('[App] Failed to bootstrap startup project:', err);
-                setVaultError(err instanceof Error ? err.message : String(err));
+                setProjectError(err instanceof Error ? err.message : String(err));
             }
         })();
 
         return () => {
             cancelled = true;
         };
-    }, [electronReady, loadProjectForDirectory, openVaultForProject]);
+    }, [electronReady, loadProjectForDirectory, openProjectForProject]);
 
     useEffect(() => {
         if (!electronReady || !window.electronAPI) return;
 
-        const cleanupSwitching = window.electronAPI.onVaultSwitching?.((data: { path: string }) => {
-            lastKnownVaultPathRef.current = data.path;
-            setVaultSwitching(true);
-            setVaultError(null);
+        const cleanupSwitching = window.electronAPI.onProjectSwitching?.((data: { path: string }) => {
+            lastKnownProjectPathRef.current = data.path;
+            setProjectSwitching(true);
+            setProjectError(null);
         }) ?? (() => {});
-        const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
-            lastKnownVaultPathRef.current = data.path;
-            setVaultSwitching(false);
-            setVaultError(null);
-            void syncProjectFromDirectory(data.path);
+        const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string; sessionId: string }) => {
+            lastKnownProjectPathRef.current = data.path;
+            setProjectSwitching(false);
+            setProjectError(null);
+            void syncProjectFromDirectory(data.path, data.sessionId);
+            // Reopen / project-switch re-primes the registry but never replays
+            // the spawn-time launch events; rehydrate so panels for already-
+            // running agents reappear. Idempotent with the mount-time trigger.
+            void window.electronAPI?.terminal?.rehydrate?.();
         }) ?? (() => {});
-        const cleanupLost = window.electronAPI.onVaultLost?.((data: { path?: string; error?: string }) => {
-            if (data.path) lastKnownVaultPathRef.current = data.path;
-            setVaultSwitching(false);
-            setVaultError(data.error ?? 'Vault unavailable');
+        const cleanupLost = window.electronAPI.onProjectLost?.((data: { path?: string; error?: string }) => {
+            if (data.path) lastKnownProjectPathRef.current = data.path;
+            setProjectSwitching(false);
+            setProjectError(data.error ?? 'Project unavailable');
         }) ?? (() => {});
 
         return () => {
@@ -274,7 +280,7 @@ function App(): JSX.Element {
                             <span className="text-[10px] ml-1">▼</span>
                         </button>
                         <span className="text-muted-foreground">/</span>
-                        <VaultPathSelector />
+                        <ProjectPathSelector />
                     </>
                 )}
             </div>
@@ -291,10 +297,16 @@ function App(): JSX.Element {
     }, []);
 
 
-    // Initialize VoiceTreeGraphView when container is ready and in graph view
-    // Settings loaded async before init so showFps can be passed to the WebGL renderer at creation time
+    // Initialize VoiceTreeGraphView when container is ready and a project session exists.
+    // Settings loaded async before init so showFps can be passed to the WebGL renderer at creation time.
+    //
+    // The session gate is load-bearing: onProjectReady -> syncProjectFromDirectory flips
+    // currentView to 'graph-view' before openProjectForProject's await resolves and sets
+    // sessionId. Without this gate the view mounts once with no session, then tears down and
+    // remounts when sessionId lands — churning cy, orphaning a loading overlay, and racing
+    // terminal launches. Waiting for sessionId collapses that into a single mount.
     useEffect(() => {
-        if (currentView !== 'graph-view' || !graphContainerRef.current || !uiContainerRef.current) return;
+        if (currentView !== 'graph-view' || !openedProject?.sessionId || !graphContainerRef.current || !uiContainerRef.current) return;
 
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
@@ -316,6 +328,17 @@ function App(): JSX.Element {
                     initialProjectedGraph: initialProjectedGraph ?? undefined,
                 }
             );
+
+            // The constructor sets the cytoscape instance synchronously, so the
+            // launchTerminalOntoUI calls this triggers (via getCyInstance) are now
+            // safe. Ask main to re-launch a floating panel for every live terminal
+            // in the registry. This runs on every fresh renderer mount — crucially
+            // including a Cmd+R reload, after which the spawn-time
+            // `terminal-ui-launch` events are never replayed — so panels for
+            // still-running agents reappear instead of vanishing. Idempotent; the
+            // project:ready handler triggers the same path for reopen and the
+            // cold-boot race where the registry is primed after this point.
+            void window.electronAPI?.terminal?.rehydrate?.();
         })();
 
         // Cleanup on unmount or view change
@@ -324,7 +347,7 @@ function App(): JSX.Element {
             disposed = true;
             graphView?.dispose();
         };
-    }, [currentView, openedVault?.sessionId]); // Reinitialize when the active vault session changes
+    }, [currentView, openedProject?.sessionId]); // Reinitialize when the active project session changes
 
     // Attach dot-grid background subscriber when in graph view
     useEffect(() => {
@@ -342,20 +365,23 @@ function App(): JSX.Element {
         <div className="fixed inset-0 overflow-clip bg-background">
             {/* Layer 0: Dot-grid underlay - sits behind the transparent Cytoscape canvas */}
             <div ref={dotGridRef} className="absolute inset-0 pb-14 dot-grid pointer-events-none"/>
-            {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
-            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden"/>
+            {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow.
+                `isolate` makes this an isolated stacking context: DOM overlays appended into the cy
+                container (the folder-handle chevron/eye chips) are confined to the graph layer and can
+                never paint over Layer 2 chrome, regardless of their own z-index. */}
+            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden isolate"/>
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
             <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 
-            {(vaultSwitching || vaultError) && (
+            {(projectSwitching || projectError) && (
                 <div className="fixed top-3 left-1/2 z-[1300] -translate-x-1/2 rounded border border-border bg-background px-3 py-2 text-sm shadow-lg">
-                    {vaultSwitching ? (
-                        <span className="text-foreground">Opening vault...</span>
+                    {projectSwitching ? (
+                        <span className="text-foreground">Opening project...</span>
                     ) : (
                         <div className="flex items-center gap-3">
-                            <span className="text-destructive">{vaultError}</span>
+                            <span className="text-destructive">{projectError}</span>
                             <button
-                                onClick={() => void retryLastKnownVault()}
+                                onClick={() => void retryLastKnownProject()}
                                 className="rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-accent"
                                 type="button"
                             >

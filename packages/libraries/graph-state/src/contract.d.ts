@@ -4,7 +4,7 @@
  * Authoritative public surface for every L1 consumer:
  *   • cytoscape shell (webapp)  — stateful, subscribes to deltas
  *   • `vt-graph` CLI            — stateless, reads a snapshot
- *   • live MCP client           — remote {getLiveState, dispatchLiveCommand}
+ *   • live daemon client        — remote {getLiveState, dispatchLiveCommand}
  *
  * NO implementation. All exported values are `declare`s. Impl lands BF-142+.
  *
@@ -30,7 +30,7 @@ import type { FolderTreeNode, GraphDelta } from '@vt/graph-model'
 /** Absolute folder path with a trailing slash (matches folderCollapse.ts). */
 export type FolderId = string
 
-/** A vault / loaded root (absolute directory path, no trailing slash). */
+/** A project / loaded root (absolute directory path, no trailing slash). */
 export type RootPath = string
 
 /**
@@ -249,8 +249,8 @@ export declare function emptyState(): State
 // ============================================================================
 
 /**
- * Transport-agnostic so we can swap MCP → socket/http later without breaking
- * L1 consumers (see decisions.md §5).
+ * Transport-agnostic so we can swap the transport (socket/http) later without
+ * breaking L1 consumers (see decisions.md §5).
  */
 export interface LiveTransport {
     readonly getLiveState: () => Promise<State>

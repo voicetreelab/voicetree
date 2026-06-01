@@ -66,13 +66,13 @@ describe('argsShape — pure structural redaction of argv', () => {
     })
 
     it('drops only the first N positionals matching verbTokensInArgv', () => {
-        // If a verb consumes 1 positional ("vault") and there are more
+        // If a verb consumes 1 positional ("project") and there are more
         // positionals after, those become <arg>.
         expect(argsShape({
-            verb: 'vault',
+            verb: 'project',
             verbTokensInArgv: 1,
-            argv: ['vault', 'show', '--vault=/some/path'],
-        })).toBe('vault <arg> --vault=<redacted>')
+            argv: ['project', 'show', '--project=/some/path'],
+        })).toBe('project <arg> --project=<redacted>')
     })
 
     it('handles short flags as bare tokens', () => {

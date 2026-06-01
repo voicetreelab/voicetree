@@ -1,6 +1,6 @@
 import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import type {Core} from "cytoscape";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
+import {getCyInstance, isCyInitialized} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal";
 import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/stores/UIAppState";
@@ -16,7 +16,7 @@ import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/Grap
  * Only one terminal is allowed per context node. If a terminal already exists
  * for this context node, focus it instead of creating a new one.
  *
- * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
+ * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for agent spawns)
  */
 export async function launchTerminalOntoUI(
     contextNodeId: string,
@@ -24,6 +24,11 @@ export async function launchTerminalOntoUI(
     skipFitAnimation?: boolean
 ): Promise<void> {
     //console.log("BEFORE LAUNCH UI")
+    // On reload, main replays terminal-ui-launch before the graph view has
+    // mounted. Rather than throw (getCyInstance) or queue, no-op: rehydrate()
+    // replays every live terminal once cy is mounted, so a dropped pre-mount
+    // launch reappears via that single canonical path.
+    if (!isCyInitialized()) return;
     const cy: Core = getCyInstance();
 
     // Check if a floating window already exists for this context node - only one allowed
@@ -37,7 +42,7 @@ export async function launchTerminalOntoUI(
         // Only skip creation if floating window actually exists
         if (vanillaInstance) {
             //console.log('[uiAPI] Floating window already exists for context node, focusing:', existingTerminalId);
-            // Don't steal focus for MCP/background spawns
+            // Don't steal focus for background/agent spawns
             if (!skipFitAnimation && vanillaInstance.focus) {
                 vanillaInstance.focus();
             }
@@ -66,7 +71,7 @@ export async function launchTerminalOntoUI(
 
         // Navigate to terminal neighborhood twice with delays to handle IPC race condition
         // (context node may not exist in Cytoscape yet when this runs)
-        // Skip navigation for MCP spawns to avoid interrupting user's viewport
+        // Skip navigation for agent spawns to avoid interrupting user's viewport
         if (!skipFitAnimation) {
             const navigationService = new GraphNavigationService(cy);
             setTimeout(() => navigationService.fitToTerminal(terminalWithUI), 600);
@@ -74,7 +79,7 @@ export async function launchTerminalOntoUI(
         }
 
         // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
-        // Don't steal focus for MCP/background spawns
+        // Don't steal focus for background/agent spawns
         if (!skipFitAnimation) {
             setTimeout(() => {
                 const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);

@@ -25,6 +25,16 @@ for cand in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git /opt/local/bin
 done
 [ -n "$REAL_GIT" ] || { echo "git-gate: cannot find real git" >&2; exit 127; }
 
+# VT_SYNC=1 short-circuits the ENTIRE gate (D3). The read-only-base sync daemon
+# (vt-sync-base.sh) and the first-run base configuration run their own git with
+# this set: they must never hit the read-only base guard, the checkout/reset
+# reason logic, or any password prompt (they run with no TTY and would deadlock).
+# This is the single blessed bypass — and it is intentionally the very first
+# thing the gate does, before any argv parsing or reason logic.
+if [ "${VT_SYNC:-}" = "1" ]; then
+  exec "$REAL_GIT" "$@"
+fi
+
 # Preserve the original argv so we can forward it unchanged to real git later.
 # Then strip git's global options ahead of the subcommand so that callers like
 # `git -C <path> worktree add ...` or `git --git-dir=... worktree add ...` are
@@ -54,39 +64,139 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Leading args consumed above are git's global options (e.g. `-C <repo>`); keep
+# them so the worktree-add admission check below can re-resolve the repo even
+# when the gate is invoked from a cwd that isn't the repository.
+GATE_GLOBAL_OPTS=("${ORIG_ARGS[@]:0:${#ORIG_ARGS[@]} - $#}")
+
 sub="${1:-}"
 sub_arg="${2:-}"
 rest="${*:2}"
 reason=""
 suggestion=""
 
-worktree_add_path_arg() {
+# --- D5 read-only base guard ------------------------------------------------
+# The MAIN worktree of a voicetree clone is the read-only fast-forward cache of
+# origin (the "base"). All editing happens in linked worktrees; integration
+# happens via origin. Refuse ref-moving subcommands in the base with a helpful
+# message. Detection is structural and machine-independent:
+#   - main worktree:   git-dir == git-common-dir
+#   - linked worktree: they differ → always allowed (never gated here)
+# and confirmed to be a voicetree clone via the origin URL, so unrelated repos
+# (e.g. brain) are untouched. The sync daemon is already exempt via VT_SYNC=1.
+gate_base_branch() { printf '%s' "${VT_BASE_BRANCH:-dev-manu}"; }
+
+in_voicetree_base() {
+  local gd cd url
+  gd="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --git-dir 2>/dev/null)" || return 1
+  cd="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$gd" ] && [ "$gd" = "$cd" ] || return 1
+  url="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" remote get-url origin 2>/dev/null)" || return 1
+  # Match the voicetree[-public] repo at a path boundary (covers https, ssh, and
+  # local-path origins) so a repo merely ending in "...voicetree.git" can't false
+  # positive. The trailing .git is optional (local clones may omit it).
+  case "$url" in
+    */voicetree.git|*/voicetree|*/voicetree-public.git|*/voicetree-public) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Emit the read-only-base block message (with a divergence-recovery hint) and exit.
+deny_base_edit() {
+  local base_top
+  base_top="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --show-toplevel 2>/dev/null || true)"
+  {
+    echo ""
+    echo "  ✗ git-gate: BLOCKED — this checkout is the origin cache (read-only base)."
+    echo "    command: git ${ORIG_ARGS[*]}"
+    echo ""
+    echo "    The base is a read-only fast-forward cache of origin/$(gate_base_branch)."
+    echo "    Editing happens in a worktree; integration happens via origin —"
+    echo "    the base only ever fast-forwards. Never commit/merge/rebase/pull/revert here."
+    echo ""
+    if [ "$sub" = pull ] || [ "$sub" = fetch ]; then
+      echo "    To UPDATE this base to origin, do NOT use 'git $sub' — run:"
+      echo "      vt-sync                         # fast-forwards the base to origin (the only safe way)"
+      echo "    A 2-3 min timer also keeps it current automatically; you rarely need to."
+      echo ""
+    fi
+    echo "    Work in a worktree instead:"
+    echo "      vt-worktree <name> [<branch>]   # or: git worktree add -b <name> <name> origin/<branch>"
+    echo "    Then land it:"
+    echo "      vt-land \"msg\"                   # quick fast-forward push to the integration branch"
+    echo "      vt-pr                           # open a PR for reviewed work"
+    echo ""
+    echo "    If the base has already diverged from origin, re-pin it with:"
+    echo "      VT_SYNC=1 git -C ${base_top:-<base>} reset --hard origin/$(gate_base_branch)"
+    echo ""
+  } >&2
+  exit 1
+}
+
+# `git apply` cannot move a ref, but a real apply dirties the read-only base (the
+# daemon then refuses to fast-forward). Treat apply as mutating UNLESS it carries
+# only a read-only inspection flag — `--check` / `--stat` / `--numstat` /
+# `--summary` touch nothing, so tooling that probes patches must stay unblocked.
+# A bare `-R` (reverse-apply) DOES write the tree, so it remains gated.
+apply_is_readonly() {
+  local a
+  for a in "$@"; do
+    case "$a" in
+      --check|--stat|--numstat|--summary) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# D5 read-only base guard. `pull` (= fetch+merge) and `revert` (= a commit) both
+# move the base ref and were the everyday muscle-memory bypasses of the original
+# list; `update-ref` rewrites the ref directly. All are gated here. The sync
+# daemon and configure-base reach these paths with VT_SYNC=1 (whole-gate bypass,
+# handled at the very top) so the legitimate fast-forward is never blocked.
+case "$sub" in
+  commit|merge|rebase|reset|cherry-pick|am|pull|revert|update-ref)
+    in_voicetree_base && deny_base_edit
+    ;;
+  apply)
+    if in_voicetree_base && ! apply_is_readonly "${@:2}"; then deny_base_edit; fi
+    ;;
+esac
+
+# Per-machine worktree root. This wrapper is the ONE place that owns worktree
+# PLACEMENT: callers pass a bare name and we put the tree here. The default
+# matches the admission checker's default basename (vt-wts); install.sh writes
+# the per-machine value ($HOME/vt-wts on both Linux and macOS).
+gate_worktree_root() {
+  printf '%s' "${VT_WORKTREE_ROOT:-$HOME/vt-wts}"
+}
+
+# Print the 1-based index of the destination positional within the passed args
+# (the stripped `worktree add ...` argv). The caller reads the value back with
+# `${!idx}` and can REWRITE that element for placement enforcement. Empty if no
+# destination positional is present. Scanning starts at $3 (after `worktree add`).
+worktree_add_path_index() {
+  local i=3 n=$#
   local expect_option_value=0
   local after_separator=0
   local arg
-  for arg in "${@:3}"; do
+  while [ "$i" -le "$n" ]; do
+    arg="${!i}"
     if [ "$after_separator" -eq 1 ]; then
-      printf '%s\n' "$arg"
+      printf '%s\n' "$i"
       return 0
     fi
     if [ "$expect_option_value" -eq 1 ]; then
       expect_option_value=0
+      i=$((i + 1))
       continue
     fi
     case "$arg" in
-      --)
-        after_separator=1
-        ;;
-      -b|-B|--orphan|--reason)
-        expect_option_value=1
-        ;;
-      -*)
-        ;;
-      *)
-        printf '%s\n' "$arg"
-        return 0
-        ;;
+      --)            after_separator=1 ;;
+      -b|-B|--orphan|--reason) expect_option_value=1 ;;
+      -*)            ;;
+      *)             printf '%s\n' "$i"; return 0 ;;
     esac
+    i=$((i + 1))
   done
 }
 
@@ -177,16 +287,75 @@ esac
 # still enforces readiness before remote commands, so a failed prewarm cannot
 # make later execution unsafe.
 if [ "$sub" = "worktree" ] && [ "$sub_arg" = "add" ]; then
-  wt_path="$(worktree_add_path_arg "$@")"
+  # --- PRE-action: admission control ----------------------------------------
+  # Refuse to pile up worktrees: block the add when merged/idle trees await
+  # cleanup, so agents tidy up instead of accumulating dead worktrees. The
+  # check is detection-only and self-service (its message tells the agent to
+  # clean up itself). Opt out with VT_GIT_GATE_SKIP_ADMISSION=1.
+  if [ "${VT_GIT_GATE_SKIP_ADMISSION:-}" != "1" ]; then
+    repo_top="$("$REAL_GIT" "${GATE_GLOBAL_OPTS[@]}" rev-parse --show-toplevel 2>/dev/null)"
+    admission="$repo_top/scripts/git/worktree/worktree-admission-check.sh"
+    if [ -n "$repo_top" ] && [ -x "$admission" ]; then
+      admission_ec=0
+      # Run inside the repo (the check relies on cwd) and scope it to the
+      # basename of this machine's worktree root.
+      ( cd "$repo_top" && VT_WT_SIBLING_DIR_NAME="$(basename "$(gate_worktree_root)")" "$admission" ) >&2 \
+        || admission_ec=$?
+      if [ "$admission_ec" -eq 1 ]; then
+        echo "" >&2
+        echo "  ✗ git-gate: BLOCKED git worktree add — clean up the worktree(s) above, then retry." >&2
+        exit 1
+      fi
+      # ec >= 2 is a checker setup error (already reported); fail open so a
+      # broken check never wedges legitimate worktree creation.
+    fi
+  fi
+
+  # --- PLACEMENT enforcement ------------------------------------------------
+  # The wrapper owns WHERE worktrees live: rewrite the destination to
+  # <worktree-root>/<basename-of-given-path> so callers (the VoiceTree app,
+  # agents, plain `git worktree add -b x x`) never need to know the convention.
+  # Escape hatch: VT_GIT_GATE_NO_PLACEMENT=1 honors the caller's explicit path.
+  given_idx="$(worktree_add_path_index "$@")"
+  if [ "${VT_GIT_GATE_NO_PLACEMENT:-}" = "1" ]; then
+    # Honor the caller's explicit destination path (no placement rewrite).
+    wt_path="${given_idx:+${!given_idx}}"
+  elif [ -n "$given_idx" ]; then
+    given_path="${!given_idx}"
+    wt_root="$(gate_worktree_root)"
+    wt_path="$wt_root/$(basename "$given_path")"
+    mkdir -p "$wt_root"
+    # Replace the destination positional in the stripped argv, then rebuild
+    # the full real-git argv as <global opts> + <rewritten subcommand args>.
+    rewritten=("$@")
+    rewritten[$((given_idx - 1))]="$wt_path"
+    ORIG_ARGS=("${GATE_GLOBAL_OPTS[@]}" "${rewritten[@]}")
+    echo "git-gate: placement → $wt_path" >&2
+  else
+    # No destination positional found — leave argv untouched (real git will
+    # error on its own, which is the correct surface for a malformed add).
+    wt_path=""
+  fi
   echo "git-gate: running git worktree add" >&2
   "$REAL_GIT" "${ORIG_ARGS[@]}"
   ec=$?
   if [ $ec -eq 0 ]; then
-    echo "git-gate: normalizing worktree git metadata to relative paths" >&2
-    if "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1; then
-      echo "git-gate: worktree git metadata normalized" >&2
+    echo "git-gate: normalizing worktree git metadata" >&2
+    # Repair the new worktree's admin pointers. Two robustness points:
+    #  1. Run with `-C <worktree>`, not the gate's cwd: callers commonly invoke
+    #     `git -C <repo> worktree add <abs-path>` from a cwd that is not a git
+    #     repo (agent/login shells rooted at $HOME), where a bare repair no-ops.
+    #  2. `--relative-paths` (host-portable pointers, needed for mutagen
+    #     cross-host sync) only exists on git >= 2.48. Try it first, then fall
+    #     back to a plain repair — absolute pointers are fine for worktrees that
+    #     never sync across hosts (e.g. the VM-local /root/vt-wts trees).
+    repair_dir="${wt_path:-.}"
+    if "$REAL_GIT" -C "$repair_dir" worktree repair --relative-paths >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata normalized (relative paths)" >&2
+    elif "$REAL_GIT" -C "$repair_dir" worktree repair >/dev/null 2>&1; then
+      echo "git-gate: worktree git metadata repaired (this git lacks --relative-paths; pointers left absolute)" >&2
     else
-      echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
+      echo "git-gate: warning: git worktree repair failed; command-boundary repair will retry" >&2
     fi
     if [ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ]; then
       echo "git-gate: skipping dependency prewarm; caller owns worktree hooks" >&2
@@ -241,13 +410,14 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
       fi
       if [ -n "$remote_host" ]; then
         echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
-        remote_root="/root/vtrepo-synced"
+        # The vt-remote full-repo mutagen replica (/root/vtrepo-synced) is retired
+        # under the single-source model; only the vt-wts-synced worktree mirror remains.
         remote_wts_root="/root/vt-wts-synced"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
-          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name' '$remote_wts_root/$wt_name'" \
+          "rm -rf '$remote_wts_root/$wt_name'" \
           >/dev/null 2>&1 \
           && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
-          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-remote' to check" >&2
+          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-wts-synced' to check" >&2
       else
         echo "git-gate: no VT_REMOTE_HOST found; skipping remote residue cleanup" >&2
       fi
@@ -270,6 +440,20 @@ if [ -n "$reason" ]; then
     echo "    command: git ${ORIG_ARGS[*]}"
     echo "    reason:  $reason"
     echo ""
+    # When the destructive command targets the read-only base cache, the real
+    # fix is not "do it non-destructively here" — it is "do not work here at
+    # all". Redirect the agent to a worktree off the base before anything else.
+    if in_voicetree_base; then
+      echo "    This checkout is the read-only origin cache (base) — you must NOT"
+      echo "    edit, rewrite, or discard changes in it. Move your work onto a"
+      echo "    worktree off the base and make the change there instead:"
+      echo "      vt-worktree <name>            # new worktree off origin/$(gate_base_branch)"
+      echo "      cd <printed path>             # then redo your change + vt-land \"msg\""
+      echo "    If a stray edit is already sitting in the base, do not try to"
+      echo "    restore/checkout it away — re-pin the whole base to origin:"
+      echo "      VT_SYNC=1 git reset --hard origin/$(gate_base_branch)"
+      echo ""
+    fi
     echo "    Think before you run destructive git commands."
     echo "    Other agents may be working in this repo right now."
     echo "    Prefer multiple commits to get where you want — not destructive"

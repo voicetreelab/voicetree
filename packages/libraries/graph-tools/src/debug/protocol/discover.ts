@@ -10,9 +10,9 @@ export type DebugInstance = {
 };
 
 export type PickOpts = {
-    port?: number;   // match cdpPort (legacy CLI flag historically accepted MCP port too — that port is gone in 7f)
+    port?: number;   // match cdpPort (legacy CLI flag historically accepted the daemon tool-server port too — that port is gone in 7f)
     pid?: number;
-    vault?: string;  // match resolved projectRoot prefix
+    project?: string;  // match resolved projectRoot prefix
     forceNew?: boolean;  // --new: skip existing instances, always launch fresh
 };
 
@@ -36,8 +36,8 @@ export function filterInstancesBySelector(
         return liveFiles.filter(i => i.pid === opts.pid);
     }
 
-    if (opts.vault !== undefined) {
-        const resolved = path.resolve(opts.vault);
+    if (opts.project !== undefined) {
+        const resolved = path.resolve(opts.project);
         return liveFiles.filter(i => path.resolve(i.projectRoot).startsWith(resolved));
     }
 
@@ -46,7 +46,7 @@ export function filterInstancesBySelector(
 
 /** Select one DebugInstance from a list of live files, applying opt filters.
  *
- * Filter precedence: --port > --pid > --vault > single-live > ambiguous error.
+ * Filter precedence: --port > --pid > --project > single-live > ambiguous error.
  */
 export function pickInstance(liveFiles: DebugInstance[], opts: PickOpts = {}): PickResult {
     const candidates = filterInstancesBySelector(liveFiles, opts);
@@ -59,17 +59,17 @@ export function pickInstance(liveFiles: DebugInstance[], opts: PickOpts = {}): P
         return {
             ok: false,
             message: 'no running voicetree instance found',
-            hint: 'start voicetree in development mode or pass --port / --pid / --vault to narrow',
+            hint: 'start voicetree in development mode or pass --port / --pid / --project to narrow',
         };
     }
 
     // >1 candidate — ambiguous
     const list = candidates
-        .map(i => `  pid=${i.pid}  vault=${i.projectRoot}  cdp=${i.cdpPort}`)
+        .map(i => `  pid=${i.pid}  project=${i.projectRoot}  cdp=${i.cdpPort}`)
         .join('\n');
     return {
         ok: false,
-        message: `${candidates.length} instances running — use --port, --pid, or --vault to select one:\n${list}`,
+        message: `${candidates.length} instances running — use --port, --pid, or --project to select one:\n${list}`,
         hint: 'vt-debug ls  to list all instances',
         instances: candidates,
     };

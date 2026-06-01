@@ -32,7 +32,7 @@ import type { EditorView } from '@codemirror/view';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -54,16 +54,16 @@ const test = base.extend<{
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-flush-editor-test-'));
 
-    // Write the config file to auto-load the test vault
+    // Write the config file to auto-load the test project
     // Set empty suffix to use directory directly (without /voicetree subfolder)
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: FIXTURE_PROJECT_PATH,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+        [FIXTURE_PROJECT_PATH]: '' // Empty suffix means use directory directly
       }
     }, null, 2), 'utf8');
-    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+    console.log('[Test] Created config file to auto-load:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -134,7 +134,7 @@ const test = base.extend<{
 test.describe('Flush Editor Before Agent Spawn', () => {
   // Cleanup: Remove any created ctx-nodes after test
   test.afterEach(async () => {
-    const ctxNodesDir = path.join(FIXTURE_VAULT_PATH, 'ctx-nodes');
+    const ctxNodesDir = path.join(FIXTURE_PROJECT_PATH, 'ctx-nodes');
     try {
       await fs.rm(ctxNodesDir, { recursive: true, force: true });
       console.log('[Cleanup] Removed ctx-nodes directory');
@@ -253,7 +253,7 @@ test.describe('Flush Editor Before Agent Spawn', () => {
 
     console.log('=== STEP 6: Wait for context node to be created ===');
     // The context node should be created in ctx-nodes directory
-    const ctxNodesDir = path.join(FIXTURE_VAULT_PATH, 'ctx-nodes');
+    const ctxNodesDir = path.join(FIXTURE_PROJECT_PATH, 'ctx-nodes');
 
     // Poll for ctx-nodes directory and files to appear
     let contextNodePath: string | null = null;

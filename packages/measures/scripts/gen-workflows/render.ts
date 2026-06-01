@@ -89,6 +89,23 @@ function renderStep(step: Step): readonly string[] {
             '  working-directory: webapp',
             '  run: pnpm exec playwright install --with-deps chromium',
         ]
+        case 'rust-native-build': return [
+            // ubuntu-latest ships a stable Rust toolchain; we only cache the
+            // registry + the crate's target dir so oxc's fat-LTO release build
+            // (~minutes cold) is a near-no-op on warm cache.
+            '- name: Cache vt-dup Rust build',
+            '  uses: actions/cache@v4',
+            '  with:',
+            '    path: |',
+            '      ~/.cargo/registry',
+            '      ~/.cargo/git',
+            '      packages/measures/native/vt-dup/target',
+            "    key: ${{ runner.os }}-cargo-vt-dup-${{ hashFiles('packages/measures/native/vt-dup/Cargo.lock') }}",
+            '    restore-keys: |',
+            '      ${{ runner.os }}-cargo-vt-dup-',
+            '- name: Build vt-dup native binary',
+            '  run: pnpm --filter @vt/measures run measures:build-native:local',
+        ]
         case 'run': return renderRun(step.name, step.run, step.id ?? null, step.env ?? null)
         case 'upload-artifact': return [
             '- name: Upload check reports',

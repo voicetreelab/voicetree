@@ -79,7 +79,7 @@ function parseRecursiveAscii(text: string): ParsedRecursiveAscii {
             continue
         }
         if (!currentFragment) continue
-        if (trimmed.startsWith('summary:') || trimmed.startsWith('vault_root:') || trimmed.startsWith('thresholds:') || trimmed.startsWith('fragment_count:') || trimmed.startsWith('═══ ')) {
+        if (trimmed.startsWith('summary:') || trimmed.startsWith('project_root:') || trimmed.startsWith('thresholds:') || trimmed.startsWith('fragment_count:') || trimmed.startsWith('═══ ')) {
             continue
         }
         if (inCrossLinks) {
@@ -151,7 +151,7 @@ function parseRecursiveAscii(text: string): ParsedRecursiveAscii {
     return {fragmentOrder, nodeToFragment, edges, droppedLines: dropped}
 }
 
-function buildGroundTruth(state: JsonState, vaultRoot: string): {
+function buildGroundTruth(state: JsonState, projectRoot: string): {
     readonly nodeIds: ReadonlySet<string>
     readonly edgeKeys: ReadonlySet<string>
     readonly resolvedEdgePairs: readonly [string, string][]
@@ -162,22 +162,22 @@ function buildGroundTruth(state: JsonState, vaultRoot: string): {
     const jsonIds: Set<string> = new Set(Object.keys(state.graph.nodes))
 
     for (const absId of Object.keys(state.graph.nodes)) {
-        nodeIds.add(relId(absId, vaultRoot))
+        nodeIds.add(relId(absId, projectRoot))
     }
     for (const [srcAbs, node] of Object.entries(state.graph.nodes)) {
-        const src: string = relId(srcAbs, vaultRoot)
+        const src: string = relId(srcAbs, projectRoot)
         for (const edge of node.outgoingEdges) {
             if (edge.targetId === srcAbs) continue
-            const target: string = jsonIds.has(edge.targetId) ? relId(edge.targetId, vaultRoot) : edge.targetId
+            const target: string = jsonIds.has(edge.targetId) ? relId(edge.targetId, projectRoot) : edge.targetId
             edgeKeys.add(`${src}|${target}`)
-            if (jsonIds.has(edge.targetId)) resolvedEdgePairs.push([src, relId(edge.targetId, vaultRoot)])
+            if (jsonIds.has(edge.targetId)) resolvedEdgePairs.push([src, relId(edge.targetId, projectRoot)])
         }
     }
     return {nodeIds, edgeKeys, resolvedEdgePairs}
 }
 
-function scoreRecursiveAscii(parsed: ParsedRecursiveAscii, state: JsonState, vaultRoot: string): ScoreResult {
-    const truth = buildGroundTruth(state, vaultRoot)
+function scoreRecursiveAscii(parsed: ParsedRecursiveAscii, state: JsonState, projectRoot: string): ScoreResult {
+    const truth = buildGroundTruth(state, projectRoot)
     const reconstructedNodes: Set<string> = new Set(parsed.nodeToFragment.keys())
     const reconstructedEdges: Set<string> = new Set(parsed.edges.map(edge => `${edge.src}|${edge.target}`))
 
@@ -228,11 +228,11 @@ function navigationCostForEdge(parsed: ParsedRecursiveAscii, src: string, target
 function computeNavigationStats(
     parsed: ParsedRecursiveAscii,
     state: JsonState,
-    vaultRoot: string,
+    projectRoot: string,
     sampleSize: number,
     seed: number,
 ): NavigationStats {
-    const truth = buildGroundTruth(state, vaultRoot)
+    const truth = buildGroundTruth(state, projectRoot)
     const sampledEdges: readonly string[] = [...truth.resolvedEdgePairs]
         .map(([src, target]) => `${src}|${target}`)
         .sort((left, right) => stableHash(left, seed) - stableHash(right, seed))
@@ -249,21 +249,21 @@ function computeNavigationStats(
 function main(): void {
     const asciiPath: string | undefined = process.argv[2]
     const jsonPath: string | undefined = process.argv[3]
-    const vaultArg: string | undefined = process.argv[4]
+    const projectArg: string | undefined = process.argv[4]
     if (!asciiPath || !jsonPath) {
-        console.error('Usage: L3-BF-194-recursive-parser.ts <recursive.txt> <state.json> [<vault-root>]')
+        console.error('Usage: L3-BF-194-recursive-parser.ts <recursive.txt> <state.json> [<project-root>]')
         process.exit(2)
     }
     const ascii: string = fs.readFileSync(asciiPath, 'utf8')
     const state: JsonState = JSON.parse(fs.readFileSync(jsonPath, 'utf8'))
     const ids: readonly string[] = Object.keys(state.graph.nodes)
-    const vaultRoot: string = vaultArg ? path.resolve(vaultArg) : lcpOfIds(ids)
+    const projectRoot: string = projectArg ? path.resolve(projectArg) : lcpOfIds(ids)
     const parsed: ParsedRecursiveAscii = parseRecursiveAscii(ascii)
-    const score: ScoreResult = scoreRecursiveAscii(parsed, state, vaultRoot)
-    const navigation: NavigationStats = computeNavigationStats(parsed, state, vaultRoot, 20, 194)
+    const score: ScoreResult = scoreRecursiveAscii(parsed, state, projectRoot)
+    const navigation: NavigationStats = computeNavigationStats(parsed, state, projectRoot, 20, 194)
 
     console.log('=== L3-BF-194 recursive ASCII fidelity ===')
-    console.log(`vault_root: ${vaultRoot}`)
+    console.log(`project_root: ${projectRoot}`)
     console.log()
     console.log(`| metric | value |`)
     console.log(`|---|---:|`)

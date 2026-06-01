@@ -1,5 +1,5 @@
 /**
- * BF-199: selectFormat tests — one per decision-tree branch + fixture vault integration.
+ * BF-199: selectFormat tests — one per decision-tree branch + fixture project integration.
  */
 import {beforeAll, describe, expect, it} from 'vitest'
 import * as fs from 'node:fs'
@@ -7,15 +7,15 @@ import * as path from 'node:path'
 
 import {ensureSyntheticFixtures} from '../../scripts/L3-BF-193-generate-fixtures'
 import {selectFormat, buildAutoHeader, type FormatDecision} from '../../src/view/selectFormat'
-import {computeMetricsFromVault, type GraphMetrics} from '../../src/view/graphMetrics'
+import {computeMetricsFromProject, type GraphMetrics} from '../../src/view/graphMetrics'
 
-const VAULTS_ROOT = new URL('../fixtures/roundtrip-vaults', import.meta.url).pathname
+const PROJECTS_ROOT = new URL('../fixtures/roundtrip-projects', import.meta.url).pathname
 
 // ── Fixture setup ─────────────────────────────────────────────────────────────
 
 beforeAll(() => {
-    fs.mkdirSync(VAULTS_ROOT, {recursive: true})
-    ensureSyntheticFixtures(VAULTS_ROOT)
+    fs.mkdirSync(PROJECTS_ROOT, {recursive: true})
+    ensureSyntheticFixtures(PROJECTS_ROOT)
 })
 
 // ── Unit: one test per decision-tree branch ───────────────────────────────────
@@ -107,12 +107,12 @@ describe('buildAutoHeader', () => {
     })
 })
 
-// ── Integration: fixture vaults ───────────────────────────────────────────────
+// ── Integration: fixture projects ───────────────────────────────────────────────
 
-describe('selectFormat integration — BF-198 fixture vaults', () => {
+describe('selectFormat integration — BF-198 fixture projects', () => {
     it('synthetic-a1-tree (a(G)=1) → tree-cover', () => {
-        const vault = path.join(VAULTS_ROOT, 'synthetic-a1-tree')
-        const m = computeMetricsFromVault(vault)
+        const project = path.join(PROJECTS_ROOT, 'synthetic-a1-tree')
+        const m = computeMetricsFromProject(project)
         expect(m.arboricity).toBeGreaterThanOrEqual(1)
         expect(m.arboricity).toBeLessThanOrEqual(3)
         const d = selectFormat(m)
@@ -120,8 +120,8 @@ describe('selectFormat integration — BF-198 fixture vaults', () => {
     })
 
     it('synthetic-a2-cycle (a(G)=2) → tree-cover', () => {
-        const vault = path.join(VAULTS_ROOT, 'synthetic-a2-cycle')
-        const m = computeMetricsFromVault(vault)
+        const project = path.join(PROJECTS_ROOT, 'synthetic-a2-cycle')
+        const m = computeMetricsFromProject(project)
         expect(m.arboricity).toBeGreaterThanOrEqual(2)
         expect(m.arboricity).toBeLessThanOrEqual(3)
         const d = selectFormat(m)
@@ -129,24 +129,24 @@ describe('selectFormat integration — BF-198 fixture vaults', () => {
     })
 
     it('synthetic-k5-core (Nash-Williams a(G)=3) → tree-cover', () => {
-        const vault = path.join(VAULTS_ROOT, 'synthetic-k5-core')
-        const m = computeMetricsFromVault(vault)
+        const project = path.join(PROJECTS_ROOT, 'synthetic-k5-core')
+        const m = computeMetricsFromProject(project)
         expect(m.arboricity).toBeGreaterThanOrEqual(3)
         const d = selectFormat(m)
         expect(d.format).toBe('tree-cover')
     })
 
     it('synthetic-k9-core (Nash-Williams a(G)=5, greedy≥5) → ascii-lossy', () => {
-        const vault = path.join(VAULTS_ROOT, 'synthetic-k9-core')
-        const m = computeMetricsFromVault(vault)
+        const project = path.join(PROJECTS_ROOT, 'synthetic-k9-core')
+        const m = computeMetricsFromProject(project)
         expect(m.arboricity).toBeGreaterThanOrEqual(5)
         const d = selectFormat(m)
         expect(d.format).toBe('ascii-lossy')
     })
 
     it('synthetic-k15-core (Nash-Williams a(G)=8, greedy≥8) → mermaid or edgelist', () => {
-        const vault = path.join(VAULTS_ROOT, 'synthetic-k15-core')
-        const m = computeMetricsFromVault(vault)
+        const project = path.join(PROJECTS_ROOT, 'synthetic-k15-core')
+        const m = computeMetricsFromProject(project)
         expect(m.arboricity).toBeGreaterThanOrEqual(8)
         const d = selectFormat(m)
         expect(['mermaid', 'edgelist']).toContain(d.format)
@@ -157,8 +157,8 @@ describe('selectFormat integration — BF-198 fixture vaults', () => {
 
 describe('self-describing header in fixture output', () => {
     it('tree-cover decision has header fields', () => {
-        const vault = path.join(VAULTS_ROOT, 'synthetic-a1-tree')
-        const m = computeMetricsFromVault(vault)
+        const project = path.join(PROJECTS_ROOT, 'synthetic-a1-tree')
+        const m = computeMetricsFromProject(project)
         const d = selectFormat(m)
         const header = buildAutoHeader(d)
         expect(header).toContain('format: tree-cover (auto-selected)')

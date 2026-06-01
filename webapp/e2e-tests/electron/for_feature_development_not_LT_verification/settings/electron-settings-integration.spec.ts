@@ -5,7 +5,7 @@
  * This test verifies the COMPLETE flow:
  * 0. Original settings are saved for restoration at the end
  * 1. Settings are loaded and modified for testing (terminalSpawnPath='../', add test agent)
- * 2. Test vault is loaded from a saved project on startup
+ * 2. Test project is loaded from a saved project on startup
  * 3. Settings editor is opened via SpeedDialMenu settings button click (bottom-right corner)
  * 4. Settings are edited in the floating React settings editor (adds test agent to agents array)
  * 5. Settings are saved (auto-save triggers on content change)
@@ -35,7 +35,7 @@ import type { VTSettings } from '@/pure/settings';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -56,18 +56,17 @@ const test = base.extend<{
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     const savedProject = {
       id: 'settings-test-project-id',
-      path: FIXTURE_VAULT_PATH,
+      path: FIXTURE_PROJECT_PATH,
       name: 'example_small',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
     // Also keep the legacy config file for backwards compatibility.
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
-    console.log('[Settings Test] Created saved project:', FIXTURE_VAULT_PATH);
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
+    console.log('[Settings Test] Created saved project:', FIXTURE_PROJECT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -184,7 +183,7 @@ test.describe('Settings Integration E2E', () => {
     });
     console.log('✓ Settings modified for test');
 
-    console.log('=== STEP 2: Wait for vault nodes to render ===');
+    console.log('=== STEP 2: Wait for project nodes to render ===');
     await appWindow.waitForFunction(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) return false;
@@ -192,7 +191,7 @@ test.describe('Settings Integration E2E', () => {
       return nodes.length >= 2; // Wait for at least 2 nodes to ensure folder loaded
     }, { timeout: 10000 });
 
-    console.log('✓ Nodes loaded successfully from saved project vault');
+    console.log('✓ Nodes loaded successfully from saved project project');
 
     console.log('=== STEP 3: Verify initial test settings ===');
     const initialSettings = await appWindow.evaluate(async () => {

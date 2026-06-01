@@ -17,7 +17,7 @@ export type UnresolvedLinksIndex = ReadonlyMap<string, readonly NodeIdAndFilePat
  * Strips .md extension and normalizes to lowercase for consistent matching.
  *
  * @example
- * getBaseName('/vault/a/foo.md') => 'foo'
+ * getBaseName('/project/a/foo.md') => 'foo'
  * getBaseName('./foo.md') => 'foo'
  * getBaseName('FooBar.md') => 'foobar'
  */
@@ -33,39 +33,40 @@ export function getBaseName(path: string): string {
 }
 
 /**
- * Mutable helper: add a nodeId to a basename entry in-place. O(1) via Map.get/set.
- * Operates on mutable Map copy — callers create the copy, this mutates it.
+ * Copy-on-write helper: add a nodeId to a basename entry by replacing its array. O(1) Map ops.
+ * Never mutates an existing array in place, so the map may safely share value arrays with a
+ * previous index (see mutableCopy). Operates on the caller's owned Map copy.
  */
 function addToIndex(
-  map: Map<string, NodeIdAndFilePath[]>,
+  map: Map<string, readonly NodeIdAndFilePath[]>,
   basename: string,
   nodeId: NodeIdAndFilePath
 ): void {
   if (basename === '') return
 
-  const existing: NodeIdAndFilePath[] | undefined = map.get(basename)
+  const existing: readonly NodeIdAndFilePath[] | undefined = map.get(basename)
   if (existing) {
-    if (!existing.includes(nodeId)) existing.push(nodeId)
+    if (!existing.includes(nodeId)) map.set(basename, [...existing, nodeId])
   } else {
     map.set(basename, [nodeId])
   }
 }
 
 /**
- * Mutable helper: remove a nodeId from a basename entry in-place. O(1) via Map.get/set/delete.
- * Operates on mutable Map copy — callers create the copy, this mutates it.
+ * Copy-on-write helper: remove a nodeId from a basename entry by replacing/deleting its array.
+ * O(1) Map ops. Never mutates an existing array in place (filter allocates a new one).
  */
 function removeFromIndex(
-  map: Map<string, NodeIdAndFilePath[]>,
+  map: Map<string, readonly NodeIdAndFilePath[]>,
   basename: string,
   nodeId: NodeIdAndFilePath
 ): void {
   if (basename === '') return
 
-  const existing: NodeIdAndFilePath[] | undefined = map.get(basename)
+  const existing: readonly NodeIdAndFilePath[] | undefined = map.get(basename)
   if (!existing) return
 
-  const filtered: NodeIdAndFilePath[] = existing.filter(id => id !== nodeId)
+  const filtered: readonly NodeIdAndFilePath[] = existing.filter(id => id !== nodeId)
   if (filtered.length === 0) {
     map.delete(basename)
   } else {
@@ -77,7 +78,7 @@ function removeFromIndex(
  * Mutable helper: remove an entire basename key in-place. O(1) via Map.delete.
  */
 function removeKey(
-  map: Map<string, NodeIdAndFilePath[]>,
+  map: Map<string, readonly NodeIdAndFilePath[]>,
   basename: string
 ): void {
   if (basename === '') return
@@ -85,24 +86,26 @@ function removeKey(
 }
 
 /**
- * Create a mutable deep copy of a ReadonlyMap index.
- * Each value array is shallow-copied so mutations don't affect the original.
+ * Shallow-copy a ReadonlyMap index into a mutable Map. Value arrays are shared, not cloned:
+ * every mutator (addToIndex/removeFromIndex/removeKey) replaces or deletes a whole entry rather
+ * than mutating its array in place, so the original index is never affected. This avoids cloning
+ * every value array on each delta (these updaters run on every node upsert/delete).
+ * `index ?? []` keeps the prior behaviour of treating a missing index as empty.
  */
-function mutableCopy(index: NodeByBaseNameIndex | UnresolvedLinksIndex | undefined): Map<string, NodeIdAndFilePath[]> {
-  if (!index) return new Map()
-  return new Map(Array.from(index.entries()).map(([k, v]) => [k, [...v]] as [string, NodeIdAndFilePath[]]))
+function mutableCopy(index: NodeByBaseNameIndex | UnresolvedLinksIndex | undefined): Map<string, readonly NodeIdAndFilePath[]> {
+  return new Map(index ?? [])
 }
 
 /**
  * Build nodeByBaseName index: maps lowercase basename to all node IDs with that basename.
  *
  * @example
- * "foo" → ["/vault/a/foo.md", "/vault/b/foo.md"]
+ * "foo" → ["/project/a/foo.md", "/project/b/foo.md"]
  */
 export function buildNodeByBaseNameIndex(
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeByBaseNameIndex {
-  const map: Map<string, NodeIdAndFilePath[]> = new Map()
+  const map: Map<string, readonly NodeIdAndFilePath[]> = new Map()
 
   Object.keys(nodes).forEach(nodeId => {
     addToIndex(map, getBaseName(nodeId), nodeId)
@@ -117,12 +120,12 @@ export function buildNodeByBaseNameIndex(
  * An edge is "unresolved" if its targetId doesn't exist in nodes.
  *
  * @example
- * "bar" → ["/vault/note1.md"] (note1 has [bar] but bar.md doesn't exist)
+ * "bar" → ["/project/note1.md"] (note1 has [bar] but bar.md doesn't exist)
  */
 export function buildUnresolvedLinksIndex(
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): UnresolvedLinksIndex {
-  const map: Map<string, NodeIdAndFilePath[]> = new Map()
+  const map: Map<string, readonly NodeIdAndFilePath[]> = new Map()
 
   Object.entries(nodes).forEach(([nodeId, node]) => {
     node.outgoingEdges
@@ -146,7 +149,7 @@ export function updateNodeByBaseNameIndexForUpsert(
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
   const newBasename: string = getBaseName(nodeId)
 
-  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
+  const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
 
   // If update, remove old entry if basename changed
   if (O.isSome(previousNode)) {
@@ -175,7 +178,7 @@ export function updateNodeByBaseNameIndexForDelete(
   if (!index) return new Map()
   if (basename === '') return index
 
-  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
+  const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
   removeFromIndex(map, basename, deletedNodeId)
 
   return map
@@ -198,7 +201,7 @@ export function updateUnresolvedLinksIndexForUpsert(
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
   const nodeBasename: string = getBaseName(nodeId)
 
-  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
+  const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
 
   // Step 1: If this is an update, remove old unresolved links from this node
   if (O.isSome(previousNode)) {
@@ -235,7 +238,7 @@ export function updateUnresolvedLinksIndexForDelete(
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
   const deletedBasename: string = getBaseName(deletedNodeId)
 
-  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
+  const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
 
   // Step 1: Remove deleted node from any unresolved link tracking
   deletedNode.outgoingEdges.forEach(edge => {

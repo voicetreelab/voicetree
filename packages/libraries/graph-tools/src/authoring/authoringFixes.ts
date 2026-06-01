@@ -148,8 +148,8 @@ export function mergeFrontmatter(
  * shape produced by `buildMarkdownBody`. Indented or alternative-list-marker
  * forms are intentionally NOT matched here because they cannot appear in
  * markdown the CLI assembles itself; the richer parser lives in
- * `@vt/graph-model/markdown`'s `extractParentRefs`, used by the MCP authoring
- * path that round-trips author-supplied content.
+ * `@vt/graph-model/markdown`'s `extractParentRefs`, used by the create_graph
+ * authoring path that round-trips author-supplied content.
  */
 export function extractExistingParentRefs(markdown: string): Set<string> {
     const refs: Set<string> = new Set()

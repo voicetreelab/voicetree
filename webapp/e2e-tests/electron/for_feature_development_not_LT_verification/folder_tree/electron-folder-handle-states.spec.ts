@@ -7,155 +7,29 @@
  * non-trivial assertion per state so the run goes red if the behavior
  * regresses.
  *
- * Implementation context: folder-handle-impl-shipped.md
- *   - TL chevron rendered as a cytoscape node background-image (no DOM overlay)
+ * Implementation context: FolderHandleService.ts
+ *   - TL chevron+eye strip is a DOM overlay chip (NOT a cytoscape background-
+ *     image — a compound folder's bbox would shrink the chip into a blurry
+ *     atlas blob). Same chip for expanded folders and collapsed pills.
  *   - Folder body is ungrabified when expanded; pill is grabbable when collapsed
  *   - setupCommandHover resolves /folder/ → /folder/index.md before opening editor
  *   - cy mouseover early-returns on isFolderNode → no grab cursor on folder body
+ *   - Folder collapse/expand is driven by the chevron chip (double-tap was removed)
  */
 
-import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import * as path from 'path';
-import * as fs from 'fs/promises';
-import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
     waitForGraphLoaded,
-} from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder-test-helpers';
-
-const PROJECT_ROOT = path.resolve(process.cwd());
-const SCREENSHOT_DIR = path.join(PROJECT_ROOT, 'e2e-tests/screenshots');
-
-interface BBoxScreen {
-    readonly x1: number;
-    readonly y1: number;
-    readonly x2: number;
-    readonly y2: number;
-    readonly w: number;
-    readonly h: number;
-    readonly hostX: number;
-    readonly hostY: number;
-}
-
-async function getFolderBBox(appWindow: Page, folderId: string): Promise<BBoxScreen> {
-    return appWindow.evaluate((id: string) => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        if (!cy) throw new Error('No cytoscapeInstance');
-        const folder = cy.getElementById(id);
-        if (folder.length === 0) throw new Error(`No folder ${id}`);
-        // Body-only bbox so chevron-region math (top-left = chip anchor) is not
-        // skewed by the folder label that sits above the compound body.
-        const bb = folder.renderedBoundingBox({includeLabels: false, includeOverlays: false});
-        const host = (cy.container() as HTMLElement).getBoundingClientRect();
-        return {
-            x1: bb.x1, y1: bb.y1, x2: bb.x2, y2: bb.y2, w: bb.w, h: bb.h,
-            hostX: host.left, hostY: host.top,
-        };
-    }, folderId);
-}
-
-async function closeAllFloatingEditors(appWindow: Page): Promise<void> {
-    // Click an empty corner; HoverEditor uses click-outside to close.
-    await appWindow.mouse.move(8, 8);
-    await appWindow.mouse.click(8, 8);
-    await appWindow.waitForTimeout(250);
-}
-
-const test = base.extend<{
-    electronApp: ElectronApplication;
-    appWindow: Page;
-    projectRoot: string;
-}>({
-    projectRoot: async ({}, use) => {
-        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-handle-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
-        // Folder note so HoverEditor can resolve /<vault>/auth/ → /<vault>/auth/index.md
-        await fs.writeFile(
-            path.join(projectRoot, 'auth', 'index.md'),
-            `---\nposition:\n  x: 50\n  y: 120\n---\n# Auth Folder Note\n\nThis is the folder note for the auth/ folder.\n`,
-        );
-        await use(projectRoot);
-        await fs.rm(tempDir, { recursive: true, force: true });
-    },
-
-    electronApp: async ({ projectRoot }, use) => {
-        const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-handle-ud-'));
-
-        await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: projectRoot,
-            vaultConfig: {
-                [projectRoot]: { writeFolder: projectRoot, readPaths: [] },
-            },
-        }, null, 2), 'utf8');
-
-        await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
-            id: 'folder-handle-test',
-            path: projectRoot,
-            name: 'folder-handle-test-vault',
-            type: 'folder',
-            lastOpened: Date.now(),
-            voicetreeInitialized: true,
-        }], null, 2), 'utf8');
-
-        const electronApp = await electron.launch({
-            args: [
-                path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-                `--user-data-dir=${tempUserData}`,
-            ],
-            env: {
-                ...process.env,
-                NODE_ENV: 'test',
-                HEADLESS_TEST: '1',
-                MINIMIZE_TEST: '1',
-                VOICETREE_PERSIST_STATE: '1',
-            },
-            timeout: 30000,
-        });
-
-        await use(electronApp);
-
-        try {
-            const window = await electronApp.firstWindow();
-            await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (api) await api.main.stopFileWatching();
-            });
-            await window.waitForTimeout(300);
-        } catch {
-            // Best-effort cleanup only.
-        }
-
-        await electronApp.close();
-        await fs.rm(tempUserData, { recursive: true, force: true });
-    },
-
-    appWindow: async ({ electronApp }, use) => {
-        const window = await electronApp.firstWindow({ timeout: 20000 });
-
-        window.on('console', msg => {
-            const text = msg.text();
-            if (text.includes('error') || text.includes('Error') || text.includes('folder') || text.includes('FolderHandle') || text.includes('collapseFolder')) {
-                console.log(`BROWSER [${msg.type()}]:`, text);
-            }
-        });
-        window.on('pageerror', error => {
-            console.error('PAGE ERROR:', error.message);
-        });
-
-        await window.waitForLoadState('domcontentloaded');
-        await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await window.locator('button:has-text("folder-handle-test-vault")').first().click();
-
-        await window.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-            { timeout: 30000 },
-        );
-        await window.waitForTimeout(3000);
-        await use(window);
-    },
-});
+    clickFolderChevron,
+} from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder/folder-test-helpers';
+import {
+    test,
+    getFolderBBox,
+    closeAllFloatingEditors,
+    SCREENSHOT_DIR,
+} from './electron-folder-handle-states.fixtures';
 
 test.describe('Folder handle UI states', () => {
     test('exercises 8 folder-handle states with screenshot per state', async ({ appWindow, projectRoot }) => {
@@ -238,64 +112,40 @@ test.describe('Folder handle UI states', () => {
         console.log('[STATE 2] cursor after folder mouseover:', cursorAfterFolderHover);
         expect(cursorAfterFolderHover).not.toBe('grab');
 
-        // ── State 3: Chevron is rendered at TL corner (native cy bg-image) ─
-        // No DOM selector any more — assert the cy style carries the chevron
-        // data-URI, then visually clip around the rendered TL corner.
-        const chevronStyle = await appWindow.evaluate((id: string) => {
-            const cy = (window as unknown as ExtendedWindow).cytoscapeInstance!;
-            const node = cy.getElementById(id);
-            const bbFull = node.renderedBoundingBox();
-            const bbBody = node.renderedBoundingBox({includeLabels: false, includeOverlays: false});
-            const pos = node.position();
+        // ── State 3: Chevron chip rendered at folder TL (DOM overlay) ─────
+        // The chevron+eye strip is a FolderHandleService DOM overlay, not a
+        // cytoscape background-image. Assert the chip + chevron exist for the
+        // auth folder and the chevron carries its SVG glyph, then clip-shot the
+        // chip's actual rendered rect for visual review.
+        const chevronChip = await appWindow.evaluate((id: string) => {
+            const chip = Array.from(document.querySelectorAll<HTMLElement>('.vt-folder-handle'))
+                .find((el: HTMLElement) => el.dataset.folderId === id);
+            if (!chip) return { chipExists: false, chevronExists: false, hasGlyph: false, rect: null };
+            const chevron = chip.querySelector<HTMLElement>('.vt-folder-handle__chevron');
+            const r = chevron?.getBoundingClientRect();
             return {
-                backgroundImage: String(node.style('background-image') ?? ''),
-                bgW: String(node.style('background-width') ?? ''),
-                bgH: String(node.style('background-height') ?? ''),
-                posX: pos.x,
-                posY: pos.y,
-                modelW: node.width(),
-                modelH: node.height(),
-                padding: node.padding(),
-                bbFull: {x1: bbFull.x1, y1: bbFull.y1, x2: bbFull.x2, y2: bbFull.y2},
-                bbBody: {x1: bbBody.x1, y1: bbBody.y1, x2: bbBody.x2, y2: bbBody.y2},
-                zoom: cy.zoom(),
-                pan: {x: cy.pan().x, y: cy.pan().y},
+                chipExists: true,
+                chevronExists: chevron !== null,
+                hasGlyph: (chevron?.querySelector('svg') ?? null) !== null,
+                rect: r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null,
             };
         }, authFolderId);
-        console.log('[STATE 3] chevron style:', {
-            hasImage: chevronStyle.backgroundImage.includes('data:image/svg+xml'),
-            bgW: chevronStyle.bgW,
-            bgH: chevronStyle.bgH,
-            posX: chevronStyle.posX,
-            posY: chevronStyle.posY,
-            modelW: chevronStyle.modelW,
-            modelH: chevronStyle.modelH,
-            padding: chevronStyle.padding,
-            bbFull: chevronStyle.bbFull,
-            bbBody: chevronStyle.bbBody,
-            zoom: chevronStyle.zoom,
-            pan: chevronStyle.pan,
-        });
-        expect(chevronStyle.backgroundImage).toContain('data:image/svg+xml');
-        expect(chevronStyle.backgroundImage).toContain('viewBox');
+        console.log('[STATE 3] chevron chip:', chevronChip);
+        expect(chevronChip.chipExists).toBe(true);
+        expect(chevronChip.chevronExists).toBe(true);
+        expect(chevronChip.hasGlyph).toBe(true);
+        expect(chevronChip.rect).not.toBeNull();
 
-        // Wide clip around the chevron region (TL corner of folder bbox) so the
-        // user can verify it visually.
-        const chevronAnchor = {
-            x: bbox.hostX + bbox.x1,
-            y: bbox.hostY + bbox.y1,
-        };
-        const chevronSizePx = 22;
+        const chevronRect = chevronChip.rect!;
         const clipPad = 60;
-        const clip = {
-            x: Math.max(0, chevronAnchor.x - clipPad),
-            y: Math.max(0, chevronAnchor.y - clipPad),
-            width: chevronSizePx + clipPad * 2,
-            height: chevronSizePx + clipPad * 2,
-        };
         await appWindow.screenshot({
             path: path.join(SCREENSHOT_DIR, 'folder-handle-3-chevron.png'),
-            clip,
+            clip: {
+                x: Math.max(0, chevronRect.x - clipPad),
+                y: Math.max(0, chevronRect.y - clipPad),
+                width: chevronRect.w + clipPad * 2,
+                height: chevronRect.h + clipPad * 2,
+            },
         });
 
         // ── State 4: Right-click in folder body → canvas vertical menu ───
@@ -361,28 +211,13 @@ test.describe('Folder handle UI states', () => {
 
         await closeAllFloatingEditors(appWindow);
 
-        // ── State 6: Real pointer click on chevron region → collapse ─────
-        // Race risk: setupCommandHover (HoverEditor.ts:239) starts an async
-        // openHoverEditor on `mouseover`. A real `mouse.click()` is fast
-        // enough (~10-30ms) that the cy tap fires before the editor finishes
-        // its IPC+DOM build, so the click hits the canvas, not the editor.
-        // If this assertion ever flakes, it surfaces a real production
-        // regression in chevron clickability, not test infrastructure.
+        // ── State 6: Click the chevron chip → collapse ───────────────────
+        // Clicks the FolderHandleService chevron DOM button directly (shared
+        // helper does a real screen-coordinate click + asserts the chevron is
+        // the top hit target), so it does not depend on the cy-tap-vs-hover-
+        // editor race that the old body-coordinate click had to dodge.
         await closeAllFloatingEditors(appWindow);
-        await appWindow.mouse.move(8, 8);
-        await appWindow.waitForTimeout(150);
-
-        // Re-fetch bbox in case the viewport shifted during States 4-5.
-        // Chevron paints at compound TL — body-only bbox.x1/y1 are compound
-        // TL coords when the compound has padding (cytoscape includes
-        // padding in the body bbox of compounds).
-        const bboxForChevron = await getFolderBBox(appWindow, authFolderId);
-        const chevronCenter = {
-            x: bboxForChevron.hostX + bboxForChevron.x1 + 11,
-            y: bboxForChevron.hostY + bboxForChevron.y1 + 11,
-        };
-        console.log('[STATE 6] real-click chevron at:', chevronCenter);
-        await appWindow.mouse.click(chevronCenter.x, chevronCenter.y);
+        await clickFolderChevron(appWindow, '/auth/');
 
         await expect.poll(
             async () =>
@@ -446,11 +281,8 @@ test.describe('Folder handle UI states', () => {
         await closeAllFloatingEditors(appWindow);
 
         // ── State 8: Drag inside expanded body → pans, folder stays put ──
-        // Re-expand via dbltap.
-        await appWindow.evaluate((id: string) => {
-            const cy = (window as unknown as ExtendedWindow).cytoscapeInstance!;
-            cy.getElementById(id).emit('dbltap');
-        }, authFolderId);
+        // Re-expand via the chevron chip.
+        await clickFolderChevron(appWindow, '/auth/');
         await expect.poll(
             async () =>
                 appWindow.evaluate((id: string) => {
@@ -529,5 +361,3 @@ test.describe('Folder handle UI states', () => {
         expect.soft(Math.abs(panDx) + Math.abs(panDy)).toBeGreaterThan(5);
     });
 });
-
-export { test };

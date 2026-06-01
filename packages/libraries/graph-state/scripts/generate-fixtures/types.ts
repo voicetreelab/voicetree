@@ -20,7 +20,7 @@ export interface SyntheticRootSpec {
 export interface SyntheticStateSpec {
     readonly roots: readonly SyntheticRootSpec[]
     readonly loadedRoots?: readonly string[]
-    readonly writeFolder?: string | null
+    readonly writeFolderPath?: string | null
     readonly collapseSet?: readonly string[]
     readonly selection?: readonly string[]
     readonly layout?: {

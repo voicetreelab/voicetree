@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# vt-sync — fast-forward THIS machine's read-only base to origin now, then nudge
+# the other machine's base too. The on-demand counterpart to the 2-3 min timer.
+#
+# Usage:
+#   vt-sync                # ff this base + nudge the other machine
+#   vt-sync --local-only   # ff only this machine's base
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+  _t="$(readlink "$_self")"
+  case "$_t" in /*) _self="$_t" ;; *) _self="$(cd "$(dirname "$_self")" && pwd)/$_t" ;; esac
+done
+_DIR="$(cd "$(dirname "$_self")" && pwd)"
+# shellcheck source=_common.sh
+. "$_DIR/_common.sh"
+
+# This is the interactive, on-demand path — surface what the base-sync tick did
+# (the 2-3 min timer leaves this unset and stays silent). See vt-sync-base.sh.
+export VT_SYNC_VERBOSE=1
+
+case "${1:-}" in
+  --local-only) nudge_local ;;
+  -h|--help)    sed -n '2,/^set -euo/p' "$_self" | sed 's/^# \{0,1\}//;/^set -euo/d' ;;
+  "")           nudge_both ;;
+  *)            echo "vt-sync: unknown argument: $1 (try --local-only)" >&2; exit 64 ;;
+esac

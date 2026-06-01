@@ -17,7 +17,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url'
 const SCRIPT_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(SCRIPT_DIR, '..', '..', '..')
 const DEFAULT_CHECKS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports', 'checks')
-const DEFAULT_TIER_ROOT: string = join(REPO_ROOT, 'packages', 'measures', 'src', 'checks')
+const DEFAULT_TIMING_BUDGETS_DIR: string = join(REPO_ROOT, 'packages', 'measures', 'budgets', 'timing')
 // Lives under reports/gates/ so the health-report writer (which scans
 // reports/*.json by kebab-case name) doesn't try to parse it as a metric.
 const DEFAULT_RESULT_FILE: string = join(REPO_ROOT, 'health-dashboard', 'reports', 'gates', 'tier-budget.json')
@@ -60,7 +60,7 @@ export type EvaluationResult = {
 
 export type RunTierBudgetGateOptions = {
     readonly reportsDir?: string
-    readonly tierRoot?: string
+    readonly timingBudgetsDir?: string
     readonly resultFile?: string
     readonly baseRef?: string
     readonly needsJson?: string
@@ -75,10 +75,10 @@ export async function runTierBudgetGate(opts: RunTierBudgetGateOptions = {}): Pr
     readonly report: string
 }> {
     const reportsDir = opts.reportsDir ?? DEFAULT_CHECKS_DIR
-    const tierRoot = opts.tierRoot ?? DEFAULT_TIER_ROOT
+    const timingBudgetsDir = opts.timingBudgetsDir ?? DEFAULT_TIMING_BUDGETS_DIR
     const resultFile = opts.resultFile ?? DEFAULT_RESULT_FILE
     const reports = await loadReportsFromDir(reportsDir)
-    const budgets = await loadBudgetsFromDir(tierRoot)
+    const budgets = await loadBudgetsFromDir(timingBudgetsDir)
     const timings = aggregateTierTimings(reports)
     const budgetResult = evaluateBudgets(timings, budgets)
     const result: EvaluationResult = {
@@ -394,27 +394,26 @@ async function loadReportsFromDir(dir: string): Promise<ReportLike[]> {
     )
 }
 
-async function loadBudgetsFromDir(tierRoot: string): Promise<Map<number, TierBudget>> {
+async function loadBudgetsFromDir(timingBudgetsDir: string): Promise<Map<number, TierBudget>> {
     const budgets = new Map<number, TierBudget>()
-    let entries: readonly {isDirectory(): boolean; name: string}[]
+    let entries: readonly {isFile(): boolean; name: string}[]
     try {
-        entries = await readdir(tierRoot, {withFileTypes: true})
+        entries = await readdir(timingBudgetsDir, {withFileTypes: true})
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return budgets
         throw err
     }
     for (const e of entries) {
-        if (!e.isDirectory()) continue
-        const m = /^tier_(\d+)$/.exec(e.name)
+        if (!e.isFile()) continue
+        const m = /^tier_(\d+)\.json$/.exec(e.name)
         if (!m) continue
         const tier = Number(m[1])
-        const budgetPath = join(tierRoot, e.name, '_budget.ts')
         try {
-            const mod = await import(pathToFileURL(budgetPath).href)
-            if (mod.budget) budgets.set(tier, mod.budget as TierBudget)
+            const raw = await readFile(join(timingBudgetsDir, e.name), 'utf8')
+            budgets.set(tier, JSON.parse(raw) as TierBudget)
         } catch (err) {
             const code = (err as NodeJS.ErrnoException).code
-            if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'ENOENT') throw err
+            if (code !== 'ENOENT') throw err
         }
     }
     return budgets
@@ -438,7 +437,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const opts: {-readonly [K in keyof RunTierBudgetGateOptions]: RunTierBudgetGateOptions[K]} = {}
     for (const arg of process.argv.slice(2)) {
         if (arg.startsWith('--reports-dir=')) opts.reportsDir = resolve(arg.slice('--reports-dir='.length))
-        else if (arg.startsWith('--tier-root=')) opts.tierRoot = resolve(arg.slice('--tier-root='.length))
+        else if (arg.startsWith('--timing-budgets-dir=')) opts.timingBudgetsDir = resolve(arg.slice('--timing-budgets-dir='.length))
         else if (arg.startsWith('--result-file=')) opts.resultFile = resolve(arg.slice('--result-file='.length))
         else if (arg.startsWith('--base-ref=')) opts.baseRef = arg.slice('--base-ref='.length)
         else if (arg.startsWith('--needs-json=')) opts.needsJson = arg.slice('--needs-json='.length)

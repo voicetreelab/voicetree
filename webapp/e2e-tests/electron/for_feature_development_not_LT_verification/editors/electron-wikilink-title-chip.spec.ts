@@ -2,7 +2,7 @@
  * Test: Wikilink Title Chip Display
  *
  * Verifies the wikilink title chip feature works correctly:
- * 1. Creates a vault with a parent node containing a wikilink [[child-node]]
+ * 1. Creates a project with a parent node containing a wikilink [[child-node]]
  * 2. Creates a child node that the wikilink resolves to
  * 3. Opens the parent editor and takes a screenshot showing the title chip
  * 4. Types text to verify no flickering/cursor issues
@@ -33,19 +33,19 @@ interface CodeMirrorElement extends HTMLElement {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
   screenshotsDir: string;
 }>({
-  // Create temp userData directory with embedded vault + config
+  // Create temp userData directory with embedded project + config
   electronApp: async ({}, use, testInfo) => {
     // Create temp userData directory
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-wikilink-chip-'));
 
     // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Create the actual vault path with default suffix 'voicetree'
+    // Create the actual project path with default suffix 'voicetree'
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });
 
@@ -62,10 +62,9 @@ const test = base.extend<{
     const savedProject = {
       id: 'wikilink-chip-test-project',
       path: watchedFolder,
-      name: 'test-vault',
+      name: 'test-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
@@ -73,7 +72,7 @@ const test = base.extend<{
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     // Store projectRoot for test access
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
@@ -117,7 +116,7 @@ const test = base.extend<{
     console.log('[Test] Cleaned up temp directory');
   },
 
-  testVaultPath: async ({}, use, testInfo) => {
+  testProjectPath: async ({}, use, testInfo) => {
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
@@ -149,7 +148,7 @@ const test = base.extend<{
     console.log('[Test] Recent Projects section visible');
 
     // Click the saved project to navigate to graph view
-    const projectButton = window.locator('button:has-text("test-vault")').first();
+    const projectButton = window.locator('button:has-text("test-project")').first();
     await projectButton.click();
     console.log('[Test] Clicked project to navigate to graph view');
 

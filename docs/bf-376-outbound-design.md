@@ -21,7 +21,7 @@ Wire dialect: JSON-RPC 2.0 over POST `/rpc` on the daemon's existing HTTP pipeli
 
 ## 0. Bundling assumption — Phase 2 ships with Phase 3
 
-**Phase 2 ships bundled with Phase 3.** Phase 2 retires the in-process `@vt/agent-runtime` from webapp; as part of that retirement the `onFSNodeWithAgentName` callback in `webapp/src/shell/edge/main/graph/graph-model-init.ts` is deleted with no in-webapp replacement (M1, commit `44282b93f`). Today that callback is the only path that feeds agent-name FS edges (those that arrive *outside* the MCP `create_graph` flow) into the completion gate.
+**Phase 2 ships bundled with Phase 3.** Phase 2 retires the in-process `@vt/agent-runtime` from webapp; as part of that retirement the `onFSNodeWithAgentName` callback in `webapp/src/shell/edge/main/graph/graph-model-init.ts` is deleted with no in-webapp replacement (M1, commit `44282b93f`). Today that callback is the only path that feeds agent-name FS edges (those that arrive *outside* the `create_graph` flow) into the completion gate.
 
 Phase 3 lands the FS watcher in VTD, which republishes those edges through the daemon-side hook pipeline (`dispatchOnNewNodeHooks` consumer side). That closes the gap.
 
@@ -47,7 +47,7 @@ Request / response shapes live in `packages/libraries/vt-daemon-protocol/src/rpc
 
 | Route | Request | Response | Why kept as RPC |
 |---|---|---|---|
-| `sendTextToTerminal` | `{terminalId, text}` | `TerminalOperationResult` | Renderer / hook / MCP-side input → tmux send-keys ceremony. |
+| `sendTextToTerminal` | `{terminalId, text}` | `TerminalOperationResult` | Renderer / hook / tool-side input → tmux send-keys ceremony. |
 | `injectNodesIntoTerminal` | `{terminalId, nodeIds}` | `{success, injectedCount}` | Renderer "share these unseen nodes with the agent" gesture. |
 
 ### Read state (3)
@@ -122,12 +122,12 @@ Each was on `terminalRuntimeSurface` today; each is replaced by something alread
 
 ```
 packages/systems/vt-daemon/bin/vtd.ts:333
-  agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
+  agentRuntime.installJsonlTelemetrySink(join(voicetreeHomePath, 'lifecycle-telemetry.jsonl'))
 ```
 
 ```
 webapp/src/shell/edge/main/runtime/electron/app/main.ts:269
-  terminalRuntimeSurface.installJsonlTelemetrySink(path.join(appSupportPath, 'lifecycle-telemetry.jsonl'))
+  terminalRuntimeSurface.installJsonlTelemetrySink(path.join(voicetreeHomePath, 'lifecycle-telemetry.jsonl'))
 ```
 
 **Verdict:** delete Main's call at `main.ts:269`. No replacement. The daemon already owns the JSONL sink; Main's call is leftover from when Main hosted the runtime in-process. When Phase 3 retires Main's `agent-runtime` dependency, that block disappears with no observability loss.
@@ -172,7 +172,7 @@ The three signatures differ on more than just argument-set size:
 
 ## 6. The `terminal-registry` SSE topic
 
-New topic on Leaf B's hub. `transport/eventSubscriptionHub.ts` ships `ALLOWED_TOPICS = ['vault-state', 'agent-events']` today; Stage 2-S adds `'terminal-registry'`. No change to the `agent-events` envelope.
+New topic on Leaf B's hub. `transport/eventSubscriptionHub.ts` ships `ALLOWED_TOPICS = ['project-state', 'agent-events']` today; Stage 2-S adds `'terminal-registry'`. No change to the `agent-events` envelope.
 
 | Event | Payload (TS, from `vt-daemon-protocol/src/terminal-registry-events.ts`) | Source publishing point inside agent-runtime |
 |---|---|---|
@@ -182,7 +182,7 @@ New topic on Leaf B's hub. `transport/eventSubscriptionHub.ts` ships `ALLOWED_TO
 | `terminal-ui-launch` | `{nodeId, terminalData, skipFitAnimation}` | replaces `getRuntimeUI().launchTerminalOntoUI` in `spawnPlainTerminal`, `launchTerminalSpawn`, `spawnHookTerminal` |
 | `terminal-ui-child-registered` | `{parentTerminalId, childTerminalId}` | replaces `getRuntimeUI().registerChildIfMonitored` in `launchTerminalSpawn` |
 
-Receivers exhaustively switch on `type` (see `TerminalRegistryEvent` union). Vault-switch fence applies identically — envelopes whose `vault` does not match `getActiveVault()` are dropped at the Main-side bridge before reaching the renderer.
+Receivers exhaustively switch on `type` (see `TerminalRegistryEvent` union). Project-switch fence applies identically — envelopes whose `project` does not match `getActiveProject()` are dropped at the Main-side bridge before reaching the renderer.
 
 ---
 

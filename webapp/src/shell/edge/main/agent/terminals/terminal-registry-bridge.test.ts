@@ -13,8 +13,8 @@
  */
 
 import {createServer, type Server} from 'node:http'
-import {AddressInfo} from 'node:net'
-import {Option} from 'fp-ts/lib/Option.js'
+import type {AddressInfo} from 'node:net'
+import type {Option} from 'fp-ts/lib/Option.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
@@ -41,12 +41,12 @@ import {
     type TerminalRegistryEnvelope,
 } from '@/shell/edge/main/runtime/electron/daemon/sync/terminal-registry-sse-subscription'
 
-const ACTIVE_VAULT: string = '/the/active/vault'
+const ACTIVE_PROJECT: string = '/the/active/project'
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-url-binding', () => ({
     getDaemonUrl: vi.fn(async (): Promise<string> => fakeHubUrl()),
     getAuthToken: vi.fn(async (): Promise<string> => 'test-token'),
-    getActiveVault: vi.fn((): string | null => ACTIVE_VAULT),
+    getActiveProject: vi.fn((): string | null => ACTIVE_PROJECT),
 }))
 
 // ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
         const record: TerminalRecord = makeRecord('T1')
         const event: TerminalRegistryEvent = {type: 'terminal-registered', record}
         const outcome: TerminalRegistryEnvelopeOutcome = applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 1, event, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, event, project: ACTIVE_PROJECT,
         })
         expect(outcome.kind).toBe('cache-mutated')
         expect(getCachedTerminalRecords()).toHaveLength(1)
@@ -116,11 +116,11 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
     it('terminal-record-changed patches isPinned on an existing row', (): void => {
         const record: TerminalRecord = makeRecord('T1')
         applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 1, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
             event: {type: 'terminal-registered', record},
         })
         const outcome: TerminalRegistryEnvelopeOutcome = applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 2, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
             event: {
                 type: 'terminal-record-changed',
                 terminalId: 'T1' as TerminalId,
@@ -132,13 +132,34 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
         expect(cached?.terminalData.isPinned).toBe(true)
     })
 
+    it('terminal-record-changed lifecycle patch updates the daemon-authoritative lifecycle', (): void => {
+        // Regression: a freshly-registered row carries lifecycle 'spawning'.
+        // Without applying lifecycle patches the sidebar icon stays frozen on
+        // the grey 'spawning' dot for every terminal regardless of true state.
+        applyTerminalRegistryEnvelope({
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
+            event: {type: 'terminal-registered', record: makeRecord('T1')},
+        })
+        expect(getCachedTerminalRecord('T1' as TerminalId)?.terminalData.lifecycle).toBe('spawning')
+
+        applyTerminalRegistryEnvelope({
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
+            event: {
+                type: 'terminal-record-changed',
+                terminalId: 'T1' as TerminalId,
+                patch: {kind: 'lifecycle', value: 'awaiting_input'},
+            },
+        })
+        expect(getCachedTerminalRecord('T1' as TerminalId)?.terminalData.lifecycle).toBe('awaiting_input')
+    })
+
     it('terminal-record-changed activity patch merges lastOutputTime + activityCount', (): void => {
         applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 1, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
             event: {type: 'terminal-registered', record: makeRecord('T1')},
         })
         applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 2, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
             event: {
                 type: 'terminal-record-changed',
                 terminalId: 'T1' as TerminalId,
@@ -152,11 +173,11 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
 
     it('terminal-removed deletes the row', (): void => {
         applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 1, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
             event: {type: 'terminal-registered', record: makeRecord('T1')},
         })
         const outcome: TerminalRegistryEnvelopeOutcome = applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 2, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
             event: {type: 'terminal-removed', terminalId: 'T1' as TerminalId},
         })
         expect(outcome.kind).toBe('cache-mutated')
@@ -165,7 +186,7 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
 
     it('terminal-record-changed against an unknown id is dropped without crash', (): void => {
         const outcome: TerminalRegistryEnvelopeOutcome = applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 1, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
             event: {
                 type: 'terminal-record-changed',
                 terminalId: 'unknown' as TerminalId,
@@ -178,7 +199,7 @@ describe('applyTerminalRegistryEnvelope — pure cache application', (): void =>
 
     it('terminal-ui-launch is forwarded as ui-instruction without touching the cache', (): void => {
         const outcome: TerminalRegistryEnvelopeOutcome = applyTerminalRegistryEnvelope({
-            kind: 'terminal-registry', seq: 1, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
             event: {
                 type: 'terminal-ui-launch',
                 nodeId: '/a/b.md' as NodeIdAndFilePath,
@@ -217,7 +238,7 @@ async function startFakeHubEmitting(blocks: readonly string[]): Promise<void> {
         // Leave the response open — the subscriber's silence timeout
         // would close it eventually. For tests we close after a short
         // delay so the subscriber doesn't keep the test alive.
-        setTimeout((): void => res.end(), 50)
+        setTimeout((): void => { res.end() }, 50)
     })
     await new Promise<void>((resolve) => hub!.listen(0, '127.0.0.1', resolve))
     const port: number = (hub.address() as AddressInfo).port
@@ -249,11 +270,11 @@ describe('subscribeToTerminalRegistrySse → bridge — wire behaviour', (): voi
     it('mirrors a register → patch → remove sequence into the local cache', async (): Promise<void> => {
         const record: TerminalRecord = makeRecord('T1')
         const register: TerminalRegistryEnvelope = {
-            kind: 'terminal-registry', seq: 1, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 1, project: ACTIVE_PROJECT,
             event: {type: 'terminal-registered', record},
         }
         const patch: TerminalRegistryEnvelope = {
-            kind: 'terminal-registry', seq: 2, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
             event: {
                 type: 'terminal-record-changed',
                 terminalId: 'T1' as TerminalId,
@@ -261,7 +282,7 @@ describe('subscribeToTerminalRegistrySse → bridge — wire behaviour', (): voi
             },
         }
         const remove: TerminalRegistryEnvelope = {
-            kind: 'terminal-registry', seq: 3, vault: ACTIVE_VAULT,
+            kind: 'terminal-registry', seq: 3, project: ACTIVE_PROJECT,
             event: {type: 'terminal-removed', terminalId: 'T1' as TerminalId},
         }
 
@@ -281,16 +302,16 @@ describe('subscribeToTerminalRegistrySse → bridge — wire behaviour', (): voi
         expect(getCachedTerminalRecords()).toHaveLength(0)
     }, 5_000)
 
-    it('drops envelopes whose vault does not match getActiveVault()', async (): Promise<void> => {
+    it('drops envelopes whose project does not match getActiveProject()', async (): Promise<void> => {
         const recordOurs: TerminalRecord = makeRecord('OURS')
         const recordTheirs: TerminalRecord = makeRecord('THEIRS')
         await startFakeHubEmitting([
             encodeBlock({
-                kind: 'terminal-registry', seq: 1, vault: '/some/other/vault',
+                kind: 'terminal-registry', seq: 1, project: '/some/other/project',
                 event: {type: 'terminal-registered', record: recordTheirs},
             }),
             encodeBlock({
-                kind: 'terminal-registry', seq: 2, vault: ACTIVE_VAULT,
+                kind: 'terminal-registry', seq: 2, project: ACTIVE_PROJECT,
                 event: {type: 'terminal-registered', record: recordOurs},
             }),
         ])

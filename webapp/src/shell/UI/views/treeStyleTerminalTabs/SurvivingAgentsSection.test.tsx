@@ -13,7 +13,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
     return {
         type: 'Terminal',
         terminalId: 'Ari' as TerminalData['terminalId'],
-        attachedToContextNodeId: '/vault/ctx.md' as TerminalData['attachedToContextNodeId'],
+        attachedToContextNodeId: '/project/ctx.md' as TerminalData['attachedToContextNodeId'],
         terminalCount: 0,
         anchoredToNodeId: O.none,
         title: 'Ari',
@@ -32,7 +32,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
         contextContent: '',
         agentTypeName: '',
         initialCommand: 'claude',
-        initialEnvVars: {VOICETREE_VAULT_PATH: '/vault/current'},
+        initialEnvVars: {VOICETREE_PROJECT_PATH: '/project/current'},
         ...overrides,
     };
 }
@@ -42,14 +42,14 @@ function makeAttachable(overrides: Partial<UnclaimedTmuxSession> & Partial<Recov
         sessionName: 'vt-aaaaaaaaaa-Ari',
         terminalId: 'Ari',
         hash: 'aaaaaaaaaa',
-        classification: 'this-vault',
+        classification: 'this-project',
         attachable: true,
         createdAt: Date.now() - 12_000,
         panePid: 84231,
         agentName: 'Ari',
-        projectRoot: '/vault/current',
-        contextNodePath: '/vault/current/ctx.md',
-        taskNodePath: '/vault/current/task.md',
+        projectRoot: '/project/current',
+        contextNodePath: '/project/current/ctx.md',
+        taskNodePath: '/project/current/task.md',
         ...overrides,
     };
     return {
@@ -70,7 +70,7 @@ function makeResumable(overrides: Partial<RecoverableAgentSession> = {}): Recove
     return {
         terminalId: 'Bob' as TerminalData['terminalId'],
         agentName: 'Bob',
-        metadataPath: '/vault/current/.voicetree/terminals/Bob.json',
+        metadataPath: '/project/current/.voicetree/terminals/Bob.json',
         terminalData: makeTerminalData({
             terminalId: 'Bob' as TerminalData['terminalId'],
             agentName: 'Bob',
@@ -118,13 +118,13 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
         vi.useRealTimers();
     });
 
-    it('renders same-vault attach rows with an Attach action', () => {
+    it('renders same-project attach rows with an Attach action', () => {
         const {container, onAttach} = renderSection([makeAttachable()]);
 
         expect(screen.getByText('Surviving agents (1)')).toBeTruthy();
         const row: Element | null = container.querySelector('[data-terminal-id="Ari"][data-has-attach="true"]');
         expect(row).not.toBeNull();
-        expect(within(row as HTMLElement).getByText('This vault')).toBeTruthy();
+        expect(within(row as HTMLElement).getByText('This project')).toBeTruthy();
 
         fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /attach/i}));
 
@@ -143,21 +143,47 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
         expect(within(row as HTMLElement).getByText('30s ago | pid 84231')).toBeTruthy();
     });
 
-    it('renders foreign-vault attach rows as kill-only', () => {
+    it('renders duplicate terminal names from different tmux namespaces without React key collisions', () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        const {container} = renderSection([
+            makeAttachable({
+                sessionName: 'vt-aaaaaaaaaa-Aki',
+                terminalId: 'Aki',
+                hash: 'aaaaaaaaaa',
+                agentName: 'Aki',
+            }),
+            makeAttachable({
+                sessionName: 'vt-bbbbbbbbbb-Aki',
+                terminalId: 'Aki',
+                hash: 'bbbbbbbbbb',
+                agentName: 'Aki',
+            }),
+        ]);
+
+        expect(container.querySelectorAll('[data-terminal-id="Aki"]')).toHaveLength(2);
+        expect(consoleError).not.toHaveBeenCalledWith(
+            expect.stringContaining('Encountered two children with the same key'),
+            expect.anything(),
+        );
+        consoleError.mockRestore();
+    });
+
+    it('renders foreign-project attach rows as kill-only', () => {
         const foreign: RecoverableAgentSession = makeAttachable({
             sessionName: 'vt-bbbbbbbbbb-Beth',
             terminalId: 'Beth',
             hash: 'bbbbbbbbbb',
-            classification: 'foreign-vault',
+            classification: 'foreign-project',
             attachable: false,
             agentName: 'Beth',
-            projectRoot: '/vault/other',
+            projectRoot: '/project/other',
         });
         const {container, onKill} = renderSection([foreign]);
 
         const row: Element | null = container.querySelector('[data-terminal-id="Beth"]');
         expect(row).not.toBeNull();
-        expect(within(row as HTMLElement).getByText('Foreign vault')).toBeTruthy();
+        expect(within(row as HTMLElement).getByText('Foreign project')).toBeTruthy();
         expect(within(row as HTMLElement).queryByRole('button', {name: /attach/i})).toBeNull();
 
         fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /kill beth/i}));
@@ -251,7 +277,7 @@ function makeRecentlyExited(overrides: Partial<RecoverableAgentSession> = {}): R
     return {
         terminalId: 'Cal' as TerminalData['terminalId'],
         agentName: 'Cal',
-        metadataPath: '/vault/current/.voicetree/terminals/Cal.json',
+        metadataPath: '/project/current/.voicetree/terminals/Cal.json',
         terminalData: makeTerminalData({
             terminalId: 'Cal' as TerminalData['terminalId'],
             agentName: 'Cal',

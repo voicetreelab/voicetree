@@ -21,24 +21,24 @@ function getFilename(absolutePath: string): string {
 }
 
 describe('Progressive Edge Validation - Bulk Load', () => {
-  let testVaultPath: string = ''
+  let testProjectPath: string = ''
 
   beforeAll(async () => {
-    testVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-bulk-test-'))
+    testProjectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-bulk-test-'))
   })
 
   afterAll(async () => {
-    await fs.rm(testVaultPath, { recursive: true, force: true })
+    await fs.rm(testProjectPath, { recursive: true, force: true })
   })
 
   describe('Edge Resolution Order Independence', () => {
     it('should produce identical graphs when loading files in forward order (target exists before source)', async () => {
-      const forwardVaultPath: string = path.join(testVaultPath, 'forward-order')
-      await fs.mkdir(forwardVaultPath, { recursive: true })
-      await fs.writeFile(path.join(forwardVaultPath, 'target.md'), '# Target Node')
-      await fs.writeFile(path.join(forwardVaultPath, 'source.md'), '# Source Node\n\n- links to [[target]]')
+      const forwardProjectPath: string = path.join(testProjectPath, 'forward-order')
+      await fs.mkdir(forwardProjectPath, { recursive: true })
+      await fs.writeFile(path.join(forwardProjectPath, 'target.md'), '# Target Node')
+      await fs.writeFile(path.join(forwardProjectPath, 'source.md'), '# Source Node\n\n- links to [[target]]')
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([forwardVaultPath])
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([forwardProjectPath])
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
@@ -50,16 +50,16 @@ describe('Progressive Edge Validation - Bulk Load', () => {
       expect(getFilename(sourceNode!.outgoingEdges[0].targetId)).toBe('target.md')
       expect(sourceNode!.outgoingEdges[0].label).toBe('links to')
 
-      await fs.rm(forwardVaultPath, { recursive: true })
+      await fs.rm(forwardProjectPath, { recursive: true })
     })
 
     it('should produce identical graphs when loading files in reverse order (source exists before target)', async () => {
-      const reverseVaultPath: string = path.join(testVaultPath, 'reverse-order')
-      await fs.mkdir(reverseVaultPath, { recursive: true })
-      await fs.writeFile(path.join(reverseVaultPath, 'source.md'), '# Source Node\n\n- links to [[target]]')
-      await fs.writeFile(path.join(reverseVaultPath, 'target.md'), '# Target Node')
+      const reverseProjectPath: string = path.join(testProjectPath, 'reverse-order')
+      await fs.mkdir(reverseProjectPath, { recursive: true })
+      await fs.writeFile(path.join(reverseProjectPath, 'source.md'), '# Source Node\n\n- links to [[target]]')
+      await fs.writeFile(path.join(reverseProjectPath, 'target.md'), '# Target Node')
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([reverseVaultPath])
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([reverseProjectPath])
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
@@ -71,16 +71,16 @@ describe('Progressive Edge Validation - Bulk Load', () => {
       expect(getFilename(sourceNode!.outgoingEdges[0].targetId)).toBe('target.md')
       expect(sourceNode!.outgoingEdges[0].label).toBe('links to')
 
-      await fs.rm(reverseVaultPath, { recursive: true })
+      await fs.rm(reverseProjectPath, { recursive: true })
     })
 
     it('should resolve subfolder links regardless of order (felix/2 -> [[1]] -> felix/1)', async () => {
-      const subfolderVaultPath: string = path.join(testVaultPath, 'subfolder-test')
-      await fs.mkdir(path.join(subfolderVaultPath, 'felix'), { recursive: true })
-      await fs.writeFile(path.join(subfolderVaultPath, 'felix', '2.md'), '# Node 2\n\n- related [[1]]')
-      await fs.writeFile(path.join(subfolderVaultPath, 'felix', '1.md'), '# Node 1')
+      const subfolderProjectPath: string = path.join(testProjectPath, 'subfolder-test')
+      await fs.mkdir(path.join(subfolderProjectPath, 'felix'), { recursive: true })
+      await fs.writeFile(path.join(subfolderProjectPath, 'felix', '2.md'), '# Node 2\n\n- related [[1]]')
+      await fs.writeFile(path.join(subfolderProjectPath, 'felix', '1.md'), '# Node 1')
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([subfolderVaultPath])
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([subfolderProjectPath])
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
@@ -92,17 +92,17 @@ describe('Progressive Edge Validation - Bulk Load', () => {
       expect(felix2!.outgoingEdges[0].targetId).toContain('felix/1.md')
       expect(felix2!.outgoingEdges[0].label).toBe('related')
 
-      await fs.rm(subfolderVaultPath, { recursive: true })
+      await fs.rm(subfolderProjectPath, { recursive: true })
     })
 
     it('should handle chain of dependencies regardless of order', async () => {
-      const chainVaultPath: string = path.join(testVaultPath, 'chain-test')
-      await fs.mkdir(chainVaultPath, { recursive: true })
-      await fs.writeFile(path.join(chainVaultPath, 'c.md'), '# C')
-      await fs.writeFile(path.join(chainVaultPath, 'b.md'), '# B\n\n- extends [[c]]')
-      await fs.writeFile(path.join(chainVaultPath, 'a.md'), '# A\n\n- extends [[b]]')
+      const chainProjectPath: string = path.join(testProjectPath, 'chain-test')
+      await fs.mkdir(chainProjectPath, { recursive: true })
+      await fs.writeFile(path.join(chainProjectPath, 'c.md'), '# C')
+      await fs.writeFile(path.join(chainProjectPath, 'b.md'), '# B\n\n- extends [[c]]')
+      await fs.writeFile(path.join(chainProjectPath, 'a.md'), '# A\n\n- extends [[b]]')
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([chainVaultPath])
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([chainProjectPath])
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
@@ -113,13 +113,13 @@ describe('Progressive Edge Validation - Bulk Load', () => {
       expect(getFilename(nodeB!.outgoingEdges[0].targetId)).toBe('c.md')
       expect(nodeC!.outgoingEdges).toHaveLength(0)
 
-      await fs.rm(chainVaultPath, { recursive: true })
+      await fs.rm(chainProjectPath, { recursive: true })
     })
   })
 
   describe('Edge Cases: Non-existent Nodes', () => {
     it('bulk load should preserve raw link text when target never exists', async () => {
-      const projectRoot: string = path.join(testVaultPath, 'non-existent-bulk')
+      const projectRoot: string = path.join(testProjectPath, 'non-existent-bulk')
       await fs.mkdir(projectRoot, { recursive: true })
       await fs.writeFile(path.join(projectRoot, 'source.md'), '# Source\n\n- broken link [[does-not-exist]]')
 
@@ -136,7 +136,7 @@ describe('Progressive Edge Validation - Bulk Load', () => {
     })
 
     it('should handle multiple unresolved links', async () => {
-      const projectRoot: string = path.join(testVaultPath, 'multiple-unresolved')
+      const projectRoot: string = path.join(testProjectPath, 'multiple-unresolved')
       await fs.mkdir(projectRoot, { recursive: true })
       await fs.writeFile(path.join(projectRoot, 'source.md'), '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]')
 

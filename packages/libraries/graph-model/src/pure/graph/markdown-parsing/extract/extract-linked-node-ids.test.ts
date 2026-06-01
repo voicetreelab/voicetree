@@ -172,7 +172,7 @@ Line 3 with [[3]]`
 
   describe('path matching edge cases', () => {
     it('should match absolute paths to node IDs, preferring longer matches', () => {
-      const content: "See [[/Users/example/repos/vaults/vscode_spike/_179.md]]" = 'See [[/Users/example/repos/vaults/vscode_spike/_179.md]]'
+      const content: "See [[/Users/example/repos/projects/vscode_spike/_179.md]]" = 'See [[/Users/example/repos/projects/vscode_spike/_179.md]]'
       const nodes: { readonly _179: GraphNode; readonly 'vscode_spike/_179': GraphNode; } = {
         '_179': createNode('_179'),
         'vscode_spike/_179': createNode('vscode_spike/_179')
@@ -185,7 +185,7 @@ Line 3 with [[3]]`
     })
 
     it('should match absolute paths with partial path overlap', () => {
-      const content: "Link to [[/Users/example/repos/vaults/vscode_spike/_179.md]]" = 'Link to [[/Users/example/repos/vaults/vscode_spike/_179.md]]'
+      const content: "Link to [[/Users/example/repos/projects/vscode_spike/_179.md]]" = 'Link to [[/Users/example/repos/projects/vscode_spike/_179.md]]'
       const nodes: { readonly 'vscode_spike/_179': GraphNode; } = {
         'vscode_spike/_179': createNode('vscode_spike/_179')
       }
@@ -211,21 +211,21 @@ Line 3 with [[3]]`
     })
 
     it('should match paths with different levels of specificity, preferring longest match', () => {
-      const content: "Link to [[/full/path/to/vault/folder/file.md]]" = 'Link to [[/full/path/to/vault/folder/file.md]]'
-      const nodes: { readonly file: GraphNode; readonly 'folder/file': GraphNode; readonly 'vault/folder/file': GraphNode; } = {
+      const content: "Link to [[/full/path/to/project/folder/file.md]]" = 'Link to [[/full/path/to/project/folder/file.md]]'
+      const nodes: { readonly file: GraphNode; readonly 'folder/file': GraphNode; readonly 'project/folder/file': GraphNode; } = {
         'file': createNode('file'),
         'folder/file': createNode('folder/file'),
-        'vault/folder/file': createNode('vault/folder/file')
+        'project/folder/file': createNode('project/folder/file')
       }
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
-      // Prefers 'vault/folder/file' over 'folder/file' over 'file'
-      expect(result).toEqual([{ targetId: 'vault/folder/file', label: 'Link to' }])
+      // Prefers 'project/folder/file' over 'folder/file' over 'file'
+      expect(result).toEqual([{ targetId: 'project/folder/file', label: 'Link to' }])
     })
 
     it('should handle absolute paths without extensions, preferring longer match', () => {
-      const content: "See [[/Users/example/repos/vaults/project/_179]]" = 'See [[/Users/example/repos/vaults/project/_179]]'
+      const content: "See [[/Users/example/repos/projects/project/_179]]" = 'See [[/Users/example/repos/projects/project/_179]]'
       const nodes: { readonly _179: GraphNode; readonly 'project/_179': GraphNode; } = {
         '_179': createNode('_179'),
         'project/_179': createNode('project/_179')
@@ -238,15 +238,15 @@ Line 3 with [[3]]`
     })
 
     it('should match relative paths that resolve to same file', () => {
-      const content: "Multiple refs: [[../../vault/note.md]] [[../vault/note.md]] [[vault/note.md]]" = 'Multiple refs: [[../../vault/note.md]] [[../vault/note.md]] [[vault/note.md]]'
-      const nodes: { readonly 'vault/note': GraphNode; } = {
-        'vault/note': createNode('vault/note')
+      const content: "Multiple refs: [[../../project/note.md]] [[../project/note.md]] [[project/note.md]]" = 'Multiple refs: [[../../project/note.md]] [[../project/note.md]] [[project/note.md]]'
+      const nodes: { readonly 'project/note': GraphNode; } = {
+        'project/note': createNode('project/note')
       }
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
       // All three relative paths should resolve to the same node - first occurrence wins
-      expect(result).toEqual([{ targetId: 'vault/note', label: 'Multiple refs:' }])
+      expect(result).toEqual([{ targetId: 'project/note', label: 'Multiple refs:' }])
     })
 
     it('should handle paths with special characters', () => {
@@ -276,8 +276,8 @@ Line 3 with [[3]]`
     })
 
     it('should handle mixed absolute and relative paths in same content', () => {
-      const content: "\n        Absolute: [[/Users/user/vault/folder/_179.md]]\n        Relative parent: [[../folder/_179.md]]\n        Relative current: [[./folder/_179.md]]\n        Just filename: [[_179.md]]\n      " = `
-        Absolute: [[/Users/user/vault/folder/_179.md]]
+      const content: "\n        Absolute: [[/Users/user/project/folder/_179.md]]\n        Relative parent: [[../folder/_179.md]]\n        Relative current: [[./folder/_179.md]]\n        Just filename: [[_179.md]]\n      " = `
+        Absolute: [[/Users/user/project/folder/_179.md]]
         Relative parent: [[../folder/_179.md]]
         Relative current: [[./folder/_179.md]]
         Just filename: [[_179.md]]
@@ -355,21 +355,21 @@ Parent:
 
   describe('parent-declaration edge label syntax', () => {
     it('splits [[name|label]] on a parent line into target + label', () => {
-      const content: string = '- parent [[mcp-plan|implements]]'
-      const nodes: Record<string, GraphNode> = { 'mcp-plan': createNode('mcp-plan') }
+      const content: string = '- parent [[rename-plan|implements]]'
+      const nodes: Record<string, GraphNode> = { 'rename-plan': createNode('rename-plan') }
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
-      expect(result).toEqual([{ targetId: 'mcp-plan', label: 'implements' }])
+      expect(result).toEqual([{ targetId: 'rename-plan', label: 'implements' }])
     })
 
     it('uses literal "parent" label when parent line has no pipe', () => {
-      const content: string = '- parent [[mcp-plan]]'
-      const nodes: Record<string, GraphNode> = { 'mcp-plan': createNode('mcp-plan') }
+      const content: string = '- parent [[rename-plan]]'
+      const nodes: Record<string, GraphNode> = { 'rename-plan': createNode('rename-plan') }
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
-      expect(result).toEqual([{ targetId: 'mcp-plan', label: 'parent' }])
+      expect(result).toEqual([{ targetId: 'rename-plan', label: 'parent' }])
     })
 
     it('preserves multi-word labels with spaces after the pipe', () => {

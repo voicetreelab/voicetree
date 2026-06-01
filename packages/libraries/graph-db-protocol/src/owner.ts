@@ -1,12 +1,12 @@
 /**
- * Vault-scoped daemon ownership contract.
+ * Project-scoped daemon ownership contract.
  *
- * The on-disk owner record at `<vault>/.voicetree/${daemonKind}.owner.json`
+ * The on-disk owner record at `<project>/.voicetree/${daemonKind}.owner.json`
  * is the cross-process arbiter for "which `${daemonKind}` process owns this
- * vault". Two daemon kinds participate today — `graphd` (vt-graphd) and
+ * project". Two daemon kinds participate today — `graphd` (vt-graphd) and
  * `vtd` (the VTD standalone controller, BF-370+). Each kind owns its own
  * record at a sibling path so the two daemons can coexist for the same
- * vault without interfering.
+ * project without interfering.
  *
  * Both the graph-db-server daemon (BF-343) and the graph-db-client launcher
  * (BF-344) read and write the same shape, so the *format* is the shared
@@ -46,7 +46,7 @@ export type CallerKind =
   | 'test'
   // The standalone vt-daemon (VTD) binary self-identifies as 'vtd' when it
   // claims its own owner record AND when it acts as a client to vt-graphd
-  // via ensureGraphDaemonForVault('vtd'). Distinct from 'cli' (which is the
+  // via ensureGraphDaemonForProject('vtd'). Distinct from 'cli' (which is the
   // voicetree-cli binary acting as a client to either daemon) so post-mortem
   // analysis of an owner record can attribute the caller correctly.
   | 'vtd'
@@ -64,7 +64,7 @@ const CALLER_KINDS: readonly CallerKind[] = [
 /**
  * Which long-running daemon this record describes. The discriminant
  * parameterises every on-disk filename and the lifecycle policy, so a
- * single vault can host (at most) one graphd owner and one vtd owner
+ * single project can host (at most) one graphd owner and one vtd owner
  * simultaneously without their state ever colliding.
  */
 export type DaemonKind = 'graphd' | 'vtd'
@@ -79,7 +79,7 @@ export type CommandFingerprint = {
 export type OwnerRecord = {
   readonly schemaVersion: OwnerRecordSchemaVersion
   readonly daemonKind: DaemonKind
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly pid: number
   readonly ppid: number
   /**
@@ -91,7 +91,7 @@ export type OwnerRecord = {
   /**
    * Random per-claim nonce. Discovery accepts a daemon only when its
    * `/health` identity reports the same nonce; this defends against pid
-   * reuse and concurrent claims racing for the same vault.
+   * reuse and concurrent claims racing for the same project.
    */
   readonly ownerNonce: string
   readonly startedAtMs: number
@@ -108,7 +108,7 @@ export type OwnerRecord = {
  * tests, future protocol additions).
  */
 export type OwnerHealthIdentity = {
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly ownerNonce: string
   readonly pid: number
   readonly port: number
@@ -173,7 +173,7 @@ function isOwnerRecord(value: unknown): value is OwnerRecord {
   if (!isObject(value)) return false
   if (value.schemaVersion !== OWNER_RECORD_SCHEMA_VERSION) return false
   if (!isDaemonKind(value.daemonKind)) return false
-  if (typeof value.canonicalVault !== 'string') return false
+  if (typeof value.canonicalProject !== 'string') return false
   if (!isPositiveInteger(value.pid)) return false
   if (!isNonNegativeInteger(value.ppid)) return false
   if (value.port !== null && !isPort(value.port)) return false
@@ -186,8 +186,8 @@ function isOwnerRecord(value: unknown): value is OwnerRecord {
   return true
 }
 
-function pathFor(vaultDir: string, daemonKind: DaemonKind): string {
-  return join(getProjectDotVoicetreePath(vaultDir), ownerRecordFilenameFor(daemonKind))
+function pathFor(projectDir: string, daemonKind: DaemonKind): string {
+  return join(getProjectDotVoicetreePath(projectDir), ownerRecordFilenameFor(daemonKind))
 }
 
 function decode(raw: string): OwnerRecord | null {
@@ -206,7 +206,7 @@ function encode(record: OwnerRecord): string {
 
 export type CreateOwnerRecordInput = {
   readonly daemonKind: DaemonKind
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly pid: number
   readonly ppid: number
   readonly callerKind: CallerKind
@@ -225,7 +225,7 @@ function create(input: CreateOwnerRecordInput): OwnerRecord {
   return {
     schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
     daemonKind: input.daemonKind,
-    canonicalVault: input.canonicalVault,
+    canonicalProject: input.canonicalProject,
     pid: input.pid,
     ppid: input.ppid,
     port: null,

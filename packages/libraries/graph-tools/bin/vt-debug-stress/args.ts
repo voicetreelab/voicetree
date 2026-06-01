@@ -18,7 +18,7 @@ import type { RunnerOptions } from './types'
 function usage(message?: string): Response<never> {
   return err(
     'stress',
-    message ?? 'usage: vt-debug-stress [--out <dir>] [--result-out <file>] [--baseline <file>] [--flow-baseline <file>] [--sequences <n>] [--sequence-length <n>] [--seed <n>] [--write-baseline] [--skip-flows] [--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]',
+    message ?? 'usage: vt-debug-stress [--out <dir>] [--result-out <file>] [--baseline <file>] [--flow-baseline <file>] [--sequences <n>] [--sequence-length <n>] [--seed <n>] [--write-baseline] [--skip-flows] [--port <n> | --cdpPort <n> | --pid <n> | --project <path>]',
   )
 }
 
@@ -49,7 +49,7 @@ export function parseArgs(argv: string[]): RunnerOptions | Response<never> {
   let skipFlows = false
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
 
   try {
     for (let index = 0; index < argv.length; index += 1) {
@@ -144,13 +144,13 @@ export function parseArgs(argv: string[]): RunnerOptions | Response<never> {
         pid = parseNumber('--pid', arg.slice('--pid='.length))
         continue
       }
-      if (arg === '--vault') {
-        vault = readFlagValue('--vault', argv[index + 1])
+      if (arg === '--project') {
+        project = readFlagValue('--project', argv[index + 1])
         index += 1
         continue
       }
-      if (arg.startsWith('--vault=')) {
-        vault = readFlagValue('--vault', arg.slice('--vault='.length))
+      if (arg.startsWith('--project=')) {
+        project = readFlagValue('--project', arg.slice('--project='.length))
         continue
       }
 
@@ -179,6 +179,6 @@ export function parseArgs(argv: string[]): RunnerOptions | Response<never> {
     skipFlows,
     port,
     pid,
-    vault,
+    project,
   }
 }

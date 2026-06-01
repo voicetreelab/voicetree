@@ -76,14 +76,14 @@ async function main() {
   const stopPerfProbe = await perfProbeFromEnv('vt-graphd')
   const args = parseArgs(process.argv.slice(2))
 
-  // A competing owner for the same vault now causes startDaemon to throw
+  // A competing owner for the same project now causes startDaemon to throw
   // DaemonOwnerConflictError loudly (BF-343 spec: fail loudly, never
   // silently overwrite). The catch below reports it as a non-zero exit so
   // any orchestrator can react.
   let handle
   try {
     handle = await startDaemon({
-      vault: args.projectRoot,
+      project: args.projectRoot,
       logLevel: args.logLevel,
       idleTimeoutMs: args.idleTimeoutMs,
       onShutdownComplete: async () => {

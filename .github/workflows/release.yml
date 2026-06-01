@@ -8,7 +8,7 @@ on:
     branches: [main]
     paths:
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'knip.config.ts'
       - 'webapp/package.json'
       - '.github/workflows/release.yml'
@@ -26,6 +26,10 @@ on:
         description: 'Build Linux x64'
         type: boolean
         default: true
+      publish:
+        description: 'Publish to the GitHub release + Homebrew (off = dry-run: build only, no release)'
+        type: boolean
+        default: false
 
 jobs:
   # Release is deploy-only. Verification happens pre-merge in
@@ -94,12 +98,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -156,11 +165,10 @@ jobs:
           cp backend/settings.py out/resources/backend/
           cp backend/logging_config.py out/resources/backend/
 
-      - name: Install frontend dependencies
-        working-directory: webapp
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Update file timestamps for codesign
         run: |
@@ -184,7 +192,11 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --mac --${{ matrix.arch }} --publish=always
+          # Notarization talks to Apple's live notary service and needs an in-effect
+          # Developer Program agreement; it is irrelevant to build correctness. Skip it on
+          # dry-runs (publish=false) so they validate build+sign+package without the Apple
+          # round-trip; a real push/publish notarizes per the mac.notarize config.
+          npx electron-builder --mac --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')" ${{ (github.event_name == 'push' || inputs.publish) && '' || '-c.mac.notarize=false' }}
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -199,6 +211,10 @@ jobs:
           name: manifest-mac-${{ matrix.arch }}
           path: ${{ github.workspace }}/out/electron/latest-mac.yml
           retention-days: 1
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "macOS release build failed"
 
   merge-mac-manifests:
     needs: [check-version, build-mac]
@@ -240,6 +256,7 @@ jobs:
           cat latest-mac.yml
 
       - name: Upload merged manifest to release
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
@@ -250,17 +267,28 @@ jobs:
   build-windows:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_windows) }}
+    # Windows is unmaintained / unsigned for 3.0.0 — keep it non-blocking so a Windows
+    # build failure can never block the mac + linux release (mirrors the linux-arm64
+    # soft_fail). `publish-release` needs this job, and continue-on-error lets a failed
+    # Windows build still satisfy that dependency. Flip back to blocking once Windows is
+    # maintained again.
+    continue-on-error: true
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -296,15 +324,14 @@ jobs:
           Copy-Item -Force "backend\settings.py" "out\resources\backend\"
           Copy-Item -Force "backend\logging_config.py" "out\resources\backend\"
 
-      - name: Install frontend dependencies
-        working-directory: webapp
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Rebuild native modules
         working-directory: webapp
-        run: npx electron-rebuild
+        run: pnpm exec electron-rebuild
 
       - name: Build & Publish Electron
         working-directory: webapp
@@ -323,8 +350,13 @@ jobs:
             Write-Error "Build failed: dist\index.html not found"
             exit 1
           }
-          npx electron-builder --win --publish=always
+          npx electron-builder --win --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Summarize failure
+        if: failure()
+        shell: bash
+        run: scripts/ci/write-failure-summary.sh "Windows release build failed"
 
   build-linux:
     needs: [check-version]
@@ -344,12 +376,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -381,11 +418,10 @@ jobs:
           cp backend/settings.py out/resources/backend/
           cp backend/logging_config.py out/resources/backend/
 
-      - name: Install frontend dependencies
-        working-directory: webapp
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build & Publish Electron
         working-directory: webapp
@@ -397,14 +433,14 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --linux --${{ matrix.arch }} --publish=always
+          npx electron-builder --linux --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
 
       # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)
       # pointing at the x64 build so existing consumers (the docker.yml
       # workflow on main, hand-downloaders, anyone with a bookmarked URL)
       # don't 404. Remove once all consumers are on the arch-suffixed names.
       - name: Publish legacy AppImage alias (x64 only)
-        if: matrix.arch == 'x64'
+        if: ${{ matrix.arch == 'x64' && (github.event_name == 'push' || inputs.publish) }}
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
@@ -413,9 +449,13 @@ jobs:
           gh release upload "v${VERSION}" out/electron/voicetree.AppImage \
             --clobber --repo voicetreelab/voicetree
 
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Linux release build failed"
+
   publish-release:
     needs: [check-version, build-mac, build-windows, build-linux, merge-mac-manifests]
-    if: ${{ needs.check-version.outputs.should_build == 'true' }}
+    if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.publish) }}
     runs-on: ubuntu-latest
     steps:
       - name: Publish release
@@ -428,7 +468,7 @@ jobs:
 
   update-homebrew:
     needs: [check-version, publish-release]
-    if: success()
+    if: ${{ success() && (github.event_name == 'push' || inputs.publish) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

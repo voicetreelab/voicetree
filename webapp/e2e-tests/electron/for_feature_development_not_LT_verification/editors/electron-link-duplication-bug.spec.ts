@@ -57,26 +57,26 @@ interface CodeMirrorElement extends HTMLElement {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
-  // Create temp userData directory with embedded vault + config
-  // The config auto-loads the vault during app initialization
-  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix
+  // Create temp userData directory with embedded project + config
+  // The config auto-loads the project during app initialization
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default projectSuffix
   electronApp: [async ({}, use, testInfo) => {
     // Create temp userData directory
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-link-bug-test-'));
 
     // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Create the actual vault path with default suffix 'voicetree'
+    // Create the actual project path with default suffix 'voicetree'
     // The app looks for .md files in {watchedFolder}/voicetree/
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });
 
     // Create test files that will be used by the tests
-    // File names without vault prefix for filesystem operations
+    // File names without project prefix for filesystem operations
     // (Node IDs in the graph will have 'voicetree/' prefix)
     const testNodeFilename = 'test-node-with-link.md';
     const linkedNodeFilename = 'linked-node.md';
@@ -104,11 +104,11 @@ End of content.`;
     await fs.writeFile(path.join(projectRoot, testNodeFilename2), initialContent2, 'utf-8');
     await fs.writeFile(path.join(projectRoot, linkedNodeFilename2), '---\n---\n# Target Node\n\nTarget.', 'utf-8');
 
-    // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
+    // Write config to auto-load the watched folder (project = watchedFolder + 'voicetree')
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     // Store projectRoot for test access via testInfo (the actual path where .md files live)
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
@@ -149,18 +149,18 @@ End of content.`;
     // Wait for Electron process to fully terminate before next test
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Cleanup entire temp directory (includes vault)
+    // Cleanup entire temp directory (includes project)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
     console.log('[Test] Cleaned up temp directory');
   }, { timeout: 45000 }],
 
-  // Get vault path from testInfo (set by electronApp fixture)
-  testVaultPath: async ({}, use, testInfo) => {
+  // Get project path from testInfo (set by electronApp fixture)
+  testProjectPath: async ({}, use, testInfo) => {
     // Wait for electronApp fixture to set projectRoot
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
-  appWindow: [async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
+  appWindow: [async ({ electronApp, testProjectPath: _testProjectPath }, use) => {
     const page = await electronApp.firstWindow();
 
     // Log console messages
@@ -203,17 +203,17 @@ End of content.`;
 });
 
 test.describe('Link Duplication Bug', () => {
-  test('should NOT duplicate links when editing markdown in floating editor', async ({ appWindow, testVaultPath }) => {
+  test('should NOT duplicate links when editing markdown in floating editor', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(60000); // Increase timeout to 60s for this test (has 5s wait)
     console.log('=== Testing link duplication bug ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
     // Files are already created in electronApp fixture
-    // Node IDs include vaultSuffix prefix (e.g., 'voicetree/filename.md')
+    // Node IDs include projectSuffix prefix (e.g., 'voicetree/filename.md')
     const testNodeId = 'voicetree/test-node-with-link.md';
-    const testFilePath = path.join(testVaultPath, 'test-node-with-link.md');
+    const testFilePath = path.join(testProjectPath, 'test-node-with-link.md');
 
-    // Vault is auto-loaded via config - wait for graph to have nodes
+    // Project is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -287,7 +287,7 @@ test.describe('Link Duplication Bug', () => {
 
     // 5. Read current file content to count initial link occurrences
     const contentBeforeEdit = await fs.readFile(testFilePath, 'utf-8');
-    // Wikilinks use filename only, not the full node ID with vault prefix
+    // Wikilinks use filename only, not the full node ID with project prefix
     const linkPattern = new RegExp(`\\[\\[linked-node\\.md\\]\\]`, 'g');
     const initialLinkCount = (contentBeforeEdit.match(linkPattern) ?? []).length;
     console.log(`✓ Initial link count in file: ${initialLinkCount}`);
@@ -345,18 +345,18 @@ test.describe('Link Duplication Bug', () => {
     console.log('✓ Link duplication test completed');
   });
 
-  test('should remove link from markdown file and graph when deleted in editor', async ({ appWindow, testVaultPath }) => {
+  test('should remove link from markdown file and graph when deleted in editor', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(60000); // Increase timeout to 60s for this test (has 5s wait)
     console.log('=== Testing link removal behavior ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
     // Files are already created in electronApp fixture
-    // Node IDs include vaultSuffix prefix (e.g., 'voicetree/filename.md')
+    // Node IDs include projectSuffix prefix (e.g., 'voicetree/filename.md')
     const testNodeId = 'voicetree/test-node-remove-link.md';
     const linkedNodeId = 'voicetree/target-node.md';
-    const testFilePath = path.join(testVaultPath, 'test-node-remove-link.md');
+    const testFilePath = path.join(testProjectPath, 'test-node-remove-link.md');
 
-    // Vault is auto-loaded via config - wait for graph to have nodes
+    // Project is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -476,7 +476,7 @@ test.describe('Link Duplication Bug', () => {
 
     // 8. Read file content and verify link is GONE (not restored)
     const contentAfterEdit = await fs.readFile(testFilePath, 'utf-8');
-    // Wikilinks use filename only, not the full node ID with vault prefix
+    // Wikilinks use filename only, not the full node ID with project prefix
     const linkPattern = new RegExp(`\\[\\[target-node\\.md\\]\\]`, 'g');
     const finalLinkCount = (contentAfterEdit.match(linkPattern) ?? []).length;
 

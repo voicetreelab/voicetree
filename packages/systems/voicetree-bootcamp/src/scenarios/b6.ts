@@ -31,7 +31,7 @@ const TASK_PROMPT = `Work through the following six sub-steps in order, using th
    current selection to archive/deprecated-router.md, and set zoom level to
    2. Then show the view state and confirm the values.
 
-3. Switch the "review" session view back to the vault root and collapse the
+3. Switch the "review" session view back to the project root and collapse the
    archive/ folder. Show view state again — the default session must remain
    unaffected.
 
@@ -50,7 +50,7 @@ const TASK_PROMPT = `Work through the following six sub-steps in order, using th
    (e.g. "rejected" / "selected"). Include a mermaid diagram on the
    recommendation node.
 
-6. (Over-length content) The file _fixtures/long-analysis.txt in this vault
+6. (Over-length content) The file _fixtures/long-analysis.txt in this project
    contains 120 lines of genuine architectural analysis. Record this content
    in the graph. You have two valid options: (a) split it into a tree of
    nodes mirroring its conceptual structure (problem framing, option A,
@@ -72,7 +72,7 @@ const SEED_NOTES = [
     },
     {
         name: 'db-schema.md',
-        body: '# DB schema\n\nNodes table is keyed by (vaultId, nodeId); edges by (vaultId, sourceId, targetId, label).\nView state per-session lives in a separate sessions table with a per-session JSON blob.\n',
+        body: '# DB schema\n\nNodes table is keyed by (projectId, nodeId); edges by (projectId, sourceId, targetId, label).\nView state per-session lives in a separate sessions table with a per-session JSON blob.\n',
     },
     {
         name: 'api-contract.md',
@@ -88,7 +88,7 @@ const SEED_NOTES = [
     },
     {
         name: 'README.md',
-        body: '# Project README\n\nThis vault tracks design and engineering notes for VoiceTree.\nSee feature-spec, db-schema, api-contract for the live design baseline; archive/ holds superseded material.\n',
+        body: '# Project README\n\nThis project tracks design and engineering notes for VoiceTree.\nSee feature-spec, db-schema, api-contract for the live design baseline; archive/ holds superseded material.\n',
     },
 ] as const
 
@@ -114,22 +114,22 @@ const TRIVIAL_RATIONALES = ['i want to', 'too long', 'override', 'just because']
 export const b6: ScenarioSpec = {
     id: 'B6',
     name: 'multi-session view + three graph-create shapes',
-    async setup(vaultDir) {
+    async setup(projectDir) {
         for (const {name, body} of SEED_NOTES) {
-            await writeFile(path.join(vaultDir, name), body)
+            await writeFile(path.join(projectDir, name), body)
         }
         await writeFile(
-            path.join(vaultDir, 'archive', '2024-q4-retrospective.md'),
+            path.join(projectDir, 'archive', '2024-q4-retrospective.md'),
             '# Q4 2024 retrospective\n\nShipped the new edge label DSL; missed the live-cursors target.\nKey learnings: per-session view state was the right call, despite the schema cost.\n',
         )
         await writeFile(
-            path.join(vaultDir, 'archive', 'deprecated-router.md'),
+            path.join(projectDir, 'archive', 'deprecated-router.md'),
             '# Deprecated router\n\nThe v1 router routed by URL hash; replaced by file-path-based routing in webapp/src/router.ts.\nKept around as documentation of the migration; safe to delete after the next major.\n',
         )
-        await writeFile(path.join(vaultDir, '_fixtures', 'long-analysis.txt'), LONG_ANALYSIS_FIXTURE)
-        await writeFile(path.join(vaultDir, 'auth.ts'), AUTH_TS_BODY)
+        await writeFile(path.join(projectDir, '_fixtures', 'long-analysis.txt'), LONG_ANALYSIS_FIXTURE)
+        await writeFile(path.join(projectDir, 'auth.ts'), AUTH_TS_BODY)
         await writeFile(
-            path.join(getProjectDotVoicetreePath(vaultDir), 'session.json'),
+            path.join(getProjectDotVoicetreePath(projectDir), 'session.json'),
             JSON.stringify({
                 sessions: {
                     default: {
@@ -154,12 +154,12 @@ export const b6: ScenarioSpec = {
         {verb: 'view show'},
         {verb: 'graph create', minCount: 3},
     ],
-    async successCriteria(vaultDir): Promise<SuccessResult> {
-        const sessionCheck = await checkSessions(vaultDir)
+    async successCriteria(projectDir): Promise<SuccessResult> {
+        const sessionCheck = await checkSessions(projectDir)
         if (!sessionCheck.passed) return sessionCheck
 
-        const allMd = await listMarkdownFiles(vaultDir)
-        const createdMd = allMd.filter((p) => !isFixtureMarkdown(vaultDir, p))
+        const allMd = await listMarkdownFiles(projectDir)
+        const createdMd = allMd.filter((p) => !isFixtureMarkdown(projectDir, p))
         const nodes = await Promise.all(
             createdMd.map(async (p) => ({
                 path: p,
@@ -174,7 +174,7 @@ export const b6: ScenarioSpec = {
         if (!diamondCheck.passed) return diamondCheck
 
         const subStepSixNodes = identifySubStepSixNodes(nodes)
-        const overLengthCheck = await checkOverLength(vaultDir, subStepSixNodes)
+        const overLengthCheck = await checkOverLength(projectDir, subStepSixNodes)
         if (!overLengthCheck.passed) return overLengthCheck
 
         return {passed: true, detail: 'all A/B/C/D criteria satisfied'}
@@ -187,8 +187,8 @@ export const b6: ScenarioSpec = {
     },
 }
 
-async function checkSessions(vaultDir: string): Promise<SuccessResult> {
-    const sessionFile = path.join(getProjectDotVoicetreePath(vaultDir), 'session.json')
+async function checkSessions(projectDir: string): Promise<SuccessResult> {
+    const sessionFile = path.join(getProjectDotVoicetreePath(projectDir), 'session.json')
     if (!(await fileExists(sessionFile))) {
         return {passed: false, detail: 'A: .voicetree/session.json missing after run'}
     }
@@ -251,8 +251,8 @@ function defaultMutated(def: unknown): boolean {
     return viewRoot !== '/' || selection !== null || zoom !== 1 || collapsed.length !== 0
 }
 
-function isFixtureMarkdown(vaultDir: string, file: string): boolean {
-    const rel = path.relative(vaultDir, file)
+function isFixtureMarkdown(projectDir: string, file: string): boolean {
+    const rel = path.relative(projectDir, file)
     const seedNames = new Set<string>(SEED_NOTES.map((n) => n.name))
     if (seedNames.has(rel)) return true
     if (rel.startsWith('archive/')) return true
@@ -344,14 +344,14 @@ function identifySubStepSixNodes(
 }
 
 async function checkOverLength(
-    vaultDir: string,
+    projectDir: string,
     subStepSixNodes: readonly {path: string; raw: string}[],
 ): Promise<SuccessResult> {
     if (subStepSixNodes.length === 0) {
         return {passed: false, detail: 'D: no sub-step-6 nodes identified — fixture content not embedded'}
     }
 
-    const fixture = await fs.readFile(path.join(vaultDir, '_fixtures', 'long-analysis.txt'), 'utf8')
+    const fixture = await fs.readFile(path.join(projectDir, '_fixtures', 'long-analysis.txt'), 'utf8')
     const fixtureLines = fixture.split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
 
     const normalisedBodies = subStepSixNodes.map(({raw}) => normaliseBody(raw))
@@ -486,8 +486,8 @@ function buildLongAnalysisFixture(): string {
             title: 'Problem framing',
             lines: [
                 'The live-canvas renderer currently re-evaluates layout on every node delta.',
-                'For vaults under 500 nodes this is invisible — paint time stays under 4ms per frame.',
-                'For vaults at 5k nodes, paint blows past 22ms, dropping us to ~45fps on M1 hardware.',
+                'For projects under 500 nodes this is invisible — paint time stays under 4ms per frame.',
+                'For projects at 5k nodes, paint blows past 22ms, dropping us to ~45fps on M1 hardware.',
                 'On Intel iGPUs the cliff arrives at 1.5k nodes; the iGPU readback fence adds 6ms by itself.',
                 'Two recent customer reports describe input-lag spikes correlated with paint storms.',
                 'We do not currently emit a paint-frame histogram per session; the data is per-process aggregate only.',
@@ -521,22 +521,22 @@ function buildLongAnalysisFixture(): string {
                 'Cons: shifts the latency budget — the worst-case event lag becomes the new SLO.',
                 'Risk: event reordering subtleties. Mitigation: monotonic sequence numbers + idempotent consumers.',
                 'Risk: telemetry blast — every event traced inflates observability cost by ~12%. Sampling required.',
-                'Risk: backpressure interacts badly with the per-vault daemon; needs a coordination protocol.',
+                'Risk: backpressure interacts badly with the per-project daemon; needs a coordination protocol.',
                 'Open questions: whether the daemon emits events at the same granularity the renderer needs.',
-                'Open questions: how event-driven interacts with the offline / unsynced vault state.',
-                'Open questions: whether the bounded-queue threshold is per-session or per-vault.',
+                'Open questions: how event-driven interacts with the offline / unsynced project state.',
+                'Open questions: whether the bounded-queue threshold is per-session or per-project.',
                 'Migration: ship behind a feature flag; dual-write old + new for 2 releases; switchover at flip.',
                 'Migration: existing custom renderers (3 customer-owned) need adapter shims for 1 release.',
                 'Migration: per-node selectors need to be expressible in the new event-typed schema.',
                 'Effort: 4 engineer-weeks at a single-team focus; 8 if shared with the daemon protocol expansion.',
                 'Net: addresses the worst case directly, at the cost of meaningful renderer churn.',
                 'Telemetry: every event acquires a span id at emission; sampled at 1% in production, 100% under debug build.',
-                'Telemetry: queue depth + drop count are first-class metrics, exported per session and per vault.',
+                'Telemetry: queue depth + drop count are first-class metrics, exported per session and per project.',
                 'Operational concern: how operators inspect the live queue without freezing the renderer.',
                 'Operational concern: replay buffer for dropped events to support post-hoc analysis of pathological storms.',
                 'Operational concern: kill switch must surface in `vt daemon` subcommands, not behind a debug flag.',
                 'Failure mode: event consumers crash and stop draining the queue; needs a watchdog with restart policy.',
-                'Failure mode: consumer drift across vault windows; renderer state diverges from daemon truth.',
+                'Failure mode: consumer drift across project windows; renderer state diverges from daemon truth.',
                 'Failure mode: replay of a corrupted event causes consumer crash loop; needs poison-pill quarantine.',
                 'Architectural cost: introduces a new system primitive (event bus) the team has to maintain forever.',
                 'Architectural benefit: enables future features (live cursors, edge animations) that need event ordering.',
@@ -566,12 +566,12 @@ function buildLongAnalysisFixture(): string {
                 'Open questions: whether to share the cache across sessions or keep it strictly per-session.',
                 'Open questions: how the cache interacts with the multi-session view-state divergence from B6 sub-step 3.',
                 'Open questions: how big the cache can grow before it loses to direct layout on warm CPU caches.',
-                'Migration: ship the cache disabled; turn on per-vault with a kill switch; bake for one release cycle.',
+                'Migration: ship the cache disabled; turn on per-project with a kill switch; bake for one release cycle.',
                 'Migration: needs a corruption escape valve — `vt cache invalidate` subcommand.',
                 'Migration: telemetry overhead is low (cache hit/miss counter is one int per request).',
                 'Effort: 2 engineer-weeks; cache implementation is straightforward but the metrics work is meaningful.',
                 'Net: cheaper than Option A but does not address the worst-case cliff that motivated this analysis.',
-                'Telemetry: cache hit ratio + median lookup time exported per session; aggregate into vault-level rollup.',
+                'Telemetry: cache hit ratio + median lookup time exported per session; aggregate into project-level rollup.',
                 'Telemetry: per-key staleness window measured against the actual graph version drift.',
                 'Telemetry: eviction-due-to-memory vs eviction-due-to-TTL kept as separate counters for tuning.',
                 'Operational concern: how operators warm the cache on session start without paying a pause cost.',

@@ -13,8 +13,10 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
+    toggleFolderViaChevron,
+    clickFolderChevron,
 } from './folder-test-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -28,7 +30,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bf113-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -38,9 +40,9 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: []
                 }
             }
@@ -49,10 +51,9 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'bf113-test',
             path: projectRoot,
-            name: 'bf113-test-vault',
+            name: 'bf113-test-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -132,20 +133,6 @@ const test = base.extend<{
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-async function emitDblTapOnFolder(page: Page, folderSuffix: string): Promise<string> {
-    return page.evaluate((suffix: string) => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        if (!cy) throw new Error('No cytoscapeInstance');
-        const folder = cy.nodes()
-            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
-            .first();
-        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
-        const id = folder.id();
-        folder.emit('dbltap');
-        return id;
-    }, folderSuffix);
-}
-
 async function waitForFolderNode(page: Page, folderSuffix: string): Promise<string> {
     await expect.poll(
         () => page.evaluate((suffix: string) => {
@@ -175,34 +162,6 @@ async function closeFolderTreeSidebarIfVisible(page: Page): Promise<void> {
     if (!await sidebar.isVisible().catch(() => false)) return;
     await sidebar.locator('.folder-tree-close-btn').click();
     await expect(sidebar).not.toBeVisible({ timeout: 5000 });
-}
-
-async function clickFolderChevron(page: Page, folderSuffix: string): Promise<void> {
-    const point = await page.evaluate((suffix: string) => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        if (!cy) throw new Error('No cytoscapeInstance');
-        const folder = cy.nodes()
-            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
-            .first();
-        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
-        const folderId = folder.id();
-        const chip = Array.from(document.querySelectorAll<HTMLElement>('.vt-folder-handle'))
-            .find((el: HTMLElement) => el.dataset.folderId === folderId);
-        if (!chip) throw new Error(`No folder handle chip for: ${folderId}`);
-        const chevron = chip.querySelector<HTMLElement>('.vt-folder-handle__chevron');
-        if (!chevron) throw new Error(`No folder chevron button for: ${folderId}`);
-        const rect = chevron.getBoundingClientRect();
-        const x = rect.left + rect.width / 2;
-        const y = rect.top + rect.height / 2;
-        const hit = document.elementFromPoint(x, y);
-        if (!hit?.closest('.vt-folder-handle__chevron')) {
-            const target = hit as HTMLElement | null;
-            throw new Error(`Folder chevron is not the top hit target for: ${folderId}; hit=${target?.tagName ?? 'null'} class=${target?.className ?? ''} id=${target?.id ?? ''}`);
-        }
-        return { x, y };
-    }, folderSuffix);
-
-    await page.mouse.click(point.x, point.y);
 }
 
 interface SyntheticEdgeInfo {
@@ -289,11 +248,11 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
         const synthBefore = await getSyntheticEdges(appWindow);
         expect(synthBefore.length).toBe(0);
 
-        // Collapse auth/ — test vault has:
+        // Collapse auth/ — test project has:
         //   api/router.md → auth/login-flow.md (incoming to auth)
         //   auth/session-manager.md → api/gateway.md (outgoing from auth)
         //   readme.md → auth/login-flow.md (incoming to auth)
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
 
         // Wait for collapse to complete
         await expect.poll(
@@ -318,7 +277,7 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
         await waitForGraphLoaded(appWindow, 3);
 
         // Collapse auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
@@ -329,7 +288,7 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
         expect(synthAfterCollapse.length).toBeGreaterThan(0);
 
         // Expand auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { message: 'Waiting for auth/ to expand', timeout: 10000 }
@@ -344,7 +303,7 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
         test.setTimeout(60000);
         await waitForGraphLoaded(appWindow, 3);
 
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
@@ -367,7 +326,7 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
         await waitForGraphLoaded(appWindow, 3);
 
         // Collapse auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await toggleFolderViaChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
@@ -420,7 +379,7 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
         ).toBe(true);
 
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await clickFolderChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { message: 'Waiting for auth/ to expand', timeout: 10000 }

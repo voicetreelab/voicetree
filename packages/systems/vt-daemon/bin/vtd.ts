@@ -1,24 +1,24 @@
 #!/usr/bin/env -S node --import tsx
-// vtd: the standalone VoiceTree daemon (VTD). One process per vault per
+// vtd: the standalone VoiceTree daemon (VTD). One process per project per
 // machine. Owns the tool catalog, the agent runtime (tmux + lifecycle
 // telemetry), and the unified HTTP transport (RPC + hook fan-in + event
-// subscription) for a single vault. Talks to vt-graphd over RPC via
-// ensureGraphDaemonForVault — vt-graphd is a SIBLING process, not a child.
+// subscription) for a single project. Talks to vt-graphd over RPC via
+// ensureGraphDaemonForProject — vt-graphd is a SIBLING process, not a child.
 //
 // Lifecycle:
 //   1. swallow EPIPE on stdout/stderr (parent pipe can close at any time).
-//   2. parse --vault (required), --port (optional bind pin), --log-level.
+//   2. parse --project (required), --port (optional bind pin), --log-level.
 //   3. tracing.init('vtd') so ~/.voicetree/traces/vtd.ndjson is populated.
-//   4. claim the per-vault VTD owner record under
-//      <vault>/.voicetree/vtd.owner.json (fails loudly on conflict — no
+//   4. claim the per-project VTD owner record under
+//      <project>/.voicetree/vtd.owner.json (fails loudly on conflict — no
 //      retry, no backoff; ensure-side coordination lives in BF-373).
-//   5. ensureGraphDaemonForVault('vtd') — adopt or spawn a vt-graphd
+//   5. ensureGraphDaemonForProject('vtd') — adopt or spawn a vt-graphd
 //      sibling. This binary becomes a CLIENT of graphd; it does NOT
 //      embed it. Per BF-346: vt-graphd is shared cross-process and must
 //      outlive any single VTD.
 //   6. configure the headless bridges + start tmux.
 //   7. publish a fresh bearer auth-token (mode 0600) + the bound port
-//      file under <vault>/.voicetree/.
+//      file under <project>/.voicetree/.
 //   8. start the unified HTTP daemon, bind owner-handle's port, start
 //      the heartbeat ticker.
 //   9. install lifecycle JSONL telemetry sink + tmux reconciliation.
@@ -33,24 +33,23 @@
 //   - READ path:  CLI agents call any read tool over the HTTP wire. These
 //                 do not require a terminal record on the daemon side.
 //   - WRITE path: CLI agents write new nodes by raw filesystem Write into
-//                 the watched vault; the chokidar mount inside vt-graphd
+//                 the watched project; the chokidar mount inside vt-graphd
 //                 reconciles them into the graph-store singleton.
 // `create_graph` (and other write tools) validate `callerTerminalId`
 // against getTerminalRecords(), which vtd intentionally seeds empty in
 // headless mode — so a CLI agent invoking create_graph receives a clean
 // "Unknown caller terminal: <id>" tool error rather than silent corruption.
 //
-// Open question (BF-373 / Phase 4): per-vault-per-machine vs per-process
-// multiplexing. This binary assumes one VTD per vault and a required
-// `--vault` argument. If BF-373's design flips to a `POST /vault/open`
-// per-process surface, `--vault` becomes optional. See
+// Open question (BF-373 / Phase 4): per-project-per-machine vs per-process
+// multiplexing. This binary assumes one VTD per project and a required
+// `--project` argument. If BF-373's design flips to a `POST /project/open`
+// per-process surface, `--project` becomes optional. See
 // docs/daemon-first-architecture.md.
 
-import {existsSync} from 'node:fs'
 import {unlink} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {ensureGraphDaemonForVault, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
+import {ensureGraphDaemonForProject, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
 import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
 import {resolveVoicetreeHomePath} from '@vt/paths'
@@ -61,22 +60,20 @@ import {
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
-import {setCurrentVault} from '@vt/vt-daemon/state/currentVault.ts'
+import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
-import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
-import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
-import {resolveVtBinDir} from '@vt/vt-daemon/agent-runtime/spawn/vtPathInjection.ts'
+import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
-import type {GraphStateBridge} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {
-    TERMINAL_REGISTRY_TOPIC,
-    type TerminalRegistryEvent,
-} from '@vt/vt-daemon-protocol'
+    buildPublishTerminalRegistryEvent,
+    configureAgentRuntimeForVtd,
+} from '../src/config/vtdAgentRuntimeWiring.ts'
+import {TERMINAL_REGISTRY_TOPIC} from '@vt/vt-daemon-protocol'
 import {generateAuthToken, rpcPortFilePath, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {VTD_CONTRACT_VERSION, type VtDaemonHealthResponse} from '../src/contract.ts'
 import {buildVtDaemonHealthResponse} from '../src/lifecycle/buildHealthResponse.ts'
@@ -100,7 +97,7 @@ swallowEpipe(process.stdout)
 swallowEpipe(process.stderr)
 
 interface Args {
-    readonly vault: string
+    readonly project: string
     readonly port?: number
     readonly logLevel: 'info' | 'debug'
 }
@@ -111,13 +108,13 @@ function die(msg: string): never {
 }
 
 function parseArgs(argv: readonly string[]): Args {
-    let vault: string | null = null
+    let project: string | null = null
     let port: number | undefined
     let logLevel: 'info' | 'debug' = 'info'
     for (let i: number = 0; i < argv.length; i++) {
         const a: string = argv[i]
-        if (a === '--vault') {
-            vault = argv[++i] ?? null
+        if (a === '--project') {
+            project = argv[++i] ?? null
         } else if (a === '--port') {
             const v: string | undefined = argv[++i]
             const n: number = Number.parseInt(v ?? '', 10)
@@ -131,15 +128,15 @@ function parseArgs(argv: readonly string[]): Args {
             else die(`invalid --log-level: ${v}`)
         } else if (a === '--help' || a === '-h') {
             process.stdout.write(
-                'Usage: vtd --vault <path> [--port <n>] [--log-level info|debug]\n',
+                'Usage: vtd --project <path> [--port <n>] [--log-level info|debug]\n',
             )
             process.exit(0)
         } else {
             die(`unknown argument: ${a}`)
         }
     }
-    if (!vault) die('missing required --vault <path>')
-    return {vault: resolve(vault!), port, logLevel}
+    if (!project) die('missing required --project <path>')
+    return {project: resolve(project!), port, logLevel}
 }
 
 // Caller-kind resolution. `VT_DAEMON_CALLER_KIND` is set by
@@ -168,62 +165,16 @@ function callerKindFromEnv(): CallerKind {
     return 'vtd'
 }
 
-function configureAgentRuntimeForVtd(
-    publishTerminalRegistryEvent: (event: TerminalRegistryEvent) => void,
-    graph: GraphStateBridge,
-): void {
-    // The `vt` binary is shipped inside @voicetree/cli. vtd lives next to
-    // it on disk (packages/systems/vt-daemon → packages/systems/voicetree-cli),
-    // so resolve relative to this file rather than the appSupport-tools copy.
-    // The CLI manual is rendered live from @vt/vt-daemon-protocol's TOOL_SPECS
-    // — no longer file-based — so vtd no longer needs to register a manual path.
-    const voicetreeCliPackageDir: string = join(
-        dirname(fileURLToPath(import.meta.url)),
-        '..',
-        '..',
-        'voicetree-cli',
-    )
-    // `vt` lives at <voicetree-cli>/bin/vt. resolveVtBinDir verifies the
-    // script exists and returns null otherwise — the spawn pipeline's
-    // PATH injection then no-ops gracefully.
-    const vtBinDir: string | null = resolveVtBinDir(voicetreeCliPackageDir, existsSync)
-
-    configureAgentRuntime({
-        env: {
-            getVtBinDir: (): string | null => vtBinDir,
-        },
-        publishTerminalRegistryEvent,
-        graph,
-    })
-}
-
 /**
- * Build the publish sink injected into agent-runtime. Two concerns fan out
- * from a single event:
- *
- *   1. Wire publish onto the new `terminal-registry` SSE topic so renderer
- *      clients learn about registry mutations and the imperative UI-launch
- *      instructions that used to fire as in-process UI callbacks.
- *   2. In-process side effect for `terminal-ui-child-registered`: VTD owns
- *      the agent-completion monitor (`@vt/vt-daemon`'s
- *      `registerChildIfMonitored`); when a spawn announces a new child of a
- *      monitored parent, the monitor's terminal-id table must learn about
- *      it before the child's first poll. Pre-S2-R this happened through an
- *      in-process callback; that callback is gone, so we route the same
- *      data through the publish sink instead.
- *
- * The sink is the canonical place to do both because it sits at the boundary
- * where every event passes through exactly once.
+ * Resolve the canonical `@voicetree/cli` package dir relative to this binary on
+ * disk: packages/systems/vt-daemon/bin → packages/systems/voicetree-cli. It is
+ * the source of both the `vt` bin (spawn-time PATH injection) and the shipped
+ * agent prompts (the home-prompts sync). This source-tree resolver is the
+ * standalone/dev/eval path; the packaged Electron build instead seeds the home
+ * prompts from `resourcesPath/prompts` via build-config.
  */
-function buildPublishTerminalRegistryEvent(
-    publishOnTopic: (event: string, data: unknown) => void,
-): (event: TerminalRegistryEvent) => void {
-    return (event: TerminalRegistryEvent): void => {
-        publishOnTopic(event.type, event)
-        if (event.type === 'terminal-ui-child-registered') {
-            registerChildIfMonitored(event.parentTerminalId, event.childTerminalId)
-        }
-    }
+function resolveVoicetreeCliPackageDir(): string {
+    return join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'voicetree-cli')
 }
 
 async function main(): Promise<void> {
@@ -235,13 +186,13 @@ async function main(): Promise<void> {
     process.env.VOICETREE_HOME_PATH = voicetreeHomePath
 
     // Step 1: claim the owner record FIRST, before any HTTP / GDB / tmux work.
-    // On conflict (another VTD already owns this vault) die loudly with the
+    // On conflict (another VTD already owns this project) die loudly with the
     // contending pid + nonce — BF-371 §Gotcha #2: never wrap this in a retry
     // loop, that recreates the May-22 fork-storm.
     let ownerHandle: VtDaemonOwnerHandle
     try {
         ownerHandle = await claimVtDaemonOwner({
-            canonicalVault: args.vault,
+            canonicalProject: args.project,
             callerKind: callerKindFromEnv(),
             contractVersion: VTD_CONTRACT_VERSION,
             commandFingerprint: {
@@ -252,7 +203,7 @@ async function main(): Promise<void> {
         })
     } catch (err) {
         if (err instanceof VtDaemonOwnerConflictError) {
-            die(`owner conflict for vault ${err.canonicalVault}: pid ${err.existingOwner.pid} (nonce ${err.existingOwner.ownerNonce})`)
+            die(`owner conflict for project ${err.canonicalProject}: pid ${err.existingOwner.pid} (nonce ${err.existingOwner.ownerNonce})`)
         }
         die(`failed to claim VTD owner: ${(err as Error).message}`)
     }
@@ -264,10 +215,17 @@ async function main(): Promise<void> {
     // `VT_GRAPHD_BIN` is honored as an override (used by tests pointing at a
     // fake vt-graphd; also useful in dev to point at a freshly built binary).
     // Mirrors `ensureDaemon` in @vt/graph-db-client.
+    // Budget parity (startup-hang fix): electron waits up to 30s for THIS VTD to
+    // report healthy, and VTD reports healthy only after this graphd-ensure
+    // resolves. Graphd's 5s default here is a budget inversion — a slow-but-
+    // healthy graphd would `die()` VTD at 5s while electron would have waited,
+    // leaving the renderer spinning on "loading workspace". Match electron's 30s.
+    const GRAPHD_ENSURE_TIMEOUT_MS = 30_000
     let gdb: EnsureGraphDaemonResult
     try {
-        gdb = await ensureGraphDaemonForVault(args.vault, 'vtd', {
+        gdb = await ensureGraphDaemonForProject(args.project, 'vtd', {
             bin: process.env.VT_GRAPHD_BIN,
+            timeoutMs: GRAPHD_ENSURE_TIMEOUT_MS,
         })
     } catch (err) {
         await ownerHandle.release().catch(() => undefined)
@@ -282,14 +240,38 @@ async function main(): Promise<void> {
     // contract is enforced by the type system. The BF-376 regression
     // (missing wire-up) is now a compile-time error rather than a runtime
     // "MCP graph bridge not configured" throw.
-    const mcpBridges: McpToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.vault)}
+    const mcpBridges: McpToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.project)}
 
-    // Step 3: bind in-process state to this vault, then tmux preflight.
-    // setCurrentVault is the single source-of-truth for daemon-internal
-    // state singletons (sessionStateStore reads <vault>/.voicetree/ via
-    // getVault()). agent-runtime is configured later (step 4.5) once we
+    // Step 3: bind in-process state to this project, then tmux preflight.
+    // setCurrentProject is the single source-of-truth for daemon-internal
+    // state singletons (sessionStateStore reads <project>/.voicetree/ via
+    // getProject()). agent-runtime is configured later (step 4.5) once we
     // have the SSE hub the publish sink targets.
-    setCurrentVault(args.vault)
+    setCurrentProject(args.project)
+
+    // Provision the single per-machine prompts location BEFORE any agent can be
+    // spawned — the spawn pipeline's buildTerminalEnvVars reads ~/.voicetree/prompts.
+    // The shipped prompts always win; a user override is stashed under
+    // ~/.voicetree/.backup/prompts/<ts>/. Standalone/headless daemons (which run no
+    // Electron) depend on this call; the GUI app idempotently seeds the same dir at
+    // Electron startup. Non-fatal: a sync failure degrades to empty prompts, not a
+    // dead daemon (mirrors the OTLP/telemetry log-and-continue boot steps below).
+    try {
+        const promptSync = await ensureHomePrompts({
+            promptsSource: join(resolveVoicetreeCliPackageDir(), 'prompts'),
+            voicetreeHome: voicetreeHomePath,
+            now: new Date(),
+        })
+        if (promptSync.backedUp.length > 0) {
+            process.stderr.write(
+                `vtd: stashed ${promptSync.backedUp.length} user-overridden prompt(s) under `
+                + `${join(voicetreeHomePath, '.backup', 'prompts')}/<timestamp>: ${promptSync.backedUp.join(', ')}\n`,
+            )
+        }
+    } catch (err) {
+        process.stderr.write(`vtd: home prompts sync failed (continuing): ${(err as Error).message}\n`)
+    }
+
     await agentRuntime.ensureTmuxAvailable()
     await agentRuntime.ensureTmuxServer()
 
@@ -297,7 +279,7 @@ async function main(): Promise<void> {
     // before any port file exists (so a reader cannot see the new port +
     // stale token simultaneously).
     const token: string = generateAuthToken()
-    await writeAuthTokenFile(args.vault, token)
+    await writeAuthTokenFile(args.project, token)
 
     const hookHandler: HookHandler = (input): unknown =>
         handleHookEventRequest(
@@ -312,17 +294,17 @@ async function main(): Promise<void> {
             catalog: buildDefaultToolCatalog(mcpBridges),
             hookHandler,
             token,
-            // Default bind is loopback. VTD is a per-vault per-machine daemon;
+            // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override
             // env var is preserved for the rare LAN-development case where a
             // dev on another machine dials this daemon directly.
             bindHost: process.env.VOICETREE_DAEMON_BIND ?? '127.0.0.1',
             port: args.port,
             // Stamped into every `agent-events` SSE envelope so consumers
-            // can apply the vault-switch fence (BF-376 / main-host-purity
-            // spec §"Vault-switch fence drops stale events").
-            canonicalVault: args.vault,
-            // Resolved per attach so a `terminalTmuxMouseMode` flip in vault
+            // can apply the project-switch fence (BF-376 / main-host-purity
+            // spec §"Project-switch fence drops stale events").
+            canonicalProject: args.project,
+            // Resolved per attach so a `terminalTmuxMouseMode` flip in project
             // settings takes effect on the next tmux connection without
             // restarting the daemon. The tmux-attach wiring forwards this
             // into `attachTmuxSessionToWebSocket`, which sets `tmux set mouse
@@ -340,10 +322,10 @@ async function main(): Promise<void> {
                 startMs,
                 nowMs: Date.now(),
                 owner: ownerHandle.health(),
-                canonicalVault: args.vault,
+                canonicalProject: args.project,
             }),
         })
-        await writeRpcPortFile(args.vault, httpHandle.port)
+        await writeRpcPortFile(args.project, httpHandle.port)
         await ownerHandle.bindPort(httpHandle.port)
     } catch (err) {
         await ownerHandle.release().catch(() => undefined)
@@ -362,27 +344,28 @@ async function main(): Promise<void> {
     // Both must be wired or the spawn pipeline throws "graph bridge not configured"
     // on the first Run-Agent click.
     configureAgentRuntimeForVtd(
+        resolveVoicetreeCliPackageDir(),
         buildPublishTerminalRegistryEvent(
             (event: string, data: unknown): void =>
                 httpHandle.hub.publish(TERMINAL_REGISTRY_TOPIC, event, data),
         ),
-        buildGdbAgentRuntimeGraphBridge(gdb.client, args.vault),
+        buildGdbAgentRuntimeGraphBridge(gdb.client, args.project),
     )
 
     // OTLP receiver — receives metrics from Claude-Code-style agents on
-    // localhost:4318+. Publishes <vault>/.voicetree/otlp.port so the agent
+    // localhost:4318+. Publishes <project>/.voicetree/otlp.port so the agent
     // spawn pipeline can inject OTEL_EXPORTER_OTLP_ENDPOINT against the
     // actual bound port (which retries on EADDRINUSE up to +9). Failure is
     // non-fatal: the daemon stays up; agent metrics simply aren't collected.
     try {
-        await startOtlpReceiver(args.vault)
+        await startOtlpReceiver(args.project)
     } catch (err) {
         process.stderr.write(
             `vtd: OTLP receiver start failed (continuing): ${(err as Error).message}\n`,
         )
     }
 
-    // Lifecycle JSONL telemetry sink — predecessor (vt-mcpd) had this; vtd keeps it.
+    // Lifecycle JSONL telemetry sink — predecessor (the headless daemon binary) had this; vtd keeps it.
     try {
         agentRuntime.installJsonlTelemetrySink(join(voicetreeHomePath, 'lifecycle-telemetry.jsonl'))
     } catch (err) {
@@ -391,7 +374,7 @@ async function main(): Promise<void> {
         )
     }
 
-    const reconciliation = await reconcileTmuxHeadlessAgents(args.vault)
+    const reconciliation = await reconcileTmuxHeadlessAgents(args.project)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(
             `vtd: reconciled tmux terminals imported=${reconciliation.imported.length} `
@@ -403,7 +386,7 @@ async function main(): Promise<void> {
     // (BF-373) and by storm-regression harnesses (BF-374). Do not reformat
     // without updating both consumers.
     process.stdout.write(
-        `vtd: listening on ${httpHandle.url}, vault=${args.vault}, gdb=${gdb.port}\n`,
+        `vtd: listening on ${httpHandle.url}, project=${args.project}, gdb=${gdb.port}\n`,
     )
 
     let shuttingDown: boolean = false
@@ -416,8 +399,8 @@ async function main(): Promise<void> {
         //   → rpc.port cleanup → ownerHandle.release.
         // We deliberately do NOT touch vt-graphd: it is shared cross-process
         // and must outlive this VTD (BF-346 invariant). The next CLI / Electron
-        // window for this vault will adopt the same graphd.
-        // We delete <vault>/.voicetree/rpc.port before release so a reader
+        // window for this project will adopt the same graphd.
+        // We delete <project>/.voicetree/rpc.port before release so a reader
         // never sees a missing owner record but a stale port — the absence of
         // the port file is the signal that the daemon is gone.
         try {
@@ -429,7 +412,7 @@ async function main(): Promise<void> {
                 process.stderr.write(`vtd: http daemon stop error: ${(err as Error).message}\n`)
             })
             agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'})
-            await unlink(rpcPortFilePath(args.vault)).catch((err: NodeJS.ErrnoException): void => {
+            await unlink(rpcPortFilePath(args.project)).catch((err: NodeJS.ErrnoException): void => {
                 if (err.code !== 'ENOENT') {
                     process.stderr.write(`vtd: rpc.port cleanup error: ${err.message}\n`)
                 }
@@ -447,7 +430,7 @@ async function main(): Promise<void> {
     // Parent-pid watchdog (BF-369). When the parent dies, take ourselves
     // down — this is best-effort cleanup, not a coordination protocol. Any
     // remaining caller (a second Electron window, a CLI) will respawn VTD
-    // via ensureVtDaemonForVault (BF-373).
+    // via ensureVtDaemonForProject (BF-373).
     const parentPidEnv: string | undefined = process.env.VOICETREE_PARENT_PID
     if (parentPidEnv) {
         const parentPid: number = Number.parseInt(parentPidEnv, 10)

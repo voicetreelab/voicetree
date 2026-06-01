@@ -98,7 +98,7 @@ const FOLDER_NOTE_BODY: string = '# Work\n\n## Type: my-kind\n\nfolder note body
 
 describe('graph create schema gate (filesystem mode)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let vaultRoot: string
+    let projectRoot: string
 
     beforeAll(() => {
         originalStdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
@@ -112,10 +112,10 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     beforeEach(async () => {
-        vaultRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-schema-gate-')))
-        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-        await writeFile(join(vaultRoot, '.voicetree', 'schemas.cjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
-        const workDir: string = join(vaultRoot, 'work')
+        projectRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-schema-gate-')))
+        await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
+        await writeFile(join(projectRoot, '.voicetree', 'schemas.cjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
+        const workDir: string = join(projectRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(join(workDir, 'work.md'), FOLDER_NOTE_BODY, 'utf8')
         clearLoadSchemaPluginCacheForTest()
@@ -123,16 +123,16 @@ describe('graph create schema gate (filesystem mode)', () => {
 
     afterEach(async () => {
         clearLoadSchemaPluginCacheForTest()
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
     it('writes the file when the body satisfies the schema', async () => {
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nNeeded marker present.\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/topic.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -142,11 +142,11 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     it('rejects an invalid body with a structured batch envelope and does not overwrite the file', async () => {
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         const originalBody: string = '# Topic\n\nthis body lacks the marker\n'
         await writeFile(targetPath, originalBody, 'utf8')
 
-        const result: CapturedRun = await captureGraphCreate(['work/topic.md'], vaultRoot)
+        const result: CapturedRun = await captureGraphCreate(['work/topic.md'], projectRoot)
 
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
@@ -167,13 +167,13 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     it('runs the gate before --validate-only and does not write when validation passes', async () => {
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nNeeded marker here.\n', 'utf8')
         const originalBody: string = await readFile(targetPath, 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/topic.md', '--validate-only', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -187,10 +187,10 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     it('rejects --validate-only when the gate fails', async () => {
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nno marker\n', 'utf8')
 
-        const result: CapturedRun = await captureGraphCreate(['work/topic.md', '--validate-only'], vaultRoot)
+        const result: CapturedRun = await captureGraphCreate(['work/topic.md', '--validate-only'], projectRoot)
 
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
@@ -202,12 +202,12 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     it('accepts filesystem --override for graph validation rules', async () => {
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nNeeded marker.\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/topic.md', '--override', 'node_must_have_edge:temporary unlinked note'],
-            vaultRoot
+            projectRoot
         )
 
         expect(result.exitCode).toBeNull()
@@ -219,14 +219,14 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     it('skips validation when no upstream folder note declares a Type', async () => {
-        const freeDir: string = join(vaultRoot, 'free')
+        const freeDir: string = join(projectRoot, 'free')
         await mkdir(freeDir, {recursive: true})
         const targetPath: string = join(freeDir, 'node.md')
         await writeFile(targetPath, '# Free\n\nanything goes\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['free/node.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -235,15 +235,15 @@ describe('graph create schema gate (filesystem mode)', () => {
     })
 
     it('skips validation when no schemas.cjs is present', async () => {
-        await rm(join(vaultRoot, '.voicetree', 'schemas.cjs'), {force: true})
+        await rm(join(projectRoot, '.voicetree', 'schemas.cjs'), {force: true})
         clearLoadSchemaPluginCacheForTest()
 
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nno marker here\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/topic.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -252,16 +252,16 @@ describe('graph create schema gate (filesystem mode)', () => {
 
     it('skips validation when the folder note declares an unknown type', async () => {
         await writeFile(
-            join(vaultRoot, 'work', 'work.md'),
+            join(projectRoot, 'work', 'work.md'),
             '# Work\n\n## Type: unregistered-kind\n',
             'utf8'
         )
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nno marker\n', 'utf8')
 
         const result: CapturedRun = await captureGraphCreate(
             ['work/topic.md', '--parent', 'work/work.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.exitCode).toBeNull()
@@ -272,12 +272,12 @@ describe('graph create schema gate (filesystem mode)', () => {
         // Folder note still declares `## Type: my-kind`, but the plugin is gone, so
         // the gate verdict is `skipped`. A skipped verdict must not let an orphan
         // through silently: the attachment policy still rejects it.
-        await rm(join(vaultRoot, '.voicetree', 'schemas.cjs'), {force: true})
+        await rm(join(projectRoot, '.voicetree', 'schemas.cjs'), {force: true})
         clearLoadSchemaPluginCacheForTest()
-        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        const targetPath: string = join(projectRoot, 'work', 'topic.md')
         await writeFile(targetPath, '# Topic\n\nany body\n', 'utf8')
 
-        const result: CapturedRun = await captureGraphCreate(['work/topic.md'], vaultRoot)
+        const result: CapturedRun = await captureGraphCreate(['work/topic.md'], projectRoot)
 
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
@@ -290,7 +290,7 @@ describe('graph create schema gate (filesystem mode)', () => {
 
 describe('graph create schema gate (live mode)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let vaultRoot: string
+    let projectRoot: string
 
     beforeAll(() => {
         originalStdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
@@ -304,10 +304,10 @@ describe('graph create schema gate (live mode)', () => {
     })
 
     beforeEach(async () => {
-        vaultRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-schema-gate-live-')))
-        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-        await writeFile(join(vaultRoot, '.voicetree', 'schemas.cjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
-        const workDir: string = join(vaultRoot, 'work')
+        projectRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-schema-gate-live-')))
+        await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
+        await writeFile(join(projectRoot, '.voicetree', 'schemas.cjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
+        const workDir: string = join(projectRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(join(workDir, 'work.md'), FOLDER_NOTE_BODY, 'utf8')
         await writeFile(join(workDir, 'parent.md'), '# Parent\n', 'utf8')
@@ -316,11 +316,11 @@ describe('graph create schema gate (live mode)', () => {
 
     afterEach(async () => {
         clearLoadSchemaPluginCacheForTest()
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
-    it('rejects an invalid live-mode node before invoking MCP', async () => {
-        const parentNodeId: string = join(vaultRoot, 'work', 'parent.md')
+    it('rejects an invalid live-mode node before invoking the daemon', async () => {
+        const parentNodeId: string = join(projectRoot, 'work', 'parent.md')
 
         const result: CapturedRun = await captureGraphCreate(
             [
@@ -329,7 +329,7 @@ describe('graph create schema gate (live mode)', () => {
                 '--parent',
                 parentNodeId,
             ],
-            vaultRoot,
+            projectRoot,
             {terminalId: 'test-terminal'}
         )
 

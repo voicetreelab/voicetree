@@ -52,15 +52,15 @@ async function assertPerfStackUp() {
   return result.stdout
 }
 
-async function makeScenarioVault(runUuid) {
-  const vaultDir = join(tmpdir(), `vt-perf-sigkill-${runUuid}`)
-  await mkdir(vaultDir, { recursive: true })
+async function makeScenarioProject(runUuid) {
+  const projectDir = join(tmpdir(), `vt-perf-sigkill-${runUuid}`)
+  await mkdir(projectDir, { recursive: true })
   await writeFile(
-    join(vaultDir, 'sigkill-scenario.md'),
+    join(projectDir, 'sigkill-scenario.md'),
     `# SIGKILL crash-resilience scenario\n\nRun UUID: ${runUuid}\n`,
     'utf8',
   )
-  return vaultDir
+  return projectDir
 }
 
 function waitForReady(child, timeoutMs) {
@@ -239,7 +239,7 @@ async function verifySigkillCrashResilience() {
     : randomUUID()
   const runDir = join(homedir(), '.voicetree', 'perf', runUuid)
   const logPath = join(runDir, 'logs', 'vt-graphd.log')
-  const projectRoot = await makeScenarioVault(runUuid)
+  const projectRoot = await makeScenarioProject(runUuid)
   const checkedBefore = await assertPerfStackUp()
   const child = spawnGraphd({ runUuid, projectRoot })
 

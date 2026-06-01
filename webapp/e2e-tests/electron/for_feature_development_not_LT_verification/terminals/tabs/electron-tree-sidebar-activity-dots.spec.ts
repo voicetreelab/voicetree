@@ -18,7 +18,7 @@ import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
@@ -45,9 +45,9 @@ const test = base.extend<{
 
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
         await fs.writeFile(configPath, JSON.stringify({
-            lastDirectory: FIXTURE_VAULT_PATH
+            lastDirectory: FIXTURE_PROJECT_PATH
         }, null, 2), 'utf8');
-        console.log('[Test] Created config file with lastDirectory:', FIXTURE_VAULT_PATH);
+        console.log('[Test] Created config file with lastDirectory:', FIXTURE_PROJECT_PATH);
 
         const electronApp = await electron.launch({
             args: [
@@ -119,17 +119,17 @@ const test = base.extend<{
 });
 
 /**
- * Helper to load the fixture vault and wait for graph to be ready
+ * Helper to load the fixture project and wait for graph to be ready
  */
-async function loadVaultAndWaitForGraph(appWindow: Page): Promise<void> {
+async function loadProjectAndWaitForGraph(appWindow: Page): Promise<void> {
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         return await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     expect(watchResult.success).toBe(true);
-    console.log('Started watching vault:', FIXTURE_VAULT_PATH);
+    console.log('Started watching project:', FIXTURE_PROJECT_PATH);
 
     await appWindow.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
@@ -230,8 +230,8 @@ test.describe('Activity Dots E2E', () => {
     test.describe.configure({ mode: 'serial', timeout: 120000 });
 
     test('Test 1: Activity dots appear when terminal has activity', async ({ appWindow }) => {
-        console.log('=== STEP 1: Load vault and wait for graph ===');
-        await loadVaultAndWaitForGraph(appWindow);
+        console.log('=== STEP 1: Load project and wait for graph ===');
+        await loadProjectAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn terminal ===');
         const targetNodeId = await getFirstNodeId(appWindow);
@@ -271,8 +271,8 @@ test.describe('Activity Dots E2E', () => {
     });
 
     test('Test 2: Activity dots persist when new terminal is added (re-render)', async ({ appWindow }) => {
-        console.log('=== STEP 1: Load vault and wait for graph ===');
-        await loadVaultAndWaitForGraph(appWindow);
+        console.log('=== STEP 1: Load project and wait for graph ===');
+        await loadProjectAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn first terminal ===');
         const firstNodeId = await getFirstNodeId(appWindow);
@@ -327,8 +327,8 @@ test.describe('Activity Dots E2E', () => {
     });
 
     test('Test 3: Activity dots clear on tab click', async ({ appWindow }) => {
-        console.log('=== STEP 1: Load vault and wait for graph ===');
-        await loadVaultAndWaitForGraph(appWindow);
+        console.log('=== STEP 1: Load project and wait for graph ===');
+        await loadProjectAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn terminal ===');
         const targetNodeId = await getFirstNodeId(appWindow);
@@ -378,8 +378,8 @@ test.describe('Activity Dots E2E', () => {
     });
 
     test('Test 4: Status dot switches from running to done', async ({ appWindow }) => {
-        console.log('=== STEP 1: Load vault and wait for graph ===');
-        await loadVaultAndWaitForGraph(appWindow);
+        console.log('=== STEP 1: Load project and wait for graph ===');
+        await loadProjectAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn terminal ===');
         const targetNodeId = await getFirstNodeId(appWindow);

@@ -1,4 +1,4 @@
-vault,a_G,n_nodes,n_edges,format,tokens,node_fidelity,edge_fidelity,co_location_mean
+project,a_G,n_nodes,n_edges,format,tokens,node_fidelity,edge_fidelity,co_location_mean
 synthetic-a1-tree,1,24,23,A,486,100.0,100.0,0.0
 synthetic-a1-tree,1,24,23,B,583,100.0,100.0,34.0
 synthetic-a1-tree,1,24,23,C,1030,100.0,100.0,33.0

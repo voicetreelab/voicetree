@@ -4,7 +4,7 @@
  * Replaces the prior vi.mock-based helpers (webapp colocated) with a
  * GraphBridge that drives an in-memory graph + a capturing applyGraphDelta
  * sink, and uses the real agent-runtime terminal-registry as the caller
- * record source. Settings are loaded from a per-test temp app-support
+ * record source. Settings are loaded from a per-test temp voicetree-home
  * directory so caller code paths read live files, not mocks.
  */
 
@@ -44,8 +44,8 @@ export type ErrorPayload = {
     error: string
 }
 
-export const WRITE_FOLDER: string = '/test/vault'
-export const READ_PATH: string = '/test/reference-vault'
+export const WRITE_FOLDER: string = '/test/project'
+export const READ_PATH: string = '/test/reference-project'
 export const PARENT_NODE_ID: NodeIdAndFilePath = `${WRITE_FOLDER}/parent-task.md` as NodeIdAndFilePath
 export const CALLER_TERMINAL_ID: string = 'ctx-nodes/caller.md-terminal-0'
 export const CALLER_CONTEXT_NODE_ID: NodeIdAndFilePath = 'ctx-nodes/caller.md' as NodeIdAndFilePath
@@ -96,16 +96,16 @@ export function buildGraph(extraNodes?: Record<string, GraphNode>): Graph {
  */
 export type BridgeState = {
     current: Graph
-    vaultPaths: readonly string[]
-    writeFolder: string | null
+    projectPaths: readonly string[]
+    writeFolderPath: string | null
     deltas: GraphDelta[]
 }
 
 export function createBridgeState(): BridgeState {
     return {
         current: buildGraph(),
-        vaultPaths: [WRITE_FOLDER],
-        writeFolder: WRITE_FOLDER,
+        projectPaths: [WRITE_FOLDER],
+        writeFolderPath: WRITE_FOLDER,
         deltas: [],
     }
 }
@@ -125,9 +125,9 @@ export function applyDeltaInPlace(graph: Graph, delta: GraphDelta): Graph {
 export function buildBridge(state: BridgeState): GraphBridge {
     return {
         getGraph: async () => state.current,
-        getVaultPaths: async () => state.vaultPaths,
-        getWriteFolder: async () => state.writeFolder,
-        getProjectRoot: async () => state.writeFolder,
+        getProjectPaths: async () => state.projectPaths,
+        getWriteFolderPath: async () => state.writeFolderPath,
+        getProjectRoot: async () => state.writeFolderPath,
         getUnseenNodesAroundContextNode: async () => [],
         applyGraphDelta: async (delta: GraphDelta): Promise<void> => {
             state.deltas.push(delta)
@@ -159,18 +159,18 @@ export function recordCaller(options?: {
     recordTerminalSpawn(CALLER_TERMINAL_ID, data)
 }
 
-export async function makeTempAppSupport(): Promise<string> {
+export async function makeTempVoicetreeHome(): Promise<string> {
     const dir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-mcp-create-graph-'))
     return dir
 }
 
-export async function writeSettings(appSupport: string, settings: VTSettings): Promise<void> {
-    await fs.mkdir(appSupport, {recursive: true})
-    await fs.writeFile(path.join(appSupport, 'settings.json'), JSON.stringify(settings, null, 2), 'utf-8')
+export async function writeSettings(voicetreeHome: string, settings: VTSettings): Promise<void> {
+    await fs.mkdir(voicetreeHome, {recursive: true})
+    await fs.writeFile(path.join(voicetreeHome, 'settings.json'), JSON.stringify(settings, null, 2), 'utf-8')
 }
 
 /**
- * Standard real-deps setup: temp app-support, settings written, graph
+ * Standard real-deps setup: temp voicetree-home, settings written, graph
  * bridge wired with the default fixture graph, caller terminal recorded.
  * Returns the bridge state so tests can inspect captured deltas and swap
  * graph snapshots if needed.
@@ -179,11 +179,11 @@ export async function setupRealDeps(options?: {
     settings?: Partial<VTSettings>
     extraNodes?: Record<string, GraphNode>
     callerOptions?: Parameters<typeof recordCaller>[0]
-}): Promise<{appSupport: string; state: BridgeState; bridge: GraphBridge}> {
-    const appSupport: string = await makeTempAppSupport()
-    process.env.VOICETREE_HOME_PATH = appSupport
+}): Promise<{voicetreeHome: string; state: BridgeState; bridge: GraphBridge}> {
+    const voicetreeHome: string = await makeTempVoicetreeHome()
+    process.env.VOICETREE_HOME_PATH = voicetreeHome
     clearSettingsCache()
-    await writeSettings(appSupport, {
+    await writeSettings(voicetreeHome, {
         ...DEFAULT_SETTINGS,
         nodeLineLimit: 70,
         ...(options?.settings ?? {}),
@@ -196,9 +196,9 @@ export async function setupRealDeps(options?: {
     }
     const bridge: GraphBridge = buildBridge(state)
     recordCaller(options?.callerOptions)
-    return {appSupport, state, bridge}
+    return {voicetreeHome, state, bridge}
 }
 
-export async function cleanupAppSupport(appSupport: string): Promise<void> {
-    await fs.rm(appSupport, {recursive: true, force: true})
+export async function cleanupVoicetreeHome(voicetreeHome: string): Promise<void> {
+    await fs.rm(voicetreeHome, {recursive: true, force: true})
 }

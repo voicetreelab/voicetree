@@ -3,7 +3,7 @@
  *
  * Receives a `SerializedCommand` pushed from main (after main applied it to
  * the live store) and mirrors the mutation onto cytoscape + folder/selection
- * stores so the UI reflects MCP-originated commands in real time.
+ * stores so the UI reflects daemon-originated commands in real time.
  *
  * Scope: renderer-owned selection commands plus viewport layout
  * commands that must be mirrored into the layoutStore so layoutProjection can

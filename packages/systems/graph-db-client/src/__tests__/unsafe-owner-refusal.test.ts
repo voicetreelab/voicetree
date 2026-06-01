@@ -16,23 +16,23 @@
  *       The protocol MUST wait with bounded backoff and surface
  *       OwnerWaitTimeoutError. Many concurrent callers MUST NOT each
  *       spawn a vt-graphd child — `ps` must see zero new daemons for the
- *       vault while every caller is waiting.
+ *       project while every caller is waiting.
  *
  * Both scenarios were latent risks behind the May 22 incident's "many
- * vt-graphd children, vault_not_open cascade" failure mode.
+ * vt-graphd children, project_not_open cascade" failure mode.
  */
 
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { ensureGraphDaemonForVault, OwnerWaitTimeoutError, UnsafeOwnerError } from '../index.ts'
+import { ensureGraphDaemonForProject, OwnerWaitTimeoutError, UnsafeOwnerError } from '../index.ts'
 import {
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   destroyHarness,
   isProcessAlive,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   readPersistedOwner,
   spawnInnocentLongRunner,
   type Harness,
@@ -47,10 +47,10 @@ beforeEach(async () => {
 
 afterEach(async () => {
   // Belt-and-braces cleanup: any vt-graphd we somehow spawned for this
-  // vault gets SIGKILLed before the temp directory is removed. (These
+  // project gets SIGKILLed before the temp directory is removed. (These
   // tests are precisely about NOT spawning, so this should be a no-op
   // when tests pass.)
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -76,7 +76,7 @@ describe('BF-348 regression: unsafe-owner pid refusal', () => {
       // reason 'fingerprint-mismatch'.
       const staleHeartbeat = Date.now() - 60_000
       const recordedNonce = 'unsafe-fingerprint-nonce'
-      await writeOwnerRecord(harness.vault, {
+      await writeOwnerRecord(harness.project, {
         pid: innocentPid,
         port: null,
         ownerNonce: recordedNonce,
@@ -88,15 +88,15 @@ describe('BF-348 regression: unsafe-owner pid refusal', () => {
         // mismatch.
         commandFingerprint: {
           executable: process.execPath,
-          args: ['/opt/voicetree/vt-graphd.mjs', '--project-root', resolve(harness.vault)],
+          args: ['/opt/voicetree/vt-graphd.mjs', '--project-root', resolve(harness.project)],
         },
       })
 
-      // Snapshot: zero vt-graphd processes for this vault before the call.
-      expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+      // Snapshot: zero vt-graphd processes for this project before the call.
+      expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
       await expect(
-        ensureGraphDaemonForVault(harness.vault, 'electron', {
+        ensureGraphDaemonForProject(harness.project, 'electron', {
           bin: FAKE_BIN_COMMAND,
           timeoutMs: 2_000,
         }),
@@ -110,11 +110,11 @@ describe('BF-348 regression: unsafe-owner pid refusal', () => {
 
       // (2) NO new vt-graphd child was spawned. Unsafe-owner means
       // "refuse, do not respawn".
-      expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+      expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
       // (3) The owner record on disk is untouched — reclaim was refused
       // safely; the operator's stale record is preserved for diagnosis.
-      const owner = await readPersistedOwner(harness.vault)
+      const owner = await readPersistedOwner(harness.project)
       expect(owner.pid).toBe(innocentPid)
       expect(owner.ownerNonce).toBe(recordedNonce)
     },
@@ -135,7 +135,7 @@ describe('BF-348 regression: lock-without-port does not fan out', () => {
       const inflightPid = inflight.pid
       if (!inflightPid) throw new Error('inflight child failed to spawn')
 
-      await writeOwnerRecord(harness.vault, {
+      await writeOwnerRecord(harness.project, {
         pid: inflightPid,
         port: null,
         ownerNonce: 'in-flight-nonce',
@@ -153,7 +153,7 @@ describe('BF-348 regression: lock-without-port does not fan out', () => {
       const start = Date.now()
       const settled = await Promise.allSettled(
         Array.from({ length: callerCount }, () =>
-          ensureGraphDaemonForVault(harness.vault, 'electron', {
+          ensureGraphDaemonForProject(harness.project, 'electron', {
             bin: FAKE_BIN_COMMAND,
             timeoutMs: 600,
           }),
@@ -181,13 +181,13 @@ describe('BF-348 regression: lock-without-port does not fan out', () => {
       // (2) ZERO vt-graphd children visible to ps. This is the
       // anti-fork-storm invariant: 50 callers all noticed the
       // unhealthy owner and not ONE of them spawned a child.
-      expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+      expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
       // (3) The in-flight pid is still alive — wait does not kill.
       expect(isProcessAlive(inflightPid)).toBe(true)
 
       // (4) Owner record is intact (still the original in-flight claim).
-      const owner = await readPersistedOwner(harness.vault)
+      const owner = await readPersistedOwner(harness.project)
       expect(owner.pid).toBe(inflightPid)
       expect(owner.ownerNonce).toBe('in-flight-nonce')
       expect(owner.port).toBeNull()

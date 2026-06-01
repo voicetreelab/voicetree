@@ -371,6 +371,44 @@
       ],
       "title": "Log error count",
       "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "description": "Traces emitted by the selected run (Tempo, keyed by service.instance.id). Click a Trace ID to open the trace; the Prometheus panels above and these traces share the same run_id.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 7,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "13.0.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "filters": [],
+          "limit": 50,
+          "query": "{ resource.service.instance.id = \"$run_id\" }",
+          "queryType": "traceql",
+          "refId": "A",
+          "tableType": "traces"
+        }
+      ],
+      "title": "Traces for this run",
+      "type": "table"
     }
   ],
   "refresh": "10s",

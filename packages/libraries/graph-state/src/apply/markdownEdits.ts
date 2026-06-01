@@ -9,23 +9,17 @@ import { fromNodeToContentWithWikilinks } from '@vt/graph-model/markdown'
 import type { State } from '../contract'
 import type { EdgeChange, GraphDeltaSummary } from './folderTreeHelpers'
 
-export function createEdgesRemovedGraphDelta(edgesRemoved: readonly EdgeChange[]): GraphDelta {
+function createEdgesDelta(key: 'edgesRemoved' | 'edgesAdded', edges: readonly EdgeChange[]): GraphDelta {
     const graphDelta = [] as unknown as GraphDeltaSummary
-    Object.defineProperty(graphDelta, 'edgesRemoved', {
-        value: edgesRemoved,
-        enumerable: true,
-    })
+    Object.defineProperty(graphDelta, key, { value: edges, enumerable: true })
     return graphDelta
 }
 
-export function createEdgesAddedGraphDelta(edgesAdded: readonly EdgeChange[]): GraphDelta {
-    const graphDelta = [] as unknown as GraphDeltaSummary
-    Object.defineProperty(graphDelta, 'edgesAdded', {
-        value: edgesAdded,
-        enumerable: true,
-    })
-    return graphDelta
-}
+export const createEdgesRemovedGraphDelta = (edgesRemoved: readonly EdgeChange[]): GraphDelta =>
+    createEdgesDelta('edgesRemoved', edgesRemoved)
+
+export const createEdgesAddedGraphDelta = (edgesAdded: readonly EdgeChange[]): GraphDelta =>
+    createEdgesDelta('edgesAdded', edgesAdded)
 
 function normalizeMarkdownAfterLinkRemoval(markdown: string): string {
     return markdown

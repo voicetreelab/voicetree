@@ -66,9 +66,9 @@ cp node_modules/better-sqlite3/build/Release/better_sqlite3.node \
 # 2. Rebuild for plain Node (NODE_MODULE_VERSION 131)
 npm rebuild better-sqlite3 --build-from-source
 
-# 3. Run vt-mcpd against a fixture vault
+# 3. Run vt-mcpd against a fixture project
 npx tsx packages/systems/voicetree-mcp/bin/vt-mcpd.ts \
-  --vault /tmp/vt-fixture-d-vault --port 3502 &
+  --project /tmp/vt-fixture-d-project --port 3502 &
 
 # 4. Probe MCP and call a read tool
 curl -sS -X POST http://127.0.0.1:3502/mcp \
@@ -78,7 +78,7 @@ curl -sS -X POST http://127.0.0.1:3502/mcp \
 curl -sS -X POST http://127.0.0.1:3502/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json,text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"graph_structure","arguments":{"folderPath":"/tmp/vt-fixture-d-vault"}}}'
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"graph_structure","arguments":{"folderPath":"/tmp/vt-fixture-d-project"}}}'
 
 # 5. SIGINT to the leaf (clean teardown)
 kill -INT "$(pgrep -f vt-mcpd.ts | tail -1)"
@@ -98,7 +98,7 @@ Phase E re-ran this on `headless_migration` with port 3502 and confirmed:
   read_terminal_output, create_graph, graph_structure, vt_get_live_state,
   vt_dispatch_live_command — and `create_graph` is exposed but rejects
   unknown callers, see "Headless contract" below).
-- `graph_structure` returned `N=3 E=2` for the Phase D fixture vault.
+- `graph_structure` returned `N=3 E=2` for the Phase D fixture project.
 - SIGINT to the leaf pid removed `graphd.lock` + `graphd.port` and exited
   cleanly.
 - Electron `better_sqlite3.node` sha256 restored to
@@ -126,7 +126,7 @@ Phase E **chose (b)**. Reasoning:
   and lifecycle; a synthetic terminal has no real owner and would require new
   policy decisions (budget semantics, id collision, cleanup).
 - Phase D already proved the Write→watcher path: the chokidar mount inside
-  `startDaemon` reconciles new vault files into the graph-store singleton.
+  `startDaemon` reconciles new project files into the graph-store singleton.
 - Live-state tools (`vt_get_live_state`, `vt_dispatch_live_command`) are the
   precedent — they appear unconditionally in `tools/list` and reject with a
   clean MCP error in headless mode rather than being hidden.
@@ -144,7 +144,7 @@ in-process surfaces both Electron and `vt-mcpd` embed:
 - `@vt/graph-db-server/state/graph-store`
 - `@vt/graph-db-server/state/watch-folder-store`
 - `@vt/graph-db-server/settings/settings_IO`
-- `@vt/graph-db-server/watch-folder/vault-allowlist`
+- `@vt/graph-db-server/watch-folder/project-allowlist`
 - `@vt/graph-db-server/graph/applyGraphDelta`
 - `@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode`
 - `@vt/graph-model/pure/graph` (and several deep submodules)

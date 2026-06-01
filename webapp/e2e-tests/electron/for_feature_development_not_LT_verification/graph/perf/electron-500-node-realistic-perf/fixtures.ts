@@ -8,7 +8,7 @@ import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
-import { generateVaultOnDisk } from '@vt/perf-fixtures';
+import { generateProjectOnDisk } from '@vt/perf-fixtures';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
 export const PERF_TRACES_DIR = path.join(PROJECT_ROOT, 'e2e-tests', 'perf-traces');
@@ -25,7 +25,6 @@ export interface ExtendedWindow {
 }
 
 let mainInspectPort = 0;
-let generatedVaultPath = '';
 let generatedProjectPath = '';
 
 function canLoadNativeGraphDbModules(nodeBin: string): boolean {
@@ -84,12 +83,21 @@ async function closeElectronAppWithTimeout(electronApp: ElectronApplication): Pr
   }
 }
 
+function stopTmuxServerForHome(voicetreeHomePath: string): void {
+  const socketPath = path.join(voicetreeHomePath, 'tmux.sock');
+  try {
+    execFileSync('tmux', ['-S', socketPath, 'kill-server'], { stdio: 'ignore' });
+  } catch {
+    // tmux may not have been started for this run.
+  }
+}
+
 export function getMainInspectPort(): number {
   return mainInspectPort;
 }
 
-export function getGeneratedVaultPath(): string {
-  return generatedVaultPath;
+export function getGeneratedProjectPath(): string {
+  return generatedProjectPath;
 }
 
 export async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknown>> {
@@ -100,7 +108,7 @@ export async function collectLoadDiagnostics(page: Page): Promise<Record<string,
         electronAPI?: {
           main?: {
             getWatchStatus?: () => Promise<unknown>;
-            getVaultPaths?: () => Promise<unknown>;
+            getProjectPaths?: () => Promise<unknown>;
             getGraph?: () => Promise<{ nodes?: Record<string, unknown>; edges?: Record<string, unknown> }>;
           };
         };
@@ -134,11 +142,11 @@ export async function collectLoadDiagnostics(page: Page): Promise<Record<string,
       cyNodes: cy?.nodes().length ?? null,
       cyEdges: cy?.edges().length ?? null,
       watchStatus: await safeCall(api?.main?.getWatchStatus),
-      vaultPaths: await safeCall(api?.main?.getVaultPaths),
+      projectPaths: await safeCall(api?.main?.getProjectPaths),
       graphNodeCount,
       graphEdgeCount,
     };
-  }, generatedVaultPath);
+  }, generatedProjectPath);
 }
 
 export const test = base.extend<{
@@ -151,38 +159,51 @@ export const test = base.extend<{
     );
 
     generatedProjectPath = path.join(tempUserDataPath, 'perf-test-project');
-    generatedVaultPath = path.join(generatedProjectPath, 'perf-test-vault');
-    generateVaultOnDisk(generatedVaultPath, REALISTIC_PERF_NODE_COUNT);
-    console.log(`[Vault Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedVaultPath}`);
+    generateProjectOnDisk(generatedProjectPath, REALISTIC_PERF_NODE_COUNT);
+    console.log(`[Project Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedProjectPath}`);
 
-    // Seed projects.json pointing at the generated vault
+    // Seed projects.json pointing at the generated project
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     await fs.writeFile(
       projectsPath,
       JSON.stringify([{
         id: 'realistic-perf-project',
         path: generatedProjectPath,
-        name: 'perf-test-vault',
+        name: 'perf-test-project',
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       }], null, 2),
       'utf8'
     );
 
-    // Seed voicetree-config.json with vault config so the app loads ALL .md files
+    // Seed voicetree-config.json with project config so the app loads ALL .md files
     // Without this, the app creates a new voicetree-{date} subfolder and only loads that
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: generatedProjectPath,
-        vaultConfig: {
+        projectConfig: {
           [generatedProjectPath]: {
-            writeFolder: generatedVaultPath,
+            writeFolderPath: generatedProjectPath,
             readPaths: [],
           }
         }
+      }, null, 2),
+      'utf8'
+    );
+
+    // Seed settings.json with the ForceAtlas2 layout engine. The app resolves its
+    // home (settings.json, recent projects, project config) from VOICETREE_HOME_PATH
+    // — NOT Electron's --user-data-dir — so we point that at the isolated temp dir
+    // below. Without this the app would read the developer's real ~/.voicetree
+    // (showing their real projects and default 'cola' engine) and never reach the
+    // generated graph under the ForceAtlas2 engine.
+    const settingsPath = path.join(tempUserDataPath, 'settings.json');
+    await fs.writeFile(
+      settingsPath,
+      JSON.stringify({
+        layoutConfig: JSON.stringify({ engine: 'forceatlas2', nodeSpacing: 120, edgeLength: 350 }),
       }, null, 2),
       'utf8'
     );
@@ -202,6 +223,11 @@ export const test = base.extend<{
         VOICETREE_PERSIST_STATE: '1',
         VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
+        // Isolate app home to the seeded temp dir, and auto-open the generated
+        // project on startup (getStartupProjectHint → 'open-folder') so we skip
+        // the project picker entirely.
+        VOICETREE_HOME_PATH: tempUserDataPath,
+        VOICETREE_STARTUP_FOLDER: generatedProjectPath,
       },
       timeout: 30000,
     });
@@ -243,9 +269,10 @@ export const test = base.extend<{
     }
 
     await closeElectronAppWithTimeout(electronApp);
+    stopTmuxServerForHome(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
 
-    // After the temp vault is gone, any leftover vt-graphd daemons spawned by
+    // After the temp project is gone, any leftover vt-graphd daemons spawned by
     // this run point at a non-existent path. Reap them so they don't hold
     // ports for the next scenario or developer iteration.
     const reaped = killOrphanVtGraphdDaemons();
@@ -272,17 +299,16 @@ export const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
-    // Click the seeded project to navigate to graph view
-    await window.waitForSelector('text=Voicetree', { timeout: 15000 });
-    const projectButton = window.locator('button:has-text("perf-test-vault")').first();
-    await projectButton.click();
-    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolder=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+    // VOICETREE_STARTUP_FOLDER makes the app auto-open the generated project
+    // straight into graph view (daemon opens the project and starts graph sync),
+    // so no project picker click and no manual file-watching kick are needed.
+    // If the renderer still exposes startFileWatching, call it best-effort to
+    // re-arm watching; otherwise the auto-open path has already handled it.
+    console.log(`[Realistic Perf] App auto-opening startup folder (project=${generatedProjectPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
-    const watchResult = await window.evaluate(async (projectPath) => {
+    const watchResult: { success: boolean; error?: string } = await window.evaluate(async (projectPath) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api?.main?.startFileWatching) {
-        throw new Error('electronAPI.main.startFileWatching is unavailable');
-      }
+      if (!api?.main?.startFileWatching) return { success: true };
       return api.main.startFileWatching(projectPath);
     }, generatedProjectPath);
     console.log('[Realistic Perf] startFileWatching result:', JSON.stringify(watchResult));

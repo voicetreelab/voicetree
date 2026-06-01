@@ -1,0 +1,6 @@
+{
+  "minimumPurityRatio": 0.60,
+  "minimumHealthScore": 0.29,
+  "maxMedianImpureFunctionLoc": 20,
+  "maxP90FunctionLoc": 40
+}

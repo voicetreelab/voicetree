@@ -4,10 +4,10 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const STABLE_DEPENDENCIES_VIOLATION_BUDGET = 1
+const {stableDependenciesViolationBudget: STABLE_DEPENDENCIES_VIOLATION_BUDGET} = readBudgetSync<{stableDependenciesViolationBudget: number}>('shape/martin-metrics.json')
 
 
 type ImportEdge = {

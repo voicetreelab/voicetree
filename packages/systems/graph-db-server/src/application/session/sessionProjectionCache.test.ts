@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { project } from '@vt/graph-state'
 import { applyGraphDeltaToGraph, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model/graph'
 import { toAbsolutePath, type FolderTreeNode } from '@vt/graph-model'
-import type { VaultState } from '@vt/graph-db-server/contract'
+import type { ProjectState } from '@vt/graph-db-server/contract'
 import { handleProjectDeltaEvent, type ProjectDeltaEventInput } from '../core/handleSessionEvents.ts'
 import { projectGraphDerivedFolderTree } from '../projection/graphDerivedFolderTree.ts'
 import { projectSessionState } from './project.ts'
@@ -27,13 +27,13 @@ function makeNode(id: string, content: string): GraphNode {
   }
 }
 
-function folderTreeFor(graph: Graph, vault: VaultState, vaultPaths: readonly string[]): FolderTreeNode | null {
+function folderTreeFor(graph: Graph, project: ProjectState, projectPaths: readonly string[]): FolderTreeNode | null {
   return projectGraphDerivedFolderTree({
     graph,
-    projectRoot: vault.projectRoot ? toAbsolutePath(vault.projectRoot) : null,
-    readPaths: vault.readPaths,
-    vaultPaths,
-    writeFolder: vault.writeFolder ? toAbsolutePath(vault.writeFolder) : null,
+    projectRoot: project.projectRoot ? toAbsolutePath(project.projectRoot) : null,
+    readPaths: project.readPaths,
+    projectPaths,
+    writeFolderPath: project.writeFolderPath ? toAbsolutePath(project.writeFolderPath) : null,
   })
 }
 
@@ -41,34 +41,34 @@ function snapshotFor(input: {
   readonly graph: Graph
   readonly projectVersion?: number
   readonly session: Session
-  readonly vault: VaultState
-  readonly vaultPaths: readonly string[]
-  readonly vaultVersion?: number
+  readonly project: ProjectState
+  readonly projectPaths: readonly string[]
+  readonly projectPathsVersion?: number
 }): DaemonStateSnapshot {
   return {
-    folderTree: folderTreeFor(input.graph, input.vault, input.vaultPaths),
+    folderTree: folderTreeFor(input.graph, input.project, input.projectPaths),
     graph: input.graph,
-    projectRoot: input.vault.projectRoot,
+    projectRoot: input.project.projectRoot,
     projectVersion: input.projectVersion ?? 1,
-    readPaths: input.vault.readPaths,
+    readPaths: input.project.readPaths,
     session: input.session,
-    vault: input.vault,
-    vaultPaths: input.vaultPaths,
-    vaultVersion: input.vaultVersion ?? 1,
-    writeFolder: input.vault.writeFolder,
+    project: input.project,
+    projectPaths: input.projectPaths,
+    projectPathsVersion: input.projectPathsVersion ?? 1,
+    writeFolderPath: input.project.writeFolderPath,
   }
 }
 
 function makeDeltaSequence(initialGraph: Graph): readonly GraphDelta[] {
-  const targetId = '/vault/public/target.md'
+  const targetId = '/project/public/target.md'
   const targetNode = initialGraph.nodes[targetId]
   if (!targetNode) throw new Error('fixture target missing')
-  const movedNode = makeNode('/vault/public/moved-target.md', 'Moved target')
+  const movedNode = makeNode('/project/public/moved-target.md', 'Moved target')
 
   return [
     [{
       type: 'UpsertNode',
-      nodeToUpsert: makeNode('/vault/public/new-1.md', 'New 1'),
+      nodeToUpsert: makeNode('/project/public/new-1.md', 'New 1'),
       previousNode: O.none,
     }],
     [{
@@ -93,8 +93,8 @@ function makeDeltaSequence(initialGraph: Graph): readonly GraphDelta[] {
     ],
     [{
       type: 'DeleteNode',
-      nodeId: '/vault/secret/new-link.md',
-      deletedNode: O.fromNullable(initialGraph.nodes['/vault/secret/new-link.md']),
+      nodeId: '/project/secret/new-link.md',
+      deletedNode: O.fromNullable(initialGraph.nodes['/project/secret/new-link.md']),
     }],
   ]
 }
@@ -104,9 +104,9 @@ type FuzzModel = {
   graph: Graph
   projectVersion: number
   session: Session
-  vault: VaultState
-  vaultPaths: readonly string[]
-  vaultVersion: number
+  project: ProjectState
+  projectPaths: readonly string[]
+  projectPathsVersion: number
 }
 
 type Rng = { seed: number }
@@ -123,9 +123,9 @@ function rebuildCache(model: FuzzModel): FuzzModel {
       graph: model.graph,
       projectVersion: model.projectVersion,
       session: model.session,
-      vault: model.vault,
-      vaultPaths: model.vaultPaths,
-      vaultVersion: model.vaultVersion,
+      project: model.project,
+      projectPaths: model.projectPaths,
+      projectPathsVersion: model.projectPathsVersion,
     })),
   }
 }
@@ -135,13 +135,13 @@ function rebuiltStateFor(model: FuzzModel) {
     graph: model.graph,
     projectVersion: model.projectVersion,
     session: model.session,
-    vault: model.vault,
-    vaultPaths: model.vaultPaths,
-    vaultVersion: model.vaultVersion,
+    project: model.project,
+    projectPaths: model.projectPaths,
+    projectPathsVersion: model.projectPathsVersion,
   })
   return projectSessionState({
     graph: snapshot.graph,
-    vault: snapshot.vault,
+    project: snapshot.project,
     folderTree: snapshot.folderTree,
     session: snapshot.session,
   })
@@ -179,7 +179,7 @@ function makeFuzzDelta(model: FuzzModel, rng: Rng, step: number): GraphDelta {
   const choice = nextInt(rng, 3)
 
   if (choice === 0 || nodeIds.length === 0) {
-    const node = makeNode(`/vault/public/fuzz-${step}.md`, `Fuzz ${step}`)
+    const node = makeNode(`/project/public/fuzz-${step}.md`, `Fuzz ${step}`)
     return [{
       type: 'UpsertNode',
       nodeToUpsert: node,
@@ -200,7 +200,7 @@ function makeFuzzDelta(model: FuzzModel, rng: Rng, step: number): GraphDelta {
     }]
   }
 
-  const movedNode = makeNode(`/vault/workspace/fuzz-moved-${step}.md`, `Moved ${step}`)
+  const movedNode = makeNode(`/project/workspace/fuzz-moved-${step}.md`, `Moved ${step}`)
   return [
     {
       type: 'DeleteNode',
@@ -216,7 +216,7 @@ function makeFuzzDelta(model: FuzzModel, rng: Rng, step: number): GraphDelta {
 }
 
 function mutateFolderState(model: FuzzModel, rng: Rng): FuzzModel {
-  const paths = ['/vault/public', '/vault/secret', '/vault/workspace']
+  const paths = ['/project/public', '/project/secret', '/project/workspace']
   const states = ['expanded', 'collapsed', 'hidden'] as const
   const path = paths[nextInt(rng, paths.length)]!
   const current = model.session.folderState.get(path)
@@ -225,36 +225,35 @@ function mutateFolderState(model: FuzzModel, rng: Rng): FuzzModel {
   expect(sessionProjectionCache.shouldRebuild({
     cache: model.cache,
     session: model.session,
-    vaultVersion: model.vaultVersion,
+    projectPathsVersion: model.projectPathsVersion,
   })).toBe(true)
   return rebuildCache(model)
 }
 
-function mutateVaultPaths(model: FuzzModel, rng: Rng): FuzzModel {
+function mutateProjectPaths(model: FuzzModel, rng: Rng): FuzzModel {
   const readPathSets = [
-    ['/vault/docs'],
-    ['/vault/docs', '/vault/public'],
-    ['/vault/secret'],
+    ['/project/docs'],
+    ['/project/docs', '/project/public'],
+    ['/project/secret'],
   ] as const
-  const writeFolders = ['/vault', '/vault/workspace'] as const
-  const roots = ['/vault', '/vault-alt'] as const
+  const writeFolderPaths = ['/project', '/project/workspace'] as const
+  const roots = ['/project', '/project-alt'] as const
 
   const projectRoot = roots[nextInt(rng, roots.length)]!
-  const writeFolder = writeFolders[nextInt(rng, writeFolders.length)]!
+  const writeFolderPath = writeFolderPaths[nextInt(rng, writeFolderPaths.length)]!
   const readPaths = [...readPathSets[nextInt(rng, readPathSets.length)]!]
-  const vault = { projectRoot, readPaths, writeFolder }
+  const project = { projectRoot, readPaths, writeFolderPath }
   const nextModel: FuzzModel = {
     ...model,
-    projectVersion: model.projectVersion + 1,
-    vault,
-    vaultPaths: [vault.writeFolder, ...vault.readPaths],
-    vaultVersion: model.vaultVersion + 1,
+    projectPathsVersion: model.projectPathsVersion + 1,
+    project,
+    projectPaths: [project.writeFolderPath, ...project.readPaths],
   }
 
   expect(sessionProjectionCache.shouldRebuild({
     cache: nextModel.cache,
     session: nextModel.session,
-    vaultVersion: nextModel.vaultVersion,
+    projectPathsVersion: nextModel.projectPathsVersion,
   })).toBe(true)
   return rebuildCache(nextModel)
 }
@@ -271,7 +270,7 @@ function mutateSelectionAndLayout(model: FuzzModel, rng: Rng, step: number): Fuz
   expect(sessionProjectionCache.shouldRebuild({
     cache: model.cache,
     session: model.session,
-    vaultVersion: model.vaultVersion,
+    projectPathsVersion: model.projectPathsVersion,
   })).toBe(false)
   return model
 }
@@ -281,23 +280,23 @@ describe('session projection cache', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession({
       folderState: new Map([
-        ['/vault/public', 'expanded'],
-        ['/vault/secret', 'expanded'],
+        ['/project/public', 'expanded'],
+        ['/project/secret', 'expanded'],
       ]),
     })
-    const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const project = fixtures.makeProject()
+    const projectPaths = [project.writeFolderPath, ...project.readPaths]
     let graph = fixtures.makeVisibilityGraph()
-    let cache = sessionProjectionCache.create(snapshotFor({ graph, session, vault, vaultPaths }))
+    let cache = sessionProjectionCache.create(snapshotFor({ graph, session, project, projectPaths }))
 
     for (const [index, delta] of makeDeltaSequence(graph).entries()) {
       const event: ProjectDeltaEventInput = { delta, seq: index + 1 }
       graph = applyGraphDeltaToGraph(graph, delta)
 
-      const rebuiltSnapshot = snapshotFor({ graph, session, vault, vaultPaths })
+      const rebuiltSnapshot = snapshotFor({ graph, session, project, projectPaths })
       const rebuiltState = projectSessionState({
         graph: rebuiltSnapshot.graph,
-        vault: rebuiltSnapshot.vault,
+        project: rebuiltSnapshot.project,
         folderTree: rebuiltSnapshot.folderTree,
         session: rebuiltSnapshot.session,
       })
@@ -316,92 +315,92 @@ describe('session projection cache', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession({
       folderState: new Map([
-        ['/vault/public', 'expanded'],
-        ['/vault/secret', 'expanded'],
+        ['/project/public', 'expanded'],
+        ['/project/secret', 'expanded'],
       ]),
     })
-    const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const project = fixtures.makeProject()
+    const projectPaths = [project.writeFolderPath, ...project.readPaths]
     let graph = fixtures.makeVisibilityGraph()
     let projectVersion = 10
-    const vaultVersion = 4
+    const projectPathsVersion = 4
     let cache = sessionProjectionCache.create(snapshotFor({
       graph,
       projectVersion,
       session,
-      vault,
-      vaultPaths,
-      vaultVersion,
+      project,
+      projectPaths,
+      projectPathsVersion,
     }))
 
     for (const [index, delta] of makeDeltaSequence(graph).entries()) {
       projectVersion += 1
-      expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion })).toBe(false)
+      expect(sessionProjectionCache.shouldRebuild({ cache, session, projectPathsVersion })).toBe(false)
 
       const event: ProjectDeltaEventInput = { delta, seq: index + 1 }
       graph = applyGraphDeltaToGraph(graph, delta)
       cache = sessionProjectionCache.advance(cache, event)
 
-      const model: FuzzModel = { cache, graph, projectVersion, session, vault, vaultPaths, vaultVersion }
+      const model: FuzzModel = { cache, graph, projectVersion, session, project, projectPaths, projectPathsVersion }
       expectCachedStateToMatchRebuild(model)
     }
 
     expect(sessionProjectionCache.shouldRebuild({
       cache,
       session,
-      vaultVersion: vaultVersion + 1,
+      projectPathsVersion: projectPathsVersion + 1,
     })).toBe(true)
   })
 
-  test('rebuilds on folder-state and vault-version changes, not selection, layout, or project-version changes', () => {
+  test('rebuilds on folder-state and project-path changes, not selection, layout, or graph-version changes', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession()
-    const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const project = fixtures.makeProject()
+    const projectPaths = [project.writeFolderPath, ...project.readPaths]
     const cache = sessionProjectionCache.create(snapshotFor({
       graph: fixtures.makeVisibilityGraph(),
       projectVersion: 10,
       session,
-      vault,
-      vaultPaths,
-      vaultVersion: 4,
+      project,
+      projectPaths,
+      projectPathsVersion: 4,
     }))
 
-    session.selection.add('/vault/public/target.md')
+    session.selection.add('/project/public/target.md')
     session.layout.pan = { x: 10, y: 20 }
     session.layout.zoom = 2
-    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 4 })).toBe(false)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, projectPathsVersion: 4 })).toBe(false)
 
-    session.folderState.set('/vault/public', 'collapsed')
-    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 4 })).toBe(true)
+    session.folderState.set('/project/public', 'collapsed')
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, projectPathsVersion: 4 })).toBe(true)
 
     session.folderState.clear()
-    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 4 })).toBe(false)
-    expect(sessionProjectionCache.shouldRebuild({ cache, session, vaultVersion: 5 })).toBe(true)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, projectPathsVersion: 4 })).toBe(false)
+    expect(sessionProjectionCache.shouldRebuild({ cache, session, projectPathsVersion: 5 })).toBe(true)
   })
 
-  test('fuzzes graph, session, and vault mutations against rebuild-from-scratch projection', () => {
+  test('fuzzes graph, session, and project mutations against rebuild-from-scratch projection', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession({
       folderState: new Map([
-        ['/vault/public', 'expanded'],
-        ['/vault/secret', 'expanded'],
+        ['/project/public', 'expanded'],
+        ['/project/secret', 'expanded'],
       ]),
     })
-    const vault = fixtures.makeVault()
+    const project = fixtures.makeProject()
     let model: FuzzModel = rebuildCache({
       cache: sessionProjectionCache.create(snapshotFor({
         graph: fixtures.makeVisibilityGraph(),
         session,
-        vault,
-        vaultPaths: [vault.writeFolder, ...vault.readPaths],
+        project,
+        projectPaths: [project.writeFolderPath, ...project.readPaths],
       })),
       graph: fixtures.makeVisibilityGraph(),
       projectVersion: 1,
       session,
-      vault,
-      vaultPaths: [vault.writeFolder, ...vault.readPaths],
-      vaultVersion: 1,
+      project,
+      projectPaths: [project.writeFolderPath, ...project.readPaths],
+      projectPathsVersion: 1,
     })
     const rng: Rng = { seed: 0xC0FFEE }
 
@@ -411,7 +410,7 @@ describe('session projection cache', () => {
         expect(sessionProjectionCache.shouldRebuild({
           cache: model.cache,
           session: model.session,
-          vaultVersion: model.vaultVersion,
+          projectPathsVersion: model.projectPathsVersion,
         })).toBe(false)
 
         const delta = makeFuzzDelta(model, rng, step)
@@ -433,7 +432,7 @@ describe('session projection cache', () => {
       }
 
       if (operation === 4) {
-        model = mutateVaultPaths(model, rng)
+        model = mutateProjectPaths(model, rng)
         expectCachedStateToMatchRebuild(model)
         continue
       }
@@ -447,24 +446,24 @@ describe('session projection cache', () => {
     const fixtures = makeProjectSessionStateFixtures()
     const session = fixtures.makeSession({
       folderState: new Map([
-        ['/vault/public', 'expanded'],
-        ['/vault/secret', 'expanded'],
+        ['/project/public', 'expanded'],
+        ['/project/secret', 'expanded'],
       ]),
     })
-    const vault = fixtures.makeVault()
-    const vaultPaths = [vault.writeFolder, ...vault.readPaths]
+    const project = fixtures.makeProject()
+    const projectPaths = [project.writeFolderPath, ...project.readPaths]
     const observerCount = 4
     let graph = fixtures.makeVisibilityGraph()
     const isolatedCaches = Array.from(
       { length: observerCount },
-      () => sessionProjectionCache.create(snapshotFor({ graph, session, vault, vaultPaths })),
+      () => sessionProjectionCache.create(snapshotFor({ graph, session, project, projectPaths })),
     )
     const registry = sessionProjectionCache.createRegistry()
     const sharedLeases = Array.from(
       { length: observerCount },
       () => registry.acquire(session.id),
     )
-    sharedLeases[0]!.replace(sessionProjectionCache.create(snapshotFor({ graph, session, vault, vaultPaths })))
+    sharedLeases[0]!.replace(sessionProjectionCache.create(snapshotFor({ graph, session, project, projectPaths })))
 
     for (const [index, delta] of makeDeltaSequence(graph).entries()) {
       const event: ProjectDeltaEventInput = { delta, seq: index + 1 }

@@ -73,7 +73,7 @@ function notifySubscribers(): void {
  * Preserves renderer-local UI references while updating data from main.
  * Phase 3: Renderer is display-only, main is source of truth.
  */
-export function syncFromMain(records: TerminalRecord[]): void {
+export function syncFromMain(records: readonly TerminalRecord[]): void {
     // Build set of incoming terminal IDs for removal detection
     const incomingIds: Set<string> = new Set(records.map(r => r.terminalId));
 
@@ -185,7 +185,7 @@ export function updateTerminalRunningState(
     const updated: TerminalData = { ...existing, ...updates };
     terminals.set(terminalId, updated);
 
-    // Sync isDone changes to main process for MCP list_agents
+    // Sync isDone changes to main process for the list_agents tool
     if (updates.isDone !== undefined && updates.isDone !== previousIsDone) {
         void window.electronAPI?.main.updateTerminalIsDone(terminalId, updates.isDone);
     }

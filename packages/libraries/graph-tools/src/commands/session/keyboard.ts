@@ -28,7 +28,7 @@ type CommonOpts = {
   selector?: string
   port?: number
   pid?: number
-  vault?: string
+  project?: string
   forceNew?: boolean
 }
 
@@ -72,11 +72,11 @@ const READ_ACTIVE_ELEMENT_SOURCE = String.raw`(() => {
 function usage(message?: string): Response<never> {
   return err(
     'keyboard',
-    message ?? 'usage: vt-debug keyboard <type|press> ...',
+    message ?? 'usage: vt debug keyboard <type|press> ...',
     [
       "type <text> [--selector <css>] [--delay-ms <ms>]",
       "press <chord> [--selector <css>]",
-      "[--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]",
+      "[--port <n> | --cdpPort <n> | --pid <n> | --project <path>]",
     ].join(' '),
   )
 }
@@ -160,7 +160,7 @@ async function readActiveElement(page: PageLike): Promise<ActiveElementInfo> {
 }
 
 async function resolveTarget(opts: CommonOpts) {
-  const pick = await resolveDebugInstance({ port: opts.port, pid: opts.pid, vault: opts.vault, forceNew: opts.forceNew })
+  const pick = await resolveDebugInstance({ port: opts.port, pid: opts.pid, project: opts.project, forceNew: opts.forceNew })
   if (!pick.ok) {
     return { ok: false as const, response: err('keyboard', pick.message, pick.hint, 2) }
   }

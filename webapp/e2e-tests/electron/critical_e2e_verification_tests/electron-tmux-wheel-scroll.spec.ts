@@ -34,11 +34,11 @@ import { test } from './electron-anchor-test-fixtures';
 
 const SCROLL_SETTLE_TIMEOUT_MS: number = 10_000;
 
-function tmuxListSessions(appSupportPath?: string): string[] {
+function tmuxListSessions(voicetreeHomePath?: string): string[] {
   try {
     return execFileSync(
       'tmux',
-      tmuxCommandArgsForTest(['list-sessions', '-F', '#S'], appSupportPath),
+      tmuxCommandArgsForTest(['list-sessions', '-F', '#S'], voicetreeHomePath),
       { encoding: 'utf8' },
     )
       .split('\n')
@@ -49,11 +49,11 @@ function tmuxListSessions(appSupportPath?: string): string[] {
   }
 }
 
-function tmuxDisplay(sessionName: string, format: string, appSupportPath?: string): string {
+function tmuxDisplay(sessionName: string, format: string, voicetreeHomePath?: string): string {
   try {
     return execFileSync(
       'tmux',
-      tmuxCommandArgsForTest(['display-message', '-p', '-t', sessionName, format], appSupportPath),
+      tmuxCommandArgsForTest(['display-message', '-p', '-t', sessionName, format], voicetreeHomePath),
       { encoding: 'utf8' },
     ).trim();
   } catch {
@@ -61,11 +61,11 @@ function tmuxDisplay(sessionName: string, format: string, appSupportPath?: strin
   }
 }
 
-function tmuxCapturePane(sessionName: string, appSupportPath?: string): string {
+function tmuxCapturePane(sessionName: string, voicetreeHomePath?: string): string {
   try {
     return execFileSync(
       'tmux',
-      tmuxCommandArgsForTest(['capture-pane', '-p', '-J', '-S', '-200', '-t', sessionName], appSupportPath),
+      tmuxCommandArgsForTest(['capture-pane', '-p', '-J', '-S', '-200', '-t', sessionName], voicetreeHomePath),
       { encoding: 'utf8' },
     );
   } catch {
@@ -73,19 +73,19 @@ function tmuxCapturePane(sessionName: string, appSupportPath?: string): string {
   }
 }
 
-function tmuxSendKeys(sessionName: string, keys: string[], appSupportPath?: string): void {
+function tmuxSendKeys(sessionName: string, keys: string[], voicetreeHomePath?: string): void {
   execFileSync(
     'tmux',
-    tmuxCommandArgsForTest(['send-keys', '-t', sessionName, ...keys], appSupportPath),
+    tmuxCommandArgsForTest(['send-keys', '-t', sessionName, ...keys], voicetreeHomePath),
     { stdio: 'ignore' },
   );
 }
 
-function killTmuxSession(sessionName: string, appSupportPath?: string): void {
+function killTmuxSession(sessionName: string, voicetreeHomePath?: string): void {
   try {
     execFileSync(
       'tmux',
-      tmuxCommandArgsForTest(['kill-session', '-t', sessionName], appSupportPath),
+      tmuxCommandArgsForTest(['kill-session', '-t', sessionName], voicetreeHomePath),
       { stdio: 'ignore' },
     );
   } catch {
@@ -99,7 +99,7 @@ function killTmuxSession(sessionName: string, appSupportPath?: string): void {
 // vt-daemon migration:
 //   - `waitForMcpServer(http://.../mcp)` — voicetree-mcp package retired
 //   - `api.main.getMcpPort()` — replaced by VOICETREE_DAEMON_URL + vt-daemon /rpc
-//   - `api.main.startFileWatching()` — replaced by `openVault` (BF-376 phase 2)
+//   - `api.main.startFileWatching()` — replaced by `openProject` (BF-376 phase 2)
 //
 // The underlying wheel-scroll behaviour IS wired end-to-end on the merged
 // branch: the renderer's electronAPI.terminal.scroll IPC was added during the
@@ -109,30 +109,30 @@ function killTmuxSession(sessionName: string, appSupportPath?: string): void {
 test.describe.skip('renderer wheel → tmux scrollback', () => {
   test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
-  test('WheelEvent on xterm viewport enters tmux copy-mode and exits on scroll-down past live', async ({ appWindow, fixtureVaultPath }) => {
+  test('WheelEvent on xterm viewport enters tmux copy-mode and exits on scroll-down past live', async ({ appWindow, fixtureProjectPath }) => {
     test.setTimeout(240_000);
 
-    let appSupportPath: string | undefined;
+    let voicetreeHomePath: string | undefined;
     let sessionName: string | undefined;
 
     try {
       // ── Bring up MCP + file watcher + graph. ──
-      const runtimeInfo: { appSupportPath: string; mcpPort: number } = await appWindow.evaluate(async () => {
+      const runtimeInfo: { voicetreeHomePath: string; mcpPort: number } = await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         return {
-          appSupportPath: await api.main.getVoicetreeHomePath(),
+          voicetreeHomePath: await api.main.getVoicetreeHomePath(),
           mcpPort: await api.main.getMcpPort(),
         };
       });
-      appSupportPath = runtimeInfo.appSupportPath;
+      voicetreeHomePath = runtimeInfo.voicetreeHomePath;
       expect(await waitForMcpServer(`http://127.0.0.1:${runtimeInfo.mcpPort}/mcp`)).toBe(true);
 
       const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         return await api.main.startFileWatching(projectRoot);
-      }, fixtureVaultPath);
+      }, fixtureProjectPath);
       expect(watchResult.success, 'startFileWatching failed').toBe(true);
 
       await expect.poll(async () => appWindow.evaluate(async () => {
@@ -196,15 +196,15 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       // Let the floating-window anchoring reflow in response to the cy.fit.
       await appWindow.waitForTimeout(500);
 
-      // The test vault is isolated (anchor fixture mints a temp dir), so the
+      // The test project is isolated (anchor fixture mints a temp dir), so the
       // first tmux session on this socket is ours.
-      await expect.poll(() => tmuxListSessions(appSupportPath).length, {
+      await expect.poll(() => tmuxListSessions(voicetreeHomePath).length, {
         timeout: 10_000,
         message: 'no tmux session ever materialised for the spawned terminal',
       }).toBeGreaterThan(0);
       // There's a `__voicetree_root__` housekeeping session plus our floating
       // terminal's `vt-…` session — pick the latter.
-      const allSessions: string[] = tmuxListSessions(appSupportPath);
+      const allSessions: string[] = tmuxListSessions(voicetreeHomePath);
       sessionName = allSessions.find((s: string) => s.startsWith('vt-'));
       if (!sessionName) throw new Error('no vt-prefixed tmux session found; sessions=' + allSessions.join(','));
 
@@ -216,10 +216,10 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       tmuxSendKeys(
         sessionName,
         ['seq -w 1 200 | awk \'{print "==== TEST LINE " $1 " ===="}\'', 'Enter'],
-        appSupportPath,
+        voicetreeHomePath,
       );
 
-      await expect.poll(() => tmuxCapturePane(sessionName!, appSupportPath).includes('TEST LINE 200'), {
+      await expect.poll(() => tmuxCapturePane(sessionName!, voicetreeHomePath).includes('TEST LINE 200'), {
         timeout: SCROLL_SETTLE_TIMEOUT_MS,
         intervals: [200, 500, 1000],
         message: 'labelled seed output never reached the pane buffer',
@@ -229,7 +229,7 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       await appWindow.waitForTimeout(500);
 
       // Sanity: not in copy-mode before we touch the wheel.
-      expect(tmuxDisplay(sessionName, '#{pane_in_mode}', appSupportPath)).toBe('0');
+      expect(tmuxDisplay(sessionName, '#{pane_in_mode}', voicetreeHomePath)).toBe('0');
 
       await appWindow.screenshot({
         path: 'e2e-tests/screenshots/wheel-scroll-01-pre-wheel.png',
@@ -264,10 +264,10 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       });
       expect(dispatched, '.xterm root not found for wheel dispatch').toBe(true);
 
-      await expect.poll(() => tmuxDisplay(sessionName!, '#{pane_in_mode}', appSupportPath), {
+      await expect.poll(() => tmuxDisplay(sessionName!, '#{pane_in_mode}', voicetreeHomePath), {
         timeout: SCROLL_SETTLE_TIMEOUT_MS,
         intervals: [50, 100, 200, 500],
-        message: () => `tmux never entered copy-mode after WheelEvent.\ncapture-pane:\n${tmuxCapturePane(sessionName!, appSupportPath)}`,
+        message: () => `tmux never entered copy-mode after WheelEvent.\ncapture-pane:\n${tmuxCapturePane(sessionName!, voicetreeHomePath)}`,
       }).toBe('1');
 
       await appWindow.screenshot({
@@ -288,17 +288,17 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
         }
       });
 
-      await expect.poll(() => tmuxDisplay(sessionName!, '#{pane_in_mode}', appSupportPath), {
+      await expect.poll(() => tmuxDisplay(sessionName!, '#{pane_in_mode}', voicetreeHomePath), {
         timeout: SCROLL_SETTLE_TIMEOUT_MS,
         intervals: [50, 100, 200, 500],
-        message: () => `tmux did not auto-exit copy-mode after scrolling past live view.\ncapture-pane:\n${tmuxCapturePane(sessionName!, appSupportPath)}`,
+        message: () => `tmux did not auto-exit copy-mode after scrolling past live view.\ncapture-pane:\n${tmuxCapturePane(sessionName!, voicetreeHomePath)}`,
       }).toBe('0');
 
       await appWindow.screenshot({
         path: 'e2e-tests/screenshots/wheel-scroll-03-back-to-live.png',
       });
     } finally {
-      if (sessionName) killTmuxSession(sessionName, appSupportPath);
+      if (sessionName) killTmuxSession(sessionName, voicetreeHomePath);
     }
   });
 });

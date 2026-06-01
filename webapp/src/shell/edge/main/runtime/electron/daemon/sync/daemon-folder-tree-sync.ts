@@ -1,5 +1,5 @@
 import { buildFolderTree, getExternalReadPaths, toAbsolutePath, type AbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph } from '@vt/graph-model'
-import type { VaultState } from '@vt/graph-db-client'
+import type { ProjectState } from '@vt/graph-db-client'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starredFolders'
 
@@ -11,55 +11,63 @@ export type FolderTreeSyncPayload = {
 }
 
 export async function buildFolderTreeSyncPayload(
-  vaultState: VaultState,
+  projectState: ProjectState,
   graph: Graph,
 ): Promise<FolderTreeSyncPayload> {
   const loadedPaths: Set<string> = new Set<string>([
-    ...vaultState.readPaths,
-    vaultState.writeFolder,
+    ...projectState.readPaths,
+    projectState.writeFolderPath,
   ])
-  const writeFolder: AbsolutePath = toAbsolutePath(vaultState.writeFolder)
+  const writeFolderPath: AbsolutePath = toAbsolutePath(projectState.writeFolderPath)
   const graphFilePaths: Set<string> = new Set<string>(Object.keys(graph.nodes))
 
-  let rootTree: FolderTreeNode | null = null
-  try {
-    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.projectRoot)
-    rootTree = buildFolderTree(rootEntry, loadedPaths, writeFolder, graphFilePaths)
-  } catch {
-    rootTree = null
+  // Each folder scan is an independent recursive `fs.readdir`. Build the
+  // tree for one folder, returning null on any unreadable folder so a single
+  // failure never rejects the whole batch (matches the prior per-folder
+  // try/catch). `maxDepth` omitted => getDirectoryTree's default for the root.
+  const buildTreeFor = async (
+    folder: string,
+    maxDepth?: number,
+  ): Promise<FolderTreeNode | null> => {
+    try {
+      const entry: DirectoryEntry = maxDepth === undefined
+        ? await getDirectoryTree(folder)
+        : await getDirectoryTree(folder, maxDepth)
+      return buildFolderTree(entry, loadedPaths, writeFolderPath, graphFilePaths)
+    } catch {
+      return null
+    }
   }
 
   const starredFolders: readonly string[] = await getStarredFolders()
+  const externalFolders: readonly string[] = getExternalReadPaths(
+    projectState.readPaths,
+    projectState.projectRoot,
+  )
+
+  // Root, starred and external scans are mutually independent — run them
+  // concurrently so total latency is the slowest scan, not their sum.
+  const [rootTree, starredTreeList, externalTreeList]: [
+    FolderTreeNode | null,
+    readonly (FolderTreeNode | null)[],
+    readonly (FolderTreeNode | null)[],
+  ] = await Promise.all([
+    buildTreeFor(projectState.projectRoot),
+    Promise.all(starredFolders.map((folder) => buildTreeFor(folder, 3))),
+    Promise.all(externalFolders.map((folder) => buildTreeFor(folder, 3))),
+  ])
 
   const starredTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of starredFolders) {
-    try {
-      const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
-      starredTrees[folder] = buildFolderTree(
-        entry,
-        loadedPaths,
-        writeFolder,
-        graphFilePaths,
-      )
-    } catch {
-      // Ignore unreadable starred folders; this matches the existing push path.
-    }
-  }
+  starredFolders.forEach((folder, index) => {
+    const tree: FolderTreeNode | null = starredTreeList[index]
+    if (tree !== null) starredTrees[folder] = tree
+  })
 
   const externalTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of getExternalReadPaths(vaultState.readPaths, vaultState.projectRoot)) {
-    try {
-      const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
-      externalTrees[folder] = buildFolderTree(
-        entry,
-        loadedPaths,
-        writeFolder,
-        graphFilePaths,
-      )
-    } catch {
-      // Ignore unreadable external trees; this matches the existing push path.
-    }
-  }
+  externalFolders.forEach((folder, index) => {
+    const tree: FolderTreeNode | null = externalTreeList[index]
+    if (tree !== null) externalTrees[folder] = tree
+  })
 
   return { externalTrees, rootTree, starredFolders, starredTrees }
 }

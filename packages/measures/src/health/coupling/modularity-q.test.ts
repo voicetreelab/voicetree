@@ -4,9 +4,10 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-const MODULARITY_Q_BUDGET = 0.525
+const {minModularityQ: MODULARITY_Q_BUDGET} = readBudgetSync<{minModularityQ: number}>('coupling/modularity-q.json')
 
 
 type SourceFileInfo = {

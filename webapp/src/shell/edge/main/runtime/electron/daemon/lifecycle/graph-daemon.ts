@@ -1,7 +1,7 @@
 import { SpanStatusCode } from '@opentelemetry/api'
 
 import {
-  ensureGraphDaemonForVault,
+  ensureGraphDaemonForProject,
   GraphDbClient,
   type EnsureGraphDaemonResult,
 } from '@vt/graph-db-client'
@@ -19,10 +19,10 @@ async function stopOwnerRecoveryLoops(): Promise<void> {
   await stopDaemonGraphSync()
 }
 
-let activeVault: string | null = null
+let activeProject: string | null = null
 let activeOwner: DaemonHandle | null = null
 
-function pushToRenderer(channel: 'vault:lost', payload: unknown): void {
+function pushToRenderer(channel: 'project:lost', payload: unknown): void {
   const mainWindow: Electron.BrowserWindow | null = getMainWindow()
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.webContents.send(channel, payload)
@@ -44,34 +44,34 @@ function markDaemonLost(error: unknown): void {
   const previous = activeOwner
   activeOwner = null
 
-  pushToRenderer('vault:lost', {
+  pushToRenderer('project:lost', {
     error: error instanceof Error ? error.message : String(error),
     pid: previous?.pid ?? null,
-    vault: activeVault,
+    project: activeProject,
   })
 }
 
 /**
- * Resolve the bound `GraphDbClient` for the currently active vault, ensuring
- * the owner via {@link ensureGraphDaemonForVault} when no healthy cached
- * client exists. Throws when no vault has been activated yet — `openVault`
+ * Resolve the bound `GraphDbClient` for the currently active project, ensuring
+ * the owner via {@link ensureGraphDaemonForProject} when no healthy cached
+ * client exists. Throws when no project has been activated yet — `openProject`
  * must run first.
  *
  * BF-347: when the cached client is lost (connection failure), recovery
  * goes through {@link attemptOwnerMediatedRecovery}: SSE + watch-sync loops
  * are stopped BEFORE the ensure call, and fork-storm protection remains in
  * the shared owner ensure path. The first-time ensure path (no cached client
- * yet) calls `ensureGraphDaemonForVault` directly — it is the user-driven
+ * yet) calls `ensureGraphDaemonForProject` directly — it is the user-driven
  * open, not a recovery.
  */
-export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
-  return await daemonTracer().startActiveSpan('daemon.ensure-for-active-vault', async (span) => {
+export async function ensureDaemonForActiveProject(): Promise<DaemonHandle> {
+  return await daemonTracer().startActiveSpan('daemon.ensure-for-active-project', async (span) => {
     try {
-      if (activeVault === null) {
-        span.setAttribute('outcome', 'no-active-vault')
-        throw new Error('Cannot ensure graph daemon: no vault is currently open')
+      if (activeProject === null) {
+        span.setAttribute('outcome', 'no-active-project')
+        throw new Error('Cannot ensure graph daemon: no project is currently open')
       }
-      span.setAttribute('vault', activeVault)
+      span.setAttribute('project', activeProject)
       if (activeOwner !== null) {
         // Capture locally: the module-scope `activeOwner` can be cleared during
         // a concurrent `shutdownActiveDaemonConnection()`. Without the capture,
@@ -83,7 +83,7 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
         return current
       }
       span.setAttribute('outcome', 'first-time-ensure')
-      const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
+      const owner = await ensureGraphDaemonForProject(activeProject, 'electron-main')
       activeOwner = owner
       span.setAttribute('ownerPid', owner.pid)
       span.setAttribute('launched', owner.launched)
@@ -98,17 +98,17 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
 }
 
 /**
- * Set the active vault and ensure its owner-bound daemon. Called by
- * {@link openVault} before any vault-routed RPC. Switching vaults drops the
+ * Set the active project and ensure its owner-bound daemon. Called by
+ * {@link openProject} before any project-routed RPC. Switching projects drops the
  * previous client cache; the underlying vt-graphd process is left untouched
- * (it is a vault-scoped shared resource, not Electron-owned).
+ * (it is a project-scoped shared resource, not Electron-owned).
  */
-export async function setActiveVaultAndEnsureDaemon(vault: string): Promise<DaemonHandle> {
-  if (activeVault !== vault) {
+export async function setActiveProjectAndEnsureDaemon(project: string): Promise<DaemonHandle> {
+  if (activeProject !== project) {
     activeOwner = null
-    activeVault = vault
+    activeProject = project
   }
-  return await ensureDaemonForActiveVault()
+  return await ensureDaemonForActiveProject()
 }
 
 export function getActiveDaemonClient(): GraphDbClient | null {
@@ -116,13 +116,13 @@ export function getActiveDaemonClient(): GraphDbClient | null {
 }
 
 async function recoverActiveDaemonAfterConnectionFailure(error: unknown): Promise<DaemonHandle> {
-  if (activeVault === null) {
+  if (activeProject === null) {
     throw error
   }
 
   markDaemonLost(error)
   const recovered = await attemptOwnerMediatedRecovery(
-    activeVault,
+    activeProject,
     'electron-main',
     { stopLoops: stopOwnerRecoveryLoops },
   )
@@ -135,7 +135,7 @@ export async function callDaemon<T>(
 ): Promise<T> {
   return await daemonTracer().startActiveSpan('daemon.call', async (span) => {
     try {
-      const owner = await ensureDaemonForActiveVault()
+      const owner = await ensureDaemonForActiveProject()
       try {
         return await fn(owner.client)
       } catch (error) {
@@ -160,17 +160,17 @@ export async function callDaemon<T>(
 }
 
 /**
- * Drop Electron's cached client/vault state. Electron is not the daemon
- * supervisor (per OpenSpec D7/D8): vt-graphd is a vault-scoped, cross-caller
+ * Drop Electron's cached client/project state. Electron is not the daemon
+ * supervisor (per OpenSpec D7/D8): vt-graphd is a project-scoped, cross-caller
  * shared resource. Stale daemons are cleaned up by `killOrphanVtGraphdDaemons`
  * at the next launch and by the owner protocol's stale-reclaim path.
  */
 export async function shutdownActiveDaemonConnection(): Promise<void> {
   activeOwner = null
-  activeVault = null
+  activeProject = null
 }
 
 export function clearDaemonClientCache(): void {
   activeOwner = null
-  activeVault = null
+  activeProject = null
 }

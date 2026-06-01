@@ -3,10 +3,10 @@
  *
  * Boots an in-process headless VoiceTree (graph-db-server + the unified
  * @vt/vt-daemon HTTP server + agent-runtime, no Electron) against a fresh
- * temp vault, then spawns N tmux-backed `vt-fake-agent` terminals in
+ * temp project, then spawns N tmux-backed `vt-fake-agent` terminals in
  * parallel. Each fake-agent runs a deterministic script of `create_node`
  * actions, which exercise the real `create_graph` tool over the daemon's
- * `/rpc` JSON-RPC endpoint and the daemon-routed vault write path
+ * `/rpc` JSON-RPC endpoint and the daemon-routed project write path
  * end-to-end.
  *
  * Why this exists: the existing perf tests measure Cytoscape layout, SSE
@@ -19,13 +19,13 @@
  *
  * Honest scope:
  * - This exercises the *daemon side* of the stack (vt-graphd + unified HTTP
- *   daemon + agent-runtime + fake-agent → real `.md` files in the vault).
+ *   daemon + agent-runtime + fake-agent → real `.md` files in the project).
  *   The new webapp electron-main observability (`vt-electron-daemon.ndjson`)
  *   is NOT exercised because there is no Electron process in this harness.
  *   If a regression survives this harness, it is electron-main-specific and
  *   needs a Playwright-driven Electron variant.
  * - Real `.md` files are written. Real tmux sessions are spawned. Cleanup
- *   removes the temp vault and tmux sessions on exit.
+ *   removes the temp project and tmux sessions on exit.
  */
 
 import { dirname, join, resolve } from 'node:path'
@@ -54,7 +54,7 @@ import {
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
-import {setCurrentVault} from '@vt/vt-daemon/state/currentVault.ts'
+import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
@@ -79,7 +79,7 @@ import {
     type GraphNode,
     type NodeIdAndFilePath,
 } from '@vt/graph-model/graph'
-import { generateVaultOnDisk } from '@vt/perf-fixtures'
+import { generateProjectOnDisk } from '@vt/perf-fixtures'
 import {
     type AgentStormArgs,
     type SpanRecord,
@@ -134,21 +134,21 @@ async function main(): Promise<void> {
     // create spans we want recorded.
     tracing.init('vt-graphd')
 
-    const tempVault = mkdtempSync(join(tmpdir(), 'vt-perf-vault-'))
-    const tempAppSupport = mkdtempSync(join(tmpdir(), 'vt-perf-app-'))
+    const tempProject = mkdtempSync(join(tmpdir(), 'vt-perf-project-'))
+    const tempVoicetreeHome = mkdtempSync(join(tmpdir(), 'vt-perf-app-'))
 
-    // Seed the vault with a deterministic graph of N existing nodes BEFORE
+    // Seed the project with a deterministic graph of N existing nodes BEFORE
     // the daemon scans it. This matches real-world conditions (agents always
-    // run against vaults with prior content) and gives each fake-agent a
-    // valid parent node to attach to. An empty vault would only have the
+    // run against projects with prior content) and gives each fake-agent a
+    // valid parent node to attach to. An empty project would only have the
     // auto-generated "starter" node, which is fine for 1 agent but not for
     // a multi-agent storm — they'd all dogpile on the same parent and the
     // measurement would be dominated by parent-resolution serialization.
-    const vaultLayout = generateVaultOnDisk(tempVault, args.vaultSeedNodeCount)
-    process.stdout.write(`[perf] seeded vault with ${vaultLayout.nodes.length} nodes at ${tempVault}\n`)
+    const projectLayout = generateProjectOnDisk(tempProject, args.projectSeedNodeCount)
+    process.stdout.write(`[perf] seeded project with ${projectLayout.nodes.length} nodes at ${tempProject}\n`)
 
-    // Snapshot trace file offsets BEFORE any daemon/MCP/vault bootstrap fires
-    // its setup spans (daemon.start, daemon.open-vault, daemon.set-write-path.*)
+    // Snapshot trace file offsets BEFORE any daemon/MCP/project bootstrap fires
+    // its setup spans (daemon.start, daemon.open-project, daemon.set-write-path.*)
     // — otherwise we lose all of them to the pre-snapshot prefix.
     const traceDir = join(homedir(), '.voicetree', 'traces')
     const graphdNdjson = join(traceDir, 'vt-graphd.ndjson')
@@ -156,7 +156,7 @@ async function main(): Promise<void> {
     const graphdOffset = ndjsonFileSize(graphdNdjson)
     const electronOffset = ndjsonFileSize(electronNdjson)
 
-    process.env.VOICETREE_HOME_PATH = tempAppSupport
+    process.env.VOICETREE_HOME_PATH = tempVoicetreeHome
     configureAgentRuntime({
         env: {},
     })
@@ -166,20 +166,20 @@ async function main(): Promise<void> {
 
     let daemonHandle: DaemonHandle
     try {
-        daemonHandle = await startDaemon({ vault: tempVault, voicetreeHomePath: tempAppSupport })
+        daemonHandle = await startDaemon({ project: tempProject, voicetreeHomePath: tempVoicetreeHome })
     } catch (err) {
         throw new Error(`startDaemon failed: ${(err as Error).message}`)
     }
     if (daemonHandle.alreadyRunning) {
         throw new Error(
-            `graph-db-server already running for ${tempVault} (pid ${daemonHandle.alreadyRunning.pid}). `
-            + `That should not be possible for a freshly-created temp vault.`,
+            `graph-db-server already running for ${tempProject} (pid ${daemonHandle.alreadyRunning.pid}). `
+            + `That should not be possible for a freshly-created temp project.`,
         )
     }
 
     // Wire MCP graph bridge to talk to the in-process daemon via HTTP. In
     // production (Electron) this bridge points at the GraphDbClient bound to
-    // the active vault; the standalone vtd binary headless leaves it
+    // the active project; the standalone vtd binary headless leaves it
     // unconfigured by design (CLI agents write via raw FS instead of
     // create_graph). The perf harness
     // EXPLICITLY exercises create_graph because that is the path we suspect
@@ -187,8 +187,8 @@ async function main(): Promise<void> {
     // webapp's `main.ts` wiring.
     const daemonBaseUrl = `http://127.0.0.1:${daemonHandle.port}`
     const daemonClient = new GraphDbClient({ baseUrl: daemonBaseUrl })
-    const openResult = await daemonClient.openVault(tempVault, { writeFolder: tempVault })
-    setCurrentVault(tempVault)
+    const openResult = await daemonClient.openProject(tempProject, { writeFolderPath: tempProject })
+    setCurrentProject(tempProject)
 
     // The daemon serializes Graph over JSON, which collapses Maps (e.g.
     // nodeByBaseName, additionalYAMLProps) into plain objects. createGraphTool
@@ -244,20 +244,20 @@ async function main(): Promise<void> {
                     : {}
                 return normalizeDaemonGraph({ nodes })
             },
-            getVaultPaths: async () => {
-                // VaultState has {projectRoot, readPaths, writeFolder}. Match the
-                // webapp's getVaultPaths: writeFolder first, then any extra
+            getProjectPaths: async () => {
+                // ProjectState has {projectRoot, readPaths, writeFolderPath}. Match the
+                // webapp's getProjectPaths: writeFolderPath first, then any extra
                 // readPaths. createGraph compares against this list to gate
                 // outputPath placement.
-                const vs = await daemonClient.getVault()
+                const vs = await daemonClient.getProject()
                 const seen = new Set<string>()
                 const out: string[] = []
-                for (const p of [vs.writeFolder, ...vs.readPaths]) {
+                for (const p of [vs.writeFolderPath, ...vs.readPaths]) {
                     if (!seen.has(p)) { seen.add(p); out.push(p) }
                 }
                 return out
             },
-            getWriteFolder: async () => (await daemonClient.getVault()).writeFolder ?? null,
+            getWriteFolderPath: async () => (await daemonClient.getProject()).writeFolderPath ?? null,
             applyGraphDelta: async (delta, recordForUndo) => {
                 await daemonClient.applyGraphDelta(delta as unknown as unknown[], {
                     recordForUndo: recordForUndo ?? true,
@@ -268,11 +268,11 @@ async function main(): Promise<void> {
     }
 
     // Bearer auth token: ephemeral per-run. The fake-agent subprocess
-    // discovers it from the temp vault's .voicetree/auth-token file via
+    // discovers it from the temp project's .voicetree/auth-token file via
     // @vt/vt-rpc discovery; we also publish the rpc.port file so the same
     // discovery chain finds the port without an env override.
     const token: string = generateAuthToken()
-    await writeAuthTokenFile(tempVault, token)
+    await writeAuthTokenFile(tempProject, token)
 
     const hookHandler: HookHandler = (input): unknown =>
         handleHookEventRequest(
@@ -289,7 +289,7 @@ async function main(): Promise<void> {
             bindHost: '127.0.0.1',
             port: undefined,
         })
-        await writeRpcPortFile(tempVault, httpHandle.port)
+        await writeRpcPortFile(tempProject, httpHandle.port)
     } catch (err) {
         await daemonHandle.stop().catch(() => undefined)
         throw new Error(`startHttpDaemonServer failed: ${(err as Error).message}`)
@@ -297,7 +297,7 @@ async function main(): Promise<void> {
 
     process.stdout.write(
         `[perf] daemon=${httpHandle.url} graphd port=${daemonHandle.port} `
-        + `vault=${tempVault} app-support=${tempAppSupport}\n`,
+        + `project=${tempProject} voicetree-home=${tempVoicetreeHome}\n`,
     )
 
     const { dir: fakeAgentDir, entry: fakeAgentEntrypoint } = resolveFakeAgentEntrypoint()
@@ -315,10 +315,10 @@ async function main(): Promise<void> {
     const script = buildFakeAgentScript(args.nodesPerAgent)
     const agentPrompt = buildAgentPrompt(script)
 
-    if (vaultLayout.nodes.length < args.agents) {
+    if (projectLayout.nodes.length < args.agents) {
         throw new Error(
-            `--vault-seed-nodes (${args.vaultSeedNodeCount}) produced only ${vaultLayout.nodes.length} `
-            + `nodes, fewer than --agents (${args.agents}). Increase --vault-seed-nodes.`,
+            `--project-seed-nodes (${args.projectSeedNodeCount}) produced only ${projectLayout.nodes.length} `
+            + `nodes, fewer than --agents (${args.agents}). Increase --project-seed-nodes.`,
         )
     }
 
@@ -329,21 +329,21 @@ async function main(): Promise<void> {
         // Spread agents across the cluster-firsts (each agent gets a distinct
         // parent node — no dogpile on a single parent). If we exhaust those,
         // fall back to picking from the full node list.
-        const seedNode = i < vaultLayout.firstClusterNodePaths.length
-            ? vaultLayout.firstClusterNodePaths[i]
-            : vaultLayout.nodes[i % vaultLayout.nodes.length].relativePath
-        const attachedToNodeId = join(tempVault, seedNode)
+        const seedNode = i < projectLayout.firstClusterNodePaths.length
+            ? projectLayout.firstClusterNodePaths[i]
+            : projectLayout.nodes[i % projectLayout.nodes.length].relativePath
+        const attachedToNodeId = join(tempProject, seedNode)
         // Under --isolate-dirs every agent gets its own pre-created output
-        // directory inside the vault. Without it, create_graph defaults to
-        // the vault write-path root, so all agents pile their writes into
+        // directory inside the project. Without it, create_graph defaults to
+        // the project write-path root, so all agents pile their writes into
         // the same directory.
-        const isolatedDir = args.isolateDirs ? join(tempVault, 'isolated', terminalId) : null
+        const isolatedDir = args.isolateDirs ? join(tempProject, 'isolated', terminalId) : null
         if (isolatedDir) mkdirSync(isolatedDir, { recursive: true })
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_DAEMON_URL: httpHandle.url,
-            VOICETREE_VAULT_PATH: tempVault,
-            TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
+            VOICETREE_PROJECT_PATH: tempProject,
+            TASK_NODE_PATH: `${tempProject}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
         }
         if (isolatedDir) initialEnvVars.VOICETREE_OUTPUT_DIR = isolatedDir
@@ -417,13 +417,14 @@ async function main(): Promise<void> {
     }
     const wallMs = Date.now() - wallStart
 
-    const filesCreated = countMarkdownFiles(tempVault)
+    const filesCreated = countMarkdownFiles(tempProject)
 
     // Tear down: HTTP daemon → terminals → graph-db. (Note: the standalone
     // vtd binary no longer embeds graph-db, but this perf harness still does
     // — graphd shutdown happens here only because we own the spawn locally.)
     await httpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] http daemon stop: ${(e as Error).message}\n`))
     agentRuntime.getTerminalManager().cleanup()
+    await agentRuntime.shutdownTmuxServer({voicetreeHomePath: tempVoicetreeHome}).catch(() => undefined)
     await daemonHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] daemon stop: ${(e as Error).message}\n`))
 
     const graphdSpans = readNdjsonTail(graphdNdjson, graphdOffset)
@@ -443,8 +444,8 @@ async function main(): Promise<void> {
         failedCount,
         timedOutCount,
         filesCreated,
-        vaultPath: tempVault,
-        voicetreeHomePath: tempAppSupport,
+        projectPath: tempProject,
+        voicetreeHomePath: tempVoicetreeHome,
         spans: { vtGraphd: graphdSummary, vtElectronDaemon: electronSummary },
         agents: agentResults,
     }
@@ -470,10 +471,10 @@ async function main(): Promise<void> {
     process.stdout.write(`report:        ${outPath}\n`)
 
     if (!args.keepArtifacts) {
-        rmSync(tempVault, { recursive: true, force: true })
-        rmSync(tempAppSupport, { recursive: true, force: true })
+        rmSync(tempProject, { recursive: true, force: true })
+        rmSync(tempVoicetreeHome, { recursive: true, force: true })
     } else {
-        process.stdout.write(`artifacts kept: vault=${tempVault} appSupport=${tempAppSupport}\n`)
+        process.stdout.write(`artifacts kept: project=${tempProject} voicetreeHome=${tempVoicetreeHome}\n`)
     }
 
     const exitCode = failedCount > 0 || timedOutCount > 0 ? 1 : 0

@@ -29,7 +29,7 @@ describe('daemon mutation import lint rule', () => {
   it('allows daemon package callers to import daemon-owned mutation functions', async () => {
     const messages: readonly string[] = await lintText(
         `
-        import { addReadPath, removeReadPath, setWriteFolder } from '@vt/graph-model'
+        import { addReadPath, removeReadPath, setWriteFolderPath } from '@vt/graph-model'
       `,
       'packages/systems/graph-db-server/src/__generated__/allowed-daemon-imports.ts',
     )
@@ -55,8 +55,8 @@ describe('daemon mutation import lint rule', () => {
     const messages: readonly string[] = await lintText(
         `
         /* vt-allow-direct-daemon-mutation-import: exercising primitive behaviour directly */
-        import { setWriteFolder } from '@vt/graph-model'
-        void setWriteFolder
+        import { setWriteFolderPath } from '@vt/graph-model'
+        void setWriteFolderPath
       `,
       'packages/systems/agent-runtime/src/__generated__/primitive-boundary.test.ts',
     )

@@ -5,12 +5,13 @@
 
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
     spawn,
     type ChildProcessWithoutNullStreams,
 } from 'node:child_process'
+import { readAuthTokenFile, readRpcPortFile } from '@vt/vt-rpc'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -24,7 +25,7 @@ export const REPO_ROOT = resolve(__dirname, '..', '..', '..')
 export interface ElectronMainStormArgs {
     readonly agents: number
     readonly nodesPerAgent: number
-    readonly vaultSeedNodeCount: number
+    readonly projectSeedNodeCount: number
     readonly perAgentTimeoutMs: number
     readonly bootTimeoutMs: number
     readonly settleAfterStormMs: number
@@ -36,7 +37,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
     const defaults: ElectronMainStormArgs = {
         agents: 5,
         nodesPerAgent: 5,
-        vaultSeedNodeCount: 200,
+        projectSeedNodeCount: 200,
         perAgentTimeoutMs: 60_000,
         bootTimeoutMs: 60_000,
         settleAfterStormMs: 2_000,
@@ -45,7 +46,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
     }
     let agents = defaults.agents
     let nodesPerAgent = defaults.nodesPerAgent
-    let vaultSeedNodeCount = defaults.vaultSeedNodeCount
+    let projectSeedNodeCount = defaults.projectSeedNodeCount
     let perAgentTimeoutMs = defaults.perAgentTimeoutMs
     let bootTimeoutMs = defaults.bootTimeoutMs
     let settleAfterStormMs = defaults.settleAfterStormMs
@@ -63,7 +64,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
         switch (a) {
             case '--agents': agents = intArg(argv[++i], 'agents'); break
             case '--nodes-per-agent': nodesPerAgent = intArg(argv[++i], 'nodes-per-agent'); break
-            case '--vault-seed-nodes': vaultSeedNodeCount = intArg(argv[++i], 'vault-seed-nodes'); break
+            case '--project-seed-nodes': projectSeedNodeCount = intArg(argv[++i], 'project-seed-nodes'); break
             case '--per-agent-timeout-ms': perAgentTimeoutMs = intArg(argv[++i], 'per-agent-timeout-ms'); break
             case '--boot-timeout-ms': bootTimeoutMs = intArg(argv[++i], 'boot-timeout-ms'); break
             case '--settle-after-storm-ms': settleAfterStormMs = intArg(argv[++i], 'settle-after-storm-ms'); break
@@ -75,12 +76,12 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
                     'electron-main-storm.ts: profile Electron main CPU under an N-agent fake-agent storm.\n'
                     + '  --agents N                    parallel fake-agents (default 5)\n'
                     + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
-                    + '  --vault-seed-nodes N          seed-vault size (default 200)\n'
+                    + '  --project-seed-nodes N          seed-project size (default 200)\n'
                     + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
-                    + '  --boot-timeout-ms MS          how long to wait for app boot + .mcp.json (default 60000)\n'
+                    + '  --boot-timeout-ms MS          how long to wait for app boot + daemon rpc.port (default 60000)\n'
                     + '  --settle-after-storm-ms MS   keep profiling N ms after last agent exits (default 2000)\n'
                     + '  --out PATH                    .cpuprofile path (default ~/.voicetree/reports/electron-main-storm-<ts>.cpuprofile)\n'
-                    + '  --keep-artifacts              keep temp vault + userData after the run\n',
+                    + '  --keep-artifacts              keep temp project + userData after the run\n',
                 )
                 process.exit(0)
             default:
@@ -88,7 +89,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
         }
     }
     return {
-        agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs,
+        agents, nodesPerAgent, projectSeedNodeCount, perAgentTimeoutMs,
         bootTimeoutMs, settleAfterStormMs, outPath, keepArtifacts,
     }
 }
@@ -185,38 +186,27 @@ export async function spawnElectron(args: {
 }
 
 /**
- * Poll `<vault>/.mcp.json` for the voicetree MCP port. This file was written
- * by the electron app's in-process MCP server before the MCP→CLI cutover.
+ * Poll `<project>/.voicetree/` for the daemon's published `rpc.port` and return
+ * the loopback daemon URL. Post-MCP-cutover (commits 2651ade78, fab76e7d4,
+ * 15595a854) the in-process MCP server and its `.mcp.json` handshake are gone;
+ * the unified HTTP daemon publishes `rpc.port` + `auth-token` under
+ * `.voicetree/` instead. We additionally require the sibling `auth-token` to be
+ * present so the storm's fake-agents (which self-discover via
+ * `VOICETREE_PROJECT_PATH`) can authenticate against the URL we hand back.
  *
- * WARNING (pre-existing damage, out of scope for this PR): the in-process MCP
- * server has been removed (commits 2651ade78, fab76e7d4, 15595a854) and the
- * unified HTTP daemon writes `.voicetree/daemon-url` + `.voicetree/auth-token`
- * — *not* `.mcp.json`. This harness's boot path therefore times out against a
- * post-cutover app. Migrating it requires rewriting the discovery handshake;
- * tracked as a follow-up.
+ * Discovery goes through `@vt/vt-rpc`'s canonical readers rather than
+ * re-hand-rolling the file format.
  */
-export async function waitForMcpPort(vault: string, timeoutMs: number): Promise<number> {
-    const mcpPath = join(vault, '.mcp.json')
+export async function waitForDaemonUrl(project: string, timeoutMs: number): Promise<string> {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
-        if (existsSync(mcpPath)) {
-            try {
-                const raw = readFileSync(mcpPath, 'utf8')
-                const cfg = JSON.parse(raw) as {
-                    mcpServers?: Record<string, { url?: string }>
-                }
-                const url = cfg.mcpServers?.voicetree?.url
-                if (url) {
-                    const m = url.match(/:(\d+)\/mcp$/)
-                    if (m) return Number.parseInt(m[1], 10)
-                }
-            } catch {
-                // file may be mid-write; retry
-            }
+        const port = await readRpcPortFile(project)
+        if (port !== null && (await readAuthTokenFile(project)) !== null) {
+            return `http://127.0.0.1:${port}`
         }
         await new Promise((r) => setTimeout(r, 200))
     }
-    throw new Error(`timed out waiting for ${mcpPath} after ${timeoutMs}ms`)
+    throw new Error(`timed out waiting for ${join(project, '.voicetree', 'rpc.port')} after ${timeoutMs}ms`)
 }
 
 export async function stopElectron(proc: ChildProcessWithoutNullStreams): Promise<void> {

@@ -2,7 +2,7 @@
  * Shared shape descriptions for VoiceTree tools — the single source of
  * truth that powers (a) the daemon's RPC catalog (`@vt/vt-daemon`'s
  * `catalog.ts`), (b) the user-facing manual rendered for `vt manual` and
- * spawn-time prompt injection, and (c) the cross-shell vault discovery
+ * spawn-time prompt injection, and (c) the cross-shell project discovery
  * file written into CLAUDE.md / AGENTS.md.
  *
  * The actual spec data + renderer live in this package (`tool-specs.ts`
@@ -37,8 +37,13 @@ export interface ToolInputSpec {
      * Wire-level parameter name as it appears in the RPC payload, e.g.
      * `terminalId`, `task`, `callerTerminalId`. This is what catalog.ts
      * uses as the zod input shape key.
+     *
+     * Present for inputs of daemon-dispatched tools (the catalog binds
+     * each input field on it). Omitted for inputs of CLI-local doc-only
+     * tools, which have no wire mapping — the manual still documents the
+     * flag, but there is no RPC parameter to key on.
      */
-    readonly rpcName: string
+    readonly rpcName?: string
 
     /**
      * The token printed inside backticks in the manual's parameter
@@ -71,7 +76,8 @@ export interface ToolInputSpec {
  * documentation surfaces that should never drift.
  *
  * Conventions:
- *   - `rpcName` matches the catalog dispatch key.
+ *   - `rpcName` matches the catalog dispatch key for daemon-dispatched
+ *     tools, and is omitted for CLI-local doc-only tools.
  *   - `cliVerb` matches the manual's H3 header and the verb that
  *     `vt manual <verb>` accepts (full form, including the `vt ` prefix).
  *   - `summary` is the one-line description shown by `vt <verb> --help`
@@ -82,7 +88,13 @@ export interface ToolInputSpec {
  *   - `inputs` lists every CLI-visible parameter in display order.
  */
 export interface ToolSpec {
-    readonly rpcName: string
+    /**
+     * The daemon RPC dispatch key. Present for daemon-dispatched tools
+     * (the catalog iterates `TOOL_SPECS` and binds each entry on it).
+     * Omitted for CLI-local doc-only tools (`CLI_LOCAL_SPECS`), which the
+     * manual documents but which never dispatch to a daemon RPC.
+     */
+    readonly rpcName?: string
     readonly cliVerb: string
     readonly tier: ToolTier
     readonly summary: string

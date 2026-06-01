@@ -2,38 +2,38 @@
  * BF-200 — unit tests for egoGraph pure functions.
  *
  * Graph fixture: a→b, b→c, e→b. d is isolated.
- * Built via buildStateFromVault on a temp dir.
+ * Built via buildStateFromProject on a temp dir.
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
 import {mkdirSync, writeFileSync, rmSync} from 'fs'
-import {buildStateFromVault} from '@vt/graph-state'
+import {buildStateFromProject} from '@vt/graph-state'
 import type {State} from '@vt/graph-state/contract'
 import {configureGraphToolsRootIO} from '../../src/live/rootIO'
 import {focus, neighbors, shortestPath, renderFocus, renderNeighbors, renderPath} from '../../src/view/egoGraph'
 
-const VAULT = '/tmp/vt-ego-unit-test'
-const A = `${VAULT}/a.md`
-const B = `${VAULT}/b.md`
-const C = `${VAULT}/c.md`
-const D = `${VAULT}/d.md`
-const E = `${VAULT}/e.md`
+const PROJECT = '/tmp/vt-ego-unit-test'
+const A = `${PROJECT}/a.md`
+const B = `${PROJECT}/b.md`
+const C = `${PROJECT}/c.md`
+const D = `${PROJECT}/d.md`
+const E = `${PROJECT}/e.md`
 
 let graph: State['graph']
 
 beforeAll(async () => {
     configureGraphToolsRootIO()
-    mkdirSync(VAULT, {recursive: true})
+    mkdirSync(PROJECT, {recursive: true})
     writeFileSync(A, '# A\n[[b]]\n')
     writeFileSync(B, '# B\n[[c]]\n')
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n')
     writeFileSync(E, '# E\n[[b]]\n')
-    const state = await buildStateFromVault(VAULT, VAULT)
+    const state = await buildStateFromProject(PROJECT, PROJECT)
     graph = state.graph
 })
 
 afterAll(() => {
-    rmSync(VAULT, {recursive: true, force: true})
+    rmSync(PROJECT, {recursive: true, force: true})
 })
 
 describe('focus()', () => {
@@ -57,7 +57,7 @@ describe('focus()', () => {
     })
 
     it('returns empty for missing node', () => {
-        expect(focus(graph, '/vault/missing.md')).toEqual([])
+        expect(focus(graph, '/project/missing.md')).toEqual([])
     })
 
     it('0-hop returns only center', () => {
@@ -87,7 +87,7 @@ describe('neighbors()', () => {
     })
 
     it('returns empty for missing node', () => {
-        expect(neighbors(graph, '/vault/missing.md', 1)).toEqual([])
+        expect(neighbors(graph, '/project/missing.md', 1)).toEqual([])
     })
 })
 
@@ -105,7 +105,7 @@ describe('shortestPath()', () => {
     })
 
     it('returns null for missing source', () => {
-        expect(shortestPath(graph, '/vault/missing.md', B)).toBeNull()
+        expect(shortestPath(graph, '/project/missing.md', B)).toBeNull()
     })
 
     it('undirected: c→b→e via reverse edges', () => {
@@ -119,41 +119,65 @@ describe('shortestPath()', () => {
 describe('renderFocus()', () => {
     it('includes center and hop count', () => {
         const out = renderFocus(graph, B, 1)
-        expect(out).toContain('b.md')
-        expect(out).toContain('1-hop')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toContain('b.md')
+        expect(out.text).toContain('1-hop')
     })
 
     it('shows Incoming and Outgoing sections', () => {
         const out = renderFocus(graph, B, 1)
-        expect(out).toContain('Incoming:')
-        expect(out).toContain('Outgoing:')
+        expect(out.text).toContain('Incoming:')
+        expect(out.text).toContain('Outgoing:')
     })
 
-    it('missing node returns error string', () => {
-        expect(renderFocus(graph, '/vault/missing.md')).toContain('not found')
+    it('missing node returns a not-found render', () => {
+        const out = renderFocus(graph, '/project/missing.md')
+        expect(out.kind).toBe('not-found')
+        expect(out.text).toContain('not found')
     })
 })
 
 describe('renderNeighbors()', () => {
     it('lists neighbor basenames', () => {
         const out = renderNeighbors(graph, B, 1)
-        expect(out).toContain('a.md')
-        expect(out).toContain('c.md')
-        expect(out).toContain('e.md')
+        expect(out.kind).toBe('ok')
+        expect(out.text).toContain('a.md')
+        expect(out.text).toContain('c.md')
+        expect(out.text).toContain('e.md')
     })
 
     it('shows count in header', () => {
         const out = renderNeighbors(graph, B, 1)
-        expect(out).toContain('3 found')
+        expect(out.text).toContain('3 found')
+    })
+
+    it('missing node returns a not-found render', () => {
+        const out = renderNeighbors(graph, '/project/missing.md', 1)
+        expect(out.kind).toBe('not-found')
+        expect(out.text).toContain('not found')
     })
 })
 
 describe('renderPath()', () => {
     it('renders path with arrows', () => {
-        expect(renderPath(graph, A, C)).toBe('a.md → b.md → c.md')
+        const out = renderPath(graph, A, C)
+        expect(out.kind).toBe('ok')
+        expect(out.text).toBe('a.md → b.md → c.md')
     })
 
-    it('no path message for isolated node', () => {
-        expect(renderPath(graph, A, D)).toContain('no path')
+    it('genuine no-path between two real nodes is distinct from a typo', () => {
+        // A and D both exist but are disconnected. This is a valid query result,
+        // NOT a caller error — its kind must differ from the unknown-endpoint case.
+        const out = renderPath(graph, A, D)
+        expect(out.kind).toBe('no-path')
+        expect(out.text).toContain('no path')
+    })
+
+    it('unknown endpoint is a not-found render (distinguishable from no-path)', () => {
+        const typo = renderPath(graph, A, '/project/missing.md')
+        expect(typo.kind).toBe('not-found')
+        expect(typo.text).toContain('not found')
+        // The disconnected-but-present case and the typo case carry different kinds.
+        expect(renderPath(graph, A, D).kind).not.toBe(typo.kind)
     })
 })

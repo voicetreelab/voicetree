@@ -31,7 +31,7 @@ Test scenarios are defined in `test_scenarios.json`. Each scenario specifies:
 - `validation_criteria` — validation rules
 
 ### Environment variables (set automatically during test runs)
-- `OBSIDIAN_VAULT_PATH` — path to the test vault
+- `OBSIDIAN_PROJECT_PATH` — path to the test project
 - `OBSIDIAN_SOURCE_NOTE` — relative path to the source note
 - `AGENT_COLOR` — color assigned to the test agent
 
@@ -65,11 +65,11 @@ inspect `report['test_results']`.
 |---|---|
 | `claude command not found` | Claude CLI not on `PATH`, or `.claude/settings.json` missing |
 | Tests time out (120s) | Prompt too complex, network slow, or timeout too tight in `end_to_end_test_runner.py` |
-| No nodes created | Agent prompt missing `add_new_node.py` instructions, vault path wrong, or insufficient permissions |
+| No nodes created | Agent prompt missing `add_new_node.py` instructions, project path wrong, or insufficient permissions |
 | Validation fails | Mismatch between scenario `validation_criteria` and agent output format |
 
-For deeper debugging, comment out `shutil.rmtree(self.test_vault_root)` in
-`cleanup_test_environment` to inspect the temporary vault after a run.
+For deeper debugging, comment out `shutil.rmtree(self.test_project_root)` in
+`cleanup_test_environment` to inspect the temporary project after a run.
 
 ## Extending validation
 

@@ -56,10 +56,10 @@ function leaf(id: NodeIdAndFilePath, edges: readonly NodeIdAndFilePath[]): Graph
 function multiComponentGraph(numComponents: number, childrenPerRoot: number): Graph {
     const nodes: Record<string, GraphNode> = {}
     for (let c: number = 0; c < numComponents; c++) {
-        const rootId: string = `/vault/root_${c}.md`
+        const rootId: string = `/project/root_${c}.md`
         const childIds: readonly string[] = Array.from(
             { length: childrenPerRoot },
-            (_unused: unknown, i: number): string => `/vault/c${c}_child_${i}.md`,
+            (_unused: unknown, i: number): string => `/project/c${c}_child_${i}.md`,
         )
         nodes[rootId] = leaf(rootId, childIds)
         for (const childId of childIds) {

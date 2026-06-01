@@ -30,7 +30,7 @@ import {
     projectHubEventToTerminalRegistryEnvelope,
     type TerminalRegistryFrame,
     type TerminalRegistryEnvelope,
-} from '../terminalRegistrySse.ts'
+} from '../sse/terminalRegistrySse.ts'
 
 const noopHook: HookHandler = (): unknown => ({ok: true})
 const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([
@@ -40,7 +40,7 @@ const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) =
 interface Ctx {
     handle: HttpDaemonServerHandle
     token: string
-    vault: string
+    project: string
 }
 
 const active: Ctx[] = []
@@ -53,25 +53,25 @@ afterEach(async (): Promise<void> => {
 })
 
 interface BringOptions {
-    readonly canonicalVault?: string | null
+    readonly canonicalProject?: string | null
 }
 
 async function bring(opts: BringOptions = {}): Promise<Ctx> {
-    const canonicalVault: string | undefined = opts.canonicalVault === undefined
-        ? '/canonical/vault'
-        : opts.canonicalVault === null
+    const canonicalProject: string | undefined = opts.canonicalProject === undefined
+        ? '/canonical/project'
+        : opts.canonicalProject === null
             ? undefined
-            : opts.canonicalVault
+            : opts.canonicalProject
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: NOOP_CATALOG,
         hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
-        canonicalVault,
+        canonicalProject,
         logger: {logRequest: (): void => {}, logError: (): void => {}},
     })
-    const ctx: Ctx = {handle, token, vault: canonicalVault ?? ''}
+    const ctx: Ctx = {handle, token, project: canonicalProject ?? ''}
     active.push(ctx)
     return ctx
 }
@@ -180,7 +180,7 @@ describe('projectHubEventToTerminalRegistryEnvelope — pure projector', (): voi
             kind: 'terminal-registry',
             seq: 7,
             event,
-            vault: '/v',
+            project: '/v',
         })
     })
     it('returns null when type is missing', (): void => {
@@ -201,7 +201,7 @@ describe('encodeTerminalRegistrySseBlock — wire format', (): void => {
             kind: 'terminal-registry',
             seq: 1,
             event: {type: 'terminal-removed', terminalId: asTerminalId('T1')},
-            vault: '/v',
+            project: '/v',
         })
         expect(block.startsWith('data: ')).toBe(true)
         expect(block.endsWith('\n\n')).toBe(true)
@@ -212,7 +212,7 @@ describe('encodeTerminalRegistrySseBlock — wire format', (): void => {
 
 describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void => {
     it('streams a terminal-registry frame after a matching publish', async (): Promise<void> => {
-        const {handle, token, vault} = await bring({canonicalVault: '/the/vault'})
+        const {handle, token, project} = await bring({canonicalProject: '/the/project'})
         const url: string = `${handle.url}/sessions/sess-1/terminal-registry`
         const reader: SseReaderHandle = openSseReader(url, token)
 
@@ -225,7 +225,7 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
         reader.close()
         if (frame.kind !== 'terminal-registry') throw new Error('unreachable')
         expect(frame.event).toEqual({type: 'terminal-removed', terminalId: 'T1'})
-        expect(frame.vault).toBe(vault)
+        expect(frame.project).toBe(project)
         expect(typeof frame.seq).toBe('number')
     })
 
@@ -237,18 +237,18 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
         expect(res.status).toBe(401)
     })
 
-    it('returns 503 with explanatory body when canonicalVault is not wired', async (): Promise<void> => {
-        const {handle, token} = await bring({canonicalVault: null})
+    it('returns 503 with explanatory body when canonicalProject is not wired', async (): Promise<void> => {
+        const {handle, token} = await bring({canonicalProject: null})
         const res = await fetch(`${handle.url}/sessions/sess-1/terminal-registry`, {
             headers: {Authorization: `Bearer ${token}`},
         })
         expect(res.status).toBe(503)
         const body = await res.json() as {error: string}
-        expect(body.error).toMatch(/canonicalVault/)
+        expect(body.error).toMatch(/canonicalProject/)
     })
 
     it('replays buffered frames from ?since=<seq>', async (): Promise<void> => {
-        const {handle, token, vault} = await bring({canonicalVault: '/v'})
+        const {handle, token, project} = await bring({canonicalProject: '/v'})
         // Publish 3 events BEFORE any subscriber connects.
         for (let i: number = 1; i <= 3; i++) {
             publishTerminalRegistry(handle, {type: 'terminal-removed', terminalId: asTerminalId(`T${i}`)})
@@ -261,11 +261,11 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
             .filter((f): f is TerminalRegistryEnvelope => f.kind === 'terminal-registry')
         reader.close()
         expect(replayed.map((f) => f.seq)).toEqual([2, 3])
-        expect(replayed.every((f) => f.vault === vault)).toBe(true)
+        expect(replayed.every((f) => f.project === project)).toBe(true)
     })
 
     it('emits a gap frame when ?since= is older than the resume buffer', async (): Promise<void> => {
-        const {handle, token, vault} = await bring({canonicalVault: '/v'})
+        const {handle, token, project} = await bring({canonicalProject: '/v'})
         // Burn past the resume-buffer ceiling (RESUME_BUFFER_SIZE=100 in
         // eventSubscriptionHub) so seq=1 has rotated out.
         for (let i: number = 1; i <= 110; i++) {
@@ -280,11 +280,11 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
         if (frame.kind !== 'terminal-registry-gap') throw new Error('unreachable')
         expect(frame.fromSeq).toBe(1)
         expect(frame.currentSeq).toBeGreaterThanOrEqual(110)
-        expect(frame.vault).toBe(vault)
+        expect(frame.project).toBe(project)
     })
 
     it('closes the SSE stream when the client aborts', async (): Promise<void> => {
-        const {handle, token} = await bring({canonicalVault: '/v'})
+        const {handle, token} = await bring({canonicalProject: '/v'})
         const reader: SseReaderHandle = openSseReader(
             `${handle.url}/sessions/sess-1/terminal-registry`,
             token,
@@ -297,7 +297,7 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
     })
 
     it('returns 404 on a non-matching GET under /sessions/', async (): Promise<void> => {
-        const {handle, token} = await bring({canonicalVault: '/v'})
+        const {handle, token} = await bring({canonicalProject: '/v'})
         const res = await fetch(`${handle.url}/sessions/sess-1/other-route`, {
             headers: {Authorization: `Bearer ${token}`},
         })

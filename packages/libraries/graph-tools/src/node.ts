@@ -68,7 +68,7 @@ export { graphMove } from './authoring/move'
 export { graphGroup } from './authoring/group'
 
 export {
-    computeMetricsFromVault,
+    computeMetricsFromProject,
     computeAllMetrics,
     computeSCC,
     computeKCoreDegeneracy,

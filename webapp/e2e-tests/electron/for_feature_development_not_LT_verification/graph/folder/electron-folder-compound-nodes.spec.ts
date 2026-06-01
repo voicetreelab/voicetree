@@ -19,7 +19,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
     type ExtendedWindow,
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from './folder-test-helpers';
 
@@ -39,7 +39,7 @@ const test = base.extend<{
 }>({
     projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-compound-test-'));
-        const projectRoot = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestProject(tempDir);
         await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -49,9 +49,9 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: projectRoot,
-            vaultConfig: {
+            projectConfig: {
                 [projectRoot]: {
-                    writeFolder: projectRoot,
+                    writeFolderPath: projectRoot,
                     readPaths: []
                 }
             }
@@ -60,10 +60,9 @@ const test = base.extend<{
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'compound-test',
             path: projectRoot,
-            name: 'compound-test-vault',
+            name: 'compound-test-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -204,10 +203,10 @@ test.describe('Folder Compound Nodes (v2.1)', () => {
         expectParentSuffix('utils/logger.md', '/utils/');
         expectParentSuffix('utils/config.md', '/utils/');
 
-        // Root-level file — parent may be the vault root folder compound or null
+        // Root-level file — parent may be the project root folder compound or null
         const readme = parentRelations.find(r => r.id.endsWith('readme.md'));
         expect(readme).toBeDefined();
-        // readme.md is at root level — if there's a vault-root compound, it's parented there;
+        // readme.md is at root level — if there's a project-root compound, it's parented there;
         // otherwise it has no parent. Either way, it should NOT be in auth/api/utils/
         if (readme!.parent) {
             expect(readme!.parent.endsWith('/auth/')).toBe(false);

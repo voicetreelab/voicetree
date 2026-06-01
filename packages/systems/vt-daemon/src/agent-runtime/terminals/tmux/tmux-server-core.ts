@@ -1,12 +1,13 @@
-import {execFile, execFileSync, spawn} from 'node:child_process'
+import {type ExecFileSyncOptionsWithStringEncoding, execFile, execFileSync, spawn} from 'node:child_process'
 import {
     existsSync,
     mkdirSync,
+    readdirSync,
     rmSync,
     statSync,
 } from 'node:fs'
 import {homedir, tmpdir} from 'node:os'
-import {join} from 'node:path'
+import {basename, dirname, join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
 import {getVoicetreeHomePath, VOICETREE_HOME_PATH_ENV} from '@vt/paths'
 
@@ -33,11 +34,22 @@ export interface TmuxServerDeps {
     readonly platform: NodeJS.Platform
     readonly homedir: () => string
     readonly getuid: () => number
-    readonly existsSync: typeof existsSync
-    readonly mkdirSync: typeof mkdirSync
-    readonly rmSync: typeof rmSync
+    // Narrowed to the string-path surface this module actually uses (like
+    // `statSync`/`execFile` below) so test doubles are typeable. The real
+    // `node:fs` functions remain assignable — they accept wider `PathLike`.
+    readonly existsSync: (path: string) => boolean
+    readonly mkdirSync: (path: string, options?: {readonly recursive?: boolean}) => void
+    readonly readdirSync: (path: string) => readonly string[]
+    readonly rmSync: (path: string, options?: {readonly force?: boolean; readonly recursive?: boolean}) => void
     readonly statSync: (path: string) => {readonly mtimeMs: number}
-    readonly execFileSync: typeof execFileSync
+    // Temp directory under which ephemeral test-runtime tmux homes live (see
+    // `ephemeralTestHomeDir`). The reaper scans this directory.
+    readonly tmpdir: () => string
+    // True iff a process with this pid currently exists (alive, or alive-but-not-ours).
+    // Used by the reaper to decide whether an ephemeral home's owning test process
+    // is gone, leaving its detached tmux server orphaned.
+    readonly processAlive: (pid: number) => boolean
+    readonly execFileSync: (file: string, args: readonly string[], options: ExecFileSyncOptionsWithStringEncoding) => string
     readonly execFile: (file: string, args: readonly string[], callback: ExecFileCallback) => void
     readonly execFileDetached?: (file: string, args: readonly string[], callback: ExecFileCallback) => void
     readonly logger: TmuxServerLogger
@@ -55,8 +67,19 @@ const defaultDeps: TmuxServerDeps = {
     },
     existsSync,
     mkdirSync,
+    readdirSync,
     rmSync,
     statSync,
+    tmpdir,
+    processAlive: (pid: number): boolean => {
+        try {
+            process.kill(pid, 0)
+            return true
+        } catch (error) {
+            // ESRCH => no such process (dead). EPERM => exists but not signalable by us (alive).
+            return (error as NodeJS.ErrnoException).code === 'EPERM'
+        }
+    },
     execFileSync,
     execFile: (file: string, args: readonly string[], callback: ExecFileCallback): void => {
         execFile(file, [...args], {encoding: 'utf8'}, callback)
@@ -99,12 +122,43 @@ function isTestRuntime(env: NodeJS.ProcessEnv): boolean {
     return env.VITEST === 'true' || env.NODE_ENV === 'test' || env.HEADLESS_TEST === '1'
 }
 
+// Test runs must not touch the user's real ~/.voicetree tmux server, so each test
+// process gets its own ephemeral home keyed by pid. The pid in the directory name
+// is the load-bearing signal the reaper uses to detect orphans: when that process
+// is gone, its detached tmux server is leaked (the server daemonizes and survives
+// its creator — see execFileDetached). Keep this prefix in sync with the reaper's
+// matcher; both go through `ephemeralTestHomeDir` / `parseEphemeralHomeOwnerPid`.
+const EPHEMERAL_TEST_HOME_PREFIX: string = 'voicetree-agent-runtime-tmux-'
+
+function ephemeralTestHomeDir(deps: TmuxServerDeps, pid: number): string {
+    return join(deps.tmpdir(), `${EPHEMERAL_TEST_HOME_PREFIX}${pid}`)
+}
+
+// Inverse of `ephemeralTestHomeDir`'s naming: extract the owning pid from a temp
+// directory entry name, or null if it does not match the ephemeral-home shape.
+function parseEphemeralHomeOwnerPid(entryName: string): number | null {
+    if (!entryName.startsWith(EPHEMERAL_TEST_HOME_PREFIX)) return null
+    const suffix: string = entryName.slice(EPHEMERAL_TEST_HOME_PREFIX.length)
+    if (!/^\d+$/.test(suffix)) return null
+    const pid: number = Number(suffix)
+    return Number.isInteger(pid) && pid > 0 ? pid : null
+}
+
+// True iff `homePath` is an ephemeral per-process test home (a direct child of
+// tmpdir named by the ephemeral prefix + pid), as opposed to the real
+// ~/.voicetree home. Gates destructive whole-dir removal so production teardown
+// never recursively deletes the user's home.
+function isEphemeralTestHome(deps: TmuxServerDeps, homePath: string): boolean {
+    return dirname(homePath) === deps.tmpdir()
+        && parseEphemeralHomeOwnerPid(basename(homePath)) !== null
+}
+
 function defaultVoicetreeHomePath(deps: TmuxServerDeps): string {
     const fromEnv: string | undefined = deps.env[VOICETREE_HOME_PATH_ENV]?.trim()
     if (fromEnv) return fromEnv
 
     if (isTestRuntime(deps.env)) {
-        return join(tmpdir(), `voicetree-agent-runtime-tmux-${process.pid}`)
+        return ephemeralTestHomeDir(deps, process.pid)
     }
 
     return getVoicetreeHomePath({env: deps.env, homePath: deps.homedir()})
@@ -187,9 +241,12 @@ export function createTmuxServerCore() {
     return {
         defaultVoicetreeHomePath,
         defaultDeps,
+        ephemeralTestHomeDir,
         execDetachedFilePromise,
         execFilePromise,
+        isEphemeralTestHome,
         isMissingOrStaleServerError,
+        parseEphemeralHomeOwnerPid,
         resolveDeps,
         resolveTmuxBinaryPath,
         tmuxErrorText,

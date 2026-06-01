@@ -1,7 +1,7 @@
 import { refreshMainGraphFromDaemon } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
-const DAEMON_GRAPH_POLL_INTERVAL_MS = 750
-const DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS = 5_000
+const DAEMON_GRAPH_POLL_INTERVAL_MS = 7_500
+const DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS = 15_000
 const DAEMON_GRAPH_POLL_IDLE_INTERVAL_MS = 60_000
 
 export type AppActivityTier = 'active' | 'background' | 'idle'
@@ -13,7 +13,7 @@ const TIER_INTERVALS: Record<AppActivityTier, number> = {
 }
 const DEFAULT_FAILURE_THRESHOLD = 5
 
-export type DaemonGraphSyncFn = (vault: string) => Promise<void>
+export type DaemonGraphSyncFn = (project: string) => Promise<void>
 
 export interface DaemonGraphSyncOptions {
   syncFn?: DaemonGraphSyncFn
@@ -22,14 +22,14 @@ export interface DaemonGraphSyncOptions {
 }
 
 type DaemonGraphSyncController = {
-  readonly start: (vault: string, options?: DaemonGraphSyncOptions) => Promise<void>
+  readonly start: (project: string, options?: DaemonGraphSyncOptions) => Promise<void>
   readonly setTier: (tier: AppActivityTier) => void
   readonly stop: () => Promise<void>
   readonly isActive: () => boolean
 }
 
 type DaemonGraphSyncState = {
-  activeVault: string | null
+  activeProject: string | null
   pollTimer: ReturnType<typeof setInterval> | null
   inflightSync: Promise<void> | null
   consecutiveFailures: number
@@ -41,20 +41,20 @@ function createDaemonGraphSyncState(): DaemonGraphSyncState {
   return {
     activeFailureThreshold: DEFAULT_FAILURE_THRESHOLD,
     activeSyncFn: null,
-    activeVault: null,
+    activeProject: null,
     consecutiveFailures: 0,
     inflightSync: null,
     pollTimer: null,
   }
 }
 
-async function syncOnce(state: DaemonGraphSyncState, vault: string, syncFn: DaemonGraphSyncFn): Promise<void> {
+async function syncOnce(state: DaemonGraphSyncState, project: string, syncFn: DaemonGraphSyncFn): Promise<void> {
   if (state.inflightSync) {
     await state.inflightSync
     return
   }
 
-  const currentSync = syncFn(vault)
+  const currentSync = syncFn(project)
   state.inflightSync = currentSync
 
   try {
@@ -66,70 +66,70 @@ async function syncOnce(state: DaemonGraphSyncState, vault: string, syncFn: Daem
   }
 }
 
-function haltPollTimer(state: DaemonGraphSyncState, vault: string): void {
+function haltPollTimer(state: DaemonGraphSyncState, project: string): void {
   if (state.pollTimer === null) return
   clearInterval(state.pollTimer)
   state.pollTimer = null
   console.error(
-    `[daemon-watch-sync] poll halted after ${state.consecutiveFailures} consecutive failures for vault ${vault}`,
+    `[daemon-watch-sync] poll halted after ${state.consecutiveFailures} consecutive failures for project ${project}`,
   )
 }
 
-function handlePollFailure(state: DaemonGraphSyncState, vault: string, failureThreshold: number, error: unknown): void {
+function handlePollFailure(state: DaemonGraphSyncState, project: string, failureThreshold: number, error: unknown): void {
   state.consecutiveFailures += 1
   console.error('[daemon-watch-sync] failed to refresh daemon graph:', error)
   if (state.consecutiveFailures >= failureThreshold) {
-    haltPollTimer(state, vault)
+    haltPollTimer(state, project)
   }
 }
 
-function runPollTick(state: DaemonGraphSyncState, vault: string, syncFn: DaemonGraphSyncFn, failureThreshold: number): void {
-  if (state.activeVault !== vault) return
-  void syncOnce(state, vault, syncFn)
+function runPollTick(state: DaemonGraphSyncState, project: string, syncFn: DaemonGraphSyncFn, failureThreshold: number): void {
+  if (state.activeProject !== project) return
+  void syncOnce(state, project, syncFn)
     .then(() => {
       state.consecutiveFailures = 0
     })
-    .catch((error: unknown) => handlePollFailure(state, vault, failureThreshold, error))
+    .catch((error: unknown) => handlePollFailure(state, project, failureThreshold, error))
 }
 
 function startPollTimer(state: DaemonGraphSyncState, intervalMs: number): void {
   if (state.pollTimer) clearInterval(state.pollTimer)
-  if (!state.activeVault || !state.activeSyncFn) return
+  if (!state.activeProject || !state.activeSyncFn) return
 
-  const vault = state.activeVault
+  const project = state.activeProject
   const syncFn = state.activeSyncFn
   const failureThreshold = state.activeFailureThreshold
-  state.pollTimer = setInterval(() => runPollTick(state, vault, syncFn, failureThreshold), intervalMs)
+  state.pollTimer = setInterval(() => runPollTick(state, project, syncFn, failureThreshold), intervalMs)
 }
 
-function activateState(state: DaemonGraphSyncState, vault: string, syncFn: DaemonGraphSyncFn, failureThreshold: number): void {
-  state.activeVault = vault
+function activateState(state: DaemonGraphSyncState, project: string, syncFn: DaemonGraphSyncFn, failureThreshold: number): void {
+  state.activeProject = project
   state.activeSyncFn = syncFn
   state.activeFailureThreshold = failureThreshold
   state.consecutiveFailures = 0
 }
 
-async function startSync(state: DaemonGraphSyncState, vault: string, options: DaemonGraphSyncOptions): Promise<void> {
+async function startSync(state: DaemonGraphSyncState, project: string, options: DaemonGraphSyncOptions): Promise<void> {
   const syncFn: DaemonGraphSyncFn = options.syncFn ?? refreshMainGraphFromDaemon
   const intervalMs: number = options.pollIntervalMs ?? DAEMON_GRAPH_POLL_INTERVAL_MS
   const failureThreshold: number = options.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD
 
-  if (state.activeVault === vault && state.pollTimer) {
-    await syncOnce(state, vault, syncFn)
+  if (state.activeProject === project && state.pollTimer) {
+    await syncOnce(state, project, syncFn)
     return
   }
 
   await stopSync(state)
-  activateState(state, vault, syncFn, failureThreshold)
-  await syncOnce(state, vault, syncFn)
+  activateState(state, project, syncFn, failureThreshold)
+  await syncOnce(state, project, syncFn)
   startPollTimer(state, intervalMs)
 }
 
 function setSyncTier(state: DaemonGraphSyncState, tier: AppActivityTier): void {
-  if (!state.activeVault || !state.activeSyncFn) return
+  if (!state.activeProject || !state.activeSyncFn) return
   startPollTimer(state, TIER_INTERVALS[tier])
   if (tier === 'active') {
-    void syncOnce(state, state.activeVault, state.activeSyncFn).catch(() => {})
+    void syncOnce(state, state.activeProject, state.activeSyncFn).catch(() => {})
   }
 }
 
@@ -139,7 +139,7 @@ async function stopSync(state: DaemonGraphSyncState): Promise<void> {
     state.pollTimer = null
   }
 
-  state.activeVault = null
+  state.activeProject = null
   state.activeSyncFn = null
   state.consecutiveFailures = 0
 
@@ -157,9 +157,9 @@ function createDaemonGraphSyncController(): DaemonGraphSyncController {
   const state: DaemonGraphSyncState = createDaemonGraphSyncState()
 
   return {
-    isActive: () => state.activeVault !== null,
+    isActive: () => state.activeProject !== null,
     setTier: (tier: AppActivityTier) => setSyncTier(state, tier),
-    start: (vault: string, options: DaemonGraphSyncOptions = {}) => startSync(state, vault, options),
+    start: (project: string, options: DaemonGraphSyncOptions = {}) => startSync(state, project, options),
     stop: () => stopSync(state),
   }
 }
@@ -167,10 +167,10 @@ function createDaemonGraphSyncController(): DaemonGraphSyncController {
 const daemonGraphSync: DaemonGraphSyncController = createDaemonGraphSyncController()
 
 export async function startDaemonGraphSync(
-  vault: string,
+  project: string,
   options: DaemonGraphSyncOptions = {},
 ): Promise<void> {
-  return daemonGraphSync.start(vault, options)
+  return daemonGraphSync.start(project, options)
 }
 
 export function setDaemonGraphSyncTier(tier: AppActivityTier): void {

@@ -29,9 +29,18 @@ export type ActiveViewInfo = {
 
 export type FolderStateEntry = readonly [path: string, state: FolderState]
 
+/**
+ * The folder states this resource may write. `'hidden'` is excluded on purpose:
+ * a folder reaches `'hidden'` only through the unload transition
+ * (`projectAllowlist.removeReadPath`), which purges its graph nodes in the same
+ * step (INV-1). Routing a `'hidden'` write through this DB-only resource would
+ * reopen the drift this funnel closes.
+ */
+export type LoadedFolderState = Exclude<FolderState, 'hidden'>
+
 export type FolderStateUpdate = {
   readonly path: string
-  readonly state: FolderState
+  readonly state: LoadedFolderState
 }
 
 type ViewNameRow = { readonly name: string }
@@ -41,21 +50,21 @@ function readDb(): FolderVisibilityDatabase | null {
   return handle ? (handle.db as FolderVisibilityDatabase) : null
 }
 
-export async function openFolderVisibilityForVault(vaultPath: string): Promise<void> {
-  await closeFolderVisibilityForVault()
-  const db = openFolderVisibilityDb(vaultPath, defaultFolderVisibilityDbDeps)
+export async function openFolderVisibilityForProject(projectPath: string): Promise<void> {
+  await closeFolderVisibilityForProject()
+  const db = openFolderVisibilityDb(projectPath, defaultFolderVisibilityDbDeps)
   ensureDefaultView(db)
   configureFolderVisibilityStore(db as never)
   updateProject((prev: ProjectState | null): ProjectState => {
-    const base = prev ?? freshProject(vaultPath as FilePath)
+    const base = prev ?? freshProject(projectPath as FilePath)
     return {
       ...base,
-      folderVisibility: { projectRoot: vaultPath as FilePath, db },
+      folderVisibility: { projectRoot: projectPath as FilePath, db },
     }
   })
 }
 
-export async function closeFolderVisibilityForVault(): Promise<void> {
+export async function closeFolderVisibilityForProject(): Promise<void> {
   const previous = getProject()?.folderVisibility ?? null
   mutateProject((prev: ProjectState): ProjectState => ({
     ...prev,
@@ -70,10 +79,22 @@ export async function closeFolderVisibilityForVault(): Promise<void> {
 export function getCurrentFolderVisibilityDb(): FolderVisibilityDatabase {
   const db = readDb()
   if (!db) {
-    throw new Error('No folder visibility database is open for the current vault')
+    throw new Error('No folder visibility database is open for the current project')
   }
   configureFolderVisibilityStore(db as never)
   return db
+}
+
+/**
+ * Whether the long-lived folder-visibility db handle is currently open.
+ *
+ * `getProjectRoot()` becomes truthy during `bindProject` BEFORE `openResources`
+ * opens this handle, so callers that read folder state outside the open
+ * lifecycle (e.g. `session show`) must gate on the handle itself, not just the
+ * project root, to avoid throwing during that transient window.
+ */
+export function isFolderVisibilityOpen(): boolean {
+  return readDb() !== null
 }
 
 function readActiveView(db: FolderVisibilityDatabase): ActiveViewInfo {
@@ -101,7 +122,7 @@ export function readCurrentFolderState(): {
 
 export function updateCurrentFolderState(
   path: string,
-  state: FolderState,
+  state: LoadedFolderState,
 ): {
   folderState: FolderStateEntry[]
   activeView: ActiveViewInfo

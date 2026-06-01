@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 // Standalone fake vt-daemon (VTD) for vt-daemon-client black-box tests.
 // Mirrors the BF-371 binary contract just enough to exercise
-// ensureVtDaemonForVault without booting the real binary's tmux + agent
+// ensureVtDaemonForProject without booting the real binary's tmux + agent
 // runtime + graphd subprocess. The protocol invariants this fixture must
 // honor:
 //
-//   1. Parse `--vault <path>` (BF-371's required flag — NOT `--project-root`).
+//   1. Parse `--project <path>` (BF-371's required flag — NOT `--project-root`).
 //   2. Atomic-create the owner record at
-//      `<vault>/.voicetree/vtd.owner.json` with port=null. Lost-race exit 0.
+//      `<project>/.voicetree/vtd.owner.json` with port=null. Lost-race exit 0.
 //   3. Bind a loopback HTTP server.
 //   4. Atomic-replace the owner record with the bound port.
-//   5. Write `<vault>/.voicetree/rpc.port` and `<vault>/.voicetree/auth-token`
+//   5. Write `<project>/.voicetree/rpc.port` and `<project>/.voicetree/auth-token`
 //      (BF-371 §7: the rpc.port + auth-token files are the cwd-upwalk
 //      discovery contract for hook subprocesses and spawned agents).
 //   6. Serve `GET /health` with a `VtDaemonHealthResponse`-shaped body
@@ -25,7 +25,7 @@
 // Recognised env vars (mirror fake-vt-graphd.mjs's surface):
 //   FAKE_VTD_STARTUP_DELAY_MS         — sleep between owner-claim and HTTP bind.
 //   FAKE_VTD_HEALTH_OWNER_NONCE       — override /health body's owner.ownerNonce.
-//   FAKE_VTD_HEALTH_CANONICAL_VAULT   — override /health body's owner.canonicalVault.
+//   FAKE_VTD_HEALTH_CANONICAL_PROJECT   — override /health body's owner.canonicalProject.
 //   FAKE_VTD_HEALTH_OWNER_NULL=1      — serve /health with owner: null.
 //   FAKE_VTD_EXIT_CODE                — exit immediately with the given code,
 //                                       BEFORE claiming the record (drives the
@@ -45,15 +45,15 @@ import {
 import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
-const vaultIndex = args.indexOf('--vault')
-if (vaultIndex === -1 || !args[vaultIndex + 1]) {
-  process.stderr.write('fake-vtd: missing --vault\n')
+const projectIndex = args.indexOf('--project')
+if (projectIndex === -1 || !args[projectIndex + 1]) {
+  process.stderr.write('fake-vtd: missing --project\n')
   process.exit(1)
 }
-const vault = resolve(args[vaultIndex + 1])
-const ownerPath = join(vault, '.voicetree', 'vtd.owner.json')
-const portPath = join(vault, '.voicetree', 'rpc.port')
-const authTokenPath = join(vault, '.voicetree', 'auth-token')
+const project = resolve(args[projectIndex + 1])
+const ownerPath = join(project, '.voicetree', 'vtd.owner.json')
+const portPath = join(project, '.voicetree', 'rpc.port')
+const authTokenPath = join(project, '.voicetree', 'auth-token')
 const envSnapshotPath = process.env.FAKE_VTD_ENV_SNAPSHOT_PATH
 
 if (envSnapshotPath) {
@@ -87,7 +87,7 @@ const VTD_CONTRACT_VERSION = '0.1.0'
 const baseRecord = {
   schemaVersion: 1,
   daemonKind: 'vtd',
-  canonicalVault: vault,
+  canonicalProject: project,
   pid: process.pid,
   ppid: process.ppid ?? 0,
   port: null,
@@ -163,11 +163,11 @@ const server = createServer((req, res) => {
       process.env.FAKE_VTD_HEALTH_OWNER_NULL === '1'
     const reportedNonce =
       process.env.FAKE_VTD_HEALTH_OWNER_NONCE ?? ownerNonce
-    const reportedVault =
-      process.env.FAKE_VTD_HEALTH_CANONICAL_VAULT ?? vault
+    const reportedProject =
+      process.env.FAKE_VTD_HEALTH_CANONICAL_PROJECT ?? project
     const body = {
       version: VTD_CONTRACT_VERSION,
-      vault,
+      project,
       uptimeSeconds: Math.floor((Date.now() - startedAtMs) / 1000),
       daemonKind: 'vtd',
       owner:
@@ -175,7 +175,7 @@ const server = createServer((req, res) => {
           ? null
           : {
               schemaVersion: 1,
-              canonicalVault: reportedVault,
+              canonicalProject: reportedProject,
               pid: process.pid,
               ppid: process.ppid ?? 0,
               port,

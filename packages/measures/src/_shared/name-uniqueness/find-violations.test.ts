@@ -71,11 +71,11 @@ describe('findNameUniquenessViolations', () => {
         expect(violations).toHaveLength(0)
     })
 
-    it('flags a single non-generic token cluster (vault) — every scope member becomes a violation', () => {
+    it('flags a single non-generic token cluster (project) — every scope member becomes a violation', () => {
         const declarations = [
-            decl('vault', '/repo/a/vault.ts'),
-            decl('vault', '/repo/b/vault.ts'),
-            decl('vault', '/repo/c/vault.ts'),
+            decl('project', '/repo/a/project.ts'),
+            decl('project', '/repo/b/project.ts'),
+            decl('project', '/repo/c/project.ts'),
         ]
         const violations = findNameUniquenessViolations({
             scope: declarations,
@@ -85,9 +85,9 @@ describe('findNameUniquenessViolations', () => {
         })
         expect(violations).toHaveLength(3)
         expect(violations.map(v => v.declaration.filePath).sort()).toEqual([
-            '/repo/a/vault.ts',
-            '/repo/b/vault.ts',
-            '/repo/c/vault.ts',
+            '/repo/a/project.ts',
+            '/repo/b/project.ts',
+            '/repo/c/project.ts',
         ])
         for (const v of violations) {
             expect(v.collidingMembers.length).toBeGreaterThanOrEqual(1)
@@ -126,8 +126,24 @@ describe('findNameUniquenessViolations', () => {
 
     it('drops test-file members from the cluster (foo.ts + foo.test.ts → cluster of 1)', () => {
         const declarations = [
-            decl('vault', '/repo/a/vault.ts'),
-            decl('vault', '/repo/a/vault.test.ts'),
+            decl('project', '/repo/a/project.ts'),
+            decl('project', '/repo/a/project.test.ts'),
+        ]
+        const violations = findNameUniquenessViolations({
+            scope: declarations,
+            index: buildIndex(declarations),
+            allowlist: ALLOWLIST,
+            importGraph: EMPTY_GRAPH,
+        })
+        expect(violations).toHaveLength(0)
+    })
+
+    it('drops .mjs / .cjs test-file members too (scripts/ uses foo.test.mjs)', () => {
+        const declarations = [
+            decl('guard', '/repo/scripts/guard.mjs'),
+            decl('guard', '/repo/scripts/guard.test.mjs'),
+            decl('helper', '/repo/scripts/helper.cjs'),
+            decl('helper', '/repo/scripts/helper.test.cjs'),
         ]
         const violations = findNameUniquenessViolations({
             scope: declarations,
@@ -174,11 +190,11 @@ describe('findNameUniquenessViolations', () => {
 
     it('diff-scoping: a legacy cluster of size 5 with empty scope produces zero violations', () => {
         const allDeclarations = [
-            decl('vault', '/repo/a/vault.ts'),
-            decl('vault', '/repo/b/vault.ts'),
-            decl('vault', '/repo/c/vault.ts'),
-            decl('vault', '/repo/d/vault.ts'),
-            decl('vault', '/repo/e/vault.ts'),
+            decl('project', '/repo/a/project.ts'),
+            decl('project', '/repo/b/project.ts'),
+            decl('project', '/repo/c/project.ts'),
+            decl('project', '/repo/d/project.ts'),
+            decl('project', '/repo/e/project.ts'),
         ]
         const violations = findNameUniquenessViolations({
             scope: [],
@@ -191,11 +207,11 @@ describe('findNameUniquenessViolations', () => {
 
     it('diff-scoping: only the single in-scope member of a 5-member cluster is flagged', () => {
         const allDeclarations = [
-            decl('vault', '/repo/a/vault.ts'),
-            decl('vault', '/repo/b/vault.ts'),
-            decl('vault', '/repo/c/vault.ts'),
-            decl('vault', '/repo/d/vault.ts'),
-            decl('vault', '/repo/e/vault.ts'),
+            decl('project', '/repo/a/project.ts'),
+            decl('project', '/repo/b/project.ts'),
+            decl('project', '/repo/c/project.ts'),
+            decl('project', '/repo/d/project.ts'),
+            decl('project', '/repo/e/project.ts'),
         ]
         const violations = findNameUniquenessViolations({
             scope: [allDeclarations[0]],
@@ -204,7 +220,7 @@ describe('findNameUniquenessViolations', () => {
             importGraph: EMPTY_GRAPH,
         })
         expect(violations).toHaveLength(1)
-        expect(violations[0].declaration.filePath).toBe('/repo/a/vault.ts')
+        expect(violations[0].declaration.filePath).toBe('/repo/a/project.ts')
         expect(violations[0].collidingMembers).toHaveLength(4)
     })
 
@@ -224,10 +240,10 @@ describe('findNameUniquenessViolations', () => {
 
     it('scope decl absent from the index still gets clustered (brand-new file joins existing cluster)', () => {
         const indexed = [
-            decl('vault', '/repo/a/vault.ts'),
-            decl('vault', '/repo/b/vault.ts'),
+            decl('project', '/repo/a/project.ts'),
+            decl('project', '/repo/b/project.ts'),
         ]
-        const newDecl = decl('vault', '/repo/scratch/_trial-vault.ts')
+        const newDecl = decl('project', '/repo/scratch/_trial-project.ts')
         const violations = findNameUniquenessViolations({
             scope: [newDecl],
             index: buildIndex(indexed),
@@ -235,14 +251,14 @@ describe('findNameUniquenessViolations', () => {
             importGraph: EMPTY_GRAPH,
         })
         expect(violations).toHaveLength(1)
-        expect(violations[0].declaration.filePath).toBe('/repo/scratch/_trial-vault.ts')
+        expect(violations[0].declaration.filePath).toBe('/repo/scratch/_trial-project.ts')
         expect(violations[0].collidingMembers).toHaveLength(2)
     })
 
     it('strips test-file suffix tokens before tokenisation so foo.test.ts does not register a "test" token', () => {
         const declarations = [
-            decl('vault.test', '/repo/a/vault.test.ts'),
-            decl('vault', '/repo/a/vault.ts'),
+            decl('project.test', '/repo/a/project.test.ts'),
+            decl('project', '/repo/a/project.ts'),
         ]
         const violations = findNameUniquenessViolations({
             scope: declarations,

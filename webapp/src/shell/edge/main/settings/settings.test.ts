@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreOnAppUpdateIfNeeded } from './settings_IO';
+import { loadSettings, saveSettings, clearSettingsCache } from './settings_IO';
 import type { VTSettings } from '@vt/graph-model/settings';
 
 import {DEFAULT_SETTINGS} from "@vt/graph-model/settings";
@@ -116,7 +116,7 @@ describe('settings', () => {
   });
 
   describe('INJECT_ENV_VARS deep-merge', () => {
-    it('no INJECT_ENV_VARS in file → all default keys present (AGENT_PROMPT, AGENT_PROMPT_CORE, AGENT_PROMPT_LIGHTWEIGHT)', async () => {
+    it('no INJECT_ENV_VARS in file → default keys present (AGENT_PROMPT, DEPTH_BUDGET); prompt bodies are not settings', async () => {
       const settingsPath: string = path.join(testUserDataPath, 'settings.json');
       await fs.writeFile(settingsPath, JSON.stringify({
         agents: [{ name: 'Test', command: 'test "$AGENT_PROMPT"' }],
@@ -125,26 +125,15 @@ describe('settings', () => {
 
       const settings: VTSettings = await loadSettings();
 
+      // AGENT_PROMPT_CORE / AGENT_PROMPT_LIGHTWEIGHT now live as .md files resolved at
+      // spawn from the project's prompts dir — they are no longer settings defaults.
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('$AGENT_PROMPT_CORE');
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBeTruthy();
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_LIGHTWEIGHT).toBeTruthy();
+      expect(settings.INJECT_ENV_VARS.DEPTH_BUDGET).toBeTruthy();
+      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBeUndefined();
+      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_LIGHTWEIGHT).toBeUndefined();
     });
 
-    it('file has only AGENT_PROMPT_CORE (post-migration state) → AGENT_PROMPT and AGENT_PROMPT_LIGHTWEIGHT filled from defaults', async () => {
-      const customCore: string = 'old core content';
-      const settingsPath: string = path.join(testUserDataPath, 'settings.json');
-      await fs.writeFile(settingsPath, JSON.stringify({
-        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
-      }), 'utf-8');
-
-      const settings: VTSettings = await loadSettings();
-
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('$AGENT_PROMPT_CORE');
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_LIGHTWEIGHT).toBeTruthy();
-    });
-
-    it('user custom AGENT_PROMPT is preserved in deep-merge', async () => {
+    it('user custom AGENT_PROMPT is preserved while other defaults remain', async () => {
       const settingsPath: string = path.join(testUserDataPath, 'settings.json');
       await fs.writeFile(settingsPath, JSON.stringify({
         INJECT_ENV_VARS: { AGENT_PROMPT: 'Always use bun. $AGENT_PROMPT_CORE' }
@@ -153,11 +142,11 @@ describe('settings', () => {
       const settings: VTSettings = await loadSettings();
 
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('Always use bun. $AGENT_PROMPT_CORE');
-      // Other keys still come from defaults
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBeTruthy();
+      // Other default keys still come through the deep-merge.
+      expect(settings.INJECT_ENV_VARS.DEPTH_BUDGET).toBeTruthy();
     });
 
-    it('user custom AGENT_PROMPT_CORE is preserved in deep-merge', async () => {
+    it('a user AGENT_PROMPT_CORE override in settings is preserved through the deep-merge', async () => {
       const customCore: string = 'This is a custom prompt core override';
       const settingsPath: string = path.join(testUserDataPath, 'settings.json');
       await fs.writeFile(settingsPath, JSON.stringify({
@@ -169,7 +158,7 @@ describe('settings', () => {
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
     });
 
-    it('custom AGENT_PROMPT_CORE survives an unrelated settings save', async () => {
+    it('a user AGENT_PROMPT_CORE override survives an unrelated settings save', async () => {
       const customCore: string = 'Persist me across later saves';
       const settingsPath: string = path.join(testUserDataPath, 'settings.json');
       await fs.writeFile(settingsPath, JSON.stringify({
@@ -185,42 +174,6 @@ describe('settings', () => {
 
       expect(reloadedSettings.darkMode).toBe(true);
       expect(reloadedSettings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
-    });
-  });
-
-  describe('AGENT_PROMPT_CORE app update migration', () => {
-    it('overwrites AGENT_PROMPT_CORE once when app version changes', async () => {
-      const oldCustomCore: string = 'custom core from previous app version';
-      const settingsPath: string = path.join(testUserDataPath, 'settings.json');
-      await fs.writeFile(settingsPath, JSON.stringify({
-        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: oldCustomCore },
-        agentPromptCoreSyncedAppVersion: '2.9.12'
-      }), 'utf-8');
-
-      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded('2.9.13');
-
-      expect(migrated).toBe(true);
-      clearSettingsCache();
-      const settings: VTSettings = await loadSettings();
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE);
-      expect(settings.agentPromptCoreSyncedAppVersion).toBe('2.9.13');
-    });
-
-    it('does not overwrite AGENT_PROMPT_CORE again within the same app version', async () => {
-      const sameVersionCustomCore: string = 'user edit made after the update';
-      const settingsPath: string = path.join(testUserDataPath, 'settings.json');
-      await fs.writeFile(settingsPath, JSON.stringify({
-        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: sameVersionCustomCore },
-        agentPromptCoreSyncedAppVersion: '2.9.13'
-      }), 'utf-8');
-
-      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded('2.9.13');
-
-      expect(migrated).toBe(false);
-      clearSettingsCache();
-      const settings: VTSettings = await loadSettings();
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(sameVersionCustomCore);
-      expect(settings.agentPromptCoreSyncedAppVersion).toBe('2.9.13');
     });
   });
 });

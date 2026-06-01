@@ -1,1 +1,1 @@
-export { planVault, generateVaultOnDisk, type VaultNode, type VaultLayout } from './generateRealisticVault.ts'
+export { planProject, generateProjectOnDisk, type ProjectNode, type ProjectLayout } from './generateRealisticProject.ts'

@@ -18,8 +18,8 @@ export function classifyFindFileRequest(input: {
     }
   | {
       readonly kind: 'error'
-      readonly message: 'No vault is currently open'
-      readonly code: 'NO_VAULT'
+      readonly message: 'No project is currently open'
+      readonly code: 'NO_PROJECT'
       readonly status: 503
     } {
   if (!input.name) {
@@ -33,8 +33,8 @@ export function classifyFindFileRequest(input: {
   if (!input.searchPath) {
     return {
       kind: 'error',
-      message: 'No vault is currently open',
-      code: 'NO_VAULT',
+      message: 'No project is currently open',
+      code: 'NO_PROJECT',
       status: 503,
     }
   }

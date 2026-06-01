@@ -69,15 +69,15 @@ async function assertPerfStackUp() {
   }
 }
 
-async function makeScenarioVault(runUuid) {
-  const vaultDir = join(tmpdir(), `vt-perf-scenario-${runUuid}`)
-  await mkdir(vaultDir, { recursive: true })
+async function makeScenarioProject(runUuid) {
+  const projectDir = join(tmpdir(), `vt-perf-scenario-${runUuid}`)
+  await mkdir(projectDir, { recursive: true })
   await writeFile(
-    join(vaultDir, 'perf-scenario.md'),
+    join(projectDir, 'perf-scenario.md'),
     `# Perf scenario\n\nRun UUID: ${runUuid}\n`,
     'utf8',
   )
-  return vaultDir
+  return projectDir
 }
 
 function waitForReady(child, timeoutMs) {
@@ -140,7 +140,7 @@ async function runGraphdScenario({ runUuid, durationMs, projectRoot }) {
     ...process.env,
     VOICETREE_RUN_INSTANCE_ID: runUuid,
     VOICETREE_OTLP_ENDPOINT: OTLP_ENDPOINT,
-    VOICETREE_PERF_PROFILE: '1',
+    VOICETREE_PERF_TIER: 'deep',
   }
 
   const child = spawn(process.execPath, [
@@ -170,7 +170,7 @@ async function runGraphdScenario({ runUuid, durationMs, projectRoot }) {
 async function main() {
   const runUuid = resolveRunUuid()
   const durationMs = resolveDurationMs()
-  const projectRoot = process.argv[2] ? resolve(process.argv[2]) : await makeScenarioVault(runUuid)
+  const projectRoot = process.argv[2] ? resolve(process.argv[2]) : await makeScenarioProject(runUuid)
 
   process.stdout.write(`Run UUID: ${runUuid}\n`)
   process.stdout.write(`Grafana: http://localhost:2999/?var-run_id=${runUuid}\n`)

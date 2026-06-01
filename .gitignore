@@ -52,6 +52,11 @@ nosetests.xml
 coverage.xml
 coverage.json
 stryker-*.json
+# Stryker mutation-testing sandbox: transient per-package copies of src/ created
+# under packages/*/.stryker-tmp/ during the tier-4 mutation checks. Byte-identical
+# to the real source, so leaving it un-ignored makes the jscpd duplication analyzer
+# (gitignore-aware) count every sandbox file as a clone of its original.
+.stryker-tmp/
 *.cover
 *.py,cover
 .hypothesis/
@@ -203,6 +208,7 @@ webapp/workers/share-worker/.wrangler/**
 !webapp/e2e-tests/electron/README.md
 !scripts/agent-debugging/README.md
 !scripts/dev-setup/remote/AGENT_PROMPT.md
+!scripts/dev-setup/vm_prompts/*.md
 !scripts/agent-debugging/REFERENCE.md
 !openspec/**/*.md
 !/architecture.md
@@ -222,7 +228,10 @@ webapp/workers/share-worker/.wrangler/**
 # Wrangler
 **/.wrangler/**
 
-# Node modules
+# Node modules — ignore both the contents AND the entry itself. The latter
+# matters in git worktrees, where node_modules is a SYMLINK (a single file the
+# `/**` content globs do not match), which `git add -A` would otherwise stage.
+**/node_modules
 **/node_modules/**
 
 # TypeScript build state
@@ -264,7 +273,7 @@ test_output/*
 /health-dashboard/reports/*.json
 /health-dashboard/reports/*.json.tmp.*
 /health-dashboard/reports/checks/*.json
-/health-dashboard/reports/scores-history/*.local.csv
+/health-dashboard/reports/scores-history/*.csv
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
 !/health-dashboard/reports/scores-history/
@@ -277,3 +286,13 @@ test_output/*
 
 # Voicetree per-version vault dirs at repo root (runtime app state from past sessions, not source)
 /voicetree-*-*/
+
+# ck semantic-search index/cache (not source; must never be committed or scanned)
+.ck/
+.ckignore.backup
+# NOTE: .ckignore itself IS committed — it's a curated config that scopes ck's
+# index to production TypeScript (mirrors @vt/measures isProductionSourcePath),
+# not the auto-generated default. ck won't overwrite an existing .ckignore.
+
+# Optional repo-local denylist for the pre-commit hook (never committed)
+.denylist

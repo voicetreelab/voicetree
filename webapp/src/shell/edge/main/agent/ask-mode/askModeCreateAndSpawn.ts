@@ -10,12 +10,12 @@ import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import {getExistingAgentNames} from '@vt/vt-daemon-client';
-import {getActiveVault, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
+import {getActiveProject, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getVoicetreeHomePath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWriteFolder} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWriteFolderPath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {
   createContextNodeFromQuestionThroughDaemon,
   getGraphThroughDaemon,
@@ -24,11 +24,11 @@ import {
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
   const graph: Graph = await getGraphThroughDaemon();
 
-  // Use writeFolder for normalizing search results - this matches what the backend loads from
-  // (see watchFolder.ts:316 where notifyTextToTreeServerOfDirectory uses config.writeFolder)
-  const writeFolderOption: O.Option<string> = await getWriteFolder();
-  const basePath: string | null = O.isSome(writeFolderOption)
-    ? writeFolderOption.value
+  // Use writeFolderPath for normalizing search results - this matches what the backend loads from
+  // (see watchFolder.ts:316 where notifyTextToTreeServerOfDirectory uses config.writeFolderPath)
+  const writeFolderPathOption: O.Option<string> = await getWriteFolderPath();
+  const basePath: string | null = O.isSome(writeFolderPathOption)
+    ? writeFolderPathOption.value
     : null;
 
   // Normalize incoming node IDs to absolute paths
@@ -75,18 +75,18 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
 
   const voicetreeHomePath: string = getVoicetreeHomePath();
 
-  // Spawn directory is rooted at the vault, NOT the writeFolder. writeFolder
-  // can be a dated subdirectory of the vault (see watchFolder.ts
+  // Spawn directory is rooted at the project, NOT the writeFolderPath. writeFolderPath
+  // can be a dated subdirectory of the project (see watchFolder.ts
   // createDatedVoiceTreeFolder), and the setting is
   // `terminalSpawnPathRelativeToWatchedDirectory` — historically rooted at
-  // the watched (vault) directory. basePath above stays as writeFolder
-  // because the STT server returns paths relative to writeFolder.
-  const vaultPath: string | null = getActiveVault();
-  let initialSpawnDirectory: string | undefined = vaultPath ?? undefined;
+  // the watched (project) directory. basePath above stays as writeFolderPath
+  // because the STT server returns paths relative to writeFolderPath.
+  const projectPath: string | null = getActiveProject();
+  let initialSpawnDirectory: string | undefined = projectPath ?? undefined;
 
-  if (vaultPath && settings.terminalSpawnPathRelativeToWatchedDirectory) {
+  if (projectPath && settings.terminalSpawnPathRelativeToWatchedDirectory) {
     const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-    initialSpawnDirectory = path.join(vaultPath, relativePath);
+    initialSpawnDirectory = path.join(projectPath, relativePath);
   }
 
   // Node IDs are now absolute paths, so contextNodeId is the absolute path

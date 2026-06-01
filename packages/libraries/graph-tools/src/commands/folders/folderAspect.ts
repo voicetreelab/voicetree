@@ -15,7 +15,7 @@ export type FolderAspectOptions = {
   minChildren: number
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 function parseNumberFlag(raw: string, flagName: string): number {
@@ -59,21 +59,21 @@ export function parseArgs(argv: string[]): FolderAspectOptions | Response<never>
         options.pid = parseIntegerFlag(argv[++i] ?? '', '--pid')
       } else if (arg.startsWith('--pid=')) {
         options.pid = parseIntegerFlag(arg.slice('--pid='.length), '--pid')
-      } else if (arg === '--vault') {
-        options.vault = argv[++i]
-        if (!options.vault || options.vault.startsWith('--')) {
-          return err('folder-aspect', '--vault requires a value')
+      } else if (arg === '--project') {
+        options.project = argv[++i]
+        if (!options.project || options.project.startsWith('--')) {
+          return err('folder-aspect', '--project requires a value')
         }
-      } else if (arg.startsWith('--vault=')) {
-        options.vault = arg.slice('--vault='.length)
-        if (!options.vault) {
-          return err('folder-aspect', '--vault requires a value')
+      } else if (arg.startsWith('--project=')) {
+        options.project = arg.slice('--project='.length)
+        if (!options.project) {
+          return err('folder-aspect', '--project requires a value')
         }
       } else {
         return err(
           'folder-aspect',
           `unknown arg: ${arg}`,
-          'supported flags: --threshold, --min-children, --port, --cdpPort, --pid, --vault',
+          'supported flags: --threshold, --min-children, --port, --cdpPort, --pid, --project',
         )
       }
     }
@@ -81,7 +81,7 @@ export function parseArgs(argv: string[]): FolderAspectOptions | Response<never>
     return err(
       'folder-aspect',
       String(e),
-      'supported flags: --threshold, --min-children, --port, --cdpPort, --pid, --vault',
+      'supported flags: --threshold, --min-children, --port, --cdpPort, --pid, --project',
     )
   }
 
@@ -125,7 +125,7 @@ async function folderAspectHandler(argv: string[]): Promise<Response<unknown>> {
     return parsed
   }
 
-  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, project: parsed.project })
   if (!pick.ok) {
     return err('folder-aspect', pick.message, pick.hint, 2)
   }

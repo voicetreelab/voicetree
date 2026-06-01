@@ -4,6 +4,7 @@
  * mocking. Lives next to the function under test per repo convention.
  */
 import {existsSync, mkdtempSync, readFileSync, rmSync, statSync} from 'node:fs'
+import {execFileSync} from 'node:child_process'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {describe, expect, it, beforeEach, afterEach} from 'vitest'
@@ -13,34 +14,35 @@ import {
     applyPromptFileToTmuxSpawn,
     deletePromptFile,
     deletePromptFileByPath,
+    formatLaunchScript,
     promptFilePath,
     rewriteCommandForPromptFile,
     wrapForHeadlessTmux,
     writePromptFile,
 } from '../tmuxPromptFile'
 
-let vault: string
+let project: string
 
 beforeEach(() => {
-    vault = mkdtempSync(join(tmpdir(), 'vt-prompt-file-'))
+    project = mkdtempSync(join(tmpdir(), 'vt-prompt-file-'))
 })
 afterEach(() => {
-    rmSync(vault, {recursive: true, force: true})
+    rmSync(project, {recursive: true, force: true})
 })
 
 const tid = (name: string): TerminalId => name as TerminalId
 
 describe('promptFilePath', () => {
-    it('returns {vault}/.voicetree/terminals/{name}-prompt.txt', () => {
-        expect(promptFilePath(vault, tid('Aki'))).toBe(
-            join(vault, '.voicetree', 'terminals', 'Aki-prompt.txt'),
+    it('returns {project}/.voicetree/terminals/{name}-prompt.txt', () => {
+        expect(promptFilePath(project, tid('Aki'))).toBe(
+            join(project, '.voicetree', 'terminals', 'Aki-prompt.txt'),
         )
     })
 })
 
 describe('writePromptFile / deletePromptFile', () => {
     it('writes the prompt to disk with mode 0600 and the expected content', () => {
-        const path: string = writePromptFile(vault, tid('Aki'), 'hello prompt')
+        const path: string = writePromptFile(project, tid('Aki'), 'hello prompt')
         expect(existsSync(path)).toBe(true)
         expect(readFileSync(path, 'utf8')).toBe('hello prompt')
         const mode: number = statSync(path).mode & 0o777
@@ -48,19 +50,19 @@ describe('writePromptFile / deletePromptFile', () => {
     })
 
     it('overwrites an existing prompt file', () => {
-        writePromptFile(vault, tid('Aki'), 'first')
-        const path: string = writePromptFile(vault, tid('Aki'), 'second')
+        writePromptFile(project, tid('Aki'), 'first')
+        const path: string = writePromptFile(project, tid('Aki'), 'second')
         expect(readFileSync(path, 'utf8')).toBe('second')
     })
 
-    it('deletes the prompt file by vault+id', () => {
-        const path: string = writePromptFile(vault, tid('Aki'), 'x')
-        deletePromptFile(vault, tid('Aki'))
+    it('deletes the prompt file by project+id', () => {
+        const path: string = writePromptFile(project, tid('Aki'), 'x')
+        deletePromptFile(project, tid('Aki'))
         expect(existsSync(path)).toBe(false)
     })
 
     it('deletePromptFile is a no-op when the file is missing', () => {
-        expect(() => deletePromptFile(vault, tid('Ghost'))).not.toThrow()
+        expect(() => deletePromptFile(project, tid('Ghost'))).not.toThrow()
     })
 
     it('deletePromptFileByPath handles null / missing files', () => {
@@ -146,15 +148,32 @@ describe('wrapForHeadlessTmux', () => {
     })
 })
 
+describe('formatLaunchScript', () => {
+    it('lets bash parse leading env assignments before execing the agent command', () => {
+        const script: string = formatLaunchScript(
+            `CLAUDE_CODE_SANDBOXED=1 CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30 CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion`,
+        )
+        expect(script).toBe(
+            `#!/usr/bin/env bash\nexec bash -c 'CLAUDE_CODE_SANDBOXED=1 CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30 CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion'\n`,
+        )
+    })
+
+    it('executes commands with leading env assignments as shell syntax', () => {
+        const script: string = formatLaunchScript('FOO=bar env')
+        const out: string = execFileSync('bash', ['-c', script], {encoding: 'utf8'})
+        expect(out).toContain('FOO=bar\n')
+    })
+})
+
 describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
     it('writes the prompt, CLI-rewrites the command (no bash wrap), and clears AGENT_PROMPT in favor of AGENT_PROMPT_FILE', () => {
         const plan = applyPromptFileToTmuxSpawn({
-            projectRoot: vault,
+            projectRoot: project,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
         })
-        expect(plan.promptFilePath).toBe(promptFilePath(vault, tid('Aki')))
+        expect(plan.promptFilePath).toBe(promptFilePath(project, tid('Aki')))
         expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe('task body')
         // No bash wrap — the interactive path send-keys this verbatim into a shell
         expect(plan.command).toBe(`claude < '${plan.promptFilePath}'`)
@@ -165,7 +184,7 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
 
     it('is a no-op when env has no AGENT_PROMPT', () => {
         const plan = applyPromptFileToTmuxSpawn({
-            projectRoot: vault,
+            projectRoot: project,
             terminalId: tid('Aki'),
             command: 'bash',
             env: {VOICETREE_TERMINAL_ID: 'Aki'},
@@ -178,7 +197,7 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
     it('handles a 200 KiB AGENT_PROMPT — spilling to file keeps the returned env tiny', () => {
         const giant: string = 'X'.repeat(200 * 1024)
         const plan = applyPromptFileToTmuxSpawn({
-            projectRoot: vault,
+            projectRoot: project,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: giant, VOICETREE_TERMINAL_ID: 'Aki'},
@@ -196,12 +215,12 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
 describe('applyPromptFileToHeadlessSpawn', () => {
     it('composes the mode-agnostic primitive with the headless bash-unset wrap', () => {
         const plan = applyPromptFileToHeadlessSpawn({
-            projectRoot: vault,
+            projectRoot: project,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
         })
-        expect(plan.promptFilePath).toBe(promptFilePath(vault, tid('Aki')))
+        expect(plan.promptFilePath).toBe(promptFilePath(project, tid('Aki')))
         expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe('task body')
         expect(plan.command).toContain(`bash -c 'unset AGENT_PROMPT; claude < `)
         expect(plan.env.AGENT_PROMPT).toBe('')
@@ -211,7 +230,7 @@ describe('applyPromptFileToHeadlessSpawn', () => {
 
     it('is a no-op when env has no AGENT_PROMPT', () => {
         const plan = applyPromptFileToHeadlessSpawn({
-            projectRoot: vault,
+            projectRoot: project,
             terminalId: tid('Aki'),
             command: 'bash',
             env: {VOICETREE_TERMINAL_ID: 'Aki'},

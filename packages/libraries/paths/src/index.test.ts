@@ -23,4 +23,12 @@ describe('VoiceTree paths', () => {
     it('builds project-local .voicetree paths from the project path', () => {
         expect(getProjectDotVoicetreePath('/repo/project')).toBe('/repo/project/.voicetree')
     })
+
+    it('does not derive project-local runtime files from a write folder path', () => {
+        const projectPath: string = '/repo/project'
+        const writeFolderPath: string = '/repo/project/voicetree-29-5'
+
+        expect(getProjectDotVoicetreePath(projectPath)).toBe('/repo/project/.voicetree')
+        expect(getProjectDotVoicetreePath(projectPath)).not.toBe(`${writeFolderPath}/.voicetree`)
+    })
 })

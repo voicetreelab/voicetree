@@ -51,7 +51,7 @@ websockify --web=/usr/share/novnc "$NOVNC_PORT" "localhost:$VNC_PORT" &
 pids+=($!)
 
 echo "[entrypoint] desktop ready at http://localhost:${NOVNC_PORT}/vnc.html?autoconnect=1&resize=remote"
-echo "[entrypoint] vault: $VOICETREE_VAULT"
+echo "[entrypoint] project: $VOICETREE_PROJECT"
 
 # Electron in a container requires --no-sandbox unless we set up user
 # namespaces; the outer container already provides the sandbox boundary that

@@ -11,7 +11,7 @@ import {
     type Subscriber,
     type SubscriberHandle,
     type TopicName,
-} from '../eventSubscriptionHub.ts'
+} from '../sse/eventSubscriptionHub.ts'
 
 interface CapturingSubscriber {
     readonly subscriber: Subscriber
@@ -39,7 +39,7 @@ function makeSubscriber(send?: (frame: string) => void): CapturingSubscriber {
 describe('eventSubscriptionHub', (): void => {
     it('exposes the canonical topic taxonomy', (): void => {
         // Post-BF-376: terminal-registry is its own narrow homogeneous topic
-        // alongside agent-events. The pre-Phase-0 vault-state topic was
+        // alongside agent-events. The pre-Phase-0 project-state topic was
         // removed by BF-366.
         expect(ALLOWED_TOPICS).toEqual(['agent-events', 'terminal-registry'])
     })
@@ -198,9 +198,9 @@ describe('eventSubscriptionHub', (): void => {
         expect(() => hub.publish('not-a-real-topic', 'e', {})).toThrow(/unknown topic/)
     })
 
-    it('rejects publish on the removed vault-state topic', (): void => {
+    it('rejects publish on the removed project-state topic', (): void => {
         const hub: EventSubscriptionHub = createEventSubscriptionHub()
-        expect(() => hub.publish('vault-state' as TopicName, 'file-added', {})).toThrow(/unknown topic vault-state/)
+        expect(() => hub.publish('project-state' as TopicName, 'file-added', {})).toThrow(/unknown topic project-state/)
     })
 
     it('currentSeq reports the last-published seq per topic', (): void => {

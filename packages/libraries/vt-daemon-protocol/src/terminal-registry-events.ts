@@ -29,11 +29,11 @@
  * receivers derive the close from `terminal-removed` (the renderer
  * already knows the terminal pane it had open; it tears down on remove).
  *
- * Vault-switch fence (per Leaf B's main-host-purity §"Vault-switch
- * fence") applies identically: envelopes whose `vault` does not match
- * `getActiveVault()` are dropped before they reach the renderer. That
+ * Project-switch fence (per Leaf B's main-host-purity §"Project-switch
+ * fence") applies identically: envelopes whose `project` does not match
+ * `getActiveProject()` are dropped before they reach the renderer. That
  * happens at the Main-side bridge — the protocol shape stays
- * vault-agnostic.
+ * project-agnostic.
  */
 
 import type {NodeIdAndFilePath} from './core-types.ts'

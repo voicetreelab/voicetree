@@ -17,11 +17,11 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 type TestFixtures = {
     electronApp: ElectronApplication;
     appWindow: Page;
-    testVaultPath: string;
+    testProjectPath: string;
     tempUserDataPath: string;
 };
 
-async function writeFixtureVault(projectRoot: string): Promise<void> {
+async function writeFixtureProject(projectRoot: string): Promise<void> {
     await fs.mkdir(projectRoot, { recursive: true });
     const subFolder = path.join(projectRoot, 'notes');
     await fs.mkdir(subFolder, { recursive: true });
@@ -30,9 +30,9 @@ async function writeFixtureVault(projectRoot: string): Promise<void> {
 }
 
 const test = base.extend<TestFixtures>({
-    testVaultPath: async ({}, use) => {
+    testProjectPath: async ({}, use) => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-bf250-test-'));
-        await writeFixtureVault(dir);
+        await writeFixtureProject(dir);
         await use(dir);
         await fs.rm(dir, { recursive: true, force: true });
     },
@@ -43,9 +43,9 @@ const test = base.extend<TestFixtures>({
         await fs.rm(dir, { recursive: true, force: true });
     },
 
-    electronApp: [async ({ testVaultPath, tempUserDataPath }, use) => {
+    electronApp: [async ({ testProjectPath, tempUserDataPath }, use) => {
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testVaultPath }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testProjectPath }, null, 2), 'utf8');
 
         const electronApp = await electron.launch({
             args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js'), `--user-data-dir=${tempUserDataPath}`],
@@ -56,7 +56,7 @@ const test = base.extend<TestFixtures>({
         await electronApp.close();
     }, { timeout: 30000 }],
 
-    appWindow: [async ({ electronApp, testVaultPath }, use) => {
+    appWindow: [async ({ electronApp, testProjectPath }, use) => {
         const win = await electronApp.firstWindow({ timeout: 15000 });
         win.on('console', msg => {
             if (msg.type() === 'error' && !msg.text().includes('Electron Security Warning')) {
@@ -76,18 +76,17 @@ const test = base.extend<TestFixtures>({
                 await api.main.saveProject({
                     id: crypto.randomUUID(),
                     path: params.folderPath,
-                    name: 'bf250-test-vault',
+                    name: 'bf250-test-project',
                     type: 'folder' as const,
                     lastOpened: Date.now(),
-                    voicetreeInitialized: false,
                 });
-            }, { folderPath: testVaultPath });
+            }, { folderPath: testProjectPath });
             await win.waitForTimeout(500);
-            await win.locator('button:has-text("bf250-test-vault")').click({ timeout: 5000 }).catch(async () => {
+            await win.locator('button:has-text("bf250-test-project")').click({ timeout: 5000 }).catch(async () => {
                 await win.reload();
                 await win.waitForLoadState('domcontentloaded');
                 await win.waitForTimeout(1000);
-                await win.locator('button:has-text("bf250-test-vault")').click({ timeout: 5000 });
+                await win.locator('button:has-text("bf250-test-project")').click({ timeout: 5000 });
             });
         }
 
@@ -176,7 +175,7 @@ test.describe('right-click-menu: folder visibility tri-state', () => {
         await expect(appWindow.locator('body')).toBeVisible();
     });
 
-    test('vault-switch regression: electron-vault-switch still passes after BF-250', async ({ electronApp }) => {
+    test('project-switch regression: electron-project-switch still passes after BF-250', async ({ electronApp }) => {
         // Smoke assertion — if the app launched and reached here, the IPC bridge is intact.
         const win = await electronApp.firstWindow();
         await expect(win.locator('body')).toBeVisible();

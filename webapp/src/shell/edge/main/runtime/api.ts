@@ -8,12 +8,13 @@
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {SavedProject} from '@vt/graph-model/project'
-import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWriteFolder, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, stopFileWatching, getProjectPaths, getReadPaths, getWriteFolderPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openProject, getStartupProjectHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getVoicetreeHomePath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/queries/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
+import {recordRendererTelemetry} from '@/shell/edge/main/observability/recordRendererTelemetry';
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/queries/daemon-graph-queries'
 import {getVtDaemonFacade} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import type {
@@ -53,13 +54,13 @@ import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClip
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from '@/shell/edge/main/agent/runAgentOnSelectedNodes';
-import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
+import {listWorktrees, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
+import {createWorktreeWithHooks as createWorktree} from '@/shell/edge/main/workspace/worktree/createWorktreeWithHooks';
 import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/workspace/project-scanner';
 import {loadProjects, saveProject, removeProject} from '@/shell/edge/main/workspace/project-store';
-import {initializeProject as initializeProjectCore} from '@/shell/edge/main/workspace/project-initializer';
 import {showFolderPicker, createNewProject} from '@/shell/edge/main/workspace/show-folder-picker';
-import {getOnboardingDirectory} from './electron/startup/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from '@/shell/edge/main/observability/debug/prettySetupAppForElectronDebugging';
+import {consumeUserDataMigrationNotice} from '@/shell/edge/main/runtime/electron/startup/user-data-migration';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -80,7 +81,7 @@ import {
   postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
-  setWriteFolderThroughDaemon as setWriteFolder,
+  setWriteFolderPathThroughDaemon as setWriteFolderPath,
   syncRendererSessionStateWithDaemon,
   listViewsThroughDaemon,
   activateViewThroughDaemon,
@@ -90,39 +91,14 @@ import {
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/sync/daemon-sse-subscription';
 import { stopDaemonGraphSync } from './electron/daemon/sync/daemon-watch-sync';
 import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/lifecycle/graph-daemon';
-import path from 'path';
 
 async function __debugStopDaemonGraphSync(): Promise<void> {
   if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API');
   await stopDaemonGraphSync();
 }
 
-/**
- * Wrapper for initializeProject that provides the onboarding source directory.
- * Copies onboarding .md files from Application Support into the project's voicetree folder.
- * Returns the path to the voicetree subfolder (existing or newly created).
- */
-async function initializeProject(projectPath: string): Promise<string | null> {
-    const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
-    return initializeProjectCore(projectPath, onboardingSourceDir);
-}
-
-/**
- * Wrapper for createWorktree that reads hooks.onWorktreeCreated from settings
- * and passes it to the core function. Hook failure is non-blocking.
- */
-async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
-    const settings: VTSettings = await loadSettings();
-    const blockingHook: string | undefined = settings.hooks?.onWorktreeCreatedBlocking;
-    const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
-    const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
-    const effectiveAsync: string | undefined = asyncHook?.startsWith('#') ? undefined : asyncHook ?? undefined;
-    const hookEnv: Record<string, string> = { VOICETREE_MCP_PORT: String(getMcpPort()) };
-    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync, hookEnv);
-}
-
 // ---------------------------------------------------------------------------
-// BF-376 outbound: per-route wrappers fronting the per-vault VTD via
+// BF-376 outbound: per-route wrappers fronting the per-project VTD via
 // @vt/vt-daemon-client. Renderer-facing IPC keeps its prior (terminalId,
 // value) call shape; each wrapper folds that into the typed RPC request
 // the daemon contract expects.
@@ -202,6 +178,10 @@ function listUnclaimedTmuxSessions(): ReturnType<ReturnType<typeof getVtDaemonFa
 }
 
 export const mainAPI = {
+  // Perf-probe MELT sink: renderer batches frame/longtask/INP/interaction
+  // telemetry here; main forwards it to the OTLP exporter (perf runs only).
+  recordRendererTelemetry,
+
   // Graph operations - daemon-only write path
   applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 
@@ -230,10 +210,10 @@ export const mainAPI = {
 
   saveSettings: (settings: VTSettings): Promise<boolean> => saveSettings(settings),
 
-  // Vault operations — single canonical entry-point.
-  openVault,
+  // Project operations — single canonical entry-point.
+  openProject,
 
-  getStartupVaultHint,
+  getStartupProjectHint,
 
   stopFileWatching,
 
@@ -241,11 +221,11 @@ export const mainAPI = {
 
   getWatchStatus,
 
-  // Multi-vault path operations
-  getVaultPaths,
+  // Multi-project path operations
+  getProjectPaths,
   getReadPaths,
-  getWriteFolder,
-  setWriteFolder,
+  getWriteFolderPath,
+  setWriteFolderPath,
   addReadPath,
   removeReadPath,
   getAvailableFoldersForSelector,
@@ -265,11 +245,16 @@ export const mainAPI = {
   // App paths
   getVoicetreeHomePath,
 
+  // One-time 2.9.x→3.0 import notice. The migration already ran in main at
+  // startup; the renderer consumes this once after the window loads to show a
+  // non-blocking toast. Returns null once consumed or when nothing was imported.
+  consumeUserDataMigrationNotice,
+
   // Undo/Redo operations
   performUndo,
   performRedo,
 
-  // Terminal spawning — RPC to per-vault VTD via @vt/vt-daemon-client.
+  // Terminal spawning — RPC to per-project VTD via @vt/vt-daemon-client.
   spawnTerminalWithContextNode: spawnTerminalWithContextNode,
 
   // Plain terminal spawning (no agent command, no context node)
@@ -348,7 +333,6 @@ export const mainAPI = {
   loadProjects: (): Promise<SavedProject[]> => loadProjects(),
   saveProject: (project: SavedProject): Promise<void> => saveProject(project),
   removeProject: (id: string): Promise<void> => removeProject(id),
-  initializeProject,
   showFolderPicker,
   createNewProject,
 

@@ -8,7 +8,7 @@ import {
     type TerminalId,
     type VtDaemonClient,
 } from '@vt/vt-daemon-client'
-import {getActiveVault, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import {getActiveProject, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy'
 
 const RECOVERY_POLL_INTERVAL_MS: number = 10_000
@@ -53,8 +53,8 @@ function publishRecoverySessions(sessions: readonly RecoverableAgentSession[]): 
 export async function refreshRecoverySessions(
     horizonDays?: number | null,
 ): Promise<readonly RecoverableAgentSession[]> {
-    if (getActiveVault() === null) {
-        // No vault bound yet (boot before openVault, or vault rebind in flight).
+    if (getActiveProject() === null) {
+        // No project bound yet (boot before openProject, or project rebind in flight).
         // Publishing empty clears any stale renderer state without throwing —
         // mirrors the `getMetricsViaVtd` pattern. The poller is started before
         // bind by `app.whenReady`, so a noisy warn here would fire every 10s

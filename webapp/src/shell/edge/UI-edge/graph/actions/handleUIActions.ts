@@ -131,8 +131,8 @@ export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
 ): Promise<NodeIdAndFilePath> {
     // Get write path (absolute) for new node creation
-    const writeFolderOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolder();
-    const writeFolder: string = writeFolderOption ? O.getOrElse(() => '')(writeFolderOption) : '';
+    const writeFolderPathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolderPath();
+    const writeFolderPath: string = writeFolderPathOption ? O.getOrElse(() => '')(writeFolderPathOption) : '';
 
     // Get current graph for collision detection
     const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
@@ -141,7 +141,7 @@ export async function createNewEmptyOrphanNodeFromUI(
         throw new Error("Cannot create node: graph not available");
     }
 
-    const {newNode, graphDelta} = createNewNodeNoParent(pos, writeFolder, currentGraph);
+    const {newNode, graphDelta} = createNewNodeNoParent(pos, writeFolderPath, currentGraph);
 
     // Register pending auto-pin so the new node opens in edit mode
     requestAutoPinOnCreation(newNode.absoluteFilePathIsID);

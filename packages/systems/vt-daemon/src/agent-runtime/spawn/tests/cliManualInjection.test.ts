@@ -20,7 +20,7 @@ import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
-import {appendCliManualToAgentPrompt} from '../cliManualInjection'
+import {appendCliManualToAgentPrompt} from '../injection/cliManualInjection'
 
 describe('appendCliManualToAgentPrompt (pure)', () => {
     it('appends the manual inside <vt_cli_manual> sentinels', () => {
@@ -83,8 +83,8 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
     it('always injects the CLI manual content into AGENT_PROMPT', async () => {
         configureAgentRuntime({
             env: {
-                getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
-                getWriteFolder: async (): Promise<string | null> => tempDir,
+                getProjectPaths: async (): Promise<readonly string[]> => [tempDir],
+                getWriteFolderPath: async (): Promise<string | null> => tempDir,
                 getProjectRoot: async (): Promise<string | null> => tempDir,
             },
         })

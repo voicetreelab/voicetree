@@ -1,7 +1,7 @@
 import {
   LiveStateSnapshotSchema,
   type LiveStateSnapshot,
-  type VaultState,
+  type ProjectState,
 } from '@vt/graph-db-server/contract'
 import type { AbsolutePath, FolderTreeNode, Graph } from '@vt/graph-model'
 import { serializeState } from '@vt/graph-state'
@@ -13,7 +13,7 @@ export type ReadSessionStateInput = {
   readonly contentMode: string | undefined
   readonly graph: Graph
   readonly projectRoot: string | null
-  readonly writeFolder: AbsolutePath | null
+  readonly writeFolderPath: AbsolutePath | null
   readonly readPaths: readonly string[]
   readonly folderTree: FolderTreeNode | null
   readonly folderVisibility: Pick<LiveStateSnapshot, 'folderState' | 'activeView'>
@@ -50,15 +50,15 @@ function omitGraphNodeContent(snapshot: LiveStateSnapshot): LiveStateSnapshot {
 export function handleReadSessionState(
   input: ReadSessionStateInput,
 ): { commands: []; response: LiveStateSnapshot } {
-  const vault: VaultState = {
+  const project: ProjectState = {
     projectRoot: input.projectRoot ?? '',
     readPaths: [...input.readPaths],
-    writeFolder: input.writeFolder ?? input.projectRoot ?? '',
+    writeFolderPath: input.writeFolderPath ?? input.projectRoot ?? '',
   }
 
   const snapshot = projectSessionState({
     graph: input.graph,
-    vault,
+    project,
     folderTree: input.folderTree,
     session: input.session,
   })

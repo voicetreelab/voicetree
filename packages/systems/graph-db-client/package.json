@@ -9,7 +9,7 @@
     ".": "./src/index.ts",
     "./autoLaunch/spawnCoordinator": "./src/autoLaunch/spawnCoordinator.ts",
     "./autoLaunch/runtime": "./src/autoLaunch/runtime.ts",
-    "./autoLaunch/vaultlessSpawn": "./src/autoLaunch/vaultlessSpawn.ts"
+    "./autoLaunch/projectlessSpawn": "./src/autoLaunch/projectlessSpawn.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

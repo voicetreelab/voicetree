@@ -60,8 +60,8 @@ export async function parseWriteMarkdownFileRequest(
   if (!isPathInside(path.resolve(projectRoot), pathResult.path)) {
     return {
       ok: false,
-      error: 'Path must be inside the open vault',
-      code: 'PATH_OUTSIDE_VAULT',
+      error: 'Path must be inside the open project',
+      code: 'PATH_OUTSIDE_PROJECT',
     }
   }
 

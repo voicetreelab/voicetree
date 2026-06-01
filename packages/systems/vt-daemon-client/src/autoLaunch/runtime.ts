@@ -4,13 +4,13 @@
  * Sibling of `@vt/graph-db-client/autoLaunch/spawn/runtime.ts` (which
  * resolves vt-graphd's spawn command). The two live in their own packages
  * because the daemons take different argv shapes (graphd: `--project-root`,
- * vtd: `--vault`) and locate their entrypoints differently (graphd searches
+ * vtd: `--project`) and locate their entrypoints differently (graphd searches
  * for sibling bundles inside `@voicetree/cli`; vtd resolves the
  * `@vt/vt-daemon` package directly).
  *
  * Resolution order:
  *   1. If `override` (the BF-373 `EnsureVtDaemonOptions.bin`) is set, parse
- *      it as `<cmd> [args…]` and append `--vault <vault>`. Tests use this
+ *      it as `<cmd> [args…]` and append `--project <project>`. Tests use this
  *      to point at `fake-vtd.mjs`.
  *   2. Else if `VT_DAEMON_BIN` env var is set, treat it the same way.
  *   3. Else resolve `@vt/vt-daemon`'s `bin/vtd.ts` via Node's package
@@ -20,12 +20,12 @@
  * The Node runtime is selected via graphd's `resolveDaemonRuntimeCommand`
  * helper — which explicitly REJECTS the Electron binary as a host. When
  * Electron Main spawns the VTD child, `process.execPath` is the Electron
- * binary; invoking it with `--import tsx vtd.ts --vault X` silently fails
+ * binary; invoking it with `--import tsx vtd.ts --project X` silently fails
  * (Electron treats vtd.ts as a renderer entrypoint instead of executing it
  * as a Node script), the VTD never opens its HTTP port, and the renderer's
- * vault-open chain hangs waiting for a daemon that will never appear.
+ * project-open chain hangs waiting for a daemon that will never appear.
  *
- * The argv shape (`--vault <vault>`) is BF-371's contract — never
+ * The argv shape (`--project <project>`) is BF-371's contract — never
  * `--project-root` (that's graphd). The two arguments are intentionally
  * distinct so a misconfigured launcher fails loudly at `parseArgs` rather
  * than silently routing to the wrong daemon.
@@ -43,7 +43,7 @@ export type ResolveVtDaemonCommandDeps = {
 }
 
 export function resolveCommand(
-  vault: string,
+  project: string,
   override?: string,
   deps?: ResolveVtDaemonCommandDeps,
 ): CommandSpec {
@@ -51,20 +51,20 @@ export function resolveCommand(
     throw new Error('resolveCommand requires explicit deps')
   }
   const explicit = override?.trim()
-  if (explicit) return parseOverride(explicit, vault, deps.env)
+  if (explicit) return parseOverride(explicit, project, deps.env)
 
   const fromEnv = deps.env[VTD_BIN_ENV_VAR]?.trim()
-  if (fromEnv) return parseOverride(fromEnv, vault, deps.env)
+  if (fromEnv) return parseOverride(fromEnv, project, deps.env)
 
   return {
     cmd: deps.runtimeCommand(),
-    args: ['--import', deps.tsxLoaderPath, deps.vtdBinPath, '--vault', vault],
+    args: ['--import', deps.tsxLoaderPath, deps.vtdBinPath, '--project', project],
     env: { ...deps.env },
   }
 }
 
-function parseOverride(override: string, vault: string, env: NodeJS.ProcessEnv): CommandSpec {
+function parseOverride(override: string, project: string, env: NodeJS.ProcessEnv): CommandSpec {
   const parts = override.split(/\s+/).filter((p) => p.length > 0)
   const [cmd, ...rest] = parts
-  return { cmd, args: [...rest, '--vault', vault], env: { ...env } }
+  return { cmd, args: [...rest, '--project', project], env: { ...env } }
 }

@@ -1,14 +1,14 @@
 /**
  * Regression test for BF-376 + the follow-up `MCP graph bridge not configured`
  * blocker: every graph-touching MCP tool was throwing because `bin/vtd.ts`
- * acquired the vt-graphd handle from `ensureGraphDaemonForVault` but never
+ * acquired the vt-graphd handle from `ensureGraphDaemonForProject` but never
  * passed it to `configureMcpServer`. The class of regression survived
  * because every prior integration test called `configureMcpServer` directly
  * in its setup — masking the missing wire-up in the binary boot path.
  *
  * This test fixes that hole by being black-box end-to-end:
  *
- *   - spawns the REAL `bin/vtd.ts` against a temp vault (NO in-test
+ *   - spawns the REAL `bin/vtd.ts` against a temp project (NO in-test
  *     `configureMcpServer` call, no in-process imports of daemon internals);
  *   - lets vtd discover the REAL `vt-graphd` sibling via its default
  *     resolution (no `VT_GRAPHD_BIN` override) — same boot path real users
@@ -46,7 +46,7 @@ const STARTUP_TIMEOUT_MS: number = 30_000
 const SHUTDOWN_TIMEOUT_MS: number = 10_000
 const RPC_TIMEOUT_MS: number = 10_000
 
-const READINESS_REGEX: RegExp = /^vtd: listening on (https?:\/\/[^,]+), vault=(\S+), gdb=(\d+)$/m
+const READINESS_REGEX: RegExp = /^vtd: listening on (https?:\/\/[^,]+), project=(\S+), gdb=(\d+)$/m
 
 type LaunchOutcome = {
     readonly child: ChildProcess
@@ -54,7 +54,7 @@ type LaunchOutcome = {
     readonly gdbPort: number
 }
 
-async function makeTempVault(prefix: string): Promise<string> {
+async function makeTempProject(prefix: string): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), prefix))
     await mkdir(join(dir, '.voicetree'), {recursive: true})
     return dir
@@ -68,9 +68,9 @@ function killForgiving(pid: number, signal: NodeJS.Signals = 'SIGTERM'): void {
     }
 }
 
-function listGraphdPidsForVault(vault: string): readonly number[] {
+function listGraphdPidsForProject(project: string): readonly number[] {
     if (process.platform !== 'darwin' && process.platform !== 'linux') return []
-    const canonical: string = resolve(vault)
+    const canonical: string = resolve(project)
     const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
         encoding: 'utf8',
         timeout: 5000,
@@ -88,7 +88,7 @@ function listGraphdPidsForVault(vault: string): readonly number[] {
     return pids
 }
 
-async function spawnRealVtd(vault: string): Promise<LaunchOutcome> {
+async function spawnRealVtd(project: string): Promise<LaunchOutcome> {
     // No VT_GRAPHD_BIN override — vtd uses the same sibling resolution real
     // users hit, which spawns the real vt-graphd from
     // @vt/graph-db-server/dist. The regression we are catching only
@@ -100,7 +100,7 @@ async function spawnRealVtd(vault: string): Promise<LaunchOutcome> {
     }
     const child: ChildProcess = spawn(
         NODE_BIN,
-        [TSX_CLI_PATH, VTD_ENTRYPOINT, '--vault', vault, '--port', '0'],
+        [TSX_CLI_PATH, VTD_ENTRYPOINT, '--project', project, '--port', '0'],
         {cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'], detached: false},
     )
     let stdout: string = ''
@@ -146,8 +146,8 @@ async function spawnRealVtd(vault: string): Promise<LaunchOutcome> {
     return {child, httpUrl: match[1], gdbPort: Number(match[3])}
 }
 
-async function readAuthToken(vault: string): Promise<string> {
-    return (await readFile(join(vault, '.voicetree', 'auth-token'), 'utf8')).trim()
+async function readAuthToken(project: string): Promise<string> {
+    return (await readFile(join(project, '.voicetree', 'auth-token'), 'utf8')).trim()
 }
 
 type RpcResponse = {
@@ -208,13 +208,13 @@ describe('vtd binary — MCP graph bridge is wired at boot (BF-376 regression)',
     })
 
     it('list_agents over /rpc returns a success envelope (NOT "MCP graph bridge not configured")', async () => {
-        const vault: string = await makeTempVault('vtd-bridge-')
+        const project: string = await makeTempProject('vtd-bridge-')
         cleanup.push(async () => {
-            for (const pid of listGraphdPidsForVault(vault)) killForgiving(pid, 'SIGKILL')
-            await rm(vault, {recursive: true, force: true})
+            for (const pid of listGraphdPidsForProject(project)) killForgiving(pid, 'SIGKILL')
+            await rm(project, {recursive: true, force: true})
         })
 
-        const launch: LaunchOutcome = await spawnRealVtd(vault)
+        const launch: LaunchOutcome = await spawnRealVtd(project)
         cleanup.push(async () => {
             if (launch.child.exitCode === null) {
                 killForgiving(launch.child.pid!, 'SIGTERM')
@@ -222,7 +222,7 @@ describe('vtd binary — MCP graph bridge is wired at boot (BF-376 regression)',
             }
         })
 
-        const token: string = await readAuthToken(vault)
+        const token: string = await readAuthToken(project)
         const response: RpcResponse = await postRpc(launch.httpUrl, token, 'list_agents', {})
 
         // The bug returns error=tool_handler_failed with the bridge message

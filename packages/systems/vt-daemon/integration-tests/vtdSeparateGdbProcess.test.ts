@@ -1,12 +1,12 @@
 /**
  * Refactor regression for BF-371: VTD must NOT embed vt-graphd.
  *
- * Before BF-371, `bin/vt-mcpd.ts` started graph-db-server in-process via
- * `startDaemon({vault, voicetreeHomePath})`. After BF-371, `bin/vtd.ts` calls
- * `ensureGraphDaemonForVault('vtd')` which spawns vt-graphd as a SIBLING
+ * Before BF-371, the daemon entry binary started graph-db-server in-process via
+ * `startDaemon({project, voicetreeHomePath})`. After BF-371, `bin/vtd.ts` calls
+ * `ensureGraphDaemonForProject('vtd')` which spawns vt-graphd as a SIBLING
  * process (or adopts an existing one). This test asserts that observable
  * structural fact via `ps`: after vtd readiness we should see at least one
- * fake-vt-graphd process whose --project-root matches our vault, in addition
+ * fake-vt-graphd process whose --project-root matches our project, in addition
  * to our spawned vtd. If a future refactor accidentally re-embeds graphd,
  * this test fails because no graphd process exists.
  */
@@ -36,7 +36,7 @@ const VT_GRAPHD_BIN_OVERRIDE: string = `${NODE_BIN} ${FAKE_GRAPHD_BIN}`
 
 const STARTUP_TIMEOUT_MS: number = 20_000
 
-const READINESS_REGEX = /^vtd: listening on (https?:\/\/[^,]+), vault=(\S+), gdb=(\d+)$/m
+const READINESS_REGEX = /^vtd: listening on (https?:\/\/[^,]+), project=(\S+), gdb=(\d+)$/m
 
 function sleep(ms: number): Promise<void> {
     return new Promise<void>((res) => setTimeout(res, ms))
@@ -50,9 +50,9 @@ function killForgiving(pid: number, signal: NodeJS.Signals = 'SIGKILL'): void {
     }
 }
 
-function listProcessesForVault(vault: string): Array<{pid: number; commandLine: string}> {
+function listProcessesForProject(project: string): Array<{pid: number; commandLine: string}> {
     if (process.platform !== 'darwin' && process.platform !== 'linux') return []
-    const canonical = resolve(vault)
+    const canonical = resolve(project)
     const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
         encoding: 'utf8',
         timeout: 5000,
@@ -66,13 +66,13 @@ function listProcessesForVault(vault: string): Array<{pid: number; commandLine: 
         const pid = Number(pidStr)
         if (!Number.isInteger(pid) || pid <= 0) continue
         const command = trimmed.substring(pidStr.length).trim()
-        // Match either the canonical vault flag for graphd or our own vtd command.
+        // Match either the canonical project flag for graphd or our own vtd command.
         const graphdMatch = /(vt-graphd|fake-vt-graphd)\.\w+\b.*--project-root\s+(\S+)/.exec(command)
         if (graphdMatch && resolve(graphdMatch[2]) === canonical) {
             matches.push({pid, commandLine: command})
             continue
         }
-        const vtdMatch = /vtd\.ts.*--vault\s+(\S+)/.exec(command)
+        const vtdMatch = /vtd\.ts.*--project\s+(\S+)/.exec(command)
         if (vtdMatch && resolve(vtdMatch[1]) === canonical) {
             matches.push({pid, commandLine: command})
         }
@@ -80,14 +80,14 @@ function listProcessesForVault(vault: string): Array<{pid: number; commandLine: 
     return matches
 }
 
-async function spawnVtdAndAwaitReady(vault: string): Promise<{child: ChildProcess; stdout: string}> {
+async function spawnVtdAndAwaitReady(project: string): Promise<{child: ChildProcess; stdout: string}> {
     const env: Record<string, string> = {}
     for (const [k, v] of Object.entries({...process.env, VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE})) {
         if (v !== undefined) env[k] = v
     }
     const child = spawn(
         NODE_BIN,
-        [TSX_CLI_PATH, VTD_ENTRYPOINT, '--vault', vault, '--port', '0'],
+        [TSX_CLI_PATH, VTD_ENTRYPOINT, '--project', project, '--port', '0'],
         {cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'], detached: false},
     )
     let stdout = ''
@@ -119,7 +119,7 @@ async function spawnVtdAndAwaitReady(vault: string): Promise<{child: ChildProces
     return {child, stdout}
 }
 
-async function makeVault(prefix: string): Promise<string> {
+async function makeProject(prefix: string): Promise<string> {
     const dir = await mkdtemp(join(tmpdir(), prefix))
     await mkdir(join(dir, '.voicetree'), {recursive: true})
     return dir
@@ -136,13 +136,13 @@ describe('vtd does not embed vt-graphd (BF-371 refactor regression)', () => {
     })
 
     it('after vtd readiness, ps shows two distinct daemon processes: vtd + vt-graphd', async () => {
-        const vault = await makeVault('vtd-separate-')
+        const project = await makeProject('vtd-separate-')
         cleanup.push(async () => {
-            for (const proc of listProcessesForVault(vault)) killForgiving(proc.pid)
-            await rm(vault, {recursive: true, force: true})
+            for (const proc of listProcessesForProject(project)) killForgiving(proc.pid)
+            await rm(project, {recursive: true, force: true})
         })
 
-        const {child} = await spawnVtdAndAwaitReady(vault)
+        const {child} = await spawnVtdAndAwaitReady(project)
         cleanup.push(async () => {
             if (child.exitCode === null) killForgiving(child.pid!, 'SIGTERM')
             await sleep(500)
@@ -151,7 +151,7 @@ describe('vtd does not embed vt-graphd (BF-371 refactor regression)', () => {
         // Give the OS a beat to register both processes in ps.
         await sleep(200)
 
-        const procs = listProcessesForVault(vault)
+        const procs = listProcessesForProject(project)
         // We expect at least one vtd process AND at least one graphd process.
         const graphdProcs = procs.filter((p) =>
             /(vt-graphd|fake-vt-graphd)\.\w+\b/.test(p.commandLine),
@@ -160,11 +160,11 @@ describe('vtd does not embed vt-graphd (BF-371 refactor regression)', () => {
 
         expect(
             graphdProcs.length,
-            `expected at least 1 vt-graphd process for vault=${vault}; got ${procs.length} matches:\n${procs.map((p) => `  pid=${p.pid} ${p.commandLine}`).join('\n')}`,
+            `expected at least 1 vt-graphd process for project=${project}; got ${procs.length} matches:\n${procs.map((p) => `  pid=${p.pid} ${p.commandLine}`).join('\n')}`,
         ).toBeGreaterThanOrEqual(1)
         expect(
             vtdProcs.length,
-            `expected at least 1 vtd process for vault=${vault}; got ${procs.length} matches`,
+            `expected at least 1 vtd process for project=${project}; got ${procs.length} matches`,
         ).toBeGreaterThanOrEqual(1)
 
         // The pids must be distinct — if vtd embeds graphd then a single pid

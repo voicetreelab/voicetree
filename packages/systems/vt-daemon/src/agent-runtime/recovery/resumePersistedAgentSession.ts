@@ -54,7 +54,7 @@ function modeFor(terminalData: TerminalData): ResumeMode {
  *
  * For forking a live agent into a new tab, use `forkAgentSession` instead.
  *
- * Stale rows (already claimed, no resume capability, deleted, foreign vault)
+ * Stale rows (already claimed, no resume capability, deleted, foreign project)
  * short-circuit without any spawn or resolver work. When the resolver returns
  * not-found the result is `{kind: 'no-native-session'}` so the UI can surface
  * a clean message instead of a generic spawn failure.
@@ -72,7 +72,7 @@ export async function resumePersistedAgentSession(
     const initialCommand: string | undefined = session.terminalData.initialCommand
     if (!initialCommand) return {kind: 'unsupported', reason: 'missing-initial-command'}
 
-    const projectRoot: string | undefined = session.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH
+    const projectRoot: string | undefined = session.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH
     if (!projectRoot) return {kind: 'unsupported', reason: 'missing-project-root'}
     const taskNodePath: string = session.terminalData.initialEnvVars?.TASK_NODE_PATH ?? ''
 

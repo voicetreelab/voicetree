@@ -209,7 +209,6 @@ test.describe('Project Selection Screen E2E', () => {
                 name: projectPath.split('/').pop() ?? 'test-project',
                 type: 'git' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: false
             };
 
             await api.main.saveProject(newProject);
@@ -275,7 +274,6 @@ test.describe('Project Selection Screen E2E', () => {
                 name: projectPath.split('/').pop() ?? 'test-project',
                 type: 'git' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: false
             };
             await api.main.saveProject(newProject);
         }, testProjectPath);
@@ -335,7 +333,6 @@ test.describe('Project Selection Screen E2E', () => {
             name: 'persistent-project',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         };
         await fs.writeFile(
             path.join(tempUserDataPath, 'projects.json'),
@@ -451,14 +448,13 @@ test.describe('Watched Folder Panel Regression', () => {
                 '# Fresh Test Node\n\nThis is a fresh project with no existing config.'
             );
 
-            // Only create projects.json - NO voicetree-config.json vaultConfig
+            // Only create projects.json - NO voicetree-config.json projectConfig
             const savedProject = {
                 id: 'fresh-project-id',
                 path: projectPath,
                 name: 'fresh-project',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true
             };
             await fs.writeFile(
                 path.join(tempUserDataPath, 'projects.json'),
@@ -507,19 +503,19 @@ test.describe('Watched Folder Panel Regression', () => {
             }
 
             const folderNameVisible = await appWindow.locator('button[title*="Project root"]').isVisible();
-            const vaultSelectorVisible = await appWindow.locator('button[title*="Write Path"]').isVisible();
+            const projectSelectorVisible = await appWindow.locator('button[title*="Write Path"]').isVisible();
             const watchStatus = await appWindow.evaluate(async () => {
                 const api = (window as ExtendedWindow).electronAPI;
                 return api ? await api.main.getWatchStatus() : null;
             });
-            const vaultPaths = await appWindow.evaluate(async () => {
+            const projectPaths = await appWindow.evaluate(async () => {
                 const api = (window as ExtendedWindow).electronAPI;
-                return api ? await api.main.getVaultPaths() : null;
+                return api ? await api.main.getProjectPaths() : null;
             });
 
-            const debugInfo = JSON.stringify({ folderNameVisible, vaultSelectorVisible, watchStatus, vaultPaths }, null, 2);
+            const debugInfo = JSON.stringify({ folderNameVisible, projectSelectorVisible, watchStatus, projectPaths }, null, 2);
             expect(folderNameVisible, `Fresh project panel check - ${debugInfo}`).toBe(true);
-            expect(vaultSelectorVisible, `Fresh project vault selector - ${debugInfo}`).toBe(true);
+            expect(projectSelectorVisible, `Fresh project project selector - ${debugInfo}`).toBe(true);
 
             console.log('✅ Fresh project shows panel correctly');
 
@@ -559,13 +555,13 @@ test.describe('Watched Folder Panel Regression', () => {
             );
             console.log('✓ Created project structure at:', projectPath);
 
-            // 2. Pre-create voicetree-config.json with vaultConfig for this project
+            // 2. Pre-create voicetree-config.json with projectConfig for this project
             // This simulates a project that was previously opened
             const voicetreeConfig = {
                 lastDirectory: projectPath,
-                vaultConfig: {
+                projectConfig: {
                     [projectPath]: {
-                        writeFolder: voicetreePath,
+                        writeFolderPath: voicetreePath,
                         readPaths: []
                     }
                 }
@@ -575,7 +571,7 @@ test.describe('Watched Folder Panel Regression', () => {
                 JSON.stringify(voicetreeConfig, null, 2),
                 'utf8'
             );
-            console.log('✓ Created voicetree-config.json with existing vaultConfig');
+            console.log('✓ Created voicetree-config.json with existing projectConfig');
 
             // 3. Pre-create projects.json with the saved project
             const savedProject = {
@@ -584,7 +580,6 @@ test.describe('Watched Folder Panel Regression', () => {
                 name: 'existing-config-project',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true
             };
             await fs.writeFile(
                 path.join(tempUserDataPath, 'projects.json'),
@@ -669,11 +664,11 @@ test.describe('Watched Folder Panel Regression', () => {
             const isFolderNameVisible = await folderNameButton.isVisible({ timeout: 5000 }).catch(() => false);
             console.log('Folder name button visible:', isFolderNameVisible);
 
-            // 9c. VaultPathSelector should be visible (shows the write path)
+            // 9c. ProjectPathSelector should be visible (shows the write path)
             // This is inside FileWatchingPanel, conditional on watchDirectory being truthy
-            const vaultSelector = appWindow.locator('button[title*="Write Path"]');
-            const isVaultSelectorVisible = await vaultSelector.isVisible({ timeout: 5000 }).catch(() => false);
-            console.log('Vault selector visible:', isVaultSelectorVisible);
+            const projectSelector = appWindow.locator('button[title*="Write Path"]');
+            const isProjectSelectorVisible = await projectSelector.isVisible({ timeout: 5000 }).catch(() => false);
+            console.log('Project selector visible:', isProjectSelectorVisible);
 
             // 9d. Get watch status from the API to debug
             const watchStatus = await appWindow.evaluate(async () => {
@@ -682,15 +677,15 @@ test.describe('Watched Folder Panel Regression', () => {
             });
             console.log('Watch status:', watchStatus);
 
-            // 9e. Get vault paths to see what the panel would show
-            const vaultPaths = await appWindow.evaluate(async () => {
+            // 9e. Get project paths to see what the panel would show
+            const projectPaths = await appWindow.evaluate(async () => {
                 const api = (window as ExtendedWindow).electronAPI;
-                return api ? await api.main.getVaultPaths() : null;
+                return api ? await api.main.getProjectPaths() : null;
             });
-            console.log('Vault paths:', vaultPaths);
+            console.log('Project paths:', projectPaths);
 
             // Take a screenshot for debugging if the panel is hidden
-            if (!isFolderNameVisible || !isVaultSelectorVisible) {
+            if (!isFolderNameVisible || !isProjectSelectorVisible) {
                 await appWindow.screenshot({
                     path: path.join(tempUserDataPath, 'watched-folder-panel-bug.png')
                 });
@@ -700,10 +695,10 @@ test.describe('Watched Folder Panel Regression', () => {
             // Assert that the full panel content is visible
             // If this fails, we've reproduced the bug!
             expect(isFolderNameVisible).toBe(true);
-            expect(isVaultSelectorVisible).toBe(true);
+            expect(isProjectSelectorVisible).toBe(true);
             expect(watchStatus?.directory).toBe(projectPath);
-            expect(vaultPaths).not.toBeNull();
-            expect(vaultPaths!.length).toBeGreaterThan(0);
+            expect(projectPaths).not.toBeNull();
+            expect(projectPaths!.length).toBeGreaterThan(0);
 
             console.log('✅ Watched folder panel fully visible for project with existing config!');
 
@@ -749,9 +744,9 @@ test.describe('Watched Folder Panel Regression', () => {
 
             // Pre-create config ONLY for projectWithConfig
             const voicetreeConfig = {
-                vaultConfig: {
+                projectConfig: {
                     [projectWithConfig]: {
-                        writeFolder: voicetreeWithConfig,
+                        writeFolderPath: voicetreeWithConfig,
                         readPaths: []
                     }
                 }
@@ -770,7 +765,6 @@ test.describe('Watched Folder Panel Regression', () => {
                     name: 'with-config',
                     type: 'folder' as const,
                     lastOpened: Date.now(),
-                    voicetreeInitialized: true
                 },
                 {
                     id: 'without-config-id',
@@ -778,7 +772,6 @@ test.describe('Watched Folder Panel Regression', () => {
                     name: 'without-config',
                     type: 'folder' as const,
                     lastOpened: Date.now() - 1000, // Slightly older so "with-config" appears first
-                    voicetreeInitialized: true
                 }
             ];
             await fs.writeFile(
@@ -809,14 +802,14 @@ test.describe('Watched Folder Panel Regression', () => {
 
                 // Check panel elements
                 const folderNameVisible = await appWindow.locator('button[title*="Project root"]').isVisible().catch(() => false);
-                const vaultSelectorVisible = await appWindow.locator('button[title*="Write Path"]').isVisible().catch(() => false);
+                const projectSelectorVisible = await appWindow.locator('button[title*="Write Path"]').isVisible().catch(() => false);
                 const watchStatus = await appWindow.evaluate(async () => {
                     const api = (window as ExtendedWindow).electronAPI;
                     return api ? await api.main.getWatchStatus() : null;
                 });
-                const vaultPaths = await appWindow.evaluate(async () => {
+                const projectPaths = await appWindow.evaluate(async () => {
                     const api = (window as ExtendedWindow).electronAPI;
-                    return api ? await api.main.getVaultPaths() : null;
+                    return api ? await api.main.getProjectPaths() : null;
                 });
 
                 // Take screenshot for debugging
@@ -827,10 +820,10 @@ test.describe('Watched Folder Panel Regression', () => {
 
                 return {
                     folderNameVisible,
-                    vaultSelectorVisible,
+                    projectSelectorVisible,
                     isWatching: watchStatus?.isWatching,
                     directory: watchStatus?.directory,
-                    vaultPathsCount: vaultPaths?.length ?? 0
+                    projectPathsCount: projectPaths?.length ?? 0
                 };
             };
 
@@ -878,12 +871,12 @@ test.describe('Watched Folder Panel Regression', () => {
             console.log('\n--- Comparison ---');
             console.log('With config - folder visible:', resultWithConfig.folderNameVisible);
             console.log('Without config - folder visible:', resultWithoutConfig.folderNameVisible);
-            console.log('With config - vault selector visible:', resultWithConfig.vaultSelectorVisible);
-            console.log('Without config - vault selector visible:', resultWithoutConfig.vaultSelectorVisible);
+            console.log('With config - project selector visible:', resultWithConfig.projectSelectorVisible);
+            console.log('Without config - project selector visible:', resultWithoutConfig.projectSelectorVisible);
             console.log('With config - watch status:', resultWithConfig.isWatching, resultWithConfig.directory);
             console.log('Without config - watch status:', resultWithoutConfig.isWatching, resultWithoutConfig.directory);
-            console.log('With config - vault paths count:', resultWithConfig.vaultPathsCount);
-            console.log('Without config - vault paths count:', resultWithoutConfig.vaultPathsCount);
+            console.log('With config - project paths count:', resultWithConfig.projectPathsCount);
+            console.log('Without config - project paths count:', resultWithoutConfig.projectPathsCount);
 
             // Read the voicetree-config.json to see what config was saved
             const configContent = await fs.readFile(
@@ -902,9 +895,9 @@ test.describe('Watched Folder Panel Regression', () => {
             }, null, 2);
 
             expect(resultWithConfig.folderNameVisible, `WITH CONFIG - Debug: ${debugInfo}`).toBe(true);
-            expect(resultWithConfig.vaultSelectorVisible, `WITH CONFIG selector - Debug: ${debugInfo}`).toBe(true);
+            expect(resultWithConfig.projectSelectorVisible, `WITH CONFIG selector - Debug: ${debugInfo}`).toBe(true);
             expect(resultWithoutConfig.folderNameVisible, `WITHOUT CONFIG - Debug: ${debugInfo}`).toBe(true);
-            expect(resultWithoutConfig.vaultSelectorVisible, `WITHOUT CONFIG selector - Debug: ${debugInfo}`).toBe(true);
+            expect(resultWithoutConfig.projectSelectorVisible, `WITHOUT CONFIG selector - Debug: ${debugInfo}`).toBe(true);
 
             console.log('✅ Both project types show watched folder panel correctly!');
 

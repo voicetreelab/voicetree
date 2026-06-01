@@ -50,7 +50,7 @@ describe('composeMarkdownFileContent', () => {
 
 describe('resolveFolderMarkdownTarget', () => {
   it('maps folder node paths to index.md', () => {
-    expect(resolveFolderMarkdownTarget('/vault/folder/')).toBe('/vault/folder/index.md')
+    expect(resolveFolderMarkdownTarget('/project/folder/')).toBe('/project/folder/index.md')
   })
 })
 
@@ -141,7 +141,7 @@ describe('writeMarkdownFile', () => {
   })
 
   it('leaves chokidar free to recover when in-memory apply fails after the disk write', async () => {
-    const targetPath = '/vault/recoverable.md'
+    const targetPath = '/project/recoverable.md'
     const body = '# Recoverable\n\nBody.\n'
     const writes: string[] = []
 

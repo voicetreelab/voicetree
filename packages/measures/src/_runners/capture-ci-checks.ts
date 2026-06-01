@@ -5,8 +5,8 @@
 //
 // Measure inventory is auto-detected from the tiered `checks/` tree.
 
-import {mkdir, readdir} from 'node:fs/promises'
-import {availableParallelism} from 'node:os'
+import {appendFile, mkdir, readdir} from 'node:fs/promises'
+import {availableParallelism, totalmem} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
 
@@ -24,6 +24,25 @@ const CHECKS_DIR = join(MEASURES_DIR, 'checks')
 const MAX_TIER = 4
 
 const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
+
+// Memory-aware concurrency for the Integration phase. Mirrors the systems-health
+// runner: the ceiling is the MIN of CPU and a RAM budget, so the SAME code is
+// fast on the 64c/188GB devbox and safe (≈serial) on a 4c/16GB CI runner without
+// oversubscribing RAM. `perProcessGb` encodes how heavy one check is. Overridable
+// via env for manual tuning.
+const MEMORY_UTILISATION = 0.75
+
+function resolveMemoryAwareConcurrency({count, envVar, perProcessGb, maxConcurrency}) {
+    if (count <= 1) return Math.max(1, count)
+    const fromEnv = Number(process.env[envVar])
+    if (Number.isFinite(fromEnv) && fromEnv > 0) {
+        return Math.max(1, Math.min(Math.floor(fromEnv), count))
+    }
+    const totalGb = totalmem() / 1024 ** 3
+    const memoryBudget = Math.floor((totalGb * MEMORY_UTILISATION) / perProcessGb)
+    const computed = Math.min(DEFAULT_PARALLELISM, memoryBudget, maxConcurrency)
+    return Math.max(1, Math.min(computed, count))
+}
 
 // ── Auto-detected measure inventory ──────────────────────────────────────────
 
@@ -278,8 +297,22 @@ function partitionChecksByPhase(checks) {
     return phases
 }
 
-function shouldRunExclusivelyWithinParallelPhase(check) {
-    return check.category === 'Integration' || check.exclusive === true
+// `exclusive: true` checks (e.g. the tmux-backed fake-agent/daemon webapp suite)
+// explicitly need a clean machine — they run strictly serially and on their own.
+function isExclusiveCheck(check) {
+    return check.exclusive === true
+}
+
+// Integration checks each spawn an in-process daemon on an ephemeral port (or a
+// CLI subprocess) inside a private `mkdtemp` dir — mutually independent, so they
+// run through a bounded memory-aware pool rather than serially. `exclusive` wins
+// if both are set.
+function isIntegrationPoolCheck(check) {
+    return check.category === 'Integration' && !isExclusiveCheck(check)
+}
+
+function isMainPoolCheck(check) {
+    return !isIntegrationPoolCheck(check) && !isExclusiveCheck(check)
 }
 
 async function runCheckWithSkip(check, opts) {
@@ -326,16 +359,41 @@ function restoreDiscoveryOrder(checks, unorderedResults) {
     })
 }
 
+function logPhase(label, checks, concurrency) {
+    if (checks.length === 0) return
+    console.log(`  ${label} phase · ${checks.length} checks, ${concurrency} at a time`)
+}
+
 async function runChecksInParallel(checks, opts) {
     const {parallel, isolated} = partitionChecksByPhase(checks)
-    const parallelChecks = parallel.filter(check => !shouldRunExclusivelyWithinParallelPhase(check))
-    const exclusiveChecks = parallel.filter(shouldRunExclusivelyWithinParallelPhase)
-    const parallelResults = await runChecksWithConcurrency(parallelChecks, opts)
-    // Some checks spawn global OS resources such as tmux sessions or local daemons.
-    // Keep their isolation narrow instead of forcing the whole registry sequential.
+    const mainPoolChecks = parallel.filter(isMainPoolCheck)
+    const integrationChecks = parallel.filter(isIntegrationPoolCheck)
+    const exclusiveChecks = parallel.filter(isExclusiveCheck)
+
+    // The main pool (lightweight Static/Lint/Unit/TypeCheck checks) runs the
+    // widest — one worker per core.
+    const mainResults = await runChecksWithConcurrency(mainPoolChecks, opts)
+
+    // Integration checks were previously serialized purely out of CPU-contention
+    // conservatism. They are resource-isolated (ephemeral ports + temp dirs), so
+    // a bounded memory-aware pool reclaims the idle cores.
+    const integrationConcurrency = resolveMemoryAwareConcurrency({
+        count: integrationChecks.length, envVar: 'VT_CI_INTEGRATION_CONCURRENCY', perProcessGb: 2, maxConcurrency: 12,
+    })
+    logPhase('integration', integrationChecks, integrationConcurrency)
+    const integrationResults = await runChecksWithConcurrency(integrationChecks, opts, integrationConcurrency)
+
+    // tmux/daemon-heavy checks run strictly serially, alone, after the pools drain.
     const exclusiveResults = await runChecksSerially(exclusiveChecks, opts)
+
+    // Isolated phase: real-browser / Electron e2e. Kept serial deliberately — the
+    // browser suites each spin a vite dev server on a fixed `PLAYWRIGHT_PORT`
+    // (3000/3100, `--strictPort`), so overlapping them would make correctness
+    // depend on that env var staying unset, and the phase is gated anyway by the
+    // single ~3min Electron suite that no cross-check pool can shrink.
     const isolatedResults = await runChecksSerially(isolated, opts)
-    return restoreDiscoveryOrder(checks, [...parallelResults, ...exclusiveResults, ...isolatedResults])
+
+    return restoreDiscoveryOrder(checks, [...mainResults, ...integrationResults, ...exclusiveResults, ...isolatedResults])
 }
 
 async function runChecksSequentially(checks, opts) {
@@ -394,6 +452,38 @@ function formatFailuresSection(failures) {
     return `\n  failures:\n\n${blocks.join('\n')}`
 }
 
+function formatGithubFailureSummary(failures) {
+    if (failures.length === 0) return ''
+    const lines = [
+        '## CI Check Failures',
+        '',
+        `Failed checks: ${failures.length}`,
+        '',
+        ...failures.flatMap(({check, outcome}) => {
+            const body = formatFailureBody(outcome)
+                .split('\n')
+                .map(line => line.replace(/^      /, '  '))
+                .join('\n')
+            return [
+                `### ${check.id}`,
+                '',
+                `- Category: ${check.category}`,
+                `- Report: \`health-dashboard/reports/checks/${check.id}.json\``,
+                body ? '' : undefined,
+                body || undefined,
+                '',
+            ].filter(Boolean)
+        }),
+    ]
+    return `${lines.join('\n')}\n`
+}
+
+async function appendGithubFailureSummary(failures) {
+    const summaryPath = process.env.GITHUB_STEP_SUMMARY
+    if (!summaryPath || failures.length === 0) return
+    await appendFile(summaryPath, formatGithubFailureSummary(failures), 'utf8')
+}
+
 // Reports are persisted eagerly per-check by runCheckWithSkip / runChecksSequentially
 // (required so isolated-phase checks can read sibling reports during their own
 // invocation). This pass only renders the result table and counts failures.
@@ -404,7 +494,7 @@ function reportResults(results) {
         if (outcome.status === 'fail') failures.push({check, outcome})
     }
     console.log(`${formatFailuresSection(failures)}\n  done · ${failures.length} failing\n`)
-    return failures.length
+    return failures
 }
 
 async function main() {
@@ -417,8 +507,9 @@ async function main() {
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
     console.log(formatRunHeader(opts, checks))
     const results = await runAllChecks(checks, opts)
-    const failed = reportResults(results)
-    return failed === 0 ? 0 : 1
+    const failures = reportResults(results)
+    await appendGithubFailureSummary(failures)
+    return failures.length === 0 ? 0 : 1
 }
 
 main().then(code => process.exit(code)).catch(err => {

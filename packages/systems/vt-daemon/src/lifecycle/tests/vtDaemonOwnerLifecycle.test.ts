@@ -35,18 +35,18 @@ const DEFAULT_FINGERPRINT: CommandFingerprint = {
     args: ['vt-daemon-test'],
 } as const
 
-async function makeVault(): Promise<string> {
+async function makeProject(): Promise<string> {
     const dir = await mkdtemp(join(tmpdir(), 'vtd-owner-bb-'))
     await mkdir(join(dir, '.voicetree'), { recursive: true })
     return dir
 }
 
 async function claim(
-    vault: string,
+    project: string,
     overrides: Partial<Parameters<typeof claimVtDaemonOwner>[0]> = {},
 ): Promise<VtDaemonOwnerHandle> {
     return claimVtDaemonOwner({
-        canonicalVault: vault,
+        canonicalProject: project,
         callerKind: DEFAULT_CALLER_KIND,
         contractVersion: VTD_CONTRACT_VERSION,
         commandFingerprint: DEFAULT_FINGERPRINT,
@@ -64,15 +64,15 @@ async function deadPid(): Promise<number> {
 }
 
 async function writeRecordRaw(
-    vault: string,
+    project: string,
     daemonKind: 'vtd' | 'graphd',
     overrides: Partial<OwnerRecord> = {},
 ): Promise<OwnerRecord> {
-    const path = ownerRecordFile.pathFor(vault, daemonKind)
+    const path = ownerRecordFile.pathFor(project, daemonKind)
     const base: OwnerRecord = {
         schemaVersion: 1,
         daemonKind,
-        canonicalVault: vault,
+        canonicalProject: project,
         pid: process.pid,
         ppid: process.ppid ?? 0,
         port: null,
@@ -89,30 +89,30 @@ async function writeRecordRaw(
 }
 
 describe('claimVtDaemonOwner (black box)', () => {
-    let vault: string
+    let project: string
     let handles: VtDaemonOwnerHandle[] = []
 
     beforeEach(async () => {
-        vault = await makeVault()
+        project = await makeProject()
         handles = []
     })
 
     afterEach(async () => {
         for (const h of handles) await h.release().catch(() => {})
-        await rm(vault, { recursive: true, force: true })
+        await rm(project, { recursive: true, force: true })
     })
 
     test(
-        'writes <vault>/.voicetree/vtd.owner.json with the documented shape',
+        'writes <project>/.voicetree/vtd.owner.json with the documented shape',
         async () => {
-            const handle = await claim(vault)
+            const handle = await claim(project)
             handles.push(handle)
 
-            const ownerPath = ownerRecordFile.pathFor(vault, 'vtd')
+            const ownerPath = ownerRecordFile.pathFor(project, 'vtd')
             const onDisk = await readOwnerRecord(ownerPath)
             expect(onDisk).not.toBeNull()
             expect(onDisk?.daemonKind).toBe('vtd')
-            expect(onDisk?.canonicalVault).toBe(vault)
+            expect(onDisk?.canonicalProject).toBe(project)
             expect(onDisk?.pid).toBe(process.pid)
             expect(onDisk?.port).toBeNull()
             expect(onDisk?.contractVersion).toBe(VTD_CONTRACT_VERSION)
@@ -122,7 +122,7 @@ describe('claimVtDaemonOwner (black box)', () => {
 
             // No legacy lock sidecar — VTD has no BF-343→BF-344 transition.
             await expect(
-                stat(join(vault, '.voicetree', 'vtd.lock')),
+                stat(join(project, '.voicetree', 'vtd.lock')),
             ).rejects.toMatchObject({ code: 'ENOENT' })
         },
         TEST_TIMEOUT_MS,
@@ -131,13 +131,13 @@ describe('claimVtDaemonOwner (black box)', () => {
     test(
         'bindPort(N) updates the on-disk record so a fresh read returns port: N',
         async () => {
-            const handle = await claim(vault)
+            const handle = await claim(project)
             handles.push(handle)
 
             await handle.bindPort(54321)
 
             const onDisk = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'vtd'),
+                ownerRecordFile.pathFor(project, 'vtd'),
             )
             expect(onDisk?.port).toBe(54321)
             // In-memory handle agrees with disk.
@@ -155,7 +155,7 @@ describe('claimVtDaemonOwner (black box)', () => {
     test(
         'health() returns null until bindPort resolves',
         async () => {
-            const handle = await claim(vault)
+            const handle = await claim(project)
             handles.push(handle)
 
             expect(handle.health()).toBeNull()
@@ -170,11 +170,11 @@ describe('claimVtDaemonOwner (black box)', () => {
         'startHeartbeat advances heartbeatAtMs on disk',
         async () => {
             let nowMs = 1_700_000_000_000
-            const handle = await claim(vault, { clock: () => nowMs })
+            const handle = await claim(project, { clock: () => nowMs })
             handles.push(handle)
 
             const initial = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'vtd'),
+                ownerRecordFile.pathFor(project, 'vtd'),
             )
             expect(initial).not.toBeNull()
             const initialHeartbeat = initial!.heartbeatAtMs
@@ -188,7 +188,7 @@ describe('claimVtDaemonOwner (black box)', () => {
                 let observed = initialHeartbeat
                 while (Date.now() < deadline) {
                     const probe = await readOwnerRecord(
-                        ownerRecordFile.pathFor(vault, 'vtd'),
+                        ownerRecordFile.pathFor(project, 'vtd'),
                     )
                     if (probe && probe.heartbeatAtMs > initialHeartbeat) {
                         observed = probe.heartbeatAtMs
@@ -207,8 +207,8 @@ describe('claimVtDaemonOwner (black box)', () => {
     test(
         'release() deletes the owner record; second release is a no-op',
         async () => {
-            const handle = await claim(vault)
-            const ownerPath = ownerRecordFile.pathFor(vault, 'vtd')
+            const handle = await claim(project)
+            const ownerPath = ownerRecordFile.pathFor(project, 'vtd')
 
             // Sanity: present after claim.
             await stat(ownerPath)
@@ -226,8 +226,8 @@ describe('claimVtDaemonOwner (black box)', () => {
     test(
         'release drains in-flight writes so a pending heartbeat tick cannot re-create the file',
         async () => {
-            const handle = await claim(vault)
-            const ownerPath = ownerRecordFile.pathFor(vault, 'vtd')
+            const handle = await claim(project)
+            const ownerPath = ownerRecordFile.pathFor(project, 'vtd')
 
             // Kick off a few heartbeat ticks at a fast cadence; while they
             // are scheduled, call release(). The drain in release() must
@@ -250,17 +250,17 @@ describe('claimVtDaemonOwner (black box)', () => {
     test(
         'a live preexisting owner causes claim to throw VtDaemonOwnerConflictError and leaves the record untouched',
         async () => {
-            const preexisting = await writeRecordRaw(vault, 'vtd', {
+            const preexisting = await writeRecordRaw(project, 'vtd', {
                 pid: process.pid,
                 ownerNonce: 'live-owner-nonce',
             })
 
-            await expect(claim(vault)).rejects.toBeInstanceOf(
+            await expect(claim(project)).rejects.toBeInstanceOf(
                 VtDaemonOwnerConflictError,
             )
 
             const onDisk = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'vtd'),
+                ownerRecordFile.pathFor(project, 'vtd'),
             )
             expect(onDisk?.ownerNonce).toBe(preexisting.ownerNonce)
             expect(onDisk?.pid).toBe(preexisting.pid)
@@ -269,18 +269,18 @@ describe('claimVtDaemonOwner (black box)', () => {
     )
 
     test(
-        'conflict error carries the existing owner record and the canonical vault',
+        'conflict error carries the existing owner record and the canonical project',
         async () => {
-            await writeRecordRaw(vault, 'vtd', {
+            await writeRecordRaw(project, 'vtd', {
                 pid: process.pid,
                 ownerNonce: 'distinctive-conflict-nonce',
             })
 
-            const err = await claim(vault).catch((e) => e)
+            const err = await claim(project).catch((e) => e)
             expect(err).toBeInstanceOf(VtDaemonOwnerConflictError)
             const conflict = err as VtDaemonOwnerConflictError
             expect(conflict.code).toBe('VT_DAEMON_OWNER_CONFLICT')
-            expect(conflict.canonicalVault).toBe(vault)
+            expect(conflict.canonicalProject).toBe(project)
             expect(conflict.existingOwner.ownerNonce).toBe(
                 'distinctive-conflict-nonce',
             )
@@ -292,16 +292,16 @@ describe('claimVtDaemonOwner (black box)', () => {
         'a dead-pid preexisting owner is reclaimed with a fresh nonce',
         async () => {
             const stalePid = await deadPid()
-            const stale = await writeRecordRaw(vault, 'vtd', {
+            const stale = await writeRecordRaw(project, 'vtd', {
                 pid: stalePid,
                 ownerNonce: 'stale-dead-pid-nonce',
             })
 
-            const handle = await claim(vault)
+            const handle = await claim(project)
             handles.push(handle)
 
             const onDisk = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'vtd'),
+                ownerRecordFile.pathFor(project, 'vtd'),
             )
             expect(onDisk).not.toBeNull()
             expect(onDisk?.pid).toBe(process.pid)
@@ -314,11 +314,11 @@ describe('claimVtDaemonOwner (black box)', () => {
         'concurrent bindPort + heartbeat both land on disk (write serialisation)',
         async () => {
             let nowMs = 1_700_000_000_000
-            const handle = await claim(vault, { clock: () => nowMs })
+            const handle = await claim(project, { clock: () => nowMs })
             handles.push(handle)
 
             const initial = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'vtd'),
+                ownerRecordFile.pathFor(project, 'vtd'),
             )
             const initialHeartbeat = initial!.heartbeatAtMs
 
@@ -336,7 +336,7 @@ describe('claimVtDaemonOwner (black box)', () => {
                 await new Promise((r) => setTimeout(r, 60))
 
                 const final = await readOwnerRecord(
-                    ownerRecordFile.pathFor(vault, 'vtd'),
+                    ownerRecordFile.pathFor(project, 'vtd'),
                 )
                 expect(final?.port).toBe(40123)
                 expect(final?.heartbeatAtMs).toBeGreaterThan(initialHeartbeat)
@@ -348,27 +348,27 @@ describe('claimVtDaemonOwner (black box)', () => {
     )
 
     test(
-        'coexists with a graphd owner record for the same vault — neither file disturbs the other',
+        'coexists with a graphd owner record for the same project — neither file disturbs the other',
         async () => {
-            const graphd = await writeRecordRaw(vault, 'graphd', {
+            const graphd = await writeRecordRaw(project, 'graphd', {
                 ownerNonce: 'graphd-owner-nonce',
                 pid: process.pid,
                 contractVersion: '0.2.0',
             })
 
-            const handle = await claim(vault)
+            const handle = await claim(project)
             handles.push(handle)
 
             // Both files exist; the graphd file is exactly as we wrote it.
             const graphdAfter = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'graphd'),
+                ownerRecordFile.pathFor(project, 'graphd'),
             )
             expect(graphdAfter?.daemonKind).toBe('graphd')
             expect(graphdAfter?.ownerNonce).toBe(graphd.ownerNonce)
             expect(graphdAfter?.contractVersion).toBe('0.2.0')
 
             const vtd = await readOwnerRecord(
-                ownerRecordFile.pathFor(vault, 'vtd'),
+                ownerRecordFile.pathFor(project, 'vtd'),
             )
             expect(vtd?.daemonKind).toBe('vtd')
             expect(vtd?.contractVersion).toBe(VTD_CONTRACT_VERSION)
@@ -377,9 +377,9 @@ describe('claimVtDaemonOwner (black box)', () => {
     )
 
     test(
-        'two concurrent claims for the same vault: exactly one survivor, the other receives a typed conflict',
+        'two concurrent claims for the same project: exactly one survivor, the other receives a typed conflict',
         async () => {
-            const settled = await Promise.allSettled([claim(vault), claim(vault)])
+            const settled = await Promise.allSettled([claim(project), claim(project)])
             const winners = settled.filter(
                 (r): r is PromiseFulfilledResult<VtDaemonOwnerHandle> =>
                     r.status === 'fulfilled',
@@ -394,7 +394,7 @@ describe('claimVtDaemonOwner (black box)', () => {
 
             expect(losers[0].reason).toBeInstanceOf(VtDaemonOwnerConflictError)
             const conflict = losers[0].reason as VtDaemonOwnerConflictError
-            expect(conflict.canonicalVault).toBe(vault)
+            expect(conflict.canonicalProject).toBe(project)
             expect(conflict.existingOwner.pid).toBe(process.pid)
         },
         TEST_TIMEOUT_MS,
@@ -403,7 +403,7 @@ describe('claimVtDaemonOwner (black box)', () => {
     test(
         'bindPort after release rejects with a clear message',
         async () => {
-            const handle = await claim(vault)
+            const handle = await claim(project)
             await handle.release()
 
             await expect(handle.bindPort(40000)).rejects.toThrow(

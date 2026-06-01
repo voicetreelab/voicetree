@@ -29,7 +29,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -53,9 +53,9 @@ const test = base.extend<{
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
+      lastDirectory: FIXTURE_PROJECT_PATH,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: '' // Empty suffix = use directory directly
+        [FIXTURE_PROJECT_PATH]: '' // Empty suffix = use directory directly
       }
     }, null, 2), 'utf8');
 
@@ -63,11 +63,10 @@ const test = base.extend<{
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
     await fs.writeFile(projectsPath, JSON.stringify([{
       id: 'test-fs-sync',
-      path: FIXTURE_VAULT_PATH,
+      path: FIXTURE_PROJECT_PATH,
       name: 'example_small',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     }], null, 2), 'utf8');
 
     const electronApp = await electron.launch({
@@ -184,7 +183,7 @@ test.describe('Editor FS Sync', () => {
     // Resolve file path
     const testFilePath = path.isAbsolute(nodeId)
       ? nodeId
-      : path.join(FIXTURE_VAULT_PATH, nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`);
+      : path.join(FIXTURE_PROJECT_PATH, nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`);
 
     // Read original content for restoration
     const originalContent = await fs.readFile(testFilePath, 'utf-8');

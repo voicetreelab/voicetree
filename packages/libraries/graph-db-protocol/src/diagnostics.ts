@@ -3,7 +3,7 @@
  * protocol (BF-347).
  *
  * The type lives in `@vt/graph-db-protocol` so every participant — the
- * graph-db-client `ensureGraphDaemonForVault` orchestrator, future
+ * graph-db-client `ensureGraphDaemonForProject` orchestrator, future
  * server-side emitters, Electron-side bounded recovery, and tests — can
  * subscribe to the same shape without inventing parallel event types.
  *
@@ -13,7 +13,7 @@
  * reclamation (`stale-reclaimed`), and suppression
  * (`cooldown-suppressed`, `duplicate-process-detected`).
  *
- * Each event carries the originating caller and canonical vault path plus
+ * Each event carries the originating caller and canonical project path plus
  * any identifiers that were known when the decision was made. Listeners
  * are expected to be pure observers — emission must not depend on a sink
  * existing.
@@ -30,7 +30,7 @@ import type { CallerKind } from './owner.ts'
 type OwnerDiagnosticEventBase = {
   readonly attemptId: string
   readonly callerKind: CallerKind
-  readonly canonicalVault: string
+  readonly canonicalProject: string
   readonly nowMs: number
 }
 

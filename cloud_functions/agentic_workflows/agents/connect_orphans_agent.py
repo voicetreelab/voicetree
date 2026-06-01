@@ -80,7 +80,7 @@ class ConnectOrphansAgent(Agent):
         self.add_prompt_node(
             "connect_orphans",
             ConnectOrphansResponse,
-            model_name="gemini-2.5-flash"
+            model_name="gemini-3.5-flash"
         )
 
         # Direct flow to END after grouping

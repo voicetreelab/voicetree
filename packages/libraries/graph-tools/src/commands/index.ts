@@ -27,11 +27,11 @@ export function extractSelectorFlags(argv: string[]): SelectorExtraction {
       if (val !== undefined) opts.pid = Number(val)
     } else if (arg?.startsWith('--pid=')) {
       opts.pid = Number(arg.slice('--pid='.length))
-    } else if (arg === '--vault') {
+    } else if (arg === '--project') {
       const val = argv[++i]
-      if (val !== undefined) opts.vault = val
-    } else if (arg?.startsWith('--vault=')) {
-      opts.vault = arg.slice('--vault='.length)
+      if (val !== undefined) opts.project = val
+    } else if (arg?.startsWith('--project=')) {
+      opts.project = arg.slice('--project='.length)
     } else if (arg === '--new') {
       opts.forceNew = true
     } else {

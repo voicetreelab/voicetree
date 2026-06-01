@@ -75,7 +75,7 @@ export function buildTmuxNamespaceHash(namespace: string): string {
 export function buildTmuxSessionName(name: string, env: Record<string, string> = {}): string {
     const namespace: string | undefined = env.VOICETREE_TMUX_NAMESPACE
         ?? env.VOICETREE_PROJECT_DIR
-        ?? env.VOICETREE_VAULT_PATH
+        ?? env.VOICETREE_PROJECT_PATH
     if (!namespace) return name
 
     const hash: string = buildTmuxNamespaceHash(namespace)

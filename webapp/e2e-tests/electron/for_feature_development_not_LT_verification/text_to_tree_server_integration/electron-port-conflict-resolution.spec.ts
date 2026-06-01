@@ -15,7 +15,7 @@ import * as path from 'path';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
 // Type definitions
 interface CytoscapeInstance {
@@ -180,19 +180,19 @@ test.describe('Backend API Integration E2E', () => {
     console.log(`✓ Backend server is healthy on port ${backendPort}`);
 
     console.log('=== STEP 3: Start file watching (triggers backend API in main process) ===');
-    console.log(`Opening folder: ${FIXTURE_VAULT_PATH}`);
+    console.log(`Opening folder: ${FIXTURE_PROJECT_PATH}`);
 
-    // Start watching the fixture vault - this triggers backend API call from main process
+    // Start watching the fixture project - this triggers backend API call from main process
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
       console.log(`[Renderer] Starting file watching for: ${projectRoot}`);
       return await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     expect(watchResult.success).toBe(true);
-    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
+    expect(watchResult.directory).toBe(FIXTURE_PROJECT_PATH);
     console.log('✓ File watching started successfully');
 
     console.log('=== STEP 4: Wait for backend to process /load-directory ===');
@@ -326,7 +326,7 @@ test.describe('Backend API Integration E2E', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     expect(watchResult.success).toBe(true);
     console.log('✓ File watching started (backend-api.ts initialized lazily)');

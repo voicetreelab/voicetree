@@ -2,9 +2,9 @@
  * Perf harness: electron-main-storm.
  *
  * Spawns the prebuilt VoiceTree Electron app with `--inspect=0`, lets it boot
- * its own graph-db daemon + MCP server against a freshly seeded temp vault,
- * then storms it with N tmux-backed `vt-fake-agent` subprocesses pointed at
- * the app-owned MCP port — all while capturing a sampling CPU profile of the
+ * its own graph-db daemon against a freshly seeded temp project, then storms
+ * it with N tmux-backed `vt-fake-agent` subprocesses pointed at the app-owned
+ * daemon `/rpc` endpoint — all while capturing a sampling CPU profile of the
  * Electron *main* process via the V8 Inspector (CDP `Profiler` domain).
  *
  * Output:
@@ -23,17 +23,15 @@
  *   - Only the main process is profiled. Renderer is out of scope (would need
  *     CDP Tracing + a renderer page handle — Playwright territory).
  *   - The fake-agent script is the same `create_node` × N flow agent-storm.ts
- *     uses; only the *fake-agent* is mocked, the daemon + MCP + watch-folder
+ *     uses; only the *fake-agent* is mocked, the daemon + watch-folder
  *     are real.
  *
- * Pre-existing damage (out of scope for the getMcpPort → /rpc migration):
- *   The MCP→CLI cutover (commits 2651ade78, fab76e7d4, 15595a854) removed
- *   the in-process MCP server and replaced its `.mcp.json` handshake with
- *   `.voicetree/daemon-url` + `.voicetree/auth-token`. This harness still
- *   discovers via `waitForMcpPort` (`.mcp.json` poll) and will time out
- *   against a post-cutover app. The env-var swap below makes the
- *   *spawned-fake-agent* contract correct; fixing the boot-path handshake
- *   is a follow-up.
+ * Discovery (post-MCP-cutover):
+ *   The MCP→CLI cutover (commits 2651ade78, fab76e7d4, 15595a854) removed the
+ *   in-process MCP server and replaced its `.mcp.json` handshake with
+ *   `.voicetree/rpc.port` + `.voicetree/auth-token`. Boot discovery resolves
+ *   the daemon URL through `waitForDaemonUrl` (rpc.port poll via `@vt/vt-rpc`);
+ *   the spawned fake-agents self-authenticate from `VOICETREE_PROJECT_PATH`.
  *
  * Run:
  *   npm run perf:main-storm:local -- --agents 5 --nodes-per-agent 5
@@ -57,7 +55,7 @@ import {
     type TerminalData,
     type TerminalId,
 } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
-import { generateVaultOnDisk } from '@vt/perf-fixtures'
+import { generateProjectOnDisk } from '@vt/perf-fixtures'
 
 import {
     analyzeMainProcessProfile,
@@ -81,7 +79,7 @@ import {
     spawnElectron,
     stopElectron,
     waitForExitOrTimeout,
-    waitForMcpPort,
+    waitForDaemonUrl,
     type AgentResult,
 } from './electron-main-storm-helpers.ts'
 
@@ -91,8 +89,8 @@ import {
 
 async function runStorm(args: {
     daemonUrl: string
-    vault: string
-    appSupport: string
+    project: string
+    voicetreeHome: string
     agents: number
     nodesPerAgent: number
     perAgentTimeoutMs: number
@@ -101,8 +99,8 @@ async function runStorm(args: {
     const tsxImportPath = resolveTsxImportPath()
 
     // Set VOICETREE_HOME_PATH so every leaf in this process resolves the
-    // perf-test app-support dir via resolveVoicetreeHomePath().
-    process.env.VOICETREE_HOME_PATH = args.appSupport
+    // perf-test voicetree-home dir via resolveVoicetreeHomePath().
+    process.env.VOICETREE_HOME_PATH = args.voicetreeHome
 
     configureAgentRuntime({
         env: {},
@@ -126,13 +124,13 @@ async function runStorm(args: {
         const initialEnvVars: Record<string, string> = {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_DAEMON_URL: args.daemonUrl,
-            VOICETREE_VAULT_PATH: args.vault,
-            TASK_NODE_PATH: `${args.vault}/${terminalId}-task.md`,
+            VOICETREE_PROJECT_PATH: args.project,
+            TASK_NODE_PATH: `${args.project}/${terminalId}-task.md`,
             AGENT_PROMPT: agentPrompt,
         }
         const td: TerminalData = createTerminalData({
             terminalId,
-            attachedToNodeId: args.vault,
+            attachedToNodeId: args.project,
             terminalCount: i,
             title: terminalId,
             agentName: terminalId,
@@ -186,12 +184,12 @@ async function main(): Promise<void> {
     const electronBinary = resolveElectronBinary()
     const mainEntry = resolveMainBundleEntry()
 
-    const tempVault = mkdtempSync(join(tmpdir(), 'vt-mainstorm-vault-'))
+    const tempProject = mkdtempSync(join(tmpdir(), 'vt-mainstorm-project-'))
     const tempUserData = mkdtempSync(join(tmpdir(), 'vt-mainstorm-userdata-'))
-    const tempAppSupport = mkdtempSync(join(tmpdir(), 'vt-mainstorm-appsupport-'))
+    const tempVoicetreeHome = mkdtempSync(join(tmpdir(), 'vt-mainstorm-appsupport-'))
 
-    const vaultLayout = generateVaultOnDisk(tempVault, args.vaultSeedNodeCount)
-    process.stdout.write(`[main-storm] seeded vault: ${vaultLayout.nodes.length} nodes at ${tempVault}\n`)
+    const projectLayout = generateProjectOnDisk(tempProject, args.projectSeedNodeCount)
+    process.stdout.write(`[main-storm] seeded project: ${projectLayout.nodes.length} nodes at ${tempProject}\n`)
 
     let electronProc: ChildProcessWithoutNullStreams | null = null
     let cdpHandle: MainProcessCdpHandle | null = null
@@ -201,21 +199,17 @@ async function main(): Promise<void> {
             electronBinary,
             mainEntry,
             userDataDir: tempUserData,
-            openFolder: tempVault,
+            openFolder: tempProject,
             bootTimeoutMs: args.bootTimeoutMs,
         })
         electronProc = spawned.proc
         const inspectPort = spawned.inspectPort
         process.stdout.write(`[main-storm] electron pid=${electronProc.pid} inspect=${inspectPort}\n`)
 
-        // NOTE: waitForMcpPort still polls `.mcp.json`, which the post-cutover
-        // Electron app no longer writes — discovery will time out against
-        // current main. Replacing the discovery primitive (poll
-        // `.voicetree/rpc.port` + `.voicetree/auth-token` via @vt/vt-rpc) is
-        // tracked as follow-up. This harness only carries the field rename;
-        // the boot-path handshake fix is a separate scope.
-        const mcpPort = await waitForMcpPort(tempVault, args.bootTimeoutMs)
-        const daemonUrl = `http://127.0.0.1:${mcpPort}`
+        // Discover the daemon URL from `<project>/.voicetree/rpc.port` (waiting
+        // for the sibling auth-token too). The fake-agents storm against this
+        // URL and self-authenticate from VOICETREE_PROJECT_PATH.
+        const daemonUrl = await waitForDaemonUrl(tempProject, args.bootTimeoutMs)
         process.stdout.write(`[main-storm] discovered daemon at ${daemonUrl}\n`)
 
         // Start the CPU profiler *before* the storm so all spawn-time cost is
@@ -228,8 +222,8 @@ async function main(): Promise<void> {
         const stormStart = Date.now()
         const results = await runStorm({
             daemonUrl,
-            vault: tempVault,
-            appSupport: tempAppSupport,
+            project: tempProject,
+            voicetreeHome: tempVoicetreeHome,
             agents: args.agents,
             nodesPerAgent: args.nodesPerAgent,
             perAgentTimeoutMs: args.perAgentTimeoutMs,
@@ -280,13 +274,14 @@ async function main(): Promise<void> {
             try { cdpHandle.close() } catch { /* */ }
         }
         try { agentRuntime.getTerminalManager().cleanup() } catch { /* */ }
+        await agentRuntime.shutdownTmuxServer({ voicetreeHomePath: tempVoicetreeHome }).catch(() => undefined)
         if (electronProc) await stopElectron(electronProc)
         if (!args.keepArtifacts) {
-            rmSync(tempVault, { recursive: true, force: true })
+            rmSync(tempProject, { recursive: true, force: true })
             rmSync(tempUserData, { recursive: true, force: true })
-            rmSync(tempAppSupport, { recursive: true, force: true })
+            rmSync(tempVoicetreeHome, { recursive: true, force: true })
         } else {
-            process.stdout.write(`[main-storm] artifacts kept: vault=${tempVault} userData=${tempUserData} appSupport=${tempAppSupport}\n`)
+            process.stdout.write(`[main-storm] artifacts kept: project=${tempProject} userData=${tempUserData} voicetreeHome=${tempVoicetreeHome}\n`)
         }
     }
 }

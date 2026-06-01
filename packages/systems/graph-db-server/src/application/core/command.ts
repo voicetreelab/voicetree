@@ -1,9 +1,9 @@
 import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/graph'
-import type { VaultState } from '@vt/graph-db-server/contract'
+import type { ProjectState } from '@vt/graph-db-server/contract'
 import type { Session } from './session.ts'
 
 export type Command =
-  | { type: 'AddVaultReadPath'; path: string }
+  | { type: 'AddProjectReadPath'; path: string }
   | {
       type: 'ApplyGraphDeltaToDB'
       delta: GraphDelta
@@ -38,16 +38,16 @@ export type Command =
   | { type: 'GetWatchedDirectory' }
   | { type: 'PerformRedo' }
   | { type: 'PerformUndo' }
-  | { type: 'ReadVaultState' }
+  | { type: 'ReadProjectState' }
   | { type: 'RegistryTouch'; sessionId: string }
-  | { type: 'RemoveVaultReadPath'; path: string }
+  | { type: 'RemoveProjectReadPath'; path: string }
   | { type: 'ProjectAndBroadcast'; session: Session }
   | { type: 'PublishDelta'; delta: GraphDelta; source: string }
   | { type: 'ReadGraph' }
   | { type: 'ReadGraphNode'; nodeId: string }
   | { type: 'ReconcileGraphWithDisk' }
   | { type: 'SetGraph'; graph: Graph }
-  | { type: 'SetVaultWriteFolder'; path: string }
+  | { type: 'SetProjectWriteFolderPath'; path: string }
   | {
       type: 'UpdateContextNodeContainedIds'
       contextNodeId: string
@@ -56,7 +56,7 @@ export type Command =
   | { type: 'WriteAllPositions'; graph: Graph; projectRoot: string }
 
 export type CommandOutput = {
-  AddVaultReadPath: { readonly success: boolean; readonly error?: string }
+  AddProjectReadPath: { readonly success: boolean; readonly error?: string }
   ApplyGraphDeltaToDB: void
   CreateContextNode: string
   CreateContextNodeFromQuestion: string
@@ -72,11 +72,11 @@ export type CommandOutput = {
   ReadGraph: Graph
   ReadGraphNode: GraphNode | undefined
   ReconcileGraphWithDisk: GraphDelta
-  ReadVaultState: VaultState
+  ReadProjectState: ProjectState
   RegistryTouch: void
-  RemoveVaultReadPath: { readonly success: boolean; readonly error?: string }
+  RemoveProjectReadPath: { readonly success: boolean; readonly removedNodeCount: number; readonly error?: string }
   SetGraph: void
-  SetVaultWriteFolder: { readonly success: boolean; readonly error?: string }
+  SetProjectWriteFolderPath: { readonly success: boolean; readonly error?: string }
   UpdateContextNodeContainedIds: void
   WriteAllPositions: void
 }

@@ -14,7 +14,7 @@ export type EnsureVtDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */
   readonly timeoutMs?: number
   /**
-   * Optional override of the daemon command (`<bin> [args] --vault <path>`).
+   * Optional override of the daemon command (`<bin> [args] --project <path>`).
    * Primarily for tests that point at a fake VTD entrypoint. Also honored
    * via `VT_DAEMON_BIN` env var inside the runtime resolver.
    */
@@ -29,7 +29,7 @@ export type EnsureVtDaemonOptions = {
   /** Maximum poll backoff. Default 400ms. */
   readonly maxBackoffMs?: number
   /**
-   * Cooldown window persisted to `<vault>/.voicetree/vtd.cooldown.json`
+   * Cooldown window persisted to `<project>/.voicetree/vtd.cooldown.json`
    * after a spawn fails. Subsequent ensure calls within this window
    * short-circuit with {@link OwnerSpawnCooldownError} before re-spawning.
    * Default 5000ms.
@@ -48,7 +48,7 @@ export type EnsureVtDaemonResult<TClient extends EnsureVtDaemonClient = EnsureVt
   readonly ownerNonce: string
   /**
    * Bearer auth token the daemon published to
-   * `<vault>/.voicetree/auth-token` on startup. The same value is closed
+   * `<project>/.voicetree/auth-token` on startup. The same value is closed
    * over inside `client` for `rpc()` calls; surfaced here so Phase 2
    * consumers (Electron Main -> renderer IPC, voicetree-cli serve) can
    * pass it across a process boundary without re-reading the file.
@@ -63,12 +63,12 @@ export type EnsureVtDaemonResult<TClient extends EnsureVtDaemonClient = EnsureVt
 }
 
 export type EnsureVtDaemonState<TClient extends EnsureVtDaemonClient = EnsureVtDaemonClient> = {
-  readonly inflightByVault: Map<string, Promise<EnsureVtDaemonResult<TClient>>>
+  readonly inflightByProject: Map<string, Promise<EnsureVtDaemonResult<TClient>>>
 }
 
 export type EnsureVtDaemonDeps<TClient extends EnsureVtDaemonClient = EnsureVtDaemonClient> = {
   readonly attemptSpawnAndWait: typeof attemptSpawnAndWait
-  readonly clientFor: (port: number, vault: string) => TClient
+  readonly clientFor: (port: number, project: string) => TClient
   readonly emitOwnerDiagnostic: typeof emitOwnerDiagnostic
   readonly gatherEvidence: typeof gatherEvidence
   readonly mkdir: (path: string, opts: { readonly recursive: true }) => Promise<unknown>
@@ -76,7 +76,7 @@ export type EnsureVtDaemonDeps<TClient extends EnsureVtDaemonClient = EnsureVtDa
   readonly now: () => number
   readonly readOwnerRecord: typeof readOwnerRecord
   readonly reclaimStaleOwner: typeof reclaimStaleOwner
-  readonly resolveCommand: (vault: string, override?: string) => CommandSpec
+  readonly resolveCommand: (project: string, override?: string) => CommandSpec
   readonly resolvePath: (path: string) => string
   readonly sleep: typeof sleep
 }

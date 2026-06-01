@@ -49,8 +49,8 @@ const { chromium } = require(path.join(__dirname, '../../../node_modules/playwri
 
   // Step 1: Create orphan node in a clear area
   const nodeId = await page.evaluate(async () => {
-    const writeFolder = (await window.electronAPI.main.getWriteFolder()).value;
-    const nodeId = writeFolder + '/' + Date.now() + 'ORPHAN_EDITOR_TEST.md';
+    const writeFolderPath = (await window.electronAPI.main.getWriteFolderPath()).value;
+    const nodeId = writeFolderPath + '/' + Date.now() + 'ORPHAN_EDITOR_TEST.md';
     await window.electronAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed([{
       type: 'UpsertNode',
       nodeToUpsert: {

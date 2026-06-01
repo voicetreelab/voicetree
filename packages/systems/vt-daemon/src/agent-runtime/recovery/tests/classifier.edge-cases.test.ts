@@ -11,11 +11,11 @@ import {
     record,
     SESSION_A,
     TERMINAL_A,
-    VAULT_HASH,
+    PROJECT_HASH,
 } from './classifier.test-fixtures'
 
 // ---------------------------------------------------------------------------
-// Drop precedence: foreign-vault and invalid trump capability detection.
+// Drop precedence: foreign-project and invalid trump capability detection.
 // Other former "non-actionable" kinds (exited, claimed, unsupported-cli,
 // missing-native-handle) are no longer drops — they surface as recoverable
 // rows with `isClaimed` and/or capabilities populated accordingly.
@@ -33,7 +33,7 @@ describe('drop precedence', () => {
         }
     })
 
-    it('drops as foreign-vault even when the foreign session is live in the local tmux', () => {
+    it('drops as foreign-project even when the foreign session is live in the local tmux', () => {
         const foreignSession: string = `vt-${FOREIGN_HASH}-${TERMINAL_A}`
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
@@ -43,11 +43,11 @@ describe('drop precedence', () => {
                 terminalData: makeTerminalData({initialCommand: 'claude'}),
             })],
             liveTmuxSessionsByName: new Map([[foreignSession, makeLiveSession(foreignSession)]]),
-            currentNamespaceHash: VAULT_HASH,
+            currentNamespaceHash: PROJECT_HASH,
         }))
         expect(result.kind).toBe('dropped')
         if (result.kind === 'dropped') {
-            expect(result.reason).toBe('foreign-vault')
+            expect(result.reason).toBe('foreign-project')
         }
     })
 
@@ -79,8 +79,8 @@ describe('multiple records', () => {
         const results = classifyRecoveryCandidates(baseInput({
             metadataRecords: [
                 record(makeRunningClaudeMetadata(), METADATA_PATH_A),
-                record(makeRunningCodexMetadata(), '/vault/.voicetree/terminals/B.json'),
-                record(null, '/vault/.voicetree/terminals/bad.json'),
+                record(makeRunningCodexMetadata(), '/project/.voicetree/terminals/B.json'),
+                record(null, '/project/.voicetree/terminals/bad.json'),
             ],
             resumeHandleByTerminalId: new Map([
                 [TERMINAL_A, {cliType: 'claude'}],
@@ -103,9 +103,9 @@ describe('multiple records', () => {
     it('mixes recoverable records and drops correctly', () => {
         const results = classifyRecoveryCandidates(baseInput({
             metadataRecords: [
-                record(makeRunningClaudeMetadata(), '/vault/.voicetree/terminals/A.json'),
-                record({name: 'C', status: 'exited', terminalData: makeTerminalData({terminalId: 'C' as ReturnType<typeof makeTerminalData>['terminalId'], initialCommand: 'claude'})}, '/vault/.voicetree/terminals/C.json'),
-                record(makeRunningCodexMetadata(), '/vault/.voicetree/terminals/B.json'),
+                record(makeRunningClaudeMetadata(), '/project/.voicetree/terminals/A.json'),
+                record({name: 'C', status: 'exited', terminalData: makeTerminalData({terminalId: 'C' as ReturnType<typeof makeTerminalData>['terminalId'], initialCommand: 'claude'})}, '/project/.voicetree/terminals/C.json'),
+                record(makeRunningCodexMetadata(), '/project/.voicetree/terminals/B.json'),
             ],
             resumeHandleByTerminalId: new Map([
                 [TERMINAL_A, {cliType: 'claude'}],

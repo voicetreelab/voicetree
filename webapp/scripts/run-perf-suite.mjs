@@ -16,7 +16,7 @@ const SCENARIOS = [
     topology: 'clustered',
   },
   {
-    name: 'realistic-vault',
+    name: 'realistic-project',
     spec: 'e2e-tests/electron/for_feature_development_not_LT_verification/graph/electron-500-node-realistic-perf.spec.ts',
     topology: 'realistic',
   },

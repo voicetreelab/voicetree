@@ -6,7 +6,7 @@ import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 type LsOptions = {
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 function parseArgs(argv: string[]): LsOptions {
@@ -22,10 +22,10 @@ function parseArgs(argv: string[]): LsOptions {
       options.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       options.pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      options.vault = argv[++i]
-    } else if (arg.startsWith('--vault=')) {
-      options.vault = arg.slice('--vault='.length)
+    } else if (arg === '--project') {
+      options.project = argv[++i]
+    } else if (arg.startsWith('--project=')) {
+      options.project = arg.slice('--project='.length)
     }
   }
 

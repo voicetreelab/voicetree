@@ -53,7 +53,7 @@ export interface VoiceTreeGraphViewOptions {
   onError?: (error: string) => void;
   /** Callback for loading state changes */
   onLoading?: (isLoading: boolean) => void;
-  /** Initial daemon-projected graph returned by openVault */
+  /** Initial daemon-projected graph returned by openProject */
   initialProjectedGraph?: import('@vt/graph-state/contract').ProjectedGraph;
   /** Initial dark mode state (default: false) */
   initialDarkMode?: boolean;
@@ -62,18 +62,6 @@ export interface VoiceTreeGraphViewOptions {
 }
 
 // FileWatcherService interface removed - VoiceTreeGraphView uses window.electronAPI directly
-
-/**
- * Event emitter for typed events
- *
- * Simple event system with unsubscribe support
- */
-export interface EventEmitter<T> {
-  /** Subscribe to event, returns unsubscribe function */
-  on(callback: (data: T) => void): () => void;
-  /** Emit event to all subscribers */
-  emit(data: T): void;
-}
 
 /**
  * Main interface for VoiceTreeGraphView
@@ -209,24 +197,6 @@ export interface IVoiceTreeGraphView {
    * unsubscribe();
    */
   onNodeSelected(callback: (nodeId: string) => void): () => void;
-
-  /**
-   * Subscribe to node double-click events
-   *
-   * Behavior:
-   * - Fires when user double-clicks on a node
-   * - Provides the node ID
-   * - Multiple subscribers allowed
-   *
-   * @param callback - Function to call when node double-clicked
-   * @returns Unsubscribe function
-   *
-   * @example
-   * graphView.onNodeDoubleClick((nodeId) => {
-   *   //console.log('Double-clicked:', nodeId);
-   * });
-   */
-  onNodeDoubleClick(callback: (nodeId: string) => void): () => void;
 
   /**
    * Subscribe to edge selection events

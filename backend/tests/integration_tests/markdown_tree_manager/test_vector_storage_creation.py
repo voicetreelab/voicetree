@@ -167,11 +167,11 @@ class TestVectorStorageCreation:
         """Test that vectors are stored in the consolidated location we configured"""
         # Just verify the mock embedding system works - don't need real ChromaDB for location test
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a mock markdown tree vault structure
-            vault_dir = Path(temp_dir) / "markdownTreeVault"
-            vault_dir.mkdir()
+            # Create a mock markdown tree project structure
+            project_dir = Path(temp_dir) / "markdownTreeProject"
+            project_dir.mkdir()
 
-            tree = MarkdownTree(output_dir=str(vault_dir))
+            tree = MarkdownTree(output_dir=str(project_dir))
 
             # Create a node
             tree.create_new_node(

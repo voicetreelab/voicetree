@@ -1,6 +1,6 @@
-# Folder-Aware Fixture Vault
+# Folder-Aware Fixture Project
 
-This fixture vault materializes Decision 5 from `openspec/changes/folder-aware-community-view/design.md` for deterministic graph-tools tests.
+This fixture project materializes Decision 5 from `openspec/changes/folder-aware-community-view/design.md` for deterministic graph-tools tests.
 
 ## Invariants
 

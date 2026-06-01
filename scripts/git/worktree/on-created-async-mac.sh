@@ -42,9 +42,9 @@ if [ -z "$REMOTE_HOST" ]; then
 fi
 
 if command -v mutagen >/dev/null 2>&1; then
-    echo "worktree async mac hook: flushing mutagen vt-wts before remote setup"
-    mutagen sync flush vt-wts >/dev/null 2>&1 \
-        || echo "worktree async mac hook: WARNING mutagen sync flush vt-wts failed; remote setup may race" >&2
+    echo "worktree async mac hook: flushing mutagen vt-wts-synced before remote setup"
+    mutagen sync flush vt-wts-synced >/dev/null 2>&1 \
+        || echo "worktree async mac hook: WARNING mutagen sync flush vt-wts-synced failed; remote setup may race" >&2
 fi
 
 case "$WORKTREE_NAME" in

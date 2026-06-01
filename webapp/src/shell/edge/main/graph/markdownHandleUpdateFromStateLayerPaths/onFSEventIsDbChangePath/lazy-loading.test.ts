@@ -13,15 +13,15 @@ import type { Graph, GraphDelta, GraphNode, Edge } from '@vt/graph-model/graph'
  */
 describe('isReadPath', () => {
     it('should correctly identify readPaths nodes', () => {
-        const readPaths: readonly string[] = ['/path/to/read-vault', '/path/to/another-vault']
+        const readPaths: readonly string[] = ['/path/to/read-project', '/path/to/another-project']
 
         // Node in readPath should return true
-        expect(isReadPath('/path/to/read-vault/node.md', readPaths)).toBe(true)
-        expect(isReadPath('/path/to/read-vault/subdir/node.md', readPaths)).toBe(true)
-        expect(isReadPath('/path/to/another-vault/node.md', readPaths)).toBe(true)
+        expect(isReadPath('/path/to/read-project/node.md', readPaths)).toBe(true)
+        expect(isReadPath('/path/to/read-project/subdir/node.md', readPaths)).toBe(true)
+        expect(isReadPath('/path/to/another-project/node.md', readPaths)).toBe(true)
 
         // Node NOT in readPath should return false
-        expect(isReadPath('/path/to/write-vault/node.md', readPaths)).toBe(false)
+        expect(isReadPath('/path/to/write-project/node.md', readPaths)).toBe(false)
         expect(isReadPath('/completely/different/path.md', readPaths)).toBe(false)
     })
 })
@@ -173,25 +173,25 @@ describe('resolveLinkTarget', () => {
 
 describe('resolveLinkedNodesInWatchedFolder', () => {
     let tmpDir: string
-    let writeFolder: string
+    let writeFolderPath: string
     let watchedFolder: string
 
     beforeAll(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'resolve-watched-folder-test-'))
         watchedFolder = tmpDir
-        writeFolder = path.join(tmpDir, 'write-vault')
+        writeFolderPath = path.join(tmpDir, 'write-project')
 
-        await fs.mkdir(writeFolder, { recursive: true })
+        await fs.mkdir(writeFolderPath, { recursive: true })
 
         // Create a chain: A -> B -> C -> D (all in watched folder)
         await fs.writeFile(
-            path.join(writeFolder, 'a.md'),
+            path.join(writeFolderPath, 'a.md'),
             `# Node A
 
 Links to [[b]].`
         )
 
-        // Create files outside writeFolder but inside watched folder
+        // Create files outside writeFolderPath but inside watched folder
         await fs.writeFile(
             path.join(watchedFolder, 'b.md'),
             `# Node B
@@ -221,9 +221,9 @@ End of chain.`
     it('should resolve linked nodes in watched folder using resolve-on-link', async () => {
         const { resolveLinkedNodesInWatchedFolder } = await import('@vt/graph-db-server/graph/loadGraphFromDisk')
 
-        // First load just the writeFolder
+        // First load just the writeFolderPath
         const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(
-            [writeFolder]
+            [writeFolderPath]
         )
 
         if (E.isLeft(initialResult)) throw new Error('Expected Right')

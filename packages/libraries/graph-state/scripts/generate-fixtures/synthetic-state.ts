@@ -106,9 +106,9 @@ export function createState(spec: SyntheticStateSpec): State {
         .map((rootPath) => normalizePath(rootPath))
         .sort((left, right) => left.localeCompare(right))
     const loadedRootSet = new Set(loadedRoots)
-    const writeFolder = spec.writeFolder === null
+    const writeFolderPath = spec.writeFolderPath === null
         ? null
-        : toAbsolutePath(normalizePath(spec.writeFolder ?? loadedRoots[0] ?? spec.roots[0]?.rootPath ?? ROOT_A))
+        : toAbsolutePath(normalizePath(spec.writeFolderPath ?? loadedRoots[0] ?? spec.roots[0]?.rootPath ?? ROOT_A))
     const filesForGraph = spec.roots
         .filter((root) => loadedRootSet.has(root.rootPath))
         .flatMap((root) => root.files.map((file) => ({
@@ -124,7 +124,7 @@ export function createState(spec: SyntheticStateSpec): State {
         .map((root) => buildFolderTree(
             buildDirectoryEntry(root.rootPath, root.files, root.extraDirs),
             loadedRootSet,
-            writeFolder,
+            writeFolderPath,
             graphFilePaths,
         ))
 

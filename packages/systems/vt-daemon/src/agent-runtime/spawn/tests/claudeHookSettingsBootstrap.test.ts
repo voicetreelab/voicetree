@@ -1,14 +1,14 @@
 /**
  * Black-box tests for the bootstrap edge helper.
  *
- * Inputs: an app-support directory path + an in-memory filesystem dep.
+ * Inputs: an voicetree-home directory path + an in-memory filesystem dep.
  * Outputs (asserted): the returned absolute path and the file write
  * actions captured by the in-memory fs.
  */
 
 import {describe, it, expect, beforeEach} from 'vitest'
 import {ensureClaudeHookSettingsFile, type ClaudeHookBootstrapDeps} from '../claudeHookSettingsBootstrap'
-import {buildClaudeHookSettingsJson} from '../agentHookInjection'
+import {buildClaudeHookSettingsJson} from '../injection/agentHookInjection'
 
 function makeInMemoryFs(initial: Record<string, string> = {}): {
     deps: ClaudeHookBootstrapDeps
@@ -33,8 +33,8 @@ function makeInMemoryFs(initial: Record<string, string> = {}): {
 }
 
 describe('ensureClaudeHookSettingsFile', () => {
-    const APP_SUPPORT = '/test/app-support'
-    const EXPECTED_PATH = '/test/app-support/agent-hooks/claude-code-settings.json'
+    const VOICETREE_HOME = '/test/voicetree-home'
+    const EXPECTED_PATH = '/test/voicetree-home/agent-hooks/claude-code-settings.json'
 
     let fs: ReturnType<typeof makeInMemoryFs>
 
@@ -43,17 +43,17 @@ describe('ensureClaudeHookSettingsFile', () => {
     })
 
     it('writes the settings JSON on first run and returns the absolute path', async () => {
-        const result = await ensureClaudeHookSettingsFile(APP_SUPPORT, fs.deps)
+        const result = await ensureClaudeHookSettingsFile(VOICETREE_HOME, fs.deps)
         expect(result).toBe(EXPECTED_PATH)
         expect(fs.files.get(EXPECTED_PATH)).toBe(buildClaudeHookSettingsJson())
-        expect(fs.mkdirCalls).toEqual(['/test/app-support/agent-hooks'])
+        expect(fs.mkdirCalls).toEqual(['/test/voicetree-home/agent-hooks'])
     })
 
     it('idempotent — second call with same content does not rewrite or mkdir', async () => {
-        await ensureClaudeHookSettingsFile(APP_SUPPORT, fs.deps)
+        await ensureClaudeHookSettingsFile(VOICETREE_HOME, fs.deps)
         fs.mkdirCalls.length = 0
         const writesBefore = fs.files.size
-        const result = await ensureClaudeHookSettingsFile(APP_SUPPORT, fs.deps)
+        const result = await ensureClaudeHookSettingsFile(VOICETREE_HOME, fs.deps)
         expect(result).toBe(EXPECTED_PATH)
         expect(fs.mkdirCalls).toEqual([]) // no mkdir
         expect(fs.files.size).toBe(writesBefore)
@@ -62,10 +62,10 @@ describe('ensureClaudeHookSettingsFile', () => {
     it('rewrites the file if existing content has drifted from current spec', async () => {
         // Simulate a stale file from a previous VoiceTree version.
         fs = makeInMemoryFs({[EXPECTED_PATH]: '{"hooks": {"OldEvent": "stale"}}\n'})
-        const result = await ensureClaudeHookSettingsFile(APP_SUPPORT, fs.deps)
+        const result = await ensureClaudeHookSettingsFile(VOICETREE_HOME, fs.deps)
         expect(result).toBe(EXPECTED_PATH)
         expect(fs.files.get(EXPECTED_PATH)).toBe(buildClaudeHookSettingsJson())
-        expect(fs.mkdirCalls).toEqual(['/test/app-support/agent-hooks'])
+        expect(fs.mkdirCalls).toEqual(['/test/voicetree-home/agent-hooks'])
     })
 
     it('produces a path under the agent-hooks subdir', async () => {

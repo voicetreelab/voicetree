@@ -9,7 +9,7 @@
  * Only mock: agent command is `pwd` instead of `claude`.
  * Everything else uses real IPC calls through the actual Electron app.
  *
- * IMPORTANT: This test requires a git repository as the vault.
+ * IMPORTANT: This test requires a git repository as the project.
  * A temporary git repo is created in test setup.
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
@@ -140,7 +140,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
 
-        // Set up vault: save project + start file watching on the temp git repo
+        // Set up project: save project + start file watching on the temp git repo
         await window.evaluate(async (projectRoot: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
@@ -150,7 +150,6 @@ const test = base.extend<{
                 name: 'test-worktree-e2e',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true,
             });
             await api.main.startFileWatching(projectRoot);
         }, tempGitRepoPath);

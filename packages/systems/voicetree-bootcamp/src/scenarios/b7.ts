@@ -1,7 +1,7 @@
 /**
  * B7 — knowledge gardening: bulk-create → regroup → folder-note.
  *
- * 135 Gen-3 Pokémon leaves are pre-populated at the vault root by setup(). The
+ * 135 Gen-3 Pokémon leaves are pre-populated at the project root by setup(). The
  * agent walks three ordered sub-tasks:
  *   1. Register every leaf via `vt graph create` (filesystem mode).
  *   2. Regroup the leaves into ~10 thematic folders via `vt graph group`.
@@ -38,7 +38,7 @@ const LEAF_BASENAME = /^\d{3}-[a-z0-9-]+\.md$/
 const MIN_FOLDERS = 5
 const MAX_FOLDERS = 15
 
-const TASK_PROMPT = `You have a fresh VoiceTree vault containing 135 Gen-3 Pokémon notes at the
+const TASK_PROMPT = `You have a fresh VoiceTree project containing 135 Gen-3 Pokémon notes at the
 root (one markdown file per Pokémon, named like \`252-treecko.md\`). Each note
 has frontmatter (\`types\`, stats, etc.) and a short body.
 
@@ -62,7 +62,7 @@ finish each before moving on.
 --- SUB-TASK 1: register every leaf ---
 
 The 135 markdown files are on disk but not yet known to the graph. Run
-\`vt graph create\` on every leaf so the vault index picks them up. (This is
+\`vt graph create\` on every leaf so the project index picks them up. (This is
 filesystem mode — no daemon, one call per leaf.) Confirm with
 \`vt graph structure\` that all 135 leaves are registered.
 
@@ -91,7 +91,7 @@ Every leaf must be reachable from exactly one folder note.
 
 --- SUB-TASK 4: write AND REGISTER a root index that ties the folders together ---
 
-Write \`index.md\` at the vault root. It must:
+Write \`index.md\` at the project root. It must:
   - have frontmatter \`type: index\`,
   - contain a \`## Folders\` section that wikilinks every folder note from
     sub-task 3 (e.g. \`- [[grass/grass]]\`, \`- [[fire/fire]]\`, ...).
@@ -108,9 +108,9 @@ discover a subcommand. Report the folder list and leaf counts at the end.`
 export const b7: ScenarioSpec = {
     id: 'B7',
     name: 'knowledge gardening: bulk-create + regroup + folder-note',
-    async setup(vaultDir) {
-        await fs.mkdir(getProjectDotVoicetreePath(vaultDir), {recursive: true})
-        await copyDir(FIXTURE_DIR, vaultDir)
+    async setup(projectDir) {
+        await fs.mkdir(getProjectDotVoicetreePath(projectDir), {recursive: true})
+        await copyDir(FIXTURE_DIR, projectDir)
     },
     taskPrompt: TASK_PROMPT,
     expectedCommands: [
@@ -122,12 +122,12 @@ export const b7: ScenarioSpec = {
         {verb: 'graph group', minCount: MIN_FOLDERS},
         {verb: 'graph structure'},
     ],
-    async successCriteria(vaultDir): Promise<SuccessResult> {
+    async successCriteria(projectDir): Promise<SuccessResult> {
         const checkpoints: readonly CheckpointResult[] = [
-            await checkAllLeavesRegistered(vaultDir),
-            await checkRegroupedIntoFolders(vaultDir),
-            await checkFolderNoteCoverage(vaultDir),
-            await checkRootIndexConnectsFolders(vaultDir),
+            await checkAllLeavesRegistered(projectDir),
+            await checkRegroupedIntoFolders(projectDir),
+            await checkFolderNoteCoverage(projectDir),
+            await checkRootIndexConnectsFolders(projectDir),
         ]
         const allPassed = checkpoints.every((c) => c.passed)
         const passedCount = checkpoints.filter((c) => c.passed).length
@@ -145,13 +145,13 @@ export const b7: ScenarioSpec = {
 }
 
 /**
- * C1 — every fixture leaf is still on disk somewhere in the vault. We don't
- * require leaves at the vault root because C2 deliberately moves them; the
+ * C1 — every fixture leaf is still on disk somewhere in the project. We don't
+ * require leaves at the project root because C2 deliberately moves them; the
  * gate here is "no leaf was lost".
  */
-async function checkAllLeavesRegistered(vaultDir: string): Promise<CheckpointResult> {
+async function checkAllLeavesRegistered(projectDir: string): Promise<CheckpointResult> {
     const expectedLeaves = await listExpectedLeafBasenames(FIXTURE_DIR)
-    const onDisk = await collectLeafBasenamesInVault(vaultDir)
+    const onDisk = await collectLeafBasenamesInProject(projectDir)
     const missing = expectedLeaves.filter((name) => !onDisk.has(name))
     if (missing.length > 0) {
         return {
@@ -168,19 +168,19 @@ async function checkAllLeavesRegistered(vaultDir: string): Promise<CheckpointRes
 }
 
 /**
- * C2 — leaves regrouped into MIN..MAX folders, none left at vault root.
+ * C2 — leaves regrouped into MIN..MAX folders, none left at project root.
  * A "leaf folder" is any subdirectory directly containing at least one leaf
  * file. Nested layouts (grass/starter/252-treecko.md) count the deepest
  * containing directory only.
  */
-async function checkRegroupedIntoFolders(vaultDir: string): Promise<CheckpointResult> {
-    const leafLocations = await collectLeafLocations(vaultDir)
+async function checkRegroupedIntoFolders(projectDir: string): Promise<CheckpointResult> {
+    const leafLocations = await collectLeafLocations(projectDir)
     const leavesAtRoot = leafLocations.filter(({relDir}) => relDir === '').length
     if (leavesAtRoot > 0) {
         return {
             name: 'C2-regrouped',
             passed: false,
-            detail: `${leavesAtRoot} leaves still at vault root (expected all under subdirectories)`,
+            detail: `${leavesAtRoot} leaves still at project root (expected all under subdirectories)`,
         }
     }
     const folders = new Set(leafLocations.map(({relDir}) => relDir))
@@ -213,8 +213,8 @@ async function checkRegroupedIntoFolders(vaultDir: string): Promise<CheckpointRe
  * "Exactly one" is the operationalised meaning of lossless: every leaf has
  * a unique home in the navigable summary; no orphans, no duplicates.
  */
-async function checkFolderNoteCoverage(vaultDir: string): Promise<CheckpointResult> {
-    const leafLocations = await collectLeafLocations(vaultDir)
+async function checkFolderNoteCoverage(projectDir: string): Promise<CheckpointResult> {
+    const leafLocations = await collectLeafLocations(projectDir)
     if (leafLocations.length === 0) {
         return {name: 'C3-folder-notes', passed: false, detail: 'no leaves found to check'}
     }
@@ -224,7 +224,7 @@ async function checkFolderNoteCoverage(vaultDir: string): Promise<CheckpointResu
     const folderNotePaths: {readonly relDir: string; readonly absPath: string}[] = []
     for (const relDir of leavesByDir.keys()) {
         const folderBase = path.basename(relDir)
-        const folderNoteAbs = path.join(vaultDir, relDir, `${folderBase}.md`)
+        const folderNoteAbs = path.join(projectDir, relDir, `${folderBase}.md`)
         folderNotePaths.push({relDir, absPath: folderNoteAbs})
     }
 
@@ -288,18 +288,18 @@ async function checkFolderNoteCoverage(vaultDir: string): Promise<CheckpointResu
 
 /**
  * C4 — every folder note is wikilinked from a single root `index.md` at the
- * vault root. This is the "graph is connected" gate: after C3 confirms each
+ * project root. This is the "graph is connected" gate: after C3 confirms each
  * leaf has an edge to its folder note, C4 confirms each folder note has an
  * edge back to a common root, so every node in the graph is reachable from
  * `index`.
  *
  * We resolve folder-note targets relative to the index's directory (the
- * vault root), so links written as `grass/grass`, `grass/grass.md`,
+ * project root), so links written as `grass/grass`, `grass/grass.md`,
  * or `[[grass/grass|Grass]]` all match. Anchors and aliases are already
  * stripped by `parseWikilinks`.
  */
-async function checkRootIndexConnectsFolders(vaultDir: string): Promise<CheckpointResult> {
-    const indexPath = path.join(vaultDir, 'index.md')
+async function checkRootIndexConnectsFolders(projectDir: string): Promise<CheckpointResult> {
+    const indexPath = path.join(projectDir, 'index.md')
     let raw: string
     try {
         raw = await fs.readFile(indexPath, 'utf8')
@@ -307,11 +307,11 @@ async function checkRootIndexConnectsFolders(vaultDir: string): Promise<Checkpoi
         return {
             name: 'C4-root-index',
             passed: false,
-            detail: 'index.md is missing at the vault root',
+            detail: 'index.md is missing at the project root',
         }
     }
 
-    const leafLocations = await collectLeafLocations(vaultDir)
+    const leafLocations = await collectLeafLocations(projectDir)
     const leafDirs = new Set(leafLocations.map(({relDir}) => relDir).filter((d) => d.length > 0))
     if (leafDirs.size === 0) {
         return {
@@ -360,8 +360,8 @@ async function listExpectedLeafBasenames(fixtureDir: string): Promise<readonly s
         .sort()
 }
 
-async function collectLeafBasenamesInVault(vaultDir: string): Promise<ReadonlySet<string>> {
-    const all = await listMarkdownFiles(vaultDir)
+async function collectLeafBasenamesInProject(projectDir: string): Promise<ReadonlySet<string>> {
+    const all = await listMarkdownFiles(projectDir)
     return new Set(all.map((p) => path.basename(p)).filter((b) => LEAF_BASENAME.test(b)))
 }
 
@@ -371,13 +371,13 @@ type LeafLocation = {
     readonly basenameNoExt: string
 }
 
-async function collectLeafLocations(vaultDir: string): Promise<readonly LeafLocation[]> {
-    const all = await listMarkdownFiles(vaultDir)
+async function collectLeafLocations(projectDir: string): Promise<readonly LeafLocation[]> {
+    const all = await listMarkdownFiles(projectDir)
     return all
         .filter((p) => LEAF_BASENAME.test(path.basename(p)))
         .map((absPath) => ({
             absPath,
-            relDir: path.relative(vaultDir, path.dirname(absPath)),
+            relDir: path.relative(projectDir, path.dirname(absPath)),
             basenameNoExt: path.basename(absPath, '.md'),
         }))
 }

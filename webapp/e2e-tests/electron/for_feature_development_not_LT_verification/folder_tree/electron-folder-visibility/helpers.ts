@@ -96,8 +96,8 @@ export async function writeMarkdownAtomically(filePath: string, body: string): P
     await fs.rename(tempPath, filePath);
 }
 
-export async function createVisibilityVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'folder-visibility-vault');
+export async function createVisibilityProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'folder-visibility-project');
 
     await writeMarkdown(path.join(projectRoot, 'root.md'),
         `---\nposition:\n  x: 60\n  y: 80\n---\n# Root\nVisible root-level note.\n`);

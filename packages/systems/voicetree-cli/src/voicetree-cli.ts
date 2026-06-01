@@ -13,7 +13,7 @@ import {runDebugCommand} from './commands/runtime/debug.ts'
 import {runManualCommand} from './commands/manual.ts'
 import {findRepoRoot} from './commands/util/findRepoRoot.ts'
 import {runSessionCommand} from './commands/runtime/session.ts'
-import {runVaultCommand} from './commands/runtime/vault.ts'
+import {runProjectCommand} from './commands/runtime/project.ts'
 import {runViewCommand} from './commands/node/view.ts'
 import {getErrorMessage} from './commands/graph/core/util.ts'
 import {CliError, error} from './commands/output.ts'
@@ -36,9 +36,9 @@ const HELP_TEXT: string = `Usage: vt [--terminal ID] [--json] <command> [args]
 Commands:
   agent     Manage coding agents
   graph     Graph operations (view, create, group, mv, rename, lint, ...)
-  serve     Start headless daemon (graph-db + MCP server) for a vault
+  serve     Start headless daemon (graph-db + vt-daemon) for a project
   search    Search nodes by query
-  vault     Manage vault state
+  project     Manage project state
   session   Manage sessions
   view      Folder visibility views
   debug     Run debug subcommands
@@ -68,12 +68,11 @@ Subcommands:
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
   create      Create progress nodes in the graph
   group       Group files into a new folder and update all references
-  view        (deprecated — use structure) Alias for structure
   lint        Lint graph for complexity violations and warnings
   rename      Rename a file and update all references
   mv          Move a file or folder and update all references
-  index       Build a local semantic search index for a vault
-  search      Search a local semantic search index for a vault
+  index       Build a local semantic search index for a project
+  search      Search a local semantic search index for a project
   unseen      Get unseen nodes near your context`
 
 function extractGlobalOptions(argv: string[]): GlobalOptions {
@@ -139,6 +138,14 @@ async function dispatchAgentCommand(
         case 'output':
             await agentOutput(terminalId, args)
             return
+        case 'metrics':
+            error(
+                'agent metrics is not a CLI subcommand. The metrics surface is daemon HTTP-only: ' +
+                    'POST the JSON-RPC methods `metrics.getSessions` (read per-session token/cost) or ' +
+                    '`metrics.appendSession` (upsert one session) to the daemon `/rpc` endpoint. ' +
+                    'No `vt agent metrics` CLI wrapper is wired.',
+            )
+            return
         case '--help':
         case 'help':
         case undefined:
@@ -183,11 +190,6 @@ async function dispatchGraphCommand(
         case 'structure': {
             const {graphStructure} = await import('./commands/graph/core/graph.ts')
             await graphStructure(terminalId, args)
-            return
-        }
-        case 'view': {
-            const {graphView} = await import('./commands/graph/core/graph.ts')
-            await graphView(terminalId, args)
             return
         }
         case 'lint': {
@@ -244,10 +246,10 @@ const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
     'spawn', 'list', 'wait', 'close', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
-    'create', 'index', 'search', 'unseen', 'live', 'structure', 'view', 'lint', 'rename', 'mv', 'group',
+    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'rename', 'mv', 'group',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
-    'vault', 'session', 'view', 'search', 'debug', 'serve', 'manual',
+    'project', 'session', 'view', 'search', 'debug', 'serve', 'manual',
 ])
 
 function computeVerb(commandArgs: readonly string[]): {verb: string; verbTokensInArgv: number} {
@@ -323,8 +325,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         case 'graph':
             await dispatchGraphCommand(terminalId, subcommand, rest)
             return
-        case 'vault':
-            await runVaultCommand(commandArgs.slice(1))
+        case 'project':
+            await runProjectCommand(commandArgs.slice(1))
             return
         case 'session':
             await runSessionCommand(commandArgs.slice(1))

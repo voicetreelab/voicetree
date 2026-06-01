@@ -5,7 +5,7 @@
  *
  * Useful for offline analysis once the in-memory ring (10k events) starts
  * dropping older ones. To analyse:
- *   tail -f <APP_SUPPORT>/lifecycle-telemetry.jsonl | jq ...
+ *   tail -f <VOICETREE_HOME>/lifecycle-telemetry.jsonl | jq ...
  */
 
 import * as fs from 'node:fs'

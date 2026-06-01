@@ -15,6 +15,7 @@ import {
     runValidations,
     resolveOverrides,
     formatViolationError,
+    partitionViolationsBySeverity,
 } from './createGraphValidation'
 import type {OverrideEntry, OverridableRuleId} from '@vt/graph-validation'
 import {mockGraph, mockNode, linesOfText, buildCtx} from './createGraphValidation.testHelpers'
@@ -25,11 +26,11 @@ import {mockGraph, mockNode, linesOfText, buildCtx} from './createGraphValidatio
 
 describe('runValidations', () => {
     it('returns pass when no rules are violated', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
+        const graph: Graph = mockGraph(['/project/task.md'])
         const ctx: ValidationContext = buildCtx({
             nodes: [mockNode({filename: 'small-node', title: 'T', summary: 'Short summary'})],
-            resolvedParentNodeId: '/vault/task.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/task.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
         })
         const result: ValidationResult = runValidations(ALL_RULES, ctx)
@@ -38,13 +39,13 @@ describe('runValidations', () => {
 
     it('collects violations from multiple rules simultaneously', () => {
         const incomingEdges: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = new Map([
-            ['/vault/task.md', ['/vault/grandparent.md']],
+            ['/project/task.md', ['/project/grandparent.md']],
         ])
-        const graph: Graph = mockGraph(['/vault/task.md', '/vault/grandparent.md'], incomingEdges)
+        const graph: Graph = mockGraph(['/project/task.md', '/project/grandparent.md'], incomingEdges)
         const ctx: ValidationContext = buildCtx({
             nodes: [mockNode({filename: 'big-node', title: 'T', summary: linesOfText(80)})],
-            resolvedParentNodeId: '/vault/grandparent.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/grandparent.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
             lineLimit: 70,
         })
@@ -58,9 +59,39 @@ describe('runValidations', () => {
     })
 
     it('returns pass with empty rules array', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
-        const ctx: ValidationContext = buildCtx({resolvedParentNodeId: '/vault/task.md', graph})
+        const graph: Graph = mockGraph(['/project/task.md'])
+        const ctx: ValidationContext = buildCtx({resolvedParentNodeId: '/project/task.md', graph})
         expect(runValidations([], ctx).status).toBe('pass')
+    })
+})
+
+// ============================================================================
+// partitionViolationsBySeverity
+// ============================================================================
+
+describe('partitionViolationsBySeverity', () => {
+    const blockingViolation: RuleViolation = {
+        ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n', severity: 'violation', details: {},
+    }
+    const warningViolation: RuleViolation = {
+        ruleId: 'node_line_limit', message: 'Approaching limit', nodeFilename: '__graph_root__', severity: 'warning', details: {},
+    }
+
+    it('splits warnings from blocking violations', () => {
+        const {warnings, blocking} = partitionViolationsBySeverity([blockingViolation, warningViolation])
+        expect(warnings).toEqual([warningViolation])
+        expect(blocking).toEqual([blockingViolation])
+    })
+
+    it('returns empty partitions for an empty input', () => {
+        const {warnings, blocking} = partitionViolationsBySeverity([])
+        expect(warnings).toHaveLength(0)
+        expect(blocking).toHaveLength(0)
+    })
+
+    it('keeps all results when they share one severity', () => {
+        expect(partitionViolationsBySeverity([blockingViolation, blockingViolation]).warnings).toHaveLength(0)
+        expect(partitionViolationsBySeverity([warningViolation, warningViolation]).blocking).toHaveLength(0)
     })
 })
 
@@ -73,6 +104,7 @@ describe('resolveOverrides', () => {
         ruleId: 'node_line_limit',
         message: 'Too long',
         nodeFilename: 'big-node',
+        severity: 'violation',
         details: {bodyLines: 80, lineLimit: 70},
     }
 
@@ -100,7 +132,7 @@ describe('resolveOverrides', () => {
     it('handles partial override: resolves only matching violations', () => {
         const violations: RuleViolation[] = [
             sampleViolation,
-            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
+            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', severity: 'violation', details: {}},
         ]
         const {unresolved, accepted} = resolveOverrides(violations, [
             {ruleId: 'node_line_limit', rationale: 'Large code block'},
@@ -113,7 +145,7 @@ describe('resolveOverrides', () => {
     it('resolves all violations when all have matching overrides', () => {
         const violations: RuleViolation[] = [
             sampleViolation,
-            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
+            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', severity: 'violation', details: {}},
         ]
         const {unresolved, accepted} = resolveOverrides(violations, [
             {ruleId: 'node_line_limit', rationale: 'Large code block'},
@@ -131,7 +163,7 @@ describe('resolveOverrides', () => {
 describe('formatViolationError', () => {
     it('includes rule ID, node filename, and "Validation failed" header', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long (80 lines)', nodeFilename: 'my-progress.md', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long (80 lines)', nodeFilename: 'my-progress.md', severity: 'violation', details: {}},
         ])
         expect(error).toContain('node_line_limit')
         expect(error).toContain('my-progress.md')
@@ -140,7 +172,7 @@ describe('formatViolationError', () => {
 
     it('includes parseable JSON override example', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', severity: 'violation', details: {}},
         ])
         expect(error).toContain('override_with_rationale')
         expect(error).toContain('"ruleId"')
@@ -150,8 +182,8 @@ describe('formatViolationError', () => {
 
     it('deduplicates rule IDs in override example', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'a', details: {}},
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'b', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'a', severity: 'violation', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'b', severity: 'violation', details: {}},
         ])
         // Extract JSON after the "override_with_rationale" instruction line
         const jsonStart: number = error.indexOf('[\n')
@@ -162,9 +194,9 @@ describe('formatViolationError', () => {
 
     it('lists multiple distinct rule IDs in override example', () => {
         const error: string = formatViolationError([
-            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', details: {}},
-            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
-            {ruleId: 'node_must_have_edge', message: 'No edge', nodeFilename: 'lonely.md', details: {}},
+            {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', severity: 'violation', details: {}},
+            {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', severity: 'violation', details: {}},
+            {ruleId: 'node_must_have_edge', message: 'No edge', nodeFilename: 'lonely.md', severity: 'violation', details: {}},
         ])
         const jsonStart: number = error.indexOf('[\n')
         const parsed: unknown = JSON.parse(error.slice(jsonStart))
@@ -178,11 +210,11 @@ describe('formatViolationError', () => {
 
 describe('nodeLineLimitRule (via ALL_RULES)', () => {
     it('passes when node body is under the line limit', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
+        const graph: Graph = mockGraph(['/project/task.md'])
         const ctx: ValidationContext = buildCtx({
             nodes: [mockNode({filename: 'ok', title: 'T', summary: linesOfText(30), content: linesOfText(30)})],
-            resolvedParentNodeId: '/vault/task.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/task.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
         })
         const result: ValidationResult = runValidations(ALL_RULES, ctx)
@@ -192,11 +224,11 @@ describe('nodeLineLimitRule (via ALL_RULES)', () => {
     })
 
     it('rejects when node body exceeds the line limit', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
+        const graph: Graph = mockGraph(['/project/task.md'])
         const ctx: ValidationContext = buildCtx({
             nodes: [mockNode({filename: 'big-node', title: 'T', summary: linesOfText(80)})],
-            resolvedParentNodeId: '/vault/task.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/task.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
             lineLimit: 70,
         })
@@ -211,15 +243,15 @@ describe('nodeLineLimitRule (via ALL_RULES)', () => {
     })
 
     it('reports multiple oversized nodes independently', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
+        const graph: Graph = mockGraph(['/project/task.md'])
         const ctx: ValidationContext = buildCtx({
             nodes: [
                 mockNode({filename: 'big-a', title: 'T', summary: linesOfText(75)}),
                 mockNode({filename: 'big-b', title: 'T', summary: linesOfText(90)}),
                 mockNode({filename: 'ok-c', title: 'T', summary: 'Short'}),
             ],
-            resolvedParentNodeId: '/vault/task.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/task.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
             lineLimit: 70,
         })
@@ -240,11 +272,11 @@ describe('nodeLineLimitRule (via ALL_RULES)', () => {
 
 describe('grandparentAttachmentRule (via ALL_RULES)', () => {
     it('passes when attaching to own task node', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
+        const graph: Graph = mockGraph(['/project/task.md'])
         const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
             nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
-            resolvedParentNodeId: '/vault/task.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/task.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
         }))
         if (result.status === 'violations') {
@@ -253,10 +285,10 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
     })
 
     it('passes when callerTaskNodeId is null (user terminal)', () => {
-        const graph: Graph = mockGraph(['/vault/some-node.md'])
+        const graph: Graph = mockGraph(['/project/some-node.md'])
         const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
             nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
-            resolvedParentNodeId: '/vault/some-node.md',
+            resolvedParentNodeId: '/project/some-node.md',
             callerTaskNodeId: null,
             graph,
         }))
@@ -267,13 +299,13 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
 
     it('rejects when attaching to a direct ancestor of the task node', () => {
         const incomingEdges: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = new Map([
-            ['/vault/task.md', ['/vault/grandparent.md']],
+            ['/project/task.md', ['/project/grandparent.md']],
         ])
-        const graph: Graph = mockGraph(['/vault/task.md', '/vault/grandparent.md'], incomingEdges)
+        const graph: Graph = mockGraph(['/project/task.md', '/project/grandparent.md'], incomingEdges)
         const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
             nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
-            resolvedParentNodeId: '/vault/grandparent.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/grandparent.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
         }))
         expect(result.status).toBe('violations')
@@ -286,14 +318,14 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
 
     it('rejects when attaching to a deep ancestor (great-grandparent)', () => {
         const incomingEdges: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = new Map([
-            ['/vault/task.md', ['/vault/gp.md']],
-            ['/vault/gp.md', ['/vault/ggp.md']],
+            ['/project/task.md', ['/project/gp.md']],
+            ['/project/gp.md', ['/project/ggp.md']],
         ])
-        const graph: Graph = mockGraph(['/vault/task.md', '/vault/gp.md', '/vault/ggp.md'], incomingEdges)
+        const graph: Graph = mockGraph(['/project/task.md', '/project/gp.md', '/project/ggp.md'], incomingEdges)
         const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
             nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
-            resolvedParentNodeId: '/vault/ggp.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/ggp.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
         }))
         expect(result.status).toBe('violations')
@@ -304,13 +336,13 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
 
     it('passes when attaching to a non-ancestor node', () => {
         const incomingEdges: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = new Map([
-            ['/vault/task.md', ['/vault/grandparent.md']],
+            ['/project/task.md', ['/project/grandparent.md']],
         ])
-        const graph: Graph = mockGraph(['/vault/task.md', '/vault/grandparent.md', '/vault/sibling.md'], incomingEdges)
+        const graph: Graph = mockGraph(['/project/task.md', '/project/grandparent.md', '/project/sibling.md'], incomingEdges)
         const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
             nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
-            resolvedParentNodeId: '/vault/sibling.md',
-            callerTaskNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/sibling.md',
+            callerTaskNodeId: '/project/task.md',
             graph,
         }))
         if (result.status === 'violations') {
@@ -319,12 +351,80 @@ describe('grandparentAttachmentRule (via ALL_RULES)', () => {
     })
 })
 
+// ============================================================================
+// subgraphSizeLimitRule
+// ============================================================================
+
+describe('subgraphSizeLimitRule (via ALL_RULES)', () => {
+    /** A folder f/ whose node A has `childCount` children that all point to A (child -> A). */
+    function folderGraph(childCount: number): Graph {
+        const children: string[] = Array.from({length: childCount}, (_, i) => `f/child${i}.md`)
+        const incoming: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =
+            new Map([['f/A.md', children]])
+        return mockGraph(['f/A.md', ...children], incoming)
+    }
+
+    function subgraphCtx(graph: Graph, batchSize: number): ValidationContext {
+        return buildCtx({
+            nodes: Array.from({length: batchSize}, (_, i) =>
+                mockNode({filename: `new${i}`, title: 'T', summary: 'S'})),
+            resolvedParentNodeId: 'f/A.md',
+            callerTaskNodeId: 'f/A.md', // attaching to own task node — no grandparent violation
+            graph,
+            destinationFolderPath: 'f/',
+            subgraphWarnThreshold: 4,
+            subgraphErrorThreshold: 6,
+        })
+    }
+
+    function subgraphViolations(result: ValidationResult): readonly RuleViolation[] {
+        return result.status === 'violations'
+            ? result.violations.filter((v: RuleViolation) => v.ruleId === 'subgraph_size_limit')
+            : []
+    }
+
+    it('passes (no subgraph result) below the warn threshold', () => {
+        // existing component = 1 (A) + batch 1 = 2 < warn(4)
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(0), 1))
+        expect(subgraphViolations(result)).toHaveLength(0)
+    })
+
+    it('emits a non-blocking warning in [warn, error)', () => {
+        // existing component = 3 (A + 2 children) + batch 1 = 4 == warn(4)
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 1))
+        const sg: readonly RuleViolation[] = subgraphViolations(result)
+        expect(sg).toHaveLength(1)
+        expect(sg[0].severity).toBe('warning')
+        expect(sg[0].message).toContain('"f"')
+        expect(sg[0].details).toMatchObject({size: 4, folder: 'f/'})
+    })
+
+    it('emits a blocking violation at the error threshold, evaluated over the whole batch', () => {
+        // existing component = 3 (A + 2 children) + batch 3 = 6 == error(6)
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 3))
+        const sg: readonly RuleViolation[] = subgraphViolations(result)
+        expect(sg).toHaveLength(1)
+        expect(sg[0].severity).toBe('violation')
+        expect(sg[0].details).toMatchObject({size: 6})
+    })
+
+    it('is admitted by a matching override_with_rationale', () => {
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 3))
+        const {blocking} = partitionViolationsBySeverity(
+            result.status === 'violations' ? result.violations : [],
+        )
+        const override: OverrideEntry = {ruleId: 'subgraph_size_limit', rationale: 'Cohesive cluster, splitting would harm legibility'}
+        const {unresolved} = resolveOverrides(blocking, [override])
+        expect(unresolved.filter((v: RuleViolation) => v.ruleId === 'subgraph_size_limit')).toHaveLength(0)
+    })
+})
+
 describe('nodeMustHaveEdgeRule (via ALL_RULES)', () => {
     it('passes when daemon graph-parent fallback is present', () => {
-        const graph: Graph = mockGraph(['/vault/task.md'])
+        const graph: Graph = mockGraph(['/project/task.md'])
         const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
             nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
-            resolvedParentNodeId: '/vault/task.md',
+            resolvedParentNodeId: '/project/task.md',
             graph,
         }))
         if (result.status === 'violations') {

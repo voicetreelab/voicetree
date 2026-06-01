@@ -24,18 +24,18 @@ function isValidCSSColor(color: string): boolean {
     return CSS.supports('color', color);
 }
 
-function getVaultPrefixFromNodeId(nodeId: string): string {
+function getProjectPrefixFromNodeId(nodeId: string): string {
     const firstSlash: number = nodeId.indexOf('/');
     if (firstSlash === -1) return '';
     return nodeId.slice(0, firstSlash);
 }
 
-function generateVaultColor(vaultPrefix: string): string | undefined {
-    if (!vaultPrefix) return undefined;
+function generateProjectColor(projectPrefix: string): string | undefined {
+    if (!projectPrefix) return undefined;
 
     let hash: number = 0;
-    for (let i: number = 0; i < vaultPrefix.length; i++) {
-        hash = vaultPrefix.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i: number = 0; i < projectPrefix.length; i++) {
+        hash = projectPrefix.charCodeAt(i) + ((hash << 5) - hash);
         hash = hash & hash;
     }
 
@@ -94,7 +94,7 @@ function truncatedEdgeLabel(label: string | undefined): string | undefined {
 
 function colorForNode(node: ProjectedNode): string | undefined {
     if (node.color && isValidCSSColor(node.color)) return node.color
-    return generateVaultColor(getVaultPrefixFromNodeId(node.id))
+    return generateProjectColor(getProjectPrefixFromNodeId(node.id))
 }
 
 function isFolderNode(node: ProjectedNode): boolean {
@@ -117,6 +117,30 @@ function syncExistingNodeParent(existing: CollectionReturnValue, specNode: Proje
     }
 }
 
+// Monotonic counter recording the order indicator edges are created. Each terminal→node
+// edge stamps the next value into its `recencySeq` data, giving us a stable "the agent
+// made this node Nth" ordering even though ProjectedNode carries no timestamp.
+let indicatorEdgeSeqCounter: number = 0
+
+/**
+ * Recompute the recency-driven `recencyWeight` (0..1) for every indicator edge sharing
+ * `shadowNodeId` as its source — i.e. all the nodes one terminal authored. The most
+ * recently created edge gets weight 1 (thickest / most solid), the oldest gets weight 0
+ * (thinnest / most faded); the stylesheet maps this onto width + line-opacity. A lone
+ * edge is treated as fully recent.
+ */
+function recomputeIndicatorEdgeRecency(cy: Core, shadowNodeId: string): void {
+    const edges = cy.edges('.terminal-progres-nodes-indicator')
+        .filter((edge) => edge.data('source') === shadowNodeId)
+    const ordered = edges.sort((a, b) =>
+        (a.data('recencySeq') as number ?? 0) - (b.data('recencySeq') as number ?? 0))
+    const count: number = ordered.length
+    ordered.forEach((edge, index: number) => {
+        const weight: number = count <= 1 ? 1 : index / (count - 1)
+        edge.data('recencyWeight', weight)
+    })
+}
+
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {
     const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/anchoring/types').TerminalData> = getTerminals()
     for (const terminal of terminals.values()) {
@@ -133,9 +157,12 @@ function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string
                 source: shadowNodeId,
                 target: nodeId,
                 isIndicatorEdge: true,
+                recencySeq: ++indicatorEdgeSeqCounter,
+                recencyWeight: 1,
             },
             classes: 'terminal-progres-nodes-indicator',
         })
+        recomputeIndicatorEdgeRecency(cy, shadowNodeId)
         break
     }
 }
@@ -216,7 +243,11 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
 
     const newNodeIds: string[] = []
     const nodesWithoutPositions: string[] = []
-    const agentNameByNewNodeId: Map<string, string> = new Map()
+    // agent_name → node, collected across BOTH new and updated file nodes. `vt graph
+    // create` often injects agent_name via frontmatter-completion AFTER the node first
+    // appears, so the delta carrying agent_name is an UPDATE, not a create. Collecting
+    // on both branches lets the (idempotent) indicator-edge reconcile fire either way.
+    const agentNameByNodeId: Map<string, string> = new Map()
 
     cy.batch(() => {
         // PASS 1 — remove cy nodes no longer in spec
@@ -263,7 +294,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 // file-node
                 newNodeIds.push(specNode.id)
                 const agentName: string | undefined = getAgentNameFromNode(specNode)
-                if (agentName) agentNameByNewNodeId.set(specNode.id, agentName)
+                if (agentName) agentNameByNodeId.set(specNode.id, agentName)
 
                 const color: string | undefined = colorForNode(specNode)
                 const position: { x: number; y: number } = specNode.position
@@ -310,6 +341,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 existing.data('color', nextColor)
             }
             existing.data('isContextNode', false)
+            // agent_name may arrive on an update delta (frontmatter-completion after the
+            // node first appeared) — collect it here too so the indicator edge can form.
+            const updatedAgentName: string | undefined = getAgentNameFromNode(specNode)
+            if (updatedAgentName) agentNameByNodeId.set(specNode.id, updatedAgentName)
             if (hasActualContentChanged(previousContent, nextContent)) {
                 existing.emit('content-changed')
             }
@@ -369,8 +404,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
         repairTerminalAnchorsForNode(cy, nodeId)
     }
 
-    // Terminal→node indicator edges driven by agent_name YAML on new nodes.
-    for (const [nodeId, agentName] of agentNameByNewNodeId) {
+    // Terminal→node indicator edges driven by agent_name YAML (new + updated nodes).
+    // createTerminalIndicatorEdge is idempotent, so re-running it for already-edged
+    // nodes is a no-op.
+    for (const [nodeId, agentName] of agentNameByNodeId) {
         createTerminalIndicatorEdge(cy, nodeId, agentName)
     }
 

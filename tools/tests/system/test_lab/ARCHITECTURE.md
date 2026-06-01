@@ -55,7 +55,7 @@ flowchart TD
 classDiagram
     class EndToEndTestLab {
         +voicetree_root: Path
-        +test_vault_root: Path
+        +test_project_root: Path
         +test_results: List
         +current_test: Dict
         
@@ -90,7 +90,7 @@ classDiagram
 ```
 
 **Key Responsibilities**:
-- **Environment Isolation**: Create temporary test vaults for each scenario
+- **Environment Isolation**: Create temporary test projects for each scenario
 - **Agent Orchestration**: Execute agents using Claude CLI with proper environment setup
 - **State Management**: Track test execution state and results
 - **Validation Coordination**: Invoke output validators and collect results
@@ -108,7 +108,7 @@ sequenceDiagram
     participant CLI as Claude CLI
     participant FS as File System
     
-    TL->>CHW: run_headless_agent(prompt, vault_path)
+    TL->>CHW: run_headless_agent(prompt, project_path)
     CHW->>ENV: Setup environment variables
     CHW->>FS: Create temporary prompt file
     CHW->>CLI: Execute claude -p prompt_file
@@ -228,16 +228,16 @@ sequenceDiagram
     participant Environment as Environment
     participant Agent as Claude Agent
     
-    TestLab->>FileSystem: Create temporary vault directory
+    TestLab->>FileSystem: Create temporary project directory
     TestLab->>FileSystem: Create test date subdirectory
     TestLab->>FileSystem: Generate dummy source note
-    TestLab->>Environment: Set OBSIDIAN_VAULT_PATH
+    TestLab->>Environment: Set OBSIDIAN_PROJECT_PATH
     TestLab->>Environment: Set OBSIDIAN_SOURCE_NOTE
     TestLab->>Environment: Set AGENT_COLOR
     TestLab->>Agent: Execute with environment
-    Agent->>FileSystem: Create nodes in test vault
+    Agent->>FileSystem: Create nodes in test project
     TestLab->>FileSystem: Validate created nodes
-    TestLab->>FileSystem: Clean up test vault
+    TestLab->>FileSystem: Clean up test project
 ```
 
 ## Design Patterns and Principles
@@ -247,7 +247,7 @@ sequenceDiagram
 **Principle**: Each test runs in complete isolation from others.
 
 **Implementation**:
-- Temporary vault creation per test
+- Temporary project creation per test
 - Unique test IDs and timestamps
 - Environment variable scoping
 - Automatic cleanup after each test
@@ -329,15 +329,15 @@ class CustomTestLab(EndToEndTestLab):
 
 ### Resource Usage
 
-- **Memory**: ~50-200MB per test (temporary vault storage)
+- **Memory**: ~50-200MB per test (temporary project storage)
 - **CPU**: Depends on LLM processing time
-- **Storage**: Temporary vaults cleaned automatically
+- **Storage**: Temporary projects cleaned automatically
 - **Network**: LLM API calls for agent execution
 
 ### Scalability Considerations
 
 - Tests run sequentially to avoid resource conflicts
-- Temporary vaults prevent interference between tests
+- Temporary projects prevent interference between tests
 - JSON configuration allows unlimited test scenarios
 - Validation rules can be extended without code changes
 
@@ -345,8 +345,8 @@ class CustomTestLab(EndToEndTestLab):
 
 ### Sandbox Isolation
 
-- Each test uses temporary, isolated vault directory
-- No access to production vault or data
+- Each test uses temporary, isolated project directory
+- No access to production project or data
 - Environment variables scoped to test process
 - Automatic cleanup prevents data leakage
 
@@ -400,7 +400,7 @@ flowchart TD
 ### VoiceTree System Integration
 
 - Uses existing `add_new_node.py` tool
-- Leverages VoiceTree vault structure
+- Leverages VoiceTree project structure
 - Compatible with existing agent architecture
 - Validates against real VoiceTree node formats
 

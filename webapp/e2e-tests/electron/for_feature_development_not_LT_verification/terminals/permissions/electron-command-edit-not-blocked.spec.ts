@@ -26,7 +26,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
@@ -42,7 +42,7 @@ const test = base.extend<{
             args: [
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 '--open-folder',
-                FIXTURE_VAULT_PATH
+                FIXTURE_PROJECT_PATH
             ],
             env: {
                 ...process.env,
@@ -83,9 +83,9 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
 
-        // Programmatically select the test vault as a project.
+        // Programmatically select the test project as a project.
         // The app starts on the project picker screen. We need to:
-        // 1. Save the fixture vault as a known project
+        // 1. Save the fixture project as a known project
         // 2. Call startFileWatching which triggers loadFolder -> watching-started event
         // 3. App.tsx onWatchingStarted handler finds the saved project and switches to graph view
         await window.evaluate(async (projectRoot: string) => {
@@ -97,10 +97,9 @@ const test = base.extend<{
                 name: 'test-cmd-edit',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true
             });
             await api.main.startFileWatching(projectRoot);
-        }, FIXTURE_VAULT_PATH);
+        }, FIXTURE_PROJECT_PATH);
 
         // Wait for graph view to be created (triggered by watching-started event)
         await window.waitForFunction(

@@ -54,7 +54,7 @@ describe('graph move commands', () => {
             graphRename(undefined, [
                 path.join(tempDir, 'alpha.md'),
                 path.join(tempDir, 'beta.md'),
-                '--vault',
+                '--project',
                 tempDir,
             ])
         )
@@ -100,7 +100,7 @@ describe('graph move commands', () => {
         )
 
         const result = await captureJsonOutput(() =>
-            graphMove(undefined, [sourceRoot, destinationRoot, '--vault', tempDir])
+            graphMove(undefined, [sourceRoot, destinationRoot, '--project', tempDir])
         )
 
         expect(result.kind).toBe('folder')
@@ -142,7 +142,7 @@ describe('graph move commands', () => {
         writeFileSync(path.join(tempDir, 'index.md'), '# Index\n\n[[topics/source/a]]\n')
 
         const output = await captureHumanOutput(() =>
-            graphMove(undefined, [sourceRoot, destinationRoot, '--dry-run', '--vault', tempDir])
+            graphMove(undefined, [sourceRoot, destinationRoot, '--dry-run', '--project', tempDir])
         )
 
         expect(output).toContain('Would move folder (2 files, 1 reference updated):')
@@ -178,7 +178,7 @@ describe('graph move commands', () => {
                 archivePath,
                 deepPath,
                 otherPath,
-                '--vault',
+                '--project',
                 tempDir,
             ])
         )
@@ -215,7 +215,7 @@ describe('graph move commands', () => {
                 path.join(tempDir, 'a.md'),
                 path.join(tempDir, 'b.md'),
                 '--dry-run',
-                '--vault',
+                '--project',
                 tempDir,
             ])
         )

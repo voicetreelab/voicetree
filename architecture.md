@@ -16,18 +16,18 @@ flowchart TD
   electronRenderer -->|IPC bridge| electronMain
   electronRenderer -->|WebSocket terminal stream| electronMain
   electronMain -->|HTTP /graph/* and /session/*| graphd
-  electronMain -->|spawn child plus HTTP /mcp| vtd
+  electronMain -->|spawn child plus HTTP /rpc| vtd
   electronMain -->|tmux CLI and socket| tmuxServer
   electronMain -->|register .mcp.json| filesystem
   vtd -->|HTTP RPC sibling| graphd
   vtd -->|spawn_agent tool via tmux CLI| tmuxServer
   vtd -->|publish auth token and port| filesystem
-  vtCli -->|HTTP /mcp| vtd
+  vtCli -->|HTTP /rpc| vtd
   vtCli -->|HTTP /graph/*| graphd
   tmuxServer -->|PTY sessions| agentProcesses
   tmuxServer -->|pipe-pane terminal logs| filesystem
-  agentProcesses -->|MCP HTTP tools callback| vtd
-  graphd -->|read/write/watch vault markdown| filesystem
+  agentProcesses -->|HTTP /rpc tool callback| vtd
+  graphd -->|read/write/watch project markdown| filesystem
 
   click filesystem "."
   click electronMain "webapp/src/shell/edge/main/runtime/electron/app/main.ts"

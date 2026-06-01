@@ -4,7 +4,7 @@
 // surface back through the router file.
 
 import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type {EventSubscriptionHub} from './eventSubscriptionHub.ts'
+import type {EventSubscriptionHub} from './sse/eventSubscriptionHub.ts'
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 export type ToolCatalog = ReadonlyMap<string, ToolHandler>

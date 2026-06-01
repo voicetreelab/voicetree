@@ -145,7 +145,7 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
 
-        // Set up vault
+        // Set up project
         await window.evaluate(async (projectRoot: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
@@ -155,7 +155,6 @@ const test = base.extend<{
                 name: 'test-worktree-display-e2e',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
-                voicetreeInitialized: true,
             });
             await api.main.startFileWatching(projectRoot);
         }, tempGitRepoPath);

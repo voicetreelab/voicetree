@@ -41,10 +41,10 @@ describe('ensureUniqueNodeId', () => {
 
     it('preserves nested folder prefix', () => {
         const result: NodeIdAndFilePath = ensureUniqueNodeId(
-            'vault/ctx-nodes/context_123.md',
-            new Set(['vault/ctx-nodes/context_123.md', 'vault/ctx-nodes/context_123_2.md'])
+            'project/ctx-nodes/context_123.md',
+            new Set(['project/ctx-nodes/context_123.md', 'project/ctx-nodes/context_123_2.md'])
         )
-        expect(result).toBe('vault/ctx-nodes/context_123_3.md')
+        expect(result).toBe('project/ctx-nodes/context_123_3.md')
     })
 
     it('handles empty set of existing IDs', () => {

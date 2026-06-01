@@ -4,7 +4,7 @@
  *
  * Test 6: File click navigation — click file, graph navigates
  * Test 7: Resize — drag resize handle, width persists
- * Test 8: VaultPathSelector — click button, sidebar toggles
+ * Test 8: ProjectPathSelector — click button, sidebar toggles
  * Test 9: Footer actions — add folder search, browse button visible
  * Test 10: Persistence — toggle sidebar, reload, state persists
  *
@@ -79,27 +79,27 @@ test.describe('File Tree Sidebar — Advanced', () => {
         console.log('Test 7 passed: Resize handle');
     });
 
-    test('Test 8: VaultPathSelector toggles sidebar', async ({ appWindow }) => {
-        const vaultBtn = appWindow.locator('.vault-path-toggle, [data-testid="vault-path-selector"]');
-        const vaultBtnVisible = await vaultBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    test('Test 8: ProjectPathSelector toggles sidebar', async ({ appWindow }) => {
+        const projectBtn = appWindow.locator('.project-path-toggle, [data-testid="project-path-selector"]');
+        const projectBtnVisible = await projectBtn.isVisible({ timeout: 3000 }).catch(() => false);
 
-        if (!vaultBtnVisible) {
-            console.log('VaultPathSelector button not found — may not be migrated yet, skipping');
+        if (!projectBtnVisible) {
+            console.log('ProjectPathSelector button not found — may not be migrated yet, skipping');
             test.skip();
             return;
         }
 
-        await vaultBtn.click();
+        await projectBtn.click();
         await appWindow.waitForTimeout(300);
 
         const sidebar = appWindow.locator('[data-testid="folder-tree-sidebar"]');
         await expect(sidebar).toBeVisible({ timeout: 3000 });
 
-        await vaultBtn.click();
+        await projectBtn.click();
         await expect(sidebar).not.toBeVisible({ timeout: 3000 });
 
-        await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-vault-selector.png' });
-        console.log('Test 8 passed: VaultPathSelector toggles sidebar');
+        await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-project-selector.png' });
+        console.log('Test 8 passed: ProjectPathSelector toggles sidebar');
     });
 
     test('Test 9: Footer actions visible', async ({ appWindow }) => {

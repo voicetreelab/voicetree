@@ -22,10 +22,10 @@ import {
   writeMarkdownFileFromRequest,
 } from '../core/graph/index.ts'
 import { executeCommand } from './dispatch.ts'
-import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
+import { ProjectNotOpenError, structuredProjectErrorResult } from '../errors/projectNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
-import { reconcileGraphWithDisk } from './vault/reconcileGraphWithDisk.ts'
+import { reconcileGraphWithDisk } from './project/reconcileGraphWithDisk.ts'
 
 type WorkflowParsed = { readonly ok: true }
 
@@ -69,7 +69,7 @@ type WritePositionsRequest = Extract<
   WorkflowParsed
 >
 
-type WritePositionsInOpenVault = WritePositionsRequest & {
+type WritePositionsInOpenProject = WritePositionsRequest & {
   readonly projectRoot: string
 }
 
@@ -89,21 +89,21 @@ function workflowErrorResult(error: unknown, errorCode: string): HttpResult {
   return errorResult((error as Error).message, errorCode, 500)
 }
 
-function vaultAwareWorkflowErrorResult(
+function projectAwareWorkflowErrorResult(
   error: unknown,
   errorCode: string,
 ): HttpResult {
-  if (error instanceof VaultNotOpenError) {
-    return structuredVaultErrorResult(error)
+  if (error instanceof ProjectNotOpenError) {
+    return structuredProjectErrorResult(error)
   }
 
   return workflowErrorResult(error, errorCode)
 }
 
-function vaultNotOpenResult(): WorkflowHalt {
+function projectNotOpenResult(): WorkflowHalt {
   return {
     ok: false,
-    result: structuredVaultErrorResult(new VaultNotOpenError()),
+    result: structuredProjectErrorResult(new ProjectNotOpenError()),
   }
 }
 
@@ -155,23 +155,23 @@ async function applyGraphDeltaAndPublish(
   })
 }
 
-async function parseWritePositionsInOpenVault(
+async function parseWritePositionsInOpenProject(
   rawBody: unknown,
-): Promise<ParseOutcome<WritePositionsInOpenVault>> {
+): Promise<ParseOutcome<WritePositionsInOpenProject>> {
   const parsed = parseWritePositionsRequest(rawBody)
   if (!parsed.ok) return parsed
 
   const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
-  if (!projectRoot) return vaultNotOpenResult()
+  if (!projectRoot) return projectNotOpenResult()
 
   return { ...parsed, projectRoot }
 }
 
-async function parseWriteMarkdownFileInOpenVault(
+async function parseWriteMarkdownFileInOpenProject(
   rawBody: unknown,
 ): Promise<ParseOutcome<WriteMarkdownFileRequest>> {
   const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
-  if (!projectRoot) return vaultNotOpenResult()
+  if (!projectRoot) return projectNotOpenResult()
 
   return await parseWriteMarkdownFileRequest(rawBody, projectRoot)
 }
@@ -183,10 +183,10 @@ export async function readGraphWorkflow(): Promise<HttpResult> {
 export async function reconcileGraphWithDiskWorkflow(): Promise<HttpResult> {
   try {
     const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
-    if (!projectRoot) return vaultNotOpenResult().result
+    if (!projectRoot) return projectNotOpenResult().result
     return jsonResult({ delta: await reconcileGraphWithDisk() })
   } catch (error) {
-    return vaultAwareWorkflowErrorResult(error, 'GRAPH_DISK_RECONCILE_FAILED')
+    return projectAwareWorkflowErrorResult(error, 'GRAPH_DISK_RECONCILE_FAILED')
   }
 }
 
@@ -204,7 +204,7 @@ async function tracedApplyDeltaAndAck(
     )
     return jsonResult({ ok: true })
   } catch (error) {
-    return vaultAwareWorkflowErrorResult(error, errorCode)
+    return projectAwareWorkflowErrorResult(error, errorCode)
   }
 }
 
@@ -389,7 +389,7 @@ export async function updateContextNodeContainedIdsWorkflow(
 
 export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResult> {
   return await wrapWorkflow(
-    parseWritePositionsInOpenVault,
+    parseWritePositionsInOpenProject,
     async parsed => {
       const result = graphWithUpdatedPositions(
         await executeCommand({ type: 'ReadGraph' }),
@@ -410,7 +410,7 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
 
 export async function writeMarkdownFileWorkflow(rawBody: unknown): Promise<HttpResult> {
   return await wrapWorkflow(
-    parseWriteMarkdownFileInOpenVault,
+    parseWriteMarkdownFileInOpenProject,
     writeMarkdownFileFromRequest,
     result => result,
     'WRITE_MARKDOWN_FILE_FAILED',

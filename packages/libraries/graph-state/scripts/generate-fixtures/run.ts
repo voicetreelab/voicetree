@@ -4,18 +4,18 @@ import path from 'path'
 import {
     FIXTURES_DIR,
     PROJECTIONS_DIR,
-    REAL_VAULT_CANONICAL_ROOT,
-    REAL_VAULT_FIXTURE_ID,
+    REAL_PROJECT_CANONICAL_ROOT,
+    REAL_PROJECT_FIXTURE_ID,
     SEQUENCES_DIR,
     SNAPSHOTS_DIR,
     hydrateState,
-    snapshotStateFromVault,
+    snapshotStateFromProject,
     toFixtureJson,
     type ProjectionDocument,
 } from '../../src/fixtures.ts'
 import { project } from '../../src/project.ts'
 import { createFixtureDocuments } from './documents.ts'
-import { configureFixtureRootIO, resolveFolderNodesVault } from './root-io.ts'
+import { configureFixtureRootIO, resolveFolderNodesProject } from './root-io.ts'
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
     await fs.writeFile(filePath, toFixtureJson(value), 'utf8')
@@ -32,16 +32,16 @@ export async function runGenerateFixtures(): Promise<void> {
     await fs.mkdir(PROJECTIONS_DIR, { recursive: true })
 
     const { snapshots, sequences } = createFixtureDocuments()
-    const realVaultSnapshot = await snapshotStateFromVault(
-        resolveFolderNodesVault(),
+    const realProjectSnapshot = await snapshotStateFromProject(
+        resolveFolderNodesProject(),
         {
-            id: REAL_VAULT_FIXTURE_ID,
-            description: 'Canonicalized real-vault snapshot sourced from brain/working-memory/tasks/folder-nodes.',
-            canonicalRoot: REAL_VAULT_CANONICAL_ROOT,
+            id: REAL_PROJECT_FIXTURE_ID,
+            description: 'Canonicalized real-project snapshot sourced from brain/working-memory/tasks/folder-nodes.',
+            canonicalRoot: REAL_PROJECT_CANONICAL_ROOT,
         },
     )
 
-    const allSnapshots = [...snapshots, realVaultSnapshot]
+    const allSnapshots = [...snapshots, realProjectSnapshot]
 
     for (const doc of allSnapshots) {
         await writeJson(path.join(SNAPSHOTS_DIR, `${doc.id}.json`), doc)

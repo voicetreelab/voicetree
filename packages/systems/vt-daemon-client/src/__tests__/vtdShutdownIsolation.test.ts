@@ -9,16 +9,16 @@
  *
  * The test guards the boundary:
  *
- *   GIVEN a vault with a real fake-vt-graphd running (graphd.owner.json
+ *   GIVEN a project with a real fake-vt-graphd running (graphd.owner.json
  *         populated, a fake-vt-graphd process visible to ps).
- *   AND   a fake-vtd brought up via ensureVtDaemonForVault (vtd.owner.json
+ *   AND   a fake-vtd brought up via ensureVtDaemonForProject (vtd.owner.json
  *         populated, a fake-vtd process visible to ps).
  *   WHEN  we SIGTERM the vtd pid.
  *   THEN  within 2s:
  *           - vtd.owner.json is removed (vtd cleaned up after itself).
  *           - graphd.owner.json is STILL PRESENT.
- *           - countDaemonProcessesForVault(vault) for fake-vtd is 0.
- *           - countDaemonProcessesForVault(vault) for fake-vt-graphd is 1.
+ *           - countDaemonProcessesForProject(project) for fake-vtd is 0.
+ *           - countDaemonProcessesForProject(project) for fake-vt-graphd is 1.
  *
  * Note: fake-vtd does not auto-ensure graphd (Leaf E's minimal fixture
  * deliberately omits that — real vtd does the graphd ensure inside its
@@ -37,14 +37,14 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import {
   ownerRecordFile,
 } from '@vt/daemon-lifecycle'
-import { ensureVtDaemonForVault } from './harness/nodeEnsureVtDaemonForVault.ts'
+import { ensureVtDaemonForProject } from './harness/nodeEnsureVtDaemonForProject.ts'
 import {
   FAKE_BIN_COMMAND,
-  countDaemonProcessesForVault,
+  countDaemonProcessesForProject,
   createHarness,
   destroyHarness,
   isProcessAlive,
-  listDaemonPidsForVault,
+  listDaemonPidsForProject,
   trackDaemonPid,
   trackSpawn,
   type Harness,
@@ -76,7 +76,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  for (const pid of listDaemonPidsForVault(harness.vault)) {
+  for (const pid of listDaemonPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -84,7 +84,7 @@ afterEach(async () => {
     }
   }
   // Best-effort kill any leftover fake-vt-graphd visible to ps.
-  for (const pid of listGraphdPidsForVault(harness.vault)) {
+  for (const pid of listGraphdPidsForProject(harness.project)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {
@@ -104,7 +104,7 @@ describe.runIf(process.platform !== 'win32')(
         // Wait until graphd.owner.json carries a bound port.
         const graphdChild = spawn(
           process.execPath,
-          [GRAPHD_FAKE_BIN, '--project-root', harness.vault],
+          [GRAPHD_FAKE_BIN, '--project-root', harness.project],
           { stdio: 'ignore', detached: false },
         )
         trackSpawn(harness, graphdChild)
@@ -112,13 +112,13 @@ describe.runIf(process.platform !== 'win32')(
         const graphdPid = graphdChild.pid
 
         await waitForBoundOwnerRecord(
-          harness.vault,
+          harness.project,
           GRAPHD_OWNER_FILE,
           5_000,
         )
 
-        // (2) Bring up vtd via ensureVtDaemonForVault.
-        const vtd = await ensureVtDaemonForVault(harness.vault, 'electron', {
+        // (2) Bring up vtd via ensureVtDaemonForProject.
+        const vtd = await ensureVtDaemonForProject(harness.project, 'electron', {
           bin: FAKE_BIN_COMMAND,
           timeoutMs: 10_000,
         })
@@ -127,13 +127,13 @@ describe.runIf(process.platform !== 'win32')(
         // Snapshot pre-SIGTERM: both daemons up, both owner files present.
         expect(isProcessAlive(graphdPid)).toBe(true)
         expect(isProcessAlive(vtd.pid)).toBe(true)
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(1)
-        expect(countGraphdProcessesForVault(harness.vault)).toBe(1)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(1)
+        expect(countGraphdProcessesForProject(harness.project)).toBe(1)
         await expect(
-          ownerFileExists(harness.vault, VTD_OWNER_FILE),
+          ownerFileExists(harness.project, VTD_OWNER_FILE),
         ).resolves.toBe(true)
         await expect(
-          ownerFileExists(harness.vault, GRAPHD_OWNER_FILE),
+          ownerFileExists(harness.project, GRAPHD_OWNER_FILE),
         ).resolves.toBe(true)
 
         // (3) SIGTERM the vtd. Allow up to 2s for the daemon's shutdown
@@ -145,25 +145,25 @@ describe.runIf(process.platform !== 'win32')(
         // (4) Invariant assertions.
         // 4a — vtd is gone.
         expect(isProcessAlive(vtd.pid)).toBe(false)
-        expect(countDaemonProcessesForVault(harness.vault)).toBe(0)
+        expect(countDaemonProcessesForProject(harness.project)).toBe(0)
 
         // 4b — vtd.owner.json is removed (the daemon cleaned up).
         await expect(
-          ownerFileExists(harness.vault, VTD_OWNER_FILE),
+          ownerFileExists(harness.project, VTD_OWNER_FILE),
         ).resolves.toBe(false)
 
         // 4c — graphd is UNTOUCHED.
         expect(isProcessAlive(graphdPid)).toBe(true)
-        expect(countGraphdProcessesForVault(harness.vault)).toBe(1)
+        expect(countGraphdProcessesForProject(harness.project)).toBe(1)
 
         // 4d — graphd.owner.json is STILL PRESENT, and it really is a
         // graphd record (the `daemonKind === 'graphd'` assertion is the
         // discriminant guard from Gotcha 9, applied to the OTHER kind).
         await expect(
-          ownerFileExists(harness.vault, GRAPHD_OWNER_FILE),
+          ownerFileExists(harness.project, GRAPHD_OWNER_FILE),
         ).resolves.toBe(true)
         const graphdRecordRaw = await readFile(
-          join(harness.vault, '.voicetree', GRAPHD_OWNER_FILE),
+          join(harness.project, '.voicetree', GRAPHD_OWNER_FILE),
           'utf8',
         )
         const graphdRecord = ownerRecordFile.decode(graphdRecordRaw)
@@ -177,11 +177,11 @@ describe.runIf(process.platform !== 'win32')(
 )
 
 async function ownerFileExists(
-  vault: string,
+  project: string,
   ownerFile: string,
 ): Promise<boolean> {
   try {
-    await access(join(vault, '.voicetree', ownerFile))
+    await access(join(project, '.voicetree', ownerFile))
     return true
   } catch {
     return false
@@ -189,7 +189,7 @@ async function ownerFileExists(
 }
 
 async function waitForBoundOwnerRecord(
-  vault: string,
+  project: string,
   ownerFile: string,
   timeoutMs: number,
 ): Promise<void> {
@@ -197,7 +197,7 @@ async function waitForBoundOwnerRecord(
   while (Date.now() < deadline) {
     try {
       const raw = await readFile(
-        join(vault, '.voicetree', ownerFile),
+        join(project, '.voicetree', ownerFile),
         'utf8',
       )
       const parsed: unknown = JSON.parse(raw)
@@ -228,17 +228,17 @@ async function waitForPidGone(pid: number, timeoutMs: number): Promise<void> {
 }
 
 // --- graphd-specific ps helpers ---------------------------------------
-// We can't reuse the vtd harness's `countDaemonProcessesForVault` for
-// graphd — its regex matches `--vault`, graphd uses `--project-root`.
+// We can't reuse the vtd harness's `countDaemonProcessesForProject` for
+// graphd — its regex matches `--project`, graphd uses `--project-root`.
 // These two helpers are the graphd analogue.
 
-function countGraphdProcessesForVault(vault: string): number {
-  return listGraphdPidsForVault(vault).length
+function countGraphdProcessesForProject(project: string): number {
+  return listGraphdPidsForProject(project).length
 }
 
-function listGraphdPidsForVault(vault: string): number[] {
+function listGraphdPidsForProject(project: string): number[] {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return []
-  const canonical = resolve(vault)
+  const canonical = resolve(project)
   const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
     encoding: 'utf8',
     timeout: 5000,

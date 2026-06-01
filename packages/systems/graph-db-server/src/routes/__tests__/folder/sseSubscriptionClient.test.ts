@@ -6,19 +6,19 @@ import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
     return await mkdtemp(join(tmpdir(), 'sse-client-test-'))
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-    const appSupport = await mkdtemp(join(tmpdir(), 'sse-client-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+    const voicetreeHome = await mkdtemp(join(tmpdir(), 'sse-client-appsupport-'))
     const config = {
-        vaultConfig: {
-            [vault]: { writeFolder: vault },
+        projectConfig: {
+            [project]: { writeFolderPath: project },
         },
     }
-    await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))
-    return appSupport
+    await writeFile(join(voicetreeHome, 'voicetree-config.json'), JSON.stringify(config))
+    return voicetreeHome
 }
 
 function parseSSEGraphBlock(block: string): ProjectedGraph | null {
@@ -77,14 +77,14 @@ async function subscribeAndCollect(
 }
 
 describe('SSE subscription client round-trip', () => {
-    let vault: string
-    let appSupport: string
+    let project: string
+    let voicetreeHome: string
     let handles: DaemonHandle[]
     let sseController: AbortController | null
 
     beforeEach(async () => {
-        vault = await withTempVault()
-        appSupport = await createAppSupport(vault)
+        project = await withTempProject()
+        voicetreeHome = await createVoicetreeHome(project)
         handles = []
         sseController = null
     })
@@ -95,12 +95,12 @@ describe('SSE subscription client round-trip', () => {
         for (const handle of handles) {
             await handle.stop().catch(() => {})
         }
-        await rm(vault, { recursive: true, force: true })
-        await rm(appSupport, { recursive: true, force: true })
+        await rm(project, { recursive: true, force: true })
+        await rm(voicetreeHome, { recursive: true, force: true })
     }, 15000)
 
     test('client receives and can forward HTTP-posted deltas via SSE as ProjectedGraph', async () => {
-        const handle = await startDaemon({ vault, voicetreeHomePath: appSupport })
+        const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
         handles.push(handle)
         const base = `http://127.0.0.1:${handle.port}`
 
@@ -114,7 +114,7 @@ describe('SSE subscription client round-trip', () => {
 
         await new Promise(r => setTimeout(r, 200))
 
-        const testNodePath = join(vault, 'sse-client-test.md')
+        const testNodePath = join(project, 'sse-client-test.md')
         const delta = [
             {
                 type: 'UpsertNode',

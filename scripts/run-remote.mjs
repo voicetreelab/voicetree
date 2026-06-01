@@ -11,11 +11,14 @@
 //
 // Two mutagen sessions back this script:
 //   * `vt-remote`  — main checkout ↔ /root/vtrepo-synced  (one-way-replica)
-//   * `vt-wts`     — sibling /Users/.../vt-wts/ ↔ /root/vt-wts-synced/  (one-way-replica)
+//   * `vt-wts`     — Mac <parent>/vt-wts/ ↔ /root/vt-wts-synced/  (one-way-replica)
 //
-// Worktrees live SIBLING to the main checkout: `<parent>/vt-wts/<name>/`. The
-// session is picked based on which root the cwd falls under. Blocks on the
-// chosen session reaching `Status: Watching for changes` before invoking ssh.
+// Worktrees live OUTSIDE the main checkout, under the Mac sibling worktree
+// root `<parent>/vt-wts/<name>/`. mutagen syncs CONTENTS, so the basename
+// DIFFERS across the mirror (Mac `vt-wts` ↔ devbox `vt-wts-synced`). The
+// session is picked based on which root the
+// cwd falls under. Blocks on the chosen session reaching `Status: Watching for
+// changes` before invoking ssh.
 //
 // The remote .git/index IS synced (see mutagen-vt-remote.yml), so commands run
 // here see the same staged tree as local git. This is what lets pre-commit
@@ -28,14 +31,22 @@ import {dirname, resolve as pathResolve, relative as pathRelative, basename} fro
 import {posix as ppath} from 'node:path'
 import {homedir} from 'node:os'
 import {promisify} from 'node:util'
+import {ensureDepsFresh} from './dev-setup/common/ensure-deps-fresh.mjs'
 
 const execFileAsync = promisify(execFile)
 const REPO_ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REMOTE_ROOT = '/root/vtrepo-synced'
 const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
+// Mac-side worktree root basename — the local Mac path is `<parent>/vt-wts`,
+// the live mutagen `vt-wts` alpha AND where the app / git-gate place worktrees.
+// The basename DIFFERS across the mirror (Mac `vt-wts` ↔ devbox `vt-wts-synced`,
+// REMOTE_WTS_ROOT above); mutagen syncs contents, not names. Must equal the
+// session alpha, else a worktree cwd fails to map and run-remote throws.
 const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
+const LEGACY_WORKTREE_SIBLING_DIR_NAME = 'vt-wts-synced'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
 const MUTAGEN_SESSION_WTS = 'vt-wts'
+const MUTAGEN_SESSION_WTS_LEGACY = 'vt-wts-synced'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
 
 function loadEnvFile(p) {
@@ -84,17 +95,22 @@ function localMainCheckoutRoot() {
   }
 }
 
-function localWtsRoot(mainCheckoutRoot = localMainCheckoutRoot()) {
-  return pathResolve(mainCheckoutRoot, '..', WORKTREE_SIBLING_DIR_NAME)
+function localWtsRoot(
+  mainCheckoutRoot = localMainCheckoutRoot(),
+  siblingDirName = WORKTREE_SIBLING_DIR_NAME,
+) {
+  return pathResolve(mainCheckoutRoot, '..', siblingDirName)
 }
 
 // Pick the sync session + roots that govern `cwd`.
-//   - cwd inside `<main>/`             → vt-remote session, REMOTE_ROOT
-//   - cwd inside `<parent>/vt-wts/`    → vt-wts session, REMOTE_WTS_ROOT
-//   - cwd elsewhere                    → null (caller throws)
+//   - cwd inside `<main>/`                  → vt-remote session, REMOTE_ROOT
+//   - cwd inside `<parent>/vt-wts/`         → vt-wts session, REMOTE_WTS_ROOT
+//   - cwd inside legacy `<parent>/vt-wts-synced/` → vt-wts-synced session
+//   - cwd elsewhere                         → null (caller throws)
 function resolveSyncContext(cwd = process.cwd()) {
   const mainCheckoutRoot = localMainCheckoutRoot()
   const wtsRoot = localWtsRoot(mainCheckoutRoot)
+  const legacyWtsRoot = localWtsRoot(mainCheckoutRoot, LEGACY_WORKTREE_SIBLING_DIR_NAME)
 
   if (!pathRelative(mainCheckoutRoot, cwd).startsWith('..')) {
     return {
@@ -112,6 +128,14 @@ function resolveSyncContext(cwd = process.cwd()) {
       remoteRoot: REMOTE_WTS_ROOT,
     }
   }
+  if (!pathRelative(legacyWtsRoot, cwd).startsWith('..')) {
+    return {
+      kind: 'worktree',
+      session: MUTAGEN_SESSION_WTS_LEGACY,
+      localRoot: legacyWtsRoot,
+      remoteRoot: REMOTE_WTS_ROOT,
+    }
+  }
   return null
 }
 
@@ -123,11 +147,12 @@ function localWorktreeName(cwd, wtsRoot) {
 }
 
 function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd()} = {}) {
+  const syncContext = resolveSyncContext(cwd)
+  if (syncContext?.kind !== 'worktree') return false
   const mainCheckoutRoot = localMainCheckoutRoot()
-  const wtsRoot = localWtsRoot(mainCheckoutRoot)
-  const worktreeName = localWorktreeName(cwd, wtsRoot)
+  const worktreeName = localWorktreeName(cwd, syncContext.localRoot)
   if (worktreeName === null) return false
-  const worktreeRoot = pathResolve(wtsRoot, worktreeName)
+  const worktreeRoot = pathResolve(syncContext.localRoot, worktreeName)
   process.stderr.write(`[run-remote] repairing local worktree git metadata before sync: ${worktreeRoot}\n`)
   execFileSync('git', ['-C', mainCheckoutRoot, 'worktree', 'repair', '--relative-paths'], {
     stdio: 'ignore',
@@ -136,6 +161,11 @@ function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd()} = {}) {
 }
 
 function runLocal(cmd, args) {
+  // Deps-freshness guard (D5): the executing env's node_modules must match the
+  // committed lockfile before the command runs. Idempotent — a fresh env hashes
+  // two files and returns. Covers both the no-VT_REMOTE_HOST local path and the
+  // VT_REMOTE_EXEC re-entry on the devbox (where the ssh payload already ran it).
+  ensureDepsFresh()
   const child = spawn(cmd, args, {
     stdio: 'inherit',
     env: {
@@ -249,19 +279,59 @@ function repairRemoteWorktreeMetadataScript(remoteCwd) {
   const adminGitdirFile = ppath.join(adminDir, 'gitdir')
   const adminCommondirFile = ppath.join(adminDir, 'commondir')
 
+  // The worktree-root `.git` pointer is MACHINE-SPECIFIC: it names the main
+  // checkout by basename (`vtrepo` on the Mac, `vtrepo-synced` here), so it is
+  // deliberately NOT mirrored by the vt-wts mutagen session (see
+  // mutagen-vt-wts.yml). We materialize the correct devbox pointer here on
+  // every routed command. Because the file is sync-ignored, nothing clobbers
+  // it afterward — no race with the one-way-replica cycle.
+  //
+  // The admin-side gitdir/commondir under <main>/.git/worktrees/<name>/ ARE
+  // relative + identical across the mirror (both ends share the `vt-wts-synced`
+  // basename), so the vt-remote session syncs them correctly; rewriting them
+  // here is idempotent and makes the worktree self-healing before that sync.
+  //
   // Sibling layout relative paths:
   //   <wts>/<name>/.git           → gitdir: ../../<mainRepoDirName>/.git/worktrees/<name>
   //   <main>/.git/worktrees/<name>/gitdir → ../../../../<WTS_BASENAME>/<name>/.git
   //   commondir from admin → main .git is `../..`
+  //
+  // The single `[ -d adminDir ]` guard is what gates the repair: adminDir is
+  // synced by the vt-remote session, so its presence means git knows this
+  // worktree. We do NOT also require the `.git` pointer to pre-exist (it never
+  // syncs now) — its absence is exactly what this repair fixes.
   const wtsBasename = ppath.basename(REMOTE_WTS_ROOT)
   return [
-    `if [ -d ${shq(adminDir)} ] && [ -f ${shq(worktreeGitFile)} ]; then`,
+    `if [ -d ${shq(adminDir)} ]; then`,
     `echo ${shq(`[run-remote] repairing remote worktree git metadata: ${worktreeRoot}`)} >&2;`,
     `printf '%s\\n' ${shq(`gitdir: ../../${mainRepoDirName}/.git/worktrees/${worktreeName}`)} > ${shq(worktreeGitFile)};`,
     `printf '%s\\n' ${shq(`../../../../${wtsBasename}/${worktreeName}/.git`)} > ${shq(adminGitdirFile)};`,
     `printf '%s\\n' '../..' > ${shq(adminCommondirFile)};`,
     'fi',
   ].join(' ')
+}
+
+// Export GIT_DIR/GIT_COMMON_DIR so git in the remote command resolves against the
+// synced main repo's per-worktree admin dir, independent of the worktree's `.git`
+// pointer FILE. The one-way mutagen replica continuously re-copies the Mac-side
+// pointer (`gitdir: ../../<mac-main-basename>/.git/worktrees/<name>`), whose
+// basename differs from the dev box (`vtrepo-synced`), so it resolves to a
+// non-existent path on the box. `repairRemoteWorktreeMetadataScript` rewrites it
+// per invocation, but a later mutagen cycle reverts it mid-run — so a
+// long-running command (notably the tier<=1 pre-push health gate) hits
+// `fatal: not a git repository` partway through. Exported env vars are immune to
+// the file being reverted and are inherited by every child `git` the command
+// spawns. Returns export statements for a worktree cwd, else ':' (noop).
+//
+// Pure: returns a string. Mirrors repairRemoteWorktreeMetadataScript's scoping
+// (worktree cwds only — the main checkout's real `.git` dir needs nothing).
+function remoteWorktreeGitEnvScript(remoteCwd) {
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
+  if (worktreeRoot === null) return ':'
+  const worktreeName = ppath.basename(worktreeRoot)
+  const gitCommonDir = ppath.join(REMOTE_ROOT, '.git')
+  const gitDir = ppath.join(gitCommonDir, 'worktrees', worktreeName)
+  return `export GIT_COMMON_DIR=${shq(gitCommonDir)} GIT_DIR=${shq(gitDir)}`
 }
 
 // Inventory of worktree names known to the local repo.
@@ -288,8 +358,9 @@ function localWorktreeNames(repoRoot = REPO_ROOT) {
 }
 
 // Shell snippet that prints the remote worktree inventory across BOTH roots:
-// the synced main checkout's nested .worktrees/ (legacy) AND the synced sibling vt-wts/
-// directory. Anything in either is considered "remote-known" for reconcile.
+// the synced main checkout's nested .worktrees/ (legacy) AND the synced
+// vt-wts-synced/ worktree root. Anything in either is considered "remote-known"
+// for reconcile.
 // Pure: returns a string. Caller is responsible for sending it over ssh.
 function remoteWorktreeListingScript({remoteRoot = REMOTE_ROOT, remoteWtsRoot = REMOTE_WTS_ROOT} = {}) {
   return [
@@ -398,10 +469,25 @@ function runRemote(host, cmd, args, syncContext) {
   }
   const remoteCwd = ppath.join(remoteRoot, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')
+
+  // Deps-freshness guard (D5): prepend the guard to the ssh payload so commands
+  // ssh'd directly to the devbox (not re-entering run-remote) still get a
+  // node_modules consistent with the synced lockfile. run-remote flushes mutagen
+  // before this, so the remote lockfile is current. Mapped through the same
+  // localRoot→remoteRoot transform as remoteCwd, so it is correct for the main
+  // checkout and each worktree.
+  const guardRel = pathRelative(
+    localRoot,
+    pathResolve(REPO_ROOT, 'scripts/dev-setup/common/ensure-deps-fresh.mjs'),
+  )
+  const guardRemotePath = ppath.join(remoteRoot, guardRel.split(/[\\/]/).join('/'))
+
   const remoteScript = [
     repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
+    remoteWorktreeGitEnvScript(remoteCwd),
     `export ${RECURSION_GUARD}=1`,
+    `node ${shq(guardRemotePath)}`,
     `exec ${quotedCmd}`,
   ].join(' && ')
 
@@ -472,6 +558,7 @@ export {
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
+  remoteWorktreeGitEnvScript,
   repairLocalWorktreeMetadataIfNeeded,
   remoteHostFromEnvironment,
   resolveSyncContext,

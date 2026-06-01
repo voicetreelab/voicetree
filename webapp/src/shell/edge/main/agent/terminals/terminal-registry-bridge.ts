@@ -1,11 +1,11 @@
 /**
- * Local cache mirror of the per-vault VTD's terminal registry, driven by
+ * Local cache mirror of the per-project VTD's terminal registry, driven by
  * `terminal-registry` SSE deltas.
  *
  * Backs `getTerminalRecords` cold-start + live deltas for Stage 3
  * webapp callers. The cache is mutated by `applyTerminalRegistryEnvelope`
  * (which receives the envelopes the SSE subscriber forwards after the
- * vault-switch fence) and read by `getCachedTerminalRecords` /
+ * project-switch fence) and read by `getCachedTerminalRecords` /
  * `getCachedTerminalRecord`.
  *
  * Three of the five `TerminalRegistryEvent` shapes mutate the cache:
@@ -18,14 +18,14 @@
  * `terminal-ui-child-registered`) are not registry mutations — they
  * carry instructions the renderer acts on. This bridge forwards them
  * through `applyTerminalRegistryEnvelope`'s return value so a caller
- * (the openVault wiring) can fan them out to the renderer without each
+ * (the openProject wiring) can fan them out to the renderer without each
  * receiver re-parsing the envelope.
  *
- * Vault-switch semantics: the cache survives across vault switches by
+ * Project-switch semantics: the cache survives across project switches by
  * design — the SSE subscriber resets its `lastSeenSeq` on swap, and the
  * Stage-3 cold-start path will call `resetCache` + `getTerminalRecords`
  * RPC to fill the mirror fresh. For now this module exports
- * `resetTerminalRegistryCache` so vault-switch wiring (and tests) can
+ * `resetTerminalRegistryCache` so project-switch wiring (and tests) can
  * clear it explicitly.
  *
  * NOTE (closure invariant): the cache stores `TerminalRecord` values
@@ -65,8 +65,8 @@ export function getCachedTerminalRecord(terminalId: TerminalId): TerminalRecord 
 }
 
 /**
- * Wipe the cache. Called from vault-switch wiring (Stage 3) before the
- * subscriber resumes against the new vault's hub, and from tests
+ * Wipe the cache. Called from project-switch wiring (Stage 3) before the
+ * subscriber resumes against the new project's hub, and from tests
  * between cases.
  */
 export function resetTerminalRegistryCache(): void {
@@ -74,8 +74,8 @@ export function resetTerminalRegistryCache(): void {
 }
 
 /**
- * Replace the cache contents with a fresh snapshot. Used by vault-open
- * cold-start: after `bindVtDaemonForVault` resolves and before the
+ * Replace the cache contents with a fresh snapshot. Used by project-open
+ * cold-start: after `bindVtDaemonForProject` resolves and before the
  * `terminal-registry` SSE subscription opens, the caller fetches the
  * authoritative record list via `vtdClient.terminals.getTerminalRecords()`
  * and primes the mirror. Fires listeners exactly once with the new
@@ -143,8 +143,8 @@ export type TerminalRegistryEnvelopeOutcome =
 
 /**
  * Apply one envelope to the cache. The envelope is assumed to have
- * already passed the vault-switch fence at the SSE subscriber layer;
- * this function performs no vault check.
+ * already passed the project-switch fence at the SSE subscriber layer;
+ * this function performs no project check.
  */
 export function applyTerminalRegistryEnvelope(
     envelope: TerminalRegistryEnvelope,
@@ -202,6 +202,11 @@ function applyPatch(record: TerminalRecord, patch: TerminalRecordPatch): Termina
             return {
                 ...record,
                 terminalData: {...record.terminalData, isDone: patch.value},
+            }
+        case 'lifecycle':
+            return {
+                ...record,
+                terminalData: {...record.terminalData, lifecycle: patch.value},
             }
         case 'activity': {
             const next = {...record.terminalData}

@@ -144,7 +144,7 @@ export function deriveRenderGraph(graph: ProjectedGraph): RenderGraph {
     return {rootPath: graph.rootPath, rootName, nodes, nodeById, edges, forests, arboricity: graph.arboricity}
 }
 
-function buildProjectedGraphFromVault(root: string): ProjectedGraph {
+function buildProjectedGraphFromProject(root: string): ProjectedGraph {
     const mdFiles = scanMarkdownFiles(root)
     const structureNodes = new Map<string, StructureNode>()
     const contentMap = new Map<string, string>()
@@ -251,7 +251,7 @@ export function buildAutoViewGraphFromState(graphState: Graph, rootPath: string)
 }
 
 export function buildAutoViewGraph(root: string): ProjectedGraph {
-    return buildProjectedGraphFromVault(root)
+    return buildProjectedGraphFromProject(root)
 }
 
 export interface RenderTreeCoverOptions {
@@ -345,7 +345,7 @@ export function renderAutoView(
     options: AutoViewOptions = {},
 ): {output: string; format: string} {
     const root: string = path.resolve(projectRoot)
-    const graph: ProjectedGraph = buildProjectedGraphFromVault(root)
+    const graph: ProjectedGraph = buildProjectedGraphFromProject(root)
 
     const output: string = renderTreeCover(graph, {
         budget: options.budget,

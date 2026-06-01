@@ -2,7 +2,7 @@
 //
 // The harness now runs the REAL folder-node pipeline end-to-end:
 //   chevron tap → real folderCollapse → real applyGraphDeltaToUI
-//   ⤷ powered by the real graph-state `project()` over a synthetic vault.
+//   ⤷ powered by the real graph-state `project()` over a synthetic project.
 // See ../_harness/README.md for the dependency layering. This file just
 // supplies page copy specific to the folder-handle demo.
 
@@ -18,7 +18,7 @@ mountMockupHarness({
         'This page drives the <strong>real</strong> folder-node pipeline: ' +
         '<code>FolderHandleService</code> → <code>folderCollapse</code> → ' +
         '<code>applyGraphDeltaToUI</code>, with an in-browser daemon running the real ' +
-        '<code>project()</code> from <code>@vt/graph-state</code> over a synthetic vault.',
+        '<code>project()</code> from <code>@vt/graph-state</code> over a synthetic project.',
     legend: [
         { html: '<b>Chevron click</b> → real <code>toggleFolderCollapse</code> → in-browser daemon → real <code>applyGraphDeltaToUI</code>.' },
         { html: '<b>Folder body</b> is <code>ungrabify()</code>\'d: pan + right-click pass through to the canvas.' },

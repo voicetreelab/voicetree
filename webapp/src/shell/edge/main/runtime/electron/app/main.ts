@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, nativeImage} from 'electron';
+import {app, BrowserWindow, ipcMain, nativeImage} from 'electron';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {isAbsolute, join} from 'node:path';
@@ -10,15 +10,17 @@ import {getVoicetreeHomePath} from '@/shell/edge/main/runtime/state/app-electron
 import {existsSync} from 'node:fs';
 import {getAuthToken, getDaemonUrl, unbindVtDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {installVtDaemonEventsBridge} from '@/shell/edge/main/runtime/electron/daemon/events/vtDaemonEventsBridge';
-import {installVtTerminalAttachBridge} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachBridge';
+import {installVtTerminalAttachBridge, type VtTerminalAttachBridgeHandle} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachBridge';
+import {rehydrateTerminalPanels} from '@/shell/edge/main/agent/terminals/rehydrateTerminalPanels';
 import {getMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
 import type {TerminalRecord} from '@vt/vt-daemon-client';
 import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
+import {runUserDataMigrationAtStartup} from '@/shell/edge/main/runtime/electron/startup/user-data-migration';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
-import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
+import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
     refreshUnclaimedTmuxSessions,
@@ -42,7 +44,9 @@ import {appResource, createWindow, stopTrackpadMonitoring} from './create-window
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
-import {tracing} from '@vt/observability';
+import {tracing, observabilityMetrics} from '@vt/observability';
+import {perfProbeFromEnv} from '@vt/perf-analysis/perf-probe';
+import {startAppMetricsSampler, type AppMetricsSampler} from '@/shell/edge/main/observability/appMetricsSampler';
 import {shutdownActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
@@ -71,7 +75,7 @@ if (app.isPackaged) {
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Note: vt-daemon's MCP server runs out-of-process inside the per-vault VTD
+// Note: vt-daemon's tool server runs out-of-process inside the per-project VTD
 // child. The in-process `configureMcpServer` call that used to live here
 // wired in-process bridges (`getMcpGraph`, `getLiveStateBridge`, …) against
 // vt-daemon's module-level state. After BF-375/BF-376 those bridges are
@@ -110,8 +114,40 @@ if (electronVtBinDir !== null) {
 }
 
 configureEnvironment();
-tracing.init('vt-electron-main', pinProcessVoicetreeHomePath());
+// Pin the VoiceTree home before tracing so it (and the daemon/CLI it spawns)
+// share one settings root. The OTLP gRPC exporter only attaches when
+// VOICETREE_OTLP_ENDPOINT is present — set by the ensure-perf-stack preflight
+// that wraps `npm run electron(:prod)`; absent it, only the NDJSON exporter
+// runs. tracing.init reads this once at startup, so the env must already be set
+// by the launching process (it is: the preflight exports it before spawn).
+pinProcessVoicetreeHomePath();
+tracing.init('vt-electron-main', {
+    otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
+    instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
+});
+// Metrics share the same resource (service.instance.id = run id) as tracing so
+// renderer-probe MELTs forwarded via recordRendererTelemetry and the GPU-process
+// sampler below export through ONE provider. No-op when VOICETREE_OTLP_ENDPOINT
+// is absent (returns inert meters), so the normal app pays nothing.
+observabilityMetrics.init('vt-electron-main', {
+    otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
+    instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
+});
 tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
+
+// Start the perf probe at the tier the launcher selected (ensure-perf-stack sets
+// VOICETREE_PERF_TIER=lite for interactive runs; storm runs set deep; PERF_STACK=0
+// leaves it unset → no-op). Lite emits wall/CPU profiles + runtime metrics — the
+// metrics are what populate the VT Runs dashboard. Electron keeps the event loop
+// alive so the probe's beforeExit self-stop never fires; we stop it explicitly on
+// will-quit so Pyroscope flushes and the durable log closes.
+let stopPerfProbe: (() => Promise<void>) | undefined;
+perfProbeFromEnv('vt-electron-main').then(
+    (stop) => { stopPerfProbe = stop; },
+    // Profiling is best-effort: a probe failure (e.g. Pyroscope unreachable)
+    // must never take down app startup — log and continue uninstrumented.
+    (err: unknown) => { log.warn(`[perf-probe] failed to start: ${err instanceof Error ? err.message : String(err)}`); },
+);
 validateStartupCwd();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
@@ -136,20 +172,30 @@ let textToTreeServerPort: number | null = null;
 // (the events client reschedules and the terminal-attach bridge only opens
 // upstream WS on demand). Post-Phase-2 (BF-375): the bridges resolve the
 // daemon URL + auth token via daemon-url-binding, which re-ensures the
-// per-vault VTD on every access.
+// per-project VTD on every access.
 const teardownVtDaemonEventsBridge: () => void = installVtDaemonEventsBridge({
     getMainWindow,
     getDaemonUrl,
     getAuthToken,
 });
-const teardownVtTerminalAttachBridge: () => void = installVtTerminalAttachBridge({
+const vtTerminalAttachBridge: VtTerminalAttachBridgeHandle = installVtTerminalAttachBridge({
     getMainWindow,
     getDaemonUrl,
     getAuthToken,
 });
 
+// Rehydrate the floating terminal panels on demand. The renderer invokes this
+// once its cytoscape view is mounted (every fresh load, including a Cmd+R
+// reload) and again on every `project:ready`. Panels are derived from the
+// durable terminal registry rather than the transient spawn-time
+// `terminal-ui-launch` events, so reloading the UI no longer loses the panels
+// for still-running agents. Idempotent (see rehydrateTerminalPanels).
+ipcMain.handle('terminal:rehydrate', (): void => {
+    rehydrateTerminalPanels();
+});
+
 // Bridge terminal-registry cache mutations (driven by SSE deltas + the
-// vault-open cold-start prime) to the renderer / completion notifier /
+// project-open cold-start prime) to the renderer / completion notifier /
 // recovery pollers. The local cache mirror is the canonical change
 // source — agent-runtime is daemon-side post-BF-376.
 const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
@@ -164,12 +210,28 @@ subscribeToTerminalRegistryCache((records: readonly TerminalRecord[]): void => {
 void app.whenReady().then(async () => {
     console.time('[Startup] Total time to window');
 
+    // Migrate a returning 2.9.x user's durable config (settings.json, projects.json,
+    // voicetree-config.json) from the old Electron userData dir to ~/.voicetree. This
+    // MUST be the first awaited step: it has to win the race against the first
+    // loadSettings(), which writes DEFAULT_SETTINGS at the new path on ENOENT and would
+    // otherwise defeat the absent-at-new guard. Non-blocking and never throws.
+    await runUserDataMigrationAtStartup();
+
     setupRPCHandlers();
     registerGraphIpcHandlers();
     setupApplicationMenu();
 
-    // The per-vault VTD child is spawned (or adopted) on-demand by
-    // openVault → bindVtDaemonForVault; tmux preflight / server ensure /
+    // GPU/compositor CPU sampler — perf-probe runs only. app.getAppMetrics()
+    // is the only in-process view of the GPU process's cost; the renderer
+    // profile and a headless run cannot see it. Gated to VOICETREE_PERF_PROBE
+    // with an OTLP endpoint so the normal app and non-perf tests never sample.
+    if (process.env.VOICETREE_PERF_PROBE === '1' && (process.env.VOICETREE_OTLP_ENDPOINT ?? '').length > 0) {
+        appMetricsSampler = startAppMetricsSampler({ getAppMetrics: () => app.getAppMetrics() });
+        log.info('[Startup] started GPU/app-metrics sampler (perf-probe run)');
+    }
+
+    // The per-project VTD child is spawned (or adopted) on-demand by
+    // openProject → bindVtDaemonForProject; tmux preflight / server ensure /
     // headless reconciliation all run inside the daemon at boot. The
     // lifecycle JSONL telemetry sink is installed by `vtd.ts:333` — Main
     // is a client and observes the events via the `terminal-registry`
@@ -178,7 +240,7 @@ void app.whenReady().then(async () => {
     // Register this instance for vt-debug discovery
     await registerInstance();
 
-    // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
+    // Reap leftover vt-graphd daemons whose project paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
     const orphanCleanup: ReturnType<typeof killOrphanVtGraphdDaemons> = killOrphanVtGraphdDaemons();
@@ -203,9 +265,6 @@ void app.whenReady().then(async () => {
     await setupOnboardingDirectory();
     console.timeEnd('[Startup] setupOnboardingDirectory');
 
-    // Refresh the shipped AGENT_PROMPT_CORE once per app version, while preserving same-version edits.
-    await migrateAgentPromptCoreOnAppUpdateIfNeeded(app.getVersion());
-
     // Start the server and store the port it's using
     // Factory automatically chooses StubServer (test) or RealServer (production)
     console.time('[Startup] textToTreeServer.start');
@@ -217,6 +276,16 @@ void app.whenReady().then(async () => {
 
     console.time('[Startup] createWindow');
     createWindow({isQuitting: () => isQuitting});
+
+    // On a renderer reload (Cmd+R), the old page is torn down without running
+    // its `terminal:detach` cleanup, orphaning the main-side attach clients and
+    // leaving the tmux sessions falsely "claimed". Dispose them as the new
+    // document begins loading; the fresh renderer then re-attaches via
+    // `terminal:rehydrate`. The first load disposes an empty set (no-op).
+    getMainWindow()?.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame): void => {
+        if (isMainFrame) vtTerminalAttachBridge.disposeAllClients();
+    });
+
     startUnclaimedTmuxSessionPolling();
     startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
@@ -251,6 +320,7 @@ void app.whenReady().then(async () => {
 
 // Track if app is truly quitting (vs window close on macOS)
 let isQuitting: boolean = false;
+let appMetricsSampler: AppMetricsSampler | null = null;
 
 // Handle hot reload and app quit scenarios
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
@@ -266,6 +336,7 @@ installQuitLifecycleHandlers({
 });
 
 app.on('will-quit', () => {
+    appMetricsSampler?.stop();
     // Stop daemon clients after windows have closed so position persistence can
     // finish while the daemon is still available.
     unsubscribeFromDaemonSSE();
@@ -273,8 +344,9 @@ app.on('will-quit', () => {
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
     teardownVtDaemonEventsBridge();
-    teardownVtTerminalAttachBridge();
+    vtTerminalAttachBridge.teardown();
     void unbindVtDaemon();
+    void stopPerfProbe?.();
 });
 
 app.on('activate', () => {

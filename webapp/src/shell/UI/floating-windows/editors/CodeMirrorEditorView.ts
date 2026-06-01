@@ -42,6 +42,16 @@ export function hasFrontmatter(content: string): boolean {
 }
 
 /**
+ * Theme extension for the editor chrome, derived from the active color mode.
+ * `oneDark` in dark mode; nothing in light mode (the base/light styling applies).
+ * Held in a CodeMirror `Compartment` so the theme can be reconfigured live when
+ * the document toggles between dark and light — see `setupDarkModeObserver`.
+ */
+function themeExtensionFor(isDark: boolean): Extension {
+  return isDark ? oneDark : [];
+}
+
+/**
  * Configuration options for CodeMirrorEditorView
  */
 export interface CodeMirrorEditorOptions {
@@ -86,8 +96,11 @@ export class CodeMirrorEditorView extends Disposable {
   private updateListenerDispose: () => void;
   private editableCompartment: Compartment;
   private autosaveCompartment: Compartment;
+  private themeCompartment: Compartment;
   private autosaveExtensions: Extension[];
   private currentMode: 'readonly' | 'editing';
+  /** The color mode currently reflected by `themeCompartment`. Kept in sync by the dark-mode observer. */
+  private appliedThemeIsDark: boolean;
 
   /**
    * Creates a new CodeMirror editor instance
@@ -117,11 +130,16 @@ export class CodeMirrorEditorView extends Disposable {
     });
     this.updateListenerDispose = updateListener.dispose;
 
-    // Initialize Compartments for mode switching (readonly ↔ editing)
+    // Initialize Compartments for live reconfiguration: mode switching
+    // (readonly ↔ editing) and the dark/light theme (oneDark in/out).
     this.editableCompartment = new Compartment();
     this.autosaveCompartment = new Compartment();
+    this.themeCompartment = new Compartment();
     this.currentMode = options.startReadonly ? 'readonly' : 'editing';
     this.autosaveExtensions = []; // Populated by createExtensions
+    // Resolve the initial color mode once: explicit option wins, else the
+    // document's `dark` class. The observer keeps this in sync thereafter.
+    this.appliedThemeIsDark = options.darkMode ?? document.documentElement.classList.contains('dark');
 
     // Create editor state with extensions
     const state: EditorState = EditorState.create({
@@ -148,8 +166,8 @@ export class CodeMirrorEditorView extends Disposable {
       return this.createJsonExtensions(updateListenerExtension);
     }
 
-    // Check if dark mode is active (either via option or from document class)
-    const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
+    // Color mode resolved once in the constructor; the observer keeps it current.
+    const isDarkMode: boolean = this.appliedThemeIsDark;
 
     // Selection visibility fix is handled in floating-windows.css
     // (CM6's selection layer renders behind content - CSS ensures backgrounds are transparent)
@@ -187,11 +205,11 @@ export class CodeMirrorEditorView extends Disposable {
       this.autosaveCompartment.of(
         this.currentMode === 'editing' ? this.autosaveExtensions : []
       ),
+      // Theme lives in a Compartment so dark↔light toggles reconfigure it live.
+      this.themeCompartment.of(themeExtensionFor(isDarkMode)),
     );
 
-    // Add dark mode theme if active
     if (isDarkMode) {
-      extensions.push(oneDark);
       this.container.setAttribute('data-color-mode', 'dark');
     }
 
@@ -202,8 +220,8 @@ export class CodeMirrorEditorView extends Disposable {
    * Create simplified extensions for JSON editing mode
    */
   private createJsonExtensions(updateListenerExtension: Extension): Extension[] {
-    // Check if dark mode is active (either via option or from document class)
-    const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
+    // Color mode resolved once in the constructor; the observer keeps it current.
+    const isDarkMode: boolean = this.appliedThemeIsDark;
 
     const extensions: Extension[] = [
       basicSetup,
@@ -223,11 +241,11 @@ export class CodeMirrorEditorView extends Disposable {
       this.autosaveCompartment.of(
         this.currentMode === 'editing' ? this.autosaveExtensions : []
       ),
+      // Theme lives in a Compartment so dark↔light toggles reconfigure it live.
+      this.themeCompartment.of(themeExtensionFor(isDarkMode)),
     );
 
-    // Add dark mode theme if active
     if (isDarkMode) {
-      extensions.push(oneDark);
       this.container.setAttribute('data-color-mode', 'dark');
     }
 
@@ -235,12 +253,24 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
-   * Setup dark mode observer to sync with system theme changes
+   * Observe document-level dark-mode changes and keep the editor in sync.
+   *
+   * The `dark` class on `document.documentElement` is the single source of
+   * truth for the app theme. On each toggle we reconfigure `themeCompartment`
+   * so `oneDark` is added (light→dark) or removed (dark→light) live, on the
+   * already-open editor — no rebuild, no close/reopen. This is what makes the
+   * theme reactive in BOTH directions for pinned and unpinned editors.
    */
   private setupDarkModeObserver(): void {
     const observer: MutationObserver = new MutationObserver(() => {
       const isDark: boolean = document.documentElement.classList.contains('dark');
       this.container.setAttribute('data-color-mode', isDark ? 'dark' : 'light');
+
+      if (isDark === this.appliedThemeIsDark) return; // Class changed, but not the color mode.
+      this.appliedThemeIsDark = isDark;
+      this.view.dispatch({
+        effects: this.themeCompartment.reconfigure(themeExtensionFor(isDark)),
+      });
     });
 
     observer.observe(document.documentElement, {

@@ -53,8 +53,8 @@ export function spawnHeadlessAgent(
     cwd: string | undefined,
     env: Record<string, string>,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
-): void {
-    spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
+): Promise<void> {
+    return spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
 }
 
 /**
@@ -137,7 +137,7 @@ export function hasHeadlessAgentOutput(terminalId: string): boolean {
  *
  * `preserve` is for host process shutdown where tmux sessions must outlive the
  * host and be reconciled on relaunch. `terminate` is for explicit destructive
- * cleanup such as closing an agent or switching vaults.
+ * cleanup such as closing an agent or switching projects.
  */
 export function cleanupHeadlessAgents(
     policy: HeadlessAgentCleanupPolicy = TERMINATE_TMUX_SESSIONS,

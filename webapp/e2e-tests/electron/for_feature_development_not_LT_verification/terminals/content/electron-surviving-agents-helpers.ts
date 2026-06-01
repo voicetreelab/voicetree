@@ -18,7 +18,7 @@ import {createHash} from 'crypto';
 import {spawnSync} from 'child_process';
 import type {Core as CytoscapeCore} from 'cytoscape';
 import {
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder/folder-test-helpers';
 
@@ -54,7 +54,7 @@ export function electronLinuxLaunchFlags(): readonly string[] {
 export type UnclaimedTmuxSessionShape = {
     readonly sessionName: string;
     readonly terminalId: string;
-    readonly classification: 'this-vault' | 'foreign-vault';
+    readonly classification: 'this-project' | 'foreign-project';
     readonly attachable: boolean;
 };
 
@@ -84,7 +84,6 @@ export interface ExtendedWindow {
                 readonly name: string;
                 readonly type: 'folder';
                 readonly lastOpened: number;
-                readonly voicetreeInitialized: boolean;
             }) => Promise<void>;
             listUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSessionShape[]>;
             refreshUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSessionShape[]>;
@@ -95,12 +94,12 @@ export interface ExtendedWindow {
     };
 }
 
-export interface SurvivingAgentsVault {
+export interface SurvivingAgentsProject {
     readonly tempRoot: string;
     readonly projectRoot: string;
     readonly contextNodePath: string;
     readonly claudeProjectsRoot: string;
-    readonly appSupportPath: string;
+    readonly voicetreeHomePath: string;
 }
 
 function shortTempRoot(): string {
@@ -111,9 +110,9 @@ export function createShortTempDir(prefix: string): Promise<string> {
     return fs.mkdtemp(path.join(shortTempRoot(), prefix));
 }
 
-export function tmuxSocketPath(appSupportPathOverride?: string): string {
-    if (appSupportPathOverride && appSupportPathOverride.trim().length > 0) {
-        return path.join(appSupportPathOverride, 'tmux.sock');
+export function tmuxSocketPath(voicetreeHomePathOverride?: string): string {
+    if (voicetreeHomePathOverride && voicetreeHomePathOverride.trim().length > 0) {
+        return path.join(voicetreeHomePathOverride, 'tmux.sock');
     }
 
     // Must match the home-scoped socket used by agent-runtime's tmux-session-manager.
@@ -124,15 +123,15 @@ export function tmuxSocketPath(appSupportPathOverride?: string): string {
     return path.join(voicetreeHomePath, 'tmux.sock');
 }
 
-export async function createSurvivingAgentsVault(): Promise<SurvivingAgentsVault> {
-    const tempRoot: string = await createShortTempDir('vt-sa-vault-');
-    const projectRoot: string = await createFolderTestVault(tempRoot);
+export async function createSurvivingAgentsProject(): Promise<SurvivingAgentsProject> {
+    const tempRoot: string = await createShortTempDir('vt-sa-project-');
+    const projectRoot: string = await createFolderTestProject(tempRoot);
     const contextNodePath: string = path.join(projectRoot, 'readme.md');
     const claudeProjectsRoot: string = path.join(tempRoot, 'claude-projects');
-    const appSupportPath: string = path.join(tempRoot, 'app');
+    const voicetreeHomePath: string = path.join(tempRoot, 'app');
     await fs.mkdir(claudeProjectsRoot, {recursive: true});
-    await fs.mkdir(appSupportPath, {recursive: true});
-    return {tempRoot, projectRoot, contextNodePath, claudeProjectsRoot, appSupportPath};
+    await fs.mkdir(voicetreeHomePath, {recursive: true});
+    return {tempRoot, projectRoot, contextNodePath, claudeProjectsRoot, voicetreeHomePath};
 }
 
 export function buildNamespaceHash(projectRoot: string): string {
@@ -168,7 +167,7 @@ export async function ensureScreenshotDir(): Promise<void> {
     await fs.mkdir(SCREENSHOT_DIR, {recursive: true});
 }
 
-export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void> {
+export async function ensureProjectLoadedIntoGraph(appWindow: Page): Promise<void> {
     await waitForGraphLoaded(appWindow, 1);
 }
 
@@ -178,7 +177,7 @@ export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void>
  * Discovery's Claude resolver scans `*.jsonl` under
  * `VOICETREE_CLAUDE_PROJECTS_DIR` (or `~/.claude/projects` by default) and
  * matches records whose `message.content` contains the three VoiceTree
- * markers: VOICETREE_TERMINAL_ID, VOICETREE_VAULT_PATH, TASK_NODE_PATH.
+ * markers: VOICETREE_TERMINAL_ID, VOICETREE_PROJECT_PATH, TASK_NODE_PATH.
  *
  * The e2e tests set VOICETREE_CLAUDE_PROJECTS_DIR to a temp dir and call this
  * helper to seed the matching transcript, so the resolver can find the
@@ -197,7 +196,7 @@ export async function fixtureClaudeTranscript(opts: {
     const transcriptPath: string = path.join(subdir, `${opts.sessionId}.jsonl`);
     const markerText: string = [
         `VOICETREE_TERMINAL_ID = ${opts.terminalId}`,
-        `VOICETREE_VAULT_PATH = ${opts.projectRoot}`,
+        `VOICETREE_PROJECT_PATH = ${opts.projectRoot}`,
         `TASK_NODE_PATH = ${opts.taskNodePath}`,
     ].join('\n');
     const record = {
@@ -245,7 +244,7 @@ export async function fixtureRecoveryMetadata(opts: {
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: opts.terminalId,
                 AGENT_NAME: opts.agentName,
-                VOICETREE_VAULT_PATH: opts.projectRoot,
+                VOICETREE_PROJECT_PATH: opts.projectRoot,
                 VOICETREE_PROJECT_DIR: projectDir,
                 ...(opts.taskNodePath ? {TASK_NODE_PATH: opts.taskNodePath} : {}),
             },
@@ -259,36 +258,36 @@ export async function fixtureRecoveryMetadata(opts: {
 /**
  * Playwright test fixture extension shared by all Surviving-Agents specs.
  *
- * - `vault`: fresh temp vault with `.md` files registered by the graph daemon
- * - `electronApp`: launches dist-electron with that vault preloaded; cleans up
+ * - `project`: fresh temp project with `.md` files registered by the graph daemon
+ * - `electronApp`: launches dist-electron with that project preloaded; cleans up
  * - `appWindow`: first window, project loaded, cytoscape ready
  * - `seededSessionName`: pre-allocated tmux session name (test seeds it on
  *    demand; teardown always kills, even if test failed mid-setup)
  */
 export const test = base.extend<{
-    vault: SurvivingAgentsVault;
+    project: SurvivingAgentsProject;
     electronApp: ElectronApplication;
     appWindow: Page;
     seededSessionName: string;
 }>({
-    vault: [async ({}, use) => {
-        const vault: SurvivingAgentsVault = await createSurvivingAgentsVault();
+    project: [async ({}, use) => {
+        const project: SurvivingAgentsProject = await createSurvivingAgentsProject();
         try {
-            await use(vault);
+            await use(project);
         } finally {
-            await fs.rm(vault.tempRoot, {recursive: true, force: true});
+            await fs.rm(project.tempRoot, {recursive: true, force: true});
         }
     }, {timeout: 10000}],
 
-    electronApp: [async ({vault}, use) => {
-        const tempUserDataPath: string = vault.appSupportPath;
+    electronApp: [async ({project}, use) => {
+        const tempUserDataPath: string = project.voicetreeHomePath;
         await fs.mkdir(tempUserDataPath, {recursive: true});
 
         await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vault.projectRoot,
-            vaultConfig: {
-                [vault.projectRoot]: {
-                    writeFolder: vault.projectRoot,
+            lastDirectory: project.projectRoot,
+            projectConfig: {
+                [project.projectRoot]: {
+                    writeFolderPath: project.projectRoot,
                     readPaths: [],
                 },
             },
@@ -296,11 +295,10 @@ export const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
             id: PROJECT_ID,
-            path: vault.projectRoot,
+            path: project.projectRoot,
             name: PROJECT_ID,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
         const electronApp = await electron.launch({
@@ -316,7 +314,7 @@ export const test = base.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
-                VOICETREE_CLAUDE_PROJECTS_DIR: vault.claudeProjectsRoot,
+                VOICETREE_CLAUDE_PROJECTS_DIR: project.claudeProjectsRoot,
             },
             timeout: 15000,
         });
@@ -379,12 +377,12 @@ export const test = base.extend<{
         await use(window);
     }, {timeout: 60000}],
 
-    seededSessionName: [async ({vault}, use) => {
-        const name: string = buildSessionName(vault.projectRoot, SEEDED_TERMINAL_ID);
+    seededSessionName: [async ({project}, use) => {
+        const name: string = buildSessionName(project.projectRoot, SEEDED_TERMINAL_ID);
         try {
             await use(name);
         } finally {
-            killSeededTmuxSession(name, tmuxSocketPath(vault.appSupportPath));
+            killSeededTmuxSession(name, tmuxSocketPath(project.voicetreeHomePath));
         }
     }, {timeout: 10000}],
 });

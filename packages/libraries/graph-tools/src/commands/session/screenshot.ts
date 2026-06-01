@@ -45,7 +45,7 @@ export type ScreenshotOptions = {
   outPath?: string
   port?: number
   pid?: number
-  vault?: string
+  project?: string
   forceNew?: boolean
 }
 
@@ -86,10 +86,10 @@ export function parseArgs(argv: string[]): ScreenshotOptions {
       options.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       options.pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      options.vault = argv[++i]
-    } else if (arg.startsWith('--vault=')) {
-      options.vault = arg.slice('--vault='.length)
+    } else if (arg === '--project') {
+      options.project = argv[++i]
+    } else if (arg.startsWith('--project=')) {
+      options.project = arg.slice('--project='.length)
     } else if (arg === '--new') {
       options.forceNew = true
     }
@@ -190,7 +190,7 @@ async function screenshotHandler(argv: string[]): Promise<Response<unknown>> {
   const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
-    vault: options.vault,
+    project: options.project,
     forceNew: options.forceNew,
   })
 

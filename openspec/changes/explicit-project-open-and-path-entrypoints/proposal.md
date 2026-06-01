@@ -35,7 +35,7 @@ openProject(projectPath)
 
 ## Non-Goals
 
-- Rename every `vault` symbol in the repository.
+- Rename every `project` symbol in the repository.
 - Replace the global home path API while another agent is implementing it.
 - Remove the project picker recent-project list.
 - Change existing project data formats beyond what is needed to stop startup autoload.
@@ -59,8 +59,8 @@ Likely touched code:
 - `webapp/src/shell/UI/App.tsx`
 - `webapp/src/shell/UI/ProjectSelectionScreen.tsx`
 - `webapp/src/shell/UI/views/graph-view/VoiceTreeGraphView.ts`
-- `webapp/src/shell/edge/main/graph/watch_folder/openVault.ts`
+- `webapp/src/shell/edge/main/graph/watch_folder/openProject.ts`
 - `webapp/src/shell/edge/main/runtime/electron/startup/startup-folder-override.ts`
 - `webapp/src/shell/edge/main/workspace/project-*`
-- `packages/systems/graph-db-server/src/application/workflows/vaultLifecycle.ts`
+- `packages/systems/graph-db-server/src/application/workflows/projectLifecycle.ts`
 - tests around startup hints, project picker selection, and daemon open workflow

@@ -5,9 +5,10 @@ import type { VTSettings } from '@vt/graph-model/settings';
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
 import {getCallbacks} from '@vt/graph-model';
 import {resolveVoicetreeHomePath} from '@vt/paths';
+import {SETTINGS_FILENAME} from '../config-files.ts';
 
 function getSettingsPath(voicetreeHomePath: string): string {
-  return path.join(voicetreeHomePath, 'settings.json');
+  return path.join(voicetreeHomePath, SETTINGS_FILENAME);
 }
 
 /** Reset the settings cache. For testing only. */
@@ -39,44 +40,6 @@ export async function loadSettings(): Promise<VTSettings> {
     }
     throw error;
   }
-}
-
-/**
- * On app update, refresh AGENT_PROMPT_CORE to the shipped default exactly once for the new app version.
- * Normal settings loads preserve user edits; only a version transition triggers this overwrite.
- */
-export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersion: string): Promise<boolean> {
-  const voicetreeHomePath: string = resolveVoicetreeHomePath();
-  const settingsPath: string = getSettingsPath(voicetreeHomePath);
-
-  let userSettings: Partial<VTSettings>;
-  try {
-    const data: string = await fs.readFile(settingsPath, 'utf-8');
-    userSettings = JSON.parse(data) as Partial<VTSettings>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return false;
-    }
-    throw error;
-  }
-
-  if (userSettings.agentPromptCoreSyncedAppVersion === currentAppVersion) {
-    return false;
-  }
-
-  const updatedSettings: VTSettings = {
-    ...DEFAULT_SETTINGS,
-    ...userSettings,
-    INJECT_ENV_VARS: {
-      ...DEFAULT_SETTINGS.INJECT_ENV_VARS,
-      ...userSettings.INJECT_ENV_VARS,
-      AGENT_PROMPT_CORE: DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE as string,
-    },
-    agentPromptCoreSyncedAppVersion: currentAppVersion,
-  };
-
-  await saveSettings(updatedSettings);
-  return true;
 }
 
 /**

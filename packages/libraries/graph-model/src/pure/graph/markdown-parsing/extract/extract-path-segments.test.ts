@@ -109,7 +109,7 @@ describe('linkMatchScore', () => {
 
 describe('linkMatchScore - case insensitivity (Bug 1 regression)', () => {
   it('should match [[Parent-Slug]] to parent-slug.md (core bug case)', () => {
-    expect(linkMatchScore('Parent-Slug', 'vault/parent-slug.md')).toBe(1)
+    expect(linkMatchScore('Parent-Slug', 'project/parent-slug.md')).toBe(1)
   })
 
   it('should match [[README]] to docs/readme.md', () => {
@@ -125,7 +125,7 @@ describe('linkMatchScore - case insensitivity (Bug 1 regression)', () => {
   })
 
   it('should match Python-generated mixed case: 42_Juan_Safe_Name', () => {
-    expect(linkMatchScore('42_Juan_Safe_Name', 'vault/42_juan_safe_name.md')).toBe(1)
+    expect(linkMatchScore('42_Juan_Safe_Name', 'project/42_juan_safe_name.md')).toBe(1)
   })
 
   it('should handle MyDoc.md vs mydoc.md (extension-stripped, case-insensitive)', () => {

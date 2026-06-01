@@ -15,7 +15,7 @@ import {
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
 import { applyCommandToSessionState } from '../state/sessionStateStore'
-import { getCurrentVault } from '../state/currentVault'
+import { getCurrentProject } from '../state/currentProject'
 
 import { buildJsonResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type { McpToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
@@ -87,7 +87,7 @@ export async function dispatchLiveCommand(
     const serializedCommand: SerializedCommand = params.command
     const command: Command = hydrateCommand(serializedCommand)
     const { delta }: { delta: Delta } = await applyCommandToSessionState(
-        getCurrentVault(),
+        getCurrentProject(),
         command,
     )
 

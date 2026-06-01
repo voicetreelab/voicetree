@@ -29,8 +29,8 @@ describe('Edge Labels - Full Pipeline Integration Test', () => {
 
   beforeEach(async () => {
       resetTestProjectionState()
-    // Create temp vault directory
-    tempDir = path.join(process.cwd(), 'test-fixtures', `temp-vault-${Date.now()}`)
+    // Create temp project directory
+    tempDir = path.join(process.cwd(), 'test-fixtures', `temp-project-${Date.now()}`)
     await fs.mkdir(tempDir, { recursive: true })
 
     // Initialize Cytoscape instance

@@ -39,7 +39,7 @@ type NodeClickOptions = {
   buttonRef: string
   port?: number
   pid?: number
-  vault?: string
+  project?: string
 }
 
 type RendererSnapshot = {
@@ -84,8 +84,8 @@ interface PageLike {
 function usage(message?: string): Response<never> {
   return err(
     'node-click',
-    message ?? 'usage: vt-debug node click <id> <label|index>',
-    'usage: vt-debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--vault PATH]',
+    message ?? 'usage: vt debug node click <id> <label|index>',
+    'usage: vt debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--project PATH]',
     2,
   )
 }
@@ -211,7 +211,7 @@ function parseArgs(argv: string[]): NodeClickOptions | Response<never> {
     buttonRef: positional[1],
     port: target.port,
     pid: target.pid,
-    vault: target.vault,
+    project: target.project,
   }
 }
 
@@ -283,7 +283,7 @@ async function clickButton(
       selection.error,
       buttons.length > 0
         ? `available buttons: ${listAvailableButtons(buttons)}`
-        : `try: vt-debug node ${JSON.stringify(options.nodeId)}`,
+        : `try: vt debug node ${JSON.stringify(options.nodeId)}`,
       1,
     )
   }
@@ -297,7 +297,7 @@ async function clickButton(
     return err(
       'node-click',
       `button selector not found: ${selection.button.selector}`,
-      `try: vt-debug node ${JSON.stringify(options.nodeId)} to refresh available buttons`,
+      `try: vt debug node ${JSON.stringify(options.nodeId)} to refresh available buttons`,
       1,
     )
   }
@@ -335,7 +335,7 @@ async function nodeClickHandler(argv: string[]): Promise<Response<unknown>> {
   const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
-    vault: options.vault,
+    project: options.project,
   })
   if (!pick.ok) {
     return err('node-click', pick.message, pick.hint, 2)

@@ -38,16 +38,16 @@ function idSelector(id: string): string {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writeFolder = path.join(projectPath, 'voicetree');
-  await fs.mkdir(writeFolder, { recursive: true });
+  const writeFolderPath = path.join(projectPath, 'voicetree');
+  await fs.mkdir(writeFolderPath, { recursive: true });
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true });
-  await fs.writeFile(path.join(writeFolder, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
+  await fs.writeFile(path.join(writeFolderPath, PARENT_FILENAME), INITIAL_PARENT_CONTENT, 'utf8');
   await fs.writeFile(
     path.join(projectPath, '.voicetree', 'positions.json'),
     JSON.stringify({ [PARENT_FILENAME]: { x: 120, y: 120 } }, null, 2),
     'utf8',
   );
-  return writeFolder;
+  return writeFolderPath;
 }
 
 type EditorDiskConvergenceWorkerFixtures = {
@@ -55,7 +55,7 @@ type EditorDiskConvergenceWorkerFixtures = {
   appWindow: Page;
   projectPath: string;
   settingsSnapshot: unknown;
-  writeFolder: string;
+  writeFolderPath: string;
 };
 
 export const test = base.extend<Record<string, never>, EditorDiskConvergenceWorkerFixtures>({
@@ -65,12 +65,12 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
     await fs.rm(projectPath, { recursive: true, force: true });
   }, { scope: 'worker' }],
 
-  writeFolder: [async ({ projectPath }, use) => {
-    const writeFolder = await seedProject(projectPath);
-    await use(writeFolder);
+  writeFolderPath: [async ({ projectPath }, use) => {
+    const writeFolderPath = await seedProject(projectPath);
+    await use(writeFolderPath);
   }, { scope: 'worker' }],
 
-  electronApp: [async ({ projectPath, writeFolder }, use) => {
+  electronApp: [async ({ projectPath, writeFolderPath }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-disk-conv-app-'));
     await fs.writeFile(
       path.join(userDataPath, 'projects.json'),
@@ -80,7 +80,6 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
         name: path.basename(projectPath),
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       }], null, 2),
       'utf8',
     );
@@ -88,7 +87,7 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: projectPath,
-        vaultConfig: { [projectPath]: { writeFolder, readPaths: [] } },
+        projectConfig: { [projectPath]: { writeFolderPath, readPaths: [] } },
       }, null, 2),
       'utf8',
     );
@@ -123,13 +122,13 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
-    const openResult = await window.evaluate(async (vault: string) => {
+    const openResult = await window.evaluate(async (project: string) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const response = await api.main.openVault(vault);
-      return { writeFolder: response.writeFolder };
+      const response = await api.main.openProject(project);
+      return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
-    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy();
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy();
 
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
@@ -315,8 +314,8 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
   }).toBe(0);
 }
 
-async function deleteGraphExtraMarkdownNodes(page: Page, writeFolder: string): Promise<readonly string[]> {
-  return page.evaluate(async ({ parentNodeId, vaultPath }) => {
+async function deleteGraphExtraMarkdownNodes(page: Page, writeFolderPath: string): Promise<readonly string[]> {
+  return page.evaluate(async ({ parentNodeId, projectPath }) => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
     await api.main.reconcileGraphWithDisk();
@@ -325,7 +324,7 @@ async function deleteGraphExtraMarkdownNodes(page: Page, writeFolder: string): P
     const nodeIds = Object.keys(graphWithNodes.nodes ?? {}).filter((nodeId) => {
       return nodeId !== parentNodeId
         && nodeId.endsWith('.md')
-        && (nodeId === vaultPath || nodeId.startsWith(`${vaultPath}/`));
+        && (nodeId === projectPath || nodeId.startsWith(`${projectPath}/`));
     });
     if (nodeIds.length === 0) return [];
 
@@ -339,23 +338,23 @@ async function deleteGraphExtraMarkdownNodes(page: Page, writeFolder: string): P
     );
     return nodeIds;
   }, {
-    parentNodeId: path.join(writeFolder, PARENT_FILENAME),
-    vaultPath: writeFolder,
+    parentNodeId: path.join(writeFolderPath, PARENT_FILENAME),
+    projectPath: writeFolderPath,
   });
 }
 
-export async function deleteExtraVaultFiles(page: Page, writeFolder: string): Promise<void> {
-  await deleteGraphExtraMarkdownNodes(page, writeFolder);
+export async function deleteExtraProjectFiles(page: Page, writeFolderPath: string): Promise<void> {
+  await deleteGraphExtraMarkdownNodes(page, writeFolderPath);
 
-  const entries = await fs.readdir(writeFolder, { withFileTypes: true });
+  const entries = await fs.readdir(writeFolderPath, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
     if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name === PARENT_FILENAME) return;
-    await fs.rm(path.join(writeFolder, entry.name), { force: true });
+    await fs.rm(path.join(writeFolderPath, entry.name), { force: true });
   }));
 }
 
-export async function deleteCtxNodesDir(writeFolder: string): Promise<void> {
-  await fs.rm(path.join(writeFolder, 'ctx-nodes'), { recursive: true, force: true });
+export async function deleteCtxNodesDir(writeFolderPath: string): Promise<void> {
+  await fs.rm(path.join(writeFolderPath, 'ctx-nodes'), { recursive: true, force: true });
 }
 
 export async function resetSettings(page: Page, snapshot: unknown): Promise<void> {
@@ -418,13 +417,13 @@ export async function waitForGraphReset(page: Page, label: string): Promise<void
 }
 
 export async function expectDiskMatches(
-  writeFolder: string,
+  writeFolderPath: string,
   filename: string,
   expected: string,
   timeout = 15_000,
 ): Promise<void> {
   await expect.poll(async () => {
-    return fs.readFile(path.join(writeFolder, filename), 'utf8');
+    return fs.readFile(path.join(writeFolderPath, filename), 'utf8');
   }, {
     message: `Waiting for ${filename} on disk to match expected content`,
     timeout,
@@ -433,13 +432,13 @@ export async function expectDiskMatches(
 }
 
 export async function expectDiskContainsAll(
-  writeFolder: string,
+  writeFolderPath: string,
   filename: string,
   fragments: readonly string[],
   timeout = 15_000,
 ): Promise<void> {
   await expect.poll(async () => {
-    const content = await fs.readFile(path.join(writeFolder, filename), 'utf8');
+    const content = await fs.readFile(path.join(writeFolderPath, filename), 'utf8');
     return fragments.every((frag) => content.includes(frag));
   }, {
     message: `Waiting for ${filename} on disk to contain [${fragments.join(', ')}]`,
@@ -541,12 +540,12 @@ export async function expectDaemonNodeContains(
 }
 
 export async function expectContextNodeContains(
-  writeFolder: string,
+  writeFolderPath: string,
   fragment: string,
   timeout = 15_000,
 ): Promise<void> {
   await expect.poll(async () => {
-    const contextDir = path.join(writeFolder, 'ctx-nodes');
+    const contextDir = path.join(writeFolderPath, 'ctx-nodes');
     let entries: string[] = [];
     try {
       entries = await fs.readdir(contextDir);

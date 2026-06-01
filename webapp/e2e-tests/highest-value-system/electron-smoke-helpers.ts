@@ -90,15 +90,15 @@ function killProcessesMatching(predicate: (command: string) => boolean): void {
   }
 }
 
-export function stopSmokeGraphDaemonForVault(vaultPath: string): void {
+export function stopSmokeGraphDaemonForProject(projectPath: string): void {
   killProcessesMatching(command =>
-    command.includes(vaultPath) &&
+    command.includes(projectPath) &&
     (command.includes('vt-graphd.ts') || command.includes('vt-graphd.mjs'))
   );
 }
 
-export function stopSmokeTmuxServer(appSupportPath: string): void {
-  const socketPath = path.join(appSupportPath, TMUX_SOCKET_NAME);
+export function stopSmokeTmuxServer(voicetreeHomePath: string): void {
+  const socketPath = path.join(voicetreeHomePath, TMUX_SOCKET_NAME);
   try {
     execFileSync('tmux', ['-S', socketPath, 'kill-server'], {
       stdio: 'ignore'

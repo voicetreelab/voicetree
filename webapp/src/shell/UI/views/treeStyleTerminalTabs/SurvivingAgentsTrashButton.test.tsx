@@ -12,7 +12,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
     return {
         type: 'Terminal',
         terminalId: 'Bob' as TerminalData['terminalId'],
-        attachedToContextNodeId: '/vault/ctx.md' as TerminalData['attachedToContextNodeId'],
+        attachedToContextNodeId: '/project/ctx.md' as TerminalData['attachedToContextNodeId'],
         terminalCount: 0,
         anchoredToNodeId: O.none,
         title: 'Bob',
@@ -31,7 +31,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
         contextContent: '',
         agentTypeName: '',
         initialCommand: 'claude',
-        initialEnvVars: {VOICETREE_VAULT_PATH: '/vault/current'},
+        initialEnvVars: {VOICETREE_PROJECT_PATH: '/project/current'},
         ...overrides,
     };
 }
@@ -40,7 +40,7 @@ function makeResumable(overrides: Partial<RecoverableAgentSession> = {}): Recove
     return {
         terminalId: 'Bob' as TerminalData['terminalId'],
         agentName: 'Bob',
-        metadataPath: '/vault/current/.voicetree/terminals/Bob.json',
+        metadataPath: '/project/current/.voicetree/terminals/Bob.json',
         terminalData: makeTerminalData(),
         isClaimed: false,
         status: 'running',

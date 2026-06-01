@@ -1,11 +1,11 @@
 /**
  * Broadcast folder tree to renderer for FolderTreeSidebar.
- * Called after vault state changes and file watcher add/unlink events.
+ * Called after project state changes and file watcher add/unlink events.
  * Debounced to avoid excessive filesystem scans during rapid FS changes.
  */
 
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store';
-import { getVaultPaths, getWriteFolder } from '@vt/graph-db-server/state/vaultAllowlist';
+import { getProjectPaths, getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist';
 import { getStarredFolders } from '../starred-folders';
 import { getGraph } from '@vt/graph-db-server/state/graph-store';
 import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store';
@@ -27,17 +27,17 @@ async function doBroadcast(): Promise<void> {
     const projectRoot: FilePath | null = getProjectRoot();
     if (!projectRoot) return;
 
-    const vaultPaths: readonly FilePath[] = await getVaultPaths();
-    const writeFolderOption: O.Option<FilePath> = await getWriteFolder();
-    const writeFolder: AbsolutePath | null = O.isSome(writeFolderOption) ? toAbsolutePath(writeFolderOption.value) : null;
+    const projectPaths: readonly FilePath[] = await getProjectPaths();
+    const writeFolderPathOption: O.Option<FilePath> = await getWriteFolderPath();
+    const writeFolderPath: AbsolutePath | null = O.isSome(writeFolderPathOption) ? toAbsolutePath(writeFolderPathOption.value) : null;
 
     const graph: Graph = getGraph();
     const graphFilePaths: Set<string> = new Set(
         Object.keys(graph.nodes) as readonly NodeIdAndFilePath[]
     );
 
-    const loadedPaths: Set<string> = new Set<string>(vaultPaths);
-    if (writeFolder) loadedPaths.add(writeFolder);
+    const loadedPaths: Set<string> = new Set<string>(projectPaths);
+    if (writeFolderPath) loadedPaths.add(writeFolderPath);
 
     const readModel = getFolderTreeReadModel();
 
@@ -45,7 +45,7 @@ async function doBroadcast(): Promise<void> {
         root: toAbsolutePath(projectRoot),
     });
     if (entry) {
-        const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writeFolder, graphFilePaths);
+        const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writeFolderPath, graphFilePaths);
         getCallbacks().syncFolderTree?.(tree);
     }
 
@@ -57,11 +57,11 @@ async function doBroadcast(): Promise<void> {
             maxDepth: STARRED_AND_EXTERNAL_MAX_DEPTH,
         });
         if (!starredEntry) continue;
-        starredTrees[folder] = buildFolderTree(starredEntry, loadedPaths, writeFolder, graphFilePaths);
+        starredTrees[folder] = buildFolderTree(starredEntry, loadedPaths, writeFolderPath, graphFilePaths);
     }
     getCallbacks().syncStarredFolderTrees?.(starredTrees);
 
-    const externalPaths: readonly string[] = getExternalReadPaths([...vaultPaths], projectRoot);
+    const externalPaths: readonly string[] = getExternalReadPaths([...projectPaths], projectRoot);
     const externalTrees: Record<string, FolderTreeNode> = {};
     for (const extPath of externalPaths) {
         const extEntry: DirectoryEntry | null = await readModel.readDepthLimitedTree({
@@ -69,7 +69,7 @@ async function doBroadcast(): Promise<void> {
             maxDepth: STARRED_AND_EXTERNAL_MAX_DEPTH,
         });
         if (!extEntry) continue;
-        externalTrees[extPath] = buildFolderTree(extEntry, loadedPaths, writeFolder, graphFilePaths);
+        externalTrees[extPath] = buildFolderTree(extEntry, loadedPaths, writeFolderPath, graphFilePaths);
     }
     getCallbacks().syncExternalFolderTrees?.(externalTrees);
 }

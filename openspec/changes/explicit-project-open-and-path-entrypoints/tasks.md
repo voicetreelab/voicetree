@@ -13,10 +13,10 @@ Implemented in commit `41fac1330 Stop autoloading last opened project`.
 ## Phase 2: App-Facing Lifecycle Vocabulary
 
 - [ ] 2.1 Introduce an app-facing `openProject(projectPath)` wrapper over the current daemon open route.
-- [ ] 2.2 Rename renderer-local `openVaultForProject` to `openProject`.
+- [ ] 2.2 Rename renderer-local `openProjectForProject` to `openProject`.
 - [ ] 2.3 Rename startup hint type to `StartupProjectHint`.
 - [ ] 2.4 Use `projectPath` in app-facing request/response names.
-- [ ] 2.5 Keep lower-level daemon/client `openVault` names untouched unless the sibling vocabulary migration owns that package.
+- [ ] 2.5 Keep lower-level daemon/client `openProject` names untouched unless the sibling vocabulary migration owns that package.
 
 ## Phase 3: Remove Duplicate Project Initialization
 

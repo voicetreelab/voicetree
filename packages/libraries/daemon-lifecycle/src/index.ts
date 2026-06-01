@@ -4,7 +4,7 @@
  * Factored from graph-db-server + graph-db-client (BF-369) so the same
  * machinery drives both the vt-graphd ownership protocol and the vt-daemon
  * standalone controller (BF-370+). Every primitive is daemon-kind
- * parameterised: a single vault can own a `graphd` daemon and a `vtd`
+ * parameterised: a single project can own a `graphd` daemon and a `vtd`
  * daemon simultaneously without their state colliding.
  *
  * The package has zero HTTP-client dependencies — the per-daemon ensure
@@ -135,6 +135,6 @@ export type {
   OwnerDiagnosticUnsubscribe,
 } from './diagnostics.ts'
 
-// Vault path facade — every artifact under <vault>/.voicetree resolves
+// Project path facade — every artifact under <project>/.voicetree resolves
 // through one function.
-export { vaultStateDir } from './vaultPaths.ts'
+export { projectStateDir } from './projectPaths.ts'

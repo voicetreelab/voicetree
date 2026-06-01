@@ -22,12 +22,12 @@ function jsonResponse(body: unknown, status = 200): Response {
 // in @vt/graph-db-protocol — owner present, daemonKind: 'vtd'.
 const vtdBody = {
   version: '0.1.0',
-  vault: '/v',
+  project: '/v',
   uptimeSeconds: 7,
   daemonKind: 'vtd' as const,
   owner: {
     schemaVersion: 1 as const,
-    canonicalVault: '/v',
+    canonicalProject: '/v',
     pid: 12345,
     ppid: 1,
     port: 51999,
@@ -40,12 +40,12 @@ const vtdBody = {
 // sessionCount present, NO daemonKind discriminator.
 const graphdBody = {
   version: '0.2.0',
-  vault: '/v',
+  project: '/v',
   uptimeSeconds: 3,
   sessionCount: 0,
   owner: {
     schemaVersion: 1 as const,
-    canonicalVault: '/v',
+    canonicalProject: '/v',
     pid: 22222,
     ppid: 1,
     port: 52000,
@@ -62,7 +62,7 @@ describe('probeOwnerHealth — daemonKind selection (BF-372)', (): void => {
     })
     expect(probe.kind).toBe('verified')
     if (probe.kind !== 'verified') return // narrow
-    expect(probe.canonicalVault).toBe('/v')
+    expect(probe.canonicalProject).toBe('/v')
     expect(probe.ownerNonce).toBe('vtd-nonce')
     expect(probe.port).toBe(51999)
     expect(probe.pid).toBe(12345)
@@ -85,7 +85,7 @@ describe('probeOwnerHealth — daemonKind selection (BF-372)', (): void => {
     })
     expect(probe.kind).toBe('verified')
     if (probe.kind !== 'verified') return
-    expect(probe.canonicalVault).toBe('/v')
+    expect(probe.canonicalProject).toBe('/v')
     expect(probe.ownerNonce).toBe('graphd-nonce')
   })
 
@@ -98,14 +98,14 @@ describe('probeOwnerHealth — daemonKind selection (BF-372)', (): void => {
     expect(probe.kind).toBe('unreachable')
   })
 
-  it('returns `mismatch` when the body parses but owner is null (vaultless startup window)', async (): Promise<void> => {
+  it('returns `mismatch` when the body parses but owner is null (projectless startup window)', async (): Promise<void> => {
     const probe = await probeOwnerHealth(0, {
       daemonKind: 'vtd',
       fetchImpl: async () => jsonResponse({ ...vtdBody, owner: null }),
     })
     expect(probe.kind).toBe('mismatch')
     if (probe.kind !== 'mismatch') return
-    expect(probe.observedCanonicalVault).toBeNull()
+    expect(probe.observedCanonicalProject).toBeNull()
     expect(probe.observedOwnerNonce).toBeNull()
   })
 

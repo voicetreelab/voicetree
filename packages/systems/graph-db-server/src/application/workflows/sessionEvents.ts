@@ -158,7 +158,7 @@ export async function runSessionEventsWorkflow(input: {
     return !sessionProjectionCache.shouldRebuild({
       cache: projectionCache.current(),
       session: freshSession,
-      vaultVersion: getProject()?.vaultVersion ?? 0,
+      projectPathsVersion: getProject()?.projectPathsVersion ?? 0,
     })
   }
 
@@ -182,28 +182,49 @@ export async function runSessionEventsWorkflow(input: {
 
   let pendingLiveEvents: SequencedDeltaEvent[] = []
   let liveFlushScheduled = false
-  const flushLiveDeltaProjection = async (): Promise<void> => {
-    liveFlushScheduled = false
-    const events = pendingLiveEvents
-    pendingLiveEvents = []
-    const useCache = canUseProjectionCache()
-    let freshCache: ProjectionCache | null = null
-    for (const batched of batchProjectDeltaEvents(events)) {
-      const cache = await sendDeltaProjection(batched, useCache ? 'cached' : 'fresh')
-      if (!useCache && cache) freshCache = cache
-    }
-    if (!useCache && freshCache) projectionCache.replace(freshCache)
-    if (pendingLiveEvents.length > 0 && !liveFlushScheduled) {
-      liveFlushScheduled = true
-      queueMicrotask(() => void flushLiveDeltaProjection())
+  let liveFlushActive = false
+
+  // Project+stringify the whole graph at most ONCE per drained burst, never
+  // concurrently. All deltas that arrive while a drain is in flight (or queued
+  // for the same event-loop turn) accumulate and collapse into the next
+  // `batchProjectDeltaEvents` pass, so a storm of N single-delta publishes
+  // costs far fewer than N whole-graph serializations. Correctness is
+  // preserved: every delta is still applied in seq order and the final send
+  // always reflects the complete, consistent graph — only intermediate frames
+  // are coalesced.
+  const drainLiveDeltaProjections = async (): Promise<void> => {
+    if (liveFlushActive) return
+    liveFlushActive = true
+    try {
+      while (pendingLiveEvents.length > 0) {
+        const events = pendingLiveEvents
+        pendingLiveEvents = []
+        const useCache = canUseProjectionCache()
+        let freshCache: ProjectionCache | null = null
+        for (const batched of batchProjectDeltaEvents(events)) {
+          const cache = await sendDeltaProjection(batched, useCache ? 'cached' : 'fresh')
+          if (!useCache && cache) freshCache = cache
+        }
+        if (!useCache && freshCache) projectionCache.replace(freshCache)
+      }
+    } finally {
+      liveFlushActive = false
     }
   }
 
+  // Schedule the drain on a macrotask (setImmediate) rather than a microtask:
+  // microtasks drain between each I/O callback, so under a storm every publish
+  // lands in its own flush and nothing coalesces. setImmediate fires once after
+  // the current poll phase, collapsing every delta published in that event-loop
+  // turn into a single projection+stringify.
   const enqueueLiveDeltaProjection = (event: SequencedDeltaEvent): void => {
     pendingLiveEvents.push(event)
-    if (liveFlushScheduled) return
+    if (liveFlushScheduled || liveFlushActive) return
     liveFlushScheduled = true
-    queueMicrotask(() => void flushLiveDeltaProjection())
+    setImmediate(() => {
+      liveFlushScheduled = false
+      void drainLiveDeltaProjections()
+    })
   }
 
   const sendReplayResetSnapshot = async (

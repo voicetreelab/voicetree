@@ -43,6 +43,9 @@ export function getUniqueAgentName(baseName: string, existingNames: ReadonlySet<
 
 export type EnvVarValue = string | readonly string[];
 
+/** Mouse-wheel scroll strategy for agent terminals. See `terminalScrollStrategy` in VTSettings. */
+export type TerminalScrollStrategy = 'app' | 'sgr' | 'suppress' | 'copy-mode';
+
 // Hotkey configuration types
 export type HotkeyModifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
@@ -79,6 +82,13 @@ export interface HookSettings {
     readonly onNewNode?: string;
 }
 
+/**
+ * Default subgraph-gardening thresholds. Shared by the settings schema (defaults),
+ * the create_graph context fallback, and tests so there is a single source of truth.
+ */
+export const DEFAULT_SUBGRAPH_WARN_THRESHOLD: number = 4;
+export const DEFAULT_SUBGRAPH_ERROR_THRESHOLD: number = 6;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -96,8 +106,6 @@ export interface VTSettings {
     readonly agentPermissionModeChosen?: boolean;
     /** User email for PostHog identification - stored here to persist across app updates */
     readonly userEmail?: string;
-    /** Internal marker: app version that last refreshed AGENT_PROMPT_CORE from the shipped default. */
-    readonly agentPromptCoreSyncedAppVersion?: string;
     /** Template for starter node created when opening an empty folder. Supports {{DATE}} placeholder. */
     readonly emptyFolderTemplate?: string;
     /** Enable VIM keybindings in markdown editors */
@@ -120,6 +128,17 @@ export interface VTSettings {
     readonly zoomSensitivity?: number;
     /** Maximum non-exempt lines per progress node (default: 80). Keeps nodes atomic. */
     readonly nodeLineLimit?: number;
+    /**
+     * Subgraph-gardening warn threshold: when a folder-bounded component reaches
+     * this many nodes, create_graph returns a non-blocking warning (default: 4).
+     */
+    readonly subgraphWarnThreshold?: number;
+    /**
+     * Subgraph-gardening error threshold: when a folder-bounded component reaches
+     * this many nodes, create_graph blocks (overridable with a rationale) so the
+     * agent splits the cluster into a sub-folder or justifies the exception (default: 6).
+     */
+    readonly subgraphErrorThreshold?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */
@@ -128,6 +147,14 @@ export interface VTSettings {
     readonly shell?: string;
     /** Enable tmux mouse handling in Voicetree terminals. Off by default so browser text selection works normally. */
     readonly terminalTmuxMouseMode?: boolean;
+    /**
+     * How the mouse wheel scrolls an agent terminal (the alt-screen / TUI case).
+     * - 'app'       : if the foreground app tracks the mouse, let xterm forward the wheel so the app scrolls its own view; otherwise tmux copy-mode. (recommended)
+     * - 'sgr'       : if the app tracks the mouse, the renderer injects SGR wheel events into the PTY directly; otherwise tmux copy-mode.
+     * - 'suppress'  : do nothing on the alt-screen (kills wheel-scrolls-into-shell-history; scroll the app with its own keys).
+     * - 'copy-mode' : always drive tmux copy-mode (the legacy behaviour — for A/B comparison).
+     */
+    readonly terminalScrollStrategy?: TerminalScrollStrategy;
     /** Name of the default agent (matched against agents[].name). Falls back to first agent if unset or not found. */
     readonly defaultAgent?: string;
     /** Notify via OS notification when an agent completes or errors (only when app is unfocused) */
@@ -139,13 +166,13 @@ export interface VTSettings {
 }
 
 /**
- * Per-folder vault configuration for multi-vault support.
+ * Per-folder project configuration for multi-project support.
  *
- * writeFolder: The main vault (read + write). Can be relative to projectRoot or absolute.
+ * writeFolderPath: The main project (read + write). Can be relative to projectRoot or absolute.
  */
-export interface VaultConfig {
-    /** Main vault path where new nodes are created. Can be relative or absolute. */
-    readonly writeFolder: string;
+export interface ProjectConfig {
+    /** Main project path where new nodes are created. Can be relative or absolute. */
+    readonly writeFolderPath: string;
     /** Compatibility read paths for older app builds; current active-view state is authoritative. */
     readonly readPaths?: readonly string[];
 }
@@ -155,6 +182,6 @@ export interface VaultConfig {
  */
 export interface VoiceTreeConfig {
     readonly lastDirectory?: string;
-    /** Per-folder vault configuration for multi-vault support */
-    readonly vaultConfig?: { readonly [folderPath: string]: VaultConfig };
+    /** Per-folder project configuration for multi-project support */
+    readonly projectConfig?: { readonly [folderPath: string]: ProjectConfig };
 }

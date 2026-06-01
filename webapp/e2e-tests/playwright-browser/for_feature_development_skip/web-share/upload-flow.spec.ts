@@ -45,23 +45,23 @@ test.describe('Upload Flow', () => {
     const dropZone = await getDropZone(page)
     await expect(dropZone).toBeVisible()
     await expect(
-      page.locator('h1', { hasText: 'Share a VoiceTree vault' }),
+      page.locator('h1', { hasText: 'Share a VoiceTree project' }),
     ).toBeVisible()
   })
 
   test('Upload page accessible at /upload route', async ({ page }) => {
     await page.goto('/upload')
-    await page.waitForSelector('text=Share a VoiceTree vault', {
+    await page.waitForSelector('text=Share a VoiceTree project', {
       timeout: 10_000,
     })
     await expect(
-      page.locator('h1', { hasText: 'Share a VoiceTree vault' }),
+      page.locator('h1', { hasText: 'Share a VoiceTree project' }),
     ).toBeVisible()
     const dropZone = await getDropZone(page)
     await expect(dropZone).toBeVisible()
   })
 
-  test('Upload fixture vault via file input', async ({ page }) => {
+  test('Upload fixture project via file input', async ({ page }) => {
     await navigateToUpload(page)
     const shareLink = await uploadFixtureViaInput(page)
     expect(shareLink).toMatch(/\/share\//)

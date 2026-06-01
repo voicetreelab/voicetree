@@ -4,7 +4,7 @@
  * tmux's command-protocol buffer overflows on large -e KEY=VALUE entries
  * (empirically ~70 vars × multi-KB combined). The prompt is the only var
  * that crosses that line. This module:
- *   1. Writes the prompt to `{vault}/.voicetree/terminals/{name}-prompt.txt`
+ *   1. Writes the prompt to `{project}/.voicetree/terminals/{name}-prompt.txt`
  *      (mode 0600). The big string never crosses tmux's argv.
  *   2. Rewrites the agent invocation to consume the file:
  *        - claude / gemini → stdin redirection (`< {file}`)
@@ -43,6 +43,10 @@ function tmuxOk(args: string[]): Promise<boolean> {
 
 export function promptFilePath(projectRoot: string, terminalId: TerminalId): string {
     return join(getProjectDotVoicetreePath(projectRoot), 'terminals', `${terminalId}-prompt.txt`)
+}
+
+export function launchScriptPath(projectRoot: string, terminalId: TerminalId): string {
+    return join(getProjectDotVoicetreePath(projectRoot), 'terminals', `${terminalId}-launch.sh`)
 }
 
 export function writePromptFile(projectRoot: string, terminalId: TerminalId, prompt: string): string {
@@ -125,7 +129,7 @@ export type PromptFileSpawnPlan = {
 }
 
 /**
- * Mode-agnostic prompt-file primitive. For any tmux spawn that has a vault
+ * Mode-agnostic prompt-file primitive. For any tmux spawn that has a project
  * context: extract AGENT_PROMPT from env, write to disk, rewrite the command
  * for the CLI, and replace AGENT_PROMPT with AGENT_PROMPT_FILE in env. If
  * there's no AGENT_PROMPT (non-agent spawn), return inputs unchanged.
@@ -187,6 +191,18 @@ export function applyPromptFileToHeadlessSpawn(args: {
     return {...plan, command: wrapForHeadlessTmux(plan.command)}
 }
 
+export function formatLaunchScript(command: string): string {
+    return `#!/usr/bin/env bash\nexec bash -c ${shellSingleQuote(command)}\n`
+}
+
+function writeLaunchScript(projectRoot: string, terminalId: TerminalId, command: string): string {
+    const target: string = launchScriptPath(projectRoot, terminalId)
+    mkdirSync(join(getProjectDotVoicetreePath(projectRoot), 'terminals'), {recursive: true})
+    writeFileSync(target, formatLaunchScript(command), {encoding: 'utf8', mode: 0o700})
+    chmodSync(target, 0o700)
+    return target
+}
+
 /**
  * Round-trip via `tmux display-message` so we know the tmux server is
  * responsive and the pane shell has had a tick to start. Cheaper and more
@@ -200,17 +216,30 @@ export async function waitForTmuxShellReady(terminalId: TerminalId): Promise<voi
 
 /**
  * Headful tmux: the pane already runs `bash`; inject the agent command via
- * send-keys after a readiness gate. The command is sent literally — the
- * pane's bash already has `AGENT_PROMPT` in its env (passed via tmux `-e`
- * at session create), so the user-facing template (e.g.
- * `claude "$AGENT_PROMPT"`) just works. Returns the command line that was
- * sent (useful for diagnostics).
+ * send-keys after a readiness gate.
+ *
+ * When `projectRoot` is provided, the full command is written to a per-terminal
+ * launch script (`.voicetree/terminals/<id>-launch.sh`) and only the quoted
+ * script path is typed into the shell. This keeps the user's shell history
+ * clean — the long hook flags stay inside the script file, not visible in the
+ * terminal prompt. The script inherits the tmux env (including `AGENT_PROMPT`),
+ * so shell-var references in the command expand correctly at execution time.
+ *
+ * Without `projectRoot`, the command is sent literally as before.
+ *
+ * Returns the string that was typed into the shell (useful for diagnostics).
  */
 export async function injectAgentCommandHeadful(args: {
     readonly terminalId: TerminalId
     readonly command: string
+    readonly projectRoot?: string
 }): Promise<string> {
     await waitForTmuxShellReady(args.terminalId)
+    if (args.projectRoot) {
+        const scriptPath: string = writeLaunchScript(args.projectRoot, args.terminalId, args.command)
+        await sendKeys(args.terminalId, shellSingleQuote(scriptPath))
+        return scriptPath
+    }
     await sendKeys(args.terminalId, args.command)
     return args.command
 }

@@ -7,7 +7,7 @@
  * 3. list_agents exposes parentTerminalId and taskNodePath.
  *
  * Test Setup: Temporary HOME overrides hooks.json + automation script + workflow SKILL.md
- * references for each run. Projects are loaded from a temporary fixture vault.
+ * references for each run. Projects are loaded from a temporary fixture project.
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -98,7 +98,7 @@ const test = base.extend<{
   appWindow: Page;
   tempUserDataPath: string;
   tempHome: string;
-  fixtureVaultPath: string;
+  fixtureProjectPath: string;
 }>({
   tempHome: async ({}, use) => {
     const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-home-'));
@@ -136,29 +136,28 @@ const test = base.extend<{
     await fs.rm(tempHome, { recursive: true, force: true });
   },
 
-  fixtureVaultPath: async ({}, use) => {
-    const tempVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-vault-'));
-    const voicetreeDir = path.join(tempVaultPath, 'voicetree');
+  fixtureProjectPath: async ({}, use) => {
+    const tempProjectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-project-'));
+    const voicetreeDir = path.join(tempProjectPath, 'voicetree');
 
     await fs.mkdir(voicetreeDir, { recursive: true });
     await fs.writeFile(path.join(voicetreeDir, TARGET_NODE_ID), TASK_NODE_CONTENT);
     await fs.writeFile(path.join(voicetreeDir, NO_PROGRESS_TASK_NODE_ID), TASK_NODE_CONTENT);
     await fs.writeFile(path.join(voicetreeDir, PASS_TASK_NODE_ID), TASK_NODE_CONTENT);
 
-    await use(tempVaultPath);
-    await fs.rm(tempVaultPath, { recursive: true, force: true });
+    await use(tempProjectPath);
+    await fs.rm(tempProjectPath, { recursive: true, force: true });
   },
 
-  tempUserDataPath: async ({fixtureVaultPath}, use) => {
+  tempUserDataPath: async ({fixtureProjectPath}, use) => {
     const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hooks-test-data-'));
 
     const savedProject = {
       id: 'hooks-test-project',
-      path: fixtureVaultPath,
-      name: 'hooks-cli-vault',
+      path: fixtureProjectPath,
+      name: 'hooks-cli-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true,
     };
     await fs.writeFile(
       path.join(tempPath, 'projects.json'),
@@ -167,7 +166,7 @@ const test = base.extend<{
 
     await fs.writeFile(
       path.join(tempPath, 'voicetree-config.json'),
-      JSON.stringify({ lastDirectory: fixtureVaultPath }, null, 2)
+      JSON.stringify({ lastDirectory: fixtureProjectPath }, null, 2)
     );
 
     await fs.writeFile(
@@ -254,7 +253,7 @@ const test = base.extend<{
       console.log('[Hooks Test] Cytoscape initialized via auto-load');
     } catch {
       console.log('[Hooks Test] Auto-load timed out, clicking project...');
-      const projectButton = window.locator('button').filter({ hasText: 'hooks-cli-vault' });
+      const projectButton = window.locator('button').filter({ hasText: 'hooks-cli-project' });
       await expect(projectButton.first()).toBeVisible({ timeout: 10000 });
       await projectButton.first().click();
       await window.waitForFunction(
@@ -314,7 +313,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     expect(closePayload?.error ?? '').toContain('No progress nodes created');
   });
 
-  test('CLI self-close passes when stop-gate obligations are satisfied', async ({ appWindow, fixtureVaultPath }) => {
+  test('CLI self-close passes when stop-gate obligations are satisfied', async ({ appWindow, fixtureProjectPath }) => {
     const daemonPort = await getDaemonPort(appWindow);
     await waitForCliReady(daemonPort);
 
@@ -345,7 +344,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     expect(spawnedAgentId, 'spawn payload should include terminalId').toBeTruthy();
 
     await createProgressNode(
-      fixtureVaultPath,
+      fixtureProjectPath,
       PASS_PROGRESS_NODE_ID,
       HOOK_AGENT_NAME,
       [

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Also ships the standalone vtd binary — a per-vault per-machine daemon that talks to vt-graphd over RPC as a sibling process.",
+  "description": "Voicetree tool catalog + HTTP JSON-RPC daemon server with bearer auth and WebSocket subscription channel. Also ships the standalone vtd binary — a per-project per-machine daemon that talks to vt-graphd over RPC as a sibling process.",
   "main": "src/index.ts",
   "bin": {
     "vtd": "bin/vtd.ts"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# post-merge runs after `git merge` / `git pull` completes. Belt-and-suspenders
+# (D6) for the deps-freshness guard: a `git pull` that updated pnpm-lock.yaml
+# leaves node_modules stale, and a command run directly afterwards (bypassing
+# the run-remote gateway) would see the stale tree. The guard reconciles
+# node_modules to the freshly-merged lockfile; it is a near-instant no-op when
+# nothing changed.
+set -e
+repo_root="$(git rev-parse --show-toplevel)"
+node "$repo_root/scripts/dev-setup/common/ensure-deps-fresh.mjs"

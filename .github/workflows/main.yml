@@ -25,17 +25,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
+
+      # The tier-1 duplication health gates shell out to the native vt-dup
+      # binary; build it (cached) before running the suite. ubuntu-latest ships
+      # a stable Rust toolchain.
+      - name: Cache vt-dup Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/measures/native/vt-dup/target
+          key: ${{ runner.os }}-cargo-vt-dup-${{ hashFiles('packages/measures/native/vt-dup/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-vt-dup-
+
+      - name: Build vt-dup native binary
+        run: pnpm --filter @vt/measures run measures:build-native:local
 
       - name: Install Playwright chromium
         working-directory: webapp
@@ -43,6 +65,10 @@ jobs:
 
       - name: Run full scheduled checks
         run: pnpm --filter @vt/measures run test:full
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Main CI failed"
 
       - name: Surface tier wall-clock budget breaches
         # Runs whether test:full passed or failed: even when an analyzer fails,

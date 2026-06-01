@@ -19,7 +19,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import { createFolderTestVault, waitForGraphLoaded } from '../folder/folder-test-helpers';
+import { createFolderTestProject, waitForGraphLoaded } from '../folder/folder-test-helpers';
 import { captureViewportDiagnostic, type ExtendedWindow } from '../perf/pan-zoom-diagnostic-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -39,7 +39,7 @@ interface WindowWithGraph extends ExtendedWindow {
 const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; projectRoot: string }>({
   projectRoot: async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-zoom-teleport-'));
-    const projectRoot = await createFolderTestVault(tempDir);
+    const projectRoot = await createFolderTestProject(tempDir);
     await use(projectRoot);
     await fs.rm(tempDir, { recursive: true, force: true });
   },
@@ -49,9 +49,9 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
 
     await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
       lastDirectory: projectRoot,
-      vaultConfig: {
+      projectConfig: {
         [projectRoot]: {
-          writeFolder: projectRoot,
+          writeFolderPath: projectRoot,
           readPaths: [],
         },
       },
@@ -60,10 +60,9 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
     await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
       id: 'zoom-teleport-test',
       path: projectRoot,
-      name: 'zoom-teleport-vault',
+      name: 'zoom-teleport-project',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true,
     }], null, 2), 'utf8');
 
     const app = await electron.launch({

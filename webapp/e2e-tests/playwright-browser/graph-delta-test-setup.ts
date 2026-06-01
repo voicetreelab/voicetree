@@ -139,8 +139,8 @@ function installMockElectronAPI(): void {
       },
       getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
       loadPreviousFolder: async () => ({ success: false }),
-      getStartupVaultHint: async () => ({ kind: 'open-folder' as const, path: '/mock/watched/directory' }),
-      openVault: async (dir: string) => {
+      getStartupProjectHint: async () => ({ kind: 'open-folder' as const, projectPath: '/mock/watched/directory' }),
+      openProject: async (dir: string) => {
         const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
         setTimeout(() => {
           mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
@@ -148,11 +148,11 @@ function installMockElectronAPI(): void {
 
         return {
           sessionId: 'mock-session',
-          writeFolder: dir,
-          vaultState: {
+          writeFolderPath: dir,
+          projectState: {
             projectRoot: dir,
             readPaths: [dir],
-            writeFolder: dir,
+            writeFolderPath: dir,
           },
           initialProjectedGraph: projectedGraph,
           folderState: [],
@@ -183,12 +183,12 @@ function installMockElectronAPI(): void {
         delete: async () => ({ success: true }),
       },
       getVoicetreeHomePath: async (): Promise<string> => '/Users/testuser/.voicetree',
-      getVaultPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
-      getWriteFolder: async () => ({
+      getProjectPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
+      getWriteFolderPath: async () => ({
         _tag: 'Some' as const,
         value: '/mock/watched/directory'
       }),
-      setWriteFolder: async () => ({ success: true }),
+      setWriteFolderPath: async () => ({ success: true }),
       getShowAllPaths: async (): Promise<readonly string[]> => [],
       toggleShowAll: async () => ({ success: true, showAll: false }),
       addReadOnLinkPath: async () => ({ success: true }),
@@ -210,20 +210,18 @@ function installMockElectronAPI(): void {
         name: 'Mock Test Project',
         type: 'folder' as const,
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       }],
       saveProject: async () => {},
       removeProject: async () => {},
       getDefaultSearchDirectories: async () => [],
       scanForProjects: async () => [],
-      initializeProject: async () => '/mock/watched/directory/voicetree',
       showFolderPicker: async () => ({ success: false }),
     },
     onWatchingStarted: () => {},
     onFileWatchingStopped: () => {},
-    onVaultSwitching: () => () => {},
-    onVaultReady: () => () => {},
-    onVaultLost: () => () => {},
+    onProjectSwitching: () => () => {},
+    onProjectReady: () => () => {},
+    onProjectLost: () => () => {},
     onViewSwitched: () => () => {},
     removeAllListeners: () => {},
     terminal: {

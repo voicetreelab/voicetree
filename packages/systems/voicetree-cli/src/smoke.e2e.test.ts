@@ -2,7 +2,7 @@
 //
 // Catches the "vt CLI broken at the wrapper level" class of regression at the
 // cheapest possible cost. Spawns the real package `bin/vt` script as a child
-// process — no Electron, no playwright, no MCP daemon roundtrip. Three
+// process — no Electron, no playwright, no daemon roundtrip. Three
 // scenarios that exercise the layers most likely to break:
 //
 //   1. `vt --help`: proves the wrapper loads tsx, resolves package-local imports
@@ -81,19 +81,19 @@ function runVt(args: string[], cwd: string): Promise<SpawnResult> {
 }
 
 describe('vt CLI smoke (Tier 1)', () => {
-    let vaultRoot: string
+    let projectRoot: string
 
     beforeEach(async () => {
-        vaultRoot = await mkdtemp(join(tmpdir(), 'vt-smoke-'))
+        projectRoot = await mkdtemp(join(tmpdir(), 'vt-smoke-'))
     })
 
     afterEach(async () => {
-        await rm(vaultRoot, {recursive: true, force: true})
+        await rm(projectRoot, {recursive: true, force: true})
     })
 
     it('loads and prints help from outside the package directory', async () => {
         // Run from /tmp to prove the tsconfig pinning fix works: tsx
-        // auto-discovers tsconfig from CWD, which would otherwise be a vault
+        // auto-discovers tsconfig from CWD, which would otherwise be a project
         // dir. The vt wrapper pins TSX_TSCONFIG_PATH so module resolution stays
         // consistent regardless of CWD.
         const result: SpawnResult = await runVt(['--help'], tmpdir())
@@ -108,10 +108,10 @@ describe('vt CLI smoke (Tier 1)', () => {
     })
 
     it('creates a markdown file in filesystem mode when no schema gate applies', async () => {
-        const targetPath: string = join(vaultRoot, 'note.md')
+        const targetPath: string = join(projectRoot, 'note.md')
         await writeFile(targetPath, '# Topic\n\nFree-form body, no folder note upstream.\n', 'utf8')
 
-        const result: SpawnResult = await runVt(['graph', 'create', 'note.md'], vaultRoot)
+        const result: SpawnResult = await runVt(['graph', 'create', 'note.md'], projectRoot)
 
         expect(result.code).toBe(0)
         // File still exists (and is non-empty) after the create call.
@@ -122,16 +122,16 @@ describe('vt CLI smoke (Tier 1)', () => {
 
     it('rejects a schema-gated invalid body with structured stderr JSON and exit 1', async () => {
         // Set up the folder note + schema plugin so the gate fires.
-        const workDir: string = join(vaultRoot, 'work')
+        const workDir: string = join(projectRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(
             join(workDir, 'work.md'),
             '# Work\n\n## Type: my-kind\n\nfolder note body\n',
             'utf8'
         )
-        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
+        await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
         await writeFile(
-            join(vaultRoot, '.voicetree', 'schemas.cjs'),
+            join(projectRoot, '.voicetree', 'schemas.cjs'),
             `module.exports = {
                 'my-kind': {
                     validate(body) {
@@ -151,7 +151,7 @@ describe('vt CLI smoke (Tier 1)', () => {
         const originalBody: string = '# Topic\n\nthis body lacks the marker\n'
         await writeFile(targetPath, originalBody, 'utf8')
 
-        const result: SpawnResult = await runVt(['graph', 'create', 'work/topic.md'], vaultRoot)
+        const result: SpawnResult = await runVt(['graph', 'create', 'work/topic.md'], projectRoot)
 
         expect(result.code).toBe(1)
         // The stderr should contain the batch-report JSON envelope, possibly
@@ -179,16 +179,16 @@ describe('vt CLI smoke (Tier 1)', () => {
     it('reports per-node verdicts for a 2-node batch (one valid, one invalid) and exits 1', async () => {
         // Step 5 acceptance: gate-all must evaluate BOTH nodes (no first-fail
         // cascade) and the batch report must surface both verdicts.
-        const workDir: string = join(vaultRoot, 'work')
+        const workDir: string = join(projectRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(
             join(workDir, 'work.md'),
             '# Work\n\n## Type: my-kind\n\nfolder note body\n',
             'utf8'
         )
-        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
+        await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
         await writeFile(
-            join(vaultRoot, '.voicetree', 'schemas.cjs'),
+            join(projectRoot, '.voicetree', 'schemas.cjs'),
             `module.exports = {
                 'my-kind': {
                     validate(body) {
@@ -212,7 +212,7 @@ describe('vt CLI smoke (Tier 1)', () => {
 
         const result: SpawnResult = await runVt(
             ['graph', 'create', 'work/a.md', 'work/b.md'],
-            vaultRoot,
+            projectRoot,
         )
 
         expect(result.code).toBe(1)
@@ -233,16 +233,16 @@ describe('vt CLI smoke (Tier 1)', () => {
     })
 
     it('accepts a schema-gated valid body and writes the file', async () => {
-        const workDir: string = join(vaultRoot, 'work')
+        const workDir: string = join(projectRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(
             join(workDir, 'work.md'),
             '# Work\n\n## Type: my-kind\n\nfolder note body\n',
             'utf8'
         )
-        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
+        await mkdir(join(projectRoot, '.voicetree'), {recursive: true})
         await writeFile(
-            join(vaultRoot, '.voicetree', 'schemas.cjs'),
+            join(projectRoot, '.voicetree', 'schemas.cjs'),
             `module.exports = {
                 'my-kind': {
                     validate(body) {
@@ -258,7 +258,7 @@ describe('vt CLI smoke (Tier 1)', () => {
         const targetPath: string = join(workDir, 'topic.md')
         await writeFile(targetPath, '# Topic\n\nbody with Needed marker present.\n', 'utf8')
 
-        const result: SpawnResult = await runVt(['graph', 'create', 'work/topic.md'], vaultRoot)
+        const result: SpawnResult = await runVt(['graph', 'create', 'work/topic.md'], projectRoot)
 
         expect(result.code).toBe(0)
         expect(result.stderr).toBe('')

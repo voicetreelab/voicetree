@@ -17,7 +17,7 @@ import {getRecoveryMetadataDir} from './paths'
  *     (deleting it would orphan a running agent's view of its own metadata).
  *   - `no-project-root`: the runtime env has no project root available, so
  *     there is no canonical metadata dir to unlink from. The renderer should
- *     never hit this in normal flow (vault must be open to see the row).
+ *     never hit this in normal flow (project must be open to see the row).
  *
  * `invalid-id` — the terminal id failed strict-allowlist validation. Returned
  *   for path-traversal attempts (`../foo`), shell-special chars, empties, etc.

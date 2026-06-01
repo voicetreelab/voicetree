@@ -128,7 +128,7 @@ function makeCyWithLateNode(targetNodeId: string): TestCy & { addNode: (id: stri
 function makeTerminalData(anchoredTo?: string): TerminalData {
     return createTerminalData({
         terminalId: 'test-terminal' as TerminalId,
-        attachedToNodeId: '/vault/ctx-nodes/ctx.md' as NodeIdAndFilePath,
+        attachedToNodeId: '/project/ctx-nodes/ctx.md' as NodeIdAndFilePath,
         terminalCount: 0,
         title: 'Test',
         anchoredToNodeId: anchoredTo as NodeIdAndFilePath | undefined,
@@ -144,9 +144,9 @@ describe('createFloatingTerminal', () => {
 
     it('returns terminal with fallback position when waitForNode times out', async () => {
         const cy = makeCy(false) // node never appears in Cytoscape
-        const data = makeTerminalData('/vault/task.md')
+        const data = makeTerminalData('/project/task.md')
 
-        const result = await createFloatingTerminal(cy, '/vault/task.md', data)
+        const result = await createFloatingTerminal(cy, '/project/task.md', data)
 
         // Critical: terminal must be created even when node isn't in Cytoscape yet.
         // Before the fix, this returned undefined because anchorToNode threw.
@@ -160,9 +160,9 @@ describe('createFloatingTerminal', () => {
 
     it('anchors to node when waitForNode finds it', async () => {
         const cy = makeCy(true) // node exists in Cytoscape
-        const data = makeTerminalData('/vault/task.md')
+        const data = makeTerminalData('/project/task.md')
 
-        const result = await createFloatingTerminal(cy, '/vault/task.md', data)
+        const result = await createFloatingTerminal(cy, '/project/task.md', data)
 
         expect(result).toBeDefined()
         expect(result?.ui?.windowElement.dataset.anchorCount).toBe('1')
@@ -170,21 +170,21 @@ describe('createFloatingTerminal', () => {
     }, 10_000)
 
     it('anchors after a timed-out target node is later added to Cytoscape', async () => {
-        const cy = makeCyWithLateNode('/vault/task.md')
-        const data = makeTerminalData('/vault/task.md')
+        const cy = makeCyWithLateNode('/project/task.md')
+        const data = makeTerminalData('/project/task.md')
 
-        const result = await createFloatingTerminal(cy, '/vault/task.md', data)
+        const result = await createFloatingTerminal(cy, '/project/task.md', data)
         expect(result).toBeDefined()
         expect(result?.ui?.windowElement.dataset.anchorCount).toBeUndefined()
         expect(result?.ui?.windowElement.style.left).toBe('100px')
         expect(result?.ui?.windowElement.style.top).toBe('100px')
 
-        cy.addNode('/vault/task.md')
+        cy.addNode('/project/task.md')
 
         expect(result?.ui?.windowElement.dataset.anchorCount).toBe('1')
         expect(cy.getNodeData('hasRunningTerminal')).toBe(true)
 
-        cy.addNode('/vault/task.md')
+        cy.addNode('/project/task.md')
 
         expect(result?.ui?.windowElement.dataset.anchorCount).toBe('1')
     }, 10_000)

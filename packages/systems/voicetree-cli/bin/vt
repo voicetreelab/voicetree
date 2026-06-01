@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# When installed from npm (or `npm pack`'d), the published tarball ships
-# `dist/voicetree-cli.js` alongside this script — exec it directly.
-# When run from a monorepo checkout, `dist/` is gitignored and absent;
-# fall back to running the TS sources via tsx.
+# `vt` runs from one of two code sources, discriminated by `src/` presence:
+#   - Published tarball (`npm install` / `npm pack`): ships `dist/` + `bin/`
+#     but NO `src/` — exec the prebuilt bundle directly (no tsx needed).
+#   - Monorepo / dev checkout: `src/` is present and `dist/` is gitignored —
+#     ALWAYS run the live TS sources via tsx. A stale or stray `dist/` bundle
+#     must never shadow current source (a bundle built before an env-var
+#     rename once kept running the old name — this gate prevents that class).
 set -euo pipefail
 
 # Resolve symlinks to find the real location of this script
@@ -16,11 +19,12 @@ while [ -L "$_script" ]; do
 done
 PACKAGE_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
 
-# Bundled path (published tarball): a single self-contained ESM bundle.
-# `VT_FORCE_SOURCE=1` skips the bundle and uses the tsx source path so
-# in-monorepo tests don't run against a stale or unrelated dist build.
+# Bundled path: trust the prebuilt bundle ONLY in a published install — i.e.
+# when `src/` is absent. In a monorepo checkout `src/` is always present, so a
+# stray `dist/voicetree-cli.js` (e.g. left by a manual `npm run build`) can
+# never shadow live source. `VT_FORCE_SOURCE=1` forces source regardless.
 BUNDLE="$PACKAGE_DIR/dist/voicetree-cli.js"
-if [ -z "${VT_FORCE_SOURCE:-}" ] && [ -f "$BUNDLE" ]; then
+if [ -z "${VT_FORCE_SOURCE:-}" ] && [ ! -d "$PACKAGE_DIR/src" ] && [ -f "$BUNDLE" ]; then
     exec node "$BUNDLE" "$@"
 fi
 
@@ -38,7 +42,7 @@ else
     exit 127
 fi
 
-# tsx auto-discovers tsconfig.json from CWD, but vt runs from vault dirs —
+# tsx auto-discovers tsconfig.json from CWD, but vt runs from project dirs —
 # pin it to this package's tsconfig so module resolution stays consistent.
 exec env TSX_TSCONFIG_PATH="$PACKAGE_DIR/tsconfig.json" "$TSX_BIN" \
     "$PACKAGE_DIR/src/voicetree-cli.ts" "$@"

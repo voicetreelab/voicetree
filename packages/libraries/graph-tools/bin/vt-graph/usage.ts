@@ -1,7 +1,7 @@
 export function usage(): string {
   return [
     'Usage: vt-graph <lint|hygiene|structure|apply|rename|mv|state|live> [args]',
-    '       vt-graph hygiene <vault> [--rule <id>] [--json]',
+    '       vt-graph hygiene <project> [--rule <id>] [--json]',
     '       vt-graph structure [folder] [--budget N] [--no-auto|--ascii|--mermaid] [--collapse F]... [--select X]... [--port N]',
     '         (default: tree-cover with daemon overlay if available; auto-collapses coherent subgraphs once visible entities exceed budget — default 30)',
     '       vt-graph apply <cmd-json> [--state-file <path>] [--pretty|--no-pretty] [--out <file>]',

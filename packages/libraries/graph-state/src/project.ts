@@ -1,6 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 
 import { getFolderNotePath, type GraphNode } from '@vt/graph-model'
+import { compareEdges } from './project-helpers'
 
 import type { FolderId, ProjectedEdge, ProjectedGraph, ProjectedNode, State, TreeEdge } from './contract'
 import {
@@ -51,8 +52,10 @@ function filterByCollapse(
 
     const visibleFolderIds = new Set(visibleFolders.map((info) => info.id))
 
+    // Object.entries already returns a fresh array, so sort it in place directly — the prior
+    // identity .map (rewrapping each entry as a const tuple) allocated N tuples + an array per
+    // projection purely to widen the static type, which the annotation already covers.
     const nodeEntries: Array<readonly [string, GraphNode]> = Object.entries<GraphNode>(graphNodes)
-        .map(([nodeId, node]) => [nodeId, node] as const)
         .sort(([left], [right]) => left.localeCompare(right))
         .filter(([, node]) => isProjectableGraphNode(node))
 
@@ -206,7 +209,7 @@ function projectEdges(
         if (sourceEndpoint === undefined) continue
 
         const outgoingEdges = [...sourceNode.outgoingEdges]
-            .sort((left, right) => left.targetId.localeCompare(right.targetId) || left.label.localeCompare(right.label))
+            .sort(compareEdges)
 
         for (const edge of outgoingEdges) {
             const targetNode = graphNodes[edge.targetId]

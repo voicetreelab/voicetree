@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import {
     Node,
     SyntaxKind,
+    ts,
     type FunctionDeclaration,
     type MethodDeclaration,
     type Node as MorphNode,
@@ -67,8 +68,8 @@ function createCallGraphFromSourceFiles(
     sourceFiles: readonly SourceFile[],
     rootDir: string,
 ): CallGraph {
-    const {nodes, functionIdsBySyntaxNode} = collectFunctionNodes(sourceFiles, rootDir)
-    const {calleeIdsByFnId, callerIdsByFnId} = collectCallEdges(nodes, functionIdsBySyntaxNode)
+    const {nodes, functionIdsByCompilerNode} = collectFunctionNodes(sourceFiles, rootDir)
+    const {calleeIdsByFnId, callerIdsByFnId} = collectCallEdges(sourceFiles, nodes, functionIdsByCompilerNode)
     return assembleGraph(nodes, sourceFiles, calleeIdsByFnId, callerIdsByFnId)
 }
 
@@ -124,29 +125,48 @@ const IGNORED_SOURCE_DIR_NAMES: ReadonlySet<string> = new Set([
     'bin',
 ])
 
+/**
+ * Collect every function-like declaration into the node map.
+ *
+ * Declaration nodes are keyed in `functionIdsByCompilerNode` by their raw
+ * compiler node so that `collectCallEdges` can resolve callee declarations
+ * (which the type checker returns as raw `ts.Node`s) without re-wrapping.
+ */
 function collectFunctionNodes(
     sourceFiles: readonly SourceFile[],
     rootDir: string,
-): {nodes: Map<string, FunctionNode>; functionIdsBySyntaxNode: Map<MorphNode, string>} {
+): {nodes: Map<string, FunctionNode>; functionIdsByCompilerNode: Map<ts.Node, string>} {
     const nodes = new Map<string, FunctionNode>()
-    const functionIdsBySyntaxNode = new Map<MorphNode, string>()
+    const functionIdsByCompilerNode = new Map<ts.Node, string>()
     for (const sourceFile of sourceFiles) {
         for (const fn of sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) {
-            addFunctionDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, fn, rootDir)
+            addFunctionDeclaration(nodes, functionIdsByCompilerNode, sourceFile, fn, rootDir)
         }
         for (const method of sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration)) {
-            addMethodDeclaration(nodes, functionIdsBySyntaxNode, sourceFile, method, rootDir)
+            addMethodDeclaration(nodes, functionIdsByCompilerNode, sourceFile, method, rootDir)
         }
         for (const variable of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-            addVariableFunction(nodes, functionIdsBySyntaxNode, sourceFile, variable, rootDir)
+            addVariableFunction(nodes, functionIdsByCompilerNode, sourceFile, variable, rootDir)
         }
     }
-    return {nodes, functionIdsBySyntaxNode}
+    return {nodes, functionIdsByCompilerNode}
 }
 
+/**
+ * Attribute every call expression to its nearest enclosing function and record
+ * the resolved callee edge.
+ *
+ * Performance: one raw `ts.forEachChild` traversal per source file threads the
+ * enclosing function id down the recursion. This replaces the previous
+ * per-function `getDescendantsOfKind(CallExpression)` scan, which re-walked
+ * (and re-wrapped) every nested subtree once per enclosing declaration. Symbol
+ * resolution still goes through the program's type checker — the only step
+ * that genuinely needs it — so the resolved edges are identical.
+ */
 function collectCallEdges(
+    sourceFiles: readonly SourceFile[],
     nodes: ReadonlyMap<string, FunctionNode>,
-    functionIdsBySyntaxNode: ReadonlyMap<MorphNode, string>,
+    functionIdsByCompilerNode: ReadonlyMap<ts.Node, string>,
 ): {calleeIdsByFnId: Map<string, Set<string>>; callerIdsByFnId: Map<string, Set<string>>} {
     const calleeIdsByFnId = new Map<string, Set<string>>()
     const callerIdsByFnId = new Map<string, Set<string>>()
@@ -154,16 +174,21 @@ function collectCallEdges(
         calleeIdsByFnId.set(id, new Set())
         callerIdsByFnId.set(id, new Set())
     }
-    for (const [syntaxNode, callerId] of functionIdsBySyntaxNode.entries()) {
-        if (Node.isVariableDeclaration(syntaxNode)) continue
-        for (const call of syntaxNode.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-            if (findEnclosingFunctionId(call, functionIdsBySyntaxNode) !== callerId) continue
-            const calleeId = resolveCalleeId(call.getExpression(), functionIdsBySyntaxNode)
-            if (!calleeId || calleeId === callerId) continue
-            calleeIdsByFnId.get(callerId)?.add(calleeId)
-            callerIdsByFnId.get(calleeId)?.add(callerId)
+    if (sourceFiles.length === 0) return {calleeIdsByFnId, callerIdsByFnId}
+
+    const checker = sourceFiles[0].getProject().getTypeChecker().compilerObject
+    const visit = (node: ts.Node, enclosingFnId: string | undefined): void => {
+        const currentFnId = functionIdsByCompilerNode.get(node) ?? enclosingFnId
+        if (ts.isCallExpression(node) && currentFnId !== undefined) {
+            const calleeId = resolveCalleeId(node.expression, functionIdsByCompilerNode, checker)
+            if (calleeId && calleeId !== currentFnId) {
+                calleeIdsByFnId.get(currentFnId)?.add(calleeId)
+                callerIdsByFnId.get(calleeId)?.add(currentFnId)
+            }
         }
+        ts.forEachChild(node, child => visit(child, currentFnId))
     }
+    for (const sourceFile of sourceFiles) visit(sourceFile.compilerNode, undefined)
     return {calleeIdsByFnId, callerIdsByFnId}
 }
 
@@ -215,7 +240,7 @@ function isProductionSourcePath(path: string): boolean {
 
 function addFunctionDeclaration(
     nodes: Map<string, FunctionNode>,
-    functionIdsBySyntaxNode: Map<MorphNode, string>,
+    functionIdsByCompilerNode: Map<ts.Node, string>,
     sourceFile: SourceFile,
     fn: FunctionDeclaration,
     rootDir: string,
@@ -224,12 +249,12 @@ function addFunctionDeclaration(
     const name = fn.getName() ?? 'default'
     const node = createFunctionNode(sourceFile, fn.getNameNode() ?? fn, fn, name, 'function', fn.isExported(), rootDir)
     nodes.set(node.id, node)
-    functionIdsBySyntaxNode.set(fn, node.id)
+    functionIdsByCompilerNode.set(fn.compilerNode, node.id)
 }
 
 function addMethodDeclaration(
     nodes: Map<string, FunctionNode>,
-    functionIdsBySyntaxNode: Map<MorphNode, string>,
+    functionIdsByCompilerNode: Map<ts.Node, string>,
     sourceFile: SourceFile,
     method: MethodDeclaration,
     rootDir: string,
@@ -239,12 +264,12 @@ function addMethodDeclaration(
     const name = method.getName()
     const node = createFunctionNode(sourceFile, method.getNameNode(), method, name, 'method', classDecl?.isExported() ?? false, rootDir)
     nodes.set(node.id, node)
-    functionIdsBySyntaxNode.set(method, node.id)
+    functionIdsByCompilerNode.set(method.compilerNode, node.id)
 }
 
 function addVariableFunction(
     nodes: Map<string, FunctionNode>,
-    functionIdsBySyntaxNode: Map<MorphNode, string>,
+    functionIdsByCompilerNode: Map<ts.Node, string>,
     sourceFile: SourceFile,
     variable: VariableDeclaration,
     rootDir: string,
@@ -264,8 +289,8 @@ function addVariableFunction(
         rootDir,
     )
     nodes.set(node.id, node)
-    functionIdsBySyntaxNode.set(variable, node.id)
-    functionIdsBySyntaxNode.set(initializer, node.id)
+    functionIdsByCompilerNode.set(variable.compilerNode, node.id)
+    functionIdsByCompilerNode.set(initializer.compilerNode, node.id)
 }
 
 function createFunctionNode(
@@ -303,39 +328,33 @@ function folderAncestors(file: string): readonly string[] {
     return folders
 }
 
+/**
+ * Resolve the call target's declaration to a function id via the type checker,
+ * following a single alias hop. Mirrors the previous ts-morph
+ * `expression.getSymbol()?.getAliasedSymbol()` path on the raw compiler API.
+ */
 function resolveCalleeId(
-    expression: MorphNode,
-    functionIdsBySyntaxNode: ReadonlyMap<MorphNode, string>,
+    expression: ts.Node,
+    functionIdsByCompilerNode: ReadonlyMap<ts.Node, string>,
+    checker: ts.TypeChecker,
 ): string | undefined {
-    const symbol = expression.getSymbol()
-    const resolved = symbol?.getAliasedSymbol() ?? symbol
-    const declaration = resolved?.getValueDeclaration() ?? resolved?.getDeclarations()[0]
+    const symbol = checker.getSymbolAtLocation(expression)
+    const aliased = symbol && (symbol.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(symbol) : undefined
+    const resolved = aliased ?? symbol
+    const declaration = resolved?.valueDeclaration ?? resolved?.declarations?.[0]
     if (!declaration) return undefined
-    return findFunctionIdForDeclaration(declaration, functionIdsBySyntaxNode)
+    return findFunctionIdForDeclaration(declaration, functionIdsByCompilerNode)
 }
 
 function findFunctionIdForDeclaration(
-    declaration: MorphNode,
-    functionIdsBySyntaxNode: ReadonlyMap<MorphNode, string>,
+    declaration: ts.Node,
+    functionIdsByCompilerNode: ReadonlyMap<ts.Node, string>,
 ): string | undefined {
-    let current: MorphNode | undefined = declaration
+    let current: ts.Node | undefined = declaration
     while (current) {
-        const id = functionIdsBySyntaxNode.get(current)
+        const id = functionIdsByCompilerNode.get(current)
         if (id) return id
-        current = current.getParent()
-    }
-    return undefined
-}
-
-function findEnclosingFunctionId(
-    node: MorphNode,
-    functionIdsBySyntaxNode: ReadonlyMap<MorphNode, string>,
-): string | undefined {
-    let current: MorphNode | undefined = node
-    while (current) {
-        const id = functionIdsBySyntaxNode.get(current)
-        if (id) return id
-        current = current.getParent()
+        current = current.parent
     }
     return undefined
 }

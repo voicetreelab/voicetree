@@ -6,14 +6,10 @@ import {formatCallDagRows} from '../../duplication-workflow/format-call-dag-rows
 import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
-// Captured 2026-05-26 on first full-repo run: observed 16 pairs at or above
-// the 0.7 score threshold (all exact-match) across 4318 discovered functions
-// (868 non-trivial). Budget = observed + 5 headroom so the gate does not
-// flap; ratchet DOWN as duplicate workflows are merged, never up.
-const MAX_WORKFLOW_DUPLICATE_PAIRS: number = 21
-
-const SCORE_THRESHOLD: number = 0.7
+const {maxPairs: MAX_WORKFLOW_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
+    readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/workflow-duplication.json')
 
 describe('workflow (call-DAG) duplication health', () => {
     it('keeps the count of >=0.7-score call-DAG duplicate pairs within budget', async () => {

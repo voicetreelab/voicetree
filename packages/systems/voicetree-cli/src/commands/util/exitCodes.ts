@@ -23,8 +23,8 @@ export const EXIT: {
 
 export type ExitCode = (typeof EXIT)[keyof typeof EXIT]
 
-interface VaultNotDetectedErrorShape {
-    name: 'VaultNotDetectedError'
+interface ProjectNotDetectedErrorShape {
+    name: 'ProjectNotDetectedError'
     message: string
 }
 
@@ -56,21 +56,29 @@ export class CliExitError extends Error {
 
     get errorClass(): string {
         if (this.cause instanceof Error) return this.cause.name
-        if (isVaultNotDetectedError(this.cause)) return this.cause.name
+        if (isProjectNotDetectedError(this.cause)) return this.cause.name
         return 'UnknownError'
     }
 }
 
-function isVaultNotDetectedError(err: unknown): err is VaultNotDetectedErrorShape {
+function isProjectNotDetectedError(err: unknown): err is ProjectNotDetectedErrorShape {
     return (
         isRecord(err) &&
-        err.name === 'VaultNotDetectedError' &&
+        err.name === 'ProjectNotDetectedError' &&
         typeof err.message === 'string'
     )
 }
 
 export function handleCliError(err: unknown): never {
-    if (isVaultNotDetectedError(err)) {
+    // A CliExitError is already classified (exit code + clean message). Commands
+    // that map a daemon/transport error into a clean domain error throw one of
+    // these directly; pass it through untouched so the classification + message
+    // survive instead of being re-wrapped as an UNKNOWN failure.
+    if (err instanceof CliExitError) {
+        throw err
+    }
+
+    if (isProjectNotDetectedError(err)) {
         throw new CliExitError(EXIT.ARG_VALIDATION, err.message, err)
     }
 

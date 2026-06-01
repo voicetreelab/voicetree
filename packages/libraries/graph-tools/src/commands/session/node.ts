@@ -345,7 +345,7 @@ async function inspectNode(
 async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
   let port: number | undefined
   let pid: number | undefined
-  let vault: string | undefined
+  let project: string | undefined
   let forceNew: boolean | undefined
   let nodeId: string | undefined
 
@@ -359,26 +359,26 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
       pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
       pid = parseInt(arg.slice('--pid='.length), 10)
-    } else if (arg === '--vault') {
-      vault = argv[++i]
-    } else if (arg.startsWith('--vault=')) {
-      vault = arg.slice('--vault='.length)
+    } else if (arg === '--project') {
+      project = argv[++i]
+    } else if (arg.startsWith('--project=')) {
+      project = arg.slice('--project='.length)
     } else if (arg === '--new') {
       forceNew = true
     } else if (arg.startsWith('--')) {
-      return err('node', `unknown flag: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH|--new]', 2)
+      return err('node', `unknown flag: ${arg}`, 'usage: vt debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
     } else if (!nodeId) {
       nodeId = arg
     } else {
-      return err('node', `unexpected argument: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH|--new]', 2)
+      return err('node', `unexpected argument: ${arg}`, 'usage: vt debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
     }
   }
 
   if (!nodeId) {
-    return err('node', 'missing node id', 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH|--new]', 2)
+    return err('node', 'missing node id', 'usage: vt debug node <id> [--port N|--cdpPort N|--pid N|--project PATH|--new]', 2)
   }
 
-  const pick = await resolveDebugInstance({ port, pid, vault, forceNew })
+  const pick = await resolveDebugInstance({ port, pid, project, forceNew })
   if (!pick.ok) {
     return err('node', pick.message, pick.hint, 2)
   }
@@ -391,14 +391,14 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     return err(
       'node',
       `live state fetch failed: ${String(e)}`,
-      `verify the daemon is running for vault ${pick.instance.projectRoot}`,
+      `verify the daemon is running for project ${pick.instance.projectRoot}`,
       2,
     )
   }
 
   const graphNode = state.graph.nodes[nodeId]
   if (!graphNode) {
-    return err('node', `node not found: ${nodeId}`, 'try: vt-debug cy dump --source data', 1)
+    return err('node', `node not found: ${nodeId}`, 'try: vt debug cy dump --source data', 1)
   }
 
   let chromium: ChromiumLike

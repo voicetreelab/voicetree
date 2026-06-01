@@ -1,6 +1,6 @@
 /**
  * Shared helpers for folder node e2e tests.
- * Pure functions + test vault factory + diagnostic utilities.
+ * Pure functions + test project factory + diagnostic utilities.
  */
 
 import { expect } from '@playwright/test';
@@ -15,14 +15,14 @@ export interface ExtendedWindow {
     electronAPI?: ElectronAPI;
 }
 
-// ── Vault Factory ─────────────────────────────────────────────────────
-// Creates a test vault with explicit folder structure:
+// ── Project Factory ─────────────────────────────────────────────────────
+// Creates a test project with explicit folder structure:
 //   auth/login-flow.md, auth/jwt-token.md, auth/session-manager.md  (3 files)
 //   api/gateway.md, api/router.md                                    (2 files)
 //   utils/logger.md, utils/config.md                                 (2 files)
 //   readme.md                                                        (root, no folder)
-export async function createFolderTestVault(basePath: string): Promise<string> {
-    const projectRoot = path.join(basePath, 'folder-test-vault');
+export async function createFolderTestProject(basePath: string): Promise<string> {
+    const projectRoot = path.join(basePath, 'folder-test-project');
 
     await fs.mkdir(path.join(projectRoot, 'auth'), { recursive: true });
     await fs.mkdir(path.join(projectRoot, 'api'), { recursive: true });
@@ -65,6 +65,73 @@ export async function waitForGraphLoaded(page: Page, minNodes = 1): Promise<void
         timeout: 20000,
         intervals: [500, 1000, 1000, 2000]
     }).toBeGreaterThanOrEqual(minNodes);
+}
+
+// ── Folder Collapse Trigger ───────────────────────────────────────────
+
+/**
+ * Toggle a folder's collapsed state via its FolderHandleService chevron chip —
+ * the user-facing affordance for collapse/expand. (Double-tapping the folder
+ * body no longer collapses it; the chevron, vertical menu, and folder-tree
+ * sidebar are the deliberate triggers.)
+ *
+ * Fires the chevron button's real click handler directly rather than via screen
+ * coordinates, so it is robust to viewport position and occlusion. Returns the
+ * resolved folder id. Throws if the folder or its chip cannot be found, so a
+ * missing affordance surfaces as a loud failure rather than a silent no-op.
+ */
+export async function toggleFolderViaChevron(page: Page, folderSuffix: string): Promise<string> {
+    return page.evaluate((suffix: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        const folder = cy.nodes()
+            .filter((n: NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+            .first();
+        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
+        const folderId = folder.id();
+        const chip = Array.from(document.querySelectorAll<HTMLElement>('.vt-folder-handle'))
+            .find((el: HTMLElement) => el.dataset.folderId === folderId);
+        if (!chip) throw new Error(`No folder handle chip for: ${folderId}`);
+        const chevron = chip.querySelector<HTMLButtonElement>('.vt-folder-handle__chevron');
+        if (!chevron) throw new Error(`No folder chevron button for: ${folderId}`);
+        chevron.click();
+        return folderId;
+    }, folderSuffix);
+}
+
+/**
+ * Click a folder's chevron chip via a real screen-coordinate mouse click,
+ * asserting the chevron is the top hit target first. Unlike
+ * {@link toggleFolderViaChevron} (which fires the handler programmatically),
+ * this exercises genuine on-screen clickability — use it when a test's purpose
+ * is to verify the chevron is actually reachable by the pointer.
+ */
+export async function clickFolderChevron(page: Page, folderSuffix: string): Promise<void> {
+    const point = await page.evaluate((suffix: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        const folder = cy.nodes()
+            .filter((n: NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+            .first();
+        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
+        const folderId = folder.id();
+        const chip = Array.from(document.querySelectorAll<HTMLElement>('.vt-folder-handle'))
+            .find((el: HTMLElement) => el.dataset.folderId === folderId);
+        if (!chip) throw new Error(`No folder handle chip for: ${folderId}`);
+        const chevron = chip.querySelector<HTMLElement>('.vt-folder-handle__chevron');
+        if (!chevron) throw new Error(`No folder chevron button for: ${folderId}`);
+        const rect = chevron.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        if (!hit?.closest('.vt-folder-handle__chevron')) {
+            const target = hit as HTMLElement | null;
+            throw new Error(`Folder chevron is not the top hit target for: ${folderId}; hit=${target?.tagName ?? 'null'} class=${target?.className ?? ''} id=${target?.id ?? ''}`);
+        }
+        return { x, y };
+    }, folderSuffix);
+
+    await page.mouse.click(point.x, point.y);
 }
 
 // ── Diagnostic Snapshot ───────────────────────────────────────────────

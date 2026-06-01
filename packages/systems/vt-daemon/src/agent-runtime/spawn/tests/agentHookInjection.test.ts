@@ -8,7 +8,7 @@
  *
  * Step 9b: hooks target the unified HTTP daemon (`$VOICETREE_DAEMON_URL`)
  * with the bearer token read inline via
- * `cat "$VOICETREE_VAULT_PATH/.voicetree/auth-token"`. No port-only refs,
+ * `cat "$VOICETREE_PROJECT_PATH/.voicetree/auth-token"`. No port-only refs,
  * no token-in-env-or-argv.
  */
 
@@ -19,7 +19,7 @@ import {
     buildClaudeHookSettingsJson,
     buildCodexHookFlags,
     injectCodexHookFlags,
-} from '../agentHookInjection'
+} from '../injection/agentHookInjection'
 
 const DAEMON_URL: string = 'http://127.0.0.1:51337'
 
@@ -113,11 +113,11 @@ describe('buildCodexHookFlags', () => {
         expect(flags).not.toMatch(/Bearer [a-f0-9]{16,}/)
     })
 
-    it('reads the bearer token via `cat` from the vault auth-token file', () => {
+    it('reads the bearer token via `cat` from the project auth-token file', () => {
         const flags = buildCodexHookFlags(DAEMON_URL, 'Jin')
         // The TOML-escaped form has \" instead of " — the test asserts the
         // inner-quoted-cat substring with escapes.
-        expect(flags).toContain('TOKEN=$(cat \\"$VOICETREE_VAULT_PATH/.voicetree/auth-token\\")')
+        expect(flags).toContain('TOKEN=$(cat \\"$VOICETREE_PROJECT_PATH/.voicetree/auth-token\\")')
         expect(flags).toContain('Authorization: Bearer $TOKEN')
     })
 
@@ -181,23 +181,23 @@ describe('buildClaudeHookSettingsJson', () => {
         expect(Object.keys(settings.hooks).sort()).toEqual(['Notification', 'PostToolUse', 'PreToolUse', 'Stop', 'UserPromptSubmit'])
     })
 
-    it('hook commands reference VOICETREE_DAEMON_URL + VOICETREE_VAULT_PATH + VOICETREE_TERMINAL_ID', () => {
+    it('hook commands reference VOICETREE_DAEMON_URL + VOICETREE_PROJECT_PATH + VOICETREE_TERMINAL_ID', () => {
         const settings = JSON.parse(buildClaudeHookSettingsJson()) as {hooks: Record<string, Array<{hooks: Array<{command: string}>}>>}
         const cmd: string = settings.hooks.Notification[0].hooks[0].command
         expect(cmd).toContain('${VOICETREE_DAEMON_URL}')
         expect(cmd).toContain('${VOICETREE_TERMINAL_ID}')
-        // VAULT_PATH appears inside a double-quoted shell string — idiomatic
+        // PROJECT_PATH appears inside a double-quoted shell string — idiomatic
         // `$VAR` form, not `${VAR}`.
-        expect(cmd).toContain('$VOICETREE_VAULT_PATH/.voicetree/auth-token')
+        expect(cmd).toContain('$VOICETREE_PROJECT_PATH/.voicetree/auth-token')
         // Legacy refs gone.
         expect(cmd).not.toContain('${VOICETREE_HOOK_PORT}')
         expect(cmd).not.toContain('${VOICETREE_MCP_PORT}')
     })
 
-    it('reads the bearer token via `cat` from the vault auth-token file (no token on argv)', () => {
+    it('reads the bearer token via `cat` from the project auth-token file (no token on argv)', () => {
         const settings = JSON.parse(buildClaudeHookSettingsJson()) as {hooks: Record<string, Array<{hooks: Array<{command: string}>}>>}
         const cmd: string = settings.hooks.Notification[0].hooks[0].command
-        expect(cmd).toContain('TOKEN=$(cat "$VOICETREE_VAULT_PATH/.voicetree/auth-token")')
+        expect(cmd).toContain('TOKEN=$(cat "$VOICETREE_PROJECT_PATH/.voicetree/auth-token")')
         expect(cmd).toContain('Authorization: Bearer $TOKEN')
         // Bearer is sourced from `$TOKEN`; the literal env-var Bearer
         // shorthand (which would let `ps` see the token via env) is not used.

@@ -44,7 +44,7 @@ const test = base.extend<{
    * Project 1: Has lazy-loaded nodes via transitive wikilinks
    *
    * project1/
-   *   writeFolder/
+   *   writeFolderPath/
    *     A.md -> [[B]]
    *   chain/
    *     B.md -> [[C]]
@@ -53,15 +53,15 @@ const test = base.extend<{
    */
   project1Path: async ({}, use) => {
     const project1 = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-persist-p1-'));
-    const writeFolder = path.join(project1, 'writeFolder');
+    const writeFolderPath = path.join(project1, 'writeFolderPath');
     const chainDir = path.join(project1, 'chain');
 
-    await fs.mkdir(writeFolder, { recursive: true });
+    await fs.mkdir(writeFolderPath, { recursive: true });
     await fs.mkdir(chainDir, { recursive: true });
 
-    // A.md in writeFolder - links to B
+    // A.md in writeFolderPath - links to B
     await fs.writeFile(
-      path.join(writeFolder, 'A.md'),
+      path.join(writeFolderPath, 'A.md'),
       `# Node A
 Entry point in project 1.
 Links to: [[B]]
@@ -103,18 +103,18 @@ This should never appear in the graph.
    * Project 2: Completely different folder with different nodes
    *
    * project2/
-   *   writeFolder/
+   *   writeFolderPath/
    *     X.md (standalone node in project 2)
    */
   project2Path: async ({}, use) => {
     const project2 = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-persist-p2-'));
-    const writeFolder = path.join(project2, 'writeFolder');
+    const writeFolderPath = path.join(project2, 'writeFolderPath');
 
-    await fs.mkdir(writeFolder, { recursive: true });
+    await fs.mkdir(writeFolderPath, { recursive: true });
 
-    // X.md in project 2's writeFolder
+    // X.md in project 2's writeFolderPath
     await fs.writeFile(
-      path.join(writeFolder, 'X.md'),
+      path.join(writeFolderPath, 'X.md'),
       `# Node X
 This is the only node in project 2.
 `
@@ -133,8 +133,8 @@ This is the only node in project 2.
   },
 
   electronApp: async ({ project1Path, project2Path, tempUserDataPath }, use) => {
-    const writeFolder1 = path.join(project1Path, 'writeFolder');
-    const writeFolder2 = path.join(project2Path, 'writeFolder');
+    const writeFolderPath1 = path.join(project1Path, 'writeFolderPath');
+    const writeFolderPath2 = path.join(project2Path, 'writeFolderPath');
 
     // Create projects.json with project1 as a saved project (like smoke test)
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
@@ -144,23 +144,22 @@ This is the only node in project 2.
       name: 'project1',
       type: 'folder',
       lastOpened: Date.now(),
-      voicetreeInitialized: true
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
-    // Write vault config for BOTH projects so they load correctly when switched
+    // Write project config for BOTH projects so they load correctly when switched
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
       JSON.stringify({
         lastDirectory: project1Path,
-        vaultConfig: {
+        projectConfig: {
           [project1Path]: {
-            writeFolder: writeFolder1,
+            writeFolderPath: writeFolderPath1,
             readPaths: []
           },
           [project2Path]: {
-            writeFolder: writeFolder2,
+            writeFolderPath: writeFolderPath2,
             readPaths: []
           }
         }
@@ -287,8 +286,8 @@ test.describe('Lazy-Loaded Nodes Persist on Folder Switch Bug', () => {
 
     console.log('Project1 state: A=' + hasNodeA + ', B=' + hasNodeB + ', C=' + hasNodeC + ', orphan=' + hasOrphan);
 
-    // A should be loaded (in writeFolder)
-    expect(hasNodeA, 'Node A should be loaded from writeFolder').toBe(true);
+    // A should be loaded (in writeFolderPath)
+    expect(hasNodeA, 'Node A should be loaded from writeFolderPath').toBe(true);
 
     // B and C should be loaded (transitively via A -> B -> C)
     expect(hasNodeB, 'Node B should be lazy-loaded (A links to it)').toBe(true);

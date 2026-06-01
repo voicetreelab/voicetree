@@ -120,17 +120,17 @@ describe('resolveDaemonRuntimeCommand', () => {
 describe('resolveDefaultDaemonArgs', () => {
   test('prefers the sibling-bundle daemon when one is present (published-tarball layout)', () => {
     const sibling = '/install/lib/node_modules/@voicetree/cli/dist/vt-graphd.mjs'
-    const args = resolveDefaultDaemonArgs('/tmp/vault', {
+    const args = resolveDefaultDaemonArgs('/tmp/project', {
       exists: (path) => path === sibling,
       resolveTsx: () => '/tmp/tsx',
       siblingDaemonPath: () => sibling,
     })
 
-    expect(args).toEqual([sibling, '--project-root', '/tmp/vault'])
+    expect(args).toEqual([sibling, '--project-root', '/tmp/project'])
   })
 
   test('falls back to the @vt/graph-db-server dist build when no sibling daemon ships alongside', () => {
-    const args = resolveDefaultDaemonArgs('/tmp/vault', {
+    const args = resolveDefaultDaemonArgs('/tmp/project', {
       exists: (path) => path.endsWith('/dist/vt-graphd.mjs'),
       resolveTsx: () => '/tmp/tsx',
       siblingDaemonPath: () => undefined,
@@ -139,12 +139,12 @@ describe('resolveDefaultDaemonArgs', () => {
     expect(args).toEqual([
       expect.stringMatching(/dist\/vt-graphd\.mjs$/),
       '--project-root',
-      '/tmp/vault',
+      '/tmp/project',
     ])
   })
 
   test('falls back to the source daemon through tsx in a clean source checkout', () => {
-    const args = resolveDefaultDaemonArgs('/tmp/vault', {
+    const args = resolveDefaultDaemonArgs('/tmp/project', {
       exists: (path) => path.endsWith('/bin/vt-graphd.ts'),
       resolveTsx: () => '/tmp/tsx',
       siblingDaemonPath: () => undefined,
@@ -155,13 +155,13 @@ describe('resolveDefaultDaemonArgs', () => {
       '/tmp/tsx',
       expect.stringMatching(/bin\/vt-graphd\.ts$/),
       '--project-root',
-      '/tmp/vault',
+      '/tmp/project',
     ])
   })
 
   test('throws a clear error when no daemon entrypoint can be located', () => {
     expect(() =>
-      resolveDefaultDaemonArgs('/tmp/vault', {
+      resolveDefaultDaemonArgs('/tmp/project', {
         exists: () => false,
         resolveTsx: () => '/tmp/tsx',
         siblingDaemonPath: () => '/missing/sibling/vt-graphd.mjs',
@@ -171,7 +171,7 @@ describe('resolveDefaultDaemonArgs', () => {
 })
 
 // The legacy `graphd.lock` orphan-recovery test moved to
-// `ensureGraphDaemonForVault.test.ts` — under the BF-344 owner protocol an
+// `ensureGraphDaemonForProject.test.ts` — under the BF-344 owner protocol an
 // alive lock holder without a bound port surfaces as `OwnerWaitTimeoutError`
 // from the wait branch, not the older `DaemonLockHeldError`.
 

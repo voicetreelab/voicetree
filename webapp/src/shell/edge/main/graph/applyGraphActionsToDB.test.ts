@@ -17,21 +17,21 @@ function findNodeByFilename(graph: Graph, filename: string): GraphNode | undefin
 }
 
 describe('apply_graph_deltas_to_db', () => {
-  const testVaultPath: string = path.join(tmpdir(), 'test-vault-apply-deltas-to-db')
+  const testProjectPath: string = path.join(tmpdir(), 'test-project-apply-deltas-to-db')
 
   // Mock environment for testing
   const testEnv: Env = {
-    projectRoot: testVaultPath
+    projectRoot: testProjectPath
   }
 
-  // Create test vault directory before all tests
+  // Create test project directory before all tests
   beforeAll(async () => {
-    await fs.mkdir(testVaultPath, { recursive: true })
+    await fs.mkdir(testProjectPath, { recursive: true })
   })
 
-  // Clean up test vault directory after all tests
+  // Clean up test project directory after all tests
   afterAll(async () => {
-    await fs.rm(testVaultPath, { recursive: true, force: true })
+    await fs.rm(testProjectPath, { recursive: true, force: true })
   })
 
   // Helper to create a test node
@@ -67,7 +67,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Verify file was written to disk
-      const filePath: string = path.join(testVaultPath, 'node-1.md')
+      const filePath: string = path.join(testProjectPath, 'node-1.md')
       const fileExists: boolean = await fs.access(filePath).then(() => true).catch(() => false)
       expect(fileExists).toBe(true)
 
@@ -76,7 +76,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\nisContextNode: false\n---\n# New Node\n\nThis is content')
 
       // Verify we can load it back from disk
-      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
+      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testProjectPath])
       if (E.isLeft(loadResult)) throw new Error('Expected Right')
       const graph: Graph = loadResult.right
       // Node IDs are now absolute paths - use helper to find by filename
@@ -100,7 +100,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
+      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testProjectPath])
       if (E.isLeft(loadResult2)) throw new Error('Expected Right')
       const graph: Graph = loadResult2.right
       // Node IDs are now absolute paths - use helper to find by filename
@@ -125,7 +125,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
+      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testProjectPath])
       if (E.isLeft(loadResult3)) throw new Error('Expected Right')
       const graph: Graph = loadResult3.right
       // Node IDs are now absolute paths - use helper to find by filename
@@ -184,12 +184,12 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Verify file was updated on disk (frontmatter includes isContextNode but NOT title - title is derived from markdown)
-      const filePath: string = path.join(testVaultPath, 'node-update-1.md')
+      const filePath: string = path.join(testProjectPath, 'node-update-1.md')
       const fileContent: string = await fs.readFile(filePath, 'utf-8')
       expect(fileContent).toBe('---\nisContextNode: false\n---\n# Updated Title\n\nNew content')
 
       // Load from disk and verify
-      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
+      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testProjectPath])
       if (E.isLeft(loadResult4)) throw new Error('Expected Right')
       const graph: Graph = loadResult4.right
       // Node IDs are now absolute paths - use helper to find by filename
@@ -225,7 +225,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify ID is preserved
-      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
+      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testProjectPath])
       if (E.isLeft(loadResult5)) throw new Error('Expected Right')
       const graph: Graph = loadResult5.right
       // Node IDs are now absolute paths - use helper to find by filename
@@ -247,7 +247,7 @@ describe('apply_graph_deltas_to_db', () => {
       }])(testEnv)()
 
       // Verify it exists
-      const filePathBefore: string = path.join(testVaultPath, 'node-delete-1.md')
+      const filePathBefore: string = path.join(testProjectPath, 'node-delete-1.md')
       const existsBefore: boolean = await fs.access(filePathBefore).then(() => true).catch(() => false)
       expect(existsBefore).toBe(true)
 
@@ -268,7 +268,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(existsAfter).toBe(false)
 
       // Verify it's not in the graph when loaded from disk
-      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
+      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testProjectPath])
       if (E.isLeft(loadResult6)) throw new Error('Expected Right')
       const graph: Graph = loadResult6.right
       // Node IDs are now absolute paths - verify node is not found by filename
@@ -326,8 +326,8 @@ describe('apply_graph_deltas_to_db', () => {
         previousNode: O.none
       }])(testEnv)()
 
-      const nestedDirectoryPath: string = path.join(testVaultPath, 'folder', 'deep')
-      const parentDirectoryPath: string = path.join(testVaultPath, 'folder')
+      const nestedDirectoryPath: string = path.join(testProjectPath, 'folder', 'deep')
+      const parentDirectoryPath: string = path.join(testProjectPath, 'folder')
       const nestedFilePath: string = path.join(nestedDirectoryPath, 'node-delete-3.md')
 
       expect(await fs.access(nestedFilePath).then(() => true).catch(() => false)).toBe(true)
@@ -346,7 +346,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(await fs.access(nestedFilePath).then(() => true).catch(() => false)).toBe(false)
       expect(await fs.access(nestedDirectoryPath).then(() => true).catch(() => false)).toBe(false)
       expect(await fs.access(parentDirectoryPath).then(() => true).catch(() => false)).toBe(false)
-      expect(await fs.access(testVaultPath).then(() => true).catch(() => false)).toBe(true)
+      expect(await fs.access(testProjectPath).then(() => true).catch(() => false)).toBe(true)
     })
   })
 
@@ -384,19 +384,19 @@ describe('apply_graph_deltas_to_db', () => {
     })
 
     it('should use Reader pattern (environment provided at execution)', async () => {
-      // Create two separate vault directories
-      const vault1Path: string = path.join(tmpdir(), 'test-vault-reader-1')
-      const vault2Path: string = path.join(tmpdir(), 'test-vault-reader-2')
-      await fs.mkdir(vault1Path, { recursive: true })
-      await fs.mkdir(vault2Path, { recursive: true })
+      // Create two separate project directories
+      const project1Path: string = path.join(tmpdir(), 'test-project-reader-1')
+      const project2Path: string = path.join(tmpdir(), 'test-project-reader-2')
+      await fs.mkdir(project1Path, { recursive: true })
+      await fs.mkdir(project2Path, { recursive: true })
 
       // Test with different environments
       const env1: Env = {
-        projectRoot: vault1Path
+        projectRoot: project1Path
       }
 
       const env2: Env = {
-        projectRoot: vault2Path
+        projectRoot: project2Path
       }
 
       const newNode: GraphNode = createTestNode('test', '# Test')
@@ -417,15 +417,15 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result1)).toBe(true)
       expect(E.isRight(result2)).toBe(true)
 
-      // Verify files were written to different vaults
-      const file1Exists: boolean = await fs.access(path.join(vault1Path, 'test.md')).then(() => true).catch(() => false)
-      const file2Exists: boolean = await fs.access(path.join(vault2Path, 'test.md')).then(() => true).catch(() => false)
+      // Verify files were written to different projects
+      const file1Exists: boolean = await fs.access(path.join(project1Path, 'test.md')).then(() => true).catch(() => false)
+      const file2Exists: boolean = await fs.access(path.join(project2Path, 'test.md')).then(() => true).catch(() => false)
       expect(file1Exists).toBe(true)
       expect(file2Exists).toBe(true)
 
       // Clean up
-      await fs.rm(vault1Path, { recursive: true, force: true })
-      await fs.rm(vault2Path, { recursive: true, force: true })
+      await fs.rm(project1Path, { recursive: true, force: true })
+      await fs.rm(project2Path, { recursive: true, force: true })
     })
   })
 })

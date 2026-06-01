@@ -55,7 +55,7 @@ class Agent:
             name: Unique identifier for this prompt (also used as template filename)
             output_schema: Pydantic model for structured output
             post_processor: Optional function to process state after LLM response
-            model_name: Optional model name to use for this prompt (e.g., "gemini-2.5-flash")
+            model_name: Optional model name to use for this prompt (e.g., "gemini-3.5-flash")
         """
         self.prompts[name] = name  # Name is the template filename
         self.output_schemas[name] = output_schema

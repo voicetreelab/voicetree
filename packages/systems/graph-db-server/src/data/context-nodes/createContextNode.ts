@@ -11,7 +11,7 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/mutations/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
-import { resolveContextWriteFolder } from './contextWriteFolder'
+import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeClock = {
@@ -78,11 +78,11 @@ export async function createContextNode(
 ): Promise<NodeIdAndFilePath> {
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
-    const writeFolder: string = await resolveContextWriteFolder(parentNodeId)
+    const writeFolderPath: string = await resolveContextWriteFolderPath(parentNodeId)
     const resolvedParentNodeId: NodeIdAndFilePath = resolveParentNodeId(
         currentGraph,
         parentNodeId,
-        writeFolder || undefined
+        writeFolderPath || undefined
     )
 
     // 2. PURE: Extract subgraph within distance
@@ -119,10 +119,10 @@ export async function createContextNode(
         || parentIdWithoutExtension.startsWith(`${CONTEXT_NODES_FOLDER}/`)
 
     // Get write path (absolute) to properly construct context node path
-    // Context nodes go in {writeFolder}/ctx-nodes/
+    // Context nodes go in {writeFolderPath}/ctx-nodes/
     const candidateContextNodeId: string = alreadyInContextFolder
         ? `${parentIdWithoutExtension}_context_${timestamp}.md`
-        : `${writeFolder}/${CONTEXT_NODES_FOLDER}/${path.basename(parentIdWithoutExtension)}_context_${timestamp}.md`
+        : `${writeFolderPath}/${CONTEXT_NODES_FOLDER}/${path.basename(parentIdWithoutExtension)}_context_${timestamp}.md`
     // Ensure unique ID by appending _2, _3, etc. if collision exists
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
     const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)

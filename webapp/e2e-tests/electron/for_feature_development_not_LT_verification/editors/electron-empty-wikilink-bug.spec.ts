@@ -38,17 +38,17 @@ interface CodeMirrorElement extends HTMLElement {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
   electronApp: async ({}, use, testInfo) => {
     // Create temp userData directory
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-empty-wikilink-bug-'));
 
     // Create the watched folder (what config points to)
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Create the actual vault path with default suffix 'voicetree'
+    // Create the actual project path with default suffix 'voicetree'
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });
 
@@ -84,11 +84,11 @@ This is a valid target node.
 `;
     await fs.writeFile(path.join(projectRoot, 'valid-target.md'), targetContent, 'utf-8');
 
-    // Write config to auto-load the vault
+    // Write config to auto-load the project
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     // Store projectRoot for test access
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
@@ -132,7 +132,7 @@ This is a valid target node.
     console.log('[Test] Cleaned up temp directory');
   },
 
-  testVaultPath: async ({}, use, testInfo) => {
+  testProjectPath: async ({}, use, testInfo) => {
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
@@ -151,7 +151,7 @@ This is a valid target node.
     await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
 
     // Wait for auto-load to complete by polling for cytoscape nodes
-    // The vault has 2 files, so wait for at least 1 node to load
+    // The project has 2 files, so wait for at least 1 node to load
     await window.waitForFunction(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) return false;
@@ -165,10 +165,10 @@ This is a valid target node.
 });
 
 test.describe('Empty/Malformed Wikilink Bug', () => {
-  test('empty wikilinks should NOT create spurious nodes or edges', async ({ appWindow, testVaultPath }) => {
+  test('empty wikilinks should NOT create spurious nodes or edges', async ({ appWindow, testProjectPath }) => {
     test.setTimeout(120000);
     console.log('=== Testing empty wikilink bug ===');
-    console.log('[Test] Vault path:', testVaultPath);
+    console.log('[Test] Project path:', testProjectPath);
 
     // Graph is already loaded by appWindow fixture
     // Get initial graph state

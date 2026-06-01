@@ -7,7 +7,7 @@ import {
     type UnclaimedTmuxSession,
     type VtDaemonClient,
 } from '@vt/vt-daemon-client'
-import {getActiveVault, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
+import {getActiveProject, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy'
 
 const UNCLAIMED_TMUX_POLL_INTERVAL_MS: number = 10_000
@@ -25,8 +25,8 @@ function publishUnclaimedTmuxSessions(sessions: readonly UnclaimedTmuxSession[])
 }
 
 export async function refreshUnclaimedTmuxSessions(): Promise<readonly UnclaimedTmuxSession[]> {
-    if (getActiveVault() === null) {
-        // No vault bound yet (boot before openVault, or vault rebind in flight).
+    if (getActiveProject() === null) {
+        // No project bound yet (boot before openProject, or project rebind in flight).
         // Publishing empty clears any stale renderer state without throwing —
         // mirrors the `getMetricsViaVtd` pattern. The poller is started before
         // bind by `app.whenReady`, so a noisy warn here would fire every 10s

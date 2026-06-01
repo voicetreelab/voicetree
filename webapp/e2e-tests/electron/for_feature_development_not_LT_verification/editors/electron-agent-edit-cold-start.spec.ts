@@ -32,7 +32,7 @@ import type {Core as CytoscapeCore} from 'cytoscape'
 import type {EditorView} from '@codemirror/view'
 
 const PROJECT_ROOT: string = path.resolve(process.cwd())
-const FIXTURE_VAULT_PATH: string = path.join(
+const FIXTURE_PROJECT_PATH: string = path.join(
     PROJECT_ROOT,
     'example_folder_fixtures',
     'example_small',
@@ -63,18 +63,17 @@ const test = base.extend<{
 
         const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json')
         await fs.writeFile(configPath, JSON.stringify({
-            lastDirectory: FIXTURE_VAULT_PATH,
-            suffixes: {[FIXTURE_VAULT_PATH]: ''},
+            lastDirectory: FIXTURE_PROJECT_PATH,
+            suffixes: {[FIXTURE_PROJECT_PATH]: ''},
         }, null, 2), 'utf8')
 
         const projectsPath: string = path.join(tempUserDataPath, 'projects.json')
         await fs.writeFile(projectsPath, JSON.stringify([{
             id: 'test-agent-cold-start',
-            path: FIXTURE_VAULT_PATH,
+            path: FIXTURE_PROJECT_PATH,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8')
 
         const electronApp: ElectronApplication = await electron.launch({
@@ -169,7 +168,7 @@ test.describe('Cold-start: agent edit before any in-app interaction', () => {
 
         const testFilePath: string = path.isAbsolute(nodeId)
             ? nodeId
-            : path.join(FIXTURE_VAULT_PATH, nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
+            : path.join(FIXTURE_PROJECT_PATH, nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
 
         const originalContent: string = await fs.readFile(testFilePath, 'utf-8')
         const editorWindowId: string = `window-${nodeId}-editor`
@@ -262,7 +261,7 @@ test.describe('Cold-start: agent edit before any in-app interaction', () => {
 
         const testFilePath: string = path.isAbsolute(nodeId)
             ? nodeId
-            : path.join(FIXTURE_VAULT_PATH, nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
+            : path.join(FIXTURE_PROJECT_PATH, nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
 
         const originalContent: string = await fs.readFile(testFilePath, 'utf-8')
 

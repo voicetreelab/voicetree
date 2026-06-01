@@ -29,7 +29,7 @@ cleanup() {
   git -C "$REPO_ROOT" worktree remove --force "$LOCAL_WT" >/dev/null 2>&1 || true
   git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1 || true
   if command -v mutagen >/dev/null 2>&1; then
-    mutagen sync flush vt-wts >/dev/null 2>&1 || true
+    mutagen sync flush vt-wts-synced >/dev/null 2>&1 || true
   fi
   ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE_HOST" \
     "rm -rf '$REMOTE_WT' '/root/vtrepo-synced/.git/worktrees/$WT_NAME'" \

@@ -3,6 +3,14 @@ import type { FilePath } from '@vt/graph-model/graph'
 import normalizePath from 'normalize-path'
 
 type FolderState = 'expanded' | 'collapsed' | 'hidden'
+/**
+ * The folder states that keep (or leave) a folder's nodes loaded in the graph.
+ * Writing `'hidden'` is deliberately excluded here: a folder may only reach
+ * `'hidden'` through the unload transition (`projectAllowlist.removeReadPath`),
+ * which purges the folder's graph nodes in the same step. That single funnel is
+ * what enforces INV-1 (`hidden ⟹ no loaded nodes`).
+ */
+export type LoadedFolderState = Exclude<FolderState, 'hidden'>
 type FolderVisibilityState = ReadonlyMap<string, FolderState>
 
 type FolderVisibilityStoreApi = {
@@ -32,15 +40,45 @@ async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDeriva
     return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreAndDerivation
 }
 
-export async function getExpandedFolderPathsForVault(projectRoot: FilePath): Promise<readonly FilePath[]> {
-    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+async function loadFolderVisibilityResource(): Promise<typeof import('../views/folderVisibilityResource')> {
+    return await import('../views/folderVisibilityResource')
+}
+
+/** Pure: the expanded folder paths from a folder-state listing. */
+function expandedFolderPaths(
+    folderState: readonly (readonly [path: string, state: string])[],
+): readonly FilePath[] {
+    return folderState
+        .filter(([, state]) => state === 'expanded')
+        .map(([folderPath]) => folderPath as FilePath)
+}
+
+export async function getExpandedFolderPathsForProject(projectRoot: FilePath): Promise<readonly FilePath[]> {
+    let resource: Awaited<ReturnType<typeof loadFolderVisibilityResource>>
     try {
-        dbModule = await loadFolderVisibilityDbModule()
+        resource = await loadFolderVisibilityResource()
     } catch {
-        // node:sqlite is unavailable in this runtime — safe to
-        // return empty because the daemon manages folder visibility in that mode.
+        // node:sqlite (and the resource's sqlite-backed deps) are unavailable in
+        // this runtime — safe to return empty because the daemon manages folder
+        // visibility in that mode.
         return []
     }
+    // Hot path: once the project's long-lived folder-visibility db handle is
+    // open (everything after `openResources`), reuse it. The read runs a live
+    // SELECT against the same on-disk db, so this returns data identical to a
+    // fresh open while avoiding the per-call sqlite open + schema-migration +
+    // close that otherwise blocks the graphd event loop on every GET /project.
+    if (resource.isFolderVisibilityOpen()) {
+        return expandedFolderPaths(resource.readCurrentFolderState().folderState)
+    }
+    // Open-sequence window: `bindProject` reads expanded paths (via
+    // `setWriteFolderPath`) before `openResources` installs the long-lived
+    // handle. Fall back to a one-shot open against the on-disk db.
+    return await readExpandedFolderPathsByOneShotOpen(projectRoot)
+}
+
+async function readExpandedFolderPathsByOneShotOpen(projectRoot: FilePath): Promise<readonly FilePath[]> {
+    const dbModule = await loadFolderVisibilityDbModule()
     const store = await loadFolderVisibilityStore()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
     const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(projectRoot, dbModule.defaultFolderVisibilityDbDeps)
@@ -48,9 +86,7 @@ export async function getExpandedFolderPathsForVault(projectRoot: FilePath): Pro
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
         const activeViewId: string = getActiveViewId(db)
-        return [...store.getFolderVisibility(activeViewId)]
-            .filter(([, state]) => state === 'expanded')
-            .map(([folderPath]) => folderPath)
+        return expandedFolderPaths([...store.getFolderVisibility(activeViewId)])
     } finally {
         store.clearFolderVisibilityStoreForTests()
         dbModule.closeFolderVisibilityDb(db)
@@ -83,7 +119,7 @@ export async function getWatchRootsForActiveView(projectRoot: FilePath): Promise
     }
 }
 
-export async function setActiveViewFolderState(
+async function writeActiveViewFolderState(
     projectRoot: FilePath,
     folderPath: FilePath,
     state: FolderState,
@@ -105,6 +141,30 @@ export async function setActiveViewFolderState(
         store.clearFolderVisibilityStoreForTests()
         dbModule.closeFolderVisibilityDb(db)
     }
+}
+
+/**
+ * Set a folder to a *loaded* state (`'expanded'` or `'collapsed'`). The type
+ * forbids `'hidden'`: see {@link LoadedFolderState}.
+ */
+export async function setActiveViewFolderState(
+    projectRoot: FilePath,
+    folderPath: FilePath,
+    state: LoadedFolderState,
+): Promise<void> {
+    await writeActiveViewFolderState(projectRoot, folderPath, state)
+}
+
+/**
+ * Mark a folder `'hidden'` in the active view. The DB-write half of the unload
+ * transition — call only from `projectAllowlist.removeReadPath`, which purges
+ * the folder's graph nodes in the same step so INV-1 holds.
+ */
+export async function markActiveViewFolderHidden(
+    projectRoot: FilePath,
+    folderPath: FilePath,
+): Promise<void> {
+    await writeActiveViewFolderState(projectRoot, folderPath, 'hidden')
 }
 
 export async function seedActiveViewExpandedFolderStates(

@@ -7,27 +7,32 @@
  * createGraphTopology.ts; markdown body construction in
  * @vt/graph-tools/node's filesystemAuthoring. Parent edges are authored as
  * `- parent [[name|edge-label]]` lines inside `content` (no separate
- * `parents:[]` field) — see mcp-server.ts for the schema description.
+ * `parents:[]` field).
  */
 
 import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import {getFolderIdentityNoteId} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
+import {slugify} from '../tools/graph/addProgressNodeTool'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
+import {DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
+    type RuleViolation,
     ALL_RULES,
     runValidations,
     resolveOverrides,
     formatViolationError,
+    partitionViolationsBySeverity,
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
 import {registerAgentNodes} from '../agent-runtime/agent-control/completion/agentNodeIndex.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWriteFolder} from '../config/graphBridge.ts'
+import {applyMcpGraphDelta, getMcpGraph, getMcpProjectPaths, getMcpWriteFolderPath} from '../config/graphBridge.ts'
 import type {GraphBridge} from '../config/mcpBridges.ts'
 import {
     hasCycle,
@@ -57,33 +62,48 @@ function errorResponse(error: string): McpToolResponse {
     return buildJsonResponse({success: false, error}, true)
 }
 
+interface ResponseWarning {
+    readonly ruleId: string
+    readonly message: string
+    readonly details: Record<string, unknown>
+}
+
+/** Shape non-blocking validation warnings for the create_graph success response. */
+function formatWarnings(warnings: readonly RuleViolation[]): readonly ResponseWarning[] {
+    return warnings.map((w: RuleViolation): ResponseWarning => ({
+        ruleId: w.ruleId,
+        message: w.message,
+        details: w.details,
+    }))
+}
+
 function isPathWithinDirectory(targetPath: string, directoryPath: string): boolean {
     return targetPath === directoryPath || targetPath.startsWith(`${directoryPath}/`)
 }
 
 function resolveOutputDirectory(
-    writeFolder: string,
+    writeFolderPath: string,
     outputPath: string | undefined,
-    allowedVaultPaths: readonly string[]
+    allowedProjectPaths: readonly string[]
 ): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } {
     if (!outputPath || outputPath.trim() === '') {
-        return {ok: true, path: normalizePath(writeFolder)}
+        return {ok: true, path: normalizePath(writeFolderPath)}
     }
 
     const requestedPath: string = outputPath.trim()
     const resolvedPath: string = normalizePath(
         path.isAbsolute(requestedPath)
             ? requestedPath
-            : path.resolve(writeFolder, requestedPath)
+            : path.resolve(writeFolderPath, requestedPath)
     )
 
-    if (allowedVaultPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
+    if (allowedProjectPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
         return {ok: true, path: resolvedPath}
     }
 
     return {
         ok: false,
-        error: `outputPath "${outputPath}" resolves to "${resolvedPath}" which is outside the loaded vault paths. Choose a path inside one of: ${allowedVaultPaths.join(', ')}`,
+        error: `outputPath "${outputPath}" resolves to "${resolvedPath}" which is outside the loaded project paths. Choose a path inside one of: ${allowedProjectPaths.join(', ')}`,
     }
 }
 
@@ -95,17 +115,63 @@ function findCallerRecord(callerTerminalId: string): Result<TerminalRecord> {
     return {ok: true, value: callerRecord}
 }
 
+export interface WorktreeRouting {
+    /** Effective output path to resolve (worktree folder name, or the caller's outputPath). */
+    readonly outputPath: string | undefined
+    /** True when nodes are being routed into a per-worktree folder. */
+    readonly active: boolean
+    /** The originating worktree name (for the folder identity note title), else null. */
+    readonly worktreeName: string | null
+}
+
+/**
+ * Route a worktree agent's nodes into a `<writeFolder>/<worktreeName>/` folder.
+ * An explicit `outputPath` always wins (deliberate placement is respected); a
+ * caller with no `worktreeName` is unaffected. The folder segment is `slugify`d
+ * so it matches the folder identity note's slugified filename (the `foo/foo.md`
+ * convention) — identical to the raw name for conventional worktree names.
+ */
+export function resolveWorktreeRouting(outputPath: string | undefined, worktreeName: string | undefined): WorktreeRouting {
+    const hasExplicitOutput: boolean = !!outputPath && outputPath.trim() !== ''
+    if (hasExplicitOutput || !worktreeName || worktreeName.trim() === '') {
+        return {outputPath, active: false, worktreeName: null}
+    }
+    return {outputPath: slugify(worktreeName), active: true, worktreeName}
+}
+
+/**
+ * The folder identity note for a worktree folder: a node `<folder>/<folder>.md`
+ * (title = worktree name) that makes the folder a real, collapsible folder node
+ * and exempts it from the gardening child-count. Returns null when routing is
+ * inactive or the folder note already exists (convergence: a second agent in the
+ * same worktree must not duplicate it).
+ */
+export function worktreeFolderNoteInput(
+    routing: WorktreeRouting,
+    outputDirectory: string,
+    graph: Graph,
+): CreateGraphNodeInput | null {
+    if (!routing.active || routing.worktreeName === null) return null
+    const folderNoteId: NodeIdAndFilePath = getFolderIdentityNoteId(`${outputDirectory}/`)
+    if (graph.nodes[folderNoteId] !== undefined) return null
+    return {
+        filename: routing.worktreeName,
+        title: routing.worktreeName,
+        summary: `Folder for nodes created by agents in the ${routing.worktreeName} worktree.`,
+    }
+}
+
 async function resolveConfiguredOutputDirectory(outputPath: string | undefined, bridge: GraphBridge): Promise<Result<string>> {
-    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder(bridge)
-    if (O.isNone(vaultPathOpt)) {
-        return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
+    const projectPathOpt: O.Option<string> = await getMcpWriteFolderPath(bridge)
+    if (O.isNone(projectPathOpt)) {
+        return {ok: false, error: 'No project loaded. Please load a folder in the UI first.'}
     }
 
-    const writeFolder: string = vaultPathOpt.value
-    const loadedVaultPaths: readonly string[] = await getMcpVaultPaths(bridge)
-    const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writeFolder])
+    const writeFolderPath: string = projectPathOpt.value
+    const loadedProjectPaths: readonly string[] = await getMcpProjectPaths(bridge)
+    const allowedProjectPaths: readonly string[] = (loadedProjectPaths.length > 0 ? loadedProjectPaths : [writeFolderPath])
         .map((projectRoot: string) => normalizePath(projectRoot))
-    const outputDirectoryResolution = resolveOutputDirectory(writeFolder, outputPath, allowedVaultPaths)
+    const outputDirectoryResolution = resolveOutputDirectory(writeFolderPath, outputPath, allowedProjectPaths)
     if (!outputDirectoryResolution.ok) return outputDirectoryResolution
     return {ok: true, value: outputDirectoryResolution.path}
 }
@@ -170,13 +236,21 @@ function resolveGraphParent(
     }
 }
 
+interface OverridableRuleOutcome {
+    /** Blocking error message for unresolved violations, or null if the create may proceed. */
+    readonly error: string | null
+    /** Non-blocking warnings to surface in the success response. */
+    readonly warnings: readonly RuleViolation[]
+}
+
 async function validateOverridableRules(
     nodes: readonly CreateGraphNodeInput[],
     callerRecord: TerminalRecord,
     graph: Graph,
     resolvedParentNodeId: NodeIdAndFilePath,
+    destinationFolderPath: string,
     overrides: readonly OverrideEntry[] | undefined
-): Promise<string | null> {
+): Promise<OverridableRuleOutcome> {
     const callerTaskNodeId: NodeIdAndFilePath | null =
         O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
     const settings: VTSettings = await loadSettings()
@@ -186,11 +260,15 @@ async function validateOverridableRules(
         callerTaskNodeId,
         graph,
         lineLimit: settings.nodeLineLimit ?? 70,
+        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
+        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+        destinationFolderPath,
     })
-    if (validationResult.status !== 'violations') return null
+    if (validationResult.status !== 'violations') return {error: null, warnings: []}
 
-    const {unresolved} = resolveOverrides(validationResult.violations, overrides ?? [])
-    return unresolved.length > 0 ? formatViolationError(unresolved) : null
+    const {warnings, blocking} = partitionViolationsBySeverity(validationResult.violations)
+    const {unresolved} = resolveOverrides(blocking, overrides ?? [])
+    return {error: unresolved.length > 0 ? formatViolationError(unresolved) : null, warnings}
 }
 
 function createdAgentNodeRecords(
@@ -249,7 +327,8 @@ export async function createGraphTool(
     if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
     const callerRecord: TerminalRecord = callerRecordResult.value
 
-    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(outputPath, bridge)
+    const worktreeRouting: WorktreeRouting = resolveWorktreeRouting(outputPath, callerRecord.terminalData.worktreeName)
+    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(worktreeRouting.outputPath, bridge)
     if (!outputDirectoryResult.ok) return errorResponse(outputDirectoryResult.error)
     const outputDirectory: string = outputDirectoryResult.value
 
@@ -265,14 +344,22 @@ export async function createGraphTool(
     const agentName: string = callerRecord.terminalData.agentName
     const defaultColor: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
-    const validationError: string | null = await validateOverridableRules(
-        nodes, callerRecord, graph, graphParent.resolvedGraphParentId, override_with_rationale
+    // The destination folder (graph folder id) is the output directory the batch
+    // lands in, with a trailing slash — the component the gardening gate counts.
+    const destinationFolderPath: string = `${outputDirectory}/`
+    const validation: OverridableRuleOutcome = await validateOverridableRules(
+        nodes, callerRecord, graph, graphParent.resolvedGraphParentId, destinationFolderPath, override_with_rationale
     )
-    if (validationError) return errorResponse(validationError)
+    if (validation.error) return errorResponse(validation.error)
 
+    // Worktree routing manufactures the bounded component the gate counts: the
+    // folder identity note is created in the same batch (once per worktree folder),
+    // making <writeFolder>/<worktree>/ a real folder node before the agent's nodes land.
+    const folderNote: CreateGraphNodeInput | null = worktreeFolderNoteInput(worktreeRouting, outputDirectory, graph)
     const sortedNodes: CreateGraphNodeInput[] = topologicalSort(nodes)
+    const batchInputNodes: readonly CreateGraphNodeInput[] = folderNote ? [folderNote, ...sortedNodes] : sortedNodes
     const batchResult: BatchBuildResult = await buildNodeBatch(
-        sortedNodes, graph, outputDirectory, graphParent, agentName, defaultColor
+        batchInputNodes, graph, outputDirectory, graphParent, agentName, defaultColor
     )
 
     if (batchResult.batchDelta.length > 0) {
@@ -287,6 +374,7 @@ export async function createGraphTool(
     return buildJsonResponse({
         success: true,
         nodes: batchResult.results,
+        warnings: formatWarnings(validation.warnings),
         hint: 'To update a node, edit the file directly at its path. Do not call create_graph again for updates.',
     })
 }

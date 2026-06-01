@@ -24,7 +24,7 @@ import {
 } from '../../../critical_e2e_verification_tests/helpers/e2e-rpc-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
     cytoscapeInstance?: {
@@ -53,16 +53,15 @@ const test = base.extend<{
         const projectsPath = path.join(tempUserDataPath, 'projects.json');
         const savedProject = {
             id: 'prompt-delivery-test-project',
-            path: FIXTURE_VAULT_PATH,
+            path: FIXTURE_PROJECT_PATH,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true
         };
         await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_PROJECT_PATH }, null, 2), 'utf8');
 
         // Settings: echo agent that prints $AGENT_PROMPT to stdout.
         // INJECT_ENV_VARS provides the AGENT_PROMPT template with a recognizable marker.
@@ -296,7 +295,7 @@ test.describe('Headless Agent Prompt Delivery', () => {
         console.log('');
         console.log('=== HEADLESS PROMPT DELIVERY E2E TEST SUMMARY ===');
         console.log('[Pass] Daemon /rpc reachable');
-        console.log('[Pass] Vault loaded into graph');
+        console.log('[Pass] Project loaded into graph');
         console.log('[Pass] Caller terminal registered');
         console.log('[Pass] Headless echo agent spawned');
         console.log('[Pass] Agent exited successfully');

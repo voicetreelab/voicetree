@@ -9,7 +9,7 @@ import path from 'path';
 import { loadSettings, saveSettings } from '@vt/app-config/settings';
 import { getNode } from '@vt/graph-db-server/state/graph-store';
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown';
-import { broadcastVaultState } from './broadcast/broadcast-vault-state';
+import { broadcastProjectState } from './broadcast/broadcast-project-state';
 import type { VTSettings } from '@vt/graph-model/settings';
 import type { GraphNode } from '@vt/graph-model/graph';
 
@@ -33,14 +33,14 @@ export async function addStarredFolder(folderPath: string): Promise<void> {
     // Idempotent — no-op if already starred
     if (current.includes(folderPath)) return;
     await saveSettings({ ...settings, starredFolders: [...current, folderPath] });
-    void broadcastVaultState();
+    void broadcastProjectState();
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
     const settings: VTSettings = await loadSettings();
     const current: readonly string[] = settings.starredFolders ?? [];
     await saveSettings({ ...settings, starredFolders: current.filter((p: string) => p !== folderPath) });
-    void broadcastVaultState();
+    void broadcastProjectState();
 }
 
 export async function isStarred(folderPath: string): Promise<boolean> {

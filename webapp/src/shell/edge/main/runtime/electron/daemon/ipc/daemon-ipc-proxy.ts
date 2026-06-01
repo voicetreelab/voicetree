@@ -1,6 +1,6 @@
 import { getCallbacks, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { tracing } from '@vt/observability'
-import type { FolderState, GraphDbClient, VaultState, ViewRecord } from '@vt/graph-db-client'
+import type { FolderState, GraphDbClient, ProjectState, ViewRecord } from '@vt/graph-db-client'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { State } from '@vt/graph-state'
 
@@ -102,13 +102,13 @@ export async function getOrCreateRendererSession(
 async function syncRendererFromDaemon(
   client: GraphDbClient,
   nextGraph: Graph,
-  vaultState: VaultState,
+  projectState: ProjectState,
 ): Promise<void> {
   await tracing.span('electron.renderer.sync-from-daemon', async (span) => {
     span.setAttribute('daemon.base_url', client.baseUrl)
     span.setAttribute('graph.node.count', graphNodeCount(nextGraph))
-    span.setAttribute('vault.read_path.count', vaultState.readPaths.length)
-    span.setAttribute('vault.write_folder', vaultState.writeFolder)
+    span.setAttribute('project.read_path.count', projectState.readPaths.length)
+    span.setAttribute('project.write_folder', projectState.writeFolderPath)
 
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
@@ -119,17 +119,17 @@ async function syncRendererFromDaemon(
     }
 
     span.addEvent('electron.renderer.folder-tree-build.start')
-    const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)
+    const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(projectState, nextGraph)
     span.setAttribute('folder_tree.has_root', treePayload.rootTree !== null)
     span.setAttribute('folder_tree.starred.count', treePayload.starredFolders.length)
     span.setAttribute('folder_tree.starred_tree.count', recordCount(treePayload.starredTrees))
     span.setAttribute('folder_tree.external_tree.count', recordCount(treePayload.externalTrees))
     span.addEvent('electron.renderer.folder-tree-build.complete')
 
-    uiAPI.syncVaultState({
-      readPaths: vaultState.readPaths,
+    uiAPI.syncProjectState({
+      readPaths: projectState.readPaths,
       starredFolders: treePayload.starredFolders,
-      writeFolder: vaultState.writeFolder,
+      writeFolderPath: projectState.writeFolderPath,
     })
 
     if (treePayload.rootTree) {
@@ -144,8 +144,8 @@ async function syncRendererFromDaemon(
 
 async function syncMainGraphFromDaemonClient(client: GraphDbClient): Promise<void> {
   const nextGraph: Graph = await getNormalizedDaemonGraph(client)
-  const vaultState: VaultState = await client.getVault()
-  await syncRendererFromDaemon(client, nextGraph, vaultState)
+  const projectState: ProjectState = await client.getProject()
+  await syncRendererFromDaemon(client, nextGraph, projectState)
 }
 
 export async function syncRendererSessionState(
@@ -197,40 +197,40 @@ export async function syncRendererSessionState(
   })
 }
 
-const inflightVaultMutations: Map<string, Promise<VaultState>> = new Map()
+const inflightProjectMutations: Map<string, Promise<ProjectState>> = new Map()
 
-async function runVaultMutation(
+async function runProjectMutation(
   key: string,
-  mutate: (client: GraphDbClient) => Promise<VaultState>,
-): Promise<VaultState> {
-  const existing: Promise<VaultState> | undefined = inflightVaultMutations.get(key)
+  mutate: (client: GraphDbClient) => Promise<ProjectState>,
+): Promise<ProjectState> {
+  const existing: Promise<ProjectState> | undefined = inflightProjectMutations.get(key)
   if (existing) return existing
 
-  const pending: Promise<VaultState> = doRunVaultMutation(mutate)
-  inflightVaultMutations.set(key, pending)
+  const pending: Promise<ProjectState> = doRunProjectMutation(mutate)
+  inflightProjectMutations.set(key, pending)
   try {
     return await pending
   } finally {
-    if (inflightVaultMutations.get(key) === pending) {
-      inflightVaultMutations.delete(key)
+    if (inflightProjectMutations.get(key) === pending) {
+      inflightProjectMutations.delete(key)
     }
   }
 }
 
-async function doRunVaultMutation(
-  mutate: (client: GraphDbClient) => Promise<VaultState>,
-): Promise<VaultState> {
-  return await tracing.span('electron.vault.mutation', async (span) => {
+async function doRunProjectMutation(
+  mutate: (client: GraphDbClient) => Promise<ProjectState>,
+): Promise<ProjectState> {
+  return await tracing.span('electron.project.mutation', async (span) => {
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
-      span.addEvent('electron.vault.mutation.request.start')
-      const vaultState: VaultState = await mutate(client)
-      span.addEvent('electron.vault.mutation.request.complete')
+      span.addEvent('electron.project.mutation.request.start')
+      const projectState: ProjectState = await mutate(client)
+      span.addEvent('electron.project.mutation.request.complete')
       const nextGraph: Graph = await getNormalizedDaemonGraph(client)
       span.setAttribute('graph.node.count', graphNodeCount(nextGraph))
 
-      await syncRendererFromDaemon(client, nextGraph, vaultState)
-      return vaultState
+      await syncRendererFromDaemon(client, nextGraph, projectState)
+      return projectState
     })
   })
 }
@@ -465,11 +465,17 @@ export async function removeReadPathThroughDaemon(path: string): Promise<unknown
   return graph
 }
 
-export async function setWriteFolderThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation(`setWriteFolder:${path}`, (client) => client.setWriteFolder(path))
+export async function setWriteFolderPathThroughDaemon(path: string): Promise<ProjectState> {
+  const state: ProjectState = await runProjectMutation(`setWriteFolderPath:${path}`, (client) => client.setWriteFolderPath(path))
+  // Keep the Python text-to-tree server pointed at the active write folder. The
+  // daemon's own loadAndMergeProjectPath notify no-ops (no callback wired there),
+  // so main must re-point the server whenever the write folder changes — otherwise
+  // /send-text keeps writing to the previous directory. See openProject for context.
+  getCallbacks().notifyWriteDirectory?.(state.writeFolderPath)
+  return state
 }
 
-export async function refreshMainGraphFromDaemon(_vault?: string): Promise<void> {
+export async function refreshMainGraphFromDaemon(_project?: string): Promise<void> {
   await tracing.span('electron.graph.refresh-main-from-daemon', async (span) => {
     await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)

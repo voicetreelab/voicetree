@@ -18,19 +18,19 @@ import { getGraph, setGraph } from '../../../state/graph-store.ts'
 import { publish } from '../../../state/events/deltaEventBus.ts'
 import { mountSessionEventsRoute } from '../../session-endpoints/sessionEvents.ts'
 
-async function withTempVault(): Promise<string> {
+async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-test-'))
 }
 
-async function createAppSupport(vault: string): Promise<string> {
-  const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-appsupport-'))
+async function createVoicetreeHome(project: string): Promise<string> {
+  const voicetreeHome = await mkdtemp(join(tmpdir(), 'graphd-sse-appsupport-'))
   const config = {
-    vaultConfig: {
-      [vault]: { writeFolder: vault },
+    projectConfig: {
+      [project]: { writeFolderPath: project },
     },
   }
-  await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))
-  return appSupport
+  await writeFile(join(voicetreeHome, 'voicetree-config.json'), JSON.stringify(config))
+  return voicetreeHome
 }
 
 function parseSSEGraphEvents(text: string): readonly ProjectedGraph[] {
@@ -88,14 +88,14 @@ async function readProjectedGraph(
 }
 
 describe('SSE session events', () => {
-  let vault: string
-  let appSupport: string
+  let project: string
+  let voicetreeHome: string
   let handles: DaemonHandle[]
   let sseController: AbortController | null
 
   beforeEach(async () => {
-    vault = await withTempVault()
-    appSupport = await createAppSupport(vault)
+    project = await withTempProject()
+    voicetreeHome = await createVoicetreeHome(project)
     handles = []
     sseController = null
   })
@@ -106,14 +106,14 @@ describe('SSE session events', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
-    await rm(vault, { recursive: true, force: true })
-    await rm(appSupport, { recursive: true, force: true })
+    await rm(project, { recursive: true, force: true })
+    await rm(voicetreeHome, { recursive: true, force: true })
   }, 15000)
 
   test('emits a ProjectedGraph containing a newly mutated node', async () => {
     const handle = await startDaemon({
-      vault,
-      voicetreeHomePath: appSupport,
+      project,
+      voicetreeHomePath: voicetreeHome,
       createStarterIfEmpty: false,
     })
     handles.push(handle)
@@ -133,8 +133,8 @@ describe('SSE session events', () => {
     const reader = sseRes.body!.getReader()
     await reader.read()
 
-    const initialNodePath = join(vault, 'initial-node.md')
-    const mutatedNodePath = join(vault, 'sse-projected-node.md')
+    const initialNodePath = join(project, 'initial-node.md')
+    const mutatedNodePath = join(project, 'sse-projected-node.md')
     const initialDelta: GraphDelta = [
       {
         type: 'UpsertNode',
@@ -174,8 +174,8 @@ describe('SSE session events', () => {
 
   test('returns 404 for non-existent session', async () => {
     const handle = await startDaemon({
-      vault,
-      voicetreeHomePath: appSupport,
+      project,
+      voicetreeHomePath: voicetreeHome,
       createStarterIfEmpty: false,
     })
     handles.push(handle)

@@ -1,7 +1,7 @@
 import {
   UnseenNodeSchema,
-  VaultStateSchema,
-  type OpenVaultResponse,
+  ProjectStateSchema,
+  type OpenProjectResponse,
   type UnseenNode,
 } from './contract.ts'
 
@@ -15,12 +15,12 @@ export const UnknownResponseSchema: Schema<unknown> = {
   },
 }
 
-export const WriteFolderMutationResponseSchema: Schema<{ writeFolder: string }> = {
+export const WriteFolderPathMutationResponseSchema: Schema<{ writeFolderPath: string }> = {
   parse(input: unknown) {
-    if (!isObject(input) || typeof input.writeFolder !== 'string') {
+    if (!isObject(input) || typeof input.writeFolderPath !== 'string') {
       throw new Error('Invalid write-path response body')
     }
-    return { writeFolder: input.writeFolder }
+    return { writeFolderPath: input.writeFolderPath }
   },
 }
 
@@ -43,25 +43,25 @@ function isFolderStateEntry(value: unknown): value is [string, 'expanded' | 'col
     && (value[1] === 'expanded' || value[1] === 'collapsed' || value[1] === 'hidden')
 }
 
-export const OpenVaultResponseSchema: Schema<OpenVaultResponse> = {
+export const OpenProjectResponseSchema: Schema<OpenProjectResponse> = {
   parse(input: unknown) {
     if (
       !isObject(input)
       || typeof input.sessionId !== 'string'
-      || typeof input.writeFolder !== 'string'
+      || typeof input.writeFolderPath !== 'string'
       || !Array.isArray(input.folderState)
       || !input.folderState.every(isFolderStateEntry)
       || !isObject(input.activeView)
       || typeof input.activeView.viewId !== 'string'
       || typeof input.activeView.name !== 'string'
     ) {
-      throw new Error('Invalid open-vault response body')
+      throw new Error('Invalid open-project response body')
     }
 
     return {
       sessionId: input.sessionId,
-      writeFolder: input.writeFolder,
-      vaultState: VaultStateSchema.parse(input.vaultState),
+      writeFolderPath: input.writeFolderPath,
+      projectState: ProjectStateSchema.parse(input.projectState),
       initialProjectedGraph: input.initialProjectedGraph,
       folderState: input.folderState,
       activeView: {

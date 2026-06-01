@@ -1,12 +1,16 @@
 import {defineConfig} from 'vitest/config'
 
 // Health checks scan the whole repo (call-graph, semantic duplication,
-// cross-package coupling). On ubuntu-latest's 7 GiB / 4-core runner the
-// default 3 parallel forks each accumulate ~2 GiB of working set and
-// trip Node 22's OOMHandler ~4 min in. Force single-fork sequential
-// execution: the suite is ~3 min wall-clock either way (the heavy
-// tests dominate), and single-fork keeps total memory usage well
-// under the runner's physical RAM.
+// cross-package coupling). Cross-file parallelism is provided by
+// run-systems-health.ts, which shards the suite across one isolated
+// `vitest run <file>` process per file. Each invocation therefore runs a
+// single file, so we keep singleFork (no extra worker fork to spawn for one
+// file) — the parallelism lives in the runner, not vitest's pool.
+//
+// testTimeout is raised from vitest's 5s default because these tests parse
+// the whole repo and can exceed 5s under the CPU contention of parallel
+// shards (mirrors the root vitest.config.ts rationale). Without this the
+// borderline-5s scans (e.g. cognitive-complexity) flake under load.
 export default defineConfig({
     test: {
         pool: 'forks',
@@ -15,5 +19,6 @@ export default defineConfig({
                 singleFork: true,
             },
         },
+        testTimeout: 30_000,
     },
 })

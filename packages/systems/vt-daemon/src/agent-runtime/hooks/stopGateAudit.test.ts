@@ -148,49 +148,49 @@ describe('resolveSkillPathsFromContent', () => {
 
     it('Case 2: extracts SKILL.md path from task node content', () => {
         const content: string = 'Read ~/brain/workflows/orchestration/SKILL.md — you are an orchestrator.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_123.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_123.md', content)
         expect(result).toEqual(['~/brain/workflows/orchestration/SKILL.md'])
     })
 
     it('Case 3: extracts root ~/brain/SKILL.md when no specific reference', () => {
         const content: string = 'Read ~/brain/SKILL.md first.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_456.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_456.md', content)
         expect(result).toEqual(['~/brain/SKILL.md'])
     })
 
     it('returns ALL SKILL.md paths found in content', () => {
         const content: string = 'Read ~/brain/SKILL.md first.\nThen ~/brain/workflows/meta-cognitive-protocols-tools-patterns/proof-compression/SKILL.md'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_789.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_789.md', content)
         expect(result).toEqual(['~/brain/SKILL.md', '~/brain/workflows/meta-cognitive-protocols-tools-patterns/proof-compression/SKILL.md'])
     })
 
     it('deduplicates repeated SKILL.md paths', () => {
         const content: string = 'Read ~/brain/workflows/orchestration/SKILL.md\nAlso see ~/brain/workflows/orchestration/SKILL.md'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task.md', content)
         expect(result).toEqual(['~/brain/workflows/orchestration/SKILL.md'])
     })
 
     it('returns empty array when no SKILL.md referenced', () => {
         const content: string = 'Just a regular task with no skill reference.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_000.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_000.md', content)
         expect(result).toEqual([])
     })
 
     it('handles SKILL.md path inside wikilinks in content', () => {
         const content: string = 'Follow [[~/brain/workflows/system/meta-system/promote/SKILL.md]] for guidance.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_111.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_111.md', content)
         expect(result).toEqual(['~/brain/workflows/system/meta-system/promote/SKILL.md'])
     })
 
     it('handles SKILL.md path inside single-bracket links in content', () => {
         const content: string = 'Follow [~/brain/workflows/system/system-health/gardening/SKILL.md] for guidance.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_222.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_222.md', content)
         expect(result).toEqual(['~/brain/workflows/system/system-health/gardening/SKILL.md'])
     })
 
     it('handles path with special directory names', () => {
         const content: string = 'Read ~/brain/workflows/system/tree-sleep/SKILL.md'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_333.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_333.md', content)
         expect(result).toEqual(['~/brain/workflows/system/tree-sleep/SKILL.md'])
     })
 
@@ -208,25 +208,25 @@ describe('resolveSkillPathsFromContent', () => {
 
     it('Case 2: extracts absolute path SKILL.md from content', () => {
         const content: string = 'Read /Users/example/brain/workflows/orchestration/SKILL.md for guidance.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_123.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_123.md', content)
         expect(result).toEqual(['/Users/example/brain/workflows/orchestration/SKILL.md'])
     })
 
     it('Case 2: matches case-insensitive skill.md in tilde content', () => {
         const content: string = 'Read ~/brain/workflows/orchestration/skill.md for guidance.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_123.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_123.md', content)
         expect(result).toEqual(['~/brain/workflows/orchestration/skill.md'])
     })
 
     it('Case 3: extracts absolute root /brain/SKILL.md from content', () => {
         const content: string = 'Read /Users/example/brain/SKILL.md first.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_456.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_456.md', content)
         expect(result).toEqual(['/Users/example/brain/SKILL.md'])
     })
 
     it('Case 3: matches case-insensitive root skill.md', () => {
         const content: string = 'Read ~/brain/skill.md first.'
-        const result: string[] = resolveSkillPathsFromContent('/vault/task_456.md', content)
+        const result: string[] = resolveSkillPathsFromContent('/project/task_456.md', content)
         expect(result).toEqual(['~/brain/skill.md'])
     })
 })

@@ -1,10 +1,17 @@
 /**
- * Headful-Electron launch + `.mcp.json` discovery for the e2e-storm MVP.
+ * Headful-Electron launch + daemon discovery for the e2e-storm MVP.
  *
  * Boots `dist-electron/main/index.js` with --open-folder so the project
  * picker is bypassed entirely (avoids the xvfb actionability-stable trap
- * documented in the e2e-storm spec). Returns once `<project>/.mcp.json`
- * exists and exposes a usable MCP port.
+ * documented in the e2e-storm spec). Returns once `<project>/.voicetree/`
+ * publishes a usable `rpc.port` + `auth-token` AND the daemon's `/rpc`
+ * endpoint answers a `list_agents` probe — i.e. a ready, authenticated
+ * `DaemonRpcClient` bound to THIS Electron's daemon.
+ *
+ * Post-MCP-cutover (commits 2651ade78, fab76e7d4, 15595a854): the in-process
+ * MCP server and its `.mcp.json` handshake are gone. Discovery now goes
+ * through `@vt/vt-rpc`'s canonical `rpc.port` + `auth-token` chain — the same
+ * transport the `vt` CLI uses — rather than re-hand-rolling JSON-RPC.
  *
  * Pure shell — impurity is concentrated here (fs writes, child process,
  * setTimeout polling).
@@ -13,17 +20,20 @@ import { _electron as electron } from '@playwright/test'
 import type { ElectronApplication } from '@playwright/test'
 import * as path from 'node:path'
 import * as os from 'node:os'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import {
+    createRpcClientForProject,
+    type DaemonRpcClient,
+} from '@vt/vt-rpc'
 
 export interface ElectronLaunchInputs {
     readonly repoRoot: string
     readonly projectDir: string
-    readonly vaultDir: string
     readonly voicetreeHomePath: string
     readonly logFilePath: string
     readonly inspectPort: number
-    readonly mcpDiscoveryTimeoutMs: number
+    readonly daemonDiscoveryTimeoutMs: number
     /**
      * Extra env vars merged into electron's launch env. The daemon-client's
      * `resolveCommand` returns `env: { ...process.env }` for the default
@@ -36,9 +46,9 @@ export interface ElectronLaunchInputs {
 
 export interface ElectronLaunchResult {
     readonly app: ElectronApplication
-    readonly mcpPort: number
+    readonly daemonClient: DaemonRpcClient
     readonly bootMs: number
-    readonly mcpDiscoveryMs: number
+    readonly daemonDiscoveryMs: number
 }
 
 function canLoadNativeGraphDbModules(nodeBin: string, projectRoot: string): boolean {
@@ -66,7 +76,7 @@ function resolveGraphDaemonNodeBin(repoRoot: string): string {
     return candidates.find(bin => canLoadNativeGraphDbModules(bin, repoRoot)) ?? process.execPath
 }
 
-export function seedUserData(voicetreeHomePath: string, projectDir: string, vaultDir: string): void {
+export function seedUserData(voicetreeHomePath: string, projectDir: string): void {
     const projectName = path.basename(projectDir)
     writeFileSync(
         path.join(voicetreeHomePath, 'projects.json'),
@@ -76,7 +86,6 @@ export function seedUserData(voicetreeHomePath: string, projectDir: string, vaul
             name: projectName,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2),
         'utf8',
     )
@@ -84,8 +93,8 @@ export function seedUserData(voicetreeHomePath: string, projectDir: string, vaul
         path.join(voicetreeHomePath, 'voicetree-config.json'),
         JSON.stringify({
             lastDirectory: projectDir,
-            vaultConfig: {
-                [projectDir]: { writeFolder: vaultDir, readPaths: [] },
+            projectConfig: {
+                [projectDir]: { writeFolderPath: projectDir, readPaths: [] },
             },
         }, null, 2),
         'utf8',
@@ -93,7 +102,7 @@ export function seedUserData(voicetreeHomePath: string, projectDir: string, vaul
 }
 
 async function pollFor<T>(
-    fn: () => T | null,
+    fn: () => T | null | Promise<T | null>,
     timeoutMs: number,
     intervalMs: number,
 ): Promise<T> {
@@ -101,7 +110,7 @@ async function pollFor<T>(
     let lastError: Error | null = null
     while (Date.now() < deadline) {
         try {
-            const v = fn()
+            const v = await fn()
             if (v !== null) return v
         } catch (e) {
             lastError = e as Error
@@ -114,26 +123,51 @@ async function pollFor<T>(
     )
 }
 
-function readMcpPortFromJson(mcpJsonPath: string): number | null {
-    if (!existsSync(mcpJsonPath)) return null
-    try {
-        const raw = readFileSync(mcpJsonPath, 'utf8')
-        const parsed = JSON.parse(raw) as { mcpServers?: Record<string, { url?: string }> }
-        const url = parsed.mcpServers?.voicetree?.url
-        if (typeof url !== 'string') return null
-        const m = url.match(/:(\d+)\/mcp$/)
-        if (!m) return null
-        return Number.parseInt(m[1], 10)
-    } catch {
-        // mid-write torn JSON — try again
-        return null
-    }
+/**
+ * Discovery env for the harness's own daemon.
+ *
+ * The harness must talk to the daemon owned by THIS Electron instance, keyed
+ * by its temp `projectDir` — never an ambient `$VOICETREE_DAEMON_URL` that a
+ * surrounding agent shell might have exported (it would point discovery at a
+ * different daemon while the token still comes from `projectDir`, yielding a
+ * 401). Stripping the override forces `createRpcClientForProject` to resolve
+ * strictly from `<projectDir>/.voicetree/{rpc.port,auth-token}`.
+ */
+function discoveryEnv(): Record<string, string | undefined> {
+    const { VOICETREE_DAEMON_URL: _ignored, ...rest } = process.env
+    return rest
 }
 
-export async function launchElectronAndDiscoverMcp(
+/**
+ * Poll until the project's daemon is discoverable AND serving. `rpc.port` and
+ * `auth-token` are published atomically by the daemon, but the file appearing
+ * does not by itself prove the socket is accepting or the token authenticates,
+ * so we additionally require a successful `list_agents` round-trip. That tool
+ * needs no caller terminal, so it is a side-effect-free readiness probe.
+ */
+async function discoverReadyDaemonClient(
+    projectDir: string,
+    timeoutMs: number,
+): Promise<DaemonRpcClient> {
+    const env = discoveryEnv()
+    return pollFor(async (): Promise<DaemonRpcClient | null> => {
+        let client: DaemonRpcClient
+        try {
+            client = await createRpcClientForProject(projectDir, { env })
+        } catch {
+            // rpc.port / auth-token not published yet — keep polling.
+            return null
+        }
+        const probe = await client.call('list_agents', {}).catch(() => null)
+        if (probe === null || 'error' in probe) return null
+        return client
+    }, timeoutMs, 250)
+}
+
+export async function launchElectronAndDiscoverDaemon(
     inputs: ElectronLaunchInputs,
 ): Promise<ElectronLaunchResult> {
-    seedUserData(inputs.voicetreeHomePath, inputs.projectDir, inputs.vaultDir)
+    seedUserData(inputs.voicetreeHomePath, inputs.projectDir)
 
     const mainEntry = path.join(inputs.repoRoot, 'webapp', 'dist-electron', 'main', 'index.js')
     if (!existsSync(mainEntry)) {
@@ -156,6 +190,13 @@ export async function launchElectronAndDiscoverMcp(
             MINIMIZE_TEST: process.env.MINIMIZE_TEST ?? '0',
             VOICETREE_PERSIST_STATE: '1',
             VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
+            // Pin the home path to the seeded temp dir so the out-of-process
+            // vt-daemon (which validates spawn agent-commands against
+            // settings.agents) reads THIS run's settings.json — not an ambient
+            // $VOICETREE_HOME_PATH the launching shell may export. electron-main
+            // keeps a pre-set value (main.ts: `if (env.VOICETREE_HOME_PATH) return`)
+            // and the spawned vtd inherits it.
+            VOICETREE_HOME_PATH: inputs.voicetreeHomePath,
             VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(inputs.repoRoot),
             ...(inputs.extraEnv ?? {}),
         },
@@ -174,31 +215,24 @@ export async function launchElectronAndDiscoverMcp(
         try { writeFileSync(inputs.logFilePath, logChunks.join(''), 'utf8') } catch { /* best effort */ }
     }
 
-    // .mcp.json is written by voicetree-mcp at the project root (the dir
-    // registered in projects.json), NOT inside the write-folder vault.
-    const mcpJsonPath = path.join(inputs.projectDir, '.mcp.json')
     const discoveryStart = Date.now()
-    let mcpPort: number
+    let daemonClient: DaemonRpcClient
     try {
-        mcpPort = await pollFor(
-            () => readMcpPortFromJson(mcpJsonPath),
-            inputs.mcpDiscoveryTimeoutMs,
-            250,
-        )
+        daemonClient = await discoverReadyDaemonClient(inputs.projectDir, inputs.daemonDiscoveryTimeoutMs)
     } catch (err) {
         writeLog()
         await app.close().catch(() => undefined)
         throw new Error(
-            `MCP discovery failed (${(err as Error).message}). `
+            `Daemon discovery failed (${(err as Error).message}). `
             + `Electron log saved to ${inputs.logFilePath}.`,
         )
     }
-    const mcpDiscoveryMs = Date.now() - discoveryStart
+    const daemonDiscoveryMs = Date.now() - discoveryStart
 
     writeLog()
     // Continue capturing logs after discovery — they get flushed on close.
     stdout?.on('data', () => writeLog())
     stderr?.on('data', () => writeLog())
 
-    return { app, mcpPort, bootMs, mcpDiscoveryMs }
+    return { app, daemonClient, bootMs, daemonDiscoveryMs }
 }

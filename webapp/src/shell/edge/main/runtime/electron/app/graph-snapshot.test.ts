@@ -1,17 +1,17 @@
 import {describe, expect, it} from 'vitest'
-import type {VaultState} from '@vt/graph-db-client'
+import type {ProjectState} from '@vt/graph-db-client'
 import {buildElectronGraphSnapshot} from './graph-snapshot'
 
 describe('buildElectronGraphSnapshot', () => {
-    it('reads vault state exactly once at the daemon client boundary', async () => {
+    it('reads project state exactly once at the daemon client boundary', async () => {
         const counters = {
             graphReads: 0,
-            vaultReads: 0,
+            projectReads: 0,
         }
-        const vaultState: VaultState = {
+        const projectState: ProjectState = {
             projectRoot: '/project',
             readPaths: ['/project/write', '/project/reference'],
-            writeFolder: '/project/write',
+            writeFolderPath: '/project/write',
         }
 
         const snapshot = await buildElectronGraphSnapshot({
@@ -19,18 +19,18 @@ describe('buildElectronGraphSnapshot', () => {
                 counters.graphReads += 1
                 return {nodes: {}}
             },
-            getVault: async () => {
-                counters.vaultReads += 1
-                return vaultState
+            getProject: async () => {
+                counters.projectReads += 1
+                return projectState
             },
         })
 
         expect(counters).toEqual({
             graphReads: 1,
-            vaultReads: 1,
+            projectReads: 1,
         })
         expect(snapshot.projectRoot).toBe('/project')
-        expect(snapshot.writeFolder).toBe('/project/write')
-        expect(snapshot.vaultPaths).toEqual(['/project/write', '/project/reference'])
+        expect(snapshot.writeFolderPath).toBe('/project/write')
+        expect(snapshot.projectPaths).toEqual(['/project/write', '/project/reference'])
     })
 })

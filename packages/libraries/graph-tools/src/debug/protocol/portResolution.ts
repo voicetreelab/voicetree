@@ -251,7 +251,7 @@ export async function resolveDebugInstance(
   const hasExplicitSelector =
     opts.port !== undefined ||
     opts.pid !== undefined ||
-    opts.vault !== undefined
+    opts.project !== undefined
 
   const instances = await resolvedDeps.listInstances()
 

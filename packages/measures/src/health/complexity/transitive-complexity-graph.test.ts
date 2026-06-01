@@ -5,16 +5,13 @@ import {describe, expect, it} from 'vitest'
 import {buildCallGraph, type CallGraph, type FunctionNode} from '../../_shared/graph/call-graph'
 import {scoreFunction} from '../../_shared/complexity/cogcx-scorer'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../../..')
-// 2026-05-15 [BF-271]: DOVL+UFV epic structural baseline bump. Top function
-// vt-graph.ts:691:main grew to transitive=2125 from new vault lifecycle routes
-// + folder-state/view plumbing landed via JOINT-001 / UFV-2.
-// Budgets derive from previous baseline*tolerance: 1743 * 1.22 ≈ 2127 (max),
-// 270 * 1.50 = 405 (folder mean). These are honest TS-morph budgets, not
-// CodeQL baselines (no CodeQL infrastructure exists in this repo).
-const TRANSITIVE_COMPLEXITY_MAX_BUDGET = 2127
-const TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BUDGET = 405
+const {
+    maxBudget: TRANSITIVE_COMPLEXITY_MAX_BUDGET,
+    folderMeanBudget: TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BUDGET,
+} = readBudgetSync<{maxBudget: number; folderMeanBudget: number}>('complexity/transitive-complexity.json')
 const MINIMUM_FOLDER_FUNCTIONS = 4
 
 type ScoredFunction = {

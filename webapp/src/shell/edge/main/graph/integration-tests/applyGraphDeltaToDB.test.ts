@@ -13,7 +13,7 @@
  * - Filesystem write/delete operations
  *
  * Testing Strategy:
- * - Initialize vault path with example_small fixture directory
+ * - Initialize project path with example_small fixture directory
  * - Create a new node via UpsertNode delta
  * - Verify file exists on disk with correct content
  * - Delete the node via DeleteNode delta
@@ -38,7 +38,7 @@ const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md
 describe('applyGraphDeltaToDB - Integration Tests', () => {
   beforeEach(() => {
     initGraphModel({})
-    // Initialize state with empty graph and example_small vault path
+    // Initialize state with empty graph and example_small project path
     setGraph(createEmptyGraph())
     setProjectRoot(EXAMPLE_SMALL_PATH)
   })
@@ -242,9 +242,9 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
   })
 
   describe('BEHAVIOR: Error handling', () => {
-    it('should throw error if vault path is not initialized', async () => {
-      // GIVEN: Vault path not set
-      setProjectRoot(null) // Clear vault path to None
+    it('should throw error if project path is not initialized', async () => {
+      // GIVEN: Project path not set
+      setProjectRoot(null) // Clear project path to None
 
       const delta: GraphDelta = [{
         type: 'UpsertNode',
@@ -263,10 +263,10 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         previousNode: O.none
       }]
 
-      // WHEN/THEN: Should throw the daemon-owned vault lifecycle error
+      // WHEN/THEN: Should throw the daemon-owned project lifecycle error
       await expect(applyGraphDeltaToDBThroughMemAndUIAndEditors(delta))
         .rejects
-        .toThrow('A vault must be opened before using this endpoint')
+        .toThrow('A project must be opened before using this endpoint')
     })
   })
 })

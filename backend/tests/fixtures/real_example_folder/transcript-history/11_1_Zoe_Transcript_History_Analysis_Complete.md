@@ -18,7 +18,7 @@ Analyzed the existing VoiceTree codebase to understand how transcript history is
   - HistoryManager maintains a rolling transcript history in memory with smart word-boundary trimming
   - TreeActionDeciderWorkflow uses HistoryManager to track processed segments
   - System currently doesn't persist transcript history to disk
-  - Markdown files are saved to dated directories (e.g., markdownTreeVault/2025-01-15/)
+  - Markdown files are saved to dated directories (e.g., markdownTreeProject/2025-01-15/)
 
 ** Architecture/Flow Diagram**
 ```mermaid

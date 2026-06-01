@@ -29,7 +29,7 @@ import { setOutgoingEdges } from '../graph-operations/transforms/graph-edge-oper
  * - Basename-changing renames require a higher-level rename workflow that also
  *   rewrites references; they are not inferred from watcher events alone.
  *
- * Node IDs are absolute paths (no vault path needed for ID computation).
+ * Node IDs are absolute paths (no project path needed for ID computation).
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
  * @param currentGraph - Current graph state (used to resolve wikilinks to node IDs)
@@ -37,7 +37,7 @@ import { setOutgoingEdges } from '../graph-operations/transforms/graph-edge-oper
  *
  * @example
  * ```typescript
- * const fsUpdate: FSUpdate = { absolutePath: '/vault/note.md', content: '# Title', eventType: 'Added' }
+ * const fsUpdate: FSUpdate = { absolutePath: '/project/note.md', content: '# Title', eventType: 'Added' }
  * const currentGraph = { nodes: { ... } }
  * const delta = mapFSEventsToGraphDelta(fsUpdate, currentGraph)
  * // delta = [{ type: 'UpsertNode', nodeToUpsert: {...} }]
@@ -138,7 +138,7 @@ function healIncomingEdgesToSameBasenameReplacement(
 /**
  * Extract node ID from file path. Node IDs are absolute paths.
  *
- * @param filePath - Absolute path to the file (e.g., "/path/to/vault/subfolder/MyNote.md")
+ * @param filePath - Absolute path to the file (e.g., "/path/to/project/subfolder/MyNote.md")
  * @returns GraphNode ID as normalized absolute path
  */
 function extractNodeIdFromPath(filePath: string): NodeIdAndFilePath {

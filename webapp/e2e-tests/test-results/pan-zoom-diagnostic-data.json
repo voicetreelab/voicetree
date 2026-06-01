@@ -3,10 +3,10 @@
     "totalNodes": 12,
     "folderNodeCount": 4,
     "folderNodeIds": [
-      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/api/",
-      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/auth/",
-      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/",
-      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/utils/"
+      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/api/",
+      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/auth/",
+      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/",
+      "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/utils/"
     ],
     "zoom": 0.6459003103549853,
     "viewport": {
@@ -38,10 +38,10 @@
     "neighborhood": {
       "neighborCount": 4,
       "neighborIds": [
-        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/api/router.md",
-        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/auth/session-manager.md",
-        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/readme.md",
-        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/api/gateway.md"
+        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/api/router.md",
+        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/auth/session-manager.md",
+        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/readme.md",
+        "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/api/gateway.md"
       ],
       "neighborhoodBB": {
         "w": 532.4566889078977,
@@ -67,28 +67,28 @@
     },
     "folders": [
       {
-        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/api/",
+        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/api/",
         "bbW": 473.2704272992817,
         "bbH": 779.148531419249,
         "isParent": true,
         "childCount": 2
       },
       {
-        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/auth/",
+        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/auth/",
         "bbW": 520.4138023868455,
         "bbH": 523.3581847855513,
         "isParent": true,
         "childCount": 3
       },
       {
-        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/",
+        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/",
         "bbW": 127,
         "bbH": 142.50040531931768,
         "isParent": true,
         "childCount": 1
       },
       {
-        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-vault-XHT8Fl/test-vault/utils/",
+        "id": "/var/folders/8l/znn8xfkj4tl_y8q5jnfxbvtw0000gn/T/vt-pan-zoom-project-XHT8Fl/test-project/utils/",
         "bbW": 413.6484338115845,
         "bbH": 127.95176460296364,
         "isParent": true,

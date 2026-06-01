@@ -53,7 +53,7 @@ describe('vt-daemon-client wrappers — recovery facade', (): void => {
         sessionName: 'voicetree-recover-1',
         terminalId: 'recover-1',
         hash: 'aaaaaaaaaa',
-        classification: 'this-vault',
+        classification: 'this-project',
         attachable: true,
         createdAt: 1_700_000_000_000,
         panePid: 4242,
@@ -99,7 +99,7 @@ describe('vt-daemon-client wrappers — recovery facade', (): void => {
         expect(sessions).toHaveLength(1)
         expect(sessions[0].terminalId).toBe('recover-1')
         expect(sessions[0].attach?.session.sessionName).toBe('voicetree-recover-1')
-        expect(sessions[0].attach?.session.classification).toBe('this-vault')
+        expect(sessions[0].attach?.session.classification).toBe('this-project')
         expect(sessions[0].resume?.cliType).toBe('claude')
         expect(server.received[0].method).toBe('discoverRecoverableAgentSessions')
         expect(server.received[0].params).toEqual({})

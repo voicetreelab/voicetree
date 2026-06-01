@@ -2,7 +2,7 @@
  * Shared test utilities for web share Playwright tests.
  *
  * Provides:
- * - Test fixture reading (example_small vault)
+ * - Test fixture reading (example_small project)
  * - Direct API upload (bypasses browser UI)
  * - Page object helpers for UploadPage and ViewerPage
  * - Common Cytoscape assertions
@@ -20,20 +20,20 @@ import { expect } from '@playwright/test'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(dirname, '..', '..', '..', '..')
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small')
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small')
 
-export { PROJECT_ROOT, FIXTURE_VAULT_PATH }
+export { PROJECT_ROOT, FIXTURE_PROJECT_PATH }
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Read all files from the fixture vault into a Map<relativePath, content>.
- * Recursively walks the vault directory, preserving relative paths.
+ * Read all files from the fixture project into a Map<relativePath, content>.
+ * Recursively walks the project directory, preserving relative paths.
  * Skips .git directories.
  */
-export async function readFixtureFiles(projectRoot: string = FIXTURE_VAULT_PATH): Promise<Map<string, string>> {
+export async function readFixtureFiles(projectRoot: string = FIXTURE_PROJECT_PATH): Promise<Map<string, string>> {
   const files = new Map<string, string>()
 
   async function walk(dir: string, prefix: string): Promise<void> {
@@ -56,9 +56,9 @@ export async function readFixtureFiles(projectRoot: string = FIXTURE_VAULT_PATH)
 }
 
 /**
- * Get just the .md files from the fixture vault (excluding .voicetree/ metadata).
+ * Get just the .md files from the fixture project (excluding .voicetree/ metadata).
  */
-export async function readFixtureMarkdownFiles(projectRoot: string = FIXTURE_VAULT_PATH): Promise<Map<string, string>> {
+export async function readFixtureMarkdownFiles(projectRoot: string = FIXTURE_PROJECT_PATH): Promise<Map<string, string>> {
   const all = await readFixtureFiles(projectRoot)
   const mdFiles = new Map<string, string>()
   for (const [path, content] of all) {
@@ -81,7 +81,7 @@ const WORKER_URL = 'http://localhost:8787'
  */
 export async function uploadViaAPI(
   files: Map<string, string>,
-  folderName: string = 'test-vault',
+  folderName: string = 'test-project',
   workerUrl: string = WORKER_URL,
 ): Promise<string> {
   const formData = new FormData()
@@ -106,9 +106,9 @@ export async function uploadViaAPI(
 }
 
 /**
- * Upload the full fixture vault via API. Returns shareId.
+ * Upload the full fixture project via API. Returns shareId.
  */
-export async function uploadFixtureVaultViaAPI(
+export async function uploadFixtureProjectViaAPI(
   workerUrl: string = WORKER_URL,
 ): Promise<string> {
   const files = await readFixtureFiles()
@@ -118,7 +118,7 @@ export async function uploadFixtureVaultViaAPI(
 /**
  * Upload a minimal set of markdown files via API for quick tests.
  */
-export async function uploadMinimalVaultViaAPI(
+export async function uploadMinimalProjectViaAPI(
   workerUrl: string = WORKER_URL,
 ): Promise<string> {
   const files = new Map<string, string>([
@@ -126,7 +126,7 @@ export async function uploadMinimalVaultViaAPI(
     ['note2.md', '# Second\n\nAnother note\n\n- parent [[note1.md]]'],
     ['sub/note3.md', '# Third\n\nIn a subfolder\n\n- parent [[note1.md]]'],
   ])
-  return uploadViaAPI(files, 'minimal-vault', workerUrl)
+  return uploadViaAPI(files, 'minimal-project', workerUrl)
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ export async function uploadMinimalVaultViaAPI(
  */
 export async function navigateToUpload(page: Page): Promise<void> {
   await page.goto('/')
-  await page.waitForSelector('text=Share a VoiceTree vault', { timeout: 10_000 })
+  await page.waitForSelector('text=Share a VoiceTree project', { timeout: 10_000 })
 }
 
 /**
@@ -152,7 +152,7 @@ export async function getDropZone(page: Page): Promise<ReturnType<Page['locator'
  * Wait for the upload to succeed and return the share URL shown on the page.
  */
 export async function waitForShareLink(page: Page): Promise<string> {
-  await page.waitForSelector('text=Vault shared successfully', { timeout: 30_000 })
+  await page.waitForSelector('text=Project shared successfully', { timeout: 30_000 })
   const link = page.locator('a[href*="/share/"]')
   await expect(link).toBeVisible()
   const href = await link.getAttribute('href')

@@ -87,6 +87,7 @@ import {
     isDarkMode as isDarkModeState
 } from '@/shell/edge/UI-edge/state/controllers/DarkModeManager';
 import {disposeGraphView} from './disposeGraphView';
+import {setCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
 import {setupGraphViewEventListeners} from './setupGraphViewEventListeners';
 
@@ -113,37 +114,37 @@ const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCal
     updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),
 });
 
-type StartupVaultHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly path: string};
+type StartupProjectHint = {readonly kind: 'none'} | {readonly kind: 'open-folder'; readonly projectPath: string};
 
 type StartGraphUpdateSubscriptionInput = {
     hasInitialProjectedGraph: boolean;
     isDisposed: () => boolean;
-    getStartupVaultHint: (() => Promise<StartupVaultHint>) | undefined;
-    openVault: ((path: string) => Promise<unknown>) | undefined;
+    getStartupProjectHint: (() => Promise<StartupProjectHint>) | undefined;
+    openProject: ((projectPath: string) => Promise<unknown>) | undefined;
     subscribeToGraphUpdates: () => void;
 };
 
 const startGraphUpdateSubscription = ({
     hasInitialProjectedGraph,
     isDisposed,
-    getStartupVaultHint,
-    openVault,
+    getStartupProjectHint,
+    openProject,
     subscribeToGraphUpdates,
 }: StartGraphUpdateSubscriptionInput): void => {
     // Initial graph hydration races against daemon startup only on the
     // cold-boot path. When App already supplied an initial projected
-    // graph, the vault is already open — calling openVault again would
+    // graph, the project is already open — calling openProject again would
     // tear down the daemon/SSE subscription path during graph view
     // startup.
     void (async (): Promise<void> => {
         if (!hasInitialProjectedGraph) {
             try {
-                const hint = await getStartupVaultHint?.();
+                const hint = await getStartupProjectHint?.();
                 if (hint && hint.kind !== 'none') {
-                    await openVault?.(hint.path);
+                    await openProject?.(hint.projectPath);
                 }
             } catch (err: unknown) {
-                console.error('[VoiceTreeGraphView] startup vault open failed:', err);
+                console.error('[VoiceTreeGraphView] startup project open failed:', err);
             }
         }
         if (isDisposed()) return;
@@ -211,7 +212,7 @@ const renderGraphView = ({
 
     guardCytoscapeResize(cy);
 
-    (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = cy;
+    setCyInstance(cy);
     (window as unknown as { voiceTreeGraphView: unknown }).voiceTreeGraphView = graphView;
 
     const navigatorResult: NavigatorMinimapResult = initializeNavigatorMinimap(cy);
@@ -302,7 +303,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Event emitters
     private nodeSelectedEmitter = new EventEmitter<string>();
-    private nodeDoubleClickEmitter = new EventEmitter<string>();
     private edgeSelectedEmitter = new EventEmitter<{ source: string; target: string }>();
     private layoutCompleteEmitter = new EventEmitter<void>();
 
@@ -375,8 +375,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         startGraphUpdateSubscription({
             hasInitialProjectedGraph: Boolean(this.options.initialProjectedGraph),
             isDisposed: () => this.isDisposed,
-            getStartupVaultHint: window.electronAPI?.main?.getStartupVaultHint,
-            openVault: window.electronAPI?.main?.openVault,
+            getStartupProjectHint: window.electronAPI?.main?.getStartupProjectHint,
+            openProject: window.electronAPI?.main?.openProject,
             subscribeToGraphUpdates: () => this.subscribeToGraphUpdates(),
         });
     }
@@ -560,10 +560,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         return this.nodeSelectedEmitter.on(callback);
     }
 
-    onNodeDoubleClick(callback: (nodeId: string) => void): () => void {
-        return this.nodeDoubleClickEmitter.on(callback);
-    }
-
     onEdgeSelected(callback: (sourceId: string, targetId: string) => void): () => void {
         return this.edgeSelectedEmitter.on((data) => callback(data.source, data.target));
     }
@@ -595,7 +591,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             animationService: this.animationService,
             navigator: this.navigator,
             nodeSelectedEmitter: this.nodeSelectedEmitter,
-            nodeDoubleClickEmitter: this.nodeDoubleClickEmitter,
             edgeSelectedEmitter: this.edgeSelectedEmitter,
             layoutCompleteEmitter: this.layoutCompleteEmitter,
         });

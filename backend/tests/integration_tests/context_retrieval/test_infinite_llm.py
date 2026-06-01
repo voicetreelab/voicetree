@@ -156,13 +156,13 @@ def test_end_to_end_with_shell_script():
         if not voicetree_root:
             print("⚠️ VOICETREE_ROOT not set, skipping shell script test")
             return None
-        shell_script = Path(voicetree_root) / "markdownTreeVault/infllm.sh"
+        shell_script = Path(voicetree_root) / "markdownTreeProject/infllm.sh"
         if shell_script.exists():
             import subprocess
 
             # Set environment to use test directory
             env = os.environ.copy()
-            env['MARKDOWN_VAULT'] = str(test_dir)
+            env['MARKDOWN_PROJECT'] = str(test_dir)
 
             # Run shell script with test query
             result = subprocess.run(

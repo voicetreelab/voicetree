@@ -2,7 +2,7 @@
 
 Voicetree has two primitives: nodes and edges. A node is either a markdown file, a set of nodes (folder), or a terminal based agent (Claude code, Codex, OpenCode, Gemini etc. ). 
 
-There's a small API (& MCP) for interacting with them. From this, agent swarms, recursive task decomposition, shared human-agent memory, and self-improving workflows all fall out as consequences. 
+There's a small API (& `vt` CLI) for interacting with them. From this, agent swarms, recursive task decomposition, shared human-agent memory, and self-improving workflows all fall out as consequences. 
 The system is expressive enough to restructure itself at runtime, and because agents and humans share the same API, that self-modification stays stable and observable.
 
 Think of it as a game engine for agentic systems. Unity gives you GameObjects, a lifecycle, and an API you write C# against. 
@@ -68,7 +68,7 @@ https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe
 Docker (sandboxed — keeps agents off your host filesystem)
 ```bash
 docker run -d --rm -p 6080:6080 \
-    -v voicetree-vault:/home/vt/vault \
+    -v voicetree-project:/home/vt/project \
     -v voicetree-claude:/home/vt/.config/claude \
     --shm-size=1g \
     -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
@@ -121,11 +121,11 @@ Capture ideas hands-free with speech-to-graph.
 
 ## Development
 
-**Prerequisites:** Node.js 18+, Python 3.13, uv
+**Prerequisites:** Node.js 18+, pnpm 10 (`corepack enable`), Python 3.13, uv
 
 ```bash
-cd webapp && npm install && npm run electron  # App
-uv sync && uv run pytest                               # Backend
+pnpm install && pnpm --filter voicetree-webapp run electron  # App (run from repo root)
+uv sync && uv run pytest                                     # Backend
 ```
 
 ## License

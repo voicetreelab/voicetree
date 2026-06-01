@@ -1,4 +1,5 @@
 import type { SerializedState } from '@vt/graph-state'
+import { sortStrings } from '@vt/graph-state/project-helpers'
 import type { CyDump } from './cyStateShape'
 
 export type FocusedElement = {
@@ -22,24 +23,24 @@ export type SnapshotDiff = {
   changed: Array<'state' | 'cyDump' | 'focused' | 'selection' | 'zoom' | 'pan'>
 }
 
-function sortStrings(values: readonly string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right))
-}
-
 function stripSelectionClasses(classes: readonly string[]): string[] {
   return sortStrings(classes.filter(name => name !== 'selected'))
 }
 
 function normalizeState(state: SerializedState): unknown {
+  // `roots.loaded` and `collapseSet` are OPTIONAL in the on-disk SerializedState:
+  // serializeState() omits them entirely and lets hydrateState() derive them from
+  // folderState. Guarding with `?? []` mirrors serializeState's own treatment of the
+  // same fields and keeps the diff resilient to captures written by any code path.
   return {
     graph: state.graph,
     roots: {
-      loaded: sortStrings(state.roots.loaded),
+      loaded: sortStrings(state.roots.loaded ?? []),
       folderTree: state.roots.folderTree,
     },
-    collapseSet: sortStrings(state.collapseSet),
+    collapseSet: sortStrings(state.collapseSet ?? []),
     layout: {
-      positions: [...state.layout.positions].sort(([left], [right]) => left.localeCompare(right)),
+      positions: [...(state.layout.positions ?? [])].sort(([left], [right]) => left.localeCompare(right)),
       ...(state.layout.fit !== undefined ? { fit: state.layout.fit } : {}),
     },
     // Revision and mutatedAt change on every live-state read; selection/viewport also have

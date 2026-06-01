@@ -5,55 +5,55 @@ import type {JsonState} from '../../scripts/L3-BF-192-tree-cover-render'
 
 describe('L3-BF-194 recursive ASCII', () => {
     it('extracts dense subtrees into fragments and roundtrips the edge set', () => {
-        const vaultRoot: string = '/tmp/bf194-fixture'
+        const projectRoot: string = '/tmp/bf194-fixture'
         const state: JsonState = {
             graph: {
                 nodes: {
-                    [`${vaultRoot}/root.md`]: {
-                        absoluteFilePathIsID: `${vaultRoot}/root.md`,
+                    [`${projectRoot}/root.md`]: {
+                        absoluteFilePathIsID: `${projectRoot}/root.md`,
                         contentWithoutYamlOrLinks: '# Root',
-                        outgoingEdges: [{targetId: `${vaultRoot}/atlas/atlas-index.md`}],
+                        outgoingEdges: [{targetId: `${projectRoot}/atlas/atlas-index.md`}],
                     },
-                    [`${vaultRoot}/atlas/atlas-index.md`]: {
-                        absoluteFilePathIsID: `${vaultRoot}/atlas/atlas-index.md`,
+                    [`${projectRoot}/atlas/atlas-index.md`]: {
+                        absoluteFilePathIsID: `${projectRoot}/atlas/atlas-index.md`,
                         contentWithoutYamlOrLinks: '# Atlas Index',
                         outgoingEdges: [
-                            {targetId: `${vaultRoot}/atlas/sector-a/a1.md`},
-                            {targetId: `${vaultRoot}/atlas/sector-b/b1.md`},
+                            {targetId: `${projectRoot}/atlas/sector-a/a1.md`},
+                            {targetId: `${projectRoot}/atlas/sector-b/b1.md`},
                         ],
                     },
-                    [`${vaultRoot}/atlas/sector-a/a1.md`]: {
-                        absoluteFilePathIsID: `${vaultRoot}/atlas/sector-a/a1.md`,
+                    [`${projectRoot}/atlas/sector-a/a1.md`]: {
+                        absoluteFilePathIsID: `${projectRoot}/atlas/sector-a/a1.md`,
                         contentWithoutYamlOrLinks: '# A1',
-                        outgoingEdges: [{targetId: `${vaultRoot}/atlas/sector-a/a2.md`}],
+                        outgoingEdges: [{targetId: `${projectRoot}/atlas/sector-a/a2.md`}],
                     },
-                    [`${vaultRoot}/atlas/sector-a/a2.md`]: {
-                        absoluteFilePathIsID: `${vaultRoot}/atlas/sector-a/a2.md`,
+                    [`${projectRoot}/atlas/sector-a/a2.md`]: {
+                        absoluteFilePathIsID: `${projectRoot}/atlas/sector-a/a2.md`,
                         contentWithoutYamlOrLinks: '# A2',
-                        outgoingEdges: [{targetId: `${vaultRoot}/atlas/sector-a/a1.md`}],
+                        outgoingEdges: [{targetId: `${projectRoot}/atlas/sector-a/a1.md`}],
                     },
-                    [`${vaultRoot}/atlas/sector-b/b1.md`]: {
-                        absoluteFilePathIsID: `${vaultRoot}/atlas/sector-b/b1.md`,
+                    [`${projectRoot}/atlas/sector-b/b1.md`]: {
+                        absoluteFilePathIsID: `${projectRoot}/atlas/sector-b/b1.md`,
                         contentWithoutYamlOrLinks: '# B1',
-                        outgoingEdges: [{targetId: `${vaultRoot}/atlas/sector-b/b2.md`}],
+                        outgoingEdges: [{targetId: `${projectRoot}/atlas/sector-b/b2.md`}],
                     },
-                    [`${vaultRoot}/atlas/sector-b/b2.md`]: {
-                        absoluteFilePathIsID: `${vaultRoot}/atlas/sector-b/b2.md`,
+                    [`${projectRoot}/atlas/sector-b/b2.md`]: {
+                        absoluteFilePathIsID: `${projectRoot}/atlas/sector-b/b2.md`,
                         contentWithoutYamlOrLinks: '# B2',
-                        outgoingEdges: [{targetId: `${vaultRoot}/atlas/sector-b/b1.md`}],
+                        outgoingEdges: [{targetId: `${projectRoot}/atlas/sector-b/b1.md`}],
                     },
                 },
             },
         }
 
-        const rendered = buildRecursiveAscii(state, vaultRoot, {
+        const rendered = buildRecursiveAscii(state, projectRoot, {
             maxInlineEdges: 1,
             maxInlineNodes: Number.POSITIVE_INFINITY,
             maxDepth: 2,
         })
         const parsed = parseRecursiveAscii(rendered.text)
-        const score = scoreRecursiveAscii(parsed, state, vaultRoot)
-        const navigation = computeNavigationStats(parsed, state, vaultRoot, 20, 194)
+        const score = scoreRecursiveAscii(parsed, state, projectRoot)
+        const navigation = computeNavigationStats(parsed, state, projectRoot, 20, 194)
 
         expect(rendered.text).toContain('[Main view]')
         expect(rendered.text).toContain('[Fragment fragment-1: atlas]')

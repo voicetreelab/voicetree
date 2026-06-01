@@ -35,7 +35,7 @@ describe('computeMergeGraphDelta', () => {
             'node1.md': createNode('node1.md')
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['node1.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['node1.md'], graph, '/test/project')
 
         expect(result).toEqual([])
     })
@@ -45,7 +45,7 @@ describe('computeMergeGraphDelta', () => {
             'other.md': createNode('other.md')
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['missing1.md', 'missing2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['missing1.md', 'missing2.md'], graph, '/test/project')
 
         expect(result).toEqual([])
     })
@@ -56,7 +56,7 @@ describe('computeMergeGraphDelta', () => {
             'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Second')
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], graph, '/test/project')
 
         // Should have 3 deltas: 1 UpsertNode for representative, 2 DeleteNode for originals
         expect(result).toHaveLength(3)
@@ -94,7 +94,7 @@ describe('computeMergeGraphDelta', () => {
             'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph, '/test/project')
 
         // Should have 4 deltas: 1 representative + 1 updated external + 2 deletes
         expect(result).toHaveLength(4)
@@ -121,7 +121,7 @@ describe('computeMergeGraphDelta', () => {
             'internal2.md': createNode('internal2.md', [], { x: 60, y: 60 })
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['internal.md', 'internal2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['internal.md', 'internal2.md'], graph, '/test/project')
 
         // 1 representative + 2 updated externals + 2 deletes = 5
         expect(result).toHaveLength(5)
@@ -143,7 +143,7 @@ describe('computeMergeGraphDelta', () => {
             'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph, '/test/project')
 
         // Should only have 3 deltas: 1 representative + 2 deletes (no external updates)
         expect(result).toHaveLength(3)
@@ -159,7 +159,7 @@ describe('computeMergeGraphDelta', () => {
             'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph, '/test/project')
 
         // Find the updated external node
         const updatedExternal: GraphDelta[number] | undefined = result.find(
@@ -184,7 +184,7 @@ describe('computeMergeGraphDelta', () => {
             'node2.md': createNode('node2.md', [], { x: 100, y: 100 })
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], graph, '/test/project')
 
         // Should only have 3 deltas: 1 representative + 2 deletes
         // No external node updates because there are no external nodes
@@ -214,7 +214,7 @@ describe('computeMergeGraphDelta', () => {
             }
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md', 'context.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md', 'context.md'], graph, '/test/project')
 
         // Should have 4 deltas: 1 UpsertNode for representative, 3 DeleteNode (including context node)
         // Context node should be deleted but NOT included in merge content
@@ -255,7 +255,7 @@ describe('computeMergeGraphDelta', () => {
             }
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'context.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'context.md'], graph, '/test/project')
 
         // Should delete the context node, but not the regular node (can't merge 1 node)
         expect(result).toHaveLength(1)
@@ -293,7 +293,7 @@ describe('computeMergeGraphDelta', () => {
             }
         })
 
-        const result: GraphDelta = computeMergeGraphDelta(['context1.md', 'context2.md'], graph, '/test/vault')
+        const result: GraphDelta = computeMergeGraphDelta(['context1.md', 'context2.md'], graph, '/test/project')
 
         // Should only have DeleteNode actions for the context nodes, no merge node created
         expect(result).toHaveLength(2)

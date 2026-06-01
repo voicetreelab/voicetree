@@ -31,8 +31,8 @@ const test = base.extend<{
   electronApp: async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-mass-pin-test-'));
 
-    // Create watched folder with vault suffix
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    // Create watched folder with project suffix
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
     const projectRoot = path.join(watchedFolder, 'voicetree');
     await fs.mkdir(projectRoot, { recursive: true });

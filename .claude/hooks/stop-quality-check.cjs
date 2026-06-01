@@ -23,23 +23,31 @@ const QualityChecker = require('./lib/quality-checker.cjs');
 // recording shell-out is best-effort — failures here never alter the exit code.
 const HOOK_STARTED_AT = Date.now();
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const RECORD_RESULT_RUNNER = path.join(
+  REPO_ROOT, 'packages', 'measures', 'src', '_runners', 'record-result.ts',
+);
 const _originalExit = process.exit.bind(process);
 process.exit = (code = 0) => {
-  try {
-    spawnSync('node', [
-      '--no-warnings=ExperimentalWarning',
-      '--experimental-strip-types',
-      path.join(REPO_ROOT, 'scripts', 'record-result.mjs'),
-      '--id=claude-stop-quality',
-      '--name=Claude Code Stop (quality check)',
-      '--category=Hook',
-      '--display=node .claude/hooks/stop-quality-check.cjs',
-      `--status=${code === 0 ? 'pass' : 'fail'}`,
-      `--duration-ms=${Date.now() - HOOK_STARTED_AT}`,
-      ...(code !== 0 ? [`--error-summary=stop hook blocked with exit ${code} (quality issues found)`] : []),
-    ], { stdio: 'ignore', timeout: 5000 });
-  } catch {
-    // Recording is observational; never let it disturb the hook contract.
+  // Recording is observational and best-effort: a missing runner is a clean
+  // no-op (no wasted node cold-start), and any failure never alters the exit
+  // code. The runner is a TS file run via node's type-stripping.
+  if (fs.existsSync(RECORD_RESULT_RUNNER)) {
+    try {
+      spawnSync('node', [
+        '--no-warnings=ExperimentalWarning',
+        '--experimental-strip-types',
+        RECORD_RESULT_RUNNER,
+        '--id=claude-stop-quality',
+        '--name=Claude Code Stop (quality check)',
+        '--category=Hook',
+        '--display=node .claude/hooks/stop-quality-check.cjs',
+        `--status=${code === 0 ? 'pass' : 'fail'}`,
+        `--duration-ms=${Date.now() - HOOK_STARTED_AT}`,
+        ...(code !== 0 ? [`--error-summary=stop hook blocked with exit ${code} (quality issues found)`] : []),
+      ], { stdio: 'ignore', timeout: 5000 });
+    } catch {
+      // Never let recording disturb the hook contract.
+    }
   }
   _originalExit(code);
 };

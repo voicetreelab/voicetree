@@ -7,7 +7,7 @@ import * as fs from 'fs/promises'
 import * as os from 'os'
 
 import {
-    createFolderTestVault,
+    createFolderTestProject,
     waitForGraphLoaded,
 } from '../graph/folder/folder-test-helpers'
 
@@ -33,8 +33,8 @@ const test = base.extend<{
     projectRoot: string
 }>({
     projectRoot: async ({}, use): Promise<void> => {
-        const tempDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-l5-205-vault-'))
-        const projectRoot: string = await createFolderTestVault(tempDir)
+        const tempDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-l5-205-project-'))
+        const projectRoot: string = await createFolderTestProject(tempDir)
         await use(projectRoot)
         await fs.rm(tempDir, { recursive: true, force: true })
     },
@@ -49,9 +49,9 @@ const test = base.extend<{
             JSON.stringify(
                 {
                     lastDirectory: projectRoot,
-                    vaultConfig: {
+                    projectConfig: {
                         [projectRoot]: {
-                            writeFolder: projectRoot,
+                            writeFolderPath: projectRoot,
                             readPaths: [],
                         },
                     },
@@ -72,7 +72,6 @@ const test = base.extend<{
                         name: 'l5-205-store-consolidation',
                         type: 'folder',
                         lastOpened: Date.now(),
-                        voicetreeInitialized: true,
                     },
                 ],
                 null,

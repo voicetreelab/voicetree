@@ -6,20 +6,20 @@
  *
  * Built around three observable boundaries the protocol must respect:
  *
- *  - the on-disk owner record under `<vault>/.voicetree/vtd.owner.json`,
+ *  - the on-disk owner record under `<project>/.voicetree/vtd.owner.json`,
  *  - the actual fake-vtd / vtd processes visible via `ps` matching
- *    `--vault X`,
+ *    `--project X`,
  *  - the recorded pid's liveness as seen by `kill(pid, 0)`.
  *
  * All helpers are POSIX (darwin/linux). No mocking of
- * `ensureVtDaemonForVault` internals — every assertion in callers must
+ * `ensureVtDaemonForProject` internals — every assertion in callers must
  * resolve to one of the boundaries above (CLAUDE.md black-box rule).
  *
  * Differences from the graphd harness:
  *  - owner file is `vtd.owner.json`, not `graphd.owner.json`.
  *  - fake binary is `fake-vtd.mjs`, not `fake-vt-graphd.mjs`.
- *  - daemon-line regex matches `(vtd|fake-vtd)\.\w+\b.*--vault\s+(\S+)` —
- *    NOT `--project-root`. vtd's argv shape is `--vault` (BF-371). If the
+ *  - daemon-line regex matches `(vtd|fake-vtd)\.\w+\b.*--project\s+(\S+)` —
+ *    NOT `--project-root`. vtd's argv shape is `--project` (BF-371). If the
  *    regex matched `--project-root` instead, every `ps` line would silently
  *    miss and the tests would pass on a broken protocol.
  *  - `readPersistedOwner` asserts `daemonKind === 'vtd'` after every
@@ -60,7 +60,7 @@ export const OWNER_FILE = 'vtd.owner.json'
 const VTD_CONTRACT_VERSION = '0.1.0'
 
 export type Harness = {
-  vault: string
+  project: string
   /** Externally-spawned children we created (innocent victims, helpers). */
   spawned: ChildProcess[]
   /**
@@ -73,9 +73,9 @@ export type Harness = {
 export async function createHarness(
   prefix = 'vt-daemon-bf374-',
 ): Promise<Harness> {
-  const vault = await mkdtemp(join(tmpdir(), prefix))
-  await mkdir(join(vault, '.voicetree'), { recursive: true })
-  return { vault, spawned: [], externalDaemonPids: [] }
+  const project = await mkdtemp(join(tmpdir(), prefix))
+  await mkdir(join(project, '.voicetree'), { recursive: true })
+  return { project, spawned: [], externalDaemonPids: [] }
 }
 
 export async function destroyHarness(harness: Harness): Promise<void> {
@@ -85,7 +85,7 @@ export async function destroyHarness(harness: Harness): Promise<void> {
   for (const pid of harness.externalDaemonPids) {
     tryKill(pid, 'SIGKILL')
   }
-  await rm(harness.vault, { recursive: true, force: true })
+  await rm(harness.project, { recursive: true, force: true })
 }
 
 export function trackSpawn(harness: Harness, child: ChildProcess): ChildProcess {
@@ -106,7 +106,7 @@ function tryKill(pid: number, signal: NodeJS.Signals | 0 = 'SIGKILL'): void {
 }
 
 /**
- * Read `<vault>/.voicetree/vtd.owner.json` and assert it decodes as a
+ * Read `<project>/.voicetree/vtd.owner.json` and assert it decodes as a
  * vtd-tagged record. The `daemonKind === 'vtd'` check is load-bearing
  * (Gotcha 9): a sibling `graphd.owner.json` could in principle have a
  * shape that overlaps enough to satisfy the union schema; the assertion
@@ -119,8 +119,8 @@ function tryKill(pid: number, signal: NodeJS.Signals | 0 = 'SIGKILL'): void {
  * that race without hiding genuine protocol bugs: a genuinely broken
  * record never resolves in 2 s.
  */
-export async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
-  const path = join(vault, '.voicetree', OWNER_FILE)
+export async function readPersistedOwner(project: string): Promise<OwnerRecord> {
+  const path = join(project, '.voicetree', OWNER_FILE)
   const deadline = Date.now() + 2000
   let lastError: Error | null = null
   while (Date.now() < deadline) {
@@ -141,10 +141,10 @@ export async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
 }
 
 export async function readPersistedOwnerOrNull(
-  vault: string,
+  project: string,
 ): Promise<OwnerRecord | null> {
   try {
-    return await readPersistedOwner(vault)
+    return await readPersistedOwner(project)
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
@@ -158,15 +158,15 @@ export async function readPersistedOwnerOrNull(
  * {@link readPersistedOwner} after the protocol has run.
  */
 export async function writeOwnerRecord(
-  vault: string,
+  project: string,
   partial: Partial<OwnerRecord> & { pid: number; ownerNonce: string },
 ): Promise<OwnerRecord> {
-  const canonicalVault = resolve(vault)
+  const canonicalProject = resolve(project)
   const now = Date.now()
   const record: OwnerRecord = {
     schemaVersion: 1,
     daemonKind: 'vtd',
-    canonicalVault,
+    canonicalProject,
     pid: partial.pid,
     ppid: partial.ppid ?? 0,
     port: partial.port ?? null,
@@ -181,7 +181,7 @@ export async function writeOwnerRecord(
     },
   }
   await writeFile(
-    join(vault, '.voicetree', OWNER_FILE),
+    join(project, '.voicetree', OWNER_FILE),
     `${JSON.stringify(record, null, 2)}\n`,
     'utf8',
   )
@@ -215,24 +215,24 @@ export async function deadPid(): Promise<number> {
 }
 
 /**
- * Count live vtd-shaped processes whose `--vault` argument resolves to
- * `vault`. Matches both the production `vtd.mjs` / `.ts` entries AND the
+ * Count live vtd-shaped processes whose `--project` argument resolves to
+ * `project`. Matches both the production `vtd.mjs` / `.ts` entries AND the
  * test fixture `fake-vtd.mjs` — the protocol invariant we're locking in
  * is "exactly one daemon child" regardless of which binary the harness
  * happens to be exercising.
  *
- * The match is intentionally fingerprint-shaped (executable + --vault
+ * The match is intentionally fingerprint-shaped (executable + --project
  * path), not pid-set-based: callers can return their result pid 100 times
  * from a single-flight cache, but the kernel only knows the one real
  * process.
  */
-export function countDaemonProcessesForVault(vault: string): number {
+export function countDaemonProcessesForProject(project: string): number {
   if (process.platform !== 'darwin' && process.platform !== 'linux') {
     throw new Error(
-      `countDaemonProcessesForVault is POSIX-only, got ${process.platform}`,
+      `countDaemonProcessesForProject is POSIX-only, got ${process.platform}`,
     )
   }
-  const canonical = resolve(vault)
+  const canonical = resolve(project)
   const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
     encoding: 'utf8',
     timeout: 5000,
@@ -250,12 +250,12 @@ export function countDaemonProcessesForVault(vault: string): number {
 }
 
 /**
- * Same as {@link countDaemonProcessesForVault} but returns the matching
+ * Same as {@link countDaemonProcessesForProject} but returns the matching
  * pids so callers can SIGKILL them if a test failed in the middle.
  */
-export function listDaemonPidsForVault(vault: string): number[] {
+export function listDaemonPidsForProject(project: string): number[] {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return []
-  const canonical = resolve(vault)
+  const canonical = resolve(project)
   const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
     encoding: 'utf8',
     timeout: 5000,
@@ -271,17 +271,17 @@ export function listDaemonPidsForVault(vault: string): number[] {
   return pids
 }
 
-function matchesDaemonLine(line: string, canonicalVault: string): boolean {
+function matchesDaemonLine(line: string, canonicalProject: string): boolean {
   if (!line) return false
   // Match production vtd.<ext> and the test fake-vtd.<ext> entries; both
-  // must point at our canonical vault. vt-graphd uses `--project-root` —
-  // VTD intentionally uses `--vault` per BF-371. Mixing the two regexes
+  // must point at our canonical project. vt-graphd uses `--project-root` —
+  // VTD intentionally uses `--project` per BF-371. Mixing the two regexes
   // would silently match zero processes and the tests would pass on a
   // broken protocol.
-  const re = /(vtd|fake-vtd)\.\w+\b.*--vault\s+(\S+)/
+  const re = /(vtd|fake-vtd)\.\w+\b.*--project\s+(\S+)/
   const match = re.exec(line)
   if (!match) return false
-  return resolve(match[2]) === canonicalVault
+  return resolve(match[2]) === canonicalProject
 }
 
 export function isProcessAlive(pid: number): boolean {
@@ -298,13 +298,13 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 /**
- * Synthesize a command fingerprint that matches `node <FAKE_BIN> --vault X`,
+ * Synthesize a command fingerprint that matches `node <FAKE_BIN> --project X`,
  * for tests that need the protocol to *successfully* identify a recorded
  * owner as vtd-shaped (e.g. stale-heartbeat-with-matching-fingerprint).
  */
-export function fakeDaemonFingerprintFor(vault: string): CommandFingerprint {
+export function fakeDaemonFingerprintFor(project: string): CommandFingerprint {
   return {
     executable: process.execPath,
-    args: [FAKE_BIN, '--vault', resolve(vault)],
+    args: [FAKE_BIN, '--project', resolve(project)],
   }
 }

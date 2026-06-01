@@ -27,15 +27,15 @@ export interface CodeMirrorElement extends HTMLElement {
 export const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  testVaultPath: string;
+  testProjectPath: string;
 }>({
-  // Create temp userData directory with embedded vault + config.
-  // The config auto-loads the vault during app initialization.
-  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix.
+  // Create temp userData directory with embedded project + config.
+  // The config auto-loads the project during app initialization.
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default projectSuffix.
   electronApp: [async ({}, use, testInfo) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-yaml-integrity-test-'));
 
-    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    const watchedFolder = path.join(tempUserDataPath, 'test-project');
     await fs.mkdir(watchedFolder, { recursive: true });
 
     const projectRoot = path.join(watchedFolder, 'voicetree');
@@ -82,7 +82,7 @@ Original content here.`;
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', projectRoot);
+    console.log('[Test] Project path (with suffix):', projectRoot);
 
     (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
@@ -121,11 +121,11 @@ Original content here.`;
     console.log('[Test] Cleaned up temp directory');
   }, { timeout: 45000 }],
 
-  testVaultPath: async ({}, use, testInfo) => {
+  testProjectPath: async ({}, use, testInfo) => {
     await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
-  appWindow: [async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
+  appWindow: [async ({ electronApp, testProjectPath: _testProjectPath }, use) => {
     const page = await electronApp.firstWindow();
 
     page.on('console', msg => {

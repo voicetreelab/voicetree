@@ -3,11 +3,11 @@
 // Anything VTD owns must be reachable identically by every client. Electron
 // Main and the CLI are just two clients. This test boots the full daemon
 // stack (real OTLP receiver + real vt-daemon HTTP server) against a tmpdir
-// vault, then:
+// project, then:
 //
 //   1. POSTs a fixture OTLP body to <port>/v1/metrics — the OTLP wire path,
 //      not JSON-RPC. The daemon ingests, parses, and persists.
-//   2. Constructs two JSON-RPC clients via `createRpcClientForVault` (the
+//   2. Constructs two JSON-RPC clients via `createRpcClientForProject` (the
 //      same constructor Main and CLI both use post-cutover).
 //   3. Reads `metrics.getSessions` from each; asserts byte-identical
 //      responses via `JSON.stringify(a) === JSON.stringify(b)`.
@@ -24,7 +24,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 
 import {
-    createRpcClientForVault,
+    createRpcClientForProject,
     generateAuthToken,
     writeAuthTokenFile,
     writeRpcPortFile,
@@ -37,13 +37,13 @@ import {
     stopOtlpReceiver,
 } from '../src/observability/otlpReceiver.ts'
 import {buildDefaultToolCatalog} from '../src/transport/toolCatalog.ts'
-import {setCurrentVault} from '../src/state/currentVault.ts'
+import {setCurrentProject} from '../src/state/currentProject.ts'
 import {startHttpDaemonServer, type HttpDaemonServerHandle} from '../src/transport/httpServer.ts'
 import {readOtlpPortFile} from '../src/lifecycle/otlpPortFile.ts'
 import {buildDisabledMcpBridges} from './__helpers__/disabledMcpBridges.ts'
 
 interface FullStack {
-    readonly vault: string
+    readonly project: string
     readonly rpc: HttpDaemonServerHandle
     readonly otlpPort: number
     readonly stop: () => Promise<void>
@@ -101,13 +101,13 @@ function buildFixtureOtlpRequest(sessionId: string): unknown {
 
 async function startFullStack(): Promise<FullStack> {
     const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-metrics-dualclient-')))
-    const vault: string = join(root, 'vault')
-    await mkdir(vault, {recursive: true})
+    const project: string = join(root, 'project')
+    await mkdir(project, {recursive: true})
 
-    setCurrentVault(vault)
+    setCurrentProject(project)
 
     const token: string = generateAuthToken()
-    await writeAuthTokenFile(vault, token)
+    await writeAuthTokenFile(project, token)
 
     const rpc: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: buildDefaultToolCatalog(buildDisabledMcpBridges()),
@@ -116,22 +116,22 @@ async function startFullStack(): Promise<FullStack> {
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},
     })
-    await writeRpcPortFile(vault, rpc.port)
+    await writeRpcPortFile(project, rpc.port)
 
-    await startOtlpReceiver(vault)
-    const otlpPort: number | null = await readOtlpPortFile(vault)
+    await startOtlpReceiver(project)
+    const otlpPort: number | null = await readOtlpPortFile(project)
     if (otlpPort === null) {
         throw new Error('OTLP port file was not published after startOtlpReceiver')
     }
 
     return {
-        vault,
+        project,
         rpc,
         otlpPort,
         stop: async (): Promise<void> => {
             await stopOtlpReceiver().catch((): void => {})
             await rpc.stop().catch((): void => {})
-            setCurrentVault(null)
+            setCurrentProject(null)
             await rm(root, {recursive: true, force: true})
         },
     }
@@ -145,8 +145,8 @@ describe('metrics.getSessions — identical client surface (C4)', (): void => {
 
     beforeAll(async (): Promise<void> => {
         stack = await startFullStack()
-        clientMain = await createRpcClientForVault(stack.vault, {env: process.env})
-        clientCli = await createRpcClientForVault(stack.vault, {env: process.env})
+        clientMain = await createRpcClientForProject(stack.project, {env: process.env})
+        clientCli = await createRpcClientForProject(stack.project, {env: process.env})
 
         // Mutation: OTLP wire ingest (POST /v1/metrics). This is the
         // canonical Claude-Code path; from this point both clients see

@@ -25,21 +25,21 @@ sequenceDiagram
     participant HM as HistoryManager
     participant VS as VectorStore
     
-    Test->>TF: Setup test vault
+    Test->>TF: Setup test project
     TF->>TF: Create temp directory
     TF->>TF: Add sample .md files
     TF->>TF: Add transcript_history.md
     TF->>TF: Add vector.db
     
-    Test->>MT: Initialize(vault_path)
+    Test->>MT: Initialize(project_path)
     MT->>MT: _load_existing_markdown_files()
     MT-->>Test: Loaded N nodes
     
-    Test->>HM: load_from_file(vault_path)
+    Test->>HM: load_from_file(project_path)
     HM->>HM: Parse transcript_history.md
     HM-->>Test: History loaded
     
-    Test->>VS: Initialize(vault_path)
+    Test->>VS: Initialize(project_path)
     VS->>VS: Load ChromaDB
     VS-->>Test: Vectors loaded
     
@@ -59,20 +59,20 @@ sequenceDiagram
 ```python
 @pytest.mark.integration
 def test_overall_module_loading_integration():
-    """Verify all modules load their state correctly from a test vault"""
+    """Verify all modules load their state correctly from a test project"""
     
-    ** Setup test vault with known data**
-    with create_test_vault() as vault_path:
+    ** Setup test project with known data**
+    with create_test_project() as project_path:
         ** Add test data**
-        add_sample_markdown_files(vault_path, count=10)
-        add_sample_transcript_history(vault_path, 'test history')
-        add_sample_vector_db(vault_path)
+        add_sample_markdown_files(project_path, count=10)
+        add_sample_transcript_history(project_path, 'test history')
+        add_sample_vector_db(project_path)
         
         ** Initialize system components**
-        tree = MarkdownTree(vault_path)
+        tree = MarkdownTree(project_path)
         history = HistoryManager()
-        history.load_from_file(os.path.join(vault_path, 'transcript_history.md'))
-        ** vector_store = VectorStore(vault_path)  # When implemented**
+        history.load_from_file(os.path.join(project_path, 'transcript_history.md'))
+        ** vector_store = VectorStore(project_path)  # When implemented**
         
         ** Verify each module loaded correctly**
         assert len(tree.tree) == 10, 'MarkdownTree should load 10 nodes'

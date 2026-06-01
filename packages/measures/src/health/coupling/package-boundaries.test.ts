@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../..')
@@ -15,9 +16,9 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'vt-daemon',
 ] as const
 // BF-267: Bumped 44 → 47 to absorb the net +3 module-state vars introduced by the
-// DOVL+UFV epic (vaultLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
+// DOVL+UFV epic (projectLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
 // viewsStore.viewSwitchedListeners, watcherRebuild.unsub{FolderState,ViewSwitched}). A
-// full DI refactor would re-thread vaultLifecycle through every HTTP route and webapp
+// full DI refactor would re-thread projectLifecycle through every HTTP route and webapp
 // composition site (>3 files touched per the escalation trigger), so the team agreed to
 // accept the bump and revisit when the daemon's composition root is restructured.
 // 2026-05-21: Bumped 47 → 48 for writeMarkdownFile.ts's lastEditorBodyByTargetAndEditor
@@ -32,7 +33,10 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
 // the scanner still counts it because it's a top-level binding. Same
 // architectural rationale as the prior bumps — folding it into a passed-in
 // parameter would touch every recovery call site for no behavioral gain.
-const MODULE_MUTABLE_STATE_BASELINE = 49
+const {
+    moduleMutableStateBaseline: MODULE_MUTABLE_STATE_BASELINE,
+    daemonOwnedMutationsNonLauncherRuntimeImportBudget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET,
+} = readBudgetSync<{moduleMutableStateBaseline: number; daemonOwnedMutationsNonLauncherRuntimeImportBudget: number}>('coupling/package-boundaries.json')
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
@@ -42,8 +46,8 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'voicetree-cli/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
-    // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
-    'packages/systems/graph-db-client/src/autoLaunch/spawn/vaultlessSpawn.ts',
+    // Projectless graph-db-client launcher embeds a daemon start import in the child-process eval script.
+    'packages/systems/graph-db-client/src/autoLaunch/spawn/projectlessSpawn.ts',
     // CLI serve command is the intentional entrypoint for starting the daemon.
     'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
     // Route-parity command imports daemon route types for CLI/API consistency checks.
@@ -52,11 +56,10 @@ const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
     'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
-    // BF-371: bin/vtd.ts (formerly bin/vt-mcpd.ts) no longer imports
+    // BF-371: bin/vtd.ts no longer imports
     // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
     // SIBLING process. No allowlist entry required.
 ] as const
-const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET = 0
 
 type MutableStateViolation = {
     file: string

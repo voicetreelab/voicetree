@@ -1,7 +1,7 @@
 /**
  * B2 — agent lifecycle (spawn → observe → send → close).
  *
- * Single-node caching vault; agent must drive the entire `vt agent *` surface
+ * Single-node caching project; agent must drive the entire `vt agent *` surface
  * with a follow-up about write-behind threaded between spawn and close.
  */
 import * as path from 'node:path'
@@ -23,7 +23,7 @@ id: ${NODE_ID}
 Need to write up the read-through vs write-through tradeoff with examples.
 `
 
-const TASK_PROMPT = `There is one progress node in this vault about caching strategy. I want a
+const TASK_PROMPT = `There is one progress node in this project about caching strategy. I want a
 subagent to draft the read-through vs write-through comparison the note
 mentions, then I want to follow up and ask it to add a third option
 (write-behind) before we wrap.
@@ -37,9 +37,9 @@ Use \`vt --help\` to discover the CLI surface.`
 export const b2: ScenarioSpec = {
     id: 'B2',
     name: 'agent lifecycle (spawn / observe / send / close)',
-    async setup(vaultDir) {
-        await writeFile(path.join(getProjectDotVoicetreePath(vaultDir), '.keep'), '')
-        await writeFile(path.join(vaultDir, NODE_FILE), NODE_BODY)
+    async setup(projectDir) {
+        await writeFile(path.join(getProjectDotVoicetreePath(projectDir), '.keep'), '')
+        await writeFile(path.join(projectDir, NODE_FILE), NODE_BODY)
     },
     taskPrompt: TASK_PROMPT,
     expectedCommands: [
@@ -50,8 +50,8 @@ export const b2: ScenarioSpec = {
         {verb: 'agent wait'},
         {verb: 'agent close'},
     ],
-    async successCriteria(vaultDir): Promise<SuccessResult> {
-        const shimLog = await loadShimLog(vaultDir)
+    async successCriteria(projectDir): Promise<SuccessResult> {
+        const shimLog = await loadShimLog(projectDir)
         const spawnEntries = shimLog.filter(
             (e) => matchesVerb(e, 'agent spawn') && e.exitCode === 0,
         )

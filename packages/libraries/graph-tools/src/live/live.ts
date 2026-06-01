@@ -12,7 +12,7 @@ import type {Command, Delta} from '@vt/graph-state/contract'
 import {createLiveTransport} from './liveTransport'
 import {renderProjectedLiveView} from '../view/projectedLiveView'
 import type {ViewFormat, ViewGraphResult} from '../view/viewGraph'
-import {renderFocus, renderNeighbors, renderPath} from '../view/egoGraph'
+import {renderFocus, renderNeighbors, renderPath, type EgoRender} from '../view/egoGraph'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ function formatJson(value: unknown, pretty: boolean): string {
 // ── live state dump ────────────────────────────────────────────────────────
 
 export interface LiveStateDumpOptions {
-    readonly vaultPath?: string
+    readonly projectPath?: string
     readonly pretty?: boolean
 }
 
@@ -32,7 +32,7 @@ export interface LiveStateDumpResult {
 }
 
 export async function liveStateDump(options: LiveStateDumpOptions = {}): Promise<LiveStateDumpResult> {
-    const transport = createLiveTransport(options.vaultPath)
+    const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     const serialized = serializeState(state)
     const json = formatJson(serialized, options.pretty !== false)
@@ -48,7 +48,7 @@ const VALID_COMMAND_TYPES = new Set([
 ])
 
 export interface LiveApplyOptions {
-    readonly vaultPath?: string
+    readonly projectPath?: string
     readonly pretty?: boolean
 }
 
@@ -78,7 +78,7 @@ export async function liveApply(cmdJson: string, options: LiveApplyOptions = {})
     }
 
     const cmd: Command = hydrateCommand(parsed as SerializedCommand)
-    const transport = createLiveTransport(options.vaultPath)
+    const transport = createLiveTransport(options.projectPath)
     const delta = await transport.dispatchLiveCommand(cmd)
     const output = formatJson(delta, options.pretty !== false)
     return {output, delta}
@@ -90,11 +90,11 @@ export interface LiveViewOptions {
     readonly collapsedFolders?: readonly string[]
     readonly selectedIds?: readonly string[]
     readonly format?: ViewFormat
-    readonly vaultPath?: string
+    readonly projectPath?: string
 }
 
 export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraphResult> {
-    const transport = createLiveTransport(options.vaultPath)
+    const transport = createLiveTransport(options.projectPath)
 
     // Dispatch any folder-state commands first (idempotent if already collapsed).
     for (const folder of options.collapsedFolders ?? []) {
@@ -149,33 +149,33 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
 // ── live ego-graph queries (BF-200) ────────────────────────────────────────────
 
 export interface LiveFocusOptions {
-    readonly vaultPath?: string
+    readonly projectPath?: string
     readonly hops?: number
 }
 
 export interface LiveNeighborsOptions {
-    readonly vaultPath?: string
+    readonly projectPath?: string
     readonly hops?: number
 }
 
 export interface LivePathOptions {
-    readonly vaultPath?: string
+    readonly projectPath?: string
 }
 
-export async function liveFocus(nodeId: string, options: LiveFocusOptions = {}): Promise<string> {
-    const transport = createLiveTransport(options.vaultPath)
+export async function liveFocus(nodeId: string, options: LiveFocusOptions = {}): Promise<EgoRender> {
+    const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     return renderFocus(state.graph, nodeId, options.hops ?? 1)
 }
 
-export async function liveNeighbors(nodeId: string, options: LiveNeighborsOptions = {}): Promise<string> {
-    const transport = createLiveTransport(options.vaultPath)
+export async function liveNeighbors(nodeId: string, options: LiveNeighborsOptions = {}): Promise<EgoRender> {
+    const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     return renderNeighbors(state.graph, nodeId, options.hops ?? 1)
 }
 
-export async function livePath(nodeA: string, nodeB: string, options: LivePathOptions = {}): Promise<string> {
-    const transport = createLiveTransport(options.vaultPath)
+export async function livePath(nodeA: string, nodeB: string, options: LivePathOptions = {}): Promise<EgoRender> {
+    const transport = createLiveTransport(options.projectPath)
     const state = await transport.getLiveState()
     return renderPath(state.graph, nodeA, nodeB)
 }

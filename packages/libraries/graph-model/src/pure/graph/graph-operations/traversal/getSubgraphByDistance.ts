@@ -76,56 +76,46 @@ export function getSubgraphByDistance(
   return createGraph(filteredNodes)
 }
 
-type DfsVisitFn = (
-  nodeId: NodeIdAndFilePath,
-  distance: number,
-  visited: ReadonlySet<NodeIdAndFilePath>
-) => ReadonlySet<NodeIdAndFilePath>
-
 /**
  * Pure DFS traversal without context node handling.
+ *
+ * `visited` is both the cycle/duplicate guard and the result: every node added is exactly
+ * the set returned. Accumulating into a single mutable Set keeps this O(V); the previous
+ * implementation threaded an immutable set and rebuilt it (`new Set([...visited, id])`) on
+ * every visit, which is O(V^2). DFS order and the first-reach distance semantics are
+ * unchanged — the per-edge `distance + cost < maxDistance` filter was constant across a
+ * node's edges, so it is equivalent to a single guard around each edge group.
  */
 function dfsTraversal(
   graph: Graph,
   startNodeId: NodeIdAndFilePath,
   maxDistance: number
 ): ReadonlySet<NodeIdAndFilePath> {
-  const processed: Set<NodeIdAndFilePath> = new Set()
+  const visited: Set<NodeIdAndFilePath> = new Set()
 
-  const dfsVisit: DfsVisitFn = (
-    nodeId: NodeIdAndFilePath,
-    distance: number,
-    visited: ReadonlySet<NodeIdAndFilePath>
-  ): ReadonlySet<NodeIdAndFilePath> => {
-    if (processed.has(nodeId) || !graph.nodes[nodeId]) {
-      return visited
+  const dfsVisit = (nodeId: NodeIdAndFilePath, distance: number): void => {
+    if (visited.has(nodeId) || !graph.nodes[nodeId]) {
+      return
     }
 
-    processed.add(nodeId)
+    visited.add(nodeId)
     const node: GraphNode = graph.nodes[nodeId]
-    const newVisited: ReadonlySet<NodeIdAndFilePath> = new Set([...visited, nodeId])
 
     // Explore outgoing edges (children) with cost 1.5
-    const afterChildren: ReadonlySet<NodeIdAndFilePath> = node.outgoingEdges
-      .filter(() => distance + 1.5 < maxDistance)
-      .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
-        newVisited
-      )
+    if (distance + 1.5 < maxDistance) {
+      node.outgoingEdges.forEach(edge => dfsVisit(edge.targetId, distance + 1.5))
+    }
 
     // Explore incoming edges (parents) with cost 1.0
-    const incomingNodes: readonly GraphNode[] = getIncomingNodes(node, graph)
-    const afterParents: ReadonlySet<NodeIdAndFilePath> = incomingNodes
-      .filter(() => distance + 1.0 < maxDistance)
-      .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, parentNode) => dfsVisit(parentNode.absoluteFilePathIsID, distance + 1.0, acc),
-        afterChildren
+    if (distance + 1.0 < maxDistance) {
+      getIncomingNodes(node, graph).forEach(parentNode =>
+        dfsVisit(parentNode.absoluteFilePathIsID, distance + 1.0)
       )
-
-    return afterParents
+    }
   }
 
-  return dfsVisit(startNodeId, 0, new Set())
+  dfsVisit(startNodeId, 0)
+  return visited
 }
 
 /**

@@ -5,15 +5,6 @@ import {getProjectDotVoicetreePath} from '@vt/paths';
 import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 import type { BuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 
-// Files to copy into {projectRoot}/.voicetree/prompts/
-const PROJECT_PROMPT_FILES: readonly string[] = [
-  'addProgressTree.md',
-  'SUBAGENT_PROMPT.md',
-  'CREATE_SUBAGENTS_COMMAND.md',
-  'decompose_subtask_dependency_graph.md',
-  'subtask_template.md',
-];
-
 // Hook scripts to copy into {projectRoot}/.voicetree/hooks/
 const HOOK_SCRIPT_FILES: readonly string[] = [
   'on-new-node.cjs',
@@ -54,11 +45,13 @@ async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: 
 }
 
 /**
- * Ensure {projectRoot}/.voicetree/ has default prompts and hook scripts.
+ * Ensure {projectRoot}/.voicetree/ has hook scripts and bookkeeping files.
+ * Prompts are NOT provisioned per-project — they live solely at
+ * ~/.voicetree/prompts, seeded by the vtd daemon at boot (see
+ * @vt/vt-daemon's ensureHomePrompts).
  *
- * Idempotent copy-on-first-open:
- * - If .voicetree/prompts/ exists, skip prompt copy (user may have customized)
- * - If .voicetree/hooks/ exists, skip hook copy (user may have customized)
+ * Idempotent on every open:
+ * - Hooks are copied per-file (fills gaps, preserves user-customized files).
  * - Always writes .version (tracks which app version set up the directory)
  * - Writes .gitignore only if missing
  */
@@ -68,10 +61,6 @@ export async function ensureProjectDotVoicetree(projectRoot: string): Promise<vo
 
   // Ensure .voicetree/ directory exists
   await fs.mkdir(dotVoicetree, { recursive: true });
-
-  // Copy prompts (per-file idempotent — fills gaps, preserves user-customized files)
-  const promptsDest: string = path.join(dotVoicetree, 'prompts');
-  await copySpecificFiles(config.promptsSource, promptsDest, PROJECT_PROMPT_FILES);
 
   // Copy hooks (per-file idempotent — fills gaps, preserves user-customized files)
   const hooksDest: string = path.join(dotVoicetree, 'hooks');

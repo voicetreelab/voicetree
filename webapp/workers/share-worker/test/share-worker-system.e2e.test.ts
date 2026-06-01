@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 function uploadForm(): FormData {
   const form = new FormData();
-  form.append('folderName', 'product-vault');
+  form.append('folderName', 'product-project');
   form.append('files', new File(['# Root\n\n[[Nested Child]]'], 'Root.md', { type: 'text/markdown' }));
   form.append('files', new File(['# Nested Child'], 'folder/Nested Child.md', { type: 'text/markdown' }));
   form.append(
@@ -30,7 +30,7 @@ describe('share-worker system boundary', () => {
     await worker?.stop();
   });
 
-  it('uploads a vault and serves its manifest, markdown, positions, and CORS/cache contract', async () => {
+  it('uploads a project and serves its manifest, markdown, positions, and CORS/cache contract', async () => {
     const upload = await worker.fetch('http://worker/upload', {
       method: 'POST',
       body: uploadForm(),
@@ -45,7 +45,7 @@ describe('share-worker system boundary', () => {
     expect(manifestResponse.status).toBe(200);
     expect(manifestResponse.headers.get('Cache-Control')).toBe('public, max-age=3600');
     const manifest = await manifestResponse.json() as { folderName: string; files: string[] };
-    expect(manifest.folderName).toBe('product-vault');
+    expect(manifest.folderName).toBe('product-project');
     expect(manifest.files.sort()).toEqual(['.voicetree/positions.json', 'Root.md', 'folder/Nested Child.md'].sort());
 
     const markdown = await worker.fetch(`http://worker/share/${shareId}/Root.md`);

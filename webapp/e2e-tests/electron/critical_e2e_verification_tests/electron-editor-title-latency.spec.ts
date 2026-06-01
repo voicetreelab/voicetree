@@ -62,11 +62,11 @@ function formatLatencyReport(values: readonly number[]): string {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writeFolder = path.join(projectPath, 'voicetree')
-  await fs.mkdir(writeFolder, { recursive: true })
+  const writeFolderPath = path.join(projectPath, 'voicetree')
+  await fs.mkdir(writeFolderPath, { recursive: true })
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true })
   await fs.writeFile(
-    path.join(writeFolder, 'Latency Target.md'),
+    path.join(writeFolderPath, 'Latency Target.md'),
     '# Latency Target\n\nInitial content.\n',
     'utf8',
   )
@@ -75,14 +75,14 @@ async function seedProject(projectPath: string): Promise<string> {
     JSON.stringify({ 'Latency Target.md': { x: 100, y: 100 } }, null, 2),
     'utf8',
   )
-  return writeFolder
+  return writeFolderPath
 }
 
 const test = base.extend<{
   electronApp: ElectronApplication
   appWindow: Page
   projectPath: string
-  writeFolder: string
+  writeFolderPath: string
 }>({
   projectPath: async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-title-latency-'))
@@ -90,12 +90,12 @@ const test = base.extend<{
     await fs.rm(projectPath, { recursive: true, force: true })
   },
 
-  writeFolder: async ({ projectPath }, use) => {
-    const writeFolder = await seedProject(projectPath)
-    await use(writeFolder)
+  writeFolderPath: async ({ projectPath }, use) => {
+    const writeFolderPath = await seedProject(projectPath)
+    await use(writeFolderPath)
   },
 
-  electronApp: async ({ projectPath, writeFolder }, use) => {
+  electronApp: async ({ projectPath, writeFolderPath }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-title-latency-app-'))
     await fs.writeFile(
       path.join(userDataPath, 'projects.json'),
@@ -106,7 +106,6 @@ const test = base.extend<{
           name: path.basename(projectPath),
           type: 'folder',
           lastOpened: Date.now(),
-          voicetreeInitialized: true,
         },
       ], null, 2),
       'utf8',
@@ -115,9 +114,9 @@ const test = base.extend<{
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         lastDirectory: projectPath,
-        vaultConfig: {
+        projectConfig: {
           [projectPath]: {
-            writeFolder,
+            writeFolderPath,
             readPaths: [],
           },
         },
@@ -157,10 +156,10 @@ const test = base.extend<{
     const openResult = await window.evaluate(async (dir) => {
       const api = (window as unknown as ExtendedWindow).electronAPI
       if (!api) throw new Error('electronAPI not available')
-      const response = await api.main.openVault(dir)
-      return { writeFolder: response.writeFolder }
+      const response = await api.main.openProject(dir)
+      return { writeFolderPath: response.writeFolderPath }
     }, projectPath)
-    expect(openResult.writeFolder, 'openVault returned no writeFolder').toBeTruthy()
+    expect(openResult.writeFolderPath, 'openProject returned no writeFolderPath').toBeTruthy()
     await pollForCytoscape(window, 30_000)
     await pollForCytoscapeNodes(window, 1, 20_000)
     await pollForCondition(window, async () => {
@@ -180,7 +179,7 @@ const test = base.extend<{
 
 test.describe.configure({ timeout: 120_000 })
 
-test('keystroke-to-graph-label update stays within the editor FS write latency budget', async ({ appWindow, writeFolder }) => {
+test('keystroke-to-graph-label update stays within the editor FS write latency budget', async ({ appWindow, writeFolderPath }) => {
   await expect.poll(async () => {
     return await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance
@@ -246,7 +245,7 @@ test('keystroke-to-graph-label update stays within the editor FS write latency b
 
     latencies.push(performance.now() - t0)
 
-    const fileContent = await fs.readFile(path.join(writeFolder, 'Latency Target.md'), 'utf8')
+    const fileContent = await fs.readFile(path.join(writeFolderPath, 'Latency Target.md'), 'utf8')
     expect(fileContent).toContain(nextContent)
 
     const daemonHasContent = await appWindow.evaluate(async ({ id, content }) => {

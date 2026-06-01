@@ -4,6 +4,7 @@ import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {buildImportGraph} from '../../_shared/graph/import-graph'
 import {formSiblingGroups, type CommunityReport, type SiblingGroupReport} from '../../_shared/complexity/orange-priority.ts'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 // --- Report Formatting ---
 
@@ -151,15 +152,7 @@ describe('hierarchical complexity', () => {
         console.info(output.join('\n'))
 
         // Orange gate: fail when any community exceeds the priority budget.
-        // Lower this number as you address top offenders to ratchet quality up.
-        // Captured 2026-05-14 after widening discovery to whole repo.
-        // Topology rebaseline 2026-05-27: agents/+tools/agent-control/+terminals/* consolidated
-        // into agent-runtime/ (depth-2 score 864→224). Depth-3 agent-control coordinator still
-        // reaches many sibling subdirs (terminals/, hooks/, inject/, runtime/, headless/) — that
-        // is its design role. Budget bumped 258→340 to admit that depth-3 floor; depth-2 has
-        // substantial headroom. Future structural decomposition (e.g. thinning agentControlRuntime
-        // hub) can ratchet this back down.
-        const ORANGE_PRIORITY_BUDGET = 340
+        const {orangePriorityBudget: ORANGE_PRIORITY_BUDGET} = readBudgetSync<{orangePriorityBudget: number}>('complexity/hierarchical-complexity.json')
 
         const overBudget = priorityRanked.filter(p => p.score > ORANGE_PRIORITY_BUDGET)
         await recordHealthMetric({

@@ -22,7 +22,7 @@ function makeState(selection: readonly string[], revision: number, mutatedAt: st
       unresolvedLinksIndex: [],
     },
     roots: {
-      loaded: ['/tmp/vault'],
+      loaded: ['/tmp/project'],
       folderTree: [],
     },
     collapseSet: [],
@@ -70,6 +70,37 @@ describe('diffCaptures', () => {
     const after = makeSnapshot(['a.md'], 11, '2026-04-19T00:00:05.000Z')
 
     expect(diffCaptures(before, after)).toEqual({ changed: ['selection'] })
+  })
+
+  it('handles on-disk captures that omit optional roots.loaded / collapseSet', () => {
+    // serializeState() omits roots.loaded and collapseSet entirely (they are
+    // derived on hydrate), so real capture files lack these fields. diffCaptures
+    // must not throw "values is not iterable" on them. See REC 8.
+    const onDiskState: SerializedState = {
+      graph: {
+        nodes: {},
+        incomingEdgesIndex: [],
+        nodeByBaseName: [],
+        unresolvedLinksIndex: [],
+      },
+      roots: { folderTree: [] }, // no `loaded`
+      // no `collapseSet`
+      selection: [],
+      layout: { positions: [] },
+      meta: { schemaVersion: 1, revision: 1 },
+    }
+    const snapshot: Snapshot = {
+      state: onDiskState,
+      cyDump: null,
+      focused: null,
+      selection: [],
+      zoom: null,
+      pan: null,
+      timestamp: '2026-04-19T00:00:00.000Z',
+    }
+
+    expect(() => diffCaptures(snapshot, snapshot)).not.toThrow()
+    expect(diffCaptures(snapshot, snapshot)).toEqual({ changed: [] })
   })
 
   it('reports viewport changes via top-level zoom and pan, not cyDump', () => {

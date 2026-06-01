@@ -17,7 +17,7 @@ import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
@@ -27,7 +27,7 @@ interface ExtendedWindow {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory: string }>;
       saveProject: (project: {
         id: string; path: string; name: string;
-        type: 'folder'; lastOpened: number; voicetreeInitialized: boolean;
+        type: 'folder'; lastOpened: number;
       }) => Promise<void>;
     };
   };
@@ -95,11 +95,10 @@ const test = base.extend<{
         name: 'Minimap Test',
         type: 'folder',
         lastOpened: Date.now(),
-        voicetreeInitialized: true,
       });
 
       await api.main.startFileWatching(projectRoot);
-    }, FIXTURE_VAULT_PATH);
+    }, FIXTURE_PROJECT_PATH);
 
     // Wait for cytoscape to initialize (graph view loaded)
     await page.waitForFunction(
@@ -115,7 +114,7 @@ const test = base.extend<{
 test('minimap should render graph thumbnail in Electron with WebGL', async ({ appWindow }) => {
   test.setTimeout(30000);
 
-  // Wait for graph nodes to load from the fixture vault
+  // Wait for graph nodes to load from the fixture project
   await appWindow.waitForFunction(() => {
     const cy = (window as ExtendedWindow).cytoscapeInstance;
     return cy && cy.nodes().length >= 2;

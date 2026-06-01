@@ -49,21 +49,21 @@ describe('prepareTerminalDataInMain', () => {
 
     it('does not fail when the freshly-created context node is not visible in the graph snapshot yet', async () => {
         const voicetreeHomePath = await mkdtemp(join(tmpdir(), 'vt-terminal-data-'))
-        const taskNodeId = '/vault/task.md' as NodeIdAndFilePath
-        const contextNodeId = '/vault/ctx-nodes/task-context.md' as NodeIdAndFilePath
+        const taskNodeId = '/project/task.md' as NodeIdAndFilePath
+        const contextNodeId = '/project/ctx-nodes/task-context.md' as NodeIdAndFilePath
 
         try {
             process.env.VOICETREE_HOME_PATH = voicetreeHomePath
             configureAgentRuntime({
                 env: {
                     getProjectRoot: async () => '/project',
-                    getWriteFolder: async () => '/project/voicetree-25-5',
-                    getVaultPaths: async () => ['/project/voicetree-25-5'],
+                    getWriteFolderPath: async () => '/project/voicetree-25-5',
+                    getProjectPaths: async () => ['/project/voicetree-25-5'],
                 },
                 graph: {
                     getGraph: async () => graphWithOnlyTask(taskNodeId),
-                    getVaultPaths: async () => ['/project/voicetree-25-5'],
-                    getWriteFolder: async () => O.some('/project/voicetree-25-5'),
+                    getProjectPaths: async () => ['/project/voicetree-25-5'],
+                    getWriteFolderPath: async () => O.some('/project/voicetree-25-5'),
                     getProjectRoot: async () => '/project',
                     getWatchStatus: async () => ({isWatching: false, directory: undefined}),
                     applyGraphDelta: async (_delta: GraphDelta) => undefined,
@@ -92,10 +92,10 @@ describe('prepareTerminalDataInMain', () => {
 
             expect(terminalData.contextContent).toBe('')
             expect(terminalData.title).toBe('Task title')
-            // VOICETREE_VAULT_PATH is the canonical project root (where `.voicetree/`
-            // lives), not the daemon's writeFolder subfolder. See
-            // buildTerminalEnvVarsVaultPath.test.ts for the dedicated regression.
-            expect(terminalData.initialEnvVars?.VOICETREE_VAULT_PATH).toBe('/project')
+            // VOICETREE_PROJECT_PATH is the canonical project root (where `.voicetree/`
+            // lives), not the daemon's writeFolderPath subfolder. See
+            // buildTerminalEnvVarsProjectPath.test.ts for the dedicated regression.
+            expect(terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH).toBe('/project')
         } finally {
             await rm(voicetreeHomePath, {recursive: true, force: true})
         }

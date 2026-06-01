@@ -42,7 +42,7 @@ describe('parseSessionFlag', () => {
 
     it('throws ArgValidationError when the next token is another flag', () => {
         expect(() =>
-            parseSessionFlag(['view', 'show', '--session', '--vault', '/tmp/vault'])
+            parseSessionFlag(['view', 'show', '--session', '--project', '/tmp/project'])
         ).toThrowError(ArgValidationError)
     })
 })

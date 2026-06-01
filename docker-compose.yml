@@ -8,7 +8,7 @@ services:
     ports:
       - "6080:6080"
     volumes:
-      - vault:/home/vt/vault
+      - project:/home/vt/project
       - claude-config:/home/vt/.config/claude
     env_file:
       - .env
@@ -16,5 +16,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  vault:
+  project:
   claude-config:

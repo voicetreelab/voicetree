@@ -30,12 +30,12 @@ export function folderSpecNode(
     overrides: Partial<ProjectedNode> = {},
 ): ProjectedNode {
     return {
-        id: '/vault/topic/',
+        id: '/project/topic/',
         kind,
         label: 'Topic',
         relPath: 'topic/',
         basename: 'Topic',
-        folderPath: '/vault/',
+        folderPath: '/project/',
         content: '# Topic\n\nbody',
         loadState: 'loaded',
         isWriteTarget: false,
@@ -48,7 +48,7 @@ export function specWithNodes(...nodes: ProjectedNode[]): ProjectedGraph {
     return {
         nodes,
         edges: [],
-        rootPath: '/vault',
+        rootPath: '/project',
         revision: 1,
         forests: [],
         arboricity: 0,
@@ -56,9 +56,9 @@ export function specWithNodes(...nodes: ProjectedNode[]): ProjectedGraph {
     }
 }
 
-export function syncFolderTree(rootPath: string = '/vault'): void {
+export function syncFolderTree(rootPath: string = '/project'): void {
     const tree: FolderTreeNode = {
-        name: 'vault',
+        name: 'project',
         absolutePath: rootPath,
         loadState: 'loaded',
         isWriteTarget: true,

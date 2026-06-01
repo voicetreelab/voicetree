@@ -29,7 +29,12 @@ const perfMode: boolean =
     process.env.VOICETREE_PERF_MODE === '1'
     || process.env.NODE_ENV === 'test'
     || process.env.HEADLESS_TEST === '1';
-contextBridge.exposeInMainWorld('voicetreeEnv', {perfMode});
+// `perfProbe` is a narrower gate than `perfMode`: it activates the renderer
+// perf probe (rAF loop + PerformanceObservers + telemetry IPC) ONLY under the
+// e2e-nav-storm harness, never in normal tests or the app, so the instrument
+// can never perturb unrelated runs.
+const perfProbe: boolean = process.env.VOICETREE_PERF_PROBE === '1';
+contextBridge.exposeInMainWorld('voicetreeEnv', {perfMode, perfProbe});
 
 // Async function to build and expose the electronAPI
 // This allows us to dynamically fetch API keys from main process at runtime
@@ -75,25 +80,25 @@ async function exposeElectronAPI(): Promise<void> {
             return () => ipcRenderer.off('watching-started', handler);
         },
 
-        onVaultSwitching: (callback) => {
-            type VaultSwitchingData = { path: string };
-            const handler: (_event: Electron.IpcRendererEvent, data: VaultSwitchingData) => void = (_event, data) => callback(data);
-            ipcRenderer.on('vault:switching', handler);
-            return () => ipcRenderer.off('vault:switching', handler);
+        onProjectSwitching: (callback) => {
+            type ProjectSwitchingData = { path: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: ProjectSwitchingData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('project:switching', handler);
+            return () => ipcRenderer.off('project:switching', handler);
         },
 
-        onVaultReady: (callback) => {
-            type VaultReadyData = { path: string };
-            const handler: (_event: Electron.IpcRendererEvent, data: VaultReadyData) => void = (_event, data) => callback(data);
-            ipcRenderer.on('vault:ready', handler);
-            return () => ipcRenderer.off('vault:ready', handler);
+        onProjectReady: (callback) => {
+            type ProjectReadyData = { path: string; sessionId: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: ProjectReadyData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('project:ready', handler);
+            return () => ipcRenderer.off('project:ready', handler);
         },
 
-        onVaultLost: (callback) => {
-            type VaultLostData = { path?: string; error?: string; pid?: number | null };
-            const handler: (_event: Electron.IpcRendererEvent, data: VaultLostData) => void = (_event, data) => callback(data);
-            ipcRenderer.on('vault:lost', handler);
-            return () => ipcRenderer.off('vault:lost', handler);
+        onProjectLost: (callback) => {
+            type ProjectLostData = { path?: string; error?: string; pid?: number | null };
+            const handler: (_event: Electron.IpcRendererEvent, data: ProjectLostData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('project:lost', handler);
+            return () => ipcRenderer.off('project:lost', handler);
         },
 
         onViewSwitched: (callback) => {
@@ -142,6 +147,8 @@ async function exposeElectronAPI(): Promise<void> {
                 ipcRenderer.invoke('terminal:scroll', handle, direction, lines) as Promise<boolean>,
             detach: (handle: string): Promise<boolean> =>
                 ipcRenderer.invoke('terminal:detach', handle) as Promise<boolean>,
+            rehydrate: (): Promise<void> =>
+                ipcRenderer.invoke('terminal:rehydrate') as Promise<void>,
         },
 
         // VTD /events stream — Main owns the WebSocket; renderer reads via IPC.
@@ -204,6 +211,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:resize',
                 'terminal:scroll',
                 'terminal:detach',
+                'terminal:rehydrate',
                 'vt:events:resnapshot',
             ]);
             if (!ALLOWED_INVOKE_CHANNELS.has(channel)) {
@@ -219,9 +227,9 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
-                'vault:switching',
-                'vault:ready',
-                'vault:lost',
+                'project:switching',
+                'project:ready',
+                'project:lost',
                 'ui:call',
                 'view:switched',
                 'vt:events',
@@ -242,9 +250,9 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
-                'vault:switching',
-                'vault:ready',
-                'vault:lost',
+                'project:switching',
+                'project:ready',
+                'project:lost',
                 'ui:call',
                 'view:switched',
                 'vt:events',

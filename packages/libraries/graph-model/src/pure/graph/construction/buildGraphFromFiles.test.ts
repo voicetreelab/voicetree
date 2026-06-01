@@ -107,20 +107,20 @@ describe('buildGraphFromFiles', () => {
   it('files in subfolders have full absolute paths as node IDs', () => {
     const graph: Graph = buildGraphFromFiles([
       {
-        absolutePath: '/vault/topic-a/child.md',
+        absolutePath: '/project/topic-a/child.md',
         content: '# Child\n[[parent]]'
       },
       {
-        absolutePath: '/vault/topic-b/parent.md',
+        absolutePath: '/project/topic-b/parent.md',
         content: '# Parent\nCross-folder parent.'
       }
     ])
 
-    expect(graph.nodes['/vault/topic-a/child.md']).toBeDefined()
-    expect(graph.nodes['/vault/topic-b/parent.md']).toBeDefined()
+    expect(graph.nodes['/project/topic-a/child.md']).toBeDefined()
+    expect(graph.nodes['/project/topic-b/parent.md']).toBeDefined()
 
-    const child: GraphNode = graph.nodes['/vault/topic-a/child.md']
-    expect(child.outgoingEdges[0].targetId).toBe('/vault/topic-b/parent.md')
+    const child: GraphNode = graph.nodes['/project/topic-a/child.md']
+    expect(child.outgoingEdges[0].targetId).toBe('/project/topic-b/parent.md')
   })
 
   it('edge healing: order of files does not matter', () => {

@@ -53,9 +53,9 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
     readonly metadataPath: string
     readonly exitCodePath: string
 } {
-    const projectRoot: string | undefined = env.VOICETREE_VAULT_PATH
+    const projectRoot: string | undefined = env.VOICETREE_PROJECT_PATH
     if (!projectRoot) {
-        throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_VAULT_PATH is missing`)
+        throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_PROJECT_PATH is missing`)
     }
     const terminalDir: string = join(getProjectDotVoicetreePath(projectRoot), 'terminals')
     mkdirSync(terminalDir, {recursive: true})
@@ -205,23 +205,26 @@ export async function attachExistingTmuxBackedTerminal(
     return {pid}
 }
 
-export function spawnTmuxHeadlessAgent(
+export async function spawnTmuxHeadlessAgent(
     terminalId: TerminalId,
     terminalData: TerminalData,
     command: string,
     cwd: string | undefined,
     env: Record<string, string>,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
-): void {
-    const projectRoot: string | undefined = env.VOICETREE_VAULT_PATH
+): Promise<void> {
+    const projectRoot: string | undefined = env.VOICETREE_PROJECT_PATH
     const plan = projectRoot
         ? applyPromptFileToHeadlessSpawn({projectRoot, terminalId, command, env})
         : {command, env, promptFilePath: null}
-    void spawnTmuxBackedTerminal(terminalId, terminalData, plan.command, cwd, plan.env, deps, plan.promptFilePath).catch((error: unknown) => {
+    try {
+        await spawnTmuxBackedTerminal(terminalId, terminalData, plan.command, cwd, plan.env, deps, plan.promptFilePath)
+    } catch (error: unknown) {
         deps.writeLog({level: 'error', message: `[headlessAgentManager] Failed to spawn tmux-backed headless agent ${terminalId}:`, error})
         deps.markTerminalExited(terminalId, null)
         if (plan.promptFilePath) deletePromptFile(projectRoot, terminalId)
-    })
+        throw error
+    }
 }
 
 export async function killTmuxHeadlessAgent(

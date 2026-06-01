@@ -3,7 +3,7 @@ import type { DirectoryEntry, Graph } from '@vt/graph-model'
 
 export interface RootIO {
     readonly getDirectoryTree: (rootPath: string, maxDepth?: number) => Promise<DirectoryEntry>
-    readonly loadGraphFromDisk: (vaultPaths: readonly string[]) => Promise<Either<unknown, Graph>>
+    readonly loadGraphFromDisk: (projectPaths: readonly string[]) => Promise<Either<unknown, Graph>>
 }
 
 let rootIO: RootIO | undefined
@@ -18,7 +18,7 @@ export function clearRootIOForTests(): void {
 
 export function getRootIO(): RootIO {
     if (!rootIO) {
-        throw new Error('Root I/O is not configured. Call configureRootIO before using vault fixture loading.')
+        throw new Error('Root I/O is not configured. Call configureRootIO before using project fixture loading.')
     }
 
     return rootIO

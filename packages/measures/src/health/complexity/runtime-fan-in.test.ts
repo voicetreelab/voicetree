@@ -3,9 +3,9 @@ import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 import {buildRuntimeSymbolsByTarget, runtimeFanInRows} from '../../_shared/graph/runtime-fan-in'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
-// Captured 2026-05-15 after widening discovery to whole repo via discoverPackages(); ratchet down over time.
-const MAX_RUNTIME_FAN_IN = 110         // observed max: 107 (graph-model receives 107 named symbols)
+const {max: MAX_RUNTIME_FAN_IN} = readBudgetSync<{max: number}>('complexity/runtime-fan-in.json')
 
 describe('runtime fan-in health', () => {
     it('keeps runtime fan-in within budget', async () => {

@@ -9,17 +9,17 @@ import { ensureUniqueNodeId, getNodeTitle, stableIdSuffix } from '../graphOperat
 /**
  * Generates a unique ID for a merged node based on the merge inputs.
  * Node IDs are absolute paths to simplify path handling.
- * @param writeFolder - Absolute path to the write directory (where merged nodes are created)
+ * @param writeFolderPath - Absolute path to the write directory (where merged nodes are created)
  */
 function generateMergedNodeId(
-    writeFolder: string,
+    writeFolderPath: string,
     selectedNodeIds: readonly NodeIdAndFilePath[],
     graph: Graph
 ): NodeIdAndFilePath {
-    const suffix: string = stableIdSuffix([writeFolder, ...selectedNodeIds])
+    const suffix: string = stableIdSuffix([writeFolderPath, ...selectedNodeIds])
     const filename: string = `merged_${suffix}.md`
-    const separator: string = writeFolder.endsWith('/') ? '' : '/'
-    return ensureUniqueNodeId(`${writeFolder}${separator}${filename}`, new Set(Object.keys(graph.nodes)))
+    const separator: string = writeFolderPath.endsWith('/') ? '' : '/'
+    return ensureUniqueNodeId(`${writeFolderPath}${separator}${filename}`, new Set(Object.keys(graph.nodes)))
 }
 
 /**
@@ -35,13 +35,13 @@ function generateMergedNodeId(
  *
  * @param selectedNodeIds - Array of node IDs to merge (must have at least 2)
  * @param graph - The current graph state
- * @param writeFolder - Absolute path to the write directory (where merged nodes are created)
+ * @param writeFolderPath - Absolute path to the write directory (where merged nodes are created)
  * @returns GraphDelta containing UpsertNode and DeleteNode actions
  */
 export function computeMergeGraphDelta(
     selectedNodeIds: readonly NodeIdAndFilePath[],
     graph: Graph,
-    writeFolder: string
+    writeFolderPath: string
 ): GraphDelta {
     if (selectedNodeIds.length < 2) {
         return []
@@ -74,7 +74,7 @@ export function computeMergeGraphDelta(
         return contextNodeDeletions
     }
 
-    const newNodeId: NodeIdAndFilePath = generateMergedNodeId(writeFolder, nonContextNodeIds, graph)
+    const newNodeId: NodeIdAndFilePath = generateMergedNodeId(writeFolderPath, nonContextNodeIds, graph)
 
     // Get the nodes to merge (already filtered for non-context)
     const nodesToMerge: readonly GraphNode[] = nonContextNodeIds.map(

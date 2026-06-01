@@ -6,6 +6,8 @@ import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
+import { showUserDataMigrationNotice } from '@/shell/UI/views/components/overlays/migrationNoticeToast'
+import { installRendererPerfProbe } from '@/shell/perf/installRendererPerfProbe'
 import type { VTSettings } from '@vt/graph-model/settings'
 import { ringBuffer } from '@/shell/edge/renderer/debug/consoleBuffer'
 import { snapshot as buttonSnapshot, _register, _unregister } from '@/shell/edge/renderer/debug/buttonRegistry'
@@ -106,8 +108,28 @@ if (!analyticsDisabled) {
   })()
 }
 
+// Start the renderer perf probe when the e2e-nav-storm harness requests it
+// (VOICETREE_PERF_PROBE=1 → window.voicetreeEnv.perfProbe). No-op otherwise, so
+// the rAF loop / PerformanceObservers never run in the normal app.
+installRendererPerfProbe();
+
 // Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)
 setupUIRpcHandler();
+
+// Surface the one-time 2.9.x→3.0 import notice, if any. The migration already ran
+// silently in electron-main at startup; this just shows the non-blocking toast now
+// that the renderer (and document.body) is ready. Consumed once — null thereafter.
+// Feature-detected + best-effort: browser-mode e2e tests mount a partial electronAPI
+// mock, so a missing method must never throw during app boot.
+const consumeMigrationNotice: (() => Promise<string | null>) | undefined =
+  window.electronAPI?.main.consumeUserDataMigrationNotice;
+if (consumeMigrationNotice) {
+  void consumeMigrationNotice().then((message: string | null) => {
+    if (message) {
+      showUserDataMigrationNotice(message);
+    }
+  });
+}
 
 // Render app immediately - backend connection will be initialized lazily when needed
 createRoot(document.getElementById('root')!).render(

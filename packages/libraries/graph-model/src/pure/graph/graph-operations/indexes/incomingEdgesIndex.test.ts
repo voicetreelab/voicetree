@@ -145,6 +145,23 @@ describe('incomingEdgesIndex', () => {
       // 'd' should have 'a' as incomer
       expect(newIndex.get('d')).toEqual(['a'])
     })
+
+    it('should not mutate the input index (returns an independent copy)', () => {
+      // Initial: a -> c, b -> c
+      const cIncomers: readonly NodeIdAndFilePath[] = ['a', 'b']
+      const index: IncomingEdgesIndex = new Map([['c', cIncomers]])
+
+      const previousNode: GraphNode = createTestNode('a', [{ targetId: 'c', label: '' }])
+      // Updated: a -> d (a no longer points to c)
+      const newNode: GraphNode = createTestNode('a', [{ targetId: 'd', label: '' }])
+
+      updateIndexForUpsert(index, newNode, O.some(previousNode))
+
+      // The original index and its value arrays must be untouched (shallow-copy correctness).
+      expect(index.get('c')).toEqual(['a', 'b'])
+      expect(cIncomers).toEqual(['a', 'b'])
+      expect(index.has('d')).toBe(false)
+    })
   })
 
   describe('updateIndexForDelete', () => {

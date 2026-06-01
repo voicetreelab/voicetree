@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { saveProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { startDaemon, type DaemonHandle } from '@vt/graph-db-server'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
@@ -31,25 +31,25 @@ async function addReadPath(client: GraphDbClient, p: string): Promise<void> {
 
 describe('@vt/graph-db-client system contract', () => {
   let root: string
-  let vault: string
+  let project: string
   let docs: string
   let handle: DaemonHandle | null
   let client: GraphDbClient
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphdb-client-system-'))
-    vault = path.join(root, 'vault')
-    docs = path.join(vault, 'docs')
+    project = path.join(root, 'project')
+    docs = path.join(project, 'docs')
     await mkdir(docs, { recursive: true })
-    await saveVaultConfigForDirectory(vault, { writeFolder: '.' })
+    await saveProjectConfigForDirectory(project, { writeFolderPath: '.' })
     clearWatchFolderState()
     setGraph(createEmptyGraph())
     handle = await startDaemon({
-      vault,
-      voicetreeHomePath: path.join(root, 'app-support'),
+      project,
+      voicetreeHomePath: path.join(root, 'voicetree-home'),
       createStarterIfEmpty: false,
     })
-    client = await GraphDbClient.connect({ vault })
+    client = await GraphDbClient.connect({ project })
     await addReadPath(client, docs)
   })
 
@@ -62,30 +62,30 @@ describe('@vt/graph-db-client system contract', () => {
   })
 
   describe('connection', () => {
-    it('exposes the daemon health for the bound vault', async () => {
-      await expect(client.health()).resolves.toMatchObject({ vault })
+    it('exposes the daemon health for the bound project', async () => {
+      await expect(client.health()).resolves.toMatchObject({ project })
     })
   })
 
-  describe('vault write path', () => {
+  describe('project write path', () => {
     it('rejects missing write paths with a typed error', async () => {
-      await expect(client.setWriteFolder(path.join(vault, 'missing'))).rejects.toMatchObject({
+      await expect(client.setWriteFolderPath(path.join(project, 'missing'))).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
       })
     })
 
-    it('sets an existing write path and returns the updated vault state', async () => {
-      await expect(client.setWriteFolder(docs)).resolves.toMatchObject({
-        writeFolder: docs,
-        projectRoot: vault,
+    it('sets an existing write path and returns the updated project state', async () => {
+      await expect(client.setWriteFolderPath(docs)).resolves.toMatchObject({
+        writeFolderPath: docs,
+        projectRoot: project,
       })
     })
   })
 
   describe('graph watcher', () => {
-    it('reflects files written into the vault via the daemon watcher', async () => {
+    it('reflects files written into the project via the daemon watcher', async () => {
       const notePath = path.join(docs, 'alpha.md')
       await writeFile(notePath, '# Alpha\n\nClient watched content.\n', 'utf8')
       const graph = await waitFor(async () => {
@@ -112,8 +112,8 @@ describe('@vt/graph-db-client system contract', () => {
     })
 
     it('lets two clients share one session and observe each other’s mutations', async () => {
-      const clientA = await GraphDbClient.connect({ vault, sessionId })
-      const clientB = await GraphDbClient.connect({ vault, sessionId })
+      const clientA = await GraphDbClient.connect({ project, sessionId })
+      const clientB = await GraphDbClient.connect({ project, sessionId })
 
       await expect(clientA.setFolderState(sessionId, docs, 'collapsed')).resolves.toMatchObject({
         folderState: expect.arrayContaining([[docs, 'collapsed']]),
@@ -156,7 +156,7 @@ describe('@vt/graph-db-client system contract', () => {
       })
       handle = null
 
-      await expect(GraphDbClient.connect({ vault })).rejects.toBeInstanceOf(DaemonUnreachableError)
+      await expect(GraphDbClient.connect({ project })).rejects.toBeInstanceOf(DaemonUnreachableError)
     })
   })
 
@@ -171,7 +171,7 @@ describe('@vt/graph-db-client system contract', () => {
 
       const { sessionId } = await client.createSession()
       const clients = await Promise.all(
-        Array.from({ length: 5 }, () => GraphDbClient.connect({ vault, sessionId })),
+        Array.from({ length: 5 }, () => GraphDbClient.connect({ project, sessionId })),
       )
 
       const updates = Array.from({ length: 30 }, (_, i) =>
@@ -192,8 +192,8 @@ describe('@vt/graph-db-client system contract', () => {
 
     it('survives 5 rapid connect cycles against the same daemon', async () => {
       for (let i = 0; i < 5; i++) {
-        const fresh = await GraphDbClient.connect({ vault })
-        await expect(fresh.health()).resolves.toMatchObject({ vault })
+        const fresh = await GraphDbClient.connect({ project })
+        await expect(fresh.health()).resolves.toMatchObject({ project })
       }
     })
 
@@ -203,7 +203,7 @@ describe('@vt/graph-db-client system contract', () => {
         nodeToUpsert: {
           kind: 'leaf',
           outgoingEdges: [],
-          absoluteFilePathIsID: path.join(vault, `bulk-${i}.md`),
+          absoluteFilePathIsID: path.join(project, `bulk-${i}.md`),
           contentWithoutYamlOrLinks: `# bulk-${i}\n`,
           nodeUIMetadata: {
             color: { _tag: 'None' },
@@ -217,7 +217,7 @@ describe('@vt/graph-db-client system contract', () => {
 
       const graph = await client.getGraph()
       for (let i = 0; i < 200; i++) {
-        expect(graph.nodes[path.join(vault, `bulk-${i}.md`)]).toBeDefined()
+        expect(graph.nodes[path.join(project, `bulk-${i}.md`)]).toBeDefined()
       }
     })
   })

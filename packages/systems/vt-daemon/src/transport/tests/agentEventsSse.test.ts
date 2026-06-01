@@ -21,7 +21,7 @@ import {
     projectHubEventToEnvelope,
     type AgentEventsFrame,
     type AgentEventEnvelope,
-} from '../agentEventsSse.ts'
+} from '../sse/agentEventsSse.ts'
 
 const noopHook: HookHandler = (): unknown => ({ok: true})
 const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([
@@ -31,7 +31,7 @@ const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) =
 interface Ctx {
     handle: HttpDaemonServerHandle
     token: string
-    vault: string
+    project: string
 }
 
 const active: Ctx[] = []
@@ -44,25 +44,25 @@ afterEach(async (): Promise<void> => {
 })
 
 interface BringOptions {
-    readonly canonicalVault?: string | null
+    readonly canonicalProject?: string | null
 }
 
 async function bring(opts: BringOptions = {}): Promise<Ctx> {
-    const canonicalVault: string | undefined = opts.canonicalVault === undefined
-        ? '/canonical/vault'
-        : opts.canonicalVault === null
+    const canonicalProject: string | undefined = opts.canonicalProject === undefined
+        ? '/canonical/project'
+        : opts.canonicalProject === null
             ? undefined
-            : opts.canonicalVault
+            : opts.canonicalProject
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: NOOP_CATALOG,
         hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
-        canonicalVault,
+        canonicalProject,
         logger: {logRequest: (): void => {}, logError: (): void => {}},
     })
-    const ctx: Ctx = {handle, token, vault: canonicalVault ?? ''}
+    const ctx: Ctx = {handle, token, project: canonicalProject ?? ''}
     active.push(ctx)
     return ctx
 }
@@ -182,7 +182,7 @@ describe('projectHubEventToEnvelope — pure projector', (): void => {
             seq: 7,
             event: 'Stop',
             data: {terminalId: 'T1', source: 'claude-code', at: 1727712345678, handlerResult: {ok: true}},
-            vault: '/v',
+            project: '/v',
         })
     })
     it('returns null when terminalId is missing', (): void => {
@@ -201,7 +201,7 @@ describe('encodeSseBlock — wire format', (): void => {
             seq: 1,
             event: 'Stop',
             data: {terminalId: 'T1', source: 'claude-code', at: 1, handlerResult: null},
-            vault: '/v',
+            project: '/v',
         })
         expect(block.startsWith('data: ')).toBe(true)
         expect(block.endsWith('\n\n')).toBe(true)
@@ -213,7 +213,7 @@ describe('encodeSseBlock — wire format', (): void => {
 
 describe('GET /sessions/:sessionId/agent-events — black-box', (): void => {
     it('streams an agent-events frame after a matching hook fires', async (): Promise<void> => {
-        const {handle, token, vault} = await bring({canonicalVault: '/the/vault'})
+        const {handle, token, project} = await bring({canonicalProject: '/the/project'})
         const url: string = `${handle.url}/sessions/sess-1/agent-events`
         const reader: SseReaderHandle = openSseReader(url, token)
 
@@ -232,7 +232,7 @@ describe('GET /sessions/:sessionId/agent-events — black-box', (): void => {
         expect(frame.event).toBe('Stop')
         expect(frame.data.terminalId).toBe('T1')
         expect(frame.data.source).toBe('claude-code')
-        expect(frame.vault).toBe(vault)
+        expect(frame.project).toBe(project)
         expect(typeof frame.seq).toBe('number')
     })
 
@@ -244,18 +244,18 @@ describe('GET /sessions/:sessionId/agent-events — black-box', (): void => {
         expect(res.status).toBe(401)
     })
 
-    it('returns 503 with explanatory body when canonicalVault is not wired', async (): Promise<void> => {
-        const {handle, token} = await bring({canonicalVault: null})
+    it('returns 503 with explanatory body when canonicalProject is not wired', async (): Promise<void> => {
+        const {handle, token} = await bring({canonicalProject: null})
         const res = await fetch(`${handle.url}/sessions/sess-1/agent-events`, {
             headers: {Authorization: `Bearer ${token}`},
         })
         expect(res.status).toBe(503)
         const body = await res.json() as {error: string}
-        expect(body.error).toMatch(/canonicalVault/)
+        expect(body.error).toMatch(/canonicalProject/)
     })
 
     it('replays buffered frames from ?since=<seq>', async (): Promise<void> => {
-        const {handle, token, vault} = await bring({canonicalVault: '/v'})
+        const {handle, token, project} = await bring({canonicalProject: '/v'})
         // Publish 3 hook events BEFORE any subscriber connects.
         for (let i: number = 1; i <= 3; i++) {
             await fetch(`${handle.url}/hook/claude-code?terminal=T${i}&event=Stop`, {
@@ -272,11 +272,11 @@ describe('GET /sessions/:sessionId/agent-events — black-box', (): void => {
             .filter((f): f is AgentEventEnvelope => f.kind === 'agent-events')
         reader.close()
         expect(replayed.map((f) => f.seq)).toEqual([2, 3])
-        expect(replayed.every((f) => f.vault === vault)).toBe(true)
+        expect(replayed.every((f) => f.project === project)).toBe(true)
     })
 
     it('closes the SSE stream when the client aborts', async (): Promise<void> => {
-        const {handle, token} = await bring({canonicalVault: '/v'})
+        const {handle, token} = await bring({canonicalProject: '/v'})
         const reader: SseReaderHandle = openSseReader(
             `${handle.url}/sessions/sess-1/agent-events`,
             token,
@@ -296,7 +296,7 @@ describe('GET /sessions/:sessionId/agent-events — black-box', (): void => {
     })
 
     it('returns 404 on a non-sessions GET that does not match the SSE route', async (): Promise<void> => {
-        const {handle, token} = await bring({canonicalVault: '/v'})
+        const {handle, token} = await bring({canonicalProject: '/v'})
         const res = await fetch(`${handle.url}/sessions/sess-1/other-route`, {
             headers: {Authorization: `Bearer ${token}`},
         })

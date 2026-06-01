@@ -31,6 +31,13 @@ sync:
         - "**/*.cache*"
         - "**/.DS_Store"
         - "**/*.DS_Store*"
+        # .env is machine-local config — notably VT_REMOTE_HOST. Mirroring the
+        # Mac's .env into the devbox replica makes run-remote, when invoked from
+        # the replica, resolve a remote host and try to route to itself (a
+        # self-routing loop waiting on a phantom mutagen session). Each machine
+        # owns its own .env; never sync it.
+        - ".env"
+        - "**/.env"
         - "**/*.log"
         - "**/*.db"
         - "**/*.db-*"
@@ -67,8 +74,25 @@ sync:
         - "**/.voicetree/devbox-outputs"
         - "**/.voicetree/devbox-outputs/**"
         - "**/*devbox-outputs*"
+        # Machine-local build caches (e.g. the name-uniqueness declaration
+        # index). These are keyed to the machine's absolute checkout paths
+        # and rebuilt on demand — syncing them between the local mac and the
+        # devbox makes a check read another machine's cache and (with the old
+        # behaviour) flag a file as colliding with its own cross-root copy.
+        # Each machine must own its own cache.
+        - "**/.voicetree/cache"
+        - "**/.voicetree/cache/**"
+        # health-dashboard/reports/ is owned by two SEPARATE sessions:
+        #   - vt-csv-history (two-way-safe) owns scores-history/
+        #   - vt-reports (one-way-replica, remote-alpha) owns the generated
+        #     JSON reports (latest.json, *.json, etc.)
+        # This one-way-replica (local→remote) must not touch reports/ at all:
+        # it would clobber remote-generated JSON with the (empty) local copy
+        # and overwrite devbox-appended score rows in scores-history/.
+        - "health-dashboard/reports"
+        - "health-dashboard/reports/**"
         # Legacy nested worktrees: migrated to sibling <parent>/vt-wts/ layout,
-        # synced by the separate vt-wts mutagen session. Excluding here prevents
+        # synced by the separate vt-wts-synced mutagen session. Excluding here prevents
         # any straggler `.worktrees/<name>` (e.g. a worktree blocked from
         # migration by uncommitted changes) from re-introducing the
         # double-sync + scanner-exclude class of bug the migration killed.
@@ -88,7 +112,15 @@ sync:
         # from the devbox. The matching .lock paths stay ignored — they're
         # atomic-write tempfiles, and syncing them would race with local git.
         - ".git/index.lock"
-        - ".git/worktrees/*/index.lock"
+        # The whole .git/worktrees/ admin tree is Mac-local: every entry's gitdir
+        # points at a Mac path, so mirrored into the devbox replica all entries
+        # are dead/prunable (a devbox-side `worktree prune` is re-resurrected on
+        # the next one-way-replica sync). Linked worktrees reach the devbox via
+        # the separate vt-wts session, not through this main checkout's .git, so
+        # the devbox never needs this dir. Ignore it entirely (supersedes the
+        # old `.git/worktrees/*/index.lock` entry).
+        - ".git/worktrees"
+        - ".git/worktrees/**"
         - ".git/*.lock"
         - ".git/refs/**/*.lock"
         - ".git/hooks"

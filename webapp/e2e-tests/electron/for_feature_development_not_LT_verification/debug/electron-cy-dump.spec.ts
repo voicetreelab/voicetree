@@ -2,13 +2,13 @@
  * BEHAVIORAL SPEC — BF-DBG-204b window.__vtDebug__.cy() dump helper
  *
  * Verifies that page.evaluate(() => window.__vtDebug__.cy()) returns a
- * typed CyDump once a vault is loaded:
+ * typed CyDump once a project is loaded:
  * - nodes.length matches the count of rendered cytoscape nodes (± 5)
  * - dump has the correct shape: nodes, edges, viewport, selection arrays
  * - nodes have id, classes, position, visible fields
  * - viewport has zoom and pan
  *
- * Class b verifier: Playwright loads fixture vault, asserts golden count.
+ * Class b verifier: Playwright loads fixture project, asserts golden count.
  */
 
 import {test as base, expect, _electron as electron} from '@playwright/test'
@@ -19,7 +19,7 @@ import * as os from 'os'
 import type {Core as CytoscapeCore} from 'cytoscape'
 
 const PROJECT_ROOT: string = path.resolve(process.cwd())
-const FIXTURE_VAULT_PATH: string = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small')
+const FIXTURE_PROJECT_PATH: string = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small')
 
 interface CyDumpNode {
     id: string
@@ -62,18 +62,17 @@ const test = base.extend<{
 
         const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json')
         await fs.writeFile(configPath, JSON.stringify({
-            lastDirectory: FIXTURE_VAULT_PATH,
-            suffixes: {[FIXTURE_VAULT_PATH]: ''},
+            lastDirectory: FIXTURE_PROJECT_PATH,
+            suffixes: {[FIXTURE_PROJECT_PATH]: ''},
         }, null, 2), 'utf8')
 
         const projectsPath: string = path.join(tempUserDataPath, 'projects.json')
         await fs.writeFile(projectsPath, JSON.stringify([{
             id: 'test-cy-dump',
-            path: FIXTURE_VAULT_PATH,
+            path: FIXTURE_PROJECT_PATH,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true,
         }], null, 2), 'utf8')
 
         const electronApp: ElectronApplication = await electron.launch({

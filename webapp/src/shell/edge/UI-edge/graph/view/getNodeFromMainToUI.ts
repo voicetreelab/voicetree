@@ -20,7 +20,7 @@ export async function getNodeFromMainToUIOrNull(nodeId: string): Promise<GraphNo
 /**
  * Get the absolute file path for a node.
  *
- * Since the multivault refactor, node IDs are absolute paths.
+ * Since the multiproject refactor, node IDs are absolute paths.
  * This function just ensures the .md extension is present.
  */
 export function getFilePathForNode(nodeId: NodeIdAndFilePath): string {

@@ -4,10 +4,11 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
-const NORMALIZED_ENTROPY_BUDGET = 0.953
+const {normalizedEntropyBudget: NORMALIZED_ENTROPY_BUDGET} = readBudgetSync<{normalizedEntropyBudget: number}>('shape/graph-entropy.json')
 
 
 type ImportEdge = {
