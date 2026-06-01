@@ -1,0 +1,25 @@
+# Gitleaks config for voicetreelab/voicetree.
+# Extends the bundled default ruleset; adds repo-specific allowlisting for
+# synthetic test fixtures so the secret gate has zero false positives.
+title = "voicetree gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths that legitimately contain key-shaped or path-shaped test data, not real secrets."
+paths = [
+  # Example graph + onboarding fixtures shipped with the webapp (demo data).
+  '''webapp/example_folder_fixtures/.*''',
+  '''webapp/public/onboarding/.*''',
+  # E2E fixtures that hardcode synthetic /Users/<name> paths (bob, example, test…).
+  '''webapp/e2e-tests/.*''',
+  # This config + the ignore list themselves.
+  '''\.gitleaks\.toml$''',
+  '''\.gitleaksignore$''',
+]
+# Synthetic usernames used throughout test fixtures — never real credentials.
+regexTarget = "match"
+regexes = [
+  '''/Users/(bob|example|test|user|x)(/|"|$)''',
+]
