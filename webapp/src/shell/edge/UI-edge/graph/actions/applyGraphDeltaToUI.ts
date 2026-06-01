@@ -117,6 +117,30 @@ function syncExistingNodeParent(existing: CollectionReturnValue, specNode: Proje
     }
 }
 
+// Monotonic counter recording the order indicator edges are created. Each terminal→node
+// edge stamps the next value into its `recencySeq` data, giving us a stable "the agent
+// made this node Nth" ordering even though ProjectedNode carries no timestamp.
+let indicatorEdgeSeqCounter: number = 0
+
+/**
+ * Recompute the recency-driven `recencyWeight` (0..1) for every indicator edge sharing
+ * `shadowNodeId` as its source — i.e. all the nodes one terminal authored. The most
+ * recently created edge gets weight 1 (thickest / most solid), the oldest gets weight 0
+ * (thinnest / most faded); the stylesheet maps this onto width + line-opacity. A lone
+ * edge is treated as fully recent.
+ */
+function recomputeIndicatorEdgeRecency(cy: Core, shadowNodeId: string): void {
+    const edges = cy.edges('.terminal-progres-nodes-indicator')
+        .filter((edge) => edge.data('source') === shadowNodeId)
+    const ordered = edges.sort((a, b) =>
+        (a.data('recencySeq') as number ?? 0) - (b.data('recencySeq') as number ?? 0))
+    const count: number = ordered.length
+    ordered.forEach((edge, index: number) => {
+        const weight: number = count <= 1 ? 1 : index / (count - 1)
+        edge.data('recencyWeight', weight)
+    })
+}
+
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {
     const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/anchoring/types').TerminalData> = getTerminals()
     for (const terminal of terminals.values()) {
@@ -133,9 +157,12 @@ function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string
                 source: shadowNodeId,
                 target: nodeId,
                 isIndicatorEdge: true,
+                recencySeq: ++indicatorEdgeSeqCounter,
+                recencyWeight: 1,
             },
             classes: 'terminal-progres-nodes-indicator',
         })
+        recomputeIndicatorEdgeRecency(cy, shadowNodeId)
         break
     }
 }

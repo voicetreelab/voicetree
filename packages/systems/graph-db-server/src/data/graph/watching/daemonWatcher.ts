@@ -128,7 +128,6 @@ export function mountWatcher(
   // user just loaded becomes a root and its files start ingesting; an unloaded
   // folder stops being one.
   const mountedRoots = new Set<string>(readPaths.map((p) => normalizePath(p)))
-
   // Pairs the unlink+add of a filesystem move so a loaded note moved into an
   // unloaded folder re-enters the graph (and its incoming [[wikilink]] heals)
   // instead of being dropped by the gate. See moveCorrelator / moveIdentity.
@@ -253,7 +252,6 @@ export function mountWatcher(
       // unlink→add ordering: let a matching add arriving within the window through.
       correlator.recordUnlink(base, identity)
     }
-
     const fsDelete: FSDelete = {
       type: 'Delete',
       absolutePath: filePath,

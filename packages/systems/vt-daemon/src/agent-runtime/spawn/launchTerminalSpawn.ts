@@ -57,7 +57,7 @@ async function launchPreparedTerminal(
             // alias and we re-bind to the dying one.
             await killHeadlessAgent(params.inheritTerminalId as TerminalId)
         }
-        spawnHeadlessAgent(
+        await spawnHeadlessAgent(
             getTerminalId(terminalData),
             terminalData,
             headlessCommand,

@@ -92,7 +92,7 @@ sync:
         - "health-dashboard/reports"
         - "health-dashboard/reports/**"
         # Legacy nested worktrees: migrated to sibling <parent>/vt-wts/ layout,
-        # synced by the separate vt-wts mutagen session. Excluding here prevents
+        # synced by the separate vt-wts-synced mutagen session. Excluding here prevents
         # any straggler `.worktrees/<name>` (e.g. a worktree blocked from
         # migration by uncommitted changes) from re-introducing the
         # double-sync + scanner-exclude class of bug the migration killed.

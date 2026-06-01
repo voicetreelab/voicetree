@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import { serializeState, type State } from '@vt/graph-state'
+import { sortStrings } from '@vt/graph-state/project-helpers'
 import { computeDrift, type DriftData, type FsContentById } from '@vt/graph-tools/debug/state/drift'
 import { projectStateToCyDump } from '@vt/graph-tools/debug/state/projectedCyDump'
 import { parseCyDump, type CyDump } from '@vt/graph-tools/debug/state/cyStateShape'
@@ -51,10 +52,6 @@ type CaptureStepObservationsParams = {
     screenshotEach: boolean
     stateEach: boolean
   }
-}
-
-function sortStrings(values: readonly string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right))
 }
 
 function removeValues(values: readonly string[], removed: readonly string[] | undefined): string[] {

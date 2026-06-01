@@ -30,7 +30,7 @@ import {
     projectHubEventToTerminalRegistryEnvelope,
     type TerminalRegistryFrame,
     type TerminalRegistryEnvelope,
-} from '../terminalRegistrySse.ts'
+} from '../sse/terminalRegistrySse.ts'
 
 const noopHook: HookHandler = (): unknown => ({ok: true})
 const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([

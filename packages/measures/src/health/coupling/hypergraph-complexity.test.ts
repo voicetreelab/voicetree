@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {buildImportGraph} from '../../_shared/graph/import-graph'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-bci.md'
 
@@ -50,9 +51,12 @@ type SubdirCoupling = {
 
 // ── Budgets (ratchet down over time) ──
 
-const MAX_PAIR_TREE_WIDTH_BUDGET = 3
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_BOUNDARY_RATIO_BUDGET = 1
+const {
+    maxPairTreeWidthBudget: MAX_PAIR_TREE_WIDTH_BUDGET,
+    maxBoundaryRatioBudget: MAX_BOUNDARY_RATIO_BUDGET,
+    aggregateBciBudget: AGGREGATE_BCI_BUDGET,
+    normalisedBciBudget: NORMALISED_BCI_BUDGET,
+} = readBudgetSync<{maxPairTreeWidthBudget: number; maxBoundaryRatioBudget: number; aggregateBciBudget: number; normalisedBciBudget: number}>('coupling/hypergraph-complexity.json')
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 //
 // History:
@@ -77,8 +81,6 @@ const MAX_BOUNDARY_RATIO_BUDGET = 1
 // Captured 2026-05-26: aggregate 0.75 across 2 charged pairs, normalised 0.375.
 // Tight ratchet: small headroom for noise; ratchet down as the two remaining
 // mesh-shaped pairs get refactored.
-const AGGREGATE_BCI_BUDGET = 1
-const NORMALISED_BCI_BUDGET = 0.5
 
 // ── Graph Construction ──
 

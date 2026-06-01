@@ -14,8 +14,9 @@
 #   git fetch origin --prune                     (keeps ALL origin/* refs fresh)
 #   then advance the pinned local base branch (default dev-manu) by
 #   git merge --ff-only origin/$VT_BASE_BRANCH   (never reset; never destroy data)
-# On a dirty / diverged / ff-collision base it raises an ALERT — a red VoiceTree
-# node (best-effort) AND an OS notification — and retries idempotently next tick.
+# A dirty base is allowed to fast-forward when git can preserve the local edits;
+# if the incoming tree would overwrite a dirty tracked or untracked path, git
+# refuses the merge and we raise an ALERT. Diverged refs are also refused.
 # Transient fetch / ref-lock failures (shared object store with worktrees) are
 # tolerated: the tick exits 0 and the next tick retries; it never wedges.
 #
@@ -58,6 +59,15 @@ mkdir -p "$STATE_DIR"
 
 log() {
   printf '%s vt-sync-base[%s]: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$BRANCH" "$*" >> "$LOG"
+}
+
+# Human-facing line for ON-DEMAND runs (`vt-sync` sets VT_SYNC_VERBOSE=1). The
+# 2-3 min timer and vt-land's nudge leave it unset, so the daemon stays silent —
+# only an interactive `vt-sync` reports what it did. Always also goes to $LOG.
+say() {
+  log "$*"
+  [ "${VT_SYNC_VERBOSE:-}" = 1 ] && printf 'vt-sync: %s\n' "$*"
+  return 0
 }
 
 git_base() { git -C "$BASE" "$@"; }
@@ -117,6 +127,9 @@ PY
 alert() {
   local state="$1" body="$2"
   log "ALERT[$state]: $body"
+  # On-demand runs always surface the reason, even if the per-state marker is
+  # already set (the human ran vt-sync and needs to know why nothing happened).
+  [ "${VT_SYNC_VERBOSE:-}" = 1 ] && printf 'vt-sync: %s — %s\n' "$state" "$body" >&2
   local marker="$STATE_DIR/alert-$state"
   [ -f "$marker" ] && return 0
   : > "$marker"
@@ -130,13 +143,7 @@ clear_alerts() { rm -f "$STATE_DIR"/alert-* 2>/dev/null || true; }
 [ -d "$BASE/.git" ] || { log "no git repo at $BASE; nothing to do"; exit 0; }
 
 if ! git_base fetch origin --prune >>"$LOG" 2>&1; then
-  log "fetch failed (transient ref-lock / network?) — will retry next tick"
-  exit 0
-fi
-
-# Never fast-forward over uncommitted work — alert and stop (D7).
-if ! git_base diff --quiet || ! git_base diff --cached --quiet; then
-  alert dirty "base '$BASE' has uncommitted changes — move work to a worktree; the cache cannot fast-forward while dirty"
+  say "fetch from origin failed (transient ref-lock / network?) — will retry next tick"
   exit 0
 fi
 
@@ -145,8 +152,9 @@ if ! git_base show-ref --verify --quiet "refs/heads/$BRANCH"; then
   exit 0
 fi
 
-# Keep HEAD pinned to the base branch (D1). Tree is clean (checked above), so a
-# re-pin is safe if a stray checkout left HEAD elsewhere.
+# Keep HEAD pinned to the base branch (D1). If a stray checkout left HEAD
+# elsewhere and local edits would be overwritten by the checkout, git refuses
+# and we alert instead of forcing it.
 cur="$(git_base symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
 if [ "$cur" != "$BRANCH" ]; then
   if ! git_base checkout "$BRANCH" >>"$LOG" 2>&1; then
@@ -164,18 +172,20 @@ local_sha="$(git_base rev-parse "$BRANCH")"
 remote_sha="$(git_base rev-parse "origin/$BRANCH")"
 
 if [ "$local_sha" = "$remote_sha" ]; then
+  say "base already up to date with origin/$BRANCH (${local_sha:0:9})"
   clear_alerts
   exit 0
 fi
 
 if git_base merge-base --is-ancestor "$local_sha" "$remote_sha"; then
   if git_base merge --ff-only "origin/$BRANCH" >>"$LOG" 2>&1; then
-    log "fast-forwarded $BRANCH ${local_sha:0:9}..${remote_sha:0:9}"
+    say "fast-forwarded $BRANCH ${local_sha:0:9}..${remote_sha:0:9}"
     clear_alerts
     exit 0
   fi
-  # ff blocked while clean → almost always an untracked path origin now adds (G5).
-  alert collision "base '$BASE' could not fast-forward '$BRANCH' to origin/$BRANCH (an untracked file would be overwritten?) — resolve manually"
+  # ff blocked while the ref is an ancestor → dirty tracked/untracked paths
+  # overlap the incoming tree, or git hit another working-tree collision.
+  alert collision "base '$BASE' could not fast-forward '$BRANCH' to origin/$BRANCH because local working-tree changes would be overwritten — move those edits to a worktree or remove the colliding paths"
   exit 0
 fi
 

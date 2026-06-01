@@ -23,6 +23,7 @@ export type PromptFileWriteRequest = {
 export type HeadfulPromptInjectionRequest = {
     readonly terminalId: TerminalId;
     readonly command: string;
+    readonly projectRoot?: string;
 };
 
 /**
@@ -111,7 +112,9 @@ export function buildTmuxEnv(
 export function resolveHeadfulPromptInjection(
     terminalId: TerminalId,
     initialCommand: string | undefined,
+    projectRoot?: string,
 ): HeadfulPromptInjectionRequest | null {
     if (!initialCommand) return null;
-    return {terminalId, command: initialCommand};
+    const base: HeadfulPromptInjectionRequest = {terminalId, command: initialCommand};
+    return projectRoot ? {...base, projectRoot} : base;
 }

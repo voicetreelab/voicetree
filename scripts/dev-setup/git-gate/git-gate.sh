@@ -114,6 +114,12 @@ deny_base_edit() {
     echo "    Editing happens in a worktree; integration happens via origin —"
     echo "    the base only ever fast-forwards. Never commit/merge/rebase/pull/revert here."
     echo ""
+    if [ "$sub" = pull ] || [ "$sub" = fetch ]; then
+      echo "    To UPDATE this base to origin, do NOT use 'git $sub' — run:"
+      echo "      vt-sync                         # fast-forwards the base to origin (the only safe way)"
+      echo "    A 2-3 min timer also keeps it current automatically; you rarely need to."
+      echo ""
+    fi
     echo "    Work in a worktree instead:"
     echo "      vt-worktree <name> [<branch>]   # or: git worktree add -b <name> <name> origin/<branch>"
     echo "    Then land it:"
@@ -405,13 +411,13 @@ if [ "$sub" = "worktree" ] && [ "$sub_arg" = "remove" ]; then
       if [ -n "$remote_host" ]; then
         echo "git-gate: removing matching remote worktree residue on $remote_host" >&2
         # The vt-remote full-repo mutagen replica (/root/vtrepo-synced) is retired
-        # under the single-source model; only the vt-wts worktree mirror remains.
+        # under the single-source model; only the vt-wts-synced worktree mirror remains.
         remote_wts_root="/root/vt-wts-synced"
         ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
           "rm -rf '$remote_wts_root/$wt_name'" \
           >/dev/null 2>&1 \
           && echo "git-gate: remote worktree residue removed for $wt_name" >&2 \
-          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-wts' to check" >&2
+          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-wts-synced' to check" >&2
       else
         echo "git-gate: no VT_REMOTE_HOST found; skipping remote residue cleanup" >&2
       fi
@@ -434,6 +440,20 @@ if [ -n "$reason" ]; then
     echo "    command: git ${ORIG_ARGS[*]}"
     echo "    reason:  $reason"
     echo ""
+    # When the destructive command targets the read-only base cache, the real
+    # fix is not "do it non-destructively here" — it is "do not work here at
+    # all". Redirect the agent to a worktree off the base before anything else.
+    if in_voicetree_base; then
+      echo "    This checkout is the read-only origin cache (base) — you must NOT"
+      echo "    edit, rewrite, or discard changes in it. Move your work onto a"
+      echo "    worktree off the base and make the change there instead:"
+      echo "      vt-worktree <name>            # new worktree off origin/$(gate_base_branch)"
+      echo "      cd <printed path>             # then redo your change + vt-land \"msg\""
+      echo "    If a stray edit is already sitting in the base, do not try to"
+      echo "    restore/checkout it away — re-pin the whole base to origin:"
+      echo "      VT_SYNC=1 git reset --hard origin/$(gate_base_branch)"
+      echo ""
+    fi
     echo "    Think before you run destructive git commands."
     echo "    Other agents may be working in this repo right now."
     echo "    Prefer multiple commits to get where you want — not destructive"

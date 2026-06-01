@@ -4,6 +4,7 @@ import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
 import {checkDirectoryFanouts} from '../../_shared/shape/directory-fanout'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
     'build',
@@ -13,8 +14,7 @@ const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
 ])
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_FILE_LINES: number = 1081
+const {maxFileLines: MAX_FILE_LINES} = readBudgetSync<{maxFileLines: number}>('shape/codebase-shape.json')
 const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.tsx'])
 
 type FileLineCount = {

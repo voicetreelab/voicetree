@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# vt-land — the quick "make it stick" path (D8). Commit the current change,
-# rebase onto the integration branch so it fast-forwards, run a fast local
-# check, push to origin, and nudge BOTH caches. No PR, no CI — use vt-pr for
-# reviewed work.
+# vt-land — the quick "make it stick" path (D8). Commit the current change
+# using the repo's commit hooks, rebase onto the integration branch so it
+# fast-forwards, run a fast local check, push to origin using the repo's push
+# hooks, and nudge BOTH caches. No PR — use vt-pr for reviewed work.
 #
-# "No CI" is enforced: the push is --no-verify, so the heavy tier<=1 pre-push
-# hook (scripts/hooks/pre-push, which ships the worktree to the VM via
-# run-remote) never fires. vt-land's gate is the FAST LOCAL check below — that
-# is the D8 contract. The remote pre-push path also cannot work for a Mac-
-# authored worktree (the worktree's `.git` pointer, mirrored verbatim by the
-# vt-wts one-way-replica, points at the Mac base and is continually reverted by
-# mutagen on the VM), so honouring D8 here is also what makes Mac-worktree
-# authoring work at all. Reviewed work that wants full CI uses vt-pr (PR CI).
+# The commit and push hooks are the canonical verification path. The local
+# check below is kept as an extra fast gate before pushing; the push itself is
+# still verified by scripts/hooks/pre-push.
 #
 # Usage:
 #   vt-land "message"               # land onto the worktree's upstream (else dev-manu)
@@ -56,10 +51,7 @@ require_worktree
 if [ -n "$(git status --porcelain)" ]; then
   [ -n "$msg" ] || { echo "vt-land: working tree has changes — give a commit message: vt-land [--onto BR] \"msg\"" >&2; exit 1; }
   git add -A
-  # --no-verify: skip the pre-commit hook (it routes tier-0 + subgraph-gate to
-  # the VM via run-remote, which cannot operate on a Mac-authored worktree — see
-  # the header note). The quick path's gate is the explicit local check below.
-  git commit --no-verify -m "$msg"
+  git commit -m "$msg"
 elif [ -n "$msg" ]; then
   echo "vt-land: nothing to commit; landing the existing HEAD (message ignored)" >&2
 fi
@@ -91,12 +83,11 @@ if [ "$head_sha" = "$onto_before" ]; then
   exit 1
 fi
 
-# Fast local sanity gate (OD-3): keep a broken commit off the shared branch.
-# Runs LOCALLY on this machine (no remote round-trip) — it is the ONLY gate for
-# the quick path, since the push below is --no-verify. The root `typecheck`
-# script maps to CI's actual type gate (`webapp-check` = `tsc --noEmit` +
-# e2e-taxonomy), so a green local check means the same thing CI's type job means.
-# Override with VT_LAND_CHECK="<command>"; set VT_LAND_CHECK= (empty) to skip.
+# Fast local sanity gate (OD-3): catch obvious breakage before invoking the
+# heavier push hook. The root `typecheck` script maps to CI's actual type gate
+# (`webapp-check` = `tsc --noEmit` + e2e-taxonomy), so a green local check means
+# the same thing CI's type job means. Override with VT_LAND_CHECK="<command>";
+# set VT_LAND_CHECK= (empty) to skip this extra local gate.
 run_local_check() {
   if [ "${VT_LAND_CHECK+set}" = set ]; then
     [ -n "$VT_LAND_CHECK" ] || { echo "vt-land: VT_LAND_CHECK empty — skipping local gate" >&2; return 0; }
@@ -114,10 +105,22 @@ run_local_check() {
 }
 run_local_check
 
-# --no-verify: the quick path's gate is the LOCAL check above (D8 "no CI"). The
-# tier<=1 pre-push hook is bypassed deliberately — see the header note.
-echo "vt-land: pushing HEAD → origin/$onto (--no-verify; local gate already ran)"
-git push --no-verify origin "HEAD:$onto"
+print_cleanup_reminder() {
+  local wt branch quoted_wt quoted_branch
+  wt="$(git rev-parse --show-toplevel)"
+  branch="$(git branch --show-current)"
+  printf -v quoted_wt '%q' "$wt"
+  echo "vt-land: if this worktree is no longer needed, clean it up from another checkout:" >&2
+  if [ -n "$branch" ]; then
+    printf -v quoted_branch '%q' "$branch"
+    echo "  git worktree remove $quoted_wt && git branch -d $quoted_branch" >&2
+  else
+    echo "  git worktree remove $quoted_wt" >&2
+  fi
+}
+
+echo "vt-land: pushing HEAD → origin/$onto (running configured push hooks)"
+git push origin "HEAD:$onto"
 
 # A successful push updates the local refs/remotes/origin/$onto. Assert the ref
 # actually advanced to our HEAD before claiming success — never report "landed"
@@ -128,3 +131,4 @@ if [ "$(git rev-parse "origin/$onto")" != "$head_sha" ]; then
 fi
 echo "vt-land: landed on origin/$onto (${onto_before:0:9} → ${head_sha:0:9}) — nudging both caches"
 nudge_both
+print_cleanup_reminder

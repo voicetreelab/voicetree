@@ -143,7 +143,7 @@ export function computeComponentBBox(comp: ComponentSubgraph): Rect {
     return result
 }
 
-function rectArea(r: Rect): number {
+export function rectArea(r: Rect): number {
     return Math.max(0, r.maxX - r.minX) * Math.max(0, r.maxY - r.minY)
 }
 

@@ -15,15 +15,15 @@ import {
 import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import { buildCallGraph, type CallGraph } from '../../_shared/graph/call-graph'
 import { recordHealthMetric } from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
-// Fixed shell allowance plus one transitive-impure function per N pure package
-// functions. New impurity spends budget twice: it increments the impure count
-// and removes one function from the pure-code allowance.
-const TRANSITIVE_IMPURE_FUNCTIONS_BASE_BUDGET = 90
+const {
+    baseImpureFunctionsBudget: TRANSITIVE_IMPURE_FUNCTIONS_BASE_BUDGET,
+    impureRatioBudget: IMPURE_RATIO_BUDGET,
+} = readBudgetSync<{baseImpureFunctionsBudget: number; impureRatioBudget: number}>('purity/transitive-purity.json')
 const PURE_FUNCTIONS_PER_TRANSITIVE_IMPURE_ALLOWANCE = 8
-const IMPURE_RATIO_BUDGET = 1
 const IMPURE_MODULES: ReadonlySet<string> = new Set([
     'fs',
     'fs/promises',

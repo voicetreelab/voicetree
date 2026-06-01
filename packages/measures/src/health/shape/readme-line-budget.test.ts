@@ -4,10 +4,11 @@ import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {listGitTrackedFiles} from '../../_shared/discovery/git-tracked-files'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '../../../../..')
-const README_LINE_LIMIT_EXCLUSIVE = 150
+const {limitExclusive: README_LINE_LIMIT_EXCLUSIVE} = readBudgetSync<{limitExclusive: number}>('shape/readme-line-budget.json')
 const README_LINE_BUDGET = README_LINE_LIMIT_EXCLUSIVE - 1
 
 type ReadmeLineCount = {

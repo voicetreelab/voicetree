@@ -68,6 +68,12 @@ function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+function recoverableAgentRowKey(row: RecoverableAgentSession): string {
+    return row.attach?.session.sessionName
+        ?? row.metadataPath
+        ?? `${row.terminalId}:${row.status}:${row.startedAt ?? row.closedAt ?? row.endedAt ?? ''}`;
+}
+
 function formatAge(timestampMs: number, now: number): string {
     const ageSeconds: number = Math.max(0, Math.floor((now - timestampMs) / 1000));
     if (ageSeconds < 60) return `${ageSeconds}s ago`;
@@ -318,7 +324,7 @@ export function SurvivingAgentsSection({
 
             <div className="surviving-agents-list">
                 {unclaimedSessions.map((row: RecoverableAgentSession): JSX.Element => {
-                    const key: string = row.terminalId;
+                    const key: string = recoverableAgentRowKey(row);
                     const isBusy: boolean = busyKey === key;
                     const badge: {label: string; className: string} = rowBadge(row);
                     const title: string = displayTitle(row);

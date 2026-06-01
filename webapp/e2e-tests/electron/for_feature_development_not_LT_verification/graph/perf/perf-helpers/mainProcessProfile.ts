@@ -142,121 +142,19 @@ export async function stopMainProcessProfileAndSave(
 }
 
 // ============================================================================
-// Analysis — parse .cpuprofile and print top functions
+// .cpuprofile analysis — re-exported from the single shared implementation
 // ============================================================================
-
-interface CpuProfileNode {
-  id: number;
-  callFrame: {
-    functionName: string;
-    scriptId: string;
-    url: string;
-    lineNumber: number;
-    columnNumber: number;
-  };
-  hitCount: number;
-  children?: number[];
-}
-
-interface CpuProfile {
-  nodes: CpuProfileNode[];
-  startTime: number;
-  endTime: number;
-  samples: number[];
-  timeDeltas: number[];
-}
-
-export interface MainProcessMetrics {
-  totalDurationMs: number;
-  totalSamples: number;
-  activeSamples: number;
-  topFunctions: Array<{
-    name: string;
-    url: string;
-    line: number;
-    selfSamples: number;
-    selfPercent: number;
-  }>;
-}
-
-export function analyzeMainProcessProfile(profileJson: string): MainProcessMetrics {
-  const profile: CpuProfile = JSON.parse(profileJson);
-  const totalDurationMs = (profile.endTime - profile.startTime) / 1000;
-  const totalSamples = profile.samples.length;
-
-  const nodeMap = new Map<number, CpuProfileNode>();
-  for (const node of profile.nodes) {
-    nodeMap.set(node.id, node);
-  }
-
-  const sampleCounts = new Map<number, number>();
-  for (const sampleId of profile.samples) {
-    sampleCounts.set(sampleId, (sampleCounts.get(sampleId) ?? 0) + 1);
-  }
-
-  const funcKey = (n: CpuProfileNode): string =>
-    `${n.callFrame.functionName}|${n.callFrame.url}|${n.callFrame.lineNumber}`;
-
-  const funcSamples = new Map<string, { node: CpuProfileNode; count: number }>();
-  for (const [nodeId, count] of Array.from(sampleCounts.entries())) {
-    const node = nodeMap.get(nodeId);
-    if (!node) continue;
-    const fn = node.callFrame.functionName;
-    if (fn === '(idle)' || fn === '(program)' || fn === '(garbage collector)') continue;
-
-    const key = funcKey(node);
-    const existing = funcSamples.get(key);
-    if (existing) {
-      existing.count += count;
-    } else {
-      funcSamples.set(key, { node, count });
-    }
-  }
-
-  const sorted = Array.from(funcSamples.values())
-    .sort((a, b) => b.count - a.count);
-
-  const activeSamples = sorted.reduce((sum, e) => sum + e.count, 0);
-
-  const topFunctions = sorted.slice(0, 50).map((entry) => ({
-    name: entry.node.callFrame.functionName || '(anonymous)',
-    url: entry.node.callFrame.url,
-    line: entry.node.callFrame.lineNumber,
-    selfSamples: entry.count,
-    selfPercent: activeSamples > 0 ? (entry.count / activeSamples) * 100 : 0,
-  }));
-
-  return { totalDurationMs, totalSamples, activeSamples, topFunctions };
-}
-
-export function printMainProcessMetrics(metrics: MainProcessMetrics): void {
-  const divider = '='.repeat(90);
-  console.log(`\n${divider}`);
-  console.log('  MAIN PROCESS CPU PROFILE');
-  console.log(`  Duration: ${(metrics.totalDurationMs / 1000).toFixed(2)}s | Samples: ${metrics.totalSamples}`);
-  console.log(divider);
-  console.log(
-    'Samples'.padStart(10) +
-    '%Self'.padStart(8) +
-    '  ' + 'Function'.padEnd(40) +
-    '  Source'
-  );
-  console.log('-'.repeat(90));
-
-  for (const fn of metrics.topFunctions) {
-    const url = fn.url;
-    const shortUrl = url.includes('/')
-      ? url.split('/').slice(-3).join('/')
-      : url;
-    const source = shortUrl ? `${shortUrl}:${fn.line}` : '(native)';
-    const isAppCode = url && !url.includes('node_modules') && !url.startsWith('node:');
-
-    console.log(
-      String(fn.selfSamples).padStart(10) +
-      (fn.selfPercent.toFixed(1) + '%').padStart(8) +
-      '  ' + (isAppCode ? '>>> ' : '    ') + fn.name.substring(0, 36).padEnd(36) +
-      '  ' + source.substring(0, 50)
-    );
-  }
-  console.log(divider);
-}
+//
+// The .cpuprofile analyzer and its metrics type are NOT defined here: they live
+// in `@vt/measures/perf/main-process-cdp` (PR #184's canonical CDP module, also
+// used by the packages/measures perf harnesses). That implementation is
+// byte-for-byte what used to live in this file, so re-exporting keeps a SINGLE
+// analyzer implementation in the repo with no change for this module's
+// consumers. This file retains only the Playwright-specific CDP *session*
+// plumbing above (captureInspectPort + connect/start/stop), which the shared
+// module has no equivalent for.
+export {
+  analyzeMainProcessProfile,
+  printMainProcessMetrics,
+  type MainProcessMetrics,
+} from '@vt/measures/perf/main-process-cdp';

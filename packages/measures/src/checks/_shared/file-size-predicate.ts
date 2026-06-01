@@ -1,9 +1,8 @@
 // Pure predicate: does a file's content exceed the line-count budget?
-// Consumed by tier_0_post_edit/ (per-edit agent hook) and, in the future,
-// a tier_0_pre_commit/ measure that scans the staged diff. No I/O — caller
-// supplies the content.
+// Consumed by tier_0_post_edit/ (per-edit agent hook). No I/O — caller
+// supplies both the content and the maxLines limit, which the impure edge
+// reads from budgets/shape/file-size.json.
 
-const FILE_SIZE_MAX_LINES = 500
 const SOURCE_EXT_PATTERN = /\.(ts|tsx|js|jsx|css|scss|less)$/
 
 type FileSizeResult =
@@ -14,10 +13,10 @@ function isSourceFile(filePath: string): boolean {
     return SOURCE_EXT_PATTERN.test(filePath)
 }
 
-function fileSizeCheck(content: string): FileSizeResult {
+function fileSizeCheck(content: string, maxLines: number): FileSizeResult {
     const lines = content.split('\n').length
-    if (lines <= FILE_SIZE_MAX_LINES) return {kind: 'ok'}
-    return {kind: 'violation', actualLines: lines, maxLines: FILE_SIZE_MAX_LINES}
+    if (lines <= maxLines) return {kind: 'ok'}
+    return {kind: 'violation', actualLines: lines, maxLines}
 }
 
 export const fileSizePredicate = {

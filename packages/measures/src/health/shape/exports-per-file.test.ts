@@ -4,11 +4,10 @@ import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles, type SourceFileInfo} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-const P90_BUDGET: number = 10
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_BUDGET: number = 121
+const {p90Budget: P90_BUDGET, maxBudget: MAX_BUDGET} = readBudgetSync<{p90Budget: number; maxBudget: number}>('shape/exports-per-file.json')
 
 
 type FileExportCount = {

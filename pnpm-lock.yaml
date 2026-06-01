@@ -1032,6 +1032,9 @@ importers:
       '@vt/graph-tools':
         specifier: '*'
         version: link:../packages/libraries/graph-tools
+      '@vt/measures':
+        specifier: '*'
+        version: link:../packages/measures
       '@vt/observability':
         specifier: '*'
         version: link:../packages/libraries/observability

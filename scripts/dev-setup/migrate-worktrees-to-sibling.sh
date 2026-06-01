@@ -6,7 +6,7 @@
 #
 # Run this AFTER:
 #   1. The codebase has been updated (this branch).
-#   2. `vt-remote.sh vt-wts-create` has spun up the second mutagen session.
+#   2. `vt-remote.sh vt-wts-synced-create` has spun up the second mutagen session.
 #
 # What it does:
 #   * Refuses to run if there are uncommitted changes in any worktree

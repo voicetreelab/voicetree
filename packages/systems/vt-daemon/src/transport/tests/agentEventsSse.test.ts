@@ -21,7 +21,7 @@ import {
     projectHubEventToEnvelope,
     type AgentEventsFrame,
     type AgentEventEnvelope,
-} from '../agentEventsSse.ts'
+} from '../sse/agentEventsSse.ts'
 
 const noopHook: HookHandler = (): unknown => ({ok: true})
 const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([

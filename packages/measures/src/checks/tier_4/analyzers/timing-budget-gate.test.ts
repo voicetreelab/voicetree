@@ -20,13 +20,14 @@ type BudgetInput = {wallClockMs: number; sumMs: number | null; perCheckMaxRatio:
 async function withFixture<T>(
     reports: readonly ReportInput[],
     budgets: Record<number, BudgetInput>,
-    body: (opts: {reportsDir: string; tierRoot: string; resultFile: string}) => Promise<T>,
+    body: (opts: {reportsDir: string; timingBudgetsDir: string; resultFile: string}) => Promise<T>,
 ): Promise<T> {
     const root = await mkdtemp(join(tmpdir(), 'timing-gate-fixture-'))
     const reportsDir = join(root, 'reports')
-    const tierRoot = join(root, 'checks')
+    const timingBudgetsDir = join(root, 'timing')
     const resultFile = join(root, 'result.json')
     await mkdir(reportsDir, {recursive: true})
+    await mkdir(timingBudgetsDir, {recursive: true})
     for (const r of reports) {
         const durationMs = r.durationMs ?? Date.parse(r.endedAt) - Date.parse(r.startedAt)
         const measurePath = r.measurePath ?? `packages/measures/src/checks/tier_1/x/${r.checkId}.ts`
@@ -44,13 +45,11 @@ async function withFixture<T>(
         }), 'utf8')
     }
     for (const [tierStr, budget] of Object.entries(budgets)) {
-        const dir = join(tierRoot, `tier_${tierStr}`)
-        await mkdir(dir, {recursive: true})
-        await writeFile(join(dir, '_budget.ts'),
-            `export const budget = ${JSON.stringify(budget)} as const\n`, 'utf8')
+        await writeFile(join(timingBudgetsDir, `tier_${tierStr}.json`),
+            `${JSON.stringify(budget, null, 2)}\n`, 'utf8')
     }
     try {
-        return await body({reportsDir, tierRoot, resultFile})
+        return await body({reportsDir, timingBudgetsDir, resultFile})
     } finally {
         await rm(root, {recursive: true, force: true})
     }

@@ -82,6 +82,13 @@ export interface HookSettings {
     readonly onNewNode?: string;
 }
 
+/**
+ * Default subgraph-gardening thresholds. Shared by the settings schema (defaults),
+ * the create_graph context fallback, and tests so there is a single source of truth.
+ */
+export const DEFAULT_SUBGRAPH_WARN_THRESHOLD: number = 4;
+export const DEFAULT_SUBGRAPH_ERROR_THRESHOLD: number = 6;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -121,6 +128,17 @@ export interface VTSettings {
     readonly zoomSensitivity?: number;
     /** Maximum non-exempt lines per progress node (default: 80). Keeps nodes atomic. */
     readonly nodeLineLimit?: number;
+    /**
+     * Subgraph-gardening warn threshold: when a folder-bounded component reaches
+     * this many nodes, create_graph returns a non-blocking warning (default: 4).
+     */
+    readonly subgraphWarnThreshold?: number;
+    /**
+     * Subgraph-gardening error threshold: when a folder-bounded component reaches
+     * this many nodes, create_graph blocks (overridable with a rationale) so the
+     * agent splits the cluster into a sub-folder or justifies the exception (default: 6).
+     */
+    readonly subgraphErrorThreshold?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */

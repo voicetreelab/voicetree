@@ -43,8 +43,10 @@ const REMOTE_WTS_ROOT = '/root/vt-wts-synced'
 // REMOTE_WTS_ROOT above); mutagen syncs contents, not names. Must equal the
 // session alpha, else a worktree cwd fails to map and run-remote throws.
 const WORKTREE_SIBLING_DIR_NAME = 'vt-wts'
+const LEGACY_WORKTREE_SIBLING_DIR_NAME = 'vt-wts-synced'
 const MUTAGEN_SESSION_MAIN = 'vt-remote'
 const MUTAGEN_SESSION_WTS = 'vt-wts'
+const MUTAGEN_SESSION_WTS_LEGACY = 'vt-wts-synced'
 const RECURSION_GUARD = 'VT_REMOTE_EXEC'
 
 function loadEnvFile(p) {
@@ -93,17 +95,22 @@ function localMainCheckoutRoot() {
   }
 }
 
-function localWtsRoot(mainCheckoutRoot = localMainCheckoutRoot()) {
-  return pathResolve(mainCheckoutRoot, '..', WORKTREE_SIBLING_DIR_NAME)
+function localWtsRoot(
+  mainCheckoutRoot = localMainCheckoutRoot(),
+  siblingDirName = WORKTREE_SIBLING_DIR_NAME,
+) {
+  return pathResolve(mainCheckoutRoot, '..', siblingDirName)
 }
 
 // Pick the sync session + roots that govern `cwd`.
 //   - cwd inside `<main>/`                  → vt-remote session, REMOTE_ROOT
 //   - cwd inside `<parent>/vt-wts/`         → vt-wts session, REMOTE_WTS_ROOT
+//   - cwd inside legacy `<parent>/vt-wts-synced/` → vt-wts-synced session
 //   - cwd elsewhere                         → null (caller throws)
 function resolveSyncContext(cwd = process.cwd()) {
   const mainCheckoutRoot = localMainCheckoutRoot()
   const wtsRoot = localWtsRoot(mainCheckoutRoot)
+  const legacyWtsRoot = localWtsRoot(mainCheckoutRoot, LEGACY_WORKTREE_SIBLING_DIR_NAME)
 
   if (!pathRelative(mainCheckoutRoot, cwd).startsWith('..')) {
     return {
@@ -121,6 +128,14 @@ function resolveSyncContext(cwd = process.cwd()) {
       remoteRoot: REMOTE_WTS_ROOT,
     }
   }
+  if (!pathRelative(legacyWtsRoot, cwd).startsWith('..')) {
+    return {
+      kind: 'worktree',
+      session: MUTAGEN_SESSION_WTS_LEGACY,
+      localRoot: legacyWtsRoot,
+      remoteRoot: REMOTE_WTS_ROOT,
+    }
+  }
   return null
 }
 
@@ -132,11 +147,12 @@ function localWorktreeName(cwd, wtsRoot) {
 }
 
 function repairLocalWorktreeMetadataIfNeeded({cwd = process.cwd()} = {}) {
+  const syncContext = resolveSyncContext(cwd)
+  if (syncContext?.kind !== 'worktree') return false
   const mainCheckoutRoot = localMainCheckoutRoot()
-  const wtsRoot = localWtsRoot(mainCheckoutRoot)
-  const worktreeName = localWorktreeName(cwd, wtsRoot)
+  const worktreeName = localWorktreeName(cwd, syncContext.localRoot)
   if (worktreeName === null) return false
-  const worktreeRoot = pathResolve(wtsRoot, worktreeName)
+  const worktreeRoot = pathResolve(syncContext.localRoot, worktreeName)
   process.stderr.write(`[run-remote] repairing local worktree git metadata before sync: ${worktreeRoot}\n`)
   execFileSync('git', ['-C', mainCheckoutRoot, 'worktree', 'repair', '--relative-paths'], {
     stdio: 'ignore',
@@ -263,13 +279,30 @@ function repairRemoteWorktreeMetadataScript(remoteCwd) {
   const adminGitdirFile = ppath.join(adminDir, 'gitdir')
   const adminCommondirFile = ppath.join(adminDir, 'commondir')
 
+  // The worktree-root `.git` pointer is MACHINE-SPECIFIC: it names the main
+  // checkout by basename (`vtrepo` on the Mac, `vtrepo-synced` here), so it is
+  // deliberately NOT mirrored by the vt-wts mutagen session (see
+  // mutagen-vt-wts.yml). We materialize the correct devbox pointer here on
+  // every routed command. Because the file is sync-ignored, nothing clobbers
+  // it afterward — no race with the one-way-replica cycle.
+  //
+  // The admin-side gitdir/commondir under <main>/.git/worktrees/<name>/ ARE
+  // relative + identical across the mirror (both ends share the `vt-wts-synced`
+  // basename), so the vt-remote session syncs them correctly; rewriting them
+  // here is idempotent and makes the worktree self-healing before that sync.
+  //
   // Sibling layout relative paths:
   //   <wts>/<name>/.git           → gitdir: ../../<mainRepoDirName>/.git/worktrees/<name>
   //   <main>/.git/worktrees/<name>/gitdir → ../../../../<WTS_BASENAME>/<name>/.git
   //   commondir from admin → main .git is `../..`
+  //
+  // The single `[ -d adminDir ]` guard is what gates the repair: adminDir is
+  // synced by the vt-remote session, so its presence means git knows this
+  // worktree. We do NOT also require the `.git` pointer to pre-exist (it never
+  // syncs now) — its absence is exactly what this repair fixes.
   const wtsBasename = ppath.basename(REMOTE_WTS_ROOT)
   return [
-    `if [ -d ${shq(adminDir)} ] && [ -f ${shq(worktreeGitFile)} ]; then`,
+    `if [ -d ${shq(adminDir)} ]; then`,
     `echo ${shq(`[run-remote] repairing remote worktree git metadata: ${worktreeRoot}`)} >&2;`,
     `printf '%s\\n' ${shq(`gitdir: ../../${mainRepoDirName}/.git/worktrees/${worktreeName}`)} > ${shq(worktreeGitFile)};`,
     `printf '%s\\n' ${shq(`../../../../${wtsBasename}/${worktreeName}/.git`)} > ${shq(adminGitdirFile)};`,

@@ -20,6 +20,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {
     spliceVoicetreeDiscoverySection,
     writeProjectAgentDiscoveryFile,
+    VT_CLI_DISCOVERY_POINTER,
 } from './projectAgentDiscoveryFile'
 
 const MANUAL_BODY: string = '# vt CLI Manual\n\nAvailable verbs: `vt agent spawn`, `vt graph create`.\n'
@@ -102,6 +103,26 @@ describe('writeProjectAgentDiscoveryFile — CLAUDE.md exists', () => {
         const agentsExists: boolean = await fs.stat(path.join(projectDir, '.voicetree', 'AGENTS.md'))
             .then(() => true, () => false)
         expect(agentsExists).toBe(false)
+    })
+})
+
+describe('default injected content is a one-line pointer, NOT the manual', () => {
+    it('is a single line pointing at `vt manual`', () => {
+        expect(VT_CLI_DISCOVERY_POINTER).toContain('vt manual')
+        expect(VT_CLI_DISCOVERY_POINTER.split('\n')).toHaveLength(1)
+    })
+
+    it('injects the pointer (and no rendered per-verb manual) by default', async () => {
+        const claudeMdPath: string = path.join(projectDir, 'CLAUDE.md')
+        await fs.writeFile(claudeMdPath, '# header\n', 'utf-8')
+
+        await writeProjectAgentDiscoveryFile(projectDir)
+
+        const result: string = await fs.readFile(claudeMdPath, 'utf-8')
+        expect(result).toContain('vt manual')
+        // The full manual is intentionally NOT inlined — agents fetch it on demand.
+        expect(result).not.toContain('**Parameters:**')
+        expect(result).not.toContain('vt agent spawn')
     })
 })
 

@@ -44,8 +44,9 @@ import {appResource, createWindow, stopTrackpadMonitoring} from './create-window
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
-import {tracing} from '@vt/observability';
+import {tracing, observabilityMetrics} from '@vt/observability';
 import {perfProbeFromEnv} from '@vt/perf-analysis/perf-probe';
+import {startAppMetricsSampler, type AppMetricsSampler} from '@/shell/edge/main/observability/appMetricsSampler';
 import {shutdownActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
@@ -121,6 +122,14 @@ configureEnvironment();
 // by the launching process (it is: the preflight exports it before spawn).
 pinProcessVoicetreeHomePath();
 tracing.init('vt-electron-main', {
+    otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
+    instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
+});
+// Metrics share the same resource (service.instance.id = run id) as tracing so
+// renderer-probe MELTs forwarded via recordRendererTelemetry and the GPU-process
+// sampler below export through ONE provider. No-op when VOICETREE_OTLP_ENDPOINT
+// is absent (returns inert meters), so the normal app pays nothing.
+observabilityMetrics.init('vt-electron-main', {
     otlpEndpoint: process.env.VOICETREE_OTLP_ENDPOINT,
     instanceId: process.env.VOICETREE_RUN_INSTANCE_ID,
 });
@@ -212,6 +221,15 @@ void app.whenReady().then(async () => {
     registerGraphIpcHandlers();
     setupApplicationMenu();
 
+    // GPU/compositor CPU sampler — perf-probe runs only. app.getAppMetrics()
+    // is the only in-process view of the GPU process's cost; the renderer
+    // profile and a headless run cannot see it. Gated to VOICETREE_PERF_PROBE
+    // with an OTLP endpoint so the normal app and non-perf tests never sample.
+    if (process.env.VOICETREE_PERF_PROBE === '1' && (process.env.VOICETREE_OTLP_ENDPOINT ?? '').length > 0) {
+        appMetricsSampler = startAppMetricsSampler({ getAppMetrics: () => app.getAppMetrics() });
+        log.info('[Startup] started GPU/app-metrics sampler (perf-probe run)');
+    }
+
     // The per-project VTD child is spawned (or adopted) on-demand by
     // openProject → bindVtDaemonForProject; tmux preflight / server ensure /
     // headless reconciliation all run inside the daemon at boot. The
@@ -302,6 +320,7 @@ void app.whenReady().then(async () => {
 
 // Track if app is truly quitting (vs window close on macOS)
 let isQuitting: boolean = false;
+let appMetricsSampler: AppMetricsSampler | null = null;
 
 // Handle hot reload and app quit scenarios
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
@@ -317,6 +336,7 @@ installQuitLifecycleHandlers({
 });
 
 app.on('will-quit', () => {
+    appMetricsSampler?.stop();
     // Stop daemon clients after windows have closed so position persistence can
     // finish while the daemon is still available.
     unsubscribeFromDaemonSSE();

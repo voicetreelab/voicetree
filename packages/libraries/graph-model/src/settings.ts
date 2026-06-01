@@ -1,5 +1,6 @@
 export type { VTSettings, AgentConfig, EnvVarValue, HotkeyModifier, HotkeyBinding, HotkeySettings, HookSettings, ProjectConfig, VoiceTreeConfig, TerminalScrollStrategy } from './pure/settings/types'
 export { getUniqueAgentName } from './pure/settings/types'
+export { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD } from './pure/settings/types'
 export { AGENT_NAMES, getNextAgentName, getDefaultAgent } from './pure/settings/types'
 export { expandEnvVarsInValues, resolveEnvVars, resolveEnvVarsWithSelection } from './pure/settings/resolve-environment-variable'
 export {

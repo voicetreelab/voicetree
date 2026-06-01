@@ -53,8 +53,8 @@ export function spawnHeadlessAgent(
     cwd: string | undefined,
     env: Record<string, string>,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
-): void {
-    spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
+): Promise<void> {
+    return spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
 }
 
 /**

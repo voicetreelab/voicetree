@@ -4,28 +4,13 @@
  */
 export const IMAGE_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
 
-/**
- * Checks if a node ID represents an image file based on its extension.
- *
- * Pure function: same input -> same output, no side effects
- *
- * @param nodeId - The node ID (file path)
- * @returns true if the node is an image file, false otherwise
- *
- * @example
- * ```typescript
- * isImageNode('/path/to/image.png')
- * // => true
- *
- * isImageNode('/path/to/note.md')
- * // => false
- *
- * isImageNode('/path/to/photo.PNG')  // Case-insensitive
- * // => true
- * ```
- */
-export function isImageNode(nodeId: string): boolean {
-    if (!nodeId) return false
-    const lowerCaseId: string = nodeId.toLowerCase()
-    return IMAGE_EXTENSIONS.some(ext => lowerCaseId.endsWith(ext))
+/** Returns a predicate that checks if a node ID ends with one of the given extensions (case-insensitive). */
+export function makeNodeExtensionChecker(extensions: readonly string[]): (nodeId: string) => boolean {
+    return (nodeId) => {
+        if (!nodeId) return false
+        const lower = nodeId.toLowerCase()
+        return extensions.some(ext => lower.endsWith(ext))
+    }
 }
+
+export const isImageNode = makeNodeExtensionChecker(IMAGE_EXTENSIONS)

@@ -12,6 +12,7 @@ import {
     type FnEntry,
 } from '../../_shared/purity-analysis'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 // --- Per-community behavioral complexity scanner ---
 //
@@ -226,12 +227,7 @@ function formatReport(reports: readonly CommunityBehavioralReport[], topN = 10):
 
 // --- Test ---
 
-// Orange gate: state-binding score budget per community.
-// Calibrated so graph-db-server/state (9 bindings → score=27) fails and the
-// known empirical offenders surface; small communities with 0-1 bindings pass.
-// Lower this number as you address top offenders to ratchet quality up.
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const ORANGE_BEHAVIORAL_BUDGET = 379
+const {orangeBehavioralBudget: ORANGE_BEHAVIORAL_BUDGET} = readBudgetSync<{orangeBehavioralBudget: number}>('complexity/behavioral-complexity.json')
 const GRAPH_DB_SERVER_STATE_GOLD_STANDARD_SCORE_FLOOR = 6
 
 describe('behavioral complexity', () => {
