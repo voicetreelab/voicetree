@@ -241,7 +241,7 @@ export async function runSessionCommand(
             return
         }
 
-        const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd()})
+        const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd(), env: process.env})
         const client: SessionDaemon = await connect(project)
 
         switch (parsed.subcommand) {

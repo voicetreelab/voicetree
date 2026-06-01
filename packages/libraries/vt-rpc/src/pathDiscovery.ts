@@ -13,11 +13,15 @@
 // port. Override sets the URL but not the project — caller passes
 // `$VOICETREE_PROJECT_PATH` explicitly in that case.
 
-import {existsSync, statSync} from 'node:fs'
-import {dirname, resolve} from 'node:path'
+import {resolve} from 'node:path'
 
-import {getProjectDotVoicetreePath} from '@vt/paths'
+import {detectProjectFromCwd, hasVoicetreeMarker} from '@vt/paths'
 import {readRpcPortFile} from './portFile.ts'
+
+// The up-walk now lives in `@vt/paths` as the single shared implementation used
+// by both the rpc resolver (here) and the graphd CLI resolver, so the two can
+// never drift apart again. Re-exported to preserve this module's public symbol.
+export {detectProjectFromCwd}
 
 export interface ResolvedDaemonEndpoint {
     readonly url: string
@@ -40,26 +44,6 @@ function envOr(env: Record<string, string | undefined>, key: string): string | u
     return v && v.length > 0 ? v : undefined
 }
 
-// Up-walk: starting at `from`, climb until we hit a directory containing a
-// `.voicetree/` subdir. Returns the project root (the directory containing
-// `.voicetree/`), not `.voicetree/` itself.
-export function detectProjectFromCwd(from: string): string | null {
-    let dir: string = resolve(from)
-    while (true) {
-        const candidate: string = getProjectDotVoicetreePath(dir)
-        try {
-            if (existsSync(candidate) && statSync(candidate).isDirectory()) {
-                return dir
-            }
-        } catch {
-            // ignore permission errors and keep climbing
-        }
-        const parent: string = dirname(dir)
-        if (parent === dir) return null
-        dir = parent
-    }
-}
-
 function urlForLocalhostPort(port: number): string {
     return `http://${LOOPBACK_HOST}:${port}`
 }
@@ -78,19 +62,27 @@ export async function discoverDaemonEndpoint(
         }
     }
 
+    // `$VOICETREE_PROJECT_PATH` is authoritative over the CWD up-walk: the
+    // spawner sets it to the canonical root the app talks to. An agent whose
+    // CWD sits inside a nested project subfolder (carrying its own leftover
+    // `.voicetree/`) would otherwise up-walk to the *inner* project and bind the
+    // wrong per-project daemon. When the env var names a valid project root we
+    // bind ITS daemon or return null — we never silently fall through to a
+    // different project the CWD happens to resolve.
+    const envProject: string | undefined = envOr(env, 'VOICETREE_PROJECT_PATH')
+    if (envProject && hasVoicetreeMarker(envProject)) {
+        const resolved: string = resolve(envProject)
+        const port: number | null = await readRpcPortFile(resolved)
+        return port !== null
+            ? {url: urlForLocalhostPort(port), projectPath: resolved, source: 'env_project_path'}
+            : null
+    }
+
     const detectedProject: string | null = detectProjectFromCwd(cwd)
     if (detectedProject) {
         const port: number | null = await readRpcPortFile(detectedProject)
         if (port !== null) {
             return {url: urlForLocalhostPort(port), projectPath: detectedProject, source: 'cwd_up_walk'}
-        }
-    }
-
-    const fallbackProject: string | undefined = envOr(env, 'VOICETREE_PROJECT_PATH')
-    if (fallbackProject) {
-        const port: number | null = await readRpcPortFile(fallbackProject)
-        if (port !== null) {
-            return {url: urlForLocalhostPort(port), projectPath: resolve(fallbackProject), source: 'env_project_path'}
         }
     }
 

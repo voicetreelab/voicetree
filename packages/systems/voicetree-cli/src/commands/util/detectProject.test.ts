@@ -64,14 +64,14 @@ describe('resolveProject', () => {
         const tmpDir: string = makeTmpDir()
         const projectRoot: string = makeProject(join(tmpDir, 'workspace'))
 
-        expect(resolveProject({flag: projectRoot, cwd: tmpDir})).toBe(projectRoot)
+        expect(resolveProject({flag: projectRoot, cwd: tmpDir, env: {}})).toBe(projectRoot)
     })
 
     it('resolves relative --project overrides from cwd before validating them', () => {
         const tmpDir: string = makeTmpDir()
         const projectRoot: string = makeProject(join(tmpDir, 'workspace'))
 
-        expect(resolveProject({flag: './workspace', cwd: tmpDir})).toBe(projectRoot)
+        expect(resolveProject({flag: './workspace', cwd: tmpDir, env: {}})).toBe(projectRoot)
     })
 
     it('falls back to cwd detection when no --project override is provided', () => {
@@ -80,14 +80,48 @@ describe('resolveProject', () => {
         const nestedDir: string = join(projectRoot, 'notes')
         mkdirSync(nestedDir, {recursive: true})
 
-        expect(resolveProject({cwd: nestedDir})).toBe(projectRoot)
+        expect(resolveProject({cwd: nestedDir, env: {}})).toBe(projectRoot)
+    })
+
+    it('prefers $VOICETREE_PROJECT_PATH (the outer root) over the inner project the cwd up-walk would find', () => {
+        // The reported bug: an agent's CWD sits inside a nested project subfolder
+        // that has its own leftover `.voicetree/`. The up-walk would bind the
+        // inner project; the env var (the canonical root the app uses) must win.
+        const tmpDir: string = makeTmpDir()
+        const outerProject: string = makeProject(join(tmpDir, 'outer'))
+        const innerProject: string = makeProject(join(outerProject, 'sub'))
+        const nestedDir: string = join(innerProject, 'notes')
+        mkdirSync(nestedDir, {recursive: true})
+
+        expect(resolveProject({cwd: nestedDir, env: {VOICETREE_PROJECT_PATH: outerProject}})).toBe(outerProject)
+    })
+
+    it('ignores $VOICETREE_PROJECT_PATH when it is not a project root, falling back to the cwd up-walk', () => {
+        const tmpDir: string = makeTmpDir()
+        const projectRoot: string = makeProject(join(tmpDir, 'workspace'))
+        const nestedDir: string = join(projectRoot, 'notes')
+        mkdirSync(nestedDir, {recursive: true})
+        const notAProject: string = join(tmpDir, 'not-a-project')
+        mkdirSync(notAProject, {recursive: true})
+
+        expect(resolveProject({cwd: nestedDir, env: {VOICETREE_PROJECT_PATH: notAProject}})).toBe(projectRoot)
+    })
+
+    it('lets an explicit --project flag override even $VOICETREE_PROJECT_PATH', () => {
+        const tmpDir: string = makeTmpDir()
+        const flagProject: string = makeProject(join(tmpDir, 'flagged'))
+        const envProject: string = makeProject(join(tmpDir, 'from-env'))
+
+        expect(resolveProject({flag: flagProject, cwd: tmpDir, env: {VOICETREE_PROJECT_PATH: envProject}})).toBe(
+            flagProject,
+        )
     })
 
     it('throws a typed error when --project does not point at a valid project root', () => {
         const tmpDir: string = makeTmpDir()
         const invalidPath: string = join(tmpDir, 'not-a-project')
         mkdirSync(invalidPath, {recursive: true})
-        const call = (): string => resolveProject({flag: invalidPath, cwd: tmpDir})
+        const call = (): string => resolveProject({flag: invalidPath, cwd: tmpDir, env: {}})
 
         expect(call).toThrowError(ProjectNotDetectedError)
         expect(call).toThrow('.voicetree/')
@@ -97,7 +131,7 @@ describe('resolveProject', () => {
         const tmpDir: string = makeTmpDir()
         const nestedDir: string = join(tmpDir, 'plain', 'folder')
         mkdirSync(nestedDir, {recursive: true})
-        const call = (): string => resolveProject({cwd: nestedDir})
+        const call = (): string => resolveProject({cwd: nestedDir, env: {}})
 
         expect(call).toThrowError(ProjectNotDetectedError)
         expect(call).toThrow('No project found. Run inside a project directory, or pass --project <path>.')
