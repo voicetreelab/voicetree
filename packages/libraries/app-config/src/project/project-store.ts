@@ -3,6 +3,7 @@ import path from 'path';
 import type { SavedProject } from '@vt/graph-model/project';
 import {normalizeProjectPath, resolveVoicetreeHomePath} from '@vt/paths';
 import {PROJECTS_FILENAME} from '../config-files.ts';
+import {pathExists} from './project-utils'
 
 /**
  * Collapse projects that point at the same on-disk directory.
@@ -37,17 +38,6 @@ function getProjectsFilePath(voicetreeHomePath: string): string {
     return path.join(voicetreeHomePath, PROJECTS_FILENAME);
 }
 
-/**
- * Checks if a path exists on the filesystem.
- */
-async function pathExists(filePath: string): Promise<boolean> {
-    try {
-        await fs.access(filePath);
-        return true;
-    } catch {
-        return false;
-    }
-}
 
 /**
  * Reads the raw projects array from disk.

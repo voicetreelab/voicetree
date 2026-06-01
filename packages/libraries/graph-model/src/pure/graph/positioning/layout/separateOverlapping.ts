@@ -21,7 +21,7 @@ import {
     polyominoFitsAt, bfsNearestFree
 } from '../placement/polyominoGrid'
 import type { CellSet, PolyominoGrid } from '../placement/polyominoGrid'
-import { computeComponentBBox } from './packComponents'
+import { computeComponentBBox, rectArea } from './packComponents'
 import type { ComponentSubgraph, PackResult } from './packComponents'
 
 // ============================================================================
@@ -65,9 +65,6 @@ interface PairDetectionAcc {
 // Internal helpers
 // ============================================================================
 
-function rectArea(r: Rect): number {
-    return Math.max(0, r.maxX - r.minX) * Math.max(0, r.maxY - r.minY)
-}
 
 // ---- MTV internals (fallback for BFS radius cap exceeded) ----
 

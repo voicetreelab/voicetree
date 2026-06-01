@@ -11,6 +11,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 
 import {
+    compareEdges,
     toAbsolutePath,
     type FolderTreeNode,
     type Graph,
@@ -188,11 +189,7 @@ export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
     return {
         kind: node.kind,
         outgoingEdges: [...node.outgoingEdges]
-            .sort(
-                (left, right) =>
-                    left.targetId.localeCompare(right.targetId)
-                    || left.label.localeCompare(right.label)
-            )
+            .sort(compareEdges)
             .map((edge) => ({ targetId: edge.targetId, label: edge.label })),
         absoluteFilePathIsID: node.absoluteFilePathIsID,
         contentWithoutYamlOrLinks: node.contentWithoutYamlOrLinks,

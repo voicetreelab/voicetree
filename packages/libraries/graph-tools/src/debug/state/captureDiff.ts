@@ -1,4 +1,5 @@
 import type { SerializedState } from '@vt/graph-state'
+import { sortStrings } from '@vt/graph-state/project-helpers'
 import type { CyDump } from './cyStateShape'
 
 export type FocusedElement = {
@@ -20,10 +21,6 @@ export type Snapshot = {
 
 export type SnapshotDiff = {
   changed: Array<'state' | 'cyDump' | 'focused' | 'selection' | 'zoom' | 'pan'>
-}
-
-function sortStrings(values: readonly string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right))
 }
 
 function stripSelectionClasses(classes: readonly string[]): string[] {

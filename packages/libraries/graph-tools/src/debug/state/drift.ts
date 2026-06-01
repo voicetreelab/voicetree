@@ -1,4 +1,4 @@
-import type { GraphNode } from '@vt/graph-model'
+import { compareEdges, type GraphNode } from '@vt/graph-model'
 import type { State } from '@vt/graph-state'
 import type { CyDump, CyDumpEdge, CyDumpNode } from './cyStateShape'
 
@@ -67,7 +67,7 @@ function buildDataCyDump(data: State): CyDump {
   const sources = [...nodeEntries].sort(([left], [right]) => left.localeCompare(right))
   for (const [sourceId, node] of sources) {
     const outgoing = [...node.outgoingEdges]
-      .sort((left, right) => left.targetId.localeCompare(right.targetId) || left.label.localeCompare(right.label))
+      .sort(compareEdges)
     for (const edge of outgoing) {
       const id = `${sourceId}->${edge.targetId}`
       if (seenEdges.has(id)) continue

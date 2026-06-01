@@ -4,7 +4,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode } from '..'
-import { reverseGraphEdges } from '../graph-operations/transforms/graph-transformations'
+import { findRootNodeIds } from '../graph-operations/traversal/findRootNodeIds'
 import { getNodeTitle } from '../markdown-parsing'
 
 /**
@@ -41,20 +41,9 @@ export function graphToAscii(graph: Graph, forcedRootNodeId?: NodeIdAndFilePath)
   const visited: Set<string> = new Set<NodeIdAndFilePath>()
 
   // Determine roots: use forced root if provided, otherwise find natural roots
-  const roots: readonly string[] = (() => {
-    // If a forced root is provided and exists in the graph, use it
-    if (forcedRootNodeId && graph.nodes[forcedRootNodeId]) {
-      return [forcedRootNodeId]
-    }
-
-    // Find root nodes (nodes with no incoming edges)
-    // We reverse the graph to identify which nodes have no incoming edges
-    const reversedGraph: Graph = reverseGraphEdges(graph)
-    return Object.keys(graph.nodes).filter(nodeId => {
-      const reversedNode: GraphNode = reversedGraph.nodes[nodeId]
-      return !reversedNode || reversedNode.outgoingEdges.length === 0
-    })
-  })()
+  const roots: readonly string[] = (forcedRootNodeId && graph.nodes[forcedRootNodeId])
+    ? [forcedRootNodeId]
+    : findRootNodeIds(graph)
 
   /**
    * Recursive helper to print tree structure

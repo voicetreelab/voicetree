@@ -21,7 +21,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode } from '../..'
-import { reverseGraphEdges } from '../transforms/graph-transformations'
+import { findRootNodeIds } from './findRootNodeIds'
 
 export function getNodeIdsInTraversalOrder(graph: Graph): readonly NodeIdAndFilePath[] {
   // eslint-disable-next-line functional/prefer-readonly-type
@@ -29,13 +29,7 @@ export function getNodeIdsInTraversalOrder(graph: Graph): readonly NodeIdAndFile
   // eslint-disable-next-line functional/prefer-readonly-type
   const visited: Set<string> = new Set<NodeIdAndFilePath>()
 
-  // Find root nodes (nodes with no incoming edges)
-  // We reverse the graph to identify which nodes have no incoming edges
-  const reversedGraph: Graph = reverseGraphEdges(graph)
-  const roots: readonly string[] = Object.keys(graph.nodes).filter(nodeId => {
-    const reversedNode: GraphNode = reversedGraph.nodes[nodeId]
-    return !reversedNode || reversedNode.outgoingEdges.length === 0
-  })
+  const roots: readonly string[] = findRootNodeIds(graph)
 
   /**
    * Recursive depth-first traversal

@@ -62,3 +62,8 @@ export function setOutgoingEdges(node: GraphNode, edges: readonly Edge[]): Graph
         outgoingEdges: edges
     }
 }
+
+/** Canonical sort order for outgoing edges: targetId first, then label. */
+export function compareEdges(a: Edge, b: Edge): number {
+    return a.targetId.localeCompare(b.targetId) || a.label.localeCompare(b.label)
+}
