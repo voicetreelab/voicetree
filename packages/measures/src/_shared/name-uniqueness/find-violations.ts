@@ -37,7 +37,11 @@ const SUFFIX_TOKENS: ReadonlySet<string> = new Set([
     'fixtures', 'fixture', 'mock', 'mocks', 'd',
 ])
 
-const TEST_FILE_PATTERN: RegExp = /\.(test|spec|fixture|fixtures|stories|story|mock|mocks)\.[tj]sx?$/
+// Recognise ESM/CJS script tests (`.test.mjs`, `.test.cjs`) too, not just
+// `.ts/.tsx/.js/.jsx` — `scripts/` uses `*.test.mjs` (run-remote.test.mjs,
+// ensure-deps-fresh.test.mjs), and those test files must drop out of collision
+// clusters like any other paired test source.
+const TEST_FILE_PATTERN: RegExp = /\.(test|spec|fixture|fixtures|stories|story|mock|mocks)\.([mc]js|[tj]sx?)$/
 
 type DeclarationKind =
     | 'file'

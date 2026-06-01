@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "postinstall": "node scripts/install-vitest-shim.mjs",
+    "postinstall": "node scripts/install-vitest-shim.mjs && node scripts/dev-setup/common/ensure-hooks-path.mjs",
     "gen:agent-discovery": "node --import tsx scripts/regen-agent-discovery.ts",
     "perf:install": "node infra/perf-stack/scripts/install-binaries.mjs",
     "perf:up": "node infra/perf-stack/scripts/lifecycle.mjs up",

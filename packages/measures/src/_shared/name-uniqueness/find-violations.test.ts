@@ -138,6 +138,22 @@ describe('findNameUniquenessViolations', () => {
         expect(violations).toHaveLength(0)
     })
 
+    it('drops .mjs / .cjs test-file members too (scripts/ uses foo.test.mjs)', () => {
+        const declarations = [
+            decl('guard', '/repo/scripts/guard.mjs'),
+            decl('guard', '/repo/scripts/guard.test.mjs'),
+            decl('helper', '/repo/scripts/helper.cjs'),
+            decl('helper', '/repo/scripts/helper.test.cjs'),
+        ]
+        const violations = findNameUniquenessViolations({
+            scope: declarations,
+            index: buildIndex(declarations),
+            allowlist: ALLOWLIST,
+            importGraph: EMPTY_GRAPH,
+        })
+        expect(violations).toHaveLength(0)
+    })
+
     it('exempts a cluster whose members are reachable within K=3 hops in the import graph', () => {
         const declarations = [
             decl('applyDelta', '/repo/a.ts', 'export-function'),
