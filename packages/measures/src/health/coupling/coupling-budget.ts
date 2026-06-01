@@ -164,21 +164,9 @@
 //   vt-daemon-client -> paths:       0 -> 1 (VTD owner discovery)
 //   vt-rpc -> paths:                 0 -> 1 (auth/port files)
 //   webapp -> paths:                 0 -> 2 (Electron build config + project bootstrap)
-//
-// 2026-05-31 [worktree-placement-unload]: add `normalizeProjectPath` to the
-// `@vt/paths` SSOT — it canonicalizes a project path to its true on-disk casing
-// via `realpathSync.native` at the `openProject` edge, plus a recent-projects
-// de-dupe, fixing the `~/Voicetree` vs `~/voicetree` split (case-insensitive APFS
-// treats them as one directory) that scattered worktrees. Both project-path edges
-// were already at the paths ratchet, so each legitimately gains one value symbol —
-// a shared-leaf addition, not reducible coupling: every project-path package
-// (app-config, webapp, graph-db-server) already imports `@vt/paths` at its ratchet,
-// so there is nowhere else to host a new shared path utility.
-//   app-config -> paths:  2 -> 3 (+1 normalizeProjectPath, recent-projects de-dupe)
-//   webapp -> paths:      2 -> 3 (+1 normalizeProjectPath, openProject edge)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
-    'app-config -> paths': 3,
+    'app-config -> paths': 2,
     // 2026-05-28 [PR #139]: @vt/code-graph-cli is a thin agent-facing wrapper
     // around `@vt/measures`' `buildCallGraph` — single value symbol
     // (`buildCallGraph`) plus a pair of type re-exports (`CallGraph`,
@@ -199,6 +187,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-db-server -> graph-model': 42,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
+    'graph-db-server -> observability': 10,
     'graph-db-server -> paths': 2,
     'graph-state -> graph-model': 8,
     'graph-tools -> graph-model': 2,
@@ -280,6 +269,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // in webapp's process).
     'vt-daemon -> graph-state': 3,
     'vt-daemon -> graph-tools': 7,
+    'vt-daemon -> observability': 10,
     'vt-daemon -> paths': 4,
     'vt-daemon -> voicetree-graph-validation': 1,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
@@ -321,10 +311,9 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
-    // 2026-06-01 [app-metrics]: 1 -> 2. `observabilityMetrics` added for
-    // Electron-main OTel metrics sampler (appMetricsSampler.ts) + main.ts init.
-    // Ratchet DOWN as metrics sampler is stabilized.
-    'webapp -> observability': 2,
+    // 2026-06-01: set to 10 — observability is a dependency-leaf tracing package;
+    // coupling to it is intentional and not a quality concern.
+    'webapp -> observability': 10,
     // 2026-05-31 [worktree-placement-unload]: 2 -> 3 (+1 normalizeProjectPath,
     // openProject canonicalization edge — see paths header block above).
     'webapp -> paths': 3,
