@@ -205,7 +205,16 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
     'voicetree-cli -> graph-tools': 11,
-    'voicetree-cli -> paths': 2,
+    // 2026-06-02 [nested-.voicetree daemon resolution fix]: 2 -> 5. The
+    // project-root up-walk (`detectProjectFromCwd`) was copy-pasted into both
+    // voicetree-cli and vt-rpc with divergent precedence — that drift caused the
+    // wrong-daemon bug when nested `.voicetree/` dirs exist. Consolidated into
+    // @vt/paths as the single shared resolver; the CLI now imports
+    // `detectProjectFromCwd` + `hasVoicetreeMarker` + `resolveProjectRoot`
+    // (the last makes `$VOICETREE_PROJECT_PATH` authoritative over the CWD walk)
+    // instead of carrying a local copy. A dedup, not new behaviour; ratchet down
+    // if the marker check can later be folded into the composed resolver.
+    'voicetree-cli -> paths': 5,
     'voicetree-cli -> voicetree-graph-validation': 1,
     'voicetree-cli -> vt-daemon': 7,
     // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
@@ -301,7 +310,12 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
-    'vt-rpc -> paths': 1,
+    // 2026-06-02 [nested-.voicetree daemon resolution fix]: 1 -> 3. vt-rpc's
+    // `discoverDaemonEndpoint` carried its own copy of the project-root up-walk;
+    // it now imports the shared `detectProjectFromCwd` + `hasVoicetreeMarker`
+    // from @vt/paths (and makes `$VOICETREE_PROJECT_PATH` win over the CWD walk).
+    // Same dedup as the voicetree-cli edge above — removes a duplicated resolver.
+    'vt-rpc -> paths': 3,
     // 2026-05-27: ratcheted 24 -> 22. stripStaleVoicetreeMcpEntries +
     // writeProjectAgentDiscoveryFile were briefly here (ce909fdeb) but only
     // webapp's electron-main calls them; now live colocated in
