@@ -10,6 +10,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./package.json": "./package.json",
     "./agent-runtime/terminals/terminal-registry": "./src/agent-runtime/terminals/terminal-registry/index.ts",
     "./agent-runtime/lifecycle": "./src/agent-runtime/lifecycle/index.ts",
     "./agent-runtime/*": "./src/agent-runtime/*",
