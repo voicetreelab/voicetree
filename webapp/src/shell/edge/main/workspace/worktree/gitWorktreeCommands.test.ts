@@ -246,6 +246,44 @@ describe('createWorktree placement (no git-gate → app owns placement)', () => 
         expect(statSync(worktreePath).isDirectory()).toBe(true);
     });
 
+    // ROOT-CAUSE REGRESSION GUARD. The pre-fix code computed placement as
+    // `path.resolve(repoRoot, '..', 'vt-wts')` — a pure-string operation keyed off
+    // the WATCHED dir handed in. When that dir was a SUBDIRECTORY of the checkout
+    // (or a case-variant), the worktree scattered to `<repo>/vt-wts` (nested) or a
+    // case-variant sibling. The fix resolves the true main checkout via git first,
+    // so placement is anchored to `<parent-of-MAIN-checkout>/vt-wts` no matter which
+    // path inside the repo `createWorktree` is invoked from.
+    it('anchors placement to the MAIN checkout when called from a subdirectory', async () => {
+        const repoRoot: string = makeRepo();
+        const parent: string = dirname(repoRoot);
+        const subDir: string = join(repoRoot, 'nested', 'deep');
+        mkdirSync(subDir, {recursive: true});
+        setEnvUntilCleanup('HOME', gitGateFreeHome());
+        setEnvUntilCleanup('VT_WORKTREE_ROOT', undefined);
+
+        const worktreePath: string = await createWorktree(subDir, 'wt-from-subdir');
+
+        // Sibling of MAIN — not `<subDir>/../vt-wts` and not nested inside the repo.
+        expect(worktreePath).toBe(join(parent, 'vt-wts', 'wt-from-subdir'));
+        expect(worktreePath.startsWith(repoRoot + '/')).toBe(false);
+    });
+
+    it('anchors placement to the MAIN checkout when called from a linked worktree', async () => {
+        const repoRoot: string = makeRepo();
+        const parent: string = dirname(repoRoot);
+        setEnvUntilCleanup('HOME', gitGateFreeHome());
+        setEnvUntilCleanup('VT_WORKTREE_ROOT', undefined);
+
+        // A linked worktree's git-common-dir still resolves to the MAIN checkout, so
+        // a worktree spawned from inside another worktree lands as a sibling of MAIN,
+        // never relative to (or nested under) the linked worktree it was spawned from.
+        const firstWt: string = await createWorktree(repoRoot, 'wt-first');
+        const secondWt: string = await createWorktree(firstWt, 'wt-second');
+
+        expect(secondWt).toBe(join(parent, 'vt-wts', 'wt-second'));
+        expect(secondWt.startsWith(firstWt + '/')).toBe(false);
+    });
+
     it('normalizes the new worktree git pointer to a relative (host-portable) path', async () => {
         const repoRoot: string = makeRepo();
         const parent: string = dirname(repoRoot);
