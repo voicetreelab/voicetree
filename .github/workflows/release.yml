@@ -263,6 +263,12 @@ jobs:
   build-windows:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_windows) }}
+    # Windows is unmaintained / unsigned for 3.0.0 — keep it non-blocking so a Windows
+    # build failure can never block the mac + linux release (mirrors the linux-arm64
+    # soft_fail). `publish-release` needs this job, and continue-on-error lets a failed
+    # Windows build still satisfy that dependency. Flip back to blocking once Windows is
+    # maintained again.
+    continue-on-error: true
     runs-on: windows-latest
 
     steps:
