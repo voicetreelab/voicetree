@@ -191,10 +191,14 @@ export function applyPromptFileToHeadlessSpawn(args: {
     return {...plan, command: wrapForHeadlessTmux(plan.command)}
 }
 
+export function formatLaunchScript(command: string): string {
+    return `#!/usr/bin/env bash\nexec bash -c ${shellSingleQuote(command)}\n`
+}
+
 function writeLaunchScript(projectRoot: string, terminalId: TerminalId, command: string): string {
     const target: string = launchScriptPath(projectRoot, terminalId)
     mkdirSync(join(getProjectDotVoicetreePath(projectRoot), 'terminals'), {recursive: true})
-    writeFileSync(target, `#!/usr/bin/env bash\nexec ${command}\n`, {encoding: 'utf8', mode: 0o700})
+    writeFileSync(target, formatLaunchScript(command), {encoding: 'utf8', mode: 0o700})
     chmodSync(target, 0o700)
     return target
 }
