@@ -45,6 +45,17 @@ import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 //   and the >=0.7 pair count from 658 to 626.
 //   Observed 626 + 5 headroom = 631; ratchet DOWN as remaining intentional
 //   thin-wrapper clusters (subscribeX, isCallerKind/isDaemonKind) are consolidated.
+// Re-anchored 2026-06-02 [agent-name roster feature]:
+//   graph-model/pure/agents/siliconValleyRoster.ts adds baseIdFromAgentName,
+//   a one-line `agentName.replace(/(_\d+)+$/, '')` that strips collision
+//   suffixes. It collides with the codebase's existing family of unrelated
+//   single-`.replace()` escape helpers (escapeRegex×N, escapeGlobPattern,
+//   sanitizeTag, escapeWikilinkMarkers) on structural+behavioral signals ONLY
+//   — lexical does not match, since the regexes and intent differ. These are
+//   not consolidatable: each escapes a different thing. +6 false-positive
+//   thin-shape pairs (all sharing baseIdFromAgentName as one endpoint).
+//   Observed 638 + 5 headroom = 643. This cluster cannot ratchet down without
+//   deleting a distinct, tested, single-purpose function.
 const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
     readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')
 
