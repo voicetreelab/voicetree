@@ -60,6 +60,15 @@ log() {
   printf '%s vt-sync-base[%s]: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$BRANCH" "$*" >> "$LOG"
 }
 
+# Human-facing line for ON-DEMAND runs (`vt-sync` sets VT_SYNC_VERBOSE=1). The
+# 2-3 min timer and vt-land's nudge leave it unset, so the daemon stays silent —
+# only an interactive `vt-sync` reports what it did. Always also goes to $LOG.
+say() {
+  log "$*"
+  [ "${VT_SYNC_VERBOSE:-}" = 1 ] && printf 'vt-sync: %s\n' "$*"
+  return 0
+}
+
 git_base() { git -C "$BASE" "$@"; }
 
 # --- alert delivery (D7) ----------------------------------------------------
@@ -117,6 +126,9 @@ PY
 alert() {
   local state="$1" body="$2"
   log "ALERT[$state]: $body"
+  # On-demand runs always surface the reason, even if the per-state marker is
+  # already set (the human ran vt-sync and needs to know why nothing happened).
+  [ "${VT_SYNC_VERBOSE:-}" = 1 ] && printf 'vt-sync: %s — %s\n' "$state" "$body" >&2
   local marker="$STATE_DIR/alert-$state"
   [ -f "$marker" ] && return 0
   : > "$marker"
@@ -130,7 +142,7 @@ clear_alerts() { rm -f "$STATE_DIR"/alert-* 2>/dev/null || true; }
 [ -d "$BASE/.git" ] || { log "no git repo at $BASE; nothing to do"; exit 0; }
 
 if ! git_base fetch origin --prune >>"$LOG" 2>&1; then
-  log "fetch failed (transient ref-lock / network?) — will retry next tick"
+  say "fetch from origin failed (transient ref-lock / network?) — will retry next tick"
   exit 0
 fi
 
@@ -164,13 +176,14 @@ local_sha="$(git_base rev-parse "$BRANCH")"
 remote_sha="$(git_base rev-parse "origin/$BRANCH")"
 
 if [ "$local_sha" = "$remote_sha" ]; then
+  say "base already up to date with origin/$BRANCH (${local_sha:0:9})"
   clear_alerts
   exit 0
 fi
 
 if git_base merge-base --is-ancestor "$local_sha" "$remote_sha"; then
   if git_base merge --ff-only "origin/$BRANCH" >>"$LOG" 2>&1; then
-    log "fast-forwarded $BRANCH ${local_sha:0:9}..${remote_sha:0:9}"
+    say "fast-forwarded $BRANCH ${local_sha:0:9}..${remote_sha:0:9}"
     clear_alerts
     exit 0
   fi

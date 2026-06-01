@@ -114,6 +114,12 @@ deny_base_edit() {
     echo "    Editing happens in a worktree; integration happens via origin —"
     echo "    the base only ever fast-forwards. Never commit/merge/rebase/pull/revert here."
     echo ""
+    if [ "$sub" = pull ] || [ "$sub" = fetch ]; then
+      echo "    To UPDATE this base to origin, do NOT use 'git $sub' — run:"
+      echo "      vt-sync                         # fast-forwards the base to origin (the only safe way)"
+      echo "    A 2-3 min timer also keeps it current automatically; you rarely need to."
+      echo ""
+    fi
     echo "    Work in a worktree instead:"
     echo "      vt-worktree <name> [<branch>]   # or: git worktree add -b <name> <name> origin/<branch>"
     echo "    Then land it:"

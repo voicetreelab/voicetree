@@ -1,3 +1,29 @@
+# ⛔ THE MAIN CHECKOUT IS A READ-ONLY CACHE — NEVER EDIT IT DIRECTLY
+
+If this checkout is the main worktree (i.e. `git rev-parse --git-dir` equals
+`git rev-parse --git-common-dir` — NOT a linked worktree), it is a **read-only
+fast-forward cache of `origin/dev-manu`**. It is NOT your workspace.
+
+- Do NOT create/edit/delete files here, and do NOT `git commit` here. Filesystem
+  edits silently wedge the cache's auto-sync; git mutations are rejected by
+  git-gate. Either way your work ends up stranded and blocks everyone's sync.
+- Before making ANY change, move into a worktree:
+  ```
+  vt-worktree <name>     # creates a worktree off origin/dev-manu, prints its path
+  cd <printed path>      # edit, run, and commit THERE
+  vt-land "msg"          # commit + fast-forward push to origin/dev-manu
+  vt-pr                  # or open a PR for reviewed work
+  ```
+- To UPDATE this cache to origin, run `vt-sync` (NEVER `git pull` — the cache
+  only fast-forwards; a 2-3 min timer also keeps it current).
+- If you already dirtied the cache, your edits are real — don't `git restore`
+  them away. Lift them into a worktree and land them, then re-pin the cache:
+  `VT_SYNC=1 git reset --hard origin/dev-manu`.
+
+(If you ARE in a linked worktree, ignore this banner — edit freely and `vt-land`.)
+
+---
+
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
 EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
 
