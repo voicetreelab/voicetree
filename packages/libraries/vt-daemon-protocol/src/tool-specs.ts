@@ -25,6 +25,7 @@
  */
 
 import {buildFromPrefixedMessage} from './from-prefix-message'
+import {SUBGRAPH_SIZE_LIMIT_GUIDANCE} from './subgraphSizeLimitGuidance'
 import type {ToolInputSpec, ToolSpec} from './tool-spec-types'
 
 // ─── Shared input descriptors ────────────────────────────────────────────────
@@ -178,6 +179,8 @@ export const CREATE_GRAPH_SPEC: ToolSpec = {
         '',
         '**Schema validation (optional):** If the folder containing the new node has a folder note declaring `## Type: <kind>`, `vt graph create` runs a schema validator (from `.voicetree/schemas.cjs`) before writing. On rejection it exits non-zero with the violating rules. If no upstream Type is declared, validation is silent and the node is created normally.',
         '',
+        `**Folder gardening:** ${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatManualGuidance()}`,
+        '',
         '**Modes:**',
         '- *Filesystem mode* — pass one or more `<file.md>` positional paths. The CLI parses frontmatter and `[[wikilinks]]` to build the create payload locally.',
         '- *Live mode* — pass `--node "title::summary[::content]"` (repeatable) and/or `--nodes-file FILE`, or pipe a JSON `{nodes, overrides?}` payload to stdin. The CLI forwards the payload to the daemon\'s `create_graph` RPC.',
@@ -230,7 +233,7 @@ export const CREATE_GRAPH_SPEC: ToolSpec = {
             rpcName: 'override',
             cliBulletLabel: '--override VALUE',
             annotation: 'repeatable, RPC: override_with_rationale[]',
-            description: 'Override a blocking validation rule, formatted `<ruleId>:<rationale>`.',
+            description: `Override a blocking validation rule, formatted \`<ruleId>:<rationale>\`. ${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatOverrideDescription()}`,
         },
     ],
 }

@@ -18,7 +18,7 @@
  *   map returns the input unchanged (the sentinel scan short-circuits).
  */
 
-import {renderManual, TOOL_SPECS} from '@vt/vt-daemon-protocol'
+import * as daemonProtocol from '@vt/vt-daemon-protocol'
 
 const SECTION_HEADER: string = '<vt_cli_manual>'
 const SECTION_FOOTER: string = '</vt_cli_manual>'
@@ -34,7 +34,7 @@ export function appendCliManualToAgentPrompt(
     const current: string = envVars.AGENT_PROMPT ?? ''
     if (current.includes(SECTION_HEADER)) return envVars
 
-    const body: string = renderManual(TOOL_SPECS, {tier: 'essentials'}).trimEnd()
+    const body: string = daemonProtocol.renderManual(daemonProtocol.TOOL_SPECS, {tier: 'essentials'}).trimEnd()
     if (body.length === 0) return envVars
 
     const block: string = `\n\n${SECTION_HEADER}\n${body}\n${SECTION_FOOTER}\n`

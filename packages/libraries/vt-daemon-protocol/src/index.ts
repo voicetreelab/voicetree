@@ -17,6 +17,7 @@ export * from './rpc-contracts.ts'
 export * from './terminal-registry-events.ts'
 export * from './from-prefix-message.ts'
 export * from './tool-spec-types.ts'
+export * from './subgraphSizeLimitGuidance.ts'
 // Of the 15 exports in tool-specs.ts, only `TOOL_SPECS` belongs on the
 // public surface. Sibling packages iterate that array; the per-tool
 // `*_SPEC` constants are implementation detail used to compose the

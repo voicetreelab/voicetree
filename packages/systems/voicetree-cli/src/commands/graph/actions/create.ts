@@ -42,10 +42,10 @@ import {
     type FilesystemRuleViolation,
 } from './orphanCheck'
 import {
-    indexMcpResults,
+    indexAuthoredResultsByPath,
     indexPlanErrorsByFilename,
     mergeAppliedNodes,
-    mergeMcpResults,
+    mergeAuthoredResultsIntoVerdicts,
     mergePlanIntoGateVerdicts,
 } from './mergeVerdicts'
 
@@ -69,9 +69,10 @@ async function runLiveDaemon(
             emitMcpFailureAndExit(result.error)
         }
 
-        const merged: readonly NodeVerdict[] = mergeMcpResults(
+        const merged: readonly NodeVerdict[] = mergeAuthoredResultsIntoVerdicts(
             gateVerdicts,
-            indexMcpResults(result),
+            indexAuthoredResultsByPath(result),
+            result.nodes,
             overrideRuleIdMap(gateVerdicts, overrides),
         )
         emitBatchReport(buildBatchReport(merged))
@@ -87,10 +88,11 @@ async function runStdinLive(
     const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides} =
         await readCreateGraphPayloadFromStdin(terminalId)
     const overrides: readonly OverrideSpec[] = mergeOverrideSpecs(stdinOverrides, parsedArgs.overrides)
+    const effectiveParentNodeId: string | undefined = parentNodeId ?? parsedArgs.parentNodeId
 
     const gateVerdicts: readonly GatedInput[] = await collectLiveGateVerdicts(
         nodes,
-        parentNodeId,
+        effectiveParentNodeId,
         parsedArgs.color,
     )
 
@@ -101,7 +103,7 @@ async function runStdinLive(
 
     const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
-        ...(parentNodeId !== undefined ? {parentNodeId} : {}),
+        ...(effectiveParentNodeId !== undefined ? {parentNodeId: effectiveParentNodeId} : {}),
         nodes,
         ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
     }
