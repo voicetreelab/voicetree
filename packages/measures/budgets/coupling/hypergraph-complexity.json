@@ -1,0 +1,6 @@
+{
+  "maxPairTreeWidthBudget": 3,
+  "maxBoundaryRatioBudget": 1,
+  "aggregateBciBudget": 1,
+  "normalisedBciBudget": 0.5
+}
