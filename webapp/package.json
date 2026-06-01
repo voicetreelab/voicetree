@@ -48,9 +48,10 @@
     "electron:prod-full": "npm run build:server && npm run electron:prod",
     "electron:persist-state": "VOICETREE_PERSIST_STATE=1 electron-vite build && VOICETREE_PERSIST_STATE=1 electron .",
     "electron:build": "electron-vite build",
-    "electron:pack": "electron-vite build && electron-builder",
-    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && electron-builder --mac --config -c.mac.identity=null --publish=never",
-    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && electron-builder --mac --publish=always",
+    "stage:daemons": "node scripts/stage-daemon-bundles.mjs",
+    "electron:pack": "electron-vite build && npm run stage:daemons && electron-builder",
+    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && npm run stage:daemons && electron-builder --mac --config -c.mac.identity=null --publish=never",
+    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && npm run stage:daemons && electron-builder --mac --publish=always",
     "setup-cli": "bash scripts/setup-cli.sh"
   },
   "optionalDependencies": {
@@ -191,7 +192,9 @@
     "afterPack": "./scripts/after-pack.cjs",
     "asarUnpack": [
       "node_modules/@vscode/ripgrep/bin/**/*",
-      "node_modules/node-pty/**/*"
+      "node_modules/node-pty/**/*",
+      "dist-electron/main/vtd.mjs",
+      "dist-electron/main/vt-graphd.mjs"
     ],
     "files": [
       "dist/**/*",
