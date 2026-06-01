@@ -295,6 +295,29 @@ function repairRemoteWorktreeMetadataScript(remoteCwd) {
   ].join(' ')
 }
 
+// Export GIT_DIR/GIT_COMMON_DIR so git in the remote command resolves against the
+// synced main repo's per-worktree admin dir, independent of the worktree's `.git`
+// pointer FILE. The one-way mutagen replica continuously re-copies the Mac-side
+// pointer (`gitdir: ../../<mac-main-basename>/.git/worktrees/<name>`), whose
+// basename differs from the dev box (`vtrepo-synced`), so it resolves to a
+// non-existent path on the box. `repairRemoteWorktreeMetadataScript` rewrites it
+// per invocation, but a later mutagen cycle reverts it mid-run — so a
+// long-running command (notably the tier<=1 pre-push health gate) hits
+// `fatal: not a git repository` partway through. Exported env vars are immune to
+// the file being reverted and are inherited by every child `git` the command
+// spawns. Returns export statements for a worktree cwd, else ':' (noop).
+//
+// Pure: returns a string. Mirrors repairRemoteWorktreeMetadataScript's scoping
+// (worktree cwds only — the main checkout's real `.git` dir needs nothing).
+function remoteWorktreeGitEnvScript(remoteCwd) {
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
+  if (worktreeRoot === null) return ':'
+  const worktreeName = ppath.basename(worktreeRoot)
+  const gitCommonDir = ppath.join(REMOTE_ROOT, '.git')
+  const gitDir = ppath.join(gitCommonDir, 'worktrees', worktreeName)
+  return `export GIT_COMMON_DIR=${shq(gitCommonDir)} GIT_DIR=${shq(gitDir)}`
+}
+
 // Inventory of worktree names known to the local repo.
 //
 // Union of `git worktree list` basenames and `ls .git/worktrees/`. The union
@@ -446,6 +469,7 @@ function runRemote(host, cmd, args, syncContext) {
   const remoteScript = [
     repairRemoteWorktreeMetadataScript(remoteCwd),
     `cd ${shq(remoteCwd)}`,
+    remoteWorktreeGitEnvScript(remoteCwd),
     `export ${RECURSION_GUARD}=1`,
     `node ${shq(guardRemotePath)}`,
     `exec ${quotedCmd}`,
@@ -518,6 +542,7 @@ export {
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
+  remoteWorktreeGitEnvScript,
   repairLocalWorktreeMetadataIfNeeded,
   remoteHostFromEnvironment,
   resolveSyncContext,

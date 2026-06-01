@@ -19,7 +19,6 @@ import {
   W3CTraceContextPropagator,
 } from '@opentelemetry/core'
 import type { ReadableSpan, SpanExporter, SpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { ATTR_SERVICE_INSTANCE_ID, ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
@@ -114,16 +113,7 @@ function initTracingImpl(serviceName: string, env: TracingEnv = {}): void {
   const traceDir = join(homedir(), '.voicetree', 'traces')
   mkdirSync(traceDir, { recursive: true })
   const traceFile = join(traceDir, `${serviceName}.ndjson`)
-
-  const spanProcessors: SpanProcessor[] = [
-    new SimpleSpanProcessor(createNdjsonFileExporter(traceFile)),
-  ]
-
-  if (env.otlpEndpoint && env.otlpEndpoint.length > 0) {
-    spanProcessors.push(
-      new BatchSpanProcessor(new OTLPTraceExporter({ url: env.otlpEndpoint })),
-    )
-  }
+  const ndjsonProcessor = new SimpleSpanProcessor(createNdjsonFileExporter(traceFile))
 
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
@@ -131,19 +121,41 @@ function initTracingImpl(serviceName: string, env: TracingEnv = {}): void {
       env.instanceId && env.instanceId.length > 0 ? env.instanceId : serviceName,
   })
 
-  const provider = new NodeTracerProvider({ resource, spanProcessors })
-  provider.register()
-  // Register the W3C trace-context + baggage propagator so cross-process
-  // HTTP calls (client → daemon) inject `traceparent` and remote handlers
-  // attach their spans to the caller's trace.
-  propagation.setGlobalPropagator(
-    new CompositePropagator({
-      propagators: [
-        new W3CTraceContextPropagator(),
-        new W3CBaggagePropagator(),
-      ],
-    }),
-  )
+  const registerProvider = (spanProcessors: SpanProcessor[]): void => {
+    const provider = new NodeTracerProvider({ resource, spanProcessors })
+    provider.register()
+    // Register the W3C trace-context + baggage propagator so cross-process
+    // HTTP calls (client → daemon) inject `traceparent` and remote handlers
+    // attach their spans to the caller's trace.
+    propagation.setGlobalPropagator(
+      new CompositePropagator({
+        propagators: [
+          new W3CTraceContextPropagator(),
+          new W3CBaggagePropagator(),
+        ],
+      }),
+    )
+  }
+
+  // Always-on local NDJSON export needs no heavy deps; register it immediately.
+  // The OTLP gRPC exporter pulls a large @grpc/protobuf tree and is only ever
+  // configured in dev / perf-stack (the shipped desktop app never sets
+  // VOICETREE_OTLP_ENDPOINT). Load it lazily via dynamic import so it stays
+  // external (see MAIN_RUNTIME_EXTERNALS) — never bundled into or shipped with
+  // the production app. When an endpoint IS set we defer the provider
+  // registration until the exporter module resolves so both processors land on
+  // one provider (the v2 SDK fixes processors at construction).
+  if (env.otlpEndpoint && env.otlpEndpoint.length > 0) {
+    const endpoint = env.otlpEndpoint
+    void import('@opentelemetry/exporter-trace-otlp-grpc').then(({ OTLPTraceExporter }) => {
+      registerProvider([
+        ndjsonProcessor,
+        new BatchSpanProcessor(new OTLPTraceExporter({ url: endpoint })),
+      ])
+    })
+  } else {
+    registerProvider([ndjsonProcessor])
+  }
 }
 
 type TraceOperation<T> = (span: Span) => T | Promise<T>

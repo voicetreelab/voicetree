@@ -851,18 +851,6 @@ importers:
       '@vscode/ripgrep':
         specifier: ^1.17.1
         version: 1.18.0
-      '@vt/app-config':
-        specifier: '*'
-        version: link:../packages/libraries/app-config
-      '@vt/observability':
-        specifier: '*'
-        version: link:../packages/libraries/observability
-      '@vt/paths':
-        specifier: '*'
-        version: link:../packages/libraries/paths
-      '@vt/perf-analysis':
-        specifier: '*'
-        version: link:../packages/libraries/perf-analysis
       '@xterm/addon-clipboard':
         specifier: ^0.2.0-beta.120
         version: 0.2.0
@@ -971,6 +959,9 @@ importers:
       webcola:
         specifier: ^3.4.0
         version: 3.4.0
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -1026,6 +1017,9 @@ importers:
       '@vitest/ui':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4)
+      '@vt/app-config':
+        specifier: '*'
+        version: link:../packages/libraries/app-config
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../packages/systems/graph-db-client
@@ -1041,6 +1035,15 @@ importers:
       '@vt/measures':
         specifier: '*'
         version: link:../packages/measures
+      '@vt/observability':
+        specifier: '*'
+        version: link:../packages/libraries/observability
+      '@vt/paths':
+        specifier: '*'
+        version: link:../packages/libraries/paths
+      '@vt/perf-analysis':
+        specifier: '*'
+        version: link:../packages/libraries/perf-analysis
       '@vt/perf-fixtures':
         specifier: '*'
         version: link:../packages/libraries/perf-fixtures
