@@ -4,6 +4,7 @@
 // on window.electronAPI BEFORE React bootstraps so App.tsx's electronReady
 // check fires on the first poll.
 
+import * as O from 'fp-ts/lib/Option.js'
 import type {NodeDefinition} from 'cytoscape'
 import type {ElectronAPI, Promisify} from '@/shell/electron'
 import {collectNodePositions} from '@/shell/edge/UI-edge/graph/collectNodePositions'
@@ -168,9 +169,13 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             const ps = await graphdGetProject(graphdUrl) as ProjectState
             return ps.readPaths ?? []
         },
-        getWriteFolderPath: async () => {
+        // Contract is O.Option<string> (callers do O.getOrElse/O.isNone). Returning
+        // a bare string made O.getOrElse yield undefined, so new nodes were created
+        // with a relative id (no write-folder prefix) → later writes to them hit
+        // graphd's PATH_NOT_ABSOLUTE. Wrap as Some/None to match Electron.
+        getWriteFolderPath: async (): Promise<O.Option<string>> => {
             const ps = await graphdGetProject(graphdUrl) as ProjectState
-            return ps.writeFolderPath ?? ''
+            return ps.writeFolderPath ? O.some(ps.writeFolderPath) : O.none
         },
         setWriteFolderPath: (p: {path: string}) =>
             fetch(`${graphdUrl}/project/write-path`, {
