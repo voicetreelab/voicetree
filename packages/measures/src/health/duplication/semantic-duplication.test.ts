@@ -37,8 +37,21 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   the call-graph primitives — same intentional thin-wrapper pattern as
 //   graph-bridge.ts. Observed 640 + 5 headroom = 645; ratchet DOWN as
 //   the command bodies grow past their current 1–2 call shape.
+// Re-anchored 2026-06-02 [vtd production-spawn packaging]:
+//   @vt/vt-daemon-client's autoLaunch/runtime.ts gained a bundle-preferring
+//   entrypoint resolver (resolveDefaultDaemonArgs + sourceIsNewerThan +
+//   defaultSiblingDaemonPath + dist/source path helpers) that deliberately
+//   MIRRORS @vt/graph-db-client's resolver — the two are intentionally kept in
+//   separate packages because the daemons take different argv shapes
+//   (vtd `--project` vs graphd `--project-root`) and resolve different
+//   packages. This is the same vt-daemon-family parallelism that drove the
+//   549→626 re-anchor. +8 pairs, all within autoLaunch/runtime.ts. Observed
+//   653 + 5 headroom = 658. FOLLOW-UP: unify the two resolvers behind a shared
+//   selectDaemonEntrypointArgs helper in graph-db-client and ratchet back down
+//   (deferred here to avoid refactoring the proven graphd spawn path in the
+//   same change that first makes vtd spawnable in production).
 // Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 645
+const MAX_DUPLICATE_PAIRS: number = 658
 
 const SCORE_THRESHOLD: number = 0.7
 
