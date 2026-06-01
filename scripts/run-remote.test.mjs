@@ -12,6 +12,7 @@ import {
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
   repairRemoteWorktreeMetadataScript,
+  remoteWorktreeGitEnvScript,
   remoteWorktreeRoot,
   synchronizationMode,
 } from './run-remote.mjs'
@@ -65,6 +66,16 @@ test('repairs remote worktree metadata for sibling-layout worktree commands', ()
   // commondir from admin to main .git stays `../..`
   assert.match(script, /'\.\.\/\.\.'/)
   assert.equal(repairRemoteWorktreeMetadataScript('/root/vtrepo-synced/webapp'), ':')
+})
+
+test('exports GIT_DIR/GIT_COMMON_DIR for a worktree command, noop elsewhere', () => {
+  const script = remoteWorktreeGitEnvScript('/root/vt-wts-synced/wt-one/webapp')
+  // GIT_DIR points at the synced main repo's per-worktree admin dir (absolute,
+  // so it survives the one-way mutagen replica reverting the `.git` pointer file).
+  assert.match(script, /export GIT_COMMON_DIR='\/root\/vtrepo-synced\/\.git'/)
+  assert.match(script, /GIT_DIR='\/root\/vtrepo-synced\/\.git\/worktrees\/wt-one'/)
+  // Outside a worktree (the main checkout's real .git dir needs nothing): noop.
+  assert.equal(remoteWorktreeGitEnvScript('/root/vtrepo-synced/webapp'), ':')
 })
 
 // --- Reconciler: stale-worktree drift cleanup ----------------------------
