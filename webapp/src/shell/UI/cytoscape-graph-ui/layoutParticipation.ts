@@ -6,7 +6,7 @@ export function isLayoutParticipantNode(node: NodeSingular): boolean {
 }
 
 export function isLayoutParticipantEdge(edge: EdgeSingular): boolean {
-  if (edge.data('isIndicatorEdge') || edge.data('isSyntheticEdge')) return false;
+  if (edge.data('isIndicatorEdge')) return false;
   return isLayoutParticipantNode(edge.source()) && isLayoutParticipantNode(edge.target());
 }
 

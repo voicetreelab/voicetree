@@ -1,26 +1,25 @@
-let activeLoadId: string | null = null
-let activeLoadStartedAt: number = 0
+const activeLoad: { id: string | null; startedAt: number } = { id: null, startedAt: 0 }
 
 export function startLoadTiming(directory: string): string {
   const id: string = `load-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-  activeLoadId = id
-  activeLoadStartedAt = Date.now()
+  activeLoad.id = id
+  activeLoad.startedAt = Date.now()
   emit('loadFolder:start', { dir: directory })
   return id
 }
 
 export function markLoadTiming(event: string, extra?: Record<string, unknown>): void {
-  if (activeLoadId === null) return
+  if (activeLoad.id === null) return
   emit(event, extra)
 }
 
 function emit(event: string, extra?: Record<string, unknown>): void {
-  if (activeLoadId === null) return
-  const elapsedMs: number = Date.now() - activeLoadStartedAt
+  if (activeLoad.id === null) return
+  const elapsedMs: number = Date.now() - activeLoad.startedAt
   const parts: string[] = [
     `ts=${new Date().toISOString()}`,
     `event=${event}`,
-    `id=${activeLoadId}`,
+    `id=${activeLoad.id}`,
     `elapsedMs=${elapsedMs}`,
   ]
   if (extra) {

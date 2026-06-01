@@ -60,7 +60,7 @@ describe('spatialIndexSync', () => {
         expect(edges).toHaveLength(2);
     });
 
-    it('indexes only real layout edges, excluding indicator and synthetic edges', () => {
+    it('indexes layout edges, including synthetic folder edges but excluding indicator edges', () => {
         cy.add([
             { data: { id: 'folder-collapsed', isFolderNode: true, collapsed: true }, position: { x: 300, y: 300 } },
             { data: { id: 'indicator-edge', source: 'a', target: 'b', isIndicatorEdge: true } },
@@ -72,9 +72,9 @@ describe('spatialIndexSync', () => {
             .map(e => e.edgeId)
             .sort();
 
-        expect(edgeIds).toHaveLength(2);
+        expect(edgeIds).toHaveLength(3);
         expect(edgeIds).not.toContain('indicator-edge');
-        expect(edgeIds).not.toContain('synthetic-edge');
+        expect(edgeIds).toContain('synthetic-edge');
     });
 
     it('incrementally adds a node', () => {

@@ -105,10 +105,10 @@ describe('LayoutParticipantSet', () => {
     expect(collectionIds(set).has('new-edge')).toBe(true);
   });
 
-  it('excludes new synthetic edge on add', () => {
+  it('includes new synthetic folder edge on add', () => {
     cy.add({ data: { id: 'new-synth', source: 'regular', target: 'folder-collapsed', isSyntheticEdge: true } });
     expect(collectionIds(set)).toEqual(groundTruthIds(cy));
-    expect(collectionIds(set).has('new-synth')).toBe(false);
+    expect(collectionIds(set).has('new-synth')).toBe(true);
   });
 
   it('handles rapid sequence of operations consistently', () => {
