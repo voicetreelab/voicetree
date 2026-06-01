@@ -4,7 +4,9 @@
 // on window.electronAPI BEFORE React bootstraps so App.tsx's electronReady
 // check fires on the first poll.
 
+import type {NodeDefinition} from 'cytoscape'
 import type {ElectronAPI, Promisify} from '@/shell/electron'
+import {collectNodePositions} from '@/shell/edge/UI-edge/graph/collectNodePositions'
 import type {mainAPI} from '@/shell/edge/main/runtime/api'
 import type {ProjectedGraph} from '@vt/graph-state/contract'
 import type {Graph, GraphDelta} from '@vt/graph-model/graph'
@@ -68,14 +70,12 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         graphdSseCleanup?.()
         graphdSseCleanup = graphdSubscribeSessionEvents(
             graphdUrl, currentSessionId,
-            (data) => {
+            (eventName, data) => {
+                // graphd emits the projected graph under the `projectedGraph` event
+                // name; the data IS the ProjectedGraph (no wrapping type field).
+                if (eventName !== 'projectedGraph') return
                 try {
-                    const evt = JSON.parse(data) as {type?: string; graph?: ProjectedGraph}
-                    if (evt.type === 'projected-graph' && evt.graph) {
-                        emit('graph:projectedGraphUpdate', evt.graph)
-                    } else if (evt.type === 'clear') {
-                        emit('graph:clear')
-                    }
+                    emit('graph:projectedGraphUpdate', JSON.parse(data) as ProjectedGraph)
                 } catch { /* malformed event */ }
             },
             (err) => console.error('[browserRuntime] graphd SSE error:', err),
@@ -120,13 +120,20 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             callVtdRpc(vtdUrl, vtdToken, 'expandFolderThroughDaemon', p as Record<string, unknown>),
         setFolderStateThroughDaemon: (p: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'setFolderStateThroughDaemon', p as Record<string, unknown>),
+        // cy.nodes().jsons() is a NodeDefinition[]; graphd's /graph/write-positions
+        // wants {positions: {nodeId: {x, y}}}. Transform before posting.
         saveNodePositions: (payload: unknown) =>
-            graphdSavePositions(graphdUrl, currentSessionId, payload),
+            graphdSavePositions(graphdUrl, currentSessionId, {
+                positions: collectNodePositions(payload as NodeDefinition[]),
+            }),
         createContextNode: (payload: unknown) =>
             graphdCreateContextNode(graphdUrl, currentSessionId, payload),
-        getPreviewContainedNodeIds: (nodeId: string): Promise<unknown> =>
+        // graphd returns {nodeIds: string[]}; the ElectronAPI contract is a bare
+        // string[] (callers do `new Set(result)`), so unwrap nodeIds.
+        getPreviewContainedNodeIds: (nodeId: string): Promise<readonly string[]> =>
             fetch(`${graphdUrl}/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`)
-                .then(r => r.json()),
+                .then(r => r.json())
+                .then((o: {nodeIds?: readonly string[]}) => o.nodeIds ?? []),
         performUndo: () => graphdUndo(graphdUrl, currentSessionId),
         performRedo: () => graphdRedo(graphdUrl, currentSessionId),
         findFileByName: (filename: string) => graphdFindFile(graphdUrl, filename),

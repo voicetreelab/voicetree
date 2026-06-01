@@ -114,11 +114,43 @@ export async function graphdSavePositions(graphdUrl: string, sessionId: string, 
     }, sessionId)
 }
 
+/**
+ * Stateful parser for the SSE wire format. graphd frames each event as an
+ * `event: <name>\ndata: <json>\n\n` block — the event name carries the type
+ * (e.g. `projectedGraph`), NOT a field inside the data. A `data:` line alone
+ * loses the type, so the parser tracks the current `event:` line and pairs it
+ * with the following `data:`. Feed it raw decoded chunks (which may split a line
+ * across boundaries); it buffers the partial trailing line until completed.
+ *
+ * Returns a `push(chunk)` function. Pure aside from the closed-over buffer — no
+ * I/O — so the framing logic is unit-testable without a live server.
+ */
+export function createSseEventParser(
+    onEvent: (eventName: string, data: string) => void,
+): (chunk: string) => void {
+    let buf = ''
+    let currentEvent = 'message'
+    return (chunk: string): void => {
+        buf += chunk
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+            if (line.startsWith('event:')) {
+                currentEvent = line.slice('event:'.length).trim()
+            } else if (line.startsWith('data: ')) {
+                onEvent(currentEvent, line.slice('data: '.length))
+            } else if (line === '') {
+                currentEvent = 'message' // block boundary — reset for next event
+            }
+        }
+    }
+}
+
 /** Subscribe to graphd SSE session events. Returns a cleanup function. */
 export function graphdSubscribeSessionEvents(
     graphdUrl: string,
     sessionId: string,
-    onEvent: (data: string) => void,
+    onEvent: (eventName: string, data: string) => void,
     onError: (err: unknown) => void,
     sinceSeq = 0,
 ): () => void {
@@ -132,16 +164,11 @@ export function graphdSubscribeSessionEvents(
             if (!res.ok || !res.body) throw new Error(`SSE open failed: ${res.status}`)
             const reader = res.body.getReader()
             const decoder = new TextDecoder()
-            let buf = ''
+            const push = createSseEventParser(onEvent)
             while (true) {
                 const {done, value} = await reader.read()
                 if (done) break
-                buf += decoder.decode(value, {stream: true})
-                const lines = buf.split('\n')
-                buf = lines.pop() ?? ''
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) onEvent(line.slice(6))
-                }
+                push(decoder.decode(value, {stream: true}))
             }
         } catch (err) {
             if ((err as {name?: string}).name !== 'AbortError') onError(err)

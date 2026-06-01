@@ -1,5 +1,6 @@
 import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
+import {collectNodePositions} from "@/shell/edge/UI-edge/graph/collectNodePositions";
 import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon-client';
 import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
@@ -12,7 +13,7 @@ import * as O from "fp-ts/lib/Option.js";
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
 export async function saveNodePositions(cyNodes: readonly NodeDefinition[]): Promise<void> {
-    const positions: Record<string, Position> = collectPositions(cyNodes);
+    const positions: Record<string, Position> = collectNodePositions(cyNodes);
     if (Object.keys(positions).length === 0) {
         return;
     }
@@ -65,23 +66,4 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
 
     // Apply deltas (deletes from filesystem and updates graph state)
     await postDeltaThroughDaemon(deleteDelta);
-}
-
-function collectPositions(cyNodes: readonly NodeDefinition[]): Record<string, Position> {
-    const positions: Record<string, Position> = {};
-    for (const node of cyNodes) {
-        const id: unknown = node.data.id;
-        const position: Position | undefined = node.position as Position | undefined;
-        if (
-            typeof id !== 'string'
-            || position === undefined
-            || !Number.isFinite(position.x)
-            || !Number.isFinite(position.y)
-        ) {
-            continue;
-        }
-
-        positions[id] = position;
-    }
-    return positions;
 }
