@@ -3,7 +3,7 @@
  * Eliminates duplication across spawnPlainTerminal, spawnHookTerminal, and prepareTerminalDataInMain.
  */
 
-import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
+import {resolveEnvVarsWithSelection, expandEnvVarsInValues, appendPersonaToAgentPrompt} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import * as O from 'fp-ts/lib/Option.js'
 import {getRuntimeEnv, getGraphBridge} from '../runtime/runtime-config'
@@ -98,10 +98,11 @@ export async function buildTerminalEnvVars(params: {
     }
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
     const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered)
+    const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withManual, params.agentName, params.settings)
     const vtBinDir: string | null = await readVtBinDirOrNull()
     // $HOME/bin is prepended first so the daemon's vt-bin can sit in front of it.
     // Final order: vtBinDir : $HOME/bin : ...inherited PATH
-    const withHomeBin: Record<string, string> = prependHomeBinToPath(withManual)
+    const withHomeBin: Record<string, string> = prependHomeBinToPath(withPersona)
     return prependVtBinToPath(withHomeBin, vtBinDir)
 }
 

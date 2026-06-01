@@ -262,7 +262,14 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // getFolderIdentityNoteId, findBestMatchingNode, getFolderParent,
     // isFolderIdentityNote (graph queries), DEFAULT_SUBGRAPH_{WARN,ERROR}_THRESHOLD
     // (settings). Observed 23; ratchet DOWN as create-graph is refactored.
-    'vt-daemon -> graph-model': 23,
+    //
+    // 2026-06-02 [agent-name roster + prompt addendum]: 23 -> 24 (+1). The spawn
+    // pipeline gains one graph-model entry point: the naming call site swapped
+    // getNextAgentName for pickAgentName(settings) (net zero) and
+    // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
+    // render internals stay inside graph-model so the daemon depends on one new
+    // symbol, not three.
+    'vt-daemon -> graph-model': 24,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated

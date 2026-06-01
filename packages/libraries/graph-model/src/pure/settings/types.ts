@@ -21,13 +21,15 @@ export const AGENT_NAMES: readonly string[] = [
     'Siti', 'Tao', 'Tara', 'Timi', 'Uma', 'Vic', 'Wei', 'Xan', 'Yan', 'Zoe',
 ] as const;
 
-// Round-robin agent name selection (no collisions until all 60 names used)
+// Round-robin agent name selection. The counter rotates over whichever pool is
+// passed (neutral AGENT_NAMES or the Silicon Valley roster); `getUniqueAgentName`
+// resolves any collision once a pool wraps.
 // eslint-disable-next-line functional/prefer-readonly-type -- intentionally mutable counter
 const agentNameState: { index: number } = { index: -1 };
 
-export function getNextAgentName(): string {
-    agentNameState.index = (agentNameState.index + 1) % AGENT_NAMES.length;
-    return AGENT_NAMES[agentNameState.index];
+export function getNextAgentName(names: readonly string[] = AGENT_NAMES): string {
+    agentNameState.index = (agentNameState.index + 1) % names.length;
+    return names[agentNameState.index];
 }
 
 /**
@@ -110,6 +112,8 @@ export interface VTSettings {
     readonly emptyFolderTemplate?: string;
     /** Enable VIM keybindings in markdown editors */
     readonly vimMode?: boolean;
+    /** Silicon Valley mode: name agents after Silicon Valley characters and inject a matching persona into their prompt. On by default. */
+    readonly siliconValleyMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
     readonly hotkeys?: HotkeySettings;
     /**
