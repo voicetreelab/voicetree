@@ -53,6 +53,7 @@ import {handleRpc} from './rpcDispatch.ts'
 import {applyCorsHeaders, applyPreflightCorsHeaders} from './browser/corsHeaders.ts'
 import {handleBrowserToken} from './browser/browserTokenHandler.ts'
 import {handleHealth} from './browser/healthHandler.ts'
+import {handleSettings} from './browser/settingsHandler.ts'
 import type {
     AccessLogger,
     HookHandler,
@@ -138,6 +139,7 @@ const HOOK_PATH_PREFIX: string = '/hook/'
 const EVENTS_PATH: string = '/events'
 const HEALTH_PATH: string = '/health'
 const BROWSER_TOKEN_PATH: string = '/browser-token'
+const SETTINGS_PATH: string = '/settings'
 
 function defaultLogger(): AccessLogger {
     return {
@@ -295,6 +297,16 @@ function buildRequestHandler(
         }
         if (!isAuthorized(req, token)) {
             unauthorized(req, res, logger)
+            return
+        }
+
+        // /settings serves the resolved VTSettings to the browser-mode adapter
+        // (Electron parity). Authenticated: settings include INJECT_ENV_VARS.
+        if (method === 'GET' && url === SETTINGS_PATH) {
+            void handleSettings(req, res, logger).catch((err: unknown): void => {
+                logger.logError('settings handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
             return
         }
 

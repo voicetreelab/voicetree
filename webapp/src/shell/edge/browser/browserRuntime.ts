@@ -26,7 +26,7 @@ import {
     graphdUndo,
     graphdWriteMarkdownFile,
 } from './graphdFetch'
-import {callVtdRpc, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
+import {callVtdRpc, vtdGetSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
 import {
     attachBrowserTerminal,
     detachTerminal,
@@ -131,8 +131,9 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         performRedo: () => graphdRedo(graphdUrl, currentSessionId),
         findFileByName: (filename: string) => graphdFindFile(graphdUrl, filename),
 
-        // Settings — no daemon RPC; return functional defaults for browser
-        loadSettings: (): Promise<VTSettings> => Promise.resolve({} as VTSettings),
+        // Settings — fetch the resolved VTSettings from VTD (Electron parity).
+        // Drives `agents` for the editor horizontal menu / agent-spawn control.
+        loadSettings: (): Promise<VTSettings> => vtdGetSettings(vtdUrl, vtdToken),
         saveSettings: (): Promise<boolean> => Promise.resolve(true),
 
         // Project

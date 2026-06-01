@@ -3,6 +3,7 @@
 // WS upgrades use the vt-bearer subprotocol (browser can't set arbitrary WS headers).
 
 import type {ConnectionState, EventFrame, GapFrame} from '@vt/vt-daemon/transport/eventTypes'
+import type {VTSettings} from '@vt/graph-model/settings'
 
 async function rpcCall<T>(
     vtdUrl: string,
@@ -32,6 +33,20 @@ export function callVtdRpc<T>(
     params: Record<string, unknown>,
 ): Promise<T> {
     return rpcCall<T>(vtdUrl, token, method, params)
+}
+
+/**
+ * Fetch the resolved VTSettings from VTD's authenticated GET /settings route.
+ * Gives the browser-mode adapter the same settings the Electron renderer gets
+ * over IPC — notably `agents`, which drives the editor horizontal menu.
+ */
+export async function vtdGetSettings(vtdUrl: string, token: string): Promise<VTSettings> {
+    const res = await fetch(`${vtdUrl}/settings`, {
+        headers: {'Authorization': `Bearer ${token}`},
+    })
+    if (res.status === 401) throw new Error('VTD auth failed (401)')
+    if (!res.ok) throw new Error(`VTD /settings → ${res.status}`)
+    return res.json() as Promise<VTSettings>
 }
 
 /** Subscribe to VTD /events WebSocket. Returns a cleanup function. */
