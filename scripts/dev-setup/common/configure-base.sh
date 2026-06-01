@@ -52,7 +52,7 @@ ALERT_PARENT_NODE="${VT_ALERT_PARENT_NODE:-}"
 [ -d "$BASE/.git" ] || { echo "configure-base: $BASE is not a git repository" >&2; exit 1; }
 
 case "$(uname -s)" in
-  Darwin) ROLE="mac"; WT_ROOT_DEFAULT="$HOME/repos/vt-wts-synced" ;;
+  Darwin) ROLE="mac"; WT_ROOT_DEFAULT="$HOME/vt-wts" ;;
   *)      ROLE="vm";  WT_ROOT_DEFAULT="$HOME/vt-wts" ;;
 esac
 WT_ROOT="${VT_WORKTREE_ROOT:-$WT_ROOT_DEFAULT}"

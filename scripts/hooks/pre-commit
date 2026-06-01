@@ -1,15 +1,13 @@
 #!/bin/bash
-# Pre-commit gate. Three hard checks, in order:
-#   1. secret scan (gitleaks) over the staged tree — blocks credentials from
-#      ever entering history. Runs first because it is fast and the cheapest
-#      mistake to make irreversible (a pushed secret is a rotated secret).
-#   2. tier-0 static checks (typecheck/lint/etc) via pnpm run test:t0
-#   3. subgraph-scoped codebase-health gate via pnpm --filter @vt/measures run health:subgraph-gate
-# Checks 2-3 route through scripts/run-remote.mjs (via the bin/npm shim). When
+# Pre-commit gate. Checks run in order; any failure blocks the commit:
+#   1. secret scan (gitleaks) over the staged tree
+#   2. local denylist over staged additions (optional; .denylist, gitignored)
+#   3. tier-0 static checks (typecheck/lint/etc) via pnpm run test:t0
+#   4. subgraph-scoped codebase-health gate via pnpm --filter @vt/measures run health:subgraph-gate
+# Checks 3-4 route through scripts/run-remote.mjs (via the bin/npm shim). When
 # VT_REMOTE_HOST is set, they execute on the devbox — the local .git/index is
 # mutagen-synced (see scripts/dev-setup/remote/mutagen-vt-remote.yml) so the
-# devbox sees the same staged tree as local git. The secret scan runs locally
-# (gitleaks is a self-contained binary reading the local staged tree).
+# devbox sees the same staged tree as local git. Checks 1-2 run locally.
 set -e
 repo_root="$(git rev-parse --show-toplevel)"
 export PATH="$repo_root/bin:$PATH"
@@ -36,14 +34,12 @@ is_merge_commit() {
 staged_files="$(git diff --cached --name-only --diff-filter=ACM)"
 
 # --- Check 1: secret scan ------------------------------------------------
-# Block any commit whose staged changes contain a credential. Mirrors the
-# server-side .github/workflows/secret-scan.yml so a secret is caught locally
-# before it ever reaches a (possibly public) remote. Allowlisting for
-# synthetic test fixtures lives in .gitleaks.toml.
+# Block any commit whose staged changes contain a credential. Mirrors
+# .github/workflows/secret-scan.yml; test-fixture allowlisting lives in
+# .gitleaks.toml.
 if ! command -v gitleaks >/dev/null 2>&1; then
     echo "❌ gitleaks is required by the pre-commit secret gate but is not installed."
-    echo "   Install it once:  brew install gitleaks   (or see https://github.com/gitleaks/gitleaks)"
-    echo "   This gate exists because credentials have leaked into public history before."
+    echo "   Install it once:  brew install gitleaks   (https://github.com/gitleaks/gitleaks)"
     exit 1
 fi
 if ! gitleaks git "$repo_root" --staged --redact --no-banner -l error \
@@ -51,10 +47,35 @@ if ! gitleaks git "$repo_root" --staged --redact --no-banner -l error \
     echo ""
     echo "❌ gitleaks detected a secret in your staged changes — commit blocked."
     echo "   • Move the value into an env var / .env file (\`.env\` is gitignored)."
-    echo "   • Genuine false positive? add a \`gitleaks:allow\` comment on the line,"
-    echo "     or allowlist the path/regex in .gitleaks.toml."
+    echo "   • False positive? add a \`gitleaks:allow\` comment, or allowlist in .gitleaks.toml."
     echo "   • Last resort (NOT for real secrets): git commit --no-verify"
     exit 1
+fi
+
+# --- Check 2: local denylist ---------------------------------------------
+# Optional. If a repo-local .denylist file is present (gitignored, never
+# committed), block staged ADDITIONS containing any listed term. One term per
+# line, '#' for comments; matched case-insensitively as a literal substring.
+# Absent file => skipped.
+denylist_file="${DENYLIST_FILE:-$repo_root/.denylist}"
+if [ -f "$denylist_file" ]; then
+    added="$(git diff --cached --no-color -U0 --diff-filter=ACM | grep '^+' | grep -v '^+++' || true)"
+    if [ -n "$added" ]; then
+        denylist_hits=""
+        while IFS= read -r term; do
+            case "$term" in ''|\#*) continue ;; esac
+            if printf '%s' "$added" | grep -qiF -- "$term"; then
+                denylist_hits="$denylist_hits $term"
+            fi
+        done < "$denylist_file"
+        if [ -n "$denylist_hits" ]; then
+            echo ""
+            echo "❌ staged changes match local denylist term(s):$denylist_hits"
+            echo "   Remove the content, or drop the term from .denylist if it is intended."
+            echo "   Override (use with care): git commit --no-verify"
+            exit 1
+        fi
+    fi
 fi
 
 # Keep pnpm-lock.yaml in sync with every package.json edit. Only runs when

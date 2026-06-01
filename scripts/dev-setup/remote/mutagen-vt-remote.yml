@@ -112,7 +112,15 @@ sync:
         # from the devbox. The matching .lock paths stay ignored — they're
         # atomic-write tempfiles, and syncing them would race with local git.
         - ".git/index.lock"
-        - ".git/worktrees/*/index.lock"
+        # The whole .git/worktrees/ admin tree is Mac-local: every entry's gitdir
+        # points at a Mac path, so mirrored into the devbox replica all entries
+        # are dead/prunable (a devbox-side `worktree prune` is re-resurrected on
+        # the next one-way-replica sync). Linked worktrees reach the devbox via
+        # the separate vt-wts session, not through this main checkout's .git, so
+        # the devbox never needs this dir. Ignore it entirely (supersedes the
+        # old `.git/worktrees/*/index.lock` entry).
+        - ".git/worktrees"
+        - ".git/worktrees/**"
         - ".git/*.lock"
         - ".git/refs/**/*.lock"
         - ".git/hooks"

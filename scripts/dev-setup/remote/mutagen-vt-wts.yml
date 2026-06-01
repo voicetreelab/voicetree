@@ -1,12 +1,12 @@
-# One-way-replica sync for the Mac-owned `vt-wts-synced/` worktree root.
+# One-way-replica sync for the Mac-owned worktree root (`$HOME/vt-wts/`).
 #
 # Why a SECOND session (not a config on `vt-remote`):
-#   - `vt-remote` syncs the Mac checkout `~/repos/vtrepo/` ↔ `/root/vtrepo-synced/`.
+#   - `vt-remote` syncs the Mac checkout `<repo>/` ↔ `/root/vtrepo-synced/`.
 #     A single mutagen session can only sync one path pair.
-#   - Worktrees live OUTSIDE the main checkout, under a dedicated root. The
-#     `-synced` suffix marks "part of this mirror" — the SAME basename on both
-#     ends. That second tree needs its own pair:
-#         ~/repos/vt-wts-synced       ↔ /root/vt-wts-synced
+#   - Worktrees live OUTSIDE the main checkout, under a dedicated sibling root.
+#     mutagen syncs CONTENTS, so the two ends differ in basename (Mac `vt-wts`
+#     ↔ devbox `vt-wts-synced`). That second tree needs its own pair:
+#         $HOME/vt-wts                ↔ /root/vt-wts-synced
 #   - Same mode as vt-remote (one-way-replica) because `scripts/run-remote.mjs`
 #     enforces that mode before remote execution.
 #   - Tuning knob: worktrees see heavier churn than the main checkout, so the
@@ -14,9 +14,9 @@
 #     worktree won't need on remote.
 #
 # Lifecycle commands live in `scripts/dev-setup/remote/vt-remote.sh`:
-#   vt-remote.sh vt-wts-synced-create
-#   vt-remote.sh vt-wts-synced-status
-#   vt-remote.sh vt-wts-synced-terminate
+#   vt-remote.sh vt-wts-create
+#   vt-remote.sh vt-wts-status
+#   vt-remote.sh vt-wts-terminate
 sync:
   defaults:
     mode: "one-way-replica"
@@ -58,15 +58,9 @@ sync:
         - "**/folder-visibility.db*"
         - "**/*folder-visibility.db*"
         - "**/.voicetree/graphd.owner.json"
-        # Each worktree's `.git` is a *file* (gitdir pointer), not a directory,
-        # and it is MACHINE-SPECIFIC: it names the main checkout by basename
-        # (`gitdir: ../../vtrepo/...` on the Mac vs `../../vtrepo-synced/...` on
-        # the devbox, whose main checkout dir differs). Mirroring it writes the
-        # Mac path onto the devbox — breaking `git -C <worktree>` there — and a
-        # one-way-replica cycle would re-clobber any remote repair. So never
-        # sync it: scripts/run-remote.mjs materializes the correct devbox
-        # pointer (repairRemoteWorktreeMetadataScript) before each command.
-        # The admin-side gitdir/commondir under the main checkout's
-        # .git/worktrees/<name>/ ARE relative + identical across the mirror, so
-        # they sync correctly via the vt-remote session.
-        - "**/.git"
+        # Worktree `.git` is a *file* (gitdir pointer), not a directory.
+        # Sync the file itself so the worktree is usable on remote, but
+        # ignore lock/index churn that would conflict with local git work.
+        - ".git/index"
+        - ".git/index.lock"
+        - ".git/*.lock"

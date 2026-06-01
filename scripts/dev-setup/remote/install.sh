@@ -260,7 +260,7 @@ Next:
   - configure THIS Mac base: bash scripts/dev-setup/remote/setup-laptop-env.sh --configure-base
                              (run after git-gate is installed on the Mac)
   - kept syncs (create as needed):
-      bash scripts/dev-setup/remote/vt-remote.sh vt-wts-synced-create
+      bash scripts/dev-setup/remote/vt-remote.sh vt-wts-create
       bash scripts/dev-setup/remote/vt-remote.sh csv-history-create
       bash scripts/dev-setup/remote/vt-remote.sh reports-create
   - git-gate:                installed; new shells route git through it. Set/rotate the

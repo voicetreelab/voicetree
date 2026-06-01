@@ -288,3 +288,6 @@ test_output/*
 # NOTE: .ckignore itself IS committed — it's a curated config that scopes ck's
 # index to production TypeScript (mirrors @vt/measures isProductionSourcePath),
 # not the auto-generated default. ck won't overwrite an existing .ckignore.
+
+# Optional repo-local denylist for the pre-commit hook (never committed)
+.denylist
