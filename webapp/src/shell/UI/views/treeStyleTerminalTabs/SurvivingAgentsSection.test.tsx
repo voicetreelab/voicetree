@@ -121,7 +121,7 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
     it('renders same-project attach rows with an Attach action', () => {
         const {container, onAttach} = renderSection([makeAttachable()]);
 
-        expect(screen.getByText('Surviving agents (1)')).toBeTruthy();
+        expect(screen.getByText('Resumable agents (1)')).toBeTruthy();
         const row: Element | null = container.querySelector('[data-terminal-id="Ari"][data-has-attach="true"]');
         expect(row).not.toBeNull();
         expect(within(row as HTMLElement).getByText('This project')).toBeTruthy();
@@ -235,7 +235,7 @@ describe('SurvivingAgentsSection — combined capabilities', () => {
         expect(within(row as HTMLElement).getByRole('button', {name: /resume claude session/i})).toBeTruthy();
     });
 
-    it('hides claimed rows — they belong to the live tab strip, not Surviving Agents', () => {
+    it('hides claimed rows — they belong to the live tab strip, not Resumable Agents', () => {
         const claimed: RecoverableAgentSession = {...makeResumable(), isClaimed: true};
         renderSection([claimed]);
         expect(screen.queryByTestId('surviving-agents-section')).toBeNull();
@@ -254,7 +254,7 @@ describe('SurvivingAgentsSection — refresh and error handling', () => {
 
     it('calls onRefresh when the refresh button is clicked', () => {
         const {onRefresh} = renderSection([makeAttachable()]);
-        fireEvent.click(screen.getByRole('button', {name: /refresh surviving agents/i}));
+        fireEvent.click(screen.getByRole('button', {name: /refresh resumable agents/i}));
         expect(onRefresh).toHaveBeenCalledTimes(1);
     });
 
@@ -351,7 +351,7 @@ describe('SurvivingAgentsSection — row parity (§5.2, §5.3)', () => {
 
         const {container} = renderSection([claudeRow, codexRow, exitedRow]);
 
-        expect(screen.getByText('Surviving agents (3)')).toBeTruthy();
+        expect(screen.getByText('Resumable agents (3)')).toBeTruthy();
 
         const bobRow: HTMLElement = container.querySelector('[data-terminal-id="Bob"]') as HTMLElement;
         expect(within(bobRow).getByText('Refactor X')).toBeTruthy();
@@ -455,7 +455,7 @@ describe('SurvivingAgentsSection — renderRowActions slot for Delta', () => {
                 onResume={onResume}
                 renderRowActions={(row) => (
                     <button key={`trash-${row.terminalId}`} data-testid={`trash-${row.terminalId}`} type="button">
-                        Delete
+                        Clear
                     </button>
                 )}
             />,

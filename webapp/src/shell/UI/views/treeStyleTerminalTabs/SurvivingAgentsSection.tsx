@@ -258,22 +258,22 @@ export function SurvivingAgentsSection({
             });
     }, []);
 
-    // Surviving Agents shows only unclaimed rows. Claimed rows (live tabs with
+    // Resumable Agents shows only unclaimed rows. Claimed rows (live tabs with
     // a resume handle) get a fork-on-hover button on the regular tab strip.
     const unclaimedSessions: readonly RecoverableAgentSession[] = sessions.filter((s) => !s.isClaimed);
 
     if (unclaimedSessions.length === 0 && !error && !resumeFailure && !showingOlder) return null;
 
     return (
-        <section className="surviving-agents-section" aria-label="Surviving agents" data-testid="surviving-agents-section">
+        <section className="surviving-agents-section" aria-label="Resumable agents" data-testid="surviving-agents-section">
             <div className="terminal-tree-header surviving-agents-header">
-                <span>Surviving agents ({unclaimedSessions.length})</span>
+                <span>Resumable agents ({unclaimedSessions.length})</span>
                 <button
                     className="surviving-agents-refresh"
                     type="button"
                     onClick={handleRefresh}
-                    title="Refresh surviving agents"
-                    aria-label="Refresh surviving agents"
+                    title="Refresh resumable agents"
+                    aria-label="Refresh resumable agents"
                 >
                     <RefreshCw size={13} aria-hidden="true" />
                 </button>
@@ -377,7 +377,7 @@ export function SurvivingAgentsSection({
                                         className="surviving-agent-action attach"
                                         type="button"
                                         onClick={() => runAction(key, () => onAttach(row.attach!.session.sessionName))}
-                                        title="Attach surviving agent"
+                                        title="Attach live tmux pane"
                                         disabled={isBusy}
                                     >
                                         <Link2 size={12} aria-hidden="true" />
@@ -402,7 +402,7 @@ export function SurvivingAgentsSection({
                                         className="surviving-agent-action kill"
                                         type="button"
                                         onClick={() => runAction(key, () => onKill(row.attach!.session.sessionName))}
-                                        title="Kill surviving tmux session"
+                                        title="Kill live tmux session"
                                         aria-label={`Kill ${row.agentName || row.terminalId}`}
                                         disabled={isBusy}
                                     >

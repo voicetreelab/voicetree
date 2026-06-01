@@ -13,6 +13,7 @@ import {
 } from './resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from './types'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
+import {readMetadata, writeMetadata, type NativeRecoveryHandle} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-metadata.ts'
 
 export type ResumePersistedDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>
@@ -24,6 +25,10 @@ export type ResumePersistedDeps = {
         cwd: string | undefined,
         env: Record<string, string>,
     ) => Promise<{readonly pid: number}>
+    readonly persistNativeSession?: (
+        session: RecoverableAgentSession,
+        native: NativeRecoveryHandle,
+    ) => Promise<void>
 }
 
 export type ResumePersistedResult =
@@ -40,6 +45,29 @@ export type ResumePersistedResult =
 
 function modeFor(terminalData: TerminalData): ResumeMode {
     return terminalData.isHeadless ? 'headless' : 'interactive'
+}
+
+function nativeSourceFor(cliType: 'claude' | 'codex'): NativeRecoveryHandle['source'] {
+    return cliType === 'claude' ? 'claude-project-transcript' : 'codex-state-index'
+}
+
+function nativeHandleFor(
+    session: RecoverableAgentSession,
+    sessionId: string,
+    providerStorePath: string | undefined,
+): NativeRecoveryHandle {
+    const cliType = session.resume?.cliType
+    if (cliType !== 'claude' && cliType !== 'codex') {
+        throw new Error(`Cannot persist native resume handle for unsupported CLI: ${String(cliType)}`)
+    }
+    return {
+        cli: cliType,
+        mode: modeFor(session.terminalData),
+        sessionId,
+        capturedAt: new Date().toISOString(),
+        source: nativeSourceFor(cliType),
+        ...(providerStorePath ? {providerStorePath} : {}),
+    }
 }
 
 /**
@@ -76,21 +104,29 @@ export async function resumePersistedAgentSession(
     if (!projectRoot) return {kind: 'unsupported', reason: 'missing-project-root'}
     const taskNodePath: string = session.terminalData.initialEnvVars?.TASK_NODE_PATH ?? ''
 
-    const native: NativeSessionResult = await deps.resolveNativeSession({
-        cliType: session.resume.cliType,
-        terminalId,
-        projectRoot,
-        taskNodePath,
-    })
-    if (native.kind !== 'found') {
-        return native.diagnosticSessionId !== undefined
-            ? {kind: 'no-native-session', cliType: session.resume.cliType, reason: native.reason, diagnosticSessionId: native.diagnosticSessionId}
-            : {kind: 'no-native-session', cliType: session.resume.cliType, reason: native.reason}
+    let nativeSessionId: string | undefined = session.resume.nativeSessionId
+    if (!nativeSessionId) {
+        const native: NativeSessionResult = await deps.resolveNativeSession({
+            cliType: session.resume.cliType,
+            terminalId,
+            projectRoot,
+            taskNodePath,
+        })
+        if (native.kind !== 'found') {
+            return native.diagnosticSessionId !== undefined
+                ? {kind: 'no-native-session', cliType: session.resume.cliType, reason: native.reason, diagnosticSessionId: native.diagnosticSessionId}
+                : {kind: 'no-native-session', cliType: session.resume.cliType, reason: native.reason}
+        }
+        nativeSessionId = native.sessionId
+        await deps.persistNativeSession?.(
+            session,
+            nativeHandleFor(session, native.sessionId, native.providerStorePath),
+        )
     }
 
     const built = buildResumeCommand({
         cliType: session.resume.cliType,
-        nativeSessionId: native.sessionId,
+        nativeSessionId,
         mode: modeFor(session.terminalData),
         originalCommand: initialCommand,
     })
@@ -120,5 +156,17 @@ export function defaultResumePersistedDeps(
         resolveNativeSession: defaultResolveNativeSession,
         spawn: (terminalId, terminalData, command, cwd, env) =>
             spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env),
+        persistNativeSession: async (session, native) => {
+            if (!session.metadataPath) return
+            const existing = readMetadata(session.metadataPath)
+            if (!existing) return
+            writeMetadata(session.metadataPath, {
+                ...existing,
+                recovery: {
+                    ...existing.recovery,
+                    native,
+                },
+            }, process.pid)
+        },
     }
 }

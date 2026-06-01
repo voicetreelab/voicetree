@@ -11,15 +11,15 @@ type SurvivingAgentsTrashButtonProps = {
 };
 
 function defaultConfirm(terminalId: string): boolean {
-    return window.confirm(`Permanently delete ${terminalId} history and logs?`);
+    return window.confirm(`Clear ${terminalId} from resumable agents and delete its persisted terminal record?`);
 }
 
 /**
- * Per-row trash button rendered into the SurvivingAgentsSection via the
- * `renderRowActions` slot. Confirm-then-delete keeps users from nuking
- * unrecoverable history with a stray click. Errors surface inline via title
- * tooltip rather than throwing, so a refused-or-failed delete leaves the row
- * untouched and the user can retry.
+ * Per-row clear button rendered into the SurvivingAgentsSection via the
+ * `renderRowActions` slot. Confirm-then-clear keeps the destructive terminal
+ * JSON removal explicit. Errors surface inline via title tooltip rather than
+ * throwing, so a refused-or-failed clear leaves the row untouched and the user
+ * can retry.
  *
  * The component owns its own busy + error state to keep the
  * `renderRowActions` contract narrow (just `row → ReactNode`); the parent
@@ -40,7 +40,7 @@ export function SurvivingAgentsTrashButton({
         setErrorText(null);
         void onDelete(terminalId)
             .then((result: DeleteResult): void => {
-                if (!result.success) setErrorText(result.error ?? 'Delete failed');
+                if (!result.success) setErrorText(result.error ?? 'Clear failed');
             })
             .catch((err: unknown): void => {
                 setErrorText(err instanceof Error ? err.message : String(err));
@@ -51,8 +51,8 @@ export function SurvivingAgentsTrashButton({
     }, [confirmDelete, terminalId, onDelete]);
 
     const tooltip: string = errorText
-        ? `Delete failed: ${errorText}`
-        : `Permanently delete ${terminalId}`;
+        ? `Clear failed: ${errorText}`
+        : `Clear ${terminalId} from resumable agents`;
 
     return (
         <button
@@ -62,7 +62,7 @@ export function SurvivingAgentsTrashButton({
             onClick={handleClick}
             disabled={isBusy}
             title={tooltip}
-            aria-label={`Delete ${terminalId} history and logs`}
+            aria-label={`Clear ${terminalId} from resumable agents`}
         >
             <Trash2 size={12} aria-hidden="true" />
         </button>

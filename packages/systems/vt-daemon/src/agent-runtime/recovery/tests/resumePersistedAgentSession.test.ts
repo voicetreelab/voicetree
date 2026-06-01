@@ -31,6 +31,7 @@ type Harness = {
     deps: ResumePersistedDeps
     spawnCalls: SpawnCall[]
     resolveCalls: NativeSessionRequest[]
+    persistedHandles: unknown[]
 }
 
 function makeDeps(
@@ -42,6 +43,7 @@ function makeDeps(
 ): Harness {
     const spawnCalls: SpawnCall[] = []
     const resolveCalls: NativeSessionRequest[] = []
+    const persistedHandles: unknown[] = []
     const recordingResolver = async (req: NativeSessionRequest): Promise<NativeSessionResult> => {
         resolveCalls.push(req)
         return overrides.resolveNativeSession
@@ -64,9 +66,13 @@ function makeDeps(
             discover: overrides.discover ?? (async () => []),
             resolveNativeSession: recordingResolver,
             spawn: defaultSpawn,
+            persistNativeSession: async (_session, native) => {
+                persistedHandles.push(native)
+            },
         },
         spawnCalls,
         resolveCalls,
+        persistedHandles,
     }
 }
 
@@ -102,6 +108,48 @@ describe('resumePersistedAgentSession — Claude', () => {
             projectRoot: PROJECT_PATH,
             taskNodePath: '',
         })
+    })
+
+    it('uses persisted recovery.native session id without running the expensive resolver', async () => {
+        const row = makeRecoverableRow({
+            resume: {cliType: 'claude', nativeSessionId: 'persisted-claude-session'},
+            terminalData: makeTerminalData({initialCommand: 'claude'}),
+        })
+        const {deps, spawnCalls, resolveCalls, persistedHandles} = makeDeps({discover: async () => [row]})
+
+        const result = await resumePersistedAgentSession(TERMINAL_ID_A, deps)
+
+        expect(result.kind).toBe('spawned')
+        if (result.kind === 'spawned') {
+            expect(result.command).toContain('claude --resume persisted-claude-session')
+        }
+        expect(spawnCalls).toHaveLength(1)
+        expect(resolveCalls).toHaveLength(0)
+        expect(persistedHandles).toHaveLength(0)
+    })
+
+    it('persists a deterministic resolver hit before spawning when the row lacks recovery.native', async () => {
+        const row = makeRecoverableRow()
+        const {deps, persistedHandles} = makeDeps({
+            discover: async () => [row],
+            resolveNativeSession: async () => ({
+                kind: 'found',
+                sessionId: 'resolved-session',
+                providerStorePath: '/Users/bob/.claude/projects/transcript.jsonl',
+            }),
+        })
+
+        const result = await resumePersistedAgentSession(TERMINAL_ID_A, deps)
+
+        expect(result.kind).toBe('spawned')
+        expect(persistedHandles).toEqual([{
+            cli: 'claude',
+            mode: 'interactive',
+            sessionId: 'resolved-session',
+            capturedAt: expect.any(String),
+            source: 'claude-project-transcript',
+            providerStorePath: '/Users/bob/.claude/projects/transcript.jsonl',
+        }])
     })
 })
 
@@ -190,10 +238,10 @@ describe('resumePersistedAgentSession — lazy native-session resolution', () =>
         const row = makeRecoverableRow()
         const {deps, spawnCalls, resolveCalls} = makeDeps({
             discover: async () => [row],
-            resolveNativeSession: async () => ({kind: 'not-found'}),
+            resolveNativeSession: async () => ({kind: 'not-found', reason: 'no-jsonl-matches'}),
         })
         const result = await resumePersistedAgentSession(TERMINAL_ID_A, deps)
-        expect(result).toEqual({kind: 'no-native-session', cliType: 'claude'})
+        expect(result).toEqual({kind: 'no-native-session', cliType: 'claude', reason: 'no-jsonl-matches'})
         expect(spawnCalls).toHaveLength(0)
         expect(resolveCalls).toHaveLength(1)
     })

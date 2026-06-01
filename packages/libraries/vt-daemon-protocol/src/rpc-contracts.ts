@@ -85,6 +85,8 @@ export interface AttachCapability {
 }
 export interface ResumeCapability {
     readonly cliType: 'claude' | 'codex'
+    readonly nativeSessionId?: string
+    readonly providerStorePath?: string
 }
 
 /**

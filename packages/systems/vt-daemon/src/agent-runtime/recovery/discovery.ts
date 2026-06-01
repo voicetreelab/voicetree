@@ -90,11 +90,10 @@ function applyHorizon(
  *
  * Reads project terminal metadata, live tmux state, the in-memory terminal
  * registry, and the current project namespace hash. Decides resume capability
- * purely from metadata shape: a record carries `resume: {cliType}` when its
- * `initialCommand` parses to a supported CLI (`claude`/`codex`) and the
- * record has a `VOICETREE_PROJECT_PATH`. The actual native session id is NOT
- * resolved here — that would require scanning `~/.claude/projects/**\/*.jsonl`
- * (~1 GB for heavy users) on every 10s poll. The resolver runs lazily inside
+ * from terminal JSON: a record carries `resume` when it has persisted
+ * `recovery.native` or when its `initialCommand` parses to a supported CLI
+ * (`claude`/`codex`) and the record has a `VOICETREE_PROJECT_PATH`. Discovery
+ * does not scan provider stores; missing native ids are resolved lazily inside
  * `resumePersistedAgentSession` / `forkAgentSession` at click time.
  *
  * Capabilities (`attach`, `resume`) are independent. A record can carry
@@ -184,12 +183,13 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
 }
 
 /**
- * Decide resume capability for each metadata record from metadata shape alone.
+ * Decide resume capability for each metadata record from terminal JSON.
  *
- * Surfaces `{cliType}` when the record targets a supported CLI and carries the
- * minimum env (`VOICETREE_PROJECT_PATH`) required for the resolver to run later
- * at click time. No filesystem IO, no transcript scans — this runs on every
- * 10s poll and must stay cheap.
+ * Surfaces a persisted native session id when the record already has
+ * `recovery.native`, otherwise surfaces `{cliType}` when the record targets a
+ * supported CLI and carries the minimum env (`VOICETREE_PROJECT_PATH`) required
+ * for the resolver to run later at click time. No filesystem IO, no transcript
+ * scans — this runs on every 10s poll and must stay cheap.
  *
  * The actual native session id lookup (which can touch ~1 GB of
  * `~/.claude/projects/**\/*.jsonl`) is deferred to
@@ -215,11 +215,16 @@ function detectResumeCapabilitiesFromMetadata(
             const namespaceHash: string | null = parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
             if (namespaceHash !== null && namespaceHash !== currentNamespaceHash) continue
         }
-        const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
+        const native = metadata.recovery?.native
+        const cliType: 'claude' | 'codex' | null = native?.cli ?? detectSupportedCliFromMetadata(metadata)
         if (!cliType) continue
         const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_PROJECT_PATH
         if (!projectRoot) continue
-        out.set(metadata.name, {cliType})
+        out.set(metadata.name, {
+            cliType,
+            ...(native?.sessionId ? {nativeSessionId: native.sessionId} : {}),
+            ...(native?.providerStorePath ? {providerStorePath: native.providerStorePath} : {}),
+        })
     }
     return out
 }

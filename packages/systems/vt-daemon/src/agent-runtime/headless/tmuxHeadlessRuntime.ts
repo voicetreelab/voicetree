@@ -150,7 +150,7 @@ export async function spawnTmuxBackedTerminal(
         )
 
     await pipePaneToFile(sessionName, paths.logPath)
-    const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readMetadata(paths.metadataPath) : null
+    const existingMeta: TmuxTerminalMetadata | null = readMetadata(paths.metadataPath)
     writeMetadata(paths.metadataPath, {
         name: terminalId,
         status: 'running',
@@ -160,6 +160,7 @@ export async function spawnTmuxBackedTerminal(
         logFile: paths.logPath,
         exitCodeFile: paths.exitCodePath,
         terminalData,
+        ...(existingMeta?.recovery ? {recovery: existingMeta.recovery} : {}),
     }, deps.processPid)
 
     clearTmuxPoll(terminalId)
@@ -195,6 +196,7 @@ export async function attachExistingTmuxBackedTerminal(
         logFile: paths.logPath,
         exitCodeFile: paths.exitCodePath,
         terminalData,
+        ...(existingMeta?.recovery ? {recovery: existingMeta.recovery} : {}),
     }, deps.processPid)
 
     clearTmuxPoll(terminalId)
