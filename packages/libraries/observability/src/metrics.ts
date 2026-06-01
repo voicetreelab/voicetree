@@ -1,5 +1,4 @@
 import { metrics, type Meter } from '@opentelemetry/api'
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { ATTR_SERVICE_INSTANCE_ID, ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
@@ -28,20 +27,27 @@ function initMetricsImpl(serviceName: string, env: MetricsEnv = {}): void {
   if (!env.otlpEndpoint || env.otlpEndpoint.length === 0) {
     return
   }
+  const endpoint = env.otlpEndpoint
 
-  const exporter = new OTLPMetricExporter({ url: env.otlpEndpoint })
-  const reader = new PeriodicExportingMetricReader({
-    exporter,
-    exportIntervalMillis: env.exportIntervalMs ?? DEFAULT_EXPORT_INTERVAL_MS,
-  })
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_INSTANCE_ID]:
       env.instanceId && env.instanceId.length > 0 ? env.instanceId : serviceName,
   })
 
-  const provider = new MeterProvider({ resource, readers: [reader] })
-  metrics.setGlobalMeterProvider(provider)
+  // Metrics export only runs when an OTLP endpoint is configured (dev / perf-stack).
+  // Lazy-load the gRPC OTLP exporter (heavy @grpc/protobuf tree) so it stays
+  // external (see MAIN_RUNTIME_EXTERNALS) — never bundled into or shipped with the
+  // production app, which never sets VOICETREE_OTLP_ENDPOINT.
+  void import('@opentelemetry/exporter-metrics-otlp-grpc').then(({ OTLPMetricExporter }) => {
+    const exporter = new OTLPMetricExporter({ url: endpoint })
+    const reader = new PeriodicExportingMetricReader({
+      exporter,
+      exportIntervalMillis: env.exportIntervalMs ?? DEFAULT_EXPORT_INTERVAL_MS,
+    })
+    const provider = new MeterProvider({ resource, readers: [reader] })
+    metrics.setGlobalMeterProvider(provider)
+  })
 }
 
 // Returns a Meter scoped under `name`. Before `initMetrics` is called or

@@ -1,7 +1,16 @@
+// First-party @vt workspace libraries are ALWAYS bundled inline, never externalized.
+// They live at packages/libraries/* (outside webapp/) and, under pnpm's hoisted linker,
+// are symlinks in webapp/node_modules that escape the app dir — electron-builder refuses
+// to package such symlinks. Bundling them in means nothing first-party has to ship in the
+// packaged node_modules at all. (Type-stripped TS, no native bits of their own; any native
+// transitive dep is handled by externalNativePlugin / MAIN_RUNTIME_EXTERNALS below.)
 export const ELECTRON_VITE_EXTERNALIZE_EXCLUDE = [
   '@vt/graph-tools',
   '@vt/graph-model',
   '@vt/app-config',
+  '@vt/paths',
+  '@vt/observability',
+  '@vt/perf-analysis',
   // ESM-only packages. Rolldown's CJS output preserves external imports as
   // require(), which returns a module namespace for these dependencies.
   'fix-path',
@@ -18,6 +27,13 @@ export const MAIN_RUNTIME_EXTERNALS: string[] = [
   'fsevents',
   'bufferutil',
   'utf-8-validate',
+  // OTLP gRPC exporters: a heavy @grpc/protobuf tree pulled in by @vt/observability
+  // (which is bundled inline). They are loaded via a lazy dynamic import() that only
+  // fires when VOICETREE_OTLP_ENDPOINT is set (dev / perf-stack) — see tracing.ts /
+  // metrics.ts. Keeping them external means the dynamic import stays a runtime require:
+  // never bundled, never packaged into the shipped app (which never sets the endpoint).
+  '@opentelemetry/exporter-trace-otlp-grpc',
+  '@opentelemetry/exporter-metrics-otlp-grpc',
   // Express + middleware tree. Reachable from main.ts via @vt/vt-daemon +
   // @vt/graph-tools/node, both of which are in webapp devDependencies (not
   // dependencies), so electron-vite's externalizeDepsPlugin doesn't externalize
