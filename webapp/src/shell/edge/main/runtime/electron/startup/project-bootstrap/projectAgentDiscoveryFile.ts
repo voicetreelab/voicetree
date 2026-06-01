@@ -25,13 +25,18 @@
 
 import {promises as fs} from 'fs'
 import path from 'path'
-import {renderFullManual} from '@vt/vt-daemon-protocol'
 import {getProjectDotVoicetreePath} from '@vt/paths'
 
 const SECTION_START: string = '<!-- VOICETREE_AGENT_DISCOVERY_START -->'
 const SECTION_END: string = '<!-- VOICETREE_AGENT_DISCOVERY_END -->'
-const SECTION_BANNER: string =
-    '## VoiceTree `vt` CLI (auto-generated — do not edit between sentinels)'
+
+/**
+ * The single line injected into every agent's CLAUDE.md / AGENTS.md. We do NOT
+ * inline the manual — it is injected into every agent on every run, so it stays
+ * one line; the full per-verb reference is one `vt manual <verb>` away.
+ */
+export const VT_CLI_DISCOVERY_POINTER: string =
+    'Run `vt manual` for the VoiceTree `vt` CLI reference (`vt manual <verb>` for one tool).'
 
 /**
  * Build the fenced VoiceTree section ready for splicing into a
@@ -40,7 +45,7 @@ const SECTION_BANNER: string =
  * place. Pure.
  */
 export function buildVoicetreeDiscoverySection(manualContent: string): string {
-    return `${SECTION_START}\n${SECTION_BANNER}\n\n${manualContent.trimEnd()}\n${SECTION_END}\n`
+    return `${SECTION_START}\n${manualContent.trimEnd()}\n${SECTION_END}\n`
 }
 
 /**
@@ -87,20 +92,16 @@ async function readFileOrNull(filePath: string): Promise<string | null> {
  *     section as its body (creating the `.voicetree/` directory if
  *     needed).
  *
- * The manual content defaults to the lean `overview` slice
- * (`renderFullManual({tier: 'overview'})`): the preamble plus the
- * Essentials section, whose header points agents at `vt manual <verb>`
- * for everything else. CLAUDE.md / AGENTS.md is injected into every
- * agent's context on every run, so the block stays compact — the full
- * per-verb reference lives one `vt manual <verb>` away rather than being
- * inlined here. Tests pass a literal string to exercise splice /
- * idempotency behavior without depending on the canonical payload.
- * Errors writing the target file are swallowed — project open must not
- * depend on this side effect succeeding.
+ * The content defaults to `VT_CLI_DISCOVERY_POINTER` — a single line that
+ * points agents at `vt manual`. CLAUDE.md / AGENTS.md is injected into every
+ * agent's context on every run, so we inject the pointer, not the manual; the
+ * full per-verb reference lives one `vt manual <verb>` away. Tests pass a
+ * literal string to exercise splice / idempotency behavior. Errors writing the
+ * target file are swallowed — project open must not depend on this side effect.
  */
 export async function writeProjectAgentDiscoveryFile(
     projectDir: string,
-    manualBody: string = renderFullManual({tier: 'overview'}),
+    manualBody: string = VT_CLI_DISCOVERY_POINTER,
 ): Promise<void> {
     const manualContent: string = manualBody.trimEnd()
     if (manualContent.length === 0) return

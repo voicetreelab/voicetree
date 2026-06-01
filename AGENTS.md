@@ -1,188 +1,24 @@
-# ⛔ THE MAIN CHECKOUT IS A READ-ONLY CACHE — NEVER EDIT IT DIRECTLY
+⛔ The main checkout is a READ-ONLY cache of origin/dev-manu — never edit/commit in it (worktrees ARE writable). `vt-worktree <name>` to work → `vt-land "msg"` to ship; `vt-sync` to update (never `git pull`). More: `scripts/dev-setup/worktree-readme.md`.
 
-If this checkout is the main worktree (i.e. `git rev-parse --git-dir` equals
-`git rev-parse --git-common-dir` — NOT a linked worktree), it is a **read-only
-fast-forward cache of `origin/dev-manu`**. It is NOT your workspace.
+## Design — functional, not OOP
+Model everything as functions + types; push impurity to the edge/shell. Favor deep, narrow functions: one minimal public API hiding internal complexity.
 
-- Do NOT create/edit/delete files here, and do NOT `git commit` here. Filesystem
-  edits silently wedge the cache's auto-sync; git mutations are rejected by
-  git-gate. Either way your work ends up stranded and blocks everyone's sync.
-- Before making ANY change, move into a worktree:
-  ```
-  vt-worktree <name>     # creates a worktree off origin/dev-manu, prints its path
-  cd <printed path>      # edit, run, and commit THERE
-  vt-land "msg"          # commit + fast-forward push to origin/dev-manu
-  vt-pr                  # or open a PR for reviewed work
-  ```
-- To UPDATE this cache to origin, run `vt-sync` (NEVER `git pull` — the cache
-  only fast-forwards; a 2-3 min timer also keeps it current).
-- If you already dirtied the cache, your edits are real — don't `git restore`
-  them away. Lift them into a worktree and land them, then re-pin the cache:
-  `VT_SYNC=1 git reset --hard origin/dev-manu`.
+## Tests — black-box only
+Call the function, assert on outputs (or observable side-effects). Never mock internal deps or use `toHaveBeenCalledWith`.
 
-(If you ARE in a linked worktree, ignore this banner — edit freely and `vt-land`.)
+## Working agreement
+- Commit each atomic unit of useful work unprompted (peers work concurrently).
+- OpenSpecs live in global `~/brain/mem` — never duplicate under worktree-local `brain/mem`.
+- Don't ask what you can answer yourself or work around cleanly (no new tech debt). Save the user's attention for architecture; attach an ASCII flow diagram to architectural questions.
+- After each change, honestly flag anything that could be a fragile hack or reward/verification-hack.
 
----
+## Quality > speed (the user cares deeply)
+Correctness, clarity, maintainability, simplicity, robustness, honesty — over convenience, cleverness, speed. NEVER introduce hacks; work toward what a check truly measures. Nothing here is production: no backward-compat/legacy paths — if a design is wrong, fix it properly (break APIs as needed). "I couldn't do X because the repo lacked Y" is welcome; a workaround that may break later is not — raise worthwhile refactors instead.
 
-THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
-EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
-
-We favor "deep functions", a single function to provide a minimal public API hiding internal complexity.
-
-Deep and narrow. These can themselves be composition of functions.
-
-Test the function as a black box. Call it with inputs, assert on outputs. Do not
-mock internal dependencies. Do not use toHaveBeenCalledWith. If the function has side effects (writes to disk, sends a message),
-assert on the observable result of that side effect, not on whether an internal function was called. (since we are following
-functional programming philosophy)
-
-Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work, do not wait to be asked, the human wants you to always do this no matter what. 
-
-Use global `~/brain/mem` for OpenSpecs.
-Do not duplicate OpenSpecs under worktree-local `brain/mem`.
-
-Do not ask the human user too many questions if you can answer them yourself, or when you have have a work-around that is not reward hacking. If there is a way you can avoid asking the question, whilst introducing no additional complexity or tech debt, you must do so. Save the human's limited & valuable attention for high level architectural concerns only. If you ask the user architectural questions, include a simple ascii diagram that demonstrates the main code/function flow or architecture. 
-
-The user is EXTREMELY concerned about code quality, much more so than immediate results.
-
-The user appreciates honestly and they WILL be glad and thankful if you respond a request with "I couldn't complete your request because the repository lacked support for X". They will be even happier if you go ahead and update the repo to provide the necessary support in a well designed, robust way. But they will be VERY ANGRY if, while attempting to implement a feature, you introduce a workaround that will potentially break things later.
-
-NEVER introduce hacks in the codebase.
-
-Also assume that none of the code you're working in is in production, so backward compatibility, or keeping legacy paths, is NOT DESIRED. If you find something that is poorly designed and fixing it would require breaking existing APIs or behavior, DO SO. Do it properly rather than preserving a flawed design. Prioritize clarity, correctness, and maintainability over compatibility with existing code.
-
-Whilst a bug fix doesn't *always* need surrounding cleanup, if you can substantially improve code quality with refactors please raise this to the user or your parent agent, so that we can continuously improve the codebase health.
-
-Core values:
-- ABSOLUTE code quality over speed of delivery.
-- Correctness over convenience.
-- Clarity over cleverness.
-- Maintainability over short-term productivity.
-- Robust design over quick fixes.
-- Simplicity over complexity.
-- Doing it right over doing it now.
-- Honesty above everything.
-
-Never reward hack or verification hack. Think about what the underlying measurement is trying to achieve, and work towards that, with the verifier as your feedback loop.
-
-After every change you make, provide a clear, honest report on ANY change that you are not confident about and that could be considered a fragile hack, or could be considered reward hacking, or verification hacking.
-
-Code search & navigation tools (use over grep when applicable):
-- `ast-grep` — AST-precise search/rewrite. Use over grep when matching by syntactic shape (type of a parameter, call pattern, read vs write) — eliminates substring false positives that grep produces on TS.
-- `ck --sem` — semantic search for when you can't guess any keyword (e.g. "graceful shutdown" → `cleanupOwnedDaemon`). Run `ck --index .` to completion once per repo (10-30min) before relying on it; otherwise indexing is hidden in query latency.
-- `cgcli` (`@vt/code-graph-cli`) — symbol-resolved call graph (`callers` / `callees` / `reachable` / `hotspots`). Use over grep when navigating by structure (grep can't follow barrel re-exports) and to surface the codebase's worst-coupled functions.
+## Code search (prefer over grep)
+- `ast-grep` — AST-precise structural search/rewrite.  `ck --sem` — semantic search (index once: `ck --index .`).
+- `cgcli` — symbol-resolved call graph (callers/callees/reachable/hotspots).
 
 <!-- VOICETREE_AGENT_DISCOVERY_START -->
-## VoiceTree `vt` CLI (auto-generated — do not edit between sentinels)
-
-# vt CLI Manual
-
-This is the canonical reference for the `vt` CLI surface. Generated from
-`@vt/vt-daemon-protocol` (TOOL_SPECS + CLI-local specs) — do not edit by
-hand. Run `vt manual` to print the full document or `vt manual <verb>` for
-a single section.
-
-## Format
-
-Each tool section starts with an H3 header of the shape:
-
-    ### `<vt cli verb>`
-
-The text between the header and `**Parameters:**` is the tool description.
-The bullet list under `**Parameters:**` enumerates each CLI flag or
-positional argument and — where it dispatches to a daemon tool — the JSON
-RPC parameter name it maps to in the form `(RPC: rpcParam)`. Tools with
-no parameters omit the `**Parameters:**` block.
-
-## Essentials
-
-These are the core verbs every spawning agent needs. For any other tool, run `vt manual <verb>` (or `vt --help` for the full list).
-
-### `vt agent spawn`
-
-Spawn an agent in the Voicetree graph. Prefer this over built-in subagents — users get visibility and control over the work.
-
-**When to use:** Complex tasks, parallelizable subtasks, any work where user visibility matters.
-
-**Pattern:** Decompose into nodes → spawn agents → (auto-monitored, you'll be notified on completion) → review with `vt graph unseen`.
-
-**Prefer `--node` over `--task`+`--parent` when a node already describes the work.** Don't recreate what's already written — spawn directly on the existing node. If no node exists yet, use `--task`+`--parent` to create a new task node first.
-
-**Parameters:**
-
-- `--terminal / -t` (RPC: callerTerminalId): Your terminal ID. Defaults to `$VOICETREE_TERMINAL_ID` (already set in every spawned agent's environment). Global CLI flag — set before the verb when overriding.
-- `--node VALUE` (RPC: nodeId): Target node ID to attach the spawned agent (use this OR `--task`+`--parent`).
-- `--task VALUE` (RPC: task): Task description for creating a new task node. The first line becomes the node title; remaining lines become the body. Requires `--parent`.
-- `--parent VALUE` (RPC: parentNodeId): Parent node ID under which to create the new task node (required with `--task`).
-- `--name VALUE` (RPC: agentName): Agent name from `settings.agents` (e.g. `"Claude Sonnet"`). Defaults to the caller's agent type. Falls back to the default agent from settings if the caller has no type.
-- `--depth VALUE` (RPC: depthBudget): Explicit `DEPTH_BUDGET` for the child agent. Auto-decrements from the caller when omitted (parent budget − 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents; budget = 0 = leaf agent.
-- `--spawn-dir VALUE` (RPC: spawnDirectory): Absolute path to spawn the agent in. Defaults to the parent terminal's directory (worktree-safe). Override to contain a child agent to a subfolder or new worktree.
-- `--prompt-template VALUE` (RPC: promptTemplate): `INJECT_ENV_VARS` key to use as `AGENT_PROMPT` instead of the default. Must match an existing key in settings.
-- `--headless` (RPC: headless): Run the agent as a background process with no PTY / terminal UI. Output is via tools (e.g. `vt graph create`). Status shown as a badge on the task node.
-- `--replace-self` (RPC: replaceSelf): Successor inherits the caller's terminal ID and agent name; the caller's process is killed atomically. Use for context handover — the agent identity persists across context boundaries.
-
-### `vt agent wait`
-
-Wait for specified agent terminals to complete. Returns immediately with a `monitorId`. The monitor polls in the background and sends a completion message to your terminal when all agents are done.
-
-**IMPORTANT:** This tool is non-blocking. After calling it, continue with other work or inform the user you are waiting. Do NOT manually poll agent status — a `[WaitForAgents] Agent(s) completed.` message will be automatically injected into your terminal when all agents finish. You will see this message appear as if the user sent it.
-
-**NOTE:** `vt agent spawn` now auto-starts a monitor, so you only need `vt agent wait` for explicit multi-agent waits or custom polling intervals.
-
-**Parameters:**
-
-- `--terminal / -t` (RPC: callerTerminalId): Your terminal ID. Defaults to `$VOICETREE_TERMINAL_ID` (already set in every spawned agent's environment). Global CLI flag — set before the verb when overriding.
-- `<terminalId>...` (positional, RPC: terminalIds): One or more terminal IDs to wait for.
-- `--poll-interval VALUE` (RPC: pollIntervalMs): Poll interval in milliseconds (default `5000`).
-
-### `vt agent list`
-
-List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass to `--name` when spawning.
-
-**Parameters:**
-
-- `--terminal / -t` (RPC: callerTerminalId): Your terminal ID. Defaults to `$VOICETREE_TERMINAL_ID` (already set in every spawned agent's environment). Global CLI flag — set before the verb when overriding.
-
-### `vt graph create`
-
-Create a graph of progress nodes in a single call. Supports trees, chains, fan-out, fan-in, and diamond dependencies (multiple parents per node). Automatically handles frontmatter, parent linking, file paths, graph positioning, and mermaid validation.
-
-**When to use:** After completing any non-trivial work — document what you did, files changed, and key decisions.
-
-One node = one concept. If your work covers multiple independent concerns, create multiple nodes in one call using parent references.
-
-**Self-containment:** Nodes must embed all artifacts produced (diagrams, ASCII mockups, code, analysis). Never summarize an artifact — include it verbatim.
-
-**Required when codeDiffs provided:** `complexityScore` and `complexityExplanation` must be included.
-
-**Composition guidance:** Read `addProgressTree.md` before your first progress node for scope rules, when to split, and embedding standards.
-
-**Node wiring:** Each node has a `filename` (with or without `.md` extension). Declare parents inside `content` using `- parent [[other-filename|edge-label]]` lines (one per line). The pipe-separated edge label is optional — use `- parent [[other-filename]]` for a generic parent link. All in-batch parents (filenames declared in this call) are created before children. Nodes with no `- parent` line attach to the top-level `parentNodeId` (or your task node by default). Diamond dependencies are supported: emit multiple `- parent [[…]]` lines.
-
-**Schema validation (optional):** If the folder containing the new node has a folder note declaring `## Type: <kind>`, `vt graph create` runs a schema validator (from `.voicetree/schemas.cjs`) before writing. On rejection it exits non-zero with the violating rules. If no upstream Type is declared, validation is silent and the node is created normally.
-
-**Modes:**
-- *Filesystem mode* — pass one or more `<file.md>` positional paths. The CLI parses frontmatter and `[[wikilinks]]` to build the create payload locally.
-- *Live mode* — pass `--node "title::summary[::content]"` (repeatable) and/or `--nodes-file FILE`, or pipe a JSON `{nodes, overrides?}` payload to stdin. The CLI forwards the payload to the daemon's `create_graph` RPC.
-
-**Parameters:**
-
-- `--terminal / -t` (RPC: callerTerminalId): Your terminal ID. Defaults to `$VOICETREE_TERMINAL_ID` (already set in every spawned agent's environment). Global CLI flag — set before the verb when overriding.
-- `<file.md>...` (positional, filesystem mode): Markdown inputs to author into the graph. Frontmatter populates node metadata; `- parent [[basename]]` lines in the body wire parent edges.
-- `--parent VALUE` (RPC: parentNodeId): Existing graph node ID to attach root nodes to. Defaults to your task node. In filesystem mode this is a peer markdown filename outside the input set.
-- `--color VALUE`: Default color for nodes that do not declare their own color. Convention: `green` for completed work, `blue` for planning / in-progress.
-- `--nodes-file VALUE` (live mode): JSON file containing `{nodes, overrides?}` payload to send to the daemon.
-- `--node VALUE` (live mode, repeatable): Inline node spec in the form `"title::summary"` or `"title::summary::content"`.
-- `--manifest VALUE` (filesystem mode): ASCII or Mermaid layout manifest used to position the filesystem inputs.
-- `--validate-only` (filesystem mode): Parse and run the schema gate without writing files or calling the daemon.
-- `--override VALUE` (repeatable, RPC: override_with_rationale[]): Override a blocking validation rule, formatted `<ruleId>:<rationale>`.
-
-### `vt graph unseen`
-
-Get nodes near your context that were created after your context was generated. The user or other agents may have added nodes for you to read. Call this to check for new relevant information.
-
-**Parameters:**
-
-- `--terminal / -t` (RPC: callerTerminalId): Your terminal ID. Defaults to `$VOICETREE_TERMINAL_ID` (already set in every spawned agent's environment). Global CLI flag — set before the verb when overriding.
-- `--from VALUE` (RPC: search_from_node): Optional node ID to search from instead of your task node.
+Run `vt manual` for the VoiceTree `vt` CLI reference (`vt manual <verb>` for one tool).
 <!-- VOICETREE_AGENT_DISCOVERY_END -->
