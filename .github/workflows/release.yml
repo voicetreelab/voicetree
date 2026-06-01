@@ -26,6 +26,10 @@ on:
         description: 'Build Linux x64'
         type: boolean
         default: true
+      publish:
+        description: 'Publish to the GitHub release + Homebrew (off = dry-run: build only, no release)'
+        type: boolean
+        default: false
 
 jobs:
   # Release is deploy-only. Verification happens pre-merge in
@@ -188,7 +192,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --mac --${{ matrix.arch }} --publish=always
+          npx electron-builder --mac --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }}
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -248,6 +252,7 @@ jobs:
           cat latest-mac.yml
 
       - name: Upload merged manifest to release
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
@@ -335,7 +340,7 @@ jobs:
             Write-Error "Build failed: dist\index.html not found"
             exit 1
           }
-          npx electron-builder --win --publish=always
+          npx electron-builder --win --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Summarize failure
@@ -418,14 +423,14 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --linux --${{ matrix.arch }} --publish=always
+          npx electron-builder --linux --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }}
 
       # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)
       # pointing at the x64 build so existing consumers (the docker.yml
       # workflow on main, hand-downloaders, anyone with a bookmarked URL)
       # don't 404. Remove once all consumers are on the arch-suffixed names.
       - name: Publish legacy AppImage alias (x64 only)
-        if: matrix.arch == 'x64'
+        if: ${{ matrix.arch == 'x64' && (github.event_name == 'push' || inputs.publish) }}
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
@@ -440,7 +445,7 @@ jobs:
 
   publish-release:
     needs: [check-version, build-mac, build-windows, build-linux, merge-mac-manifests]
-    if: ${{ needs.check-version.outputs.should_build == 'true' }}
+    if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.publish) }}
     runs-on: ubuntu-latest
     steps:
       - name: Publish release
@@ -453,7 +458,7 @@ jobs:
 
   update-homebrew:
     needs: [check-version, publish-release]
-    if: success()
+    if: ${{ success() && (github.event_name == 'push' || inputs.publish) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
