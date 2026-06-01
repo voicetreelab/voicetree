@@ -424,6 +424,7 @@ async function main(): Promise<void> {
     // — graphd shutdown happens here only because we own the spawn locally.)
     await httpHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] http daemon stop: ${(e as Error).message}\n`))
     agentRuntime.getTerminalManager().cleanup()
+    await agentRuntime.shutdownTmuxServer({voicetreeHomePath: tempVoicetreeHome}).catch(() => undefined)
     await daemonHandle.stop().catch((e: unknown) => process.stderr.write(`[perf] daemon stop: ${(e as Error).message}\n`))
 
     const graphdSpans = readNdjsonTail(graphdNdjson, graphdOffset)

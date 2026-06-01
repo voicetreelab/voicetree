@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateProjectOnDisk, type ProjectLayout } from '@vt/perf-fixtures'
+import { shutdownTmuxServer } from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
 
 import { launchElectronHeadful } from './launchElectronHeadful.ts'
 import { flushAndStopVtGraphd, forceStopVtGraphd } from '../e2e-storm-mvp/perfProfile.ts'
@@ -272,6 +273,7 @@ async function main(): Promise<void> {
             if (pid !== undefined) { try { process.kill(pid, 'SIGKILL') } catch { /* gone */ } }
         }
         await forceStopVtGraphd(projectDir, 2000).catch(() => undefined)
+        await shutdownTmuxServer({ voicetreeHomePath }).catch(() => undefined)
         const reaped = killOrphanVtGraphdDaemons()
         if (reaped.killed.length > 0) process.stdout.write(`[nav-storm] reaped orphan daemons: ${JSON.stringify(reaped.killed)}\n`)
         if (!args.keepArtifacts) {

@@ -149,6 +149,7 @@ export function makeStormTest(projectRoot: string): ReturnType<typeof base.exten
 
             // tear down agent-runtime tmux sessions before removing project dir
             try { agentRuntime.getTerminalManager().cleanup() } catch { /* may be unconfigured if early failure */ }
+            await agentRuntime.shutdownTmuxServer({ voicetreeHomePath }).catch(() => undefined)
 
             if (!args.keepArtifacts) {
                 await fs.rm(path.dirname(projectPath), { recursive: true, force: true })

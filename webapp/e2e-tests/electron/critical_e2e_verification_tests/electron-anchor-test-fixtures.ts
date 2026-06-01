@@ -14,6 +14,7 @@ import {
   robustElectronTeardown,
   safeStopFileWatching,
   stopSmokeGraphDaemonForProject,
+  stopSmokeTmuxServer,
 } from "./electron-smoke-helpers";
 import { rpcCallTool } from "./helpers/e2e-rpc-helpers";
 
@@ -140,6 +141,7 @@ export const test = base.extend<{
     stopSmokeGraphDaemonForProject(fixtureProjectPath);
     await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
+    stopSmokeTmuxServer(tempUserDataPath);
   },
 
   appWindow: async ({ electronApp, electronDiagnostics }, use) => {

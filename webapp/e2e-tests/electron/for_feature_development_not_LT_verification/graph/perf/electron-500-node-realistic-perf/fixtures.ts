@@ -83,6 +83,15 @@ async function closeElectronAppWithTimeout(electronApp: ElectronApplication): Pr
   }
 }
 
+function stopTmuxServerForHome(voicetreeHomePath: string): void {
+  const socketPath = path.join(voicetreeHomePath, 'tmux.sock');
+  try {
+    execFileSync('tmux', ['-S', socketPath, 'kill-server'], { stdio: 'ignore' });
+  } catch {
+    // tmux may not have been started for this run.
+  }
+}
+
 export function getMainInspectPort(): number {
   return mainInspectPort;
 }
@@ -260,6 +269,7 @@ export const test = base.extend<{
     }
 
     await closeElectronAppWithTimeout(electronApp);
+    stopTmuxServerForHome(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
 
     // After the temp project is gone, any leftover vt-graphd daemons spawned by

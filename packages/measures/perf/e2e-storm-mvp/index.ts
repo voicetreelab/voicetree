@@ -30,6 +30,7 @@ import type { DaemonRpcClient } from '@vt/vt-rpc'
 
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client'
 import { generateProjectOnDisk } from '@vt/perf-fixtures'
+import { shutdownTmuxServer } from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
 
 import { launchElectronAndDiscoverDaemon } from './launchElectron.ts'
 import {
@@ -385,6 +386,8 @@ async function main(): Promise<void> {
         if (reaped.killed.length > 0) {
             process.stdout.write(`[mvp] reaped orphan vt-graphd daemons: ${JSON.stringify(reaped.killed)}\n`)
         }
+
+        await shutdownTmuxServer({ voicetreeHomePath }).catch(() => undefined)
 
         if (!args.keepArtifacts) {
             rmSync(projectRoot, { recursive: true, force: true })

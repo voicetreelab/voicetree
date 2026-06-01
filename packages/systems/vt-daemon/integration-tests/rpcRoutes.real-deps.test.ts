@@ -36,6 +36,7 @@ import {
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {spawnTmuxBackedTerminal} from '../src/agent-runtime/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager'
+import {shutdownTmuxServer} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
 import {
     TERMINAL_RPC_METHODS,
     type TerminalRegistryEvent,
@@ -115,6 +116,9 @@ afterEach(async () => {
         await killSession(session).catch(() => undefined)
     }
     sessionsToCleanup.clear()
+    for (const dir of tempDirs) {
+        await shutdownTmuxServer({voicetreeHomePath: dir}).catch(() => undefined)
+    }
     for (const dir of tempDirs) {
         await rm(dir, {recursive: true, force: true})
     }
