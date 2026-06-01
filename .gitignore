@@ -52,6 +52,11 @@ nosetests.xml
 coverage.xml
 coverage.json
 stryker-*.json
+# Stryker mutation-testing sandbox: transient per-package copies of src/ created
+# under packages/*/.stryker-tmp/ during the tier-4 mutation checks. Byte-identical
+# to the real source, so leaving it un-ignored makes the jscpd duplication analyzer
+# (gitignore-aware) count every sandbox file as a clone of its original.
+.stryker-tmp/
 *.cover
 *.py,cover
 .hypothesis/
