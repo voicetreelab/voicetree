@@ -159,7 +159,7 @@ esac
 # Per-machine worktree root. This wrapper is the ONE place that owns worktree
 # PLACEMENT: callers pass a bare name and we put the tree here. The default
 # matches the admission checker's default basename (vt-wts); install.sh writes
-# the per-machine value (Linux: $HOME/vt-wts, macOS: $HOME/repos/vt-wts-synced).
+# the per-machine value ($HOME/vt-wts on both Linux and macOS).
 gate_worktree_root() {
   printf '%s' "${VT_WORKTREE_ROOT:-$HOME/vt-wts}"
 }

@@ -11,11 +11,12 @@
 //
 // Two mutagen sessions back this script:
 //   * `vt-remote`  — main checkout ↔ /root/vtrepo-synced  (one-way-replica)
-//   * `vt-wts`     — Mac /Users/.../vt-wts-synced/ ↔ /root/vt-wts-synced/  (one-way-replica)
+//   * `vt-wts`     — Mac <parent>/vt-wts/ ↔ /root/vt-wts-synced/  (one-way-replica)
 //
-// Worktrees live OUTSIDE the main checkout, under the Mac `-synced` worktree
-// root `<parent>/vt-wts-synced/<name>/` (the `-synced` basename is shared with
-// the remote end of the mirror). The session is picked based on which root the
+// Worktrees live OUTSIDE the main checkout, under the Mac sibling worktree
+// root `<parent>/vt-wts/<name>/`. mutagen syncs CONTENTS, so the basename
+// DIFFERS across the mirror (Mac `vt-wts` ↔ devbox `vt-wts-synced`). The
+// session is picked based on which root the
 // cwd falls under. Blocks on the chosen session reaching `Status: Watching for
 // changes` before invoking ssh.
 //
@@ -98,7 +99,7 @@ function localWtsRoot(mainCheckoutRoot = localMainCheckoutRoot()) {
 
 // Pick the sync session + roots that govern `cwd`.
 //   - cwd inside `<main>/`                  → vt-remote session, REMOTE_ROOT
-//   - cwd inside `<parent>/vt-wts-synced/`  → vt-wts session, REMOTE_WTS_ROOT
+//   - cwd inside `<parent>/vt-wts/`         → vt-wts session, REMOTE_WTS_ROOT
 //   - cwd elsewhere                         → null (caller throws)
 function resolveSyncContext(cwd = process.cwd()) {
   const mainCheckoutRoot = localMainCheckoutRoot()

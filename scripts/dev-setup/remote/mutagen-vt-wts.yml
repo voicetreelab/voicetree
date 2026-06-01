@@ -1,12 +1,12 @@
-# One-way-replica sync for the Mac-owned `vt-wts-synced/` worktree root.
+# One-way-replica sync for the Mac-owned worktree root (`$HOME/vt-wts/`).
 #
 # Why a SECOND session (not a config on `vt-remote`):
-#   - `vt-remote` syncs the Mac checkout `~/repos/vtrepo/` ↔ `/root/vtrepo-synced/`.
+#   - `vt-remote` syncs the Mac checkout `<repo>/` ↔ `/root/vtrepo-synced/`.
 #     A single mutagen session can only sync one path pair.
-#   - Worktrees live OUTSIDE the main checkout, under a dedicated root. The
-#     `-synced` suffix marks "part of this mirror" — the SAME basename on both
-#     ends. That second tree needs its own pair:
-#         ~/repos/vt-wts-synced       ↔ /root/vt-wts-synced
+#   - Worktrees live OUTSIDE the main checkout, under a dedicated sibling root.
+#     mutagen syncs CONTENTS, so the two ends differ in basename (Mac `vt-wts`
+#     ↔ devbox `vt-wts-synced`). That second tree needs its own pair:
+#         $HOME/vt-wts                ↔ /root/vt-wts-synced
 #   - Same mode as vt-remote (one-way-replica) because `scripts/run-remote.mjs`
 #     enforces that mode before remote execution.
 #   - Tuning knob: worktrees see heavier churn than the main checkout, so the
