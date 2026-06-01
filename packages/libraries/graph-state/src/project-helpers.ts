@@ -1,4 +1,4 @@
-import type { FolderTreeNode, GraphNode } from '@vt/graph-model'
+import type { Edge, FolderTreeNode, GraphNode } from '@vt/graph-model'
 
 import type { FolderId, ProjectedEdge } from './contract'
 
@@ -33,6 +33,11 @@ export interface CollapseFilterResult {
 
 export function sortStrings(values: readonly string[]): readonly string[] {
     return [...values].sort((left, right) => left.localeCompare(right))
+}
+
+/** Canonical sort order for outgoing edges: targetId first, then label. */
+export function compareEdges(a: Edge, b: Edge): number {
+    return a.targetId.localeCompare(b.targetId) || a.label.localeCompare(b.label)
 }
 
 export function folderIdFromAbsolutePath(absolutePath: string): FolderId {

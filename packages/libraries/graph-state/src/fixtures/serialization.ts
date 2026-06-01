@@ -11,13 +11,13 @@
 import * as O from 'fp-ts/lib/Option.js'
 
 import {
-    compareEdges,
     toAbsolutePath,
     type FolderTreeNode,
     type Graph,
     type GraphNode,
     type Position,
 } from '@vt/graph-model'
+import { compareEdges } from '../project-helpers'
 
 import type { Command, State } from '../contract'
 import { deriveImplicitRoots } from '../state/folderVisibility/implicitRoots'

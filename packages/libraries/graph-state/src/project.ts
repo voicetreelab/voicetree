@@ -1,6 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 
-import { compareEdges, getFolderNotePath, type GraphNode } from '@vt/graph-model'
+import { getFolderNotePath, type GraphNode } from '@vt/graph-model'
+import { compareEdges } from './project-helpers'
 
 import type { FolderId, ProjectedEdge, ProjectedGraph, ProjectedNode, State, TreeEdge } from './contract'
 import {

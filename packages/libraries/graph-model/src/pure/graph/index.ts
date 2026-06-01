@@ -189,7 +189,7 @@ void (stripDeltaForReplay satisfies StripDeltaForReplay)
 export { mapFSEventsToGraphDelta } from './construction/mapFSEventsToGraphDelta'
 void (mapFSEventsToGraphDelta satisfies MapFSEventsToGraphDelta)
 
-export { setOutgoingEdges, compareEdges } from './graph-operations/transforms/graph-edge-operations'
+export { setOutgoingEdges } from './graph-operations/transforms/graph-edge-operations'
 void (setOutgoingEdges satisfies SetOutgoingEdges)
 
 export { reverseGraphEdges } from './graph-operations/transforms/graph-transformations'

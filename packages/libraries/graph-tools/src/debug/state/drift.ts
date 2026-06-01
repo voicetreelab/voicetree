@@ -1,5 +1,6 @@
-import { compareEdges, type GraphNode } from '@vt/graph-model'
+import type { GraphNode } from '@vt/graph-model'
 import type { State } from '@vt/graph-state'
+import { compareEdges } from '@vt/graph-state/project-helpers'
 import type { CyDump, CyDumpEdge, CyDumpNode } from './cyStateShape'
 
 export type Divergence =
