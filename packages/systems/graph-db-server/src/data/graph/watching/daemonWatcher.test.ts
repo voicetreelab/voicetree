@@ -1,9 +1,9 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import normalizePath from 'normalize-path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import type { FSDelete, FSUpdate } from '@vt/graph-model'
+import type { FSDelete, FSUpdate, GraphNode } from '@vt/graph-model'
 import { mountWatcher, type Watcher, type MountWatcherDependencies } from './daemonWatcher.ts'
 
 /**
@@ -150,6 +150,7 @@ describe('mountWatcher: excludes .voicetree/ files from the graph', () => {
       // the "new folders unloaded by default" gate sees `notes/` as loaded —
       // this test exercises the `.voicetree` IGNORE rule, not the load gate.
       getGraphNodes: () => ({ [`${normalizePath(join(project, 'notes'))}/seed.md`]: {} }),
+      getGraphNode: () => undefined,
     }
 
     const watcher: Watcher = mountWatcher([project], project, deps)
@@ -218,6 +219,7 @@ describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
       },
       logger: { error: () => undefined },
       getGraphNodes: () => graphNodes,
+      getGraphNode: () => undefined,
     }
 
     const watcher: Watcher = mountWatcher([project], project, deps)
@@ -253,4 +255,164 @@ describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
       await watcher.unmount()
     }
   }, 15000)
+})
+
+/**
+ * Move-aware ingestion gate (the regression from "unload new folders by
+ * default"). Moving a loaded note into a brand-new (unloaded) subfolder is an
+ * unlink + add; the add would otherwise be gated out, dropping the moved node.
+ * These drive the real chokidar pipeline and assert on the OBSERVABLE events
+ * reaching the graph handler. Edge healing itself is covered by the e2e and the
+ * pure heal tests; here we only assert WHICH Added/Delete events fire.
+ */
+describe('mountWatcher: a loaded note moved into an unloaded folder re-ingests', () => {
+  const created: string[] = []
+  const originalHeadlessTest: string | undefined = process.env.HEADLESS_TEST
+
+  beforeEach(() => {
+    // Force polling so watch-time events are reliably observed in CI/macOS.
+    process.env.HEADLESS_TEST = '1'
+  })
+
+  afterEach(async () => {
+    if (originalHeadlessTest === undefined) delete process.env.HEADLESS_TEST
+    else process.env.HEADLESS_TEST = originalHeadlessTest
+    for (const dir of created.splice(0)) {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  // Captures observable events and seeds the loaded graph for the gate + identity.
+  const makeDeps = (
+    project: string,
+    loadedNodes: Record<string, GraphNode>,
+  ): {
+    deps: MountWatcherDependencies
+    addedPaths: string[]
+    deletedPaths: string[]
+  } => {
+    const addedPaths: string[] = []
+    const deletedPaths: string[] = []
+    const deps: MountWatcherDependencies = {
+      readFileWithRetry: (p: string) => readFile(p, 'utf8'),
+      handleFSEvent: (event: FSUpdate | FSDelete) => {
+        if ('eventType' in event && event.eventType === 'Added') {
+          addedPaths.push(normalizePath(event.absolutePath))
+        } else if ('type' in event && event.type === 'Delete') {
+          deletedPaths.push(normalizePath(event.absolutePath))
+        }
+      },
+      logger: { error: () => undefined },
+      // Keys-only view for the gate; non-empty so the project root reads as loaded.
+      getGraphNodes: () => loadedNodes,
+      getGraphNode: (nodeId: string) => loadedNodes[nodeId],
+      moveWindowMs: 8000,
+    }
+    return { deps, addedPaths, deletedPaths }
+  }
+
+  const leafNode = (contentWithoutYamlOrLinks: string): GraphNode =>
+    ({ kind: 'leaf', contentWithoutYamlOrLinks } as GraphNode)
+
+  test('same-basename move into a new subfolder ingests the moved node', async () => {
+    const parent: string = await mkdtemp(join(tmpdir(), 'vt-move-ingest-'))
+    created.push(parent)
+    const project: string = join(parent, 'project')
+    await mkdir(project, { recursive: true })
+
+    const content = '# Moved Note\nbody text\n'
+    const targetPath: string = join(project, 'target.md')
+    const targetId: string = normalizePath(targetPath)
+    // target.md exists and is loaded before mount; its initial presence is ignored.
+    await writeFile(targetPath, content)
+
+    const { deps, addedPaths, deletedPaths } = makeDeps(project, { [targetId]: leafNode(content) })
+
+    const watcher: Watcher = mountWatcher([project], project, deps)
+    try {
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve')
+
+      // Move target.md into a brand-new (unloaded) subfolder.
+      await mkdir(join(project, 'archive'), { recursive: true })
+      await rename(targetPath, join(project, 'archive', 'target.md'))
+
+      // The moved node re-enters the graph (Added for the new path)…
+      await expect
+        .poll(() => addedPaths.some((p) => p.endsWith('/archive/target.md')), { timeout: 6000 })
+        .toBe(true)
+      // …and the old path was deleted.
+      expect(deletedPaths.some((p) => p.endsWith('/target.md') && !p.includes('/archive/'))).toBe(true)
+    } finally {
+      await watcher.unmount()
+    }
+  }, 20000)
+
+  test('same basename but different content is NOT treated as a move (stays unloaded)', async () => {
+    const parent: string = await mkdtemp(join(tmpdir(), 'vt-move-diff-'))
+    created.push(parent)
+    const project: string = join(parent, 'project')
+    await mkdir(project, { recursive: true })
+
+    const targetPath: string = join(project, 'target.md')
+    const targetId: string = normalizePath(targetPath)
+    await writeFile(targetPath, '# Original content\n')
+
+    // The loaded node's identity is the ORIGINAL content.
+    const { deps, addedPaths, deletedPaths } = makeDeps(project, {
+      [targetId]: leafNode('# Original content\n'),
+    })
+
+    const watcher: Watcher = mountWatcher([project], project, deps)
+    try {
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve')
+
+      // Old file disappears; a DIFFERENT-content file with the same basename
+      // appears in a new unloaded folder. Not the same node → must not ingest.
+      await mkdir(join(project, 'archive'), { recursive: true })
+      await rm(targetPath)
+      await writeFile(join(project, 'archive', 'target.md'), '# Totally different\n')
+
+      // The delete is observed…
+      await expect
+        .poll(() => deletedPaths.some((p) => p.endsWith('/target.md') && !p.includes('/archive/')), {
+          timeout: 6000,
+        })
+        .toBe(true)
+      // …give the (rejected) move-probe time to run, then assert no Added landed.
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      expect(addedPaths.some((p) => p.includes('/archive/'))).toBe(false)
+    } finally {
+      await watcher.unmount()
+    }
+  }, 20000)
+
+  test('an unlinked loaded node with no following add finalizes as a plain delete', async () => {
+    const parent: string = await mkdtemp(join(tmpdir(), 'vt-move-deleteonly-'))
+    created.push(parent)
+    const project: string = join(parent, 'project')
+    await mkdir(project, { recursive: true })
+
+    const targetPath: string = join(project, 'target.md')
+    const targetId: string = normalizePath(targetPath)
+    await writeFile(targetPath, '# Just deleted\n')
+
+    const { deps, addedPaths, deletedPaths } = makeDeps(project, {
+      [targetId]: leafNode('# Just deleted\n'),
+    })
+
+    const watcher: Watcher = mountWatcher([project], project, deps)
+    try {
+      await withTimeout(watcher.ready, 4000, 'watcher.ready did not resolve')
+
+      await rm(targetPath)
+
+      await expect
+        .poll(() => deletedPaths.some((p) => p.endsWith('/target.md')), { timeout: 6000 })
+        .toBe(true)
+      // Nothing was ever added; the buffered unlink just expires.
+      expect(addedPaths).toEqual([])
+    } finally {
+      await watcher.unmount()
+    }
+  }, 20000)
 })
