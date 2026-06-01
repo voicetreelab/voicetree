@@ -5,12 +5,13 @@ import {buildCallGraph, type CallGraph} from '../../_shared/graph/call-graph'
 import {communityAtDepth} from '../../_shared/community/community-at-depth.ts'
 import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../../..')
-// Captured 2026-05-15 after widening discovery to whole repo and measuring
-// max community-level coupling across all directory containment depths.
-const SEMANTIC_COUPLING_MAX_PAIR_BASELINE = 217
-const SEMANTIC_COUPLING_MAX_OUT_BASELINE = 497
+const {
+    maxPairBaseline: SEMANTIC_COUPLING_MAX_PAIR_BASELINE,
+    maxOutBaseline: SEMANTIC_COUPLING_MAX_OUT_BASELINE,
+} = readBudgetSync<{maxPairBaseline: number; maxOutBaseline: number}>('coupling/semantic-coupling.json')
 const CANARY_TOLERANCE = 0.18
 
 type PairCounts = {

@@ -5,6 +5,7 @@ import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/disco
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {extractFunctions, type FnEntry} from '../../_shared/purity-analysis'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 // --- Per-file shape complexity ---
 //
@@ -187,10 +188,10 @@ function formatReport(reports: readonly FileShapeReport[]): string {
 // Budgets ratcheted from measured baseline. Lower as worst offenders are
 // refactored toward deep-and-narrow.
 
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const ORANGE_FILE_SCORE_BUDGET = 363     // p75_loc + exports * 3 per file
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const ORANGE_P90_FILE_P75_LOC  = 48      // tail of file-p75 distribution
+const {
+    orangeFileScoreBudget: ORANGE_FILE_SCORE_BUDGET,
+    orangeP90FileP75Loc: ORANGE_P90_FILE_P75_LOC,
+} = readBudgetSync<{orangeFileScoreBudget: number; orangeP90FileP75Loc: number}>('complexity/shape-complexity.json')
 
 describe('shape complexity', () => {
     it('reports per-file function shape and export surface area', async () => {

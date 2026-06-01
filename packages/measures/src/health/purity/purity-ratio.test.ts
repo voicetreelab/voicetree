@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 import { discoverPackages, DEFAULT_REPO_ROOT } from '../../_shared/discovery/discover-packages'
 import { listSourceFiles } from '../../_shared/purity-analysis'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = resolve(DEFAULT_REPO_ROOT)
 
@@ -384,7 +385,7 @@ function formatLayerReport(byLayer: Record<ArchLayer, LayerStats>, totals: Layer
     return lines.join('\n')
 }
 
-const MINIMUM_PURITY_RATIO: number = 0.55
+const {minimumPurityRatio: MINIMUM_PURITY_RATIO} = readBudgetSync<{minimumPurityRatio: number}>('purity/purity-ratio.json')
 
 describe('function purity ratio (LOC)', () => {
     it('pure LOC ratio must be at least 55%', async () => {

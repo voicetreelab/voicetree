@@ -47,10 +47,27 @@ describe('classifyStagedDiff', () => {
         ], {isMergeCommit: true})).toBe('no-baselines')
     })
 
-    it('isBaselinePath only matches files under the configured subgraph prefix', () => {
+    it('isBaselinePath matches any non-markdown file under budgets/', () => {
         expect(baselinePolicy.isBaselinePath('packages/measures/budgets/subgraph/cycles.json')).toBe(true)
+        expect(baselinePolicy.isBaselinePath('packages/measures/budgets/shape/readme-line-budget.json')).toBe(true)
+        expect(baselinePolicy.isBaselinePath('packages/measures/budgets/coupling/cross-package-value-symbol-budgets.ts')).toBe(true)
         expect(baselinePolicy.isBaselinePath('packages/measures/budgets/BASELINE_BUMP_LOG.md')).toBe(false)
+        expect(baselinePolicy.isBaselinePath('packages/measures/budgets/HOW_TO_BUMP_BASELINES.md')).toBe(false)
         expect(baselinePolicy.isBaselinePath('packages/measures/src/foo.ts')).toBe(false)
+    })
+
+    it('classifies new-area budget files (shape, coupling, etc.) as baselines', () => {
+        expect(baselinePolicy.classifyStagedDiff([
+            'packages/measures/budgets/shape/readme-line-budget.json',
+            'packages/measures/budgets/complexity/runtime-fan-in.json',
+        ], {isMergeCommit: false})).toBe('pure-bump')
+    })
+
+    it('rejects mixed commit containing a new-area budget file and a source file', () => {
+        expect(baselinePolicy.classifyStagedDiff([
+            'packages/measures/budgets/duplication/semantic-duplication.json',
+            'packages/measures/src/health/duplication/semantic-duplication.test.ts',
+        ], {isMergeCommit: false})).toBe('mixed')
     })
 })
 

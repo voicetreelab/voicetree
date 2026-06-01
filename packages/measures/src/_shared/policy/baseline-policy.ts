@@ -15,10 +15,12 @@
 // alternative (eight top-level exports) inflates the channel without
 // adding anything callers couldn't already reach via one.
 
-// Only files under .../budgets/subgraph/ are themselves baselines. The
-// budgets/ root holds documentation (README, BASELINE_BUMP_LOG) that is
-// *about* baselines without being one — those must remain freely committable.
-const BASELINE_PREFIX = 'packages/measures/budgets/subgraph/'
+// ALL files under budgets/ are baselines, EXCEPT .md files (README,
+// HOW_TO_BUMP_BASELINES.md, BASELINE_BUMP_LOG.md). Markdown files are
+// documentation *about* budgets — freely committable alongside any change.
+// Every other file under budgets/ (JSON data, TypeScript data modules) is a
+// budget value and must be committed in isolation with a written rationale.
+const BASELINE_PREFIX = 'packages/measures/budgets/'
 const RATIONALE_TRAILER = 'Baseline-bump-rationale:'
 const MIN_RATIONALE_CHARS = 20
 
@@ -36,7 +38,7 @@ type StagedDiffContext = {
 }
 
 function isBaselinePath(path: string): boolean {
-    return path.startsWith(BASELINE_PREFIX)
+    return path.startsWith(BASELINE_PREFIX) && !path.endsWith('.md')
 }
 
 function classifyStagedDiff(
@@ -76,9 +78,9 @@ function formatMixedViolation(baselinePaths: readonly string[], otherPaths: read
     return [
         '',
         BAR,
-        'Refused: baseline files staged alongside non-baseline files.',
+        'Refused: budget/baseline files staged alongside non-baseline files.',
         '',
-        `A baseline bump must be its OWN commit. Touching files under`,
+        `A budget bump must be its OWN commit. Touching files under`,
         `  ${BASELINE_PREFIX}`,
         `in the same commit as other changes hides the bump from review.`,
         '',
@@ -101,7 +103,7 @@ function formatRationaleViolation(kind: 'missing-rationale' | 'rationale-too-sho
     return [
         '',
         BAR,
-        'Refused: baseline-bump commit is missing a written rationale.',
+        'Refused: budget/baseline-bump commit is missing a written rationale.',
         '',
         reason,
         '',

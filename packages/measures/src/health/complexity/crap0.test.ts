@@ -4,9 +4,9 @@ import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {formatFunctionRows} from '../../_shared/complexity/function-row-formatters'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
-// Captured 2026-05-15 after widening discovery to whole repo via discoverPackages(); ratchet down over time.
-const MAX_CRAP_ZERO_COVERAGE = 2500    // observed max: 2070 (same offender as cyclomatic); ratchet down
+const {maxCoverage: MAX_CRAP_ZERO_COVERAGE} = readBudgetSync<{maxCoverage: number}>('complexity/crap0.json')
 
 describe('function CRAP0 risk health', () => {
     it('keeps CRAP0 risk within budget', async () => {

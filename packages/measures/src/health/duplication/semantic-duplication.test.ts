@@ -6,6 +6,7 @@ import {formatDuplicateRows} from '../../duplication-per-function/format-duplica
 import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 // Captured 2026-05-25 on first full-repo run: observed 534 pairs at or
 // above the 0.7 score threshold across 4295 discovered functions; budget
@@ -44,10 +45,8 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   and the >=0.7 pair count from 658 to 626.
 //   Observed 626 + 5 headroom = 631; ratchet DOWN as remaining intentional
 //   thin-wrapper clusters (subscribeX, isCallerKind/isDaemonKind) are consolidated.
-// Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 631
-
-const SCORE_THRESHOLD: number = 0.7
+const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
+    readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')
 
 describe('semantic function-duplication health', () => {
     it('keeps the count of >=0.7-score duplicate pairs within budget', async () => {

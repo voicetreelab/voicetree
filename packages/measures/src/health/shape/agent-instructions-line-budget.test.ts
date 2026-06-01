@@ -4,16 +4,11 @@ import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {listGitTrackedFiles} from '../../_shared/discovery/git-tracked-files'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '../../../../..')
-// 2026-05-28 [PR #139]: raised from 50 → 300. Commit 038a827cd intentionally
-// synced ~243 lines of canonical agent guidance (core values, escalation
-// rules, vt CLI quickref, etc.) into AGENTS.md / CLAUDE.md from the user's
-// global template. The previous 50-line ceiling reflected an earlier era
-// when the files were tool-routing stubs; the canonical content is the
-// new floor. Ratchet DOWN as guidance is consolidated into linkable docs.
-const AGENT_INSTRUCTIONS_LINE_LIMIT_EXCLUSIVE = 300
+const {limitExclusive: AGENT_INSTRUCTIONS_LINE_LIMIT_EXCLUSIVE} = readBudgetSync<{limitExclusive: number}>('shape/agent-instructions-line-budget.json')
 const AGENT_INSTRUCTIONS_LINE_BUDGET = AGENT_INSTRUCTIONS_LINE_LIMIT_EXCLUSIVE - 1
 
 const AGENT_INSTRUCTIONS_FILE_NAMES: ReadonlySet<string> = new Set([

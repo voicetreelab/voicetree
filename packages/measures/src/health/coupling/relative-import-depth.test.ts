@@ -5,11 +5,12 @@ import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '../../../../..')
 
-const BANNED_RELATIVE_IMPORT_BUDGET = 0
+const {bannedRelativeImportBudget: BANNED_RELATIVE_IMPORT_BUDGET} = readBudgetSync<{bannedRelativeImportBudget: number}>('coupling/relative-import-depth.json')
 
 const REQUESTED_SCOPE_ROOTS = [
     'webapp/src',
