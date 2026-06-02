@@ -6,6 +6,7 @@ import type {
     NodeIdAndFilePath,
     NodeUIMetadata,
     Position,
+    Size,
     UpsertNodeDelta
 } from "@vt/graph-model/graph";
 import {
@@ -39,9 +40,14 @@ import {parseMarkdownToGraphNode} from "@vt/graph-model/markdown";
  * NOTE: title is NOT stored in metadata - it's derived via getNodeTitle(node) when needed
  */
 export function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMetadata): NodeUIMetadata {
+    const newSize: O.Option<Size> = newMeta.size ?? O.none;
+    const oldSize: O.Option<Size> = oldMeta.size ?? O.none;
     return {
         color: O.isSome(newMeta.color) ? newMeta.color : oldMeta.color,
         position: O.isSome(newMeta.position) ? newMeta.position : oldMeta.position,
+        // Size carries through exactly like position: a present (Some) new value
+        // wins, otherwise the old value is preserved.
+        size: O.isSome(newSize) ? newSize : oldSize,
         additionalYAMLProps: Object.keys(newMeta.additionalYAMLProps).length > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,
         isContextNode: newMeta.isContextNode ?? oldMeta.isContextNode,
         containedNodeIds: newMeta.containedNodeIds ?? oldMeta.containedNodeIds,

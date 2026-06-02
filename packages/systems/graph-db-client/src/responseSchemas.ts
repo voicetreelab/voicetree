@@ -121,10 +121,10 @@ export const UpdateContextNodeContainedIdsResponseSchema: Schema<{ updated: bool
   },
 }
 
-export const WritePositionsResponseSchema: Schema<{ written: number }> = {
+export const WriteNodeLayoutResponseSchema: Schema<{ written: number }> = {
   parse(input: unknown) {
     if (!isObject(input) || typeof input.written !== 'number') {
-      throw new Error('Invalid write-positions response body')
+      throw new Error('Invalid write-node-layout response body')
     }
     return { written: input.written }
   },

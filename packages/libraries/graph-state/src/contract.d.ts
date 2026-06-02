@@ -19,7 +19,7 @@
  */
 
 import type {
-    Graph, GraphNode, Edge, NodeIdAndFilePath, Position,
+    Graph, GraphNode, Edge, NodeIdAndFilePath, Position, Size,
 } from '@vt/graph-model/graph'
 import type { FolderTreeNode, GraphDelta } from '@vt/graph-model'
 
@@ -41,6 +41,15 @@ export type RootPath = string
  */
 export interface StateLayout {
     readonly positions: ReadonlyMap<NodeIdAndFilePath, Position>
+    /**
+     * Expanded-folder sizes keyed by FolderId (directory id, trailing slash).
+     * A folder compound is not a graph node, so — unlike a file's position,
+     * which rides its GraphNode — folder size has no node to live on. It is
+     * therefore drag-driven spatial layout collected here alongside positions,
+     * loaded from / persisted to the same node-layout sidecar (folder-keyed
+     * records). Absent when no folder has been resized.
+     */
+    readonly folderSizes?: ReadonlyMap<FolderId, Size>
     readonly zoom?: number
     readonly pan?: Position
     readonly fit?: { readonly paddingPx: number } | null
@@ -209,6 +218,7 @@ export interface ProjectedNode {
     readonly folderPath: string
     readonly parent?: string                                         // compound parent ID (Cytoscape grouping)
     readonly position?: Position                                     // initial seed; renderer owns after first apply
+    readonly size?: { readonly width: number; readonly height: number } // expanded-folder min-width/height (resize); persisted in node-layout sidecar
     readonly classes?: readonly string[]
     readonly color?: string
     readonly content: string

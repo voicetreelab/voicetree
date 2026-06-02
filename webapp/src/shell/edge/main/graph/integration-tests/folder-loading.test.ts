@@ -489,12 +489,12 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
     it('should not throw when switching projects while a previous load is not connected to the daemon', async () => {
       // Regression: simulate the old race where a concurrent/failed first load
-      // left stale main-process state, causing writeCurrentPositionsThroughDaemon to
+      // left stale main-process state, causing writeCurrentNodeLayoutThroughDaemon to
       // throw "No project is currently open" and blocking the project switch entirely.
       //
       // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
       // second load seeing stale state from the first (daemon not yet connected).
-      // The old load implementation attempted writeCurrentPositionsThroughDaemon and
+      // The old load implementation attempted writeCurrentNodeLayoutThroughDaemon and
       // had to avoid propagating that error.
 
       await openProject(exampleLargePath)
