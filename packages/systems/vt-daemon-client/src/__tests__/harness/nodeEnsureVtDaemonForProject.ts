@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import {
   emitOwnerDiagnostic,
@@ -27,23 +26,12 @@ import {
   type ResolveVtDaemonCommandDeps,
 } from '../../autoLaunch/index.ts'
 
-const requireFromHere = createRequire(import.meta.url)
 const state = createEnsureVtDaemonState<VtDaemonClient>()
-
-function resolveVtdBinPath(): string {
-  return requireFromHere.resolve('@vt/vt-daemon/bin/vtd.ts')
-}
-
-function resolveTsxLoader(): string {
-  return requireFromHere.resolve('tsx')
-}
 
 function buildResolveCommandDeps(env: NodeJS.ProcessEnv): ResolveVtDaemonCommandDeps {
   return {
     env,
     runtimeCommand: () => resolveDaemonRuntimeCommand({ env }),
-    tsxLoaderPath: resolveTsxLoader(),
-    vtdBinPath: resolveVtdBinPath(),
   }
 }
 
