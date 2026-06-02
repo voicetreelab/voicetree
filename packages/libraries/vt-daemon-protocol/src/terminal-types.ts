@@ -26,7 +26,7 @@ import type { NodeIdAndFilePath } from './core-types.ts';
 // Moved here from `@vt/agent-runtime/lifecycle` so the protocol can describe
 // the in-flight states a terminal can occupy without taking a runtime
 // dependency on agent-runtime. Helper predicates over these (e.g.
-// `isTerminalLifecycle`) stay in agent-runtime.
+// `isFinishedLifecycle`) stay in agent-runtime.
 // ---------------------------------------------------------------------------
 
 /**
