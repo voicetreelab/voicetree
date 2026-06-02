@@ -1,0 +1,5 @@
+{
+  "maxBoundaryWidthRatioBudget": 1,
+  "crossBoundaryTreeWidthBudget": 3,
+  "maxPassthroughBarrelBudget": 44
+}

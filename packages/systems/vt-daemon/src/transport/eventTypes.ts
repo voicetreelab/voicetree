@@ -8,7 +8,7 @@
 //
 // `import type` only — no runtime side effects.
 
-import type {TopicName} from './eventSubscriptionHub.ts'
+import type {TopicName} from './sse/eventSubscriptionHub.ts'
 
 export type {TopicName}
 

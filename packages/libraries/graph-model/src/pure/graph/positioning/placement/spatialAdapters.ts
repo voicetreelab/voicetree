@@ -46,12 +46,7 @@ export function edgeEntryToSegment(entry: SpatialEdgeEntry): EdgeSegment {
 
 /** Build a search rectangle centered on a position with a given radius. */
 export function buildSearchRect(center: Position, radius: number): Rect {
-    return {
-        minX: center.x - radius,
-        minY: center.y - radius,
-        maxX: center.x + radius,
-        maxY: center.y + radius,
-    };
+    return expandRect({ minX: center.x, minY: center.y, maxX: center.x, maxY: center.y }, radius)
 }
 
 /** Expand a rectangle by a margin on all sides. */

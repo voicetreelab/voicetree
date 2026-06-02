@@ -6,6 +6,7 @@ import {formatDuplicateRows} from '../../duplication-per-function/format-duplica
 import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 // Captured 2026-05-25 on first full-repo run: observed 534 pairs at or
 // above the 0.7 score threshold across 4295 discovered functions; budget
@@ -37,23 +38,41 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 //   the call-graph primitives — same intentional thin-wrapper pattern as
 //   graph-bridge.ts. Observed 640 + 5 headroom = 645; ratchet DOWN as
 //   the command bodies grow past their current 1–2 call shape.
-// Re-anchored 2026-06-02 [vtd production-spawn packaging]:
+// Re-anchored 2026-06-01 [semantic dedup cleanup]:
+//   8 genuine duplicate eliminations (pathExists, sortStrings×3, rectArea,
+//   edge factory, makeNodeExtensionChecker, compareEdges×3, findRootNodeIds,
+//   buildSearchRect delegation) reduced the population from 5173 to 5146 functions
+//   and the >=0.7 pair count from 658 to 626.
+//   Observed 626 + 5 headroom = 631; ratchet DOWN as remaining intentional
+//   thin-wrapper clusters (subscribeX, isCallerKind/isDaemonKind) are consolidated.
+// Re-anchored 2026-06-02 [agent-name roster feature]:
+//   graph-model/pure/agents/siliconValleyRoster.ts adds baseIdFromAgentName,
+//   a one-line `agentName.replace(/(_\d+)+$/, '')` that strips collision
+//   suffixes. It collides with the codebase's existing family of unrelated
+//   single-`.replace()` escape helpers (escapeRegex×N, escapeGlobPattern,
+//   sanitizeTag, escapeWikilinkMarkers) on structural+behavioral signals ONLY
+//   — lexical does not match, since the regexes and intent differ. These are
+//   not consolidatable: each escapes a different thing. +6 false-positive
+//   thin-shape pairs (all sharing baseIdFromAgentName as one endpoint).
+//   Observed 638 + 5 headroom = 643. This cluster cannot ratchet down without
+//   deleting a distinct, tested, single-purpose function.
+// Re-anchored 2026-06-02 [vtd production-spawn packaging — PR #213]:
 //   @vt/vt-daemon-client's autoLaunch/runtime.ts gained a bundle-preferring
 //   entrypoint resolver (resolveDefaultDaemonArgs + sourceIsNewerThan +
 //   defaultSiblingDaemonPath + dist/source path helpers) that deliberately
 //   MIRRORS @vt/graph-db-client's resolver — the two are intentionally kept in
 //   separate packages because the daemons take different argv shapes
 //   (vtd `--project` vs graphd `--project-root`) and resolve different
-//   packages. This is the same vt-daemon-family parallelism that drove the
-//   549→626 re-anchor. +8 pairs, all within autoLaunch/runtime.ts. Observed
-//   653 + 5 headroom = 658. FOLLOW-UP: unify the two resolvers behind a shared
-//   selectDaemonEntrypointArgs helper in graph-db-client and ratchet back down
-//   (deferred here to avoid refactoring the proven graphd spawn path in the
-//   same change that first makes vtd spawnable in production).
+//   packages. Same vt-daemon-family parallelism that drove the 549→626
+//   re-anchor; the new pairs all live within autoLaunch/runtime.ts. FOLLOW-UP:
+//   unify the two resolvers behind a shared selectDaemonEntrypointArgs helper
+//   in graph-db-client and ratchet back down (deferred to avoid refactoring the
+//   proven graphd spawn path in the same change that first makes vtd spawnable
+//   in production). The numeric budget lives in
+//   budgets/duplication/semantic-duplication.json (read below).
 // Ratchet DOWN as the codebase is de-duplicated, never up.
-const MAX_DUPLICATE_PAIRS: number = 658
-
-const SCORE_THRESHOLD: number = 0.7
+const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
+    readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')
 
 describe('semantic function-duplication health', () => {
     it('keeps the count of >=0.7-score duplicate pairs within budget', async () => {

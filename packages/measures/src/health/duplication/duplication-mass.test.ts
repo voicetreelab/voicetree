@@ -19,64 +19,23 @@ import {
 } from '../../_shared/graph/import-distance.ts'
 import {buildImportGraph} from '../../_shared/graph/import-graph.ts'
 import {assertHealthBudget, recordHealthMetric} from '../../_shared/writers/report-writer.ts'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
-// Severity threshold for the recoverable-LOC denominator. Set just below the
-// median severity of the per-function check's >= 0.7 pairs. Admits cross-
-// tier re-implementations (e.g. daemon vs shell pipelines), keeps same-file
-// siblings out (importDistance = 0 → log2(2) = 1 weight floor), biases the
-// metric toward genuinely-recoverable mass. Adjust this BEFORE tightening
-// the hard-gate budget — keep them in sync.
-const SEVERITY_THRESHOLD: number = 20
-
-// Hard gate: any PR that increases this fails. Ratchet down as refactors
-// land; never up.
-//
-// Captured 2026-05-26 first full-repo calibration run:
-//   569 deduped rankable pairs (549 per-function + 40 workflow incl
-//     fuzzy band; ~20 pairs surfaced only by the workflow signal)
-//   import graph: 922 vertices, 1953 undirected edges
-//     sampled diameter: max-observed-hops=7 (cap=8 is generous)
-//     52.5% of random module pairs are reachable
-//   ranked-pair distance buckets: 110 same-file, 121 unreachable
-//   pairs at or above SEVERITY_THRESHOLD: 111
-//   recoverable LOC at SEVERITY_THRESHOLD: 2525
-// Re-anchored 2026-05-26 against current dev-manu base:
-//   the intervening commits between original baseline and current dev-manu
-//   tip grew the corpus by 17 LOC of legitimate pairs. Not caused by this
-//   work — the duplication primitives themselves are unchanged.
-// Re-anchored 2026-05-28 [PR #135 merge: dev-manu → dev]:
-//   merging origin/dev's vt-daemon migration into dev-manu raised the
-//   recoverable LOC by 44 (2542 → 2586). The new offenders are mostly already-
-//   known pairs from origin/dev's vt-daemon split (forkAgentSession ↔
-//   resumePersistedAgentSession ~52 LOC, otlpReceiver ↔ bodyReader ~27/25 LOC,
-//   agentEventsSse ↔ terminalRegistrySse ~54 LOC) — all genuine extraction
-//   opportunities, not mistakes introduced by the merge itself. Tracked
-//   separately for refactor; ratchet to the post-merge baseline so the gate
-//   remains active against further regressions.
-const MAX_RECOVERABLE_LOC: number = 2586
-
-// High-severity warning tier. Picks the dominant tail of the severity
-// distribution (the cumulative curve at sev>=50 was 23 pairs / 884 LOC on
-// the first calibration run — the most obviously-recoverable mass).
-//
-// HIGH_SEVERITY_CUTOFF = 50 is the histogram knee — pairs of this severity
-// are dominated by large cross-package or unreachable-module dups. Below 50
-// is the dense [25, 50) bucket of medium-sized internal twins.
-//
-// MAX_HIGH_SEVERITY_LOC = 200 is intentionally well below the current 884:
-// the warning is meant to over-fire while the worst offenders (the 152-
-// line popup pair alone is ~152 LOC) are still around. Once those land, a
-// realistic ratchet target is ~100-150.
-const HIGH_SEVERITY_CUTOFF: number = 50
-const MAX_HIGH_SEVERITY_LOC: number = 200
-
-const PER_FUNCTION_MIN_SCORE: number = 0.7
-// The workflow check's fuzzy band caps at score 0.40 (max=0.6×0+0.4×1.0)
-// per the workflow diagnostic, with a long noise tail below 0.20. 0.30
-// admits the genuine high-edgeJ near-dups (e.g. daemon vs shell
-// getAvailableFoldersForSelector at edgeJ=0.93 → score 0.37) without
-// dragging in single-band LSH-collision noise.
-const WORKFLOW_MIN_SCORE: number = 0.3
+const {
+    maxRecoverableLoc: MAX_RECOVERABLE_LOC,
+    maxHighSeverityLoc: MAX_HIGH_SEVERITY_LOC,
+    severityThreshold: SEVERITY_THRESHOLD,
+    highSeverityCutoff: HIGH_SEVERITY_CUTOFF,
+    perFunctionMinScore: PER_FUNCTION_MIN_SCORE,
+    workflowMinScore: WORKFLOW_MIN_SCORE,
+} = readBudgetSync<{
+    maxRecoverableLoc: number
+    maxHighSeverityLoc: number
+    severityThreshold: number
+    highSeverityCutoff: number
+    perFunctionMinScore: number
+    workflowMinScore: number
+}>('duplication/duplication-mass.json')
 
 function makeRankablePairs(
     perFunctionPairs: ReadonlyArray<{readonly aId: string; readonly bId: string; readonly score: number}>,

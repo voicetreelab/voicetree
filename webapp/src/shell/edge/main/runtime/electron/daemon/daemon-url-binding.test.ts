@@ -64,6 +64,7 @@ import {
     getDaemonUrl,
     unbindVtDaemon,
 } from './daemon-url-binding'
+import {shutdownTmuxServer} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-server.ts'
 
 interface ProjectLayout {
     readonly projectRoot: string
@@ -268,6 +269,7 @@ afterEach(async (): Promise<void> => {
     restoreEnv('VOICETREE_PARENT_PID', harness.savedEnv.VOICETREE_PARENT_PID)
 
     if (harness.voicetreeHomeTmp !== null) {
+        await shutdownTmuxServer({ voicetreeHomePath: harness.voicetreeHomeTmp }).catch(() => undefined)
         await fs.rm(harness.voicetreeHomeTmp, { recursive: true, force: true }).catch(() => undefined)
         harness.voicetreeHomeTmp = null
     }

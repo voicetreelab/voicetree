@@ -4,9 +4,9 @@ import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {formatFunctionRows} from '../../_shared/complexity/function-row-formatters'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
-// Captured 2026-05-15 after widening discovery to whole repo via discoverPackages(); ratchet down over time.
-const MAX_CYCLOMATIC_COMPLEXITY = 50   // observed max: 45 (graph-model/folderCollapse.ts:computeExpandPlan)
+const {max: MAX_CYCLOMATIC_COMPLEXITY} = readBudgetSync<{max: number}>('complexity/cyclomatic-complexity.json')
 
 describe('function cyclomatic complexity health', () => {
     it('keeps cyclomatic complexity within budget', async () => {

@@ -449,7 +449,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-          cp out/electron/voicetree-x64.AppImage out/electron/voicetree.AppImage
+          # electron-builder names the linux AppImage with the kernel arch
+          # token (x64 -> x86_64), unlike the mac DMG (x64). Resolve the real
+          # file rather than hardcoding the token so this no-arch-suffix compat
+          # alias stays correct across electron-builder arch-naming.
+          appimage=$(ls out/electron/voicetree-*.AppImage)
+          cp "$appimage" out/electron/voicetree.AppImage
           gh release upload "v${VERSION}" out/electron/voicetree.AppImage \
             --clobber --repo voicetreelab/voicetree
 

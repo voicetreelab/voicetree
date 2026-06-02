@@ -274,6 +274,7 @@ async function main(): Promise<void> {
             try { cdpHandle.close() } catch { /* */ }
         }
         try { agentRuntime.getTerminalManager().cleanup() } catch { /* */ }
+        await agentRuntime.shutdownTmuxServer({ voicetreeHomePath: tempVoicetreeHome }).catch(() => undefined)
         if (electronProc) await stopElectron(electronProc)
         if (!args.keepArtifacts) {
             rmSync(tempProject, { recursive: true, force: true })

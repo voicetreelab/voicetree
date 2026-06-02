@@ -7,6 +7,7 @@ import {beforeAll, describe, expect, it} from 'vitest'
 import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {createRepoTsMorphProject} from '../../_shared/graph/repo-ts-morph-project'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
@@ -31,8 +32,10 @@ const DAEMON_OWNED_MUTATIONS_LAUNCHER_ALLOWLIST: ReadonlySet<string> = new Set([
     // SIBLING process. No allowlist entry required.
 ])
 
-const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET = 0
-const CROSS_PACKAGE_RELATIVE_IMPORT_BUDGET = 0
+const {
+    daemonOwnedMutationsNonLauncherRuntimeEdgeBudget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET,
+    crossPackageRelativeImportBudget: CROSS_PACKAGE_RELATIVE_IMPORT_BUDGET,
+} = readBudgetSync<{daemonOwnedMutationsNonLauncherRuntimeEdgeBudget: number; crossPackageRelativeImportBudget: number}>('shape/import-graph-invariants.json')
 
 type ImportEdge = {
     readonly importerFile: string

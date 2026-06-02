@@ -1,8 +1,9 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
+import {readdir, readFile} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {DEFAULT_REPO_ROOT, type PackageInfo} from '../discovery/discover-packages.ts'
 import {resolveWorkspaceBasePath} from '../discovery/package-exports.ts'
+import {statOrNull} from '../stat-or-null.ts'
 
 const SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx']
 
@@ -26,15 +27,6 @@ type ImportGraph = {
     readonly edges: readonly Edge[]
 }
 
-async function sourceRootStatOrNull(p: string) {
-    try {
-        return await stat(p)
-    } catch (cause) {
-        if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return null
-        throw cause
-    }
-}
-
 function isSourceFile(path: string, extensions: readonly string[] = SOURCE_EXTENSIONS): boolean {
     return extensions.some(ext => path.endsWith(ext))
         && !path.endsWith('.test.ts')
@@ -54,7 +46,7 @@ function isProductionSource(path: string): boolean {
 }
 
 export async function listProductionSources(root: string): Promise<string[]> {
-    const rootStat = await sourceRootStatOrNull(root)
+    const rootStat = await statOrNull(root)
     if (!rootStat) return []
 
     if (rootStat.isFile()) {

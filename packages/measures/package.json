@@ -6,7 +6,8 @@
   "exports": {
     "./vitest-reporter": "./src/_shared/writers/vitest-ci-check-reporter.ts",
     "./check-report-writer": "./src/_shared/writers/check-report-writer.ts",
-    "./graph/call-graph": "./src/_shared/graph/call-graph.ts"
+    "./graph/call-graph": "./src/_shared/graph/call-graph.ts",
+    "./perf/main-process-cdp": "./perf/_shared/main-process-cdp.ts"
   },
   "scripts": {
     "test": "vitest run src/health/ src/checks/ src/_subgraph_gate/",

@@ -4,7 +4,7 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
-import {CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS} from './coupling-budget'
+import {CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS} from '../../../budgets/coupling/cross-package-value-symbol-budgets.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
 

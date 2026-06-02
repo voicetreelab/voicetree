@@ -67,7 +67,7 @@ function buildDataCyDump(data: State): CyDump {
   const sources = [...nodeEntries].sort(([left], [right]) => left.localeCompare(right))
   for (const [sourceId, node] of sources) {
     const outgoing = [...node.outgoingEdges]
-      .sort((left, right) => left.targetId.localeCompare(right.targetId) || left.label.localeCompare(right.label))
+      .sort((a, b) => a.targetId.localeCompare(b.targetId) || a.label.localeCompare(b.label))
     for (const edge of outgoing) {
       const id = `${sourceId}->${edge.targetId}`
       if (seenEdges.has(id)) continue

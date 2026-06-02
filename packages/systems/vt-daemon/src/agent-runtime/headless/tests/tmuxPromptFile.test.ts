@@ -4,6 +4,7 @@
  * mocking. Lives next to the function under test per repo convention.
  */
 import {existsSync, mkdtempSync, readFileSync, rmSync, statSync} from 'node:fs'
+import {execFileSync} from 'node:child_process'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {describe, expect, it, beforeEach, afterEach} from 'vitest'
@@ -13,6 +14,7 @@ import {
     applyPromptFileToTmuxSpawn,
     deletePromptFile,
     deletePromptFileByPath,
+    formatLaunchScript,
     promptFilePath,
     rewriteCommandForPromptFile,
     wrapForHeadlessTmux,
@@ -143,6 +145,23 @@ describe('wrapForHeadlessTmux', () => {
     it('preserves compound commands so both sides of && run', () => {
         const out: string = wrapForHeadlessTmux(`echo marker && sleep 10`)
         expect(out).toBe(`bash -c 'unset AGENT_PROMPT; echo marker && sleep 10'`)
+    })
+})
+
+describe('formatLaunchScript', () => {
+    it('lets bash parse leading env assignments before execing the agent command', () => {
+        const script: string = formatLaunchScript(
+            `CLAUDE_CODE_SANDBOXED=1 CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30 CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion`,
+        )
+        expect(script).toBe(
+            `#!/usr/bin/env bash\nexec bash -c 'CLAUDE_CODE_SANDBOXED=1 CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30 CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion'\n`,
+        )
+    })
+
+    it('executes commands with leading env assignments as shell syntax', () => {
+        const script: string = formatLaunchScript('FOO=bar env')
+        const out: string = execFileSync('bash', ['-c', script], {encoding: 'utf8'})
+        expect(out).toContain('FOO=bar\n')
     })
 })
 

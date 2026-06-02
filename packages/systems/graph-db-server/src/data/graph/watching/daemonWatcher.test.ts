@@ -202,11 +202,13 @@ describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
     created.push(parent)
     const project: string = join(parent, 'project')
     await mkdir(join(project, 'loaded'), { recursive: true })
+    await writeFile(join(project, 'README.md'), '# existing readme\n')
 
     // The loaded project as the daemon sees it after the cold scan: the root is
     // a watch root, and `loaded/` already holds a node.
     const graphNodes: Record<string, unknown> = {
       [`${normalizePath(join(project, 'loaded'))}/existing.md`]: {},
+      [normalizePath(join(project, 'README.md'))]: {},
     }
 
     const addedPaths: string[] = []
@@ -255,6 +257,7 @@ describe('mountWatcher: new folders are unloaded by default (no flood)', () => {
       await watcher.unmount()
     }
   }, 15000)
+
 })
 
 /**

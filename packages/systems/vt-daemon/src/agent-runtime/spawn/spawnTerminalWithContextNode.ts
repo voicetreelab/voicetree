@@ -20,7 +20,7 @@ import {type TerminalId } from '@vt/vt-daemon/agent-runtime/terminals/terminal-r
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';
-import { getNextAgentName, getUniqueAgentName } from '@vt/graph-model/settings';
+import { getUniqueAgentName, pickAgentName } from '@vt/graph-model/settings';
 import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
 import {
     getRuntimeGraph,
@@ -101,7 +101,7 @@ export async function spawnTerminalWithContextNode(
     // caller before the heavy terminal-prep work finishes. getExistingAgentNames
     // includes pending entries, so concurrent spawns won't collide.
     const agentName: string = inheritTerminalId ?? (() => {
-        const baseAgentName: string = getNextAgentName();
+        const baseAgentName: string = pickAgentName(settings);
         const existingNames: Set<string> = getExistingAgentNames();
         return getUniqueAgentName(baseAgentName, existingNames);
     })();

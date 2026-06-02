@@ -16,7 +16,8 @@
     "./state/folderVisibility/implicitRoots": "./src/state/folderVisibility/implicitRoots.ts",
     "./state/folderVisibilityStore": "./src/state/folderVisibilityStore.ts",
     "./state/selectionStore": "./src/state/selectionStore.ts",
-    "./state/layoutStore": "./src/state/layoutStore.ts"
+    "./state/layoutStore": "./src/state/layoutStore.ts",
+    "./project-helpers": "./src/project-helpers.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

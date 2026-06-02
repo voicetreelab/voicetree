@@ -1,0 +1,5 @@
+{
+  "wallClockMs": 1800000,
+  "sumMs": 7200000,
+  "perCheckMaxRatio": 0.6
+}

@@ -23,6 +23,13 @@ const config: KnipConfig = {
                 'tools/**',
                 '.venv-server/**',
                 'health-dashboard/mockups/**',
+                // Gitignored vendored/runtime data under the perf stack (Grafana's
+                // own source under bin/grafana-home, Tempo WAL under storage/). Knip
+                // does not honor the nested infra/perf-stack/.gitignore, so it would
+                // otherwise report unused exports in third-party Grafana .tsx files
+                // whenever the devbox has the stack vendored. Not our code to analyze.
+                'infra/perf-stack/bin/**',
+                'infra/perf-stack/storage/**',
             ],
         },
         'webapp': {
@@ -30,6 +37,10 @@ const config: KnipConfig = {
                 'vite.web.config.ts',
                 'src/utils/empty-node-module.ts',
                 'src/utils/types/*.d.ts',
+                // Sidecar type declaration for the vendored ctxmenu.js (imported as
+                // ctxmenu.js + via window.ctxmenu). Knip tracks the .js import, not the
+                // co-located .d.ts, so without this it false-flags the file as unused.
+                'src/shell/UI/lib/ctxmenu.d.ts',
                 'src/web-main.tsx',
                 'src/shell/edge/main/runtime/electron/app/main.ts',
                 'src/shell/edge/main/runtime/electron/app/preload.ts',

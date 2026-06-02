@@ -169,6 +169,17 @@ export function stopSmokeGraphDaemonForProject(projectPath: string): void {
   );
 }
 
+export function stopSmokeTmuxServer(voicetreeHomePath: string): void {
+  const socketPath = path.join(voicetreeHomePath, TMUX_SOCKET_NAME);
+  try {
+    execFileSync("tmux", ["-S", socketPath, "kill-server"], {
+      stdio: "ignore",
+    });
+  } catch {
+    // tmux may not have been started for this test.
+  }
+  killProcessesMatching((command) => command.includes(socketPath));
+}
 
 export function getCiElectronFlags(): string[] {
   return process.env.CI

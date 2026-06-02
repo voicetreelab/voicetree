@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../..')
@@ -32,7 +33,10 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
 // the scanner still counts it because it's a top-level binding. Same
 // architectural rationale as the prior bumps — folding it into a passed-in
 // parameter would touch every recovery call site for no behavioral gain.
-const MODULE_MUTABLE_STATE_BASELINE = 49
+const {
+    moduleMutableStateBaseline: MODULE_MUTABLE_STATE_BASELINE,
+    daemonOwnedMutationsNonLauncherRuntimeImportBudget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET,
+} = readBudgetSync<{moduleMutableStateBaseline: number; daemonOwnedMutationsNonLauncherRuntimeImportBudget: number}>('coupling/package-boundaries.json')
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
@@ -56,7 +60,6 @@ const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
     // graph-db-server — it talks to vt-graphd via @vt/graph-db-client as a
     // SIBLING process. No allowlist entry required.
 ] as const
-const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET = 0
 
 type MutableStateViolation = {
     file: string

@@ -17,6 +17,7 @@ import {
     type GraphNode,
     type Position,
 } from '@vt/graph-model'
+import { compareEdges } from '../project-helpers'
 
 import type { Command, State } from '../contract'
 import { deriveImplicitRoots } from '../state/folderVisibility/implicitRoots'
@@ -188,11 +189,7 @@ export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
     return {
         kind: node.kind,
         outgoingEdges: [...node.outgoingEdges]
-            .sort(
-                (left, right) =>
-                    left.targetId.localeCompare(right.targetId)
-                    || left.label.localeCompare(right.label)
-            )
+            .sort(compareEdges)
             .map((edge) => ({ targetId: edge.targetId, label: edge.label })),
         absoluteFilePathIsID: node.absoluteFilePathIsID,
         contentWithoutYamlOrLinks: node.contentWithoutYamlOrLinks,

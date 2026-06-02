@@ -1,16 +1,19 @@
 // Pure per-edit measure: given a {filePath, content} pair, decide whether
 // the file violates the line-count budget and (on violation) return a
 // formatted message ready for stderr. I/O lives in
-// _runners/per-edit-hook.ts (the runner edge); this module is dependency-
-// free (no node imports) so it stays in the pure core of measures/checks/.
+// _runners/per-edit-hook.ts (the runner edge); this module reads the
+// budget from budgets/shape/file-size.json at init time.
 
 import {fileSizePredicate} from '../_shared/file-size-predicate.ts'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
+
+const {maxLines: FILE_SIZE_MAX_LINES} = readBudgetSync<{maxLines: number}>('shape/file-size.json')
 
 export type PerEditViolation = {readonly message: string}
 
 export function checkFile(args: {readonly filePath: string; readonly content: string}): PerEditViolation | null {
     if (!fileSizePredicate.isSourceFile(args.filePath)) return null
-    const result = fileSizePredicate.fileSizeCheck(args.content)
+    const result = fileSizePredicate.fileSizeCheck(args.content, FILE_SIZE_MAX_LINES)
     if (result.kind === 'ok') return null
     return {message: formatViolation(args.filePath, result.actualLines, result.maxLines)}
 }

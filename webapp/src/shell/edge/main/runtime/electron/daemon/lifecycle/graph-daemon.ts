@@ -111,13 +111,6 @@ export async function setActiveProjectAndEnsureDaemon(project: string): Promise<
   return await ensureDaemonForActiveProject()
 }
 
-export function getDaemonClient(): GraphDbClient {
-  if (activeOwner === null) {
-    throw new Error('Graph daemon client is not connected. Open a project first.')
-  }
-  return activeOwner.client
-}
-
 export function getActiveDaemonClient(): GraphDbClient | null {
   return activeOwner?.client ?? null
 }

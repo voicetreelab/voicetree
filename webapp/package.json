@@ -147,6 +147,7 @@
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",
+    "@vt/measures": "*",
     "@vt/observability": "*",
     "@vt/paths": "*",
     "@vt/perf-analysis": "*",

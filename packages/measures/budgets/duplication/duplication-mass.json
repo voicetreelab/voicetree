@@ -1,0 +1,8 @@
+{
+  "maxRecoverableLoc": 2586,
+  "maxHighSeverityLoc": 200,
+  "severityThreshold": 20,
+  "highSeverityCutoff": 50,
+  "perFunctionMinScore": 0.7,
+  "workflowMinScore": 0.3
+}

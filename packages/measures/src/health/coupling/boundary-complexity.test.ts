@@ -4,14 +4,15 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_BOUNDARY_WIDTH_RATIO_BUDGET = 1
-const CROSS_BOUNDARY_TREE_WIDTH_BUDGET = 3
+const {
+    maxBoundaryWidthRatioBudget: MAX_BOUNDARY_WIDTH_RATIO_BUDGET,
+    crossBoundaryTreeWidthBudget: CROSS_BOUNDARY_TREE_WIDTH_BUDGET,
+    maxPassthroughBarrelBudget: MAX_PASSTHROUGH_BARREL_BUDGET,
+} = readBudgetSync<{maxBoundaryWidthRatioBudget: number; crossBoundaryTreeWidthBudget: number; maxPassthroughBarrelBudget: number}>('coupling/boundary-complexity.json')
 const MIN_BOUNDARY_FILE_LOGIC_RATIO = 0.2
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_PASSTHROUGH_BARREL_BUDGET = 44
 
 
 type SourceFileInfo = {

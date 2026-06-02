@@ -21,13 +21,15 @@ export const AGENT_NAMES: readonly string[] = [
     'Siti', 'Tao', 'Tara', 'Timi', 'Uma', 'Vic', 'Wei', 'Xan', 'Yan', 'Zoe',
 ] as const;
 
-// Round-robin agent name selection (no collisions until all 60 names used)
+// Round-robin agent name selection. The counter rotates over whichever pool is
+// passed (neutral AGENT_NAMES or the Silicon Valley roster); `getUniqueAgentName`
+// resolves any collision once a pool wraps.
 // eslint-disable-next-line functional/prefer-readonly-type -- intentionally mutable counter
 const agentNameState: { index: number } = { index: -1 };
 
-export function getNextAgentName(): string {
-    agentNameState.index = (agentNameState.index + 1) % AGENT_NAMES.length;
-    return AGENT_NAMES[agentNameState.index];
+export function getNextAgentName(names: readonly string[] = AGENT_NAMES): string {
+    agentNameState.index = (agentNameState.index + 1) % names.length;
+    return names[agentNameState.index];
 }
 
 /**
@@ -82,6 +84,13 @@ export interface HookSettings {
     readonly onNewNode?: string;
 }
 
+/**
+ * Default subgraph-gardening thresholds. Shared by the settings schema (defaults),
+ * the create_graph context fallback, and tests so there is a single source of truth.
+ */
+export const DEFAULT_SUBGRAPH_WARN_THRESHOLD: number = 4;
+export const DEFAULT_SUBGRAPH_ERROR_THRESHOLD: number = 6;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -103,6 +112,8 @@ export interface VTSettings {
     readonly emptyFolderTemplate?: string;
     /** Enable VIM keybindings in markdown editors */
     readonly vimMode?: boolean;
+    /** Silicon Valley mode: name agents after Silicon Valley characters and inject a matching persona into their prompt. On by default. */
+    readonly siliconValleyMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
     readonly hotkeys?: HotkeySettings;
     /**
@@ -121,6 +132,17 @@ export interface VTSettings {
     readonly zoomSensitivity?: number;
     /** Maximum non-exempt lines per progress node (default: 80). Keeps nodes atomic. */
     readonly nodeLineLimit?: number;
+    /**
+     * Subgraph-gardening warn threshold: when a folder-bounded component reaches
+     * this many nodes, create_graph returns a non-blocking warning (default: 4).
+     */
+    readonly subgraphWarnThreshold?: number;
+    /**
+     * Subgraph-gardening error threshold: when a folder-bounded component reaches
+     * this many nodes, create_graph blocks (overridable with a rationale) so the
+     * agent splits the cluster into a sub-folder or justifies the exception (default: 6).
+     */
+    readonly subgraphErrorThreshold?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */

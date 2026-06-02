@@ -110,6 +110,8 @@ describe('tmux spawn planning', () => {
     it('plans headful prompt injection whenever there is an initial command', () => {
         expect(resolveHeadfulPromptInjection(terminalId, 'codex "$AGENT_PROMPT"'))
             .toEqual({terminalId, command: 'codex "$AGENT_PROMPT"'});
+        expect(resolveHeadfulPromptInjection(terminalId, 'codex "$AGENT_PROMPT"', '/project'))
+            .toEqual({terminalId, command: 'codex "$AGENT_PROMPT"', projectRoot: '/project'});
         expect(resolveHeadfulPromptInjection(terminalId, undefined)).toBeNull();
     });
 });

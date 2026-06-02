@@ -1,6 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 
 import { getFolderNotePath, type GraphNode } from '@vt/graph-model'
+import { compareEdges } from './project-helpers'
 
 import type { FolderId, ProjectedEdge, ProjectedGraph, ProjectedNode, State, TreeEdge } from './contract'
 import {
@@ -208,7 +209,7 @@ function projectEdges(
         if (sourceEndpoint === undefined) continue
 
         const outgoingEdges = [...sourceNode.outgoingEdges]
-            .sort((left, right) => left.targetId.localeCompare(right.targetId) || left.label.localeCompare(right.label))
+            .sort(compareEdges)
 
         for (const edge of outgoingEdges) {
             const targetNode = graphNodes[edge.targetId]

@@ -7,7 +7,7 @@
 # single-source model — configures that base as a read-only fast-forward cache
 # of origin (NOT a full-repo mutagen replica). Also routes git hooks.
 #
-# The old vt-remote full-repo mutagen session is retired; the kept syncs (vt-wts
+# The old vt-remote full-repo mutagen session is retired; the kept syncs (vt-wts-synced
 # worktree mirror + the health-dashboard data) are created separately via
 # scripts/dev-setup/remote/vt-remote.sh.
 #
@@ -201,7 +201,7 @@ ok "ast-grep, ck, cgcli on PATH (cgcli needs node_modules; resolves per-worktree
 
 # NOTE: the vt-remote full-repo mutagen session is RETIRED under the single-source
 # model — the VM base ($REMOTE_DIR) is a read-only ff cache of origin, configured
-# below after git-gate. The kept syncs (vt-wts + the two health-dashboard data
+# below after git-gate. The kept syncs (vt-wts-synced + the two health-dashboard data
 # sessions) are created on demand via vt-remote.sh, not here.
 
 step "setting up standalone brain checkouts"

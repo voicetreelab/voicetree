@@ -143,6 +143,32 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
         expect(within(row as HTMLElement).getByText('30s ago | pid 84231')).toBeTruthy();
     });
 
+    it('renders duplicate terminal names from different tmux namespaces without React key collisions', () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        const {container} = renderSection([
+            makeAttachable({
+                sessionName: 'vt-aaaaaaaaaa-Aki',
+                terminalId: 'Aki',
+                hash: 'aaaaaaaaaa',
+                agentName: 'Aki',
+            }),
+            makeAttachable({
+                sessionName: 'vt-bbbbbbbbbb-Aki',
+                terminalId: 'Aki',
+                hash: 'bbbbbbbbbb',
+                agentName: 'Aki',
+            }),
+        ]);
+
+        expect(container.querySelectorAll('[data-terminal-id="Aki"]')).toHaveLength(2);
+        expect(consoleError).not.toHaveBeenCalledWith(
+            expect.stringContaining('Encountered two children with the same key'),
+            expect.anything(),
+        );
+        consoleError.mockRestore();
+    });
+
     it('renders foreign-project attach rows as kill-only', () => {
         const foreign: RecoverableAgentSession = makeAttachable({
             sessionName: 'vt-bbbbbbbbbb-Beth',

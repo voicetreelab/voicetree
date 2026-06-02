@@ -10,6 +10,28 @@ export function getFolderParent(nodeId: string): string | null {
 }
 
 /**
+ * The canonical identity note of a folder: `foo/` → `foo/foo.md`,
+ * `a/b/` → `a/b/b.md`. This is the node that represents the folder itself
+ * (a collapsible folder node), mirroring the linter's folder-identity
+ * convention in `graph-tools/src/lint/lintContainment.ts`.
+ */
+export function getFolderIdentityNoteId(folderPath: string): NodeIdAndFilePath {
+    const withoutTrailingSlash: string = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath
+    const folderName: string = withoutTrailingSlash.slice(withoutTrailingSlash.lastIndexOf('/') + 1)
+    return `${folderPath.endsWith('/') ? folderPath : `${folderPath}/`}${folderName}.md`
+}
+
+/**
+ * A node is a folder identity note when it lives directly inside a folder whose
+ * basename matches the node's own basename (`foo/foo.md`, `a/b/b.md`). Such a
+ * node represents the folder as a single collapsible unit.
+ */
+export function isFolderIdentityNote(nodeId: NodeIdAndFilePath): boolean {
+    const folderPath: string | null = getFolderParent(nodeId)
+    return folderPath !== null && nodeId === getFolderIdentityNoteId(folderPath)
+}
+
+/**
  * Direct children: nodes whose getFolderParent() === folderPath
  * Excludes context nodes (they're never in cy).
  */
