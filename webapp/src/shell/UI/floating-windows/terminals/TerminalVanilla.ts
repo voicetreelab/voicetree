@@ -372,20 +372,25 @@ export class TerminalVanilla {
     vtTerminalBufferDebug()?.setTerminalBufferReader?.(this.terminalId, () => readActiveBufferText(this.term));
     this.createRelayStatusIndicator();
 
-    // Main owns the /terminals/:id/attach WebSocket; we receive PTY bytes
-    // and status frames over IPC keyed by an opaque handle id (BF-368).
+    // Main (Electron) or the browser runtime owns the /terminals/:id/attach
+    // WebSocket; we receive PTY bytes and status frames keyed by an opaque
+    // handle id (BF-368). Both modes install electronAPI before React boots; if
+    // neither did there is no transport to attach, so bail (matches the
+    // optional-chaining no-op the write/resize helpers use).
+    const api = window.electronAPI;
+    if (!api) return;
     const activityTerminalId: TerminalId = this.terminalId as TerminalId;
-    const handle: string = await window.electronAPI.terminal.attach(this.terminalId);
+    const handle: string = await api.terminal.attach(this.terminalId);
     this.relayHandle = handle;
 
-    const offData: () => void = window.electronAPI.terminal.onData(handle, (data: string): void => {
+    const offData: () => void = api.terminal.onData(handle, (data: string): void => {
       this.term?.write(data);
       notifyTerminalOutput(activityTerminalId);
     });
-    const offStatus: () => void = window.electronAPI.terminal.onStatus(handle, (status: RelayConnectionStatus): void => {
+    const offStatus: () => void = api.terminal.onStatus(handle, (status: RelayConnectionStatus): void => {
       this.setRelayStatus(status);
       if (status === 'connected' && this.term) {
-        void window.electronAPI?.terminal.resize(handle, this.term.cols, this.term.rows);
+        void api.terminal.resize(handle, this.term.cols, this.term.rows);
       }
     });
     this.relayUnsubscribers.push(offData, offStatus);
