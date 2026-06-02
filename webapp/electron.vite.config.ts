@@ -12,6 +12,7 @@ import {
   externalNativePlugin,
 } from './electron.vite.config/externals'
 import {
+  bundleGraphdEntrypointPlugin,
   graphStateFixtureFilenameShimPlugin,
   litCssPlugin,
   mainCommonjsPackageBoundaryPlugin,
@@ -37,6 +38,7 @@ export default defineConfig({
       mainCommonjsPackageBoundaryPlugin,
       externalNativePlugin,
       externalMainDepsPlugin,
+      bundleGraphdEntrypointPlugin(webappDir),
     ],
     logLevel: 'error',
     resolve: {

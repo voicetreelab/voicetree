@@ -192,7 +192,8 @@
     "afterPack": "./scripts/after-pack.cjs",
     "asarUnpack": [
       "node_modules/@vscode/ripgrep/bin/**/*",
-      "node_modules/node-pty/**/*"
+      "node_modules/node-pty/**/*",
+      "dist-electron/main/vt-graphd.mjs"
     ],
     "files": [
       "dist/**/*",

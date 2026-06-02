@@ -1,4 +1,34 @@
 import type { Plugin } from 'vite'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+/**
+ * Emit the standalone `vt-graphd.mjs` entrypoint next to the main bundle.
+ *
+ * graphd is spawned as a SEPARATE Node ≥22 process (it needs node:sqlite and must
+ * not run on Electron's node — see architecture.md). The runtime resolver
+ * (graph-db-client autoLaunch/runtime) locates the entrypoint via a sibling lookup
+ * relative to its own `import.meta.url`; because graph-db-client is bundled INLINE
+ * into electron-main, that resolves to `dist-electron/main/vt-graphd.mjs`. Nothing
+ * else writes that file, so the packaged app would have no entrypoint to spawn.
+ *
+ * Running graph-db-server's own esbuild bundler on `closeBundle` of the main build
+ * keeps the entrypoint regenerated on every `electron-vite build`, in lockstep with
+ * the inlined resolver. The file must also be listed in `build.asarUnpack`
+ * (webapp/package.json) so the standalone node can read it from app.asar.unpacked.
+ */
+export function bundleGraphdEntrypointPlugin(webappDir: string): Plugin {
+  const buildScript = resolve(webappDir, '..', 'packages/systems/graph-db-server/build.mjs')
+  const outfile = resolve(webappDir, 'dist-electron/main/vt-graphd.mjs')
+  return {
+    name: 'bundle-graphd-entrypoint',
+    apply: 'build' as const,
+    async closeBundle() {
+      const { bundleVtGraphd } = await import(pathToFileURL(buildScript).href)
+      await bundleVtGraphd({ outfile })
+    },
+  }
+}
 
 export const graphStateFixtureFilenameShimPlugin = {
   name: 'graph-state-fixture-filename-shim',
