@@ -1,0 +1,29 @@
+{
+  "name": "@vt/daemon-test-harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared black-box harness that boots real vt serve daemons (graphd + vtd) from tsx source bins. Used by voicetree-cli's serveOwner e2e and webapp's browser round-trip Playwright globalSetup.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vt/daemon-lifecycle": "*",
+    "@vt/graph-db-client": "*",
+    "@vt/graph-db-protocol": "*",
+    "@vt/vt-daemon": "*",
+    "@vt/vt-daemon-client": "*",
+    "@vt/vt-rpc": "*",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
