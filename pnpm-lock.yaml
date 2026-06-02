@@ -1066,6 +1066,9 @@ importers:
       '@vt/app-config':
         specifier: '*'
         version: link:../packages/libraries/app-config
+      '@vt/daemon-test-harness':
+        specifier: '*'
+        version: link:../packages/systems/daemon-test-harness
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../packages/systems/graph-db-client
