@@ -59,6 +59,21 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
+    // User-resized expanded folder — the persisted size rides as
+    // folderWidth/folderHeight data (set by applyGraphDeltaToUI from the
+    // node-layout sidecar) and maps onto the compound's min-width/min-height.
+    // cytoscape still grows the compound to fit its children (bbox is a hard
+    // floor); min-* only enlarges it past the contents, with the default
+    // centered bias spreading the slack around the children. The collapsed
+    // pill rule below has fixed width/height and never carries this data.
+    {
+      selector: 'node[?isFolderNode][folderWidth][folderHeight]',
+      style: {
+        'min-width': 'data(folderWidth)',
+        'min-height': 'data(folderHeight)',
+      }
+    },
+
     // Collapsed folder — pill sized to seat the DOM chip strip (44 wide) plus
     // a label row beneath it. padding:0 overrides the 25px inherited from the
     // general folder rule (that padding exists to give expanded compounds room

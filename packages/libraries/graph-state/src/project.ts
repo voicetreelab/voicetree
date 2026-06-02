@@ -93,9 +93,14 @@ function projectNodes(
     for (const info of visibleFolders) {
         const collapsed = visibleCollapsedFolders.has(info.id)
         const folderNoteId = folderNoteIdByFolderId.get(info.id)
-        const content = folderNoteId
-            ? graph.nodes[folderNoteId]?.contentWithoutYamlOrLinks ?? ''
-            : ''
+        const folderNote = folderNoteId ? graph.nodes[folderNoteId] : undefined
+        const content = folderNote?.contentWithoutYamlOrLinks ?? ''
+        // A folder's size lives on its folder-note node (the folder compound is
+        // not itself a graph node). Only expanded folders carry a size — the
+        // collapsed pill is a fixed-size, content-free affordance.
+        const size = !collapsed
+            ? O.toUndefined(folderNote?.nodeUIMetadata.size ?? O.none)
+            : undefined
 
         nodes.push({
             id: info.id,
@@ -105,6 +110,7 @@ function projectNodes(
             basename: info.label,
             folderPath: info.parent ?? '',
             ...(info.parent && visibleFolderIds.has(info.parent) ? { parent: info.parent } : {}),
+            ...(size ? { size } : {}),
             content: normalizeProjectedContent(content),
             loadState: info.loadState,
             isWriteTarget: info.isWriteTarget,

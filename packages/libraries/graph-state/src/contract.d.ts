@@ -209,6 +209,7 @@ export interface ProjectedNode {
     readonly folderPath: string
     readonly parent?: string                                         // compound parent ID (Cytoscape grouping)
     readonly position?: Position                                     // initial seed; renderer owns after first apply
+    readonly size?: { readonly width: number; readonly height: number } // expanded-folder min-width/height (resize); persisted in node-layout sidecar
     readonly classes?: readonly string[]
     readonly color?: string
     readonly content: string
