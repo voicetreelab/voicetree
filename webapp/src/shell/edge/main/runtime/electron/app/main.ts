@@ -18,6 +18,7 @@ import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-confi
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {runUserDataMigrationAtStartup} from '@/shell/edge/main/runtime/electron/startup/user-data-migration';
+import {prewarmGraphdRuntimeCommand} from '@/shell/edge/main/runtime/electron/startup/prewarm-graphd-runtime';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
@@ -247,6 +248,11 @@ void app.whenReady().then(async () => {
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
+
+    // Warm graphd's runtime-command cache off the first-spawn path: resolving the
+    // Node runtime probes node:sqlite via spawnSync; doing it now (deferred, never
+    // blocking) means the first project ensure / agent spawn hits a warm cache.
+    prewarmGraphdRuntimeCommand();
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {
