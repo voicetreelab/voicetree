@@ -13,7 +13,7 @@ import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScann
 import {getBackendPort, getVoicetreeHomePath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/queries/daemon-graph-queries'
-import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
+import {saveNodePositions, saveNodeSize} from "@/shell/edge/main/workspace/saveNodePositions";
 import {recordRendererTelemetry} from '@/shell/edge/main/observability/recordRendererTelemetry';
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/queries/daemon-graph-queries'
 import {getVtDaemonFacade} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
@@ -202,8 +202,9 @@ export const mainAPI = {
   expandFolderThroughDaemon,
   setFolderStateThroughDaemon,
 
-  // Position saving through daemon persistence
+  // Spatial-layout persistence through the daemon (position drag + folder resize)
   saveNodePositions,
+  saveNodeSize,
 
   // Settings operations — renderer never sees voicetreeHomePath; main fills it in.
   loadSettings: (): Promise<VTSettings> => loadSettings(),

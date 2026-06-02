@@ -50,6 +50,7 @@ import {
     openHoverEditor,
 } from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor';
 import {getHoverEditor} from '@/shell/edge/UI-edge/state/stores/EditorStore';
+import {setupFolderResize, type FolderResizeController} from '@/shell/UI/cytoscape-graph-ui/services/folder-handle/folderResizeFrame';
 
 const CHIP_PX = 22;
 
@@ -189,6 +190,9 @@ export function setupFolderHandles(cy: Core): void {
         folderNoteCache.set(folderId, resolved);
         return resolved;
     }
+
+    // ---- Resize-grip overlay (expanded folders only) -------------------
+    const resize: FolderResizeController = setupFolderResize(cy, overlay, resolveFolderNoteId);
 
     // ---- View-chip hover state machine ---------------------------------
     let viewHoverFolderId: string | null = null;
@@ -355,47 +359,63 @@ export function setupFolderHandles(cy: Core): void {
         });
     }
 
-    // Bootstrap: chip for every folder already in the graph
+    // Bootstrap: chip + resize frame for every folder already in the graph
     cy.nodes('node[?isFolderNode]').forEach((n: NodeSingular): void => {
         createChip(n.id());
+        resize.ensure(n.id());
     });
 
     // Lifecycle: add / remove folder nodes
     cy.on('add', 'node[?isFolderNode]', (evt: EventObject): void => {
-        createChip((evt.target as NodeSingular).id());
+        const folderId: string = (evt.target as NodeSingular).id();
+        createChip(folderId);
+        resize.ensure(folderId);
     });
     cy.on('remove', 'node[?isFolderNode]', (evt: EventObject): void => {
-        destroyChip((evt.target as NodeSingular).id());
+        const folderId: string = (evt.target as NodeSingular).id();
+        destroyChip(folderId);
+        resize.destroy(folderId);
     });
 
     // Data change: collapse / expand toggle → re-render chevron glyph + reposition.
     // Cytoscape compound bounds settle after the batch/render turn that removes
     // or restores descendants, so read renderedBoundingBox again after rAF x2.
+    // ensure() also creates/destroys the resize frame on the expand/collapse flip.
     cy.on('data', 'node[?isFolderNode]', (evt: EventObject): void => {
         const folderId: string = (evt.target as NodeSingular).id();
         positionChip(folderId);
+        resize.ensure(folderId);
+        resize.position(folderId);
         scheduleChipPositionAfterRender(folderId);
     });
 
     cy.on('layoutstop', scheduleAllChipPositionsAfterRender);
+    cy.on('layoutstop', () => resize.positionAll());
 
     // Reposition on pan / zoom (canvas-relative move). Per-node moves handled
     // by 'position' listeners below. NEVER subscribe to 'bounds' or 'render'
     // — both create runaway loops: cy's boundingBox() internally emits
     // 'bounds', and positionChip() calls renderedBoundingBox(), so a 'bounds'
     // listener re-enters positionChip until the stack blows.
-    cy.on('pan zoom', positionAllChips);
-    cy.on('position', 'node[?isFolderNode]', (evt: EventObject): void => {
-        positionChip((evt.target as NodeSingular).id());
+    cy.on('pan zoom', (): void => {
+        positionAllChips();
+        resize.positionAll();
     });
-    // Compound bbox changes when children move — chip position depends on
+    cy.on('position', 'node[?isFolderNode]', (evt: EventObject): void => {
+        const folderId: string = (evt.target as NodeSingular).id();
+        positionChip(folderId);
+        resize.position(folderId);
+    });
+    // Compound bbox changes when children move — chip + frame position depend on
     // child layout, so listen for child position changes that belong to a
     // folder parent.
     cy.on('position', 'node', (evt: EventObject): void => {
         const parent: cytoscape.CollectionReturnValue = (evt.target as NodeSingular).parent();
         if (parent.length === 0) return;
         if ((parent[0] as NodeSingular).data('isFolderNode') !== true) return;
-        positionChip((parent[0] as NodeSingular).id());
+        const folderId: string = (parent[0] as NodeSingular).id();
+        positionChip(folderId);
+        resize.position(folderId);
     });
 
     // ---- Existing folder-body pan loop ---------------------------------

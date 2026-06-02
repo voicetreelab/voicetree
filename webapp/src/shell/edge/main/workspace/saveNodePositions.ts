@@ -1,12 +1,21 @@
 import type {NodeDefinition} from "cytoscape";
-import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
+import type {Graph, GraphDelta, NodeIdAndFilePath, Position, Size} from "@vt/graph-model/graph";
 import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon-client';
 import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
-import {writeNodeLayoutThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
+import {writeNodeLayoutThroughDaemon, writeNodeSizeThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
 
 type NodeLayoutRecord = { x?: number; y?: number; w?: number; h?: number };
+
+/**
+ * Persist a single node's size (folder resize) through the unified
+ * spatial-layout channel. The node id is the folder-NOTE node that represents
+ * the folder; position is left untouched.
+ */
+export async function saveNodeSize(nodeId: NodeIdAndFilePath, size: Size): Promise<void> {
+    await writeNodeSizeThroughDaemon(nodeId, size);
+}
 
 /**
  * Save node positions from Cytoscape UI through the graph daemon's unified
