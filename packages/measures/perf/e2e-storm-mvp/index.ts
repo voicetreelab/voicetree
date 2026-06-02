@@ -70,7 +70,7 @@ async function spawnCallerTerminal(
 ): Promise<string> {
     const result = await appWindow.evaluate(async ({ nodeId, command, repoRoot }) => {
         const api = (window as unknown as {
-            electronAPI?: {
+            hostAPI?: {
                 main?: {
                     spawnTerminalWithContextNode?: (
                         request: {
@@ -84,9 +84,9 @@ async function spawnCallerTerminal(
                     ) => Promise<{ terminalId: string; contextNodeId: string }>
                 }
             }
-        }).electronAPI?.main
+        }).hostAPI?.main
         if (!api?.spawnTerminalWithContextNode) {
-            throw new Error('window.electronAPI.main.spawnTerminalWithContextNode unavailable')
+            throw new Error('window.hostAPI.main.spawnTerminalWithContextNode unavailable')
         }
         return api.spawnTerminalWithContextNode({
             taskNodeId: nodeId,
@@ -115,8 +115,8 @@ async function waitForProjectOpened(appWindow: Page, projectDir: string, timeout
     while (Date.now() < deadline) {
         const status = await appWindow.evaluate(async () => {
             const api = (window as unknown as {
-                electronAPI?: { main?: { getWatchStatus?: () => Promise<{ isWatching: boolean; directory?: string }> } }
-            }).electronAPI?.main
+                hostAPI?: { main?: { getWatchStatus?: () => Promise<{ isWatching: boolean; directory?: string }> } }
+            }).hostAPI?.main
             return (await api?.getWatchStatus?.()) ?? null
         })
         lastStatus = JSON.stringify(status)

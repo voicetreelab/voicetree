@@ -218,7 +218,7 @@ test.describe('Dark Mode Toggle Screenshot', () => {
         _triggerIpc: () => {}
       };
       // @ts-expect-error - mock electron API
-      window.electronAPI = mockElectronAPI;
+      window.hostAPI = mockElectronAPI;
     });
 
     await page.goto('/');

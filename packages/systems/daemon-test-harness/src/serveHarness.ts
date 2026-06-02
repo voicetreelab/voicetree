@@ -1,12 +1,15 @@
-// Black-box harness for the `vt serve` two-ensure wrapper e2e spec
-// (`serveOwner.e2e.test.ts`). Holds the spawn / health-probe / owner-record /
-// teardown effect helpers and the shared layout constants so the spec file
-// reads as a flat list of scenarios.
+// Shared black-box harness for booting real `vt serve` daemons (graphd + vtd)
+// from tsx source bins. Two consumers import this package:
+//   1. voicetree-cli's `serveOwner.e2e.test.ts` (vitest) — the two-ensure
+//      wrapper contract spec.
+//   2. webapp's Playwright `daemon_integration/globalSetup.ts` — boots one
+//      `vt serve` so the browser round-trip e2e talks to live daemons.
 //
 // Everything here is an edge effect (child-process spawn, HTTP, filesystem,
-// signals) over real platform primitives — there are no internal mocks. The
-// spec composes these against the real `vt serve` CLI and the real per-project
-// daemons.
+// signals) over real platform primitives — there are no internal mocks and no
+// test-framework coupling (no `expect`), so the module is importable from any
+// runtime (vitest, Playwright, plain node). The vitest spec composes these
+// against the real `vt serve` CLI and the real per-project daemons.
 //
 // vt-daemon prewarm goes through the HIGH-LEVEL
 // `ensureNodeVtDaemonForProject(runtime, project, caller, options)` entry — the
@@ -22,7 +25,6 @@ import {mkdir, readFile, rm} from 'node:fs/promises'
 import {createRequire} from 'node:module'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {expect} from 'vitest'
 import {
     ensureGraphDaemonForProject,
     GraphDbClient,
@@ -38,6 +40,7 @@ import type {
     VtDaemonClient,
 } from '@vt/vt-daemon-client'
 import type {CallerKind} from '@vt/daemon-lifecycle'
+import {readAuthTokenFile} from '@vt/vt-rpc'
 import {
     HealthResponseSchema,
     ownerRecordFile,
@@ -48,7 +51,6 @@ import {
 } from '@vt/graph-db-protocol'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
-const PACKAGE_DIR: string = resolve(TEST_FILE_DIR, '..')
 
 // Walk up to the monorepo root (the dir that holds pnpm-workspace.yaml) instead
 // of hardcoding a fixed-depth `..`-chain. A literal `../../..` is fragile to
@@ -66,8 +68,16 @@ function findRepoRoot(start: string): string {
         dir = parent
     }
 }
-export const REPO_ROOT: string = findRepoRoot(PACKAGE_DIR)
-const CLI_ENTRYPOINT: string = join(PACKAGE_DIR, 'src/voicetree-cli.ts')
+export const REPO_ROOT: string = findRepoRoot(TEST_FILE_DIR)
+
+// The CLI under test lives in the voicetree-cli package — resolve its entry +
+// tsconfig from REPO_ROOT, NOT relative to this harness file. (This harness used
+// to live inside voicetree-cli and derived these from its own location; once it
+// moved into a shared package that derivation would have pointed at the wrong
+// package, so anchor on REPO_ROOT like the daemon source bins below.)
+const VOICETREE_CLI_DIR: string = join(REPO_ROOT, 'packages/systems/voicetree-cli')
+const CLI_ENTRYPOINT: string = join(VOICETREE_CLI_DIR, 'src/voicetree-cli.ts')
+const CLI_TSCONFIG: string = join(VOICETREE_CLI_DIR, 'tsconfig.json')
 // Resolve the tsx CLI through Node's own module lookup. The worktree layout
 // keeps the bulk of dependencies in the main repo's node_modules and only
 // symlinks a tiny .bin subset under per-package node_modules, so a hardcoded
@@ -76,7 +86,6 @@ const HARNESS_REQUIRE = createRequire(import.meta.url)
 const TSX_PACKAGE_DIR: string = dirname(HARNESS_REQUIRE.resolve('tsx/package.json'))
 const TSX_CLI_PATH: string = join(TSX_PACKAGE_DIR, 'dist', 'cli.mjs')
 const NODE_BIN: string = process.execPath
-const CLI_TSCONFIG: string = join(PACKAGE_DIR, 'tsconfig.json')
 const GRAPHD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/graph-db-server/bin/vt-graphd.ts')
 const VTD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/vt-daemon/bin/vtd.ts')
 // `node <tsx-cli> <script>` is the worktree-portable equivalent of running
@@ -120,16 +129,28 @@ export function sleep(ms: number): Promise<void> {
     return new Promise<void>((res) => setTimeout(res, ms))
 }
 
+// Read the daemon's per-startup bearer token from <project>/.voicetree/auth-token
+// (vtd writes it mode-0600 with a trailing newline at boot). Reuses the canonical
+// reader from @vt/vt-rpc (which trims the newline) and turns its "missing → null"
+// into a hard failure: the browser harness has no fallback, so an absent token is
+// a boot bug we want surfaced loudly, never a silent empty bearer.
+export async function readAuthToken(project: string): Promise<string> {
+    const token: string | null = await readAuthTokenFile(project)
+    if (token === null) {
+        throw new Error(`auth-token missing or empty for project ${project} (.voicetree/auth-token)`)
+    }
+    return token
+}
+
 // Node-side runtime for the high-level vt-daemon ensure entry, used by the
 // prewarm helper below. Mirrors the runtime `vt serve` builds at its edge:
-// real filesystem, clock, module resolution, randomness.
+// real filesystem, clock, randomness.
 const NODE_ENSURE_RUNTIME: NodeEnsureVtDaemonRuntime = {
     env: process.env,
     mkdir,
     newAttemptId: randomUUID,
     now: Date.now,
     readTextFileSync: readFileSync,
-    resolveModule: (specifier: string): string => HARNESS_REQUIRE.resolve(specifier),
     resolvePath: resolve,
 }
 
@@ -152,13 +173,18 @@ export function prewarmGraphd(
     return ensureGraphDaemonForProject(project, caller, options)
 }
 
-function buildChildEnv(voicetreeHome: string, vtDaemonBin: string): Record<string, string> {
+function buildChildEnv(
+    voicetreeHome: string,
+    vtDaemonBin: string,
+    extraEnv: Record<string, string>,
+): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
         VOICETREE_HOME_PATH: voicetreeHome,
         TSX_TSCONFIG_PATH: CLI_TSCONFIG,
         VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         VT_DAEMON_BIN: vtDaemonBin,
+        ...extraEnv,
     }
     delete merged.VT_SESSION
     delete merged.VOICETREE_TERMINAL_ID
@@ -191,18 +217,21 @@ function parseServeReady(line: string): ServeReady | null {
 
 // Spawn the real `vt serve` CLI as a child process. `vtDaemonBin` defaults to
 // the working VTD source bin; pass `VT_DAEMON_BIN_FAILING` to induce a
-// vt-daemon ensure failure.
+// vt-daemon ensure failure. `extraEnv` is merged last into the child env — the
+// browser globalSetup uses it to set VOICETREE_CORS_ORIGINS so the spawned vtd
+// allows the fixed web-server origin.
 export function spawnServe(
     args: string[],
     voicetreeHome: string,
     vtDaemonBin: string = VT_DAEMON_BIN_OVERRIDE,
+    extraEnv: Record<string, string> = {},
 ): ServeHandle {
     const child: ChildProcess = spawn(
         NODE_BIN,
         [TSX_CLI_PATH, CLI_ENTRYPOINT, 'serve', ...args],
         {
             cwd: REPO_ROOT,
-            env: buildChildEnv(voicetreeHome, vtDaemonBin),
+            env: buildChildEnv(voicetreeHome, vtDaemonBin, extraEnv),
             stdio: ['ignore', 'pipe', 'pipe'],
         },
     )
@@ -287,21 +316,19 @@ export async function readOwnerRecord(project: string, daemonKind: 'graphd' | 'v
 
 export async function fetchGraphdHealth(port: number): Promise<HealthResponse> {
     const response: Response = await fetch(`http://127.0.0.1:${port}/health`)
-    expect(response.ok, `unexpected graphd /health status ${response.status}`).toBe(true)
+    if (!response.ok) throw new Error(`unexpected graphd /health status ${response.status}`)
     const body: unknown = await response.json()
     const parsed = HealthResponseSchema.safeParse(body)
-    expect(parsed.success, `graphd /health body did not parse: ${JSON.stringify(body)}`).toBe(true)
-    if (!parsed.success) throw new Error('unreachable')
+    if (!parsed.success) throw new Error(`graphd /health body did not parse: ${JSON.stringify(body)}`)
     return parsed.data
 }
 
 export async function fetchVtdHealth(url: string): Promise<VtDaemonHealthResponse> {
     const response: Response = await fetch(`${url}/health`)
-    expect(response.ok, `unexpected vtd /health status ${response.status}`).toBe(true)
+    if (!response.ok) throw new Error(`unexpected vtd /health status ${response.status}`)
     const body: unknown = await response.json()
     const parsed = VtDaemonHealthResponseSchema.safeParse(body)
-    expect(parsed.success, `vtd /health body did not parse: ${JSON.stringify(body)}`).toBe(true)
-    if (!parsed.success) throw new Error('unreachable')
+    if (!parsed.success) throw new Error(`vtd /health body did not parse: ${JSON.stringify(body)}`)
     return parsed.data
 }
 

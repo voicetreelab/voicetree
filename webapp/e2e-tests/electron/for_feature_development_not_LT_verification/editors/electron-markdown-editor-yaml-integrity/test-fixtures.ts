@@ -10,7 +10,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -105,7 +105,7 @@ Original content here.`;
     try {
       const page = await electronApp.firstWindow();
       await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -154,7 +154,7 @@ Original content here.`;
     }
 
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
-    await page.waitForFunction(() => (window as ExtendedWindow).electronAPI?.main, { timeout: 30000 });
+    await page.waitForFunction(() => (window as ExtendedWindow).hostAPI?.main, { timeout: 30000 });
     await page.waitForTimeout(500);
 
     await use(page);

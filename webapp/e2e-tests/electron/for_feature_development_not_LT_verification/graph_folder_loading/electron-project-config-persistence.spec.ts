@@ -15,13 +15,13 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 /**
@@ -156,8 +156,8 @@ testPersistence.describe('Project Config Persistence E2E', () => {
     // Configure project: set writeFolderPath and add readPath
     console.log('Setting writeFolderPath to:', writeProjectPath);
     const setWriteResult = await window1.evaluate(async (wp: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.setWriteFolderPath(wp);
     }, writeProjectPath);
     console.log('setWriteFolderPath result:', setWriteResult);
@@ -165,8 +165,8 @@ testPersistence.describe('Project Config Persistence E2E', () => {
 
     console.log('Adding readPath:', readProjectPath);
     const addResult = await window1.evaluate(async (rp: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.addReadOnLinkPath(rp);
     }, readProjectPath);
     console.log('addReadOnLinkPath result:', addResult);
@@ -185,8 +185,8 @@ testPersistence.describe('Project Config Persistence E2E', () => {
 
     // Verify project paths before closing
     const projectPathsBefore = await window1.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
     console.log('Project paths before close:', projectPathsBefore);
@@ -195,7 +195,7 @@ testPersistence.describe('Project Config Persistence E2E', () => {
     // Graceful shutdown
     try {
       await window1.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) await api.main.stopFileWatching();
       });
       await window1.waitForTimeout(300);
@@ -241,8 +241,8 @@ testPersistence.describe('Project Config Persistence E2E', () => {
     // Verify writeFolderPath persisted
     console.log('=== VERIFICATION: writeFolderPath restored ===');
     const restoredWriteFolderPath = await window2.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
@@ -257,8 +257,8 @@ testPersistence.describe('Project Config Persistence E2E', () => {
     // Verify readPaths persisted
     console.log('=== VERIFICATION: readPaths restored ===');
     const restoredReadOnLinkPaths = await window2.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getReadOnLinkPaths();
     });
     console.log('Restored readPaths:', restoredReadOnLinkPaths);
@@ -292,7 +292,7 @@ testPersistence.describe('Project Config Persistence E2E', () => {
     // Graceful shutdown
     try {
       await window2.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) await api.main.stopFileWatching();
       });
       await window2.waitForTimeout(300);
@@ -414,8 +414,8 @@ testDefaultConfig.describe('Default Project Config Creation E2E', () => {
 
     console.log('=== VERIFICATION: writeFolderPath set to parent directory ===');
     const writeFolderPath = await window.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
@@ -430,8 +430,8 @@ testDefaultConfig.describe('Default Project Config Creation E2E', () => {
 
     console.log('=== VERIFICATION: readPaths includes openspec ===');
     const readPaths = await window.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getReadOnLinkPaths();
     });
     console.log('readPaths:', readPaths);
@@ -463,7 +463,7 @@ testDefaultConfig.describe('Default Project Config Creation E2E', () => {
     // Graceful shutdown
     try {
       await window.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) await api.main.stopFileWatching();
       });
       await window.waitForTimeout(300);

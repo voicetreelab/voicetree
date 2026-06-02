@@ -83,7 +83,7 @@ const test = base.extend<{
         try {
             const w = await electronApp.firstWindow();
             await w.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api) await api.main.stopFileWatching();
             });
             await w.waitForTimeout(300);
@@ -109,7 +109,7 @@ const test = base.extend<{
         // App starts on ProjectSelectionScreen. Trigger startFileWatching to
         // load the project, which emits watching-started → App.tsx switches to graph-view.
         await w.evaluate(async (vp: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
+            const api = (window as unknown as ExtendedWindow).hostAPI;
             if (api) await api.main.startFileWatching(vp);
         }, projectRoot);
 

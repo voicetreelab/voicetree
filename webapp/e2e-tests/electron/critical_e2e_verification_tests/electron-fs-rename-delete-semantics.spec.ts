@@ -20,7 +20,7 @@ const SOURCE_FILE_NAME = 'source.md';
 const TARGET_FILE_NAME = 'target.md';
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       getGraph: () => Promise<{
         nodes?: Record<string, {
@@ -144,8 +144,8 @@ const test = base.extend<{
 
     await page.waitForLoadState('domcontentloaded');
     const openResult = await page.evaluate(async (dir) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const response = await api.main.openProject(dir);
       return { writeFolderPath: response.writeFolderPath };
     }, tempProjectPath);
@@ -194,7 +194,7 @@ const test = base.extend<{
     });
     await expect.poll(async () => {
       return page.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (!api) {
           return { isWatching: false, directory: undefined };
         }
@@ -272,7 +272,7 @@ function getGraphSnapshot(window: Page): Promise<GraphSnapshot> {
 
 function getMainProcessNodeContent(window: Page, filePath: string): Promise<string | null> {
   return window.evaluate(async (targetFilePath) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     const graph = await api?.main.getGraph();
     if (!graph?.nodes) return null;
 

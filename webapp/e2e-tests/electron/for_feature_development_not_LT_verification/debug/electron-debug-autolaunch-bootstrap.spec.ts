@@ -10,7 +10,7 @@ const FIXTURE_PROJECT_PATH = path.join(WEBAPP_ROOT, 'example_folder_fixtures', '
 
 interface ExtendedWindow {
     cytoscapeInstance?: unknown;
-    electronAPI?: {
+    hostAPI?: {
         main: {
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
             loadProjects: () => Promise<Array<{ path: string }>>;
@@ -48,7 +48,7 @@ const test = base.extend<{
         try {
             const window = await electronApp.firstWindow();
             await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api) {
                     await api.main.stopFileWatching();
                 }
@@ -90,9 +90,9 @@ test.describe('Debug Autolaunch Bootstrap', () => {
         );
 
         const bootState = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
+            const api = (window as unknown as ExtendedWindow).hostAPI;
             if (!api) {
-                throw new Error('electronAPI not available');
+                throw new Error('hostAPI not available');
             }
 
             const [graph, projects] = await Promise.all([

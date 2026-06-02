@@ -3,7 +3,7 @@ import { isLayoutParticipantElement, isLayoutParticipantNode, isLayoutParticipan
 
 // Predicate-input audit (BF-075):
 // isLayoutParticipantNode reads: data('isContextNode'), data('isFolderNode'), data('collapsed')
-// isLayoutParticipantEdge reads: data('isIndicatorEdge'), data('isSyntheticEdge') + endpoint participation
+// isLayoutParticipantEdge reads: data('isIndicatorEdge') + endpoint participation
 // No class accesses. ele.isNode() and edge.source()/target() are stable.
 // Subscribed: add/remove on node+edge, data on node+edge.
 // Node data change → re-evaluate node AND connected edges (endpoint participation may flip).

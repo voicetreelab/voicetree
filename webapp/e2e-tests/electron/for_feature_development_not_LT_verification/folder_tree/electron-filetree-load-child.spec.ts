@@ -15,7 +15,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
     readonly cytoscapeInstance?: CytoscapeCore;
-    readonly electronAPI?: {
+    readonly hostAPI?: {
         readonly main: {
             readonly saveProject: (project: {
                 readonly id: string;
@@ -121,7 +121,7 @@ const test = base.extend<{
             try {
                 const window = await electronApp.firstWindow();
                 await window.evaluate(async () => {
-                    const api = (window as unknown as ExtendedWindow).electronAPI;
+                    const api = (window as unknown as ExtendedWindow).hostAPI;
                     if (api) await api.main.stopFileWatching();
                 });
                 await window.waitForTimeout(300);
@@ -150,7 +150,7 @@ const test = base.extend<{
         const window = await electronApp.firstWindow({ timeout: 20000 });
         await window.waitForLoadState('domcontentloaded');
         await window.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).electronAPI,
+            () => !!(window as unknown as ExtendedWindow).hostAPI,
             { timeout: 10000 },
         );
 
@@ -159,8 +159,8 @@ const test = base.extend<{
             .catch(() => false);
         if (isProjectSelection) {
             await window.evaluate(async (folderPath: string) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 await api.main.saveProject({
                     id: 'filetree-load-child',
                     path: folderPath,
@@ -188,8 +188,8 @@ const test = base.extend<{
         ).then(() => true).catch(() => false);
         if (!hasCytoscape) {
             const watchResult = await window.evaluate(async (folderPath: string) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.startFileWatching(folderPath);
             }, fixture.projectPath);
             expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);

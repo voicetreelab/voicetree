@@ -181,7 +181,7 @@ export function UsageSection(): JSX.Element {
             <OpenSlashCommandButton
               label="Show /usage"
               testId="open-claude-usage"
-              onClick={() => window.electronAPI?.main.openClaudeUsage()}
+              onClick={() => window.hostAPI?.main.openClaudeUsage()}
             />
           </div>
         </div>
@@ -225,7 +225,7 @@ export function UsageSection(): JSX.Element {
           <OpenSlashCommandButton
             label="Show /status"
             testId="open-codex-status"
-            onClick={() => window.electronAPI?.main.openCodexStatus()}
+            onClick={() => window.hostAPI?.main.openCodexStatus()}
           />
         </div>
         {data.codex.available && (

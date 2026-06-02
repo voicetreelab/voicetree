@@ -1,5 +1,5 @@
 import {createSSEConnection} from "@/shell/edge/UI-edge/text_to_tree_server_communication/sse-consumer";
-import type {} from "@/shell/electron"; // Side-effect import for global Window.electronAPI type
+import type {} from "@/shell/hostApi"; // Side-effect import for global Window.hostAPI type
 
 /**
  * Escapes HTML special characters to prevent XSS attacks.
@@ -70,7 +70,7 @@ export class SseStatusPanel {
     }
 
     private initSSEConnection(): void {
-        window.electronAPI?.main.getBackendPort().then((port: number | null) => {
+        window.hostAPI?.main.getBackendPort().then((port: number | null) => {
             if (port) {
                 //console.log('[SseStatusPanel] Creating SSE connection on port', port);
                 this.disconnectSSE = createSSEConnection(port, event => this.addEvent(event));

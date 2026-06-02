@@ -42,7 +42,7 @@ function installElectronAPIStub(): void {
     const stub: ElectronAPIStub = {
         main: { loadSettings: () => Promise.resolve({ zoomSensitivity: 1.0 }) },
     };
-    Object.defineProperty(window, 'electronAPI', {
+    Object.defineProperty(window, 'hostAPI', {
         configurable: true,
         writable: true,
         value: stub,

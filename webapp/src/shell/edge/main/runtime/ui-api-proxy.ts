@@ -2,7 +2,7 @@
  * UI API Proxy - Typed proxy for calling UI functions from main process
  *
  * This creates a symmetric pattern with the existing mainAPI:
- * - UI → Main: window.electronAPI.main.someFunc()
+ * - UI → Main: window.hostAPI.main.someFunc()
  * - Main → UI: uiAPI.someFunc()
  *
  * Type safety is achieved by importing UIAPIType from the renderer's api.ts

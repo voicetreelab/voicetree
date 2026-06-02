@@ -264,9 +264,20 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = buildToolCatalog()
  * `TOOL_CATALOG` because they are not user-facing MCP tools (no manual
  * coverage check, no description leader).
  *
- * Pure: depends only on `TOOL_CATALOG` + `RPC_ROUTES` data, no I/O.
+ * `extraRoutes` carries per-boot, dep-injected routes that cannot be static
+ * module data — notably the `graph.*` gateway routes
+ * (`buildGraphGatewayRoutes`), which close over the live `gdb.client` and the
+ * VTD-owned graphd session. They are validated and dispatched exactly like
+ * `RPC_ROUTES`; only their construction differs (factory at the edge vs.
+ * module constant).
+ *
+ * Pure: depends only on `TOOL_CATALOG` + `RPC_ROUTES` + the passed
+ * `extraRoutes` data, no I/O.
  */
-export function buildCatalogDispatchMap(bridges: McpToolBridges): ReadonlyMap<string, CatalogHandler> {
+export function buildCatalogDispatchMap(
+    bridges: McpToolBridges,
+    extraRoutes: readonly RpcRoute[] = [],
+): ReadonlyMap<string, CatalogHandler> {
     const toolEntries: Array<[string, CatalogHandler]> = TOOL_CATALOG.map(
         (entry: CatalogEntry): [string, CatalogHandler] => {
             const schema: ZodTypeAny = z.object(entry.inputShape)
@@ -280,7 +291,7 @@ export function buildCatalogDispatchMap(bridges: McpToolBridges): ReadonlyMap<st
             return [entry.name, validating]
         },
     )
-    const rpcEntries: Array<[string, CatalogHandler]> = RPC_ROUTES.map(
+    const rpcEntries: Array<[string, CatalogHandler]> = [...RPC_ROUTES, ...extraRoutes].map(
         (route: RpcRoute): [string, CatalogHandler] => {
             // Routes whose request shape is `Record<string, never>` (the
             // arg-less reads) skip schema validation — `z.object({})` would

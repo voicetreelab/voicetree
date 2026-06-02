@@ -4,13 +4,14 @@ import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
 import { getDefaultAgent } from "@vt/graph-model/settings";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import type { Core } from "cytoscape";
-import '@/shell/electron.d.ts';
+import '@/shell/hostApi.d.ts';
 import type { TerminalId } from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/view/getNodeFromMainToUI";
 import { getNodeTitle } from "@vt/graph-model/markdown";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import { hostCapabilities } from "@/shell/runtimeCapabilities";
 import { resolveAgentLaunchConfig, type AgentLaunchConfig } from "@/shell/edge/UI-edge/floating-windows/terminals/resolveAgentLaunchConfig";
 
 const MAX_TERMINALS: number = 100; // human: raised for dev/power-use; original was 12
@@ -21,12 +22,12 @@ const MAX_TERMINALS: number = 100; // human: raised for dev/power-use; original 
  * Used when user explicitly requests to edit command before running.
  *
  * @param parentNodeId - The parent node to create context for
- * @param cy - Cytoscape instance (used to flush pending editor content)
+ * @param _cy - Cytoscape instance (unused; kept for call-site signature parity)
  * @param agentCommand - Optional agent command. If not provided, uses the default agent from settings.
  */
 export async function spawnTerminalWithCommandEditor(
     parentNodeId: NodeIdAndFilePath,
-    cy: Core,
+    _cy: Core,
     agentCommand?: string,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
@@ -41,7 +42,7 @@ export async function spawnTerminalWithCommandEditor(
     }
 
     // Load settings to get agents and agent prompt
-    const settings: VTSettings = await window.electronAPI?.main.loadSettings() as VTSettings;
+    const settings: VTSettings = await window.hostAPI?.main.loadSettings() as VTSettings;
     if (!settings) {
         console.error('[spawnTerminalWithCommandEditor] Failed to load settings');
         return;
@@ -98,13 +99,13 @@ export async function spawnTerminalWithCommandEditor(
                 AGENT_PROMPT: result.agentPrompt,
             },
         };
-        await window.electronAPI?.main.saveSettings(updatedSettings);
+        await window.hostAPI?.main.saveSettings(updatedSettings);
     }
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Spawn terminal with the (possibly modified) command
-    await window.electronAPI?.main.spawnTerminalWithContextNode({
+    await window.hostAPI?.main.spawnTerminalWithContextNode({
         taskNodeId: parentNodeId,
         agentCommand: result.command,
         terminalCount,
@@ -119,12 +120,12 @@ export async function spawnTerminalWithCommandEditor(
  * immediate access to the graph after createContextNode completes.
  *
  * @param parentNodeId - The parent node to create context for
- * @param cy - Cytoscape instance (used to flush pending editor content)
+ * @param _cy - Cytoscape instance (unused; kept for call-site signature parity)
  * @param agentCommand - Optional agent command. If not provided, uses the default agent from settings.
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
-    cy: Core,
+    _cy: Core,
     agentCommand?: string,
     spawnDirectory?: string,
 ): Promise<void> {
@@ -141,7 +142,7 @@ export async function spawnTerminalWithNewContextNode(
     }
 
     // Load settings to get agents and check permission mode
-    const settings: VTSettings = await window.electronAPI?.main.loadSettings() as VTSettings;
+    const settings: VTSettings = await window.hostAPI?.main.loadSettings() as VTSettings;
     if (!settings) {
         console.error('[spawnTerminalWithNewContextNode] Failed to load settings');
         return;
@@ -171,13 +172,13 @@ export async function spawnTerminalWithNewContextNode(
                 AGENT_PROMPT: launchConfig.updatedAgentPrompt,
             },
         };
-        await window.electronAPI?.main.saveSettings(updatedSettings);
+        await window.hostAPI?.main.saveSettings(updatedSettings);
     }
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
-    await window.electronAPI?.main.spawnTerminalWithContextNode({
+    await window.hostAPI?.main.spawnTerminalWithContextNode({
         taskNodeId: parentNodeId,
         agentCommand: command,
         terminalCount,
@@ -193,12 +194,16 @@ export async function spawnTerminalInNewWorktree(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
 ): Promise<void> {
+    // Backstop: the "New Worktree" entry that calls this is hidden in browser
+    // mode (worktree menu gated), so this should be unreachable there.
+    if (!hostCapabilities().worktrees) return;
+
     // Get node title for worktree name
     const node: GraphNode = await getNodeFromMainToUI(parentNodeId);
     const nodeTitle: string = getNodeTitle(node);
 
     // Get repo root from watch status
-    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } | undefined = await window.electronAPI?.main.getWatchStatus();
+    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } | undefined = await window.hostAPI?.main.getWatchStatus();
     const repoRoot: string | undefined = watchStatus?.directory;
     if (!repoRoot) {
         console.error('[spawnTerminalInNewWorktree] No watched directory available');
@@ -206,8 +211,8 @@ export async function spawnTerminalInNewWorktree(
     }
 
     // Create worktree: generate name from title, then create git worktree
-    const worktreeName: string = await window.electronAPI?.main.generateWorktreeName(nodeTitle) as string;
-    const worktreePath: string = await window.electronAPI?.main.createWorktree(repoRoot, worktreeName) as string;
+    const worktreeName: string = await window.hostAPI?.main.generateWorktreeName(nodeTitle) as string;
+    const worktreePath: string = await window.hostAPI?.main.createWorktree(repoRoot, worktreeName) as string;
 
     // Delegate to existing spawn function with worktree as spawnDirectory
     return spawnTerminalWithNewContextNode(parentNodeId, cy, undefined, worktreePath);

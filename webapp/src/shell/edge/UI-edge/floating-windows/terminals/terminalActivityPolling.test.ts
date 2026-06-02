@@ -32,7 +32,7 @@ function installElectronAPI(): TestHarness {
     const isDoneCalls: Array<{ id: string; isDone: boolean }> = [];
 
     // @ts-expect-error - test stub fills only the surface terminalActivityPolling touches
-    window.electronAPI = {
+    window.hostAPI = {
         main: {
             updateTerminalIsDone: (id: string, isDone: boolean): void => {
                 isDoneCalls.push({ id, isDone });
@@ -80,7 +80,7 @@ describe('terminalActivityPolling onData → flip-to-active', () => {
     afterEach(() => {
         stopTerminalActivityPolling();
         vi.useRealTimers();
-        Reflect.deleteProperty(window, 'electronAPI');
+        Reflect.deleteProperty(window, 'hostAPI');
         clearTerminals();
         resetAgentTabsStore();
     });

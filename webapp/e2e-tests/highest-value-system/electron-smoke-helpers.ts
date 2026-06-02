@@ -4,7 +4,7 @@ import * as os from 'os';
 import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 export const WEBAPP_ROOT = path.resolve(process.cwd());
 export const REPO_ROOT = path.resolve(WEBAPP_ROOT, '..');
@@ -16,7 +16,7 @@ export type ElectronDiagnostics = {
   rendererErrors: string[];
 };
 
-export type SmokeElectronAPI = Omit<ElectronAPI, 'terminal'> & {
+export type SmokeElectronAPI = Omit<HostAPI, 'terminal'> & {
   terminal: {
     spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
     kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
@@ -25,7 +25,7 @@ export type SmokeElectronAPI = Omit<ElectronAPI, 'terminal'> & {
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: SmokeElectronAPI;
+  hostAPI?: SmokeElectronAPI;
 }
 
 function canLoadNativeGraphDbModules(nodeBin: string): boolean {

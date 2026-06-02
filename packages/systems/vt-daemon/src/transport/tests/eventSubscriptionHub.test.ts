@@ -40,8 +40,9 @@ describe('eventSubscriptionHub', (): void => {
     it('exposes the canonical topic taxonomy', (): void => {
         // Post-BF-376: terminal-registry is its own narrow homogeneous topic
         // alongside agent-events. The pre-Phase-0 project-state topic was
-        // removed by BF-366.
-        expect(ALLOWED_TOPICS).toEqual(['agent-events', 'terminal-registry'])
+        // removed by BF-366. RE-PLAN B added `graph` (conflated ProjectedGraph
+        // snapshots) for the VTD gateway live-update path.
+        expect(ALLOWED_TOPICS).toEqual(['agent-events', 'graph', 'terminal-registry'])
     })
 
     it('routes published events to matching subscribers', (): void => {

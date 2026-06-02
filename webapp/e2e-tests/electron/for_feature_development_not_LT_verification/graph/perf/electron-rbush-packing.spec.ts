@@ -85,7 +85,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as { electronAPI?: { main?: { stopFileWatching?: () => Promise<void> } } }).electronAPI;
+        const api = (window as unknown as { hostAPI?: { main?: { stopFileWatching?: () => Promise<void> } } }).hostAPI;
         if (api?.main?.stopFileWatching) {
           await api.main.stopFileWatching();
         }

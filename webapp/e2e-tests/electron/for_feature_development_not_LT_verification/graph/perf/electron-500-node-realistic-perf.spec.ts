@@ -98,7 +98,7 @@ test.describe('Realistic 500-Node Performance', () => {
       await expect
         .poll(
           async () => appWindow.evaluate(async () => {
-            const graph = await (window as unknown as ExtendedWindow).electronAPI?.main?.getGraph?.();
+            const graph = await (window as unknown as ExtendedWindow).hostAPI?.main?.getGraph?.();
             return Object.keys(graph?.nodes ?? {}).length;
           }),
           {

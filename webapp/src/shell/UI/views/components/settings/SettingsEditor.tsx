@@ -15,11 +15,14 @@ const TABS: readonly { readonly id: Section; readonly label: string }[] = [
 interface SettingsEditorProps {
     initialSettings: VTSettings;
     onSave: (settings: VTSettings) => Promise<void>;
+    /** Whether edits persist. When false the editor is read-only-ish: it shows a
+     *  notice and does not attempt the (no-op) auto-save. Defaults to true. */
+    canPersist?: boolean;
 }
 
 const DEBOUNCE_MS: number = 300;
 
-export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps): JSX.Element {
+export function SettingsEditor({ initialSettings, onSave, canPersist = true }: SettingsEditorProps): JSX.Element {
     const [settings, setSettings] = useState<VTSettings>(initialSettings);
     const [activeTab, setActiveTab] = useState<Section>('general');
     const debounceRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null> = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,11 +40,11 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
                 clearTimeout(debounceRef.current);
                 debounceRef.current = null;
             }
-            if (dirtyRef.current) {
+            if (canPersist && dirtyRef.current) {
                 void onSave(latestSettingsRef.current);
             }
         };
-    }, [onSave]);
+    }, [onSave, canPersist]);
 
     // Debounced auto-save on settings change
     useEffect(() => {
@@ -50,6 +53,9 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
             isFirstRender.current = false;
             return;
         }
+
+        // Don't auto-save when the host can't persist (browser mode).
+        if (!canPersist) return;
 
         if (debounceRef.current !== null) {
             clearTimeout(debounceRef.current);
@@ -65,7 +71,7 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
                 clearTimeout(debounceRef.current);
             }
         };
-    }, [settings, onSave]);
+    }, [settings, onSave, canPersist]);
 
     const updateSetting: (key: string, value: unknown) => void = useCallback((key: string, value: unknown): void => {
         dirtyRef.current = true;
@@ -74,6 +80,14 @@ export function SettingsEditor({ initialSettings, onSave }: SettingsEditorProps)
 
     return (
         <div className="flex flex-col h-full font-mono text-sm text-foreground bg-background">
+            {/* Non-persistence notice — shown when the host can't save settings
+                back to disk (browser mode), so edits here are session-only. */}
+            {!canPersist && (
+                <div className="px-4 py-2 text-xs text-muted-foreground bg-muted border-b border-border shrink-0">
+                    Settings can’t be saved in browser mode — changes here won’t persist.
+                </div>
+            )}
+
             {/* Tab bar */}
             <div className="flex border-b border-border px-4 shrink-0">
                 {TABS.map(tab => (

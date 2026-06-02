@@ -36,7 +36,7 @@ import type {
     Position,
     GraphDelta,
 } from '@vt/graph-model/graph'
-import type {NodeIdAndFilePath} from './core-types.ts'
+import type {NodeIdAndFilePath} from '../core-types.ts'
 import type {UnseenNode} from '@vt/graph-db-protocol'
 import type {
     TerminalId,
@@ -45,7 +45,7 @@ import type {
     TerminalRecordPatch,
     TerminalSpawnResult,
     TerminalOperationResult,
-} from './terminal-types.ts'
+} from '../terminal-types.ts'
 
 // ---------------------------------------------------------------------------
 // Wire-shape helpers
@@ -85,6 +85,8 @@ export interface AttachCapability {
 }
 export interface ResumeCapability {
     readonly cliType: 'claude' | 'codex'
+    readonly nativeSessionId?: string
+    readonly providerStorePath?: string
 }
 
 /**

@@ -7,6 +7,7 @@
 
 import {describe, it, expect} from 'vitest'
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import * as daemonProtocol from '@vt/vt-daemon-protocol'
 import {
     type ValidationContext,
     type ValidationResult,
@@ -17,7 +18,10 @@ import {
     formatViolationError,
     partitionViolationsBySeverity,
 } from './createGraphValidation'
-import type {OverrideEntry, OverridableRuleId} from '@vt/graph-validation'
+import {
+    type OverrideEntry,
+    type OverridableRuleId,
+} from '@vt/graph-validation'
 import {mockGraph, mockNode, linesOfText, buildCtx} from './createGraphValidation.testHelpers'
 
 // ============================================================================
@@ -379,7 +383,7 @@ describe('subgraphSizeLimitRule (via ALL_RULES)', () => {
 
     function subgraphViolations(result: ValidationResult): readonly RuleViolation[] {
         return result.status === 'violations'
-            ? result.violations.filter((v: RuleViolation) => v.ruleId === 'subgraph_size_limit')
+            ? result.violations.filter((v: RuleViolation) => v.ruleId === daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId)
             : []
     }
 
@@ -406,6 +410,16 @@ describe('subgraphSizeLimitRule (via ALL_RULES)', () => {
         expect(sg).toHaveLength(1)
         expect(sg[0].severity).toBe('violation')
         expect(sg[0].details).toMatchObject({size: 6})
+        expect(sg[0].message).toContain(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.gardeningInstruction)
+        expect(sg[0].message).toContain(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.noRoutineOverrideInstruction)
+    })
+
+    it('does not include an override recipe for subgraph size violations', () => {
+        const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 3))
+        const sg: readonly RuleViolation[] = subgraphViolations(result)
+        const message: string = formatViolationError(sg)
+        expect(message).toContain(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.gardeningInstruction)
+        expect(message).not.toContain('override_with_rationale')
     })
 
     it('is admitted by a matching override_with_rationale', () => {
@@ -413,9 +427,9 @@ describe('subgraphSizeLimitRule (via ALL_RULES)', () => {
         const {blocking} = partitionViolationsBySeverity(
             result.status === 'violations' ? result.violations : [],
         )
-        const override: OverrideEntry = {ruleId: 'subgraph_size_limit', rationale: 'Cohesive cluster, splitting would harm legibility'}
+        const override: OverrideEntry = {ruleId: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId, rationale: 'Cohesive cluster, splitting would harm legibility'}
         const {unresolved} = resolveOverrides(blocking, [override])
-        expect(unresolved.filter((v: RuleViolation) => v.ruleId === 'subgraph_size_limit')).toHaveLength(0)
+        expect(unresolved.filter((v: RuleViolation) => v.ruleId === daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId)).toHaveLength(0)
     })
 })
 

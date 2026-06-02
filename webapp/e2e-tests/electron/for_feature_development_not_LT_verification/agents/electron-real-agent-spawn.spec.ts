@@ -169,16 +169,16 @@ test.describe('Real agent spawn E2E', () => {
 
     // --- Start file watching explicitly ---
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(projectRoot);
     }, fixtureProjectPath);
     expect(watchResult.success).toBe(true);
 
     await expect.poll(async () => {
       return await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         const graph = await api.main.getGraph();
         return Object.keys(graph.nodes).length;
       });
@@ -191,8 +191,8 @@ test.describe('Real agent spawn E2E', () => {
     // --- Bootstrap caller terminal ---
     const callerTerminalId = 'e2e-real-agent-caller';
     const parentNodeId = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const graph = await api.main.getGraph();
       const ids = Object.keys(graph.nodes);
       if (ids.length === 0) throw new Error('No graph nodes');
@@ -200,8 +200,8 @@ test.describe('Real agent spawn E2E', () => {
     });
 
     const callerSpawn = await appWindow.evaluate(async ({ callerTerminalId: cid, parentNodeId: pid }) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api?.terminal) throw new Error('hostAPI.terminal not available');
       return await api.terminal.spawn({
         type: 'Terminal',
         terminalId: cid,

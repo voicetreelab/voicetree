@@ -38,7 +38,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -134,7 +134,7 @@ End of content.`;
     try {
       const page = await electronApp.firstWindow();
       await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -194,8 +194,8 @@ End of content.`;
 
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
 
-    // Wait for electronAPI to be available
-    await page.waitForFunction(() => (window as ExtendedWindow).electronAPI?.main, { timeout: 30000 });
+    // Wait for hostAPI to be available
+    await page.waitForFunction(() => (window as ExtendedWindow).hostAPI?.main, { timeout: 30000 });
     await page.waitForTimeout(500); // Give extra time for auto-load to complete
 
     await use(page);
@@ -244,7 +244,7 @@ test.describe('Link Duplication Bug', () => {
     // Wait for node to exist in main process graph (not just cytoscape UI)
     await expect.poll(async () => {
       return appWindow.evaluate(async (nId) => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         const graph = await api?.main.getGraph();
         if (!graph) return false;
         return nId in graph.nodes;
@@ -387,7 +387,7 @@ test.describe('Link Duplication Bug', () => {
     // Wait for node to exist in main process graph (not just cytoscape UI)
     await expect.poll(async () => {
       return appWindow.evaluate(async (nId) => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         const graph = await api?.main.getGraph();
         if (!graph) return false;
         return nId in graph.nodes;

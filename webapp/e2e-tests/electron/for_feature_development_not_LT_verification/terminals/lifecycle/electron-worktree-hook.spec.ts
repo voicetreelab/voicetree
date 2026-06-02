@@ -23,13 +23,13 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import { realpathSync } from 'fs';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
     cytoscapeInstance?: unknown;
-    electronAPI?: ElectronAPI;
+    hostAPI?: HostAPI;
 }
 
 const test = base.extend<{
@@ -115,7 +115,7 @@ const test = base.extend<{
         try {
             const window = await electronApp.firstWindow();
             await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api) await api.main.stopFileWatching();
             });
             await window.waitForTimeout(300);
@@ -141,8 +141,8 @@ const test = base.extend<{
 
         // Set up project: save project + start file watching on the temp git repo
         await window.evaluate(async (projectRoot: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             await api.main.saveProject({
                 id: 'test-hook-e2e',
                 path: projectRoot,
@@ -176,8 +176,8 @@ test.describe('Worktree Hook E2E', () => {
 
         console.log('=== STEP 1: Save settings with hook path ===');
         await appWindow.evaluate(async (scriptPath: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             const settings = await api.main.loadSettings();
             const updated = JSON.parse(JSON.stringify(settings));
             updated.hooks = { onWorktreeCreated: scriptPath };
@@ -188,8 +188,8 @@ test.describe('Worktree Hook E2E', () => {
         const worktreeName = 'wt-hook-test-args';
         const worktreePath = await appWindow.evaluate(
             async (params: { repoRoot: string; name: string }) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.createWorktree(params.repoRoot, params.name);
             },
             { repoRoot: tempGitRepoPath, name: worktreeName }
@@ -221,8 +221,8 @@ test.describe('Worktree Hook E2E', () => {
 
         console.log('=== STEP 1: Save settings with non-existent hook script ===');
         await appWindow.evaluate(async (scriptPath: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             const settings = await api.main.loadSettings();
             const updated = JSON.parse(JSON.stringify(settings));
             updated.hooks = { onWorktreeCreated: scriptPath };
@@ -233,8 +233,8 @@ test.describe('Worktree Hook E2E', () => {
         const worktreeName = 'wt-hook-test-fail';
         const worktreePath = await appWindow.evaluate(
             async (params: { repoRoot: string; name: string }) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.createWorktree(params.repoRoot, params.name);
             },
             { repoRoot: tempGitRepoPath, name: worktreeName }
@@ -255,8 +255,8 @@ test.describe('Worktree Hook E2E', () => {
 
         console.log('=== STEP 1: Save settings without hooks ===');
         await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             const settings = await api.main.loadSettings();
             const updated = JSON.parse(JSON.stringify(settings));
             delete updated.hooks;
@@ -267,8 +267,8 @@ test.describe('Worktree Hook E2E', () => {
         const worktreeName = 'wt-hook-test-none';
         const worktreePath = await appWindow.evaluate(
             async (params: { repoRoot: string; name: string }) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.createWorktree(params.repoRoot, params.name);
             },
             { repoRoot: tempGitRepoPath, name: worktreeName }

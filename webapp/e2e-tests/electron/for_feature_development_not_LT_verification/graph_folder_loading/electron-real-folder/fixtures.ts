@@ -49,7 +49,7 @@ export const test = base.extend<RealFolderFixtures>({
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -114,7 +114,7 @@ test.afterEach(async ({ appWindow }) => {
   // Stop file watching BEFORE cleaning up files to prevent EPIPE errors
   try {
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as ExtendedWindow).hostAPI;
       if (api) {
         await api.main.stopFileWatching();
       }

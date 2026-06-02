@@ -26,7 +26,7 @@ const FIXTURE_ONBOARDING = path.join(PROJECT_ROOT, 'public', 'onboarding');
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -69,7 +69,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -151,8 +151,8 @@ test.describe('Multiple Folder Load Tests', () => {
     console.log('=== STEP 4: Load second folder (onboarding - 8 nodes) ===');
     // Stop watching first folder
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.stopFileWatching();
     });
 
@@ -160,8 +160,8 @@ test.describe('Multiple Folder Load Tests', () => {
 
     // Load second folder
     const secondLoad = await appWindow.evaluate(async (folderPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(folderPath);
     }, FIXTURE_ONBOARDING);
 
@@ -236,8 +236,8 @@ test.describe('Multiple Folder Load Tests', () => {
     // We need to stop watching to get an empty graph state
     console.log('=== STEP 1: Stop watching to verify placeholder on empty graph ===');
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.stopFileWatching();
     });
 
@@ -276,8 +276,8 @@ test.describe('Multiple Folder Load Tests', () => {
 
     console.log('=== STEP 3: Load folder again and verify placeholder stays hidden ===');
     await appWindow.evaluate(async (folderPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(folderPath);
     }, FIXTURE_SMALL);
 

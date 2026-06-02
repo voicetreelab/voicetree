@@ -17,7 +17,7 @@
  *  This test removes that priming.
  *
  *  ASSERTION LAYERS (per Ari's red-team gap analysis):
- *   Layer 1: graph-store memory via window.electronAPI.main.getNode(nodeId)
+ *   Layer 1: graph-store memory via window.hostAPI.main.getNode(nodeId)
  *   Layer 2: visible editor doc via cmView.state.doc.toString()
  *  If only Layer 2 fails, it's a renderer/IPC bug; if Layer 1 fails, it's a
  *  pipeline (chokidar/handleFSEvent/applyGraphDelta) bug.
@@ -40,7 +40,7 @@ const FIXTURE_PROJECT_PATH: string = path.join(
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore
-    electronAPI?: {
+    hostAPI?: {
         main: {
             stopFileWatching: () => Promise<{success: boolean; error?: string}>
             getNode: (nodeId: string) => Promise<{contentWithoutYamlOrLinks?: string} | undefined>
@@ -96,7 +96,7 @@ const test = base.extend<{
         try {
             const page: Page = await electronApp.firstWindow()
             await page.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI
+                const api = (window as unknown as ExtendedWindow).hostAPI
                 if (api) await api.main.stopFileWatching()
             })
             await page.waitForTimeout(300)
@@ -134,7 +134,7 @@ test.describe('Cold-start: agent edit before any in-app interaction', () => {
     test.afterEach(async ({appWindow}): Promise<void> => {
         try {
             await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI
+                const api = (window as unknown as ExtendedWindow).hostAPI
                 if (api) await api.main.stopFileWatching()
             })
             await appWindow.waitForTimeout(200)
@@ -186,8 +186,8 @@ test.describe('Cold-start: agent edit before any in-app interaction', () => {
 
             // 3. LAYER 1 — assert graph-store memory has been updated
             const storedContent: string | undefined = await appWindow.evaluate(async (nId: string) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI
-                if (!api) throw new Error('electronAPI missing')
+                const api = (window as unknown as ExtendedWindow).hostAPI
+                if (!api) throw new Error('hostAPI missing')
                 const node = await api.main.getNode(nId)
                 return node?.contentWithoutYamlOrLinks
             }, nodeId)
@@ -284,8 +284,8 @@ test.describe('Cold-start: agent edit before any in-app interaction', () => {
             await appWindow.waitForTimeout(2000)
 
             const storedContent: string | undefined = await appWindow.evaluate(async (nId: string) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI
-                if (!api) throw new Error('electronAPI missing')
+                const api = (window as unknown as ExtendedWindow).hostAPI
+                if (!api) throw new Error('hostAPI missing')
                 const node = await api.main.getNode(nId)
                 return node?.contentWithoutYamlOrLinks
             }, nodeId)

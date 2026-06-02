@@ -64,7 +64,7 @@ describe('App project-open lifecycle', () => {
 
     beforeEach(() => {
         calls = []
-        window.electronAPI = {
+        window.hostAPI = {
             main: {
                 getStartupProjectHint: async () => {
                     calls.push('getStartupProjectHint')
@@ -103,12 +103,12 @@ describe('App project-open lifecycle', () => {
             invoke: async () => undefined,
             on: () => undefined,
             off: () => undefined,
-        } as unknown as Window['electronAPI']
+        } as unknown as Window['hostAPI']
     })
 
     afterEach(() => {
         cleanup()
-        delete window.electronAPI
+        delete window.hostAPI
     })
 
     it('opens a selected project through one public project-open transition', async () => {

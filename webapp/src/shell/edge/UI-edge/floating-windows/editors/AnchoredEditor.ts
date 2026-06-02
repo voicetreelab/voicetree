@@ -50,7 +50,7 @@ export async function createAnchoredFloatingEditor(
 
         let editorContentNodeId: NodeIdAndFilePath = nodeId;
         if (nodeId.endsWith('/')) {
-            const graph = await window.electronAPI?.main.getGraph();
+            const graph = await window.hostAPI?.main.getGraph();
             const folderNoteId: NodeIdAndFilePath | undefined = graph
                 ? getFolderNotePath(graph, nodeId)
                 : undefined;

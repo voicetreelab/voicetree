@@ -26,7 +26,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import type { VTSettings } from '@/pure/settings';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -34,7 +34,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 /**
@@ -93,7 +93,7 @@ function createTestFixture(permissionResponse: 'auto-run' | 'safe-mode') {
       try {
         const window = await electronApp.firstWindow();
         await window.evaluate(async () => {
-          const api = (window as unknown as ExtendedWindow).electronAPI;
+          const api = (window as unknown as ExtendedWindow).hostAPI;
           if (api) await api.main.stopFileWatching();
         });
         await window.waitForTimeout(300);
@@ -137,8 +137,8 @@ autoRunTest.describe('Agent Permission Prompt - Auto-run Choice', () => {
 
     console.log('=== STEP 1: Verify initial settings state ===');
     const initialSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
 
@@ -175,8 +175,8 @@ autoRunTest.describe('Agent Permission Prompt - Auto-run Choice', () => {
     console.log('=== STEP 4: Trigger terminal spawn (this triggers permission prompt) ===');
     // Call the main process to spawn terminal - this should trigger permission prompt
     await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       // This calls spawnTerminalWithContextNode which triggers the permission check
       await api.main.spawnTerminalWithContextNode(nodeId, undefined, 0);
     }, targetNodeId);
@@ -186,8 +186,8 @@ autoRunTest.describe('Agent Permission Prompt - Auto-run Choice', () => {
 
     console.log('=== STEP 5: Verify settings were updated ===');
     const updatedSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
 
@@ -232,8 +232,8 @@ safeModeTest.describe('Agent Permission Prompt - Safe Mode Choice', () => {
 
     console.log('=== STEP 1: Verify initial settings state ===');
     const initialSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
 
@@ -269,8 +269,8 @@ safeModeTest.describe('Agent Permission Prompt - Safe Mode Choice', () => {
 
     console.log('=== STEP 4: Trigger terminal spawn (this triggers permission prompt) ===');
     await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.spawnTerminalWithContextNode(nodeId, undefined, 0);
     }, targetNodeId);
 
@@ -278,8 +278,8 @@ safeModeTest.describe('Agent Permission Prompt - Safe Mode Choice', () => {
 
     console.log('=== STEP 5: Verify settings were updated ===');
     const updatedSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
 

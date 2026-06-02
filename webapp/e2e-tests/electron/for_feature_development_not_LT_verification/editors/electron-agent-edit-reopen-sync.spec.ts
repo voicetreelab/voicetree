@@ -43,7 +43,7 @@ const FIXTURE_PROJECT_PATH: string = path.join(
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore
-    electronAPI?: {
+    hostAPI?: {
         main: {
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>
         }
@@ -98,7 +98,7 @@ const test = base.extend<{
         try {
             const page: Page = await electronApp.firstWindow()
             await page.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI
+                const api = (window as unknown as ExtendedWindow).hostAPI
                 if (api) await api.main.stopFileWatching()
             })
             await page.waitForTimeout(300)
@@ -136,7 +136,7 @@ test.describe('Agent edit → reopen sync', () => {
     test.afterEach(async ({ appWindow }): Promise<void> => {
         try {
             await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI
+                const api = (window as unknown as ExtendedWindow).hostAPI
                 if (api) await api.main.stopFileWatching()
             })
             await appWindow.waitForTimeout(200)

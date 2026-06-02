@@ -12,7 +12,11 @@ import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {extractParentRefs} from '@vt/graph-model/markdown'
 import {countBodyLines} from '../tools/graph/addProgressNodeTool'
 import {countFolderBoundedComponent} from './subgraphComponent'
-import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
+import * as daemonProtocol from '@vt/vt-daemon-protocol'
+import {
+    type OverridableRuleId,
+    type OverrideEntry,
+} from '@vt/graph-validation'
 
 // ============================================================================
 // Types
@@ -143,15 +147,23 @@ export function formatViolationError(unresolved: readonly RuleViolation[]): stri
     }
 
     const uniqueRuleIds: OverridableRuleId[] = [...new Set(unresolved.map((v: RuleViolation) => v.ruleId))]
+    const hintableRuleIds: OverridableRuleId[] = uniqueRuleIds.filter(
+        (ruleId: OverridableRuleId) => ruleId !== daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId,
+    )
     const exampleOverrides: readonly { ruleId: OverridableRuleId; rationale: string }[] =
-        uniqueRuleIds.map((ruleId: OverridableRuleId) => ({
+        hintableRuleIds.map((ruleId: OverridableRuleId) => ({
             ruleId,
             rationale: '<explain why this override is justified>',
         }))
 
     lines.push('')
-    lines.push('To override, add "override_with_rationale" to your create_graph call:')
-    lines.push(JSON.stringify(exampleOverrides, null, 2))
+    if (uniqueRuleIds.includes(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId)) {
+        lines.push(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatGuidance())
+    }
+    if (exampleOverrides.length > 0) {
+        lines.push('To override the other violated rule(s), add "override_with_rationale" to your create_graph call:')
+        lines.push(JSON.stringify(exampleOverrides, null, 2))
+    }
 
     return lines.join('\n')
 }
@@ -303,7 +315,7 @@ function folderNameOf(folderPath: string): string {
 }
 
 const subgraphSizeLimitRule: ValidationRule = {
-    id: 'subgraph_size_limit',
+    id: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId,
     description: 'Garden folder size: warn as a folder-bounded component approaches the limit, block (overridable) once it crosses it.',
     check(ctx: ValidationContext): readonly RuleViolation[] {
         const existingSize: number = countFolderBoundedComponent(
@@ -321,8 +333,12 @@ const subgraphSizeLimitRule: ValidationRule = {
 
         if (size >= ctx.subgraphErrorThreshold) {
             return [{
-                ruleId: 'subgraph_size_limit',
-                message: `Folder "${folderName}" would reach ${size} nodes, at or above the block threshold of ${ctx.subgraphErrorThreshold}. Split this cluster into a sub-folder (e.g. give a child its own folder), or override with a rationale if this density is justified.`,
+                ruleId: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId,
+                message: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatViolationMessage(
+                    folderName,
+                    size,
+                    ctx.subgraphErrorThreshold,
+                ),
                 nodeFilename: '__graph_root__',
                 severity: 'violation',
                 details,
@@ -330,7 +346,7 @@ const subgraphSizeLimitRule: ValidationRule = {
         }
         if (size >= ctx.subgraphWarnThreshold) {
             return [{
-                ruleId: 'subgraph_size_limit',
+                ruleId: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId,
                 message: `Folder "${folderName}" is reaching ${size} nodes (warn threshold ${ctx.subgraphWarnThreshold}, block at ${ctx.subgraphErrorThreshold}). Consider splitting into a sub-folder before it grows harder to navigate.`,
                 nodeFilename: '__graph_root__',
                 severity: 'warning',

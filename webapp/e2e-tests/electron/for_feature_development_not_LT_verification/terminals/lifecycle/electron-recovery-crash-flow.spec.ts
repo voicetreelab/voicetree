@@ -185,8 +185,8 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
 
             // ── Drive recovery discovery ──
             const refreshed = await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.refreshRecoverySessions();
             });
 
@@ -256,8 +256,8 @@ test.describe('Recovery crash flow — pre-seeded canonical fixtures', () => {
             // This is the §9.2 step 5 acceptance proxy: the recovery action
             // turns a Surviving Agents row into a real terminal tree node.
             const attachResult = await appWindow.evaluate(async (sessionName: string) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.attachUnclaimedTmuxSession(sessionName);
             }, agentCSessionName);
 

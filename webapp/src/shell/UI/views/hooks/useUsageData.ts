@@ -19,14 +19,14 @@ export function useUsageData(): UseUsageDataReturn {
   const [error, setError] = useState<string | null>(null);
   const claudeRefreshInFlight = useRef<boolean>(false);
 
-  const isElectron: boolean = window.electronAPI !== undefined;
+  const isElectron: boolean = window.hostAPI !== undefined;
 
   const fetchData: () => Promise<void> = useCallback(async () => {
     if (!isElectron) return;
     setIsLoading(true);
     setError(null);
     try {
-      const result: UsageData = await window.electronAPI!.main.getUsageData();
+      const result: UsageData = await window.hostAPI!.main.getUsageData();
       setData(result);
     } catch (err) {
       console.error('[useUsageData] failed to fetch:', err);
@@ -42,7 +42,7 @@ export function useUsageData(): UseUsageDataReturn {
     claudeRefreshInFlight.current = true;
     setIsClaudeRefreshing(true);
     try {
-      const claude: ClaudeUsage = await window.electronAPI!.main.refreshClaudeUsageHeadless();
+      const claude: ClaudeUsage = await window.hostAPI!.main.refreshClaudeUsageHeadless();
       setData(prev => prev === null ? prev : { ...prev, claude });
     } catch (err) {
       console.error('[useUsageData] headless refresh failed:', err);

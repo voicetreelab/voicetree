@@ -34,14 +34,14 @@ describe('layoutParticipation', () => {
     expect(isLayoutParticipantNode(cy.$id('folder-collapsed') as NodeSingular)).toBe(true);
   });
 
-  it('only includes edges whose endpoints both participate', () => {
+  it('only excludes indicator edges and edges whose endpoints do not both participate', () => {
     expect(isLayoutParticipantEdge(cy.$id('edge-ok') as EdgeSingular)).toBe(true);
     expect(isLayoutParticipantEdge(cy.$id('edge-blocked') as EdgeSingular)).toBe(false);
-    expect(isLayoutParticipantEdge(cy.$id('edge-synthetic') as EdgeSingular)).toBe(false);
+    expect(isLayoutParticipantEdge(cy.$id('edge-synthetic') as EdgeSingular)).toBe(true);
     expect(isLayoutParticipantEdge(cy.$id('edge-indicator') as EdgeSingular)).toBe(false);
     expect(isLayoutParticipantElement(cy.$id('folder-collapsed') as NodeSingular)).toBe(true);
     expect(isLayoutParticipantElement(cy.$id('edge-blocked') as EdgeSingular)).toBe(false);
-    expect(isLayoutParticipantElement(cy.$id('edge-synthetic') as EdgeSingular)).toBe(false);
+    expect(isLayoutParticipantElement(cy.$id('edge-synthetic') as EdgeSingular)).toBe(true);
   });
 
   it('treats projected folder-collapsed nodes as regular layout nodes', () => {

@@ -11,12 +11,10 @@ import type {UnclaimedTmuxSession} from '@vt/vt-daemon/agent-runtime/terminals/t
  *   (re-grabs the orphaned pane).
  *
  * - `resume`: the metadata identifies a supported CLI (`claude`/`codex`) that
- *   could in principle be resumed → Resume button. The actual native session id
- *   (`--resume <sessionId>` / `resume <threadId>`) is NOT looked up at
- *   discovery time: scanning `~/.claude/projects` for a transcript match is
- *   expensive (1+ GB of `.jsonl` for heavy users) and discovery runs on a 10s
- *   poll. The lookup is deferred to the actual resume/fork action, where it
- *   runs exactly once per user click.
+ *   can be resumed → Resume button. If the terminal JSON already has
+ *   `recovery.native.sessionId`, discovery carries that exact id through;
+ *   otherwise the expensive provider lookup is deferred to the resume/fork
+ *   action and persisted if it succeeds.
  *
  * `isClaimed` reports whether the terminal id is in the live in-memory
  * registry. UI decides where to render: claimed rows render in the regular
@@ -61,6 +59,8 @@ export type AttachCapability = {
 
 export type ResumeCapability = {
     readonly cliType: 'claude' | 'codex'
+    readonly nativeSessionId?: string
+    readonly providerStorePath?: string
 }
 
 /**

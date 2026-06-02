@@ -96,7 +96,7 @@ const record: Recorder = createRecorder()
 
 /**
  * mainAPI handler: forward a renderer telemetry batch to the OTLP exporter.
- * Exposed to the renderer as `window.electronAPI.main.recordRendererTelemetry`
+ * Exposed to the renderer as `window.hostAPI.main.recordRendererTelemetry`
  * via the zero-boilerplate auto-RPC bridge. Resolves once the batch is recorded
  * into the in-memory readers (the periodic exporter ships it on its own cadence).
  */

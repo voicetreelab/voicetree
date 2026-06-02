@@ -11,7 +11,7 @@ declare global {
       nodes?: () => { length: number }
       getElementById?: (id: string) => { length?: number }
     }
-    electronAPI?: {
+    hostAPI?: {
       main?: {
         getWriteFolderPath: () => Promise<unknown>
       }
@@ -140,7 +140,7 @@ async function waitFor<T>(
 
 async function readWriteFolderPath(page: SessionPageLike): Promise<string> {
   const writeFolderPath = await page.evaluate(async () => {
-    const raw = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolderPath() : null
+    const raw = window.hostAPI?.main ? await window.hostAPI.main.getWriteFolderPath() : null
     if (typeof raw === 'string') return raw
     if (raw && typeof raw === 'object' && '_tag' in raw && (raw as { _tag?: unknown })._tag === 'Some') {
       const value = (raw as { value?: unknown }).value
@@ -150,7 +150,7 @@ async function readWriteFolderPath(page: SessionPageLike): Promise<string> {
   })
 
   if (typeof writeFolderPath !== 'string' || writeFolderPath.trim() === '') {
-    throw new Error('window.electronAPI.main.getWriteFolderPath() unavailable')
+    throw new Error('window.hostAPI.main.getWriteFolderPath() unavailable')
   }
 
   return path.resolve(writeFolderPath)
@@ -171,7 +171,7 @@ async function waitForGraphReady(page: SessionPageLike, timeoutMs: number): Prom
   const state = await waitFor(
     async () => await page.evaluate(async () => {
       const cy = window.cytoscapeInstance
-      const rawWriteFolderPath = window.electronAPI?.main ? await window.electronAPI.main.getWriteFolderPath() : null
+      const rawWriteFolderPath = window.hostAPI?.main ? await window.hostAPI.main.getWriteFolderPath() : null
       let writeFolderPath: string | null = null
       if (typeof rawWriteFolderPath === 'string') {
         writeFolderPath = rawWriteFolderPath
@@ -195,7 +195,7 @@ async function waitForGraphReady(page: SessionPageLike, timeoutMs: number): Prom
   )
 
   if (typeof state.writeFolderPath !== 'string') {
-    throw new Error('window.electronAPI.main.getWriteFolderPath() unavailable')
+    throw new Error('window.hostAPI.main.getWriteFolderPath() unavailable')
   }
 
   return path.resolve(state.writeFolderPath)

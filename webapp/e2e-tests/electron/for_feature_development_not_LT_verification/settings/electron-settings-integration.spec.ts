@@ -30,7 +30,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import type { VTSettings } from '@/pure/settings';
 
 // Use absolute paths for example_folder_fixtures
@@ -40,7 +40,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Extend test with Electron app
@@ -89,7 +89,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -162,8 +162,8 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('=== STEP 0: Save original settings for later restoration ===');
     const originalSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       // Save current settings so we can restore them later
       return await api.main.loadSettings();
     });
@@ -172,8 +172,8 @@ test.describe('Settings Integration E2E', () => {
     console.log('=== STEP 1: Load and modify settings for test ===');
     // Modify settings in the browser context to avoid serialization issues with readonly fields
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       // Load current settings
       const currentSettings = await api.main.loadSettings();
       // Create modified settings with known test values
@@ -195,8 +195,8 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('=== STEP 3: Verify initial test settings ===');
     const initialSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     });
 
@@ -251,8 +251,8 @@ test.describe('Settings Integration E2E', () => {
     console.log('=== STEP 7: Wait for auto-save to trigger ===');
     await expect.poll(async () => {
       return await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         return await api.main.loadSettings();
       }) as VTSettings;
     }, { timeout: 5000 }).toMatchObject({
@@ -262,8 +262,8 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('=== STEP 8: Verify settings were saved ===');
     const savedSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
 
@@ -292,8 +292,8 @@ test.describe('Settings Integration E2E', () => {
     const settingsIntegrationTest = await appWindow.evaluate(async () => {
       // This tests the same code path that ContextMenuService uses
       // Load settings like ContextMenuService does
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const settings = await api.main.loadSettings();
 
       // Verify we get the updated settings
@@ -315,8 +315,8 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('=== STEP 11: Restore original settings (non-destructive cleanup) ===');
     await appWindow.evaluate(async (original) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       // Restore the original settings that were saved at the start of the test
       await api.main.saveSettings(original);
     }, originalSettings);
@@ -324,8 +324,8 @@ test.describe('Settings Integration E2E', () => {
 
     // Verify restoration was successful
     const restoredSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     });
 

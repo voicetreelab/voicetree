@@ -1,7 +1,7 @@
 import { Decoration, WidgetType, EditorView, type DecorationSet } from '@codemirror/view';
 import { RangeSet, StateField, type EditorState, type Range, type Line } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 import { VIDEO_EXTENSIONS } from '@vt/graph-model/graph';
 
 function getCytoscapeInstance(): Core | undefined {
@@ -15,9 +15,9 @@ function getCytoscapeInstance(): Core | undefined {
 let cachedWatchedFolder: string | null = null;
 
 function initWatchedFolderCache(): void {
-    const electronAPI = window.electronAPI;
-    if (!electronAPI?.main?.getWatchStatus) return;
-    void electronAPI.main.getWatchStatus().then(status => {
+    const hostAPI = window.hostAPI;
+    if (!hostAPI?.main?.getWatchStatus) return;
+    void hostAPI.main.getWatchStatus().then(status => {
         cachedWatchedFolder = status.directory ?? null;
     });
 }

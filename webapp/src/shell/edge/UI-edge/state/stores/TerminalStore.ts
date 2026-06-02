@@ -1,6 +1,6 @@
 import {getTerminalId, type TerminalId, type FloatingWindowUIData} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -171,7 +171,7 @@ export function updateTerminalRunningState(
 
     // Sync isDone changes to main process for the list_agents tool
     if (updates.isDone !== undefined && updates.isDone !== previousIsDone) {
-        void window.electronAPI?.main.updateTerminalIsDone(terminalId, updates.isDone);
+        void window.hostAPI?.main.updateTerminalIsDone(terminalId, updates.isDone);
     }
 
     return { terminal: updated, previousIsDone };

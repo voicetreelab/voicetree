@@ -2,12 +2,12 @@
 //
 // The harness runs the REAL VoiceTree renderer end-to-end:
 //   chevron tap → real folderCollapse.ts
-//               → window.electronAPI.main.setFolderStateThroughDaemon (browser stub)
+//               → window.hostAPI.main.setFolderStateThroughDaemon (browser stub)
 //               → in-browser daemon runs real project() from @vt/graph-state
 //               → real applyGraphDeltaToUI mutates cy
 //   hover node  → real setupCommandHover → real createFloatingEditor
 //               → real CodeMirrorEditorView (CodeMirror 6)
-//               → window.electronAPI.main.getGraph/getNode/loadSettings stubs
+//               → window.hostAPI.main.getGraph/getNode/loadSettings stubs
 //   edit text   → real modifyNodeContentFromFloatingEditor
 //               → applyGraphDeltaToDB* (no-op — read-only playground)
 //

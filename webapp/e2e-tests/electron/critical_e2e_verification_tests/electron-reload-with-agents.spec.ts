@@ -102,8 +102,8 @@ test.describe("reload with active agents", () => {
   }) => {
     // ── Arrange: spawn AGENT_COUNT fake-agent terminals on the root node ──
     const parentNodeId = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error("electronAPI not available");
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error("hostAPI not available");
       const graph = await api.main.getGraph();
       const nodeIds = Object.keys(graph.nodes);
       if (nodeIds.length === 0) throw new Error("No graph nodes loaded");
@@ -113,8 +113,8 @@ test.describe("reload with active agents", () => {
     for (let i = 0; i < AGENT_COUNT; i++) {
       const spawned = await appWindow.evaluate(
         async ({ taskNodeId, terminalCount }) => {
-          const api = (window as ExtendedWindow).electronAPI;
-          if (!api) throw new Error("electronAPI not available");
+          const api = (window as ExtendedWindow).hostAPI;
+          if (!api) throw new Error("hostAPI not available");
           return api.main.spawnTerminalWithContextNode({
             taskNodeId,
             terminalCount,

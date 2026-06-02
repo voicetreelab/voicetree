@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import type { JSX } from 'react';
 import type { SavedProject, DiscoveredProject } from '@vt/graph-model/project';
 import { sortProjectsByLastOpened, filterDiscoveredProjects } from '@vt/graph-model/project';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 /**
  * Extracts folder name from a path (cross-platform).
@@ -73,10 +74,10 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
 
     // Load saved projects on mount
     const loadSavedProjects: () => Promise<void> = useCallback(async (): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         try {
-            const projects: SavedProject[] = await window.electronAPI.main.loadProjects();
+            const projects: SavedProject[] = await window.hostAPI.main.loadProjects();
             setSavedProjects(sortProjectsByLastOpened(projects));
         } catch (err) {
             console.error('[ProjectSelectionScreen] Failed to load projects:', err);
@@ -86,16 +87,16 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
 
     // Scan for projects
     const scanForProjects: () => Promise<void> = useCallback(async (): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         setIsScanning(true);
         setError(null);
 
         try {
             // Get default search directories from main process (cross-platform, validated)
-            const searchDirs: string[] = await window.electronAPI.main.getDefaultSearchDirectories();
+            const searchDirs: string[] = await window.hostAPI.main.getDefaultSearchDirectories();
 
-            const discovered: DiscoveredProject[] = await window.electronAPI.main.scanForProjects(searchDirs);
+            const discovered: DiscoveredProject[] = await window.hostAPI.main.scanForProjects(searchDirs);
 
             // Filter out already-saved projects
             const filtered: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, savedProjects);
@@ -129,7 +130,7 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
     const handleAddDiscovered: (discovered: DiscoveredProject) => Promise<void> = async (
         discovered: DiscoveredProject
     ): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         const newProject: SavedProject = {
             id: generateId(),
@@ -146,17 +147,17 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
     const handleSelectSaved: (project: SavedProject) => Promise<void> = async (
         project: SavedProject
     ): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         onProjectSelected(project);
     };
 
     // Handle creating a new project — auto-creates ~/Voicetree/voicetree-{day}-{month}
     const handleCreateProject: () => Promise<void> = async (): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         try {
-            const projectPath: string = await window.electronAPI.main.createNewProject();
+            const projectPath: string = await window.hostAPI.main.createNewProject();
             const folderName: string = getFolderName(projectPath);
             const newProject: SavedProject = {
                 id: generateId(),
@@ -175,11 +176,11 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
 
     // Handle browsing for an existing folder
     const handleBrowseFolder: () => Promise<void> = async (): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         try {
             const result: { success: boolean; path?: string; error?: string } =
-                await window.electronAPI.main.showFolderPicker({
+                await window.hostAPI.main.showFolderPicker({
                     defaultPath: undefined,
                     buttonLabel: 'Open Project',
                     title: 'Select Project Folder',
@@ -331,21 +332,24 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                 )}
             </div>
 
-            {/* Footer actions */}
-            <div className="flex gap-3 pt-4 border-t border-border">
-                <button
-                    onClick={() => void handleCreateProject()}
-                    className="flex-1 py-3 px-4 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                    + New project
-                </button>
-                <button
-                    onClick={() => void handleBrowseFolder()}
-                    className="flex-1 py-3 px-4 bg-card text-foreground font-medium rounded-lg border border-border hover:bg-accent transition-colors"
-                >
-                    Open existing folder
-                </button>
-            </div>
+            {/* Footer actions — both need native folder dialogs, so they are
+                hidden when the host runtime can't open them (browser mode). */}
+            {hostCapabilities().nativeFolderPicker && (
+                <div className="flex gap-3 pt-4 border-t border-border">
+                    <button
+                        onClick={() => void handleCreateProject()}
+                        className="flex-1 py-3 px-4 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                        + New project
+                    </button>
+                    <button
+                        onClick={() => void handleBrowseFolder()}
+                        className="flex-1 py-3 px-4 bg-card text-foreground font-medium rounded-lg border border-border hover:bg-accent transition-colors"
+                    >
+                        Open existing folder
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

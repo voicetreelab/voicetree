@@ -3,8 +3,8 @@ import type {Core} from "cytoscape";
 import {computeMergeGraphDelta} from "@vt/graph-model/graph";
 import * as O from 'fp-ts/lib/Option.js';
 
-// Import ElectronAPI type for window.electronAPI access
-import type {} from "@/shell/electron";
+// Import HostAPI type for window.hostAPI access
+import type {} from "@/shell/hostApi";
 
 /**
  * Merge selected nodes into a single representative node.
@@ -22,14 +22,14 @@ export async function mergeSelectedNodesFromUI(
     }
 
     // Get current graph state
-    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
+    const currentGraph: Graph | undefined = await window.hostAPI?.main.getGraph();
     if (!currentGraph) {
         console.error('[mergeSelectedNodesFromUI] NO GRAPH IN STATE');
         return;
     }
 
     // Get write path for merged node path
-    const writeFolderPathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolderPath();
+    const writeFolderPathOption: O.Option<string> | undefined = await window.hostAPI?.main.getWriteFolderPath();
     const writeFolderPath: string = writeFolderPathOption ? O.getOrElse(() => '')(writeFolderPathOption) : '';
 
     // Compute the merge delta (pure function)
@@ -44,5 +44,5 @@ export async function mergeSelectedNodesFromUI(
     // applyGraphDeltaToUI(cy, graphDelta);
 
     // Persist to backend
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+    await window.hostAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 }

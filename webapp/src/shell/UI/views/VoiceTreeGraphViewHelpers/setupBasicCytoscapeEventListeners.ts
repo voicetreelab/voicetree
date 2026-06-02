@@ -11,8 +11,8 @@ import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/stores/TerminalS
 import { areNodesVisibleInViewport } from '@/utils/viewportVisibility';
 import { showNoVisibleNodesToast, hideNoVisibleNodesToast, isNoVisibleNodesToastShown } from '@/shell/UI/views/components/overlays/noVisibleNodesToast';
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
-// Import to make Window.electronAPI type available
-import type {} from '@/shell/electron';
+// Import to make Window.hostAPI type available
+import type {} from '@/shell/hostApi';
 import { dispatchSelect, dispatchDeselect } from '@vt/graph-state/state/selectionStore'
 
 export function setupBasicCytoscapeEventListeners(
@@ -124,7 +124,7 @@ export function setupBasicCytoscapeEventListeners(
     // Restore grab cursor (still hovering over node after release)
     cursorTarget.style.cursor = 'grab';
     //console.log('[VoiceTreeGraphView] Node drag released, saving positions...');
-    void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+    void window.hostAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
   });
 
   // Context node highlighting - clear previous and apply new highlights on node select

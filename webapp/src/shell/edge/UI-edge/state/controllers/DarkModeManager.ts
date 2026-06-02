@@ -3,7 +3,7 @@
  *
  * This module handles:
  * 1. Dark mode state management (singleton pattern)
- * 2. Settings persistence via electronAPI
+ * 2. Settings persistence via hostAPI
  * 3. Document class toggling
  * 4. Callbacks for UI components that need to react to mode changes
  *
@@ -11,8 +11,8 @@
  */
 
 import type {VTSettings} from '@vt/graph-model/settings';
-// Import for Window.electronAPI type augmentation
-import type {} from '@/shell/electron';
+// Import for Window.hostAPI type augmentation
+import type {} from '@/shell/hostApi';
 
 // Module-level state (singleton)
 let currentDarkMode: boolean = false;
@@ -45,10 +45,10 @@ function applyDarkModeToDocument(isDark: boolean): void {
  * Save dark mode setting to persistent storage
  */
 async function saveDarkModeToSettings(): Promise<void> {
-    const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-    if (settings && window.electronAPI) {
+    const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
+    if (settings && window.hostAPI) {
         const updatedSettings: VTSettings = {...settings, darkMode: currentDarkMode};
-        await window.electronAPI.main.saveSettings(updatedSettings);
+        await window.hostAPI.main.saveSettings(updatedSettings);
     }
 }
 
@@ -57,7 +57,7 @@ async function saveDarkModeToSettings(): Promise<void> {
  * Returns the loaded value
  */
 async function loadDarkModeFromSettings(): Promise<boolean | undefined> {
-    const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+    const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
     return settings?.darkMode;
 }
 

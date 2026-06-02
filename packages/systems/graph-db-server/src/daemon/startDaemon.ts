@@ -179,6 +179,7 @@ async function startOwnedDaemon(
 
     const app = createDaemonApp({
       registry,
+      allowedOrigins: opts.allowedOrigins,
       readHealth: () =>
         buildHealthResponse(
           CONTRACT_VERSION,

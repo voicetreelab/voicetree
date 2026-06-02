@@ -9,9 +9,9 @@
  * and fails this gate.
  *
  *   1. Spawn an interactive tmux-backed terminal via IPC (ptyBackend='tmux').
- *   2. Call `electronAPI.terminal.attach(terminalId)` to obtain an opaque
+ *   2. Call `hostAPI.terminal.attach(terminalId)` to obtain an opaque
  *      handle id; subscribe to `terminal:data` over the same surface.
- *   3. Send `electronAPI.terminal.write(handle, char)` per character — same
+ *   3. Send `hostAPI.terminal.write(handle, char)` per character — same
  *      surface TerminalVanilla.ts uses.
  *   4. Assert the sentinel appears in `tmux capture-pane`.
  */
@@ -95,14 +95,14 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
 
     try {
       voicetreeHomePath = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         return api.main.getVoicetreeHomePath();
       });
 
       await expect.poll(async () => appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         const graph = await api.main.getGraph();
         return Object.keys(graph.nodes).length;
       }), {
@@ -112,8 +112,8 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
       }).toBeGreaterThan(0);
 
       const parentNodeId: string = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         const graph = await api.main.getGraph();
         return Object.keys(graph.nodes)[0];
       });
@@ -125,8 +125,8 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
       // the `terminal-registry` SSE topic; we observe the resulting floating
       // window in the DOM to learn that id.
       await appWindow.evaluate(async ({ parentNodeId: nodeId }) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         await api.main.spawnPlainTerminal({ nodeId, terminalCount: 0 });
       }, { parentNodeId });
 
@@ -150,8 +150,8 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
 
       // ── Attach via the SAME IPC bridge the renderer uses. ──
       await appWindow.evaluate(async (tid: string) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api?.terminal) throw new Error('hostAPI.terminal not available');
         const handle: string = await api.terminal.attach(tid);
         const received: { value: string } = { value: '' };
         const offData = api.terminal.onData(handle, (data: string): void => {
@@ -180,7 +180,7 @@ test.describe('renderer keystroke → Main IPC → /terminals/:id/attach WS → 
         // Send each character separately to faithfully simulate keystroke
         // pacing — same shape TerminalVanilla.ts uses on real user input.
         await appWindow.evaluate(async ({ line: typed }) => {
-          const api = (window as ExtendedWindow).electronAPI;
+          const api = (window as ExtendedWindow).hostAPI;
           const bridge = window.__e2eKeystrokeRelay;
           if (!api?.terminal || !bridge) throw new Error('relay bridge not installed');
           for (const ch of typed) {

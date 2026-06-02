@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import { getNodeTitle, type GraphNode } from '@vt/graph-model';
 import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes } from './electron-smoke-helpers';
 
@@ -14,7 +14,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 async function seedProject(projectPath: string): Promise<string> {
@@ -126,8 +126,8 @@ const test = base.extend<{
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
     const openResult = await window.evaluate(async (dir) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const response = await api.main.openProject(dir);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
@@ -142,7 +142,7 @@ test('keeps Electron UI, graph state, and project files converged after a disk c
   test.setTimeout(60_000);
 
   const initial = await appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     if (!api || !cy) throw new Error('Electron graph boundary is unavailable');
     const graph = await api.main.getGraph();
@@ -169,7 +169,7 @@ test('keeps Electron UI, graph state, and project files converged after a disk c
   }, { message: 'Waiting for Created From Disk node', timeout: 10_000, intervals: [250, 500, 1000, 2000] }).toBe(true);
 
   const convergedGraphAndUi = await appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     if (!api || !cy) throw new Error('Electron graph boundary is unavailable');
     const graph = await api.main.getGraph();

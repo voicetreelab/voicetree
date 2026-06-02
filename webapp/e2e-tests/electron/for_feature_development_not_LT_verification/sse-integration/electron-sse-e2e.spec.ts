@@ -25,7 +25,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 
 // Type definitions
 interface ExtendedWindow {
-  electronAPI?: {
+  hostAPI?: {
     main: {
       getBackendPort: () => Promise<number>;
     };
@@ -118,8 +118,8 @@ test.describe('SSE End-to-End Integration', () => {
 
     console.log('=== STEP 1: Get backend port from Electron main process ===');
     const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getBackendPort();
     });
 
@@ -242,8 +242,8 @@ test.describe('SSE End-to-End Integration', () => {
 
     // Get backend port
     const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getBackendPort();
     });
 

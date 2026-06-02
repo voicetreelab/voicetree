@@ -238,7 +238,7 @@ test.describe('Smoke Test', () => {
 
     const appReady = await appWindow.evaluate(() => {
       return !!(window as ExtendedWindow).cytoscapeInstance &&
-             !!(window as ExtendedWindow).electronAPI;
+             !!(window as ExtendedWindow).hostAPI;
     });
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully with graph view');
@@ -256,8 +256,8 @@ test.describe('Smoke Test', () => {
     console.log('✓ Cytoscape nodes loaded');
 
     const graph = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
 
@@ -293,8 +293,8 @@ test.describe('Smoke Test', () => {
     // test-scoped, so each test re-launches the whole app) is paid ONCE per run
     // instead of twice. Same coverage; removes a full app boot from tier-1.
     const initialGraph = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
     const taskNodeId = Object.keys(initialGraph.nodes).find(id =>
@@ -305,8 +305,8 @@ test.describe('Smoke Test', () => {
     }
 
     const spawnResponse = await appWindow.evaluate(async (id) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.spawnTerminalWithContextNode({
         taskNodeId: id,
         terminalCount: 0,

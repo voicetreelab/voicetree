@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 // import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { installBrowserRuntimeIfNeeded } from '@/shell/edge/browser/installBrowserRuntime'
 import './index.css'
 import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
@@ -99,8 +100,8 @@ if (!analyticsDisabled) {
 
   // Identify user with email from settings if available (fixes UUID reset on app updates)
   void (async () => {
-    if (window.electronAPI) {
-      const settings: VTSettings = await window.electronAPI.main.loadSettings()
+    if (window.hostAPI) {
+      const settings: VTSettings = await window.hostAPI.main.loadSettings()
       if (settings.userEmail) {
         posthog.identify(settings.userEmail, { email: settings.userEmail })
       }
@@ -113,25 +114,31 @@ if (!analyticsDisabled) {
 // the rAF loop / PerformanceObservers never run in the normal app.
 installRendererPerfProbe();
 
-// Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)
-setupUIRpcHandler();
+// Install browser runtime adapter if running outside Electron.
+// Must complete before React renders so App.tsx's electronReady poll sees
+// window.hostAPI on the first tick. Safe no-op when Electron preload
+// already set window.hostAPI.
+void installBrowserRuntimeIfNeeded().then(() => {
+  // Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)
+  setupUIRpcHandler();
 
-// Surface the one-time 2.9.x→3.0 import notice, if any. The migration already ran
-// silently in electron-main at startup; this just shows the non-blocking toast now
-// that the renderer (and document.body) is ready. Consumed once — null thereafter.
-// Feature-detected + best-effort: browser-mode e2e tests mount a partial electronAPI
-// mock, so a missing method must never throw during app boot.
-const consumeMigrationNotice: (() => Promise<string | null>) | undefined =
-  window.electronAPI?.main.consumeUserDataMigrationNotice;
-if (consumeMigrationNotice) {
-  void consumeMigrationNotice().then((message: string | null) => {
-    if (message) {
-      showUserDataMigrationNotice(message);
-    }
-  });
-}
+  // Surface the one-time 2.9.x→3.0 import notice, if any. The migration already ran
+  // silently in electron-main at startup; this just shows the non-blocking toast now
+  // that the renderer (and document.body) is ready. Consumed once — null thereafter.
+  // Feature-detected + best-effort: browser-mode e2e tests mount a partial hostAPI
+  // mock, so a missing method must never throw during app boot.
+  const consumeMigrationNotice: (() => Promise<string | null>) | undefined =
+    window.hostAPI?.main.consumeUserDataMigrationNotice;
+  if (consumeMigrationNotice) {
+    void consumeMigrationNotice().then((message: string | null) => {
+      if (message) {
+        showUserDataMigrationNotice(message);
+      }
+    });
+  }
 
-// Render app immediately - backend connection will be initialized lazily when needed
-createRoot(document.getElementById('root')!).render(
-    <App/>
-);
+  // Render app immediately - backend connection will be initialized lazily when needed
+  createRoot(document.getElementById('root')!).render(
+      <App/>
+  );
+});

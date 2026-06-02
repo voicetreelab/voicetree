@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto'
-import {mkdtemp, readFile, rm} from 'node:fs/promises'
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterAll, afterEach, describe, expect, it} from 'vitest'
@@ -21,6 +21,16 @@ type TmuxMetadata = {
     readonly pid: number
     readonly exitCode?: number | null
     readonly terminalData: TerminalData
+    readonly recovery?: {
+        readonly native?: {
+            readonly cli: 'claude' | 'codex'
+            readonly mode: 'interactive' | 'headless'
+            readonly sessionId: string
+            readonly capturedAt: string
+            readonly source: 'claude-project-transcript' | 'codex-state-index'
+            readonly providerStorePath?: string
+        }
+    }
 }
 
 const sessions: Set<string> = new Set<string>()
@@ -259,6 +269,52 @@ describe('headlessAgentManager tmux backend', () => {
         expect(reboundMeta?.status).toBe('running')
         expect((reboundMeta as unknown as {startedAt?: string})?.startedAt).toBe(originalStartedAt)
         expect(getTerminalRecords().find((r) => r.terminalId === terminalId)).toBeDefined()
+
+        await killSession(terminalId)
+        sessions.delete(terminalId)
+        await closeHeadlessAgent(terminalId)
+    }, 15000)
+
+    it('preserves native recovery metadata when resuming an exited record into a fresh tmux session', async () => {
+        const terminalId: TerminalId = makeName()
+        const projectRoot: string = await makeTempProject()
+        const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
+        const metadataPath: string = join(terminalDir, `${terminalId}.json`)
+        const td: TerminalData = makeTerminalData(terminalId, projectRoot)
+        const recovery = {
+            native: {
+                cli: 'codex' as const,
+                mode: 'interactive' as const,
+                sessionId: '019e8159-9f71-7dd3-b137-221fc7c5c316',
+                capturedAt: '2026-06-01T00:00:00.000Z',
+                source: 'codex-state-index' as const,
+                providerStorePath: '/Users/bob/.codex/state_5.sqlite',
+            },
+        }
+        await mkdir(terminalDir, {recursive: true})
+        await writeFile(metadataPath, `${JSON.stringify({
+            name: terminalId,
+            status: 'exited',
+            pid: 111,
+            session: `vt-placeholder-${terminalId}`,
+            startedAt: '2026-06-01T00:00:00.000Z',
+            endedAt: '2026-06-01T00:01:00.000Z',
+            terminalData: td,
+            recovery,
+        }, null, 2)}\n`, 'utf8')
+        sessions.add(terminalId)
+
+        await spawnTmuxBackedTerminal(
+            terminalId,
+            td,
+            '/bin/bash -l',
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_PROJECT_PATH: projectRoot},
+        )
+
+        const reboundMeta: TmuxMetadata | null = await readMetadata(metadataPath)
+        expect(reboundMeta?.status).toBe('running')
+        expect(reboundMeta?.recovery).toEqual(recovery)
 
         await killSession(terminalId)
         sessions.delete(terminalId)

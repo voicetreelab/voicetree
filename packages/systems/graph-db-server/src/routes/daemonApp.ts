@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { context, propagation } from '@opentelemetry/api'
 import {
   HealthResponseSchema,
   ShutdownResponseSchema,
   type HealthResponse,
 } from '@vt/graph-db-server/contract'
+import {DAEMON_SHUTDOWN_HEADER} from '@vt/graph-db-protocol'
 import { createGraphRoutes } from './graph-endpoints/graph.ts'
 import { mountLayoutRoutes } from './graph-endpoints/layout.ts'
 import { mountFolderStateRoutes } from './session-endpoints/folderState.ts'
@@ -23,6 +25,8 @@ export type CreateDaemonAppOptions = {
   onShutdown: () => void
   readHealth: () => HealthResponse
   registry: SessionRegistry
+  /** Exact localhost origins allowed for browser CORS (Vite dev server). Never wildcard. */
+  allowedOrigins?: readonly string[]
 }
 
 /**
@@ -46,6 +50,15 @@ export function mountDaemonRoutes(
   app: Hono,
   opts: CreateDaemonAppOptions,
 ): void {
+  if (opts.allowedOrigins && opts.allowedOrigins.length > 0) {
+    const allowed = opts.allowedOrigins
+    app.use('*', cors({
+      origin: (origin) => (allowed.includes(origin) ? origin : null),
+      allowHeaders: ['Authorization', 'Content-Type', 'X-Session-Id'],
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      maxAge: 86400,
+    }))
+  }
   attachIncomingTraceContext(app)
   mountSessionRoutes(app, opts.registry)
   mountSessionEventsRoute(app, opts.registry)
@@ -60,6 +73,11 @@ export function mountDaemonRoutes(
   })
 
   mountDaemonRoute(app, daemonRouteSpecBySignature('POST', '/shutdown'), (c) => {
+    // CSRF/DoS gate: require a custom header a cross-origin "simple" POST cannot
+    // set without a (un-approved) preflight. See DAEMON_SHUTDOWN_HEADER docs.
+    if (c.req.header(DAEMON_SHUTDOWN_HEADER) === undefined) {
+      return c.json({ error: 'shutdown requires the daemon shutdown header' }, 403)
+    }
     opts.onShutdown()
     return c.json(ShutdownResponseSchema.parse({ ok: true }))
   })

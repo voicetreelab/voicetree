@@ -1,6 +1,6 @@
 /**
  * Black-box tests for useEventSubscriptionConnection. The mock surface is
- * `window.electronAPI.events`, which IS the preload-injected API boundary
+ * `window.hostAPI.events`, which IS the preload-injected API boundary
  * (per CLAUDE.md: "mock at the API boundary, not internal collaborators").
  */
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
@@ -22,7 +22,7 @@ function installStubElectronAPI(): StubEventsAPI {
     let frameUnsub: number = 0
     let stateUnsub: number = 0
 
-    const electronAPI = {
+    const hostAPI = {
         events: {
             on: (topic: TopicName, fn: (frame: EventFrame | GapFrame) => void): (() => void) => {
                 const entry: FrameListener = {topic, fn}
@@ -44,8 +44,8 @@ function installStubElectronAPI(): StubEventsAPI {
             resnapshot: (_topic: TopicName): Promise<void> => Promise.resolve(),
         },
     }
-    Object.defineProperty(window, 'electronAPI', {
-        value: electronAPI,
+    Object.defineProperty(window, 'hostAPI', {
+        value: hostAPI,
         configurable: true,
         writable: true,
     })
@@ -66,7 +66,7 @@ describe('useEventSubscriptionConnection', (): void => {
     })
 
     afterEach((): void => {
-        delete (window as {electronAPI?: unknown}).electronAPI
+        delete (window as {hostAPI?: unknown}).hostAPI
     })
 
     it('returns isConnected=true after onConnectionState fires {kind:"connected"}', (): void => {

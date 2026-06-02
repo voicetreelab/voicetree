@@ -4,6 +4,7 @@ import {mergeOverrideSpecs, parseOverrideEntry} from '../core/overrideSpec'
 import {rewriteOverrideHintForCli} from '../actions/batchEmit'
 import type {OverrideSpec, ParsedLiveCreateArgs} from '../core/types'
 import {CliError} from '@voicetree/cli/commands/output'
+import {SUBGRAPH_SIZE_LIMIT_GUIDANCE} from '@vt/vt-daemon-protocol'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) { super(`process.exit(${code})`) }
@@ -152,10 +153,42 @@ describe('rewriteOverrideHintForCli', () => {
             '[{"ruleId":"node_line_limit","rationale":"<explain>"}]',
         ].join('\n')
         const rewritten: string = rewriteOverrideHintForCli(mcpError)
-        expect(rewritten).toContain('To override, re-run with:')
+        expect(rewritten).toContain('To override non-gardening rule(s), re-run with:')
         expect(rewritten).toContain("--override 'node_line_limit:<rationale>'")
         expect(rewritten).toContain("--override 'grandparent_attachment:<rationale>'")
         expect(rewritten).toContain("--override 'node_must_have_edge:<rationale>'")
+        expect(rewritten).not.toContain('override_with_rationale')
+    })
+
+    it('does not suggest --override for subgraph_size_limit-only failures', () => {
+        const mcpError: string = [
+            'Validation failed. The following rules were violated:',
+            '',
+            `  • [${SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId}] Folder "work" is too large (node: "__graph_root__")`,
+            '',
+            'To override, add "override_with_rationale" to your create_graph call:',
+            `[{"ruleId":"${SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId}","rationale":"<explain>"}]`,
+        ].join('\n')
+        const rewritten: string = rewriteOverrideHintForCli(mcpError)
+        expect(rewritten).toContain(SUBGRAPH_SIZE_LIMIT_GUIDANCE.gardeningInstruction)
+        expect(rewritten).not.toContain(`--override '${SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId}:`)
+        expect(rewritten).not.toContain('override_with_rationale')
+    })
+
+    it('filters subgraph_size_limit out of mixed override suggestions', () => {
+        const mcpError: string = [
+            'Validation failed. The following rules were violated:',
+            '',
+            `  • [${SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId}] Folder "work" is too large (node: "__graph_root__")`,
+            '  • [node_line_limit] Node is too long (node: "x.md")',
+            '',
+            'To override, add "override_with_rationale" to your create_graph call:',
+            `[{"ruleId":"${SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId}","rationale":"<explain>"}]`,
+        ].join('\n')
+        const rewritten: string = rewriteOverrideHintForCli(mcpError)
+        expect(rewritten).toContain('To override non-gardening rule(s), re-run with:')
+        expect(rewritten).toContain("--override 'node_line_limit:<rationale>'")
+        expect(rewritten).not.toContain(`--override '${SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId}:`)
         expect(rewritten).not.toContain('override_with_rationale')
     })
 

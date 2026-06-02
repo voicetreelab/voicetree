@@ -77,6 +77,8 @@ docker run -d --rm -p 6080:6080 \
 ```
 See [`docker/README.md`](docker/README.md) for details. amd64 only for now.
 
+**Run VoiceTree in the browser (no Electron):** a monorepo-only dev command (`@voicetree/cli` isn't published yet) — see [docs/browser-mode.md](docs/browser-mode.md).
+
 ---
 
 ## How It Works

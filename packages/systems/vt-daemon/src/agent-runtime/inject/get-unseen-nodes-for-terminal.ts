@@ -1,7 +1,7 @@
 /**
  * Get unseen nodes for a terminal by looking up its context node.
  *
- * Renderer calls: window.electronAPI.main.getUnseenNodesForTerminal(id)
+ * Renderer calls: window.hostAPI.main.getUnseenNodesForTerminal(id)
  * Zero-boilerplate RPC: just add to mainAPI, types flow via Promisify.
  */
 

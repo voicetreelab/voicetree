@@ -119,7 +119,7 @@ async function buildLayoutMutation(parsed: ParsedLayoutCommand): Promise<LayoutM
 }
 
 async function createSessionClient(projectFlag: string | undefined): Promise<GraphDbClient> {
-    const project: string = resolveProject({flag: projectFlag, cwd: process.cwd()})
+    const project: string = resolveProject({flag: projectFlag, cwd: process.cwd(), env: process.env})
     const {port}: {port: number} = await ensureDaemon(project)
     return new GraphDbClient({baseUrl: `http://127.0.0.1:${port}`})
 }

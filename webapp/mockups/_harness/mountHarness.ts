@@ -4,7 +4,7 @@
 // Wires:
 //   - In-browser daemon (real `project()` from @vt/graph-state over a
 //     synthetic Graph + FolderTreeNode + ProjectState)
-//   - window.electronAPI stub bridging to that daemon
+//   - window.hostAPI stub bridging to that daemon
 //   - Real `applyGraphDeltaToUI` mutates cy from each ProjectedGraph
 //   - Real `FolderHandleService` chevron chip
 //   - Real `folderCollapse.toggleFolderCollapse` for chip taps
@@ -16,7 +16,7 @@
 // What's NOT wired (mockups can layer on via `onCyReady`):
 //   - presentation cards / image viewers (stubbed, see viteAliases.ts)
 //   - drag-to-create, right-click menus, context selection
-//   - any window.electronAPI surface beyond folder-state + read-only graph
+//   - any window.hostAPI surface beyond folder-state + read-only graph
 
 import './harness.css'
 
@@ -306,7 +306,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
         destroyCy()
         cy = buildCy()
         ;(window as unknown as { cy: Core }).cy = cy
-        // No new subscription needed — the existing electronAPI subscription
+        // No new subscription needed — the existing hostAPI subscription
         // is still wired to the same daemon and will push on demand. Re-fit
         // the current projection synchronously so the new cy is non-empty.
         applyProjection(daemon.getProjection())
@@ -319,7 +319,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
         // The real folderCollapse also applies its return value optimistically
         // — this duplicate apply is idempotent and matches production's
         // optimistic-then-SSE-reconcile cadence.
-        window.electronAPI?.graph.onProjectedGraphUpdate?.((graph: ProjectedGraph): void => {
+        window.hostAPI?.graph.onProjectedGraphUpdate?.((graph: ProjectedGraph): void => {
             applyProjection(graph)
             const collapsedCount: number = graph.nodes.filter((n) => n.kind === 'folder-collapsed').length
             flashLog(`projection → ${graph.nodes.length} nodes, ${collapsedCount} collapsed folders`)

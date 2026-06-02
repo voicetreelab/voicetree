@@ -75,7 +75,7 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
 });
 
 interface ExtendedWindowWithGraph extends ExtendedWindow {
-  electronAPI?: {
+  hostAPI?: {
     main?: {
       applyGraphDeltaToDBAndMem: (delta: GraphDelta) => Promise<{ success: boolean }>;
       getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;
@@ -129,7 +129,7 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
   await setupMockElectronAPI(page);
 
   await page.addInitScript(() => {
-    const api = (window as unknown as ExtendedWindowWithGraph).electronAPI;
+    const api = (window as unknown as ExtendedWindowWithGraph).hostAPI;
     if (api && api.main && api.graph) {
       const originalApplyGraphDelta = api.main.applyGraphDeltaToDBAndMem;
       const graphState = api.main._graphState;
@@ -275,7 +275,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
         contentWithoutYamlOrLinks: string;
       };
       const win = window as unknown as {
-        electronAPI?: {
+        hostAPI?: {
           main?: {
             writeMarkdownFile?: (nodeId: string, body: string, writerId: string) => Promise<unknown>;
           };
@@ -285,9 +285,9 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           };
         };
       };
-      const api = win.electronAPI;
+      const api = win.hostAPI;
       if (!api?.main || !api.graph) {
-        throw new Error('electronAPI mock is not initialised');
+        throw new Error('hostAPI mock is not initialised');
       }
       const graphState = api.graph._graphState;
       if (!graphState) {

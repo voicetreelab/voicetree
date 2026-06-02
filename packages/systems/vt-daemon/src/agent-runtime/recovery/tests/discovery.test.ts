@@ -75,7 +75,7 @@ describe('discoverRecoverableAgentSessions — resume capability', () => {
         expect(rows[0].resume?.cliType).toBe('codex')
     })
 
-    it('omits resume for unsupported CLIs (no nativeSessionId field surfaces in this design)', async () => {
+    it('omits resume for unsupported CLIs without persisted native recovery metadata', async () => {
         const rows = await discoverRecoverableAgentSessions(makeDeps({
             readProjectMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata({
                 terminalData: makeTerminalData({initialCommand: 'gemini'}),
@@ -185,6 +185,31 @@ describe('discoverRecoverableAgentSessions — surfacing rules', () => {
         }))
         expect(rows).toHaveLength(1)
         expect(rows[0].resume?.cliType).toBe('claude')
+    })
+
+    it('surfaces persisted native session ids from exited terminal JSON records', async () => {
+        const rows = await discoverRecoverableAgentSessions(makeDeps({
+            readProjectMetadataDir: async () => [metadataRecord(makeRunningCodexMetadata({
+                status: 'exited',
+                recovery: {
+                    native: {
+                        cli: 'codex',
+                        mode: 'interactive',
+                        sessionId: '019e8159-9f71-7dd3-b137-221fc7c5c316',
+                        capturedAt: '2026-06-01T00:00:00.000Z',
+                        source: 'codex-state-index',
+                        providerStorePath: '/Users/bob/.codex/state_5.sqlite',
+                    },
+                },
+            }), '/project/.voicetree/terminals/B.json')],
+        }))
+        expect(rows).toHaveLength(1)
+        expect(rows[0].status).toBe('exited')
+        expect(rows[0].resume).toEqual({
+            cliType: 'codex',
+            nativeSessionId: '019e8159-9f71-7dd3-b137-221fc7c5c316',
+            providerStorePath: '/Users/bob/.codex/state_5.sqlite',
+        })
     })
 
     it('drops foreign-project records', async () => {

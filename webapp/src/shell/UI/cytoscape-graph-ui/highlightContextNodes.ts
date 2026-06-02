@@ -38,7 +38,7 @@ export async function highlightContainedNodes(cy: Core, contextNodeId: string): 
  * Used for preview when hovering Run button on a normal (non-context) node.
  */
 export async function highlightPreviewNodes(cy: Core, nodeId: string): Promise<void> {
-  const api: typeof window.electronAPI | undefined = window.electronAPI;
+  const api: typeof window.hostAPI | undefined = window.hostAPI;
   if (!api) return;
 
   const result: readonly string[] | { error: string } = await api.main.getPreviewContainedNodeIds(nodeId);

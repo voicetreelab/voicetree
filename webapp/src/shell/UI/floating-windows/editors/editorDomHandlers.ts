@@ -1,8 +1,9 @@
 import type { Extension } from '@codemirror/state';
-import type {} from "@/shell/electron"; // Import ElectronAPI type for window.electronAPI access
+import type {} from "@/shell/hostApi"; // Import HostAPI type for window.hostAPI access
 import { EditorView } from '@codemirror/view';
 import { startCompletion } from '@codemirror/autocomplete';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 /**
  * Insert wikilink brackets at cursor and trigger autocomplete.
@@ -56,6 +57,12 @@ export function createImagePasteHandler(nodeId: string | undefined): Extension {
         return false; // No image, let default paste handling continue
       }
 
+      // Saving a pasted image needs native clipboard/disk access (Electron only).
+      // In browser mode, skip the image path and let default paste run.
+      if (!hostCapabilities().clipboardImages) {
+        return false;
+      }
+
       // Prevent default paste behavior for images
       event.preventDefault();
 
@@ -63,7 +70,7 @@ export function createImagePasteHandler(nodeId: string | undefined): Extension {
       const capturedNodeId: string = nodeId;
       void (async (): Promise<void> => {
         try {
-          const filename: string | null = await window.electronAPI?.main.saveClipboardImage(capturedNodeId) ?? null;
+          const filename: string | null = await window.hostAPI?.main.saveClipboardImage(capturedNodeId) ?? null;
 
           if (filename) {
             // Insert markdown image reference at cursor position

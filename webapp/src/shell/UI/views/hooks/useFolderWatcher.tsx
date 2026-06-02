@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { WatchStatus } from '@/shell/electron';
+import type { WatchStatus } from '@/shell/hostApi';
 
 
 interface UseFolderWatcherReturn {
@@ -25,7 +25,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
   const [error, setError] = useState<string | null>(null);
 
   // Check if we're running in Electron
-  const isElectron: boolean = window.electronAPI !== undefined;
+  const isElectron: boolean = window.hostAPI !== undefined;
 
   // Get initial watch status on mount
   useEffect(() => {
@@ -33,8 +33,8 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
     const checkStatus: () => Promise<void> = async () => {
       try {
-        const status: { readonly isWatching: boolean; readonly directory: string | undefined } = await window.electronAPI!.main.getWatchStatus();
-        //console.log('[DEBUG] Initial watch status from electronAPI:', status);
+        const status: { readonly isWatching: boolean; readonly directory: string | undefined } = await window.hostAPI!.main.getWatchStatus();
+        //console.log('[DEBUG] Initial watch status from hostAPI:', status);
         // Convert null to undefined to match WatchStatus type
         setWatchStatus({ isWatching: status.isWatching, directory: status.directory ?? undefined });
       } catch (err) {
@@ -48,18 +48,18 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
   // Listen to project lifecycle events to stay in sync
   useEffect(() => {
-    if (!isElectron || !window.electronAPI) return;
+    if (!isElectron || !window.hostAPI) return;
 
-    const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string }) => {
+    const cleanupReady = window.hostAPI.onProjectReady?.((data: { path: string }) => {
       setWatchStatus({ isWatching: true, directory: data.path });
       setIsLoading(false);
       setError(null);
     }) ?? (() => {});
-    const cleanupSwitching = window.electronAPI.onProjectSwitching?.(() => {
+    const cleanupSwitching = window.hostAPI.onProjectSwitching?.(() => {
       setIsLoading(true);
       setError(null);
     }) ?? (() => {});
-    const cleanupLost = window.electronAPI.onProjectLost?.((data: { error?: string }) => {
+    const cleanupLost = window.hostAPI.onProjectLost?.((data: { error?: string }) => {
       setIsLoading(false);
       setError(data.error ?? 'Project unavailable');
     }) ?? (() => {});
@@ -88,7 +88,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         setIsLoading(false);
         return;
       }
-      await window.electronAPI!.main.openProject(watchStatus.directory);
+      await window.hostAPI!.main.openProject(watchStatus.directory);
       setWatchStatus({ isWatching: true, directory: watchStatus.directory });
       setIsLoading(false);
     } catch (_err) {
@@ -107,7 +107,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     setError(null);
 
     try {
-      const result: { readonly success: boolean; readonly error?: string; } = await window.electronAPI!.main.stopFileWatching();
+      const result: { readonly success: boolean; readonly error?: string; } = await window.hostAPI!.main.stopFileWatching();
       //console.log('[DEBUG] stopFileWatching result:', result);
       if (result.success) {
         // Reset state immediately after successful IPC call

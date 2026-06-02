@@ -1,7 +1,7 @@
 import { test as base, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import type { Core as CytoscapeCore } from 'cytoscape'
-import type { ElectronAPI } from '@/shell/electron'
+import type { HostAPI } from '@/shell/hostApi'
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as os from 'os'
@@ -24,7 +24,7 @@ interface DebugWindow {
         applyLiveCommand?: (command: unknown) => Promise<unknown>
     }
     cytoscapeInstance?: CytoscapeCore
-    electronAPI?: ElectronAPI
+    hostAPI?: HostAPI
 }
 
 const test = base.extend<{
@@ -100,7 +100,7 @@ const test = base.extend<{
         try {
             const window: Page = await electronApp.firstWindow()
             await window.evaluate(async () => {
-                const api = (window as unknown as DebugWindow).electronAPI
+                const api = (window as unknown as DebugWindow).hostAPI
                 if (api) await api.main.stopFileWatching()
             })
             await window.waitForTimeout(300)
@@ -177,7 +177,7 @@ test.describe('BF-L5-205 — renderer-canonical live state', () => {
             await win.__vtDebug__!.applyLiveCommand!({ type: 'Collapse', folder: folderId })
             return {
                 renderer: win.__vtDebug__!.liveState!(),
-                main: await win.electronAPI!.main.getLiveStateSnapshot(),
+                main: await win.hostAPI!.main.getLiveStateSnapshot(),
             }
         }, target.folderId)
 
@@ -192,7 +192,7 @@ test.describe('BF-L5-205 — renderer-canonical live state', () => {
             await win.__vtDebug__!.applyLiveCommand!({ type: 'Select', ids: [nodeId] })
             return {
                 renderer: win.__vtDebug__!.liveState!(),
-                main: await win.electronAPI!.main.getLiveStateSnapshot(),
+                main: await win.hostAPI!.main.getLiveStateSnapshot(),
             }
         }, target.nodeId)
 

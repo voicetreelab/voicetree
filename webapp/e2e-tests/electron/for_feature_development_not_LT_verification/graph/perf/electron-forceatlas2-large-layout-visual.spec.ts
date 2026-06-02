@@ -14,8 +14,8 @@ type LayoutSettings = {
 };
 
 type LayoutSettingsWindow = ExtendedWindow & {
-  readonly electronAPI?: {
-    readonly main?: ExtendedWindow['electronAPI']['main'] & {
+  readonly hostAPI?: {
+    readonly main?: ExtendedWindow['hostAPI']['main'] & {
       readonly loadSettings?: () => Promise<LayoutSettings>;
       readonly stopFileWatching?: () => Promise<void>;
     };
@@ -119,7 +119,7 @@ async function waitForGraphNodes(appWindow: Page): Promise<void> {
 async function currentLayoutConfig(appWindow: Page): Promise<Record<string, unknown> | null> {
   return appWindow.evaluate(async (): Promise<Record<string, unknown> | null> => {
     const settings: LayoutSettings | undefined = await (window as unknown as LayoutSettingsWindow)
-      .electronAPI
+      .hostAPI
       ?.main
       ?.loadSettings
       ?.();
@@ -276,7 +276,7 @@ async function openAdvancedSettings(appWindow: Page): Promise<void> {
 async function closeSettingsAndStopWatching(appWindow: Page): Promise<void> {
   await appWindow.locator('#window-settings-editor .traffic-light-close').click();
   await appWindow.evaluate(async (): Promise<void> => {
-    await (window as unknown as LayoutSettingsWindow).electronAPI?.main?.stopFileWatching?.();
+    await (window as unknown as LayoutSettingsWindow).hostAPI?.main?.stopFileWatching?.();
   });
 }
 

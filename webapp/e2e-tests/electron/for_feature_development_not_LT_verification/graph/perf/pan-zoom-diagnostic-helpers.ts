@@ -5,11 +5,11 @@
 
 import type { Page } from '@playwright/test';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
   voiceTreeGraphView?: { navigateToNodeAndTrack: (nodeId: string) => void };
 }
 

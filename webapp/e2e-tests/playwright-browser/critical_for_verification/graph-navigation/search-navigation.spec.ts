@@ -75,8 +75,8 @@ test.describe('Search Navigation (Browser)', () => {
     await waitForCytoscapeReady(page);
     console.log('✓ Cytoscape initialized');
 
-    console.log('=== Step 4: Setup test graph via electronAPI graph update ===');
-    // Trigger the graph update through the electronAPI callback mechanism
+    console.log('=== Step 4: Setup test graph via hostAPI graph update ===');
+    // Trigger the graph update through the hostAPI callback mechanism
     // This simulates how the real app receives graph updates
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
