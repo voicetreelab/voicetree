@@ -197,6 +197,25 @@ function syncFolderNodeInteractivity(folder: CollectionReturnValue, collapsed: b
     if (folder.selected()) folder.unselect()
 }
 
+/**
+ * Apply a folder's persisted size by stamping it as node data
+ * (`folderWidth`/`folderHeight`). The stylesheet (defaultNodeStyles) maps that
+ * data onto the compound's cytoscape min-width/min-height, so size stays
+ * data-driven — no imperative style bypass. The children bbox remains a hard
+ * floor: min-* only grows the compound past its contents (default centered bias
+ * spreads the extra space around the children). Only expanded folders carry a
+ * size; the collapsed pill is fixed-size, so its size data is cleared.
+ */
+function applyFolderSize(folder: CollectionReturnValue, specNode: ProjectedNode): void {
+    if (specNode.kind === 'folder' && specNode.size) {
+        folder.data('folderWidth', specNode.size.width)
+        folder.data('folderHeight', specNode.size.height)
+        return
+    }
+    if (folder.data('folderWidth') !== undefined) folder.removeData('folderWidth')
+    if (folder.data('folderHeight') !== undefined) folder.removeData('folderHeight')
+}
+
 function addFolderNode(
     cy: Core,
     specNode: ProjectedNode,
@@ -219,6 +238,7 @@ function addFolderNode(
         },
     })
     syncFolderNodeInteractivity(addedFolder, collapsed)
+    applyFolderSize(addedFolder, specNode)
 }
 
 function updateFolderNode(existing: CollectionReturnValue, specNode: ProjectedNode): void {
@@ -234,6 +254,7 @@ function updateFolderNode(existing: CollectionReturnValue, specNode: ProjectedNo
         if (existing.data('childCount') !== undefined) existing.removeData('childCount')
     }
     syncFolderNodeInteractivity(existing, collapsed)
+    applyFolderSize(existing, specNode)
 }
 
 export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {

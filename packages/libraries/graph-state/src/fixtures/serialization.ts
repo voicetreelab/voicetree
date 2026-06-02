@@ -16,6 +16,7 @@ import {
     type Graph,
     type GraphNode,
     type Position,
+    type Size,
 } from '@vt/graph-model'
 import { compareEdges } from '../project-helpers'
 
@@ -87,6 +88,7 @@ export interface SerializedState {
     readonly selection: readonly string[]
     readonly layout: {
         readonly positions: readonly (readonly [string, Position])[]
+        readonly folderSizes?: readonly (readonly [string, Size])[]
         readonly zoom?: number
         readonly pan?: Position
         readonly fit?: { readonly paddingPx: number } | null
@@ -339,6 +341,9 @@ export function serializeState(state: State): SerializedState {
         selection: sortStrings([...state.selection]),
         layout: {
             positions: serializeMap(state.layout.positions),
+            ...(state.layout.folderSizes && state.layout.folderSizes.size > 0
+                ? { folderSizes: serializeMap(state.layout.folderSizes) }
+                : {}),
             ...(state.layout.zoom !== undefined ? { zoom: state.layout.zoom } : {}),
             ...(state.layout.pan ? { pan: state.layout.pan } : {}),
             ...(state.layout.fit !== undefined ? { fit: state.layout.fit } : {}),
@@ -365,6 +370,7 @@ export function hydrateState(state: SerializedState): State {
         selection: new Set(state.selection),
         layout: {
             positions: hydrateMap(state.layout.positions),
+            ...(state.layout.folderSizes ? { folderSizes: hydrateMap(state.layout.folderSizes) } : {}),
             ...(state.layout.zoom !== undefined ? { zoom: state.layout.zoom } : {}),
             ...(state.layout.pan ? { pan: state.layout.pan } : {}),
             ...(state.layout.fit !== undefined ? { fit: state.layout.fit } : {}),

@@ -9,7 +9,7 @@ import {
   UndoRedoResponseSchema,
   UnknownResponseSchema,
   WriteMarkdownFileResponseSchema,
-  WritePositionsResponseSchema,
+  WriteNodeLayoutResponseSchema,
 } from '../responseSchemas.ts'
 import type { RequestClient } from './requestCore.ts'
 
@@ -67,13 +67,13 @@ export function createGraphClient(request: RequestClient) {
       return response.delta
     },
 
-    async writePositions(
-      positions: Record<string, { x: number; y: number }>,
+    async writeNodeLayout(
+      layout: Record<string, { x?: number; y?: number; w?: number; h?: number }>,
     ): Promise<{ written: number }> {
-      return await request('/graph/write-positions', {
-        body: { positions },
+      return await request('/graph/write-node-layout', {
+        body: { layout },
         method: 'POST',
-        responseSchema: WritePositionsResponseSchema,
+        responseSchema: WriteNodeLayoutResponseSchema,
       })
     },
 

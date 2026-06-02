@@ -1,4 +1,4 @@
-import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/graph'
+import type { Graph, GraphDelta, GraphNode, Size } from '@vt/graph-model/graph'
 import type { ProjectState } from '@vt/graph-db-server/contract'
 import type { Session } from './session.ts'
 
@@ -53,7 +53,8 @@ export type Command =
       contextNodeId: string
       newNodeIds: string[]
     }
-  | { type: 'WriteAllPositions'; graph: Graph; projectRoot: string }
+  | { type: 'MergeFolderLayout'; entries: ReadonlyMap<string, Size> }
+  | { type: 'WriteAllNodeLayout'; graph: Graph; projectRoot: string }
 
 export type CommandOutput = {
   AddProjectReadPath: { readonly success: boolean; readonly error?: string }
@@ -78,5 +79,6 @@ export type CommandOutput = {
   SetGraph: void
   SetProjectWriteFolderPath: { readonly success: boolean; readonly error?: string }
   UpdateContextNodeContainedIds: void
-  WriteAllPositions: void
+  MergeFolderLayout: void
+  WriteAllNodeLayout: void
 }

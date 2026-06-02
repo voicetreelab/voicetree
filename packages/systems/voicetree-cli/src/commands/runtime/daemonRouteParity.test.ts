@@ -127,9 +127,9 @@ describe('daemon CLI route parity', () => {
             },
             {
                 method: 'POST',
-                path: '/graph/write-positions',
+                path: '/graph/write-node-layout',
                 reason:
-                    '`/graph/write-positions` persists renderer layout coordinates from Electron; it is not a user-facing CLI command.',
+                    '`/graph/write-node-layout` persists renderer spatial layout (position + size) from Electron; it is not a user-facing CLI command.',
             },
             {
                 method: 'POST',

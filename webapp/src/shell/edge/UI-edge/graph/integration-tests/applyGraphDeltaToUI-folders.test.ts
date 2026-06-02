@@ -219,4 +219,43 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(folderNode.data('childCount')).toBe(2)
         })
     })
+
+    describe('Folder size projection', () => {
+        // The persisted size is applied as folderWidth/folderHeight node data;
+        // the stylesheet (defaultNodeStyles) maps that data to the compound's
+        // min-width/min-height. Headless cytoscape computes no styles, so we
+        // assert the data-driving values the stylesheet consumes.
+        it('stamps a sized expanded folder with folderWidth/folderHeight data', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder', { size: { width: 420, height: 360 } })))
+
+            const folder = cy.getElementById('/project/topic/')
+            expect(folder.data('folderWidth')).toBe(420)
+            expect(folder.data('folderHeight')).toBe(360)
+        })
+
+        it('leaves an unsized expanded folder without size data', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder')))
+
+            const folder = cy.getElementById('/project/topic/')
+            expect(folder.data('folderWidth')).toBeUndefined()
+            expect(folder.data('folderHeight')).toBeUndefined()
+        })
+
+        it('clears size data when a sized folder is re-projected without a size', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder', { size: { width: 420, height: 360 } })))
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder')))
+
+            const folder = cy.getElementById('/project/topic/')
+            expect(folder.data('folderWidth')).toBeUndefined()
+            expect(folder.data('folderHeight')).toBeUndefined()
+        })
+
+        it('does not stamp size data on a collapsed folder pill', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder-collapsed', { size: { width: 420, height: 360 } })))
+
+            const folder = cy.getElementById('/project/topic/')
+            expect(folder.data('folderWidth')).toBeUndefined()
+            expect(folder.data('folderHeight')).toBeUndefined()
+        })
+    })
 })

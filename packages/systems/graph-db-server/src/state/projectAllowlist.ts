@@ -29,7 +29,7 @@ import {
 import { traceGraphdSpan } from "../data/watch-folder/paths/traceGraphdSpan";
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
-import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from '@vt/graph-model/graph';
+import type { FilePath, Graph, GraphDelta, DeleteNode, NodeLayout } from '@vt/graph-model/graph';
 import type { ProjectConfig } from '@vt/graph-model/settings';
 import { createDatedSubfolder } from "@vt/app-config/project";
 import { getGraph } from "./graph-store";
@@ -43,7 +43,7 @@ import {
     applyGraphDeltaToMemState,
     refreshGraphChangeSideEffects
 } from "../data/graph/mutations/applyGraphDelta";
-import { positionsIO } from "@vt/app-config/positions-io";
+import { nodeLayoutIO } from "@vt/app-config/node-layout-io";
 import {
     getProjectConfigForDirectory,
     saveProjectConfigForDirectory,
@@ -122,12 +122,12 @@ export async function setWriteFolderPath(
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const [config, positions]: [ProjectConfig | undefined, ReadonlyMap<string, Position>] = await Promise.all([
+    const [config, nodeLayout]: [ProjectConfig | undefined, ReadonlyMap<string, NodeLayout>] = await Promise.all([
         traceGraphdSpan('daemon.set-write-folder-path.get-project-config', async () => await getProjectConfigForDirectory(watchedDir)),
-        traceGraphdSpan('daemon.set-write-folder-path.load-positions', async (span) => {
-            const loadedPositions: ReadonlyMap<string, Position> = await positionsIO.load(watchedDir);
-            span.setAttribute('positions.count', loadedPositions.size);
-            return loadedPositions;
+        traceGraphdSpan('daemon.set-write-folder-path.load-node-layout', async (span) => {
+            const loadedLayout: ReadonlyMap<string, NodeLayout> = await nodeLayoutIO.load(watchedDir);
+            span.setAttribute('nodeLayout.count', loadedLayout.size);
+            return loadedLayout;
         }),
     ]);
 
@@ -135,7 +135,7 @@ export async function setWriteFolderPath(
     const outcome: ProjectLoadOutcome = await traceGraphdSpan('daemon.set-write-folder-path.load-and-merge-project-path', async () => await loadAndMergeProjectPath(
         projectPath,
         { isWriteFolderPath: true, createStarterIfEmpty: options.createStarterIfEmpty },
-        positions,
+        nodeLayout,
     ));
     if (outcome.kind !== 'ok') {
         return { success: false, error: describeProjectLoadFailure(outcome) };
@@ -215,11 +215,11 @@ export async function addReadPath(projectPath: FilePath): Promise<{ success: boo
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const positions: ReadonlyMap<string, Position> = await positionsIO.load(watchedDir);
+    const nodeLayout: ReadonlyMap<string, NodeLayout> = await nodeLayoutIO.load(watchedDir);
 
     // Load and merge handles everything: graph state, UI broadcast
     // Note: isWriteFolderPath: false means no starter node and no backend notification
-    const outcome: ProjectLoadOutcome = await loadAndMergeProjectPath(projectPath, { isWriteFolderPath: false }, positions);
+    const outcome: ProjectLoadOutcome = await loadAndMergeProjectPath(projectPath, { isWriteFolderPath: false }, nodeLayout);
     if (outcome.kind === 'fileLimit') {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
         await setActiveViewFolderState(watchedDir, projectPath, 'expanded');

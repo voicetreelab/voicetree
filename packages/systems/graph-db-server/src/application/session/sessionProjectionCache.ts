@@ -69,6 +69,7 @@ function projectSessionProjectionCache(
     project: cache.snapshot.project,
     folderTree: cache.snapshot.folderTree,
     session: cache.snapshot.session,
+    folderSizes: cache.snapshot.folderSizes,
   })
 }
 
