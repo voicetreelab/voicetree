@@ -60,8 +60,13 @@ describe('decodeWsData', (): void => {
     })
 
     it('decodes an ArrayBuffer as utf-8', (): void => {
-        const bytes: Uint8Array = new TextEncoder().encode('héllo')
-        expect(decodeWsData(bytes.buffer)).toBe('héllo')
+        // Build the ArrayBuffer via the global constructor so it shares the realm
+        // the module sees — mirroring a real browser binary frame (binaryType
+        // 'arraybuffer'), rather than TextEncoder's cross-realm backing buffer.
+        const encoded: Uint8Array = new TextEncoder().encode('héllo')
+        const buffer: ArrayBuffer = new ArrayBuffer(encoded.byteLength)
+        new Uint8Array(buffer).set(encoded)
+        expect(decodeWsData(buffer)).toBe('héllo')
     })
 
     it('decodes a Node Buffer as utf-8', (): void => {
