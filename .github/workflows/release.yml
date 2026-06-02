@@ -193,6 +193,9 @@ jobs:
         run: |
           npx electron-vite build
           npm run stage:daemons
+          # Bundle the standalone Node ≥22 that hosts vtd/vt-graphd (Resources/node/node).
+          # --arch is authoritative (the matrix target), not the runner's reported arch.
+          npm run stage:node -- --arch ${{ matrix.arch }}
           # Notarization talks to Apple's live notary service and needs an in-effect
           # Developer Program agreement; it is irrelevant to build correctness. Skip it on
           # dry-runs (publish=false) so they validate build+sign+package without the Apple
@@ -353,6 +356,11 @@ jobs:
           }
           npm run stage:daemons
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Bundle the standalone Node ≥22 host (Resources/node/node.exe). Windows is
+          # out of scope for the app, but the node extraResource is shared, so stage it
+          # to keep the build green.
+          npm run stage:node -- --arch x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npx electron-builder --win --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -437,6 +445,8 @@ jobs:
         run: |
           npx electron-vite build
           npm run stage:daemons
+          # Bundle the standalone Node ≥22 that hosts vtd/vt-graphd (resources/node/node).
+          npm run stage:node -- --arch ${{ matrix.arch }}
           npx electron-builder --linux --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
 
       # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)

@@ -49,9 +49,10 @@
     "electron:persist-state": "VOICETREE_PERSIST_STATE=1 electron-vite build && VOICETREE_PERSIST_STATE=1 electron .",
     "electron:build": "electron-vite build",
     "stage:daemons": "node scripts/stage-daemon-bundles.mjs",
-    "electron:pack": "electron-vite build && npm run stage:daemons && electron-builder",
-    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && npm run stage:daemons && electron-builder --mac --config -c.mac.identity=null --publish=never",
-    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && npm run stage:daemons && electron-builder --mac --publish=always",
+    "stage:node": "node scripts/stage-node-runtime.mjs",
+    "electron:pack": "electron-vite build && npm run stage:daemons && npm run stage:node && electron-builder",
+    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && npm run stage:daemons && npm run stage:node && electron-builder --mac --config -c.mac.identity=null --publish=never",
+    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && npm run stage:daemons && npm run stage:node && electron-builder --mac --publish=always",
     "setup-cli": "bash scripts/setup-cli.sh"
   },
   "optionalDependencies": {
@@ -209,6 +210,10 @@
       {
         "from": "../out/resources/server",
         "to": "server"
+      },
+      {
+        "from": "../out/resources/node",
+        "to": "node"
       },
       {
         "from": "../out/resources/tools",
