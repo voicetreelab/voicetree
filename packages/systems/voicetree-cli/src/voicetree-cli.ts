@@ -249,7 +249,7 @@ const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
     'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'rename', 'mv', 'group',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
-    'project', 'session', 'view', 'search', 'debug', 'serve', 'manual',
+    'project', 'session', 'view', 'search', 'debug', 'serve', 'webapp', 'manual',
 ])
 
 function computeVerb(commandArgs: readonly string[]): {verb: string; verbTokensInArgv: number} {
@@ -348,6 +348,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
                 const module: {runServeCommand: (argv: string[]) => Promise<void>} =
                     await import('./commands/runtime/serve.ts')
                 await module.runServeCommand(commandArgs.slice(1))
+            }
+            return
+        case 'webapp':
+            {
+                const module: {runWebappCommand: (argv: string[]) => Promise<void>} =
+                    await import('./commands/runtime/webapp.ts')
+                await module.runWebappCommand(commandArgs.slice(1))
             }
             return
         default:

@@ -154,25 +154,37 @@ async function teardownLaunchedGraphd(graphd: EnsureGraphDaemonResult): Promise<
     }
 }
 
-export async function runServeCommand(argv: string[]): Promise<void> {
-    const args: ServeArgs = parseServeArgs(argv)
+export type EnsuredDaemons = {
+    readonly graphd: EnsureGraphDaemonResult
+    readonly vtd: EnsureVtDaemonResult<VtDaemonClient>
+}
 
+// Boots both per-project daemons (graph-db first, then vt-daemon) via the
+// owner-aware ensure clients, applying the BF-346/371/373 ordering and the
+// orphan-teardown invariant. Shared by `vt serve` and `vt webapp`. On a
+// vt-daemon ensure failure — or an --exclusive refusal — a graph-db daemon THIS
+// call just launched is torn down so it is not orphaned; a reused graph-db
+// owner is left running for its other peers.
+export async function ensureBothDaemons(
+    project: string,
+    opts: {readonly exclusive: boolean},
+): Promise<EnsuredDaemons> {
     let graphd: EnsureGraphDaemonResult
     try {
-        graphd = await ensureGraphDaemonForProject(args.project, 'cli', {
+        graphd = await ensureGraphDaemonForProject(project, 'cli', {
             bin: process.env.VT_GRAPHD_BIN,
         })
     } catch (cause) {
         error(`failed to ensure graph-db owner: ${(cause as Error).message}`)
     }
 
-    if (args.exclusive && !graphd.launched) {
-        error(exclusiveConflictMessage('graph-db', args.project, graphd))
+    if (opts.exclusive && !graphd.launched) {
+        error(exclusiveConflictMessage('graph-db', project, graphd))
     }
 
     let vtd: EnsureVtDaemonResult<VtDaemonClient>
     try {
-        vtd = await ensureNodeVtDaemonForProject(NODE_ENSURE_RUNTIME, args.project, 'cli', {
+        vtd = await ensureNodeVtDaemonForProject(NODE_ENSURE_RUNTIME, project, 'cli', {
             bin: process.env.VT_DAEMON_BIN,
         })
     } catch (cause) {
@@ -185,15 +197,24 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         error(`failed to ensure vt-daemon owner: ${(cause as Error).message}`)
     }
 
-    if (args.exclusive && !vtd.launched) {
+    if (opts.exclusive && !vtd.launched) {
         // --exclusive refused: a vt-daemon owner already existed. That owner
         // belongs to other peers and is left running, but a graph-db daemon
         // THIS invocation launched a moment ago has no peer — tear it down so
         // the refusal does not leave it orphaned. (A reused graph-db owner is
         // left untouched by teardownLaunchedGraphd.)
         await teardownLaunchedGraphd(graphd)
-        error(exclusiveConflictMessage('vt-daemon', args.project, vtd))
+        error(exclusiveConflictMessage('vt-daemon', project, vtd))
     }
+
+    return {graphd, vtd}
+}
+
+export async function runServeCommand(argv: string[]): Promise<void> {
+    const args: ServeArgs = parseServeArgs(argv)
+    const {graphd, vtd}: EnsuredDaemons = await ensureBothDaemons(args.project, {
+        exclusive: args.exclusive,
+    })
 
     process.stdout.write(
         `vt serve: graph-db ${verb(graphd)} on http://127.0.0.1:${graphd.port} (pid ${graphd.pid}), `
