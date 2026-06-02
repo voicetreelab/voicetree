@@ -6,18 +6,19 @@
  * module) — no `vt-bearer` subprotocol workaround. The renderer never sees
  * the bearer token.
  *
- * JSON wire frames (preserved verbatim from the deleted renderer-side
- * TerminalRelayClient):
- *   server→client: { type: 'data', payload }
- *   server→client: { type: 'exit' }
- *   client→server: { type: 'data', payload }
- *   client→server: { type: 'resize', cols, rows }
- *   client→server: { type: 'scroll', direction: 'up'|'down', lines }
+ * The relay wire format lives in the shared, runtime-neutral codec at
+ * `@/core/terminal/relayEnvelope`; this client only owns transport + reconnect.
  *
  * Reconnect: exponential doubling 200ms → 5s ceiling.
  */
 import {WebSocket} from 'ws'
 import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus'
+import {
+    decodeWsData,
+    parseRelayServerMessage,
+    serializeRelayClientMessage,
+    type RelayClientMessage,
+} from '@/core/terminal/relayEnvelope'
 
 const INITIAL_RECONNECT_DELAY_MS: number = 200
 const MAX_RECONNECT_DELAY_MS: number = 5000
@@ -43,27 +44,6 @@ export function attachUrlFromDaemonUrl(daemonUrl: string, terminalId: string): s
     const url: URL = new URL(`/terminals/${encodeURIComponent(terminalId)}/attach`, daemonUrl)
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
     return url.toString()
-}
-
-function parseRelayMessage(raw: string): {readonly type: string; readonly payload?: string; readonly code?: number} | null {
-    let parsed: unknown
-    try { parsed = JSON.parse(raw) } catch { return null }
-    if (!parsed || typeof parsed !== 'object') return null
-    const msg = parsed as {readonly type?: unknown; readonly payload?: unknown; readonly code?: unknown}
-    if (typeof msg.type !== 'string') return null
-    return {
-        type: msg.type,
-        payload: typeof msg.payload === 'string' ? msg.payload : undefined,
-        code: typeof msg.code === 'number' ? msg.code : undefined,
-    }
-}
-
-function decodeMessage(data: unknown): string {
-    if (typeof data === 'string') return data
-    if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
-    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) return data.toString('utf-8')
-    if (Array.isArray(data)) return Buffer.concat(data as Buffer[]).toString('utf-8')
-    return ''
 }
 
 export function createVtTerminalAttachClient(deps: VtTerminalAttachClientDeps): VtTerminalAttachClient {
@@ -128,11 +108,9 @@ export function createVtTerminalAttachClient(deps: VtTerminalAttachClientDeps): 
 
         ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[]): void => {
             if (socket !== ws || disposed) return
-            const text: string = decodeMessage(raw)
-            if (!text) return
-            const msg = parseRelayMessage(text)
+            const msg = parseRelayServerMessage(decodeWsData(raw))
             if (!msg) return
-            if (msg.type === 'data' && msg.payload !== undefined) {
+            if (msg.type === 'data') {
                 deps.onData(msg.payload)
             } else if (msg.type === 'exit') {
                 deps.onStatus('closed')
@@ -152,10 +130,10 @@ export function createVtTerminalAttachClient(deps: VtTerminalAttachClientDeps): 
         })
     }
 
-    function send(message: object): boolean {
+    function send(message: RelayClientMessage): boolean {
         if (!socket || socket.readyState !== WebSocket.OPEN) return false
         try {
-            socket.send(JSON.stringify(message))
+            socket.send(serializeRelayClientMessage(message))
             return true
         } catch {
             return false
