@@ -92,8 +92,9 @@ export type { ProbeHealthOptions } from './healthIdentityProbe.ts'
 
 // Generic detached spawn (no client class — that stays in graph-db-client
 // / vt-daemon-client).
-export { spawnDaemon } from './spawnDaemon.ts'
+export { buildDaemonChildEnv, spawnDaemon } from './spawnDaemon.ts'
 export type {
+  DaemonChildEnvInput,
   SpawnDaemonInput,
   SpawnedDaemonHandle,
   SpawnEnvVarShape,
