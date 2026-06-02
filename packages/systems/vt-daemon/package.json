@@ -10,6 +10,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./package.json": "./package.json",
     "./agent-runtime/terminals/terminal-registry": "./src/agent-runtime/terminals/terminal-registry/index.ts",
     "./agent-runtime/lifecycle": "./src/agent-runtime/lifecycle/index.ts",
     "./agent-runtime/*": "./src/agent-runtime/*",
@@ -29,7 +30,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@mermaid-js/parser": "^0.6.2",
@@ -58,6 +60,7 @@
     "@types/express": "^5.0.5",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.10",
+    "esbuild": "^0.25.0",
     "tsx": "^4.19.2",
     "typescript": "~5.8.3",
     "vitest": "^3.2.4"

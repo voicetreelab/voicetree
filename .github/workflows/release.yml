@@ -192,6 +192,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
+          npm run stage:daemons
           # Notarization talks to Apple's live notary service and needs an in-effect
           # Developer Program agreement; it is irrelevant to build correctness. Skip it on
           # dry-runs (publish=false) so they validate build+sign+package without the Apple
@@ -350,6 +351,8 @@ jobs:
             Write-Error "Build failed: dist\index.html not found"
             exit 1
           }
+          npm run stage:daemons
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npx electron-builder --win --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -433,6 +436,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
+          npm run stage:daemons
           npx electron-builder --linux --${{ matrix.arch }} --publish=${{ (github.event_name == 'push' || inputs.publish) && 'always' || 'never' }} -c.electronVersion="$(node -p 'require("electron/package.json").version')"
 
       # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)
