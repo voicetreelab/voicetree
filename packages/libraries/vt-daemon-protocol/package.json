@@ -15,6 +15,7 @@
   "dependencies": {
     "@vt/graph-db-protocol": "*",
     "@vt/graph-model": "*",
+    "@vt/graph-state": "*",
     "fp-ts": "^2.16.9"
   },
   "devDependencies": {

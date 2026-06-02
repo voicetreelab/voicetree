@@ -340,6 +340,9 @@ importers:
       '@vt/graph-model':
         specifier: '*'
         version: link:../graph-model
+      '@vt/graph-state':
+        specifier: '*'
+        version: link:../graph-state
       fp-ts:
         specifier: ^2.16.9
         version: 2.16.11
