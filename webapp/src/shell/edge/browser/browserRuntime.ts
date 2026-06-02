@@ -57,6 +57,20 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         return () => set!.delete(listener)
     }
 
+    function patchTerminalRecord(kind: string): (id: string, value: unknown) => Promise<unknown> {
+        return (id, value) =>
+            callVtdRpc(vtdUrl, vtdToken, 'patchTerminalRecord', {
+                terminalId: id,
+                patch: {kind, value},
+            })
+    }
+
+    function mutateView(viewId: string, action: 'activate' | 'clone' | 'delete'): Promise<unknown> {
+        const suffix = action === 'delete' ? '' : `/${action}`
+        const method = action === 'delete' ? 'DELETE' : 'POST'
+        return fetch(`${graphdUrl}/project/views/${viewId}${suffix}`, {method}).then(r => r.json())
+    }
+
     // ── graph subscriptions ─────────────────────────────────────────────────
     let graphdSseCleanup: (() => void) | null = null
 
@@ -201,14 +215,10 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             callVtdRpc(vtdUrl, vtdToken, 'injectNodesIntoTerminal', req as Record<string, unknown>),
         getUnseenNodesForTerminal: (req: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'getUnseenNodesForTerminal', req as Record<string, unknown>),
-        updateTerminalIsDone: (id: string, v: boolean) =>
-            callVtdRpc(vtdUrl, vtdToken, 'patchTerminalRecord', {terminalId: id, patch: {kind: 'done', value: v}}),
-        updateTerminalPinned: (id: string, v: boolean) =>
-            callVtdRpc(vtdUrl, vtdToken, 'patchTerminalRecord', {terminalId: id, patch: {kind: 'pinned', value: v}}),
-        updateTerminalMinimized: (id: string, v: boolean) =>
-            callVtdRpc(vtdUrl, vtdToken, 'patchTerminalRecord', {terminalId: id, patch: {kind: 'minimized', value: v}}),
-        updateTerminalActivityState: (id: string, v: unknown) =>
-            callVtdRpc(vtdUrl, vtdToken, 'patchTerminalRecord', {terminalId: id, patch: {kind: 'activity', value: v}}),
+        updateTerminalIsDone: patchTerminalRecord('done'),
+        updateTerminalPinned: patchTerminalRecord('pinned'),
+        updateTerminalMinimized: patchTerminalRecord('minimized'),
+        updateTerminalActivityState: patchTerminalRecord('activity'),
         removeTerminalFromRegistry: (req: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'removeTerminalFromRegistry', req as Record<string, unknown>),
         closeAgent: (req: unknown) =>
@@ -274,11 +284,11 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             list: () =>
                 fetch(`${graphdUrl}/project/views`).then(r => r.json()),
             activate: (req: unknown) =>
-                fetch(`${graphdUrl}/project/views/${(req as {viewId: string}).viewId}/activate`, {method: 'POST'}).then(r => r.json()),
+                mutateView((req as {viewId: string}).viewId, 'activate'),
             clone: (req: unknown) =>
-                fetch(`${graphdUrl}/project/views/${(req as {viewId: string}).viewId}/clone`, {method: 'POST'}).then(r => r.json()),
+                mutateView((req as {viewId: string}).viewId, 'clone'),
             delete: (req: unknown) =>
-                fetch(`${graphdUrl}/project/views/${(req as {viewId: string}).viewId}`, {method: 'DELETE'}).then(r => r.json()),
+                mutateView((req as {viewId: string}).viewId, 'delete'),
         },
         __debugLockSSE: () => Promise.resolve(),
         __debugUnlockSSE: () => Promise.resolve(),
