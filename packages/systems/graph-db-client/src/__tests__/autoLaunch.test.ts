@@ -55,6 +55,32 @@ describe('resolveDaemonRuntimeCommand', () => {
     })
   })
 
+  test('resolves the spawn runtime in well under a second even when the Electron binary would block for seconds', async () => {
+    // End-to-end "time to spawn" guard at the layer where the slowness lived.
+    // The candidate Electron binary sleeps 6s if executed — modelling the real
+    // packaged app's cold start. Before the fix the resolver probed it FIRST
+    // (spawnSync), so resolution — and therefore the agent spawn it gates —
+    // blocked ~6s. The fix excludes it up front, so resolution stays fast.
+    await withFakeRuntimeBin(async ({ binDir, makeRuntime, makeSleepingRuntime }) => {
+      const electron = await makeSleepingRuntime('Electron', 6)
+      await makeRuntime('node', 0)
+
+      const startedAt = performance.now()
+      const cmd = resolveDaemonRuntimeCommand({
+        env: { PATH: binDir },
+        execPath: electron,
+        versions: { node: '24.0.0', electron: '38.1.2' },
+      })
+      const elapsedMs = performance.now() - startedAt
+
+      expect(cmd).toBe('node')
+      // Pre-fix: ~6000ms (the Electron probe blocks). Post-fix: ~tens of ms.
+      // 1000ms threshold leaves generous CI headroom while still failing on the
+      // multi-second regression.
+      expect(elapsedMs).toBeLessThan(1000)
+    })
+  })
+
   test('skips a bad npm_node_execpath candidate', async () => {
     await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
       const electron = await makeRuntime('Electron', 1)
@@ -202,23 +228,27 @@ async function withFakeRuntimeBin(
   run: (helpers: {
     binDir: string
     makeRuntime: (name: string, exitCode: number) => Promise<string>
+    // A runtime that sleeps `seconds` before exiting 0 — models a slow-to-start
+    // candidate (e.g. the packaged Electron binary's ~6s cold start). Used to
+    // prove a candidate is excluded BEFORE it is ever spawned: if the resolver
+    // probed it, the call would block for `seconds`.
+    makeSleepingRuntime: (name: string, seconds: number) => Promise<string>
   }) => Promise<void>,
 ): Promise<void> {
   const binDir = await mkdtemp(join(tmpdir(), 'vt-graphd-runtime-test-'))
 
+  const writeRuntime = async (name: string, body: string): Promise<string> => {
+    const path = join(binDir, name)
+    await writeFile(path, ['#!/bin/sh', body, ''].join('\n'), 'utf8')
+    await chmod(path, 0o755)
+    return path
+  }
+
   try {
     await run({
       binDir,
-      makeRuntime: async (name, exitCode) => {
-        const path = join(binDir, name)
-        await writeFile(
-          path,
-          ['#!/bin/sh', `exit ${exitCode}`, ''].join('\n'),
-          'utf8',
-        )
-        await chmod(path, 0o755)
-        return path
-      },
+      makeRuntime: (name, exitCode) => writeRuntime(name, `exit ${exitCode}`),
+      makeSleepingRuntime: (name, seconds) => writeRuntime(name, `sleep ${seconds}\nexit 0`),
     })
   } finally {
     await rm(binDir, { force: true, recursive: true })
