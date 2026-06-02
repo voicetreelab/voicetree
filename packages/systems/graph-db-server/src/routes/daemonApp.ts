@@ -6,6 +6,7 @@ import {
   ShutdownResponseSchema,
   type HealthResponse,
 } from '@vt/graph-db-server/contract'
+import {DAEMON_SHUTDOWN_HEADER} from '@vt/graph-db-protocol'
 import { createGraphRoutes } from './graph-endpoints/graph.ts'
 import { mountLayoutRoutes } from './graph-endpoints/layout.ts'
 import { mountFolderStateRoutes } from './session-endpoints/folderState.ts'
@@ -72,6 +73,11 @@ export function mountDaemonRoutes(
   })
 
   mountDaemonRoute(app, daemonRouteSpecBySignature('POST', '/shutdown'), (c) => {
+    // CSRF/DoS gate: require a custom header a cross-origin "simple" POST cannot
+    // set without a (un-approved) preflight. See DAEMON_SHUTDOWN_HEADER docs.
+    if (c.req.header(DAEMON_SHUTDOWN_HEADER) === undefined) {
+      return c.json({ error: 'shutdown requires the daemon shutdown header' }, 403)
+    }
     opts.onShutdown()
     return c.json(ShutdownResponseSchema.parse({ ok: true }))
   })

@@ -19,6 +19,7 @@ import {
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 import { setGraph } from '../src/state/graph-store.ts'
 import { createEmptyGraph } from '@vt/graph-model'
+import { DAEMON_SHUTDOWN_HEADER, DAEMON_SHUTDOWN_HEADER_VALUE } from '@vt/graph-db-protocol'
 import { addReadPath, makeNode, upsertDelta, waitFor } from './e2e-system-helpers.ts'
 
 describe('@vt/graph-db-server system contract', () => {
@@ -234,11 +235,23 @@ describe('@vt/graph-db-server system contract', () => {
   describe('shutdown endpoint', () => {
     it('shuts down the daemon and deletes the port file', async () => {
       const shutdown = ShutdownResponseSchema.parse(
-        await (await fetch(`${baseUrl}/shutdown`, { method: 'POST' })).json(),
+        await (await fetch(`${baseUrl}/shutdown`, {
+          method: 'POST',
+          headers: { [DAEMON_SHUTDOWN_HEADER]: DAEMON_SHUTDOWN_HEADER_VALUE },
+        })).json(),
       )
       expect(shutdown).toEqual({ ok: true })
       await waitFor(async () => ((await readPortFile(project)) === null ? true : null))
       handle = null
+    })
+
+    it('rejects a POST /shutdown that omits the daemon shutdown header (CSRF/DoS gate)', async () => {
+      // A cross-origin "simple" POST cannot set a custom header without a
+      // preflight graphd never approves; the gate models that by requiring it.
+      const res = await fetch(`${baseUrl}/shutdown`, { method: 'POST' })
+      expect(res.status).toBe(403)
+      // The daemon survived the forged request — health still answers.
+      expect((await fetch(`${baseUrl}/health`)).status).toBe(200)
     })
   })
 
@@ -443,7 +456,10 @@ describe('@vt/graph-db-server system contract', () => {
     })
 
     it('rejects HTTP requests after /shutdown completes', async () => {
-      await fetch(`${baseUrl}/shutdown`, { method: 'POST' })
+      await fetch(`${baseUrl}/shutdown`, {
+        method: 'POST',
+        headers: { [DAEMON_SHUTDOWN_HEADER]: DAEMON_SHUTDOWN_HEADER_VALUE },
+      })
       await waitFor(async () => ((await readPortFile(project)) === null ? true : null))
       handle = null
       await expect(fetch(`${baseUrl}/health`)).rejects.toBeInstanceOf(Error)
