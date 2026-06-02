@@ -62,12 +62,14 @@ import {
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
+import {createGatewayLiveUpdates} from '@vt/vt-daemon/transport/gatewayLiveUpdates.ts'
 import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
 import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
+import {buildGraphGatewayRoutes} from '../src/rpc/graphGatewayRoutes.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import {
@@ -290,9 +292,29 @@ async function main(): Promise<void> {
 
     const startMs: number = Date.now()
     let httpHandle: HttpDaemonServerHandle
+
+    // Gateway live-update pump + graph.* routes (RE-PLAN B). VTD owns ONE graphd
+    // session; the pump folds graphd's projectedGraph SSE onto the /events hub
+    // `graph` topic so the browser gets live graph updates over the single
+    // connection it already holds — it never reaches graphd. publishGraphSnapshot
+    // reads httpHandle.hub lazily: the pump only starts on the first graph.* RPC,
+    // long after the server (and its hub) is up — the same late-bound-hub pattern
+    // as configureAgentRuntimeForVtd below.
+    const gatewayLiveUpdates = createGatewayLiveUpdates({
+        client: gdb.client,
+        publishGraphSnapshot: (snapshot): void => httpHandle.hub.publish('graph', 'projectedGraph', snapshot),
+        onError: (err): void => {
+            process.stderr.write(`vtd: graph live-update pump error: ${(err as Error).message}\n`)
+        },
+    })
+    const graphGatewayRoutes = buildGraphGatewayRoutes({
+        client: gdb.client,
+        ensureSession: gatewayLiveUpdates.ensureSession,
+    })
+
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges),
+            catalog: buildDefaultToolCatalog(mcpBridges, graphGatewayRoutes),
             hookHandler,
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
@@ -413,6 +435,10 @@ async function main(): Promise<void> {
         // the port file is the signal that the daemon is gone.
         try {
             stopHeartbeat()
+            // Tear down the graph live-update SSE subscription before closing the
+            // hub it publishes onto. graphd itself is NOT shut down (shared
+            // cross-process sibling, BF-346) — we only drop our own subscription.
+            gatewayLiveUpdates.stop()
             await stopOtlpReceiver().catch((err: unknown): void => {
                 process.stderr.write(`vtd: OTLP receiver stop error: ${(err as Error).message}\n`)
             })
