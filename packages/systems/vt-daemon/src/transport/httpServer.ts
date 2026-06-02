@@ -92,11 +92,6 @@ export interface StartHttpDaemonOptions {
      */
     readonly allowedOrigins?: readonly string[]
     /**
-     * Graphd URL forwarded through /browser-token so the browser adapter
-     * can discover the graphd endpoint without reading the filesystem.
-     */
-    readonly graphdUrl?: string
-    /**
      * Canonical project path forwarded through /browser-token.
      * Falls back to canonicalProject when unset.
      */
@@ -253,7 +248,6 @@ function buildRequestHandler(
     readHealth: (() => VtDaemonHealthResponse) | undefined,
     canonicalProject: string | undefined,
     allowedOrigins: readonly string[],
-    graphdUrl: string | undefined,
     projectPath: string | undefined,
 ): (req: IncomingMessage, res: ServerResponse) => void {
     return (req: IncomingMessage, res: ServerResponse): void => {
@@ -290,7 +284,6 @@ function buildRequestHandler(
         if (method === 'GET' && url === BROWSER_TOKEN_PATH && allowedOrigins.length > 0) {
             handleBrowserToken(req, res, {
                 token,
-                graphdUrl: graphdUrl ?? null,
                 projectPath: projectPath ?? canonicalProject ?? null,
             }, allowedOrigins, logger)
             return
@@ -447,7 +440,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
     const server: Server = http.createServer(buildRequestHandler(
         options.catalog, options.hookHandler, hub, options.token, logger,
         options.readHealth, options.canonicalProject,
-        allowedOrigins, options.graphdUrl, options.projectPath,
+        allowedOrigins, options.projectPath,
     ))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 

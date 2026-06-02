@@ -1,9 +1,13 @@
 // Handler for the unauthenticated GET /browser-token route.
 //
-// Delivers the VTD bearer token plus graphd URL to a browser tab whose
+// Delivers the VTD bearer token (plus the project path) to a browser tab whose
 // Origin is in the operator-configured allowed set. This makes it possible
 // for a Vite dev server (or same-origin served app) to bootstrap without
 // reading the filesystem.
+//
+// Under the VTD gateway model (RE-PLAN B) the browser talks ONLY to VTD; it is
+// deliberately given NO graphd URL, so the gateway is structurally enforced —
+// the browser has no graphd address to reach even if it tried.
 //
 // Security model: the Origin header is the gate. Browsers enforce it for
 // cross-origin requests; non-browser clients that forge Origin can already
@@ -18,7 +22,6 @@ import {buildAccessLogLine} from '../accessLog.ts'
 
 export interface BrowserBootstrapPayload {
     readonly token: string
-    readonly graphdUrl: string | null
     readonly projectPath: string | null
 }
 

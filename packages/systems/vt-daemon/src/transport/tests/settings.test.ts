@@ -46,7 +46,6 @@ async function bring(): Promise<{handle: HttpDaemonServerHandle; token: string}>
         token,
         bindHost: '127.0.0.1',
         allowedOrigins: [],
-        graphdUrl: 'http://127.0.0.1:9999',
         projectPath: '/tmp/test-project',
         logger: silentLogger,
     })

@@ -27,7 +27,6 @@ async function bringWithCors(allowedOrigins: string[]): Promise<{handle: HttpDae
         token,
         bindHost: '127.0.0.1',
         allowedOrigins,
-        graphdUrl: 'http://127.0.0.1:9999',
         projectPath: '/tmp/test-project',
         logger: silentLogger,
     })
@@ -46,16 +45,17 @@ describe('GET /browser-token', (): void => {
         expect(res.status).toBe(401)
     })
 
-    it('returns 200 with token/graphdUrl/projectPath when Origin is in allowedOrigins', async (): Promise<void> => {
+    it('returns 200 with token/projectPath (and NO graphdUrl) when Origin is in allowedOrigins', async (): Promise<void> => {
         const {handle, token} = await bringWithCors(['http://localhost:3000'])
         const res = await fetch(`${handle.url}/browser-token`, {
             headers: {Origin: 'http://localhost:3000'},
         })
         expect(res.status).toBe(200)
-        const body = await res.json() as {token: string; graphdUrl: string; projectPath: string}
+        const body = await res.json() as {token: string; projectPath: string; graphdUrl?: unknown}
         expect(body.token).toBe(token)
-        expect(body.graphdUrl).toBe('http://127.0.0.1:9999')
         expect(body.projectPath).toBe('/tmp/test-project')
+        // The gateway is structurally enforced: the browser is handed NO graphd address.
+        expect(body.graphdUrl).toBeUndefined()
     })
 
     it('returns 403 when Origin is not in allowedOrigins', async (): Promise<void> => {

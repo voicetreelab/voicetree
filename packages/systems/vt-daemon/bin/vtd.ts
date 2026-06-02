@@ -352,7 +352,9 @@ async function main(): Promise<void> {
             // silently dropped. Set VOICETREE_CORS_ORIGINS to opt in, e.g.
             //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
             allowedOrigins: parseLocalhostCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
-            graphdUrl: `http://127.0.0.1:${gdb.port}`,
+            // No graphdUrl in the browser payload — under the gateway the browser
+            // talks ONLY to VTD; graphd stays loopback-internal (VTD reaches it
+            // via gdb.client, which already holds gdb.port).
             projectPath: args.project,
         })
         await writeRpcPortFile(args.project, httpHandle.port)
