@@ -16,6 +16,7 @@ import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from "fp-ts/lib/Option.js";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node";
+import {reconcileTerminalAnchorEdges} from "@/shell/edge/UI-edge/floating-windows/anchoring/reconcile-terminal-anchors";
 import {getCurrentIndex} from "@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync";
 
 function isValidCSSColor(color: string): boolean {
@@ -403,6 +404,13 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
     for (const nodeId of newNodeIds) {
         repairTerminalAnchorsForNode(cy, nodeId)
     }
+
+    // Keep every anchored terminal tethered to the visible endpoint of its node:
+    // the node itself, or — when a folder collapses and hides it — the collapsed
+    // ancestor folder. Runs over ALL terminals (not just newNodeIds) because a
+    // collapse REMOVES nodes rather than adding them, so a newNodeIds-keyed pass
+    // would never fire for the node that just got hidden.
+    reconcileTerminalAnchorEdges(cy, graph)
 
     // Terminal→node indicator edges driven by agent_name YAML (new + updated nodes).
     // createTerminalIndicatorEdge is idempotent, so re-running it for already-edged
