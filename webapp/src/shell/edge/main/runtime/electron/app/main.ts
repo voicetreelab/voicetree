@@ -114,6 +114,17 @@ if (electronVtBinDir !== null) {
     process.env.PATH = `${electronVtBinDir}${path.delimiter}${process.env.PATH ?? ''}`;
 }
 
+// Point graphd's runtime resolver at the bundled standalone Node ≥22 in packaged
+// builds. graphd needs node:sqlite and must not run on Electron's node
+// (architecture.md); the packaged app ships its own node under Resources/node/.
+// build-config returns null in dev/unpackaged, where the resolver falls back to a
+// `node` on PATH. The spawned graphd inherits this via the launcher env. An
+// explicit override (set by a launcher/test) wins, so we only fill the gap.
+const graphdNodeBinaryPath: string | null = getBuildConfig().graphdNodeBinaryPath;
+if (graphdNodeBinaryPath !== null && process.env.VT_GRAPHD_NODE_BIN === undefined) {
+    process.env.VT_GRAPHD_NODE_BIN = graphdNodeBinaryPath;
+}
+
 configureEnvironment();
 // Pin the VoiceTree home before tracing so it (and the daemon/CLI it spawns)
 // share one settings root. The OTLP gRPC exporter only attaches when

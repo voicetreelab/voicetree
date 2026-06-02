@@ -77,6 +77,13 @@ describe('build-config', () => {
 
       expect(config.shouldCopyTools).toBe(true);
     });
+
+    it('should not pin a graphd node binary in development', () => {
+      const config: BuildConfig = getBuildConfig();
+
+      // Dev runs graphd from source via the dev `node` on PATH; nothing to pin.
+      expect(config.graphdNodeBinaryPath).toBeNull();
+    });
   });
 
   describe('getBuildConfig - Production Mode (Unpackaged)', () => {
@@ -102,6 +109,13 @@ describe('build-config', () => {
       expect(config.pythonCwd).toBe(repoRoot);
       expect(config.shouldCompilePython).toBe(true);
       expect(config.serverBinaryPath).toBe(expectedBinaryPath);
+    });
+
+    it('should not pin a graphd node binary when unpackaged', () => {
+      const config: BuildConfig = getBuildConfig();
+
+      // No bundled node ships in an unpackaged prod build; resolver uses PATH node.
+      expect(config.graphdNodeBinaryPath).toBeNull();
     });
   });
 
@@ -132,6 +146,13 @@ describe('build-config', () => {
       const expectedBinaryPath: string = path.join(mockResourcesPath, 'server', 'voicetree-server');
       expect(config.serverBinaryPath).toBe(expectedBinaryPath);
       expect(config.pythonCommand).toBe(expectedBinaryPath);
+    });
+
+    it('should pin the bundled graphd node binary under Resources/node', () => {
+      const config: BuildConfig = getBuildConfig();
+
+      // win32 is out of scope; on this CI (darwin/linux) the binary is `node`.
+      expect(config.graphdNodeBinaryPath).toBe(path.join(mockResourcesPath, 'node', 'node'));
     });
   });
 

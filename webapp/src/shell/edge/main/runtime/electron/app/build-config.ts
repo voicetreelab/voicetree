@@ -51,6 +51,14 @@ export type BuildConfig = {
 
   // Server binary absolutePath (production only)
   readonly serverBinaryPath: string | null;
+
+  // Absolute path to the bundled standalone Node ≥22 used to host vt-graphd, or
+  // null when this build ships none. graphd needs node:sqlite (Node ≥22) and must
+  // NOT run on Electron's own node (architecture.md), so the packaged app carries
+  // its own node binary under Resources/node/. Null in dev and unpackaged builds:
+  // the runtime resolver then falls back to a `node` on PATH. main.ts exports this
+  // as VT_GRAPHD_NODE_BIN so graph-db-client's resolver selects it first.
+  readonly graphdNodeBinaryPath: string | null;
 };
 
 // ============================================================================
@@ -105,6 +113,8 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
     pythonCwd: rootDir,
     shouldCompilePython: false,
     serverBinaryPath: null,
+    // Dev runs graphd from source via the dev `node` on PATH (already ≥22).
+    graphdNodeBinaryPath: null,
 
     // Tools: Copy from repo source
     toolsSource: path.join(rootDir, 'tools'),
@@ -136,6 +146,14 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
   const serverBinaryPath: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'server', serverBinaryName)
     : path.join(rootDir, 'out', 'resources', 'server', serverBinaryName);
+
+  // Standalone Node ≥22 to host vt-graphd. Only the packaged app ships one
+  // (under Resources/node/, placed there by extraResources + after-pack); an
+  // unpackaged prod build has none, so graphd resolves a `node` from PATH.
+  const nodeBinaryName: string = process.platform === 'win32' ? 'node.exe' : 'node';
+  const graphdNodeBinaryPath: string | null = commonEnv.isPackaged
+    ? path.join(process.resourcesPath, 'node', nodeBinaryName)
+    : null;
 
   // Tools source depends on packaging state
   const toolsSource: string = commonEnv.isPackaged
@@ -169,6 +187,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     pythonCwd: rootDir,
     shouldCompilePython: true,
     serverBinaryPath,
+    graphdNodeBinaryPath,
 
     // Tools: Copy from packaged resources or build output
     toolsSource,
