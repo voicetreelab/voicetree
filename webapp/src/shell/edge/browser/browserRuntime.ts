@@ -1,35 +1,42 @@
 // Browser-mode ElectronAPI adapter.
 // Implements the ElectronAPI contract from webapp/src/shell/electron.d.ts by
-// talking directly to VTD (JSON-RPC) and graphd (REST/SSE). Must be installed
-// on window.electronAPI BEFORE React bootstraps so App.tsx's electronReady
-// check fires on the first poll.
+// talking ONLY to VTD over JSON-RPC + WebSocket. Under the gateway model
+// vt-graphd is loopback-internal behind VTD: every graph read/mutation/view op
+// is a `graph.*` RPC (vtdGraphClient.ts) and every live graph update rides the
+// existing VTD /events WS on topic `'graph'`. The adapter must be installed on
+// window.electronAPI BEFORE React bootstraps so App.tsx's electronReady check
+// fires on the first poll.
 
 import * as O from 'fp-ts/lib/Option.js'
 import type {NodeDefinition} from 'cytoscape'
 import type {ElectronAPI, Promisify} from '@/shell/electron'
 import {collectNodePositions} from '@/shell/edge/UI-edge/graph/collectNodePositions'
 import type {mainAPI} from '@/shell/edge/main/runtime/api'
-import type {ProjectedGraph} from '@vt/graph-state/contract'
-import type {Graph, GraphDelta} from '@vt/graph-model/graph'
+import type {GraphDelta} from '@vt/graph-model/graph'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
-import type {ProjectState} from '@vt/graph-db-protocol'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {BrowserDaemonConfig} from './browserConfig'
-import {
-    graphdApplyDelta,
-    graphdCreateContextNode,
-    graphdFindFile,
-    graphdGetGraph,
-    graphdGetNode,
-    graphdGetProject,
-    graphdGetProjectedGraph,
-    graphdRedo,
-    graphdSavePositions,
-    graphdSubscribeSessionEvents,
-    graphdUndo,
-    graphdWriteMarkdownFile,
-} from './graphdFetch'
 import {callVtdRpc, vtdGetSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
+import {
+    vtdActivateView,
+    vtdApplyDelta,
+    vtdCloneView,
+    vtdCreateContextNode,
+    vtdDeleteView,
+    vtdFindFileByName,
+    vtdGetGraph,
+    vtdGetNode,
+    vtdGetPreviewContainedNodeIds,
+    vtdGetProject,
+    vtdGetProjectedGraph,
+    vtdListViews,
+    vtdOpenProject,
+    vtdRedo,
+    vtdSetWriteFolderPath,
+    vtdUndo,
+    vtdWriteMarkdownFile,
+    vtdWritePositions,
+} from './vtdGraphClient'
 import {createBrowserTerminalRuntime} from './browserTerminal'
 
 type Listener = (...args: unknown[]) => void
@@ -38,10 +45,8 @@ function unsupported(name: string): never {
     throw new Error(`[browserRuntime] ${name} is not supported in browser mode`)
 }
 
-function noop(): void {}
-
 export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string): ElectronAPI {
-    const {vtdUrl, vtdToken, graphdUrl, projectPath} = cfg
+    const {vtdUrl, vtdToken, projectPath} = cfg
     const currentSessionId = sessionId
     const channelListeners = new Map<string, Set<Listener>>()
     const terminalRuntime = createBrowserTerminalRuntime()
@@ -65,37 +70,27 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             })
     }
 
-    function mutateView(viewId: string, action: 'activate' | 'clone' | 'delete'): Promise<unknown> {
-        const suffix = action === 'delete' ? '' : `/${action}`
-        const method = action === 'delete' ? 'DELETE' : 'POST'
-        return fetch(`${graphdUrl}/project/views/${viewId}${suffix}`, {method}).then(r => r.json())
+    // Re-fetch the full projected graph snapshot and emit it. Used by the
+    // renderer's explicit resnapshot() and on a `graph` gap frame. ProjectedGraph
+    // is a full snapshot (not a delta), so re-emitting is idempotent.
+    async function resnapshotGraph(): Promise<void> {
+        emit('graph:projectedGraphUpdate', await vtdGetProjectedGraph(vtdUrl, vtdToken))
     }
 
-    // ── graph subscriptions ─────────────────────────────────────────────────
-    let graphdSseCleanup: (() => void) | null = null
-
-    function startGraphdSse(): void {
-        graphdSseCleanup?.()
-        graphdSseCleanup = graphdSubscribeSessionEvents(
-            graphdUrl, currentSessionId,
-            (eventName, data) => {
-                // graphd emits the projected graph under the `projectedGraph` event
-                // name; the data IS the ProjectedGraph (no wrapping type field).
-                if (eventName !== 'projectedGraph') return
-                try {
-                    emit('graph:projectedGraphUpdate', JSON.parse(data) as ProjectedGraph)
-                } catch { /* malformed event */ }
-            },
-            (err) => console.error('[browserRuntime] graphd SSE error:', err),
-        )
-    }
-
-    startGraphdSse()
-
-    // ── VTD /events WS ──────────────────────────────────────────────────────
+    // ── VTD /events WS — the ONE long-lived stream ───────────────────────────
+    // Graph snapshots ride topic `'graph'` (folded in by VTD from graphd). A
+    // graph event carries the full ProjectedGraph; a graph gap means we may have
+    // missed a snapshot, so re-fetch. Everything else flows to `vt:events`.
     vtdSubscribeEvents(
         vtdUrl, vtdToken,
-        (frame) => emit('vt:events', frame),
+        (frame) => {
+            if (frame.topic === 'graph') {
+                if (frame.type === 'event') emit('graph:projectedGraphUpdate', frame.data)
+                else void resnapshotGraph()
+                return
+            }
+            emit('vt:events', frame)
+        },
         (state) => emit('vt:events:connection', state),
     )
 
@@ -111,15 +106,14 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
     const main = {
         // Graph
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: (delta: GraphDelta) =>
-            graphdApplyDelta(graphdUrl, currentSessionId, delta),
+            vtdApplyDelta(vtdUrl, vtdToken, delta),
         applyGraphDeltaToDBThroughMemAndUIExposed: (delta: GraphDelta) =>
-            graphdApplyDelta(graphdUrl, currentSessionId, delta),
+            vtdApplyDelta(vtdUrl, vtdToken, delta),
         writeMarkdownFile: (absolutePath: string, body: string, editorId: string) =>
-            graphdWriteMarkdownFile(graphdUrl, currentSessionId, absolutePath, body, editorId),
-        getGraph: (): Promise<Graph> => graphdGetGraph(graphdUrl),
-        getProjectedGraph: (): Promise<ProjectedGraph> =>
-            graphdGetProjectedGraph(graphdUrl, currentSessionId),
-        getNode: (nodeId: string): Promise<unknown> => graphdGetNode(graphdUrl, nodeId),
+            vtdWriteMarkdownFile(vtdUrl, vtdToken, absolutePath, body, editorId),
+        getGraph: () => vtdGetGraph(vtdUrl, vtdToken),
+        getProjectedGraph: () => vtdGetProjectedGraph(vtdUrl, vtdToken),
+        getNode: (nodeId: string) => vtdGetNode(vtdUrl, vtdToken, nodeId),
         reconcileGraphWithDisk: (): Promise<void> =>
             callVtdRpc(vtdUrl, vtdToken, 'reconcileGraphWithDisk', {}),
         collapseFolderThroughDaemon: (p: unknown) =>
@@ -128,52 +122,45 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             callVtdRpc(vtdUrl, vtdToken, 'expandFolderThroughDaemon', p as Record<string, unknown>),
         setFolderStateThroughDaemon: (p: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'setFolderStateThroughDaemon', p as Record<string, unknown>),
-        // cy.nodes().jsons() is a NodeDefinition[]; graphd's /graph/write-positions
-        // wants {positions: {nodeId: {x, y}}}. Transform before posting.
+        // cy.nodes().jsons() is a NodeDefinition[]; the gateway's writePositions
+        // wants {positions: {nodeId: {x, y}}}. Transform before sending.
         saveNodePositions: (payload: unknown) =>
-            graphdSavePositions(graphdUrl, currentSessionId, {
-                positions: collectNodePositions(payload as NodeDefinition[]),
-            }),
-        createContextNode: (payload: unknown) =>
-            graphdCreateContextNode(graphdUrl, currentSessionId, payload),
-        // graphd returns {nodeIds: string[]}; the ElectronAPI contract is a bare
-        // string[] (callers do `new Set(result)`), so unwrap nodeIds.
+            vtdWritePositions(vtdUrl, vtdToken, collectNodePositions(payload as NodeDefinition[])),
+        // The browser has no semantic-search callback (that runs in Electron
+        // main), so it requests a context node with no semantic neighbours. The
+        // contract returns {nodeId}; callers want the bare id.
+        createContextNode: (parentNodeId: string) =>
+            vtdCreateContextNode(vtdUrl, vtdToken, parentNodeId, []).then(r => r.nodeId),
         getPreviewContainedNodeIds: (nodeId: string): Promise<readonly string[]> =>
-            fetch(`${graphdUrl}/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`)
-                .then(r => r.json())
-                .then((o: {nodeIds?: readonly string[]}) => o.nodeIds ?? []),
-        performUndo: () => graphdUndo(graphdUrl, currentSessionId),
-        performRedo: () => graphdRedo(graphdUrl, currentSessionId),
-        findFileByName: (filename: string) => graphdFindFile(graphdUrl, filename),
+            vtdGetPreviewContainedNodeIds(vtdUrl, vtdToken, nodeId),
+        performUndo: () => vtdUndo(vtdUrl, vtdToken),
+        performRedo: () => vtdRedo(vtdUrl, vtdToken),
+        findFileByName: (filename: string) => vtdFindFileByName(vtdUrl, vtdToken, filename),
 
         // Settings — fetch the resolved VTSettings from VTD (Electron parity).
         // Drives `agents` for the editor horizontal menu / agent-spawn control.
         loadSettings: (): Promise<VTSettings> => vtdGetSettings(vtdUrl, vtdToken),
-        saveSettings: (): Promise<boolean> => Promise.resolve(true),
+        // Honest: persisting settings needs a security-gated VTD write RPC that
+        // does not exist yet. Surfaced as unsupported via runtime capabilities.
+        saveSettings: (): Promise<boolean> => Promise.resolve(false),
 
-        // Project
+        // Project — `graph.openProject` is idempotent (VTD owns the single
+        // graphd session); it returns the boot triple in one round-trip.
         openProject: async (path: string) => {
-            const [projectState, projGraph] = await Promise.all([
-                graphdGetProject(graphdUrl) as Promise<ProjectState>,
-                graphdGetProjectedGraph(graphdUrl, currentSessionId),
-            ])
+            const {projectState, initialProjectedGraph} = await vtdOpenProject(vtdUrl, vtdToken)
             emit('project:ready', {path: path || projectPath, sessionId: currentSessionId})
-            return {
-                projectState,
-                sessionId: currentSessionId,
-                initialProjectedGraph: projGraph,
-            }
+            return {projectState, sessionId: currentSessionId, initialProjectedGraph}
         },
         getStartupProjectHint: () => Promise.resolve({kind: 'open-folder', projectPath}),
         stopFileWatching: () => Promise.resolve(),
         shutdownGraphDaemon: () => Promise.resolve(),
         getWatchStatus: () => Promise.resolve({isWatching: false}),
         getProjectPaths: async () => {
-            const ps = await graphdGetProject(graphdUrl) as ProjectState
+            const ps = await vtdGetProject(vtdUrl, vtdToken)
             return {readPaths: ps.readPaths ?? [], writeFolderPath: ps.writeFolderPath ?? ''}
         },
         getReadPaths: async () => {
-            const ps = await graphdGetProject(graphdUrl) as ProjectState
+            const ps = await vtdGetProject(vtdUrl, vtdToken)
             return ps.readPaths ?? []
         },
         // Contract is O.Option<string> (callers do O.getOrElse/O.isNone). Returning
@@ -181,15 +168,10 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         // with a relative id (no write-folder prefix) → later writes to them hit
         // graphd's PATH_NOT_ABSOLUTE. Wrap as Some/None to match Electron.
         getWriteFolderPath: async (): Promise<O.Option<string>> => {
-            const ps = await graphdGetProject(graphdUrl) as ProjectState
+            const ps = await vtdGetProject(vtdUrl, vtdToken)
             return ps.writeFolderPath ? O.some(ps.writeFolderPath) : O.none
         },
-        setWriteFolderPath: (p: {path: string}) =>
-            fetch(`${graphdUrl}/project/write-path`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({path: p.path}),
-            }).then(noop),
+        setWriteFolderPath: (path: string) => vtdSetWriteFolderPath(vtdUrl, vtdToken, path),
         addReadPath: (p: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'addReadPath', p as Record<string, unknown>),
         removeReadPath: (p: unknown) =>
@@ -281,14 +263,10 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         readSkillFileSummary: () => Promise.resolve(''),
         prettySetupAppForElectronDebugging: () => Promise.resolve(),
         views: {
-            list: () =>
-                fetch(`${graphdUrl}/project/views`).then(r => r.json()),
-            activate: (req: unknown) =>
-                mutateView((req as {viewId: string}).viewId, 'activate'),
-            clone: (req: unknown) =>
-                mutateView((req as {viewId: string}).viewId, 'clone'),
-            delete: (req: unknown) =>
-                mutateView((req as {viewId: string}).viewId, 'delete'),
+            list: () => vtdListViews(vtdUrl, vtdToken),
+            activate: (viewId: string) => vtdActivateView(vtdUrl, vtdToken, viewId),
+            clone: (srcViewId: string, name: string) => vtdCloneView(vtdUrl, vtdToken, srcViewId, name),
+            delete: (viewId: string) => vtdDeleteView(vtdUrl, vtdToken, viewId),
         },
         __debugLockSSE: () => Promise.resolve(),
         __debugUnlockSSE: () => Promise.resolve(),
@@ -322,16 +300,13 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
                 }),
             onConnectionState: (listener: (state: ConnectionState) => void) =>
                 addListener('vt:events:connection', listener as Listener),
-            resnapshot: (_topic: TopicName): Promise<void> => {
-                startGraphdSse()
-                return Promise.resolve()
-            },
+            resnapshot: (_topic: TopicName): Promise<void> => resnapshotGraph(),
         },
 
         onBackendLog: (cb) => { addListener('backend-log', cb as Listener) },
 
         graph: {
-            getCurrentProjectedGraph: () => graphdGetProjectedGraph(graphdUrl, currentSessionId),
+            getCurrentProjectedGraph: () => vtdGetProjectedGraph(vtdUrl, vtdToken),
             onProjectedGraphUpdate: (cb) => addListener('graph:projectedGraphUpdate', cb as Listener),
             onGraphClear: (cb) => addListener('graph:clear', cb as Listener),
         },

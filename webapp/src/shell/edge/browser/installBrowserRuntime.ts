@@ -3,7 +3,7 @@
 // Safe to import in Electron — the guard prevents double-installation.
 
 import {discoverBrowserConfig} from './browserConfig'
-import {graphdCreateSession} from './graphdFetch'
+import {vtdOpenProject} from './vtdGraphClient'
 import {buildBrowserRuntime} from './browserRuntime'
 
 export async function installBrowserRuntimeIfNeeded(): Promise<void> {
@@ -11,7 +11,10 @@ export async function installBrowserRuntimeIfNeeded(): Promise<void> {
 
     try {
         const cfg = await discoverBrowserConfig()
-        const {sessionId} = await graphdCreateSession(cfg.graphdUrl)
+        // `graph.openProject` establishes (idempotently) the single VTD-owned
+        // graphd session and yields its id — the one session threaded end-to-end
+        // (graph + terminal-registry SSE). Replaces graphd's old POST /sessions.
+        const {sessionId} = await vtdOpenProject(cfg.vtdUrl, cfg.vtdToken)
         const runtime = buildBrowserRuntime(cfg, sessionId)
         ;(window as unknown as {electronAPI: typeof runtime}).electronAPI = runtime
         // Expose the session ID for debugging and test assertions
