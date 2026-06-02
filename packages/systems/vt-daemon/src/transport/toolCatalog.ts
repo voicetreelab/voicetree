@@ -10,7 +10,11 @@
 import {buildCatalogDispatchMap} from '../tools/catalog'
 import type {ToolCatalog} from './httpServer'
 import type {McpToolBridges} from '../config/mcpBridges.ts'
+import type {RpcRoute} from '../rpc/index.ts'
 
-export function buildDefaultToolCatalog(bridges: McpToolBridges): ToolCatalog {
-    return buildCatalogDispatchMap(bridges)
+export function buildDefaultToolCatalog(
+    bridges: McpToolBridges,
+    extraRoutes: readonly RpcRoute[] = [],
+): ToolCatalog {
+    return buildCatalogDispatchMap(bridges, extraRoutes)
 }
