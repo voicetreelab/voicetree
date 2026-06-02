@@ -57,15 +57,35 @@ describe('resolveClaudeNativeSession', () => {
         expect(result).toEqual({kind: 'found', sessionId: 'sess-old', providerStorePath: '/x/old.jsonl'})
     })
 
-    it('returns no-jsonl-matches when all candidates are older than the recency window', async () => {
+    it('returns outside-recency-window with diagnosticSessionId when the only match is older than the window', async () => {
+        // Mirrors the Codex resolver's unwindowed 2nd pass: when nothing is in
+        // the window but an out-of-window transcript carries our markers, surface
+        // an actionable `outside-recency-window` miss carrying the session id so
+        // the UI can offer a copy-`claude --resume <id>` escape hatch.
         const result = await resolveClaudeNativeSession(
             {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK, recencyWindowMs: 60_000},
             makeDeps({
                 listProjectTranscripts: () => transcripts(['/x/stale.jsonl']),
                 fileModifiedAt: () => NOW - 3_600_000,  // 1 hour ago, outside 1-minute window
-                readJsonlLines: () => {
-                    throw new Error('should not read files outside window')
-                },
+                readJsonlLines: () => [markerRecord('sess-stale')],
+            }),
+        )
+        expect(result).toEqual({
+            kind: 'not-found',
+            reason: 'outside-recency-window',
+            diagnosticSessionId: 'sess-stale',
+        })
+    })
+
+    it('returns no-jsonl-matches when an out-of-window transcript exists but carries no markers', async () => {
+        const result = await resolveClaudeNativeSession(
+            {terminalId: TERMINAL, projectRoot: PROJECT, taskNodePath: TASK, recencyWindowMs: 60_000},
+            makeDeps({
+                listProjectTranscripts: () => transcripts(['/x/stale.jsonl']),
+                fileModifiedAt: () => NOW - 3_600_000,  // outside the window
+                readJsonlLines: () => [
+                    {sessionId: 'unrelated', message: {role: 'user', content: 'no markers here'}} as ClaudeTranscriptRecord,
+                ],
             }),
         )
         expect(result).toEqual({kind: 'not-found', reason: 'no-jsonl-matches'})
