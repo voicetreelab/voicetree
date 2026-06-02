@@ -33,7 +33,7 @@
 
 import { classifyExit } from './exit';
 import {
-    isTerminalLifecycle,
+    isFinishedLifecycle,
     type TerminalEvent,
     type TerminalLifecycle,
     type TerminalSignalState,
@@ -101,7 +101,7 @@ export function derive(
 ): TerminalSignalState {
     // Sticky terminal states — once completed/errored, no event changes lifecycle.
     // Bookkeeping fields (lastOutputTime etc.) also frozen.
-    if (isTerminalLifecycle(state.lifecycle)) {
+    if (isFinishedLifecycle(state.lifecycle)) {
         return state;
     }
 
