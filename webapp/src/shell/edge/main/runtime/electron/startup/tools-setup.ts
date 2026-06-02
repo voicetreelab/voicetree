@@ -5,11 +5,15 @@ import {getProjectDotVoicetreePath} from '@vt/paths';
 import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 import type { BuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config';
 
-// Hook scripts to copy into {projectRoot}/.voicetree/hooks/
+// Self-contained hook scripts copied into {projectRoot}/.voicetree/hooks/.
+//
+// The worktree-created hooks are deliberately NOT listed here: they are not
+// relocatable (each `exec`s sibling scripts via `$SCRIPT_DIR` and sources
+// `scripts/dev-setup/common/env.sh`), so they are referenced in place at
+// `./scripts/git/worktree/on-created-*.sh` (the settings default) rather than
+// copied. `on-new-node.cjs` is the only standalone provisioned hook.
 const HOOK_SCRIPT_FILES: readonly string[] = [
   'on-new-node.cjs',
-  'on-worktree-created-blocking.sh',
-  'on-worktree-created-async.sh',
 ];
 
 // Hook prompt files to copy into {projectRoot}/.voicetree/hooks/prompts/
