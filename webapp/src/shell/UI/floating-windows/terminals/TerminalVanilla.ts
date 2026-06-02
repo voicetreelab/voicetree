@@ -13,7 +13,7 @@ import { getCyZoom } from '@/shell/edge/UI-edge/state/controllers/cytoscape-stat
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import type {RelayConnectionStatus} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus';
 import {notifyTerminalOutput} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 

@@ -3,7 +3,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
 import type { mainAPI } from '@/shell/edge/main/runtime/api';
 import type { ConnectionState, EventFrame, GapFrame, TopicName } from '@vt/vt-daemon/transport/eventTypes';
-import type { RelayConnectionStatus } from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
+import type { RelayConnectionStatus } from '@/core/terminal/relayConnectionStatus';
 
 // Re-export TerminalData for use in terminal API
 

@@ -1,7 +1,7 @@
 // Browser terminal implementation: WS to VTD /terminals/:id/attach
 // with vt-bearer subprotocol auth.
 
-import type {RelayConnectionStatus} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes'
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus'
 
 type DataListener = (data: string) => void
 type StatusListener = (status: RelayConnectionStatus) => void

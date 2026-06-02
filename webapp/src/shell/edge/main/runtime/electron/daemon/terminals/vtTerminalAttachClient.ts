@@ -17,7 +17,7 @@
  * Reconnect: exponential doubling 200ms → 5s ceiling.
  */
 import {WebSocket} from 'ws'
-import type {RelayConnectionStatus} from './vtTerminalAttachTypes'
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus'
 
 const INITIAL_RECONNECT_DELAY_MS: number = 200
 const MAX_RECONNECT_DELAY_MS: number = 5000

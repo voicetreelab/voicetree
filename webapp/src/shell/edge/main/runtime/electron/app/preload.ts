@@ -20,7 +20,7 @@ import type {ProjectedGraph} from "@vt/graph-state/contract";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/runtime/api';
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes';
-import type {RelayConnectionStatus} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus';
 
 // Synchronously expose runtime flags so the renderer can branch before
 // async electronAPI setup finishes. PostHog init in main.tsx and other

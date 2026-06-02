@@ -15,7 +15,7 @@
  */
 import {randomUUID} from 'node:crypto'
 import {ipcMain, type BrowserWindow} from 'electron'
-import type {RelayConnectionStatus} from './vtTerminalAttachTypes'
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus'
 import {createVtTerminalAttachClient, type VtTerminalAttachClient} from './vtTerminalAttachClient'
 
 const DATA_CHANNEL: string = 'terminal:data'
