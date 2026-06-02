@@ -103,6 +103,22 @@ function makeMarkerHook(): {command: string; readMarker: () => string} {
     return {command: hookPath, readMarker: () => readFileSync(markerPath, 'utf-8').trim()}
 }
 
+/**
+ * A marker hook written INTO the repo at `relPath` (e.g. `scripts/hook.sh`) and
+ * referenced by the repo-relative command `./<relPath>` — mirroring the real
+ * settings default `./scripts/git/worktree/on-created-blocking.sh`. The marker
+ * file lives outside the repo so its absolute path is cwd-independent; only the
+ * COMMAND is relative, so the hook resolves iff cwd is the repo's main checkout.
+ */
+function makeRepoRelativeHook(repoRoot: string, relPath: string): {command: string; readMarker: () => string} {
+    const markerPath: string = join(trackTempDir('vt-wt-marker-'), 'marker.txt')
+    const hookPath: string = join(repoRoot, relPath)
+    mkdirSync(join(repoRoot, relPath, '..'), {recursive: true})
+    writeFileSync(hookPath, `#!/bin/sh\necho "$1 $2" > "${markerPath}"\n`, 'utf-8')
+    chmodSync(hookPath, 0o755)
+    return {command: `./${relPath}`, readMarker: () => readFileSync(markerPath, 'utf-8').trim()}
+}
+
 describe('createWorktreeWithHooks (the real api.main.createWorktree path)', () => {
     it('creates the worktree and runs the configured blocking hook with (worktreePath, worktreeName)', async () => {
         const repoRoot: string = makeRepo()
@@ -115,6 +131,29 @@ describe('createWorktreeWithHooks (the real api.main.createWorktree path)', () =
         // Worktree exists on disk...
         expect(statSync(worktreePath).isDirectory()).toBe(true)
         // ...and the blocking hook ran (awaited before return) with the right args.
+        expect(hook.readMarker()).toBe(`${worktreePath} ${worktreeName}`)
+    })
+
+    it('resolves a repo-relative hook command when repoRoot is a nested subdirectory', async () => {
+        // Regression: the worktree-created hooks fired with cwd = `repoRoot`,
+        // which is the WATCHED directory — often a subfolder nested deep inside
+        // the checkout (e.g. a markdown project). A repo-relative command like
+        // `./scripts/git/worktree/on-created-blocking.sh` then resolved against
+        // that subfolder and failed with "No such file or directory". Hooks now
+        // run from the repo's MAIN CHECKOUT, so the relative path resolves.
+        const repoRoot: string = makeRepo()
+        const hook: {command: string; readMarker: () => string} = makeRepoRelativeHook(repoRoot, 'scripts/git/worktree/on-created-blocking.sh')
+        withSettings({hooks: {onWorktreeCreatedBlocking: hook.command}})
+
+        // Watch a nested subdirectory of the checkout, NOT the repo root itself.
+        const watchedDir: string = join(repoRoot, 'graph', 'ctx-nodes')
+        mkdirSync(watchedDir, {recursive: true})
+
+        const worktreeName: string = 'wt-wrapper-nested'
+        const worktreePath: string = await createWorktreeWithHooks(watchedDir, worktreeName)
+
+        expect(statSync(worktreePath).isDirectory()).toBe(true)
+        // The hook ran (cwd anchored at the main checkout) with the right args.
         expect(hook.readMarker()).toBe(`${worktreePath} ${worktreeName}`)
     })
 

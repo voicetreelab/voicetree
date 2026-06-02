@@ -41,7 +41,7 @@ export type BuildConfig = {
   readonly shouldCopyTools: boolean;
 
   // Per-project .voicetree/ hook source (copy-on-first-open).
-  readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
+  readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, prompts/)
   // Absolute path to the `@voicetree/cli` package root on disk. Spawn-time
   // PATH injection (resolveVtBinDir + prependVtBinToPath) reads `bin/vt`
   // from inside this directory. Null when this build cannot locate the CLI
