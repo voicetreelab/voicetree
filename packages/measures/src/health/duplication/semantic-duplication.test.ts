@@ -68,8 +68,9 @@ import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 //   unify the two resolvers behind a shared selectDaemonEntrypointArgs helper
 //   in graph-db-client and ratchet back down (deferred to avoid refactoring the
 //   proven graphd spawn path in the same change that first makes vtd spawnable
-//   in production). The numeric budget lives in
-//   budgets/duplication/semantic-duplication.json (read below).
+//   in production). +8 pairs over dev's 638. Observed 646 + 5 headroom = 651.
+//   The numeric budget lives in budgets/duplication/semantic-duplication.json
+//   (read below); ratchet DOWN as the resolvers are unified.
 // Ratchet DOWN as the codebase is de-duplicated, never up.
 const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
     readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')
