@@ -261,8 +261,11 @@ async function discoverWorktreePathForBranch(repoRoot: string, branch: string): 
  * @param repoRoot - A directory inside the git repository (placement is
  *   resolved against the repo's main checkout)
  * @param worktreeName - The name for the worktree and branch
- * @param blockingHookCommand - Optional command awaited after creation, before returning
- * @param asyncHookCommand - Optional fire-and-forget command run after creation
+ * @param blockingHookCommand - Optional command awaited after creation, before
+ *   returning. Run with cwd = the repo's main checkout (so repo-relative hook
+ *   paths resolve regardless of which subdirectory `repoRoot` points at).
+ * @param asyncHookCommand - Optional fire-and-forget command run after creation,
+ *   also with cwd = the repo's main checkout.
  * @returns The absolute path to the created worktree directory
  * @throws Error if worktree creation fails (hook failure does NOT throw)
  */
@@ -314,9 +317,17 @@ export async function createWorktree(
         await repairWorktreeMetadata(worktreePath);
     }
 
+    // Hooks run from the MAIN CHECKOUT, not `repoRoot`. `repoRoot` may be any
+    // directory inside the repo — including a markdown subfolder watched by the
+    // app that is nested arbitrarily deep. Hook commands are repo-relative (the
+    // settings default is `./scripts/git/worktree/on-created-blocking.sh`), so
+    // they only resolve when cwd is the repo's main checkout, where `scripts/`
+    // lives. Anchoring at `mainCheckout` makes the default work regardless of
+    // which subdirectory the app happens to be watching.
+
     // Blocking hook: awaited after creation, before returning worktreePath to caller
     if (blockingHookCommand) {
-        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot);
+        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], mainCheckout);
         if (result.success) {
             console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
         } else {
@@ -326,7 +337,7 @@ export async function createWorktree(
 
     // Async hook: fire-and-forget after creation, does not block terminal spawn
     if (asyncHookCommand) {
-        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot).then(result => {
+        void runHook(asyncHookCommand, [worktreePath, worktreeName], mainCheckout).then(result => {
             if (result.success) {
                 console.log(`[createWorktree] Async hook succeeded for ${worktreeName}`);
             } else {
