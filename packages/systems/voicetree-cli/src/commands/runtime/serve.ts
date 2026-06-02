@@ -48,6 +48,7 @@ import {
 } from '@vt/vt-daemon-client/nodeEnsureVtDaemonForProject'
 import type {EnsureVtDaemonResult, VtDaemonClient} from '@vt/vt-daemon-client'
 import {error} from '../output'
+import {readRequiredFlagValue} from './argv'
 import {emitInvocationStart} from '../telemetry/recordCliInvocation'
 
 const requireFromHere: NodeJS.Require = createRequire(import.meta.url)
@@ -74,14 +75,8 @@ type ServeArgs = {
 const SERVE_USAGE: string =
     'Usage: vt serve --project <path> [--exclusive]\n'
 
-function readRequiredValue(argv: readonly string[], index: number, flag: string): string {
-    const value: string | undefined = argv[index + 1]
-    if (!value || value.startsWith('--')) {
-        error(`${flag} requires a value\n\n${SERVE_USAGE}`)
-    }
-
-    return value
-}
+const readRequiredValue = (argv: readonly string[], index: number, flag: string): string =>
+    readRequiredFlagValue(argv, index, flag, SERVE_USAGE)
 
 function parseServeArgs(argv: readonly string[]): ServeArgs {
     let project: string | undefined

@@ -17,6 +17,7 @@
  */
 import {WebSocket} from 'ws'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
+import {decodeWsData} from '@/core/ws/decodeWsData'
 
 const BASE_DELAY_MS: number = 1000
 const MAX_DELAY_MS: number = 30000
@@ -49,14 +50,6 @@ export function computeBackoffDelayMs(attempt: number, random: () => number): nu
     if (attempt < 1) return 0
     const ceiling: number = Math.min(MAX_DELAY_MS, BASE_DELAY_MS * 2 ** (attempt - 1))
     return Math.floor(random() * ceiling)
-}
-
-function decodeMessage(data: unknown): string {
-    if (typeof data === 'string') return data
-    if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
-    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) return data.toString('utf-8')
-    if (Array.isArray(data)) return Buffer.concat(data as Buffer[]).toString('utf-8')
-    return ''
 }
 
 function parseFrame(raw: string): EventFrame | GapFrame | null {
@@ -164,7 +157,7 @@ export function createVtDaemonEventsClient(deps: VtDaemonEventsClientDeps): VtDa
 
         ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[]): void => {
             if (currentWs !== ws) return
-            const text: string = decodeMessage(raw)
+            const text: string = decodeWsData(raw)
             if (text) dispatchFrame(text)
         })
 

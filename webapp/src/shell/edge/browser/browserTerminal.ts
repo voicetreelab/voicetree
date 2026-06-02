@@ -4,6 +4,7 @@
 // the DOM WebSocket transport and the handle/listener bookkeeping.
 
 import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus'
+import type {RelayClientMessage} from '@/core/terminal/relayEnvelope'
 import {
     decodeWsData,
     parseRelayServerMessage,
@@ -36,6 +37,34 @@ function buildAttachUrl(vtdUrl: string, terminalId: string): string {
 
 function newHandleId(): string {
     return `browser-term-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+// Register a listener on one of a handle's listener sets, returning an
+// unsubscribe. No-ops (and returns a no-op unsubscribe) for an unknown handle.
+function subscribe<L>(
+    handles: Map<string, TerminalHandle>,
+    handleId: string,
+    pick: (handle: TerminalHandle) => Set<L>,
+    listener: L,
+): () => void {
+    const h = handles.get(handleId)
+    if (!h) return () => {}
+    const set = pick(h)
+    set.add(listener)
+    return () => set.delete(listener)
+}
+
+// Send a client message over a handle's socket, guarding on OPEN state.
+// Returns false if the handle is unknown or the socket is not open.
+function sendClientMessage(
+    handles: Map<string, TerminalHandle>,
+    handleId: string,
+    msg: RelayClientMessage,
+): boolean {
+    const h = handles.get(handleId)
+    if (!h || h.ws.readyState !== WebSocket.OPEN) return false
+    h.ws.send(serializeRelayClientMessage(msg))
+    return true
 }
 
 export function createBrowserTerminalRuntime(): BrowserTerminalRuntime {
@@ -78,40 +107,20 @@ export function createBrowserTerminalRuntime(): BrowserTerminalRuntime {
         return Promise.resolve(handleId)
     }
 
-    function onData(handleId: string, listener: DataListener): () => void {
-        const h = handles.get(handleId)
-        if (!h) return () => {}
-        h.dataListeners.add(listener)
-        return () => h.dataListeners.delete(listener)
-    }
+    const onData = (handleId: string, listener: DataListener): (() => void) =>
+        subscribe(handles, handleId, h => h.dataListeners, listener)
 
-    function onStatus(handleId: string, listener: StatusListener): () => void {
-        const h = handles.get(handleId)
-        if (!h) return () => {}
-        h.statusListeners.add(listener)
-        return () => h.statusListeners.delete(listener)
-    }
+    const onStatus = (handleId: string, listener: StatusListener): (() => void) =>
+        subscribe(handles, handleId, h => h.statusListeners, listener)
 
-    function write(handleId: string, data: string): boolean {
-        const h = handles.get(handleId)
-        if (!h || h.ws.readyState !== WebSocket.OPEN) return false
-        h.ws.send(serializeRelayClientMessage({type: 'data', payload: data}))
-        return true
-    }
+    const write = (handleId: string, data: string): boolean =>
+        sendClientMessage(handles, handleId, {type: 'data', payload: data})
 
-    function resize(handleId: string, cols: number, rows: number): boolean {
-        const h = handles.get(handleId)
-        if (!h || h.ws.readyState !== WebSocket.OPEN) return false
-        h.ws.send(serializeRelayClientMessage({type: 'resize', cols, rows}))
-        return true
-    }
+    const resize = (handleId: string, cols: number, rows: number): boolean =>
+        sendClientMessage(handles, handleId, {type: 'resize', cols, rows})
 
-    function scroll(handleId: string, direction: 'up' | 'down', lines: number): boolean {
-        const h = handles.get(handleId)
-        if (!h || h.ws.readyState !== WebSocket.OPEN) return false
-        h.ws.send(serializeRelayClientMessage({type: 'scroll', direction, lines}))
-        return true
-    }
+    const scroll = (handleId: string, direction: 'up' | 'down', lines: number): boolean =>
+        sendClientMessage(handles, handleId, {type: 'scroll', direction, lines})
 
     function detach(handleId: string): boolean {
         const h = handles.get(handleId)

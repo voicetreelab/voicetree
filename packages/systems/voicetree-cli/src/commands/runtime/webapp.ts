@@ -17,6 +17,7 @@ import {spawn, type ChildProcess} from 'node:child_process'
 import {existsSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {error} from '../output'
+import {readRequiredFlagValue} from './argv'
 import {findRepoRoot} from '../util/findRepoRoot.ts'
 import {ensureBothDaemons, type EnsuredDaemons} from './serve'
 
@@ -38,11 +39,8 @@ type WebappArgs = {
 const REPO_ROOT: string = findRepoRoot(import.meta.url)
 const WEBAPP_DIR: string = resolve(REPO_ROOT, 'webapp')
 
-function readRequiredValue(argv: readonly string[], index: number, flag: string): string {
-    const value: string | undefined = argv[index + 1]
-    if (!value || value.startsWith('--')) error(`${flag} requires a value\n\n${WEBAPP_USAGE}`)
-    return value
-}
+const readRequiredValue = (argv: readonly string[], index: number, flag: string): string =>
+    readRequiredFlagValue(argv, index, flag, WEBAPP_USAGE)
 
 function parseWebappArgs(argv: readonly string[]): WebappArgs {
     let project: string | undefined

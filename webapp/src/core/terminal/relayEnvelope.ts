@@ -7,8 +7,8 @@
  * client — import this so the wire format can never drift between them.
  *
  * No `ws`, DOM, or fetch dependencies: this module is importable from any
- * runtime. The only environment branch is a `typeof Buffer` guard inside
- * `decodeWsData`, which stays inert (and pure) in the browser.
+ * runtime. Raw-frame decoding is delegated to the shared `decodeWsData`
+ * (`@/core/ws/decodeWsData`), re-exported here for the relay's consumers.
  *
  * Wire frames (verbatim from the relay):
  *   server→client: { type: 'data', payload }
@@ -17,6 +17,8 @@
  *   client→server: { type: 'resize', cols, rows }
  *   client→server: { type: 'scroll', direction: 'up'|'down', lines }
  */
+
+export {decodeWsData} from '@/core/ws/decodeWsData'
 
 export type RelayServerMessage =
     | {readonly type: 'data'; readonly payload: string}
@@ -54,20 +56,4 @@ export function parseRelayServerMessage(raw: string): RelayServerMessage | null 
 /** Serialize a client→server frame into the exact JSON the relay accepts. */
 export function serializeRelayClientMessage(msg: RelayClientMessage): string {
     return JSON.stringify(msg)
-}
-
-/**
- * Decode a raw WebSocket frame into a utf-8 string. Handles every shape the
- * two transports can deliver: DOM `string`/`ArrayBuffer` and Node `ws`
- * `Buffer`/`Buffer[]`. The `Buffer` branches are `typeof Buffer`-guarded so
- * the module stays pure in the browser. Returns `''` for unrecognized inputs.
- */
-export function decodeWsData(data: unknown): string {
-    if (typeof data === 'string') return data
-    if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
-    if (typeof Buffer !== 'undefined') {
-        if (Buffer.isBuffer(data)) return data.toString('utf-8')
-        if (Array.isArray(data)) return Buffer.concat(data as Buffer[]).toString('utf-8')
-    }
-    return ''
 }
