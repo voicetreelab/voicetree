@@ -5,7 +5,7 @@
  * Under the gateway model (RE-PLAN B) the browser talks ONLY to VTD; vt-graphd
  * is loopback-internal behind it. VTD fronts graphd using its existing
  * `@vt/graph-db-client` and registers these methods on its internal
- * `RPC_ROUTES` bucket (NOT the agent MCP `TOOL_CATALOG`). This module is the
+ * `RPC_ROUTES` bucket (NOT the agent `TOOL_CATALOG`). This module is the
  * ONE place the daemon (server side, `buildGraphGatewayRoutes`) and the webapp
  * (Agent C, the browser adapter) both import — method-name constants and
  * Request/Response TYPES live here so there is a single source of truth for the

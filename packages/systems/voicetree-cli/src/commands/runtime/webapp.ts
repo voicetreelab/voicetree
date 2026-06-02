@@ -15,9 +15,9 @@
 
 import {spawn, type ChildProcess} from 'node:child_process'
 import {existsSync} from 'node:fs'
-import {dirname, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {resolve} from 'node:path'
 import {error} from '../output'
+import {findRepoRoot} from '../util/findRepoRoot.ts'
 import {ensureBothDaemons, type EnsuredDaemons} from './serve'
 
 // The webapp's vite dev server binds this port by default (webapp/vite.config.ts).
@@ -32,9 +32,10 @@ type WebappArgs = {
     readonly open: boolean
 }
 
-const HERE: string = dirname(fileURLToPath(import.meta.url))
-// .../packages/systems/voicetree-cli/src/commands/runtime → repo root is six up.
-const REPO_ROOT: string = resolve(HERE, '../../../../../..')
+// Resolve the repo root by walking up to the `.git` marker rather than counting
+// `../` hops, so the path survives this file moving and stays clear of the
+// relative-path-depth gate (see findRepoRoot's own docs).
+const REPO_ROOT: string = findRepoRoot(import.meta.url)
 const WEBAPP_DIR: string = resolve(REPO_ROOT, 'webapp')
 
 function readRequiredValue(argv: readonly string[], index: number, flag: string): string {
