@@ -38,6 +38,7 @@ import {
     vtdWritePositions,
 } from './vtdGraphClient'
 import {createBrowserTerminalRuntime} from './browserTerminal'
+import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
 
 type Listener = (...args: unknown[]) => void
 
@@ -78,20 +79,26 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
     }
 
     // ── VTD /events WS — the ONE long-lived stream ───────────────────────────
-    // Graph snapshots ride topic `'graph'` (folded in by VTD from graphd). A
-    // graph event carries the full ProjectedGraph; a graph gap means we may have
-    // missed a snapshot, so re-fetch. Everything else flows to `vt:events`.
+    // Graph snapshots ride topic `'graph'` (folded in by VTD from graphd); all
+    // other frames pass through to `vt:events`. On a genuine reconnect the
+    // browser may have missed `graph` frames while offline, so re-snapshot — the
+    // guard that a dropped frame can never leave the UI permanently stale. The
+    // routing/resume decisions are pure (graphEventStream.ts); this is the shell.
+    let wasDisconnected = false
     vtdSubscribeEvents(
         vtdUrl, vtdToken,
         (frame) => {
-            if (frame.topic === 'graph') {
-                if (frame.type === 'event') emit('graph:projectedGraphUpdate', frame.data)
-                else void resnapshotGraph()
-                return
-            }
-            emit('vt:events', frame)
+            const route = routeGraphFrame(frame)
+            if (route.kind === 'projectedGraph') emit('graph:projectedGraphUpdate', route.data)
+            else if (route.kind === 'resnapshot') void resnapshotGraph()
+            else emit('vt:events', frame)
         },
-        (state) => emit('vt:events:connection', state),
+        (state) => {
+            const next = resumeOnReconnect(wasDisconnected, state)
+            wasDisconnected = next.wasDisconnected
+            if (next.resnapshot) void resnapshotGraph()
+            emit('vt:events:connection', state)
+        },
     )
 
     // ── VTD terminal-registry SSE ────────────────────────────────────────────

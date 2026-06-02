@@ -4,6 +4,7 @@
 
 import type {ConnectionState, EventFrame, GapFrame} from '@vt/vt-daemon/transport/eventTypes'
 import type {VTSettings} from '@vt/graph-model/settings'
+import {DEFAULT_RECONNECT_POLICY, reconnectDelayMs} from './reconnectPolicy'
 
 async function rpcCall<T>(
     vtdUrl: string,
@@ -59,13 +60,19 @@ export function vtdSubscribeEvents(
     const wsUrl = vtdUrl.replace(/^http/, 'ws') + '/events'
     let ws: WebSocket | null = null
     let disposed = false
+    // Consecutive-failure counter driving the exponential backoff. Reset to 0 on
+    // a successful open so a healthy connection that later drops retries fast.
+    let attempt = 0
 
     function connect(): void {
         if (disposed) return
-        onConnectionState({kind: 'connecting', attempt: 1})
+        onConnectionState({kind: 'connecting', attempt})
         ws = new WebSocket(wsUrl, ['vt-bearer', token])
 
-        ws.onopen = (): void => onConnectionState({kind: 'connected'})
+        ws.onopen = (): void => {
+            attempt = 0
+            onConnectionState({kind: 'connected'})
+        }
         ws.onmessage = (ev: MessageEvent): void => {
             try {
                 const frame = JSON.parse(ev.data as string) as EventFrame | GapFrame
@@ -77,7 +84,10 @@ export function vtdSubscribeEvents(
         ws.onerror = (): void => onConnectionState({kind: 'closed'})
         ws.onclose = (): void => {
             onConnectionState({kind: 'closed'})
-            if (!disposed) setTimeout(connect, 2000)
+            if (disposed) return
+            const delayMs = reconnectDelayMs(DEFAULT_RECONNECT_POLICY, attempt)
+            attempt += 1
+            setTimeout(connect, delayMs)
         }
     }
 
