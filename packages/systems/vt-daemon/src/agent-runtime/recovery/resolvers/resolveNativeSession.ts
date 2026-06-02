@@ -12,6 +12,7 @@ import {
     type ResolveCodexResult,
     type CodexMissReason,
 } from './resolveCodexNativeSession'
+import {getRecoveryHorizonMs} from '../horizon'
 
 export type NativeSessionRequest = {
     readonly cliType: 'claude' | 'codex'
@@ -50,26 +51,33 @@ export type ResolveNativeSession = (request: NativeSessionRequest) => Promise<Na
  *
  * - `VOICETREE_CLAUDE_PROJECTS_DIR`  → defaults to `~/.claude/projects`
  * - `VOICETREE_CODEX_STATE_DB`       → defaults to `~/.codex/state_5.sqlite`
+ *
+ * The resolver recency window is the discovery horizon (`getRecoveryHorizonMs()`,
+ * default 7d, `VOICETREE_RECOVERY_HORIZON_DAYS`) — a single source of truth, so
+ * every row that discovery surfaces a Resume button for is actually resolvable.
  */
 export async function defaultResolveNativeSession(
     request: NativeSessionRequest,
 ): Promise<NativeSessionResult> {
+    const recencyWindowMs: number = getRecoveryHorizonMs()
     if (request.cliType === 'claude') {
         const root: string = process.env.VOICETREE_CLAUDE_PROJECTS_DIR
             ?? path.join(os.homedir(), '.claude', 'projects')
         const result: ResolveClaudeResult = await resolveClaudeNativeSession(
-            {terminalId: request.terminalId, projectRoot: request.projectRoot, taskNodePath: request.taskNodePath},
+            {terminalId: request.terminalId, projectRoot: request.projectRoot, taskNodePath: request.taskNodePath, recencyWindowMs},
             defaultResolveClaudeDeps(root),
         )
         if (result.kind === 'found') {
             return {kind: 'found', sessionId: result.sessionId, providerStorePath: result.providerStorePath}
         }
-        return {kind: 'not-found', reason: result.reason}
+        return result.diagnosticSessionId !== undefined
+            ? {kind: 'not-found', reason: result.reason, diagnosticSessionId: result.diagnosticSessionId}
+            : {kind: 'not-found', reason: result.reason}
     }
     const dbPath: string = process.env.VOICETREE_CODEX_STATE_DB
         ?? path.join(os.homedir(), '.codex', 'state_5.sqlite')
     const result: ResolveCodexResult = resolveCodexNativeSession(
-        {terminalId: request.terminalId, projectRoot: request.projectRoot, taskNodePath: request.taskNodePath},
+        {terminalId: request.terminalId, projectRoot: request.projectRoot, taskNodePath: request.taskNodePath, recencyWindowMs},
         defaultResolveCodexDeps(dbPath),
     )
     if (result.kind === 'found') {
