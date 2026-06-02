@@ -109,23 +109,28 @@ describe('pool exhaustion and collision (the "richard_2?" question)', () => {
 });
 
 describe('getAgentNamePool', () => {
-    it('returns the Silicon Valley pool by default (mode unset)', () => {
-        expect(getAgentNamePool({})).toBe(SILICON_VALLEY_IDS);
+    it('returns the neutral pool by default (mode unset — the user must opt in)', () => {
+        expect(getAgentNamePool({})).toBe(AGENT_NAMES);
     });
 
-    it('returns the Silicon Valley pool when mode is explicitly on', () => {
+    it('returns the Silicon Valley pool only when mode is explicitly on', () => {
         expect(getAgentNamePool({siliconValleyMode: true})).toBe(SILICON_VALLEY_IDS);
     });
 
-    it('returns the neutral pool only when mode is explicitly off', () => {
+    it('returns the neutral pool when mode is explicitly off', () => {
         expect(getAgentNamePool({siliconValleyMode: false})).toBe(AGENT_NAMES);
     });
 });
 
 describe('pickAgentName', () => {
-    it('draws from the Silicon Valley roster by default', () => {
+    it('draws from the Silicon Valley roster when the mode is explicitly on', () => {
         const name: string = pickAgentName({siliconValleyMode: true});
         expect(SILICON_VALLEY_IDS).toContain(name);
+    });
+
+    it('draws from the neutral pool by default (mode unset)', () => {
+        const name: string = pickAgentName({});
+        expect(AGENT_NAMES).toContain(name);
     });
 
     it('draws from the neutral pool when the mode is off', () => {

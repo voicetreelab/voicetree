@@ -1,12 +1,12 @@
 import {describe, it, expect} from 'vitest';
 import {createSettingsSchema, createDefaultSettings} from './settingsSchema';
 
-// The prank's behavioural contract: on by default, in the General tab, directly
-// above Vim Mode. These lock the requirements so a later refactor can't silently
-// drop the default or move the toggle.
+// The prank's behavioural contract: OFF by default (the user must opt in), in the
+// General tab, directly above Vim Mode. These lock the requirements so a later
+// refactor can't silently flip the default back on or move the toggle.
 describe('siliconValleyMode setting', () => {
-    it('is on by default', () => {
-        expect(createDefaultSettings().siliconValleyMode).toBe(true);
+    it('is off by default — the user opts in', () => {
+        expect(createDefaultSettings().siliconValleyMode).toBe(false);
     });
 
     it('lives in the General section', () => {

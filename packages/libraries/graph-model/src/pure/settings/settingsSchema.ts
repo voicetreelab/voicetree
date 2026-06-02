@@ -117,7 +117,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     return {
     // ── General ──────────────────────────────────────────────────────────
     darkMode:                  { default: false, section: 'general', label: 'Dark Mode' },
-    siliconValleyMode:         { default: true,  section: 'general', label: 'Silicon Valley Mode' },
+    siliconValleyMode:         { default: false, section: 'general', label: 'Silicon Valley Mode' },
     vimMode:                   { default: false, section: 'general', label: 'Vim Mode' },
     shiftEnterSendsOptionEnter:{ default: true,  section: 'general', label: 'Shift+Enter \u2192 Option+Enter' },
     autoNotifyUnseenNodes:     { default: false, section: 'general', label: 'Auto-notify Unseen Nodes' },
