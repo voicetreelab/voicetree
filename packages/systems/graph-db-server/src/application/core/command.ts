@@ -53,7 +53,7 @@ export type Command =
       contextNodeId: string
       newNodeIds: string[]
     }
-  | { type: 'WriteAllPositions'; graph: Graph; projectRoot: string }
+  | { type: 'WriteAllNodeLayout'; graph: Graph; projectRoot: string }
 
 export type CommandOutput = {
   AddProjectReadPath: { readonly success: boolean; readonly error?: string }
@@ -78,5 +78,5 @@ export type CommandOutput = {
   SetGraph: void
   SetProjectWriteFolderPath: { readonly success: boolean; readonly error?: string }
   UpdateContextNodeContainedIds: void
-  WriteAllPositions: void
+  WriteAllNodeLayout: void
 }

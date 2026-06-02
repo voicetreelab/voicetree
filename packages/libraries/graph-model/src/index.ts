@@ -7,7 +7,7 @@
  */
 
 // Pure graph types and operations (re-exported from pure/)
-export type { Graph, GraphNode, GraphDelta, NodeDelta, UpsertNodeDelta, DeleteNode, Edge, NodeUIMetadata, NodeIdAndFilePath, FilePath, Position, FSEvent, FSUpdate, FSDelete, Env } from './pure/graph'
+export type { Graph, GraphNode, GraphDelta, NodeDelta, UpsertNodeDelta, DeleteNode, Edge, NodeUIMetadata, NodeIdAndFilePath, FilePath, Position, Size, NodeLayout, FSEvent, FSUpdate, FSDelete, Env } from './pure/graph'
 export { NODE_UI_METADATA_YAML_KEYS, applyGraphDeltaToGraph, mapNewGraphToDelta, stripDeltaForReplay, mapFSEventsToGraphDelta, setOutgoingEdges, reverseGraphEdges, makeBidirectionalEdges, getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, prettyPrintGraphDelta, deleteNodeSimple, removeContextNodes, createGraph, createEmptyGraph, buildGraphFromFiles, getFolderNotePath, isImageNode, IMAGE_EXTENSIONS, getNodesByAgentName } from './pure/graph'
 export { getNodeTitle, parseMarkdownToGraphNode } from './pure/graph/markdown-parsing'
 export { calculateInitialPositionForChild } from './pure/graph/positioning/placement/calculateInitialPosition'

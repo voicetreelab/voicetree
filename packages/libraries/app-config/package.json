@@ -8,7 +8,7 @@
     "./settings": "./src/settings/settings_IO.ts",
     "./project-config": "./src/project-config/voicetree-config-io.ts",
     "./project": "./src/project/index.ts",
-    "./positions-io": "./src/positions/positions-io.ts"
+    "./node-layout-io": "./src/positions/node-layout-io.ts"
   },
   "dependencies": {
     "@vt/graph-model": "*",

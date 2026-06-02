@@ -9,7 +9,7 @@ import {
 import { findFileByName } from '@vt/graph-db-server/graph/findFileByName'
 import { getPreviewContainedNodeIds } from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
 import { performRedo, performUndo } from '@vt/graph-db-server/graph/undoOperations'
-import { writeAllPositionsSync } from '@vt/graph-db-server/graph/writeAllPositionsOnExit'
+import { writeAllNodeLayoutSync } from '@vt/graph-db-server/graph/writeAllNodeLayoutOnExit'
 import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode'
 import { createContextNodeFromQuestion } from '@vt/graph-db-server/context-nodes/createContextNodeFromQuestion'
 import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes'
@@ -152,8 +152,8 @@ const commandHandlers = {
       command.newNodeIds,
     )
   },
-  WriteAllPositions: command => {
-    writeAllPositionsSync(command.graph, command.projectRoot)
+  WriteAllNodeLayout: command => {
+    writeAllNodeLayoutSync(command.graph, command.projectRoot)
   },
 } satisfies CommandHandlers
 

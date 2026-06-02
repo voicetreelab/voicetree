@@ -298,17 +298,17 @@ describe('GraphDbClient', () => {
       await expect(readFile(contextNode.nodeId, 'utf8')).resolves.toContain('# ctx')
 
       await expect(
-        client.writePositions({
+        client.writeNodeLayout({
           [filePath]: { x: 12.4, y: 99.6 },
           missing: { x: 1, y: 2 },
         }),
       ).resolves.toEqual({ written: 1 })
 
-      const positions = JSON.parse(
-        await readFile(join(harness.project, '.voicetree', 'positions.json'), 'utf8'),
+      const layout = JSON.parse(
+        await readFile(join(harness.project, '.voicetree', 'node-layout.json'), 'utf8'),
       )
-      expect(positions[filePath]).toEqual({ x: 12, y: 100 })
-      expect(positions.missing).toBeUndefined()
+      expect(layout[filePath]).toEqual({ x: 12, y: 100 })
+      expect(layout.missing).toBeUndefined()
     })
   })
 

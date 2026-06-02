@@ -16,9 +16,9 @@ import {
   composeAppliedResponse,
   composeFindFileResponse,
   composeGraphResponse,
-  graphWithUpdatedPositions,
+  graphWithUpdatedNodeLayout,
   parseWriteMarkdownFileRequest,
-  parseWritePositionsRequest,
+  parseWriteNodeLayoutRequest,
   writeMarkdownFileFromRequest,
 } from '../core/graph/index.ts'
 import { executeCommand } from './dispatch.ts'
@@ -64,12 +64,12 @@ type ApplyDeltaOptions = {
   readonly recordForUndo?: boolean
 }
 
-type WritePositionsRequest = Extract<
-  ReturnType<typeof parseWritePositionsRequest>,
+type WriteNodeLayoutRequest = Extract<
+  ReturnType<typeof parseWriteNodeLayoutRequest>,
   WorkflowParsed
 >
 
-type WritePositionsInOpenProject = WritePositionsRequest & {
+type WriteNodeLayoutInOpenProject = WriteNodeLayoutRequest & {
   readonly projectRoot: string
 }
 
@@ -155,10 +155,10 @@ async function applyGraphDeltaAndPublish(
   })
 }
 
-async function parseWritePositionsInOpenProject(
+async function parseWriteNodeLayoutInOpenProject(
   rawBody: unknown,
-): Promise<ParseOutcome<WritePositionsInOpenProject>> {
-  const parsed = parseWritePositionsRequest(rawBody)
+): Promise<ParseOutcome<WriteNodeLayoutInOpenProject>> {
+  const parsed = parseWriteNodeLayoutRequest(rawBody)
   if (!parsed.ok) return parsed
 
   const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
@@ -387,24 +387,24 @@ export async function updateContextNodeContainedIdsWorkflow(
   )(rawBody)
 }
 
-export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResult> {
+export async function writeNodeLayoutWorkflow(rawBody: unknown): Promise<HttpResult> {
   return await wrapWorkflow(
-    parseWritePositionsInOpenProject,
+    parseWriteNodeLayoutInOpenProject,
     async parsed => {
-      const result = graphWithUpdatedPositions(
+      const result = graphWithUpdatedNodeLayout(
         await executeCommand({ type: 'ReadGraph' }),
-        parsed.positions,
+        parsed.layout,
       )
       await executeCommand({ type: 'SetGraph', graph: result.graph })
       await executeCommand({
-        type: 'WriteAllPositions',
+        type: 'WriteAllNodeLayout',
         graph: result.graph,
         projectRoot: parsed.projectRoot,
       })
       return result.written
     },
     written => ({ written }),
-    'WRITE_POSITIONS_FAILED',
+    'WRITE_NODE_LAYOUT_FAILED',
   )(rawBody)
 }
 

@@ -3,21 +3,25 @@ import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
 import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon-client';
 import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
-import {writePositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
+import {writeNodeLayoutThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
 
+type NodeLayoutRecord = { x?: number; y?: number; w?: number; h?: number };
+
 /**
- * Save node positions from Cytoscape UI through the graph daemon.
+ * Save node positions from Cytoscape UI through the graph daemon's unified
+ * spatial-layout channel. Node drags persist position only — folder size is
+ * written separately by the resize gesture (same channel, different fields).
  *
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
 export async function saveNodePositions(cyNodes: readonly NodeDefinition[]): Promise<void> {
-    const positions: Record<string, Position> = collectPositions(cyNodes);
-    if (Object.keys(positions).length === 0) {
+    const layout: Record<string, NodeLayoutRecord> = collectPositions(cyNodes);
+    if (Object.keys(layout).length === 0) {
         return;
     }
 
-    await writePositionsThroughDaemon(positions);
+    await writeNodeLayoutThroughDaemon(layout);
 }
 
 /**

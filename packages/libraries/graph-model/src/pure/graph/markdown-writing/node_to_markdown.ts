@@ -95,9 +95,11 @@ function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
 
     // Build frontmatter from typed metadata fields
     // Note: title is excluded - Markdown content is the single source of truth for titles
-    // Position is stored in .voicetree/positions.json, not in YAML frontmatter
+    // Position AND size are spatial layout: stored in .voicetree/node-layout.json,
+    // never in YAML frontmatter (keeps volatile drag/resize layout out of the
+    // autosaved content file).
     const typedFieldsData: Record<string, unknown> = Object.keys(metadata)
-        .filter((key) => key !== 'additionalYAMLProps' && key !== 'title' && key !== 'position')
+        .filter((key) => key !== 'additionalYAMLProps' && key !== 'title' && key !== 'position' && key !== 'size')
         .reduce((acc: Record<string, unknown>, key: string) => {
             const value: unknown = metadata[key as keyof NodeUIMetadata];
 

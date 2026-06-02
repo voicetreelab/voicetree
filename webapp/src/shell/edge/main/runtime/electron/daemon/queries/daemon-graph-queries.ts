@@ -1,13 +1,16 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks } from '@vt/graph-model'
-import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath, Position, Size } from '@vt/graph-model/graph'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
 import type { VTSettings } from '@vt/graph-model/settings'
 import path from 'path'
 
-type PositionMap = Record<string, Position>
+// One persisted spatial-layout record on the wire: any of position (x,y)
+// and/or size (w,h). Mirrors the daemon's write-node-layout schema.
+type NodeLayoutRecord = { x?: number; y?: number; w?: number; h?: number }
+type NodeLayoutRecordMap = Record<string, NodeLayoutRecord>
 
 function resolveGraphNode(
     graph: Graph,
@@ -121,26 +124,43 @@ export async function performRedoThroughDaemon(): Promise<boolean> {
     return await callDaemon((client) => client.redo())
 }
 
-export async function writePositionsThroughDaemon(
-    positions: PositionMap,
+export async function writeNodeLayoutThroughDaemon(
+    layout: NodeLayoutRecordMap,
 ): Promise<{ written: number }> {
-    return await callDaemon((client) => client.writePositions(positions))
+    return await callDaemon((client) => client.writeNodeLayout(layout))
 }
 
-export async function writeCurrentPositionsThroughDaemon(): Promise<{ written: number }> {
-    return await callDaemon(async (client) => {
-        const graph: Graph = await getNormalizedDaemonGraph(client)
-        return await client.writePositions(collectPositionsFromGraph(graph))
+/**
+ * Persist a single node's size (folder resize) through the unified
+ * write-node-layout channel. Position is left untouched.
+ */
+export async function writeNodeSizeThroughDaemon(
+    nodeId: NodeIdAndFilePath,
+    size: Size,
+): Promise<{ written: number }> {
+    return await writeNodeLayoutThroughDaemon({
+        [nodeId]: { w: size.width, h: size.height },
     })
 }
 
-function collectPositionsFromGraph(graph: Graph): PositionMap {
-    const positions: PositionMap = {}
+export async function writeCurrentNodeLayoutThroughDaemon(): Promise<{ written: number }> {
+    return await callDaemon(async (client) => {
+        const graph: Graph = await getNormalizedDaemonGraph(client)
+        return await client.writeNodeLayout(collectNodeLayoutFromGraph(graph))
+    })
+}
+
+function collectNodeLayoutFromGraph(graph: Graph): NodeLayoutRecordMap {
+    const layout: NodeLayoutRecordMap = {}
     for (const [nodeId, node] of Object.entries(graph.nodes)) {
         const position: O.Option<Position> = node.nodeUIMetadata.position
-        if (O.isSome(position)) {
-            positions[nodeId] = position.value
+        const size: O.Option<Size> = node.nodeUIMetadata.size ?? O.none
+        if (O.isSome(position) || O.isSome(size)) {
+            layout[nodeId] = {
+                ...(O.isSome(position) ? { x: position.value.x, y: position.value.y } : {}),
+                ...(O.isSome(size) ? { w: size.value.width, h: size.value.height } : {}),
+            }
         }
     }
-    return positions
+    return layout
 }

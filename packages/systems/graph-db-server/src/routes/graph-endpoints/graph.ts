@@ -15,7 +15,7 @@ import {
   undoWorkflow,
   updateContextNodeContainedIdsWorkflow,
   writeMarkdownFileWorkflow,
-  writePositionsWorkflow,
+  writeNodeLayoutWorkflow,
 } from '@vt/graph-db-server/application/workflows/graph'
 import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
@@ -180,9 +180,9 @@ export function createGraphRoutes(_registry: WorkflowSessionRegistry): Hono {
 
   mountDaemonRoute(
     app,
-    daemonRouteSpecBySignature('POST', '/graph/write-positions'),
+    daemonRouteSpecBySignature('POST', '/graph/write-node-layout'),
     async (c) => {
-      return sendHttpResult(c, await writePositionsWorkflow(await c.req.json()))
+      return sendHttpResult(c, await writeNodeLayoutWorkflow(await c.req.json()))
     },
     { prefix: GRAPH_PREFIX },
   )

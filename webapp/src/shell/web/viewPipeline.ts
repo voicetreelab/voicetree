@@ -3,7 +3,8 @@ import { pipe } from 'fp-ts/lib/function.js'
 import type { ShareId, ShareManifest, ViewError } from '@vt/graph-model/web-share'
 import type { Graph, GraphDelta, Position, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { buildGraphFromFiles } from '@vt/graph-model/web-share'
-import { mergePositionsIntoGraph, mapNewGraphToDelta } from '@vt/graph-model/graph'
+import { mergeNodeLayoutIntoGraph, mapNewGraphToDelta } from '@vt/graph-model/graph'
+import type { NodeLayout } from '@vt/graph-model/graph'
 import { fetchManifest, fetchFiles, fetchPositions } from './r2Client'
 
 /**
@@ -55,7 +56,12 @@ export const viewPipeline: (baseUrl: string) => (shareId: string) => TE.TaskEith
             positions: ReadonlyMap<string, Position>
         }) => {
             const graph: Graph = buildGraphFromFiles(files)
-            const withPositions: Graph = mergePositionsIntoGraph(graph, positions as ReadonlyMap<NodeIdAndFilePath, Position>)
-            return mapNewGraphToDelta(withPositions)
+            // Web share persists positions only; lift each into a node-layout
+            // entry so it rides the unified spatial-layout merge.
+            const layout: ReadonlyMap<NodeIdAndFilePath, NodeLayout> = new Map(
+                [...positions].map(([id, p]: readonly [string, Position]) => [id as NodeIdAndFilePath, { position: p }])
+            )
+            const withLayout: Graph = mergeNodeLayoutIntoGraph(graph, layout)
+            return mapNewGraphToDelta(withLayout)
         })
     )

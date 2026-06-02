@@ -1,8 +1,8 @@
 import * as E from "fp-ts/lib/Either.js";
 import * as O from "fp-ts/lib/Option.js";
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph';
-import type { FilePath, Graph, GraphDelta, Position } from '@vt/graph-model/graph';
-import { mergePositionsIntoGraph } from '@vt/graph-model/spatial';
+import type { FilePath, Graph, GraphDelta, NodeLayout } from '@vt/graph-model/graph';
+import { mergeNodeLayoutIntoGraph } from '@vt/graph-model/spatial';
 import type { FileLimitExceededError } from "./fileLimitEnforce";
 import {
     applyGraphDeltaToMemState,
@@ -46,7 +46,7 @@ export function describeProjectLoadFailure(
 export async function loadAndMergeProjectPath(
     projectRoot: FilePath,
     options: LoadProjectPathOptions = { isWriteFolderPath: false },
-    positions?: ReadonlyMap<string, Position>
+    nodeLayout?: ReadonlyMap<string, NodeLayout>
 ): Promise<ProjectLoadOutcome> {
     const existingGraph: Graph = getGraph();
 
@@ -69,10 +69,10 @@ export async function loadAndMergeProjectPath(
     let currentGraph: Graph = loadResult.right.graph;
     let accumulatedDelta: GraphDelta = loadResult.right.delta;
 
-    if (positions && positions.size > 0) {
-        await traceGraphdSpan('project.load-and-merge.merge-positions', async (span) => {
-            span.setAttribute('positions.count', positions.size);
-            currentGraph = mergePositionsIntoGraph(currentGraph, positions);
+    if (nodeLayout && nodeLayout.size > 0) {
+        await traceGraphdSpan('project.load-and-merge.merge-node-layout', async (span) => {
+            span.setAttribute('nodeLayout.count', nodeLayout.size);
+            currentGraph = mergeNodeLayoutIntoGraph(currentGraph, nodeLayout);
             accumulatedDelta = accumulatedDelta.map(d =>
                 d.type === 'UpsertNode' && currentGraph.nodes[d.nodeToUpsert.absoluteFilePathIsID]
                     ? { ...d, nodeToUpsert: currentGraph.nodes[d.nodeToUpsert.absoluteFilePathIsID] }

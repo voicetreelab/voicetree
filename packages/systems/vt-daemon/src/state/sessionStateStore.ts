@@ -172,7 +172,7 @@ export async function persistPositionsToGraphd(
 ): Promise<void> {
     if (Object.keys(positions).length === 0) return
     const client: GraphDbClient = await getOrCreateClient(project)
-    await client.writePositions(positions)
+    await client.writeNodeLayout(positions)
 }
 
 function normalizeGraph(rawNodes: Record<string, unknown>): Graph {

@@ -21,9 +21,9 @@ export {
   composeGraphResponse,
 } from './handleReadGraph.ts'
 export {
-  graphWithUpdatedPositions,
-  parseWritePositionsRequest,
-} from './handleWritePositions.ts'
+  graphWithUpdatedNodeLayout,
+  parseWriteNodeLayoutRequest,
+} from './handleWriteNodeLayout.ts'
 export {
   parseWriteMarkdownFileRequest,
   writeMarkdownFileFromRequest,
