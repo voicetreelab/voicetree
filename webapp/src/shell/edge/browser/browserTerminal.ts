@@ -12,7 +12,15 @@ interface TerminalHandle {
     readonly statusListeners: Set<StatusListener>
 }
 
-const handles = new Map<string, TerminalHandle>()
+export interface BrowserTerminalRuntime {
+    readonly attach: (vtdUrl: string, token: string, terminalId: string) => Promise<string>
+    readonly onData: (handleId: string, listener: DataListener) => () => void
+    readonly onStatus: (handleId: string, listener: StatusListener) => () => void
+    readonly write: (handleId: string, data: string) => boolean
+    readonly resize: (handleId: string, cols: number, rows: number) => boolean
+    readonly scroll: (handleId: string, direction: 'up' | 'down', lines: number) => boolean
+    readonly detach: (handleId: string) => boolean
+}
 
 function buildAttachUrl(vtdUrl: string, terminalId: string): string {
     const base = vtdUrl.replace(/^http/, 'ws')
@@ -23,76 +31,82 @@ function newHandleId(): string {
     return `browser-term-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export function attachBrowserTerminal(vtdUrl: string, token: string, terminalId: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-        const handleId = newHandleId()
-        const url = buildAttachUrl(vtdUrl, terminalId)
-        const ws = new WebSocket(url, ['vt-bearer', token])
-        const handle: TerminalHandle = {ws, dataListeners: new Set(), statusListeners: new Set()}
-        handles.set(handleId, handle)
+export function createBrowserTerminalRuntime(): BrowserTerminalRuntime {
+    const handles = new Map<string, TerminalHandle>()
 
-        ws.binaryType = 'arraybuffer'
-        ws.onopen = (): void => {
-            for (const l of handle.statusListeners) l('connected')
-            resolve(handleId)
-        }
-        ws.onerror = (ev): void => {
-            for (const l of handle.statusListeners) l('error')
-            reject(new Error(`terminal attach WS error for ${terminalId}`))
-            void ev
-        }
-        ws.onclose = (): void => {
-            for (const l of handle.statusListeners) l('closed')
-            handles.delete(handleId)
-        }
-        ws.onmessage = (ev: MessageEvent): void => {
-            const text: string = typeof ev.data === 'string'
-                ? ev.data
-                : new TextDecoder().decode(ev.data as ArrayBuffer)
-            for (const l of handle.dataListeners) l(text)
-        }
-    })
-}
+    function attach(vtdUrl: string, token: string, terminalId: string): Promise<string> {
+        return new Promise<string>((resolve, reject) => {
+            const handleId = newHandleId()
+            const url = buildAttachUrl(vtdUrl, terminalId)
+            const ws = new WebSocket(url, ['vt-bearer', token])
+            const handle: TerminalHandle = {ws, dataListeners: new Set(), statusListeners: new Set()}
+            handles.set(handleId, handle)
 
-export function onBrowserTerminalData(handleId: string, listener: DataListener): () => void {
-    const h = handles.get(handleId)
-    if (!h) return () => {}
-    h.dataListeners.add(listener)
-    return () => h.dataListeners.delete(listener)
-}
+            ws.binaryType = 'arraybuffer'
+            ws.onopen = (): void => {
+                for (const l of handle.statusListeners) l('connected')
+                resolve(handleId)
+            }
+            ws.onerror = (ev): void => {
+                for (const l of handle.statusListeners) l('error')
+                reject(new Error(`terminal attach WS error for ${terminalId}`))
+                void ev
+            }
+            ws.onclose = (): void => {
+                for (const l of handle.statusListeners) l('closed')
+                handles.delete(handleId)
+            }
+            ws.onmessage = (ev: MessageEvent): void => {
+                const text: string = typeof ev.data === 'string'
+                    ? ev.data
+                    : new TextDecoder().decode(ev.data as ArrayBuffer)
+                for (const l of handle.dataListeners) l(text)
+            }
+        })
+    }
 
-export function onBrowserTerminalStatus(handleId: string, listener: StatusListener): () => void {
-    const h = handles.get(handleId)
-    if (!h) return () => {}
-    h.statusListeners.add(listener)
-    return () => h.statusListeners.delete(listener)
-}
+    function onData(handleId: string, listener: DataListener): () => void {
+        const h = handles.get(handleId)
+        if (!h) return () => {}
+        h.dataListeners.add(listener)
+        return () => h.dataListeners.delete(listener)
+    }
 
-export function writeTerminal(handleId: string, data: string): boolean {
-    const h = handles.get(handleId)
-    if (!h || h.ws.readyState !== WebSocket.OPEN) return false
-    h.ws.send(data)
-    return true
-}
+    function onStatus(handleId: string, listener: StatusListener): () => void {
+        const h = handles.get(handleId)
+        if (!h) return () => {}
+        h.statusListeners.add(listener)
+        return () => h.statusListeners.delete(listener)
+    }
 
-export function resizeTerminal(handleId: string, cols: number, rows: number): boolean {
-    const h = handles.get(handleId)
-    if (!h || h.ws.readyState !== WebSocket.OPEN) return false
-    h.ws.send(JSON.stringify({type: 'resize', cols, rows}))
-    return true
-}
+    function write(handleId: string, data: string): boolean {
+        const h = handles.get(handleId)
+        if (!h || h.ws.readyState !== WebSocket.OPEN) return false
+        h.ws.send(data)
+        return true
+    }
 
-export function scrollTerminal(handleId: string, direction: 'up' | 'down', lines: number): boolean {
-    const h = handles.get(handleId)
-    if (!h || h.ws.readyState !== WebSocket.OPEN) return false
-    h.ws.send(JSON.stringify({type: 'scroll', direction, lines}))
-    return true
-}
+    function resize(handleId: string, cols: number, rows: number): boolean {
+        const h = handles.get(handleId)
+        if (!h || h.ws.readyState !== WebSocket.OPEN) return false
+        h.ws.send(JSON.stringify({type: 'resize', cols, rows}))
+        return true
+    }
 
-export function detachTerminal(handleId: string): boolean {
-    const h = handles.get(handleId)
-    if (!h) return false
-    h.ws.close()
-    handles.delete(handleId)
-    return true
+    function scroll(handleId: string, direction: 'up' | 'down', lines: number): boolean {
+        const h = handles.get(handleId)
+        if (!h || h.ws.readyState !== WebSocket.OPEN) return false
+        h.ws.send(JSON.stringify({type: 'scroll', direction, lines}))
+        return true
+    }
+
+    function detach(handleId: string): boolean {
+        const h = handles.get(handleId)
+        if (!h) return false
+        h.ws.close()
+        handles.delete(handleId)
+        return true
+    }
+
+    return {attach, onData, onStatus, write, resize, scroll, detach}
 }

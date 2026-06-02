@@ -30,29 +30,9 @@ import {
     graphdWriteMarkdownFile,
 } from './graphdFetch'
 import {callVtdRpc, vtdGetSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
-import {
-    attachBrowserTerminal,
-    detachTerminal,
-    onBrowserTerminalData,
-    onBrowserTerminalStatus,
-    resizeTerminal,
-    scrollTerminal,
-    writeTerminal,
-} from './browserTerminal'
+import {createBrowserTerminalRuntime} from './browserTerminal'
 
 type Listener = (...args: unknown[]) => void
-const channelListeners = new Map<string, Set<Listener>>()
-
-function emit(channel: string, ...args: unknown[]): void {
-    for (const l of channelListeners.get(channel) ?? []) l(...args)
-}
-
-function addListener(channel: string, listener: Listener): () => void {
-    let set = channelListeners.get(channel)
-    if (!set) { set = new Set(); channelListeners.set(channel, set) }
-    set.add(listener)
-    return () => set!.delete(listener)
-}
 
 function unsupported(name: string): never {
     throw new Error(`[browserRuntime] ${name} is not supported in browser mode`)
@@ -63,6 +43,19 @@ function noop(): void {}
 export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string): ElectronAPI {
     const {vtdUrl, vtdToken, graphdUrl, projectPath} = cfg
     const currentSessionId = sessionId
+    const channelListeners = new Map<string, Set<Listener>>()
+    const terminalRuntime = createBrowserTerminalRuntime()
+
+    function emit(channel: string, ...args: unknown[]): void {
+        for (const l of channelListeners.get(channel) ?? []) l(...args)
+    }
+
+    function addListener(channel: string, listener: Listener): () => void {
+        let set = channelListeners.get(channel)
+        if (!set) { set = new Set(); channelListeners.set(channel, set) }
+        set.add(listener)
+        return () => set!.delete(listener)
+    }
 
     // ── graph subscriptions ─────────────────────────────────────────────────
     let graphdSseCleanup: (() => void) | null = null
@@ -302,13 +295,13 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         removeAllListeners: (channel) => channelListeners.delete(channel),
 
         terminal: {
-            attach: (terminalId) => attachBrowserTerminal(vtdUrl, vtdToken, terminalId),
-            onData: (handle, listener) => onBrowserTerminalData(handle, listener),
-            onStatus: (handle, listener) => onBrowserTerminalStatus(handle, listener),
-            write: (handle, data) => Promise.resolve(writeTerminal(handle, data)),
-            resize: (handle, cols, rows) => Promise.resolve(resizeTerminal(handle, cols, rows)),
-            scroll: (handle, dir, lines) => Promise.resolve(scrollTerminal(handle, dir, lines)),
-            detach: (handle) => Promise.resolve(detachTerminal(handle)),
+            attach: (terminalId) => terminalRuntime.attach(vtdUrl, vtdToken, terminalId),
+            onData: (handle, listener) => terminalRuntime.onData(handle, listener),
+            onStatus: (handle, listener) => terminalRuntime.onStatus(handle, listener),
+            write: (handle, data) => Promise.resolve(terminalRuntime.write(handle, data)),
+            resize: (handle, cols, rows) => Promise.resolve(terminalRuntime.resize(handle, cols, rows)),
+            scroll: (handle, dir, lines) => Promise.resolve(terminalRuntime.scroll(handle, dir, lines)),
+            detach: (handle) => Promise.resolve(terminalRuntime.detach(handle)),
             rehydrate: () => Promise.resolve(),
         },
 
