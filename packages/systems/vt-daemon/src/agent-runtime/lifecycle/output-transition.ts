@@ -9,9 +9,9 @@
  * the muted-grey 'spawning' icon while their PTY produced output.
  */
 
-import { isTerminalLifecycle, type TerminalLifecycle } from './types';
+import { isFinishedLifecycle, type TerminalLifecycle } from './types';
 
 export function shouldFlipToActiveOnOutput(lifecycle: TerminalLifecycle): boolean {
-    if (isTerminalLifecycle(lifecycle)) return false; // completed / errored — sticky.
+    if (isFinishedLifecycle(lifecycle)) return false; // completed / errored — sticky.
     return lifecycle !== 'active';
 }
