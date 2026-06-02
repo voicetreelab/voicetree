@@ -144,14 +144,13 @@ export async function readAuthToken(project: string): Promise<string> {
 
 // Node-side runtime for the high-level vt-daemon ensure entry, used by the
 // prewarm helper below. Mirrors the runtime `vt serve` builds at its edge:
-// real filesystem, clock, module resolution, randomness.
+// real filesystem, clock, randomness.
 const NODE_ENSURE_RUNTIME: NodeEnsureVtDaemonRuntime = {
     env: process.env,
     mkdir,
     newAttemptId: randomUUID,
     now: Date.now,
     readTextFileSync: readFileSync,
-    resolveModule: (specifier: string): string => HARNESS_REQUIRE.resolve(specifier),
     resolvePath: resolve,
 }
 

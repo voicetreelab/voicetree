@@ -36,7 +36,6 @@
 import {randomUUID} from 'node:crypto'
 import {readFileSync} from 'node:fs'
 import {mkdir} from 'node:fs/promises'
-import {createRequire} from 'node:module'
 import {resolve} from 'node:path'
 import {
     ensureGraphDaemonForProject,
@@ -51,19 +50,16 @@ import {error} from '../output'
 import {readRequiredFlagValue} from './argv'
 import {emitInvocationStart} from '../telemetry/recordCliInvocation'
 
-const requireFromHere: NodeJS.Require = createRequire(import.meta.url)
-
 // Node-side runtime for the high-level vt-daemon ensure entry. Every field is
-// the real platform primitive; impurity (filesystem, clock, module
-// resolution, randomness) lives here at the edge so the ensure machinery
-// stays a pure orchestration over injected effects.
+// the real platform primitive; impurity (filesystem, clock, randomness) lives
+// here at the edge so the ensure machinery stays a pure orchestration over
+// injected effects.
 const NODE_ENSURE_RUNTIME: NodeEnsureVtDaemonRuntime = {
     env: process.env,
     mkdir,
     newAttemptId: randomUUID,
     now: Date.now,
     readTextFileSync: readFileSync,
-    resolveModule: (specifier: string): string => requireFromHere.resolve(specifier),
     resolvePath: resolve,
 }
 
