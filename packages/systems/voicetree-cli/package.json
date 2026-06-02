@@ -36,6 +36,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@vt/app-config": "*",
+    "@vt/daemon-lifecycle": "*",
     "@vt/graph-db-client": "*",
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
