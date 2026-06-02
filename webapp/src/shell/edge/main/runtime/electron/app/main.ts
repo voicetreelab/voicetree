@@ -18,6 +18,7 @@ import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-confi
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {runUserDataMigrationAtStartup} from '@/shell/edge/main/runtime/electron/startup/user-data-migration';
+import {prewarmGraphdRuntimeCommand} from '@/shell/edge/main/runtime/electron/startup/prewarm-graphd-runtime';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
@@ -111,6 +112,19 @@ function resolveLocalVtBinDir(): string | null {
 const electronVtBinDir: string | null = resolveLocalVtBinDir();
 if (electronVtBinDir !== null) {
     process.env.PATH = `${electronVtBinDir}${path.delimiter}${process.env.PATH ?? ''}`;
+}
+
+// Point the daemon runtime resolver at the bundled standalone Node ≥22 in
+// packaged builds. vtd and vt-graphd need node:sqlite and must not run on
+// Electron's node (architecture.md); the packaged app ships its own node under
+// Resources/node/. Set on Electron-main, this propagates to every resolver: the
+// graphd resolver reads it directly, and it is inherited by the spawned vtd
+// (which uses the same resolver for its own host and for the graphd it spawns).
+// build-config returns null in dev/unpackaged, where the resolver falls back to
+// a `node` on PATH. An explicit override (launcher/test) wins — we only fill the gap.
+const graphdNodeBinaryPath: string | null = getBuildConfig().graphdNodeBinaryPath;
+if (graphdNodeBinaryPath !== null && process.env.VT_GRAPHD_NODE_BIN === undefined) {
+    process.env.VT_GRAPHD_NODE_BIN = graphdNodeBinaryPath;
 }
 
 configureEnvironment();
@@ -247,6 +261,11 @@ void app.whenReady().then(async () => {
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
+
+    // Warm graphd's runtime-command cache off the first-spawn path: resolving the
+    // Node runtime probes node:sqlite via spawnSync; doing it now (deferred, never
+    // blocking) means the first project ensure / agent spawn hits a warm cache.
+    prewarmGraphdRuntimeCommand();
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {

@@ -6,14 +6,11 @@ import {
   assertSessionAlive,
   buildReconcileCleanupScript,
   computeStaleWorktreeNames,
-  localWorktreeName,
   parseRemoteWorktreeListing,
   parseSessionConnectivity,
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
-  repairRemoteWorktreeMetadataScript,
-  remoteWorktreeGitEnvScript,
-  remoteWorktreeRoot,
+  resolveExecutionTarget,
   synchronizationMode,
 } from './run-remote.mjs'
 
@@ -38,50 +35,35 @@ test('rejects bidirectional mutagen modes before remote execution', () => {
   )
 })
 
-test('detects remote worktree roots from nested remote cwd under /root/vt-wts-synced/', () => {
-  assert.equal(
-    remoteWorktreeRoot('/root/vt-wts-synced/wt-one/webapp'),
-    '/root/vt-wts-synced/wt-one',
+test('routes a linked-worktree cwd to LOCAL execution (the devbox has no git metadata for worktrees)', () => {
+  const worktreeCtx = {kind: 'worktree', session: 'vt-wts', localRoot: '/x/vt-wts', remoteRoot: '/root/vt-wts-synced'}
+  assert.deepEqual(
+    resolveExecutionTarget({host: 'root@box', syncContext: worktreeCtx}),
+    {kind: 'local', reason: 'worktree-runs-local'},
   )
-  assert.equal(remoteWorktreeRoot('/root/vtrepo-synced/webapp'), null)
-  assert.equal(remoteWorktreeRoot('/root/vt-wts-synced'), null)
 })
 
-test('extracts local worktree name from nested cwd under vt-wts/', () => {
-  assert.equal(
-    localWorktreeName('/Users/x/repos/vt-wts/wt-one/webapp', '/Users/x/repos/vt-wts'),
-    'wt-one',
+test('routes a main-checkout cwd to REMOTE execution when a host is configured', () => {
+  const mainCtx = {kind: 'main', session: 'vt-remote', localRoot: '/x/vtrepo', remoteRoot: '/root/vtrepo-synced'}
+  assert.deepEqual(
+    resolveExecutionTarget({host: 'root@box', syncContext: mainCtx}),
+    {kind: 'remote', reason: 'main-checkout'},
   )
-  assert.equal(localWorktreeName('/Users/x/repos/vtrepo/webapp', '/Users/x/repos/vt-wts'), null)
-  assert.equal(localWorktreeName('/Users/x/repos/vt-wts', '/Users/x/repos/vt-wts'), null)
 })
 
-test('repairs remote worktree metadata for sibling-layout worktree commands', () => {
-  const script = repairRemoteWorktreeMetadataScript('/root/vt-wts-synced/wt-one/webapp')
-  assert.match(script, /repairing remote worktree git metadata/)
-  // worktree-root .git file points up to the sibling main repo's admin dir
-  assert.match(script, /gitdir: \.\.\/\.\.\/vtrepo-synced\/\.git\/worktrees\/wt-one/)
-  // admin's gitdir points back across to the sibling vt-wts worktree
-  assert.match(script, /\.\.\/\.\.\/\.\.\/\.\.\/vt-wts-synced\/wt-one\/\.git/)
-  // commondir from admin to main .git stays `../..`
-  assert.match(script, /'\.\.\/\.\.'/)
-  // The repair is gated ONLY on the admin dir (synced by vt-remote). It must
-  // NOT require the worktree `.git` pointer to pre-exist — that pointer is
-  // sync-ignored by the vt-wts-synced session (machine-specific), so materializing it
-  // when absent is the whole point of the repair.
-  assert.match(script, /if \[ -d '[^']*\/\.git\/worktrees\/wt-one' \]; then/)
-  assert.doesNotMatch(script, /-f '[^']*\/\.git'/)
-  assert.equal(repairRemoteWorktreeMetadataScript('/root/vtrepo-synced/webapp'), ':')
+test('runs LOCAL when no remote host is configured, regardless of cwd kind', () => {
+  const mainCtx = {kind: 'main', session: 'vt-remote', localRoot: '/x/vtrepo', remoteRoot: '/root/vtrepo-synced'}
+  assert.deepEqual(
+    resolveExecutionTarget({host: null, syncContext: mainCtx}),
+    {kind: 'local', reason: 'no-remote-host'},
+  )
 })
 
-test('exports GIT_DIR/GIT_COMMON_DIR for a worktree command, noop elsewhere', () => {
-  const script = remoteWorktreeGitEnvScript('/root/vt-wts-synced/wt-one/webapp')
-  // GIT_DIR points at the synced main repo's per-worktree admin dir (absolute,
-  // so it survives the one-way mutagen replica reverting the `.git` pointer file).
-  assert.match(script, /export GIT_COMMON_DIR='\/root\/vtrepo-synced\/\.git'/)
-  assert.match(script, /GIT_DIR='\/root\/vtrepo-synced\/\.git\/worktrees\/wt-one'/)
-  // Outside a worktree (the main checkout's real .git dir needs nothing): noop.
-  assert.equal(remoteWorktreeGitEnvScript('/root/vtrepo-synced/webapp'), ':')
+test('reports an ERROR target when a host is set but cwd maps to no sync root', () => {
+  assert.deepEqual(
+    resolveExecutionTarget({host: 'root@box', syncContext: null}),
+    {kind: 'error', reason: 'cwd-outside-sync-roots'},
+  )
 })
 
 // --- Reconciler: stale-worktree drift cleanup ----------------------------

@@ -46,6 +46,7 @@ describe('handleSessionState', () => {
       writeFolderPath: null,
       readPaths: [],
       folderTree: null,
+      folderSizes: new Map(),
       folderVisibility: {
         folderState: [],
         activeView: { viewId: 'main', name: 'main' },
@@ -71,6 +72,7 @@ describe('handleSessionState', () => {
       writeFolderPath: null,
       readPaths: [],
       folderTree: null,
+      folderSizes: new Map(),
       folderVisibility: {
         folderState: [],
         activeView: { viewId: 'main', name: 'main' },

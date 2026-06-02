@@ -630,6 +630,9 @@ importers:
       '@vt/app-config':
         specifier: '*'
         version: link:../../libraries/app-config
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
       '@vt/daemon-test-harness':
         specifier: '*'
         version: link:../daemon-test-harness
@@ -766,6 +769,9 @@ importers:
       '@types/ws':
         specifier: ^8.5.10
         version: 8.18.1
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
       tsx:
         specifier: ^4.19.2
         version: 4.22.3

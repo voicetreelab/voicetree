@@ -9,5 +9,16 @@
 set -e
 is_branch_checkout="$3"
 [ "$is_branch_checkout" = "1" ] || exit 0
+
+# When the caller owns the worktree's dependency lifecycle, it sets this flag
+# and installs deps OFF the critical path. `git worktree add` fires this hook
+# synchronously inside the add, so a blocking `pnpm install` here stalls the
+# caller — most visibly the VoiceTree app's spawn-in-worktree UI (~15s). The
+# two owners that set the flag handle deps themselves: git-gate via its async
+# prewarm (it already honors this exact flag — see scripts/dev-setup/git-gate),
+# and the app via its async worktree-created hook. A real `git switch` never
+# sets the flag, so lockfile reconciliation on a branch switch is unaffected.
+[ "${VT_GIT_GATE_SKIP_WORKTREE_PREWARM:-}" = "1" ] && exit 0
+
 repo_root="$(git rev-parse --show-toplevel)"
 node "$repo_root/scripts/dev-setup/common/ensure-deps-fresh.mjs"

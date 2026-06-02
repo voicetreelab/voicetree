@@ -1,24 +1,35 @@
 import type {NodeDefinition} from "cytoscape";
-import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
+import type {Graph, GraphDelta, NodeIdAndFilePath, Position, Size} from "@vt/graph-model/graph";
 import {collectNodePositions} from "@/shell/edge/UI-edge/graph/collectNodePositions";
 import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon-client';
 import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
-import {writePositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
+import {writeNodeLayoutThroughDaemon, writeNodeSizeThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
 
 /**
- * Save node positions from Cytoscape UI through the graph daemon.
+ * Persist a single folder's size (folder resize) through the unified
+ * spatial-layout channel. The id is the folder's DIRECTORY id (FolderId,
+ * trailing slash) — folder size is owned by the directory, not a note.
+ */
+export async function saveNodeSize(folderId: NodeIdAndFilePath, size: Size): Promise<void> {
+    await writeNodeSizeThroughDaemon(folderId, size);
+}
+
+/**
+ * Save node positions from Cytoscape UI through the graph daemon's unified
+ * spatial-layout channel. Node drags persist position only — folder size is
+ * written separately by the resize gesture (same channel, different fields).
  *
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
 export async function saveNodePositions(cyNodes: readonly NodeDefinition[]): Promise<void> {
-    const positions: Record<string, Position> = collectNodePositions(cyNodes);
-    if (Object.keys(positions).length === 0) {
+    const layout: Record<string, Position> = collectNodePositions(cyNodes);
+    if (Object.keys(layout).length === 0) {
         return;
     }
 
-    await writePositionsThroughDaemon(positions);
+    await writeNodeLayoutThroughDaemon(layout);
 }
 
 /**

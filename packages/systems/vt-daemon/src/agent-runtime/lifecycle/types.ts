@@ -63,10 +63,10 @@ export function initialSignalState(spawnTime: number): TerminalSignalState {
 }
 
 /**
- * Terminal lifecycle states for which no further events are accepted.
- * Once a terminal enters one of these, it stays there until the user
- * spawns a new terminal.
+ * The two finished lifecycle states. Once a terminal enters one of these it is
+ * sticky — no further event moves it — until the user spawns a new terminal.
  */
-export function isTerminalLifecycle(state: TerminalLifecycle): boolean {
+export function isFinishedLifecycle(state: TerminalLifecycle): boolean {
     return state === 'completed' || state === 'errored';
 }
+

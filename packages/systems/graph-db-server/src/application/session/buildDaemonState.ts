@@ -1,7 +1,7 @@
 import type { State } from '@vt/graph-state'
 import { toAbsolutePath } from '@vt/graph-model'
-import type { FolderTreeNode, Graph } from '@vt/graph-model'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import type { FolderTreeNode, Graph, Size } from '@vt/graph-model'
+import { getGraph, getFolderLayout } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { getReadPaths, getProjectPaths, getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist'
 import type { ProjectState } from '@vt/graph-db-server/contract'
@@ -13,6 +13,7 @@ import { projectSessionState } from './project.ts'
 type DaemonStateSnapshot = {
   readonly folderTree: FolderTreeNode | null
   readonly graph: Graph
+  readonly folderSizes: ReadonlyMap<string, Size>
   readonly projectRoot: string | null
   readonly graphVersion: number
   readonly readPaths: readonly string[]
@@ -64,6 +65,7 @@ export async function readDaemonStateSnapshot(session: Session): Promise<DaemonS
   return {
     folderTree,
     graph,
+    folderSizes: getFolderLayout(),
     graphVersion,
     projectRoot,
     readPaths,
@@ -81,6 +83,7 @@ function projectDaemonStateSnapshot(snapshot: DaemonStateSnapshot): State {
     project: snapshot.project,
     folderTree: snapshot.folderTree,
     session: snapshot.session,
+    folderSizes: snapshot.folderSizes,
   })
 }
 

@@ -183,6 +183,11 @@ export async function attemptSpawnAndWait<TClient>(
       args: command.args,
       env: command.env,
       caller,
+      // Arms the daemon's parent-pid watchdog. `process.pid` is this
+      // launcher (electron-main, the CLI, or a VTD spawning graphd);
+      // buildDaemonChildEnv propagates an inherited VOICETREE_PARENT_PID
+      // over this fallback so a VTD-spawned graphd still points at the app.
+      launcherPid: process.pid,
       logPath: daemonLogPath(canonicalProject, options.daemonKind),
     })
     emitOwnerDiagnostic({

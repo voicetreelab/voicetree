@@ -41,7 +41,7 @@ export type BuildConfig = {
   readonly shouldCopyTools: boolean;
 
   // Per-project .voicetree/ hook source (copy-on-first-open).
-  readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
+  readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, prompts/)
   // Absolute path to the `@voicetree/cli` package root on disk. Spawn-time
   // PATH injection (resolveVtBinDir + prependVtBinToPath) reads `bin/vt`
   // from inside this directory. Null when this build cannot locate the CLI
@@ -51,6 +51,16 @@ export type BuildConfig = {
 
   // Server binary absolutePath (production only)
   readonly serverBinaryPath: string | null;
+
+  // Absolute path to the bundled standalone Node ≥22 that hosts the per-project
+  // daemons (vtd + its vt-graphd sibling), or null when this build ships none.
+  // Those daemons need node:sqlite (Node ≥22) and must NOT run on Electron's own
+  // node (architecture.md), so the packaged app carries its own node under
+  // Resources/node/. Null in dev and unpackaged builds: the runtime resolver
+  // then falls back to a `node` on PATH. main.ts exports this as
+  // VT_GRAPHD_NODE_BIN, which graph-db-client's resolver selects first — and
+  // which vt-daemon-client reuses for vtd (both go through the same resolver).
+  readonly graphdNodeBinaryPath: string | null;
 };
 
 // ============================================================================
@@ -105,6 +115,8 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
     pythonCwd: rootDir,
     shouldCompilePython: false,
     serverBinaryPath: null,
+    // Dev runs the daemons from source via the dev `node` on PATH (already ≥22).
+    graphdNodeBinaryPath: null,
 
     // Tools: Copy from repo source
     toolsSource: path.join(rootDir, 'tools'),
@@ -136,6 +148,14 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
   const serverBinaryPath: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'server', serverBinaryName)
     : path.join(rootDir, 'out', 'resources', 'server', serverBinaryName);
+
+  // Standalone Node ≥22 hosting the daemons. Only the packaged app ships one
+  // (under Resources/node/, placed there by extraResources + stage:node); an
+  // unpackaged prod build has none, so the daemons resolve a `node` from PATH.
+  const nodeBinaryName: string = process.platform === 'win32' ? 'node.exe' : 'node';
+  const graphdNodeBinaryPath: string | null = commonEnv.isPackaged
+    ? path.join(process.resourcesPath, 'node', nodeBinaryName)
+    : null;
 
   // Tools source depends on packaging state
   const toolsSource: string = commonEnv.isPackaged
@@ -169,6 +189,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     pythonCwd: rootDir,
     shouldCompilePython: true,
     serverBinaryPath,
+    graphdNodeBinaryPath,
 
     // Tools: Copy from packaged resources or build output
     toolsSource,

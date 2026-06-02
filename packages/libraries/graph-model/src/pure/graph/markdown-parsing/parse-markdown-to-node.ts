@@ -150,6 +150,10 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
         nodeUIMetadata: {
             color: color ? O.some(color) : O.none,
             position: position ? O.some(position) : O.none,
+            // Size is spatial layout sourced from the node-layout sidecar, never
+            // from frontmatter — always None at parse time, filled in by
+            // mergeNodeLayoutIntoGraph after the sidecar loads.
+            size: O.none,
             additionalYAMLProps,
             isContextNode,
             containedNodeIds

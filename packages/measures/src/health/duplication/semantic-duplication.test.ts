@@ -56,6 +56,22 @@ import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 //   thin-shape pairs (all sharing baseIdFromAgentName as one endpoint).
 //   Observed 638 + 5 headroom = 643. This cluster cannot ratchet down without
 //   deleting a distinct, tested, single-purpose function.
+// Re-anchored 2026-06-02 [vtd production-spawn packaging — PR #213]:
+//   @vt/vt-daemon-client's autoLaunch/runtime.ts gained a bundle-preferring
+//   entrypoint resolver (resolveDefaultDaemonArgs + sourceIsNewerThan +
+//   defaultSiblingDaemonPath + dist/source path helpers) that deliberately
+//   MIRRORS @vt/graph-db-client's resolver — the two are intentionally kept in
+//   separate packages because the daemons take different argv shapes
+//   (vtd `--project` vs graphd `--project-root`) and resolve different
+//   packages. Same vt-daemon-family parallelism that drove the 549→626
+//   re-anchor; the new pairs all live within autoLaunch/runtime.ts. FOLLOW-UP:
+//   unify the two resolvers behind a shared selectDaemonEntrypointArgs helper
+//   in graph-db-client and ratchet back down (deferred to avoid refactoring the
+//   proven graphd spawn path in the same change that first makes vtd spawnable
+//   in production). +8 pairs over dev's 638. Observed 646 + 5 headroom = 651.
+//   The numeric budget lives in budgets/duplication/semantic-duplication.json
+//   (read below); ratchet DOWN as the resolvers are unified.
+// Ratchet DOWN as the codebase is de-duplicated, never up.
 const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
     readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')
 

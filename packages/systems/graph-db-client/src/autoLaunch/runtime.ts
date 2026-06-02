@@ -200,11 +200,22 @@ function sourceIsNewerThan(sourcePath: string, distPath: string): boolean {
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {
+  // Under Electron, BOTH the caller's execPath and process.execPath ARE the
+  // Electron app binary — never a valid graphd runtime: graphd needs real
+  // Node 22's `node:sqlite`, which Electron's node ABI can't host. It must be
+  // excluded up front, not probe-and-rejected: probing it means cold-spawning
+  // the signed ~200MB app (~6s on the spawn path), and the probe's
+  // `process.versions.electron` guard does not reliably fire for the packaged
+  // binary — so it gets slowly *accepted* and graphd launches on the wrong
+  // runtime. Excluding it leaves `$VT_GRAPHD_NODE_BIN`, `$npm_node_execpath`,
+  // and a PATH `node` as the candidates (the packaged app must supply one of
+  // these — see the no-runtime error in resolveDaemonRuntimeCommand).
+  const underElectron: boolean = input.versions.electron !== undefined
   const candidates = [
     input.env.VT_GRAPHD_NODE_BIN,
     input.env.npm_node_execpath,
-    input.execPath,
-    input.versions.electron ? undefined : process.execPath,
+    underElectron ? undefined : input.execPath,
+    underElectron ? undefined : process.execPath,
     'node',
   ]
 

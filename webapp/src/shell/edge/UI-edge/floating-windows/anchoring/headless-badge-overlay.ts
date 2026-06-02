@@ -14,8 +14,7 @@
 import type {Core, CollectionReturnValue} from 'cytoscape';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type {TerminalStatus} from '@vt/vt-daemon-client';
-import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import {getTerminals} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin, offsetFromNodeEdge} from '@vt/graph-model/floating-windows';
@@ -100,13 +99,12 @@ export function updateHeadlessBadges(): void {
 
     // Create or update badges for each badge-eligible terminal (headless or minimized)
     for (const terminal of badgeTerminals) {
-        const status: TerminalStatus = getTerminalStatus(terminal.terminalId) ?? 'running';
         const existing: HTMLElement | undefined = badgeOverlayState.badgeElements.get(terminal.terminalId);
 
         if (existing) {
-            updateBadgeContent(existing, terminal, status);
+            updateBadgeContent(existing, terminal);
         } else {
-            const badge: HTMLElement = createBadgeElement(terminal, status);
+            const badge: HTMLElement = createBadgeElement(terminal);
             overlay.appendChild(badge);
             badgeOverlayState.badgeElements.set(terminal.terminalId, badge);
 
@@ -141,11 +139,11 @@ export function destroyHeadlessBadges(): void {
 
 // ─── Internal Functions ───────────────────────────────────────────────────────
 
-function createBadgeElement(terminal: TerminalData, status: TerminalStatus): HTMLElement {
+function createBadgeElement(terminal: TerminalData): HTMLElement {
     const badge: HTMLElement = document.createElement('div');
     badge.className = 'headless-agent-badge';
     badge.dataset.terminalId = terminal.terminalId;
-    updateBadgeContent(badge, terminal, status);
+    updateBadgeContent(badge, terminal);
 
     if (terminal.isMinimized) {
         // Minimized badges: click to restore terminal
@@ -165,7 +163,7 @@ function createBadgeElement(terminal: TerminalData, status: TerminalStatus): HTM
     return badge;
 }
 
-function updateBadgeContent(badge: HTMLElement, terminal: TerminalData, status: TerminalStatus): void {
+function updateBadgeContent(badge: HTMLElement, terminal: TerminalData): void {
     if (terminal.isMinimized) {
         // Minimized: show PTY running state with purple styling
         const statusClass: string = terminal.isDone ? 'idle' : 'running';
@@ -178,10 +176,14 @@ function updateBadgeContent(badge: HTMLElement, terminal: TerminalData, status: 
             `<span class="headless-badge-name">${escapeHtml(terminal.agentName)}</span>` +
             `<span class="headless-badge-status">${statusIcon} ${statusLabel}</span>`;
     } else {
-        // Headless: existing behavior — show process status
-        const statusClass: string = status === 'running' ? 'running' : 'exited';
-        const statusIcon: string = status === 'running' ? '\u21BB' : '\u2713'; // ↻ or ✓
-        const statusLabel: string = status === 'running' ? 'running' : 'done';
+        // Headless: running vs done is read from the daemon-authoritative
+        // lifecycle, NOT record.status — the renderer's registry mirror only
+        // ever patches lifecycle (there is no status patch kind), so status is
+        // write-once 'running' and would leave the badge stuck after exit.
+        const done: boolean = terminal.lifecycle === 'completed' || terminal.lifecycle === 'errored';
+        const statusClass: string = done ? 'exited' : 'running';
+        const statusIcon: string = done ? '\u2713' : '\u21BB'; // ✓ done, ↻ running
+        const statusLabel: string = done ? 'done' : 'running';
 
         badge.className = `headless-agent-badge ${statusClass}`;
         badge.innerHTML =

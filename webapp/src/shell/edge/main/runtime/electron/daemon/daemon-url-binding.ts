@@ -33,7 +33,6 @@
 import {randomUUID} from 'node:crypto'
 import {readFileSync} from 'node:fs'
 import {mkdir} from 'node:fs/promises'
-import {createRequire} from 'node:module'
 import {resolve} from 'node:path'
 import {
     bindVtDaemonClient,
@@ -46,8 +45,6 @@ import {
     type NodeEnsureVtDaemonRuntime,
 } from '@vt/vt-daemon-client/nodeEnsureVtDaemonForProject'
 
-const requireFromHere = createRequire(import.meta.url)
-
 function createNodeEnsureRuntime(): NodeEnsureVtDaemonRuntime {
     return {
         env: {...process.env},
@@ -55,7 +52,6 @@ function createNodeEnsureRuntime(): NodeEnsureVtDaemonRuntime {
         newAttemptId: randomUUID,
         now: Date.now,
         readTextFileSync: readFileSync,
-        resolveModule: (specifier: string): string => requireFromHere.resolve(specifier),
         resolvePath: resolve,
     }
 }

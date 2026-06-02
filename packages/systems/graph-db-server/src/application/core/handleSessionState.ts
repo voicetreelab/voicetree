@@ -3,7 +3,7 @@ import {
   type LiveStateSnapshot,
   type ProjectState,
 } from '@vt/graph-db-server/contract'
-import type { AbsolutePath, FolderTreeNode, Graph } from '@vt/graph-model'
+import type { AbsolutePath, FolderTreeNode, Graph, Size } from '@vt/graph-model'
 import { serializeState } from '@vt/graph-state'
 import type { Session } from './session.ts'
 import { projectSessionState } from '../session/project.ts'
@@ -16,6 +16,7 @@ export type ReadSessionStateInput = {
   readonly writeFolderPath: AbsolutePath | null
   readonly readPaths: readonly string[]
   readonly folderTree: FolderTreeNode | null
+  readonly folderSizes: ReadonlyMap<string, Size>
   readonly folderVisibility: Pick<LiveStateSnapshot, 'folderState' | 'activeView'>
 }
 
@@ -61,6 +62,7 @@ export function handleReadSessionState(
     project,
     folderTree: input.folderTree,
     session: input.session,
+    folderSizes: input.folderSizes,
   })
   const body = LiveStateSnapshotSchema.parse({
     ...serializeState(snapshot),
