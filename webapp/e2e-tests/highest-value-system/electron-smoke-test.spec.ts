@@ -30,8 +30,16 @@ const test = base.extend<{
 }>({
   fixtureProjectPath: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-project-'));
-    const tempProjectPath = path.join(tempRoot, 'example_small');
-    await fs.mkdir(tempProjectPath, { recursive: true });
+    // Canonicalize via realpath: on macOS os.tmpdir() is under a symlink
+    // (/tmp → /private/tmp, /var → /private/var), and the daemon canonicalizes
+    // every project path with realpathSync.native. If the fixture handed the
+    // daemon the un-canonicalized path, its voicetree-config.json pin (keyed by
+    // this path) would not match the daemon's canonical project root, the
+    // writeFolderPath pin would be silently dropped, and only the root node
+    // would load — green on Linux (no symlink), red on macOS. Resolve once here
+    // so every downstream use (config key, --open-folder) matches the daemon.
+    await fs.mkdir(path.join(tempRoot, 'example_small'), { recursive: true });
+    const tempProjectPath = await fs.realpath(path.join(tempRoot, 'example_small'));
     await fs.writeFile(path.join(tempProjectPath, 'root.md'), [
       '# Smoke Root',
       '',
@@ -57,7 +65,12 @@ const test = base.extend<{
   },
 
   tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-'));
+    // Canonicalize for the same macOS-symlink reason as fixtureProjectPath: this
+    // path is passed as VOICETREE_HOME_PATH, and any daemon/main canonicalization
+    // must resolve to the same dir the fixture seeded settings.json /
+    // voicetree-config.json into — otherwise reads fall back to the developer's
+    // real ~/.voicetree (leaking their starred folders / Fake Agent registration).
+    const tempUserDataPath = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-')));
     await use(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
