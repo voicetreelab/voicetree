@@ -33,6 +33,15 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
 // the scanner still counts it because it's a top-level binding. Same
 // architectural rationale as the prior bumps — folding it into a passed-in
 // parameter would touch every recovery call site for no behavioral gain.
+// 2026-06-02 [PR #229]: Bumped 49 → 50 for `CONFLATING_TOPICS` — the top-level
+// `ReadonlySet<TopicName>` (`new Set(['graph'])`) in vt-daemon's
+// transport/sse/eventSubscriptionHub.ts, added by the browser-mode gateway
+// live-updates work (the hub conflates the 'graph' topic latest-wins). It's an
+// immutable lookup constant by intent (written once at module load, read only
+// via `.has`); the scanner counts it because it's a top-level `new Set`
+// binding — exactly the `SIBLING_SUFFIXES` category above. A plain `readonly`
+// array would still be counted, and folding it into a passed-in parameter would
+// thread it through every hub publish/subscribe site for no behavioral gain.
 const {
     moduleMutableStateBaseline: MODULE_MUTABLE_STATE_BASELINE,
     daemonOwnedMutationsNonLauncherRuntimeImportBudget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET,
