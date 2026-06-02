@@ -46,7 +46,6 @@ export default defineConfig({
     },
     build: {
       outDir: 'dist-electron/main',
-      logLevel: 'error',
       externalizeDeps: { exclude: ELECTRON_VITE_EXTERNALIZE_EXCLUDE },
       rolldownOptions: {
         input: {
@@ -73,7 +72,6 @@ export default defineConfig({
     },
     build: {
       outDir: 'dist-electron/preload',
-      logLevel: 'error',
       externalizeDeps: { exclude: ELECTRON_VITE_EXTERNALIZE_EXCLUDE },
       rolldownOptions: {
         input: {
@@ -129,7 +127,6 @@ export default defineConfig({
     build: {
       outDir: 'dist',
       target: 'esnext',
-      logLevel: 'error',
       rolldownOptions: {
         input: {
           main: path.resolve(webappDir, 'index.html')
