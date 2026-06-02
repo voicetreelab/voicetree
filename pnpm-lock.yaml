@@ -590,6 +590,9 @@ importers:
       '@vt/app-config':
         specifier: '*'
         version: link:../../libraries/app-config
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../graph-db-client
