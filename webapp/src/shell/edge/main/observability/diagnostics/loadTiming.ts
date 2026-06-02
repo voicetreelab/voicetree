@@ -1,25 +1,33 @@
-const activeLoad: { id: string | null; startedAt: number } = { id: null, startedAt: 0 }
-
-export function startLoadTiming(directory: string): string {
-  const id: string = `load-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-  activeLoad.id = id
-  activeLoad.startedAt = Date.now()
-  emit('loadFolder:start', { dir: directory })
-  return id
+/**
+ * A single load-timing session. Threaded explicitly through the caller (FP
+ * pattern 2: state-threading) rather than held as module-level mutable state,
+ * so two concurrent loads can never clobber a shared cell and the import graph
+ * sees the state as an ordinary value.
+ */
+export type LoadTimingSession = {
+  readonly id: string
+  readonly startedAt: number
 }
 
-export function markLoadTiming(event: string, extra?: Record<string, unknown>): void {
-  if (activeLoad.id === null) return
-  emit(event, extra)
+export function startLoadTiming(directory: string): LoadTimingSession {
+  const timing: LoadTimingSession = {
+    id: `load-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    startedAt: Date.now(),
+  }
+  emit(timing, 'loadFolder:start', { dir: directory })
+  return timing
 }
 
-function emit(event: string, extra?: Record<string, unknown>): void {
-  if (activeLoad.id === null) return
-  const elapsedMs: number = Date.now() - activeLoad.startedAt
+export function markLoadTiming(timing: LoadTimingSession, event: string, extra?: Record<string, unknown>): void {
+  emit(timing, event, extra)
+}
+
+function emit(timing: LoadTimingSession, event: string, extra?: Record<string, unknown>): void {
+  const elapsedMs: number = Date.now() - timing.startedAt
   const parts: string[] = [
     `ts=${new Date().toISOString()}`,
     `event=${event}`,
-    `id=${activeLoad.id}`,
+    `id=${timing.id}`,
     `elapsedMs=${elapsedMs}`,
   ]
   if (extra) {
