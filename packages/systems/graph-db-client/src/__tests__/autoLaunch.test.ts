@@ -32,6 +32,29 @@ describe('resolveDaemonRuntimeCommand', () => {
     })
   })
 
+  test('excludes the Electron app binary up front — never probes it — even when it would validate', async () => {
+    // Regression guard for the slow-spawn root cause: under Electron, the app
+    // binary IS process.execPath / the caller's execPath. The OLD candidate
+    // list included `input.execPath` unconditionally, so the Electron binary
+    // was probed FIRST and — because cold-spawning the signed app as node does
+    // expose node:sqlite — *selected*, paying a ~6s cold-start on the spawn
+    // path. Here the fake Electron exits 0 (i.e. WOULD validate); the fix must
+    // still pick `node`, proving the binary is excluded before any probe.
+    // (The pre-existing exit-1 test cannot catch this — it passes either way.)
+    await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
+      const electron = await makeRuntime('Electron', 0)
+      await makeRuntime('node', 0)
+
+      expect(
+        resolveDaemonRuntimeCommand({
+          env: { PATH: binDir },
+          execPath: electron,
+          versions: { node: '24.0.0', electron: '38.1.2' },
+        }),
+      ).toBe('node')
+    })
+  })
+
   test('skips a bad npm_node_execpath candidate', async () => {
     await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
       const electron = await makeRuntime('Electron', 1)
