@@ -22,6 +22,7 @@ export {
 } from './handleReadGraph.ts'
 export {
   graphWithUpdatedNodeLayout,
+  folderSizesFromRecords,
   parseWriteNodeLayoutRequest,
 } from './handleWriteNodeLayout.ts'
 export {

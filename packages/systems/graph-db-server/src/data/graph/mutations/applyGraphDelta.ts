@@ -7,7 +7,7 @@ import {nodeLayoutIO} from '@vt/app-config/node-layout-io'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
-import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
+import {getGraph, setGraph, getFolderLayout} from "@vt/graph-db-server/state/graph-store";
 import {resolveAbsoluteLinkedNodes} from "../loading/loadGraphFromDisk";
 import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
@@ -112,7 +112,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     // position; user drags and unrelated updates take the no-op path.
     if (anyResolved) {
         const projectRoot: string | null = getProjectRoot();
-        if (projectRoot) nodeLayoutIO.save(prepared.graph, projectRoot);
+        if (projectRoot) nodeLayoutIO.save(prepared.graph, getFolderLayout(), projectRoot);
     }
 
     return appliedDelta;

@@ -3,11 +3,13 @@ import { describe, expect, test } from 'vitest'
 import { createGraph, type GraphNode } from '@vt/graph-model/graph'
 import {
   graphWithUpdatedNodeLayout,
+  folderSizesFromRecords,
   parseWriteNodeLayoutRequest,
 } from '../handleWriteNodeLayout.ts'
 
 const NODE_A = '/tmp/project/a.md'
 const NODE_B = '/tmp/project/b.md'
+const FOLDER = '/tmp/project/work/'
 
 function graphNodeFixture(id: string): GraphNode {
   return {
@@ -83,5 +85,34 @@ describe('handleWriteNodeLayout', () => {
     const result = graphWithUpdatedNodeLayout(graph, { [NODE_A]: { x: 1, w: 9 } })
     expect(result.written).toBe(0)
     expect(result.graph.nodes[NODE_A]).toBe(graph.nodes[NODE_A])
+  })
+
+  test('does not fold a folder-keyed record into the graph', () => {
+    const graph = createGraph({ [NODE_A]: graphNodeFixture(NODE_A) })
+    // A folder id (trailing slash) has no graph node — it must be ignored here
+    // (it is routed to the folder-layout store instead).
+    const result = graphWithUpdatedNodeLayout(graph, { [FOLDER]: { w: 300, h: 240 } })
+    expect(result.written).toBe(0)
+    expect(result.graph.nodes[NODE_A]).toBe(graph.nodes[NODE_A])
+  })
+})
+
+describe('folderSizesFromRecords', () => {
+  test('extracts folder-keyed size records and ignores node records', () => {
+    const folders = folderSizesFromRecords({
+      [FOLDER]: { w: 300, h: 240 },
+      '/tmp/project/nested/': { w: 120, h: 80 },
+      [NODE_A]: { x: 10, y: 20 },        // node position — not a folder
+      [NODE_B]: { w: 50, h: 50 },        // node size record — not a folder id
+    })
+    expect(folders.get(FOLDER)).toEqual({ width: 300, height: 240 })
+    expect(folders.get('/tmp/project/nested/')).toEqual({ width: 120, height: 80 })
+    expect(folders.has(NODE_A)).toBe(false)
+    expect(folders.has(NODE_B)).toBe(false)
+  })
+
+  test('ignores a folder record lacking a complete size', () => {
+    const folders = folderSizesFromRecords({ [FOLDER]: { w: 300 } })
+    expect(folders.size).toBe(0)
   })
 })

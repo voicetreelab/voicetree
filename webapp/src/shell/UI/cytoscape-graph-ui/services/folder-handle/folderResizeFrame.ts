@@ -9,15 +9,16 @@
  *   - live: stamps folderWidth/folderHeight data (the stylesheet maps it to the
  *     compound's min-width/min-height) for immediate feel — the SAME data the
  *     persisted-size apply path uses.
- *   - on mouseup: persists the size to the folder-NOTE node via the unified
- *     write-node-layout channel (same channel node-drag uses, no new RPC).
+ *   - on mouseup: persists the size keyed by the folder's DIRECTORY id via the
+ *     unified write-node-layout channel (same channel node-drag uses, no new
+ *     RPC). The folder need not have a note — size is owned by the directory.
  *
  * Collapsed pills are fixed-size and never get a frame.
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 
-import type {NodeIdAndFilePath, Size} from '@vt/graph-model/graph';
+import type {Size} from '@vt/graph-model/graph';
 import {
     ALL_RESIZE_HANDLES,
     computeResizedFolderSize,
@@ -101,7 +102,6 @@ function isExpandedFolder(node: cytoscape.CollectionReturnValue): boolean {
 export function setupFolderResize(
     cy: Core,
     overlay: HTMLElement,
-    resolveFolderNoteId: (folderId: string) => Promise<NodeIdAndFilePath | null>,
 ): FolderResizeController {
     injectResizeStylesheet();
     const frames: Map<string, FrameEntry> = new Map();
@@ -153,12 +153,10 @@ export function setupFolderResize(
     }
 
     async function persist(folderId: string, size: Size): Promise<void> {
-        // Folder size lives on the folder-NOTE node (the compound is not a graph
-        // node). Without a note there is nowhere to persist — the live resize
-        // still showed, but it cannot survive a reload, so skip silently.
-        const folderNoteId: NodeIdAndFilePath | null = await resolveFolderNoteId(folderId);
-        if (folderNoteId === null) return;
-        await window.electronAPI?.main.saveNodeSize(folderNoteId, size);
+        // Folder size is owned by the directory id (the compound is not a graph
+        // node, and a folder need not have a note). Persist keyed by folderId
+        // through the unified spatial-layout channel.
+        await window.electronAPI?.main.saveNodeSize(folderId, size);
     }
 
     function createFrame(folderId: string): void {

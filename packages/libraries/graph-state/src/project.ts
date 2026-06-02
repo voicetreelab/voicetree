@@ -1,6 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 
 import { getFolderNotePath, type GraphNode } from '@vt/graph-model'
+import type { Size } from '@vt/graph-model/graph'
 import { compareEdges } from './project-helpers'
 
 import type { FolderId, ProjectedEdge, ProjectedGraph, ProjectedNode, State, TreeEdge } from './contract'
@@ -86,6 +87,7 @@ function projectNodes(
     folderNoteIdByFolderId: ReadonlyMap<FolderId, string>,
     graph: State['graph'],
     positions: ReadonlyMap<string, unknown>,
+    folderSizes: ReadonlyMap<FolderId, Size>,
     rootPath: string,
 ): readonly ProjectedNode[] {
     const nodes: ProjectedNode[] = []
@@ -95,12 +97,11 @@ function projectNodes(
         const folderNoteId = folderNoteIdByFolderId.get(info.id)
         const folderNote = folderNoteId ? graph.nodes[folderNoteId] : undefined
         const content = folderNote?.contentWithoutYamlOrLinks ?? ''
-        // A folder's size lives on its folder-note node (the folder compound is
-        // not itself a graph node). Only expanded folders carry a size — the
-        // collapsed pill is a fixed-size, content-free affordance.
-        const size = !collapsed
-            ? O.toUndefined(folderNote?.nodeUIMetadata.size ?? O.none)
-            : undefined
+        // A folder's size is keyed by its directory id (the folder compound is
+        // not a graph node, and a folder need not have a note). Only expanded
+        // folders carry a size — the collapsed pill is a fixed-size,
+        // content-free affordance.
+        const size = !collapsed ? folderSizes.get(info.id) : undefined
 
         nodes.push({
             id: info.id,
@@ -328,7 +329,7 @@ export function project(state: State): ProjectedGraph {
     const nodes = projectNodes(
         visibleFolders, visibleFolderIds, visibleCollapsedFolders,
         nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById, folderNoteIdByFolderId,
-        state.graph, state.layout.positions, rootPath,
+        state.graph, state.layout.positions, state.layout.folderSizes ?? new Map(), rootPath,
     )
     const edges = projectEdges(nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById, state.graph.nodes)
     const { forests, arboricity } = computeForests(edges)

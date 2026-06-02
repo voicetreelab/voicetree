@@ -222,39 +222,32 @@ describe('project()', () => {
     })
 
     describe('folder size projection', () => {
-        // Folder size is stored on the folder-note node's nodeUIMetadata.size
-        // (the folder compound is not itself a graph node). Build a topic folder
-        // then stamp a size onto its folder note (topic.md).
-        function topicStateWithFolderNoteSize(
-            size: O.Option<{ readonly width: number; readonly height: number }>,
+        // Folder size is keyed by the folder's DIRECTORY id in
+        // state.layout.folderSizes (the folder compound is not a graph node and
+        // need not have a note). Build a topic folder, then attach a size keyed
+        // by its folderId.
+        function topicStateWithFolderSize(
+            size: { readonly width: number; readonly height: number } | undefined,
             collapsed = false,
         ) {
             const { state, folderId } = makeTopicState({
                 files: { 'topic.md': '# Topic\n\nbody', 'childA.md': '# Child A\n' },
                 collapsed,
             })
-            const folderNotePath = toAbsolutePath('/tmp/project/topic/topic.md')
-            const note = state.graph.nodes[folderNotePath]
             return {
                 folderId,
                 state: {
                     ...state,
-                    graph: {
-                        ...state.graph,
-                        nodes: {
-                            ...state.graph.nodes,
-                            [folderNotePath]: {
-                                ...note,
-                                nodeUIMetadata: { ...note.nodeUIMetadata, size },
-                            },
-                        },
+                    layout: {
+                        ...state.layout,
+                        folderSizes: size ? new Map([[folderId, size]]) : new Map(),
                     },
                 },
             }
         }
 
-        it('projects the folder-note size onto an expanded folder node', () => {
-            const { state, folderId } = topicStateWithFolderNoteSize(O.some({ width: 420, height: 360 }))
+        it('projects the folder size (by directory id) onto an expanded folder node', () => {
+            const { state, folderId } = topicStateWithFolderSize({ width: 420, height: 360 })
             expect(project(state).nodes).toContainEqual(expect.objectContaining({
                 id: folderId,
                 kind: 'folder',
@@ -262,15 +255,15 @@ describe('project()', () => {
             }))
         })
 
-        it('omits size on an expanded folder whose note has none', () => {
-            const { state, folderId } = topicStateWithFolderNoteSize(O.none)
+        it('omits size on an expanded folder with no folderSizes entry', () => {
+            const { state, folderId } = topicStateWithFolderSize(undefined)
             const folder = project(state).nodes.find((n) => n.id === folderId)
             expect(folder?.kind).toBe('folder')
             expect(folder?.size).toBeUndefined()
         })
 
         it('does not project size onto a collapsed folder pill', () => {
-            const { state, folderId } = topicStateWithFolderNoteSize(O.some({ width: 420, height: 360 }), true)
+            const { state, folderId } = topicStateWithFolderSize({ width: 420, height: 360 }, true)
             const folder = project(state).nodes.find((n) => n.id === folderId)
             expect(folder?.kind).toBe('folder-collapsed')
             expect(folder?.size).toBeUndefined()

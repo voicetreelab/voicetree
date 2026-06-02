@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { readFile } from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode, NodeLayout, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { Graph, GraphNode, NodeLayout, NodeIdAndFilePath, Size } from '@vt/graph-model/graph'
 import { getProjectDotVoicetreePath } from '@vt/paths'
 
 /** One persisted record. All fields optional — a node may carry position, size, or both. */
@@ -75,14 +75,27 @@ function nodeToRecord(node: GraphNode): NodeLayoutRecord | undefined {
     return { ...positionPart, ...sizePart }
 }
 
-function projectGraphLayout(graph: Graph): NodeLayoutFile {
-    return Object.entries(graph.nodes).reduce(
+/**
+ * Project the full sidecar from BOTH spatial-layout homes: per-node layout
+ * (position/size on graph nodes) and folder sizes (keyed by FolderId, which
+ * have no graph node). Folder ids never collide with node ids — node ids are
+ * file paths, folder ids end in `/` — so the two key spaces are disjoint.
+ */
+function collectNodeLayout(graph: Graph, folderSizes: ReadonlyMap<string, Size>): NodeLayoutFile {
+    const nodeLayout: NodeLayoutFile = Object.entries(graph.nodes).reduce(
         (acc: NodeLayoutFile, [nodeId, node]: [string, GraphNode]) => {
             const record: NodeLayoutRecord | undefined = nodeToRecord(node)
             return record ? { ...acc, [nodeId]: record } : acc
         },
         {},
     )
+    const folderLayout: NodeLayoutFile = Object.fromEntries(
+        [...folderSizes].map(([folderId, size]) => [
+            folderId,
+            { w: Math.round(size.width), h: Math.round(size.height) },
+        ]),
+    )
+    return { ...nodeLayout, ...folderLayout }
 }
 
 async function loadNodeLayout(projectRoot: string): Promise<ReadonlyMap<NodeIdAndFilePath, NodeLayout>> {
@@ -95,8 +108,8 @@ async function loadNodeLayout(projectRoot: string): Promise<ReadonlyMap<NodeIdAn
     }
 }
 
-function saveNodeLayoutSync(graph: Graph, projectRoot: string): void {
-    const layout: NodeLayoutFile = projectGraphLayout(graph)
+function saveNodeLayoutSync(graph: Graph, folderSizes: ReadonlyMap<string, Size>, projectRoot: string): void {
+    const layout: NodeLayoutFile = collectNodeLayout(graph, folderSizes)
     const filePath: string = nodeLayoutFilePath(projectRoot)
     const dir: string = path.dirname(filePath)
 

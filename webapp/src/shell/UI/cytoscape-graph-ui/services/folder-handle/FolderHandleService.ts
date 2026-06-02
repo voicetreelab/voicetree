@@ -192,7 +192,7 @@ export function setupFolderHandles(cy: Core): void {
     }
 
     // ---- Resize-grip overlay (expanded folders only) -------------------
-    const resize: FolderResizeController = setupFolderResize(cy, overlay, resolveFolderNoteId);
+    const resize: FolderResizeController = setupFolderResize(cy, overlay);
 
     // ---- View-chip hover state machine ---------------------------------
     let viewHoverFolderId: string | null = null;

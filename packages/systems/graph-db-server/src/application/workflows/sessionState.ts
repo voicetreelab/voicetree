@@ -6,7 +6,7 @@ import {
   type FolderTreeNode,
 } from '@vt/graph-model'
 import type { LiveStateSnapshot } from '@vt/graph-db-server/contract'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import { getGraph, getFolderLayout } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { getReadPaths, getProjectPaths, getWriteFolderPath } from '@vt/graph-db-server/state/projectAllowlist'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
@@ -95,6 +95,7 @@ export async function readSessionStateWorkflow(
     writeFolderPath,
     readPaths,
     folderTree,
+    folderSizes: getFolderLayout(),
     folderVisibility: readFolderVisibilitySnapshot(projectRoot ?? ''),
   })
 

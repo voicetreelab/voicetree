@@ -9,12 +9,12 @@ import * as O from "fp-ts/lib/Option.js";
 type NodeLayoutRecord = { x?: number; y?: number; w?: number; h?: number };
 
 /**
- * Persist a single node's size (folder resize) through the unified
- * spatial-layout channel. The node id is the folder-NOTE node that represents
- * the folder; position is left untouched.
+ * Persist a single folder's size (folder resize) through the unified
+ * spatial-layout channel. The id is the folder's DIRECTORY id (FolderId,
+ * trailing slash) — folder size is owned by the directory, not a note.
  */
-export async function saveNodeSize(nodeId: NodeIdAndFilePath, size: Size): Promise<void> {
-    await writeNodeSizeThroughDaemon(nodeId, size);
+export async function saveNodeSize(folderId: NodeIdAndFilePath, size: Size): Promise<void> {
+    await writeNodeSizeThroughDaemon(folderId, size);
 }
 
 /**

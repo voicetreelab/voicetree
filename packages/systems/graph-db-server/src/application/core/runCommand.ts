@@ -15,7 +15,7 @@ import { createContextNodeFromQuestion } from '@vt/graph-db-server/context-nodes
 import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes'
 import { getUnseenNodesAroundContextNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
-import { getGraph, getNode, setGraph } from '@vt/graph-db-server/state/graph-store'
+import { getGraph, getNode, setGraph, getFolderLayout, mergeFolderLayout } from '@vt/graph-db-server/state/graph-store'
 import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
 import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { ProjectStateSchema } from '@vt/graph-db-server/contract'
@@ -152,8 +152,13 @@ const commandHandlers = {
       command.newNodeIds,
     )
   },
+  MergeFolderLayout: command => {
+    mergeFolderLayout(command.entries)
+  },
   WriteAllNodeLayout: command => {
-    writeAllNodeLayoutSync(command.graph, command.projectRoot)
+    // Persist node layout (from the graph) AND folder sizes (from the store) as
+    // one sidecar so a full rewrite never drops folder-keyed entries.
+    writeAllNodeLayoutSync(command.graph, getFolderLayout(), command.projectRoot)
   },
 } satisfies CommandHandlers
 

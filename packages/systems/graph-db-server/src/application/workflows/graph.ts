@@ -17,6 +17,7 @@ import {
   composeFindFileResponse,
   composeGraphResponse,
   graphWithUpdatedNodeLayout,
+  folderSizesFromRecords,
   parseWriteMarkdownFileRequest,
   parseWriteNodeLayoutRequest,
   writeMarkdownFileFromRequest,
@@ -391,17 +392,22 @@ export async function writeNodeLayoutWorkflow(rawBody: unknown): Promise<HttpRes
   return await wrapWorkflow(
     parseWriteNodeLayoutInOpenProject,
     async parsed => {
+      // Node-keyed records fold into the graph; folder-keyed records (FolderId,
+      // no graph node) route to the folder-layout store. Both are then written
+      // to the single node-layout sidecar.
       const result = graphWithUpdatedNodeLayout(
         await executeCommand({ type: 'ReadGraph' }),
         parsed.layout,
       )
+      const folderSizes = folderSizesFromRecords(parsed.layout)
       await executeCommand({ type: 'SetGraph', graph: result.graph })
+      await executeCommand({ type: 'MergeFolderLayout', entries: folderSizes })
       await executeCommand({
         type: 'WriteAllNodeLayout',
         graph: result.graph,
         projectRoot: parsed.projectRoot,
       })
-      return result.written
+      return result.written + folderSizes.size
     },
     written => ({ written }),
     'WRITE_NODE_LAYOUT_FAILED',

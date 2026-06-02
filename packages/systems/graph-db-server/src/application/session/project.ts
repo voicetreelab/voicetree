@@ -5,7 +5,7 @@
 // webapp/main `buildLiveStateSnapshot` emits — UI + CLI share this function in P7.
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
-import type { FolderTreeNode, Graph, GraphNode } from '@vt/graph-model'
+import type { FolderTreeNode, Graph, GraphNode, Size } from '@vt/graph-model'
 import type { ProjectState } from '@vt/graph-db-server/contract'
 import type { Session } from './types.ts'
 
@@ -29,6 +29,11 @@ interface ProjectSessionStateArgs {
   readonly project: ProjectState
   readonly folderTree: FolderTreeNode | null
   readonly session: Session
+  /**
+   * Expanded-folder sizes keyed by FolderId, from the folder-layout store.
+   * Omitted ⇒ no folders carry a persisted size (the common case / tests).
+   */
+  readonly folderSizes?: ReadonlyMap<string, Size>
 }
 
 function normalizeFolderPath(path: string): string {
@@ -294,7 +299,7 @@ function projectFolderTree(
 }
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
-  const { graph, project, folderTree, session } = args
+  const { graph, project, folderTree, session, folderSizes = new Map() } = args
   const folderState = folderStateWithImplicitWriteFolderPath(session.folderState, project.writeFolderPath)
   const renderedFolderPaths = new Set(
     [...folderState]
@@ -314,6 +319,7 @@ export function projectSessionState(args: ProjectSessionStateArgs): State {
     selection: new Set(session.selection),
     layout: {
       positions: collectLayoutPositions(graph),
+      ...(folderSizes.size > 0 ? { folderSizes: new Map(folderSizes) } : {}),
       zoom: session.layout.zoom,
       pan: session.layout.pan,
     },

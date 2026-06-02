@@ -131,15 +131,15 @@ export async function writeNodeLayoutThroughDaemon(
 }
 
 /**
- * Persist a single node's size (folder resize) through the unified
- * write-node-layout channel. Position is left untouched.
+ * Persist a single folder's size (folder resize) through the unified
+ * write-node-layout channel, keyed by the folder's directory id (FolderId).
  */
 export async function writeNodeSizeThroughDaemon(
-    nodeId: NodeIdAndFilePath,
+    folderId: NodeIdAndFilePath,
     size: Size,
 ): Promise<{ written: number }> {
     return await writeNodeLayoutThroughDaemon({
-        [nodeId]: { w: size.width, h: size.height },
+        [folderId]: { w: size.width, h: size.height },
     })
 }
 
