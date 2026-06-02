@@ -22,12 +22,12 @@ const MAX_TERMINALS: number = 100; // human: raised for dev/power-use; original 
  * Used when user explicitly requests to edit command before running.
  *
  * @param parentNodeId - The parent node to create context for
- * @param cy - Cytoscape instance (used to flush pending editor content)
+ * @param _cy - Cytoscape instance (unused; kept for call-site signature parity)
  * @param agentCommand - Optional agent command. If not provided, uses the default agent from settings.
  */
 export async function spawnTerminalWithCommandEditor(
     parentNodeId: NodeIdAndFilePath,
-    cy: Core,
+    _cy: Core,
     agentCommand?: string,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
@@ -120,12 +120,12 @@ export async function spawnTerminalWithCommandEditor(
  * immediate access to the graph after createContextNode completes.
  *
  * @param parentNodeId - The parent node to create context for
- * @param cy - Cytoscape instance (used to flush pending editor content)
+ * @param _cy - Cytoscape instance (unused; kept for call-site signature parity)
  * @param agentCommand - Optional agent command. If not provided, uses the default agent from settings.
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
-    cy: Core,
+    _cy: Core,
     agentCommand?: string,
     spawnDirectory?: string,
 ): Promise<void> {
