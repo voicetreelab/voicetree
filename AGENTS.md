@@ -1,4 +1,4 @@
-⛔ The main checkout is a READ-ONLY cache of origin/dev-manu — never edit/commit in it (worktrees ARE writable). `vt-worktree <name>` to work → `vt-land "msg"` to ship; `vt-sync` to update (never `git pull`). More: `scripts/dev-setup/worktree-readme.md`.
+⛔ The base checkout is a READ-ONLY fast-forward cache of `origin/$VT_BASE_BRANCH` — your personal integration base (lochlan → `dev-lochlan`, manu → `dev-manu`), each continuously fed from `dev`. Never edit/commit in the base (worktrees ARE writable). `vt-worktree <name>` to work → `vt-land "msg"` to ship; `vt-sync` to update (never `git pull`). More: `scripts/dev-setup/worktree-readme.md`.
 
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
 EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
