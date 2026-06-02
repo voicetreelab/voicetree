@@ -75,7 +75,7 @@ export function parseElectronMainStormArgs(argv: readonly string[]): ElectronMai
                 process.stdout.write(
                     'electron-main-storm.ts: profile Electron main CPU under an N-agent fake-agent storm.\n'
                     + '  --agents N                    parallel fake-agents (default 5)\n'
-                    + '  --nodes-per-agent N           create_node actions per agent (default 5)\n'
+                    + '  --nodes-per-agent N           create_nodes actions per agent (default 5)\n'
                     + '  --project-seed-nodes N          seed-project size (default 200)\n'
                     + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
                     + '  --boot-timeout-ms MS          how long to wait for app boot + daemon rpc.port (default 60000)\n'

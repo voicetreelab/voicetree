@@ -4,7 +4,7 @@
  * Boots an in-process headless VoiceTree (graph-db-server + the unified
  * @vt/vt-daemon HTTP server + agent-runtime, no Electron) against a fresh
  * temp project, then spawns N tmux-backed `vt-fake-agent` terminals in
- * parallel. Each fake-agent runs a deterministic script of `create_node`
+ * parallel. Each fake-agent runs a deterministic script of `create_nodes`
  * actions, which exercise the real `create_graph` tool over the daemon's
  * `/rpc` JSON-RPC endpoint and the daemon-routed project write path
  * end-to-end.
