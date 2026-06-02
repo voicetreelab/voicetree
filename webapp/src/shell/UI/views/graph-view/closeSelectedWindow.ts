@@ -10,7 +10,7 @@ import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/stores/EditorStore';
 import {getActiveTerminalId, getTerminal} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
 import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
-import type {TerminalData} from '@/shell/electron';
+import type {TerminalData} from '@/shell/hostApi';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
 /**

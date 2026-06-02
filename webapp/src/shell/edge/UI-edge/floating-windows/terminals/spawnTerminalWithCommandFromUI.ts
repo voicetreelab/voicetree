@@ -4,7 +4,7 @@ import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
 import { getDefaultAgent } from "@vt/graph-model/settings";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import type { Core } from "cytoscape";
-import '@/shell/electron.d.ts';
+import '@/shell/hostApi.d.ts';
 import type { TerminalId } from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
@@ -42,7 +42,7 @@ export async function spawnTerminalWithCommandEditor(
     }
 
     // Load settings to get agents and agent prompt
-    const settings: VTSettings = await window.electronAPI?.main.loadSettings() as VTSettings;
+    const settings: VTSettings = await window.hostAPI?.main.loadSettings() as VTSettings;
     if (!settings) {
         console.error('[spawnTerminalWithCommandEditor] Failed to load settings');
         return;
@@ -99,13 +99,13 @@ export async function spawnTerminalWithCommandEditor(
                 AGENT_PROMPT: result.agentPrompt,
             },
         };
-        await window.electronAPI?.main.saveSettings(updatedSettings);
+        await window.hostAPI?.main.saveSettings(updatedSettings);
     }
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Spawn terminal with the (possibly modified) command
-    await window.electronAPI?.main.spawnTerminalWithContextNode({
+    await window.hostAPI?.main.spawnTerminalWithContextNode({
         taskNodeId: parentNodeId,
         agentCommand: result.command,
         terminalCount,
@@ -142,7 +142,7 @@ export async function spawnTerminalWithNewContextNode(
     }
 
     // Load settings to get agents and check permission mode
-    const settings: VTSettings = await window.electronAPI?.main.loadSettings() as VTSettings;
+    const settings: VTSettings = await window.hostAPI?.main.loadSettings() as VTSettings;
     if (!settings) {
         console.error('[spawnTerminalWithNewContextNode] Failed to load settings');
         return;
@@ -172,13 +172,13 @@ export async function spawnTerminalWithNewContextNode(
                 AGENT_PROMPT: launchConfig.updatedAgentPrompt,
             },
         };
-        await window.electronAPI?.main.saveSettings(updatedSettings);
+        await window.hostAPI?.main.saveSettings(updatedSettings);
     }
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
-    await window.electronAPI?.main.spawnTerminalWithContextNode({
+    await window.hostAPI?.main.spawnTerminalWithContextNode({
         taskNodeId: parentNodeId,
         agentCommand: command,
         terminalCount,
@@ -203,7 +203,7 @@ export async function spawnTerminalInNewWorktree(
     const nodeTitle: string = getNodeTitle(node);
 
     // Get repo root from watch status
-    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } | undefined = await window.electronAPI?.main.getWatchStatus();
+    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } | undefined = await window.hostAPI?.main.getWatchStatus();
     const repoRoot: string | undefined = watchStatus?.directory;
     if (!repoRoot) {
         console.error('[spawnTerminalInNewWorktree] No watched directory available');
@@ -211,8 +211,8 @@ export async function spawnTerminalInNewWorktree(
     }
 
     // Create worktree: generate name from title, then create git worktree
-    const worktreeName: string = await window.electronAPI?.main.generateWorktreeName(nodeTitle) as string;
-    const worktreePath: string = await window.electronAPI?.main.createWorktree(repoRoot, worktreeName) as string;
+    const worktreeName: string = await window.hostAPI?.main.generateWorktreeName(nodeTitle) as string;
+    const worktreePath: string = await window.hostAPI?.main.createWorktree(repoRoot, worktreeName) as string;
 
     // Delegate to existing spawn function with worktree as spawnDirectory
     return spawnTerminalWithNewContextNode(parentNodeId, cy, undefined, worktreePath);

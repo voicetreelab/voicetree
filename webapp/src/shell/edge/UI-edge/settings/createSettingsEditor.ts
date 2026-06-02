@@ -3,7 +3,7 @@
  * Decoupled from the graph — doesn't create shadow nodes or interact with zoom/pan.
  */
 
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 import type {Core} from 'cytoscape';
 import type {VTSettings} from '@vt/graph-model/settings';
 import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
@@ -88,14 +88,14 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             return;
         }
 
-        // Check if electronAPI is available
-        if (!window.electronAPI) {
-            console.error('[createSettingsEditor] electronAPI not available');
+        // Check if hostAPI is available
+        if (!window.hostAPI) {
+            console.error('[createSettingsEditor] hostAPI not available');
             return;
         }
 
         // Load current settings from IPC
-        const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
+        const settings: VTSettings = await window.hostAPI.main.loadSettings() as VTSettings;
 
         // Create backdrop for click-outside-to-close
         const backdrop: HTMLDivElement = document.createElement('div');
@@ -123,8 +123,8 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         // Mount React SettingsEditor
         const root: Root = createRoot(contentContainer);
         const saveFn: (updatedSettings: VTSettings) => Promise<void> = async (updatedSettings: VTSettings): Promise<void> => {
-            if (window.electronAPI) {
-                await window.electronAPI.main.saveSettings(updatedSettings);
+            if (window.hostAPI) {
+                await window.hostAPI.main.saveSettings(updatedSettings);
             }
             if (updatedSettings.darkMode !== undefined) {
                 setDarkMode(updatedSettings.darkMode);

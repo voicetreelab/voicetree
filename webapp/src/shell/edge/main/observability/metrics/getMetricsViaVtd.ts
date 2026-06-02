@@ -4,7 +4,7 @@
 // Electron Main (via this wrapper) and any CLI peer reach the same JSON-RPC
 // surface (`metrics.getSessions`) against the same `<project>/.voicetree/
 // agent_metrics.json` file owned by the daemon. The renderer's
-// `useAgentMetrics` hook calls `window.electronAPI.main.getMetrics()`; the
+// `useAgentMetrics` hook calls `window.hostAPI.main.getMetrics()`; the
 // shape of `AgentMetricsData` is preserved end-to-end.
 
 import {createRpcClientForProject, type DaemonRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'

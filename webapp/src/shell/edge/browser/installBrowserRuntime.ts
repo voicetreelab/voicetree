@@ -1,4 +1,4 @@
-// Installs window.electronAPI with the browser adapter if Electron preload
+// Installs window.hostAPI with the browser adapter if Electron preload
 // has not already provided it. Must be imported before React bootstraps.
 // Safe to import in Electron — the guard prevents double-installation.
 
@@ -7,7 +7,7 @@ import {vtdOpenProject} from './vtdGraphClient'
 import {buildBrowserRuntime} from './browserRuntime'
 
 export async function installBrowserRuntimeIfNeeded(): Promise<void> {
-    if (window.electronAPI !== undefined) return // Electron preload already installed
+    if (window.hostAPI !== undefined) return // Electron preload already installed
 
     try {
         const cfg = await discoverBrowserConfig()
@@ -16,7 +16,7 @@ export async function installBrowserRuntimeIfNeeded(): Promise<void> {
         // (graph + terminal-registry SSE). Replaces graphd's old POST /sessions.
         const {sessionId} = await vtdOpenProject(cfg.vtdUrl, cfg.vtdToken)
         const runtime = buildBrowserRuntime(cfg, sessionId)
-        ;(window as unknown as {electronAPI: typeof runtime}).electronAPI = runtime
+        ;(window as unknown as {hostAPI: typeof runtime}).hostAPI = runtime
         // Expose the session ID for debugging and test assertions
         ;(window as unknown as {__VT_SESSION_ID__: string}).__VT_SESSION_ID__ = sessionId
         console.info('[browserRuntime] installed, session:', sessionId, 'vtd:', cfg.vtdUrl)

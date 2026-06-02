@@ -148,8 +148,8 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
             });
 
             const refreshed = await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.refreshRecoverySessions();
             });
             const seededRow = refreshed.find((s) => s.terminalId === RESUME_TERMINAL_ID);
@@ -267,8 +267,8 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
             });
 
             await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 await api.main.refreshRecoverySessions();
             });
 
@@ -357,8 +357,8 @@ test.describe('BF-332 — persisted Resume click promotes the row into a live tm
             });
 
             const refreshed = await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.refreshRecoverySessions();
             });
             const seededRow = refreshed.find((s) => s.terminalId === TERMINAL_ID);

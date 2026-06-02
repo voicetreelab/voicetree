@@ -32,7 +32,7 @@ const TEST_CONTENT = `# Table Rendering Fixture
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
       getGraph: () => Promise<{ nodes: Record<string, { label?: string }> } | undefined>;
@@ -90,7 +90,7 @@ const test = base.extend<{
     try {
       const page = await electronApp.firstWindow();
       await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -132,7 +132,7 @@ test.describe('Markdown table rendering', () => {
 
     const resolveFixtureNodeId = async (): Promise<string | null> => {
       return appWindow.evaluate(async ({ expectedLabel, expectedFileName }) => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (!api) return null;
 
         const graph = await api.main.getGraph();

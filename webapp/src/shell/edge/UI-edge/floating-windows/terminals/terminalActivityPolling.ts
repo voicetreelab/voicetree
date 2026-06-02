@@ -54,7 +54,7 @@ function checkTerminalInactivity(): void {
         if (shouldBeDone !== terminal.isDone) {
             // Phase 3: Update main process (source of truth)
             // pushStateToRenderer in main triggers syncFromMain → React re-renders
-            void window.electronAPI?.main.updateTerminalIsDone(terminalId, shouldBeDone);
+            void window.hostAPI?.main.updateTerminalIsDone(terminalId, shouldBeDone);
         }
 
         // Auto-scroll non-active terminals to bottom so latest output is visible.
@@ -93,7 +93,7 @@ export function notifyTerminalOutput(terminalId: TerminalId): void {
     updateTerminalRunningState(terminalId, { lastOutputTime: Date.now() });
 
     if (shouldFlipToActiveOnOutput(terminal.lifecycle)) {
-        void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
+        void window.hostAPI?.main.updateTerminalIsDone(terminalId, false);
     }
 }
 

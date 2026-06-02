@@ -183,7 +183,7 @@ export function setupFolderHandles(cy: Core): void {
     async function resolveFolderNoteId(folderId: string): Promise<NodeIdAndFilePath | null> {
         const cached: NodeIdAndFilePath | null | undefined = folderNoteCache.get(folderId);
         if (cached !== undefined) return cached;
-        cachedGraph ??= (await window.electronAPI?.main.getGraph()) ?? null;
+        cachedGraph ??= (await window.hostAPI?.main.getGraph()) ?? null;
         if (cachedGraph === null) return null;
         const resolved: NodeIdAndFilePath | null = getFolderNotePath(cachedGraph, folderId) ?? null;
         folderNoteCache.set(folderId, resolved);

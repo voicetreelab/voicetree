@@ -132,7 +132,7 @@ function installWindowElectronApi(cy: Core): void {
     if (!global.window) {
         global.window = {} as Window & typeof globalThis
     }
-    ;(global.window as any).electronAPI = {
+    ;(global.window as any).hostAPI = {
         main: {
             getGraph: async () => currentGraph,
             getNode: async (nodeId: string) => currentGraph?.nodes[nodeId],

@@ -17,7 +17,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -27,7 +27,7 @@ const CI_FLAGS = process.env.CI
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
-    electronAPI?: ElectronAPI;
+    hostAPI?: HostAPI;
 }
 
 async function waitForProjectScannerToSettle(page: Page): Promise<void> {
@@ -196,11 +196,11 @@ test.describe('Project Selection Screen E2E', () => {
         // Wait for project selection screen
         await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
-        // Use the electronAPI to directly call saveProject and then trigger project selection
+        // Use the hostAPI to directly call saveProject and then trigger project selection
         // (bypasses folder picker dialog which can't be automated easily)
         await appWindow.evaluate(async (projectPath: string) => {
-            const api = (window as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
 
             // Save the test project
             const newProject = {
@@ -265,8 +265,8 @@ test.describe('Project Selection Screen E2E', () => {
         await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
         await appWindow.evaluate(async (projectPath: string) => {
-            const api = (window as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
 
             const newProject = {
                 id: crypto.randomUUID(),
@@ -505,11 +505,11 @@ test.describe('Watched Folder Panel Regression', () => {
             const folderNameVisible = await appWindow.locator('button[title*="Project root"]').isVisible();
             const projectSelectorVisible = await appWindow.locator('button[title*="Write Path"]').isVisible();
             const watchStatus = await appWindow.evaluate(async () => {
-                const api = (window as ExtendedWindow).electronAPI;
+                const api = (window as ExtendedWindow).hostAPI;
                 return api ? await api.main.getWatchStatus() : null;
             });
             const projectPaths = await appWindow.evaluate(async () => {
-                const api = (window as ExtendedWindow).electronAPI;
+                const api = (window as ExtendedWindow).hostAPI;
                 return api ? await api.main.getProjectPaths() : null;
             });
 
@@ -672,14 +672,14 @@ test.describe('Watched Folder Panel Regression', () => {
 
             // 9d. Get watch status from the API to debug
             const watchStatus = await appWindow.evaluate(async () => {
-                const api = (window as ExtendedWindow).electronAPI;
+                const api = (window as ExtendedWindow).hostAPI;
                 return api ? await api.main.getWatchStatus() : null;
             });
             console.log('Watch status:', watchStatus);
 
             // 9e. Get project paths to see what the panel would show
             const projectPaths = await appWindow.evaluate(async () => {
-                const api = (window as ExtendedWindow).electronAPI;
+                const api = (window as ExtendedWindow).hostAPI;
                 return api ? await api.main.getProjectPaths() : null;
             });
             console.log('Project paths:', projectPaths);
@@ -804,11 +804,11 @@ test.describe('Watched Folder Panel Regression', () => {
                 const folderNameVisible = await appWindow.locator('button[title*="Project root"]').isVisible().catch(() => false);
                 const projectSelectorVisible = await appWindow.locator('button[title*="Write Path"]').isVisible().catch(() => false);
                 const watchStatus = await appWindow.evaluate(async () => {
-                    const api = (window as ExtendedWindow).electronAPI;
+                    const api = (window as ExtendedWindow).hostAPI;
                     return api ? await api.main.getWatchStatus() : null;
                 });
                 const projectPaths = await appWindow.evaluate(async () => {
-                    const api = (window as ExtendedWindow).electronAPI;
+                    const api = (window as ExtendedWindow).hostAPI;
                     return api ? await api.main.getProjectPaths() : null;
                 });
 
@@ -929,8 +929,8 @@ test.describe('Project Scanner Integration', () => {
 
         // Call scanForProjects API directly
         const discovered = await appWindow.evaluate(async (searchDir: string) => {
-            const api = (window as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             return await api.main.scanForProjects([searchDir]);
         }, parentDir);
 

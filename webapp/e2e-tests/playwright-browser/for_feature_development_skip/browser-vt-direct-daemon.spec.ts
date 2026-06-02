@@ -29,7 +29,7 @@ const ORIGIN = 'http://localhost:3000'
 
 test.describe('Browser VoiceTree — direct daemon', () => {
 
-  test('browser runtime installs window.electronAPI and exposes graph API', async ({ page }) => {
+  test('browser runtime installs window.hostAPI and exposes graph API', async ({ page }) => {
     const cfg = skipIfNoDaemons()
     if (!cfg) return test.skip(true, SKIP_MSG)
 
@@ -39,7 +39,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const hasGraphApi = await page.evaluate(() => {
-      const api = (window as unknown as { electronAPI?: { graph?: unknown } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { graph?: unknown } }).hostAPI
       return api?.graph !== undefined
     })
     expect(hasGraphApi).toBe(true)
@@ -55,9 +55,9 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const result = await page.evaluate(async (projectPath) => {
-      const api = (window as unknown as { electronAPI?: { main?: {
+      const api = (window as unknown as { hostAPI?: { main?: {
         openProject?: (p: string) => Promise<{ projectState: unknown; sessionId: string; initialProjectedGraph: unknown }>
-      } } }).electronAPI
+      } } }).hostAPI
       return api?.main?.openProject?.(projectPath)
     }, cfg.projectPath)
 
@@ -65,9 +65,9 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     expect(result).toMatchObject({ sessionId: expect.any(String), projectState: expect.any(Object) })
 
     const projGraph = await page.evaluate(async () => {
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         graph?: { getCurrentProjectedGraph?: () => Promise<unknown> }
-      } }).electronAPI
+      } }).hostAPI
       return api?.graph?.getCurrentProjectedGraph?.()
     })
     expect(projGraph).toMatchObject({ nodes: expect.any(Array), edges: expect.any(Array) })
@@ -83,7 +83,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const writeFolder = await page.evaluate(async () => {
-      const api = (window as unknown as { electronAPI?: { main?: { getWriteFolderPath?: () => Promise<string> } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { main?: { getWriteFolderPath?: () => Promise<string> } } }).hostAPI
       return api?.main?.getWriteFolderPath?.()
     })
     expect(typeof writeFolder).toBe('string')
@@ -92,9 +92,9 @@ test.describe('Browser VoiceTree — direct daemon', () => {
 
     // applyGraphDeltaToDBThroughMemAndUIExposed returns void — verify success by reading back.
     await page.evaluate(async ({ filePath }) => {
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         main?: { applyGraphDeltaToDBThroughMemAndUIExposed?: (delta: unknown) => Promise<void> }
-      } }).electronAPI
+      } }).hostAPI
       // GraphNode requires all fields; missing outgoingEdges causes .reduce crash on undefined.
       // fp-ts Option serialisation: { _tag: 'None' } / { _tag: 'Some', value: x }.
       await api?.main?.applyGraphDeltaToDBThroughMemAndUIExposed?.([{
@@ -116,23 +116,23 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     }, { filePath })
 
     const createdNode = await page.evaluate(async ({ filePath }) => {
-      const api = (window as unknown as { electronAPI?: { main?: { getNode?: (id: string) => Promise<unknown> } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { main?: { getNode?: (id: string) => Promise<unknown> } } }).hostAPI
       return api?.main?.getNode?.(filePath)
     }, { filePath })
     expect(createdNode).toBeTruthy()
 
     // DeleteNode.nodeId must be the absoluteFilePathIsID string (full file path).
     await page.evaluate(async ({ filePath }) => {
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         main?: { applyGraphDeltaToDBThroughMemAndUIExposed?: (delta: unknown) => Promise<void> }
-      } }).electronAPI
+      } }).hostAPI
       await api?.main?.applyGraphDeltaToDBThroughMemAndUIExposed?.([
         { type: 'DeleteNode', nodeId: filePath, deletedNode: { _tag: 'None' } },
       ])
     }, { filePath })
 
     const deletedNode = await page.evaluate(async ({ filePath }) => {
-      const api = (window as unknown as { electronAPI?: { main?: { getNode?: (id: string) => Promise<unknown> } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { main?: { getNode?: (id: string) => Promise<unknown> } } }).hostAPI
       return api?.main?.getNode?.(filePath)
     }, { filePath })
     expect(deletedNode).toBeNull()
@@ -148,9 +148,9 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const result = await page.evaluate(async ({ projectPath }) => {
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         main?: { writeMarkdownFile?: (absolutePath: string, body: string, editorId: string) => Promise<unknown> }
-      } }).electronAPI
+      } }).hostAPI
       const absolutePath = `${projectPath}/browser-test-write-${Date.now()}.md`
       return api?.main?.writeMarkdownFile?.(absolutePath, '# Browser write test\n', 'test-editor-id')
     }, { projectPath: cfg.projectPath })
@@ -167,7 +167,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const taskNodeId = await page.evaluate(async () => {
-      const api = (window as unknown as { electronAPI?: { main?: { getGraph?: () => Promise<unknown> } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { main?: { getGraph?: () => Promise<unknown> } } }).hostAPI
       const graph = await api?.main?.getGraph?.() as { nodes?: Record<string, unknown> } | undefined
       return Object.keys(graph?.nodes ?? {}).find(id => !id.endsWith('/')) ?? null
     })
@@ -176,7 +176,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     // The terminal-registry SSE only delivers change events (no snapshot on connect).
     // Spawn a terminal → VTD publishes a terminal-registry event → SSE delivers it
     // → browser runtime emits on 'terminal-registry' channel → listener fires.
-    // electronAPI.on('terminal-registry', cb) is the same channel the UI agent-list consumes.
+    // hostAPI.on('terminal-registry', cb) is the same channel the UI agent-list consumes.
     const registryPayload = await page.evaluate(async ({ taskNodeId }) => {
       type ElectronLike = {
         on: (ch: string, cb: (...args: unknown[]) => void) => void
@@ -185,7 +185,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
           closeHeadlessAgent?: (r: unknown) => Promise<unknown>
         }
       }
-      const api = (window as unknown as { electronAPI?: ElectronLike }).electronAPI
+      const api = (window as unknown as { hostAPI?: ElectronLike }).hostAPI
       if (!api) return null
 
       return new Promise<unknown>((resolve, reject) => {
@@ -217,7 +217,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const taskNodeId = await page.evaluate(async () => {
-      const api = (window as unknown as { electronAPI?: { main?: { getGraph?: () => Promise<unknown> } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { main?: { getGraph?: () => Promise<unknown> } } }).hostAPI
       const graph = await api?.main?.getGraph?.() as { nodes?: Record<string, unknown> } | undefined
       return Object.keys(graph?.nodes ?? {}).find(id => !id.endsWith('/')) ?? null
     })
@@ -225,12 +225,12 @@ test.describe('Browser VoiceTree — direct daemon', () => {
 
     // Use the correct VTD protocol param (taskNodeId, not contextNodeId). headless avoids a PTY.
     const spawnResult = await page.evaluate(async ({ taskNodeId }) => {
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         main?: {
           spawnTerminalWithContextNode?: (req: unknown) => Promise<{terminalId: string; contextNodeId: string}>
           closeHeadlessAgent?: (req: unknown) => Promise<unknown>
         }
-      } }).electronAPI
+      } }).hostAPI
       const result = await api?.main?.spawnTerminalWithContextNode?.({
         taskNodeId, headless: true, callerTerminalId: 'browser-vt-test',
       })
@@ -253,7 +253,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     await page.evaluate(async (projectPath) => {
-      const api = (window as unknown as { electronAPI?: { main?: { openProject?: (p: string) => Promise<unknown> } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { main?: { openProject?: (p: string) => Promise<unknown> } } }).hostAPI
       await api?.main?.openProject?.(projectPath)
     }, cfg.projectPath)
 
@@ -303,7 +303,7 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     await waitForElectronApiReady(page)
 
     const hasTerminalAttach = await page.evaluate(() => {
-      const api = (window as unknown as { electronAPI?: { terminal?: { attach?: unknown } } }).electronAPI
+      const api = (window as unknown as { hostAPI?: { terminal?: { attach?: unknown } } }).hostAPI
       return typeof api?.terminal?.attach === 'function'
     })
     expect(hasTerminalAttach).toBe(true)
@@ -320,9 +320,9 @@ test.describe('Browser VoiceTree — direct daemon', () => {
 
     const subscriptionInstalled = await page.evaluate(() => {
       let called = false
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         graph?: { onProjectedGraphUpdate?: (cb: (g: unknown) => void) => () => void }
-      } }).electronAPI
+      } }).hostAPI
       api?.graph?.onProjectedGraphUpdate?.(() => { called = true })
       return true // subscription installed without throwing
       void called
@@ -330,9 +330,9 @@ test.describe('Browser VoiceTree — direct daemon', () => {
     expect(subscriptionInstalled).toBe(true)
 
     const projGraph = await page.evaluate(async () => {
-      const api = (window as unknown as { electronAPI?: {
+      const api = (window as unknown as { hostAPI?: {
         graph?: { getCurrentProjectedGraph?: () => Promise<unknown> }
-      } }).electronAPI
+      } }).hostAPI
       return api?.graph?.getCurrentProjectedGraph?.()
     })
     expect(projGraph).toMatchObject({ nodes: expect.any(Array), edges: expect.any(Array) })

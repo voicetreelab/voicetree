@@ -1,15 +1,15 @@
-// Browser-mode ElectronAPI adapter.
-// Implements the ElectronAPI contract from webapp/src/shell/electron.d.ts by
+// Browser-mode HostAPI adapter.
+// Implements the HostAPI contract from webapp/src/shell/electron.d.ts by
 // talking ONLY to VTD over JSON-RPC + WebSocket. Under the gateway model
 // vt-graphd is loopback-internal behind VTD: every graph read/mutation/view op
 // is a `graph.*` RPC (vtdGraphClient.ts) and every live graph update rides the
 // existing VTD /events WS on topic `'graph'`. The adapter must be installed on
-// window.electronAPI BEFORE React bootstraps so App.tsx's electronReady check
+// window.hostAPI BEFORE React bootstraps so App.tsx's electronReady check
 // fires on the first poll.
 
 import * as O from 'fp-ts/lib/Option.js'
 import type {NodeDefinition} from 'cytoscape'
-import type {ElectronAPI, Promisify} from '@/shell/electron'
+import type {HostAPI, Promisify} from '@/shell/hostApi'
 import {collectNodePositions} from '@/shell/edge/UI-edge/graph/collectNodePositions'
 import type {mainAPI} from '@/shell/edge/main/runtime/api'
 import type {GraphDelta} from '@vt/graph-model/graph'
@@ -47,7 +47,7 @@ function unsupported(name: string): never {
     throw new Error(`[browserRuntime] ${name} is not supported in browser mode`)
 }
 
-export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string): ElectronAPI {
+export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string): HostAPI {
     const {vtdUrl, vtdToken, projectPath} = cfg
     const currentSessionId = sessionId
     const channelListeners = new Map<string, Set<Listener>>()

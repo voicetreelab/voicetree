@@ -4,7 +4,7 @@
  * Deliberately does NOT pass `--open-folder`: that startup path creates a dated
  * `voicetree-<date>/` write-subfolder and projects only that, so a pre-seeded
  * project never renders. Instead the harness opens the project AFTER launch via
- * `window.electronAPI.main.openProject(projectDir)`, which honours the saved
+ * `window.hostAPI.main.openProject(projectDir)`, which honours the saved
  * `writeFolderPath` (= projectDir, written by seedUserData) and loads ALL `.md`
  * — the same recipe the 500-node realistic-perf e2e uses. The daemon is spawned
  * by that open call, so readiness is gated downstream on the rendered graph, not

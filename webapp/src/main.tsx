@@ -100,8 +100,8 @@ if (!analyticsDisabled) {
 
   // Identify user with email from settings if available (fixes UUID reset on app updates)
   void (async () => {
-    if (window.electronAPI) {
-      const settings: VTSettings = await window.electronAPI.main.loadSettings()
+    if (window.hostAPI) {
+      const settings: VTSettings = await window.hostAPI.main.loadSettings()
       if (settings.userEmail) {
         posthog.identify(settings.userEmail, { email: settings.userEmail })
       }
@@ -116,8 +116,8 @@ installRendererPerfProbe();
 
 // Install browser runtime adapter if running outside Electron.
 // Must complete before React renders so App.tsx's electronReady poll sees
-// window.electronAPI on the first tick. Safe no-op when Electron preload
-// already set window.electronAPI.
+// window.hostAPI on the first tick. Safe no-op when Electron preload
+// already set window.hostAPI.
 void installBrowserRuntimeIfNeeded().then(() => {
   // Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)
   setupUIRpcHandler();
@@ -125,10 +125,10 @@ void installBrowserRuntimeIfNeeded().then(() => {
   // Surface the one-time 2.9.x→3.0 import notice, if any. The migration already ran
   // silently in electron-main at startup; this just shows the non-blocking toast now
   // that the renderer (and document.body) is ready. Consumed once — null thereafter.
-  // Feature-detected + best-effort: browser-mode e2e tests mount a partial electronAPI
+  // Feature-detected + best-effort: browser-mode e2e tests mount a partial hostAPI
   // mock, so a missing method must never throw during app boot.
   const consumeMigrationNotice: (() => Promise<string | null>) | undefined =
-    window.electronAPI?.main.consumeUserDataMigrationNotice;
+    window.hostAPI?.main.consumeUserDataMigrationNotice;
   if (consumeMigrationNotice) {
     void consumeMigrationNotice().then((message: string | null) => {
       if (message) {

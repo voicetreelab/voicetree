@@ -52,8 +52,8 @@ test.describe('Surviving Agents Sidebar', () => {
         // IPC only pushes to UnclaimedTmuxStore which the sidebar stopped
         // consuming in the resume-surviving-agent-sessions OpenSpec.
         const refreshed = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             return await api.main.refreshRecoverySessions();
         });
 
@@ -79,8 +79,8 @@ test.describe('Surviving Agents Sidebar', () => {
 
         console.log('=== PHASE 3: attach via the API ===');
         const attachResult = await appWindow.evaluate(async (sessionName: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             return await api.main.attachUnclaimedTmuxSession(sessionName);
         }, seededSessionName);
 
@@ -135,8 +135,8 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         console.log(`Fixtured Claude transcript at: ${transcriptPath}`);
 
         const refreshed = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             return await api.main.refreshRecoverySessions();
         });
 
@@ -209,8 +209,8 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
             });
 
             const refreshed = await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 return await api.main.refreshRecoverySessions();
             });
 

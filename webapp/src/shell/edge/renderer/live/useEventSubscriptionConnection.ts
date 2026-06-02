@@ -1,7 +1,7 @@
 /**
  * React hook subscribing the mounting component to VTD /events frames over
  * Electron IPC. Main owns the WebSocket; this hook is a thin wrapper around
- * the preload-injected `electronAPI.events` surface (Phase 0 / BF-367).
+ * the preload-injected `hostAPI.events` surface (Phase 0 / BF-367).
  *
  * `isConnected` gates renderer mutations (point 7 of the 9e brief).
  *
@@ -31,8 +31,8 @@ export function useEventSubscriptionConnection(
     const [state, setState] = useState<ConnectionState>({kind: 'closed'})
 
     useEffect((): (() => void) | undefined => {
-        if (typeof window === 'undefined' || !window.electronAPI || !window.electronAPI.events) return undefined
-        const api = window.electronAPI
+        if (typeof window === 'undefined' || !window.hostAPI || !window.hostAPI.events) return undefined
+        const api = window.hostAPI
         const topic: TopicName = options.topic ?? DEFAULT_TOPIC
         const onEvent: (frame: EventFrame) => void = options.onEvent ?? ((): void => {})
         const onResnapshot: (topic: TopicName) => void = options.onResnapshot ?? ((): void => {})

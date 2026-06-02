@@ -19,7 +19,7 @@ import type { FolderTreeNode as FolderTreeNodeType } from '@vt/graph-model/folde
 import { toAbsolutePath } from '@vt/graph-model/folders'
 
 // Mock the electron.d.ts side-effect import
-vi.mock('@/shell/electron.d.ts', () => ({}))
+vi.mock('@/shell/hostApi.d.ts', () => ({}))
 
 describe('FolderTreeNode — graph collapse dot click', () => {
     const treeRootPath: string = '/Users/bob/project'

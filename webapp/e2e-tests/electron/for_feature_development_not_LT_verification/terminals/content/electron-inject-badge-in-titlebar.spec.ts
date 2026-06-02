@@ -61,10 +61,10 @@ test.describe('Inject Badge in Terminal Title Bar', () => {
     const command = 'echo INJECT_BADGE_TEST';
     const terminalSpawnResult = await appWindow.evaluate(async ({ nodeId, cmd }) => {
       const w = (window as unknown as ExtendedWindow);
-      const api = w.electronAPI;
+      const api = w.hostAPI;
 
       if (!api?.terminal || !api?.main) {
-        throw new Error('electronAPI terminal/main not available');
+        throw new Error('hostAPI terminal/main not available');
       }
 
       return new Promise<{ terminalId: string; success: boolean }>((resolve) => {
@@ -298,10 +298,10 @@ test.describe('Inject Badge in Terminal Title Bar', () => {
     const command = 'echo INJECT_BADGE_TEST';
     const terminalSpawnResult = await appWindow.evaluate(async ({ nodeId, cmd }) => {
       const w = (window as unknown as ExtendedWindow);
-      const api = w.electronAPI;
+      const api = w.hostAPI;
 
       if (!api?.terminal || !api?.main) {
-        throw new Error('electronAPI terminal/main not available');
+        throw new Error('hostAPI terminal/main not available');
       }
 
       return new Promise<{ terminalId: string; success: boolean }>((resolve) => {
@@ -419,7 +419,7 @@ test.describe('Inject Badge in Terminal Title Bar', () => {
       // Stop file watcher before cleanup to release chokidar file handles
       try {
         await appWindow.evaluate(async () => {
-          const api = (window as unknown as ExtendedWindow).electronAPI;
+          const api = (window as unknown as ExtendedWindow).hostAPI;
           if (api) {
             await api.main.stopFileWatching();
           }

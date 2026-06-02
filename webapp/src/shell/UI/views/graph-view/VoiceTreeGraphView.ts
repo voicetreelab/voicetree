@@ -375,14 +375,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         startGraphUpdateSubscription({
             hasInitialProjectedGraph: Boolean(this.options.initialProjectedGraph),
             isDisposed: () => this.isDisposed,
-            getStartupProjectHint: window.electronAPI?.main?.getStartupProjectHint,
-            openProject: window.electronAPI?.main?.openProject,
+            getStartupProjectHint: window.hostAPI?.main?.getStartupProjectHint,
+            openProject: window.hostAPI?.main?.openProject,
             subscribeToGraphUpdates: () => this.subscribeToGraphUpdates(),
         });
     }
 
     /**
-     * Subscribe to graph delta updates from main process via electronAPI
+     * Subscribe to graph delta updates from main process via hostAPI
      * Delegates to GraphUpdateHandler module for the actual subscription logic
      */
     private subscribeToGraphUpdates(): void {

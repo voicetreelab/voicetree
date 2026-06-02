@@ -13,13 +13,13 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 const test = base.extend<{
@@ -73,7 +73,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -164,7 +164,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // Get initial state (may have default nodes from onboarding)
     const initialState = await appWindow.evaluate(async () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as ExtendedWindow).hostAPI;
       if (!cy || !api) throw new Error('Not initialized');
 
       const graphState = await api.main.getGraph();
@@ -184,8 +184,8 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // (This is how the existing tests do it, and how the UI creates nodes)
     console.log('[Test] Creating a single node with relative ID...');
     const relativeNodeId = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const newNodeId = 'voicetree/test-single-node.md';
       const newNode = {
@@ -225,7 +225,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // Get final state
     const finalState = await appWindow.evaluate(async () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as ExtendedWindow).hostAPI;
       if (!cy || !api) throw new Error('Not initialized');
 
       const graphState = await api.main.getGraph();
@@ -320,7 +320,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // Get initial state
     const initialState = await appWindow.evaluate(async () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as ExtendedWindow).hostAPI;
       if (!cy || !api) throw new Error('Not initialized');
 
       const graphState = await api.main.getGraph();
@@ -337,8 +337,8 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // Create first node
     console.log('[Test] Creating first node...');
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const newNode = {
         absoluteFilePathIsID: 'voicetree/multi-node-one.md',
@@ -362,8 +362,8 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // Create second node
     console.log('[Test] Creating second node...');
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const newNode = {
         absoluteFilePathIsID: 'voicetree/multi-node-two.md',
@@ -394,7 +394,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     // Get final state
     const finalState = await appWindow.evaluate(async () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as ExtendedWindow).hostAPI;
       if (!cy || !api) throw new Error('Not initialized');
 
       const graphState = await api.main.getGraph();

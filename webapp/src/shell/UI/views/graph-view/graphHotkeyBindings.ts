@@ -1,5 +1,5 @@
-// Import to make Window.electronAPI type available
-import type {} from '@/shell/electron';
+// Import to make Window.hostAPI type available
+import type {} from '@/shell/hostApi';
 import { MAX_RECENT_NODES } from '@vt/graph-model/graph';
 import type { HotkeySettings, HotkeyBinding, VTSettings } from '@vt/graph-model/settings';
 import { DEFAULT_HOTKEYS } from '@vt/graph-model/settings';
@@ -70,7 +70,7 @@ export function setupGraphHotkeys(
     modifiers: [primaryModifier],
     disabledInEditors: true,
     onPress: () => {
-      void window.electronAPI?.main.performUndo();
+      void window.hostAPI?.main.performUndo();
     }
   });
 
@@ -81,7 +81,7 @@ export function setupGraphHotkeys(
     modifiers: [primaryModifier, 'Shift'],
     disabledInEditors: true,
     onPress: () => {
-      void window.electronAPI?.main.performRedo();
+      void window.hostAPI?.main.performRedo();
     }
   });
 
@@ -175,7 +175,7 @@ export async function initializeWithSettings(
   },
   voiceAction: () => void
 ): Promise<void> {
-  const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+  const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
   const hotkeys: HotkeySettings = settings?.hotkeys ?? DEFAULT_HOTKEYS;
 
   setupGraphHotkeys(registerHotkey, callbacks, hotkeys);

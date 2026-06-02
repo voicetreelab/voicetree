@@ -202,7 +202,7 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
     const handleClose: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
         if (terminal.isHeadless) {
-            void window.electronAPI?.main.closeHeadlessAgent(terminalId);
+            void window.hostAPI?.main.closeHeadlessAgent(terminalId);
             return;
         }
         const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);

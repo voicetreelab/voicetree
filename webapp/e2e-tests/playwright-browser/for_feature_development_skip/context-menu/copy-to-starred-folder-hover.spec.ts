@@ -37,9 +37,9 @@ test.describe('Copy to Starred Folder', () => {
 
     // Patch in the starred folders mock methods (not in default mock)
     await page.addInitScript((folders: readonly string[]) => {
-      const api = (window as unknown as { electronAPI: {
+      const api = (window as unknown as { hostAPI: {
         main: Record<string, unknown>;
-      } }).electronAPI;
+      } }).hostAPI;
       if (api?.main) {
         api.main.getStarredFolders = async (): Promise<readonly string[]> => folders;
         api.main.copyNodeToFolder = async (
@@ -231,9 +231,9 @@ test.describe('Copy to Starred Folder', () => {
     await page.evaluate(() => {
       (window as unknown as { _copyToFolderCalls: Array<{ nodeId: string; folder: string }> })
         ._copyToFolderCalls = [];
-      const api = (window as unknown as { electronAPI: {
+      const api = (window as unknown as { hostAPI: {
         main: Record<string, unknown>;
-      } }).electronAPI;
+      } }).hostAPI;
       if (api?.main) {
         api.main.copyNodeToFolder = async (
           nodeId: string,

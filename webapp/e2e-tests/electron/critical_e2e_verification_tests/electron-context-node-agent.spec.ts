@@ -49,8 +49,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // agentCommand is one of `settings.agents[].command`. Register the grep
     // probe as a named agent so the test's command is accepted.
     await appWindow.evaluate(async ({ shell, command }) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const currentSettings = await api.main.loadSettings();
       const updatedSettings = {
@@ -84,8 +84,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 2c: Verify graph loaded in main process state ===');
     const graphInMainProcess = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
 
@@ -97,8 +97,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     const watchDir = fixtureProjectPath;
     console.log(`✓ Watch directory: ${watchDir}`);
     const writeFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
@@ -115,8 +115,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`Parent node: ${parentNodeId}`);
 
     const contextNodeId = await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.createContextNode(nodeId);
     }, parentNodeId);
 
@@ -178,8 +178,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // the daemon-assigned `terminalId` we use to locate the pipe-pane log.
     const spawnResponse = await appWindow.evaluate(async ({ ctxNodeId, ctxNodePath, spawnDir, command, pathEnv }) => {
       const w = (window as ExtendedWindow);
-      const api = w.electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = w.hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       return api.main.spawnTerminalWithContextNode({
         taskNodeId: ctxNodeId,

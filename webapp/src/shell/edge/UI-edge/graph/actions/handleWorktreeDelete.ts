@@ -5,7 +5,7 @@
  * in the Run dropdown submenu. Orchestrates: confirmation popup -> IPC deletion -> toast.
  */
 
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/popups/worktreeDeletePopup';
 import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
@@ -28,7 +28,7 @@ export function handleWorktreeDeleteEvent(event: Event): void {
 }
 
 async function handleWorktreeDelete(detail: WorktreeDeleteDetail): Promise<void> {
-    const watchStatus: { directory?: string } | undefined = await window.electronAPI?.main.getWatchStatus();
+    const watchStatus: { directory?: string } | undefined = await window.hostAPI?.main.getWatchStatus();
     const repoRoot: string | undefined = watchStatus?.directory;
     if (!repoRoot) return;
 
@@ -36,7 +36,7 @@ async function handleWorktreeDelete(detail: WorktreeDeleteDetail): Promise<void>
     if (!result) return;
 
     const ipcResult: { success: boolean; command: string; error?: string } | undefined =
-        await window.electronAPI?.main.removeWorktree(repoRoot, detail.path, false);
+        await window.hostAPI?.main.removeWorktree(repoRoot, detail.path, false);
 
     if (ipcResult?.success) {
         showToast(`Worktree "${detail.name}" deleted`);
@@ -51,7 +51,7 @@ async function handleWorktreeDelete(detail: WorktreeDeleteDetail): Promise<void>
     if (!retryResult) return;
 
     const forceResult: { success: boolean; command: string; error?: string } | undefined =
-        await window.electronAPI?.main.removeWorktree(repoRoot, detail.path, true);
+        await window.hostAPI?.main.removeWorktree(repoRoot, detail.path, true);
 
     if (forceResult?.success) {
         showToast(`Worktree "${detail.name}" deleted`);

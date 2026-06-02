@@ -4,7 +4,7 @@
  */
 import type {Core} from 'cytoscape';
 import type {ProjectedGraph} from '@vt/graph-state/contract';
-import type {ElectronAPI} from '@/shell/electron';
+import type {HostAPI} from '@/shell/hostApi';
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
 import {closeAllEditors, updateFloatingEditorsFromProjectedGraph} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
@@ -25,7 +25,7 @@ import type {SearchService} from '@/shell/UI/views/graph-view/SearchService';
 import {scheduleIdleWork} from '@/utils/scheduleIdleWork';
 
 /**
- * Subscribe to graph delta updates from main process via electronAPI.
+ * Subscribe to graph delta updates from main process via hostAPI.
  * Returns a cleanup function to unsubscribe.
  */
 export function subscribeToGraphUpdates(
@@ -33,9 +33,9 @@ export function subscribeToGraphUpdates(
     searchService: SearchService,
     updateNavigatorVisibility: () => void
 ): (() => void) | null {
-    const electronAPI: ElectronAPI | undefined = window.electronAPI;
+    const hostAPI: HostAPI | undefined = window.hostAPI;
 
-    if (!electronAPI?.graph?.onProjectedGraphUpdate || !electronAPI.graph.getCurrentProjectedGraph) {
+    if (!hostAPI?.graph?.onProjectedGraphUpdate || !hostAPI.graph.getCurrentProjectedGraph) {
         console.error('[subscribeToGraphUpdates] projected graph API not available, skipping graph subscription');
         return null;
     }
@@ -92,11 +92,11 @@ export function subscribeToGraphUpdates(
         setEmptyStateVisible(true);
     };
 
-    const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
-    const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
+    const cleanupProjected: () => void = hostAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
+    const cleanupClear: () => void = hostAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
     let isSubscribed: boolean = true;
 
-    void electronAPI.graph.getCurrentProjectedGraph()
+    void hostAPI.graph.getCurrentProjectedGraph()
         .then((graph: ProjectedGraph): void => {
             if (!isSubscribed) return;
             handleProjectedGraph(graph);

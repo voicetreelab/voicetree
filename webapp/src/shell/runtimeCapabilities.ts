@@ -43,5 +43,5 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
  * default only covers Electron and unit tests that never install an adapter.
  */
 export function hostCapabilities(): RuntimeCapabilities {
-    return window.electronAPI?.capabilities ?? ELECTRON_CAPABILITIES
+    return window.hostAPI?.capabilities ?? ELECTRON_CAPABILITIES
 }

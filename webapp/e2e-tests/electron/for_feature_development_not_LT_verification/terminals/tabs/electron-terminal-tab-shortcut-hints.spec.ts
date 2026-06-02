@@ -20,7 +20,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -29,7 +29,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Extend test with Electron app
@@ -66,7 +66,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -109,8 +109,8 @@ test.describe('Terminal Tab Shortcut Hints Screenshot', () => {
 
     console.log('=== STEP 1: Configure mock agent with echo command ===');
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       // Configure settings with a mock echo command
       const settings = {
@@ -127,8 +127,8 @@ test.describe('Terminal Tab Shortcut Hints Screenshot', () => {
 
     console.log('=== STEP 2: Load test project via file watching ===');
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_PROJECT_PATH);
 
@@ -166,8 +166,8 @@ test.describe('Terminal Tab Shortcut Hints Screenshot', () => {
     console.log('=== STEP 5: Spawn first terminal via spawnPlainTerminal ===');
     // Use spawnPlainTerminal which goes through the full flow and adds to TerminalStore
     await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api?.main) throw new Error('electronAPI.main not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api?.main) throw new Error('hostAPI.main not available');
 
       await api.main.spawnPlainTerminal(nodeId, 0);
     }, nodeIds[0]);
@@ -178,8 +178,8 @@ test.describe('Terminal Tab Shortcut Hints Screenshot', () => {
 
     console.log('=== STEP 6: Spawn second terminal via spawnPlainTerminal ===');
     await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api?.main) throw new Error('electronAPI.main not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api?.main) throw new Error('hostAPI.main not available');
 
       await api.main.spawnPlainTerminal(nodeId, 1);
     }, nodeIds[1]);

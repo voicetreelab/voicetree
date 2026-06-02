@@ -104,7 +104,7 @@ async function startProjectedGraphCapture(appWindow: Page): Promise<void> {
         const extendedWindow = window as unknown as ExtractProjectedGraphCaptureWindow;
         extendedWindow.__extractUnsubscribeProjectedGraph?.();
         extendedWindow.__extractLastProjectedGraph = undefined;
-        extendedWindow.__extractUnsubscribeProjectedGraph = extendedWindow.electronAPI?.graph?.onProjectedGraphUpdate(
+        extendedWindow.__extractUnsubscribeProjectedGraph = extendedWindow.hostAPI?.graph?.onProjectedGraphUpdate(
             (graph: { nodes?: readonly { id: string; kind: string }[] }) => {
                 extendedWindow.__extractLastProjectedGraph = graph;
             }
@@ -266,7 +266,7 @@ const test = base.extend<{
         try {
             const window = await electronApp.firstWindow();
             await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api) await api.main.stopFileWatching();
             });
             await window.waitForTimeout(300);

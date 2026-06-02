@@ -92,11 +92,11 @@ async function runBoundedShutdownIpc(
           type ShutdownMethod = 'shutdownGraphDaemon' | 'stopFileWatching';
           const api = (
             window as unknown as {
-              electronAPI?: {
+              hostAPI?: {
                 main: Partial<Record<ShutdownMethod, () => Promise<unknown>>>;
               };
             }
-          ).electronAPI;
+          ).hostAPI;
           const shutdown = api?.main[methodName as ShutdownMethod];
           if (!shutdown) return;
 

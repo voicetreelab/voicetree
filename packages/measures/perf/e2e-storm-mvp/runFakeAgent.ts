@@ -218,8 +218,8 @@ async function pollForScriptComplete(
     while (Date.now() < deadline) {
         lastOutput = await appWindow.evaluate(async (id) => {
             const api = (window as unknown as {
-                electronAPI?: { main?: { getHeadlessAgentOutput?: (request: { terminalId: string }) => Promise<string> } }
-            }).electronAPI?.main
+                hostAPI?: { main?: { getHeadlessAgentOutput?: (request: { terminalId: string }) => Promise<string> } }
+            }).hostAPI?.main
             return (await api?.getHeadlessAgentOutput?.({ terminalId: id })) ?? ''
         }, terminalId)
 

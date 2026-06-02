@@ -49,7 +49,7 @@ interface ExtendedWindow {
     fit: (eles?: unknown, padding?: number) => void;
     container: () => HTMLElement | null;
   };
-  electronAPI?: {
+  hostAPI?: {
     main: {
       stopFileWatching: () => Promise<void>;
       spawnPlainTerminal: (nodeId: string, count: number) => Promise<void>;
@@ -95,7 +95,7 @@ const test = base.extend<{
     try {
       const page = await app.firstWindow();
       await page.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) await api.main.stopFileWatching();
       });
       await page.waitForTimeout(300);
@@ -299,8 +299,8 @@ test.describe('Pixel-diff: canonical UI states', () => {
 
     // Spawn a plain terminal (no new context-node file created).
     await appPage.evaluate(async (nodeId: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.spawnPlainTerminal(nodeId, 1);
     }, plainTermNodeId);
 

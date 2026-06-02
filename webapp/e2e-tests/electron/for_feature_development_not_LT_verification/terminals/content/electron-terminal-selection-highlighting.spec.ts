@@ -18,7 +18,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use example_small for faster loading
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -28,7 +28,7 @@ const SCREENSHOTS_DIR = path.join(PROJECT_ROOT, 'e2e-tests', 'screenshots');
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
   voiceTreeGraphView?: {
     navigationService?: {
       cycleTerminal: (direction: 1 | -1) => void;
@@ -75,7 +75,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -152,8 +152,8 @@ test.describe('Terminal Selection Highlighting E2E', () => {
     console.log('=== STEP 3: Spawn terminal on the task node ===');
     // Use spawnPlainTerminal to create terminal with floating window UI
     await appWindow.evaluate(async (nodeId) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       // terminalCount=0 for first terminal
       await api.main.spawnPlainTerminal(nodeId, 0);
     }, targetNodeId);

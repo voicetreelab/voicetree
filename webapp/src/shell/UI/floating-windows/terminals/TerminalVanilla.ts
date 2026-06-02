@@ -87,7 +87,7 @@ export class TerminalVanilla {
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
     this.terminalData = config.terminalData;
-    this.settingsPromise = window.electronAPI?.main.loadSettings()
+    this.settingsPromise = window.hostAPI?.main.loadSettings()
       .then((settings: VTSettings) => settings)
       .catch((error: unknown) => {
         console.error('[TerminalVanilla] Failed to load settings:', error);
@@ -102,7 +102,7 @@ export class TerminalVanilla {
     // Live-update the scroll strategy so the user can A/B the wheel behaviours
     // from Settings without respawning terminals.
     this.settingsUnsub = onSettingsChange((): void => {
-      void window.electronAPI?.main.loadSettings()
+      void window.hostAPI?.main.loadSettings()
         .then((settings: VTSettings) => {
           this.scrollStrategy = settings?.terminalScrollStrategy ?? 'app';
         })
@@ -349,7 +349,7 @@ export class TerminalVanilla {
     if (!this.term) {
       return;
     }
-    if (!window.electronAPI?.main) {
+    if (!window.hostAPI?.main) {
       this.term.writeln('Terminal is only available in Electron mode.');
       this.term.writeln('Run the app with: npm run electron:dev');
       return;
@@ -374,10 +374,10 @@ export class TerminalVanilla {
 
     // Main (Electron) or the browser runtime owns the /terminals/:id/attach
     // WebSocket; we receive PTY bytes and status frames keyed by an opaque
-    // handle id (BF-368). Both modes install electronAPI before React boots; if
+    // handle id (BF-368). Both modes install hostAPI before React boots; if
     // neither did there is no transport to attach, so bail (matches the
     // optional-chaining no-op the write/resize helpers use).
-    const api = window.electronAPI;
+    const api = window.hostAPI;
     if (!api) return;
     const activityTerminalId: TerminalId = this.terminalId as TerminalId;
     const handle: string = await api.terminal.attach(this.terminalId);
@@ -398,12 +398,12 @@ export class TerminalVanilla {
 
   private writeToBackend(data: string): void {
     if (!this.terminalId || !this.relayHandle) return;
-    void window.electronAPI?.terminal.write(this.relayHandle, data);
+    void window.hostAPI?.terminal.write(this.relayHandle, data);
   }
 
   private resizeBackend(cols: number, rows: number): void {
     if (!this.terminalId || !this.relayHandle) return;
-    void window.electronAPI?.terminal.resize(this.relayHandle, cols, rows);
+    void window.hostAPI?.terminal.resize(this.relayHandle, cols, rows);
   }
 
   private createRelayStatusIndicator(): void {
@@ -495,7 +495,7 @@ export class TerminalVanilla {
   /** Scroll tmux's pane scrollback via the relay's copy-mode RPC (mouse-mode-agnostic). */
   private copyModeScroll(direction: 'up' | 'down', lines: number): void {
     if (this.relayHandle) {
-      void window.electronAPI?.terminal.scroll(this.relayHandle, direction, lines);
+      void window.hostAPI?.terminal.scroll(this.relayHandle, direction, lines);
     }
   }
 
@@ -510,7 +510,7 @@ export class TerminalVanilla {
     const button: number = direction === 'up' ? 64 : 65;
     const count: number = Math.min(lines, 10);
     const seq: string = `\x1b[<${button};1;1M`.repeat(count);
-    void window.electronAPI?.terminal.write(this.relayHandle, seq);
+    void window.hostAPI?.terminal.write(this.relayHandle, seq);
   }
 
   dispose(): void {
@@ -542,7 +542,7 @@ export class TerminalVanilla {
     if (this.relayHandle) {
       // Fire-and-forget — the IPC handler is idempotent (BF-368 gotcha:
       // xterm.js can trigger dispose() twice on rapid unmount).
-      void window.electronAPI?.terminal.detach(this.relayHandle);
+      void window.hostAPI?.terminal.detach(this.relayHandle);
       this.relayHandle = null;
     }
     this.relayStatusEl?.remove();

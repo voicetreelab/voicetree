@@ -63,7 +63,7 @@ test.describe('Markdown Editor YAML Integrity', () => {
     // Wait for node to exist in main process graph
     await expect.poll(async () => {
       return appWindow.evaluate(async (nId) => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         const graph = await api?.main.getGraph();
         if (!graph) return false;
         return nId in graph.nodes;
@@ -270,7 +270,7 @@ test.describe('Markdown Editor YAML Integrity', () => {
     // Wait for node to exist in main process graph
     await expect.poll(async () => {
       return appWindow.evaluate(async (nId) => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         const graph = await api?.main.getGraph();
         if (!graph) return false;
         return nId in graph.nodes;

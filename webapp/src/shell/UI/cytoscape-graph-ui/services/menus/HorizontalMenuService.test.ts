@@ -59,7 +59,7 @@ describe('HorizontalMenuService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
-        delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+        delete (window as unknown as { hostAPI?: unknown }).hostAPI;
         if (cy) {
             cy.destroy();
         }
@@ -149,7 +149,7 @@ describe('HorizontalMenuService', () => {
         });
 
         it('resolves non-default agent commands from fresh settings at click time', async () => {
-            (window as unknown as { electronAPI: unknown }).electronAPI = {
+            (window as unknown as { hostAPI: unknown }).hostAPI = {
                 main: {
                     loadSettings: vi.fn(async () => ({
                         agents: [

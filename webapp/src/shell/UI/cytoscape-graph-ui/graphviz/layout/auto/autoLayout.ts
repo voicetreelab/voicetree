@@ -27,8 +27,8 @@ import { runLocalCola } from './autoLayoutLocalCola';
 import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
 import { isLayoutParticipantEdge, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 import { createLayoutParticipantSet, type LayoutParticipantSet } from '@/shell/UI/cytoscape-graph-ui/services/layout/layoutParticipantSet';
-// Import to make Window.electronAPI type available
-import type {} from '@/shell/electron';
+// Import to make Window.hostAPI type available
+import type {} from '@/shell/hostApi';
 import { computePendingPanAction, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/stores/PendingPanStore';
 import type { PanAction } from '@/shell/edge/UI-edge/state/stores/PendingPanStore';
 import { applyPendingPan } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/viewport/applyPendingPan';
@@ -60,7 +60,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   let currentConfig: LayoutConfig = { engine: 'forceatlas2', cola: { ...DEFAULT_OPTIONS, ...options }, forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS };
 
   // Load initial config from settings
-  void window.electronAPI?.main.loadSettings().then(settings => {
+  void window.hostAPI?.main.loadSettings().then(settings => {
     currentConfig = parseLayoutConfig(settings.layoutConfig);
     // Merge any explicit options passed to enableAutoLayout into cola config
     currentConfig.cola = { ...currentConfig.cola, ...options };
@@ -68,7 +68,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Subscribe to settings changes to pick up layoutConfig edits
   const unsubSettings: () => void = onSettingsChange(() => {
-    void window.electronAPI?.main.loadSettings().then(settings => {
+    void window.hostAPI?.main.loadSettings().then(settings => {
       currentConfig = parseLayoutConfig(settings.layoutConfig);
       currentConfig.cola = { ...currentConfig.cola, ...options };
       // Re-run layout with new config
@@ -106,7 +106,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     // so spatialIndexSync's cy.on('layoutstop') never fires. Manual rebuild here.
     refreshSpatialIndex(cy);
 
-    void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+    void window.hostAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
     layoutRunning = false;
 
     // If no explicit pan was requested but an editor or terminal is focused, pan to keep it in view.

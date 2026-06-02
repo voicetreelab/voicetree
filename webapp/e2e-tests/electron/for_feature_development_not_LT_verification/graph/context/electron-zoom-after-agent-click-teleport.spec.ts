@@ -85,7 +85,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
     try {
       const window = await app.firstWindow();
       await window.evaluate(async () => {
-        await (window as unknown as ExtendedWindow).electronAPI?.main.stopFileWatching();
+        await (window as unknown as ExtendedWindow).hostAPI?.main.stopFileWatching();
       });
       await window.waitForTimeout(300);
     } catch {
@@ -112,7 +112,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
     await window.waitForTimeout(1000);
 
     await window.evaluate(async (targetProjectRoot: string) => {
-      await (window as unknown as ExtendedWindow).electronAPI?.main.startFileWatching(targetProjectRoot);
+      await (window as unknown as ExtendedWindow).hostAPI?.main.startFileWatching(targetProjectRoot);
     }, projectRoot);
 
     await window.waitForFunction(() => !!(window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
@@ -137,8 +137,8 @@ test.describe('Zoom After Agent Click - Teleport Bug', () => {
 
     // Spawn a terminal on the node
     await appWindow.evaluate(async (nodeId: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api?.main) throw new Error('electronAPI.main not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api?.main) throw new Error('hostAPI.main not available');
       await api.main.spawnPlainTerminal(nodeId, 0);
     }, targetNodeId);
 

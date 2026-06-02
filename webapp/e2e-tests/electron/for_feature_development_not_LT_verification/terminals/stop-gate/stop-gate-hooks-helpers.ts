@@ -9,7 +9,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 type AppWindowApi = {
-  electronAPI?: {
+  hostAPI?: {
     main: {
       getDaemonUrl: () => Promise<string>;
       getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
@@ -83,8 +83,8 @@ export async function waitForCliReady(
 
 export async function getDaemonPort(appWindow: Page): Promise<number> {
   const daemonUrl: string = await appWindow.evaluate(async () => {
-    const api = (window as unknown as AppWindowApi).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as unknown as AppWindowApi).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     return await api.main.getDaemonUrl();
   });
   const parsed: URL = new URL(daemonUrl);
@@ -97,8 +97,8 @@ export async function getDaemonPort(appWindow: Page): Promise<number> {
 
 export async function resolveNodeId(appWindow: Page, nodeFileName: string): Promise<string> {
   const nodeIds = await appWindow.evaluate(async () => {
-    const api = (window as unknown as AppWindowApi).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as unknown as AppWindowApi).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     const graph = await api.main.getGraph();
     return Object.keys(graph.nodes);
   });
@@ -117,8 +117,8 @@ export async function registerCallerTerminal(
 ): Promise<void> {
   const callerSpawnResult = await appWindow.evaluate(
     async ({ nodeId: attachedNodeId, callerId: terminalId }) => {
-      const api = (window as unknown as AppWindowApi).electronAPI;
-      if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+      const api = (window as unknown as AppWindowApi).hostAPI;
+      if (!api?.terminal) throw new Error('hostAPI.terminal not available');
       return api.terminal.spawn({
         type: 'Terminal',
         terminalId,

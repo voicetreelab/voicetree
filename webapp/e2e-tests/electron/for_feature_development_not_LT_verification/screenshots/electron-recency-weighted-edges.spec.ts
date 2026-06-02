@@ -34,7 +34,7 @@ const N = 10;
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: { stopFileWatching: () => Promise<{ success: boolean; error?: string }> };
   };
 }

@@ -121,11 +121,11 @@ function getWikilinkContext(context: CompletionContext): { from: number; searchT
  * Returns null if not watching a folder.
  */
 async function getProjectRoot(): Promise<string | null> {
-    const electronAPI = window.electronAPI;
-    if (!electronAPI?.main?.getWatchStatus) {
+    const hostAPI = window.hostAPI;
+    if (!hostAPI?.main?.getWatchStatus) {
         return null;
     }
-    const status = await electronAPI.main.getWatchStatus();
+    const status = await hostAPI.main.getWatchStatus();
     return status.directory ?? null;
 }
 

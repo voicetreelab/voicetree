@@ -341,7 +341,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       }
     };
 
-    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+    (window as unknown as { hostAPI: typeof mockElectronAPI }).hostAPI = mockElectronAPI;
   });
 }
 

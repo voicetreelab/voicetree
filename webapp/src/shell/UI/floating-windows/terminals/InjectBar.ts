@@ -13,7 +13,7 @@
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 
 // --- InjectBar Registry ---
 // Module-level map of InjectBar handles keyed by terminalId.
@@ -259,7 +259,7 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
 
     // Cast main to InjectBarMainIPC — these methods exist on mainAPI but their types
     // can't resolve in the renderer tsconfig due to Node.js dependencies in the import chain.
-    const mainIPC: InjectBarMainIPC | undefined = window.electronAPI?.main as unknown as InjectBarMainIPC | undefined;
+    const mainIPC: InjectBarMainIPC | undefined = window.hostAPI?.main as unknown as InjectBarMainIPC | undefined;
 
     async function fetchUnseenNodes(): Promise<UnseenNodeInfo[]> {
         try {

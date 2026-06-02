@@ -1,4 +1,4 @@
-// Import for global Window.electronAPI type declaration
+// Import for global Window.hostAPI type declaration
 import type {
     Graph,
     GraphDelta,
@@ -83,13 +83,13 @@ export async function createNewChildNodeFromUI(
     await flushEditorForNode(parentNodeId as NodeIdAndFilePath);
 
     // Get current graph state
-    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
+    const currentGraph: Graph | undefined = await window.hostAPI?.main.getGraph() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner
     }
     const graphParentNode: GraphNode | undefined = currentGraph.nodes[parentNodeId];
-    const parentNode: GraphNode | undefined = graphParentNode ?? await window.electronAPI?.main.getNode(parentNodeId);
+    const parentNode: GraphNode | undefined = graphParentNode ?? await window.hostAPI?.main.getNode(parentNodeId);
     if (!parentNode) {
         console.error(`Cannot create child node: parent node not found (${parentNodeId})`);
         return "-1";
@@ -122,7 +122,7 @@ export async function createNewChildNodeFromUI(
     // when applyGraphDeltaToUI processes the delta from the IPC broadcast
     requestAutoPinOnCreation(newNode.absoluteFilePathIsID);
 
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+    await window.hostAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 
     return newNode.absoluteFilePathIsID;
 }
@@ -131,11 +131,11 @@ export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
 ): Promise<NodeIdAndFilePath> {
     // Get write path (absolute) for new node creation
-    const writeFolderPathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWriteFolderPath();
+    const writeFolderPathOption: O.Option<string> | undefined = await window.hostAPI?.main.getWriteFolderPath();
     const writeFolderPath: string = writeFolderPathOption ? O.getOrElse(() => '')(writeFolderPathOption) : '';
 
     // Get current graph for collision detection
-    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
+    const currentGraph: Graph | undefined = await window.hostAPI?.main.getGraph();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
         throw new Error("Cannot create node: graph not available");
@@ -146,7 +146,7 @@ export async function createNewEmptyOrphanNodeFromUI(
     // Register pending auto-pin so the new node opens in edit mode
     requestAutoPinOnCreation(newNode.absoluteFilePathIsID);
 
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+    await window.hostAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 
     return newNode.absoluteFilePathIsID;
 }
@@ -162,7 +162,7 @@ export async function deleteNodesFromUI(
     nodeIds: ReadonlyArray<NodeIdAndFilePath>,
     cy: Core
 ): Promise<void> {
-    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph()
+    const currentGraph: Graph | undefined = await window.hostAPI?.main.getGraph()
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return
@@ -200,7 +200,7 @@ export async function deleteNodesFromUI(
         cy.remove(cy.getElementById(nodeId))
     }
 
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(finalDelta);
+    await window.hostAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(finalDelta);
 
     for (const nodeId of nodeIdsToDelete) {
         cy.remove(cy.getElementById(nodeId))

@@ -92,7 +92,7 @@ export class NavigationGestureService {
 
         // Load zoom sensitivity from settings and subscribe to changes
         const loadSensitivity: () => void = (): void => {
-            void window.electronAPI?.main.loadSettings().then((s: VTSettings) => {
+            void window.hostAPI?.main.loadSettings().then((s: VTSettings) => {
                 this.zoomSensitivity = s.zoomSensitivity ?? 1.0;
             });
         };

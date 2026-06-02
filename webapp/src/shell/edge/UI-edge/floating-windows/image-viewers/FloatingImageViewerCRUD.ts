@@ -97,7 +97,7 @@ export async function createFloatingImageViewer(
     imageElement.draggable = false;
 
     // Load image via IPC (returns data URL or null)
-    const dataUrl: string | null | undefined = await window.electronAPI?.main.readImageAsDataUrl(nodeId);
+    const dataUrl: string | null | undefined = await window.hostAPI?.main.readImageAsDataUrl(nodeId);
     if (dataUrl) {
         imageElement.src = dataUrl;
     } else {

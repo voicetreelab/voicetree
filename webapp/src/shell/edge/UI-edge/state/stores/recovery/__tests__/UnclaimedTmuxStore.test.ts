@@ -41,7 +41,7 @@ function installElectronApi(): MockMainApi {
         attachUnclaimedTmuxSession: vi.fn().mockResolvedValue({success: true}),
         killUnclaimedTmuxSession: vi.fn().mockResolvedValue({success: true}),
     }
-    Object.defineProperty(window, 'electronAPI', {
+    Object.defineProperty(window, 'hostAPI', {
         configurable: true,
         value: {main},
     })
@@ -92,7 +92,7 @@ describe('UnclaimedTmuxStore', () => {
 
     it('falls back to the list API when refresh is unavailable', async () => {
         const session: UnclaimedTmuxSession = makeSession()
-        Object.defineProperty(window, 'electronAPI', {
+        Object.defineProperty(window, 'hostAPI', {
             configurable: true,
             value: {
                 main: {

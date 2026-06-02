@@ -91,7 +91,7 @@ export async function injectCorsHeaders(
 
 export async function waitForElectronApiReady(page: Page, timeoutMs = 15_000): Promise<void> {
   await page.waitForFunction(
-    () => (window as unknown as { electronAPI?: unknown }).electronAPI !== undefined,
+    () => (window as unknown as { hostAPI?: unknown }).hostAPI !== undefined,
     { timeout: timeoutMs },
   )
 }

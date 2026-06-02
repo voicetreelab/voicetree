@@ -40,8 +40,8 @@ test.describe("SSE replay buffer", () => {
       // Bind the daemon to the fixture project. openProject throws on failure and
       // returns the resolved write folder path on success.
       const openResult = await appWindow.evaluate(async (projectRoot) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         const response = await api.main.openProject(projectRoot);
         return { writeFolderPath: response.writeFolderPath };
       }, fixtureProjectPath);
@@ -51,8 +51,8 @@ test.describe("SSE replay buffer", () => {
         .poll(
           async () => {
             return await appWindow.evaluate(async () => {
-              const api = (window as unknown as ExtendedWindow).electronAPI;
-              if (!api) throw new Error("electronAPI not available");
+              const api = (window as unknown as ExtendedWindow).hostAPI;
+              if (!api) throw new Error("hostAPI not available");
               const graph = await api.main.getGraph();
               return Object.keys(graph.nodes).length;
             });
@@ -69,8 +69,8 @@ test.describe("SSE replay buffer", () => {
       // of relying on map iteration order. Node IDs are file paths in the
       // graph-db domain, so the fixture's Root.md surfaces as a suffix match.
       const parentNodeId = await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         const graph = await api.main.getGraph();
         const nodeIds = Object.keys(graph.nodes);
         const rootId = nodeIds.find(
@@ -88,8 +88,8 @@ test.describe("SSE replay buffer", () => {
       // can target with the returned `callerTerminalId`.
       const callerSpawn = await appWindow.evaluate(
         async ({ parentNodeId }) => {
-          const api = (window as unknown as ExtendedWindow).electronAPI;
-          if (!api) throw new Error("electronAPI not available");
+          const api = (window as unknown as ExtendedWindow).hostAPI;
+          if (!api) throw new Error("hostAPI not available");
           return await api.main.spawnTerminalWithContextNode({
             taskNodeId: parentNodeId,
             terminalCount: 0,
@@ -129,8 +129,8 @@ test.describe("SSE replay buffer", () => {
       // channel is SSE. Do not call stopFileWatching() here: that unloads the
       // active daemon/project and leaves MCP spawn_agent without a write path.
       await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         await (
           api.main as Record<string, () => Promise<void>>
         ).__debugStopDaemonGraphSync();
@@ -139,8 +139,8 @@ test.describe("SSE replay buffer", () => {
       // Lock SSE — drops the connection AND prevents auto-resubscription
       // (postDeltaThroughDaemon would otherwise silently reconnect SSE)
       await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         await (
           api.main as Record<string, () => Promise<void>>
         ).__debugLockSSE();
@@ -174,8 +174,8 @@ test.describe("SSE replay buffer", () => {
         .poll(
           async () => {
             return await appWindow.evaluate(async (taskNodeId) => {
-              const api = (window as unknown as ExtendedWindow).electronAPI;
-              if (!api) throw new Error("electronAPI not available");
+              const api = (window as unknown as ExtendedWindow).hostAPI;
+              if (!api) throw new Error("hostAPI not available");
               const graph = await api.main.getGraph();
               return (
                 taskNodeId in
@@ -218,8 +218,8 @@ test.describe("SSE replay buffer", () => {
       // are testing: a graph delta produced while SSE was disconnected becomes
       // visible (terminal anchors to its task node) after reconnection.
       await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         await (
           api.main as Record<string, () => Promise<void>>
         ).__debugUnlockSSE();

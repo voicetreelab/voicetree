@@ -1,4 +1,5 @@
-// Electron API type definitions
+// Host runtime API type definitions — the contract the webapp talks to,
+// implemented by the Electron preload OR the browser-daemon adapter.
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
 import type { mainAPI } from '@/shell/edge/main/runtime/api';
@@ -26,7 +27,7 @@ export interface WatchStatus {
 }
 
 
-export interface ElectronAPI {
+export interface HostAPI {
   // Which native-only operations this host runtime supports. The browser
   // adapter reports all-false; the Electron preload reports all-true. The UI
   // gates native-only controls on these flags (see runtimeCapabilities.ts).
@@ -95,7 +96,7 @@ export interface ElectronAPI {
 // Extend the Window interface to include all global properties
 declare global {
   interface Window {
-    electronAPI?: ElectronAPI;
+    hostAPI?: HostAPI;
     // Graph-related properties exposed for testing
     cy: CytoscapeCore | null;
   }

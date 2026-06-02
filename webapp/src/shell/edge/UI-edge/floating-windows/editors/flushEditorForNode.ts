@@ -22,9 +22,9 @@ async function waitForDaemonGraphContent(
     nodeId: NodeIdAndFilePath,
     content: string,
 ): Promise<void> {
-    const getNode = window.electronAPI?.main.getNode
+    const getNode = window.hostAPI?.main.getNode
     if (!getNode) {
-        throw new Error('electronAPI.main.getNode is unavailable; cannot confirm flushed editor content in daemon graph')
+        throw new Error('hostAPI.main.getNode is unavailable; cannot confirm flushed editor content in daemon graph')
     }
 
     const deadline = performance.now() + FLUSH_GRAPH_TIMEOUT_MS
@@ -57,8 +57,8 @@ export async function flushEditorForNode(
 
     // Trigger immediate save (same as onChange callback but bypasses debounce)
     const content: string = editor.getValue()
-    if (!window.electronAPI?.main.writeMarkdownFile) {
-        throw new Error('electronAPI.main.writeMarkdownFile is unavailable; cannot flush editor content')
+    if (!window.hostAPI?.main.writeMarkdownFile) {
+        throw new Error('hostAPI.main.writeMarkdownFile is unavailable; cannot flush editor content')
     }
     await writeMarkdownFileFromUI(nodeId, content, editorId)
     await waitForDaemonGraphContent(nodeId, content)

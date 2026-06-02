@@ -26,7 +26,7 @@ export function installRendererPerfProbe(): void {
     if (window.__vtPerfProbe__) return
 
     const flush = async (batch: RendererTelemetryBatch): Promise<void> => {
-        const api = (window as unknown as { electronAPI?: TelemetrySink }).electronAPI
+        const api = (window as unknown as { hostAPI?: TelemetrySink }).hostAPI
         await api?.main?.recordRendererTelemetry?.(batch)
     }
 

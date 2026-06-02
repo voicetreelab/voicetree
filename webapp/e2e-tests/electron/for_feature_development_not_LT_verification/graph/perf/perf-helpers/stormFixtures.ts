@@ -137,8 +137,8 @@ export function makeStormTest(projectRoot: string): ReturnType<typeof base.exten
                 const win = await electronApp.firstWindow()
                 await win.evaluate(async () => {
                     const api = (window as unknown as {
-                        electronAPI?: { main?: { stopFileWatching?: () => Promise<void> } }
-                    }).electronAPI
+                        hostAPI?: { main?: { stopFileWatching?: () => Promise<void> } }
+                    }).hostAPI
                     if (api?.main?.stopFileWatching) await api.main.stopFileWatching()
                 })
                 await win.waitForTimeout(300)

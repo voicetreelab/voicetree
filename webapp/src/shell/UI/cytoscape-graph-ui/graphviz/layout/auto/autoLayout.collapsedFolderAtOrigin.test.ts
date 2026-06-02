@@ -24,9 +24,9 @@ import cytoscape from 'cytoscape';
 import type { Core, NodeSingular, CollectionReturnValue } from 'cytoscape';
 import { isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
-// Mock window.electronAPI to prevent enableAutoLayout from calling main process
+// Mock window.hostAPI to prevent enableAutoLayout from calling main process
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(window as any).electronAPI = {
+(window as any).hostAPI = {
   main: {
     loadSettings: () => Promise.resolve({ layoutConfig: undefined }),
     saveNodePositions: () => Promise.resolve(),

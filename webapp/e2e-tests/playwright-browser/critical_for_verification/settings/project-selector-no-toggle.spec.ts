@@ -317,7 +317,7 @@ async function setupMockElectronAPIWithProject(page: Page): Promise<void> {
       }
     };
 
-    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+    (window as unknown as { hostAPI: typeof mockElectronAPI }).hostAPI = mockElectronAPI;
   });
 }
 

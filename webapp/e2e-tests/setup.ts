@@ -85,7 +85,7 @@ beforeAll(() => {
 
 // Save the original jsdom window so we can restore it after tests that replace global.window.
 // Several integration tests (handleUIActions, delete-and-merge-filesystem, spawnTerminalWithNewContextNode)
-// set global.window = { electronAPI: ... } without restoring. This corrupts document/document.body
+// set global.window = { hostAPI: ... } without restoring. This corrupts document/document.body
 // for subsequent tests that use @testing-library/react render().
 const originalWindow: Window & typeof globalThis = global.window;
 
@@ -337,8 +337,8 @@ if (!Range.prototype.getBoundingClientRect) {
     Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
 }
 
-// Mock window.electronAPI for tests that use Electron IPC
-Object.defineProperty(window, 'electronAPI', {
+// Mock window.hostAPI for tests that use Electron IPC
+Object.defineProperty(window, 'hostAPI', {
     value: {
         getBackendPort: vi.fn(() => Promise.resolve(8001)),
     },

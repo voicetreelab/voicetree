@@ -29,11 +29,11 @@ describe('capability records', () => {
 
 describe('hostCapabilities', () => {
     afterEach(() => {
-        delete (window as unknown as {electronAPI?: unknown}).electronAPI
+        delete (window as unknown as {hostAPI?: unknown}).hostAPI
     })
 
     it('reads capabilities off the installed host adapter', () => {
-        ;(window as unknown as {electronAPI: {capabilities: RuntimeCapabilities}}).electronAPI =
+        ;(window as unknown as {hostAPI: {capabilities: RuntimeCapabilities}}).hostAPI =
             {capabilities: BROWSER_CAPABILITIES}
         expect(hostCapabilities()).toBe(BROWSER_CAPABILITIES)
     })

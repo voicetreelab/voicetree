@@ -17,7 +17,7 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import { closeElectronAppForE2E } from './helpers/close-electron-app';
 import { safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 import {
@@ -31,7 +31,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 function idSelector(id: string): string {
@@ -135,8 +135,8 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
 
     const openResult = await window.evaluate(async (project: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const response = await api.main.openProject(project);
       return { writeFolderPath: response.writeFolderPath };
     }, projectRoot);

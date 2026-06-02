@@ -2,7 +2,7 @@
 //
 // Delivers the project's resolved VTSettings (read from
 // $VOICETREE_HOME/settings.json merged with defaults) to a browser tab so the
-// browser-mode ElectronAPI adapter has the same settings the Electron renderer
+// browser-mode HostAPI adapter has the same settings the Electron renderer
 // receives over IPC. The browser needs this for `agents` (drives the editor
 // horizontal menu / agent-spawn control), context-distance, vim mode, etc.
 //
