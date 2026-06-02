@@ -6,12 +6,16 @@
 // receives over IPC. The browser needs this for `agents` (drives the editor
 // horizontal menu / agent-spawn control), context-distance, vim mode, etc.
 //
-// Security model: unlike /browser-token this route sits BEHIND the bearer-token
-// gate (settings include INJECT_ENV_VARS). The browser obtains the token via
-// /browser-token first, then calls /settings with Authorization: Bearer <token>.
+// Security model: this route sits BEHIND the bearer-token gate, AND the payload
+// is projected through `projectBrowserSafeSettings` — an explicit allowlist that
+// strips `INJECT_ENV_VARS` (secrets), `hooks` and `shell` (host concerns). The
+// bearer gate alone is not enough: any webapp XSS could otherwise read the token
+// and leak every secret. The browser obtains the token via /browser-token first,
+// then calls /settings with Authorization: Bearer <token>.
 
 import type {IncomingMessage, ServerResponse} from 'node:http'
 import {loadSettings} from '@vt/app-config/settings'
+import {projectBrowserSafeSettings} from '@vt/graph-model/settings'
 import type {AccessLogger} from '../httpServerTypes.ts'
 import {buildAccessLogLine} from '../accessLog.ts'
 
@@ -21,7 +25,7 @@ export async function handleSettings(
     logger: AccessLogger,
 ): Promise<void> {
     try {
-        const settings = await loadSettings()
+        const settings = projectBrowserSafeSettings(await loadSettings())
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify(settings))

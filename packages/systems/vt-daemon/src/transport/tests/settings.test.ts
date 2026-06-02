@@ -23,7 +23,10 @@ beforeEach((): void => {
     homeDir = mkdtempSync(join(tmpdir(), 'vtd-settings-test-'))
     writeFileSync(
         join(homeDir, 'settings.json'),
-        JSON.stringify({agents: [{name: 'Claude Sonnet'}, {name: 'Gemini'}]}),
+        JSON.stringify({
+            agents: [{name: 'Claude Sonnet'}, {name: 'Gemini'}],
+            INJECT_ENV_VARS: {ANTHROPIC_API_KEY: 'sk-super-secret'},
+        }),
     )
     prevHome = process.env['VOICETREE_HOME_PATH']
     process.env['VOICETREE_HOME_PATH'] = homeDir
@@ -68,6 +71,19 @@ describe('GET /settings', (): void => {
         expect(res.status).toBe(200)
         const body = await res.json() as {agents?: Array<{name: string}>}
         expect(body.agents?.map(a => a.name)).toEqual(['Claude Sonnet', 'Gemini'])
+    })
+
+    it('strips INJECT_ENV_VARS secrets from the browser-safe payload', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await fetch(`${handle.url}/settings`, {
+            headers: {Authorization: `Bearer ${token}`},
+        })
+        expect(res.status).toBe(200)
+        const raw = await res.text()
+        // The secret value must not appear anywhere in the wire payload.
+        expect(raw).not.toContain('sk-super-secret')
+        const body = JSON.parse(raw) as {INJECT_ENV_VARS?: Record<string, unknown>}
+        expect(body.INJECT_ENV_VARS).toEqual({})
     })
 
     it('rejects a wrong bearer token with 401', async (): Promise<void> => {

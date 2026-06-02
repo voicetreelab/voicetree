@@ -14,6 +14,7 @@ export {
     appendPersonaToAgentPrompt,
 } from './pure/agents/siliconValleyRoster'
 export { expandEnvVarsInValues, resolveEnvVars, resolveEnvVarsWithSelection } from './pure/settings/resolve-environment-variable'
+export { projectBrowserSafeSettings } from './pure/settings/browserSafeSettings'
 export {
     agentPromptVariableForPlatform,
     createDefaultSettings,
