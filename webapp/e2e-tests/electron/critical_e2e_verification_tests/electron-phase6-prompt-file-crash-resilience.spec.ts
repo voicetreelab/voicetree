@@ -6,7 +6,7 @@
  *   1. Headless agent spawn under ptyBackend='tmux' writes the prompt to
  *      `{project}/.voicetree/terminals/{name}-prompt.txt` (mode 0600) and the
  *      prompt is actually visible to the agent process — proved by fake-agent
- *      reading AGENT_PROMPT_FILE and executing a create_node action whose
+ *      reading AGENT_PROMPT_FILE and executing a create_nodes action whose
  *      title carries a sentinel derived from the prompt.
  *   2. The tmux session survives `kill -9` of the Electron main process.
  *   3. The prompt file persists across the crash.
