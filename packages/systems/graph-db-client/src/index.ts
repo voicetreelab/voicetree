@@ -17,6 +17,10 @@ export {
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
+  createSseEventParser,
+  subscribeProjectedGraph,
+} from './client/projectedGraphStream.ts'
+export {
   ensureDaemon,
   ensureGraphDaemonForProject,
   resolveDaemonRuntimeCommand,

@@ -460,6 +460,9 @@ importers:
       '@vt/graph-db-server':
         specifier: '*'
         version: link:../graph-db-server
+      '@vt/graph-state':
+        specifier: '*'
+        version: link:../../libraries/graph-state
       '@vt/paths':
         specifier: '*'
         version: link:../../libraries/paths
