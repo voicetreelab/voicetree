@@ -11,6 +11,7 @@ import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editor
 import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/view/getNodeFromMainToUI";
 import { getNodeTitle } from "@vt/graph-model/markdown";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import { hostCapabilities } from "@/shell/runtimeCapabilities";
 import { resolveAgentLaunchConfig, type AgentLaunchConfig } from "@/shell/edge/UI-edge/floating-windows/terminals/resolveAgentLaunchConfig";
 
 const MAX_TERMINALS: number = 100; // human: raised for dev/power-use; original was 12
@@ -193,6 +194,10 @@ export async function spawnTerminalInNewWorktree(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
 ): Promise<void> {
+    // Backstop: the "New Worktree" entry that calls this is hidden in browser
+    // mode (worktree menu gated), so this should be unreachable there.
+    if (!hostCapabilities().worktrees) return;
+
     // Get node title for worktree name
     const node: GraphNode = await getNodeFromMainToUI(parentNodeId);
     const nodeTitle: string = getNodeTitle(node);

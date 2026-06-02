@@ -33,6 +33,7 @@ import {
 } from '@/shell/edge/UI-edge/state/stores/LatestProjectedGraphStore';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
 import { StarredSection } from './StarredSection';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderCollapse';
 import type {} from '@/shell/electron';
@@ -262,13 +263,15 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
                 >
                     New voicetree
                 </button>
-                <button
-                    className="folder-tree-footer-btn"
-                    onClick={handleBrowseExternal}
-                    title="Browse and add external folder"
-                >
-                    Browse...
-                </button>
+                {hostCapabilities().nativeFolderPicker && (
+                    <button
+                        className="folder-tree-footer-btn"
+                        onClick={handleBrowseExternal}
+                        title="Browse and add external folder"
+                    >
+                        Browse...
+                    </button>
+                )}
             </div>
         </div>
     );

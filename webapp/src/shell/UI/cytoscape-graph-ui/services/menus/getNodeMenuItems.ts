@@ -30,6 +30,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import type { WorktreeInfo } from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
 import type { WatchStatus } from '@/shell/electron';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/popups/worktreeDeletePopup';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 import type { WorkflowTreeNode } from '@/shell/edge/main/workflows/workflowHandlers';
 import type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput } from './horizontalMenuTypes';
 import { squareToHops } from './DistanceSlider';
@@ -116,12 +117,19 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         onHoverLeave: () => clearContainedHighlights(cy),
         sliderConfig, // Show distance slider on hover for non-context nodes
         getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
-            const items: HorizontalMenuItem[] = [
-                { icon: GitBranch, label: 'New Worktree', action: () => { void spawnTerminalInNewWorktree(nodeId, cy); } },
-            ];
+            const items: HorizontalMenuItem[] = [];
+
+            // Git worktrees are an Electron-only capability; omit the
+            // "New Worktree" entry and the existing-worktree list in browser mode.
+            const canWorktree: boolean = hostCapabilities().worktrees;
+            if (canWorktree) {
+                items.push({ icon: GitBranch, label: 'New Worktree', action: () => { void spawnTerminalInNewWorktree(nodeId, cy); } });
+            }
 
             // Fetch existing worktrees dynamically
-            const watchStatus: WatchStatus | undefined = await window.electronAPI?.main.getWatchStatus();
+            const watchStatus: WatchStatus | undefined = canWorktree
+                ? await window.electronAPI?.main.getWatchStatus()
+                : undefined;
             const repoRoot: string | undefined = watchStatus?.directory;
             if (repoRoot) {
                 const worktrees: WorktreeInfo[] = await window.electronAPI?.main.listWorktrees(repoRoot) ?? [];

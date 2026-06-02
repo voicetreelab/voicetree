@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import type { SavedProject, DiscoveredProject } from '@vt/graph-model/project';
 import { sortProjectsByLastOpened, filterDiscoveredProjects } from '@vt/graph-model/project';
 import type {} from '@/shell/electron';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 /**
  * Extracts folder name from a path (cross-platform).
@@ -331,21 +332,24 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                 )}
             </div>
 
-            {/* Footer actions */}
-            <div className="flex gap-3 pt-4 border-t border-border">
-                <button
-                    onClick={() => void handleCreateProject()}
-                    className="flex-1 py-3 px-4 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                    + New project
-                </button>
-                <button
-                    onClick={() => void handleBrowseFolder()}
-                    className="flex-1 py-3 px-4 bg-card text-foreground font-medium rounded-lg border border-border hover:bg-accent transition-colors"
-                >
-                    Open existing folder
-                </button>
-            </div>
+            {/* Footer actions — both need native folder dialogs, so they are
+                hidden when the host runtime can't open them (browser mode). */}
+            {hostCapabilities().nativeFolderPicker && (
+                <div className="flex gap-3 pt-4 border-t border-border">
+                    <button
+                        onClick={() => void handleCreateProject()}
+                        className="flex-1 py-3 px-4 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                        + New project
+                    </button>
+                    <button
+                        onClick={() => void handleBrowseFolder()}
+                        className="flex-1 py-3 px-4 bg-card text-foreground font-medium rounded-lg border border-border hover:bg-accent transition-colors"
+                    >
+                        Open existing folder
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

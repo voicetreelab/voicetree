@@ -3,6 +3,7 @@ import type {} from "@/shell/electron"; // Import ElectronAPI type for window.el
 import { EditorView } from '@codemirror/view';
 import { startCompletion } from '@codemirror/autocomplete';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 /**
  * Insert wikilink brackets at cursor and trigger autocomplete.
@@ -54,6 +55,12 @@ export function createImagePasteHandler(nodeId: string | undefined): Extension {
 
       if (!hasImage) {
         return false; // No image, let default paste handling continue
+      }
+
+      // Saving a pasted image needs native clipboard/disk access (Electron only).
+      // In browser mode, skip the image path and let default paste run.
+      if (!hostCapabilities().clipboardImages) {
+        return false;
       }
 
       // Prevent default paste behavior for images

@@ -31,6 +31,7 @@ import {
 import { createWindowChrome } from '@/shell/edge/UI-edge/floating-windows/chrome/create-window-chrome';
 import { anchorToNode } from '@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node';
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 /**
  * Browser-compatible basename function (Node.js path module doesn't work in browser)
@@ -52,6 +53,10 @@ export async function createFloatingImageViewer(
     nodeId: NodeIdAndFilePath,
     anchoredToNodeId: NodeIdAndFilePath | undefined
 ): Promise<ImageViewerData | undefined> {
+    // The viewer loads the image off disk via readImageAsDataUrl — a native op
+    // unavailable in browser mode. Don't open an empty viewer there.
+    if (!hostCapabilities().clipboardImages) return undefined;
+
     // Check if viewer already exists for this node
     const existingViewer: O.Option<ImageViewerData> = getImageViewerByNodeId(nodeId);
     if (O.isSome(existingViewer)) {

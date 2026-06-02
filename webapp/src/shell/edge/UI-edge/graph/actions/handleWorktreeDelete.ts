@@ -7,6 +7,7 @@
 
 import type {} from '@/shell/electron';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/popups/worktreeDeletePopup';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 interface WorktreeDeleteDetail {
     readonly path: string;
@@ -19,6 +20,9 @@ interface WorktreeDeleteDetail {
  * Wired up in setupViewSubscriptions.ts.
  */
 export function handleWorktreeDeleteEvent(event: Event): void {
+    // Backstop: the trash control that dispatches this event is already hidden
+    // in browser mode (worktree menu gated), so this should be unreachable.
+    if (!hostCapabilities().worktrees) return;
     const detail: WorktreeDeleteDetail = (event as CustomEvent<WorktreeDeleteDetail>).detail;
     void handleWorktreeDelete(detail);
 }

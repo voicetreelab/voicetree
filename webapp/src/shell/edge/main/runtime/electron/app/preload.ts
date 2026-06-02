@@ -21,6 +21,7 @@ import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/runtime/api';
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes';
 import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus';
+import {ELECTRON_CAPABILITIES} from '@/shell/runtimeCapabilities';
 
 // Synchronously expose runtime flags so the renderer can branch before
 // async electronAPI setup finishes. PostHog init in main.tsx and other
@@ -66,6 +67,9 @@ async function exposeElectronAPI(): Promise<void> {
 
     // Step 3: Build electronAPI with dynamically generated wrappers
     const electronAPI: ElectronAPI = {
+        // Electron can perform every native-only operation.
+        capabilities: ELECTRON_CAPABILITIES,
+
         // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
         main: mainAPIWrappers as unknown as Promisify<typeof mainAPI>,
 

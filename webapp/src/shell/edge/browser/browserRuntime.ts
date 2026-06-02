@@ -39,6 +39,7 @@ import {
 } from './vtdGraphClient'
 import {createBrowserTerminalRuntime} from './browserTerminal'
 import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
+import {BROWSER_CAPABILITIES} from '@/shell/runtimeCapabilities'
 
 type Listener = (...args: unknown[]) => void
 
@@ -281,6 +282,7 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
     } as unknown as Promisify<typeof mainAPI>
 
     return {
+        capabilities: BROWSER_CAPABILITIES,
         main,
         onWatchingStarted: (cb) => addListener('watching-started', cb as Listener),
         onProjectSwitching: (cb) => addListener('project:switching', cb as Listener),

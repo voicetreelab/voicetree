@@ -13,6 +13,7 @@ import {X, createElement} from 'lucide';
 import {createRoot, type Root} from 'react-dom/client';
 import {createElement as reactCreateElement} from 'react';
 import {SettingsEditor} from '@/shell/UI/views/components/settings/SettingsEditor';
+import {hostCapabilities} from '@/shell/runtimeCapabilities';
 
 const SETTINGS_EDITOR_ID: EditorId = 'settings-editor' as EditorId;
 const SETTINGS_BACKDROP_ID: string = 'settings-overlay-backdrop';
@@ -129,7 +130,11 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
                 setDarkMode(updatedSettings.darkMode);
             }
         };
-        root.render(reactCreateElement(SettingsEditor, { initialSettings: settings, onSave: saveFn }));
+        root.render(reactCreateElement(SettingsEditor, {
+            initialSettings: settings,
+            onSave: saveFn,
+            canPersist: hostCapabilities().settingsPersistence,
+        }));
 
         // Store dispose handle in global state for cleanup
         vanillaFloatingWindowInstances.set(SETTINGS_EDITOR_ID, { dispose: () => root.unmount() });

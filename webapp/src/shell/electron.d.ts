@@ -4,6 +4,7 @@ import type { ProjectedGraph } from '@vt/graph-state/contract';
 import type { mainAPI } from '@/shell/edge/main/runtime/api';
 import type { ConnectionState, EventFrame, GapFrame, TopicName } from '@vt/vt-daemon/transport/eventTypes';
 import type { RelayConnectionStatus } from '@/core/terminal/relayConnectionStatus';
+import type { RuntimeCapabilities } from '@/shell/runtimeCapabilities';
 
 // Re-export TerminalData for use in terminal API
 
@@ -26,6 +27,11 @@ export interface WatchStatus {
 
 
 export interface ElectronAPI {
+  // Which native-only operations this host runtime supports. The browser
+  // adapter reports all-false; the Electron preload reports all-true. The UI
+  // gates native-only controls on these flags (see runtimeCapabilities.ts).
+  capabilities: RuntimeCapabilities;
+
   // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
   // All RPC calls are async, so we promisify the mainAPI type
   main: Promisify<typeof mainAPI>;
