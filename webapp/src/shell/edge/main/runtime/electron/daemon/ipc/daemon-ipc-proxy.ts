@@ -5,6 +5,7 @@ import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { State } from '@vt/graph-state'
 
 import { getLiveStateFromDaemon } from '@/shell/edge/main/runtime/state/daemon-live-state-rpc'
+import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
