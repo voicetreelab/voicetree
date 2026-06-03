@@ -25,6 +25,7 @@ function makeTerminalData(id: string, contextNodeId: string): TerminalData {
         isPinned: false,
         isDone: false,
         lifecycle: 'spawning',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
