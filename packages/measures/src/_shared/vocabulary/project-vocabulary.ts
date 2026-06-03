@@ -162,13 +162,9 @@ export const PATH_ALLOWANCES: readonly PathAllowance[] = [
     // allowed (not deleted) pending review — see the rename-plan node.
     {pathPrefix: 'scripts/on-new-node.cjs', category: 'suspected-dead', reason: 'onNewNode hook is live-wired (copied into projects by tools-setup.ts) but POSTs to the removed /mcp endpoint via VOICETREE_MCP_PORT — a live-broken dead-MCP ref; Lochlan to repoint-vs-remove'},
 
-    // Historical migration design docs (LOCKED, Lochlan-ratified) and OpenSpec
-    // change records: point-in-time records that accurately use the vocabulary
-    // of their time. Allowed pending Lochlan's archive/delete decision — see
-    // the rename-plan node. (NOT a permanent home for "mcp".)
-    {pathPrefix: 'docs/step7-design.md', category: 'suspected-dead', reason: 'historical "Full MCP Removal" design doc — pending archive/delete decision'},
-    {pathPrefix: 'docs/step9-design.md', category: 'suspected-dead', reason: 'historical design doc (post Step 7) — pending archive/delete decision'},
-    {pathPrefix: 'docs/headless-migration.md', category: 'suspected-dead', reason: 'historical headless-migration completion record — pending archive/delete decision'},
+    // OpenSpec change records: point-in-time proposals that accurately use the
+    // vocabulary of their time and only mention "mcp" incidentally in prose.
+    // Allowed pending an archive decision. (NOT a permanent home for "mcp".)
     {pathPrefix: 'openspec/changes/', category: 'suspected-dead', reason: 'OpenSpec change records — point-in-time proposals, pending archive decision'},
 ]
 

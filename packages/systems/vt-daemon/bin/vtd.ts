@@ -29,7 +29,7 @@
 //   'preserve'}) → ownerHandle.release. Critically, we do NOT stop
 //   vt-graphd: it is a shared cross-process daemon (BF-346 invariant).
 //
-// Headless contract (decided in Phase E; see docs/headless-migration.md):
+// Headless contract (decided in Phase E):
 //   - READ path:  CLI agents call any read tool over the HTTP wire. These
 //                 do not require a terminal record on the daemon side.
 //   - WRITE path: CLI agents write new nodes by raw filesystem Write into
