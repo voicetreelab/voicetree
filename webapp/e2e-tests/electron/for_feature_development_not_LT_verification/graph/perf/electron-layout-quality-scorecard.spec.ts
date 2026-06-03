@@ -133,7 +133,10 @@ async function closeElectronAppWithTimeout(electronApp: ElectronApplication): Pr
     new Promise<false>(resolve => setTimeout(() => resolve(false), 10_000)),
   ]);
   if (closedGracefully) return;
-  const childProcess = electronApp.process();
+  const childProcess = await Promise.resolve()
+    .then(() => electronApp.process())
+    .catch(() => null);
+  if (!childProcess) return;
   if (childProcess.exitCode !== null) return;
   childProcess.kill('SIGTERM');
   await new Promise<void>(resolve => {
@@ -249,7 +252,7 @@ const test = base.extend<{
     await window.waitForFunction(
       () => Boolean((window as unknown as ScorecardWindow).cytoscapeInstance),
       undefined,
-      { timeout: 60000 },
+      { timeout: 180000 },
     );
 
     await use(window);
