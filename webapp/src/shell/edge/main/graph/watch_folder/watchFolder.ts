@@ -1,16 +1,14 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks } from '@vt/graph-model'
-import type { AvailableFolderItem, FilePath } from '@vt/graph-model'
-import { createDatedSubfolder } from '@vt/app-config/project'
-import { selectAvailableFolders } from '@vt/app-config/folders'
+import type { FilePath } from '@vt/graph-model'
 import type { ProjectState } from '@vt/graph-db-client'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import {
-    setWriteFolderPathThroughDaemon,
     removeReadPathThroughDaemon,
     refreshMainGraphFromDaemon,
 } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
+import { createDatedVoiceTreeFolder as createDatedVoiceTreeFolderThroughDaemon } from './folderQueries'
 import {
     getStartupProjectHint,
     openProject,
@@ -20,18 +18,6 @@ export { getStartupProjectHint, openProject }
 
 async function getProjectState(): Promise<ProjectState> {
     return await callDaemon((client) => client.getProject())
-}
-
-export async function getAvailableFoldersForSelector(
-    searchQuery: string,
-): Promise<readonly AvailableFolderItem[]> {
-    // Shared with VTD's browser-mode gateway: the selector projection lives in
-    // @vt/app-config/folders, parameterised by the live project state.
-    try {
-        return await selectAvailableFolders(await getProjectState(), searchQuery)
-    } catch {
-        return []
-    }
 }
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
@@ -103,18 +89,19 @@ export async function createDatedVoiceTreeFolder(): Promise<{
     path?: string
     error?: string
 }> {
+    // VTD owns the FS: it creates the dated folder under the project root and
+    // makes it the write folder (demoting the previous write folder into the
+    // read paths). This is the SAME server op browser-mode uses.
+    const created = await createDatedVoiceTreeFolderThroughDaemon()
+    if (!created.success || created.path === undefined) {
+        return { success: false, error: created.error ?? 'Failed to create dated voicetree folder' }
+    }
+
     try {
-        const watchedDir: string = (await getProjectState()).projectRoot
-        const newPath: string = await createDatedSubfolder(watchedDir)
-
-        // Make the new dated folder the write folder. This loads it and demotes
-        // the previous write folder into the read paths (also re-points the
-        // Python text-to-tree server at the new folder via notifyWriteDirectory).
-        await setWriteFolderPathThroughDaemon(newPath)
-
-        // Unload everything else: every read path other than the new write
-        // folder — which now includes the demoted previous write folder and any
-        // previously loaded read folders — leaving the new voicetree alone.
+        // Electron-only blank-canvas step (no gateway route): unload every read
+        // path other than the new write folder — the demoted previous write
+        // folder and any previously loaded reads — leaving the new voicetree
+        // alone so the user starts from a blank canvas.
         const stateAfterSwitch: ProjectState = await getProjectState()
         for (const readPath of stateAfterSwitch.readPaths) {
             if (readPath !== stateAfterSwitch.writeFolderPath) {
@@ -123,13 +110,10 @@ export async function createDatedVoiceTreeFolder(): Promise<{
         }
 
         await refreshMainGraphFromDaemon()
-        return { success: true, path: newPath }
+        return { success: true, path: created.path }
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)
         return { success: false, error: message }
     }
 }
-
-// Re-export the shared mkdir-under-parent op (also used by VTD's gateway).
-export { createSubfolder } from '@vt/app-config/folders'
 
