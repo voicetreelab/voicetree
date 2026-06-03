@@ -124,7 +124,12 @@
   ],
   "projectConventions": [
     "budget",
+    "mds",
     "measure",
+    "pivot",
+    "pivotmds",
+    "projection",
+    "wasm",
     "workflow"
   ]
 }
