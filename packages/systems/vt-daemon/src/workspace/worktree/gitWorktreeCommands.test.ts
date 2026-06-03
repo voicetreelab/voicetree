@@ -17,7 +17,9 @@ import {chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSyn
 import {tmpdir} from 'node:os';
 import {basename, delimiter, dirname, join} from 'node:path';
 
-import {createWorktree, isGitGateActive, listWorktrees, planWorktreePlacement} from './gitWorktreeCommands';
+import {createWorktree, listWorktrees} from './gitWorktreeCommands';
+import {isGitGateActive, planWorktreePlacement} from './worktreePlacement';
+import {gitEnv} from './gitWorktreeInternals';
 
 const cleanups: Array<() => void> = [];
 
@@ -25,8 +27,12 @@ afterEach(() => {
     while (cleanups.length > 0) cleanups.pop()!();
 });
 
+// Strip any GIT_DIR/GIT_WORK_TREE/GIT_COMMON_DIR leaked into the test process by
+// an enclosing git hook (e.g. branch-verification running under a pre-push
+// hook, or the mutagen mirror) — exactly as the production `gitEnv` does — so
+// the throwaway repos resolve from `cwd` and never operate on the real repo.
 function git(repoRoot: string, args: readonly string[]): string {
-    return execFileSync('git', args, {cwd: repoRoot, stdio: 'pipe', encoding: 'utf-8'});
+    return execFileSync('git', args, {cwd: repoRoot, stdio: 'pipe', encoding: 'utf-8', env: gitEnv()});
 }
 
 // Set an env var for the duration of one test, restoring it in afterEach.

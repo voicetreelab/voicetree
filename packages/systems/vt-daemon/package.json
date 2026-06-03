@@ -24,6 +24,8 @@
     "./transport/*": "./src/transport/*",
     "./observability/*": "./src/observability/*",
     "./create-graph/*": "./src/create-graph/*",
+    "./workspace/worktree": "./src/workspace/worktree/index.ts",
+    "./workspace/*": "./src/workspace/*",
     "./hooks/*": "./src/hooks/*",
     "./lifecycle/*": "./src/lifecycle/*",
     "./bin/vtd.ts": "./bin/vtd.ts"

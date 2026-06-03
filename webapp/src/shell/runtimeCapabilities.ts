@@ -2,8 +2,9 @@
 // operations the current host runtime can perform.
 //
 // Electron can do everything (real OS dialogs, git worktrees, clipboard image
-// I/O, settings persistence). The browser adapter talks only to VTD over HTTP
-// and can do none of those. The UI gates native-only controls on these flags AT
+// I/O, settings persistence). The browser adapter talks only to VTD over HTTP;
+// it can do those operations VTD exposes a gateway for (e.g. git worktrees) and
+// none of the rest. The UI gates native-only controls on these flags AT
 // THE CONTROL (hides the button / omits the menu item) rather than letting a
 // click reach an operation that throws — the adapter's loud `unsupported()`
 // throwers remain only as a defence-in-depth backstop.
@@ -31,7 +32,9 @@ export const ELECTRON_CAPABILITIES: RuntimeCapabilities = {
 
 export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     nativeFolderPicker: false,
-    worktrees: false,
+    // VTD owns the git plumbing and exposes the `worktree.*` gateway RPCs, so
+    // the browser can create/list/remove worktrees via the daemon.
+    worktrees: true,
     clipboardImages: false,
     settingsPersistence: false,
 }

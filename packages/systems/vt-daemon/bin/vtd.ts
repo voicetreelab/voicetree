@@ -68,6 +68,7 @@ import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtim
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {buildGraphGatewayRoutes} from '../src/rpc/graphGatewayRoutes.ts'
+import {buildWorktreeRoutes} from '../src/rpc/worktreeRoutes.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import {
@@ -304,10 +305,16 @@ async function main(): Promise<void> {
         client: gdb.client,
         ensureSession: gatewayLiveUpdates.ensureSession,
     })
+    // Worktree gateway: the browser drives git worktree ops through VTD. The
+    // repo root is read from the daemon's own loaded project (graphd's
+    // authoritative projectRoot), never from the client.
+    const worktreeRoutes = buildWorktreeRoutes({
+        getRepoRoot: async (): Promise<string> => (await gdb.client.getProject()).projectRoot,
+    })
 
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges, graphGatewayRoutes),
+            catalog: buildDefaultToolCatalog(mcpBridges, [...graphGatewayRoutes, ...worktreeRoutes]),
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override
