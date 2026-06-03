@@ -20,22 +20,27 @@ export const execFileAsync: (
 ) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
 
 /**
- * The keys git uses to override repository discovery. A git hook exports these
- * into its environment (a `git worktree add` post-checkout, a pre-commit gate,
- * the per-machine mutagen mirror's wrapper, …); when they leak into a
- * long-lived process that later shells out to git, working-tree commands like
- * `git worktree add/list/remove` resolve against the LEAKED repo instead of the
- * `cwd` they were given — aborting with "must be run in a work tree" or, worse,
- * silently operating on the wrong checkout. GIT_COMMON_DIR matters as much as
- * GIT_DIR for worktree ops: it redirects where worktree admin (refs, the
- * worktrees/ registry) is read and written.
+ * Whether an environment key is one git uses to override repository discovery.
+ * A git hook exports these into its environment (a `git worktree add`
+ * post-checkout, a pre-commit gate, the per-machine mutagen mirror's wrapper,
+ * …); when they leak into a long-lived process that later shells out to git,
+ * working-tree commands like `git worktree add/list/remove` resolve against the
+ * LEAKED repo instead of the `cwd` they were given — aborting with "must be run
+ * in a work tree" or, worse, silently operating on the wrong checkout.
+ * GIT_COMMON_DIR matters as much as GIT_DIR for worktree ops: it redirects where
+ * worktree admin (refs, the worktrees/ registry) is read and written.
+ *
+ * A pure predicate (not a module-level lookup table) so there is no top-level
+ * mutable container to reason about — the key set is inlined at compile time.
  */
-export const GIT_LOCATION_OVERRIDE_KEYS: ReadonlySet<string> = new Set([
-    'GIT_DIR',
-    'GIT_WORK_TREE',
-    'GIT_COMMON_DIR',
-    'GIT_INDEX_FILE',
-]);
+function isGitLocationOverrideKey(key: string): boolean {
+    return (
+        key === 'GIT_DIR' ||
+        key === 'GIT_WORK_TREE' ||
+        key === 'GIT_COMMON_DIR' ||
+        key === 'GIT_INDEX_FILE'
+    );
+}
 
 /**
  * The process environment with git's location overrides stripped, so git
@@ -47,7 +52,7 @@ export const GIT_LOCATION_OVERRIDE_KEYS: ReadonlySet<string> = new Set([
 export function gitEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     const base: NodeJS.ProcessEnv = Object.fromEntries(
         Object.entries(process.env).filter(
-            ([key]: [string, string | undefined]) => !GIT_LOCATION_OVERRIDE_KEYS.has(key),
+            ([key]: [string, string | undefined]) => !isGitLocationOverrideKey(key),
         ),
     );
     return { ...base, ...extra };
