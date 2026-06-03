@@ -11,7 +11,7 @@ import {
 
 const KEYS: readonly (keyof RuntimeCapabilities)[] = [
     'nativeFolderPicker', 'worktrees', 'clipboardImages', 'settingsPersistence',
-    'usageObservability', 'nativeMicrophoneSettings', 'askMode',
+    'projectSwitching', 'usageObservability', 'nativeMicrophoneSettings', 'askMode',
 ]
 
 describe('capability records', () => {
@@ -19,12 +19,16 @@ describe('capability records', () => {
         expect(KEYS.every(k => ELECTRON_CAPABILITIES[k])).toBe(true)
     })
 
-    it('the browser supports clipboard images (VTD round-trip), but not the other native ops', () => {
+    it('the browser supports the VTD-gateway-backed ops (worktrees, clipboard, settings), but not the host-only ones', () => {
         expect(BROWSER_CAPABILITIES).toEqual({
             nativeFolderPicker: false,
-            worktrees: false,
+            worktrees: true,
             clipboardImages: true,
-            settingsPersistence: false,
+            settingsPersistence: true,
+            projectSwitching: false,
+            usageObservability: false,
+            nativeMicrophoneSettings: false,
+            askMode: false,
         })
     })
 
