@@ -17,6 +17,7 @@ import {
 import {
     isAgentComplete,
     getAgentStatus,
+    getReportedStatus,
 } from './completion/isAgentComplete.ts'
 import {
     buildCompletionMessage,
@@ -137,7 +138,7 @@ export function startMonitor(
                 return {
                     terminalId: r.terminalId,
                     agentName: r.terminalData.agentName,
-                    status: getAgentStatus(r),
+                    status: getReportedStatus(r),
                     exitCode: r.exitCode,
                     nodes: mergedNodes,
                     lastOutput
