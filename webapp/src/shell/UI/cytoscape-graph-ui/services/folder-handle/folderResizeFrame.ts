@@ -128,21 +128,49 @@ export function setupFolderResize(
         const startY: number = startEvent.clientY;
         let latest: Size = startSize;
 
+        // Coalesce mousemoves to one rAF tick. Raw mousemove can fire faster than
+        // the display refresh (high-Hz mice, trackpads), and each folderWidth /
+        // folderHeight write runs cytoscape's updateStyle across the folder + its
+        // descendants + its parents. Writing per-event flooded that pipeline with
+        // hundreds of style cycles a second and the renderer fell seconds behind
+        // — the symptom the grip drag was hitting and the smooth node-drag was
+        // not (cytoscape's own drag loop is already rAF-throttled).
+        //
+        // Not wrapped in cy.batch(): batching defers style application until
+        // endBatch, but the synchronous 'data' event fires INSIDE the batch and
+        // the chip strip's listener reads renderedBoundingBox with the stale
+        // min-* values — chips would then lag the folder body by a frame instead
+        // of leading it. Unbatched writes keep chip + body in lockstep.
+        let pending: Size | null = null;
+        let rafId: number | null = null;
+
+        const flush = (): void => {
+            rafId = null;
+            if (pending === null) return;
+            const next: Size = pending;
+            pending = null;
+            node.data('folderWidth', next.width);
+            node.data('folderHeight', next.height);
+            position(folderId);
+            latest = next;
+        };
+
         const onMove = (evt: MouseEvent): void => {
-            latest = computeResizedFolderSize(
+            pending = computeResizedFolderSize(
                 startSize,
                 {dx: evt.clientX - startX, dy: evt.clientY - startY},
                 handle,
                 cy.zoom(),
             );
-            // Live feel: drive the same data the persisted-size apply path uses.
-            node.data('folderWidth', latest.width);
-            node.data('folderHeight', latest.height);
-            position(folderId);
+            if (rafId === null) rafId = window.requestAnimationFrame(flush);
         };
 
         const onUp = (): void => {
             window.removeEventListener('mousemove', onMove, {capture: true});
+            if (rafId !== null) {
+                window.cancelAnimationFrame(rafId);
+                flush();
+            }
             void persist(folderId, latest);
         };
 
