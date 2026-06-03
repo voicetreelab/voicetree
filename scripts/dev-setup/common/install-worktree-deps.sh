@@ -57,6 +57,14 @@ else
   corepack pnpm install --frozen-lockfile
 fi
 
+# Stamp the deps-freshness marker so the guard (post-checkout / post-merge)
+# recognises this freshly-installed worktree as in-sync. Without this, the first
+# later branch-switch or pull in the worktree would trigger a redundant blocking
+# `pnpm install`. Best-effort: a missing/failed stamp only costs that one extra
+# reconcile later — it must never fail worktree setup.
+node "$SCRIPT_DIR/ensure-deps-fresh.mjs" --stamp \
+  || step "WARNING deps-fingerprint stamp failed; guard will reconcile on next checkout"
+
 seed_ck_index "$CHECKOUT_ROOT"
 
 step "complete"

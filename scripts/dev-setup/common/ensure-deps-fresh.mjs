@@ -77,6 +77,18 @@ function depsAreFresh(root) {
   return readMarker(root) === computeFingerprint(root)
 }
 
+// Stamp the marker with the current lockfile fingerprint, declaring "this env's
+// node_modules is in sync with the committed lockfile". Called after any install
+// path completes — both this guard's own install (below) and the worktree
+// initial installer (install-worktree-deps.sh, via `--stamp`) — so the marker
+// contract has a single source of truth and no installer can leave it unstamped.
+function stampMarker(root) {
+  const marker = markerPath(root)
+  mkdirSync(dirname(marker), {recursive: true})
+  writeFileSync(marker, computeFingerprint(root) + '\n')
+  return marker
+}
+
 // The side effect: reconcile node_modules to the committed lockfile if (and
 // only if) stale, then stamp the marker. Returns a small result object so
 // callers/tests can observe what happened without scraping logs.
@@ -100,11 +112,21 @@ function ensureDepsFresh({startDir = process.cwd(), log = msg => process.stderr.
     throw new Error(`pnpm install --frozen-lockfile failed (exit ${result.status}) in ${root}`)
   }
 
-  const marker = markerPath(root)
-  mkdirSync(dirname(marker), {recursive: true})
-  writeFileSync(marker, fingerprint + '\n')
+  stampMarker(root)
   log(`[deps-guard] deps installed; marker written (${root})\n`)
   return {root, fresh: false, installed: true}
+}
+
+// Stamp-only entrypoint: record the marker for an install another tool just
+// performed, WITHOUT installing here. Used by install-worktree-deps.sh after its
+// own `pnpm install --frozen-lockfile`, so the first later branch-switch/pull in
+// a fresh worktree finds the marker fresh instead of triggering a redundant
+// blocking reinstall. Returns the same result shape as ensureDepsFresh.
+function stampDepsFresh({startDir = process.cwd(), log = msg => process.stderr.write(msg)} = {}) {
+  const root = findWorkspaceRoot(startDir)
+  stampMarker(root)
+  log(`[deps-guard] marker stamped for existing install (${root})\n`)
+  return {root, fresh: false, installed: false}
 }
 
 const isDirectRun =
@@ -112,7 +134,11 @@ const isDirectRun =
 
 if (isDirectRun) {
   try {
-    ensureDepsFresh()
+    if (process.argv.includes('--stamp')) {
+      stampDepsFresh()
+    } else {
+      ensureDepsFresh()
+    }
   } catch (err) {
     process.stderr.write(`[deps-guard] ${err.message}\n`)
     process.exit(1)
@@ -126,4 +152,6 @@ export {
   readMarker,
   depsAreFresh,
   ensureDepsFresh,
+  stampMarker,
+  stampDepsFresh,
 }

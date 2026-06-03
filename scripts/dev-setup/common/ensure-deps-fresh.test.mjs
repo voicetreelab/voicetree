@@ -15,6 +15,7 @@ import {
   depsAreFresh,
   markerPath,
   findWorkspaceRoot,
+  stampDepsFresh,
 } from './ensure-deps-fresh.mjs'
 
 // Build a throwaway workspace: pnpm-workspace.yaml + pnpm-lock.yaml, and
@@ -83,6 +84,37 @@ test('stale when the marker holds an unrelated value', () => {
   const root = makeWorkspace({marker: 'not-a-real-fingerprint\n'})
   try {
     assert.equal(depsAreFresh(root), false)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('stampDepsFresh makes a previously-stale workspace report fresh (no install)', () => {
+  // Mirrors install-worktree-deps.sh: pnpm already installed the deps, then we
+  // stamp the marker so the guard does not redundantly reinstall on the first
+  // later branch-switch/pull.
+  const root = makeWorkspace()
+  try {
+    assert.equal(depsAreFresh(root), false) // fresh worktree: no marker yet
+    const result = stampDepsFresh({startDir: root, log: () => {}})
+    assert.deepEqual(result, {root, fresh: false, installed: false})
+    assert.equal(depsAreFresh(root), true) // marker now matches lockfile
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('stampDepsFresh re-stamps after a lockfile change so the guard tracks it', () => {
+  const root = makeWorkspace({lock: 'lockfile: 1\n'})
+  try {
+    stampDepsFresh({startDir: root, log: () => {}})
+    assert.equal(depsAreFresh(root), true)
+
+    // Lockfile changes and a new install runs elsewhere; re-stamping realigns.
+    writeFileSync(join(root, 'pnpm-lock.yaml'), 'lockfile: 1\n  newdep: 2.0.0\n')
+    assert.equal(depsAreFresh(root), false)
+    stampDepsFresh({startDir: root, log: () => {}})
+    assert.equal(depsAreFresh(root), true)
   } finally {
     rmSync(root, {recursive: true, force: true})
   }
