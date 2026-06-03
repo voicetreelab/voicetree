@@ -54,8 +54,13 @@ function loadedPathsOf(projectState: FolderTreeProjectState): readonly string[] 
     ]
 }
 
-/** True when `target` is the project root, a read path, or nested under either. */
-function isWithinAllowlist(target: string, projectState: FolderTreeProjectState): boolean {
+/**
+ * True when `target` is the project root, a read path, or nested under either —
+ * the gateway's allowlist. VTD scopes every browser-served FS operation through
+ * this so a browser can never browse, create in, or star arbitrary filesystem
+ * locations outside the open project.
+ */
+export function isPathWithinAllowlist(target: string, projectState: FolderTreeProjectState): boolean {
     const roots: readonly string[] = [projectState.projectRoot, ...projectState.readPaths]
     return roots.some((root: string) => {
         const prefix: string = root.endsWith('/') ? root : root + '/'
@@ -148,7 +153,7 @@ export async function selectAvailableFolders(
     const parsed: ParsedQuery = parseSearchQuery(searchQuery)
 
     if (parsed.isAbsolute && parsed.basePath) {
-        if (!isWithinAllowlist(parsed.basePath, projectState)) {
+        if (!isPathWithinAllowlist(parsed.basePath, projectState)) {
             return []
         }
         try {

@@ -12,6 +12,7 @@ export {
 export {
     buildFolderTreeSyncPayload,
     selectAvailableFolders,
+    isPathWithinAllowlist,
     type FolderTreeProjectState,
     type FolderTreeSyncPayload,
 } from './folder-tree-payload.ts'
