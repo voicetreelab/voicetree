@@ -1,1 +1,8 @@
 .worktrees/
+
+# The `brain` submodule (VoiceTree graph/knowledge markdown, ~66MB) is not source.
+# ripgrep descends into it because, once it hits brain/.git, it treats the submodule
+# as a fresh repo root and ignores the parent's `brain/*` .gitignore rule. Listing it
+# here closes that leak: ~95% of all "offending" folder-keyword hits live under brain/
+# (e.g. `status` 1332 -> 517 total, brain 815 -> 0). See codebase-navigability metric.
+brain/

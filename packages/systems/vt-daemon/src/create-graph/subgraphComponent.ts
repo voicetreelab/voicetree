@@ -43,19 +43,22 @@ function isCountedMember(
 }
 
 /**
- * Size of the folder-bounded, undirected, hard-edge component reachable from
- * `startNodeId`, bounded to `folderPath` (a folder id with a trailing slash).
+ * The folder-bounded, undirected, hard-edge component reachable from
+ * `startNodeId`, bounded to `folderPath` (a folder id with a trailing slash),
+ * returned as the set of *counted members* (the destination folder's own
+ * identity note excluded; neighbouring folder notes included as collapsed
+ * single units).
  *
  * The seed may itself sit outside `folderPath` (e.g. a task node parenting a
- * worktree folder); it bridges into the folder but is only counted if it belongs
- * to the folder. This makes the result the size of the destination cluster that
- * is actually growing, independent of where the parent lives.
+ * worktree folder); it bridges into the folder but is only included if it
+ * belongs to the folder. This makes the result the destination cluster that is
+ * actually growing, independent of where the parent lives.
  */
-export function countFolderBoundedComponent(
+export function collectFolderBoundedComponent(
     graph: Graph,
     startNodeId: NodeIdAndFilePath,
     folderPath: string,
-): number {
+): ReadonlySet<NodeIdAndFilePath> {
     const destinationIdentityNote: NodeIdAndFilePath = getFolderIdentityNoteId(folderPath)
 
     const seen: Set<NodeIdAndFilePath> = new Set([startNodeId])
@@ -77,9 +80,22 @@ export function countFolderBoundedComponent(
         }
     }
 
-    let count: number = 0
+    const members: Set<NodeIdAndFilePath> = new Set()
     for (const nodeId of seen) {
-        if (isCountedMember(nodeId, folderPath, destinationIdentityNote)) count++
+        if (isCountedMember(nodeId, folderPath, destinationIdentityNote)) members.add(nodeId)
     }
-    return count
+    return members
+}
+
+/**
+ * Size of the folder-bounded component reachable from `startNodeId` (see
+ * {@link collectFolderBoundedComponent}). No IO, no settings — post-insertion
+ * arithmetic (adding the batch size) is the caller's job (BF-446).
+ */
+export function countFolderBoundedComponent(
+    graph: Graph,
+    startNodeId: NodeIdAndFilePath,
+    folderPath: string,
+): number {
+    return collectFolderBoundedComponent(graph, startNodeId, folderPath).size
 }

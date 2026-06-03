@@ -1,3 +1,4 @@
 {
-  "max": 115
+  "max": 120,
+  "note": "2026-06-03: 117 -> 120 (+3). graph-model is the top fan-in package; the create_graph child_count_limit + graph_complexity_limit gates added 3 tunable settings defaults (DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_COMPLEXITY_WARN_SCORE, DEFAULT_COMPLEXITY_BLOCK_SCORE) imported by createGraphTool."
 }

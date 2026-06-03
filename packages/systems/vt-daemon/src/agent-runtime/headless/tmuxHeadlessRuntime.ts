@@ -3,7 +3,9 @@ import {join} from 'node:path'
 import {getProjectDotVoicetreePath} from '@vt/paths'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TmuxReconciliationResult} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
-import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-metadata.ts'
+import {readMetadata, writeMetadata, type NativeRecoveryHandle, type TmuxTerminalMetadata} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/terminal-metadata.ts'
+import {captureNativeRecoveryHandle} from '@vt/vt-daemon/agent-runtime/recovery/captureNativeRecovery.ts'
+import type {ResolveNativeSession} from '@vt/vt-daemon/agent-runtime/recovery/resolvers/resolveNativeSession.ts'
 import {
     captureOutput,
     getOutput,
@@ -92,21 +94,46 @@ function clearTmuxPoll(terminalId: TerminalId): void {
     }
 }
 
-function markTmuxMetadataExited(
+/**
+ * Read-modify-write a terminal's metadata to the `exited` lifecycle state,
+ * capturing a durable `recovery.native` handle on the way out if the record is
+ * a resumable Claude/Codex agent that doesn't already have one (D3).
+ *
+ * Idempotent: a record already marked `exited` is left untouched, so the first
+ * exit transition wins and its captured handle never churns. The capture is
+ * best-effort — a resolver miss leaves `recovery` exactly as it was (preserved
+ * through the `...existing` spread). Exported for black-box testing against a
+ * real metadata file; production callers reach it via `markTmuxMetadataExited`.
+ */
+export async function persistExitedMetadata(
     terminalId: TerminalId,
+    metadataPath: string,
     writerPid: number,
     exitCode: number | null = null,
-): void {
-    const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
-    if (!session) return
-    const existing: TmuxTerminalMetadata | null = readMetadata(session.metadataPath)
+    resolveNativeSession: ResolveNativeSession | undefined = undefined,
+): Promise<void> {
+    const existing: TmuxTerminalMetadata | null = readMetadata(metadataPath)
     if (!existing || existing.status === 'exited') return
-    writeMetadata(session.metadataPath, {
+    const native: NativeRecoveryHandle | null = resolveNativeSession
+        ? await captureNativeRecoveryHandle(terminalId, existing, resolveNativeSession)
+        : await captureNativeRecoveryHandle(terminalId, existing)
+    writeMetadata(metadataPath, {
         ...existing,
         status: 'exited',
         exitCode,
         endedAt: new Date().toISOString(),
+        ...(native ? {recovery: {...existing.recovery, native}} : {}),
     }, writerPid)
+}
+
+async function markTmuxMetadataExited(
+    terminalId: TerminalId,
+    writerPid: number,
+    exitCode: number | null = null,
+): Promise<void> {
+    const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
+    if (!session) return
+    await persistExitedMetadata(terminalId, session.metadataPath, writerPid, exitCode)
 }
 
 function startTmuxExitPoll(terminalId: TerminalId, sessionName: string, deps: HeadlessAgentDeps): ReturnType<typeof setInterval> {
@@ -117,7 +144,7 @@ function startTmuxExitPoll(terminalId: TerminalId, sessionName: string, deps: He
                 clearTmuxPoll(terminalId)
                 const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
                 const exitCode: number | null = session ? readExitCode(session.exitCodePath) : null
-                markTmuxMetadataExited(terminalId, deps.processPid, exitCode)
+                await markTmuxMetadataExited(terminalId, deps.processPid, exitCode)
                 deps.markTerminalExited(terminalId, exitCode)
             } catch (error) {
                 deps.writeLog({level: 'error', message: `[headlessAgentManager] tmux exit poll failed for ${terminalId}:`, error})
@@ -243,7 +270,7 @@ export async function killTmuxHeadlessAgent(
     // callers (RPC closeHeadlessAgent, closeAgentTool) could hand control back
     // to the client while the session was still alive.
     await killSession(tmuxSession.sessionName).catch(() => undefined)
-    markTmuxMetadataExited(terminalId, deps.processPid, null)
+    await markTmuxMetadataExited(terminalId, deps.processPid, null)
     deletePromptFileByPath(tmuxSession.promptFilePath)
     deps.markTerminalExited(terminalId, null)
     return true

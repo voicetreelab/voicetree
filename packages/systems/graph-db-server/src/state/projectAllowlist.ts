@@ -31,7 +31,6 @@ import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath, Graph, GraphDelta, DeleteNode, NodeLayout } from '@vt/graph-model/graph';
 import type { ProjectConfig } from '@vt/graph-model/settings';
-import { createDatedSubfolder } from "@vt/app-config/project";
 import { getGraph } from "./graph-store";
 import {
     getProjectRoot,
@@ -398,36 +397,6 @@ export async function reconcileHiddenFolders(): Promise<{ removedNodeCount: numb
 
     const removedNodeCount: number = await purgeNodesFromGraph(nodesToRemove);
     return { removedNodeCount };
-}
-
-/**
- * Create a new dated voicetree folder and set it as the write path.
- * Replaces the current write folder path: unwatches it completely (neither read nor write).
- * Also loads all starred folders as read paths.
- */
-export async function createDatedVoiceTreeFolder(): Promise<{
-    success: boolean; path?: string; error?: string;
-}> {
-    const watchedDir: string | null = getProjectRoot();
-    if (!watchedDir) return { success: false, error: 'No project open' };
-
-    // Capture old write path before switching, so we can unwatch it afterward
-    const config: ProjectConfig | undefined = await getProjectConfigForDirectory(watchedDir);
-    const oldWriteFolderPath: string | null = config?.writeFolderPath
-        ? resolveWriteFolderPath(watchedDir, config.writeFolderPath)
-        : null;
-
-    const newPath: string = await createDatedSubfolder(watchedDir);
-    await addReadPath(newPath);
-    const result: { success: boolean; error?: string } = await setWriteFolderPath(newPath);
-    if (!result.success) return { ...result, path: newPath };
-
-    // Unwatch old write folder path completely - neither read nor write
-    if (oldWriteFolderPath && oldWriteFolderPath !== normalizePath(watchedDir)) {
-        await removeReadPath(oldWriteFolderPath);
-    }
-
-    return { success: true, path: newPath };
 }
 
 /**
