@@ -152,6 +152,17 @@ export function injectCodexHookFlags(command: string, daemonUrl: string, termina
 }
 
 /**
+ * VoiceTree already supplies the task/context prompt for spawned Codex
+ * sessions. Disable Codex's native AGENTS.md project-doc injection so the
+ * same repo instructions are not surfaced twice in the model context.
+ */
+export function injectCodexProjectDocDisableFlag(command: string): string {
+    if (detectAgentCli(command) !== 'codex') return command
+    if (/(^|\s)-c\s+["']?project_doc_max_bytes=/.test(command)) return command
+    return insertAfterToken(command, 'codex', '-c project_doc_max_bytes=0')
+}
+
+/**
  * Returns the static JSON that VoiceTree writes to its voicetree-home dir for
  * Claude Code to consume via `--settings`. Hook commands reference
  * `$VOICETREE_DAEMON_URL`, `$VOICETREE_PROJECT_PATH`, and

@@ -19,6 +19,7 @@ import {
     buildClaudeHookSettingsJson,
     buildCodexHookFlags,
     injectCodexHookFlags,
+    injectCodexProjectDocDisableFlag,
 } from '../injection/agentHookInjection'
 
 const DAEMON_URL: string = 'http://127.0.0.1:51337'
@@ -168,6 +169,28 @@ describe('injectCodexHookFlags', () => {
 
     it('handles empty command without throwing', () => {
         expect(injectCodexHookFlags('', DAEMON_URL, 'Jin')).toBe('')
+    })
+})
+
+describe('injectCodexProjectDocDisableFlag', () => {
+    it('inserts the Codex project-doc disable flag right after the codex token', () => {
+        const result = injectCodexProjectDocDisableFlag('codex "$AGENT_PROMPT" --yolo')
+        expect(result).toBe('codex -c project_doc_max_bytes=0 "$AGENT_PROMPT" --yolo')
+    })
+
+    it('preserves leading env-var assignments', () => {
+        const result = injectCodexProjectDocDisableFlag('NO_COLOR=1 codex "$AGENT_PROMPT"')
+        expect(result).toBe('NO_COLOR=1 codex -c project_doc_max_bytes=0 "$AGENT_PROMPT"')
+    })
+
+    it('is idempotent when project_doc_max_bytes is already configured', () => {
+        const cmd = 'codex -c project_doc_max_bytes=0 "$AGENT_PROMPT"'
+        expect(injectCodexProjectDocDisableFlag(cmd)).toBe(cmd)
+    })
+
+    it('leaves non-codex commands unchanged', () => {
+        const claude = 'claude --dangerously-skip-permissions "$AGENT_PROMPT"'
+        expect(injectCodexProjectDocDisableFlag(claude)).toBe(claude)
     })
 })
 

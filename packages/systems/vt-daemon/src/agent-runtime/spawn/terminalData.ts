@@ -6,7 +6,7 @@ import {getUniqueAgentName, pickAgentName} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
-import {injectClaudeSettingsFlag, injectCodexHookFlags} from './injection/agentHookInjection'
+import {injectClaudeSettingsFlag, injectCodexHookFlags, injectCodexProjectDocDisableFlag} from './injection/agentHookInjection'
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
 import {readDaemonPortFromProject} from './daemonUrlFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
@@ -135,9 +135,10 @@ export async function prepareTerminalDataInMain(
     const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
     const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(voicetreeHomePath)
     const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
-    const finalCommand: string = daemonUrl !== null
+    const codexHookInjected: string = daemonUrl !== null
         ? injectCodexHookFlags(claudeInjected, daemonUrl, terminalId)
         : claudeInjected
+    const finalCommand: string = injectCodexProjectDocDisableFlag(codexHookInjected)
 
     return createTerminalData({
         terminalId,
