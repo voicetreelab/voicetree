@@ -28,6 +28,22 @@ export type LayoutPerformance = {
   readonly sampledFrameCount: number;
 };
 
+export type ScorecardCpuHotspot = {
+  readonly name: string;
+  readonly url: string;
+  readonly line: number;
+  readonly selfSamples: number;
+  readonly selfPercent: number;
+};
+
+export type ScorecardCpuProfile = {
+  readonly cpuprofilePath: string;
+  readonly totalDurationMs: number;
+  readonly totalSamples: number;
+  readonly activeSamples: number;
+  readonly topFunctions: readonly ScorecardCpuHotspot[];
+};
+
 export type EngineScorecard = {
   readonly engine: string;
   // The exact layoutConfig object applied before this run (engine + any
@@ -38,6 +54,7 @@ export type EngineScorecard = {
   readonly edgeCount: number;
   readonly quality: LayoutQualityScore;
   readonly performance: LayoutPerformance;
+  readonly cpuProfile?: ScorecardCpuProfile;
   readonly screenshotPath: string;
   readonly capturedAtIso: string;
 };

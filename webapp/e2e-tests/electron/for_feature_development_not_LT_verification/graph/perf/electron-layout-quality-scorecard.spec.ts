@@ -1,5 +1,5 @@
 import { expect, test as base, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import type { CDPSession, ElectronApplication, Page } from '@playwright/test';
 import type { VTSettings } from '@vt/graph-model/settings';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
 import * as fs from 'fs/promises';
@@ -16,7 +16,9 @@ import {
   type EngineScorecard,
   type GraphGeometry,
   type LayoutPerformance,
+  type ScorecardCpuProfile,
 } from './perf-helpers/layoutScorecard';
+import { analyzeMainProcessProfile } from '@vt/measures/perf/main-process-cdp';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout-quality scorecard harness — the experiment driver.
@@ -38,6 +40,9 @@ import {
 //                           overwriting (e.g. forceatlas2-tight).
 //   SCORECARD_INSPECT_PORT  electron --inspect port (default 9233); give each
 //                           concurrent worktree agent a distinct port.
+//   SCORECARD_CAPTURE_CPU   set to "1" to capture a renderer .cpuprofile
+//                           around each engine's tidy-layout window and embed
+//                           top self-time frames in the scorecard JSON.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
@@ -47,6 +52,7 @@ const PROJECT_NAME = 'scorecard-vault';
 const OUT_DIR: string = process.env.SCORECARD_OUT_DIR
   ?? path.join(PROJECT_ROOT, 'layout-scorecards');
 const INSPECT_PORT = Number.parseInt(process.env.SCORECARD_INSPECT_PORT ?? '9233', 10);
+const CAPTURE_CPU = process.env.SCORECARD_CAPTURE_CPU === '1';
 
 const ALL_ENGINES = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
 const BASELINE_ENGINES = ['webcola', 'forceatlas2'] as const;
@@ -353,6 +359,35 @@ async function fitAndScreenshot(appWindow: Page, screenshotPath: string): Promis
   await appWindow.screenshot({ path: screenshotPath, fullPage: false });
 }
 
+async function startScorecardCpuProfile(
+  appWindow: Page,
+  cpuprofilePath: string,
+): Promise<() => Promise<ScorecardCpuProfile>> {
+  const cdp: CDPSession = await appWindow.context().newCDPSession(appWindow);
+  await cdp.send('Profiler.setSamplingInterval', { interval: 4000 });
+  await cdp.send('Profiler.enable');
+  await cdp.send('Profiler.start');
+  let stopped = false;
+
+  return async (): Promise<ScorecardCpuProfile> => {
+    if (stopped) throw new Error('scorecard CPU profile already stopped');
+    stopped = true;
+    const response = await cdp.send('Profiler.stop') as { readonly profile?: unknown };
+    await cdp.detach().catch(() => undefined);
+    if (!response.profile) throw new Error('Renderer Profiler.stop returned no profile');
+    const profileJson = JSON.stringify(response.profile);
+    await fs.writeFile(cpuprofilePath, profileJson, 'utf8');
+    const analysis = analyzeMainProcessProfile(profileJson);
+    return {
+      cpuprofilePath,
+      totalDurationMs: analysis.totalDurationMs,
+      totalSamples: analysis.totalSamples,
+      activeSamples: analysis.activeSamples,
+      topFunctions: analysis.topFunctions.slice(0, 10),
+    };
+  };
+}
+
 test.describe('layout-quality scorecard', () => {
   test('scores each engine on the realistic vault and emits scorecard JSON + screenshot', async ({ appWindow, markdownFileCount }) => {
     test.setTimeout(1_200_000);
@@ -366,15 +401,21 @@ test.describe('layout-quality scorecard', () => {
       const appliedConfig = await applyLayoutConfig(appWindow, engine, extraConfig);
       await installPerfProbe(appWindow);
 
+      const label = process.env.SCORECARD_LABEL?.trim() || engine;
+      const cpuprofilePath = path.join(OUT_DIR, `scorecard-${label}-renderer.cpuprofile`);
+      const stopCpuProfile = CAPTURE_CPU
+        ? await startScorecardCpuProfile(appWindow, cpuprofilePath)
+        : undefined;
+
       const startedAt = Date.now();
       await appWindow.getByRole('button', { name: 'Tidy layout' }).click();
       await waitForLayoutStable(appWindow, 180000);
       const performance: LayoutPerformance = await readPerfProbe(appWindow, Date.now() - startedAt);
+      const cpuProfile = await stopCpuProfile?.();
 
       const geometry = await extractGeometry(appWindow);
       const quality = scoreLayout(geometry.nodes, geometry.edges);
 
-      const label = process.env.SCORECARD_LABEL?.trim() || engine;
       const screenshotPath = path.join(OUT_DIR, `scorecard-${label}.png`);
       await fitAndScreenshot(appWindow, screenshotPath);
 
@@ -386,6 +427,7 @@ test.describe('layout-quality scorecard', () => {
         edgeCount: geometry.edges.length,
         quality,
         performance,
+        cpuProfile,
         screenshotPath,
         capturedAtIso: new Date(startedAt).toISOString(),
       };
@@ -396,6 +438,7 @@ test.describe('layout-quality scorecard', () => {
         `timeToStable=${performance.timeToStableMs}ms wallClock=${performance.layoutWallClockMs ?? 'n/a'} ` +
         `longFrames=${performance.longFrameCount} avgFps=${performance.avgFps.toFixed(1)}`);
       console.log(`[scorecard] ${engine} pillars: ${JSON.stringify(quality.pillars)}`);
+      if (cpuProfile) console.log(`[scorecard] ${engine} top CPU: ${JSON.stringify(cpuProfile.topFunctions.slice(0, 3))}`);
 
       expect(geometry.nodes.length, `vault must load > ${MIN_EXPECTED_NODES} nodes`).toBeGreaterThan(MIN_EXPECTED_NODES);
       expect(quality.composite).toBeGreaterThanOrEqual(0);
