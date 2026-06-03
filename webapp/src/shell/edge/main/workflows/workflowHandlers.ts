@@ -11,4 +11,4 @@ export {
     readSkillFile,
     readSkillFileSummary,
     type WorkflowTreeNode,
-} from '@vt/vt-daemon/tools/workflows/workflowReader.ts'
+} from '@vt/vt-daemon/tools/workflows/workflowReader'

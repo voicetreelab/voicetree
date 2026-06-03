@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/utils/lib/utils";
 import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";
 import StatusDisplay from "@/shell/UI/views/components/status-display";
-import { TranscriptionDisplay } from "@/shell/UI/views/ui-controls/TranscriptionDisplay.tsx";
+import { TranscriptionDisplay } from "@/shell/UI/views/ui-controls/TranscriptionDisplay";
 
 export type InputMode = 'add' | 'ask' | null;
 
