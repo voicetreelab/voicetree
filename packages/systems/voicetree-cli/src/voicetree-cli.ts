@@ -5,6 +5,7 @@ import {
     agentClose,
     agentList,
     agentOutput,
+    agentResume,
     agentSend,
     agentSpawn,
     agentWait,
@@ -58,6 +59,7 @@ Subcommands:
   list      List running agents
   wait      Start background monitoring for one or more agents
   close     Close an agent terminal
+  resume    Resume a closed/exited agent under its original terminalId
   send      Send a message to an agent terminal
   output    Read buffered agent output`
 
@@ -132,6 +134,9 @@ async function dispatchAgentCommand(
             return
         case 'close':
             await agentClose(terminalId, args)
+            return
+        case 'resume':
+            await agentResume(terminalId, args)
             return
         case 'send':
             await agentSend(terminalId, args)
@@ -249,7 +254,7 @@ function readVtVersion(): string {
 }
 
 const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
-    'spawn', 'list', 'wait', 'close', 'send', 'output',
+    'spawn', 'list', 'wait', 'close', 'resume', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
     'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',

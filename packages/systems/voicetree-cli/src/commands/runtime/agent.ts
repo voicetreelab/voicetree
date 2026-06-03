@@ -1,10 +1,12 @@
 import {requireTerminalId} from '../graph/core/args'
 import {callDaemon} from '../daemon-client'
 import {error, output} from '../output'
+import {formatResumeResult, type ResumeOutcome} from './agentResumeFormat'
 import {
     AGENT_CLOSE_SPEC,
     AGENT_LIST_SPEC,
     AGENT_OUTPUT_SPEC,
+    AGENT_RESUME_SPEC,
     AGENT_SEND_SPEC,
     AGENT_SPAWN_SPEC,
     AGENT_WAIT_SPEC,
@@ -377,6 +379,36 @@ export async function agentClose(
     )
 
     output(payload, formatStandardResponse)
+}
+
+export async function agentResume(
+    _terminalId: string | undefined,
+    args: string[]
+): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_RESUME_SPEC)
+        return
+    }
+
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_RESUME_SPEC)
+
+    if (parsedArgs.positionals.length !== 1) {
+        error('`agent resume` requires exactly one target terminal ID')
+    }
+
+    const targetTerminalId: string = parsedArgs.positionals[0]
+    const payload: unknown = await callDaemon('resumePersistedAgentSession', {terminalId: targetTerminalId})
+    const record: JsonRecord | undefined = asRecord(payload)
+    if (!record) {
+        error('Voicetree daemon returned an unexpected payload')
+    }
+
+    const outcome: ResumeOutcome = formatResumeResult(targetTerminalId, record)
+    if (!outcome.ok) {
+        error(outcome.message)
+    }
+
+    output(record, (): string => outcome.message)
 }
 
 export async function agentSend(
