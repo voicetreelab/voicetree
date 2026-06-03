@@ -12,6 +12,7 @@
  */
 
 import type {Core, CollectionReturnValue} from 'cytoscape';
+import {escapeHtml} from '@/utils/escapeHtml';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import {getTerminals} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
@@ -335,12 +336,4 @@ function dismissPopover(): void {
         badgeOverlayState.activePopover = null;
         badgeOverlayState.activePopoverTerminalId = null;
     }
-}
-
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
-function escapeHtml(text: string): string {
-    const div: HTMLElement = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
