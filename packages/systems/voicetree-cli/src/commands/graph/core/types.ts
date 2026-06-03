@@ -98,6 +98,8 @@ export type GraphCreatePayload = {
     parentNodeId?: string
     nodes?: unknown
     override_with_rationale?: unknown
+    agentStatus?: unknown
+    statusPhrase?: unknown
 }
 
 export type OverrideSpec = {

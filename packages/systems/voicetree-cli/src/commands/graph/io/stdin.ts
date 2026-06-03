@@ -8,6 +8,8 @@ export async function readCreateGraphPayloadFromStdin(terminalId: string | undef
     parentNodeId?: string
     nodes: GraphCreateNode[]
     overrides: readonly OverrideSpec[]
+    agentStatus?: string
+    statusPhrase?: string
 }> {
     const fsModule: typeof import('fs') = await import('fs')
     let rawPayload: string
@@ -67,11 +69,22 @@ export async function readCreateGraphPayloadFromStdin(terminalId: string | undef
 
     const overrides: readonly OverrideSpec[] = parseStdinOverrides(typedPayload.override_with_rationale)
 
+    if (typedPayload.agentStatus !== undefined && typeof typedPayload.agentStatus !== 'string') {
+        error('agentStatus must be a string')
+    }
+    if (typedPayload.statusPhrase !== undefined && typeof typedPayload.statusPhrase !== 'string') {
+        error('statusPhrase must be a string')
+    }
+    const agentStatus: string | undefined = typedPayload.agentStatus as string | undefined
+    const statusPhrase: string | undefined = typedPayload.statusPhrase as string | undefined
+
     return {
         callerTerminalId,
         ...(parentNodeId !== undefined ? {parentNodeId} : {}),
         nodes,
         overrides,
+        ...(agentStatus !== undefined ? {agentStatus} : {}),
+        ...(statusPhrase !== undefined ? {statusPhrase} : {}),
     }
 }
 
