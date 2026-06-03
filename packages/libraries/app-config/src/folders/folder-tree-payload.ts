@@ -55,17 +55,65 @@ function loadedPathsOf(projectState: FolderTreeProjectState): readonly string[] 
 }
 
 /**
+ * Canonical absolute form of `target`: `.`/`..` segments collapsed (via
+ * `path.resolve`) AND symlinks resolved (via `realpath`) on the deepest ancestor
+ * that actually exists on disk. A not-yet-created tail (e.g. a file about to be
+ * written) is re-appended verbatim — it cannot itself be a symlink, and the
+ * `..` segments are already gone — so the result is where the path REALLY lands.
+ * This is what defeats both `../` traversal and in-allowlist symlinks pointing
+ * outside; a naive string prefix check sees neither.
+ */
+async function canonicalizePath(target: string): Promise<string> {
+    const resolved: string = path.resolve(target)
+    let ancestor: string = resolved
+    const tail: string[] = []
+    for (;;) {
+        try {
+            const real: string = await fs.realpath(ancestor)
+            return tail.length === 0 ? real : path.join(real, ...tail)
+        } catch {
+            const parent: string = path.dirname(ancestor)
+            // Reached the filesystem root with nothing resolvable: fall back to
+            // the lexically-resolved path (already free of `..`).
+            if (parent === ancestor) return resolved
+            tail.unshift(path.basename(ancestor))
+            ancestor = parent
+        }
+    }
+}
+
+/** Pure boundary check over already-canonical paths: is `target` a root or nested under one? */
+function isContainedWithin(canonicalTarget: string, canonicalRoots: readonly string[]): boolean {
+    return canonicalRoots.some((root: string) => {
+        if (canonicalTarget === root) return true
+        const prefix: string = root.endsWith(path.sep) ? root : root + path.sep
+        return canonicalTarget.startsWith(prefix)
+    })
+}
+
+/**
  * True when `target` is the project root, a read path, or nested under either —
  * the gateway's allowlist. VTD scopes every browser-served FS operation through
- * this so a browser can never browse, create in, or star arbitrary filesystem
- * locations outside the open project.
+ * this so a browser can never read, browse, create in, write to, or star
+ * arbitrary filesystem locations outside the open project.
+ *
+ * Both `target` and the roots are canonicalised (realpath + `..` collapse) before
+ * the boundary check, so neither a `../` escape nor a symlink that points out of
+ * the project can slip a path past the allowlist. An empty allowlist (no open
+ * project) fails closed — every path is rejected.
  */
-export function isPathWithinAllowlist(target: string, projectState: FolderTreeProjectState): boolean {
+export async function isPathWithinAllowlist(
+    target: string,
+    projectState: FolderTreeProjectState,
+): Promise<boolean> {
     const roots: readonly string[] = [projectState.projectRoot, ...projectState.readPaths]
-    return roots.some((root: string) => {
-        const prefix: string = root.endsWith('/') ? root : root + '/'
-        return target === root || target.startsWith(prefix)
-    })
+        .filter((root: string) => root !== '')
+    if (roots.length === 0) return false
+    const [canonicalTarget, canonicalRoots]: [string, readonly string[]] = await Promise.all([
+        canonicalizePath(target),
+        Promise.all(roots.map(canonicalizePath)),
+    ])
+    return isContainedWithin(canonicalTarget, canonicalRoots)
 }
 
 /**
@@ -153,7 +201,7 @@ export async function selectAvailableFolders(
     const parsed: ParsedQuery = parseSearchQuery(searchQuery)
 
     if (parsed.isAbsolute && parsed.basePath) {
-        if (!isPathWithinAllowlist(parsed.basePath, projectState)) {
+        if (!(await isPathWithinAllowlist(parsed.basePath, projectState))) {
             return []
         }
         try {

@@ -191,6 +191,32 @@ describe('graph.* gateway routes (real graphd roundtrip)', () => {
         }
     })
 
+    test('graph.writeMarkdownFile rejects a target outside the allowlist without writing it', async () => {
+        const outside = await mkdtemp(path.join(tmpdir(), 'outside-'))
+        const escapeTarget = path.join(outside, 'evil.md')
+        try {
+            await expect(invoke(M.writeMarkdownFile, {
+                absolutePath: escapeTarget,
+                body: '# pwned\n',
+                editorId: 'e1',
+            })).rejects.toThrow(/allowlist/)
+            expect(await readdir(outside)).toEqual([]) // nothing written outside the project
+        } finally {
+            await rm(outside, {recursive: true, force: true})
+        }
+    })
+
+    test('graph.setWriteFolderPath rejects a path outside the allowlist', async () => {
+        const outside = await mkdtemp(path.join(tmpdir(), 'outside-'))
+        try {
+            await expect(invoke(M.setWriteFolderPath, {path: outside})).rejects.toThrow(/allowlist/)
+            // The write folder is unchanged — the escape never took effect.
+            expect((await client.getProject()).writeFolderPath).not.toBe(outside)
+        } finally {
+            await rm(outside, {recursive: true, force: true})
+        }
+    })
+
     test('graph.createDatedVoiceTreeFolder creates a dated folder and points the write path at it', async () => {
         const result = await invoke(M.createDatedVoiceTreeFolder) as {success: boolean; path?: string}
         expect(result.success).toBe(true)

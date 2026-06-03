@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs'
+import {mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {VOICETREE_HOME_PATH_ENV} from '@vt/paths'
@@ -36,16 +36,57 @@ function stateOf(overrides: Partial<FolderTreeProjectState> = {}): FolderTreePro
 }
 
 describe('isPathWithinAllowlist', () => {
-    const state = stateOf({projectRoot: '/proj', readPaths: ['/proj', '/ext/read'], writeFolderPath: '/proj'})
-
-    it('accepts the project root, a read path, and nested paths', () => {
-        expect(isPathWithinAllowlist('/proj', state)).toBe(true)
-        expect(isPathWithinAllowlist('/proj/sub', state)).toBe(true)
-        expect(isPathWithinAllowlist('/ext/read/deep', state)).toBe(true)
+    // `root` is a real temp dir (see the suite-level beforeEach), so these tests
+    // exercise the actual realpath canonicalisation rather than string matching.
+    it('accepts the project root, a read path, and nested paths', async () => {
+        mkdirSync(path.join(root, 'sub'))
+        const state = stateOf()
+        expect(await isPathWithinAllowlist(root, state)).toBe(true)
+        expect(await isPathWithinAllowlist(path.join(root, 'sub'), state)).toBe(true)
+        // A not-yet-created path under the root is still in-allowlist (write target).
+        expect(await isPathWithinAllowlist(path.join(root, 'sub', 'new.png'), state)).toBe(true)
     })
-    it('rejects anything outside every allowlisted root', () => {
-        expect(isPathWithinAllowlist('/etc', state)).toBe(false)
-        expect(isPathWithinAllowlist('/projector', state)).toBe(false) // prefix-but-not-nested
+
+    it('rejects a sibling whose name merely shares the root prefix', async () => {
+        // `${root}-evil` string-starts-with `${root}` but is NOT nested under it.
+        const sibling = `${root}-evil`
+        mkdirSync(sibling)
+        try {
+            expect(await isPathWithinAllowlist(sibling, stateOf())).toBe(false)
+        } finally {
+            rmSync(sibling, {recursive: true, force: true})
+        }
+    })
+
+    it('rejects a `..` traversal that escapes the root (naive startsWith would PASS it)', async () => {
+        // `${root}/../<basename>` lexically starts with `${root}/` yet resolves OUTSIDE.
+        const escape = path.join(root, '..', path.basename(root) + '-escape')
+        mkdirSync(escape)
+        try {
+            expect(await isPathWithinAllowlist(escape, stateOf())).toBe(false)
+        } finally {
+            rmSync(escape, {recursive: true, force: true})
+        }
+    })
+
+    it('rejects an in-root symlink that points OUTSIDE the allowlist', async () => {
+        const outside = mkdtempSync(path.join(os.tmpdir(), 'folder-payload-outside-'))
+        writeFileSync(path.join(outside, 'secret.txt'), 'sensitive')
+        const link = path.join(root, 'link-out')
+        symlinkSync(outside, link)
+        try {
+            // The symlink lives inside the root, but realpath resolves it out.
+            expect(await isPathWithinAllowlist(link, stateOf())).toBe(false)
+            expect(await isPathWithinAllowlist(path.join(link, 'secret.txt'), stateOf())).toBe(false)
+        } finally {
+            rmSync(link, {force: true})
+            rmSync(outside, {recursive: true, force: true})
+        }
+    })
+
+    it('fails closed on an empty allowlist (no open project)', async () => {
+        const empty = stateOf({projectRoot: '', readPaths: [], writeFolderPath: ''})
+        expect(await isPathWithinAllowlist(root, empty)).toBe(false)
     })
 })
 
