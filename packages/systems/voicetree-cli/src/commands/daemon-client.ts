@@ -23,6 +23,7 @@ import {
     ERROR_CODES,
     authTokenFilePath,
     discoverDaemonEndpoint,
+    discoverDaemonEndpointForProject,
     readAuthTokenFile,
     type ResolvedDaemonEndpoint,
 } from '@vt/vt-rpc'
@@ -104,6 +105,25 @@ async function buildResolvedClient(
     const tokenFilePath: string = authTokenFilePath(tokenProjectPath)
     const token: string = await loadToken(tokenProjectPath, tokenFilePath)
     return {endpoint, tokenProjectPath: tokenProjectPath, tokenFilePath, token}
+}
+
+async function buildResolvedClientForProject(
+    projectPath: string,
+    env: Record<string, string | undefined>,
+): Promise<ResolvedClient> {
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpointForProject(
+        projectPath,
+        {env: dropDaemonUrlOverride(env)},
+    )
+    if (!endpoint?.projectPath) {
+        throw new DaemonUnreachable(
+            `Cannot resolve VoiceTree daemon URL for project ${projectPath}. ` +
+            'Confirm the project has `.voicetree/rpc.port` and its daemon is running.',
+        )
+    }
+    const tokenFilePath: string = authTokenFilePath(endpoint.projectPath)
+    const token: string = await loadToken(endpoint.projectPath, tokenFilePath)
+    return {endpoint, tokenProjectPath: endpoint.projectPath, tokenFilePath, token}
 }
 
 async function loadToken(project: string, tokenFilePath: string): Promise<string> {
@@ -259,6 +279,30 @@ export async function callDaemon(
         outcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
     }
 
+    if (outcome.kind === 'auth_required') {
+        const freshToken: string = await loadToken(client.tokenProjectPath, client.tokenFilePath)
+        outcome = await postRpc(client.endpoint.url, freshToken, toolName, args, timeoutMs)
+        if (outcome.kind === 'auth_required') {
+            throw new DaemonAuthRequired(
+                `Daemon at ${client.endpoint.url} rejected the bearer token after one retry. Re-check ${client.tokenFilePath} — the daemon may have been restarted with a new token.`,
+            )
+        }
+    }
+
+    if (outcome.envelope.error) throwForRpcError(outcome.envelope.error, client.tokenFilePath)
+    return outcome.envelope.result
+}
+
+export async function callDaemonForProject(
+    projectPath: string,
+    toolName: string,
+    args: Record<string, unknown>,
+): Promise<unknown> {
+    const env: Record<string, string | undefined> = process.env
+    const timeoutMs: number = getTimeoutMs(env)
+    const client: ResolvedClient = await buildResolvedClientForProject(projectPath, env)
+
+    let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
     if (outcome.kind === 'auth_required') {
         const freshToken: string = await loadToken(client.tokenProjectPath, client.tokenFilePath)
         outcome = await postRpc(client.endpoint.url, freshToken, toolName, args, timeoutMs)

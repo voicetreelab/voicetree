@@ -92,8 +92,8 @@ export const AGENT_CLOSE_SPEC: SubcommandSpec = {
 export const AGENT_SEND_SPEC: SubcommandSpec = {
     verb: 'vt agent send',
     rpcTool: 'send_message',
-    usageTail: '<terminalId> <message>...',
-    summary: 'Send a message into an agent terminal (carriage return appended).',
+    usageTail: '<terminalId|project/terminalId> <message>...',
+    summary: 'Send a message into an agent terminal. Use project/terminalId for cross-project sends.',
     flags: [],
 }
 

@@ -31,6 +31,11 @@ function buildHeadlessInputError(terminalId: string): McpToolResponse {
     return buildErrorResponse(`Cannot send message to headless agent "${terminalId}". Headless agents have no terminal input. They receive work via their task node and produce output as graph nodes. Use get_unseen_nodes_nearby to read their output.`)
 }
 
+function isScopedExternalCaller(callerTerminalId: string): boolean {
+    const slashIndex: number = callerTerminalId.indexOf('/')
+    return slashIndex > 0 && slashIndex < callerTerminalId.length - 1
+}
+
 function queuePendingTerminalMessage(terminalId: string, callerTerminalId: string, message: string): McpToolResponse {
     enqueuePendingTerminalMessage(terminalId, buildFromPrefixedMessage(callerTerminalId, message))
     return buildJsonResponse({
@@ -85,7 +90,7 @@ export async function sendMessageTool({
     message,
     callerTerminalId
 }: SendMessageParams): Promise<McpToolResponse> {
-    if (!terminalExists(callerTerminalId)) {
+    if (!terminalExists(callerTerminalId) && !isScopedExternalCaller(callerTerminalId)) {
         return buildErrorResponse(`Unknown caller terminal: ${callerTerminalId}`)
     }
 
