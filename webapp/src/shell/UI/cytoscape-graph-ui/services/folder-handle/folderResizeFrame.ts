@@ -184,7 +184,7 @@ export function setupFolderResize(
         // Folder size is owned by the directory id (the compound is not a graph
         // node, and a folder need not have a note). Persist keyed by folderId
         // through the unified spatial-layout channel.
-        await window.electronAPI?.main.saveNodeSize(folderId, size);
+        await window.hostAPI?.main.saveNodeSize(folderId, size);
     }
 
     function createFrame(folderId: string): void {
