@@ -1,9 +1,8 @@
 /**
  * Shared shape descriptions for VoiceTree tools — the single source of
  * truth that powers (a) the daemon's RPC catalog (`@vt/vt-daemon`'s
- * `catalog.ts`), (b) the user-facing manual rendered for `vt manual` and
- * spawn-time prompt injection, and (c) the cross-shell project discovery
- * file written into CLAUDE.md / AGENTS.md.
+ * `catalog.ts`), (b) the user-facing manual rendered for `vt manual`, and
+ * (c) concise agent/project discovery blocks.
  *
  * The actual spec data + renderer live in this package (`tool-specs.ts`
  * and `renderManual.ts`). Putting types and data in `@vt/vt-daemon-protocol`
@@ -13,9 +12,9 @@
  */
 
 /**
- * Two-tier classification used by spawn-time injection to keep the
- * spawned agent's AGENT_PROMPT short. The `essentials` block is injected
- * verbatim; the rest is discoverable via `vt manual <verb>`.
+ * Two-tier classification used by manual/discovery surfaces. The
+ * `essentials` commands are suitable for concise agent prompts; the rest is
+ * discoverable via `vt manual <verb>`.
  */
 export type ToolTier = 'essentials' | 'reference'
 
@@ -24,7 +23,7 @@ export type ToolTier = 'essentials' | 'reference'
  *
  * `description` is the single source for two surfaces:
  *   - the manual bullet — what `vt manual <verb>` prints under
- *     `**Parameters:**` and what spawn-prompt injection shows agents;
+ *     `**Parameters:**`;
  *   - the daemon's zod `.describe()` text for the matching input field,
  *     which the catalog uses for input-validation error messages.
  *
