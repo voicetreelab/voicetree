@@ -298,14 +298,12 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
                 try {
                     const {projectRoot} = await client.getProject()
                     const newPath: string = await createDatedSubfolder(projectRoot)
-                    // Make the new dated folder the write folder, then unload every
-                    // other read path so the user lands on a blank canvas — the
-                    // clean-slate semantics of the Electron "New voicetree" button.
+                    // Create the dated folder and make it the active write target.
+                    // (Electron additionally unloads the prior read paths for a
+                    // blank canvas; graphd exposes no read-path-removal route via
+                    // the gateway client, so browser-mode leaves prior folders
+                    // loaded — the new folder is still where new nodes are written.)
                     await client.setWriteFolderPath(newPath)
-                    const after = await client.getProject()
-                    for (const readPath of after.readPaths) {
-                        if (readPath !== after.writeFolderPath) await client.removeReadPath(readPath)
-                    }
                     return json({success: true, path: newPath})
                 } catch (error) {
                     const message: string = error instanceof Error ? error.message : String(error)
