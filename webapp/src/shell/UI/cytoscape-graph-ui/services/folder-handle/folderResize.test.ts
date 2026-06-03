@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
     computeResizedFolderSize,
+    resizeBiasForHandle,
     MIN_FOLDER_WIDTH,
     MIN_FOLDER_HEIGHT,
     type ResizeHandle,
@@ -62,5 +63,61 @@ describe('computeResizedFolderSize', () => {
             expect(r.width).toBeGreaterThanOrEqual(MIN_FOLDER_WIDTH)
             expect(r.height).toBeGreaterThanOrEqual(MIN_FOLDER_HEIGHT)
         }
+    })
+})
+
+describe('resizeBiasForHandle', () => {
+    it('puts all width slack on the right (left edge pinned) when dragging east', () => {
+        expect(resizeBiasForHandle('e')).toEqual({
+            'min-width-bias-left': 0,
+            'min-width-bias-right': 1,
+        })
+    })
+
+    it('puts all width slack on the left (right edge pinned) when dragging west', () => {
+        expect(resizeBiasForHandle('w')).toEqual({
+            'min-width-bias-left': 1,
+            'min-width-bias-right': 0,
+        })
+    })
+
+    it('puts all height slack on the bottom (top edge pinned) when dragging south', () => {
+        expect(resizeBiasForHandle('s')).toEqual({
+            'min-height-bias-top': 0,
+            'min-height-bias-bottom': 1,
+        })
+    })
+
+    it('puts all height slack on the top (bottom edge pinned) when dragging north', () => {
+        expect(resizeBiasForHandle('n')).toEqual({
+            'min-height-bias-top': 1,
+            'min-height-bias-bottom': 0,
+        })
+    })
+
+    it('biases both axes toward the dragged corner (se → bottom-right grows, top-left pinned)', () => {
+        expect(resizeBiasForHandle('se')).toEqual({
+            'min-width-bias-left': 0,
+            'min-width-bias-right': 1,
+            'min-height-bias-top': 0,
+            'min-height-bias-bottom': 1,
+        })
+    })
+
+    it('biases both axes toward the dragged corner (nw → top-left grows, bottom-right pinned)', () => {
+        expect(resizeBiasForHandle('nw')).toEqual({
+            'min-width-bias-left': 1,
+            'min-width-bias-right': 0,
+            'min-height-bias-top': 1,
+            'min-height-bias-bottom': 0,
+        })
+    })
+
+    it('omits the off-axis so an edge drag never disturbs the other axis bias', () => {
+        // East drag must not touch the vertical bias, north drag the horizontal.
+        expect(resizeBiasForHandle('e')).not.toHaveProperty('min-height-bias-top')
+        expect(resizeBiasForHandle('e')).not.toHaveProperty('min-height-bias-bottom')
+        expect(resizeBiasForHandle('n')).not.toHaveProperty('min-width-bias-left')
+        expect(resizeBiasForHandle('n')).not.toHaveProperty('min-width-bias-right')
     })
 })

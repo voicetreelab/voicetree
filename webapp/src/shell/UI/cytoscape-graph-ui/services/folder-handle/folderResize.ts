@@ -17,11 +17,51 @@ export const ALL_RESIZE_HANDLES: readonly ResizeHandle[] = ['n', 's', 'e', 'w', 
 export const MIN_FOLDER_WIDTH = 120
 export const MIN_FOLDER_HEIGHT = 80
 
-// Which screen-delta axis component grows each dimension. Expanded folders use
-// centered bias, so dragging either horizontal edge changes width and either
-// vertical edge changes height; the sign points the grip "outward".
+// Which screen-delta axis component grows each dimension, and which way the
+// grip points "outward": +1 = east/south, -1 = west/north, 0 = the axis the
+// grip does not touch. The sign also drives resizeBiasForHandle below, which
+// anchors the opposite edge so the grip tracks the cursor 1:1.
 const WIDTH_SIGN: Record<ResizeHandle, number> = { e: 1, se: 1, ne: 1, w: -1, sw: -1, nw: -1, n: 0, s: 0 }
 const HEIGHT_SIGN: Record<ResizeHandle, number> = { s: 1, se: 1, sw: 1, n: -1, ne: -1, nw: -1, e: 0, w: 0 }
+
+/**
+ * Cytoscape compound min-* bias keyed by style-property name, for a grip drag.
+ *
+ * A compound folder has no size of its own — its box is its children's bbox
+ * grown to the min-width / min-height floor. cytoscape's DEFAULT bias (0/0)
+ * splits that slack evenly around the children, so dragging one edge moved it
+ * only HALF the cursor distance (felt like lag) and slid the top-left corner —
+ * detaching the chip strip (chevron + eye) pinned there.
+ *
+ * Biasing all the slack toward the dragged edge anchors the OPPOSITE edge: the
+ * grip then tracks the pointer 1:1 and the un-dragged edges stay put. From
+ * cytoscape bounds.mjs `update()`: pos.x = childrenCenter + (diffRight − diffLeft)/2,
+ * so `left:0, right:1` pins x1 to the children's left and puts the whole slack
+ * on the right (and symmetrically for the vertical axis).
+ *
+ * Only the axis the grip actually grows is returned; the off-axis is omitted so
+ * an edge drag never disturbs the other axis's existing bias.
+ */
+export interface FolderResizeBias {
+    readonly 'min-width-bias-left'?: number
+    readonly 'min-width-bias-right'?: number
+    readonly 'min-height-bias-top'?: number
+    readonly 'min-height-bias-bottom'?: number
+}
+
+export function resizeBiasForHandle(handle: ResizeHandle): FolderResizeBias {
+    const bias: {
+        'min-width-bias-left'?: number
+        'min-width-bias-right'?: number
+        'min-height-bias-top'?: number
+        'min-height-bias-bottom'?: number
+    } = {}
+    if (WIDTH_SIGN[handle] > 0) { bias['min-width-bias-left'] = 0; bias['min-width-bias-right'] = 1 }
+    else if (WIDTH_SIGN[handle] < 0) { bias['min-width-bias-left'] = 1; bias['min-width-bias-right'] = 0 }
+    if (HEIGHT_SIGN[handle] > 0) { bias['min-height-bias-top'] = 0; bias['min-height-bias-bottom'] = 1 }
+    else if (HEIGHT_SIGN[handle] < 0) { bias['min-height-bias-top'] = 1; bias['min-height-bias-bottom'] = 0 }
+    return bias
+}
 
 function clampMin(value: number, min: number): number {
     return value < min ? min : value
