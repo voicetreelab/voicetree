@@ -335,7 +335,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // implementation detail; those are no longer in the protocol barrel.
     // 2026-06-02 [PR #229]: 4 -> 5. vt-daemon consumes the published graph.*
     // gateway RPC contract from vt-daemon-protocol (+1 value symbol).
-    'vt-daemon -> vt-daemon-protocol': 5,
+    // 2026-06-03 [status-presets]: 5 -> 7. create_graph status reporting
+    // consumes the shared status vocabulary and phrase cap (`AGENT_STATUSES`,
+    // `MAX_STATUS_PHRASE_LENGTH`) so daemon validation, lifecycle handling, and
+    // CLI docs use one protocol contract.
+    'vt-daemon -> vt-daemon-protocol': 7,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
     // (proposed `@vt/project-paths` or `@vt/paths`). See #123 for
