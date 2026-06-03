@@ -26,6 +26,7 @@ import type {TerminalLifecycle} from '@vt/vt-daemon/agent-runtime/lifecycle'
 
 function buildGraphNode(nodeId: string, title: string, agentName: string, isContextNode: boolean = false): GraphNode {
     return {
+        kind: 'leaf',
         outgoingEdges: [],
         absoluteFilePathIsID: nodeId,
         contentWithoutYamlOrLinks: `# ${title}\n\nContent.`,
@@ -72,6 +73,8 @@ function makeRecord(id: string, data: TerminalData, status: 'running' | 'exited'
         terminalData: data,
         status,
         exitCode: status === 'exited' ? 0 : null,
+        exitSignal: null,
+        killReason: null,
         auditRetryCount: 0,
         spawnedAt: 0,
     }
