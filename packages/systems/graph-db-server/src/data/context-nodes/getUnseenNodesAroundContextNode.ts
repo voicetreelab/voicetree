@@ -4,6 +4,10 @@ import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
 import { type VTSettings } from '@vt/graph-model/settings'
 import type { UnseenNode } from '@vt/graph-db-server/contract'
+import {
+    graphVisibleForContext,
+    readCollapsedFolderIdsForContext,
+} from './contextFolderVisibility'
 
 /**
  * Gets nodes around a context node that weren't included in the original context.
@@ -44,10 +48,15 @@ export async function getUnseenNodesAroundContextNode(
     // 3. Use override or default to the first containedNodeId (the task node)
     const startNodeId: NodeIdAndFilePath = searchFromNode ?? containedNodeIds[0]
 
+    const visibleGraph: Graph = graphVisibleForContext(currentGraph, readCollapsedFolderIdsForContext())
+    const traversalGraph: Graph = visibleGraph.nodes[startNodeId] !== undefined
+        ? visibleGraph
+        : currentGraph
+
     // 4. Re-run the graph traversal from the start node
     const settings: VTSettings = await loadSettings()
     const subgraph: Graph = getSubgraphByDistance(
-        currentGraph,
+        traversalGraph,
         startNodeId,
         settings.contextNodeMaxDistance
     )
