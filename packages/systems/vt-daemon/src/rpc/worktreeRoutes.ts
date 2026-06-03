@@ -13,7 +13,7 @@
 import {z} from 'zod'
 
 import {
-    WORKTREE_METHODS,
+    GATEWAY_METHODS,
     type WorktreeCreate,
     type WorktreeRemove,
     type WorktreeGenerateName,
@@ -40,7 +40,7 @@ export interface WorktreeRoutesDeps {
     readonly getRepoRoot: () => Promise<string>
 }
 
-const M = WORKTREE_METHODS
+const M = GATEWAY_METHODS.worktree
 
 export function buildWorktreeRoutes(deps: WorktreeRoutesDeps): readonly RpcRoute[] {
     const {getRepoRoot} = deps

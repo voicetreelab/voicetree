@@ -14,7 +14,7 @@
 // (the worktree-contract security boundary).
 
 import {
-    WORKTREE_METHODS,
+    GATEWAY_METHODS,
     type WorktreeInfo,
     type WorktreeCreate,
     type WorktreeGenerateName,
@@ -31,18 +31,18 @@ function vtdRpc<T>(method: string, params: Record<string, unknown>): Promise<T> 
 
 /** Linked worktrees for the daemon's project (the main checkout excluded). */
 export function listWorktrees(_repoRoot: string): Promise<WorktreeInfo[]> {
-    return vtdRpc<WorktreeInfo[]>(WORKTREE_METHODS.list, {})
+    return vtdRpc<WorktreeInfo[]>(GATEWAY_METHODS.worktree.list, {})
 }
 
 /** Create a worktree+branch under the daemon's project; resolves to its path. */
 export async function createWorktree(_repoRoot: string, worktreeName: string): Promise<string> {
-    const res: WorktreeCreate.Response = await vtdRpc(WORKTREE_METHODS.create, {worktreeName})
+    const res: WorktreeCreate.Response = await vtdRpc(GATEWAY_METHODS.worktree.create, {worktreeName})
     return res.path
 }
 
 /** Derive a sanitized `wt-` branch name from a node title. */
 export async function generateWorktreeName(nodeTitle: string): Promise<string> {
-    const res: WorktreeGenerateName.Response = await vtdRpc(WORKTREE_METHODS.generateName, {nodeTitle})
+    const res: WorktreeGenerateName.Response = await vtdRpc(GATEWAY_METHODS.worktree.generateName, {nodeTitle})
     return res.name
 }
 
@@ -52,7 +52,7 @@ export function removeWorktree(
     worktreePath: string,
     force: boolean = false,
 ): Promise<WorktreeRemove.Response> {
-    return vtdRpc<WorktreeRemove.Response>(WORKTREE_METHODS.remove, {worktreePath, force})
+    return vtdRpc<WorktreeRemove.Response>(GATEWAY_METHODS.worktree.remove, {worktreePath, force})
 }
 
 /** The (un-run) command string that would remove a worktree, for preview UI. */
@@ -60,6 +60,6 @@ export async function getRemoveWorktreeCommand(
     worktreePath: string,
     force: boolean = false,
 ): Promise<string> {
-    const res: WorktreeRemoveCommand.Response = await vtdRpc(WORKTREE_METHODS.removeCommand, {worktreePath, force})
+    const res: WorktreeRemoveCommand.Response = await vtdRpc(GATEWAY_METHODS.worktree.removeCommand, {worktreePath, force})
     return res.command
 }

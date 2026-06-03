@@ -21,7 +21,7 @@ import type {GraphDbClient} from '@vt/graph-db-client'
 import type {GraphNode} from '@vt/graph-model/graph'
 import type {ProjectedGraph} from '@vt/graph-state/contract'
 import {
-    GRAPH_GATEWAY_METHODS,
+    GATEWAY_METHODS,
     type GraphActivateView,
     type GraphAddStarredFolder,
     type GraphApplyDelta,
@@ -70,7 +70,7 @@ export interface GraphGatewayDeps {
     readonly ensureSession: () => Promise<string>
 }
 
-const M = GRAPH_GATEWAY_METHODS
+const M = GATEWAY_METHODS.graph
 
 function json(payload: unknown): McpToolResponse {
     return buildJsonResponse(payload)

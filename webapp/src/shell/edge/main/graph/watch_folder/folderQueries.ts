@@ -14,7 +14,7 @@
 // mirroring the prior in-process behaviour.
 
 import {
-    GRAPH_GATEWAY_METHODS,
+    GATEWAY_METHODS,
     type GraphGetStarredFolders,
     type GraphCopyNodeToFolder,
     type GraphGetDirectoryTree,
@@ -42,7 +42,7 @@ function vtdRpc<T>(method: string, params: Record<string, unknown>): Promise<T> 
  * renderer's ProjectPathStore + folder-tree stores over IPC.
  */
 export function getFolderTreeSync(): Promise<GraphGetFolderTreeSync.Response> {
-    return vtdRpc<GraphGetFolderTreeSync.Response>(GRAPH_GATEWAY_METHODS.getFolderTreeSync, {})
+    return vtdRpc<GraphGetFolderTreeSync.Response>(GATEWAY_METHODS.graph.getFolderTreeSync, {})
 }
 
 // ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ export function getFolderTreeSync(): Promise<GraphGetFolderTreeSync.Response> {
  */
 export async function getDirectoryTree(rootPath: string, maxDepth?: number): Promise<DirectoryEntry> {
     const entry: GraphGetDirectoryTree.Response = await vtdRpc<GraphGetDirectoryTree.Response>(
-        GRAPH_GATEWAY_METHODS.getDirectoryTree,
+        GATEWAY_METHODS.graph.getDirectoryTree,
         {rootPath, maxDepth},
     )
     return entry ?? {absolutePath: rootPath as DirectoryEntry['absolutePath'], name: rootPath, isDirectory: true, children: []}
@@ -70,7 +70,7 @@ export async function getAvailableFoldersForSelector(
 ): Promise<readonly AvailableFolderItem[]> {
     try {
         return await vtdRpc<GraphGetAvailableFolders.Response>(
-            GRAPH_GATEWAY_METHODS.getAvailableFolders,
+            GATEWAY_METHODS.graph.getAvailableFolders,
             {searchQuery},
         )
     } catch {
@@ -88,7 +88,7 @@ export function createSubfolder(
     folderName: string,
 ): Promise<GraphCreateSubfolder.Response> {
     return vtdRpc<GraphCreateSubfolder.Response>(
-        GRAPH_GATEWAY_METHODS.createSubfolder,
+        GATEWAY_METHODS.graph.createSubfolder,
         {parentPath, folderName},
     )
 }
@@ -101,7 +101,7 @@ export function createSubfolder(
  */
 export function createDatedVoiceTreeFolder(): Promise<GraphCreateDatedVoiceTreeFolder.Response> {
     return vtdRpc<GraphCreateDatedVoiceTreeFolder.Response>(
-        GRAPH_GATEWAY_METHODS.createDatedVoiceTreeFolder,
+        GATEWAY_METHODS.graph.createDatedVoiceTreeFolder,
         {},
     )
 }
@@ -112,7 +112,7 @@ export function createDatedVoiceTreeFolder(): Promise<GraphCreateDatedVoiceTreeF
 // ---------------------------------------------------------------------------
 
 export function getStarredFolders(): Promise<GraphGetStarredFolders.Response> {
-    return vtdRpc<GraphGetStarredFolders.Response>(GRAPH_GATEWAY_METHODS.getStarredFolders, {})
+    return vtdRpc<GraphGetStarredFolders.Response>(GATEWAY_METHODS.graph.getStarredFolders, {})
 }
 
 export async function isStarred(folderPath: string): Promise<boolean> {
@@ -130,12 +130,12 @@ async function syncProjectStateToRenderer(): Promise<void> {
 }
 
 export async function addStarredFolder(folderPath: string): Promise<void> {
-    await vtdRpc<void>(GRAPH_GATEWAY_METHODS.addStarredFolder, {folderPath})
+    await vtdRpc<void>(GATEWAY_METHODS.graph.addStarredFolder, {folderPath})
     await syncProjectStateToRenderer()
 }
 
 export async function removeStarredFolder(folderPath: string): Promise<void> {
-    await vtdRpc<void>(GRAPH_GATEWAY_METHODS.removeStarredFolder, {folderPath})
+    await vtdRpc<void>(GATEWAY_METHODS.graph.removeStarredFolder, {folderPath})
     await syncProjectStateToRenderer()
 }
 
@@ -144,7 +144,7 @@ export function copyNodeToFolder(
     targetFolderPath: string,
 ): Promise<GraphCopyNodeToFolder.Response> {
     return vtdRpc<GraphCopyNodeToFolder.Response>(
-        GRAPH_GATEWAY_METHODS.copyNodeToFolder,
+        GATEWAY_METHODS.graph.copyNodeToFolder,
         {nodeId, targetFolderPath},
     )
 }
