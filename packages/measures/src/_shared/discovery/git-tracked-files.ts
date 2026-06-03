@@ -1,11 +1,9 @@
-import {execFileSync} from 'node:child_process'
 import {existsSync} from 'node:fs'
 import {join} from 'node:path'
+import {runGitWorktreeCommand} from './run-git.ts'
 
 export function listGitTrackedFiles(repoRoot: string): readonly string[] {
-    const stdout = execFileSync('git', ['ls-files', '-z'], {
-        cwd: repoRoot,
-        encoding: 'utf8',
+    const stdout = runGitWorktreeCommand(['ls-files', '-z'], repoRoot, {
         maxBuffer: 256 * 1024 * 1024,
         stdio: ['ignore', 'pipe', 'pipe'],
     })
