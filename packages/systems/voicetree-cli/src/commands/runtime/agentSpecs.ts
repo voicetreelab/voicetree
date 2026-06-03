@@ -89,6 +89,14 @@ export const AGENT_CLOSE_SPEC: SubcommandSpec = {
     ],
 }
 
+export const AGENT_RESUME_SPEC: SubcommandSpec = {
+    verb: 'vt agent resume',
+    rpcTool: 'resumePersistedAgentSession',
+    usageTail: '<terminalId>',
+    summary: 'Resume a closed/exited agent under its original terminalId.',
+    flags: [],
+}
+
 export const AGENT_SEND_SPEC: SubcommandSpec = {
     verb: 'vt agent send',
     rpcTool: 'send_message',

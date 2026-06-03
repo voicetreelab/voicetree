@@ -4,12 +4,18 @@ import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
 
 /**
  * Lightweight stub TextToTreeServer for testing.
- * Provides minimal /health and /load-directory endpoints.
+ * Provides minimal /health, /load-directory and /loaded-directories endpoints.
  * Does NOT actually parse markdown or convert text to trees.
+ *
+ * It records every directory it is told to load (in order) and exposes them via
+ * `GET /loaded-directories`, so e2e tests can assert that main re-points the
+ * text-to-tree server (the Python backend's stand-in) at the active write
+ * folder — e.g. that "New voicetree" notifies it of the freshly created folder.
  */
 export class StubTextToTreeServerManager implements ITextToTreeServerManager {
   private stubServer: http.Server | null = null;
   private actualPort: number | null = null;
+  private readonly loadedDirectories: string[] = [];
 
   async start(): Promise<number> {
     const port: number = await findAvailablePort(8001);
@@ -24,6 +30,12 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
       if (method === 'GET' && url.startsWith('/health')) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', message: 'Stub backend healthy' }));
+        return;
+      }
+
+      if (method === 'GET' && url.startsWith('/loaded-directories')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ directories: [...this.loadedDirectories] }));
         return;
       }
 
@@ -42,6 +54,8 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
           } catch {
             //console.log('[StubTextToTreeServer] Failed to parse load-directory payload');
           }
+
+          this.loadedDirectories.push(directoryPath);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({

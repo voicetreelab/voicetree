@@ -8,7 +8,7 @@
  * Pure types + a frozen const literal — no runtime dependencies.
  */
 
-export const OVERRIDABLE_RULE_IDS = ['grandparent_attachment', 'node_line_limit', 'node_must_have_edge', 'subgraph_size_limit'] as const
+export const OVERRIDABLE_RULE_IDS = ['grandparent_attachment', 'node_line_limit', 'node_must_have_edge', 'subgraph_size_limit', 'child_count_limit', 'graph_complexity_limit'] as const
 export type OverridableRuleId = typeof OVERRIDABLE_RULE_IDS[number]
 
 export interface OverrideEntry {

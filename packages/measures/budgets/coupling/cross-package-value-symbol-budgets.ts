@@ -188,6 +188,12 @@
 // `src/`), not new coupling. Mirrors the existing sanctioned real-daemon-booting
 // leaves `voicetree-bootcamp -> graph-db-client: 1` and `vt-daemon ->
 // graph-db-client: 1`. Should not grow.
+//
+// 2026-06-03: the create_graph child_count_limit + graph_complexity_limit gates:
+//   vt-daemon -> graph-tools: 7 -> 8 (+1 computeGraphComplexity, the same
+//     measure `vt graph complexity` runs, applied to the destination cluster)
+//   vt-daemon -> graph-model: 24 -> 27 (+3 the gates' tunable settings defaults
+//     DEFAULT_MAX_CHILDREN_PER_NODE / _COMPLEXITY_WARN_SCORE / _COMPLEXITY_BLOCK_SCORE)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
     'daemon-test-harness -> graph-db-client': 2,
@@ -229,6 +235,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-tools -> graph-state': 12,
     'graph-tools -> paths': 1,
     'graph-tools -> vt-rpc': 8,
+    // 2026-06-03: new @vt/layout-quality package — the pure, test-only
+    // layout-quality scorer, relocated out of webapp so a verification tool no
+    // longer drags graph-model coupling into the app. Its geometry module reuses
+    // graph-model's battle-tested `spatial` primitives (segmentsIntersect,
+    // rectIntersectsSegment) instead of duplicating them — 2 value symbols. This
+    // reuse IS the edge's purpose; growing it would mean re-implementing geometry.
+    'layout-quality -> graph-model': 2,
     'perf-fixtures -> paths': 1,
     // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
     // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
@@ -314,25 +327,21 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
-    'vt-daemon -> graph-model': 24,
+    'vt-daemon -> graph-model': 27,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
     // in webapp's process).
     'vt-daemon -> graph-state': 3,
-    'vt-daemon -> graph-tools': 7,
+    'vt-daemon -> graph-tools': 8,
     'vt-daemon -> observability': 10,
     'vt-daemon -> paths': 4,
     'vt-daemon -> voicetree-graph-validation': 1,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
     // refactor (PR #137 + follow-up), vt-daemon-protocol owns TOOL_SPECS plus
-    // the manual renderer + the [From:] wrapper. The daemon now imports four
-    // distinct value symbols and only four: `TOOL_SPECS` (catalog.ts iterates
-    // it to bind handlers; cliManualInjection.ts re-uses it for the spawn
-    // essentials slice), `renderManual` (cliManualInjection.ts), `buildFromPrefixedMessage`
-    // (sendMessageTool.ts), and one terminal-registry constant. The earlier
-    // shape of "14 individual *_SPEC constants" was an over-export of
-    // implementation detail; those are no longer in the protocol barrel.
+    // the [From:] wrapper and terminal/graph protocol constants. The daemon
+    // imports `TOOL_SPECS` for catalog binding and concise spawn CLI discovery;
+    // rendered manual sections stay behind `vt manual`.
     // 2026-06-02 [PR #229]: 4 -> 5. vt-daemon consumes the published graph.*
     // gateway RPC contract from vt-daemon-protocol (+1 value symbol).
     // 2026-06-03 [status-presets]: 5 -> 7. create_graph status reporting

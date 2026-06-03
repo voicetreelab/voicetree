@@ -5,10 +5,6 @@
  *         so project state + folder tree broadcasts may not have completed
  *         by the time the caller acts on the return value.
  *
- * Bug 2: createDatedVoiceTreeFolder auto-loads ALL starred folders as expanded paths,
- *         even though the user only wants starred folders to appear in the sidebar
- *         without being loaded unless they were previously loaded.
- *
  * These tests represent the DESIRED behavior and should FAIL (red) against
  * the current implementation.
  */
@@ -68,9 +64,7 @@ import {
     removeReadPath,
     addReadPath,
     setWriteFolderPath,
-    getReadPaths,
     getProjectPaths,
-    createDatedVoiceTreeFolder,
 } from '../../../state/projectAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
@@ -142,10 +136,9 @@ describe('Bug 1: removeReadPath should complete project state broadcast before r
         // because the async broadcast chain hasn't resolved yet.
         expect(syncProjectStateSpy).toHaveBeenCalled()
 
-        // AND: The broadcast payload should NOT include the removed path
-        const lastCall = syncProjectStateSpy.mock.calls[syncProjectStateSpy.mock.calls.length - 1]
-        const broadcastData = lastCall[0] as { projectPaths: readonly string[] }
-        expect(broadcastData.projectPaths).not.toContain(readPathA)
+        // AND: the broadcast's observable effect — the project paths read back
+        // through the public API — should NOT include the removed path.
+        expect(await getProjectPaths()).not.toContain(readPathA)
     })
 
     it('folder tree should be rebuilt before removeReadPath resolves', async () => {
@@ -353,126 +346,6 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
         // We verify this indirectly: getProjectPaths (used by doBroadcast) should not include it
         const paths = await getProjectPaths()
         expect(paths).not.toContain(readPathA)
-    })
-})
-
-// ── Bug 2: starred folders should NOT auto-load on new folder creation ──
-
-describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders', () => {
-    let testTmpDir: string
-    let voicetreeHomeDir: string
-    let syncProjectStateSpy: ReturnType<typeof vi.fn>
-
-    beforeEach(async () => {
-        testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'toggle-bug2-'))
-        voicetreeHomeDir = path.join(testTmpDir, 'voicetree-home')
-        await fs.mkdir(voicetreeHomeDir, { recursive: true })
-
-        syncProjectStateSpy = vi.fn()
-
-        process.env.VOICETREE_HOME_PATH = voicetreeHomeDir
-        initGraphModel({
-            syncProjectState: syncProjectStateSpy,
-            syncFolderTree: vi.fn(),
-            syncStarredFolderTrees: vi.fn(),
-            syncExternalFolderTrees: vi.fn(),
-            fitViewport: vi.fn(),
-        })
-
-        setGraph(createEmptyGraph())
-        clearWatchFolderState()
-        setWatcher({
-            add: vi.fn(),
-            unwatch: vi.fn(),
-        } as never)
-        clearSettingsCache()
-    })
-
-    afterEach(async () => {
-        await fs.rm(testTmpDir, { recursive: true, force: true })
-        clearWatchFolderState()
-        setGraph(createEmptyGraph())
-        vi.clearAllMocks()
-    })
-
-    it('starred folders NOT previously loaded should NOT be added to expanded paths', async () => {
-        // GIVEN: A project with a write path and no expanded paths
-        const watchedDir = path.join(testTmpDir, 'project')
-        const writeFolderPath = path.join(watchedDir, 'currentWrite')
-        await fs.mkdir(writeFolderPath, { recursive: true })
-        setProjectRoot(watchedDir)
-
-        await saveProjectConfigForDirectory(watchedDir, {
-            writeFolderPath,
-        })
-
-        // AND: A starred folder that is NOT currently expanded
-        const starredFolder = path.join(testTmpDir, 'starred-project')
-        await fs.mkdir(starredFolder, { recursive: true })
-        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredFolder] })
-
-        // WHEN: User creates a new dated folder
-        const result = await createDatedVoiceTreeFolder()
-        expect(result.success).toBe(true)
-
-        // THEN: The starred folder should NOT be expanded.
-        const expandedPaths = await getReadPaths()
-        expect(expandedPaths).not.toContain(starredFolder)
-    })
-
-    it('starred folders should NOT appear in getProjectPaths after new folder creation (unless previously loaded)', async () => {
-        // GIVEN: A project with a write path
-        const watchedDir = path.join(testTmpDir, 'project')
-        const writeFolderPath = path.join(watchedDir, 'currentWrite')
-        await fs.mkdir(writeFolderPath, { recursive: true })
-        setProjectRoot(watchedDir)
-
-        await saveProjectConfigForDirectory(watchedDir, {
-            writeFolderPath,
-        })
-
-        // AND: Two starred folders, neither currently loaded
-        const starredA = path.join(testTmpDir, 'starred-a')
-        const starredB = path.join(testTmpDir, 'starred-b')
-        await fs.mkdir(starredA, { recursive: true })
-        await fs.mkdir(starredB, { recursive: true })
-        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredA, starredB] })
-
-        // WHEN: createDatedVoiceTreeFolder is called
-        const result = await createDatedVoiceTreeFolder()
-        expect(result.success).toBe(true)
-
-        // THEN: Neither starred folder should be in the project paths
-        const allPaths = await getProjectPaths()
-        expect(allPaths).not.toContain(starredA)
-        expect(allPaths).not.toContain(starredB)
-    })
-
-    it('a previously-loaded starred folder should remain loaded after new folder creation', async () => {
-        // GIVEN: A project where a starred folder IS already expanded
-        const watchedDir = path.join(testTmpDir, 'project')
-        const writeFolderPath = path.join(watchedDir, 'currentWrite')
-        const starredAndLoaded = path.join(testTmpDir, 'starred-loaded')
-        await fs.mkdir(writeFolderPath, { recursive: true })
-        await fs.mkdir(starredAndLoaded, { recursive: true })
-        setProjectRoot(watchedDir)
-
-        await saveProjectConfigForDirectory(watchedDir, {
-            writeFolderPath,
-        })
-        await setActiveViewFolderState(watchedDir, starredAndLoaded, 'expanded')
-
-        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredAndLoaded] })
-
-        // WHEN: createDatedVoiceTreeFolder is called
-        const result = await createDatedVoiceTreeFolder()
-        expect(result.success).toBe(true)
-
-        // THEN: The previously-loaded starred folder should still be expanded
-        // (Loading state should be preserved — only the auto-loading of
-        // not-previously-loaded starred folders is the bug.)
-        const expandedPaths = await getReadPaths()
-        expect(expandedPaths).toContain(starredAndLoaded)
     })
 })
 

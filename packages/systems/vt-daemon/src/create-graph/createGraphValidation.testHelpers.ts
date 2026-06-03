@@ -4,7 +4,13 @@
  */
 
 import type {Graph, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
-import {DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD} from '@vt/graph-model/settings'
+import {
+    DEFAULT_SUBGRAPH_WARN_THRESHOLD,
+    DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+    DEFAULT_MAX_CHILDREN_PER_NODE,
+    DEFAULT_COMPLEXITY_WARN_SCORE,
+    DEFAULT_COMPLEXITY_BLOCK_SCORE,
+} from '@vt/graph-model/settings'
 import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {ValidationContext} from './createGraphValidation'
 
@@ -59,6 +65,9 @@ export function buildCtx(
         lineLimit: overrides.lineLimit ?? 70,
         subgraphWarnThreshold: overrides.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
         subgraphErrorThreshold: overrides.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+        maxChildrenPerNode: overrides.maxChildrenPerNode ?? DEFAULT_MAX_CHILDREN_PER_NODE,
+        complexityWarnScore: overrides.complexityWarnScore ?? DEFAULT_COMPLEXITY_WARN_SCORE,
+        complexityBlockScore: overrides.complexityBlockScore ?? DEFAULT_COMPLEXITY_BLOCK_SCORE,
         destinationFolderPath: overrides.destinationFolderPath ?? '',
     }
 }
