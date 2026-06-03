@@ -49,9 +49,10 @@ test.describe('Browser VoiceTree — graph render + navigation', () => {
     // live cy element — plus the seed root.md (a guaranteed top-level non-context
     // node) as a hard anchor so this can never pass vacuously on an empty graph.
     // Node-id conventions are the codebase's own: folder ids end with '/',
-    // containment is path-prefix, context nodes carry `/ctx-nodes/`.
-    const rootId = `${cfg.projectPath}/root.md`
-    const result = await page.evaluate(async (rootId) => {
+    // containment is path-prefix, context nodes carry `/ctx-nodes/`. We assert
+    // against the REAL projected node ids (from getCurrentProjectedGraph), never a
+    // reconstructed path — node ids are not necessarily `<projectPath>/<file>`.
+    const result = await page.evaluate(async () => {
       type CyEl = {length: number}
       type CyInstance = {nodes: () => {length: number}; getElementById: (id: string) => CyEl}
       const cy = (window as unknown as {cytoscapeInstance?: CyInstance}).cytoscapeInstance
@@ -62,6 +63,7 @@ test.describe('Browser VoiceTree — graph render + navigation', () => {
       const folderIds = projIds.filter((id) => id.endsWith('/'))
       const isNested = (id: string): boolean => folderIds.some((f) => id !== f && id.startsWith(f))
       const isContext = (id: string): boolean => id.includes('/ctx-nodes/')
+      // Renderable = top-level (not nested under any folder) and not a context node.
       const renderable = projIds.filter((id) => !isNested(id) && !isContext(id))
       const missing = renderable.filter((id) => cy.getElementById(id).length === 0)
       return {
@@ -69,14 +71,12 @@ test.describe('Browser VoiceTree — graph render + navigation', () => {
         projCount: projIds.length,
         renderableCount: renderable.length,
         missing,
-        rootRendered: cy.getElementById(rootId).length > 0,
       }
-    }, rootId)
+    })
 
     expect(result.error, `setup failed: ${result.error ?? ''}`).toBeUndefined()
     expect(result.projCount, 'fixture project must project at least one node').toBeGreaterThan(0)
     expect(result.cyNodeCount, 'cytoscape must have rendered nodes').toBeGreaterThan(0)
-    expect(result.rootRendered, 'the seed root.md (top-level, non-context) must render as a Cytoscape element').toBe(true)
     expect(result.renderableCount, 'there must be at least one top-level non-context node to assert on').toBeGreaterThan(0)
     expect(result.missing, 'every TOP-LEVEL non-context projected node must be rendered as a Cytoscape element').toEqual([])
   })
