@@ -16,7 +16,7 @@ import { markLoadTiming, startLoadTiming, type LoadTimingSession } from '@/shell
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
 import type { TerminalRecord } from '@vt/vt-daemon-client'
 
-import { setActiveProjectAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+import { setActiveProjectAndEnsureDaemon, type DaemonHandle } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import {
@@ -143,6 +143,30 @@ export async function openProject(rawProjectRoot: string): Promise<OpenProjectRe
         resetTerminalRegistryCache()
         await stopDaemonGraphSync()
 
+        // Start the graph-daemon (vt-graphd) spawn NOW, concurrently with the
+        // VTD bind below — not serially after it. vt-graphd and VTD are two
+        // independent Node child processes, but VTD's own startup itself
+        // ensures vt-graphd and only reports healthy *after* that nested
+        // graphd boot resolves. So awaiting `bindVtDaemonForProject` first paid
+        // for BOTH cold Node boots back-to-back (VTD's own ~400ms plus the
+        // ~370ms graphd it nests). Kicking the graphd ensure off here lets the
+        // cross-process spawn lock coalesce it with VTD's nested ensure into
+        // exactly one child whose ~370ms boot OVERLAPS VTD's instead of
+        // following it — roughly halving fresh-project load time (measured
+        // ~777ms → ~368ms).
+        //
+        // Safe w.r.t. writeFolderPath ordering: graphd's startup project-open
+        // already ran before the persist below even without this change (VTD
+        // spawned graphd during the bind), and the authoritative
+        // `owner.client.openProject(..., { writeFolderPath })` RPC further down
+        // re-binds the resolved writeFolderPath on every open regardless — so
+        // the resolved path always wins, whoever spawned graphd first.
+        const graphdOwnerPromise: Promise<DaemonHandle> = setActiveProjectAndEnsureDaemon(projectRoot)
+        // No-op rejection handler so a graphd-ensure failure can't surface as an
+        // unhandled rejection if an earlier await in this block throws before we
+        // reach the real `await graphdOwnerPromise`; that await still observes it.
+        graphdOwnerPromise.catch((): void => {})
+
         // Rebind to the per-project VTD child BEFORE any further
         // renderer-visible side effect. Renderer subscriptions can fire
         // `api.main.getDaemonUrl()` reactively on `project:switching`
@@ -192,7 +216,9 @@ export async function openProject(rawProjectRoot: string): Promise<OpenProjectRe
         })
 
         markLoadTiming(loadTiming, 'main:daemon-open-project-start')
-        const owner = await setActiveProjectAndEnsureDaemon(projectRoot)
+        // Started concurrently with the VTD bind above; by now it has usually
+        // already resolved (graphd booted in parallel), so this await is cheap.
+        const owner = await graphdOwnerPromise
         // The owner-aware spawn already opened the project at startup using
         // the saved writeFolderPath. This call is the idempotent confirmation
         // that returns the daemon's authoritative `OpenProjectResponse`.
