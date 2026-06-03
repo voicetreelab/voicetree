@@ -11,12 +11,27 @@ import normalizePath from 'normalize-path'
 import type { AbsolutePath, DirectoryEntry } from '@vt/graph-model/folders'
 import { toAbsolutePath } from '@vt/graph-model/folders'
 
-const IGNORED_DIRS: ReadonlySet<string> = new Set([
-    'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',
-    '.tox', '.venv', 'venv',
-    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
-    '.worktrees',
-])
+// Directory names skipped during a recursive scan: dependency/build/cache dirs
+// and VCS metadata that never hold user nodes. A pure predicate (not a
+// module-level Set) so there is no module-level mutable container.
+function isIgnoredDir(name: string): boolean {
+    switch (name) {
+        case 'node_modules':
+        case '.git':
+        case '.next':
+        case 'dist':
+        case '.cache':
+        case '__pycache__':
+        case '.tox':
+        case '.venv':
+        case 'venv':
+        // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
+        case '.worktrees':
+            return true
+        default:
+            return false
+    }
+}
 
 export async function isValidSubdirectory(
     projectRoot: string,
@@ -93,7 +108,7 @@ export async function getDirectoryTree(
                     const absPath: AbsolutePath = toAbsolutePath(fullPath)
 
                     if (entry.isDirectory()) {
-                        if (IGNORED_DIRS.has(entry.name)) {
+                        if (isIgnoredDir(entry.name)) {
                             continue
                         }
                         children.push(await scan(fullPath, depth + 1))
