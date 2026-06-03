@@ -10,9 +10,12 @@
 // remains untouched by transport changes.
 
 import {createRpcClient, type JsonRpcResponse} from '@vt/vt-rpc'
+import type {AgentStatus} from './types.js'
+
+export type AgentStatusReport = {agentStatus?: AgentStatus; statusPhrase?: string}
 
 export interface McpClient {
-    createGraph(callerTerminalId: string, nodes: Array<{filename: string; title: string; summary: string; content?: string; color?: string}>, outputPath?: string): Promise<unknown>
+    createGraph(callerTerminalId: string, nodes: Array<{filename: string; title: string; summary: string; content?: string; color?: string}>, outputPath?: string, status?: AgentStatusReport): Promise<unknown>
     spawnAgent(callerTerminalId: string, task: string, parentNodeId: string, opts?: {depthBudget?: number; headless?: boolean}): Promise<{terminalId: string}>
     waitForAgents(callerTerminalId: string, terminalIds: string[], pollIntervalMs?: number): Promise<{monitorId?: string; status: string; terminalIds?: string[]; message?: string}>
     sendMessage(callerTerminalId: string, targetTerminalId: string, message: string): Promise<unknown>
@@ -35,12 +38,14 @@ function unwrap(response: JsonRpcResponse): unknown {
 }
 
 export async function connectToMcp(): Promise<McpClient> {
-    const client = await createRpcClient({env: process.env})
+    const client = await createRpcClient({env: process.env, cwd: process.cwd()})
 
     return {
-        async createGraph(callerTerminalId, nodes, outputPath) {
+        async createGraph(callerTerminalId, nodes, outputPath, status) {
             const params: Record<string, unknown> = {callerTerminalId, nodes}
             if (outputPath !== undefined && outputPath.length > 0) params.outputPath = outputPath
+            if (status?.agentStatus !== undefined) params.agentStatus = status.agentStatus
+            if (status?.statusPhrase !== undefined) params.statusPhrase = status.statusPhrase
             return unwrap(await client.call('create_graph', params))
         },
 
