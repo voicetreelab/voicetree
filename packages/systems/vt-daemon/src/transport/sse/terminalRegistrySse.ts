@@ -1,6 +1,5 @@
 // SSE bridge from the `terminal-registry` topic on the in-process hub onto
-// an HTTP text/event-stream channel. Mirrors `agentEventsSse.ts` but with
-// the terminal-registry wire envelope:
+// an HTTP text/event-stream channel. Wire envelope:
 //
 //   { kind: 'terminal-registry', seq, event: TerminalRegistryEvent, project }
 //
@@ -11,18 +10,11 @@
 // consumer's `parseTerminalRegistryBlock` (see
 // webapp/.../terminal-registry-sse-subscription.ts).
 //
-// Auth gating, path-match, `?since=` resume, and gap-frame semantics are
-// the same as agent-events; the wire envelope kind differs.
-//
-// Two separate files (rather than generalising a single producer over a
-// topic parameter) keep each route's projection function trivially
-// readable: agent-events projects hub `{event:string, data:hookResult}`
-// onto `{event:string, data:{terminalId,source,at,handlerResult}}`, while
-// terminal-registry projects hub `{event:string, data:TerminalRegistryEvent}`
-// onto `{event:TerminalRegistryEvent}`. The wire-envelope shapes diverge,
-// so a shared producer would have had to thread a projection callback
-// through every layer to recover what is naturally expressed as a
-// dedicated handler.
+// The route is bearer-auth-gated (the caller checks `isAuthorized` before
+// reaching `handleTerminalRegistrySse`). `?since=<seq>` resumes from the
+// hub's per-topic buffer; buffer-overrun gaps are projected onto the wire as
+// a `kind: 'terminal-registry-gap'` block so a single stream reader handles
+// both event and gap frames.
 
 import type {IncomingMessage, ServerResponse} from 'node:http'
 
@@ -53,6 +45,17 @@ export interface TerminalRegistryGapEnvelope {
 export type TerminalRegistryFrame =
     | TerminalRegistryEnvelope
     | TerminalRegistryGapEnvelope
+
+/**
+ * Parse the `?since=<n>` query param. Returns 0 on absence / non-finite.
+ */
+export function parseSinceQuery(rawUrl: string): number {
+    const url: URL = new URL(rawUrl, 'http://127.0.0.1')
+    const raw: string | null = url.searchParams.get('since')
+    if (raw === null) return 0
+    const n: number = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 0 ? n : 0
+}
 
 /**
  * Match `/sessions/<sessionId>/terminal-registry` (no trailing slash, no
@@ -94,9 +97,8 @@ export function projectHubEventToTerminalRegistryEnvelope(
 }
 
 /**
- * Encode a wire envelope as a single SSE block. Identical wire format to
- * agent-events: a `data:` line carrying single-line JSON, followed by the
- * required trailing blank line.
+ * Encode a wire envelope as a single SSE block: a `data:` line carrying
+ * single-line JSON, followed by the required trailing blank line.
  */
 export function encodeTerminalRegistrySseBlock(envelope: TerminalRegistryFrame): string {
     return `data: ${JSON.stringify(envelope)}\n\n`
@@ -112,10 +114,7 @@ export interface TerminalRegistrySseOptions {
  * Handle a `GET /sessions/<id>/terminal-registry` request. Writes SSE
  * headers, subscribes to the `terminal-registry` topic with `resumeSeq`,
  * projects each hub frame onto the wire envelope, and returns when the
- * response stream closes.
- *
- * Mirrors handleAgentEventsSse — the hub's resume-buffer / gap-frame
- * semantics are unchanged, only the wire envelope shape differs.
+ * response stream closes (client disconnect, daemon shutdown, error).
  */
 export function handleTerminalRegistrySse(
     _req: IncomingMessage,
