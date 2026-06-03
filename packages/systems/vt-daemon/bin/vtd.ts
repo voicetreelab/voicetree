@@ -62,7 +62,7 @@ import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {createGatewayLiveUpdates} from '@vt/vt-daemon/transport/gatewayLiveUpdates.ts'
-import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
+import {parseDevCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
@@ -339,11 +339,11 @@ async function main(): Promise<void> {
                 owner: ownerHandle.health(),
                 canonicalProject: args.project,
             }),
-            // Browser-mode CORS: only localhost origins pass validation — anything
-            // that is not http://localhost:<port> or http://127.0.0.1:<port> is
-            // silently dropped. Set VOICETREE_CORS_ORIGINS to opt in, e.g.
-            //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-            allowedOrigins: parseLocalhostCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
+            // Browser-mode CORS: only loopback (localhost/127.0.0.1) and private-LAN
+            // IPv4 origins pass validation — anything else is dropped. Set
+            // VOICETREE_CORS_ORIGINS to opt in, e.g.
+            //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://192.168.1.20:3000
+            allowedOrigins: parseDevCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
             // No graphdUrl in the browser payload — under the gateway the browser
             // talks ONLY to VTD; graphd stays loopback-internal (VTD reaches it
             // via gdb.client, which already holds gdb.port).
