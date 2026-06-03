@@ -7,7 +7,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { getNodeTitle, nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
-import { slugify } from '../../_shared/slugify.ts'
+import { slugify } from '@vt/vt-daemon/_shared/slugify.ts'
 
 export interface FolderMutationResult {
     readonly success: boolean
