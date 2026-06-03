@@ -21,7 +21,8 @@
 // then calls /settings with Authorization: Bearer <token>.
 
 import type {IncomingMessage, ServerResponse} from 'node:http'
-import {loadSettings, projectBrowserSafeSettings, saveBrowserSafeSettings} from '@vt/app-config/settings'
+import {loadSettings} from '@vt/app-config/settings'
+import {projectBrowserSafeSettings, saveBrowserSafeSettings} from './browserSafeSettings.ts'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {AccessLogger} from '../httpServerTypes.ts'
 import {buildAccessLogLine} from '../accessLog.ts'

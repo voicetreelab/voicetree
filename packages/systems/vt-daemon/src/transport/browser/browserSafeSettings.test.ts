@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {createDefaultSettings} from '@vt/graph-model/settings'
-import {projectBrowserSafeSettings} from './settings_IO.ts'
+import {projectBrowserSafeSettings} from './browserSafeSettings.ts'
 
 describe('projectBrowserSafeSettings', () => {
     it('empties INJECT_ENV_VARS and drops hooks/shell (host + secret concerns)', () => {

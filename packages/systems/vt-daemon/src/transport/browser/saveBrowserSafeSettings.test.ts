@@ -10,12 +10,8 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createDefaultSettings} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {VOICETREE_HOME_PATH_ENV} from '@vt/paths'
-import {
-    loadSettings,
-    mergeBrowserSafeSettings,
-    saveBrowserSafeSettings,
-    saveSettings,
-} from './settings_IO.ts'
+import {loadSettings, saveSettings} from '@vt/app-config/settings'
+import {mergeBrowserSafeSettings, saveBrowserSafeSettings} from './browserSafeSettings.ts'
 
 let homeDir: string
 let originalEnv: string | undefined

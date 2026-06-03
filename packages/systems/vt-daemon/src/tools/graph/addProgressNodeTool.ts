@@ -9,7 +9,6 @@ import {
     type BuildMarkdownBodyParams,
     type ComplexityScore,
 } from '@vt/graph-tools/node'
-
 export type {BuildMarkdownBodyParams, ComplexityScore}
 
 /**
@@ -33,15 +32,6 @@ function getMermaidParserType(diagramType: string): string | undefined {
         default:
             return undefined
     }
-}
-
-export function slugify(text: string): string {
-    return text
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
 }
 
 export type MermaidBlock = {

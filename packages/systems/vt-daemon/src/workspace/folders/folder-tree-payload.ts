@@ -1,29 +1,25 @@
-// Folder-tree projections served to the UI: the hierarchical sidebar payload
-// (root + starred + external trees) and the "add folder" selector results.
+// Folder-tree projections served to the browser-mode UI: the hierarchical
+// sidebar payload (root + starred + external trees) and the "add folder"
+// selector results.
 //
-// These compose the pure transforms in `@vt/graph-model` (`buildFolderTree`,
-// `getAvailableFolders`, `getExternalReadPaths`, `parseSearchQuery`) over the FS
-// scans in `./folder-scanning`, parameterised by a minimal structural view of
-// the project state so this module needs no graph-db client/protocol dependency.
-// Reusable by the Electron main process and VTD alike.
+// This is the FILESYSTEM EDGE: it owns every `fs` read (and the allowlist /
+// validity gating that keeps a browser inside the open project) and delegates
+// the pure parse → route → project composition to graph-model's deep folder
+// projections (`buildFolderTreeSyncProjection`, `resolveAvailableFolders`),
+// passing its scanners in as the injected effect.
 
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { Stats } from 'fs'
 import {
-    buildFolderTree,
-    getAvailableFolders,
-    getExternalReadPaths,
-    parseSearchQuery,
-    toAbsolutePath,
-} from '@vt/graph-model'
-import type {
-    AbsolutePath,
-    AvailableFolderItem,
-    DirectoryEntry,
-    FolderTreeNode,
-    ParsedQuery,
-} from '@vt/graph-model'
+    buildFolderTreeSyncProjection,
+    externalFoldersOf,
+    resolveAvailableFolders,
+    type FolderProjectState,
+    type FolderScan,
+    type FolderTreeSyncProjection,
+} from '@vt/graph-model/folders'
+import type { AbsolutePath, AvailableFolderItem, DirectoryEntry } from '@vt/graph-model/folders'
 import { getDirectoryTree, getSubfoldersWithModifiedAt, isValidSubdirectory } from './folder-scanning.ts'
 import { getStarredFolders } from './starred-folders.ts'
 
@@ -31,28 +27,12 @@ import { getStarredFolders } from './starred-folders.ts'
  * Minimal structural view of the live project state the folder projections need.
  * Both `@vt/graph-db-protocol`'s `ProjectState` and the daemon client's
  * `ProjectState` are structurally assignable to this, so callers pass theirs
- * directly without this module depending on either package.
+ * directly without this module depending on either package. Aliases graph-model's
+ * `FolderProjectState` so the deep projections accept it directly.
  */
-export interface FolderTreeProjectState {
-    readonly projectRoot: string
-    readonly readPaths: readonly string[]
-    readonly writeFolderPath: string
-}
+export type FolderTreeProjectState = FolderProjectState
 
-export type FolderTreeSyncPayload = {
-    readonly externalTrees: Record<string, FolderTreeNode>
-    readonly rootTree: FolderTreeNode | null
-    readonly starredFolders: readonly string[]
-    readonly starredTrees: Record<string, FolderTreeNode>
-}
-
-/** Loaded paths = the write folder followed by every distinct read path. */
-function loadedPathsOf(projectState: FolderTreeProjectState): readonly string[] {
-    return [
-        projectState.writeFolderPath,
-        ...projectState.readPaths.filter((p: string) => p !== projectState.writeFolderPath),
-    ]
-}
+export type FolderTreeSyncPayload = FolderTreeSyncProjection
 
 /**
  * Canonical absolute form of `target`: `.`/`..` segments collapsed (via
@@ -124,125 +104,79 @@ export async function isPathWithinAllowlist(
  *
  * Each scan is failure-isolated (a single unreadable folder yields `null` for
  * that tree, never a rejection) and the three groups run concurrently, so total
- * latency is the slowest scan rather than their sum.
+ * latency is the slowest scan rather than their sum. The pure assembly of those
+ * scans into the tree payload is `buildFolderTreeSyncProjection`.
  */
 export async function buildFolderTreeSyncPayload(
     projectState: FolderTreeProjectState,
     graphFilePaths: ReadonlySet<string>,
 ): Promise<FolderTreeSyncPayload> {
-    const loadedPaths: Set<string> = new Set<string>([
-        ...projectState.readPaths,
-        projectState.writeFolderPath,
-    ])
-    const writeFolderPath: AbsolutePath = toAbsolutePath(projectState.writeFolderPath)
-
-    const buildTreeFor = async (
-        folder: string,
-        maxDepth?: number,
-    ): Promise<FolderTreeNode | null> => {
+    const scanFor = async (folder: string, maxDepth?: number): Promise<DirectoryEntry | null> => {
         try {
-            const entry: DirectoryEntry = maxDepth === undefined
+            return maxDepth === undefined
                 ? await getDirectoryTree(folder)
                 : await getDirectoryTree(folder, maxDepth)
-            return buildFolderTree(entry, loadedPaths, writeFolderPath, graphFilePaths)
         } catch {
             return null
         }
     }
 
     const starredFolders: readonly string[] = await getStarredFolders()
-    const externalFolders: readonly string[] = getExternalReadPaths(
-        projectState.readPaths,
-        projectState.projectRoot,
-    )
+    const externalFolders: readonly string[] = externalFoldersOf(projectState)
 
-    const [rootTree, starredTreeList, externalTreeList]: [
-        FolderTreeNode | null,
-        readonly (FolderTreeNode | null)[],
-        readonly (FolderTreeNode | null)[],
+    const [rootScan, starredEntries, externalEntries]: [
+        DirectoryEntry | null,
+        readonly (DirectoryEntry | null)[],
+        readonly (DirectoryEntry | null)[],
     ] = await Promise.all([
-        buildTreeFor(projectState.projectRoot),
-        Promise.all(starredFolders.map((folder) => buildTreeFor(folder, 3))),
-        Promise.all(externalFolders.map((folder) => buildTreeFor(folder, 3))),
+        scanFor(projectState.projectRoot),
+        Promise.all(starredFolders.map((folder) => scanFor(folder, 3))),
+        Promise.all(externalFolders.map((folder) => scanFor(folder, 3))),
     ])
 
-    const starredTrees: Record<string, FolderTreeNode> = {}
-    starredFolders.forEach((folder, index) => {
-        const tree: FolderTreeNode | null = starredTreeList[index]
-        if (tree !== null) starredTrees[folder] = tree
-    })
+    const starredScans: readonly FolderScan[] = starredFolders.map((folder, i) => ({ folder, entry: starredEntries[i] }))
+    const externalScans: readonly FolderScan[] = externalFolders.map((folder, i) => ({ folder, entry: externalEntries[i] }))
 
-    const externalTrees: Record<string, FolderTreeNode> = {}
-    externalFolders.forEach((folder, index) => {
-        const tree: FolderTreeNode | null = externalTreeList[index]
-        if (tree !== null) externalTrees[folder] = tree
-    })
-
-    return { externalTrees, rootTree, starredFolders, starredTrees }
+    return buildFolderTreeSyncProjection(
+        rootScan,
+        starredScans,
+        externalScans,
+        projectState,
+        starredFolders,
+        graphFilePaths,
+    )
 }
 
 /**
  * Resolve the "add folder" selector results for a search query, scoped to the
- * project's allowlist (project root + read paths). An absolute-path query is
- * honoured only when it lands inside the allowlist — the gateway must never let
- * a browser browse arbitrary filesystem locations; a relative query scans under
- * the project root (or a validated subfolder of it).
+ * project's allowlist (project root + read paths). The pure parse → route →
+ * project composition is `resolveAvailableFolders`; this supplies the injected
+ * FS scan, which is where the allowlist is enforced: an absolute query is
+ * honoured only when it lands inside the allowlist AND is a directory; a relative
+ * query only under a validated subfolder of the project root. A rejected scan
+ * (`null`) yields no results — the gateway must never let a browser browse
+ * arbitrary filesystem locations.
  */
 export async function selectAvailableFolders(
     projectState: FolderTreeProjectState,
     searchQuery: string,
 ): Promise<readonly AvailableFolderItem[]> {
-    const projectRoot: string = projectState.projectRoot
-    if (!projectRoot) {
-        return []
-    }
-
-    const loadedPaths: readonly AbsolutePath[] = loadedPathsOf(projectState).map((p: string) => toAbsolutePath(p))
-    const parsed: ParsedQuery = parseSearchQuery(searchQuery)
-
-    if (parsed.isAbsolute && parsed.basePath) {
-        if (!(await isPathWithinAllowlist(parsed.basePath, projectState))) {
-            return []
-        }
-        try {
-            const stat: Stats = await fs.stat(parsed.basePath)
-            if (!stat.isDirectory()) {
-                return []
-            }
-        } catch {
-            return []
-        }
-
-        const subfolders = await getSubfoldersWithModifiedAt(toAbsolutePath(parsed.basePath))
-        return getAvailableFolders(
-            toAbsolutePath(parsed.basePath),
-            loadedPaths,
-            subfolders,
-            searchQuery,
-            parsed.filterText,
-        )
-    }
-
-    let scanRoot: AbsolutePath
-    let filterText: string
-    if (parsed.basePath) {
-        const targetPath: string = path.join(projectRoot, parsed.basePath)
-        if (!(await isValidSubdirectory(projectRoot, targetPath))) {
-            return []
-        }
-        scanRoot = toAbsolutePath(targetPath)
-        filterText = parsed.filterText
-    } else {
-        scanRoot = toAbsolutePath(projectRoot)
-        filterText = searchQuery
-    }
-
-    const subfolders = await getSubfoldersWithModifiedAt(scanRoot)
-    return getAvailableFolders(
-        toAbsolutePath(projectRoot),
-        loadedPaths,
-        subfolders,
+    return resolveAvailableFolders(
         searchQuery,
-        filterText,
+        projectState,
+        async (scanRoot: AbsolutePath, isAbsolute: boolean) => {
+            if (isAbsolute) {
+                if (!(await isPathWithinAllowlist(scanRoot, projectState))) return null
+                try {
+                    const stat: Stats = await fs.stat(scanRoot)
+                    if (!stat.isDirectory()) return null
+                } catch {
+                    return null
+                }
+            } else if (scanRoot !== projectState.projectRoot) {
+                if (!(await isValidSubdirectory(projectState.projectRoot, scanRoot))) return null
+            }
+            return getSubfoldersWithModifiedAt(scanRoot)
+        },
     )
 }

@@ -5,7 +5,7 @@
 // untouched. Reusable by both the Electron main process and VTD.
 
 import type { VTSettings } from '@vt/graph-model/settings'
-import { loadSettings, saveSettings } from '../settings/settings_IO.ts'
+import { loadSettings, saveSettings } from '@vt/app-config/settings'
 
 export async function getStarredFolders(): Promise<readonly string[]> {
     const settings: VTSettings = await loadSettings()

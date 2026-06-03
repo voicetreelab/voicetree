@@ -3,7 +3,7 @@ import {mkdtempSync, rmSync, writeFileSync} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {VOICETREE_HOME_PATH_ENV} from '@vt/paths'
-import {SETTINGS_FILENAME} from '../config-files.ts'
+import {SETTINGS_FILENAME} from '@vt/app-config/config-files'
 import {addStarredFolder, getStarredFolders, isStarred, removeStarredFolder} from './starred-folders.ts'
 
 // Black-box: drive the public API and assert on what the next read observes —

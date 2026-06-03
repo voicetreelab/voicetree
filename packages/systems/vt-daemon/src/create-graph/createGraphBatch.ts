@@ -13,10 +13,10 @@ import {buildMarkdownBody} from '@vt/graph-tools/node'
 import {
     extractMermaidBlocks,
     parseDiagramParam,
-    slugify,
     type MermaidBlock,
     validateMermaidBlocks,
 } from '../tools/graph/addProgressNodeTool'
+import {slugify} from '../_shared/slugify.ts'
 import type {
     BatchBuildResult,
     CreatedNodeInfo,

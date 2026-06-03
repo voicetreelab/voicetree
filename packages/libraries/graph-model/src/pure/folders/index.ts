@@ -14,3 +14,12 @@ export {
     reduceFolderConfig,
     toFolderSelectorState,
 } from './transforms';
+
+export {
+    buildFolderTreeSyncProjection,
+    externalFoldersOf,
+    resolveAvailableFolders,
+    type FolderProjectState,
+    type FolderTreeSyncProjection,
+    type FolderScan,
+} from './projections';

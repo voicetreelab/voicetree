@@ -7,6 +7,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { getNodeTitle, nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
+import { slugify } from '../../_shared/slugify.ts'
 
 export interface FolderMutationResult {
     readonly success: boolean
@@ -18,15 +19,6 @@ export interface CopyNodeResult {
     readonly success: boolean
     readonly targetPath: string
     readonly error?: string
-}
-
-function slugify(text: string): string {
-    return text
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
 }
 
 export async function createSubfolder(

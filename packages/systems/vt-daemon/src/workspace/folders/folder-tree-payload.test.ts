@@ -3,7 +3,7 @@ import {mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:f
 import os from 'node:os'
 import path from 'node:path'
 import {VOICETREE_HOME_PATH_ENV} from '@vt/paths'
-import {SETTINGS_FILENAME} from '../config-files.ts'
+import {SETTINGS_FILENAME} from '@vt/app-config/config-files'
 import {addStarredFolder} from './starred-folders.ts'
 import {
     buildFolderTreeSyncPayload,

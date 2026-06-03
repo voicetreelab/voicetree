@@ -5,10 +5,10 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./config-files": "./src/config-files.ts",
     "./settings": "./src/settings/settings_IO.ts",
     "./project-config": "./src/project-config/voicetree-config-io.ts",
     "./project": "./src/project/index.ts",
-    "./folders": "./src/folders/index.ts",
     "./node-layout-io": "./src/positions/node-layout-io.ts"
   },
   "dependencies": {

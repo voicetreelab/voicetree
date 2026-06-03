@@ -52,7 +52,7 @@ import {
     isPathWithinAllowlist,
     removeStarredFolder,
     selectAvailableFolders,
-} from '@vt/app-config/folders'
+} from '../workspace/folders/index.ts'
 import {createDatedSubfolder} from '@vt/app-config/project'
 
 import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
