@@ -3,7 +3,7 @@
 // Safe to import in Electron — the guard prevents double-installation.
 
 import {discoverBrowserConfig} from './browserConfig'
-import {vtdOpenProject} from './vtdGraphClient'
+import {vtdOpenProject} from './vtd-clients/vtdGraphClient'
 import {buildBrowserRuntime} from './browserRuntime'
 
 export async function installBrowserRuntimeIfNeeded(): Promise<void> {

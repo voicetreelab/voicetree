@@ -4,7 +4,7 @@
 
 import type {ConnectionState, EventFrame, GapFrame} from '@vt/vt-daemon/transport/eventTypes'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {DEFAULT_RECONNECT_POLICY, reconnectDelayMs} from './reconnectPolicy'
+import {DEFAULT_RECONNECT_POLICY, reconnectDelayMs} from '../transport/reconnectPolicy'
 
 async function rpcCall<T>(
     vtdUrl: string,

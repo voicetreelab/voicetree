@@ -16,7 +16,7 @@ import type {GraphDelta} from '@vt/graph-model/graph'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {BrowserDaemonConfig} from './browserConfig'
-import {callVtdRpc, vtdGetSettings, vtdSaveSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
+import {callVtdRpc, vtdGetSettings, vtdSaveSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtd-clients/vtdRpc'
 import {
     vtdActivateView,
     vtdApplyDelta,
@@ -45,10 +45,10 @@ import {
     vtdAddStarredFolder,
     vtdRemoveStarredFolder,
     vtdCopyNodeToFolder,
-} from './vtdGraphClient'
-import {createBrowserTerminalRuntime} from './browserTerminal'
-import {readClipboardImageBlob, uploadClipboardImage, vtdReadImageAsDataUrl} from './vtdImageClient'
-import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
+} from './vtd-clients/vtdGraphClient'
+import {createBrowserTerminalRuntime} from './transport/browserTerminal'
+import {readClipboardImageBlob, uploadClipboardImage, vtdReadImageAsDataUrl} from './vtd-clients/vtdImageClient'
+import {resumeOnReconnect, routeGraphFrame} from './transport/graphEventStream'
 import {queryMicrophonePermission, requestMicrophoneAccess} from './browserMicrophone'
 import {BROWSER_CAPABILITIES} from '@/shell/runtimeCapabilities'
 import {
@@ -57,7 +57,7 @@ import {
     vtdListWorktrees,
     vtdRemoveWorktree,
     vtdRemoveWorktreeCommand,
-} from './vtdWorktreeClient'
+} from './vtd-clients/vtdWorktreeClient'
 
 type Listener = (...args: unknown[]) => void
 
