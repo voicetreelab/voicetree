@@ -46,6 +46,7 @@ function makeTerminalData(terminalId: TerminalId, isHeadless: boolean): Terminal
         isPinned: true,
         isDone: false,
         lifecycle: 'spawning',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
