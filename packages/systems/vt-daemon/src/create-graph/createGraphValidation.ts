@@ -14,6 +14,7 @@ import {extractParentRefs, normalizeBatchFilenameKey, findBestMatchingNode, type
 import {computeGraphComplexity, type EdgePair, type GraphComplexityResult} from '@vt/graph-tools/node-runtime'
 import {countBodyLines} from '../tools/graph/addProgressNodeTool'
 import {countFolderBoundedComponent, collectFolderBoundedComponent} from './subgraphComponent'
+import {renderGardenProposal} from './gardenProposal'
 import * as daemonProtocol from '@vt/vt-daemon-protocol'
 import {
     type OverridableRuleId,
@@ -340,12 +341,15 @@ const subgraphSizeLimitRule: ValidationRule = {
         }
 
         if (size >= ctx.subgraphErrorThreshold) {
+            const proposalPreview: string = renderGardenProposal(ctx.graph, ctx.destinationFolderPath)
             return [{
                 ruleId: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId,
                 message: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatViolationMessage(
                     folderName,
+                    ctx.destinationFolderPath,
                     size,
                     ctx.subgraphErrorThreshold,
+                    proposalPreview,
                 ),
                 nodeFilename: '__graph_root__',
                 severity: 'violation',

@@ -11,6 +11,7 @@
     "./debug/*": "./src/debug/*.ts",
     "./live/*": "./src/live/*.ts",
     "./view/*": "./src/view/*.ts",
+    "./authoring/*": "./src/authoring/*.ts",
     "./scripts/*": "./scripts/*.ts",
     "./commands/*": "./src/commands/*.ts"
   },

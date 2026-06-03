@@ -6,12 +6,37 @@ const GARDENING_INSTRUCTION =
 const NO_ROUTINE_OVERRIDE_INSTRUCTION =
     'Do not override this for routine progress nodes; the size gate exists to force continuous graph gardening.'
 
+/**
+ * The block presents a 3-way choice (mirrors `vt graph garden`): accept the
+ * auto-suggested grouping, reject it and choose nodes manually, or bypass with a
+ * rationale. `proposalPreview` is the (optional) pre-rendered suggestion computed
+ * from the graph by the caller; `folderPath` is the garden target.
+ */
 function formatViolationMessage(
     folderName: string,
+    folderPath: string,
     size: number,
     errorThreshold: number,
+    proposalPreview: string,
 ): string {
-    return `Folder "${folderName}" would reach ${size} nodes, at or above the block threshold of ${errorThreshold}. ${GARDENING_INSTRUCTION} ${NO_ROUTINE_OVERRIDE_INSTRUCTION}`
+    const garden = `vt graph garden "${folderPath}"`
+    const acceptOption: string = proposalPreview === ''
+        ? `[1] ACCEPT auto-grouping — run \`${garden}\` to see the proposal, then \`${garden} --apply\`, then retry this create.`
+        : [
+            '[1] ACCEPT the suggested grouping — auto-file these into sub-folders:',
+            proposalPreview,
+            `    Run:  ${garden} --apply   (then retry this create).`,
+        ].join('\n')
+
+    return [
+        `Folder "${folderName}" would reach ${size} nodes, at or above the block threshold of ${errorThreshold}. ${GARDENING_INSTRUCTION} Choose one:`,
+        '',
+        acceptOption,
+        '',
+        `[2] REJECT the proposal and CHOOSE MANUALLY which nodes go where — run \`${garden}\` for an editable plan, edit it, then \`${garden} --apply --plan <file>\`, then retry this create.`,
+        '',
+        `[3] BYPASS, only if absolutely necessary — ${NO_ROUTINE_OVERRIDE_INSTRUCTION} Retry this create with override_with_rationale: [{"ruleId":"${RULE_ID}","rationale":"<why this folder should stay flat>"}].`,
+    ].join('\n')
 }
 
 function formatGuidance(): string {
