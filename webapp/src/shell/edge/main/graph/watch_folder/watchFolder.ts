@@ -103,6 +103,14 @@ export async function createDatedVoiceTreeFolder(): Promise<{
         // folder and any previously loaded reads — leaving the new voicetree
         // alone so the user starts from a blank canvas.
         const stateAfterSwitch: ProjectState = await getProjectState()
+
+        // Re-point the Python text-to-tree server at the new write folder. VTD
+        // switched the write folder server-side, but its notify no-ops (no callback
+        // wired there), so main must re-point the server itself — exactly as
+        // setWriteFolderPathThroughDaemon does. Without this the STT server keeps
+        // writing to the previous folder (the demoted write folder).
+        getCallbacks().notifyWriteDirectory?.(stateAfterSwitch.writeFolderPath)
+
         for (const readPath of stateAfterSwitch.readPaths) {
             if (readPath !== stateAfterSwitch.writeFolderPath) {
                 await removeReadPathThroughDaemon(readPath)
