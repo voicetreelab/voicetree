@@ -148,6 +148,13 @@ export async function discoverRecoverableAgentSessions(
     // what the session itself provides.
     for (const session of liveUnclaimed) {
         if (surfacedTerminalIds.has(session.terminalId)) continue
+        // Non-goal: cross-project recovery (see fix-resume design). A foreign-
+        // project pane is not attachable here and has no resume capability, so it
+        // would surface as a dead row in "Resumable agents" — only a Kill button,
+        // no Attach/Resume. The classifier already drops foreign-project metadata
+        // records; mirror that for metadata-less foreign panes so the recovery
+        // surface stays consistent.
+        if (session.classification === 'foreign-project') continue
         recoverable.push(metadataLessAttachableRow(session))
     }
     const horizonMs: number | null = opts.horizonMs === undefined ? getRecoveryHorizonMs() : opts.horizonMs

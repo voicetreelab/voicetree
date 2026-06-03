@@ -154,6 +154,27 @@ describe('discoverRecoverableAgentSessions — attach capability', () => {
         expect(rows[0].resume).toBeUndefined()
     })
 
+    it('does NOT surface a foreign-project live tmux session with no metadata (non-goal: cross-project recovery)', async () => {
+        // A tmux pane from another project: not attachable here and carries no
+        // resume capability, so surfacing it produces a dead row in "Resumable
+        // agents" (only a Kill button, no Attach/Resume). The classifier already
+        // drops foreign-project *metadata* records; the metadata-less attachable
+        // path must mirror that for foreign *panes* too.
+        const foreign: UnclaimedTmuxSession = makeUnclaimed({
+            sessionName: `vt-${FOREIGN_HASH}-Omar`,
+            terminalId: 'Omar',
+            hash: FOREIGN_HASH,
+            classification: 'foreign-project',
+            attachable: false,
+            agentName: 'Omar',
+        })
+        const rows = await discoverRecoverableAgentSessions(makeDeps({
+            readProjectMetadataDir: async () => [],
+            listLiveUnclaimedTmuxSessions: async () => [foreign],
+        }))
+        expect(rows).toHaveLength(0)
+    })
+
     it('does not duplicate a terminal that appears in both metadata classification and live unclaimed list', async () => {
         const unclaimed: UnclaimedTmuxSession = makeUnclaimed()
         const rows = await discoverRecoverableAgentSessions(makeDeps({
