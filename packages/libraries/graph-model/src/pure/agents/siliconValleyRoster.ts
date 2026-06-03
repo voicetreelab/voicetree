@@ -12,7 +12,7 @@
  * shell over it.
  */
 
-import {AGENT_NAMES, getNextAgentName} from '../settings/types';
+import {AGENT_NAMES, agentBaseName, getNextAgentName} from '../settings/types';
 import type {VTSettings} from '../settings/types';
 
 /**
@@ -93,17 +93,9 @@ const PERSONA_BY_ID: ReadonlyMap<string, Persona> = new Map(
     SILICON_VALLEY_ROSTER.map(p => [p.id, p]),
 );
 
-/**
- * Strip the collision suffixes `getUniqueAgentName` appends (`_1`, `_1_1`, …)
- * to recover the base roster id. `Richard_1_1` → `Richard`.
- */
-export function baseIdFromAgentName(agentName: string): string {
-    return agentName.replace(/(_\d+)+$/, '');
-}
-
-/** The persona for an agent name (suffix-tolerant), or undefined if it is not a roster character. */
+/** The persona for an agent name (hash-suffix tolerant), or undefined if it is not a roster character. */
 export function lookupPersona(agentName: string): Persona | undefined {
-    return PERSONA_BY_ID.get(baseIdFromAgentName(agentName));
+    return PERSONA_BY_ID.get(agentBaseName(agentName));
 }
 
 /**

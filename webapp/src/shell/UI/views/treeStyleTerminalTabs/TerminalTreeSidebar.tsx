@@ -17,6 +17,7 @@ import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/t
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } from '@vt/graph-model/agent-tabs';
 import { getShortcutHintForTab } from '@vt/graph-model/agent-tabs';
+import { agentBaseName } from '@vt/graph-model/settings';
 import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 import { useCollapseState } from './terminalTreeCollapseState';
@@ -202,7 +203,7 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
     const handleClose: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
         if (terminal.isHeadless) {
-            void window.hostAPI?.main.closeHeadlessAgent(terminalId);
+            void window.hostAPI?.main.closeHeadlessAgent({ terminalId });
             return;
         }
         const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
@@ -265,7 +266,7 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
                     </span>
                 )}
                 <span className="terminal-tree-agent-id" title={terminalId}>
-                    {terminalId}{terminal.agentTypeName ? ` - ${terminal.agentTypeName}` : ''}{terminal.isHeadless ? ' (Headless)' : ''}
+                    {agentBaseName(terminalId)}{terminal.agentTypeName ? ` - ${terminal.agentTypeName}` : ''}{terminal.isHeadless ? ' (Headless)' : ''}
                     {terminal.statusPhrase ? (
                         <span className="terminal-tree-status-phrase" title={terminal.statusPhrase}>
                             {' '}— {terminal.statusPhrase}

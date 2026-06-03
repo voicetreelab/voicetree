@@ -3,7 +3,6 @@ import {AGENT_NAMES, getNextAgentName, getUniqueAgentName} from '../settings/typ
 import {
     SILICON_VALLEY_ROSTER,
     SILICON_VALLEY_IDS,
-    baseIdFromAgentName,
     lookupPersona,
     renderPersonaSoul,
     getAgentNamePool,
@@ -35,27 +34,13 @@ describe('SILICON_VALLEY_ROSTER integrity', () => {
     });
 });
 
-describe('baseIdFromAgentName', () => {
-    it('returns the name unchanged when there is no collision suffix', () => {
-        expect(baseIdFromAgentName('Richard')).toBe('Richard');
-    });
-
-    it('strips a single _1 collision suffix', () => {
-        expect(baseIdFromAgentName('Richard_1')).toBe('Richard');
-    });
-
-    it('strips recursively appended suffixes (Richard_1_1)', () => {
-        expect(baseIdFromAgentName('Richard_1_1')).toBe('Richard');
-    });
-});
-
 describe('lookupPersona', () => {
     it('finds a persona by exact id', () => {
         expect(lookupPersona('Gilfoyle')?.fullName).toBe('Bertram Gilfoyle');
     });
 
-    it('finds a persona through a collision suffix', () => {
-        expect(lookupPersona('Richard_1_1')?.id).toBe('Richard');
+    it('finds a persona through the uniqueness hash suffix', () => {
+        expect(lookupPersona('Richard-k3f')?.id).toBe('Richard');
     });
 
     it('returns undefined for a neutral (non-character) name', () => {
@@ -87,23 +72,23 @@ describe('pool exhaustion and collision (the "richard_2?" question)', () => {
         // One full cycle yields every character exactly once, whatever the start offset.
         expect(new Set(seen).size).toBe(SILICON_VALLEY_IDS.length);
         expect([...seen].sort()).toEqual([...SILICON_VALLEY_IDS].sort());
-        // The next call necessarily repeats an already-used name — i.e. a collision
-        // the registry must resolve via getUniqueAgentName.
+        // The next call necessarily repeats an already-used name — i.e. a base-name
+        // wrap the hash (via getUniqueAgentName) must keep distinct.
         expect(SILICON_VALLEY_IDS).toContain(getNextAgentName(SILICON_VALLEY_IDS));
     });
 
-    it('resolves a wrap-collision with _1 (NOT _2) and the persona still maps back', () => {
-        const taken: ReadonlySet<string> = new Set(['Gilfoyle']);
-        const unique: string = getUniqueAgentName('Gilfoyle', taken);
-        expect(unique).toBe('Gilfoyle_1');
-        // The suffixed agent still channels Gilfoyle's soul.
+    it('hashes a wrapped base name into a unique id whose persona still maps back', () => {
+        const unique: string = getUniqueAgentName('Gilfoyle', new Set(), () => 'k3f');
+        expect(unique).toBe('Gilfoyle-k3f');
+        // The hashed agent still channels Gilfoyle's soul.
         expect(lookupPersona(unique)?.id).toBe('Gilfoyle');
     });
 
-    it('resolves a double collision to _1_1, still mapping to the base persona', () => {
-        const taken: ReadonlySet<string> = new Set(['Richard', 'Richard_1']);
-        const unique: string = getUniqueAgentName('Richard', taken);
-        expect(unique).toBe('Richard_1_1');
+    it('regenerates the hash when the first candidate collides with a live id', () => {
+        const taken: ReadonlySet<string> = new Set(['Richard-aaa']);
+        const hashes: string[] = ['aaa', 'bbb'];
+        const unique: string = getUniqueAgentName('Richard', taken, () => hashes.shift()!);
+        expect(unique).toBe('Richard-bbb');
         expect(lookupPersona(unique)?.id).toBe('Richard');
     });
 });

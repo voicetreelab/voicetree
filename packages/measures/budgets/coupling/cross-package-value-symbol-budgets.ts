@@ -194,6 +194,10 @@
 //     measure `vt graph complexity` runs, applied to the destination cluster)
 //   vt-daemon -> graph-model: 24 -> 27 (+3 the gates' tunable settings defaults
 //     DEFAULT_MAX_CHILDREN_PER_NODE / _COMPLEXITY_WARN_SCORE / _COMPLEXITY_BLOCK_SCORE)
+// 2026-06-05 [agent-id-hash PR #235]: 27 -> 28 (+1 agentBaseName).
+//   Fork now strips the hash from the source agent name before generating a fresh
+//   one (forkAgentSession.ts). `getUniqueAgentName` renamed to the impure wrapper
+//   `uniqueAgentName` (net 0), but `agentBaseName` is genuinely new here (+1).
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
     'daemon-test-harness -> graph-db-client': 2,
@@ -345,7 +349,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
-    'vt-daemon -> graph-model': 27,
+    'vt-daemon -> graph-model': 28,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated

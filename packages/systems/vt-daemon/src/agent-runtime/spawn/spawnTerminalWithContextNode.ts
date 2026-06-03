@@ -20,7 +20,7 @@ import {type TerminalId } from '@vt/vt-daemon/agent-runtime/terminals/terminal-r
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';
-import { getUniqueAgentName, pickAgentName } from '@vt/graph-model/settings';
+import { uniqueAgentName, pickAgentName } from '@vt/graph-model/settings';
 import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
 import {
     getRuntimeGraph,
@@ -103,7 +103,7 @@ export async function spawnTerminalWithContextNode(
     const agentName: string = inheritTerminalId ?? (() => {
         const baseAgentName: string = pickAgentName(settings);
         const existingNames: Set<string> = getExistingAgentNames();
-        return getUniqueAgentName(baseAgentName, existingNames);
+        return uniqueAgentName(baseAgentName, existingNames);
     })();
     const terminalId: TerminalId = agentName as TerminalId;
 
