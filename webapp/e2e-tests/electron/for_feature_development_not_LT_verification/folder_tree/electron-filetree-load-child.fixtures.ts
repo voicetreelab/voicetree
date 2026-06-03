@@ -26,14 +26,7 @@ export interface ExtendedWindow {
     readonly cytoscapeInstance?: CytoscapeCore;
     readonly hostAPI?: {
         readonly main: {
-            readonly saveProject: (project: {
-                readonly id: string;
-                readonly path: string;
-                readonly name: string;
-                readonly type: 'folder';
-                readonly lastOpened: number;
-            }) => Promise<void>;
-            readonly startFileWatching: (path: string) => Promise<{ success: boolean; error?: string }>;
+            readonly openProject: (path: string) => Promise<{ readonly sessionId: string }>;
             readonly stopFileWatching: () => Promise<void>;
         };
     };
@@ -117,6 +110,15 @@ export const test = base.extend<{
         const electronApp = await electron.launch({
             args: [
                 ...getStableElectronRenderingFlags(),
+                // These specs minimize/hide the window (MINIMIZE_TEST=1). Without
+                // these switches Chromium throttles a hidden renderer's timers and
+                // suspends its render loop, so the projected graph never finishes
+                // hydrating into cytoscape and the setup waits time out. Keeping the
+                // background renderer at full speed is required to drive a hidden
+                // e2e window deterministically.
+                '--disable-background-timer-throttling',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserData}`,
             ],
@@ -152,7 +154,15 @@ export const test = base.extend<{
             new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 8000)),
         ]);
         if (!closed) {
-            electronApp.process()?.kill('SIGKILL');
+            // The timed-out close() may have already torn down the electron
+            // connection, in which case process() itself throws. Guard it — there
+            // is nothing left to kill, and a teardown throw would fail an
+            // otherwise-passing test.
+            try {
+                electronApp.process()?.kill('SIGKILL');
+            } catch {
+                // Connection already gone; nothing to kill.
+            }
             await Promise.race([
                 closeTask.catch(() => undefined),
                 new Promise<void>((resolve) => setTimeout(resolve, 2000)),
@@ -164,55 +174,38 @@ export const test = base.extend<{
     appWindow: async ({ electronApp, fixture }, use) => {
         const window = await electronApp.firstWindow({ timeout: 20000 });
         await window.waitForLoadState('domcontentloaded');
-        await window.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).hostAPI,
-            { timeout: 10000 },
-        );
+        // Await renderer-set globals by polling from the node side via evaluate(),
+        // the same way the write-path-node wait below does. evaluate() reads live
+        // page state on demand over CDP, so it observes a value the renderer assigns
+        // (here the preload-injected hostAPI bridge) without depending on in-page
+        // frame/timer scheduling — which a minimized test window (MINIMIZE_TEST=1)
+        // would otherwise throttle.
+        await expect.poll(
+            () => window.evaluate(() => !!(window as unknown as ExtendedWindow).hostAPI),
+            { message: 'Waiting for hostAPI bridge', timeout: 10000, intervals: [100, 250, 500] },
+        ).toBe(true);
 
-        const isProjectSelection = await window.locator('text=Select a project to open, text=Recent Projects')
-            .isVisible({ timeout: 3000 })
-            .catch(() => false);
-        if (isProjectSelection) {
-            await window.evaluate(async (folderPath: string) => {
-                const api = (window as unknown as ExtendedWindow).hostAPI;
-                if (!api) throw new Error('hostAPI not available');
-                await api.main.saveProject({
-                    id: 'filetree-load-child',
-                    path: folderPath,
-                    name: 'filetree-load-child',
-                    type: 'folder',
-                    lastOpened: Date.now(),
-                });
-            }, fixture.projectPath);
-            await window.waitForTimeout(500);
-        }
+        // Open the project deterministically through the canonical entry-point.
+        // This is exactly what clicking a project card invokes
+        // (App.tsx -> hostAPI.main.openProject); driving it directly avoids the
+        // selector-card click, which is unreliable under headless/minimized
+        // electron (the persisted-state auto-open races the synthetic click and
+        // the window receives no real input events) and is not what these specs
+        // assert on. openProject throws on failure, so a resolved promise means
+        // the project opened and the daemon graph sync has started.
+        await window.evaluate(async (folderPath: string) => {
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
+            await api.main.openProject(folderPath);
+        }, fixture.projectPath);
 
-        const projectButton = window.locator('button:has-text("filetree-load-child")').first();
-        try {
-            if (await projectButton.isVisible({ timeout: 10000 }).catch(() => false)) {
-                await projectButton.click({ timeout: 10000 });
-            }
-        } catch {
-            // The project list can auto-open from persisted state while the card is being clicked.
-            // The startFileWatching fallback below handles that state if the graph is not ready yet.
-        }
+        // Node-side poll (see the hostAPI wait above for why). The graph view
+        // mounts and sets window.cytoscapeInstance ~3s after openProject.
+        await expect.poll(
+            () => window.evaluate(() => !!(window as unknown as ExtendedWindow).cytoscapeInstance),
+            { message: 'Waiting for cytoscape graph view to mount', timeout: 30000, intervals: [250, 500, 1000] },
+        ).toBe(true);
 
-        const hasCytoscape = await window.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-            { timeout: 10000 },
-        ).then(() => true).catch(() => false);
-        if (!hasCytoscape) {
-            const watchResult = await window.evaluate(async (folderPath: string) => {
-                const api = (window as unknown as ExtendedWindow).hostAPI;
-                if (!api) throw new Error('hostAPI not available');
-                return await api.main.startFileWatching(folderPath);
-            }, fixture.projectPath);
-            expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
-            await window.waitForFunction(
-                () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-                { timeout: 30000 },
-            );
-        }
         await expect.poll(async () => {
             return await window.evaluate((rootPath: string) => {
                 const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
