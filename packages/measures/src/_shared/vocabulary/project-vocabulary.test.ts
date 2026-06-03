@@ -147,8 +147,8 @@ describe('checkProjectVocabulary — mcp ban + allowances', () => {
 
     it('suppresses an mcp occurrence inside a CONTEXT_ALLOWANCE substring', async () => {
         const repoRoot = await makeRepo()
-        // `McpToolResponse` is an allow-listed context (the live vt-daemon type).
-        await writeFile(join(repoRoot, 'consumer.ts'), 'McpToolResponse\n')
+        // `ToolResponse` is an allow-listed context (the live vt-daemon type).
+        await writeFile(join(repoRoot, 'consumer.ts'), 'ToolResponse\n')
         track(repoRoot)
 
         const result = await checkProjectVocabulary(repoRoot)
@@ -158,12 +158,12 @@ describe('checkProjectVocabulary — mcp ban + allowances', () => {
 
     it('still flags a bare mcp mention even when an allowed context is present', async () => {
         const repoRoot = await makeRepo()
-        await writeFile(join(repoRoot, 'consumer.ts'), 'McpToolResponse\nMCP\n')
+        await writeFile(join(repoRoot, 'consumer.ts'), 'ToolResponse\nMCP\n')
         track(repoRoot)
 
         const result = await checkProjectVocabulary(repoRoot)
 
-        // The McpToolResponse occurrence is suppressed; the bare "MCP" is not.
+        // The ToolResponse occurrence is suppressed; the bare "MCP" is not.
         expect(result.violations).toEqual([
             {path: 'consumer.ts', line: 2, column: 1, source: 'content', term: 'MCP'},
         ])

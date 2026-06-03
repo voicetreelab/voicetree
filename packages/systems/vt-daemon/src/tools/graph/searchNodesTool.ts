@@ -1,9 +1,9 @@
 /**
- * MCP Tool: search_nodes
+ * RPC Tool: search_nodes
  * Stubbed while vector search is unavailable.
  */
 
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface SearchNodesParams {
     query: string
@@ -13,7 +13,7 @@ export interface SearchNodesParams {
 export async function searchNodesTool({
     query,
     top_k = 10
-}: SearchNodesParams): Promise<McpToolResponse> {
+}: SearchNodesParams): Promise<ToolResponse> {
     void query
     void top_k
 

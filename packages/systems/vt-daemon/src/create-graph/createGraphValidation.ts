@@ -1,5 +1,5 @@
 /**
- * Validation system for create_graph MCP tool.
+ * Validation system for create_graph RPC tool.
  * Pure functions and types only — no side effects.
  *
  * Implements overridable "soft rules" that agents can bypass by providing
@@ -284,7 +284,7 @@ const nodeLineLimitRule: ValidationRule = {
 
 /**
  * Node attachment rule: each create_graph node must have an edge after the
- * batch is applied. Live/MCP creation supplies a graph-parent fallback for
+ * batch is applied. Live/RPC creation supplies a graph-parent fallback for
  * root nodes, so this rule is normally a pass in daemon mode; filesystem-mode
  * `vt graph create` reuses the same rule ID when a markdown input has neither
  * a parent line nor an external --parent attachment.

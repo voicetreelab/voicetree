@@ -18,7 +18,7 @@ import {WebSocket} from 'ws'
 
 import {generateAuthToken} from '@vt/vt-rpc'
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {buildAccessLogLine, startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
 interface Ctx {
@@ -50,8 +50,8 @@ async function bring(catalog: ToolCatalog): Promise<Ctx> {
 
 describe('POST /rpc — JSON-RPC dispatch', (): void => {
     it('round-trips a JSON-RPC success', async (): Promise<void> => {
-        const catalog: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([
-            ['echo', async (args): Promise<McpToolResponse> => buildJsonResponse({echoed: args})],
+        const catalog: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<ToolResponse>>([
+            ['echo', async (args): Promise<ToolResponse> => buildJsonResponse({echoed: args})],
         ])
         const {handle, token} = await bring(catalog)
         const res = await fetch(`${handle.url}/rpc`, {

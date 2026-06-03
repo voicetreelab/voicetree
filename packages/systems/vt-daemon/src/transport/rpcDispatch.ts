@@ -11,7 +11,7 @@ import type {IncomingMessage, ServerResponse} from 'node:http'
 
 import {ERROR_CODES} from '@vt/vt-rpc'
 import {CatalogValidationError} from '../tools/catalog.ts'
-import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {AccessLogger, ToolCatalog, ToolHandler} from './httpServerTypes.ts'
 import {readBodyWithCap} from './bodyReader.ts'
 import {buildAccessLogLine} from './accessLog.ts'
@@ -71,7 +71,7 @@ function buildInternalErrorData(cause: unknown): unknown {
 }
 
 function unwrapToolResponse(
-    response: McpToolResponse,
+    response: ToolResponse,
 ): {ok: true; payload: unknown} | {ok: false; payload: unknown} {
     const text: string = response.content[0]?.text ?? ''
     let payload: unknown
@@ -128,7 +128,7 @@ export async function dispatchRpcRequest(
     }
     const params: Record<string, unknown> = isRecord(parsed.params) ? parsed.params : {}
 
-    let response: McpToolResponse
+    let response: ToolResponse
     try {
         response = await handler(params)
     } catch (cause) {

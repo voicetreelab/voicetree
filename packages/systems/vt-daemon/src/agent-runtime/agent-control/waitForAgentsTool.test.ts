@@ -13,7 +13,7 @@
 
 import {describe, expect, it} from 'vitest'
 
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {waitForAgentsTool} from './waitForAgentsTool.ts'
 
 // The bridge is never reached on the unknown-caller path; a stub documents that.

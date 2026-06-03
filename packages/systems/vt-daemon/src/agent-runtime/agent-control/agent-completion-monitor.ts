@@ -27,8 +27,8 @@ import {
     type AgentNodeEntry,
 } from './completion/agentNodeIndex.ts'
 import {getNewNodesForAgent} from './completion/getNewNodesForAgent.ts'
-import {getMcpGraph} from '@vt/vt-daemon/config/graphBridge.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {getToolGraph} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -85,7 +85,7 @@ export function startMonitor(
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
-        const graph: Graph = await getMcpGraph(bridge)
+        const graph: Graph = await getToolGraph(bridge)
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
@@ -217,7 +217,7 @@ function findExistingDescendants(parentIds: string[]): string[] {
  */
 export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string, bridge: GraphBridge): Promise<string[]> {
     const currentRecords: TerminalRecord[] = listTerminalRecordsSnapshot()
-    const graph: Graph = await getMcpGraph(bridge)
+    const graph: Graph = await getToolGraph(bridge)
     const now: number = Date.now()
     const names: string[] = []
     for (const [monitorId, entry] of monitors) {

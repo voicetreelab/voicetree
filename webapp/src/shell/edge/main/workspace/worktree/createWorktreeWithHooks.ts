@@ -10,7 +10,7 @@
  *   2. Keeping the wrapper out of `api.ts` lets it be black-box tested at the
  *      unit level (see `createWorktreeWithHooks.test.ts`) without dragging the
  *      whole Electron main-process dependency graph into the test. The crashing
- *      `getMcpPort is not defined` regression escaped precisely because nothing
+ *      daemon-port-accessor `is not defined` regression escaped precisely because nothing
  *      executed this wrapper below the (non-gating) Electron e2e tier.
  */
 

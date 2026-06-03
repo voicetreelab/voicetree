@@ -1,5 +1,5 @@
 /**
- * MCP Tool: read_terminal_output
+ * RPC Tool: read_terminal_output
  * Reads the last N characters of output from an agent terminal.
  */
 
@@ -11,7 +11,7 @@ import {
     terminalExists,
     type TerminalRecord,
 } from './agentControlRuntime'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface ReadTerminalOutputParams {
     terminalId: string
@@ -23,7 +23,7 @@ export async function readTerminalOutputTool({
     terminalId,
     callerTerminalId,
     nChars = 10000
-}: ReadTerminalOutputParams): Promise<McpToolResponse> {
+}: ReadTerminalOutputParams): Promise<ToolResponse> {
     // 1. Validate caller terminal exists
     if (!terminalExists(callerTerminalId)) {
         return buildJsonResponse({

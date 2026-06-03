@@ -110,28 +110,28 @@ export const CONTEXT_ALLOWANCES: readonly ContextAllowance[] = [
     {context: 'mcp-client-config', category: 'stripper', reason: 'module hosting the stale-entry stripper'},
     {context: 'VOICETREE_MCP_SERVER_NAME', category: 'stripper', reason: 'name of the stale VoiceTree entry the stripper removes'},
 
-    // --- daemon-tool-layer (① pending rename) — cross-package symbols ------
-    {context: 'McpToolResponse', category: 'daemon-tool-layer', reason: 'live vt-daemon tool response type, imported repo-wide — rename planned'},
-    {context: 'McpToolBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge type — rename planned'},
-    {context: 'McpToolResult', category: 'daemon-tool-layer', reason: 'live vt-daemon tool result type — rename planned'},
-    {context: 'getMcpGraph', category: 'daemon-tool-layer', reason: 'live vt-daemon graph bridge accessor — rename planned'},
-    {context: 'getMcpProjectPaths', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor (referenced in docs) — rename planned'},
-    {context: 'getMcpProjectRoot', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
-    {context: 'getMcpWriteFolderPath', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
-    {context: 'getMcpWritePath', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor (referenced in docs) — rename planned'},
-    {context: 'getMcpUnseenNodesAroundContextNode', category: 'daemon-tool-layer', reason: 'live vt-daemon bridge accessor — rename planned'},
-    {context: 'getMcpPort', category: 'daemon-tool-layer', reason: 'live runtime-config interface method (daemon port) — rename planned'},
-    {context: 'configureMcpServer', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge configurator — rename planned'},
-    {context: 'configureHeadlessMcpBridges', category: 'daemon-tool-layer', reason: 'live vt-daemon tool bridge configurator (called from Electron main) — rename planned'},
-    {context: 'mcp-graph-bridge', category: 'daemon-tool-layer', reason: 'live vt-daemon graph bridge module (referenced in eslint + export tests) — rename planned'},
-    {context: 'mcp-config', category: 'daemon-tool-layer', reason: 'live vt-daemon tool config module (mcp-config-public) — rename planned'},
+    // --- daemon-tool-layer: RENAME COMPLETE ① -------------------------------
+    // The live vt-daemon `Mcp*` tool layer has been renamed to the Tool*/
+    // getTool*/applyTool* family (McpToolResponse → ToolResponse,
+    // getMcpGraph → getToolGraph, applyMcpGraphDelta → applyToolGraphDelta,
+    // config/mcpBridges.ts → config/toolBridges.ts, …). No allowances remain
+    // for it — the gate now enforces zero "mcp" across vt-daemon and its
+    // cross-package consumers. The sole survivor is the persisted owner
+    // identity (PATH_ALLOWANCES below), deferred as a wire/data-format change.
 
-    // --- daemon-tool-layer consumers (voicetree-cli result processing) -----
-    {context: 'mcpError', category: 'daemon-tool-layer', reason: 'CLI handling of daemon tool-error responses — renames with the tool layer'},
-    {context: 'mcpResult', category: 'daemon-tool-layer', reason: 'CLI handling of daemon tool results — renames with the tool layer'},
-    {context: 'indexMcpResults', category: 'daemon-tool-layer', reason: 'CLI tool-result indexer — renames with the tool layer'},
-    {context: 'mergeMcpResults', category: 'daemon-tool-layer', reason: 'CLI tool-result merger — renames with the tool layer'},
-    {context: 'emitMcpFailureAndExit', category: 'daemon-tool-layer', reason: 'CLI tool-failure exit path — renames with the tool layer'},
+    // --- daemon-tool-layer: the one deferred survivor ----------------------
+    // The persisted/runtime-compared owner+caller identity literal 'mcp'
+    // (graph-db-protocol/owner.ts union+array, vtd.ts CALLER_KINDS). Renaming
+    // it touches a value serialized to vtd.owner.json + exhaustive CallerKind
+    // matches, so it is a separate follow-up. Scoped to the quoted literal so
+    // only the identity value is exempt — stray prose "mcp"/"MCP" still fails.
+    {context: '\'mcp\'', category: 'daemon-tool-layer', reason: 'persisted/runtime-compared owner+caller identity literal — deferred follow-up (needs vtd.owner.json migration + CallerKind audit)'},
+    // TEMPORARY: a single historical rationale comment in a coupling-budget
+    // file still names the removed `configureMcpServer` symbol. Budget files
+    // must be committed in isolation (baseline-commit-isolation gate), so the
+    // comment reword lands in its own follow-up commit; this allowance is
+    // removed immediately after.
+    {context: 'configureMcpServer', category: 'daemon-tool-layer', reason: 'TEMP: historical reference in a coupling-budget rationale comment — reworded in the next commit, then this allowance is dropped'},
 
     // --- client-machinery (scattered product/lib identifiers) --------------
     {context: 'mcpPort', category: 'client-machinery', reason: 'daemon port discovery field — later purge pass'},
@@ -139,11 +139,10 @@ export const CONTEXT_ALLOWANCES: readonly ContextAllowance[] = [
 ]
 
 export const PATH_ALLOWANCES: readonly PathAllowance[] = [
-    // ① the live vt-daemon Mcp* tool layer: symbols AND their describing prose,
-    // pending the rename planned under ~/brain/mem. This whole package flips to
-    // gated once the rename lands.
-    {pathPrefix: 'packages/systems/vt-daemon/', category: 'daemon-tool-layer', reason: 'live vt-daemon Mcp* tool layer — pending rename plan'},
-    {pathPrefix: 'packages/libraries/graph-db-protocol/src/owner.ts', category: 'daemon-tool-layer', reason: 'graph-state owner-identity union holds a legacy \'mcp\' owner value — rename with the tool layer'},
+    // ① the vt-daemon Mcp* tool-layer rename has LANDED — the package-wide
+    // allowance is gone; vt-daemon is now gated at zero "mcp". The one
+    // surviving reference (the persisted 'mcp' owner+caller identity literal)
+    // is covered by the scoped CONTEXT_ALLOWANCE above, not a path allowance.
 
     // ④ MCP client-config bootstrap (the stale-entry stripper + agent discovery file writer).
     {pathPrefix: 'webapp/src/shell/edge/main/runtime/electron/startup/project-bootstrap/', category: 'stripper', reason: 'MCP client-config stripper + agent discovery bootstrap'},

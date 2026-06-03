@@ -1,23 +1,23 @@
 /**
- * Regression test for BF-376 + the follow-up `MCP graph bridge not configured`
- * blocker: every graph-touching MCP tool was throwing because `bin/vtd.ts`
+ * Regression test for BF-376 + the follow-up `graph bridge not configured`
+ * blocker: every graph-touching RPC tool was throwing because `bin/vtd.ts`
  * acquired the vt-graphd handle from `ensureGraphDaemonForProject` but never
- * passed it to `configureMcpServer`. The class of regression survived
- * because every prior integration test called `configureMcpServer` directly
+ * wired it into the tool catalog. The class of regression survived
+ * because every prior integration test wired the tool bridges directly
  * in its setup — masking the missing wire-up in the binary boot path.
  *
  * This test fixes that hole by being black-box end-to-end:
  *
  *   - spawns the REAL `bin/vtd.ts` against a temp project (NO in-test
- *     `configureMcpServer` call, no in-process imports of daemon internals);
+ *     tool-bridge wiring call, no in-process imports of daemon internals);
  *   - lets vtd discover the REAL `vt-graphd` sibling via its default
  *     resolution (no `VT_GRAPHD_BIN` override) — same boot path real users
  *     hit;
- *   - posts a JSON-RPC request for `list_agents` (which calls `getMcpGraph`
+ *   - posts a JSON-RPC request for `list_agents` (which calls `getToolGraph`
  *     and is exactly the tool Bob observed failing with `vt agent list`);
  *   - asserts the observable boundary: the response is a JSON-RPC success
  *     envelope, not an error envelope containing the
- *     "MCP graph bridge not configured" string.
+ *     "graph bridge not configured" string.
  *
  * Per CLAUDE.md: no `toHaveBeenCalledWith`, no internal-dep mocking, no
  * peeking at the in-process module state. The assertion is on the bytes
@@ -197,7 +197,7 @@ async function waitForChildExit(
     })
 }
 
-describe('vtd binary — MCP graph bridge is wired at boot (BF-376 regression)', () => {
+describe('vtd binary — graph bridge is wired at boot (BF-376 regression)', () => {
     const cleanup: Array<() => Promise<void>> = []
 
     afterEach(async () => {
@@ -207,7 +207,7 @@ describe('vtd binary — MCP graph bridge is wired at boot (BF-376 regression)',
         }
     })
 
-    it('list_agents over /rpc returns a success envelope (NOT "MCP graph bridge not configured")', async () => {
+    it('list_agents over /rpc returns a success envelope (NOT "graph bridge not configured")', async () => {
         const project: string = await makeTempProject('vtd-bridge-')
         cleanup.push(async () => {
             for (const pid of listGraphdPidsForProject(project)) killForgiving(pid, 'SIGKILL')
@@ -231,7 +231,7 @@ describe('vtd binary — MCP graph bridge is wired at boot (BF-376 regression)',
         // [...]`. Assert both branches so a future drift (e.g. payload moves
         // out of error.data) still surfaces.
         const responseText: string = JSON.stringify(response)
-        expect(responseText).not.toMatch(/MCP graph bridge not configured/)
+        expect(responseText).not.toMatch(/graph bridge not configured/)
 
         expect(response.error).toBeUndefined()
         expect(response.result).toBeDefined()

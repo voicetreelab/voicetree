@@ -1,5 +1,5 @@
 import { buildJsonResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type { McpToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type { ToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {
     buildUniqueBasenameMap,
     deriveTitle,
@@ -22,7 +22,7 @@ interface GraphStructureNode extends StructureNode {
     readonly content: string
 }
 
-export async function graphStructureTool(params: GraphStructureParams): Promise<McpToolResponse> {
+export async function graphStructureTool(params: GraphStructureParams): Promise<ToolResponse> {
     const result = buildGraphStructure(params.folderPath, params.withSummaries)
     return buildJsonResponse(result)
 }

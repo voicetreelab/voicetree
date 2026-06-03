@@ -4,7 +4,7 @@
  * preload → main → api.ts → here → gitWorktreeCommands).
  *
  * WHY THIS EXISTS:
- * `createWorktree` once threw `ReferenceError: getMcpPort is not defined` on
+ * `createWorktree` once threw a `ReferenceError` for an undefined daemon-port accessor on
  * EVERY call, so spawning an agent in a worktree always failed — yet the whole
  * suite was green. The crashing line lived in the api.ts *wrapper*, but:
  *   - the unit test only exercised the *core* `gitWorktreeCommands`, not the
@@ -158,7 +158,7 @@ describe('createWorktreeWithHooks (the real api.main.createWorktree path)', () =
     })
 
     it('creates the worktree when no hook is configured', async () => {
-        // This is the case that crashed under the `getMcpPort` regression: the
+        // This is the case that crashed under the daemon-port-accessor regression: the
         // wrapper threw BEFORE any hook logic, so even hook-less creation failed.
         const repoRoot: string = makeRepo()
         withSettings({})

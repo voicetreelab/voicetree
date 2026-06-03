@@ -3,13 +3,13 @@
 // (`getRuntimeGraph`, `runtimeCreateContextNode`, `applyRuntimeGraphDelta`, …).
 //
 // This is the agent-spawn-pipeline sibling of `gdbGraphBridge.ts` (which adapts
-// the same client into the narrower `GraphBridge` shape used by the MCP tool
+// the same client into the narrower `GraphBridge` shape used by the RPC tool
 // catalog). The agent-runtime needs a superset of methods — context-node
 // creation, write-folder-path, watch status — but the underlying RPC client carries
 // them all, so this builder is a thin adaptation.
 //
 // `getGraph` rehydrates via `normalizeDaemonGraph` for the same reason the
-// MCP bridge does: the daemon serializes `Graph` over JSON, collapsing the
+// RPC bridge does: the daemon serializes `Graph` over JSON, collapsing the
 // Graph-level Map indexes — replaying as a delta onto an empty graph rebuilds
 // them through the canonical write path.
 

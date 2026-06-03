@@ -1,5 +1,5 @@
 /**
- * Real-deps integration test for the create_graph MCP tool (node creation).
+ * Real-deps integration test for the create_graph RPC tool (node creation).
  *
  * Drives the daemon-side `createGraphTool` directly against the real
  * agent-runtime registry, real `loadSettings` (per-test temp voicetree-home),
@@ -13,7 +13,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 import {createGraphTool} from '@vt/vt-daemon/create-graph/createGraphTool.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {
     CALLER_TERMINAL_ID,
     READ_PATH,
@@ -25,9 +25,9 @@ import {
     recordCaller,
     setupRealDeps,
     type BridgeState,
-    type McpToolResponse,
+    type ToolResponse,
     type SuccessPayload,
-} from './__helpers__/addProgressNodeMcp.testHelpers'
+} from './__helpers__/addProgressNode.testHelpers'
 
 let voicetreeHome: string
 let state: BridgeState
@@ -50,10 +50,10 @@ function findUpsert(delta: GraphDelta, predicate: (n: GraphNode) => boolean): Gr
     return undefined
 }
 
-describe('MCP create_graph tool — node creation', () => {
+describe('RPC create_graph tool — node creation', () => {
     describe('single node creation', () => {
         it('creates a single node successfully', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}],
             }, bridge)
@@ -71,7 +71,7 @@ describe('MCP create_graph tool — node creation', () => {
                 callerOptions: {agentName: 'my-agent', color: 'green'},
             }))
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Colored Node', summary: 'Work.'}],
             }, bridge)
@@ -85,7 +85,7 @@ describe('MCP create_graph tool — node creation', () => {
         })
 
         it('creates a node in a relative outputPath under the write folder path', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: 'deliverables/progress',
                 nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}],
@@ -99,7 +99,7 @@ describe('MCP create_graph tool — node creation', () => {
         it('creates a node in an absolute outputPath when it is within a loaded read path', async () => {
             state.projectPaths = [WRITE_FOLDER, READ_PATH]
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: `${READ_PATH}/deliverables`,
                 nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}],
@@ -113,7 +113,7 @@ describe('MCP create_graph tool — node creation', () => {
 
     describe('multi-node tree creation', () => {
         it('creates a tree of nodes with parent references', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename: 'root', title: 'Root Node', summary: 'Root.'},
@@ -202,7 +202,7 @@ describe('MCP create_graph tool — node creation', () => {
 
     describe('mermaid validation', () => {
         it('creates node with warning when mermaid syntax is invalid', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
                     filename: 'a',
@@ -232,7 +232,7 @@ describe('MCP create_graph tool — node creation', () => {
         // The non-validatable-type path below is the only real-deps path
         // that can currently return status:'ok' for a node with a diagram.
         it('skips validation (status ok) for diagram types the parser does not support', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
                     filename: 'a',
@@ -250,7 +250,7 @@ describe('MCP create_graph tool — node creation', () => {
 
     describe('slug and unique ID', () => {
         it('slugifies filename into file path', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'My Progress Node Title!', title: 'Title', summary: 'Content.'}],
             }, bridge)
@@ -266,7 +266,7 @@ describe('MCP create_graph tool — node creation', () => {
                 [collidingNodeId]: buildGraphNode(collidingNodeId, '# Existing'),
             })
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'Colliding Title', title: 'Colliding Title', summary: 'Content.'}],
             }, bridge)

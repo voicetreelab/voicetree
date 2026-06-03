@@ -4,8 +4,8 @@ How public VT routes `create_graph` writes across loaded project paths, and how 
 
 ## Vocabulary
 
-- **writePath**: the single directory the daemon treats as the canonical target for new nodes. Stored per-project in project config; set by the user via the UI project selector. Returned by `getMcpWritePath()`.
-- **readPaths**: zero or more additional directories that the active view has expanded. Their nodes are loaded into the graph and visible. Returned (alongside the writePath) by `getMcpProjectPaths()` as `[writePath, ...readPaths]`.
+- **writePath**: the single directory the daemon treats as the canonical target for new nodes. Stored per-project in project config; set by the user via the UI project selector. Returned by `getToolWritePath()`.
+- **readPaths**: zero or more additional directories that the active view has expanded. Their nodes are loaded into the graph and visible. Returned (alongside the writePath) by `getToolProjectPaths()` as `[writePath, ...readPaths]`.
 - **loaded project paths**: the union `[writePath, ...readPaths]`. Any path inside this union is considered "in a loaded project" and is a legal target for `outputPath`.
 - **spawnDirectory**: the shell working directory given to a spawned agent's terminal. Set via `spawn_agent.spawnDirectory`. Defaults to the parent terminal's `initialSpawnDirectory` (and ultimately falls back to the project's watched directory).
 
@@ -39,7 +39,7 @@ So **`spawnDirectory` inherits across arbitrarily nested spawns**.
 | # | Scenario | Result | Reasoning |
 |---|----------|--------|-----------|
 | 1 | Two projects loaded (project + scratch). Spawn agent with `spawnDirectory: <scratch>`. `create_graph` with no `outputPath`. Expect write into scratch. | **Fail** | `resolveConfiguredOutputDirectory` returns the daemon's single `writePath`. The caller's `initialSpawnDirectory` is not consulted. Writes land in `<project>`. |
-| 2 | Same setup; `create_graph` with explicit `outputPath: <scratch>/foo.md`. Expect accepted. | **Pass** | Scratch is in `getMcpProjectPaths()` (as a readPath), so the resolved path satisfies the allowed-project check. |
+| 2 | Same setup; `create_graph` with explicit `outputPath: <scratch>/foo.md`. Expect accepted. | **Pass** | Scratch is in `getToolProjectPaths()` (as a readPath), so the resolved path satisfies the allowed-project check. |
 | 3 | `create_graph` with `outputPath` outside every loaded project. Expect rejected with clear error. | **Pass** | Rejection message names the resolved path and lists the loaded project paths. |
 | 4 | Agent A in scratch spawns B without `spawnDirectory`. B calls `create_graph` with no `outputPath`. Expect default into scratch. | **Fail** | Same as (1). `spawnDirectory` inherits correctly (B's CWD is scratch), but `create_graph`'s default still targets the daemon's `writePath`. |
 
@@ -49,7 +49,7 @@ For an external workflow that wants to route writes into a specific loaded proje
 
 1. **Load the target project** as either the writePath or as a readPath (UI project selector, or daemon `addReadPath`).
 2. **Pass `outputPath` explicitly** on every `create_graph` call. Prefer an absolute path; relative paths resolve against `writePath`, not the agent's CWD.
-3. The resolved path must lie inside one of the loaded project paths returned by `getMcpProjectPaths()`.
+3. The resolved path must lie inside one of the loaded project paths returned by `getToolProjectPaths()`.
 
 Inside a spawned agent the loaded project paths are surfaced as:
 
