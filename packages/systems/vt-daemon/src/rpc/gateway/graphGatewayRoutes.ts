@@ -52,11 +52,11 @@ import {
     isPathWithinAllowlist,
     removeStarredFolder,
     selectAvailableFolders,
-} from '../workspace/folders/index.ts'
+} from '@vt/vt-daemon/workspace/folders/index.ts'
 import {createDatedSubfolder} from '@vt/app-config/project'
 
 import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type {RpcRoute} from './RpcRoute.ts'
+import type {RpcRoute} from '../RpcRoute.ts'
 
 export interface GraphGatewayDeps {
     readonly client: GraphDbClient

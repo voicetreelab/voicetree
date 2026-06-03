@@ -22,14 +22,14 @@ import {
 } from '@vt/vt-daemon-protocol'
 
 import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type {RpcRoute} from './RpcRoute.ts'
+import type {RpcRoute} from '../RpcRoute.ts'
 import {
     listWorktrees,
     removeWorktree,
     generateWorktreeName,
     getRemoveWorktreeCommand,
-} from '../workspace/worktree/gitWorktreeCommands.ts'
-import {createWorktreeWithHooks} from '../workspace/worktree/createWorktreeWithHooks.ts'
+} from '@vt/vt-daemon/workspace/worktree/gitWorktreeCommands.ts'
+import {createWorktreeWithHooks} from '@vt/vt-daemon/workspace/worktree/createWorktreeWithHooks.ts'
 
 export interface WorktreeRoutesDeps {
     /**

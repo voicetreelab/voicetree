@@ -17,7 +17,7 @@ import {GRAPH_GATEWAY_METHODS} from '@vt/vt-daemon-protocol'
 import {VOICETREE_HOME_PATH_ENV} from '@vt/paths'
 
 import {buildGraphGatewayRoutes} from './graphGatewayRoutes.ts'
-import type {RpcRoute} from './RpcRoute.ts'
+import type {RpcRoute} from '../RpcRoute.ts'
 
 const M = GRAPH_GATEWAY_METHODS
 

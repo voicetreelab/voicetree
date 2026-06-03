@@ -67,8 +67,8 @@ import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/o
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
-import {buildGraphGatewayRoutes} from '../src/rpc/graphGatewayRoutes.ts'
-import {buildWorktreeRoutes} from '../src/rpc/worktreeRoutes.ts'
+import {buildGraphGatewayRoutes} from '../src/rpc/gateway/graphGatewayRoutes.ts'
+import {buildWorktreeRoutes} from '../src/rpc/gateway/worktreeRoutes.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import {

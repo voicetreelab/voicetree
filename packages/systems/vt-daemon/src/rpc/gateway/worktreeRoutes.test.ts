@@ -17,8 +17,8 @@ import {afterEach, beforeEach, describe, expect, test} from 'vitest'
 import {WORKTREE_METHODS, type WorktreeInfo} from '@vt/vt-daemon-protocol'
 
 import {buildWorktreeRoutes} from './worktreeRoutes.ts'
-import type {RpcRoute} from './RpcRoute.ts'
-import {gitEnv} from '../workspace/worktree/gitWorktreeInternals.ts'
+import type {RpcRoute} from '../RpcRoute.ts'
+import {gitEnv} from '@vt/vt-daemon/workspace/worktree/gitWorktreeInternals.ts'
 
 const M = WORKTREE_METHODS
 

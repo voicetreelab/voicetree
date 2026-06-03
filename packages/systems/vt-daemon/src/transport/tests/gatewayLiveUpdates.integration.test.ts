@@ -19,7 +19,7 @@ import {GRAPH_GATEWAY_METHODS} from '@vt/vt-daemon-protocol'
 
 import {startHttpDaemonServer, type HttpDaemonServerHandle} from '../httpServer.ts'
 import {buildCatalogDispatchMap} from '../../tools/catalog.ts'
-import {buildGraphGatewayRoutes} from '../../rpc/graphGatewayRoutes.ts'
+import {buildGraphGatewayRoutes} from '../../rpc/gateway/graphGatewayRoutes.ts'
 import {createGatewayLiveUpdates} from '../gatewayLiveUpdates.ts'
 import {buildGdbGraphBridge} from '../../config/gdbGraphBridge.ts'
 
