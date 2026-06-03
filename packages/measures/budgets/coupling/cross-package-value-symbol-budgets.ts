@@ -97,8 +97,9 @@
 //     for vt graph index/search)
 //   voicetree-cli -> graph-model:          0 -> 1  (fromNodeToMarkdownContent
 //     for vt graph snapshot)
-//   voicetree-cli -> graph-tools:          0 -> 11 (graphGroup/Move/Rename
-//     re-exports + view renderers + filesystem authoring helpers)
+//   voicetree-cli -> graph-tools:          0 -> 12 (graphGroup/Move/Rename
+//     re-exports + view renderers + filesystem authoring helpers +
+//     computeComplexityFromProject for `vt graph complexity`)
 //   voicetree-cli -> voicetree-graph-validation: 0 -> 1 (OVERRIDABLE_RULE_IDS
 //     for --override parser)
 //   voicetree-cli -> vt-daemon:            0 -> 7  (vt serve boots the
@@ -238,7 +239,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
-    'voicetree-cli -> graph-tools': 11,
+    'voicetree-cli -> graph-tools': 12,
     // 2026-06-02 [nested-.voicetree daemon resolution fix]: 2 -> 5. The
     // project-root up-walk (`detectProjectFromCwd`) was copy-pasted into both
     // voicetree-cli and vt-rpc with divergent precedence — that drift caused the
