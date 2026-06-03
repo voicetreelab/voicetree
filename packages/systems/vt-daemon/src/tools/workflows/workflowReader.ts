@@ -13,7 +13,7 @@
 import {promises as fs, type Dirent} from 'fs'
 import path from 'path'
 import os from 'os'
-import {parseSkillFile, formatParsedSkillSummary} from '@vt/graph-model/workflows'
+import {summarizeSkillFile} from '@vt/graph-model/workflows'
 
 export interface WorkflowTreeNode {
     name: string
@@ -91,7 +91,7 @@ export async function readSkillFile(workflowPath: string): Promise<string> {
 export async function readSkillFileSummary(workflowPath: string): Promise<string> {
     const content: string = await readSkillFile(workflowPath)
     const skillFilePath: string = workflowPath.replace(os.homedir() + '/brain/', '~/brain/') + '/SKILL.md'
-    return formatParsedSkillSummary(parseSkillFile(content), skillFilePath)
+    return summarizeSkillFile(content, skillFilePath)
 }
 
 /** List the user's `~/brain/workflows` tree (host-home rooted). */
