@@ -1,7 +1,7 @@
-import type { LayoutEngine, LayoutConfig, AutoLayoutOptions, ForceAtlas2Options } from './autoLayoutTypes';
-import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS } from './autoLayoutTypes';
+import type { LayoutEngine, LayoutConfig, AutoLayoutOptions, ForceAtlas2Options, PivotMdsOptions } from './autoLayoutTypes';
+import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS, DEFAULT_PIVOTMDS_OPTIONS } from './autoLayoutTypes';
 
-const VALID_ENGINES: readonly LayoutEngine[] = ['forceatlas2', 'combocombined', 'mindmap', 'webcola'] as const;
+const VALID_ENGINES: readonly LayoutEngine[] = ['forceatlas2', 'combocombined', 'mindmap', 'pivotmds', 'webcola'] as const;
 
 const numberOr = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -15,6 +15,7 @@ export function parseLayoutConfig(json: string | undefined): LayoutConfig {
     engine: 'forceatlas2',
     cola: DEFAULT_OPTIONS,
     forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS,
+    pivotmds: DEFAULT_PIVOTMDS_OPTIONS,
   };
   if (!json) {
     return defaults;
@@ -36,6 +37,12 @@ export function parseLayoutConfig(json: string | undefined): LayoutConfig {
       edgeLength: numberOr(parsed.edgeLength, DEFAULT_FORCEATLAS2_OPTIONS.edgeLength),
     };
 
+    const pivotmds: PivotMdsOptions = {
+      pivotCount: numberOr(parsed.pivotCount, DEFAULT_PIVOTMDS_OPTIONS.pivotCount),
+      edgeLength: numberOr(parsed.edgeLength, DEFAULT_PIVOTMDS_OPTIONS.edgeLength),
+      spacing: numberOr(parsed.spacing, DEFAULT_PIVOTMDS_OPTIONS.spacing),
+    };
+
     const cola: AutoLayoutOptions = {
       ...DEFAULT_OPTIONS,
       nodeSpacing: typeof parsed.nodeSpacing === 'number' ? parsed.nodeSpacing : DEFAULT_OPTIONS.nodeSpacing,
@@ -48,7 +55,7 @@ export function parseLayoutConfig(json: string | undefined): LayoutConfig {
         : DEFAULT_OPTIONS.edgeLength,
     };
 
-    return { engine, cola, forceatlas2 };
+    return { engine, cola, forceatlas2, pivotmds };
   } catch {
     return defaults;
   }

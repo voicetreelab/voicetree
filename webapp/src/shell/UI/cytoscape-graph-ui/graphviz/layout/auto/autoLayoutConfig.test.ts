@@ -6,6 +6,7 @@ describe('parseLayoutConfig', () => {
     expect(parseLayoutConfig('{"engine":"forceatlas2"}').engine).toBe('forceatlas2');
     expect(parseLayoutConfig('{"engine":"combocombined"}').engine).toBe('combocombined');
     expect(parseLayoutConfig('{"engine":"mindmap"}').engine).toBe('mindmap');
+    expect(parseLayoutConfig('{"engine":"pivotmds"}').engine).toBe('pivotmds');
     expect(parseLayoutConfig('{"engine":"webcola"}').engine).toBe('webcola');
   });
 
@@ -33,5 +34,12 @@ describe('parseLayoutConfig', () => {
     const defaults = { kr: 5, kg: 1, ks: 0.1, maxIteration: 0, spacing: 20, edgeLength: 0 };
     expect(parseLayoutConfig(undefined).forceatlas2).toEqual(defaults);
     expect(parseLayoutConfig('not json').forceatlas2).toEqual(defaults);
+  });
+
+  it('reads PivotMDS tuning knobs from the config JSON', () => {
+    const { pivotmds } = parseLayoutConfig(
+      '{"engine":"pivotmds","pivotCount":12,"spacing":55,"edgeLength":420}',
+    );
+    expect(pivotmds).toEqual({ pivotCount: 12, spacing: 55, edgeLength: 420 });
   });
 });

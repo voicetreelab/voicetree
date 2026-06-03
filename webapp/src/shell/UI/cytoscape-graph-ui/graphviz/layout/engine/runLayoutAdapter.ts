@@ -6,6 +6,10 @@ import {
   removeRectangularOverlaps,
   type OverlapRect,
 } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/removeRectangularOverlaps';
+import {
+  computePivotMdsSeedPositions,
+  type PivotMdsAdapterInput,
+} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/engine/pivotmds/computePivotMdsSeedPositions';
 import ColaLayout from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/cola-engine/cola';
 import { computeColaAndAnimate } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/cola-engine/computeColaAndAnimate';
 import type { AutoLayoutOptions, LayoutConfig } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
@@ -463,6 +467,44 @@ const runMindmap = async ({
     movableNodeIds(graph.nodes, fixedNodeIds, movableNodes),
   );
 };
+const toPivotMdsInput = (
+  graph: LayoutGraph,
+  fixedNodeIds: ReadonlySet<string>,
+  edgeLength: number,
+  pivotCount: number,
+): PivotMdsAdapterInput => ({
+  nodes: graph.nodes.map((node) => ({
+    id: node.id,
+    x: node.x,
+    y: node.y,
+    fixed: fixedNodeIds.has(node.id) || (node.fx !== undefined && node.fy !== undefined),
+  })),
+  edges: graph.edges.map((edge) => ({
+    source: edge.source,
+    target: edge.target,
+  })),
+  pivotCount,
+  edgeLength,
+});
+const runPivotMds = async ({
+  cy,
+  eles,
+  config,
+  fixedNodeIds = new Set<string>(),
+  movableNodes,
+}: RunLayoutAdapterOptions): Promise<void> => {
+  const graph = stripContainment(toAntvGraph(eles, fixedNodeIds));
+  if (graph.nodes.length === 0) return;
+  const positions = await computePivotMdsSeedPositions(toPivotMdsInput(
+    graph,
+    fixedNodeIds,
+    numericOption(config.pivotmds.edgeLength, 350),
+    Math.max(0, Math.floor(numericOption(config.pivotmds.pivotCount, 0))),
+  ));
+  const movableIds = movableNodeIds(graph.nodes, fixedNodeIds, movableNodes);
+  applyLayoutEnginePositions(cy, positions, movableIds);
+  finishOverlaps(cy, graph.nodes, movableIds, fixedNodeIds, Math.max(0, config.pivotmds.spacing));
+};
 const runFullWebcola = ({
   cy,
   eles,
@@ -526,6 +568,7 @@ export const runLayoutAdapter = async (options: RunLayoutAdapterOptions): Promis
     case 'webcola': return runWebcola(options);
     case 'combocombined': return runComboCombined(options);
     case 'mindmap': return runMindmap(options);
+    case 'pivotmds': return runPivotMds(options);
     case 'forceatlas2': return runForceAtlas2(options);
   }
 };

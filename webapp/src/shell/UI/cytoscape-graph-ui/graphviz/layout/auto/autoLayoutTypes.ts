@@ -18,7 +18,7 @@ export interface AutoLayoutOptions {
   edgeJaccardLength?: number | ((edge: EdgeSingular) => number);
 }
 
-export type LayoutEngine = 'forceatlas2' | 'combocombined' | 'mindmap' | 'webcola';
+export type LayoutEngine = 'forceatlas2' | 'combocombined' | 'mindmap' | 'pivotmds' | 'webcola';
 
 /**
  * Tuning knobs for the ForceAtlas2 engine, read from the layoutConfig JSON.
@@ -60,10 +60,26 @@ export const DEFAULT_FORCEATLAS2_OPTIONS: ForceAtlas2Options = {
   edgeLength: 0,
 };
 
+export interface PivotMdsOptions {
+  /** Number of landmark pivots. 0 = auto by component size. */
+  pivotCount: number;
+  /** Target one-hop graph distance in px for the PivotMDS distance matrix. */
+  edgeLength: number;
+  /** Minimum rectangular card gap enforced after projection. */
+  spacing: number;
+}
+
+export const DEFAULT_PIVOTMDS_OPTIONS: PivotMdsOptions = {
+  pivotCount: 0,
+  edgeLength: 350,
+  spacing: 40,
+};
+
 export interface LayoutConfig {
   engine: LayoutEngine;
   cola: AutoLayoutOptions;
   forceatlas2: ForceAtlas2Options;
+  pivotmds: PivotMdsOptions;
 }
 
 /**

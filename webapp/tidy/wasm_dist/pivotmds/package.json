@@ -1,0 +1,17 @@
+{
+  "name": "pivotmds-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "pivotmds_wasm_bg.wasm",
+    "pivotmds_wasm.js",
+    "pivotmds_wasm_bg.js",
+    "pivotmds_wasm.d.ts"
+  ],
+  "main": "pivotmds_wasm.js",
+  "types": "pivotmds_wasm.d.ts",
+  "sideEffects": [
+    "./pivotmds_wasm.js",
+    "./snippets/*"
+  ]
+}

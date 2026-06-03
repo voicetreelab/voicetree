@@ -55,6 +55,7 @@ export default defineConfig({
       { find: /^@vt\/graph-state\/(.+)$/, replacement: path.resolve(__dirname, "../packages/libraries/graph-state/src/$1") },
       { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, "../packages/libraries/graph-model/src/index.ts") },
       { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, "../packages/libraries/graph-model/src/$1") },
+      { find: /^@wasm\/(.+)$/, replacement: path.resolve(__dirname, "./tidy/wasm_dist/$1") },
       { find: /^@root(?=\/)/, replacement: path.resolve(__dirname, ".") },
       { find: /^@(?=\/)/, replacement: path.resolve(__dirname, "./src") },
       // Alias CSS imports from @material to prevent import errors

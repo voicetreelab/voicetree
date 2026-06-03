@@ -2,7 +2,7 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { describe, expect, it } from 'vitest';
 import type { LayoutEngine, LayoutConfig } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
-import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
+import { DEFAULT_OPTIONS, DEFAULT_FORCEATLAS2_OPTIONS, DEFAULT_PIVOTMDS_OPTIONS } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayoutTypes';
 import { runLayoutAdapter } from './runLayoutAdapter';
 
 const createGraph = (): Core => cytoscape({
@@ -73,6 +73,7 @@ const configFor = (engine: LayoutEngine): LayoutConfig => ({
     maxSimulationTime: 250,
   },
   forceatlas2: DEFAULT_FORCEATLAS2_OPTIONS,
+  pivotmds: DEFAULT_PIVOTMDS_OPTIONS,
 });
 
 const expectFinitePositions = (cy: Core): void => {
@@ -102,7 +103,7 @@ const countBoundingBoxOverlaps = (cy: Core, epsilon: number): number => {
 };
 
 describe('runLayoutAdapter', () => {
-  it.each<LayoutEngine>(['forceatlas2', 'combocombined', 'mindmap', 'webcola'])(
+  it.each<LayoutEngine>(['forceatlas2', 'combocombined', 'mindmap', 'pivotmds', 'webcola'])(
     'runs the %s backend without producing invalid positions',
     async (engine) => {
       const cy = createGraph();
@@ -120,6 +121,26 @@ describe('runLayoutAdapter', () => {
       }
     },
   );
+
+  it('keeps fixed nodes pinned when running the pivotmds backend', async () => {
+    const cy = createChain(8);
+    try {
+      cy.getElementById('node-0').position({ x: -250, y: 75 });
+      cy.getElementById('node-0').lock();
+      await runLayoutAdapter({
+        cy,
+        eles: cy.elements(),
+        config: configFor('pivotmds'),
+        mode: 'full',
+        fixedNodeIds: new Set(['node-0']),
+      });
+
+      expect(cy.getElementById('node-0').position()).toEqual({ x: -250, y: 75 });
+      expectFinitePositions(cy);
+    } finally {
+      cy.destroy();
+    }
+  });
 
   it.each<LayoutEngine>(['forceatlas2', 'combocombined'])(
     'leaves zero overlapping bounding boxes after the %s backend de-overlaps dense nodes',
