@@ -36,7 +36,8 @@ The one rule to hold, identical on Mac and VM:
 ## Dev flow (same on either machine)
 
 ```
-vt-worktree feat            # git worktree add -b feat … origin/dev-manu (gate places + installs deps)
+git worktree add -b feat feat origin/dev-manu   # canonical — git-gate places + installs deps
+# vt-worktree feat          # optional sugar: same thing, but works from any cwd + fetches first
 cd <printed path>           # edit + run the app here (the base rejects commits)
 # quick / solo:
 vt-land "msg"               # commit → fetch → rebase origin/dev-manu → fast LOCAL check → push --no-verify HEAD:dev-manu → nudge both caches
@@ -117,7 +118,7 @@ ssh (`ssh mac …` / `ssh $VT_REMOTE_HOST …`), never via the `vt` name.
 | timer | systemd (VM) / launchd (Mac), written by configure-base | both | run the daemon every ~10s |
 | `vt-sync` | `dev-flow/vt-sync` | both | ff this base now + nudge the other |
 | `vt-land` / `vt-pr` | `dev-flow/` | both | the dev-flow one-liners above |
-| `vt-worktree` | `dev-flow/vt-worktree` | both | make a writable worktree off origin |
+| `vt-worktree` | `dev-flow/vt-worktree` | both | thin sugar over `git worktree add` (from-any-cwd + fetch); placement/deps are git-gate's |
 
 Kept mutagen sessions (created via `vt-remote.sh`): `vt-wts` (Mac→VM worktree
 mirror) and the health-dashboard data syncs (`vt-csv-history`, `vt-reports`).
