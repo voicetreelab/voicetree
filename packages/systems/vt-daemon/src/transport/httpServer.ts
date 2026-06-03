@@ -47,7 +47,7 @@ import {handleRpc} from './rpcDispatch.ts'
 import {applyCorsHeaders, applyPreflightCorsHeaders} from './browser/corsHeaders.ts'
 import {handleBrowserToken} from './browser/browserTokenHandler.ts'
 import {handleHealth} from './browser/healthHandler.ts'
-import {handleSettings} from './browser/settingsHandler.ts'
+import {handleSettings, handleSettingsWrite} from './browser/settingsHandler.ts'
 import {handleReadImage, handleSaveClipboardImage} from './browser/clipboardImageHandler.ts'
 import type {
     AccessLogger,
@@ -222,10 +222,12 @@ function buildRequestHandler(
             return
         }
 
-        // /settings serves the resolved VTSettings to the browser-mode adapter
-        // (Electron parity). Authenticated: settings include INJECT_ENV_VARS.
-        if (method === 'GET' && url === SETTINGS_PATH) {
-            void handleSettings(req, res, logger).catch((err: unknown): void => {
+        // /settings serves the browser-safe VTSettings projection to the
+        // browser-mode adapter (Electron parity). GET reads; POST persists an
+        // edited patch through the same allowlist (settingsHandler.ts).
+        if (url === SETTINGS_PATH && (method === 'GET' || method === 'POST')) {
+            const handle = method === 'GET' ? handleSettings : handleSettingsWrite
+            void handle(req, res, logger).catch((err: unknown): void => {
                 logger.logError('settings handler error', err)
                 if (!res.headersSent) { res.statusCode = 500; res.end() }
             })

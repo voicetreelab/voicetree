@@ -71,7 +71,9 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     // VTD owns the filesystem and exposes /clipboard-image + /image, so the
     // browser reads the clipboard (Clipboard API) and persists via the daemon.
     clipboardImages: true,
-    settingsPersistence: false,
+    // VTD exposes a security-gated POST /settings (derived allowlist), so the
+    // browser can persist the non-secret settings fields it is allowed to edit.
+    settingsPersistence: true,
     projectSwitching: false,
     usageObservability: false,
     nativeMicrophoneSettings: false,

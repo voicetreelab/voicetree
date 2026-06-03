@@ -92,3 +92,79 @@ describe('GET /settings', (): void => {
         expect(res.status).toBe(401)
     })
 })
+
+async function postSettings(handle: HttpDaemonServerHandle, token: string, body: unknown): Promise<Response> {
+    return fetch(`${handle.url}/settings`, {
+        method: 'POST',
+        headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+    })
+}
+
+async function readDiskSettings(): Promise<Record<string, unknown>> {
+    const {readFileSync} = await import('node:fs')
+    return JSON.parse(readFileSync(join(homeDir, 'settings.json'), 'utf-8')) as Record<string, unknown>
+}
+
+describe('POST /settings', (): void => {
+    it('returns 401 without a bearer token (route is authenticated)', async (): Promise<void> => {
+        const {handle} = await bring()
+        const res = await fetch(`${handle.url}/settings`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({darkMode: true}),
+        })
+        expect(res.status).toBe(401)
+    })
+
+    it('persists an allowlisted field to disk and echoes a browser-safe result', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await postSettings(handle, token, {darkMode: true, vimMode: true})
+        expect(res.status).toBe(200)
+
+        const echoed = await res.json() as {darkMode?: boolean; INJECT_ENV_VARS?: Record<string, unknown>}
+        expect(echoed.darkMode).toBe(true)
+        expect(echoed.INJECT_ENV_VARS).toEqual({})
+
+        const onDisk = await readDiskSettings()
+        expect(onDisk.darkMode).toBe(true)
+        expect(onDisk.vimMode).toBe(true)
+    })
+
+    it('NEVER writes browser-supplied secrets/host fields to disk', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await postSettings(handle, token, {
+            darkMode: true,
+            INJECT_ENV_VARS: {ANTHROPIC_API_KEY: 'sk-attacker', LEAKED: 'pwned'},
+            hooks: {onNewNode: 'rm -rf /'},
+            shell: '/evil/shell',
+        })
+        expect(res.status).toBe(200)
+
+        const onDisk = await readDiskSettings()
+        expect(onDisk.darkMode).toBe(true)
+        // The pre-seeded secret survives; the attacker's value never lands.
+        expect((onDisk.INJECT_ENV_VARS as Record<string, unknown>).ANTHROPIC_API_KEY).toBe('sk-super-secret')
+        const serialized = JSON.stringify(onDisk)
+        expect(serialized).not.toContain('sk-attacker')
+        expect(serialized).not.toContain('pwned')
+        expect(serialized).not.toContain('rm -rf /')
+        expect(serialized).not.toContain('/evil/shell')
+    })
+
+    it('rejects a non-object body with 400', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await postSettings(handle, token, ['not', 'an', 'object'])
+        expect(res.status).toBe(400)
+    })
+
+    it('rejects malformed JSON with 400', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await fetch(`${handle.url}/settings`, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
+            body: '{not json',
+        })
+        expect(res.status).toBe(400)
+    })
+})
