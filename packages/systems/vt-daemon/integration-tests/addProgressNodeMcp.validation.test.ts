@@ -226,6 +226,93 @@ describe('MCP create_graph tool — validation + line length', () => {
     })
 })
 
+// ============================================================================
+// child-count + graph-complexity gates (real create_graph RPC, override bypass)
+// ============================================================================
+
+describe('MCP create_graph tool — child-count gate', () => {
+    // Raise the subgraph gate out of the way so only child_count_limit fires.
+    const SETTINGS = {subgraphWarnThreshold: 49, subgraphErrorThreshold: 50}
+
+    function nChildren(count: number): {filename: string; title: string; summary: string}[] {
+        return Array.from({length: count}, (_, i) => ({filename: `child-${i}`, title: `Child ${i}`, summary: 'S'}))
+    }
+
+    it('blocks when a node would exceed 4 children', async () => {
+        ({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
+
+        const response: McpToolResponse = await createGraphTool({
+            callerTerminalId: CALLER_TERMINAL_ID,
+            parentNodeId: 'parent-task',
+            nodes: nChildren(5),
+        }, bridge)
+        const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+        expect(response.isError).toBe(true)
+        expect(payload.success).toBe(false)
+        expect(payload.error).toContain('child_count_limit')
+        expect(payload.error).toContain('5 children')
+        expect(state.deltas).toHaveLength(0) // nothing written
+    })
+
+    it('allows the 5th child through with an override_with_rationale', async () => {
+        ({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
+
+        const response: McpToolResponse = await createGraphTool({
+            callerTerminalId: CALLER_TERMINAL_ID,
+            parentNodeId: 'parent-task',
+            nodes: nChildren(5),
+            override_with_rationale: [{ruleId: 'child_count_limit', rationale: 'flat index node — children are siblings by design'}],
+        }, bridge)
+        const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+        expect(payload.success).toBe(true)
+        expect(payload.nodes).toHaveLength(5)
+        expect(state.deltas.length).toBeGreaterThan(0) // deltas applied
+    })
+
+    it('allows exactly 4 children without an override', async () => {
+        ({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
+
+        const response: McpToolResponse = await createGraphTool({
+            callerTerminalId: CALLER_TERMINAL_ID,
+            parentNodeId: 'parent-task',
+            nodes: Array.from({length: 4}, (_, i) => ({filename: `child-${i}`, title: `Child ${i}`, summary: 'S'})),
+        }, bridge)
+        const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+        expect(payload.success).toBe(true)
+        expect(payload.nodes).toHaveLength(4)
+    })
+})
+
+describe('MCP create_graph tool — graph-complexity gate', () => {
+    it('blocks when the destination cluster crosses the block score, bypassable with rationale', async () => {
+        // Low block score so any non-trivial structure trips the gate deterministically.
+        const SETTINGS = {complexityWarnScore: 0.05, complexityBlockScore: 0.1}
+        ;({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
+
+        const blocked: McpToolResponse = await createGraphTool({
+            callerTerminalId: CALLER_TERMINAL_ID,
+            parentNodeId: 'parent-task',
+            nodes: [{filename: 'n', title: 'N', summary: 'S'}],
+        }, bridge)
+        const blockedPayload: ErrorPayload = parsePayload(blocked) as ErrorPayload
+        expect(blocked.isError).toBe(true)
+        expect(blockedPayload.error).toContain('graph_complexity_limit')
+
+        ;({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
+        const allowed: McpToolResponse = await createGraphTool({
+            callerTerminalId: CALLER_TERMINAL_ID,
+            parentNodeId: 'parent-task',
+            nodes: [{filename: 'n', title: 'N', summary: 'S'}],
+            override_with_rationale: [{ruleId: 'graph_complexity_limit', rationale: 'inherently dense domain cluster'}],
+        }, bridge)
+        const allowedPayload: SuccessPayload = parsePayload(allowed) as SuccessPayload
+        expect(allowedPayload.success).toBe(true)
+    })
+})
+
 // Silence "unused" lint for buildGraph + WRITE_FOLDER imports — kept here so the
 // test file is self-contained when future cases want to swap the graph.
 void buildGraph

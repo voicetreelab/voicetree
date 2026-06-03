@@ -474,3 +474,150 @@ describe('nodeMustHaveEdgeRule (via ALL_RULES)', () => {
         }
     })
 })
+
+// ============================================================================
+// child_count_limit rule
+// ============================================================================
+
+function childCountViolations(result: ValidationResult): readonly RuleViolation[] {
+    return result.status === 'violations'
+        ? result.violations.filter((v: RuleViolation) => v.ruleId === 'child_count_limit' && v.severity === 'violation')
+        : []
+}
+
+describe('child_count_limit rule', () => {
+    it('blocks when one parent gains more than the limit of children in a single batch', () => {
+        const graph: Graph = mockGraph(['/project/hub.md'])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: Array.from({length: 5}, (_: unknown, i: number) =>
+                mockNode({filename: `child-${i}`, title: 'T', summary: 'S'})),
+            resolvedParentNodeId: '/project/hub.md',
+            graph,
+        }))
+        const violations: readonly RuleViolation[] = childCountViolations(result)
+        expect(violations).toHaveLength(1)
+        expect(violations[0].details.childCount).toBe(5)
+        expect(violations[0].details.limit).toBe(4)
+    })
+
+    it('counts existing children plus the batch (cross-batch accumulation)', () => {
+        const incomingEdges: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = new Map([
+            ['/project/hub.md', ['/project/c1.md', '/project/c2.md', '/project/c3.md']],
+        ])
+        const graph: Graph = mockGraph(
+            ['/project/hub.md', '/project/c1.md', '/project/c2.md', '/project/c3.md'],
+            incomingEdges,
+        )
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [
+                mockNode({filename: 'c4', title: 'T', summary: 'S'}),
+                mockNode({filename: 'c5', title: 'T', summary: 'S'}),
+            ],
+            resolvedParentNodeId: '/project/hub.md',
+            graph,
+        }))
+        const violations: readonly RuleViolation[] = childCountViolations(result)
+        expect(violations).toHaveLength(1)
+        expect(violations[0].details.existingChildren).toBe(3)
+        expect(violations[0].details.addedChildren).toBe(2)
+        expect(violations[0].details.childCount).toBe(5)
+    })
+
+    it('passes at exactly the limit', () => {
+        const incomingEdges: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = new Map([
+            ['/project/hub.md', ['/project/c1.md', '/project/c2.md']],
+        ])
+        const graph: Graph = mockGraph(['/project/hub.md', '/project/c1.md', '/project/c2.md'], incomingEdges)
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [
+                mockNode({filename: 'c3', title: 'T', summary: 'S'}),
+                mockNode({filename: 'c4', title: 'T', summary: 'S'}),
+            ],
+            resolvedParentNodeId: '/project/hub.md',
+            graph,
+        }))
+        expect(childCountViolations(result)).toHaveLength(0)
+    })
+
+    it('counts an in-batch parent gaining many children', () => {
+        const graph: Graph = mockGraph(['/project/root.md'])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [
+                mockNode({filename: 'hub', title: 'T', summary: 'S'}),
+                ...Array.from({length: 5}, (_: unknown, i: number) =>
+                    mockNode({filename: `leaf-${i}`, title: 'T', summary: 'S', content: '- parent [[hub]]'})),
+            ],
+            resolvedParentNodeId: '/project/root.md',
+            graph,
+        }))
+        const violations: readonly RuleViolation[] = childCountViolations(result)
+        expect(violations).toHaveLength(1)
+        expect(violations[0].details.parent).toBe('hub')
+        expect(violations[0].details.childCount).toBe(5)
+    })
+
+    it('exempts folder identity notes (containers hold many children by design)', () => {
+        const folderNote: NodeIdAndFilePath = '/project/foo/foo.md'
+        const graph: Graph = mockGraph([folderNote])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: Array.from({length: 8}, (_: unknown, i: number) =>
+                mockNode({filename: `child-${i}`, title: 'T', summary: 'S'})),
+            resolvedParentNodeId: folderNote,
+            graph,
+        }))
+        expect(childCountViolations(result)).toHaveLength(0)
+    })
+
+    it('is overridable with a rationale', () => {
+        const graph: Graph = mockGraph(['/project/hub.md'])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: Array.from({length: 6}, (_: unknown, i: number) =>
+                mockNode({filename: `child-${i}`, title: 'T', summary: 'S'})),
+            resolvedParentNodeId: '/project/hub.md',
+            graph,
+        }))
+        const blocking: readonly RuleViolation[] = childCountViolations(result)
+        const overrides: readonly OverrideEntry[] = [{ruleId: 'child_count_limit', rationale: 'flat index node'}]
+        const {unresolved} = resolveOverrides(blocking, overrides)
+        expect(unresolved).toHaveLength(0)
+    })
+})
+
+// ============================================================================
+// graph_complexity_limit rule
+// ============================================================================
+
+describe('graph_complexity_limit rule', () => {
+    it('does not block a small clean batch under default thresholds', () => {
+        const graph: Graph = mockGraph(['/project/task.md'])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '/project/task.md',
+            graph,
+        }))
+        const blocking: readonly RuleViolation[] = result.status === 'violations'
+            ? result.violations.filter((v: RuleViolation) => v.ruleId === 'graph_complexity_limit' && v.severity === 'violation')
+            : []
+        expect(blocking).toHaveLength(0)
+    })
+
+    it('blocks (overridable) once the destination cluster crosses the block score', () => {
+        const graph: Graph = mockGraph(['/project/p.md'])
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'n', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '/project/p.md',
+            graph,
+            complexityBlockScore: 0.1,
+            complexityWarnScore: 0.05,
+        }))
+        const blocking: readonly RuleViolation[] = result.status === 'violations'
+            ? result.violations.filter((v: RuleViolation) => v.ruleId === 'graph_complexity_limit' && v.severity === 'violation')
+            : []
+        expect(blocking).toHaveLength(1)
+        expect(typeof blocking[0].details.score).toBe('number')
+
+        const overrides: readonly OverrideEntry[] = [{ruleId: 'graph_complexity_limit', rationale: 'inherently dense domain'}]
+        const {unresolved} = resolveOverrides(blocking, overrides)
+        expect(unresolved).toHaveLength(0)
+    })
+})
