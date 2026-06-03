@@ -1,0 +1,4 @@
+# brain/ is a git submodule (~66MB markdown). .gitignore can't exclude it across
+# the submodule boundary, so ripgrep descends into brain's own (permissive) ignores
+# and searches all ~3000 markdown files — generating ~57% of all grep noise.
+/brain/
