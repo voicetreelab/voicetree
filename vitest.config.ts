@@ -1,9 +1,29 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 import { existsSync, readdirSync } from 'node:fs'
+import { availableParallelism, totalmem } from 'node:os'
 import { createRequire } from 'node:module'
 import path from 'path'
 
 const require = createRequire(import.meta.url)
+
+// Worker concurrency derived from the HOST, not a magic constant — the same
+// config is fast on the 64c/188GB devbox and safe on a small CI runner, with no
+// box-specific number to go stale (the prior hardcoded `4` was calibrated for a
+// decommissioned 14c/15GB box). Mirrors the memory-aware ceiling in
+// packages/measures/src/_runners/capture-ci-checks.ts. The cap is the MIN of:
+//   • CPU knee — half the logical cores. Measured on the 64c/188GB devbox the
+//     full unit suite is 4f→208s, 16f→69s, 32f→64s, 64f→77s: past ~cores/2 the
+//     shared transform/collect phase thrashes and wall time REGRESSES (and
+//     timer-based tests flake more), so more forks is actively worse, not just
+//     wasteful.
+//   • RAM budget — 75% of total memory at ~1.5 GB/fork (measured peak). On a
+//     4c/16GB runner this binds first (→2 forks, ~3 GB) so we never reproduce
+//     the OOM cascade that reaped systemd on the old box.
+const PER_FORK_GB = 1.5
+const MEMORY_UTILISATION = 0.75
+const cpuCeiling = Math.max(1, Math.floor(availableParallelism() / 2))
+const memCeiling = Math.max(1, Math.floor((totalmem() / 1024 ** 3 * MEMORY_UTILISATION) / PER_FORK_GB))
+const maxWorkers = Math.min(cpuCeiling, memCeiling)
 // TODO: drop the .worktrees handling below once migrate-worktrees-to-sibling.sh
 // has run and .worktrees/ is empty. Sibling vt-wts/ is outside the repo root,
 // so vitest never walks into it.
@@ -96,13 +116,10 @@ export default defineConfig({
       'default',
       [ciCheckReporter, ciCheck],
     ],
-    // Cap concurrency: vitest defaults to availableParallelism(), which on the
-    // 14-core devbox + 15 GB RAM with no swap = ~14 workers × ~1.3 GB each =
-    // OOM cascade that reaps systemd. 4 is the safe ceiling (~6 GB peak).
     pool: 'forks',
     poolOptions: {
-      forks: { maxForks: 4 },
-      threads: { maxThreads: 4 },
+      forks: { maxForks: maxWorkers },
+      threads: { maxThreads: maxWorkers },
     },
     // Codebase-health tests parse the whole repo and can exceed the default 5s
     // budget under parallel-worker CPU contention.
