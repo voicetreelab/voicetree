@@ -32,7 +32,7 @@ export const ELECTRON_CAPABILITIES: RuntimeCapabilities = {
 export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     nativeFolderPicker: false,
     worktrees: false,
-    clipboardImages: false,
+    clipboardImages: true,
     settingsPersistence: false,
 }
 

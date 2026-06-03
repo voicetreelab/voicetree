@@ -18,8 +18,13 @@ describe('capability records', () => {
         expect(KEYS.every(k => ELECTRON_CAPABILITIES[k])).toBe(true)
     })
 
-    it('the browser supports none of them', () => {
-        expect(KEYS.some(k => BROWSER_CAPABILITIES[k])).toBe(false)
+    it('the browser supports clipboard images (VTD round-trip), but not the other native ops', () => {
+        expect(BROWSER_CAPABILITIES).toEqual({
+            nativeFolderPicker: false,
+            worktrees: false,
+            clipboardImages: true,
+            settingsPersistence: false,
+        })
     })
 
     it('both records declare exactly the same keys (no drift)', () => {
