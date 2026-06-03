@@ -198,7 +198,8 @@ async function main(): Promise<void> {
             contractVersion: VTD_CONTRACT_VERSION,
             commandFingerprint: {
                 executable: process.execPath,
-                args: process.argv.slice(1),
+                // execArgv carries tsx loader flags `ps` shows but argv omits — see startDaemon.ts.
+                args: [...process.execArgv, ...process.argv.slice(1)],
             },
             clock: Date.now,
         })
