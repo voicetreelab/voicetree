@@ -245,6 +245,22 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
+  packages/libraries/layout-quality:
+    dependencies:
+      '@vt/graph-model':
+        specifier: '*'
+        version: link:../graph-model
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
   packages/libraries/observability:
     dependencies:
       '@opentelemetry/api':

@@ -229,6 +229,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-tools -> graph-state': 12,
     'graph-tools -> paths': 1,
     'graph-tools -> vt-rpc': 8,
+    // 2026-06-03: new @vt/layout-quality package — the pure, test-only
+    // layout-quality scorer, relocated out of webapp so a verification tool no
+    // longer drags graph-model coupling into the app. Its geometry module reuses
+    // graph-model's battle-tested `spatial` primitives (segmentsIntersect,
+    // rectIntersectsSegment) instead of duplicating them — 2 value symbols. This
+    // reuse IS the edge's purpose; growing it would mean re-implementing geometry.
+    'layout-quality -> graph-model': 2,
     'perf-fixtures -> paths': 1,
     // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
     // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
