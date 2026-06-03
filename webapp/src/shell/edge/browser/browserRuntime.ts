@@ -49,6 +49,13 @@ import {
 import {createBrowserTerminalRuntime} from './browserTerminal'
 import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
 import {BROWSER_CAPABILITIES} from '@/shell/runtimeCapabilities'
+import {
+    vtdCreateWorktree,
+    vtdGenerateWorktreeName,
+    vtdListWorktrees,
+    vtdRemoveWorktree,
+    vtdRemoveWorktreeCommand,
+} from './vtdWorktreeClient'
 
 type Listener = (...args: unknown[]) => void
 
@@ -201,7 +208,10 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         getStartupProjectHint: () => Promise.resolve({kind: 'open-folder', projectPath}),
         stopFileWatching: () => Promise.resolve(),
         shutdownGraphDaemon: () => Promise.resolve(),
-        getWatchStatus: () => Promise.resolve({isWatching: false}),
+        // graphd watches the project daemon-side, so the browser IS "watching"
+        // via VTD. Surface the project path as the watched directory: the
+        // worktree menu derives its repoRoot from `getWatchStatus().directory`.
+        getWatchStatus: () => Promise.resolve({isWatching: true, directory: projectPath}),
         getProjectPaths: async () => {
             const ps = await vtdGetProject(vtdUrl, vtdToken)
             return {readPaths: ps.readPaths ?? [], writeFolderPath: ps.writeFolderPath ?? ''}
@@ -311,11 +321,19 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         checkMicrophonePermission: () => Promise.resolve('denied' as const),
         requestMicrophonePermission: () => Promise.resolve('denied' as const),
         openMicrophoneSettings: () => Promise.resolve(),
-        listWorktrees: () => Promise.resolve([]),
-        createWorktree: () => unsupported('createWorktree'),
-        generateWorktreeName: () => Promise.resolve(''),
-        removeWorktree: () => unsupported('removeWorktree'),
-        getRemoveWorktreeCommand: () => Promise.resolve(''),
+        // Worktrees — VTD owns the git plumbing. The HostAPI contract passes a
+        // repoRoot (an Electron artifact), but the daemon resolves the repo root
+        // from its OWN loaded project, so the browser-supplied path is ignored:
+        // the gateway never runs git against a client-controlled path.
+        listWorktrees: () => vtdListWorktrees(vtdUrl, vtdToken),
+        createWorktree: (_repoRoot: string, worktreeName: string) =>
+            vtdCreateWorktree(vtdUrl, vtdToken, worktreeName),
+        generateWorktreeName: (nodeTitle: string) =>
+            vtdGenerateWorktreeName(vtdUrl, vtdToken, nodeTitle),
+        removeWorktree: (_repoRoot: string, worktreePath: string, force?: boolean) =>
+            vtdRemoveWorktree(vtdUrl, vtdToken, worktreePath, force ?? false),
+        getRemoveWorktreeCommand: (worktreePath: string, force?: boolean) =>
+            vtdRemoveWorktreeCommand(vtdUrl, vtdToken, worktreePath, force ?? false),
         getStarredFolders: () => vtdGetStarredFolders(vtdUrl, vtdToken),
         addStarredFolder: (folderPath: string) =>
             vtdAddStarredFolder(vtdUrl, vtdToken, folderPath).finally(() => void refreshFolderTrees()),

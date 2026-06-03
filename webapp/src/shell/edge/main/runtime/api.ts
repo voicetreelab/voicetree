@@ -54,8 +54,7 @@ import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClip
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from '@/shell/edge/main/agent/runAgentOnSelectedNodes';
-import {listWorktrees, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
-import {createWorktreeWithHooks as createWorktree} from '@/shell/edge/main/workspace/worktree/createWorktreeWithHooks';
+import {listWorktrees, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand, createWorktreeWithHooks as createWorktree} from '@vt/vt-daemon/workspace/worktree';
 import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/workspace/project-scanner';
 import {loadProjects, saveProject, removeProject} from '@/shell/edge/main/workspace/project-store';
 import {showFolderPicker, createNewProject} from '@/shell/edge/main/workspace/show-folder-picker';

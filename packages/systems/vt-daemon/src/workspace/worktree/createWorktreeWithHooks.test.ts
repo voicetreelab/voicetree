@@ -36,6 +36,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 
 import {createWorktreeWithHooks} from './createWorktreeWithHooks'
+import {gitEnv} from './gitWorktreeInternals'
 
 // Per-test teardown: restore env and delete temp dirs so each case is hermetic.
 const cleanups: Array<() => void> = []
@@ -56,8 +57,11 @@ afterEach(() => {
     while (cleanups.length > 0) cleanups.pop()!()
 })
 
+// Strip any GIT_DIR/GIT_WORK_TREE/GIT_COMMON_DIR leaked into the test process by
+// an enclosing git hook — as the production `gitEnv` does — so the throwaway
+// repo resolves from `cwd` and never operates on the real repo.
 function git(repoRoot: string, args: readonly string[]): void {
-    execFileSync('git', args, {cwd: repoRoot, stdio: 'pipe'})
+    execFileSync('git', args, {cwd: repoRoot, stdio: 'pipe', env: gitEnv()})
 }
 
 function trackTempDir(prefix: string): string {
