@@ -71,12 +71,26 @@ export {
     computeMetricsFromProject,
     computeAllMetrics,
     computeSCC,
+    computeSCCComponents,
     computeKCoreDegeneracy,
     computeArboricity,
     estimatePlanarity,
+    loadProjectGraph,
     type EdgePair,
     type GraphMetrics,
 } from './view/graphMetrics'
+
+export {
+    computeGraphComplexity,
+    computeComplexityFromProject,
+    branchingFactor,
+    crossingPressure,
+    isBipartite,
+    degreeEntropy,
+    type GraphComplexityResult,
+    type ComplexityPillar,
+    type ComplexityRating,
+} from './view/graphComplexity'
 
 export {
     selectFormat,

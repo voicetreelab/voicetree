@@ -69,6 +69,7 @@ Subcommands:
   create      Create progress nodes in the graph
   group       Group files into a new folder and update all references
   lint        Lint graph for complexity violations and warnings
+  complexity  Score graph cognitive complexity (branching, treewidth, crossings, coupling, cycles)
   rename      Rename a file and update all references
   mv          Move a file or folder and update all references
   index       Build a local semantic search index for a project
@@ -197,6 +198,11 @@ async function dispatchGraphCommand(
             await graphLintCommand(terminalId, args)
             return
         }
+        case 'complexity': {
+            const {graphComplexity} = await import('./commands/graph/core/graph.ts')
+            await graphComplexity(terminalId, args)
+            return
+        }
         case 'rename': {
             const {graphRename} = await import('./commands/node/rename.ts')
             await graphRename(terminalId, args)
@@ -246,7 +252,7 @@ const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
     'spawn', 'list', 'wait', 'close', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
-    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'rename', 'mv', 'group',
+    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
     'project', 'session', 'view', 'search', 'debug', 'serve', 'webapp', 'manual',
