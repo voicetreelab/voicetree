@@ -5,7 +5,7 @@
  *
  * Pure types only. No I/O, no runtime logic.
  *
- * `TerminalLifecycle`, `TerminalKillReason`, and `AgentEventKind` are now
+ * `TerminalLifecycle`, `TerminalKillReason`, and `AgentStatus` are now
  * canonically owned by `@vt/vt-daemon-protocol` (BF-376 outbound) so the
  * VTD wire contract can describe them without back-importing agent-runtime.
  * Re-exported here to keep the in-package `lifecycle` deep path stable.
@@ -14,22 +14,22 @@
 import type {
     TerminalLifecycle,
     TerminalKillReason,
-    AgentEventKind,
+    AgentStatus,
 } from '@vt/vt-daemon-protocol'
 
-export type {TerminalLifecycle, TerminalKillReason, AgentEventKind}
+export type {TerminalLifecycle, TerminalKillReason, AgentStatus}
 
 /**
  * Discriminated union of every signal the lifecycle reducer can consume.
- * All sources (PTY, hook server, OS poller) push events onto a single
- * stream; `derive` is agnostic to who produced what.
+ * All sources (PTY, OS poller, the agent's own status preset) push events
+ * onto a single stream; `derive` is agnostic to who produced what.
  */
 export type TerminalEvent =
     | { readonly type: 'output'; readonly at: number }
     | { readonly type: 'input'; readonly at: number }
     | { readonly type: 'exit'; readonly at: number; readonly code: number | null; readonly signal: string | null }
     | { readonly type: 'tick'; readonly at: number }
-    | { readonly type: 'agent_event'; readonly at: number; readonly kind: AgentEventKind };
+    | { readonly type: 'agent_event'; readonly at: number; readonly kind: AgentStatus };
 
 /**
  * Per-terminal carry state for the reducer. The `lifecycle` field is what

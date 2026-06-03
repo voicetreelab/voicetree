@@ -9,7 +9,7 @@
 export type {
     TerminalLifecycle,
     TerminalKillReason,
-    AgentEventKind,
+    AgentStatus,
     TerminalEvent,
     TerminalSignalState,
     DeriveConfig,

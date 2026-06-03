@@ -46,7 +46,8 @@ import type {
     GraphParentContext,
     Result,
 } from './createGraphTypes'
-import {listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
+import {applyAgentStatus, listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
+import type {AgentStatus} from '@vt/vt-daemon-protocol'
 
 export type {CreateGraphNodeInput}
 
@@ -56,6 +57,17 @@ export interface CreateGraphParams {
     readonly outputPath?: string
     readonly nodes: readonly CreateGraphNodeInput[]
     readonly override_with_rationale?: readonly OverrideEntry[]
+    /**
+     * Agent-authored status preset reported alongside this progress node. Drives
+     * the caller terminal's lifecycle icon in the sidebar (working→active,
+     * awaiting_input, done→completed, failed→errored).
+     */
+    readonly agentStatus?: AgentStatus
+    /**
+     * Free-text live status phrase (≤ MAX_STATUS_PHRASE_LENGTH chars) shown next
+     * to the model name in the terminal tree.
+     */
+    readonly statusPhrase?: string
 }
 
 function errorResponse(error: string): McpToolResponse {
@@ -320,6 +332,8 @@ export async function createGraphTool(
         outputPath,
         nodes,
         override_with_rationale,
+        agentStatus,
+        statusPhrase,
     }: CreateGraphParams,
     bridge: GraphBridge,
 ): Promise<McpToolResponse> {
@@ -370,6 +384,13 @@ export async function createGraphTool(
     await appendNodesToCallerContext(callerRecord, batchResult.allNewNodeIds, bridge)
 
     resetTerminalAuditRetryCount(callerTerminalId)
+
+    // Apply the agent-authored status reported with this progress node. This is
+    // the sole driver of the caller's lifecycle icon + live status phrase now
+    // that the legacy CLI-hook adapter is gone. No-op when neither is provided.
+    if (agentStatus !== undefined || statusPhrase !== undefined) {
+        applyAgentStatus(callerTerminalId, {preset: agentStatus, phrase: statusPhrase})
+    }
 
     return buildJsonResponse({
         success: true,

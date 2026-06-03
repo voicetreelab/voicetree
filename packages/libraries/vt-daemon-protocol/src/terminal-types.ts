@@ -49,12 +49,23 @@ export type TerminalLifecycle =
 export type TerminalKillReason = 'user' | 'external';
 
 /**
- * Agent lifecycle events emitted by hooks (Claude Code
- * Notification/Stop/UserPromptSubmit, Codex Stop/PermissionRequest/
- * UserPromptSubmit) or the SDK (`markAwaiting` / `markDone`). The sole
- * source of `awaiting_input`.
+ * Agent-authored status preset. An agent picks one of these when it creates a
+ * progress node (`create_graph`'s `agentStatus`); it is the sole driver of the
+ * non-output-derived lifecycle states. Maps to `TerminalLifecycle`:
+ *   working → active · awaiting_input → awaiting_input · done → completed ·
+ *   failed → errored  (an orchestrator with active children downgrades
+ *   awaiting_input/done to idle — it is waiting on its children, not the user).
  */
-export type AgentEventKind = 'awaiting' | 'done' | 'working';
+export const AGENT_STATUSES = ['working', 'awaiting_input', 'done', 'failed'] as const;
+export type AgentStatus = (typeof AGENT_STATUSES)[number];
+
+/**
+ * Max length of the free-text live status phrase an agent attaches to a progress
+ * node (`create_graph`'s `statusPhrase`). Rendered next to the model name in the
+ * terminal tree, so it is clamped to keep the row readable. Over-long phrases
+ * are truncated to this length at the registry boundary.
+ */
+export const MAX_STATUS_PHRASE_LENGTH = 80;
 
 // ---------------------------------------------------------------------------
 // Terminal identity & data
@@ -91,6 +102,12 @@ export type TerminalData = {
     readonly isPinned: boolean;
     readonly isDone: boolean;
     readonly lifecycle: TerminalLifecycle;
+    /**
+     * Agent-authored free-text live status (≤ MAX_STATUS_PHRASE_LENGTH chars),
+     * shown next to the model name in the terminal tree. Empty string until the
+     * agent reports one via `create_graph`'s `statusPhrase`.
+     */
+    readonly statusPhrase: string;
     readonly lastOutputTime: number;
     readonly activityCount: number;
 
@@ -206,3 +223,7 @@ export type TerminalRecordPatch =
     }
     | { readonly kind: 'done'; readonly value: boolean }
     | { readonly kind: 'lifecycle'; readonly value: TerminalLifecycle }
+    // Outbound-only, like `lifecycle`: the daemon owns the status phrase (set
+    // from an agent's `create_graph` call) and broadcasts it; the renderer
+    // never sends this patch.
+    | { readonly kind: 'statusPhrase'; readonly value: string }

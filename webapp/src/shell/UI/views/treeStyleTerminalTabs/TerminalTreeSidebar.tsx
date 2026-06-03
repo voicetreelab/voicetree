@@ -266,6 +266,11 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
                 )}
                 <span className="terminal-tree-agent-id" title={terminalId}>
                     {terminalId}{terminal.agentTypeName ? ` - ${terminal.agentTypeName}` : ''}{terminal.isHeadless ? ' (Headless)' : ''}
+                    {terminal.statusPhrase ? (
+                        <span className="terminal-tree-status-phrase" title={terminal.statusPhrase}>
+                            {' '}— {terminal.statusPhrase}
+                        </span>
+                    ) : null}
                 </span>
             </span>
 
