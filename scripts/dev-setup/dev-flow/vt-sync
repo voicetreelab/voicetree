@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# vt-sync — fast-forward THIS machine's read-only base to origin now, then nudge
-# the other machine's base too. The on-demand counterpart to the 2-3 min timer.
+# vt-sync — bring the latest shared `dev` into your current branch.
+#
+# In the per-machine-branch model there is no read-only base and no sync daemon:
+# you work on your own writable branch ($VT_DEV_BRANCH) and stay current by
+# merging the integration branch in. This is the on-demand "catch up to dev".
 #
 # Usage:
-#   vt-sync                # ff this base + nudge the other machine
-#   vt-sync --local-only   # ff only this machine's base
+#   vt-sync                  # fetch origin, merge origin/<integration> into HEAD
+#   vt-sync --onto <branch>  # merge a different upstream branch instead of dev
 set -euo pipefail
 
 _self="${BASH_SOURCE[0]}"
@@ -16,13 +19,32 @@ _DIR="$(cd "$(dirname "$_self")" && pwd)"
 # shellcheck source=_common.sh
 . "$_DIR/_common.sh"
 
-# This is the interactive, on-demand path — surface what the base-sync tick did
-# (the 2-3 min timer leaves this unset and stays silent). See vt-sync-base.sh.
-export VT_SYNC_VERBOSE=1
-
+onto=""
 case "${1:-}" in
-  --local-only) nudge_local ;;
-  -h|--help)    sed -n '2,/^set -euo/p' "$_self" | sed 's/^# \{0,1\}//;/^set -euo/d' ;;
-  "")           nudge_both ;;
-  *)            echo "vt-sync: unknown argument: $1 (try --local-only)" >&2; exit 64 ;;
+  --onto)    onto="${2:-}" ;;
+  --onto=*)  onto="${1#--onto=}" ;;
+  -h|--help) sed -n '2,/^set -euo/p' "$_self" | sed 's/^# \{0,1\}//;/^set -euo/d'; exit 0 ;;
+  "")        ;;
+  *)         echo "vt-sync: unknown argument: $1 (try --onto <branch>)" >&2; exit 64 ;;
 esac
+[ -n "$onto" ] || onto="$(integration_branch)"
+
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "vt-sync: not inside a git repository" >&2; exit 1; }
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+echo "vt-sync: fetching origin and merging origin/$onto into $branch"
+git fetch origin "$onto"
+if git merge-base --is-ancestor "origin/$onto" HEAD; then
+  echo "vt-sync: $branch already contains origin/$onto — up to date"
+  exit 0
+fi
+if ! git merge --no-edit "origin/$onto"; then
+  {
+    echo ""
+    echo "vt-sync: merge of origin/$onto hit a conflict — git will not guess."
+    echo "  resolve it, then:  git merge --continue"
+    echo "  or back out:       git merge --abort"
+  } >&2
+  exit 1
+fi
+echo "vt-sync: $branch now contains origin/$onto"
