@@ -19,8 +19,10 @@ import {
 import type {TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {
     isAgentComplete,
+    getReportedStatus,
     type IsAgentCompleteDeps,
 } from '../src/agent-runtime/agent-control/completion/isAgentComplete.ts'
+import type {TerminalLifecycle} from '@vt/vt-daemon/agent-runtime/lifecycle'
 
 function buildGraphNode(nodeId: string, title: string, agentName: string, isContextNode: boolean = false): GraphNode {
     return {
@@ -256,5 +258,77 @@ describe('isAgentComplete progress-node gate', () => {
 
         const result: boolean = isAgentComplete(record, graph, NOW, [record], undefined, depsWith({}))
         expect(result).toBe(true)
+    })
+})
+
+describe('isAgentComplete authoritative lifecycle signal', () => {
+    const NOW: number = 100_000
+
+    // No idle, no nodes, alive < 30 min — the heuristic alone would NOT say "done".
+    // Only a settled lifecycle should flip these to complete.
+    function strictDeps(): IsAgentCompleteDeps {
+        return {
+            getIdleSince: (_id: string) => null,
+            getAgentNodes: (_id: string) => [],
+            getNewNodesForAgent: (_g: Graph, _n: string | undefined, _s: number) => [],
+        }
+    }
+
+    function withLifecycle(data: TerminalData, lifecycle: TerminalLifecycle, isHeadless: boolean = false): TerminalData {
+        return {...data, lifecycle, isHeadless}
+    }
+
+    it('treats a self-reported headless agent (lifecycle=completed) as complete before its process exits', () => {
+        // The reported bug: a headless agent that declared done via create_graph but whose
+        // process is still alive (status running) was polled forever by the heuristic.
+        const data: TerminalData = withLifecycle(makeTerminalData('agent-x', 'alpha'), 'completed', true)
+        const record: TerminalRecord = makeRecord('agent-x', data, 'running')
+        record.spawnedAt = NOW - 60_000 // 1 min — well within the 30-min gate
+
+        const result: boolean = isAgentComplete(record, buildGraph(), NOW, [record], undefined, strictDeps())
+        expect(result).toBe(true)
+    })
+
+    it('treats lifecycle=errored as complete', () => {
+        const data: TerminalData = withLifecycle(makeTerminalData('agent-x', 'alpha'), 'errored', true)
+        const record: TerminalRecord = makeRecord('agent-x', data, 'running')
+        record.spawnedAt = NOW - 60_000
+
+        const result: boolean = isAgentComplete(record, buildGraph(), NOW, [record], undefined, strictDeps())
+        expect(result).toBe(true)
+    })
+
+    it('does NOT complete a self-reported-done parent while a child is still running', () => {
+        // Robustness: a settled lifecycle is authoritative for the agent ITSELF, but the
+        // subtree is only done when descendants are too.
+        const parent: TerminalData = withLifecycle(makeTerminalData('agent-a', 'alpha'), 'completed', true)
+        const child: TerminalData = makeTerminalData('agent-b', 'beta', 'agent-a') // running, not settled
+        const recordA: TerminalRecord = makeRecord('agent-a', parent, 'running')
+        const recordB: TerminalRecord = makeRecord('agent-b', child, 'running')
+        recordA.spawnedAt = NOW - 60_000
+        recordB.spawnedAt = NOW - 60_000
+
+        const result: boolean = isAgentComplete(recordA, buildGraph(), NOW, [recordA, recordB], undefined, strictDeps())
+        expect(result).toBe(false)
+    })
+})
+
+describe('getReportedStatus', () => {
+    function withLifecycle(data: TerminalData, lifecycle: TerminalLifecycle, isHeadless: boolean = false): TerminalData {
+        return {...data, lifecycle, isHeadless}
+    }
+
+    it('reports the settled lifecycle over the runtime heuristic', () => {
+        const completed: TerminalRecord = makeRecord('a', withLifecycle(makeTerminalData('a', 'alpha'), 'completed', true), 'running')
+        const errored: TerminalRecord = makeRecord('b', withLifecycle(makeTerminalData('b', 'beta'), 'errored', true), 'running')
+        expect(getReportedStatus(completed)).toBe('completed')
+        expect(getReportedStatus(errored)).toBe('errored')
+    })
+
+    it('falls back to the runtime heuristic when the lifecycle has not settled', () => {
+        const running: TerminalRecord = makeRecord('c', withLifecycle(makeTerminalData('c', 'gamma'), 'active', true), 'running')
+        const exited: TerminalRecord = makeRecord('d', withLifecycle(makeTerminalData('d', 'delta'), 'spawning'), 'exited')
+        expect(getReportedStatus(running)).toBe('running')
+        expect(getReportedStatus(exited)).toBe('exited')
     })
 })

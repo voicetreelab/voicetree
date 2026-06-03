@@ -3,10 +3,12 @@
  * Used by the async agent monitor to notify parent agents when all children complete.
  */
 
+import type {ReportedAgentStatus} from './isAgentComplete'
+
 export interface AgentResult {
     terminalId: string
     agentName: string | undefined
-    status: 'running' | 'idle' | 'exited'
+    status: ReportedAgentStatus
     exitCode: number | null
     nodes: Array<{nodeId: string; title: string}>
     /** Truncated last output from headless agent — included when exitCode !== 0 for diagnostics. */
@@ -22,8 +24,8 @@ export function buildCompletionMessage(agentResults: AgentResult[], stillWaiting
             agent.nodes.length > 0
                 ? agent.nodes.map((n: {nodeId: string; title: string}) => `${n.title} (${n.nodeId})`).join(', ')
                 : '(no nodes created)'
-        const statusLabel: string = agent.status === 'exited' && agent.exitCode !== null
-            ? `exited:${agent.exitCode}`
+        const statusLabel: string = (agent.status === 'exited' || agent.status === 'errored') && agent.exitCode !== null
+            ? `${agent.status}:${agent.exitCode}`
             : agent.status
         parts.push(`- ${name} [${statusLabel}]: ${nodeList}`)
         if (agent.lastOutput) {
