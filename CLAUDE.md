@@ -48,40 +48,7 @@ Code search & navigation tools (use over grep when applicable):
 - `ck --sem` — semantic search for when you can't guess any keyword (e.g. "graceful shutdown" → `cleanupOwnedDaemon`). Run `ck --index .` to completion once per repo (10-30min) before relying on it; otherwise indexing is hidden in query latency.
 - `cgcli` (`@vt/code-graph-cli`) — symbol-resolved call graph (`callers` / `callees` / `reachable` / `hotspots`). Use over grep when navigating by structure (grep can't follow barrel re-exports) and to surface the codebase's worst-coupled functions.
 
-## Concept → path map
-
-Where each concept's implementation actually *lives* — read the home dir instead of grep-discovering it. Entries are directories unless a file is named. Cross-cutting names with no single home list the primary owner + "use cgcli". Note: `packages/systems/agent-runtime` and `packages/systems/voicetree-mcp` are stubs (no tracked source) — the agent-runtime and MCP tools live under `vt-daemon/src/` (rows below).
-
-| Concept | Canonical home |
-|---|---|
-| Daemon entry / core / config | `packages/systems/vt-daemon/src/` (`index.ts`, `core/`, `config/`) |
-| Transport (HTTP / WS / SSE) | `packages/systems/vt-daemon/src/transport/` |
-| RPC routes | `packages/systems/vt-daemon/src/rpc/` (`*Routes.ts`) |
-| Daemon tools (tool catalog) | `packages/systems/vt-daemon/src/tools/` |
-| Hooks (Claude hook events) | `packages/systems/vt-daemon/src/hooks/` |
-| `create_graph` (graph-create RPC) | `packages/systems/vt-daemon/src/create-graph/` |
-| Subgraph component / size gate | `…/create-graph/subgraphComponent.ts` + `packages/measures/src/_subgraph_gate/` |
-| Session / live state | `packages/systems/vt-daemon/src/state/` |
-| Daemon lifecycle / ownership | `packages/systems/vt-daemon/src/lifecycle/` + `packages/libraries/daemon-lifecycle/src/` |
-| Agent runtime (spawn / terminals / inject / recovery) | `packages/systems/vt-daemon/src/agent-runtime/` |
-| Agent-control tools (spawn / send / list / close / unseen) | `packages/systems/vt-daemon/src/agent-runtime/agent-control/` |
-| Agent status reporting (`agentStatus` / `statusPhrase`) | `packages/systems/vt-daemon/src/agent-runtime/` — cross-cutting, use cgcli |
-| `vt` CLI verbs | `packages/systems/voicetree-cli/src/commands/` (`graph/`, `runtime/`, `node/`) |
-| Daemon client (CLI ↔ daemon) | `packages/systems/vt-daemon-client/src/` |
-| Graph-DB client | `packages/systems/graph-db-client/src/` |
-| Graph-DB server | `packages/systems/graph-db-server/src/` (`routes/`, `search/`, `state/`) |
-| RPC transport lib (auth token, port discovery) | `packages/libraries/vt-rpc/src/` |
-| Daemon / graph protocol + `vt manual` specs | `packages/libraries/vt-daemon-protocol/src/`, `…/graph-db-protocol/src/` |
-| Graph model (types, markdown, folders, paths) | `packages/libraries/graph-model/src/` |
-| Project paths (root, normalize) | `packages/libraries/paths/src/` |
-| Graph schema validation | `packages/systems/voicetree-graph-validation/src/` (+ `…/create-graph/createGraphValidation.ts`) |
-| Codebase-health & duplication measures | `packages/measures/src/health/`, `…/src/duplication-*/` |
-| Layout quality scoring | `packages/libraries/layout-quality/src/` |
-| Webapp shell (UI) | `webapp/src/shell/UI/` |
-| Graph rendering (cytoscape) | `webapp/src/shell/UI/cytoscape-graph-ui/` |
-| Graph layout algorithms | `…/cytoscape-graph-ui/graphviz/layout/` |
-| Webapp host bridge / edge | `webapp/src/shell/edge/` |
-| Terminal UI | `webapp/src/core/terminal/` |
+**Concept → path map** — to find where a concept's code actually lives (daemon, transport, rpc, hooks, agent-runtime, create_graph, cli, graph-db, measures, webapp shell/layout, …) without grep-discovery rounds, read `docs/agent-concept-path-map.md`.
 
 <!-- VOICETREE_AGENT_DISCOVERY_START -->
 Run `vt manual` for the VoiceTree `vt` CLI reference (`vt manual <verb>` for one tool).
