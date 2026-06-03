@@ -28,6 +28,28 @@ export interface RuntimeCapabilities {
      * daemon it cannot replace, so switching is a launcher concern.
      */
     readonly projectSwitching: boolean
+    /**
+     * Usage/observability panel: token-JSONL scraping, headless `claude /usage`
+     * PTY scrape, and the native-terminal "open in Claude/Codex" shortcuts
+     * (getUsageData / refreshClaudeUsageHeadless / openClaudeUsage /
+     * openCodexStatus). Desktop-only; the browser hides the UsageSection.
+     */
+    readonly usageObservability: boolean
+    /**
+     * Deep-link to the OS microphone-permission settings pane
+     * (openMicrophoneSettings). Native only — a browser grants mic access via
+     * getUserMedia + its own site-settings UI, which pages cannot open
+     * programmatically, so the "Open System Settings" affordance is hidden.
+     */
+    readonly nativeMicrophoneSettings: boolean
+    /**
+     * Ask-mode (askQuery / askModeCreateAndSpawn): semantic-search the graph for
+     * a question then create a context node and spawn an agent on it. Native
+     * only for now — the semantic backend (text-to-tree server) is not reachable
+     * from the browser and there is no VTD createContextNodeFromQuestion+spawn
+     * route yet, so the browser hides the Ask toggle rather than silently no-op.
+     */
+    readonly askMode: boolean
 }
 
 export const ELECTRON_CAPABILITIES: RuntimeCapabilities = {
@@ -36,6 +58,9 @@ export const ELECTRON_CAPABILITIES: RuntimeCapabilities = {
     clipboardImages: true,
     settingsPersistence: true,
     projectSwitching: true,
+    usageObservability: true,
+    nativeMicrophoneSettings: true,
+    askMode: true,
 }
 
 export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
@@ -46,6 +71,9 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     clipboardImages: false,
     settingsPersistence: false,
     projectSwitching: false,
+    usageObservability: false,
+    nativeMicrophoneSettings: false,
+    askMode: false,
 }
 
 /**
