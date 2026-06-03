@@ -1,0 +1,60 @@
+import {describe, it, expect} from 'vitest';
+import {
+    AGENT_ID_HASH_LENGTH,
+    AGENT_ID_SEPARATOR,
+    agentBaseName,
+    formatAgentId,
+    getUniqueAgentName,
+} from './types';
+
+describe('formatAgentId', () => {
+    it('joins base name and hash with the separator', () => {
+        expect(formatAgentId('Ayu', 'k3f')).toBe(`Ayu${AGENT_ID_SEPARATOR}k3f`);
+    });
+});
+
+describe('agentBaseName', () => {
+    it('strips the uniqueness hash', () => {
+        expect(agentBaseName('Ayu-k3f')).toBe('Ayu');
+    });
+
+    it('round-trips with formatAgentId', () => {
+        expect(agentBaseName(formatAgentId('Richard', 'z9q'))).toBe('Richard');
+    });
+
+    it('leaves a bare base name (no hash) unchanged', () => {
+        expect(agentBaseName('Ayu')).toBe('Ayu');
+    });
+
+    it('strips only the trailing hash, preserving multi-token base names', () => {
+        expect(agentBaseName('JianYang-7ab')).toBe('JianYang');
+    });
+});
+
+describe('getUniqueAgentName', () => {
+    it('appends the supplied hash to the base name', () => {
+        expect(getUniqueAgentName('Sam', new Set(), () => 'q4z')).toBe('Sam-q4z');
+    });
+
+    it('regenerates until the candidate is free', () => {
+        const hashes: string[] = ['aaa', 'aaa', 'ccc'];
+        const taken: ReadonlySet<string> = new Set(['Sam-aaa']);
+        expect(getUniqueAgentName('Sam', taken, () => hashes.shift()!)).toBe('Sam-ccc');
+    });
+
+    it('produces a hash of the configured length over [a-z0-9] by default', () => {
+        const id: string = getUniqueAgentName('Sam', new Set());
+        const hash: string = id.slice(`Sam${AGENT_ID_SEPARATOR}`.length);
+        expect(id.startsWith(`Sam${AGENT_ID_SEPARATOR}`)).toBe(true);
+        expect(hash).toMatch(new RegExp(`^[a-z0-9]{${AGENT_ID_HASH_LENGTH}}$`));
+    });
+
+    it('the default random source makes repeated draws of one base name distinct', () => {
+        // 46,656 ids per base name — a handful of draws colliding is astronomically
+        // unlikely, which is the whole point of the hash.
+        const ids: Set<string> = new Set(
+            Array.from({length: 50}, () => getUniqueAgentName('Sam', new Set())),
+        );
+        expect(ids.size).toBe(50);
+    });
+});

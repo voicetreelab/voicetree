@@ -17,8 +17,8 @@ describe('appendPersonaToAgentPrompt', () => {
         expect(out).toBe(BASE);
     });
 
-    it('resolves the persona through a collision-suffixed name', () => {
-        const out = appendPersonaToAgentPrompt(BASE, 'Richard_1', {siliconValleyMode: true});
+    it('resolves the persona through a hash-suffixed id', () => {
+        const out = appendPersonaToAgentPrompt(BASE, 'Richard-k3f', {siliconValleyMode: true});
         expect(out.AGENT_PROMPT).toContain('Richard Hendricks');
     });
 
