@@ -298,12 +298,20 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             callVtdRpc(vtdUrl, vtdToken, 'killUnclaimedTmuxSession', req as Record<string, unknown>),
         refreshRecoverySessions: () =>
             callVtdRpc(vtdUrl, vtdToken, 'discoverRecoverableAgentSessions', {}),
-        resumeRecoverySession: (req: unknown) =>
-            callVtdRpc(vtdUrl, vtdToken, 'resumeRecoverySession', req as Record<string, unknown>),
-        forkRecoverySession: (req: unknown) =>
-            callVtdRpc(vtdUrl, vtdToken, 'forkRecoverySession', req as Record<string, unknown>),
-        removeRecoverySession: (req: unknown) =>
-            callVtdRpc(vtdUrl, vtdToken, 'removeRecoverySession', req as Record<string, unknown>),
+        // GATE (agent-recovery resume/fork/remove): browser-mode cannot resume a
+        // persisted agent session yet. Unlike the unclaimed-tmux attach/kill above
+        // and refresh/discovery (which work), resume/fork/remove need the
+        // Electron-parity adapter: VTD's routes (resumePersistedAgentSession /
+        // forkAgentSession / removePersistedAgentRecord) take {terminalId}, return a
+        // result.kind union, and the renderer must map that union and LAUNCH the
+        // resumed terminal (see recovery-session-sync.ts). The previous raw
+        // passthrough did none of that and called route names VTD never registers.
+        // Recoverable rows do not surface in browser today (discovery returns []
+        // until the daemon env fix), so these are unreachable; the throwers are the
+        // defence-in-depth backstop until the real browser recovery adapter lands.
+        resumeRecoverySession: () => unsupported('resumeRecoverySession'),
+        forkRecoverySession: () => unsupported('forkRecoverySession'),
+        removeRecoverySession: () => unsupported('removeRecoverySession'),
         // GATE (askMode): the UI hides the Ask toggle in browser mode. Full
         // ask-mode needs a browser-reachable semantic backend plus a VTD
         // createContextNodeFromQuestion+spawn route — neither exists yet. These
