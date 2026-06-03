@@ -150,6 +150,14 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             },
             handler: async (args): Promise<McpToolResponse> => {
                 const {absolutePath, body, editorId} = args as unknown as GraphWriteMarkdownFile.Request
+                // Defence in depth: a browser may only write inside the project
+                // allowlist. Legitimate saves target loaded node paths (always
+                // within the allowlist), so this never fires for real clients —
+                // it stops a stolen/minted token from writing arbitrary files.
+                const projectState = await client.getProject()
+                if (!(await isPathWithinAllowlist(absolutePath, projectState))) {
+                    throw new Error('writeMarkdownFile: target path is outside the project allowlist')
+                }
                 return json(await client.writeMarkdownFile(absolutePath, body, editorId))
             },
         },
@@ -203,6 +211,15 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             inputShape: {path: z.string()},
             handler: async (args): Promise<McpToolResponse> => {
                 const {path} = args as unknown as GraphSetWriteFolderPath.Request
+                // The write folder must stay inside the allowlist: graphd loads
+                // (reads) the target and persists it as the write destination, so
+                // an unscoped path is both a read and a write escape. New dated
+                // folders are created under the project (createDatedVoiceTreeFolder
+                // calls the client directly), so legitimate switches pass.
+                const projectState = await client.getProject()
+                if (!(await isPathWithinAllowlist(path, projectState))) {
+                    throw new Error('setWriteFolderPath: path is outside the project allowlist')
+                }
                 return json(await client.setWriteFolderPath(path))
             },
         },
@@ -273,7 +290,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             handler: async (args): Promise<McpToolResponse> => {
                 const {rootPath, maxDepth} = args as unknown as GraphGetDirectoryTree.Request
                 const projectState = await client.getProject()
-                if (!isPathWithinAllowlist(rootPath, projectState)) return json(null)
+                if (!(await isPathWithinAllowlist(rootPath, projectState))) return json(null)
                 const tree = maxDepth === undefined
                     ? await getDirectoryTree(rootPath)
                     : await getDirectoryTree(rootPath, maxDepth)
@@ -286,7 +303,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             handler: async (args): Promise<McpToolResponse> => {
                 const {parentPath, folderName} = args as unknown as GraphCreateSubfolder.Request
                 const projectState = await client.getProject()
-                if (!isPathWithinAllowlist(parentPath, projectState)) {
+                if (!(await isPathWithinAllowlist(parentPath, projectState))) {
                     return json({success: false, error: 'Parent folder is outside the project allowlist'})
                 }
                 return json(await createSubfolder(parentPath, folderName))
@@ -324,7 +341,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
                 // Starred trees are scanned by getFolderTreeSync, so a starred path
                 // must stay inside the allowlist — never let a browser star (and
                 // thereby have the daemon scan) an arbitrary filesystem location.
-                if (isPathWithinAllowlist(folderPath, projectState)) await addStarredFolder(folderPath)
+                if (await isPathWithinAllowlist(folderPath, projectState)) await addStarredFolder(folderPath)
                 return json(null)
             },
         },
@@ -343,7 +360,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             handler: async (args): Promise<McpToolResponse> => {
                 const {nodeId, targetFolderPath} = args as unknown as GraphCopyNodeToFolder.Request
                 const projectState = await client.getProject()
-                if (!isPathWithinAllowlist(targetFolderPath, projectState)) {
+                if (!(await isPathWithinAllowlist(targetFolderPath, projectState))) {
                     return json({success: false, targetPath: '', error: 'Target folder is outside the project allowlist'})
                 }
                 const graph = await client.getGraph()

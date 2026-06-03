@@ -333,6 +333,7 @@ async function main(): Promise<void> {
             // on/off` after `configureTmuxSession`. Default false keeps
             // browser-style text selection working without holding Shift.
             getTmuxMouseMode: async (): Promise<boolean> => (await loadSettings()).terminalTmuxMouseMode ?? false,
+            getProjectState: async () => gdb.client.getProject(), // allowlist for /clipboard-image + /image FS routes
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats
