@@ -1,13 +1,9 @@
-import path from 'node:path'
-import { promises as fs } from 'node:fs'
-import type { Stats } from 'node:fs'
 import * as O from 'fp-ts/lib/Option.js'
-import { getCallbacks, getAvailableFolders, parseSearchQuery, toAbsolutePath } from '@vt/graph-model'
-import type { AbsolutePath, AvailableFolderItem, FilePath } from '@vt/graph-model'
-import type { ParsedQuery } from '@vt/graph-model'
+import { getCallbacks } from '@vt/graph-model'
+import type { AvailableFolderItem, FilePath } from '@vt/graph-model'
 import { createDatedSubfolder } from '@vt/app-config/project'
+import { selectAvailableFolders } from '@vt/app-config/folders'
 import type { ProjectState } from '@vt/graph-db-client'
-import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import {
@@ -26,70 +22,16 @@ async function getProjectState(): Promise<ProjectState> {
     return await callDaemon((client) => client.getProject())
 }
 
-async function getActiveProjectRoot(): Promise<string | null> {
-    try {
-        return (await getProjectState()).projectRoot
-    } catch {
-        return null
-    }
-}
-
 export async function getAvailableFoldersForSelector(
     searchQuery: string,
 ): Promise<readonly AvailableFolderItem[]> {
-    const projectRoot: string | null = await getActiveProjectRoot()
-    if (!projectRoot) {
+    // Shared with VTD's browser-mode gateway: the selector projection lives in
+    // @vt/app-config/folders, parameterised by the live project state.
+    try {
+        return await selectAvailableFolders(await getProjectState(), searchQuery)
+    } catch {
         return []
     }
-
-    const loadedPaths: readonly AbsolutePath[] =
-        (await getProjectPaths()).map((p: string) => toAbsolutePath(p))
-    const parsed: ParsedQuery = parseSearchQuery(searchQuery)
-
-    if (parsed.isAbsolute && parsed.basePath) {
-        try {
-            const stat: Stats = await fs.stat(parsed.basePath)
-            if (!stat.isDirectory()) {
-                return []
-            }
-        } catch {
-            return []
-        }
-
-        const subfolders: readonly { path: AbsolutePath; modifiedAt: number }[] =
-            await getSubfoldersWithModifiedAt(toAbsolutePath(parsed.basePath))
-        return getAvailableFolders(
-            toAbsolutePath(parsed.basePath),
-            loadedPaths,
-            subfolders,
-            searchQuery,
-            parsed.filterText,
-        )
-    }
-
-    let scanRoot: AbsolutePath
-    let filterText: string
-    if (parsed.basePath) {
-        const targetPath: string = path.join(projectRoot, parsed.basePath)
-        if (!(await isValidSubdirectory(projectRoot, targetPath))) {
-            return []
-        }
-        scanRoot = toAbsolutePath(targetPath)
-        filterText = parsed.filterText
-    } else {
-        scanRoot = toAbsolutePath(projectRoot)
-        filterText = searchQuery
-    }
-
-    const subfolders: readonly { path: AbsolutePath; modifiedAt: number }[] =
-        await getSubfoldersWithModifiedAt(scanRoot)
-    return getAvailableFolders(
-        toAbsolutePath(projectRoot),
-        loadedPaths,
-        subfolders,
-        searchQuery,
-        filterText,
-    )
 }
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
@@ -188,20 +130,6 @@ export async function createDatedVoiceTreeFolder(): Promise<{
     }
 }
 
-export async function createSubfolder(
-    parentPath: string,
-    folderName: string,
-): Promise<{ success: boolean; path?: string; error?: string }> {
-    if (!folderName || folderName.includes('/') || folderName.includes('\\')) {
-        return { success: false, error: 'Invalid folder name' }
-    }
-    const fullPath: string = path.join(parentPath, folderName)
-    try {
-        await fs.mkdir(fullPath, { recursive: true })
-        return { success: true, path: fullPath }
-    } catch (error) {
-        const message: string = error instanceof Error ? error.message : String(error)
-        return { success: false, error: message }
-    }
-}
+// Re-export the shared mkdir-under-parent op (also used by VTD's gateway).
+export { createSubfolder } from '@vt/app-config/folders'
 
