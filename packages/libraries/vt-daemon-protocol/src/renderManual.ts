@@ -2,15 +2,12 @@
  * Pure markdown renderer for `ToolSpec` data.
  *
  * Replaces the static `cli-manual.md` file plus its `parseManual.ts`
- * parser: the manual is generated on demand from the spec data. Three
+ * parser: the manual is generated on demand from the spec data. Two
  * consumers call into here:
  *
  *   - `vt manual` (and `vt manual <verb>`) — renders the full manual
  *     or a single section so users can pull tool docs without leaving
  *     the terminal.
- *   - Spawn-time injection (`@vt/vt-daemon` → `cliManualInjection.ts`)
- *     renders the `essentials` slice and splices it into the spawned
- *     agent's AGENT_PROMPT.
  *   - Webapp project-bootstrap (`projectAgentDiscoveryFile.ts`) renders
  *     the `overview` slice (preamble + Essentials + a pointer to
  *     `vt manual <verb>`, no full Reference dump) to advertise the `vt`
@@ -32,8 +29,7 @@ export interface RenderManualOptions {
     /**
      * - `'essentials'` emits only the essentials-tier specs — no
      *   preamble, no Reference section, no Essentials wrapper headers.
-     *   Used by spawn-time AGENT_PROMPT injection, where compactness is
-     *   paramount.
+     *   Used by concise discovery surfaces that want only the core verbs.
      * - `'overview'` emits the preamble + the Essentials section (whose
      *   header points readers at `vt manual <verb>` for anything else)
      *   but omits the full Reference dump. Used for the always-on

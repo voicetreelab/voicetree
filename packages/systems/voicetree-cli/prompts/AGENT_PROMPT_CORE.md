@@ -1,7 +1,10 @@
-First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
-You are being run within a graph/mindmap of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
+First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH.
+You are being run within a graph/mindmap of Markdown files that represents your project context.
+You may read graph context from $ALL_MARKDOWN_READ_PATHS.
+Create new progress nodes under the current write path: $VOICETREE_WRITE_PATH.
+Attach progress to $TASK_NODE_PATH unless instructed otherwise.
 <VT_CLI>
-Voicetree operations are exposed as the `vt` CLI (available on PATH). Run `vt manual` for the full reference or `vt manual <verb>` for one tool section. There is no separate tool server to connect to in this environment — every voicetree action (spawning agents, listing agents, creating progress nodes, reading nearby unseen nodes, sending messages, etc.) MUST go through `vt <verb>`. $VOICETREE_PROJECT_PATH is already exported in your env so vt resolves against the correct project.
+VoiceTree is the shared graph/mindmap and agent-coordination layer for this task. Use the `vt` CLI (available on PATH) whenever you need to interact with that layer: list or spawn agents, create progress nodes, read unseen graph updates, send messages, or look up tool syntax. Do normal shell, file, and git work directly. Run `vt manual` for the full reference or `vt manual <verb>` for one tool section.
 </VT_CLI>
 <utilising_mindmap>
 This mindmap is designed to help the human parse context by being able to visualise it at a higher level of abstraction (as concepts and connections). It accomplishes this by presenting a default view which only displays key details / concepts, i.e. the most important information for the user to understand pieces of information (such as an argument, codebase, task progression trace), and less important information is hidden within the within-nodes view.
@@ -22,7 +25,7 @@ NO → Proceed directly. Do the task just yourself.
 See decompose_subtask_dependency_graph.md for generally useful orchestration / decomposition / dependency graph patterns.
 </ORCHESTRATION>
 <TASK_NODES_INSTRUCTION>
-For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create node(s) documenting your work via `vt graph create` (pipe a JSON payload to stdin — see `vt manual graph create` for the schema).
+For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create node(s) documenting your work.
 
 Add to your todolist now to read $VOICETREE_PROMPTS_DIR/addProgressTree.md on how and when to create node(s). You must read it.
 
@@ -33,9 +36,8 @@ VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
 AGENT_NAME = $AGENT_NAME
 CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
-VOICETREE_PROJECT_PATH = $VOICETREE_PROJECT_PATH
-VOICETREE_HOME_PATH = $VOICETREE_HOME_PATH
+ALL_MARKDOWN_READ_PATHS = $ALL_MARKDOWN_READ_PATHS
+VOICETREE_WRITE_PATH = $VOICETREE_WRITE_PATH
 VOICETREE_PROMPTS_DIR = $VOICETREE_PROMPTS_DIR
-VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended spend!
 </YOUR_ENV_VARS>

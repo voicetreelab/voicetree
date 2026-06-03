@@ -9,7 +9,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import {getRuntimeEnv, getGraphBridge} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-bridge'
-import {appendCliManualToAgentPrompt} from './injection/cliManualInjection'
+import {appendCliDiscoveryToAgentPrompt} from './injection/cliManualInjection'
 import {prependVtBinToPath, prependHomeBinToPath, readVtBinDirOrNull} from './injection/vtPathInjection'
 import {readDaemonPortFromProject} from './daemonUrlFile'
 import {promises as fs} from 'fs'
@@ -96,8 +96,8 @@ export async function buildTerminalEnvVars(params: {
         ...(params.envOverrides ?? {}),
     }
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
-    const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered)
-    const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withManual, params.agentName, params.settings)
+    const withCliDiscovery: Record<string, string> = appendCliDiscoveryToAgentPrompt(filtered)
+    const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withCliDiscovery, params.agentName, params.settings)
     const vtBinDir: string | null = await readVtBinDirOrNull()
     // $HOME/bin is prepended first so the daemon's vt-bin can sit in front of it.
     // Final order: vtBinDir : $HOME/bin : ...inherited PATH
