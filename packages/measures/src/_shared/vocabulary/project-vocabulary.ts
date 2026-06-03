@@ -161,8 +161,6 @@ export const PATH_ALLOWANCES: readonly PathAllowance[] = [
     // endpoint or read the stale `.mcpServers.voicetree` entry. Likely dead;
     // allowed (not deleted) pending review — see the rename-plan node.
     {pathPrefix: 'scripts/on-new-node.cjs', category: 'suspected-dead', reason: 'onNewNode hook is live-wired (copied into projects by tools-setup.ts) but POSTs to the removed /mcp endpoint via VOICETREE_MCP_PORT — a live-broken dead-MCP ref; Lochlan to repoint-vs-remove'},
-    {pathPrefix: 'webapp/scripts/trigger-overnight.sh', category: 'suspected-dead', reason: 'reads stale .mcpServers.voicetree.url — verify before deleting'},
-    {pathPrefix: 'webapp/scripts/com.voicetree.overnight-runner.plist', category: 'suspected-dead', reason: 'overnight runner requires the removed MCP server — verify before deleting'},
 
     // Historical migration design docs (LOCKED, Lochlan-ratified) and OpenSpec
     // change records: point-in-time records that accurately use the vocabulary
