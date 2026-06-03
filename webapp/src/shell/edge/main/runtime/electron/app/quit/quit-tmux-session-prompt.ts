@@ -8,11 +8,7 @@ export type QuitTerminalRecord = {
     }
 }
 
-export type QuitTmuxCleanupPolicy = {
-    readonly tmuxSessions: 'preserve' | 'terminate'
-}
-
-export type QuitTmuxSessionDecision = 'preserve' | 'terminate' | 'cancel'
+export type QuitTmuxSessionDecision = 'quit' | 'cancel'
 
 export type QuitTmuxSessionSummary = {
     readonly agentName: string
@@ -58,7 +54,7 @@ export function formatQuitTmuxSessionDetails(sessions: readonly QuitTmuxSessionS
         'Active tmux sessions:',
         ...sessionLines,
         '',
-        'Keep them running so they can be reattached after restart, or stop them before quitting.',
+        'Running agents will stay available for reattachment after Voicetree quits.',
     ].join('\n')
 }
 
@@ -66,17 +62,12 @@ export function buildQuitTmuxSessionPromptModel(sessions: readonly QuitTmuxSessi
     return {
         type: 'question',
         title: 'Quit with active tmux sessions?',
-        message: 'Keep tmux running in the background?',
+        message: 'Quit Voicetree?',
         detail: formatQuitTmuxSessionDetails(sessions),
-        buttons: ['Keep Running', 'Stop Sessions', 'Cancel Quit'],
-        choices: ['preserve', 'terminate', 'cancel'],
+        buttons: ['Quit', 'Cancel Quit'],
+        choices: ['quit', 'cancel'],
         defaultId: 0,
-        cancelId: 2,
+        cancelId: 1,
         noLink: true,
     }
-}
-
-export function cleanupPolicyForQuitTmuxDecision(decision: QuitTmuxSessionDecision): QuitTmuxCleanupPolicy | null {
-    if (decision === 'cancel') return null
-    return {tmuxSessions: decision}
 }

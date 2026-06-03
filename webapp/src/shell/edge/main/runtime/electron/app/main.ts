@@ -52,7 +52,7 @@ import {shutdownActiveDaemonConnection} from '@/shell/edge/main/runtime/electron
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 import {unsubscribeFromTerminalRegistrySse} from '@/shell/edge/main/runtime/electron/daemon/sync/terminal-registry-sse-subscription';
-import {installQuitLifecycleHandlers} from './quit-lifecycle';
+import {installQuitLifecycleHandlers} from './quit/quit-lifecycle';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
