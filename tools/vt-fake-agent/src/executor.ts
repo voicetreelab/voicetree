@@ -75,6 +75,7 @@ export async function executeScript(
           env.terminalId,
           action.nodes.map((node) => buildCreateGraphNode(env, node)),
           env.outputDir,
+          {agentStatus: action.status, statusPhrase: action.statusPhrase},
         )
         break
       }
