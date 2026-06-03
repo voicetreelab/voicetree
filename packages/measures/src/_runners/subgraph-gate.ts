@@ -34,6 +34,7 @@ import {resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {DEFAULT_REPO_ROOT} from '../_shared/discovery/discover-packages.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
+import {runGitWorktreeCommand} from '../_shared/run-git.ts'
 import {appendScore} from '../_shared/writers/scores-history-writer.ts'
 import {
     listMeasures,
@@ -109,9 +110,7 @@ function readRawStagedDiffPaths(): readonly string[] {
 }
 
 function getStagedTreeFiles(repoRoot: string): ReadonlySet<string> {
-    const stdout = execFileSync('git', ['ls-files', '--cached', '-z'], {
-        cwd: repoRoot,
-        encoding: 'utf8',
+    const stdout = runGitWorktreeCommand(['ls-files', '--cached', '-z'], repoRoot, {
         maxBuffer: 256 * 1024 * 1024,
         stdio: ['ignore', 'pipe', 'pipe'],
     })
