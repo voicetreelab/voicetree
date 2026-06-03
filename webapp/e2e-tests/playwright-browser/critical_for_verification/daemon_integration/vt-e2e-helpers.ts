@@ -13,25 +13,29 @@
  */
 
 import {readFileSync} from 'node:fs'
-import {dirname, join} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
 import {type Page} from '@playwright/test'
 
-const HERE: string = dirname(fileURLToPath(import.meta.url))
-
-// Cross-process handoff written by globalSetup, read here in worker processes.
-// Under webapp/test-results (already gitignored). daemon_integration is four
-// levels below webapp: daemon_integration -> critical_for_verification ->
-// playwright-browser -> e2e-tests -> webapp.
+// Cross-process handoff written by globalSetup, read here in worker processes,
+// removed by globalTeardown.
 //
 // Keyed by PLAYWRIGHT_PORT so distinct concurrent runs (e.g. parallel agents on
-// different ports) write distinct handoff files instead of clobbering one
-// another. globalSetup, the workers, and globalTeardown all run in processes
-// that inherit PLAYWRIGHT_PORT for a given invocation, so they agree on the path.
+// different ports, or several slices sharing one checkout) write distinct
+// handoff files instead of clobbering one another. globalSetup, the workers, and
+// globalTeardown all run in processes that inherit PLAYWRIGHT_PORT for a given
+// invocation, so they agree on the path.
+//
+// Lives in the OS temp dir, NOT webapp/test-results: Playwright wipes its output
+// directory (test-results) at the START of every run, so a concurrent run on a
+// different port starting mid-flight would delete THIS run's handoff file there
+// and strand its workers with "daemon-config not found". The OS temp dir is
+// outside Playwright's purview, so per-port concurrent runs in one checkout are
+// genuinely isolated — the whole point of keying by port.
 const HANDOFF_PORT: string = process.env.PLAYWRIGHT_PORT ?? '3100'
 export const DAEMON_CONFIG_FILE: string = join(
-  HERE,
-  `../../../../test-results/daemon-config-${HANDOFF_PORT}.json`,
+  tmpdir(),
+  `vt-browser-daemon-config-${HANDOFF_PORT}.json`,
 )
 
 export interface BrowserDaemonTestConfig {
