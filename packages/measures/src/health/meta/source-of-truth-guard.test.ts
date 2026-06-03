@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
-import {runGitWorktreeCommand} from '../../_shared/run-git'
+import {runGitWorktreeCommand} from '../../_shared/discovery/run-git.ts'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))

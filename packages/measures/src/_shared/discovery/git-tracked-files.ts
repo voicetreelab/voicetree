@@ -1,6 +1,6 @@
 import {existsSync} from 'node:fs'
 import {join} from 'node:path'
-import {runGitWorktreeCommand} from '../run-git'
+import {runGitWorktreeCommand} from './run-git.ts'
 
 export function listGitTrackedFiles(repoRoot: string): readonly string[] {
     const stdout = runGitWorktreeCommand(['ls-files', '-z'], repoRoot, {

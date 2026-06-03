@@ -3,7 +3,7 @@ import {mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {runGitWorktreeCommand} from './run-git'
+import {runGitWorktreeCommand} from './run-git.ts'
 
 // Reproduce the leak a git hook creates: GIT_DIR is exported into the hook
 // environment without GIT_WORK_TREE, pointing at a git dir from which git cannot

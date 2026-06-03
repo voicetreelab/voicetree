@@ -2,7 +2,7 @@ import {basename, isAbsolute, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {type PackageInfo} from '../../../_shared/discovery/discover-packages'
 import {buildImportGraph} from '../../../_shared/graph/import-graph'
-import {runGitWorktreeCommand} from '../../../_shared/run-git'
+import {runGitWorktreeCommand} from '../../../_shared/discovery/run-git.ts'
 import {statOrNull} from '../../../_shared/stat-or-null'
 import {type DiagramSpec, parseArchitectureMd} from './architecture-contract'
 
