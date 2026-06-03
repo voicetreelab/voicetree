@@ -22,6 +22,7 @@ import type {Size} from '@vt/graph-model/graph';
 import {
     ALL_RESIZE_HANDLES,
     computeResizedFolderSize,
+    resizeBiasForHandle,
     type ResizeHandle,
 } from '@/shell/UI/cytoscape-graph-ui/services/folder-handle/folderResize';
 
@@ -128,6 +129,17 @@ export function setupFolderResize(
         const startY: number = startEvent.clientY;
         let latest: Size = startSize;
 
+        // Anchor the edge OPPOSITE the grip so the grip tracks the cursor 1:1
+        // and the chip strip (chevron + eye, pinned to the folder's top-left
+        // corner) stays attached. Set once at drag start — bias only
+        // redistributes the min-* slack, so re-applying it every frame would
+        // add pointless restyles. The stylesheet seeds every resized folder with
+        // a top-left anchor (defaultNodeStyles); this overrides only the dragged
+        // axis so a west/north drag grows toward the cursor instead.
+        for (const [prop, value] of Object.entries(resizeBiasForHandle(handle))) {
+            node.style(prop, value);
+        }
+
         // Coalesce mousemoves to one rAF tick. Raw mousemove can fire faster than
         // the display refresh (high-Hz mice, trackpads), and each folderWidth /
         // folderHeight write runs cytoscape's updateStyle across the folder + its
@@ -162,7 +174,7 @@ export function setupFolderResize(
                 handle,
                 cy.zoom(),
             );
-            if (rafId === null) rafId = window.requestAnimationFrame(flush);
+            rafId ??= window.requestAnimationFrame(flush);
         };
 
         const onUp = (): void => {
