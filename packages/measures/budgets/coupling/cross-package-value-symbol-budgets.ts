@@ -291,21 +291,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
     // voicetree-home.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
     // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
-    //
-    // 2026-06-04 [PR #250 folder/settings relocation]: 2 -> 3 (+1). The folder
-    // edge + browser-safe settings moved INTO vt-daemon (its true gateway home),
-    // a net −21 coupling win across `webapp -> app-config` (33→22),
-    // `vt-daemon -> app-config` (was 13), and `app-config -> graph-model`. The
-    // residual three symbols are all genuinely-shared settings/project IO that
-    // legitimately lives in app-config: `loadSettings` (13 daemon files),
-    // `saveSettings` (3), and `createDatedSubfolder` (also consumed by
-    // graph-db-server + webapp; composes the shared `generateDateSubfolder`
-    // dated-folder convention). Dropping any would require reimplementing shared
-    // logic in vt-daemon (knowledge duplication that re-trips the dup gate).
-    // Human-approved recalibration of a budget set for the pre-relocation
-    // distribution — NOT a metric-dodge. Ratchet DOWN if settings IO is ever
-    // fronted by a single daemon-side gateway.
-    'vt-daemon -> app-config': 3,
+    'vt-daemon -> app-config': 2,
     'vt-daemon -> daemon-lifecycle': 9,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
     // client (BF-375 standalone-vtd boundary). `GraphDbClient` is constructed
@@ -341,20 +327,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
-    //
-    // 2026-06-04 [PR #250 folder/settings relocation]: 27 -> 28 (+1). Relocating
-    // the folder edge into vt-daemon brought its graph-model folder surface with
-    // it. It was consolidated hard — `projectFolderTreeSync` folds
-    // externalFoldersOf + buildFolderTreeSyncProjection into ONE scan-injected
-    // deep fn (29→28) — but one symbol is irreducible without a disproportionate
-    // change: either `toAbsolutePath` (the `AbsolutePath` brand ctor; removing it
-    // means raw-typing `getDirectoryTree`, which ripples to the
-    // `graph.getDirectoryTree` WIRE CONTRACT + browser consumers) or
-    // `nodeIdToFilePathWithExtension` (the `.md` id↔path convention; reimplementing
-    // it in vt-daemon = knowledge duplication that re-trips the dup gate).
-    // Human-approved recalibration — part of the same net −21 relocation win.
-    // Ratchet DOWN if the brand boundary is moved into graph-model (option B).
-    'vt-daemon -> graph-model': 28,
+    'vt-daemon -> graph-model': 27,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
