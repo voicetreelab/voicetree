@@ -81,6 +81,7 @@ function readFolderNodes(folderAbsPath: string): readonly GardenFolderNode[] {
     const nodes: GardenFolderNode[] = []
     for (const entry of entries) {
         if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+        if (entry.name.startsWith('.')) continue // dotfiles (e.g. macOS ._ AppleDouble) are never nodes
         if (entry.name === identityNote) continue
         const content: string = readFileSync(join(folderAbsPath, entry.name), 'utf8')
         if (/^isContextNode:\s*true\s*$/m.test(content)) continue
