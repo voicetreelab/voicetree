@@ -163,6 +163,40 @@ function isExecutableFile(candidate: string): boolean {
 }
 
 /**
+ * Materialize an app-controlled, no-op `post-checkout` git hook and return its
+ * directory, suitable for `-c core.hooksPath=<dir>` on `git worktree add`.
+ *
+ * WHY: `git worktree add` fires post-checkout AFTER checking out the branch's
+ * files, so the hook that runs is whatever `scripts/hooks/post-checkout` happens
+ * to live in that branch's tree. If the base branch is stale, the OLD hook runs
+ * — historically a blocking `pnpm install --frozen-lockfile` (~15-45 s) that
+ * stalled the spawn-in-worktree UI. We can't rely on the base branch's hook
+ * version, so we override `core.hooksPath` for THIS one invocation to point at
+ * a dir we control, containing a no-op hook.
+ *
+ * That is the right behaviour for the app-spawned path: the app already owns
+ * worktree setup via the configured blocking + async hooks (configure-cdp.sh
+ * + on-created-async.sh). git's post-checkout has nothing to add.
+ *
+ * The override applies only to the `git worktree add` invocation — it is NOT
+ * written to the new worktree's config, so subsequent git ops in the new
+ * worktree resolve hooks normally (e.g. real `git switch` still gets deps
+ * reconciliation via the branch's checked-in post-checkout).
+ *
+ * Idempotent and race-safe: identical content, mkdir-recursive, unconditional
+ * write. Lives under `os.tmpdir()` (per-user on macOS); fine to leave behind.
+ */
+function getAppOwnedHooksDir(): string {
+    const dir: string = path.join(os.tmpdir(), 'voicetree-worktree-hooks');
+    const hookPath: string = path.join(dir, 'post-checkout');
+    const body: string = '#!/bin/sh\n# No-op: VoiceTree owns worktree setup via configured hooks.\nexit 0\n';
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(hookPath, body);
+    fs.chmodSync(hookPath, 0o755);
+    return dir;
+}
+
+/**
  * Resolve the absolute path of the repository's MAIN checkout from any path
  * inside the repo — the watched dir, which may be a subdirectory of the
  * checkout or even a linked worktree. `--path-format=absolute` is required: a
@@ -258,6 +292,13 @@ async function discoverWorktreePathForBranch(repoRoot: string, branch: string): 
  * must NOT also run its own dependency bootstrap — that would double-install
  * and race on `node_modules`. The flag is a no-op for plain git.
  *
+ * `-c core.hooksPath=<app-owned no-op dir>`: belt-and-suspenders for the SKIP
+ * flag. The flag is honoured by the git-gate wrapper and by recent versions of
+ * the project's own `scripts/hooks/post-checkout`, but `git worktree add` runs
+ * the hook the branch tree contains — so a stale base re-introduces a blocking
+ * `pnpm install`. Pointing `core.hooksPath` at an app-owned no-op dir for THIS
+ * invocation makes the fast path immune to a stale base. See `getAppOwnedHooksDir`.
+ *
  * @param repoRoot - A directory inside the git repository (placement is
  *   resolved against the repo's main checkout)
  * @param worktreeName - The name for the worktree and branch
@@ -295,10 +336,13 @@ export async function createWorktree(
     // -b creates a new branch named after the worktree; `placement.destination`
     // is either the bare name (git-gate places it) or an absolute path (app
     // places it). Run from the main checkout so placement is anchored there.
+    // `-c core.hooksPath=...` overrides post-checkout for this one invocation
+    // so a stale base branch's hook can't reintroduce the blocking install.
+    const hooksDir: string = getAppOwnedHooksDir();
     try {
         await execFileAsync(
             'git',
-            ['worktree', 'add', '-b', worktreeName, placement.destination],
+            ['-c', `core.hooksPath=${hooksDir}`, 'worktree', 'add', '-b', worktreeName, placement.destination],
             { cwd: mainCheckout, env },
         );
     } catch (error) {
