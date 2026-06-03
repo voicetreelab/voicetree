@@ -23,9 +23,9 @@ self_repo() {
   if [ "$vt_uname" = "Darwin" ]; then printf '%s' "$VT_MAC_REPO"; else printf '%s' "$VT_VM_REPO"; fi
 }
 
-# This machine's working branch (machine-local; default dev-new, never dev).
-self_dev_branch() { printf '%s' "${VT_DEV_BRANCH:-dev-new}"; }
-
-# The shared integration branch a PR targets. `dev` is a team branch (not a
-# personal name), so it is referenced directly; override with VT_INTEGRATION_BRANCH.
+# The shared integration branch a PR targets / that you sync from. `dev` is a
+# team branch (not a personal name), so it is referenced directly; override with
+# VT_INTEGRATION_BRANCH. (This machine's OWN branch, $VT_DEV_BRANCH, is setup-time
+# config — see common/env.sh dev_setup_resolve_dev_branch — not needed at runtime
+# here: the commands act on the current HEAD.)
 integration_branch() { printf '%s' "${VT_INTEGRATION_BRANCH:-dev}"; }

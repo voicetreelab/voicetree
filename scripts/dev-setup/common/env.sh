@@ -53,6 +53,26 @@ dev_setup_resolve_dev_role() {
   esac
 }
 
+dev_setup_resolve_dev_branch() {
+  # This machine's OWN working branch. Machine-local config: env, then ~/.env,
+  # then the safe non-shared default `dev-new` (NEVER `dev` — a misconfigured
+  # machine must not check out / push straight to the shared integration branch).
+  # The personal names (dev-mac / dev-remote) live ONLY in ~/.env, never here.
+  if [ -n "${VT_DEV_BRANCH:-}" ]; then
+    printf '%s\n' "$VT_DEV_BRANCH"
+    return 0
+  fi
+
+  home_env="$(dev_setup_home_env)"
+  branch="$(dev_setup_read_env_value VT_DEV_BRANCH "$home_env" 2>/dev/null || true)"
+  if [ -n "$branch" ]; then
+    printf '%s\n' "$branch"
+    return 0
+  fi
+
+  printf 'dev-new\n'
+}
+
 dev_setup_resolve_remote_host() {
   worktree_path="$1"
   main_checkout="${2:-}"

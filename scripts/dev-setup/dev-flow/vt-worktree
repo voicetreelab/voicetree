@@ -54,7 +54,11 @@ case "$dest/" in
 esac
 
 mkdir -p "$wts_root"
-git -C "$base" worktree add -b "$name" "$dest" "origin/$branch"
+# Skip the synchronous post-checkout dep prewarm: we own the worktree's
+# dependency bootstrap below (on-created-async), so post-checkout must not also
+# install — that would double-install and race on node_modules. (This is the
+# existing worktree-prewarm-skip contract honored by scripts/hooks/post-checkout.)
+VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1 git -C "$base" worktree add -b "$name" "$dest" "origin/$branch"
 
 # Normalize the worktree's admin pointers to RELATIVE paths so they are
 # host-portable (needed for cross-host mutagen sync of Mac worktrees).
