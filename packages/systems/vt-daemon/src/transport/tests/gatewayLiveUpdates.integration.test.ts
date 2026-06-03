@@ -72,7 +72,6 @@ describe('gateway live updates — graphd projectedGraph → VTD /events topic g
         )
         vtd = await startHttpDaemonServer({
             catalog,
-            hookHandler: (): unknown => ({ok: true}),
             token,
             bindHost: '127.0.0.1',
             canonicalProject: project,
