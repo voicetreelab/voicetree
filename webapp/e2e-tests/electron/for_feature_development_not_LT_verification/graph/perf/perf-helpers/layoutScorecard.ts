@@ -3,14 +3,14 @@
 // (coupled to Playwright + Cytoscape); everything pure lives here.
 
 import type {
-  LayoutEdge,
-  LayoutNode,
+  LayoutQualityEdge,
+  LayoutQualityNode,
   LayoutQualityScore,
-} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/quality/layoutQualityScore';
+} from '../../../../../../src/shell/UI/cytoscape-graph-ui/graphviz/layout/quality/layoutQualityScore';
 
 export type GraphGeometry = {
-  readonly nodes: readonly LayoutNode[];
-  readonly edges: readonly LayoutEdge[];
+  readonly nodes: readonly LayoutQualityNode[];
+  readonly edges: readonly LayoutQualityEdge[];
 };
 
 // Performance is reported SEPARATELY from the composite quality score (so speed

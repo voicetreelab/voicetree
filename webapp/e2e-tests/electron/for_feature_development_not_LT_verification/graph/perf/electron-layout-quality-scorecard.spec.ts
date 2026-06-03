@@ -9,7 +9,7 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
-import { scoreLayout } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/quality/layoutQualityScore';
+import { scoreLayout } from '../../../../../src/shell/UI/cytoscape-graph-ui/graphviz/layout/quality/layoutQualityScore';
 import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
 import {
   framesToJank,
